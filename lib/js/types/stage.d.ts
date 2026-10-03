@@ -41,17 +41,39 @@ export declare class Stage {
      */
     run(tokens: Token[], sourceText: string[], unicode: UnicodeTable, options: StageOptions): StageReport;
     /**
-     * Engine §7: null when the check passes, else the two first readings of
-     * the input with its elided terminators written out.
-     * @param {ResultNode} tree
-     * @param {Token[]} tokens
-     * @param {string[]} sourceText
-     * @param {UnicodeTable} unicode
+     * Engine §7: the check of elision-only. It writes the chosen derivation's
+     * elided terminators back into the stage's input as synthetic tokens and
+     * recognizes that input, R, with the main lowering in the reconstruction
+     * mode. Every observation reads the stage's input through the projection
+     * π. The check passes where R has one derivation, and gives two readings
+     * where it has more. With none, the witness of the chosen derivation is
+     * lost.
+     * @param {Derivation} chosen D, the chosen derivation
+     * @param {ResultNode} tree D's tree
+     * @param {ParseContext} main the context of the main parse, whose memo
+     *   the check's queries share
      * @param {Set<string>} features
-     * @returns {ResultNode[] | null}
+     * @returns {ElisionCheck}
      */
-    elisionCheck(tree: ResultNode, tokens: Token[], sourceText: string[], unicode: UnicodeTable, features: Set<string>): ResultNode[] | null;
+    elisionCheck(chosen: Derivation, tree: ResultNode, main: ParseContext, features: Set<string>): ElisionCheck;
 }
+export type RestorationRecord = {
+    terminal: string;
+    at: number;
+    source: Span;
+    sound?: string;
+};
+export type ElisionCheck = ({
+    kind: "pass";
+} | {
+    kind: "ambiguous";
+    readings: ResultNode[];
+} | {
+    kind: "lost";
+    completion: RestorationRecord[];
+}) & {
+    competitorWarnings?: import("./types.js").ParseWarning[];
+};
 /**
  * The result tree of a derivation (engine §12), as a list: a spliced node
  * yields its children. The walk keeps its own stack, since a right-recursive

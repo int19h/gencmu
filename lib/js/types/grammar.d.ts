@@ -115,7 +115,7 @@ export declare class Grammar {
      */
     gates: string[];
     /**
-     * The lowered grammars, keyed by strictness and by the gates that are on.
+     * The lowered grammars, keyed by the gates that are on.
      * @type {Map<string, LoweredGrammar>}
      */
     lowered: Map<string, LoweredGrammar>;
@@ -220,13 +220,13 @@ export declare class Grammar {
     }, path: string, at: ErrorLocation): SymbolTest;
     checkReferences(): void;
     /**
-     * The productions for a set of enabled features; `strict` makes elidable
-     * optionals mandatory (engine §3.8).
+     * The productions for a set of enabled features. The check of
+     * elision-only reads the same productions in a mode of its own (engine
+     * §3.8, §7.4).
      * @param {Set<string>} features
-     * @param {boolean} strict
      * @returns {LoweredGrammar}
      */
-    lower(features: Set<string>, strict: boolean): LoweredGrammar;
+    lower(features: Set<string>): LoweredGrammar;
 }
 /**
  * @param {string} name

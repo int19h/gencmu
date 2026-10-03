@@ -1652,3 +1652,4 @@ adhoc.prose.words-stream.sa-a-bu-sa-bu
 adhoc.prose.words-stream.sa-a-bu-sa-bu.bpfk
 adhoc.prose.words-stream.a-bu
 adhoc.prose.words-stream.a-bu.bpfk
+adhoc.syntax.vau-written.final-written-then-terms.bpfk

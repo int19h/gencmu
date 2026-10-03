@@ -56,6 +56,20 @@ export type ParseError = {
      * one: a tie (engine §6) or the check of elision-only (engine §7)
      */
     reason?: "tie" | "elision-only";
+    /**
+     * a defect that the check of
+     * elision-only found: it lost its chosen derivation (engine §7.9)
+     */
+    code?: "elision-witness-lost";
+    /**
+     * for that defect, the chosen tree
+     */
+    chosen?: ResultNode;
+    /**
+     * for that defect, the terminators
+     * that the check wrote back, in their order of insertion
+     */
+    completion?: Restoration[];
     token?: number;
     source?: Span;
     line?: number;
@@ -64,6 +78,12 @@ export type ParseError = {
     readings?: ResultNode[];
     document?: string;
     message: string;
+};
+export type Restoration = {
+    terminal: string;
+    at: number;
+    source: Span;
+    sound?: string;
 };
 export type Action = ReadAction | CloseAction;
 export type ReadAction = {
@@ -516,6 +536,10 @@ export type Edge = {
     kind: "complete";
     previous: Item;
     child: Item;
+} | {
+    kind: "restore";
+    token: number;
+    terminal: string;
 };
 export type TermValue = {
     string: string;
@@ -526,6 +550,18 @@ export type SpanValue = {
     start: number;
     end: number;
     tags?: TagSet;
+    /**
+     * in the check of engine §7, a span of the
+     * reconstructed input that an observation projects ("R"), or one that a
+     * fault reads as it is ("raw"); absent for a span of the stage's input
+     */
+    space?: "R" | "raw";
+    /**
+     * for a span of the stage's
+     * input that a function computed in the check, the span of R behind it,
+     * which only faults read
+     */
+    reconstructed?: [number, number];
 };
 export type Scope = {
     capture: (name: string) => SpanValue;
@@ -637,6 +673,11 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {string} [stage]
  * @property {"tie" | "elision-only"} [reason] why an ambiguous error is
  *   one: a tie (engine §6) or the check of elision-only (engine §7)
+ * @property {"elision-witness-lost"} [code] a defect that the check of
+ *   elision-only found: it lost its chosen derivation (engine §7.9)
+ * @property {ResultNode} [chosen] for that defect, the chosen tree
+ * @property {Restoration[]} [completion] for that defect, the terminators
+ *   that the check wrote back, in their order of insertion
  * @property {number} [token]
  * @property {Span} [source]
  * @property {number} [line]
@@ -645,6 +686,16 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {ResultNode[]} [readings]
  * @property {string} [document]
  * @property {string} message
+ */
+/**
+ * A terminator that the check of elision-only wrote back (engine §7.9): its
+ * terminal, its position in the stage's input, the empty source of its
+ * elided node, and the sound of a terminator with an `=` test.
+ * @typedef {object} Restoration
+ * @property {string} terminal
+ * @property {number} at
+ * @property {Span} source
+ * @property {string} [sound]
  */
 /**
  * One step of a derivation, read bottom-up: a token read, or a production
@@ -980,7 +1031,8 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * How an item was built.
  * @typedef {{kind: "seed"} | {kind: "scan", previous: Item, token: number, terminal: string}
- *   | {kind: "complete", previous: Item, child: Item}} Edge
+ *   | {kind: "complete", previous: Item, child: Item}
+ *   | {kind: "restore", token: number, terminal: string}} Edge
  */
 /**
  * A value a term evaluates to: a string, or a set, of strings or of tags,
@@ -994,6 +1046,12 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {number} start
  * @property {number} end
  * @property {TagSet} [tags]
+ * @property {"R" | "raw"} [space] in the check of engine §7, a span of the
+ *   reconstructed input that an observation projects ("R"), or one that a
+ *   fault reads as it is ("raw"); absent for a span of the stage's input
+ * @property {[number, number]} [reconstructed] for a span of the stage's
+ *   input that a function computed in the check, the span of R behind it,
+ *   which only faults read
  */
 /**
  * Where a term looks up its captures.

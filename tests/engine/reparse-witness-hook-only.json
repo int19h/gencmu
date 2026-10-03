@@ -1,0 +1,30 @@
+{
+  "description": "Only the witness hook tells an engine that loses the chosen derivation's witness from a correct one. Under late-elision, a, with one elided T, beats b, with two. In the check, a restores T, and c and d each read the synthetic T as a bare terminal, so R has three readings and the check fails. An engine that loses a's restoration still finds c and d, and gives the same public result. The runner's witness hook fails it, since the forest no longer holds W(D) (engine §7.8, tests/README.md).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c | d\n%rule a A [T]\n%rule b A [T] [T]\n%rule c A T\n%rule d A T",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "elision-only",
+        "stage": "main"
+      }
+    }
+  }
+}

@@ -583,7 +583,7 @@
           const edge = frame.edges[step >> 1];
           /** @type {Item | null} */
           let below = null;
-          if ((step & 1) === 0) below = edge.kind === "seed" ? null : edge.previous;
+          if ((step & 1) === 0) below = edge.kind === "seed" || edge.kind === "restore" ? null : edge.previous;
           else if (edge.kind === "complete") {
             below = edge.child;
             if (omitted(edge.child)) omits = true;
@@ -700,7 +700,8 @@
         let l = 0;
         for (const edge of item.edges) {
           let through = 0;
-          if (edge.kind === "seed") through = 1;
+          // A query reads no synthetic token, so it has no restoration.
+          if (edge.kind === "seed" || edge.kind === "restore") through = 1;
           else if (edge.kind === "scan") through = eligible[at(edge.previous)];
           else {
             const before = at(edge.previous);
@@ -728,9 +729,55 @@
     return witnesses.filter((witness) => eligible[at(witness)]);
   }
 
+  // ---- testing.js
+  // Switches and hooks for the library's own tests. Nothing here is part of
+  // the API, and index.js does not export it.
+  //
+  // `faults` holds the faults of the elision-only check that a test turns on,
+  // one at a time, to show which shared cases catch each (proposal of the
+  // reconstruction, Part 4). An empty set is the engine as specified. The
+  // names are those of the fault list: F1 has one name per observer, such as
+  // "F1:after"; F27 has "F27:order" and "F27:bare"; "lost:roots" and
+  // "lost:count" lose the witness after recognition (engine §7.9).
+  //
+  // `hooks.elisionCheck`, when set, receives each check that ran and met no
+  // error of the grammar, for the witness test of tests/README.md.
+
+  /** @type {Set<string>} */
+  const faults = new Set();
+
+  /**
+   * What the check of engine §7 hands its test hook.
+   * @typedef {object} ElisionCheckRun
+   * @property {import("./types.js").Derivation} chosen D, the chosen
+   *   derivation of the main parse
+   * @property {import("./earley.js").Chart} chart the recognition of R
+   * @property {import("./types.js").Item[]} roots the completed items of
+   *   `text` over R
+   * @property {boolean[]} synthetic for each token of R, whether it is
+   *   synthetic, by its provenance
+   * @property {number[]} originalAt for each token of the stage's input, its
+   *   index in R
+   * @property {number[]} recordAt for each restoration record, the index of
+   *   its synthetic token in R
+   */
+
+  /** @type {{elisionCheck: ((run: ElisionCheckRun) => void) | null}} */
+  const hooks = { elisionCheck: null };
+
+  /**
+   * Whether a fault is on.
+   * @param {string} name
+   * @returns {boolean}
+   */
+  function fault(name) {
+    return faults.size > 0 && faults.has(name);
+  }
+
   // ---- earley.js
   // Recognition (engine §4) and the terms and conditions it evaluates
   // (engine §10).
+
 
 
 
@@ -797,15 +844,39 @@
      * @param {Token[]} tokens
      * @param {string[]} sourceText the text's code points
      * @param {UnicodeTable} unicode
+     * @param {TagInterner} [interner] the interner of another context whose
+     *   tag numbers this one shares, as the check of engine §7 shares the
+     *   main parse's
      */
-    constructor(lowered, tokens, sourceText, unicode) {
+    constructor(lowered, tokens, sourceText, unicode, interner) {
       this.lowered = lowered;
       this.tokens = tokens;
       /** Where each run of the tokens lies in the text (engine §1). */
       this.sources = new Sources(tokens);
       this.sourceText = sourceText;
       this.unicode = unicode;
-      this.interner = new TagInterner();
+      this.interner = interner || new TagInterner();
+      /**
+       * How the recognizer reads elidable optionals: null as engine §4 says,
+       * "reconstruction" in the mode of engine §7.4, or "mandatory", the old
+       * contract, where an elidable optional is never empty (a fault).
+       * @type {null | "reconstruction" | "mandatory"}
+       */
+      this.mode = null;
+      /**
+       * For each token, whether it is a synthetic token of engine §7.2, by
+       * its provenance; null where none is.
+       * @type {boolean[] | null}
+       */
+      this.synthetic = null;
+      /**
+       * On the context of the reconstructed input of engine §7, how its
+       * observations reach the stage's input; null elsewhere.
+       * @type {Reconstruction | null}
+       */
+      this.recon = null;
+      /** Whether the check of engine §7 is running over this context's input. */
+      this.checking = false;
       /**
        * Each token's phonemes in canonical form, for the sound tests of
        * symbols and for phonemes(), computed when one first looks at the
@@ -832,6 +903,20 @@
       this.trace = null;
     }
   }
+
+  /**
+   * How the recognition of the reconstructed input R observes the stage's
+   * input O (engine §7.3, §7.5).
+   * @typedef {object} Reconstruction
+   * @property {ParseContext} observed the context of O, the main parse's,
+   *   whose memo and active queries the check shares
+   * @property {number[]} project π: for each position of R, the number of
+   *   original tokens before it
+   * @property {boolean} raw whether observations read R itself, as the old
+   *   contract did (a fault)
+   * @property {Map<string, ParseContext>} faulty the contexts of queries
+   *   that a fault sends elsewhere, by fault
+   */
 
   /**
    * Something the recognizer did at the traced position: an item predicted,
@@ -874,6 +959,12 @@
       this.child = child;
       /** @type {Edge[] | null} */
       this.more = null;
+      // In the reconstruction mode (engine §7.4): whether every step that
+      // made the item is strict, and whether the item is the restoration of
+      // an elidable optional, a read of the synthetic token at its origin.
+      this.strict = false;
+      this.restores = false;
+      this.queued = true;
     }
     get complete() {
       return this.dot === this.production.rhs.length;
@@ -885,7 +976,8 @@
     get edges() {
       /** @type {Edge} */
       let first;
-      if (this.previous === null) first = SEED;
+      if (this.restores) first = { kind: "restore", token: this.origin, terminal: /** @type {string} */ (this.production.elided) };
+      else if (this.previous === null) first = SEED;
       else if (this.child === null) first = { kind: "scan", previous: this.previous, token: this.end - 1, terminal: this.production.rhs[this.dot - 1].name };
       else first = { kind: "complete", previous: this.previous, child: this.child };
       return this.more === null ? [first] : [first, ...this.more];
@@ -907,8 +999,12 @@
       this.waiting = new Map();
       /** @type {Map<string, Item[]>} */
       this.nullable = new Map();
-      /** @type {Set<string>} the rules already predicted here */
-      this.predicted = new Set();
+      /**
+       * The rules already predicted here, each with whether that prediction
+       * was strict (engine §7.4).
+       * @type {Map<string, boolean>}
+       */
+      this.predicted = new Map();
       /**
        * The rules predicted here with productions not made items, since they
        * begin with a terminal the next token does not carry; kept for saying
@@ -960,13 +1056,33 @@
     const dots = context.dots;
     const width = end - start + 1;
 
+    // The reconstruction mode of engine §7.4, or the old contract's
+    // mandatory optionals (a fault); null for the ordinary mode of §4.
+    const mode = context.mode;
+    const synthetic = context.synthetic;
+    const reading = mode === "reconstruction" ? readingOf(lowered) : null;
+    const twoItems = mode === "reconstruction" && fault("F17");
+
     // Adds the item `previous` makes advanced over `child`, or over the token
     // before the set when `child` is null; a prediction when both are null.
-    /** @type {(set: ChartSet, production: Production, dot: number, origin: number, slots: Slot[], previous: Item | null, child: Item | null, tagId: number) => void} */
-    const add = (set, production, dot, origin, slots, previous, child, tagId) => {
-      const key = itemKey((production.id * dots + dot) * width + origin - start, slots);
+    // `strict` says whether the step that makes it is strict (engine §7.4).
+    /** @type {(set: ChartSet, production: Production, dot: number, origin: number, slots: Slot[], previous: Item | null, child: Item | null, tagId: number, strict?: boolean) => void} */
+    const add = (set, production, dot, origin, slots, previous, child, tagId, strict = false) => {
+      // A strict item never completes (engine §7.4).
+      if (strict && dot === production.rhs.length) return;
+      let key = itemKey((production.id * dots + dot) * width + origin - start, slots);
+      if (twoItems && strict) key = "strict" + key;
       let item = set.index.get(key);
       if (item) {
+        // One ordinary step makes an item ordinary. It is then processed
+        // again, for what strictness held back (engine §7.4).
+        if (item.strict && !strict) {
+          item.strict = false;
+          if (!item.queued) {
+            item.queued = true;
+            set.queue.push(item);
+          }
+        }
         // The symbol before an item's dot fixes the kind of all its edges,
         // and the item fixes a read's token and terminal: two edges are the
         // same when they have the same `previous` and `child`. A prediction
@@ -982,6 +1098,7 @@
         return;
       }
       item = new Item(production, dot, origin, slots, previous, child);
+      item.strict = strict;
       recognizerCounters.items++;
       item.end = set.position;
       const trace = context.trace;
@@ -1008,15 +1125,58 @@
       }
     };
 
-    /** @type {(set: ChartSet, name: string) => void} */
-    const predict = (set, name) => {
+    // The restoration of an elidable optional at a position (engine §7.4):
+    // its empty production read over the one synthetic token there, where
+    // that token is compatible with the optional. It has no tags.
+    /** @type {(set: ChartSet, production: Production) => void} */
+    const restore = (set, production) => {
+      const position = set.position;
+      if (position >= end || !(/** @type {boolean[]} */ (synthetic)[position])) return;
+      // A fault loses the restoration of the first synthetic token, and with
+      // it the witness of the chosen derivation, while other readings can
+      // survive (F28).
+      if (fault("F28") && /** @type {boolean[]} */ (synthetic).indexOf(true) === position) return;
+      const token = tokens[position];
+      if (!token.tags.has(/** @type {string} */ (production.elided))) return;
+      const test = production.elidedTest;
+      if (test && !fault("F11") && !testHolds(context, test, position, position + 1, token.tags)) return;
+      const target = setAt(position + 1);
+      const key = itemKey((production.id * dots) * width + position - start, emptySlots(production));
+      if (target.index.has(key)) return;
+      const item = new Item(production, 0, position, emptySlots(production), null, null);
+      item.restores = true;
+      recognizerCounters.items++;
+      item.end = position + 1;
+      // It has the tags of the empty production, none, unless a fault gives
+      // it the synthetic token's (F7).
+      item.tagId = context.interner.intern(fault("F7") ? token.tags : tagSet());
+      target.items.push(item);
+      target.index.set(key, item);
+      target.queue.push(item);
+    };
+
+    /** @type {(set: ChartSet, name: string, strict?: boolean) => void} */
+    const predict = (set, name, strict = false) => {
       // A rule's productions are the same at every prediction in one set:
-      // predicting them again would only rebuild items that already exist.
-      if (set.predicted.has(name)) return;
-      set.predicted.add(name);
+      // predicting them again would only rebuild items that already exist. A
+      // strict prediction (engine §7.4) leaves some out, so an ordinary one
+      // after it adds them.
+      const before = set.predicted.get(name);
+      if (before === false || (before === true && strict)) return;
+      set.predicted.set(name, strict);
       const next = set.position < end ? tokens[set.position] : null;
       let skipped = false;
       for (const production of lowered.byLhs.get(name) || []) {
+        // In the reconstruction mode, the empty production of an elidable
+        // optional is its restoration, and it never derives the empty
+        // sequence. Under the old contract it is not there at all.
+        if (mode !== null && production.rhs.length === 0 && production.helper && production.elided !== null) {
+          // A fault leaves the restoration out of a strict prediction (F29).
+          if (mode === "reconstruction" && !(strict && fault("F29") && !fault("F16"))) restore(set, production);
+          continue;
+        }
+        // A strict prediction predicts only the productions that can read.
+        if (strict && !fault("F16") && /** @type {Reading} */ (reading).last.get(production) === -1) continue;
         const slots = emptySlots(production);
         const failed = failedCondition(context, production, -1, slots, set.position, set.position);
         if (failed) {
@@ -1033,9 +1193,9 @@
           continue;
         }
         const tagId = production.rhs.length === 0 ? completeTags(context, production, slots, set.position, set.position) : -1;
-        add(set, production, 0, set.position, slots, null, null, tagId);
+        add(set, production, 0, set.position, slots, null, null, tagId, strict && !fault("F16"));
       }
-      if (skipped) set.skipped.push(name);
+      if (skipped && before === undefined) set.skipped.push(name);
     };
 
     // The item advanced over its next symbol, which spans [from, to) and was
@@ -1046,7 +1206,7 @@
       // A tested symbol's test must hold of its own span and tags, which is
       // checked before any condition the advance makes ready (engine §4).
       const test = production.rhs[item.dot].test;
-      if (test !== undefined && !testHolds(context, test, from, to, child ? context.interner.get(child.tagId) : tokens[from].tags)) {
+      if (test !== undefined && !symbolTestHolds(context, test, from, to, child)) {
         const trace = context.trace;
         if (trace && trace.depth === 0 && to === trace.position) {
           trace.events.push({ kind: "dropped", production, dot: item.dot, origin: item.origin, test });
@@ -1057,7 +1217,10 @@
       const captureIndex = production.captures.findIndex((capture) => capture.index === item.dot);
       if (captureIndex >= 0) {
         slots = slots.slice();
-        const tags = child ? child.tagId : context.interner.intern(tokens[from].tags);
+        // A terminal that reads a synthetic token captures no tags (engine
+        // §7.5).
+        const tags = child ? child.tagId
+          : context.interner.intern(synthetic !== null && synthetic[from] && !rawObservations(context) && !fault("F7") ? tagSet() : tokens[from].tags);
         slots[captureIndex] = [from, to, tags];
       }
       const failed = failedCondition(context, production, item.dot, slots, item.origin, to);
@@ -1073,6 +1236,14 @@
       return { dot, slots, tagId };
     };
 
+    // Whether a symbol after an item's next symbol can read (engine §7.4).
+    /** @type {(item: Item) => boolean} */
+    const readsLater = (item) => /** @type {number} */ (/** @type {Reading} */ (reading).last.get(item.production)) > item.dot;
+    // Whether an advance from an item over an empty constituent is held back:
+    // a strict item does it only where a later symbol can read.
+    /** @type {(item: Item) => boolean} */
+    const emptyHeldBack = (item) => item.strict && !fault("F16") && !readsLater(item);
+
     predict(setAt(start), rule);
     let furthest = start;
     for (let position = start; position <= end; position++) {
@@ -1087,7 +1258,7 @@
         const done = setAt(position - 1);
         done.index = new Map();
         done.queue = [];
-        done.predicted = new Set();
+        done.predicted = new Map();
         done.nullable = new Map();
         done.items = done.items.slice();
         done.skipped = done.skipped.slice();
@@ -1095,27 +1266,43 @@
       }
       while (set.head < set.queue.length) {
         const item = set.queue[set.head++];
+        item.queued = false;
         const next = item.production.rhs[item.dot];
         if (!next) {
           const origin = setAt(item.origin);
+          const empty = item.origin === position;
           for (const waiting of origin.waiting.get(item.production.lhs) || []) {
+            if (empty && mode === "reconstruction" && emptyHeldBack(waiting)) continue;
             const advanced = advance(waiting, item.origin, position, item);
             if (advanced) {
-              add(set, waiting.production, advanced.dot, waiting.origin, advanced.slots, waiting, item, advanced.tagId);
+              add(set, waiting.production, advanced.dot, waiting.origin, advanced.slots, waiting, item, advanced.tagId, empty && waiting.strict);
             }
           }
         } else if (!next.terminal) {
-          predict(set, next.name);
+          // A strict item predicts its next symbol strictly where no symbol
+          // after it can read (engine §7.4).
+          predict(set, next.name, mode === "reconstruction" && item.strict && !readsLater(item));
+          if (mode === "reconstruction" && emptyHeldBack(item)) continue;
           for (const done of set.nullable.get(next.name) || []) {
             const advanced = advance(item, position, position, done);
             if (advanced) {
-              add(set, item.production, advanced.dot, item.origin, advanced.slots, item, done, advanced.tagId);
+              add(set, item.production, advanced.dot, item.origin, advanced.slots, item, done, advanced.tagId, item.strict);
             }
           }
         } else if (position < end && (next.characters === undefined ? tokens[position].tags.has(next.name) : carries(context.unicode, next.characters, tokens[position].tags))) {
+          // The written routes of an elidable optional (engine §7.4): from an
+          // original token, or from a synthetic one, after which the rest of
+          // the optional must read, so the item after it is strict.
+          let strict = false;
+          if (mode === "reconstruction" && item.dot === 0 && item.production.helper && item.production.elided !== null) {
+            const fromSynthetic = /** @type {boolean[]} */ (synthetic)[position];
+            if (fromSynthetic && fault("F14")) continue;
+            if (!fromSynthetic && fault("F24")) continue;
+            strict = fromSynthetic && !fault("F15");
+          }
           const advanced = advance(item, position, position + 1, null);
           if (advanced) {
-            add(setAt(position + 1), item.production, advanced.dot, item.origin, advanced.slots, item, null, advanced.tagId);
+            add(setAt(position + 1), item.production, advanced.dot, item.origin, advanced.slots, item, null, advanced.tagId, strict);
           }
         }
       }
@@ -1136,6 +1323,115 @@
    */
   function writtenSymbol(symbol) {
     return symbol.test ? symbol.name + symbol.test.written : symbol.name;
+  }
+
+  /**
+   * Which productions can read in the reconstruction mode (engine §7.4): for
+   * each production, the index of its last symbol that can read, or -1. A
+   * terminal can read; so can a rule or helper with a production that can,
+   * and the empty production of an elidable helper, the restoration.
+   * @typedef {{last: Map<Production, number>}} Reading
+   */
+
+  /** @type {WeakMap<LoweredGrammar, Map<boolean, Reading>>} */
+  const readings = new WeakMap();
+
+  /**
+   * @param {LoweredGrammar} lowered
+   * @returns {Reading}
+   */
+  function readingOf(lowered) {
+    // A fault leaves the restorations out (F29).
+    const withoutRestorations = fault("F29");
+    let known = readings.get(lowered);
+    if (!known) readings.set(lowered, (known = new Map()));
+    let found = known.get(withoutRestorations);
+    if (found) return found;
+    /** @type {Set<string>} */
+    const rules = new Set();
+    /** @type {(symbol: GrammarSymbol) => boolean} */
+    const reads = (symbol) => symbol.terminal || rules.has(symbol.name);
+    for (let changed = true; changed;) {
+      changed = false;
+      for (const production of lowered.productions) {
+        if (rules.has(production.lhs)) continue;
+        const restoration = production.rhs.length === 0 && production.helper && production.elided !== null;
+        if ((restoration && !withoutRestorations) || production.rhs.some(reads)) {
+          rules.add(production.lhs);
+          changed = true;
+        }
+      }
+    }
+    /** @type {Map<Production, number>} */
+    const last = new Map();
+    for (const production of lowered.productions) {
+      let at = -1;
+      production.rhs.forEach((symbol, index) => {
+        if (reads(symbol)) at = index;
+      });
+      last.set(production, at);
+    }
+    found = { last };
+    known.set(withoutRestorations, found);
+    return found;
+  }
+
+  /**
+   * Whether the test of a symbol holds where an item advances over it, the
+   * tokens [from, to), read as a token when `child` is null. A test of a
+   * terminal reads the token, with its recognition values. In the check of
+   * engine §7, a test of a reference reads its projected span and its
+   * constituent's tags (engine §7.5).
+   * @param {ParseContext} context
+   * @param {SymbolTest} test
+   * @param {number} from
+   * @param {number} to
+   * @param {Item | null} child
+   * @returns {boolean}
+   */
+  function symbolTestHolds(context, test, from, to, child) {
+    const recon = context.recon;
+    if (child === null) {
+      const synthetic = context.synthetic !== null && context.synthetic[from];
+      if (synthetic && fault("F11")) return true;
+      if (recon !== null && synthetic && fault("F10")) {
+        const observed = recon.observed;
+        const start = recon.project[from];
+        const end = recon.project[to];
+        return testHolds(observed, test, start, end, tokensTags(observed.tokens, start, end));
+      }
+      return testHolds(context, test, from, to, context.tokens[from].tags);
+    }
+    const tags = context.interner.get(child.tagId);
+    if (recon === null) return testHolds(context, test, from, to, tags);
+    if (recon.raw || fault("F9")) return testHolds(context, test, from, to, tagUnion(tags, syntheticTags(context, from, to)));
+    return testHolds(recon.observed, test, recon.project[from], recon.project[to], tags);
+  }
+
+  /**
+   * The union of the tags of the synthetic tokens of R in [from, to), which
+   * no correct observation reads (faults F7 and F9).
+   * @param {ParseContext} context
+   * @param {number} from
+   * @param {number} to
+   * @returns {TagSet}
+   */
+  function syntheticTags(context, from, to) {
+    let result = tagSet();
+    const synthetic = context.synthetic;
+    if (synthetic === null) return result;
+    for (let index = from; index < to; index++) if (synthetic[index]) result = tagUnion(result, context.tokens[index].tags);
+    return result;
+  }
+
+  /**
+   * Whether the observations of a context read the reconstructed tokens
+   * themselves, as the old contract did (a fault).
+   * @param {ParseContext} context
+   * @returns {boolean}
+   */
+  function rawObservations(context) {
+    return context.recon !== null && context.recon.raw;
   }
 
   /**
@@ -1308,7 +1604,7 @@
     for (const { condition, readyAt: at } of production.conditions) {
       if (at !== readyAt) continue;
       const scope = new ChartScope(context, production, slots, origin, end);
-      if (!holds(context, condition, scope)) return condition;
+      if (!holds(scope.observing, condition, scope)) return condition;
     }
     return null;
   }
@@ -1322,7 +1618,8 @@
    * @returns {number}
    */
   function completeTags(context, production, slots, origin, end) {
-    return context.interner.intern(constituentTags(context, production, new ChartScope(context, production, slots, origin, end)));
+    const scope = new ChartScope(context, production, slots, origin, end);
+    return context.interner.intern(constituentTags(scope.observing, production, scope));
   }
 
   /**
@@ -1352,6 +1649,13 @@
       this.slots = slots;
       this.origin = origin;
       this.end = end;
+      // In the check of engine §7, the spans of R, which every observation
+      // projects to the stage's input, where it is evaluated (engine §7.5).
+      /** @type {ParseContext | null} */
+      this.reconstructed = context.recon ? context : null;
+      this.observing = context.recon ? context.recon.observed : context;
+      /** @type {SpanValue["space"]} */
+      this.space = context.recon ? (context.recon.raw ? "raw" : "R") : undefined;
     }
     /**
      * @param {string} name
@@ -1365,12 +1669,13 @@
         return {
           start: this.origin,
           end: this.end,
-          get tags() { return constituentTags(scope.context, scope.production, scope); },
+          get tags() { return constituentTags(scope.observing, scope.production, scope); },
+          space: this.space,
         };
       }
       const index = this.production.captures.findIndex((capture) => capture.name === name);
       const slot = /** @type {[number, number, number]} */ (this.slots[index]);
-      return { start: slot[0], end: slot[1], tags: this.context.interner.get(slot[2]) };
+      return { start: slot[0], end: slot[1], tags: this.context.interner.get(slot[2]), space: this.space };
     }
   }
 
@@ -1385,17 +1690,172 @@
   function spanOf(context, span, scope) {
     if ("capture" in span) return scope.capture(span.capture);
     if ("call" in span && (span.call === "head" || span.call === "tail" || span.call === "last")) {
-      const inner = spanOf(context, span.args[0], scope);
-      const { start, end } = inner;
-      if (span.call === "head") return { start, end: Math.min(start + 1, end) };
-      if (span.call === "tail") return { start: Math.min(start + 1, end), end };
-      return { start: Math.max(end - 1, start), end };
+      // In the check, the projection comes first, then the function (engine
+      // §7.5).
+      const inner = projectedArgument(spanOf(context, span.args[0], scope), scope, span.call);
+      const { start, end, space } = inner;
+      /** @type {SpanValue} */
+      let result;
+      if (span.call === "head") result = { start, end: Math.min(start + 1, end), space };
+      else if (span.call === "tail") result = { start: Math.min(start + 1, end), end, space };
+      else result = { start: Math.max(end - 1, start), end, space };
+      if (inner.reconstructed) result.reconstructed = reconstructedPart(scope, inner.reconstructed, span.call);
+      return result;
     }
     if ("call" in span && (span.call === "from" || span.call === "after")) {
-      const inner = spanOf(context, span.args[0], scope);
-      return { start: span.call === "from" ? inner.start : inner.end, end: context.inputEnd };
+      const inner = projectedArgument(spanOf(context, span.args[0], scope), scope, span.call);
+      const r = reconstructionOf(scope);
+      const end = inner.space === "raw" ? /** @type {ParseContext} */ (r).inputEnd : context.inputEnd;
+      /** @type {SpanValue} */
+      const result = { start: span.call === "from" ? inner.start : inner.end, end, space: inner.space };
+      if (inner.reconstructed) {
+        const [a, b] = inner.reconstructed;
+        result.reconstructed = [span.call === "from" ? a : b, /** @type {ParseContext} */ (r).inputEnd];
+      }
+      return result;
     }
     throw new GencmuError("grammar", `expected a span, found ${JSON.stringify(span)}`);
+  }
+
+  /**
+   * The context of R behind a scope that reads the reconstruction, or null.
+   * @param {Scope} scope
+   * @returns {ParseContext | null}
+   */
+  function reconstructionOf(scope) {
+    return /** @type {{reconstructed?: ParseContext | null}} */ (scope).reconstructed || null;
+  }
+
+  /**
+   * The argument of a span function in the check: projected to the stage's
+   * input. A projected span remembers the span of R that it came from, which
+   * only faults read. Under a fault of the function (F1), or the old contract,
+   * the function reads R itself at the positions it has (raw).
+   * @param {SpanValue} span
+   * @param {Scope} scope
+   * @param {string} observer
+   * @returns {SpanValue}
+   */
+  function projectedArgument(span, scope, observer) {
+    const r = reconstructionOf(scope);
+    if (r === null || span.space === "raw") return span;
+    if (fault("F1:" + observer)) return { start: span.start, end: span.end, space: "raw" };
+    if (span.space !== "R") return span;
+    const project = /** @type {Reconstruction} */ (r.recon).project;
+    return { start: project[span.start], end: project[span.end], reconstructed: [span.start, span.end] };
+  }
+
+  /**
+   * The part of a span of R that a function of its projection covers: up to
+   * and including the first original token for head, after it for tail, and
+   * from the last one for last. Only faults read it (F7 and others).
+   * @param {Scope} scope
+   * @param {[number, number]} span
+   * @param {string} call
+   * @returns {[number, number]}
+   */
+  function reconstructedPart(scope, span, call) {
+    const r = /** @type {ParseContext} */ (reconstructionOf(scope));
+    const synthetic = /** @type {boolean[]} */ (r.synthetic);
+    const [a, b] = span;
+    if (call === "last") {
+      let at = b - 1;
+      while (at >= a && synthetic[at]) at--;
+      return [Math.max(at, a), b];
+    }
+    let at = a;
+    while (at < b && synthetic[at]) at++;
+    return call === "head" ? [a, Math.min(at + 1, b)] : [Math.min(at + 1, b), b];
+  }
+
+  /**
+   * Where an observation reads a span (engine §7.5): the context and the span
+   * in its positions. A span of R projects to the stage's input. A raw span,
+   * or any span under a fault of the observation (F1), reads R itself at the
+   * positions it has. `reconstructed` is the span of R behind the span, where
+   * there is one.
+   * @param {ParseContext} context
+   * @param {SpanValue} span
+   * @param {Scope} scope
+   * @param {string} observer
+   * @returns {{context: ParseContext, start: number, end: number, reconstructed: [number, number] | null}}
+   */
+  function observe(context, span, scope, observer) {
+    const r = reconstructionOf(scope);
+    if (r === null) return { context, start: span.start, end: span.end, reconstructed: null };
+    if (span.space === "raw" || fault("F1:" + observer)) return { context: r, start: span.start, end: span.end, reconstructed: [span.start, span.end] };
+    if (span.space === "R") {
+      const project = /** @type {Reconstruction} */ (r.recon).project;
+      return { context, start: project[span.start], end: project[span.end], reconstructed: [span.start, span.end] };
+    }
+    return { context, start: span.start, end: span.end, reconstructed: span.reconstructed || null };
+  }
+
+  /**
+   * The tags of a span's tokens where an observation reads them, with the
+   * synthetic tokens' tags of the span of R behind it under fault F7.
+   * @param {{context: ParseContext, start: number, end: number, reconstructed: [number, number] | null}} where
+   * @param {Scope} scope
+   * @returns {TagSet}
+   */
+  function observedTokenTags(where, scope) {
+    const tags = tokensTags(where.context.tokens, where.start, where.end);
+    const r = reconstructionOf(scope);
+    if (where.reconstructed === null || r === null || where.context === r || !fault("F7")) return tags;
+    return tagUnion(tags, syntheticTags(r, where.reconstructed[0], where.reconstructed[1]));
+  }
+
+  /**
+   * Where a query that a condition starts runs (engine §7.6): in the check,
+   * over the projected span, with the main grammar in its ordinary mode and
+   * the main parse's memo. A fault can send it elsewhere.
+   * @param {ParseContext} context
+   * @param {SpanValue} span
+   * @param {Scope} scope
+   * @returns {{context: ParseContext, start: number, end: number, key: [number, number] | null, fromCheck: boolean}}
+   */
+  function queryTarget(context, span, scope) {
+    const r = reconstructionOf(scope);
+    if (r === null) return { context, start: span.start, end: span.end, key: null, fromCheck: false };
+    const recon = /** @type {Reconstruction} */ (r.recon);
+    if (span.space === "raw") return { context: faultyContext(r, recon.raw ? "F13" : "F3"), start: span.start, end: span.end, key: null, fromCheck: true };
+    // The span in R and its projection.
+    const rspan = span.space === "R" ? [span.start, span.end] : span.reconstructed || [span.start, span.end];
+    const [start, end] = span.space === "R" ? [recon.project[span.start], recon.project[span.end]] : [span.start, span.end];
+    if (fault("F3")) return { context: faultyContext(r, "F3"), start: rspan[0], end: rspan[1], key: null, fromCheck: true };
+    for (const name of ["F2", "F5", "F6"]) {
+      if (fault(name)) return { context: faultyContext(r, name), start, end, key: null, fromCheck: true };
+    }
+    if (fault("F4")) {
+      const length = context.tokens.length;
+      return { context, start: Math.min(rspan[0], length), end: Math.min(rspan[1], length), key: null, fromCheck: true };
+    }
+    return { context, start, end, key: fault("F21") ? [rspan[0], rspan[1]] : null, fromCheck: true };
+  }
+
+  /**
+   * The context of the queries that a fault sends away from the main parse,
+   * made once per check.
+   * @param {ParseContext} r the context of R
+   * @param {string} name
+   * @returns {ParseContext}
+   */
+  function faultyContext(r, name) {
+    const recon = /** @type {Reconstruction} */ (r.recon);
+    let found = recon.faulty.get(name);
+    if (found) return found;
+    const observed = recon.observed;
+    let lowered = observed.lowered;
+    if (name === "F5") lowered = { ...lowered, maximalTerminals: new Set() };
+    if (name === "F6") lowered = { ...lowered, maximalTerminals: new Set(lowered.productions.flatMap((production) => (production.helper && production.elided !== null ? [production.elided] : []))) };
+    const tokens = name === "F3" || name === "F13" ? r.tokens : observed.tokens;
+    found = new ParseContext(lowered, tokens, observed.sourceText, observed.unicode);
+    if (name === "F13" || name === "F2") {
+      found.mode = "mandatory";
+      found.synthetic = name === "F13" ? r.synthetic : tokens.map(() => false);
+    }
+    recon.faulty.set(name, found);
+    return found;
   }
 
   /**
@@ -1460,14 +1920,14 @@
       switch (term.call) {
         case "phonemes": {
           // The canonical sound (engine §5).
-          const span = spanOf(context, args[0], scope);
+          const where = observe(context, spanOf(context, args[0], scope), scope, "phonemes");
           let sound = "";
-          for (let index = span.start; index < span.end; index++) sound += canonicalSound(context, index);
+          for (let index = where.start; index < where.end; index++) sound += canonicalSound(where.context, index);
           return { string: sound };
         }
         case "text": {
-          const span = spanOf(context, args[0], scope);
-          return { string: textOf(context, span.start, span.end) };
+          const where = observe(context, spanOf(context, args[0], scope), scope, "text");
+          return { string: textOf(where.context, where.start, where.end) };
         }
         case "split": {
           // A set of strings (engine §10); an empty delimiter that only a
@@ -1484,9 +1944,12 @@
         }
         case "tags": {
           const span = spanOf(context, args[0], scope);
-          if (args.length === 2) return { set: nestedTags(context, ruleName(args[1]), span.start, span.end) };
+          if (args.length === 2) {
+            const target = queryTarget(context, span, scope);
+            return { set: nestedTags(target.context, ruleName(args[1]), target.start, target.end, target) };
+          }
           if (span.tags && "capture" in args[0]) return { set: span.tags };
-          return { set: tokensTags(context.tokens, span.start, span.end) };
+          return { set: observedTokenTags(observe(context, span, scope, "tags"), scope) };
         }
         case "classify": {
           // The classes that the classifier gives the string, for the
@@ -1498,7 +1961,7 @@
         }
         case "classes": {
           const span = spanOf(context, args[0], scope);
-          const tags = span.tags && "capture" in args[0] ? span.tags : tokensTags(context.tokens, span.start, span.end);
+          const tags = span.tags && "capture" in args[0] ? span.tags : observedTokenTags(observe(context, span, scope, "classes"), scope);
           const result = tagSet();
           for (const tag of tags) {
             const first = tag.charCodeAt(0);
@@ -1556,15 +2019,18 @@
     // A presence test is decided when the grammar is lowered (engine §3.6).
     if ("captured" in condition) throw new GencmuError("grammar", "a presence test outlived lowering");
     if ("matches" in condition) {
-      const span = spanOf(context, condition.matches, scope);
-      return nestedMatches(context, condition.rule, span.start, span.end);
+      const target = queryTarget(context, spanOf(context, condition.matches, scope), scope);
+      return nestedMatches(target.context, condition.rule, target.start, target.end, target);
     }
     if ("begins" in condition) {
-      const span = spanOf(context, condition.begins, scope);
-      return nestedBegins(context, condition.rule, span.start, span.end);
+      const target = queryTarget(context, spanOf(context, condition.begins, scope), scope);
+      return nestedBegins(target.context, condition.rule, target.start, target.end, target);
     }
     // Where the input of the parse that reads the condition begins (engine §10).
-    if ("initial" in condition) return spanOf(context, condition.initial, scope).start === context.inputStart;
+    if ("initial" in condition) {
+      const where = observe(context, spanOf(context, condition.initial, scope), scope, "initial");
+      return where.start === where.context.inputStart;
+    }
     const left = evaluate(context, condition.left, scope);
     const right = evaluate(context, condition.right, scope);
     switch (condition.op) {
@@ -1625,11 +2091,18 @@
    * @param {number} start
    * @param {number} end
    * @param {(chart: Chart) => T} compute
+   * @param {{key: [number, number] | null, fromCheck: boolean} | null} [target]
+   *   where a query of the check came from
    * @returns {T}
    */
-  function nested(context, kind, rule, start, end, compute) {
-    const key = nestedKey(context, kind, rule, start, end);
+  function nested(context, kind, rule, start, end, compute, target = null) {
+    // A fault keys a long query of the check by its span in R (F21).
+    const key = target !== null && target.key !== null && end - start > CONTENT_KEY_LIMIT
+      ? JSON.stringify(["at", kind, rule, target.key[0], target.key[1]])
+      : nestedKey(context, kind, rule, start, end);
     if (context.nested.has(key)) return /** @type {T} */ (context.nested.get(key));
+    // A fault finds no query cycle while the check runs (F25).
+    const unseen = context.checking && fault("F25");
     // A parse in progress is known by its rule and span, whatever the kind of
     // query, so that alternating kinds cannot hide a query about a span from
     // inside its own parse (engine §4).
@@ -1639,7 +2112,7 @@
         `a condition asks whether ${JSON.stringify(textOf(context, start, end))} parses as ${rule} from inside the parse of that span as ${rule}: ` +
         `the grammar defines ${rule} in terms of itself over the same text`, { rule });
     }
-    context.inProgress.add(circular);
+    if (!unseen) context.inProgress.add(circular);
     if (context.trace) context.trace.depth++;
     try {
       const chart = recognize(context, rule, start, end);
@@ -1647,7 +2120,7 @@
       context.nested.set(key, answer);
       return answer;
     } finally {
-      context.inProgress.delete(circular);
+      if (!unseen) context.inProgress.delete(circular);
       if (context.trace) context.trace.depth--;
     }
   }
@@ -1657,10 +2130,11 @@
    * @param {string} rule
    * @param {number} start
    * @param {number} end
+   * @param {{key: [number, number] | null, fromCheck: boolean} | null} [target]
    * @returns {boolean}
    */
-  function nestedMatches(context, rule, start, end) {
-    return nested(context, "matches", rule, start, end, (chart) => eligibleWitnesses(chart, rootItems(chart, rule), testHolds).length > 0);
+  function nestedMatches(context, rule, start, end, target = null) {
+    return nested(context, "matches", rule, start, end, (chart) => eligibleWitnesses(chart, rootItems(chart, rule), testHolds).length > 0, target);
   }
 
   /**
@@ -1671,9 +2145,10 @@
    * @param {string} rule
    * @param {number} start
    * @param {number} end
+   * @param {{key: [number, number] | null, fromCheck: boolean} | null} [target]
    * @returns {boolean}
    */
-  function nestedBegins(context, rule, start, end) {
+  function nestedBegins(context, rule, start, end, target = null) {
     return nested(context, "begins", rule, start, end, (chart) => {
       /** @type {Item[]} */
       const witnesses = [];
@@ -1682,7 +2157,7 @@
         for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule) witnesses.push(item);
       }
       return eligibleWitnesses(chart, witnesses, testHolds).length > 0;
-    });
+    }, target);
   }
 
   /**
@@ -1690,11 +2165,12 @@
    * @param {string} rule
    * @param {number} start
    * @param {number} end
+   * @param {{key: [number, number] | null, fromCheck: boolean} | null} [target]
    * @returns {TagSet}
    */
-  function nestedTags(context, rule, start, end) {
+  function nestedTags(context, rule, start, end, target = null) {
     return nested(context, "tags", rule, start, end, (chart) =>
-      eligibleWitnesses(chart, rootItems(chart, rule), testHolds).reduce((acc, item) => tagUnion(acc, context.interner.get(item.tagId)), tagSet()));
+      eligibleWitnesses(chart, rootItems(chart, rule), testHolds).reduce((acc, item) => tagUnion(acc, context.interner.get(item.tagId)), tagSet()), target);
   }
 
   // The furthest position the parse reached, and what could have been read
@@ -1851,6 +2327,7 @@
    * @typedef {object} ErrorJson
    * @property {ParseError["kind"]} kind
    * @property {string} [stage]
+   * @property {"elision-witness-lost"} [code]
    * @property {"tie" | "elision-only"} [reason]
    * @property {number} [token]
    * @property {Span} [source]
@@ -1860,6 +2337,8 @@
    * @property {NodeJson[]} [readings]
    * @property {string} [document]
    * @property {string} message
+   * @property {NodeJson} [chosen]
+   * @property {import("./types.js").Restoration[]} [completion]
    */
 
   /**
@@ -1898,7 +2377,7 @@
    * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | string[] | null}} DisplayValue
    */
 
-  const RESULT_FORMAT = 7;
+  const RESULT_FORMAT = 8;
 
   /**
    * A token in the result JSON. An attached token has no span, and a list of
@@ -1954,6 +2433,7 @@
     /** @type {Partial<ErrorJson>} */
     const result = { kind: error.kind };
     if (error.stage !== undefined) result.stage = error.stage;
+    if (error.code !== undefined) result.code = error.code;
     if (error.reason !== undefined) result.reason = error.reason;
     if (error.token !== undefined) result.token = error.token;
     if (error.source !== undefined) result.source = error.source;
@@ -1963,6 +2443,16 @@
     if (error.readings !== undefined) result.readings = error.readings.map(nodeJson);
     if (error.document !== undefined) result.document = error.document;
     result.message = error.message;
+    // The members of elision-witness-lost follow its message (docs/output.md).
+    if (error.chosen !== undefined) result.chosen = nodeJson(error.chosen);
+    if (error.completion !== undefined) {
+      result.completion = error.completion.map((record) => {
+        /** @type {import("./types.js").Restoration} */
+        const json = { terminal: record.terminal, at: record.at, source: [record.source[0], record.source[1]] };
+        if (record.sound !== undefined) json.sound = record.sound;
+        return json;
+      });
+    }
     return /** @type {ErrorJson} */ (result);
   }
 
@@ -4257,7 +4747,7 @@
     const tokens = report.input;
     const features = new Set(run.features);
     const stage = dialect.stages[index];
-    const lowered = stage.grammar.lower(features, false);
+    const lowered = stage.grammar.lower(features);
     const context = new ParseContext(lowered, tokens, [...text], dialect.loader.unicode);
     const position = Math.max(0, Math.min(options.position, tokens.length));
     context.trace = { position, events: [], depth: 0 };
@@ -4461,7 +4951,7 @@
         ...this.classifierItems.flatMap(({ classifier }) => classifier.entries.flatMap((entry) => entry.guards)),
       ]);
       /**
-       * The lowered grammars, keyed by strictness and by the gates that are on.
+       * The lowered grammars, keyed by the gates that are on.
        * @type {Map<string, LoweredGrammar>}
        */
       this.lowered = new Map();
@@ -4850,23 +5340,23 @@
     }
 
     /**
-     * The productions for a set of enabled features; `strict` makes elidable
-     * optionals mandatory (engine §3.8).
+     * The productions for a set of enabled features. The check of
+     * elision-only reads the same productions in a mode of its own (engine
+     * §3.8, §7.4).
      * @param {Set<string>} features
-     * @param {boolean} strict
      * @returns {LoweredGrammar}
      */
-    lower(features, strict) {
+    lower(features) {
       // Only the gates that are on change the productions. So two sets of
       // features with the same gates on share one lowered grammar.
       const on = new Set(this.gates.filter((name) => features.has(name)));
-      const key = JSON.stringify([strict, [...on]]);
+      const key = JSON.stringify([...on]);
       let lowered = recall(this.lowered, key);
       if (!lowered) {
         // The stage resolves its classifiers for the same features, before it
         // lowers its rules (engine §2, §3).
         const classifiers = this.classifiers(on);
-        lowered = { ...new Lowering(this, on, strict).run(), classifiers, implications: this.implications };
+        lowered = { ...new Lowering(this, on).run(), classifiers, implications: this.implications };
         remember(this.lowered, key, lowered);
       }
       return lowered;
@@ -5032,12 +5522,10 @@
     /**
      * @param {Grammar} grammar
      * @param {Set<string>} features
-     * @param {boolean} strict
      */
-    constructor(grammar, features, strict) {
+    constructor(grammar, features) {
       this.grammar = grammar;
       this.features = features;
-      this.strict = strict;
       /** @type {Production[]} */
       this.productions = [];
       /** @type {Map<string, Production[]>} */
@@ -5256,11 +5744,7 @@
       if ("optional" in expr) {
         const inner = expr.optional;
         const elided = this.elidedTerminal(inner, where);
-        const mandatory = this.strict && elided !== null;
-        const name = this.helper(where, (context) => {
-          const expansions = this.expand(inner, context);
-          return mandatory ? expansions : [/** @type {SequenceItem[]} */ ([]), ...expansions];
-        }, elided);
+        const name = this.helper(where, (context) => [/** @type {SequenceItem[]} */ ([]), ...this.expand(inner, context)], elided);
         return [[{ symbol: { name, terminal: false } }]];
       }
       if ("repeat" in expr) {
@@ -5788,9 +6272,16 @@
      * @param {Lean} lean
      * @param {Maximal | null} [maximal] the resolution's maximal, if it has
      *   it (engine §4)
+     * @param {number[] | null} [project] positions to find cycles over in
+     *   place of the items' own, which only a fault of the check of engine
+     *   §7 gives (F19)
      */
-    constructor(tokens, lean, maximal = null) {
+    constructor(tokens, lean, maximal = null, project = null) {
       this.tokens = tokens;
+      /** @type {(left: Item, right: Item) => boolean} */
+      this.sameSpan = project === null
+        ? (left, right) => left.origin === right.origin && left.end === right.end
+        : (left, right) => project[left.origin] === project[right.origin] && project[left.end] === project[right.end];
       // Under late-elision, the readings come from a ranking with no lean
       // over the forest of the best derivations (engine §6).
       this.elisions = lean === "late-elision";
@@ -5862,6 +6353,9 @@
           let produced;
           let permitted = true;
           if (edge.kind === "seed") produced = [{ seq: EMPTY, alts: [], at: Infinity }];
+          // A restoration reads its synthetic token, and its own close
+          // follows (engine §7.4, §7.7).
+          else if (edge.kind === "restore") produced = [{ seq: this.readLeaf(edge.token, edge.terminal), alts: [], at: Infinity }];
           else if (edge.kind === "scan") {
             const read = this.readLeaf(edge.token, edge.terminal);
             produced = dependency(edge.previous).all.map((entry) => extend(entry, read));
@@ -5914,10 +6408,10 @@
           let least;
           let total;
           let permitted = true;
-          if (edge.kind === "seed") {
+          if (edge.kind === "seed" || edge.kind === "restore") {
             // The helper of an elidable optional that derives ε elides its
-            // terminator where it is empty.
-            vector = isElided(current) ? this.elisionLeaf(current.origin) : NO_ELISIONS;
+            // terminator where it is empty. A restoration elides nothing.
+            vector = edge.kind === "seed" && isElided(current) ? this.elisionLeaf(current.origin) : NO_ELISIONS;
             least = 1;
             total = 1;
           } else if (edge.kind === "scan") {
@@ -6113,7 +6607,7 @@
         let allowed = 0;
         for (const edge of current.edges) {
           let ways;
-          if (edge.kind === "seed") ways = 1;
+          if (edge.kind === "seed" || edge.kind === "restore") ways = 1;
           else if (edge.kind === "scan") ways = dependency(edge.previous).all;
           else {
             const before = dependency(edge.previous);
@@ -6194,7 +6688,7 @@
       const group = this.groups;
       /** @type {(frame: Frame, item: Item) => TraversalContext} */
       const contextBelow = (frame, item) => {
-        if (frame.item.origin !== item.origin || frame.item.end !== item.end) return EMPTY_CONTEXT;
+        if (!this.sameSpan(frame.item, item)) return EMPTY_CONTEXT;
         const own = group(item.production.lhs);
         if (own === undefined) return EMPTY_CONTEXT;
         /** @type {TraversalContext} */
@@ -6279,11 +6773,11 @@
         if (seen.has(item)) continue;
         seen.add(item);
         for (const edge of item.edges) {
-          if (edge.kind === "seed") continue;
+          if (edge.kind === "seed" || edge.kind === "restore") continue;
           pending.push(edge.previous);
           if (edge.kind !== "complete") continue;
           pending.push(edge.child);
-          if (edge.child.origin !== item.origin || edge.child.end !== item.end) continue;
+          if (!this.sameSpan(edge.child, item)) continue;
           let targets = arcs.get(item.production.lhs);
           if (!targets) arcs.set(item.production.lhs, (targets = new Set()));
           targets.add(edge.child.production.lhs);
@@ -6458,7 +6952,9 @@
       if (action.kind === "read") {
         stack.push({ read: action, start: action.token, end: action.token + 1 });
       } else {
-        const arity = action.item.production.rhs.length;
+        // A restoration closes its empty production over the one token that
+        // it read (engine §7.4).
+        const arity = action.item.restores ? 1 : action.item.production.rhs.length;
         const children = stack.splice(stack.length - arity, arity);
         stack.push({ item: action.item, production: action.item.production, children, start: action.item.origin, end: action.item.end });
       }
@@ -6758,6 +7254,7 @@
 
 
 
+
   /**
    * @import { Action, Derivation, DerivationRule, ElidedNode, EmitItem, ResultNode, Scope, Span, StageReport, TagSet } from "./types.js"
    * @import { Grammar } from "./grammar.js"
@@ -6801,7 +7298,7 @@
       try {
         // Lowering for these features may itself find an error of the grammar
         // (engine §3.3), which is a result like any found while parsing.
-        lowered = this.grammar.lower(features, false);
+        lowered = this.grammar.lower(features);
         context = new ParseContext(lowered, tokens, sourceText, unicode);
         chart = recognize(context, "text", 0, tokens.length);
         roots = rootItems(chart, "text");
@@ -6872,27 +7369,42 @@
       const elisionOnly = options.elisionOnly === undefined || options.elisionOnly === null
         ? lowered.resolution.elisionOnly : options.elisionOnly;
       // The check runs only for a stage that chose one of several
-      // derivations (engine §7).
+      // derivations (engine §7.1).
       if (elisionOnly && report.verdict === "resolved") {
-        let readings;
+        /** @type {ElisionCheck} */
+        let check;
         try {
-          readings = this.elisionCheck(report.tree, tokens, sourceText, unicode, features);
+          check = this.elisionCheck(derivation, report.tree, context, features);
         } catch (error) {
-          // An error of the grammar in the reparse ends the stage as one found
-          // while emitting does: no output, the rest kept (engine §7).
+          // An error of the grammar in the check ends the stage as one found
+          // while emitting does: no output, the rest kept (engine §7.7).
           if (error instanceof GencmuError) {
+            if (fault("F26")) return report;
             report.output = null;
             report.error = { kind: "grammar", stage: this.name, message: error.message };
             return report;
           }
           throw error;
         }
-        if (readings) {
+        if (check.competitorWarnings) report.warnings = [...(report.warnings || []), ...check.competitorWarnings];
+        if (check.kind === "lost") {
+          // The witness of the chosen derivation is lost: a defect of the
+          // engine, which ends the stage with no output (engine §7.9).
+          report.output = null;
+          report.error = {
+            kind: "grammar",
+            stage: this.name,
+            code: "elision-witness-lost",
+            message: `the ${this.name} stage could not reconstruct its chosen derivation for elision-only`,
+            chosen: report.tree,
+            completion: check.completion,
+          };
+        } else if (check.kind === "ambiguous") {
           report.error = {
             kind: "ambiguous",
             stage: this.name,
             reason: "elision-only",
-            readings,
+            readings: check.readings,
             message: `the ${this.name} stage's text is ambiguous with every elided terminator written out`,
           };
         }
@@ -6901,80 +7413,184 @@
     }
 
     /**
-     * Engine §7: null when the check passes, else the two first readings of
-     * the input with its elided terminators written out.
-     * @param {ResultNode} tree
-     * @param {Token[]} tokens
-     * @param {string[]} sourceText
-     * @param {UnicodeTable} unicode
+     * Engine §7: the check of elision-only. It writes the chosen derivation's
+     * elided terminators back into the stage's input as synthetic tokens and
+     * recognizes that input, R, with the main lowering in the reconstruction
+     * mode. Every observation reads the stage's input through the projection
+     * π. The check passes where R has one derivation, and gives two readings
+     * where it has more. With none, the witness of the chosen derivation is
+     * lost.
+     * @param {Derivation} chosen D, the chosen derivation
+     * @param {ResultNode} tree D's tree
+     * @param {ParseContext} main the context of the main parse, whose memo
+     *   the check's queries share
      * @param {Set<string>} features
-     * @returns {ResultNode[] | null}
+     * @returns {ElisionCheck}
      */
-    elisionCheck(tree, tokens, sourceText, unicode, features) {
+    elisionCheck(chosen, tree, main, features) {
+      const tokens = main.tokens;
+      const lowered = main.lowered;
+      // The old contract, as a whole (a fault, F13): every elidable optional
+      // mandatory, observations of R itself, and no reading a pass.
+      const old = fault("F13");
       /** @type {ElidedNode[]} */
       const elided = [];
-      // In text order: the leaves left to right.
+      // In text order: the leaves left to right (engine §7.2).
       const pending = [tree];
       for (let node = pending.pop(); node !== undefined; node = pending.pop()) {
         if (node.kind === "elided") elided.push(node);
         if (node.kind === "rule") for (let index = node.children.length - 1; index >= 0; index--) pending.push(node.children[index]);
       }
-      // The input with the chosen parse's elided terminators written back, in
-      // the order of the tree's leaves; and
-      // which positions of it are those synthetic terminators.
+      /** @type {RestorationRecord[]} */
+      const records = elided.map((node) => {
+        /** @type {RestorationRecord} */
+        const record = { terminal: node.terminal, at: node.span[0], source: [node.source[0], node.source[1]] };
+        if (node.sound !== undefined) record.sound = node.sound;
+        return record;
+      });
+      // The order of insertion: the records' own, or, under a fault, each run
+      // at one position reversed (F27).
+      let order = records.map((_, index) => index);
+      if (fault("F27:order")) {
+        order = [];
+        for (let index = 0; index < records.length;) {
+          let end = index;
+          while (end < records.length && records[end].at === records[index].at) end++;
+          for (let at = end - 1; at >= index; at--) order.push(at);
+          index = end;
+        }
+      }
+      // R: the stage's input with one synthetic token before the input token
+      // at each record's position, or at the end. A synthetic token's
+      // recognition tags are its terminal, and its recognition sound is its
+      // saved sound. Its provenance, kept apart, is what marks it (engine
+      // §7.2), unless a fault tells it by an empty source (F12).
       /** @type {Token[]} */
       const restored = [];
-      /** @type {number[]} */
+      /** @type {boolean[]} */
       const synthetic = [];
+      /** @type {number[]} */
+      const originalAt = [];
+      /** @type {number[]} */
+      const recordAt = new Array(records.length);
+      /** @type {(number | undefined)[]} */
+      const recordOf = [];
       let next = 0;
       for (let index = 0; index <= tokens.length; index++) {
-        while (next < elided.length && elided[next].span[0] === index) {
-          const node = elided[next++];
-          const position = node.source[0];
-          synthetic.push(restored.length);
-          // A restored terminator with an `=` test sounds like the test's
-          // string, so that it matches its own terminator in the stricter
-          // grammar (engine §7).
-          restored.push(new Token(tagSet([node.terminal]), [restored.length, restored.length], [position, position], "", node.sound ?? null, undefined));
+        while (next < order.length && records[order[next]].at === index) {
+          const record = records[order[next++]];
+          recordAt[order[next - 1]] = restored.length;
+          recordOf.push(order[next - 1]);
+          synthetic.push(true);
+          restored.push(new Token(tagSet([record.terminal]), [restored.length, restored.length], [record.source[0], record.source[1]], "", record.sound ?? null, undefined));
         }
-        if (index < tokens.length) restored.push(tokens[index]);
+        if (index < tokens.length) {
+          const token = tokens[index];
+          originalAt.push(restored.length);
+          recordOf.push(undefined);
+          synthetic.push(fault("F12") && token.source[0] === token.source[1]);
+          restored.push(token);
+        }
       }
-      const lowered = this.grammar.lower(features, true);
-      const context = new ParseContext(lowered, restored, sourceText, unicode);
-      const chart = recognize(context, "text", 0, restored.length);
-      const roots = rootItems(chart, "text");
-      if (roots.length === 0) return null;
-      const ranking = new Ranker(restored, "none").rank(roots);
-      if (ranking === null || ranking.verdict !== "tie") return null;
-      // The readings are shown over the original input: a synthetic
-      // terminator becomes an elided node where it was inserted.
-      const isSynthetic = new Set(synthetic);
-      /** @type {(index: number) => number} */
-      const toOriginal = (index) => index - synthetic.filter((position) => position < index).length;
-      // A node's source is taken again over the original input, since the
-      // synthetic terminators have sources too.
+      // π: the number of original tokens before each position of R (engine
+      // §7.3).
+      /** @type {number[]} */
+      const project = [0];
+      for (let index = 0; index < restored.length; index++) project.push(project[index] + (synthetic[index] ? 0 : 1));
+      const r = new ParseContext(lowered, restored, main.sourceText, main.unicode, main.interner);
+      r.mode = old ? "mandatory" : "reconstruction";
+      r.synthetic = synthetic;
+      r.recon = { observed: main, project, raw: old, faulty: new Map() };
+      // The recognition of R is not a query (engine §4, §7.6), unless a fault
+      // makes it one (F18).
+      const active = "parse\u0001text\u00010\u0001" + tokens.length;
+      const asQuery = (old || fault("F18")) && !main.inProgress.has(active);
+      if (asQuery) main.inProgress.add(active);
+      let chart;
+      main.checking = true;
+      try {
+        chart = recognize(r, "text", 0, restored.length);
+      } finally {
+        main.checking = false;
+        if (asQuery) main.inProgress.delete(active);
+      }
+      let roots = rootItems(chart, "text");
+      if (fault("lost:roots")) roots = [];
+      // Neither form of maximality applies to the derivations of R (engine
+      // §7.7), unless a fault applies them (F20). Cycles are over spans of R,
+      // unless a fault finds them over projected spans (F19).
+      const maximal = fault("F20") && (lowered.resolution.maximal || lowered.maximalTerminals.size > 0)
+        ? maximalRule(chart, lowered, lowered.resolution.maximal) : null;
+      let ranking = roots.length === 0 ? null : new Ranker(restored, "none", maximal, fault("F19") ? project : null).rank(roots);
+      if (fault("lost:count")) ranking = null;
+      if (fault("F23")) {
+        // A fault leaves the main grammar in the mode of the check.
+        for (const [name, productions] of lowered.byLhs) {
+          lowered.byLhs.set(name, productions.filter((production) => !(production.rhs.length === 0 && production.helper && production.elided !== null)));
+        }
+      }
+      if (hooks.elisionCheck) hooks.elisionCheck({ chosen, chart, roots, synthetic, originalAt, recordAt });
+      if (ranking === null) return old ? { kind: "pass" } : { kind: "lost", completion: records };
+      if (ranking.verdict !== "tie") return { kind: "pass" };
+      // The readings, mapped to the stage's input (engine §7.10).
       const original = new Sources(tokens);
-      /** @type {(node: ResultNode) => ResultNode} */
+      /** @type {Map<string, TagSet>} */
+      const chosenTags = new Map();
+      if (fault("F8")) {
+        foldTree(tree, () => null, (node) => {
+          chosenTags.set(`${node.rule}\u0000${node.span[0]}\u0000${node.span[1]}`, node.tags);
+          return null;
+        });
+      }
+      /** @type {(root: ResultNode) => ResultNode} */
       const remap = (root) => foldTree(root,
         /** @returns {ResultNode} */
         (node) => {
-          if (node.kind === "token" && isSynthetic.has(node.token)) {
-            const at = toOriginal(node.token);
-            return { kind: "elided", terminal: node.terminal, span: [at, at], source: node.source };
+          if (node.kind === "token" && synthetic[node.token]) {
+            // A read of a synthetic token is an elided node of its record's
+            // terminal, at the record's position, with the record's source.
+            const at = project[node.token];
+            const index = recordOf[node.token];
+            if (fault("F27:bare")) return { kind: "token", terminal: node.terminal, token: at, span: [at, at + 1], source: node.source };
+            if (index === undefined) return { kind: "elided", terminal: node.terminal, span: [at, at], source: node.source };
+            const record = records[index];
+            /** @type {ElidedNode} */
+            const result = { kind: "elided", terminal: record.terminal, span: [at, at], source: [record.source[0], record.source[1]] };
+            if (record.sound !== undefined) result.sound = record.sound;
+            return result;
           }
-          if (node.kind === "token") return { ...node, token: toOriginal(node.token), span: [toOriginal(node.span[0]), toOriginal(node.span[0]) + 1] };
-          const at = toOriginal(node.span[0]);
-          return { ...node, span: [at, at], source: sourceOf(original, at, at) };
+          if (node.kind === "token") return { ...node, token: project[node.token], span: [project[node.span[0]], project[node.span[0]] + 1] };
+          return node;
         },
         /** @returns {ResultNode} */
         (node, children) => {
-          const start = toOriginal(node.span[0]);
-          const end = toOriginal(node.span[1]);
-          return { ...node, span: [start, end], source: sourceOf(original, start, end), children };
+          const start = project[node.span[0]];
+          const end = project[node.span[1]];
+          const tags = chosenTags.get(`${node.rule}\u0000${start}\u0000${end}`) || node.tags;
+          return { ...node, span: [start, end], source: sourceOf(original, start, end), tags, children };
         });
-      return [ranking.first, /** @type {import("./types.js").Rope} */ (ranking.second)].map((rope) => remap(resultTree(derivationTree(rope), context)[0]));
+      const ropes = [ranking.first, /** @type {import("./types.js").Rope} */ (ranking.second)];
+      /** @type {ElisionCheck} */
+      const result = { kind: "ambiguous", readings: ropes.map((rope) => remap(resultTree(derivationTree(rope), r)[0])) };
+      // A competing reading gives no warning (engine §7.10), unless a fault
+      // takes its warnings (F22).
+      if (fault("F22")) result.competitorWarnings = warningsOf(derivationTree(ropes[1]), r, features, this.name);
+      return result;
     }
   }
+
+  /**
+   * A restoration record (engine §7.2): the terminal, its position in the
+   * stage's input, the empty source of its elided node, and the saved sound
+   * of a terminator with an `=` test.
+   * @typedef {{terminal: string, at: number, source: Span, sound?: string}} RestorationRecord
+   */
+
+  /**
+   * What the check of engine §7 found: one reading, two, or none.
+   * @typedef {({kind: "pass"} | {kind: "ambiguous", readings: ResultNode[]} | {kind: "lost", completion: RestorationRecord[]})
+   *   & {competitorWarnings?: import("./types.js").ParseWarning[]}} ElisionCheck
+   */
 
   /**
    * @param {Token[]} tokens
@@ -9453,6 +10069,11 @@
    * @property {string} [stage]
    * @property {"tie" | "elision-only"} [reason] why an ambiguous error is
    *   one: a tie (engine §6) or the check of elision-only (engine §7)
+   * @property {"elision-witness-lost"} [code] a defect that the check of
+   *   elision-only found: it lost its chosen derivation (engine §7.9)
+   * @property {ResultNode} [chosen] for that defect, the chosen tree
+   * @property {Restoration[]} [completion] for that defect, the terminators
+   *   that the check wrote back, in their order of insertion
    * @property {number} [token]
    * @property {Span} [source]
    * @property {number} [line]
@@ -9461,6 +10082,17 @@
    * @property {ResultNode[]} [readings]
    * @property {string} [document]
    * @property {string} message
+   */
+
+  /**
+   * A terminator that the check of elision-only wrote back (engine §7.9): its
+   * terminal, its position in the stage's input, the empty source of its
+   * elided node, and the sound of a terminator with an `=` test.
+   * @typedef {object} Restoration
+   * @property {string} terminal
+   * @property {number} at
+   * @property {Span} source
+   * @property {string} [sound]
    */
 
   /**
@@ -9845,7 +10477,8 @@
   /**
    * How an item was built.
    * @typedef {{kind: "seed"} | {kind: "scan", previous: Item, token: number, terminal: string}
-   *   | {kind: "complete", previous: Item, child: Item}} Edge
+   *   | {kind: "complete", previous: Item, child: Item}
+   *   | {kind: "restore", token: number, terminal: string}} Edge
    */
 
   /**
@@ -9861,6 +10494,12 @@
    * @property {number} start
    * @property {number} end
    * @property {TagSet} [tags]
+   * @property {"R" | "raw"} [space] in the check of engine §7, a span of the
+   *   reconstructed input that an observation projects ("R"), or one that a
+   *   fault reads as it is ("raw"); absent for a span of the stage's input
+   * @property {[number, number]} [reconstructed] for a span of the stage's
+   *   input that a function computed in the check, the span of R behind it,
+   *   which only faults read
    */
 
   /**
