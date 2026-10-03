@@ -791,6 +791,8 @@
    * @property {import("./earley.js").Chart} chart the recognition of R
    * @property {import("./types.js").Item[]} roots the completed items of
    *   `text` over R
+   * @property {boolean} counted whether the ranking of the check counted a
+   *   derivation
    * @property {boolean[]} synthetic for each token of R, whether it is
    *   synthetic, by its provenance
    * @property {number[]} originalAt for each token of the stage's input, its
@@ -7700,7 +7702,7 @@
           lowered.byLhs.set(name, productions.filter((production) => !(production.rhs.length === 0 && production.helper && production.elided !== null)));
         }
       }
-      if (hooks.elisionCheck) hooks.elisionCheck({ chosen, chart, roots, synthetic, originalAt, recordAt });
+      if (hooks.elisionCheck) hooks.elisionCheck({ chosen, chart, roots, counted: ranking !== null, synthetic, originalAt, recordAt });
       if (ranking === null) return old ? { kind: "pass" } : { kind: "lost", completion: records };
       if (ranking.verdict !== "tie") return { kind: "pass" };
       // The readings, mapped to the stage's input (engine §7.10).

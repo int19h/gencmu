@@ -16,6 +16,11 @@ export type ElisionCheckRun = {
      */
     roots: import("./types.js").Item[];
     /**
+     * whether the ranking of the check counted a
+     * derivation
+     */
+    counted: boolean;
+    /**
      * for each token of R, whether it is
      * synthetic, by its provenance
      */
@@ -39,6 +44,8 @@ export type ElisionCheckRun = {
  * @property {import("./earley.js").Chart} chart the recognition of R
  * @property {import("./types.js").Item[]} roots the completed items of
  *   `text` over R
+ * @property {boolean} counted whether the ranking of the check counted a
+ *   derivation
  * @property {boolean[]} synthetic for each token of R, whether it is
  *   synthetic, by its provenance
  * @property {number[]} originalAt for each token of the stage's input, its
