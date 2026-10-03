@@ -1,8 +1,8 @@
 //! Maximality (engine §4): an elided terminator is forbidden where its
 //! constituent, the node before it, could have been longer. Stage-wide
 //! `maximal` restricts every elidable terminator of the main parse, and a
-//! maximal terminator, which `%elidable maximal` names, restricts its own
-//! elided terminators in the main parse and in nested queries.
+//! maximal terminator, of an optional written `[++T …]`, restricts that
+//! optional's elided terminators in the main parse and in nested queries.
 
 use std::cell::{OnceCell, RefCell};
 

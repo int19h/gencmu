@@ -1054,7 +1054,7 @@ fn forbidden_terminator(tree: &ITree, g: &Lowered, maximal: &Maximal) -> Option<
             // The terminator's constituent is the node before it: there is
             // none at the start of a production, after a read, or after the
             // first symbol of a production when that is its own rule, what
-            // a repetition has read so far.
+            // braces or a left chain have read so far.
             let production = &g.prods[prod as usize];
             let own = position == 1 && production.syms[0] == Sym::N(production.rule);
             if maximal.elided(helper.rule, start, end) && position > 0 && !own {

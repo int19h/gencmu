@@ -36,6 +36,9 @@ println!("{}", gencmu::to_json(&result));
 
   A DOM holds the document's constants, classifiers and implications as the document writes them, never their values. The loader gives each constant its value when it stitches a stage. A stage resolves its classifiers for the features of each parse, once for each set of features.
 
+  The DOM format is 18. Braces are a `repeat`, with a `separator` for `{x \ s}` and a `chain` of `left` or `right` for a chain, which is the whole expression of its alternative. An elidable optional, `[+T x]`, is an `optional` with `elidable`, and `[++T x]` also has `maximal`. No directive names elidable terminators: `%elidable` is a syntax error. A capture can stand anywhere in an alternative but inside braces or an elidable optional, and a production holds each name once. A production can have any number of captures. Each one is part of the identity of the recognizer's items, so a capture of a rule that can end in many places multiplies the items (engine §4).
+- An error that lowering finds for the features of a parse, such as a chain beside another alternative or an item of braces that can match no tokens, is a result whose error has the kind `ParseErrorKind::Grammar` and the stage's name, not an `Error`, and the dialect still loads. Its message begins with the document, line and column of the definition that wrote the alternative at fault, as `g.md:4:1:`.
+
 The minimum supported Rust version is 1.75.
 
 ## Development
@@ -49,7 +52,8 @@ The grammars of the crate, `grammars/`, are a copy of the grammars of the reposi
 - The DOM cache
 - The API
 - The core sample of the Lojban corpus
-- A property test of the ranking, which compares the library with a brute-force enumeration of every derivation of random small grammars, in `tests/ranking.rs`
+- A property test of the ranking, which compares the library with a brute-force enumeration of every derivation of random small grammars with optionals, marked optionals, flat braces, separated lists and chains, in `tests/ranking.rs`
+- The place and the order of the errors of lowering, in `tests/engine.rs`, and the cost of a capture of a rule with many ends, which keeps one completed item for each end, in `src/earley.rs`
 - A property test of the eligibility of nested queries, which compares the library with a search for eligible proof trees in random small grammars with chained elidable optionals and maximal terminators, in `src/eligible.rs`
 - The invariants of every canonical result that a shared case gives, such as those of a tie and the absence of a position on an ambiguous error, with tests that feed the checks broken results
 - The witness of the check of `elision-only` (tests/README.md). The runners of the shared cases and of the corpus fail any result with the error `elision-witness-lost`. They also ask the hidden hook `gencmu::tools::with_elision_checks`, after each check, whether the check kept the chosen derivation, mapped to the reconstructed input. A watched check marks that derivation's links before it ranks. Its own ranking then says whether it counted them, and where its readings stand against them. The library's own tests lose that witness on purpose with `gencmu::tools::losing_witness`, which the documented API does not name. They also turn on faults of the library's own paths in the check with `gencmu::tools::with_fault`. `tests/faults.rs` shows that the shared cases catch each one, through the result or through the hook alone (tests/README.md).
