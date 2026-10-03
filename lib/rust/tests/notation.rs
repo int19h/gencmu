@@ -144,3 +144,43 @@ fn an_optional_is_marked_elidable_in_place() {
     assert_eq!(expr("%rule text [++TOI]"), expect(r#"{"optional":{"ref":"TOI"},"elidable":true,"maximal":true}"#));
     assert_eq!(expr("%rule text [KU]"), expect(r#"{"optional":{"ref":"KU"}}"#));
 }
+
+/// Braces read as repeat, with a separator and a chain's direction, and
+/// the reader refuses every misplaced form of them (engine §9).
+#[test]
+fn braces_are_read_and_their_misplaced_forms_refused() {
+    let read = |text: &str| gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{text}\n```\n"));
+    let json = read("%rule text $a(A) {B} [{C \\ D | E}] {{F} \\ [G] {H}} {| I | J \\ | K}\n%rule l {... L \\ M}\n%rule r {N | O ...}")
+        .expect("braces");
+    let dom = parse_json(&json).expect("a DOM");
+    let expect = |json: &str| parse_json(json).unwrap();
+    let rules = dom.get("rules").unwrap().array();
+    let expr = |rule: usize| rules[rule].get("alternatives").unwrap().array()[0].get("expr").unwrap().clone();
+    assert_eq!(expr(1), expect(r#"{"repeat":{"ref":"L"},"separator":{"ref":"M"},"chain":"left"}"#));
+    assert_eq!(expr(2), expect(r#"{"repeat":{"choice":[{"ref":"N"},{"ref":"O"}]},"chain":"right"}"#));
+    for refused in [
+        "%rule text {}",
+        "%rule text {A \\}",
+        "%rule text {\\ A}",
+        "%rule text {A \\ B \\ C}",
+        "%rule text {... A ...}",
+        "%rule text {A \\ ... B}",
+        "%rule text A ...",
+        "%rule text 'a'...'z'",
+        "%rule text (A \\ B)",
+        "%rule text A {... B}",
+        "%rule text [{... A}]",
+        "%rule text {$a(A)}",
+        "%rule text $a({A})",
+        "%rule text {A}=\"a\"",
+        "%rule text ({... A})",
+        "%rule text (({A ...}))",
+        "%rule text [+KU $c(A)]",
+        "%rule text [+(KU) #]",
+        "%rule text [+KU | VAU]",
+        "%rule text [+KU≠\"ku\"]",
+        "%rule text [$x(A)] $x(B)",
+    ] {
+        assert!(read(refused).is_err(), "{refused} was read");
+    }
+}

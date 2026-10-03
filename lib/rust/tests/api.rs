@@ -70,8 +70,7 @@ fn a_dialect_loads_from_disk() {
         "```jbogenbau\n%stage only\n%include \"../grammars/g.md\"\n```\n",
     )
     .unwrap();
-    std::fs::write(directory.join("grammars/g.md"), grammar("%ambiguity-resolution greedy\n%rule text 'a' ..."))
-        .unwrap();
+    std::fs::write(directory.join("grammars/g.md"), grammar("%ambiguity-resolution greedy\n%rule text {'a'}")).unwrap();
     let mine = gencmu::load_dialect_file(directory.join("dialects/mine.md")).expect("a dialect on disk");
     let result = mine.parse("aaa", &ParseOptions::default()).unwrap();
     assert!(result.ok);
@@ -145,7 +144,7 @@ fn until_features_and_elision_only() {
     );
     sources.insert(
         "g.md".to_string(),
-        grammar("%ambiguity-resolution greedy\n%rule text [w] ...\n%rule w 'x' <X> %emits $"),
+        grammar("%ambiguity-resolution greedy\n%rule text [{w}]\n%rule w 'x' <X> %emits $"),
     );
     sources.insert("h.md".to_string(), grammar("%ambiguity-resolution greedy\n%rule text f? g? X X | f? ¬g? X"));
     let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
@@ -203,12 +202,12 @@ fn words_dialect() -> gencmu::Dialect {
     );
     sources.insert(
         "s.md".to_string(),
-        grammar("%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c 's' </s/> | 'a' </a/> | 'u' </u/> | 'm' </m/> | 'i' </i/> | '\\p{White_Space}' </./> %emits $"),
+        grammar("%ambiguity-resolution greedy\n%rule text [{c}]\n%rule c 's' </s/> | 'a' </a/> | 'u' </u/> | 'm' </m/> | 'i' </i/> | '\\p{White_Space}' </./> %emits $"),
     );
     sources.insert(
         "w.md".to_string(),
         grammar(
-            "%ambiguity-resolution lazy\n%rule text [piece] ...\n%rule piece word | /./\n%rule word /m/ /i/ | sa-su? /s/ /a/ | sa-su? /s/ /u/",
+            "%ambiguity-resolution lazy\n%rule text ε | text piece\n%rule piece word | /./\n%rule word /m/ /i/ | sa-su? /s/ /a/ | sa-su? /s/ /u/",
         ),
     );
     gencmu::load_dialect_sources(sources, "p.md").unwrap()
@@ -242,7 +241,7 @@ fn gates_turn_off_and_warnings_follow_the_chosen_tree() {
     sources.insert("p.md".to_string(), "```jbogenbau\n%features f\n%stage main\n%include \"g.md\"\n```\n".to_string());
     sources.insert(
         "g.md".to_string(),
-        grammar("%ambiguity-resolution greedy\n%rule text f? 'a' | ¬f? w! part ...\n%rule part w! 'b' | 'c'"),
+        grammar("%ambiguity-resolution greedy\n%rule text f? 'a' | ¬f? w! {part}\n%rule part w! 'b' | 'c'"),
     );
     let dialect = gencmu::load_dialect_sources(sources.clone(), "p.md").unwrap();
     assert_eq!(
@@ -259,8 +258,8 @@ fn gates_turn_off_and_warnings_follow_the_chosen_tree() {
     assert!(quiet.warnings.is_empty());
     assert!(!gencmu::to_json(&quiet).contains("\"warnings\""));
     // One warning for each node of the chosen tree built from a warned
-    // alternative: the prefixes of `part ...`, which the tree splices out,
-    // are not its nodes (engine §12).
+    // alternative: the helper of `{part}`, which the tree splices out, is
+    // not one of its nodes (engine §12).
     let warned = dialect.parse("bcb", &ParseOptions { features: vec!["w".into()], ..off }).unwrap();
     assert!(warned.ok);
     assert_eq!(gencmu::to_brackets(&warned, false), "(b c b)");
@@ -299,16 +298,16 @@ fn parts_that_emit_epsilon_are_neither_emitted_nor_counted() {
     sources.insert(
         "f.md".to_string(),
         grammar(
-            "%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c 'a' </a/> | 'b' </b/> | '\\p{White_Space}' </./> %emits $",
+            "%ambiguity-resolution greedy\n%rule text [{c}]\n%rule c 'a' </a/> | 'b' </b/> | '\\p{White_Space}' </./> %emits $",
         ),
     );
     sources.insert(
         "g.md".to_string(),
         grammar(
-            "%ambiguity-resolution greedy\n%rule text [unit] ...\n%rule unit pair <U> | /./ %emits $\n%rule pair erased $b(letter) %emits $b\n%rule erased letter %emits ε\n%rule letter /a/ | /b/",
+            "%ambiguity-resolution greedy\n%rule text [{unit}]\n%rule unit pair <U> | /./ %emits $\n%rule pair erased $b(letter) %emits $b\n%rule erased letter %emits ε\n%rule letter /a/ | /b/",
         ),
     );
-    sources.insert("h.md".to_string(), grammar("%ambiguity-resolution greedy\n%rule text [U | /./] ..."));
+    sources.insert("h.md".to_string(), grammar("%ambiguity-resolution greedy\n%rule text [{U | /./}]"));
     let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
     let result = dialect.parse("ab ba", &no_auto()).unwrap();
     assert!(result.ok, "{}", gencmu::to_json(&result));
@@ -372,11 +371,11 @@ fn a_rejection_writes_a_tested_terminal_with_its_test() {
     );
     sources.insert(
         "s.md".to_string(),
-        block("%rule text [sound] ...\n%rule sound 'l' </l/> | 'a' </a/> | 'i' </i/> | 'd' </d/> | ' ' </./> %emits $"),
+        block("%rule text [{sound}]\n%rule sound 'l' </l/> | 'a' </a/> | 'i' </i/> | 'd' </d/> | ' ' </./> %emits $"),
     );
     sources.insert(
         "w.md".to_string(),
-        block("%rule text [word] ...\n%rule word le | d | /./\n%rule le /l/ /a/ [/i/] %emits $ <LE>\n%rule d /d/ %emits $ <D>"),
+        block("%rule text ε | text word\n%rule word le | d | /./\n%rule le /l/ /a/ [/i/] %emits $ <LE>\n%rule d /d/ %emits $ <D>"),
     );
     sources.insert("g.md".to_string(), block("%rule text LE=\"la\" D D | LE=\"lai\" C | LE⊇(D ∪ C) | LE∩~x≠∅"));
     let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
@@ -393,7 +392,7 @@ fn a_rejection_writes_a_tested_terminal_with_its_test() {
 #[test]
 fn positions_are_code_points() {
     let dialect = gencmu::load_dialect_sources(
-        single("%ambiguity-resolution greedy\n%rule text [c] ... %rule c '\\p{Any}' %emits $"),
+        single("%ambiguity-resolution greedy\n%rule text [{c}] %rule c '\\p{Any}' %emits $"),
         "p.md",
     )
     .unwrap();
@@ -865,7 +864,7 @@ fn the_experimental_syntax_reads_no_la() {
 /// the rule before it twice, from `r0 → [T]` with `T` elidable, and the
 /// rule `text` has the alternatives `text`.
 fn doubling(rule: &str, depth: usize, text: &str) -> gencmu::Dialect {
-    let mut grammar = format!("%ambiguity-resolution {rule}\n%elidable T\n%rule text {text}\n%rule r0 [T]\n");
+    let mut grammar = format!("%ambiguity-resolution {rule}\n%rule text {text}\n%rule r0 [+T]\n");
     for i in 1..=depth {
         grammar.push_str(&format!("%rule r{i} r{} r{}\n", i - 1, i - 1));
     }

@@ -182,7 +182,7 @@ fn a_check_that_loses_its_witness_is_the_grammar_error_elision_witness_lost() {
     use common::{result_problems, witness_problem, Value};
     use gencmu::tools::{losing_witness, with_elision_checks, Loss};
     let case = parse_json(
-        r#"{"documents": {"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n%elidable T U\n%rule text a | b\n%rule a w! A [T=\"ta\"] [U] %emits $ <~x>\n%rule b A [T=\"ta\"] [U] [U]\n%stage later\n%ambiguity-resolution greedy\n%rule text ~x\n```\n"},
+        r#"{"documents": {"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n%rule text a | b\n%rule a w! A [+T=\"ta\"] [+U] %emits $ <~x>\n%rule b A [+T=\"ta\"] [+U] [+U]\n%stage later\n%ambiguity-resolution greedy\n%rule text ~x\n```\n"},
             "pipeline": "p.md", "tokens": [{"text": "a", "tags": ["A"]}], "options": {"features": ["w"]}}"#,
     )
     .unwrap();
@@ -275,4 +275,64 @@ fn the_runner_refuses_a_check_that_lost_its_witness() {
     let lost = gencmu::tools::ElisionCheckRun { stage: "main".to_string(), keeps_witness: false };
     assert_eq!(common::witness_problem(&result, std::slice::from_ref(&kept)), None);
     assert!(common::witness_problem(&result, &[kept, lost]).is_some());
+}
+
+/// Parses one token `A` with a dialect loaded from `sources`, and gives
+/// the message of the result's error, which must be of kind grammar with
+/// no position, from a stage that has no verdict.
+fn lowering_error(sources: &[(&str, &str)], features: &[&str]) -> String {
+    let dialect =
+        gencmu::load_dialect_sources(sources.iter().map(|(path, text)| (path.to_string(), text.to_string())), "p.md")
+            .expect("an error of lowering is no load error");
+    let token = gencmu::InputToken { text: "a".into(), tags: ["A".to_string()].into_iter().collect(), phonemes: None };
+    let options = gencmu::ParseOptions {
+        features: features.iter().map(|feature| feature.to_string()).collect(),
+        auto_features: false,
+        ..Default::default()
+    };
+    let result = dialect.parse_tokens(&[token], &options).expect("a result");
+    let error = result.error.expect("an error");
+    assert_eq!(error.kind, gencmu::ParseErrorKind::Grammar);
+    assert_eq!((error.token, error.line, error.column), (None, None, None));
+    assert_eq!(result.stages[0].verdict, None);
+    assert!(result.tree.is_none());
+    error.message
+}
+
+/// An error of lowering is a result of the parse, and the dialect loads.
+/// Its message begins with the document, line and column of the
+/// definition that wrote the alternative at fault, not of the braces and
+/// not of a definition that made their item empty (engine §3).
+#[test]
+fn an_error_of_lowering_names_the_definition_at_fault() {
+    let sources = [
+        ("p.md", "```jbogenbau\n%stage main\n%include \"a.md\"\n%include \"b.md\"\n```\n"),
+        ("a.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {r} | c\n%rule c {... A} | f? B\n```\n"),
+        ("b.md", "```jbogenbau\n%rule r A\n%extend-rule r\n  ε\n```\n"),
+    ];
+    // The empty item of text's braces, made so by b.md, is reported at the
+    // definition of text in a.md, line 3, column 1.
+    let empty = lowering_error(&sources, &[]);
+    assert!(empty.starts_with("a.md:3:1: "), "{empty}");
+    // With f on, c's chain stands beside B, which comes before the empty
+    // item of an earlier rule.
+    let both = lowering_error(&sources, &["f"]);
+    assert!(both.starts_with("a.md:4:1: c is a chain"), "{both}");
+}
+
+/// In one rule, a chain beside another alternative is reported before an
+/// empty item of its braces (engine §3).
+#[test]
+fn a_chain_beside_an_alternative_comes_before_an_empty_item() {
+    let sources = [
+        ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n"),
+        ("g.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text r\n%rule r {... [A]} | B\n```\n"),
+    ];
+    let message = lowering_error(&sources, &[]);
+    assert!(message.starts_with("g.md:4:1: r is a chain"), "{message}");
+    // Without the other alternative, the empty item is the error.
+    let sources =
+        [sources[0], ("g.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text r\n%rule r {... [A]}\n```\n")];
+    let message = lowering_error(&sources, &[]);
+    assert!(message.starts_with("g.md:4:1: an item of braces in r"), "{message}");
 }

@@ -1201,3 +1201,55 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         Ok(self.shared.tags.set(list))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::earley::{matchers, Recognizer, Shared, Tok};
+    use crate::lower::Sym;
+
+    /// The completed items of the production of `t` with two symbols, over
+    /// the whole input of `n` tokens `A`, in the chart of a recognition of
+    /// `text`.
+    fn whole_items(rules: &str, n: usize) -> usize {
+        let sources = [
+            ("main.md", format!("```jbogenbau\n%ambiguity-resolution greedy\n{rules}\n```\n")),
+            ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
+        ];
+        let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
+        let g = dialect.lowered_stage(0);
+        let t = g.rules.iter().position(|rule| rule.name == "t" && !rule.helper).expect("t") as u32;
+        let pair = g.prods.iter().position(|prod| prod.rule == t && prod.syms.len() == 2).expect("t's pair") as u32;
+        let chars: Vec<char> = vec![' '; n * 2];
+        let mut shared = Shared::new(&dialect.unicode, &chars);
+        let input: Vec<Tok> = (0..n)
+            .map(|index| Tok {
+                text: "a".to_string(),
+                tags: shared.tags.set_of(["A"]),
+                phonemes: None,
+                source: (index * 2, index * 2 + 1),
+                label: "a".to_string(),
+                sound: Default::default(),
+                before: Vec::new(),
+                after: Vec::new(),
+            })
+            .collect();
+        let matchers = matchers(&g, &mut shared.tags);
+        let chart = Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None }
+            .recognize(&input, 0, g.start)
+            .expect("a chart");
+        assert!(matches!(g.prods[pair as usize].syms[..], [Sym::N(_), Sym::N(_)]));
+        chart.sets[n].items.iter().filter(|item| item.prod == pair && item.origin == 0 && item.dot == 2).count()
+    }
+
+    /// A captured part's span is part of an item's identity, so a capture
+    /// of a rule that can end in many places keeps one completed item for
+    /// each place, and the same production without captures keeps one
+    /// (engine §4).
+    #[test]
+    fn a_capture_of_a_rule_with_many_ends_keeps_an_item_for_each() {
+        for n in 2..=6 {
+            assert_eq!(whole_items("%rule text t\n%rule t t t | A", n), 1, "t t over {n}");
+            assert_eq!(whole_items("%rule text t\n%rule t $l(t) $r(t) | A", n), n - 1, "$l(t) $r(t) over {n}");
+        }
+    }
+}

@@ -43,16 +43,30 @@ enum Sym {
     N(usize),
 }
 
-/// An item of an alternative as written: a symbol, `[s]`, `s ...` or
-/// `[s] ...`, or a rule tested by its sound, `r="x"` or `r≠"x"`.
+/// An item of an alternative as written: a symbol, `[s]`, `[+T]`, `{s}`,
+/// `[{s}]` or `{s \ T}`, or a rule tested by its sound, `r="x"` or
+/// `r≠"x"`.
 #[derive(Debug, Clone, Copy)]
 enum Item {
     Plain(Sym),
     /// A rule and whether its test is `="x"` (true) or `≠"x"` (false).
     Tested(usize, bool),
     Optional(Sym),
+    /// `[+T]`, an elidable optional of the terminal (engine §3.8).
+    Elidable(usize),
     Repeat(Sym),
     OptionalRepeat(Sym),
+    /// `{s \ T}`, a list separated by a terminal.
+    Separated(Sym, usize),
+}
+
+/// A rule written as a chain, `{... x \ s}` from the left or
+/// `{x ... \ s}` from the right (engine §3.3).
+#[derive(Debug, Clone, Copy)]
+struct Chain {
+    left: bool,
+    item: Sym,
+    separator: Sym,
 }
 
 const RULES: [&str; 4] = ["text", "a", "b", "c"];
@@ -72,9 +86,10 @@ enum Lean {
 /// The grammar as written.
 struct Source {
     rules: Vec<Vec<(Vec<Item>, Option<&'static str>)>>,
+    /// The rules written as chains, whose alternatives are not used.
+    chains: Vec<Option<Chain>>,
     lean: Lean,
     elision_only: bool,
-    elidable: Option<usize>,
     /// Whether the stage declares `maximal` (§4).
     maximal: bool,
 }
@@ -84,7 +99,7 @@ struct LRule {
     prods: Vec<usize>,
     helper: bool,
     owner: usize,
-    /// For the helper of `[T]` with `T` elidable: `T`.
+    /// For the helper of `[+T]`: `T`.
     elided: Option<usize>,
 }
 
@@ -94,7 +109,6 @@ struct LProd {
     /// The test of each symbol: `Some(true)` for `="x"`, `Some(false)` for
     /// `≠"x"`.
     tests: Vec<Option<bool>>,
-    trailing_step: bool,
 }
 
 /// The grammar lowered as engine §3 says, independently of the library.
@@ -104,6 +118,9 @@ struct Grammar {
     lean: Lean,
     elision_only: bool,
     maximal: bool,
+    /// The item of each pair of braces, which must not derive the empty
+    /// sequence (engine §3.3).
+    brace_items: Vec<Sym>,
 }
 
 fn symbol(rng: &mut Rng, rule: usize, rule_count: usize, terminal_count: usize, position: usize, length: usize) -> Sym {
@@ -151,7 +168,8 @@ fn generate(rng: &mut Rng) -> (Source, Input) {
                 match (sugar, rng.below(10), elidable) {
                     (true, 0, _) => items.push(Item::Optional(sym)),
                     (true, 1, _) => items.push(Item::Repeat(sym)),
-                    (true, 2, _) => items.push(Item::OptionalRepeat(sym)),
+                    (true, 2, _) if rng.chance(60) => items.push(Item::OptionalRepeat(sym)),
+                    (true, 2, _) => items.push(Item::Separated(sym, rng.below(terminal_count))),
                     // An elidable optional, often right after a rule, whose
                     // constituent maximal tests.
                     (true, 3 | 4, Some(t)) => {
@@ -165,7 +183,7 @@ fn generate(rng: &mut Rng) -> (Source, Input) {
                                 _ => Item::Plain(Sym::N(rule)),
                             });
                         }
-                        items.push(Item::Optional(Sym::T(t)));
+                        items.push(Item::Elidable(t));
                     }
                     _ => items.push(match sym {
                         Sym::N(rule) => reference(rng, rule),
@@ -178,7 +196,24 @@ fn generate(rng: &mut Rng) -> (Source, Input) {
         }
         rules.push(alternatives);
     }
-    let source = Source { rules, lean, elision_only, elidable, maximal };
+    // Now and then a rule other than text is a chain, whose levels are its
+    // own nodes (engine §3.3).
+    let mut chains = vec![None];
+    for _ in 1..rule_count {
+        let item = |rng: &mut Rng| {
+            if rng.chance(50) {
+                Sym::T(rng.below(terminal_count))
+            } else {
+                Sym::N(rng.below(rule_count))
+            }
+        };
+        chains.push(match rng.below(20) {
+            0 => Some(Chain { left: true, item: item(rng), separator: item(rng) }),
+            1 => Some(Chain { left: false, item: item(rng), separator: item(rng) }),
+            _ => None,
+        });
+    }
+    let source = Source { rules, chains, lean, elision_only, maximal };
     let grammar = lower(&source);
     // Most inputs are sentences of the grammar, so that most cases parse.
     // Now and then the input is empty.
@@ -210,14 +245,15 @@ fn generate(rng: &mut Rng) -> (Source, Input) {
     (source, (tokens, sounds))
 }
 
-/// A production waiting for its number: its rule, its symbols, their
-/// tests, and whether it is the step of a trailing repetition.
-type Pending = (usize, Vec<Sym>, Vec<Option<bool>>, bool);
+/// A production waiting for its number: its rule, its symbols and their
+/// tests.
+type Pending = (usize, Vec<Sym>, Vec<Option<bool>>);
 
-/// Lowers the grammar (engine §3): a helper per optional or repetition, a
-/// rule whose only alternative ends in a repetition made left-recursive,
-/// and each alternative's own productions numbered before its helpers,
-/// which follow in the order their places are written.
+/// Lowers the grammar (engine §3): a helper per optional or flat braces,
+/// `[{s}]` an optional around the helper of `{s}`, a chain recursion on
+/// its own rule, and each alternative's own productions numbered before
+/// its helpers, which follow in the order their places are written, those
+/// inside a helper right after it.
 fn lower(source: &Source) -> Grammar {
     let user = source.rules.len();
     let mut rules: Vec<LRule> =
@@ -237,71 +273,71 @@ fn lower(source: &Source) -> Grammar {
         helper_prods.push(prods);
         Sym::N(rules.len() - 1)
     }
+    let mut brace_items = Vec::new();
     for (rule, alternatives) in source.rules.iter().enumerate() {
-        let trailing = alternatives.len() == 1
-            && matches!(alternatives[0].0.last(), Some(Item::Repeat(_) | Item::OptionalRepeat(_)));
+        if let Some(chain) = source.chains[rule] {
+            brace_items.push(chain.item);
+            let none = |length| vec![None; length];
+            pending.push((rule, vec![chain.item], none(1)));
+            let recursive = if chain.left {
+                vec![Sym::N(rule), chain.separator, chain.item]
+            } else {
+                vec![chain.item, chain.separator, Sym::N(rule)]
+            };
+            pending.push((rule, recursive, none(3)));
+            continue;
+        }
         for (items, _) in alternatives {
             let first_helper = rules.len();
             let mut syms = Vec::new();
             let mut tests = Vec::new();
-            let lowered_items = if trailing { &items[..items.len() - 1] } else { &items[..] };
-            for item in lowered_items {
+            for item in items {
                 tests.push(match *item {
                     Item::Tested(_, eq) => Some(eq),
                     _ => None,
                 });
+                let mut make = |prods, elided| helper((&mut rules, &mut helper_prods), rule, prods, elided);
                 syms.push(match *item {
                     Item::Plain(sym) => sym,
                     Item::Tested(rule, _) => Sym::N(rule),
-                    Item::Optional(sym) => {
-                        let elided = match sym {
-                            Sym::T(t) if source.elidable == Some(t) => Some(t),
-                            _ => None,
-                        };
-                        helper((&mut rules, &mut helper_prods), rule, vec![vec![], vec![sym]], elided)
-                    }
+                    Item::Optional(sym) => make(vec![vec![], vec![sym]], None),
+                    Item::Elidable(t) => make(vec![vec![], vec![Sym::T(t)]], Some(t)),
                     Item::Repeat(sym) => {
-                        let id = rules.len();
-                        helper((&mut rules, &mut helper_prods), rule, vec![vec![sym], vec![Sym::N(id), sym]], None)
+                        brace_items.push(sym);
+                        let id = Sym::N(rules.len());
+                        helper((&mut rules, &mut helper_prods), rule, vec![vec![sym], vec![id, sym]], None)
+                    }
+                    Item::Separated(sym, t) => {
+                        brace_items.push(sym);
+                        let id = Sym::N(rules.len());
+                        helper((&mut rules, &mut helper_prods), rule, vec![vec![sym], vec![id, Sym::T(t), sym]], None)
                     }
                     Item::OptionalRepeat(sym) => {
-                        let id = rules.len();
-                        helper((&mut rules, &mut helper_prods), rule, vec![vec![], vec![Sym::N(id), sym]], None)
+                        // The optional's helper, then the helper of the
+                        // braces inside it.
+                        brace_items.push(sym);
+                        let inner = Sym::N(rules.len() + 1);
+                        let optional = helper((&mut rules, &mut helper_prods), rule, vec![vec![], vec![inner]], None);
+                        helper((&mut rules, &mut helper_prods), rule, vec![vec![sym], vec![inner, sym]], None);
+                        optional
                     }
                 });
             }
-            if trailing {
-                match items.last() {
-                    Some(Item::Repeat(sym)) => {
-                        let mut base = syms.clone();
-                        base.push(*sym);
-                        tests.push(None);
-                        pending.push((rule, base, tests, false));
-                        pending.push((rule, vec![Sym::N(rule), *sym], vec![None, None], true));
-                    }
-                    Some(Item::OptionalRepeat(sym)) => {
-                        pending.push((rule, syms, tests, false));
-                        pending.push((rule, vec![Sym::N(rule), *sym], vec![None, None], true));
-                    }
-                    _ => unreachable!(),
-                }
-            } else {
-                pending.push((rule, syms, tests, false));
-            }
+            pending.push((rule, syms, tests));
             places.extend(first_helper..rules.len());
             for id in places.drain(..) {
                 for syms in &helper_prods[id - user] {
-                    pending.push((id, syms.clone(), untested(syms), false));
+                    pending.push((id, syms.clone(), untested(syms)));
                 }
             }
         }
     }
     let mut prods: Vec<LProd> = Vec::new();
-    for (rule, syms, tests, trailing_step) in pending {
+    for (rule, syms, tests) in pending {
         rules[rule].prods.push(prods.len());
-        prods.push(LProd { rule, syms, tests, trailing_step });
+        prods.push(LProd { rule, syms, tests });
     }
-    Grammar { rules, prods, lean: source.lean, elision_only: source.elision_only, maximal: source.maximal }
+    Grammar { rules, prods, lean: source.lean, elision_only: source.elision_only, maximal: source.maximal, brace_items }
 }
 
 /// Appends a random sentence of `rule` to `out`; false if it grew too deep.
@@ -333,8 +369,10 @@ fn item_text(item: &Item) -> String {
         Item::Plain(sym) => name(sym),
         Item::Tested(rule, eq) => format!("{}{}\"x\"", RULES[*rule], if *eq { "=" } else { "≠" }),
         Item::Optional(sym) => format!("[{}]", name(sym)),
-        Item::Repeat(sym) => format!("{} ...", name(sym)),
-        Item::OptionalRepeat(sym) => format!("[{}] ...", name(sym)),
+        Item::Elidable(t) => format!("[+{}]", TERMINALS[*t]),
+        Item::Repeat(sym) => format!("{{{}}}", name(sym)),
+        Item::OptionalRepeat(sym) => format!("[{{{}}}]", name(sym)),
+        Item::Separated(sym, t) => format!("{{{} \\ {}}}", name(sym), TERMINALS[*t]),
     }
 }
 
@@ -347,10 +385,21 @@ fn grammar_text(source: &Source) -> String {
         _ => "%ambiguity-resolution greedy",
     });
     text.push_str(if source.maximal { " maximal\n" } else { "\n" });
-    if let Some(t) = source.elidable {
-        text.push_str(&format!("%elidable {}\n", TERMINALS[t]));
-    }
+    let name = |sym: &Sym| match sym {
+        Sym::T(t) => TERMINALS[*t],
+        Sym::N(n) => RULES[*n],
+    };
     for (rule, alternatives) in source.rules.iter().enumerate() {
+        if let Some(chain) = source.chains[rule] {
+            let (item, separator) = (name(&chain.item), name(&chain.separator));
+            let body = if chain.left {
+                format!("{{... {item} \\ {separator}}}")
+            } else {
+                format!("{{{item} ... \\ {separator}}}")
+            };
+            text.push_str(&format!("%rule {} {body}\n", RULES[rule]));
+            continue;
+        }
         let bodies: Vec<String> = alternatives
             .iter()
             .map(|(items, tags)| {
@@ -376,9 +425,20 @@ fn grammar_dom(source: &Source) -> String {
         Sym::T(t) => format!("{{\"ref\":\"{}\"}}", TERMINALS[*t]),
         Sym::N(n) => format!("{{\"ref\":\"{}\"}}", RULES[*n]),
     };
-    let first_rule_line = if source.elidable.is_some() { 4 } else { 3 };
+    let first_rule_line = 3;
     let mut rules = Vec::new();
     for (rule, alternatives) in source.rules.iter().enumerate() {
+        if let Some(chain) = source.chains[rule] {
+            let direction = if chain.left { "left" } else { "right" };
+            rules.push(format!(
+                "{{\"name\":\"{}\",\"op\":\"define\",\"alternatives\":[{{\"guards\":[],\"expr\":{{\"repeat\":{},\"separator\":{},\"chain\":\"{direction}\"}}}}],\"conditions\":[],\"at\":[{},1]}}",
+                RULES[rule],
+                reference(&chain.item),
+                reference(&chain.separator),
+                rule + first_rule_line
+            ));
+            continue;
+        }
         let alternatives: Vec<String> = alternatives
             .iter()
             .map(|(items, tags)| {
@@ -392,8 +452,14 @@ fn grammar_dom(source: &Source) -> String {
                             reference(&Sym::N(*rule))
                         ),
                         Item::Optional(sym) => format!("{{\"optional\":{}}}", reference(sym)),
-                        Item::Repeat(sym) => format!("{{\"repeat\":{},\"min\":1}}", reference(sym)),
-                        Item::OptionalRepeat(sym) => format!("{{\"repeat\":{},\"min\":0}}", reference(sym)),
+                        Item::Elidable(t) => {
+                            format!("{{\"optional\":{},\"elidable\":true}}", reference(&Sym::T(*t)))
+                        }
+                        Item::Repeat(sym) => format!("{{\"repeat\":{}}}", reference(sym)),
+                        Item::OptionalRepeat(sym) => format!("{{\"optional\":{{\"repeat\":{}}}}}", reference(sym)),
+                        Item::Separated(sym, t) => {
+                            format!("{{\"repeat\":{},\"separator\":{}}}", reference(sym), reference(&Sym::T(*t)))
+                        }
                     })
                     .collect();
                 let expr = match parts.len() {
@@ -419,10 +485,7 @@ fn grammar_dom(source: &Source) -> String {
         _ => "\"greedy\"",
     };
     let args = if source.maximal { format!("{args},\"maximal\"") } else { args.to_string() };
-    let mut directives = vec![format!("{{\"name\":\"ambiguity-resolution\",\"args\":[{args}],\"at\":[2,1]}}")];
-    if let Some(t) = source.elidable {
-        directives.push(format!("{{\"name\":\"elidable\",\"args\":[\"{}\"],\"at\":[3,1]}}", TERMINALS[t]));
-    }
+    let directives = [format!("{{\"name\":\"ambiguity-resolution\",\"args\":[{args}],\"at\":[2,1]}}")];
     format!(
         "{{\"format\":{DOM_FORMAT},\"rules\":[{}],\"directives\":[{}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}",
         rules.join(","),
@@ -851,25 +914,16 @@ enum Shape {
     Elided(usize, usize),
 }
 
-/// The tree of engine §12: helpers and the prefixes of trailing
-/// repetitions spliced out, absent elidable optionals as elided nodes.
+/// The tree of engine §12: helpers spliced out, a chain's levels as rule
+/// nodes, absent elidable optionals as elided nodes.
 fn fragments(grammar: &Grammar, derivation: &Derivation) -> Vec<Shape> {
     let production = &grammar.prods[derivation.prod];
     let rule = &grammar.rules[production.rule];
     let mut children = Vec::new();
-    for (position, child) in derivation.children.iter().enumerate() {
+    for child in &derivation.children {
         match child {
             Child::Read(token, terminal) => children.push(Shape::Token(*terminal, *token)),
-            Child::Node(node) => {
-                let mut made = fragments(grammar, node);
-                if position == 0 && production.trailing_step {
-                    if let [Shape::Rule(_, _, _, inner)] = &mut made[..] {
-                        children.append(inner);
-                        continue;
-                    }
-                }
-                children.append(&mut made);
-            }
+            Child::Node(node) => children.append(&mut fragments(grammar, node)),
         }
     }
     if rule.helper {
@@ -921,6 +975,37 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
     let (source, (tokens, sounds)) = generate(&mut rng);
     let grammar = lower(&source);
     let text = grammar_text(&source);
+    // A grammar that repeats an item that can be empty is an error of
+    // lowering (engine §3.3): the parse gives that error, and the round is
+    // not counted.
+    let mut nullable = vec![false; grammar.rules.len()];
+    loop {
+        let mut changed = false;
+        for production in &grammar.prods {
+            if !nullable[production.rule] && production.syms.iter().all(|sym| matches!(sym, Sym::N(n) if nullable[*n]))
+            {
+                nullable[production.rule] = true;
+                changed = true;
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    if grammar.brace_items.iter().any(|sym| matches!(sym, Sym::N(n) if nullable[*n])) {
+        let document = format!("```jbogenbau\n{text}```\n");
+        let sources = [
+            ("main.md".to_string(), document),
+            ("p.md".to_string(), "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
+        ];
+        let dialect = gencmu::load_dialect_sources(sources, "p.md").map_err(|error| format!("load: {error}"))?;
+        let options = gencmu::ParseOptions { auto_features: false, ..Default::default() };
+        let result = dialect.parse_tokens(&[], &options).map_err(|error| format!("parse: {error}"))?;
+        return match result.error {
+            Some(error) if error.kind == gencmu::ParseErrorKind::Grammar => Ok(false),
+            _ => Err(format!("seed {seed}: an empty item of braces is no error of the grammar:\n{text}")),
+        };
+    }
     // The oracle reads the input itself, whatever the stage does with it.
     let mut enumerator = Enumerator::new(&grammar, &tokens, &sounds, grammar.maximal);
     let Ok(derivations) = enumerator.rule(0, 0, tokens.len(), &[]) else {

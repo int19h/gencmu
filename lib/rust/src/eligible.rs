@@ -665,8 +665,9 @@ mod tests {
         }
     }
 
-    /// A random alternative, as text and as its DOM's expression.
-    fn body(rng: &mut Rng) -> (String, String) {
+    /// A random alternative, as text and as its DOM's expression. `marks`
+    /// are the markers of the optionals of `T` and of `U`, `+` or `++`.
+    fn body(rng: &mut Rng, marks: [&str; 2]) -> (String, String) {
         let symbol = |rng: &mut Rng| {
             if rng.below(2) == 0 {
                 TERMINALS[rng.below(4)]
@@ -675,21 +676,25 @@ mod tests {
             }
         };
         let reference = |name: &str| format!(r#"{{"ref":"{name}"}}"#);
+        let marked = |mark: &str, expr: String| {
+            let maximal = if mark == "++" { r#","maximal":true"# } else { "" };
+            format!(r#"{{"optional":{expr},"elidable":true{maximal}}}"#)
+        };
         let (mut text, mut dom) = (Vec::new(), Vec::new());
         for _ in 0..rng.below(4) {
             match rng.below(50) {
                 0..=9 => {
-                    text.push("[T]".to_string());
-                    dom.push(format!(r#"{{"optional":{}}}"#, reference("T")));
+                    text.push(format!("[{}T]", marks[0]));
+                    dom.push(marked(marks[0], reference("T")));
                 }
                 10..=14 => {
-                    text.push("[U]".to_string());
-                    dom.push(format!(r#"{{"optional":{}}}"#, reference("U")));
+                    text.push(format!("[{}U]", marks[1]));
+                    dom.push(marked(marks[1], reference("U")));
                 }
                 15..=18 => {
                     let after = symbol(rng);
-                    text.push(format!("[T {after}]"));
-                    dom.push(format!(r#"{{"optional":{{"seq":[{},{}]}}}}"#, reference("T"), reference(after)));
+                    text.push(format!("[{}T {after}]", marks[0]));
+                    dom.push(marked(marks[0], format!(r#"{{"seq":[{},{}]}}"#, reference("T"), reference(after))));
                 }
                 _ => {
                     let name = symbol(rng);
@@ -712,27 +717,20 @@ mod tests {
     /// the loader so that a round does not read the document through the
     /// notation.
     fn grammar(rng: &mut Rng) -> (String, String, Vec<&'static str>) {
-        // Now and then T or U is a maximal terminator.
-        let (elidable, directives, maximal): (&str, &str, Vec<&str>) = match rng.below(4) {
-            0 => (
-                "%elidable U\n%elidable maximal T",
-                r#"{"name":"elidable","args":["U"],"at":[3,1]},{"name":"elidable","args":["T"],"maximal":true,"at":[4,1]}"#,
-                vec!["T"],
-            ),
-            1 => (
-                "%elidable maximal T U",
-                r#"{"name":"elidable","args":["T","U"],"maximal":true,"at":[3,1]}"#,
-                vec!["T", "U"],
-            ),
-            _ => ("%elidable T U", r#"{"name":"elidable","args":["T","U"],"at":[3,1]}"#, Vec::new()),
+        // Now and then T or U is maximal: every optional of it is marked
+        // `++` (engine §3.8).
+        let (marks, maximal): ([&str; 2], Vec<&str>) = match rng.below(4) {
+            0 => (["++", "+"], vec!["T"]),
+            1 => (["++", "++"], vec!["T", "U"]),
+            _ => (["+", "+"], Vec::new()),
         };
-        let text_line = 3 + elidable.lines().count();
+        let text_line = 3;
         let mut lines = Vec::new();
         let mut rules = vec![format!(
             r#"{{"name":"text","op":"define","alternatives":[{{"guards":[],"expr":{{"ref":"A"}}}}],"conditions":[],"at":[{text_line},1]}}"#
         )];
         for (line, rule) in RULES.iter().enumerate() {
-            let (first, second) = (body(rng), body(rng));
+            let (first, second) = (body(rng, marks), body(rng, marks));
             lines.push(format!("%rule {rule} {} | {}", first.0, second.0));
             let alternatives = [first.1, second.1].map(|expr| format!(r#"{{"guards":[],"expr":{expr}}}"#)).join(",");
             rules.push(format!(
@@ -740,12 +738,9 @@ mod tests {
                 line + text_line + 1
             ));
         }
-        let document = format!(
-            "```jbogenbau\n%ambiguity-resolution greedy\n{elidable}\n%rule text A\n{}\n```\n",
-            lines.join("\n")
-        );
+        let document = format!("```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n{}\n```\n", lines.join("\n"));
         let dom = format!(
-            r#"{{"format":{},"rules":[{}],"directives":[{{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}},{directives}],"constants":[],"classifiers":[],"implications":[]}}"#,
+            r#"{{"format":{},"rules":[{}],"directives":[{{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}"#,
             crate::dom::DOM_FORMAT,
             rules.join(",")
         );
@@ -827,8 +822,8 @@ mod tests {
     /// entries that they look at grows linearly with the text.
     #[test]
     fn the_searches_for_blocking_paths_look_at_each_set_once() {
-        let grammar = "%ambiguity-resolution greedy\n%elidable T\n%rule text body B\n%conditions matches($, r)\n\
-                       %rule body A ...\n%rule r parts B\n%rule parts part ...\n%rule part A [T]\n";
+        let grammar = "%ambiguity-resolution greedy\n%rule text body B\n%conditions matches($, r)\n\
+                       %rule body {A}\n%rule r parts B\n%rule parts {part}\n%rule part A [+T]\n";
         let operations = |n: usize, budget: Option<u64>| {
             let (eligible, operations, items) = query_work(grammar, n, 0, false, budget);
             assert!(eligible.iter().all(|&eligible| eligible));
@@ -858,20 +853,20 @@ mod tests {
     /// tested `y` from every position, the completions from many origins.
     #[test]
     fn the_checks_of_maximal_terminators_grow_linearly() {
-        let plain = "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text body B\n\
-                     %conditions begins(from($), r)\n%rule body A ...\n%rule r y [T]\n%rule y A ...\n";
-        let tested = "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text body B\n\
-                      %conditions begins(from($), r)\n%rule body A ...\n%rule r y⊇~p [T]\n%rule y A ... <~p>\n";
-        let many = "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text body B\n\
-                    %conditions matches($, r)\n%rule body A ...\n%rule r parts B\n%rule parts part ...\n\
-                    %rule part y⊇~p [T]\n%rule y A <~p>\n";
+        let plain = "%ambiguity-resolution greedy\n%rule text body B\n\
+                     %conditions begins(from($), r)\n%rule body {A}\n%rule r y [++T]\n%rule y {A}\n";
+        let tested = "%ambiguity-resolution greedy\n%rule text body B\n\
+                      %conditions begins(from($), r)\n%rule body {A}\n%rule r y⊇~p [++T]\n%rule y {A} <~p>\n";
+        let many = "%ambiguity-resolution greedy\n%rule text body B\n\
+                    %conditions matches($, r)\n%rule body {A}\n%rule r parts B\n%rule parts {part}\n\
+                    %rule part y⊇~p [++T]\n%rule y A <~p>\n";
         // After the A's come as many C's, so y completes from the start at
         // every end, and the test holds only of those that end before the
         // C's: the furthest end where it holds lies far before the furthest
         // completion.
-        let far = "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text body B\n\
-                   %conditions begins(from($), r)\n%rule body A ... C ...\n%rule r y⊇~p [T]\n\
-                   %rule y A ... <~p> | A ... C ...\n";
+        let far = "%ambiguity-resolution greedy\n%rule text body B\n\
+                   %conditions begins(from($), r)\n%rule body {A} {C}\n%rule r y⊇~p [++T]\n\
+                   %rule y {A} <~p> | {A} {C}\n";
         for (grammar, begins, c) in [(plain, true, 0), (tested, true, 0), (many, false, 0), (far, true, 1)] {
             let (eligible, small, items) = query_work(grammar, 1000, c * 1000, begins, None);
             // The searches read the index once and each completed item

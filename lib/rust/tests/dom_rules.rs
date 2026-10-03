@@ -160,7 +160,17 @@ fn a_well_formed_dom_is_used() {
     assert!(!document_was_read(&with_tags(r#"{"call":"tag","args":[{"call":"text","args":[{"capture":"x"}]}]}"#)));
     let named = r#"{"op":"=","left":{"call":"tag","args":[{"string":"T"}]},"right":{"tag":"T"}}"#;
     assert!(!document_was_read(&with_condition(named)));
-    assert!(!document_was_read(&with_directive(r#"{"name":"elidable","args":["KU","ku"],"at":[2,30]}"#)));
+    // A capture in a plain optional, a choice or an `&`, and six captures
+    // in one production (engine §3.5, §9).
+    let optional =
+        r#"{"guards":[],"expr":{"seq":[{"terminal":"b"},{"optional":{"capture":"x","expr":{"terminal":"c"}}}]}}"#;
+    assert!(!document_was_read(&with_alternative(optional)));
+    let six: Vec<String> = ["a", "b", "c", "d", "e", "f"]
+        .iter()
+        .map(|name| format!(r#"{{"capture":"{name}","expr":{{"terminal":"b"}}}}"#))
+        .collect();
+    let six = format!(r#"{{"guards":[],"expr":{{"choice":[{{"seq":[{}]}},{{"terminal":"b"}}]}}}}"#, six.join(","));
+    assert!(!document_was_read(&with_alternative(&six)));
     // A tested reference or terminal, captured or not, each test, and a
     // tested symbol below 255 compound nodes, itself a compound node whose
     // value counts on from its depth (§9).
@@ -415,7 +425,16 @@ fn every_malformed_dom_is_a_cache_miss() {
                 vec![r#"{"terminal":"b"}"#; 17].join(",")
             )),
         ),
-        ("a repeat with min 2", with_alternative(r#"{"guards":[],"expr":{"repeat":{"terminal":"b"},"min":2}}"#)),
+        (
+            "a repeat with the min of format 17",
+            with_alternative(r#"{"guards":[],"expr":{"repeat":{"terminal":"b"},"min":1}}"#),
+        ),
+        (
+            "a chain in a sequence",
+            with_alternative(
+                r#"{"guards":[],"expr":{"seq":[{"terminal":"b"},{"repeat":{"terminal":"b"},"chain":"left"}]}}"#,
+            ),
+        ),
         (
             "a capture of a group",
             with_alternative(r#"{"guards":[],"expr":{"capture":"x","expr":{"optional":{"terminal":"b"}}}}"#),
@@ -553,7 +572,11 @@ fn every_malformed_dom_is_a_cache_miss() {
             "a capture name with a capital",
             with_alternative(r#"{"guards":[],"expr":{"capture":"X","expr":{"terminal":"b"}}}"#),
         ),
-        ("%elidable with a character tag", with_directive(r#"{"name":"elidable","args":["'k'"],"at":[4,1]}"#)),
+        ("a directive named elidable", with_directive(r#"{"name":"elidable","args":["KU"],"at":[4,1]}"#)),
+        (
+            "a maximal member on a directive",
+            with_directive(r#"{"name":"features","args":["f"],"maximal":true,"at":[4,1]}"#),
+        ),
         // Terms and conditions whose types do not agree (engine §10).
         ("a string as a constituent's tags", with_tags(r#"{"string":"T"}"#)),
         ("a span in a union", with_tags(r#"{"union":[{"capture":"x"},{"tag":"T"}]}"#)),
@@ -669,8 +692,8 @@ fn every_malformed_dom_is_a_cache_miss() {
             "%features with a name that is not a name",
             with_directive(r#"{"name":"features","args":["f g"],"at":[4,1]}"#),
         ),
-        ("a directive at a rule's position", with_directive(r#"{"name":"elidable","args":["X"],"at":[3,1]}"#)),
-        ("two directives at one position", with_directive(r#"{"name":"elidable","args":["X"],"at":[2,1]}"#)),
+        ("a directive at a rule's position", with_directive(r#"{"name":"features","args":["x"],"at":[3,1]}"#)),
+        ("two directives at one position", with_directive(r#"{"name":"features","args":["x"],"at":[2,1]}"#)),
         (
             "two rules at one position",
             with_rule(
@@ -1266,9 +1289,15 @@ fn a_node_of_two_forms_is_refused() {
         second(&format!(r#"{{"choice":[{b},{c}],"seq":[{c},{c}]}}"#)),
         second(&format!(r#"{{"seq":[{c},{c}],"choice":[{b},{c}]}}"#)),
         second(&format!(r#"{{"choice":[{b},{c}],"seq":[{{"ref":5}},{c}]}}"#)),
-        second(&format!(r#"{{"repeat":{b},"min":1,"optional":{c}}}"#)),
-        second(&format!(r#"{{"optional":{c},"repeat":{b},"min":1}}"#)),
-        second(&format!(r#"{{"repeat":{b},"min":1,"optional":{{"ref":["x"]}}}}"#)),
+        second(&format!(r#"{{"repeat":{b},"optional":{c}}}"#)),
+        second(&format!(r#"{{"optional":{c},"repeat":{b}}}"#)),
+        second(&format!(r#"{{"repeat":{b},"optional":{{"ref":["x"]}}}}"#)),
+        second(&format!(r#"{{"repeat":{b},"min":1}}"#)),
+        second(&format!(r#"{{"repeat":{b},"separator":{c},"min":0}}"#)),
+        second(&format!(r#"{{"repeat":{b},"separator":{{"ref":"x y"}}}}"#)),
+        second(&format!(r#"{{"repeat":{b},"chain":"left"}}"#)),
+        second(&format!(r#"{{"optional":{{"repeat":{b},"separator":{c},"chain":"right"}}}}"#)),
+        second(&format!(r#"{{"repeat":{b},"separator":{{"repeat":{c},"chain":"left"}}}}"#)),
         second(r#"{"ref":"x y"}"#),
         with_mixed(&format!(r#"{{"seq":[{captured},{c}],"choice":[{b},{c}]}}"#), &condition),
         wrapped(r#"{"terminal":"'ab'"}"#),
@@ -1297,4 +1326,124 @@ fn a_guard_of_an_alternative_has_three_members() {
         guarded(r#"{"note":"x","feature":"f","kind":"gate","negated":false}"#),
     ];
     assert_refused(&guarded(r#"{"feature":"f","kind":"gate","negated":false}"#), &refused, "a malformed alternative");
+}
+
+/// The DOM of the check of a precompiled DOM, with one rule `text` whose
+/// one alternative's expression is `expr`.
+fn expression_problem(expr: &str) -> Option<String> {
+    let dom = format!(
+        r#"{{"format":{DOM_FORMAT},"rules":[{{"name":"text","op":"define","alternatives":[{{"guards":[],"expr":{expr}}}],"conditions":[],"at":[1,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[]}}"#
+    );
+    gencmu::tools::check_dom(&dom).expect("the bundled tables")
+}
+
+/// A repeat has an item, an optional separator and, as an alternative's
+/// whole expression, a chain of left or right (docs/output.md, engine §9).
+#[test]
+fn a_repeat_has_a_separator_and_a_chain_only_where_allowed() {
+    for expr in [
+        r#"{"repeat":{"ref":"A"}}"#,
+        r#"{"repeat":{"ref":"A"},"separator":{"ref":"B"}}"#,
+        r#"{"optional":{"repeat":{"ref":"A"}}}"#,
+        r#"{"repeat":{"ref":"A"},"chain":"left"}"#,
+        r#"{"repeat":{"ref":"A"},"separator":{"ref":"B"},"chain":"right"}"#,
+        r#"{"seq":[{"capture":"a","expr":{"ref":"A"}},{"repeat":{"ref":"B"}}]}"#,
+    ] {
+        assert_eq!(expression_problem(expr), None, "{expr}");
+    }
+    for expr in [
+        r#"{"repeat":{"ref":"A"},"min":1}"#,
+        r#"{"repeat":{"ref":"A"},"chain":"both"}"#,
+        r#"{"repeat":{"ref":"A"},"chain":true}"#,
+        r#"{"seq":[{"ref":"A"},{"repeat":{"ref":"B"},"chain":"left"}]}"#,
+        r#"{"choice":[{"repeat":{"ref":"B"},"chain":"left"},{"ref":"A"}]}"#,
+        r#"{"optional":{"repeat":{"ref":"A"},"chain":"right"}}"#,
+        r#"{"repeat":{"repeat":{"ref":"A"},"chain":"left"}}"#,
+    ] {
+        assert_eq!(expression_problem(expr).as_deref(), Some("a malformed expression"), "{expr}");
+    }
+    assert_eq!(
+        expression_problem(r#"{"repeat":{"ref":"A"},"separator":{"capture":"s","expr":{"ref":"S"}}}"#).as_deref(),
+        Some("a capture inside braces or an elidable optional")
+    );
+    // The separator counts on from the depth of its repeat.
+    let deep = |depth: usize| format!("{}{{\"ref\":\"S\"}}{}", "{\"optional\":".repeat(depth), "}".repeat(depth));
+    assert_eq!(
+        expression_problem(&format!(r#"{{"repeat":{{"ref":"A"}},"separator":{}}}"#, deep(256))).as_deref(),
+        Some("nested too deeply")
+    );
+    assert_eq!(expression_problem(&format!(r#"{{"repeat":{{"ref":"A"}},"separator":{}}}"#, deep(255))), None);
+}
+
+/// An elidable optional is marked true, maximal only with it, and begins
+/// with its terminal; a capture stands anywhere but in it and in braces,
+/// and a name once in each production (docs/output.md, engine §3.5, §9).
+#[test]
+fn an_elidable_optional_and_captures_are_checked_where_they_stand() {
+    let marked = |expr: &str, extra: &str| format!(r#"{{"optional":{expr},"elidable":true{extra}}}"#);
+    let ku = r#"{"ref":"KU"}"#;
+    let well_formed = [
+        marked(ku, ""),
+        marked(ku, r#","maximal":true"#),
+        marked(r#"{"terminal":"KU"}"#, ""),
+        marked(&format!(r##"{{"seq":[{ku},{{"ref":"#"}}]}}"##), ""),
+        marked(&format!(r#"{{"test":"=","value":{{"string":"ku"}},"expr":{ku}}}"#), ""),
+        marked(&format!(r#"{{"seq":[{ku},{{"choice":[{{"ref":"A"}},{{"ref":"B"}}]}}]}}"#), ""),
+        r#"{"optional":{"capture":"x","expr":{"ref":"A"}}}"#.to_string(),
+        r#"{"choice":[{"capture":"x","expr":{"ref":"A"}},{"ref":"B"}]}"#.to_string(),
+        r#"{"and":[{"capture":"x","expr":{"ref":"A"}},{"ref":"B"}]}"#.to_string(),
+        r#"{"seq":[{"ref":"A"},{"optional":{"seq":[{"ref":"B"},{"optional":{"capture":"c","expr":{"ref":"C"}}}]}}]}"#
+            .to_string(),
+        r#"{"choice":[{"capture":"x","expr":{"ref":"A"}},{"capture":"x","expr":{"ref":"B"}}]}"#.to_string(),
+    ];
+    for expr in &well_formed {
+        assert_eq!(expression_problem(expr), None, "{expr}");
+    }
+    let malformed = [
+        format!(r#"{{"optional":{ku},"elidable":false}}"#),
+        format!(r#"{{"optional":{ku},"elidable":"true"}}"#),
+        format!(r#"{{"optional":{ku},"elidable":null}}"#),
+        format!(r#"{{"optional":{ku},"maximal":true}}"#),
+        marked(ku, r#","maximal":false"#),
+    ];
+    for expr in &malformed {
+        assert_eq!(expression_problem(expr).as_deref(), Some("a malformed expression"), "{expr}");
+    }
+    let heads = [
+        format!(r#"{{"choice":[{ku},{{"ref":"VAU"}}]}}"#),
+        format!(r#"{{"and":[{ku},{{"ref":"A"}}]}}"#),
+        r#"{"ref":"ku"}"#.to_string(),
+        r##"{"ref":"#"}"##.to_string(),
+        r#"{"terminal":"/a/"}"#.to_string(),
+        r#"{"terminal":"'a'"}"#.to_string(),
+        r#"{"range":["'a'","'z'"]}"#.to_string(),
+        format!(r#"{{"test":"≠","value":{{"string":"ku"}},"expr":{ku}}}"#),
+        format!(r##"{{"seq":[{{"seq":[{ku},{{"ref":"#"}}]}},{{"ref":"A"}}]}}"##),
+        format!(r#"{{"optional":{ku}}}"#),
+        r#"{"empty":true}"#.to_string(),
+    ];
+    for head in &heads {
+        assert_eq!(expression_problem(&marked(head, "")).as_deref(), Some("a malformed elidable optional"), "{head}");
+    }
+    let sealed = Some("a capture inside braces or an elidable optional");
+    let capture = r#"{"capture":"x","expr":{"ref":"A"}}"#;
+    assert_eq!(expression_problem(&marked(&format!(r#"{{"seq":[{ku},{capture}]}}"#), "")).as_deref(), sealed);
+    assert_eq!(
+        expression_problem(&marked(&format!(r#"{{"seq":[{ku},{{"optional":{capture}}}]}}"#), "")).as_deref(),
+        sealed
+    );
+    assert_eq!(expression_problem(&format!(r#"{{"repeat":{capture}}}"#)).as_deref(), sealed);
+    assert_eq!(
+        expression_problem(r#"{"capture":"x","expr":{"optional":{"ref":"A"}}}"#).as_deref(),
+        Some("a malformed capture")
+    );
+    let twice = Some("a capture name used twice in one production");
+    for expr in [
+        r#"{"seq":[{"capture":"x","expr":{"ref":"A"}},{"capture":"x","expr":{"ref":"B"}}]}"#,
+        r#"{"seq":[{"optional":{"capture":"x","expr":{"ref":"A"}}},{"capture":"x","expr":{"ref":"B"}}]}"#,
+        r#"{"seq":[{"choice":[{"capture":"x","expr":{"ref":"A"}},{"ref":"B"}]},{"choice":[{"capture":"x","expr":{"ref":"C"}},{"ref":"D"}]}]}"#,
+        r#"{"and":[{"capture":"x","expr":{"ref":"A"}},{"capture":"x","expr":{"ref":"B"}}]}"#,
+    ] {
+        assert_eq!(expression_problem(expr).as_deref(), twice, "{expr}");
+    }
 }

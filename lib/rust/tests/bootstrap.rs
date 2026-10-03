@@ -141,7 +141,7 @@ fn parsing_with_and_without_the_cache() {
     let also_cached =
         gencmu::load_dialect_sources(bundled_sources(None), "dialects/notation.md").expect("a cached load");
     for text in [
-        "%rule text [piece] ... %rule piece word | \"x\" </x/> %emits $",
+        "%rule text [{piece}] {... A \\ B} [+KU #] %rule piece word | \"x\" </x/> %emits $",
         "%ambiguity-resolution greedy elision-only\n%rule a $x(b) <\"T\" ∪ ($x ⟹ tags($x, c))> %conditions ¬matches(tail($x), d), $x",
         "%rule broken",
     ] {
@@ -158,7 +158,6 @@ fn parsing_with_and_without_the_cache() {
 /// bootstrap of each test below.
 const EVERY_CONSTRUCT: &str = r#"```jbogenbau
 %ambiguity-resolution greedy
-%elidable KU ~KEI
 %features f g
 %const $K ~A ∪ ~B
 %redefine-const $K ~A ∪ ~B ∪ ∅
@@ -167,7 +166,7 @@ const EVERY_CONSTRUCT: &str = r#"```jbogenbau
   ¬g? "do" ∉ ~KOhA
 %implies ~A ∩ ~B ⟹ ~C ∖ ~D
 %rule text
-  | f? h! $x(A) $y(LE="la") [C | D] E... (F & G) 'a'..'z' '\p{L}' /a/ ~H UI∩(~B)=∅ <~T ∪ $K>
+  | f? h! $x(A) $y(LE="la") [C | $z(D)] {E} {E \ [C]} [+KU #] [++~KEI (A | B)] (F & G) 'a'..'z' '\p{L}' /a/ ~H UI∩(~B)=∅ <~T ∪ $K>
   | g? text-tail
   %tags ~U ∪ ($x ∧ classify(text($x), lex) ⊆ ~V ⟹ ~W)
   %conditions , (text($x) = "ok" ∨ initial($y)) ⟹ ¬matches(head($x), text) ∧ $y, begins(tail($x), text), text($y) ∈ split("a.b", ".")
@@ -175,6 +174,8 @@ const EVERY_CONSTRUCT: &str = r#"```jbogenbau
   %opaque
 %rule text-tail
   ε
+%rule chain
+  {... A \ B}
 %redefine-rule text-tail
   #
 %extend-rule text-tail
