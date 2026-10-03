@@ -9,7 +9,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { codeSpans } from "./links.js";
-import { fenceOf } from "./prose-lines.js";
+import { classifyLines } from "./markdown-lines.js";
+import { PROSE, proseLineProblems } from "./prose-lines.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -52,29 +53,22 @@ export function quotedText(content) {
  * from 1) and the dialects that the line names. Every paragraph and list
  * item is one line (tools/prose-lines.js), so a code span opens and closes
  * on one line, and the line is the paragraph or list item that quotes the
- * text. Fenced blocks hold grammar and examples of output, not prose, so
- * their lines are skipped.
+ * text. Only lines of prose count (tools/markdown-lines.js): fenced blocks
+ * hold grammar and examples of output, and a line whose layout is not
+ * modelled is an error of quotedTextProblems.
  * @param {string} markdown
  * @returns {{text: string, line: number, dialects: string[]}[]}
  */
 export function quotedTexts(markdown) {
   const texts = [];
-  /** @type {string | null} */
-  let fence = null;
-  markdown.split(/\r\n|\r|\n/).forEach((line, index) => {
-    if (fence) {
-      const close = /^\s*(`{3,}|~{3,})\s*$/.exec(line);
-      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
-      return;
-    }
-    fence = fenceOf(line);
-    if (fence) return;
-    const dialects = namedDialects(line);
-    for (const span of codeSpans(line)) {
+  for (const { line, content, kind } of classifyLines(markdown)) {
+    if (!PROSE.has(kind)) continue;
+    const dialects = namedDialects(content);
+    for (const span of codeSpans(content)) {
       const text = quotedText(span.content);
-      if (text) texts.push({ text, line: index + 1, dialects });
+      if (text) texts.push({ text, line, dialects });
     }
-  });
+  }
   return texts;
 }
 
@@ -138,7 +132,11 @@ export function quotedTextProblems(base = root) {
   const { entries, problems } = readAllowList(fs.existsSync(allowFile) ? fs.readFileSync(allowFile, "utf8") : "");
   const used = new Set();
   for (const [document, dialect] of Object.entries(DOCUMENTS)) {
-    for (const { text, line, dialects } of quotedTexts(fs.readFileSync(path.join(base, document), "utf8"))) {
+    const markdown = fs.readFileSync(path.join(base, document), "utf8");
+    // The quoted texts are read line by line, which holds only for the
+    // layout that the one-line check accepts.
+    problems.push(...proseLineProblems(markdown, document));
+    for (const { text, line, dialects } of quotedTexts(markdown)) {
       // The document's own dialect, and every dialect that the line names.
       const missing = [...new Set([dialect, ...dialects])].filter((name) => !(cases.get(text) || new Set()).has(name));
       if (!missing.length) continue;

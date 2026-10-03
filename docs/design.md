@@ -547,7 +547,7 @@ The editor lists a dialect's documents stage by stage. A forgiving scan of the `
 
 ## Documents
 
-Every paragraph, list item, quoted paragraph and table row of a Markdown document in the repository stands on one line, since some renderers show a line break inside a paragraph as a break. A heading is one line, and a blank line or a new block follows it. A code span closes on the line where it opens. Fenced blocks are exempt. `tools/sync.js --check` enforces this (`tools/prose-lines.js`).
+Every paragraph, list item and table row of a Markdown document in the repository stands on one line, since some renderers show a line break inside a paragraph as a break. A heading is one line, and a blank line or a new block follows it. A code span closes on the line where it opens. Fenced blocks are exempt. The documents use only headings, paragraphs, list items nested to any depth, tables, and fenced blocks at the top level or in a list item. They use no quotes, HTML blocks, indented code blocks or link reference definitions. `tools/sync.js --check` enforces both rules (`tools/prose-lines.js`), and the tools that read the prose rely on them (`tools/markdown-lines.js`).
 
 ## Tests
 
