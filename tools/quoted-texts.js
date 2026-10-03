@@ -9,6 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { codeSpans } from "./links.js";
+import { fenceOf } from "./prose-lines.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -23,7 +24,7 @@ export const DOCUMENTS = {
   "grammars/dialects/bpfk.md": "bpfk",
 };
 
-/** The dialects that a block of prose can name, as "the bpfk dialect". */
+/** The dialects that a line of prose can name, as "the bpfk dialect". */
 export const DIALECTS = ["cll-ebnf", "bpfk", "experimental", "zantufa"];
 
 /** The least number of words that makes a code span a quoted text. */
@@ -47,34 +48,17 @@ export function quotedText(content) {
 }
 
 /**
- * The quoted texts of a Markdown document, each with the line where its
- * span begins (counted from 1) and the dialects that its block names. A
- * block is a paragraph, a list item's text or a heading: a code span can
- * run over the lines of one block, as in Markdown, and not past it. Fenced
- * blocks hold grammar and examples of output, not prose, so their lines are
- * skipped. A line opens a fence only as Markdown says: three backticks or
- * tildes or more, and after backticks no backtick on the line, so a line
- * that begins with a code span of three backticks is prose.
+ * The quoted texts of a Markdown document, each with its line (counted
+ * from 1) and the dialects that the line names. Every paragraph and list
+ * item is one line (tools/prose-lines.js), so a code span opens and closes
+ * on one line, and the line is the paragraph or list item that quotes the
+ * text. Fenced blocks hold grammar and examples of output, not prose, so
+ * their lines are skipped.
  * @param {string} markdown
  * @returns {{text: string, line: number, dialects: string[]}[]}
  */
 export function quotedTexts(markdown) {
   const texts = [];
-  /** @type {{text: string, line: number}[]} */
-  let block = [];
-  const flush = () => {
-    if (!block.length) return;
-    const joined = block.map((part) => part.text).join("\n");
-    const chars = [...joined];
-    const dialects = namedDialects(joined.replace(/\s+/g, " "));
-    for (const span of codeSpans(joined)) {
-      const text = quotedText(span.content);
-      if (!text) continue;
-      const breaks = chars.slice(0, span.start).filter((c) => c === "\n").length;
-      texts.push({ text, line: block[0].line + breaks, dialects });
-    }
-    block = [];
-  };
   /** @type {string | null} */
   let fence = null;
   markdown.split(/\r\n|\r|\n/).forEach((line, index) => {
@@ -83,19 +67,14 @@ export function quotedTexts(markdown) {
       if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
       return;
     }
-    const open = /^\s*(`{3,}|~{3,})(.*)$/.exec(line);
-    if (open && !(open[1][0] === "`" && open[2].includes("`"))) {
-      flush();
-      fence = open[1];
-      return;
+    fence = fenceOf(line);
+    if (fence) return;
+    const dialects = namedDialects(line);
+    for (const span of codeSpans(line)) {
+      const text = quotedText(span.content);
+      if (text) texts.push({ text, line: index + 1, dialects });
     }
-    // A blank line ends a block, and a heading, a list item, a quote or a
-    // table row begins one.
-    if (!line.trim()) { flush(); return; }
-    if (/^\s*(#{1,6}(\s|$)|[-*+]\s|\d{1,9}[.)]\s|>|\|)/.test(line)) flush();
-    block.push({ text: line, line: index + 1 });
   });
-  flush();
   return texts;
 }
 
@@ -136,7 +115,7 @@ export function readAllowList(list) {
 
 /**
  * Every quoted text of DOCUMENTS that lacks a case of its document's
- * dialect, or of a dialect that its block names, and that the allow-list
+ * dialect, or of a dialect that its line names, and that the allow-list
  * does not list, and every entry of the allow-list that is not needed: a text
  * that no document quotes, or that a case pins wherever it is quoted.
  * @param {string} [base] the repository
@@ -160,7 +139,7 @@ export function quotedTextProblems(base = root) {
   const used = new Set();
   for (const [document, dialect] of Object.entries(DOCUMENTS)) {
     for (const { text, line, dialects } of quotedTexts(fs.readFileSync(path.join(base, document), "utf8"))) {
-      // The document's own dialect, and every dialect that the block names.
+      // The document's own dialect, and every dialect that the line names.
       const missing = [...new Set([dialect, ...dialects])].filter((name) => !(cases.get(text) || new Set()).has(name));
       if (!missing.length) continue;
       if (entries.has(text)) { used.add(text); continue; }
