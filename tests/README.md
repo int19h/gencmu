@@ -134,18 +134,29 @@ The corpus started from a seed: a fixture collection whose verdicts came from an
 
 ## Quoted texts: `quoted-allow.txt`
 
-A grammar document often says what gencmu does with a Lojban text that it quotes. A corpus case pins that text, so that a grammar change that makes the sentence false fails the case. `node tools/quoted-texts.js` checks that each quoted text has a case or is on the allow-list `quoted-allow.txt`, and `node tools/sync.js --check` runs the same check.
+A grammar document often says what gencmu does with a Lojban text that it quotes. A corpus case pins that text. Then a grammar change that makes the sentence false fails the case. `node tools/quoted-texts.js` checks that each quoted text has a case or an entry in the allow-list `quoted-allow.txt`. `node tools/sync.js --check` runs the same check.
 
 A quoted text is a code span in the prose of a document, outside code blocks, with these properties:
 
-- Its words, separated by white space, number three or more. Below three words, most spans are single words, names and short parts of a rule.
-- It holds only lowercase ASCII letters, apostrophes, full stops, commas and white space. So a rule name, which has a hyphen or a digit, a selma'o or a token, which is uppercase, and jbogenbau, which has brackets and other symbols, are not quoted texts.
+- It has two words or more, separated by white space. A single word is often a name or a part of a rule.
+- It holds only lowercase ASCII letters, apostrophes, full stops, commas and white space, and each word has a letter. So these are not quoted texts: a rule name, which has a hyphen or a digit; a selma'o or a token, which is uppercase; and jbogenbau, which has brackets and other symbols.
 - It holds no `...` or `…`, which mark a gap in the words.
 
 The check finds the code spans with the CommonMark and GFM parser of `tools/markdown.js`, so a code block holds none. Every prose block is one line, with its code spans ("Documents" in `docs/design.md`). So the line of a text's code span is the paragraph, list item, heading or table row that quotes it.
 
-Its words joined by single spaces are compared with the text of each corpus case, written the same way. Each checked document has a dialect that its claims are about: dialect X for `grammars/dialects/X.md`, and cll-ebnf for the CLL syntax grammar. A quoted text needs a case of that dialect. If its line names another dialect, as in "the bpfk dialect rejects it" or "the cll-ebnf and bpfk dialects", the text needs a case of that dialect too. The case pins what the sentence says about the text: its verdict, and its brackets or words where the sentence says how the text reads. Before a case is added, the claim is checked by running the text. A false claim is corrected in the prose, not pinned.
+The words of a quoted text, joined by single spaces, are compared with the text of each corpus case, written the same way. Each checked document has the dialects that its claims are about. A quoted text needs a case of each of them. Its line can name more dialects, as in "the bpfk dialect rejects it" or "In cll-ebnf and bpfk". The text then needs a case of each of those too. A name counts when it stands as a word in the prose, or in the text of a link. A name in a code span or a link target does not count.
 
-`quoted-allow.txt` lists the quoted texts that need no case. Each line is the text, then ` # `, then the reason. A text on the list is a part of a text, such as a sumti or a tanru that shows the shape of a rule, or it is notation, such as `nu'i terms nu'u`. Lines that begin with `#` are comments. An entry that no checked document quotes without a case is an error, so the list does not keep stale entries.
+A sentence that says how a text reads quotes that exact text. For example, it says "Here `le poi blabi gerku cu klama` parses", not "the text without `ku'o` parses". Then the check sees the text that the claim is about.
 
-The check covers the documents that `DOCUMENTS` in `tools/quoted-texts.js` lists, each with its dialect. Now these are the CLL syntax grammar and the cll-ebnf and bpfk dialect documents.
+The case pins what the sentence says about the text: its verdict, and its brackets or words where the sentence says how the text reads. Before a case is added, the claim is checked by running the text. A false claim is corrected in the prose, not pinned. No tool compares the verdict that a sentence states with the case.
+
+When a case fails, the JavaScript corpus runner names the lines of the checked documents that quote its text, as `quoted at grammars/syntax/cll.md:669`. The prose there may now be false.
+
+Each entry of `quoted-allow.txt` covers one quoted text in one document. Its line is the text, then ` # `, then the document, and then one of these:
+
+- ` = ` and the ids of cases, separated by spaces. The text or the words of each case hold the quoted text as consecutive words. Among the cases, there is one of each dialect that the text needs. This form is for a part of a text that the sentence makes a claim about, such as `na'e ka'e` as one tense.
+- ` # ` and the reason. This form is for notation, such as `nu'i terms nu'u`, and for a part of a text that shows the shape of a rule, such as `mi .e do`.
+
+Lines that begin with `#` are comments. An entry that the check does not need is an error, so the list does not keep stale entries.
+
+The check covers the documents that `DOCUMENTS` in `tools/quoted-texts.js` lists. Now these are the CLL syntax grammar and the cll-ebnf and bpfk dialect documents. `DOCUMENTS` gives each document its dialects. They must be the dialects whose pipelines include the document, less those in `LAYERED`. The experimental dialect is in `LAYERED` for the CLL syntax grammar, since its own syntax document redefines rules of that grammar. A dialect document that neither `DOCUMENTS` nor `UNCHECKED` lists is an error. So a new dialect is not left out in silence.

@@ -430,6 +430,7 @@
 {"id":"corpus.camxes.10368","text":".i do xu tolsarji le nu gunta le raksygu'e","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["i","do","xu","tolsarji","le","nu","gunta","le","raksygu'e"],"brackets":"(i [{do xu} {tolsarji (le [nu {gunta (le raksygu'e)}])}])"}
 {"id":"corpus.camxes.10369","text":"zo'o mi pinxe lei rakso ctile .i kukte","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo'o","mi","pinxe","lei","rakso","ctile","i","kukte"],"brackets":"(zo'o [{mi (pinxe [lei {rakso ctile}])} i kukte])"}
 {"id":"corpus.camxes.1037","text":"le sutra cu tavla","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["le","sutra","cu","tavla"],"brackets":"([le sutra] cu tavla)"}
+{"id":"corpus.camxes.1037.bpfk","text":"le sutra cu tavla","dialect":"bpfk","expect":"accept","verdict":"unique","words":["le","sutra","cu","tavla"],"brackets":"([le sutra] cu tavla)"}
 {"id":"corpus.camxes.10370","text":".i do jinvi le du'u na midju xu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["i","do","jinvi","le","du'u","na","midju","xu"],"brackets":"(i [do {jinvi (le [du'u {na (midju xu)}])}])"}
 {"id":"corpus.camxes.10371","text":"xu midju pe'a","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xu","midju","pe'a"],"brackets":"(xu [midju pe'a])"}
 {"id":"corpus.camxes.10372","text":"xu zo midju dunli lu vajni traji li'u","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xu","zo","midju","dunli","lu","vajni","traji","li'u"],"brackets":"(xu [{zo midju} {dunli (lu [vajni traji] li'u)}])"}
@@ -452,6 +453,7 @@
 {"id":"corpus.camxes.10388","text":".iar. lo flalu na zasti fi'o se cpana lo xamsi","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["iar","lo","flalu","na","zasti","fi'o","se","cpana","lo","xamsi"],"brackets":"(iar [{lo flalu} {(na zasti) ([fi'o {se cpana}] [lo xamsi])}])"}
 {"id":"corpus.camxes.10389","text":"je'e .i mi ca benji","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["je'e","i","mi","ca","benji"],"brackets":"(je'e [i {mi (ca benji)}])"}
 {"id":"corpus.camxes.1039","text":"le sutra tavla","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["le","sutra","tavla"],"brackets":"(le [sutra tavla])"}
+{"id":"corpus.camxes.1039.bpfk","text":"le sutra tavla","dialect":"bpfk","expect":"accept","verdict":"unique","words":["le","sutra","tavla"],"brackets":"(le [sutra tavla])"}
 {"id":"corpus.camxes.10390","text":"coi doi xod.","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["coi","doi","xod"],"brackets":"([coi doi] xod)"}
 {"id":"corpus.camxes.10391","text":"to doi xod. toi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["to","doi","xod","toi"],"brackets":"(to [doi xod] toi)"}
 {"id":"corpus.camxes.10392","text":".iar. doi meiti.","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["iar","doi","mei","ti"]}
@@ -2503,6 +2505,7 @@
 {"id":"corpus.camxes.1221","text":"meiin.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["meiin"],"brackets":"meiin"}
 {"id":"corpus.camxes.12210","text":"la maljboske","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","maljboske"],"brackets":"(la maljboske)"}
 {"id":"corpus.camxes.12211","text":"le ci gerku","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["le","ci","gerku"],"brackets":"(le [ci gerku])"}
+{"id":"corpus.camxes.12211.bpfk","text":"le ci gerku","dialect":"bpfk","expect":"accept","verdict":"unique","words":["le","ci","gerku"],"brackets":"(le [ci gerku])"}
 {"id":"corpus.camxes.12212","text":"ro le ci gerku","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ro","le","ci","gerku"],"brackets":"(ro [le {ci gerku}])"}
 {"id":"corpus.camxes.12213","text":"le panonono prenu cu sonci","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["le","pa","no","no","no","prenu","cu","sonci"],"brackets":"([le {(pa no no no) prenu}] cu sonci)"}
 {"id":"corpus.camxes.12214","text":"si si gernaldra lojbo","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["gernaldra","lojbo"],"brackets":"(gernaldra lojbo)"}
@@ -7958,6 +7961,7 @@
 {"id":"corpus.camxes.17028","text":"tu'a ra cfipu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tu'a","ra","cfipu"],"brackets":"([tu'a ra] cfipu)"}
 {"id":"corpus.camxes.17029","text":"ku'i mi zvati","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ku'i","mi","zvati"],"brackets":"(ku'i [mi zvati])"}
 {"id":"corpus.camxes.1703","text":"pa re ci","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["pa","re","ci"],"brackets":"(pa re ci)"}
+{"id":"corpus.camxes.1703.bpfk","text":"pa re ci","dialect":"bpfk","expect":"accept","verdict":"unique","words":["pa","re","ci"],"brackets":"(pa re ci)"}
 {"id":"corpus.camxes.17030","text":"coi doi tcoso","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["coi","doi","tcoso"],"brackets":"([coi doi] tcoso)"}
 {"id":"corpus.camxes.17031","text":"coi drata","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["coi","drata"],"brackets":"(coi drata)"}
 {"id":"corpus.camxes.17032","text":"i xu zo tcoso drani","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["i","xu","zo","tcoso","drani"],"brackets":"([i xu] [{zo tcoso} drani])"}
@@ -9507,6 +9511,7 @@
 {"id":"corpus.camxes.18408","text":"ca'e lo kensa cu marji","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ca'e","lo","kensa","cu","marji"],"brackets":"(ca'e [{lo kensa} cu marji])"}
 {"id":"corpus.camxes.18409","text":"xu do smuni tu'a le kunti barda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xu","do","smuni","tu'a","le","kunti","barda"],"brackets":"(xu [do {smuni (tu'a [le {kunti barda}])}])"}
 {"id":"corpus.camxes.1841","text":"ta me li ny. su'i pa me'u moi le'i mi ratcu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ta","me","li","ny","su'i","pa","me'u","moi","le'i","mi","ratcu"],"brackets":"(ta [{me (li [ny su'i pa]) me'u moi} {le'i (mi ratcu)}])"}
+{"id":"corpus.camxes.1841.bpfk","text":"ta me li ny. su'i pa me'u moi le'i mi ratcu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["ta","me","li","ny","su'i","pa","me'u","moi","le'i","mi","ratcu"],"brackets":"(ta [{me (li [ny su'i pa]) me'u moi} {le'i (mi ratcu)}])"}
 {"id":"corpus.camxes.18410","text":"la'a go'i","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la'a","go'i"],"brackets":"(la'a go'i)"}
 {"id":"corpus.camxes.18411","text":"ti'e vi ta ku canlu le so'umei be lo ratni","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["ti'e","vi","ta","ku","canlu","le","so'u","mei","be","lo","ratni"]}
 {"id":"corpus.camxes.18412","text":"sa'e ca'e lo canlu be no ratni cu marji","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["sa'e","ca'e","lo","canlu","be","no","ratni","cu","marji"],"brackets":"([sa'e ca'e] [{lo (canlu [be {no ratni}])} cu marji])"}
@@ -13981,6 +13986,7 @@
 {"id":"corpus.camxes.22369","text":"mi nitcu la .keiris. .e le se go'i na spuda loi preti pe mi oops","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["mi","nitcu","la","keiris","e","le","se","go'i","na","spuda","loi","preti","pe","mi","oops"]}
 {"id":"corpus.camxes.2237","text":" i lu oi e'osai ko kurji le do se tarti sei la alis terpa dunku plipe krixa i oi uu le ta melbi nazbi li'u ca le nu lo nalfadni barda tansi cu vofli zo'a ny gi'e naru'e beirvi'u ny ","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["i","lu","oi","e'o","sai","ko","kurji","le","do","se","tarti","sei","la","alis","terpa","dunku","plipe","krixa","i","oi","uu","le","ta","melbi","nazbi","li'u","ca","le","nu","lo","nalfadni","barda","tansi","cu","vofli","zo'a","ny","gi'e","na","ru'e","beirvi'u","ny"],"brackets":"(i [{lu ([oi e'o sai] [{ko (kurji [le {do (se [tarti {sei (la alis) (terpa dunku plipe krixa)}])}])} {i oi uu} {le (ta [melbi nazbi])}]) li'u} {ca (le [nu {(lo [nalfadni barda tansi]) cu ([vofli {zo'a ny}] gi'e [{(na ru'e) beirvi'u} ny])}])}])"}
 {"id":"corpus.camxes.22370","text":".i je","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["i","je"],"brackets":"(i je)"}
+{"id":"corpus.camxes.22370.bpfk","text":".i je","dialect":"bpfk","expect":"accept","verdict":"unique","words":["i","je"],"brackets":"(i je)"}
 {"id":"corpus.camxes.22371","text":"mi nitcu la keiris iku'i ri na spuda loi preti pe mi","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["mi","nitcu","la","keiris","i","ku'i","ri","na","spuda","loi","preti","pe","mi"],"brackets":"([mi {nitcu (la keiris)}] [i ku'i] [ri {(na spuda) (loi [preti {pe mi}])}])"}
 {"id":"corpus.camxes.22372","text":".i mi xusra loi pano jugbalsoi","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["i","mi","xusra","loi","pa","no","jugbalsoi"],"brackets":"(i [mi {xusra (loi [{pa no} jugbalsoi])}])"}
 {"id":"corpus.camxes.22373","text":"mi cu","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["mi","cu"]}
@@ -14580,6 +14586,7 @@
 {"id":"corpus.camxes.2578","text":" i lu fe lei xasyjukni sei la cpicinfo noi plipe le vacri cu krixa li'u ","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["i","lu","fe","lei","xasyjukni","sei","la","cpicinfo","noi","plipe","le","vacri","cu","krixa","li'u"],"brackets":"(i [lu {fe (lei [xasyjukni {sei (la [cpicinfo {noi (plipe [le vacri])}]) cu krixa}])} li'u])"}
 {"id":"corpus.camxes.2579","text":" i lu fi le xamsi serai le selka'e ka darno li'u ","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["i","lu","fi","le","xamsi","se","rai","le","selka'e","ka","darno","li'u"],"brackets":"(i [lu {(fi [le xamsi]) ([se rai] [le {selka'e (ka darno)}])} li'u])"}
 {"id":"corpus.camxes.258","text":"mi ba'e ba'e klama","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","ba'e","ba'e","klama"],"brackets":"(mi [ba'e ba'e klama])"}
+{"id":"corpus.camxes.258.bpfk","text":"mi ba'e ba'e klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","ba'e","ba'e","klama"],"brackets":"(mi [ba'e ba'e klama])"}
 {"id":"corpus.camxes.2580","text":" i lu e'e limna jersi lei xasyjukni sei la cpicinfo cu krixa li'u ","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["i","lu","e'e","limna","jersi","lei","xasyjukni","sei","la","cpicinfo","cu","krixa","li'u"],"brackets":"(i [lu {e'e ([limna jersi] [lei {xasyjukni (sei [la cpicinfo] cu krixa)}])} li'u])"}
 {"id":"corpus.camxes.2581","text":" i lu e'e pipcarna ne'i le xamsi sei la jitfa cakyrespa cu krixa li'u ","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["i","lu","e'e","pipcarna","ne'i","le","xamsi","sei","la","jitfa","cakyrespa","cu","krixa","li'u"],"brackets":"(i [lu {e'e (pipcarna [ne'i {le (xamsi [sei {la (jitfa cakyrespa)} cu krixa])}])} li'u])"}
 {"id":"corpus.camxes.2582","text":" i lu e'e za'ure'u cajysi'u lei xasyjukni sei la cpicinfo cu voksa cladu traji krixa li'u ","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["i","lu","e'e","za'u","re'u","cajysi'u","lei","xasyjukni","sei","la","cpicinfo","cu","voksa","cladu","traji","krixa","li'u"],"brackets":"(i [lu {e'e ([{za'u re'u} cajysi'u] [lei {xasyjukni (sei [la cpicinfo] cu [voksa cladu traji krixa])}])} li'u])"}
@@ -19154,6 +19161,7 @@
 {"id":"corpus.camxes.6633","text":"le re gerku","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["le","re","gerku"],"brackets":"(le [re gerku])"}
 {"id":"corpus.camxes.6634","text":"re le gerku","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["re","le","gerku"],"brackets":"(re [le gerku])"}
 {"id":"corpus.camxes.6635","text":"re gerku","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["re","gerku"],"brackets":"(re gerku)"}
+{"id":"corpus.camxes.6635.bpfk","text":"re gerku","dialect":"bpfk","expect":"accept","verdict":"unique","words":["re","gerku"],"brackets":"(re gerku)"}
 {"id":"corpus.camxes.6636","text":"mi'o ponse re le lumci kumfa","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi'o","ponse","re","le","lumci","kumfa"],"brackets":"(mi'o [ponse {re (le [lumci kumfa])}])"}
 {"id":"corpus.camxes.6637","text":"probably me le re lumci kumfa","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"corpus.camxes.6638","text":"probably me re le lumci kumfa","dialect":"cll-ebnf","expect":"reject","stage":"words"}
