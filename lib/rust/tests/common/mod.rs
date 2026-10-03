@@ -478,6 +478,33 @@ pub fn result_problems(json: &Value) -> Vec<String> {
                 .push(format!("the tied stage {name} lacks its error of kind ambiguous, reason tie and two readings"));
         }
     }
+    // An error that loses the witness of elision-only is a grammar error of
+    // the last stage, which is resolved and has no output, with its chosen
+    // tree and completion, and nothing else (engine §7.9).
+    if let Some(error) =
+        json.get("error").filter(|error| error.get("code").and_then(Value::str) == Some("elision-witness-lost"))
+    {
+        if error.get("kind").and_then(Value::str) != Some("grammar")
+            || error.get("stage").and_then(Value::str).is_none()
+            || error.get("chosen").is_none()
+            || !matches!(error.get("completion"), Some(Value::Array(_)))
+        {
+            problems.push("the elision-witness-lost error lacks its kind grammar, stage, chosen or completion".into());
+        }
+        for member in ["token", "source", "line", "column", "expected", "reason", "readings"] {
+            if error.get(member).is_some() {
+                problems.push(format!("the elision-witness-lost error has the member {member}"));
+            }
+        }
+        let last = stages.last();
+        if last.and_then(|stage| stage.get("name")) != error.get("stage")
+            || last.and_then(|stage| stage.get("verdict")).and_then(Value::str) != Some("resolved")
+            || last.is_some_and(|stage| stage.get("output").is_some())
+        {
+            problems
+                .push("the stage of the elision-witness-lost error is not the last, resolved, with no output".into());
+        }
+    }
     // An ambiguous error has no position (docs/output.md).
     if let Some(error) = json.get("error").filter(|error| error.get("kind").and_then(Value::str) == Some("ambiguous")) {
         for member in ["token", "source"] {
@@ -487,6 +514,19 @@ pub fn result_problems(json: &Value) -> Vec<String> {
         }
     }
     problems
+}
+
+/// Whether a result fails the invariants of the witness of elision-only,
+/// whatever its case expects (tests/README.md): no result has the error
+/// elision-witness-lost, which no grammar gives (engine §7.8), and every
+/// check that ran and met no error of the grammar kept W(D) in its forest.
+pub fn witness_problem(result: &gencmu::ParseResult, checks: &[gencmu::tools::ElisionCheckRun]) -> Option<String> {
+    if result.error.as_ref().is_some_and(|error| error.code == Some(gencmu::ErrorCode::ElisionWitnessLost)) {
+        return Some("the result is the error elision-witness-lost, which no grammar gives".to_string());
+    }
+    checks.iter().find(|check| !check.keeps_witness).map(|check| {
+        format!("the check of elision-only in stage {} lost the witness of its chosen derivation", check.stage)
+    })
 }
 
 /// Holds a canonical result to the invariants, and then to the case's
@@ -525,10 +565,12 @@ fn check_parse(dialect: &gencmu::Dialect, case: &Value, run: &Value, expect: &Va
         }
     }
     let options = case_options(run);
-    let parsed = match case_tokens(case) {
+    // Every check of elision-only that runs must keep its witness
+    // (tests/README.md).
+    let (parsed, checks) = gencmu::tools::with_elision_checks(|| match case_tokens(case) {
         Some(tokens) => dialect.parse_tokens(&tokens, &options),
         None => dialect.parse(case.get("input").and_then(Value::str).unwrap_or(""), &options),
-    };
+    });
     let result = match parsed {
         Ok(result) => result,
         // A mistake of the caller is an error, not a result (engine §13),
@@ -541,6 +583,9 @@ fn check_parse(dialect: &gencmu::Dialect, case: &Value, run: &Value, expect: &Va
         }
     };
     let json = gencmu::to_json(&result);
+    if let Some(problem) = witness_problem(&result, &checks) {
+        return Err(format!("{problem}\nresult: {json}"));
+    }
     problems.push_str(&with_deep_stack(|| {
         let actual = parse_json(&json).map_err(|error| format!("the result is not JSON ({error}): {json}"))?;
         check_json(expect, &actual).map_err(|problem| format!("{problem}result: {json}"))

@@ -41,8 +41,18 @@ thread_local! {
 /// `elision-only` that ran in it and met no error of the grammar, each
 /// with whether it kept its witness.
 pub fn with_elision_checks<T>(parse: impl FnOnce() -> T) -> (T, Vec<ElisionCheckRun>) {
-    let before = RUNS.with(|runs| runs.replace(Some(Vec::new())));
+    // Puts back what was watched before, also where `parse` panics.
+    struct Restore(Option<Option<Vec<ElisionCheckRun>>>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            if let Some(before) = self.0.take() {
+                RUNS.with(|runs| runs.replace(before));
+            }
+        }
+    }
+    let mut restore = Restore(Some(RUNS.with(|runs| runs.replace(Some(Vec::new())))));
     let value = parse();
+    let before = restore.0.take().expect("not yet restored");
     let runs = RUNS.with(|runs| runs.replace(before)).unwrap_or_default();
     (value, runs)
 }
@@ -50,10 +60,15 @@ pub fn with_elision_checks<T>(parse: impl FnOnce() -> T) -> (T, Vec<ElisionCheck
 /// Runs `parse` on this thread with every check of `elision-only` losing
 /// its witness in the given way, after recognition.
 pub fn losing_witness<T>(loss: Loss, parse: impl FnOnce() -> T) -> T {
-    let before = LOSS.with(|current| current.replace(Some(loss)));
-    let value = parse();
-    LOSS.with(|current| current.replace(before));
-    value
+    // Puts back the loss before, also where `parse` panics.
+    struct Restore(Option<Loss>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            LOSS.with(|current| current.replace(self.0));
+        }
+    }
+    let _restore = Restore(LOSS.with(|current| current.replace(Some(loss))));
+    parse()
 }
 
 /// The loss that a test asks for on this thread, if any.

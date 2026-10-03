@@ -54,7 +54,13 @@ fn outcome(dialect: &gencmu::Dialect, case: &Value) -> Result<BTreeMap<&'static 
         without_features: feature_names(case.get("withoutFeatures")),
         ..gencmu::ParseOptions::default()
     };
-    let result = dialect.parse(text, &options).expect("a parse");
+    let (result, checks) = gencmu::tools::with_elision_checks(|| dialect.parse(text, &options).expect("a parse"));
+    // No corpus case gives elision-witness-lost, and every check of
+    // elision-only that ran keeps its witness, whatever the case expects
+    // (tests/README.md).
+    if let Some(problem) = common::witness_problem(&result, &checks) {
+        return Err(problem);
+    }
     invariants(&parse_json(&gencmu::to_json(&result)).expect("the canonical result is JSON"))?;
     let mut got = BTreeMap::new();
     got.insert("expect", string(if result.ok { "accept" } else { "reject" }));
@@ -258,5 +264,24 @@ fn the_corpus_runner_refuses_a_result_that_breaks_an_invariant() {
     ];
     for mutant in &mutants {
         assert!(invariants(mutant).is_err(), "{mutant:?}");
+    }
+}
+
+/// The corpus runner refuses the error elision-witness-lost, and a check
+/// that loses its witness. The check of `le sutra tavla` runs in cll-ebnf,
+/// since the ranking chooses the fragment (grammars/syntax/cll.md), and a
+/// private switch loses its witness after recognition.
+#[test]
+fn the_corpus_runner_refuses_the_error_elision_witness_lost() {
+    let dialect = gencmu::load_dialect("cll-ebnf").expect("cll-ebnf");
+    let case = parse_json(r#"{"dialect": "cll-ebnf", "text": "le sutra tavla"}"#).unwrap();
+    let clean = outcome(&dialect, &case).expect("a clean outcome");
+    assert_eq!(clean.get("verdict"), Some(&string("resolved")));
+    let (_, checks) = gencmu::tools::with_elision_checks(|| outcome(&dialect, &case));
+    assert!(checks.is_empty(), "the outcome reads its own checks");
+    for loss in [gencmu::tools::Loss::Roots, gencmu::tools::Loss::Count] {
+        let lost = gencmu::tools::losing_witness(loss, || outcome(&dialect, &case));
+        let problem = lost.expect_err("the runner refuses it");
+        assert!(problem.contains("elision-witness-lost"), "{problem}");
     }
 }
