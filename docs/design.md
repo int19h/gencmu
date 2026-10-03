@@ -67,7 +67,7 @@ The engine works with these objects:
 The four libraries implement one specification, `docs/engine.md`. It was written first, and it is precise enough that two implementations cannot legitimately differ. It covers:
 
 1. The loader, the part of a library that reads documents, uses the notation's own grammar. It reads the fenced `jbogenbau` blocks of a Markdown document into a grammar DOM (document object model: the document as a tree of objects). See "The notation" below. The loader splices pipeline documents as "Pipelines" says, and stitches the rules of each stage into one grammar. Its errors carry file, line and column.
-2. Lowering turns the grammar into a context-free grammar. Lowering makes named helper rules for the notation's shorthand, such as `[ ]` and `...`, and diagnostics hide these rules.
+2. Lowering turns the grammar into a context-free grammar. Lowering makes named helper rules for the notation's shorthand, such as `[ ]` and flat `{ }`, and diagnostics hide these rules.
 3. The recognizer is an Earley parser (a standard algorithm for any context-free grammar). Its items, the partial matches that it keeps, record the span and the identity of the tag set of each captured part. The parser evaluates each condition as soon as it reads the last capture of that condition. With `from` and `after`, a condition can look past its constituent to the end of the input. A PEG (parsing expression grammar, which tries alternatives in order) has a lookahead that does the same.
 
    Nested parses for `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` share their memo (a cache of answers) with the parse that started them. The memo key is the kind of query, the rule, and either the content of a short span or the position of a long span. A nested parse asked about its own span, as the same rule, is a grammar error. A nested parse never leaves out an elidable optional that the same construct can read whole as written (see "Nested queries and elided terminators" below).
@@ -142,18 +142,19 @@ A name in upper case is a terminal that matches a token carrying that tag. A cha
 
 A reference or a terminal can carry a test on its own span, as in `LE="la"`. The symbol then matches only where the test holds. The `=` and `≠` tests compare the sound of the span, whatever the stress or the script. The four tag tests compare the symbol's own tags with a set, as in `cmavo∩UI=∅`. So a rule can name a word by its sound or its tags in its body, and not in a condition. A test does not replace a class, since a word that `zo` quotes has the sound but not the class.
 
-The operators of a body are those of CLL:
+The operators of a body are those of CLL, except for repetition (see "Repetition, lists and chains" below):
 
 - Juxtaposition is sequence.
 - `[x]` is optional.
-- `x ...` is one or more, and `[x] ...` is zero or more, left-recursive.
+- `{x}` is one or more, and `[{x}]` is zero or more. `{x \ s}` is a separated list.
+- `{... x \ s}` is a left chain, and `{x ... \ s}` a right chain. A chain is the whole of its rule.
 - `A & B` is and/or, in order.
 - `( )` is grouping.
 - `ε` is empty.
 - `f?` and `¬f?` are gates, and `f!` is a warning. These are the feature guards on an alternative (see "Gates and warnings").
 - `$x(symbol)` is a capture, and `$` is the whole constituent.
 
-`#` is not built in. It is a rule that the grammar defines as `[free ...]`, as CLL's EBNF defines it. So the free modifiers of one slot, such as vocatives, are one node of the tree.
+`#` is not built in. It is a rule that the grammar defines as `[{free}]`, as CLL's EBNF defines it with `[free ...]`. So the free modifiers of one slot, such as vocatives, are one node of the tree.
 
 CLL writes `/KU/` for an elidable terminator, a closing word that the speaker can leave out. Here it is written `[KU]`, and `/KU#/` is `[KU #]`. The grammar declares which terminators are elidable (see below). `[KU #]` is exactly what CLL prints: an elided terminator takes its free-modifier slot with it. So `xy. xi ky.` (CLL example 17.38) needs `xy. boi xi ky.` under the printed grammar, as CLL's official parser does, and as the corpus scans of the prototype show. The grammars that allow free modifiers after an elided terminator, as the camxes family does, write `[KU] #`.
 
@@ -179,7 +180,7 @@ Directives are keywords too, and can stand in any block.
 
 `%ambiguity-resolution` says how the stage chooses among parses (see "Ambiguity"). Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` and then `maximal` can follow it. Every stage must have exactly one, in any of its documents. A stage with none or two is a load error that names the stage.
 
-`%elidable KU KEI VAU ...` lists the terminators that can be elided. An absent optional whose first symbol is one of them appears in the tree as that terminator, elided at that point. `elision-only` restores these terminators. A stage can have several `%elidable` directives, and their terminators add up. `%elidable maximal TOI SEhU` also makes its terminators maximal (see "Maximal terminators").
+`%elidable KU KEI VAU` lists terminators that can be elided. An absent optional whose first symbol is one of them appears in the tree as that terminator, elided at that point. `elision-only` restores these terminators. A stage can have several `%elidable` directives, and their terminators add up. `%elidable maximal TOI SEhU` also makes its terminators maximal (see "Maximal terminators").
 
 By convention, a directive stands in a block of its own, after prose that says why the grammar needs it. gencmu does not enforce the convention.
 
@@ -206,6 +207,30 @@ The key of a DOM has three parts:
 A change to any of them misses the cache. A library reads a document through the notation grammar only on a miss. In practice, that happens only for a grammar that someone wrote or edited. The playground caches the DOMs of edited documents in the same way. CI makes sure that the shipped DOMs match a fresh reading, and the tests of every library include forced cache misses.
 
 The fixpoint alone proves only that the notation reads itself consistently. So `tests/notation/` also holds direct cases, run by every library: small documents with their expected DOMs and their expected errors.
+
+## Repetition, lists and chains
+
+CLL writes repetition as `x ...`, and its note 7 to chapter 21.2 says that `...` implies left grouping. gencmu departs from that note. Its notation writes repetition with braces, and says in each place whether the tree shows a list or the grouping.
+
+- Flat braces, `{x}` and `{x \ s}`, read a list. The tree shows the items and the separators as children of the rule that writes the braces.
+- Chain braces, `{... x \ s}` and `{x ... \ s}`, show the grouping. Each level is a node of the chain's rule. A chain is the whole of its rule, so its levels need no other name.
+- `...` alone is gone. So is the trailing repetition, the old rule that lowered `x ...` into left recursion on its rule where the gates left it alone in that rule.
+
+The reasons are these:
+
+- Most repetitions are lists. A measurement showed every left-recursive repetition of the CLL grammar as nested nodes. It changed 1,819 trees of the cll-ebnf corpus, mostly plain lists, such as the terms of a bridi, the digits of a number or the sentences of a paragraph. So nesting everywhere hides the structure that matters in more trees than it shows.
+- A helper cannot show grouping well. A repetition inside an alternative becomes a helper, which holds only the repeated part. In `mex-1 [operator mex-1] ...`, the first operand is outside the helper, so nesting the helper would group the operators without their first operand. A chain makes each level a node of the rule, with the first operand inside.
+- The old rule mixed reading and display. Whether `x ...` gave left-recursive constituents depended on whether the gates left its alternative alone in its rule. So a feature could change the constituents of a rule that it did not touch. Now the braces say it, in the grammar text.
+
+The notation reads `{x}` as one or more, although ISO 14977, the standard EBNF, reads it as zero or more. So every kind of braces counts its items in the same way, and `[{x}]` is the one way to write zero or more. An item of braces must read at least one token, so `[{x}]` reads nothing in one way only. No bundled grammar repeats an item that can be empty. A capture never stands inside braces or around them, because a repeated part has no single span. A grammar that needs one names the list or the chain as a rule.
+
+The change has these consequences, which `docs/engine.md` (§3) states as rules:
+
+- A flat list is always a helper. So the ranking of `greedy` and `lazy` no longer sees where each prefix of a trailing list ends, and the conditions of a rule no longer apply to each prefix. The ranking of `late-elision` sees only elided terminators, so it does not change. A grammar that needs the prefixes writes a chain or explicit recursion. The notation's own lexical grammar is such a grammar: its `text` stays explicit recursion, because with a flat list `greedy` reads `ab` as two names.
+- The old error of a capture in a trailing repetition is gone. A capture next to flat braces is allowed, as in `$a(A) {B}`.
+- A chain's levels see the clauses of their rule, each level its own `$`. A warning on the chain's alternative gives one warning per level.
+- A right chain differs from an optional suffix, `x [s r]`, at its level of one item. That level has the tags of `x` where `x` is one symbol, and an elidable terminator at the start of `s` has the last symbol of `x` as its constituent.
+- Two CLL constructs become rules of their own, so that each level holds its first part: the operator chain of `mex` and the connected abstractors of `tanru-unit-2`. So a single abstractor with `nai` or free modifiers is now a group of its own.
 
 ## Pipelines
 
@@ -234,7 +259,7 @@ The three directives are these:
 
 - `%stage NAME` starts a stage. `NAME` is what the API, the CLI's `--until` and diagnostics call the stage, whatever the heading says. Two stages with one name are an error.
 - `%include "PATH"` stands for the rules and directives of another document, as if the text of its blocks stood there.
-- `%features NAME ...` names features that the dialect turns on for every parse, wherever it stands. The loader unions the names of every `%features`. A caller (the program or person that asks for a parse) can turn further features on, and can turn any of them off. So a feature that is on by default is a choice that the caller can undo.
+- `%features NAME…` names features that the dialect turns on for every parse, wherever it stands. The loader unions the names of every `%features`. A caller (the program or person that asks for a parse) can turn further features on, and can turn any of them off. So a feature that is on by default is a choice that the caller can undo.
 
 The link to each included document stays in the prose, so the pipeline reads as hyperlinked prose on GitHub. The bundled grammars keep a style for this. The block of each `%include` stands under a list item, indented to the item's text. The item's line has an inline link `[text](PATH)` to the same path. The style is not part of jbogenbau, which accepts an `%include` in any block. Only `tools/sync.js --check` enforces it, and only for the bundled grammars.
 
@@ -401,7 +426,7 @@ Most of those ties are choices of the grammar, not of terminators. Examples are 
 
 The syntax stage of all four Lojban dialects declares `late-elision`. The grammar changes that this needs come with the engine change, on the same branch. Each dialect keeps its other settings: cll-ebnf keeps `elision-only`, and bpfk keeps both `elision-only` and `maximal`.
 
-The CLL grammar gains the condition that the official parser's lexer applies with `JOIK_KE`. A plain joik is a joik in the ordinary connective alternative of a rule, which joins two units. It is not the joik of the dedicated alternative `joik [stag] KE ... KEhE`, which groups with the connective itself. Where both alternatives can read the same words, a unit that starts with `ke` cannot directly follow a plain joik.
+The CLL grammar gains the condition that the official parser's lexer applies with `JOIK_KE`. A plain joik is a joik in the ordinary connective alternative of a rule, which joins two units. It is not the joik of the dedicated alternative `joik [stag] KE … KEhE`, which groups with the connective itself. Where both alternatives can read the same words, a unit that starts with `ke` cannot directly follow a plain joik.
 
 The condition stands in `selbri-4` and in `operator`, the two rules where a joik overlap exists. It removes the plain reading only where the unit after the joik is only a `ke` group, so that the two readings compete. So `mi broda joi ke brode ke'e bo brodi` keeps its one plain reading, as in the printed grammar and camxes. The official parser rejects it. So `mi broda joi ke brode ke'e` keeps only its reading through `joik KE selbri-3 KEhE`. In the same way, `li ci su'i joi ke pi'i ke'e re du li xa` keeps only the operator's own `ke` group. The `sumti` and `operand` rules have a joik-plus-`ke` alternative too, but no competing alternative, so they need no condition.
 
@@ -456,7 +481,7 @@ Node
 
 The tree is lossless with respect to the grammar that the author wrote. Every rule that the parse went through is a node, including chains of single-child rules. So a program can tell `sumti-6` from `sumti`.
 
-The engine splices out only two kinds of node, because no author wrote them. The first kind is the helper rules that lowering invents for `[ ]` and `...`. The second kind is the prefixes of a trailing repetition. A trailing repetition ends in `...`. It is also the only alternative that the gates leave in its rule (engine §3). So `%rule text item ...` gives one `text` node over all its items.
+The engine splices out only one kind of node, because no author wrote it: the helper rules that lowering invents for `[ ]` and flat `{ }`. So `%rule text {item}` gives one `text` node over all its items. A chain's levels are nodes of the rule that the author wrote, so they stay (see "Repetition, lists and chains").
 
 An absent optional that begins with an `%elidable` terminator leaves an `elided` node with an empty span, at the place of the missing terminator. Collapsing chains is a choice of the renderers, not of the tree. `text` and `phonemes` are not stored on nodes. The libraries compute them from the tokens, so that the two cannot disagree.
 

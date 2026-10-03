@@ -59,7 +59,7 @@ A node has one of these forms:
 {"kind":"elided","terminal":"KU","span":[3,3],"source":[9,9]}
 ```
 
-A token node's `token` is the index of the stage-input token it read. Its `terminal` is the terminal that read the token. For a range or a property, the terminal is its written form in canonical spelling, such as `'a'..'z'` or `'\p{L}'` (engine §4). A read in a witness and the list of expected terminals use the same form. The output writes an elided node of a tested terminator as any other elided node, without its test.
+A list that flat braces read has no node of its own, and each level of a chain is a `rule` node of the chain's rule (engine §12). So braces add no kind of node. A token node's `token` is the index of the stage-input token it read. Its `terminal` is the terminal that read the token. For a range or a property, the terminal is its written form in canonical spelling, such as `'a'..'z'` or `'\p{L}'` (engine §4). A read in a witness and the list of expected terminals use the same form. The output writes an elided node of a tested terminator as any other elided node, without its test.
 
 A warning has this form:
 
@@ -103,7 +103,7 @@ The test uses notation operators and canonical output tags, with spaces only aro
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
 
 ```
-{"format":17,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
+{"format":18,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
 ```
 
 `format` is the version of the DOM. It changes whenever the shape of the DOM changes. A library never uses a cached DOM of another version.
@@ -116,14 +116,16 @@ An expression is one of these forms:
 
 ```
 {"seq":[EXPR...]}  {"choice":[EXPR...]}  {"and":[EXPR...]}
-{"optional":EXPR}  {"repeat":EXPR,"min":1}
+{"optional":EXPR}  {"repeat":EXPR,"separator":EXPR,"chain":"left"}
 {"ref":"sumti"}    {"terminal":"KOhA"}    {"capture":"x","expr":EXPR}
 {"range":["'a'","'z'"]}    {"property":"L"}
 {"test":"=","value":TERM,"expr":EXPR}
 {"empty":true}
 ```
 
-An expression has no member but those of its one form. `terminal` holds a tag in its canonical spelling (engine §1): a name from `~name`, a phoneme tag `/p/`, or a character tag such as `'a'`. A bare name is a `ref`, whether it names a rule or, with a capital, a terminal. So a `ref` holds a name (engine §9), or `#`. A `range` holds its start and its end, each a character tag in its canonical spelling, and the start is not above the end. A `property` holds its name, one of those of engine §1.
+An expression has no member but those of its one form.
+
+`repeat` is braces (engine §3, §9). Its value is the item, and its `separator` is present only where the braces have `\`. Its `chain` is present only for a chain: `left` for `{... x \ s}` and `right` for `{x ... \ s}`. So `{x}` is `{"repeat":X}`, `{x \ s}` is `{"repeat":X,"separator":S}`, and `[{x}]` is `{"optional":{"repeat":X}}`. A `repeat` with a `chain` is the whole `expr` of its alternative, and never part of another expression. A `repeat` has no `min`: a list counts one or more items, and an optional list is an `optional`. `terminal` holds a tag in its canonical spelling (engine §1): a name from `~name`, a phoneme tag `/p/`, or a character tag such as `'a'`. A bare name is a `ref`, whether it names a rule or, with a capital, a terminal. So a `ref` holds a name (engine §9), or `#`. A `range` holds its start and its end, each a character tag in its canonical spelling, and the start is not above the end. A `property` holds its name, one of those of engine §1.
 
 A tested symbol has no member but `test`, `value` and `expr`. `test` is its comparator: `=`, `≠`, `⊇`, `⊉`, `∩=∅` or `∩≠∅`. Its `expr` is a `ref` other than `#`, a `terminal`, a `range` or a `property`, with no other member. Its `value` is a closed term (engine §10), a string for `=` and `≠` and a tag set for the other four. A string there holds no comma and no code point that the lowercase mapping changes (engine §9). A capture's `expr` is a `ref`, a `terminal`, a `range`, a `property` or a tested symbol.
 
@@ -169,7 +171,7 @@ An `%elidable maximal` directive has the member `"maximal":true` after `args`: `
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":17,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":18,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
 
 A precompiled DOM holds the document's constants, classifiers and implications as the document writes them. The loader gives the constants their values when it stitches a stage, and a stage resolves a classifier for the features of a parse. So one precompiled DOM serves every stage, dialect and set of features that uses the document (engine §2, §8).
 

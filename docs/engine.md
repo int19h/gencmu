@@ -29,9 +29,9 @@ A tag is one of three kinds, and its kind shows in its first character:
 - A phoneme tag is exactly three code points, whose first and last are `/`, such as `/a/`.
 - A character tag is one Unicode scalar value between two quotes, `'`, such as `'a'`. The quotes are part of the tag.
 
-A character tag's identity is its scalar value, so a tag has one canonical spelling. Its canonical spelling is the character itself between the quotes, with five exceptions. The engine writes a control character, U+0000 to U+001F or U+007F to U+009F, as `\u{h...}`. It does the same for a nonspacing mark, which has no base between the quotes. The engine also writes a private-use character so: U+E000 to U+F8FF, U+F0000 to U+FFFFD, or U+100000 to U+10FFFD. The quote and the backslash are the last two exceptions.
+A character tag's identity is its scalar value, so a tag has one canonical spelling. Its canonical spelling is the character itself between the quotes, with five exceptions. The engine writes a control character, U+0000 to U+001F or U+007F to U+009F, as `\u{h…}`. It does the same for a nonspacing mark, which has no base between the quotes. The engine also writes a private-use character so: U+E000 to U+F8FF, U+F0000 to U+FFFFD, or U+100000 to U+10FFFD. The quote and the backslash are the last two exceptions.
 
-A nonspacing mark is a character whose General_Category in `grammars/unicode.txt` is `Mn`. In `\u{h...}`, the hexadecimal digits are upper case, with no leading zeros. So U+0301 is `'\u{301}'`, U+ED80 is `'\u{ED80}'`, and the quote is `'\u{27}'`. Everywhere in the engine and its output, a tag is a string in this canonical spelling. So two tags are equal exactly when their strings are.
+A nonspacing mark is a character whose General_Category in `grammars/unicode.txt` is `Mn`. In `\u{h…}`, the hexadecimal digits are upper case, with no leading zeros. So U+0301 is `'\u{301}'`, U+ED80 is `'\u{ED80}'`, and the quote is `'\u{27}'`. Everywhere in the engine and its output, a tag is a string in this canonical spelling. So two tags are equal exactly when their strings are.
 
 The input of the first stage is the characters of the text, one token for each code point `c` at position `i`. For this token, `span` and `source` are `[i, i+1)`, and `text` is `c`. Its `tags` hold one tag, the character tag of `c`, and nothing else. A character token has no phonemes, and its label is its text. A grammar reads a class of characters, such as the letters, with a range or a property.
 
@@ -114,9 +114,9 @@ A call `classify(a, C)` names the classifier `C` (§10). A `classify` whose clas
 
 A stage also has implications. An item `%implies A ⟹ B` (`implication`) adds one. `A` and `B` are closed terms (§10) whose type is a tag set. A constant in them has the value that the last definition of the stage gives it, as in a rule. After the loader stitches the stage, it makes sure that their types agree, as it does for a rule (§9). §11 says how the stage applies its implications.
 
-A stage has exactly one `%ambiguity-resolution L [elision-only] [maximal]`, or it is an error naming the stage. `L` is the rule of the ranking, `greedy`, `lazy` or `late-elision` (§6). If both `elision-only` (§7) and `maximal` (§4) are written, they stand in that order. `%elidable T...` names the elidable terminators, and repeated directives add up.
+A stage has exactly one `%ambiguity-resolution L [elision-only] [maximal]`, or it is an error naming the stage. `L` is the rule of the ranking, `greedy`, `lazy` or `late-elision` (§6). If both `elision-only` (§7) and `maximal` (§4) are written, they stand in that order. `%elidable T…` names the elidable terminators, and repeated directives add up.
 
-`%elidable maximal T...` names elidable terminators that are also maximal (§4). A terminator is maximal when any `%elidable maximal` of the stage names it, whatever a plain `%elidable` says. A `%elidable maximal` with no operands names nothing, as a plain `%elidable` with none does.
+`%elidable maximal T…` names elidable terminators that are also maximal (§4). A terminator is maximal when any `%elidable maximal` of the stage names it, whatever a plain `%elidable` says. A `%elidable maximal` with no operands names nothing, as a plain `%elidable` with none does.
 
 A name whose first character is `A` to `Z` is a terminal, the identifier tag of that name. The DOM writes both kinds of name as `ref`, and lowering (§3) tells them apart by that first letter. Any other name is a rule reference, and must be defined in the stage, or it is an error. `#`, the free-modifier slot, is a rule's name like any other.
 
@@ -137,16 +137,22 @@ This section writes productions as `lhs → symbols`. This is not jbogenbau, the
 Lowering turns a grammar, given the set of enabled features, into a context-free grammar of productions. The lowered grammar is what the parser runs. Lowering decides nothing that a user can observe, except through §4-§6. For the same features, the stage also resolves its classifiers (§2).
 
 1. Lowering drops an alternative whose gates do not all hold. A gate `f?` holds when the feature `f` is on, and `¬f?` when it is off. A warning `f!` is not a gate and never drops its alternative (§12).
-2. Lowering expands each remaining alternative into sequences of symbols. `(a | b)` expands to both, in written order. `[x]` is a helper `h → ε | x` (step 4). `x ...` is a helper `h → x | h x`, and `[x] ...` is `h → ε | h x`.
+2. Lowering expands each remaining alternative into sequences of symbols. `(a | b)` expands to both, in written order. `[x]` is a helper `h → ε | x` (step 4). Flat braces are a helper too: `{x}` is `h → x | h x`, and `{x \ s}` is `h → x | h s x`. So `[{x}]` is a helper `o → ε | h` around the helper `h` of `{x}`. Lowering expands `x` and `s` in place in these productions, as anywhere in an alternative, so a sequence or a choice there needs no helper of its own.
 
    `A₁ & … & Aₙ` has at most 16 items. More is an error of the document (§9), since the expansions number 2ⁿ−1. It expands to every non-empty subsequence that keeps their order. The subsequences come in the order of the binary numbers 1 to 2ⁿ−1, with `A₁` as the lowest bit. `ε` is the empty sequence. A sequence's expansions are the products of its items' expansions, the first item varying slowest.
 
    A tested symbol expands to that one symbol, which carries the test. It adds no helper. So the numbering, the transparent closes of §6 and the constituents of a production are those of the symbol without its test. Two productions that differ only in the test of a symbol are two productions.
-3. A trailing repetition is an alternative with two properties. It is the only alternative of its rule left after step 1. Its expression is `x ...` or `[x] ...`, or a sequence ending in one. Lowering turns such an alternative into left recursion on the rule itself: `r → p x ...` becomes `r → p x | r x`, and `r → p [x] ...` becomes `r → p | r x`.
+3. A chain is an alternative whose whole expression is `{... x \ s}`, a left chain, or `{x ... \ s}`, a right chain, with or without `\ s`. The reader makes sure that a chain is the whole expression of its alternative (§9). A chain must also be the only alternative of its rule left after step 1. Another alternative beside it is an error of the grammar. Lowering turns the chain into recursion on the rule itself, with no helper for the braces. `{... x \ s}` becomes `r → x | r s x`, and `{x ... \ s}` becomes `r → x | x s r`. Without a separator, `s` is left out of these productions. Lowering expands `x` and `s` in place, as in step 2.
 
-   The intermediate prefixes of such an alternative are then constituents of `r`, and the ranking sees them (§6). This is how the YACC grammar of CLL (The Complete Lojban Language) realizes `...`, and CLL says that left grouping is implied. The recursive productions have none of the alternative's captures, because the captured parts lie inside the inner `r`. So an alternative lowered this way that captures anything is an error of the grammar. Lowering finds this error when it lowers the grammar for features that leave the alternative alone in its rule.
+   Every level of a chain is then a constituent of `r`. The ranking sees its closes (§6), and the clauses of the alternative attach to its base productions and to its recursive productions alike (step 6). The default tags of step 7 come from each production as it stands. So without written tags, `r → x` has the tags of `x` where `x` expands to one symbol, and a recursive production has none.
+
+   An item of braces, flat or chain, that can derive the empty sequence is an error of the grammar. Lowering decides this over the productions that it makes for the enabled features, read as a context-free grammar without their tests and conditions. A separator can derive the empty sequence. So a list or a chain never has a derivation that repeats an empty item, and `[{x}]` derives the empty sequence in exactly one way.
+
+   Lowering finds both errors of this step when it lowers the grammar for features that make them. It reports each one at the definition that wrote the alternative, as for any error of lowering. A gate or a `%extend-rule` can make either error depend on the features, and a warning guard never removes an alternative.
+
+   A flat list is one helper, so its closes are transparent (§6), and the clauses of its rule apply only to the rule's whole constituent. A grammar that needs each prefix of a list as a constituent, which the ranking and the rule's conditions see, writes a chain or explicit recursion.
 4. The engine names the helpers, and it never shows their names. A helper is a production whose left side is a helper name.
-5. A capture `$x(s)` must wrap a single symbol `s`, which can be tested, in a sequence at the top level of an alternative. It must not stand inside `[ ]`, `...`, `( )` or `&`. It labels the symbol's position in the production. An alternative has at most four captures. `$`, the whole constituent, is a capture of every production that no alternative writes. Its span runs from the item's origin to its end, and its tags are the constituent's (§4).
+5. A capture `$x(s)` must wrap a single symbol `s`, which can be tested, in a sequence at the top level of an alternative. It must not stand inside `[ ]`, `{ }`, `( )` or `&`. It labels the symbol's position in the production. An alternative has at most four captures. `$`, the whole constituent, is a capture of every production that no alternative writes. Its span runs from the item's origin to its end, and its tags are the constituent's (§4).
 6. Conditions, tags, emission and `%opaque` attach to the production that an alternative lowers to, or to each production if it expands to several. They attach with the clauses of the alternative's definition (§2). A production has a capture if its alternative captures it, and every production has `$`.
 
    Before lowering attaches a clause, it simplifies the clause for the production, by these rules:
@@ -164,7 +170,7 @@ Lowering turns a grammar, given the set of enabled features, into a context-free
    - Lowering drops an emission item whose carrier (§11) the production lacks from that production's emission. It also drops each attachment capture that the production lacks from its item.
    - A tag term, the alternative's own or the definition's `%tags`, that uses a capture the production lacks is an error of the document.
 7. A production's tags are the union of its alternative's own tag term and its definition's `%tags` term, where either is written. A production with neither has the tags of its symbol's constituent if it has one symbol, and none if it has none or several. Lowering makes this explicit: it treats the single symbol as captured. In the check of §7, a restoration has the tags of the empty production that it stands for, which are none. A terminal that reads a synthetic token gives no tags to the production that inherits from it (§7.5).
-8. An optional `[x]` is elidable when two things hold. `x` is a symbol, or a sequence whose first item is, recursively, one. That symbol is an `%elidable` terminal, tested or not. An optional whose content is a choice or an `&` is never elidable, even if every branch begins with an elidable terminal. The `elision-only` check (§7) reads this same lowered grammar in a mode of its own. In that mode, an elidable optional is restored or written, and never empty (§7.4). A tested elidable terminal keeps its test there.
+8. An optional `[x]` is elidable when two things hold. `x` is a symbol, or a sequence whose first item is, recursively, one. That symbol is an `%elidable` terminal, tested or not. An optional whose content is a choice, an `&` or braces is never elidable, even if every branch or item begins with an elidable terminal. So `[{KU}]` is not elidable, but the `[KU]` of `{[KU] A}` can be. The `elision-only` check (§7) reads this same lowered grammar in a mode of its own. In that mode, an elidable optional is restored or written, and never empty (§7.4). A tested elidable terminal keeps its test there.
 
    The terminal of an elidable optional has no test or an `=` test, since §7 restores it with its sound. Any other test on it is an error of the grammar. The loader finds this error after it stitches the stage, since a later `%elidable` can make an optional elidable. It makes sure that no alternative of the stitched stage has such a test, whatever the features. It reports the error at the definition that wrote the alternative. A test on a later symbol of the optional is no error, since §7 restores only the terminal.
 
@@ -172,15 +178,13 @@ Lowering numbers the productions from 0. The canonical order *T* of §6 uses thi
 
 A production that a condition false for it removes (§3.6) takes no number, though the helpers of its alternative still do. Lowering takes the rules in the order in which they were first defined after stitching. A rule replaced with `%redefine-rule` keeps the place of the rule that it replaces, and alternatives added with `%extend-rule` follow the rule's own alternatives.
 
-Within a rule, lowering takes its remaining alternatives in order. Each alternative contributes its own productions first, and then its helpers. Its own productions come in the order of its expansions (step 2). For a trailing repetition, the non-recursive productions come first and then the recursive ones.
+Within a rule, lowering takes its remaining alternatives in order. Each alternative contributes its own productions first, and then its helpers. Its own productions come in the order of its expansions (step 2). For a chain, the base productions come first, one for each expansion of `x`. The recursive ones follow, one for each expansion of the sequence that the recursion adds, `s x` in a left chain and `x s` in a right chain, in the order of step 2.
 
-Its helpers come one for each place in the alternative where `[ ]` or `...` is written. They come in the order in which those places are written, left to right. The helpers of the places written inside a helper follow that helper's productions at once, depth first, before the next helper of the alternative.
+Its helpers come one for each place in the alternative where `[ ]` or flat `{ }` is written. They come in the order in which those places are written, left to right. The helpers of the places written inside a helper follow that helper's productions at once, depth first, before the next helper of the alternative. A helper of flat braces has its base productions first and then its recursive ones, as a chain does. The places inside `x` come before those inside `s`, since `x` is written first.
 
-The `...` of a trailing repetition (step 3) has no helper: it is lowered into the rule's own productions. But the `[ ]` and `...` inside its item have helpers, as anywhere else.
+The braces of a chain (step 3) have no helper: they are lowered into the rule's own productions. But the `[ ]` and flat `{ }` inside its item and its separator have helpers, as anywhere else.
 
-A repetition whose item can match nothing is allowed: its derivations that repeat nothing are cyclic (§4) and are not counted.
-
-Every expansion of the alternative that goes through a helper's place shares that helper. So an item of `&`, or the repeated item of a trailing repetition, has one helper however many expansions use it.
+Every expansion of the alternative that goes through a helper's place shares that helper. So an item of `&`, or a place inside the item or the separator of braces, has one helper however many expansions use it.
 
 ## 4. Recognition
 
@@ -311,9 +315,11 @@ An elided terminator has no constituent in three cases:
 
 - It is the first symbol of its production.
 - It follows a terminal.
-- It is the second symbol of a production whose first symbol is that production's own left side. Such a production is a recursive production of a repetition (§3.2, §3.3), or a left-recursive production that the author wrote. In a recursive production of a repetition, the first symbol stands for what the repetition read so far.
+- It is the second symbol of a production whose first symbol is that production's own left side. Such a production is a recursive production of flat braces or of a left chain (§3.2, §3.3), or a left-recursive production that the author wrote. In a recursive production of braces, the first symbol stands for what the braces read so far.
 
-A PEG (parsing expression grammar) repetition such as `([T] A) ...` reads its next item after what it read. It does not make what it read longer first.
+So a terminator elided at the start of the first item of braces has no constituent, as the first symbol of its production. One elided at the start of each later item of `{x}`, or at the start of each separator of `{x \ s}` or of a left chain, has none either. In a right chain, `r → x s r`, a terminator elided at the start of `s` has the node of the last symbol of `x` as its constituent.
+
+A PEG (parsing expression grammar) repetition such as `{[T] A}` reads its next item after what it read. It does not make what it read longer first.
 
 When the stage's directive has stage-wide `maximal`, the engine does not count some more derivations, as it does not count cyclic ones. It does not count a derivation if one of its elided terminators has a constituent that is not the longest possible. Such a constituent is a node of a symbol `Y` spanning `[s, p)`. The recognizer also has a completed item of a production of `Y`, with origin `s`, in a set after `p`.
 
@@ -381,7 +387,7 @@ A stage ranks the counted derivations of its input (§4). The rule of its direct
 
 Under `unique` and `resolved`, the chosen derivation is the one best derivation. Under `resolved`, it beats every other derivation (below). A tie is an error, and the stage then has no chosen derivation. The production numbers of §3 never decide which derivation a stage chooses.
 
-A derivation is read as its sequence of actions in bottom-up order. An action is a read of a token as a terminal, or a close of a production over a span. Closes of helper productions and of productions with exactly one symbol are transparent. They are part of the sequence, but two sequences never differ at one. The other actions are visible.
+A derivation is read as its sequence of actions in bottom-up order. An action is a read of a token as a terminal, or a close of a production over a span. Closes of helper productions and of productions with exactly one symbol are transparent. They are part of the sequence, but two sequences never differ at one. The other actions are visible. So the closes of flat braces are transparent, and the close of a chain's level is visible where its production has more than one symbol (§3.3).
 
 Two reads are the same action when they read the same token as the same terminal. Two closes are the same when they close the same production over the same span.
 
@@ -405,7 +411,7 @@ A ranking with no lean compares two derivations in the same way, but rule 2 ties
 
 Under `late-elision`, the stage compares the elided terminators of two derivations (§4), and nothing else. Let the input have N tokens. A boundary is a position from 0 to N. The elision vector of a derivation has one component for each boundary. The component at boundary `p` is the number of the derivation's elided terminators at position `p`.
 
-The vector counts each elided terminator once, whatever its terminal, its constituent or its depth. So two terminators elided at one position count two, also when they are of different terminals. An ordinary empty optional, an empty repetition and a close of any other production count nothing.
+The vector counts each elided terminator once, whatever its terminal, its constituent or its depth. So two terminators elided at one position count two, also when they are of different terminals. An ordinary empty optional, such as an empty `[{x}]`, and a close of any other production count nothing.
 
 `%elidable` alone decides what counts. It also decides which empty optionals become `elided` nodes (§12), what maximality forbids (§4) and what §7 restores. An optional that is not elidable (§3.8), such as an optional separator, can still be empty. Its absence counts nothing and leaves no node. The ranking knows no particular terminal, so a grammar that wants a separator not to count leaves it out of `%elidable`.
 
@@ -729,8 +735,8 @@ The notation's syntax grammar names its constituents so that the reader can read
 | `alternative` | guards from its `guard`s: a gate from `f?` or `¬f?`, a warning from `f!`. Expression from its `conjunction`, tags from `alternative-tags` |
 | `choice` | `choice` of its `conjunction`s, or the one conjunction itself |
 | `conjunction` | `and` of its `sequence`s, or the one sequence itself |
-| `sequence` | `seq` of its `element`s, or the one element itself |
-| `element` | its `primary`. Followed by `...`: `repeat` with `min` 1, or with `min` 0 if the primary is an `optional`, which is then unwrapped |
+| `sequence` | `seq` of its `primary`s, or the one primary itself |
+| `repetition` | `repeat`, its first `choice`. `separator`, its second `choice`, if it has one. `chain`, `left` if a `...` token stands before its first `choice`, or `right` if one stands after it: `{"repeat":{"ref":"x"},"separator":{"ref":"s"},"chain":"left"}` |
 | `reference` | `ref`, the name, or `#` |
 | `tag` in a body | `terminal`, the name after `~` |
 | `character` in a body | `terminal`, the decoded character tag in its canonical spelling (§1) |
@@ -768,7 +774,7 @@ The notation's syntax grammar names its constituents so that the reader can read
 
 A rule with any other name makes no node of the DOM. The reader reads its children in its place.
 
-The reader knows these rules of the syntax grammar: `directive`, `argument-word`, `argument-string`, `argument-tag`, `classifier`, `classifier-name`, `classifier-entry`, `classifier-key`, `classifier-operator`, `classifier-class`, `implication-declaration`, `constant-definition`, `constant-definer`, `constant-reference`, `rule`, `definer`, `rule-name`, `body`, `alternative`, `guard`, `alternative-tags`, `choice`, `conjunction`, `sequence`, `element`, `primary`, `reference`, `tag`, `character`, `phoneme`, `range`, `property`, `tested`, `test`, `test-operand`, `capture`, `group`, `optional`, `empty`, `tags-clause`, `conditions-clause`, `emits-clause`, `opaque-clause`, `emit-item`, `emit-target`, `emit-tags`, `emit-before`, `emit-after`, `implication`, `any-of`, `all-of`, `condition`, `comparison`, `comparator`, `negation`, `presence`, `call`, `argument`, `term`, `guarded-term`, `union`, `intersection`, `term-atom`, `string`, `name`, `empty-set` and `capture-reference`. Any other rule is a wrapper. A node's parts are its children, with each wrapper replaced by its own parts, at any depth, in order. The reader reads only the parts of a node. So a bootstrap can wrap a known rule in rules of its own, and the reader reads the same DOM.
+The reader knows these rules of the syntax grammar: `directive`, `argument-word`, `argument-string`, `argument-tag`, `classifier`, `classifier-name`, `classifier-entry`, `classifier-key`, `classifier-operator`, `classifier-class`, `implication-declaration`, `constant-definition`, `constant-definer`, `constant-reference`, `rule`, `definer`, `rule-name`, `body`, `alternative`, `guard`, `alternative-tags`, `choice`, `conjunction`, `sequence`, `primary`, `repetition`, `reference`, `tag`, `character`, `phoneme`, `range`, `property`, `tested`, `test`, `test-operand`, `capture`, `group`, `optional`, `empty`, `tags-clause`, `conditions-clause`, `emits-clause`, `opaque-clause`, `emit-item`, `emit-target`, `emit-tags`, `emit-before`, `emit-after`, `implication`, `any-of`, `all-of`, `condition`, `comparison`, `comparator`, `negation`, `presence`, `call`, `argument`, `term`, `guarded-term`, `union`, `intersection`, `term-atom`, `string`, `name`, `empty-set` and `capture-reference`. Any other rule is a wrapper. A node's parts are its children, with each wrapper replaced by its own parts, at any depth, in order. The reader reads only the parts of a node. So a bootstrap can wrap a known rule in rules of its own, and the reader reads the same DOM.
 
 A node must have the parts that the reader reads from it. A node without one is an error of the document, reported at the node. A bootstrap of another notation can give such a tree (`docs/api.md`). The reader ignores any other part. These are the parts that each known rule must have. Where a list says "one or more", at least one is needed. Where it says two, the reader reads the first two.
 
@@ -785,9 +791,9 @@ A node must have the parts that the reader reads from it. A node without one is 
 | `rule` | a `definer`, a `rule-name` and a `body` |
 | `body` | one or more `alternative` |
 | `alternative` | a `conjunction` |
-| `choice`, `conjunction`, `sequence` | one or more `conjunction`, `sequence` and `element` in turn |
-| `element` | a `primary` |
-| `primary` | one known part: a `reference`, `tag`, `character`, `phoneme`, `range`, `property`, `tested`, `capture`, `group`, `optional`, `empty` or `constant-reference` |
+| `choice`, `conjunction`, `sequence` | one or more `conjunction`, `sequence` and `primary` in turn |
+| `primary` | one known part: a `reference`, `tag`, `character`, `phoneme`, `range`, `property`, `tested`, `capture`, `group`, `optional`, `repetition`, `empty` or `constant-reference` |
+| `repetition` | one or two `choice`. A `...` token among its parts, before or after its first `choice`, is its marker |
 | `range` | two `character` |
 | `tested` | a `primary` and a `test` |
 | `test` | a `test-operand`. Its tokens make its comparator |
@@ -810,7 +816,7 @@ A node must have the parts that the reader reads from it. A node without one is 
 
 The other known rules need no part.
 
-The lexical stage reads the longest symbol. So `...` is always one token, repetition, and never `..` followed by a period. So `'a'...'z'` is not a range. It is `'a'` repeated, then `'z'`. A range is two character tags joined by `..`, with any layout between them.
+The lexical stage reads the longest symbol. So `...` is always one token, the chain marker, and never `..` followed by a period. So `'a'...'z'` is not a range. It is an error at `...`, which only braces can hold. A range is two character tags joined by `..`, with any layout between them. `{`, `}` and a backslash outside a string or a character tag are one-character symbols. Inside a string, a character tag or a property, they are part of that token, as in `'\\'` and `'\p{L}'`.
 
 The grammar does not state the restrictions below. Each of these is an error of the document, and the reader reports it at the first token of the offending construct:
 
@@ -819,7 +825,9 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A constant in a body is an error, reported at the constant. A body names a class of tokens with a rule, such as `%rule digit '0'..'9'`, and never with a constant.
 - A `$` that wraps anything is an error.
 - A capture name used twice in one alternative is an error.
-- A test after anything but a reference other than `#` or a terminal is an error, reported at the test. So a test after a group, an optional, a capture, `ε`, `#` or another test is an error. The syntax grammar permits a test after any primary.
+- A test after anything but a reference other than `#` or a terminal is an error, reported at the test. So a test after a group, an optional, braces, a capture, `ε`, `#` or another test is an error. The syntax grammar permits a test after any primary.
+- A capture inside braces is an error, reported at the capture. A capture that wraps braces is an error by the first item of this list.
+- A chain, a `repetition` with a marker, that is not the whole expression of its alternative is an error, reported at its `{`. The whole expression is the alternative's `conjunction` when that is one `sequence` of one `primary`, the `repetition` itself. So a chain inside a group, an optional, other braces, a capture, a test, a sequence, a choice or `&` is an error, although a group makes no node of the DOM. The lowering of §3.3 makes sure that the chain's alternative is the only one of its rule.
 - A range whose start is above its end is an error, reported at the range.
 - A property whose text is not `'\p{Name}'` with a name of §1 is an error, reported at the property. So a long name, such as `Letter`, and a name in other case, such as `lu`, are errors.
 - A property in a term or a condition is an error, reported at the property. A property is not a tag set.
@@ -844,9 +852,9 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A bare name that does not begin with a capital is an error where a value is needed. Such a name is a rule or a classifier. A rule is only the second argument of `tags`, `matches` or `begins`, and a classifier only that of `classify`.
 - `matches`, `begins` or `initial` as a term is an error.
 - An `&` of more than 16 items is an error.
-- An expression, a term or a condition nested more than 256 deep is an error. That is, in the DOM (docs/output.md), a node of one lies below more than 256 compound nodes of it. In an expression, the compound nodes are `optional`, `repeat`, `and`, `choice`, `seq`, `capture` and `test`. In a term, they are `union`, `intersection`, `difference`, `if` and `call`. In a condition, they are `any`, `all`, `not`, `if`, `matches`, `begins`, `initial` and a comparison.
+- An expression, a term or a condition nested more than 256 deep is an error. That is, in the DOM (docs/output.md), a node of one lies below more than 256 compound nodes of it. In an expression, the compound nodes are `optional`, `repeat`, `and`, `choice`, `seq`, `capture` and `test`. The `separator` of a `repeat` counts on from the depth of the `repeat`, as its `repeat` member does. In a term, they are `union`, `intersection`, `difference`, `if` and `call`. In a condition, they are `any`, `all`, `not`, `if`, `matches`, `begins`, `initial` and a comparison.
 
-  The condition of a guarded term counts on from the term's depth, as a comparison's terms count on from the condition's. A test's value counts on from the test's depth in the same way. `( )` makes no node, so it adds nothing. So 256 nested `[ ]` around a symbol are allowed, and 257 are not. The reader reports this error at the first item, in the order of the document, that holds such a node. That item is a rule, a constant definition or an implication.
+  The condition of a guarded term counts on from the term's depth, as a comparison's terms count on from the condition's. A test's value counts on from the test's depth in the same way. `( )` makes no node, so it adds nothing. So 256 nested `[ ]` or `{ }` around a symbol are allowed, and 257 are not. The reader reports this error at the first item, in the order of the document, that holds such a node. That item is a rule, a constant definition or an implication.
 - `$` with items other than `$` is an error.
 - Tags on an inserted tag are an error.
 - An inserted bare name that does not begin with a capital is an error, because it names a rule and not a tag.
@@ -879,6 +887,7 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - Two of its items share a position.
 - It has an expression, a term or a condition with members of two forms, or with a member that its form lacks (`docs/output.md`).
 - It has a `ref` that is not a name or `#`.
+- It has a `repeat` with a `chain` other than `left` or `right`, or with a `chain` that is not the whole `expr` of an alternative. A `repeat` with a `min` member is malformed too, since the form has no such member.
 - It has an emission with a member other than `items`.
 - It has a guard of an alternative whose feature is not a name, or that has a member other than its feature, its kind and whether it is negated.
 - It has a `stage`, `include`, `features` or `elidable` directive whose operands the reader refuses.
@@ -894,7 +903,7 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has an implication whose sides are not closed terms of type tag set.
 - It has a `classify` whose second argument is not the name of a classifier. It has the name of a classifier as any other argument.
 
-To decode a string, the reader removes the quotes. In the decoded string, `\\` is `\`, `\"` is `"`, and `\u{h...}` is the character with that hexadecimal value. The value has one to six hexadecimal digits and is a Unicode scalar value: at most `10FFFF`, and not a surrogate, `D800` to `DFFF`. Any other `\`, and a `\u{...}` that breaks these limits, is an error of the document, and the reader reports it at the string.
+To decode a string, the reader removes the quotes. In the decoded string, `\\` is `\`, `\"` is `"`, and `\u{h…}` is the character with that hexadecimal value. The value has one to six hexadecimal digits and is a Unicode scalar value: at most `10FFFF`, and not a surrogate, `D800` to `DFFF`. Any other `\`, and a `\u{…}` that breaks these limits, is an error of the document, and the reader reports it at the string.
 
 A character tag is decoded in the same way, with `\'` for a quote in place of `\"`. The decoded text must be exactly one code point, or the reader reports an error of the document at the tag. The DOM holds the tag in its canonical spelling (§1), so `'a'` and `'\u{61}'` give the same DOM. The reader decodes each end of a range in the same way, as one character tag.
 
@@ -1041,15 +1050,15 @@ The result's tree comes from the chosen derivation, and each reading of an `ambi
 
 - A closed production of a rule that the author wrote is a `rule` node, its children in order.
 - A read token is a `token` node holding the index of the input token and the terminal that the recognizer read it as.
-- The engine splices out helper productions: their children take their place.
-- The engine splices out the prefixes of a trailing repetition (§3.3), so the rule is one node whose children are its items in order.
+- The engine splices out helper productions, those of `[ ]` and of flat `{ }`: their children take their place. So a list is never a node. Its items and separators are children of the node of the rule that writes it, in order.
+- A level of a chain is a closed production of its rule (§3.3), so each level is a `rule` node, and the levels nest.
 - An elidable optional (§3.8) that is absent becomes an `elided` node for its terminal `T`. In a reading of the check of §7, a read of a synthetic token also becomes an `elided` node, as §7.10 says. This holds also on route 3 and for a bare terminal. The node has an empty span at the position where the optional is empty. The node of a terminator with an `=` test records the test's string, for the synthetic token of §7. The output does not show it (`docs/output.md`). The readings of the check of §7 map the reconstructed input back to the stage's input, as §7.10 says.
 
 The input token of a token node can carry attachments (§11). The node does not hold them, and the renderings take them from the token (`docs/output.md`). The two readings of an `ambiguous` error read the same input tokens, so they show the same attachments.
 
 A node with a nonempty span has the source of its tokens (§1). A node with an empty span is an `elided` node or a rule that read no token of the stage's input. Such a node has an empty source at the source end of the input token before its position. At position 0, its empty source is at the source start of the first input token, or at 0 if there is no input token.
 
-A `rule` node of a stage's chosen tree gives warnings from the alternative that its production came from. It gives one warning for each warning `f!` of that alternative where the feature `f` is on. The warning holds the stage's name, the feature, the rule, and the node's span and source.
+A `rule` node of a stage's chosen tree gives warnings from the alternative that its production came from. It gives one warning for each warning `f!` of that alternative where the feature `f` is on. The warning holds the stage's name, the feature, the rule, and the node's span and source. So a warning on a chain's alternative gives one warning for each level of the chain, each with its level's span.
 
 A stage's warnings are those of its chosen tree. They are in the order in which a walk of the tree meets their nodes, parent before children and children left to right. The warnings of one node are in the order in which its guards are written. A stage whose verdict is `tie` has no chosen tree, so it gives no warnings. The engine never takes warnings from one tied derivation in place of the others.
 

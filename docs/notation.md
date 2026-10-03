@@ -29,7 +29,7 @@ Line breaks and indentation mean nothing. So a long list of alternatives can put
   | VUhU #
 ```
 
-The same is true of every other separator of the notation. These are `&` in bodies, `∪` and `∩` in terms, `∧` and `∨` in conditions, and the commas of a clause's list. `∖` in terms is not a separator, so it cannot stand first. A tag term is a term that gives a set of tags.
+The same is true of every other separator of the notation. These are `&` in bodies, `∪` and `∩` in terms, `∧` and `∨` in conditions, and the commas of a clause's list. `∖` in terms and `\` in braces are not separators of this kind, so neither can stand first. A tag term is a term that gives a set of tags.
 
 A body can be followed by clauses. A clause is a keyword and what it says. A body has at most one clause of each kind, and the clauses come in this order:
 
@@ -60,13 +60,13 @@ A tag literal is a terminal in a body. So is a phoneme tag, `/a/`, and a charact
 
 A character tag names one Unicode scalar value, and that value is its identity. Inside the quotes, `\'` is a quote and `\\` a backslash. `\u{ED80}` is the character with that hexadecimal value. The value has one to six digits. It is at most `10FFFF`, and it is not a surrogate, `D800` to `DFFF`. So `'a'` and `'\u{61}'` are one tag, and `'\u{301}'` is a combining acute accent.
 
-A range, `'a'..'z'`, is the character tags from `'a'` to `'z'`, by scalar value. It skips the surrogates, so `'\u{D7FF}'..'\u{E000}'` is two tags. Its ends take the escapes of a character tag. A range whose start is above its end is an error. `...` is always repetition, so `'a'...'z'` is not a range: it is `'a'` repeated, then `'z'`.
+A range, `'a'..'z'`, is the character tags from `'a'` to `'z'`, by scalar value. It skips the surrogates, so `'\u{D7FF}'..'\u{E000}'` is two tags. Its ends take the escapes of a character tag. A range whose start is above its end is an error. `...` is always a chain marker (see "Repetition"), never part of a range, so `'a'...'z'` is an error.
 
 A property, `'\p{L}'`, is the characters that have a property in the Unicode data of `grammars/unicode.txt`. Its name is a General_Category value in its short form, such as `Lu` or `Nd`. It can also name a group of values by their first letter, such as `L`. `White_Space` and `Any`, every character, are the two other names. The case of a name counts, and no long name or alias is a property, so `'\p{lu}'` and `'\p{Letter}'` are errors. The engine documentation lists every name (`docs/engine.md`, §1).
 
 A range and a property are terminals in a body. Each matches a token that carries one of its characters, once, with one reading. A capture can wrap either one, as in `$c('0'..'9')`. Either one can take a test (see "Tests"). `%elidable` and `%emits` take neither. In the expected terminals and the tree, each stands as its written form, such as `'a'..'z'`.
 
-A string is text in straight double quotes, such as `"la"`. It is a value in a condition or a test, and never a tag or a terminal. Inside it, `\\` is a backslash and `\"` a quote, and `\u{h...}` is as in a character tag.
+A string is text in straight double quotes, such as `"la"`. It is a value in a condition or a test, and never a tag or a terminal. Inside it, `\\` is a backslash and `\"` a quote, and `\u{h…}` is as in a character tag.
 
 ## Tests
 
@@ -82,7 +82,7 @@ So a stressed `lA`, a Cyrillic `ла` and a zbalermorna `la` all match `LE="la"`
 
 `s` is a string or a constant whose value is a string. The string is in phonemes, in lower case, with `'` for the apostrophe and no comma. So `LE="La"` and `LE="l,a"` are errors. `t` is a tag set: a tag literal, a range, `∅`, a constant, or a term in parentheses, such as `(UI ∪ CAI)`. It holds no capture, and no function that reads a span. A property is not a tag set, so it cannot be `t`.
 
-The test binds tighter than `...`, so every repetition of `UI="ui" ...` must sound like `ui`. A capture can wrap a tested symbol, as in `$l(LE="la")`. A test follows only a reference other than `#`, or a terminal. So a test after a group, an optional, a capture, `ε`, `#` or another test is an error, such as `(LE NU)="lonu"`. Spaces and comments can stand between a symbol and its test, and inside the test. The grammars write a test without them.
+A test belongs to its one symbol, so every item of `{UI="ui"}` must sound like `ui`. A capture can wrap a tested symbol, as in `$l(LE="la")`. A test follows only a reference other than `#`, or a terminal. So a test after a group, an optional, braces, a capture, `ε`, `#` or another test is an error, such as `(LE NU)="lonu"`. Spaces and comments can stand between a symbol and its test, and inside the test. The grammars write a test without them.
 
 A test holds or fails as a condition does, and a span with no tokens is no exception. So `X=""` and `X≠"la"` hold for a rule that matches no tokens, and `X⊇∅` always holds. An optional that can be elided can hold its terminator with an `=` test, as in `[KU="ku"]`. Any other test on that terminator is an error (see "Elided terminators").
 
@@ -90,22 +90,82 @@ A test does not replace a class. `zo la` quotes a word that sounds `la` but has 
 
 ## Operators
 
-The operators of a body are those of CLL:
+The operators of a body are those of CLL, except for repetition:
 
 - Juxtaposition is sequence.
 - `[x]` is optional.
-- `x ...` is one or more of `x`, and `[x] ...` is zero or more. Left grouping is implied.
+- `{x}` is one or more of `x`, and `[{x}]` is zero or more. `{x \ s}` is one or more of `x` with `s` between each two. "Repetition" below explains braces, and the chains `{... x \ s}` and `{x ... \ s}`.
 - `A & B` is and/or: `A`, `B` or `A B`, but not `B A`. `A & B & C` is any non-empty subsequence in that order.
 - `( )` groups.
 - `ε` is the empty sequence.
 
-`...` binds tighter than `&`, which binds tighter than `|`.
+`&` binds tighter than `|`. Parentheses, brackets and braces each delimit what they hold, so they need no precedence.
 
 `#` is the free-modifier slot, which CLL writes after almost every word. A free modifier is a word or phrase that stands almost anywhere. A vocative is an example.
 
-`#` is not an operator but a rule, whose name is `#` and not a word. The grammar defines it like any other rule. The syntax grammars define it as `[free ...]`, zero or more free modifiers, as CLL's own EBNF does. Its constituent is a node of the tree like that of any rule, so the free modifiers in one slot are grouped under it.
+`#` is not an operator but a rule, whose name is `#` and not a word. The grammar defines it like any other rule. The syntax grammars define it as `[{free}]`, zero or more free modifiers, as CLL's own EBNF does with `[free ...]`. Its constituent is a node of the tree like that of any rule, so the free modifiers in one slot are grouped under it.
 
 A terminator is a word that closes a construct, such as `ku`. CLL writes a terminator that can be elided (left out) between slashes, `/KU/`. It writes `/KU#/` for such a terminator whose free-modifier slot goes with it. In this notation, both are optionals: `[KU]` and `[KU #]`. The grammar declares which terminators are elidable (see "Directives"). Here, slashes are for phonemes.
+
+## Repetition
+
+Braces repeat what they hold. There are two kinds of braces. Flat braces read a list, and the tree shows the list as it stands. Chain braces read the same words, and the tree shows how they group.
+
+- `{x}` is one or more of `x`.
+- `{x \ s}` is a separated list: `x`, then any number of `s x`. So `{term \ CEhE #}` is one or more terms, with `CEhE #` between each two.
+- `{... x \ s}` is a left chain: `x`, or a left chain, then `s` and `x`.
+- `{x ... \ s}` is a right chain: `x`, or `x` and `s`, then a right chain.
+
+The separator of a chain is optional, as in a list. So `{... selbri-4}` is a left chain of `selbri-4` with nothing between the items.
+
+`[{x}]` is zero or more of `x`: an optional list. The notation has no other way to say "zero or more". ISO 14977, the standard EBNF, reads `{x}` as zero or more. This notation reads it as one or more. So every kind of braces counts its items in the same way, and brackets are the one way to say "or none".
+
+### How braces are written
+
+Braces are a primary, like parentheses and brackets. So an operator outside them treats them as one operand. `{A B} & C` repeats the sequence `A B`, and `[{x}]` makes the whole list optional.
+
+Inside one pair of braces, the item `x` and the separator `s` are each a full choice, as inside parentheses. Each can hold sequences, `&`, `|`, optionals, groups and other flat braces. So `{a | b \ c | d}` is items from `a | b`, separated by `c | d`. The separator of `{... simple-tense-modal \ jek | joik}` is `jek | joik`. Like a choice in parentheses, each side can begin with `|`. The backslash cannot stand first.
+
+A pair of braces has at most one backslash, and each side of it holds an expression. So `{}`, `{x \}`, `{\ s}` and `{x \ s \ t}` are errors of the document. A separator can be `ε`, but an item cannot (below).
+
+The chain marker `...` stands right after `{` for a left chain. It stands after the whole item, before `\` or `}`, for a right chain. So `{a | b ... \ s}` is a right chain whose item is `a | b`. A pair of braces has at most one marker, and the separator has none. So `{... x ...}` and `{x \ ... s}` are errors of the document. `...` has no other use. CLL's postfix `x ...` is an error of the document, and so is `'a'...'z'`.
+
+The backslash has no other use in a body. Inside a string or a character tag, it is still an escape, as in `"\\"` and `'\''`. The braces of a property, such as `'\p{L}'`, are part of that one token.
+
+A chain is the whole of its rule. That means two things. First, the chain is the whole expression of its alternative. A chain inside parentheses, brackets, other braces, a capture, a sequence, a choice or `&` is an error of the document. Second, that alternative is the only alternative of its rule that the gates leave (see "Feature guards"). A warning does not remove an alternative. So a rule with another alternative beside its chain is an error of the grammar for the features that leave both. For those features, gencmu finds the error when it prepares the grammar, as it finds an error of a classifier. A `%extend-rule` of a chain's rule can cause this error.
+
+The chain's alternative can still have guards and tags of its own, and its rule can have clauses. A chain can be optional, or part of a sequence, through a rule. Name the chain as a rule, and write the rule's name there, as in `[tag]`.
+
+An item of braces must read at least one token. An item that can match no tokens is an error of the grammar, found as the error above. So `{[x]}`, `{ε}` and `{#}` are errors, and so is `{r}` where `r` can match no tokens for the features of the parse. gencmu decides this from the rules alone, without their tests and conditions. A separator can match no tokens. So `{relative-clause \ [joik]}` reads relative clauses with or without `joik` between them. Since an item is never empty, `[{x}]` reads nothing in exactly one way.
+
+### Lists in the tree
+
+A flat list is not a constituent. Its items and its separators are children of the constituent of the rule that writes the braces, in order. So the first rule below gives one `terms-2` node over all its terms and separators. The second gives one `text` node with every `B` between `A` and `C`:
+
+```jbogenbau
+%rule terms-2
+  {term \ CEhE #}
+
+%rule text
+  A {B} C
+```
+
+A list has no node, so nothing can name it, capture it or test it. The clauses of the rule apply to the whole constituent of the rule, and never to a part of the list. To make a list a constituent of its own, name it as a rule.
+
+### Chains in the tree
+
+Each level of a chain is a constituent of the chain's rule. The chain needs no rule names of its own, because every level is a node of that rule. Take `%rule tag {... tense-modal \ joik-jek}`. It reads `ba je ca je pu` as a `tag` node over a `tag` node over `ba je ca`. The innermost `tag` node holds `ba` alone.
+
+The clauses of the rule serve every level, as they serve every alternative:
+
+- A condition on `$` holds of each level. So a condition of a left chain holds of every prefix, and one of a right chain of every suffix. A condition on the whole chain alone belongs to a rule that refers to the chain's rule.
+- A level has the tags of the rule's tag terms, where the rule writes them (see "Tags"). Where it writes none, the level of one item has the item's tags if the item is one symbol, and every longer level has none.
+- A warning on the chain's alternative gives one warning for each level in the chosen tree, each with the text of its level.
+- `%emits` and `%opaque` treat each level as a constituent of the rule. So `%emits $` emits the outermost level as one token, and the levels inside it emit nothing more (see "Emission" and "Opaque text").
+
+A chain cannot hold a capture, since a capture never stands inside braces (see "Captures"). So a clause can say nothing about a part of a chain, only about a level, `$`.
+
+A right chain is not the same as an optional suffix. In a rule `r`, the body `x [s r]` and the chain `{x ... \ s}` read the same words and give the same tree. But the level of one item is `x` alone in the chain, and `x` with an empty optional in the suffix. So that level has the tags of `x` in the chain, where `x` is one symbol, and none with the suffix, unless the rule writes tags. An elidable terminator that begins `s` also differs. In the chain, the last symbol of `x` stands before it and is its constituent. In the suffix, it has none (see "Elided terminators").
 
 ## Feature guards
 
@@ -121,7 +181,6 @@ An alternative with several guards exists when all its gates hold. A name is a g
 %rule tanru-unit-2
   | BRIVLA #
   | cbm? CMEVLA #
-  | ...
 
 %redefine-rule cmavo-token
   | ~cmavo⊉~cmavo-warning
@@ -155,8 +214,8 @@ A stage reads its input with one grammar. The loader assembles that grammar from
   $
 
 %redefine-rule text
-  | ¬cbm? [NAI ...] CMEVLA ... # [joik-jek] text-1
-  | [indicators & free ...] [joik-jek] text-1
+  | ¬cbm? [{NAI}] {CMEVLA} # [joik-jek] text-1
+  | [indicators & {free}] [joik-jek] text-1
 ```
 
 So `%rule` never quietly replaces a rule. A misspelled name in `%redefine-rule` or `%extend-rule` is an error. So is a reference to a rule that no document defines. A misspelled `%rule` defines a new rule that nothing reads, and the audit (gencmu's report on a grammar) reports it as unreachable.
@@ -240,9 +299,9 @@ Implications apply only to the tokens that the stage emits. They do not change a
 
 Writing `$name(symbol)` around a symbol of a rule's body captures that symbol. A capture gives a part of the constituent a name that the clauses of the rule can use. A capture's name is all lower case.
 
-A capture wraps one symbol at the top level of an alternative, not inside `[ ]`, `...`, `( )` or `&`. So an alternative either reads that symbol or does not exist. An alternative has at most four captures. Two captures of one alternative cannot have the same name. `$` alone is the whole constituent, a capture that every alternative has without writing it.
+A capture wraps one symbol at the top level of an alternative, not inside `[ ]`, `{ }`, `( )` or `&`. So an alternative either reads that symbol or does not exist. An alternative has at most four captures. Two captures of one alternative cannot have the same name. `$` alone is the whole constituent, a capture that every alternative has without writing it.
 
-The gates can leave one alternative in a rule. If that alternative ends in `...`, an explicit capture in its body is an error. gencmu turns such an alternative into left recursion on its rule, and the recursive part has no place for the capture (engine §3). To capture a part there, move the repetition into a rule of its own.
+A capture cannot wrap braces, and braces cannot hold a capture. A list has no span of its own, and a part of a list or of a chain repeats, so one name would stand for many parts. To capture a list or a chain, make it a rule of its own and capture the reference, as in `$t(tag)`.
 
 The clauses of a rule serve all its alternatives, and the alternatives need not capture the same parts. gencmu knows whether an alternative captured a part when it reads the grammar. A clause can refer to a capture that an alternative lacks. What happens then depends on the kind of clause.
 
@@ -369,6 +428,8 @@ Every token and every constituent carries a set of tags, and a terminal matches 
 
 Sometimes no tags are written at all, neither after the alternative nor after `%tags`. Then a constituent built from one symbol has that symbol's tags, and a constituent built from several symbols has none. So a rule `word` whose body is `cmavo | brivla | cmevla` needs no tags. A `mi` arrives at the next stage tagged by the chain of rules that built it.
 
+Brackets and flat braces count as one symbol here. Their tags are those of what they read, when that is one symbol, and none otherwise. So `%rule terms {terms-1}` over one `terms-1` has its tags, and over two has none. An empty optional has none. A chain's levels follow the same rule (see "Repetition").
+
 A tag term that defines a constituent's tags cannot be made of those tags. So `tags($)` and `classes($)` are errors in a tag term after an alternative or after `%tags`. `tags($, rule)` and `classify(phonemes($), lexicon)` are not errors there. The first parses the constituent's tokens again, and the second reads their sound. The tag term of an emitted item does not define the constituent's tags, so it can use `tags($)` and `classes($)`.
 
 ## Emission
@@ -454,12 +515,12 @@ An inserted token with a phoneme tag has that phoneme as its label, or a space f
 A directive is a keyword and its operands. By convention each stands in a block of its own, after prose that says why the grammar needs it. Two directives can share a line.
 
 - `%ambiguity-resolution` says how the stage chooses among parses. Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` and then `maximal` can follow it. "Ambiguity" and "Elided terminators" explain it. Every stage must say it exactly once, in any of its documents.
-- `%elidable KU KEI VAU ...` names the terminators that can be elided. An absent optional whose first symbol is one of them shows in the parse tree as that terminator, elided at that point. `late-elision` counts these terminators, `maximal` can forbid them, and `elision-only` writes them back. An optional that is not elidable (engine §3.8), such as an optional separator, can still be absent. Its absence counts for nothing and leaves no node.
+- `%elidable KU KEI VAU` names the terminators that can be elided, here three of them. An absent optional whose first symbol is one of them shows in the parse tree as that terminator, elided at that point. `late-elision` counts these terminators, `maximal` can forbid them, and `elision-only` writes them back. An optional that is not elidable (engine §3.8), such as an optional separator, can still be absent. Its absence counts for nothing and leaves no node.
 
   The operands are identifier tags: bare names that begin with a capital, or `~name`, so `KU` and `~KU` are one operand. A phoneme tag, a character tag, a range or a property there is an error. A stage can have several `%elidable` directives, and their terminators add up.
 
   `%elidable maximal TOI SEhU` names terminators that are elidable and also maximal. The word `maximal` stands first. A maximal terminator can be elided only where its constituent cannot be longer, as stage-wide `maximal` says below, but for that terminator alone. It applies in the main parse and in nested queries. A terminator that any `%elidable maximal` names is maximal.
-- `%stage NAME`, `%include "PATH"` and `%features NAME ...` build a pipeline, as the next section says.
+- `%stage NAME`, `%include "PATH"` and `%features NAME…` build a pipeline, as the next section says.
 
 ## Pipelines
 
@@ -490,7 +551,7 @@ A pipeline document, which is Markdown too, defines a dialect. Each stage is a h
 
 - `%stage NAME` starts a stage called `NAME`. The rules and directives after it, up to the next `%stage`, are the stage's. Stages run in the order they start, and every stage's start rule is `text`.
 - `%include "PATH"` stands for the rules and directives of the document at `PATH`. The loader resolves the path against the directory of the document that holds the `%include`. It works as if their text stood in its place, so an included document can include others and can hold `%stage` and `%features` too. Each document must still be complete rules and directives on its own. A document can be included in several stages. A document that includes itself, directly or through others, is an error.
-- `%features NAME ...` names features the dialect turns on for every parse, wherever it stands. A caller can turn other features on, and can turn any of these off.
+- `%features NAME…` names one or more features the dialect turns on for every parse, wherever it stands. A caller can turn other features on, and can turn any of these off.
 
 Rules can also stand in the pipeline document itself, between its `%include` blocks. The loader stitches them in their places. A rule, a constant, a classifier, an implication or a stage-level directive before the first `%stage` is an error. So are two stages of one name and a stage with no rules.
 
@@ -516,7 +577,7 @@ The engine's canonical order (engine §6) orders the ambiguity diagnostics and s
 - If one reads and the other closes, the rule decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
 - If both close different constituents, they are tied.
 
-Constituents with a single symbol, and the helper constituents that the notation creates for `[ ]` and `...`, are transparent to the comparison. So two parses that differ only in such a relabeling do not differ yet.
+Constituents with a single symbol, and the helper constituents that the notation creates for `[ ]` and flat `{ }`, are transparent to the comparison. So two parses that differ only in such a relabeling do not differ yet. The levels of a chain are constituents of its rule, so a level with more than one symbol is not transparent. Where `greedy` or `lazy` must see where each step of a list ends, the grammar writes a chain or explicit recursion, not flat braces.
 
 Transparency does not merge parses, though. Two parses that differ only there are still two parses. `greedy` and `lazy` tie them. `late-elision` ties them exactly when their counts of elided terminators are equal at every position. For example, `[[X]]` matches the empty text in two ways, and `[A] & [B]` in three.
 
@@ -536,7 +597,7 @@ The forms and words stages are lazy. The word forms divide a run in one way only
 
 CLL permits eliding a terminator "if no grammatical ambiguity results", and says no more about how a parser decides that. By default, a stage decides it from the whole text. A stage that declares `maximal` decides it as a PEG does.
 
-An elided terminator ends the part of its alternative that is written just before it. That part is its *constituent*: a rule, an optional or a repetition, once parentheses are spelled out. In `le nanmu joi le ninmu`, the `ku` elided after `nanmu` ends the `sumti-tail` of `LE sumti-tail [KU #]`, which is `nanmu`. Some elided terminators have no constituent. These are the terminators elided directly after a terminal, at the start of their alternative, or at the start of a repeated item. At the start of a repeated item, what the repetition read so far stands before the terminator.
+An elided terminator ends the part of its alternative that is written just before it. That part is its *constituent*: a rule, an optional or braces, once parentheses are spelled out. In `le nanmu joi le ninmu`, the `ku` elided after `nanmu` ends the `sumti-tail` of `LE sumti-tail [KU #]`, which is `nanmu`. Some elided terminators have no constituent. These are the terminators elided directly after a terminal, at the start of their alternative, or at the start of the first item of braces. Inside braces, the start of each later item of `{x}`, and the start of each separator of `{x \ s}` or of a left chain, has no constituent either. What the braces read so far stands before the terminator there. In a right chain, the last symbol of the item before a separator is the constituent of a terminator elided at the start of that separator.
 
 A production is an alternative of the expanded grammar (engine §3). An elided terminator also has no constituent when it immediately follows the production's initial reference to its own rule. So a rule that an author writes with left recursion can have such terminators too.
 
