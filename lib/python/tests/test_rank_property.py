@@ -361,8 +361,15 @@ def random_expression(rng: random.Random, rules: int, depth: int = 0) -> dict[st
         return {"seq": [random_expression(rng, rules, depth + 1) for _ in range(2)]}
     if roll < 0.72:
         return {"optional": random_expression(rng, rules, depth + 1)}
-    if roll < 0.84:
-        return {"repeat": random_expression(rng, rules, depth + 1), "min": rng.choice([0, 1])}
+    if roll < 0.8:
+        # Flat braces, now and then optional, or with a separator.
+        repeated: dict[str, Any] = {"repeat": random_expression(rng, rules, depth + 1)}
+        kind = rng.random()
+        if kind < 0.3:
+            return {"optional": repeated}
+        if kind < 0.5:
+            repeated["separator"] = {"ref": rng.choice(TERMINALS)}
+        return repeated
     if roll < 0.92:
         return {"choice": [random_expression(rng, rules, depth + 1) for _ in range(2)]}
     if roll < 0.96:
@@ -378,9 +385,17 @@ def random_sugared(rng: random.Random) -> dict[str, Any]:
     rules = []
     for number in range(count):
         alternatives = []
-        for _ in range(rng.randint(1, 2)):
-            items = [random_expression(rng, count) for _ in range(rng.choice([1, 1, 2]))]
-            alternatives.append({"guards": [], "expr": items[0] if len(items) == 1 else {"seq": items}})
+        if number > 0 and rng.random() < 0.15:
+            # Now and then a rule is a chain, whose levels are its own
+            # constituents (engine §3.3).
+            chain: dict[str, Any] = {"repeat": random_expression(rng, count, 2), "chain": rng.choice(["left", "right"])}
+            if rng.random() < 0.7:
+                chain["separator"] = {"ref": rng.choice(TERMINALS)}
+            alternatives.append({"guards": [], "expr": chain})
+        else:
+            for _ in range(rng.randint(1, 2)):
+                items = [random_expression(rng, count) for _ in range(rng.choice([1, 1, 2]))]
+                alternatives.append({"guards": [], "expr": items[0] if len(items) == 1 else {"seq": items}})
         rules.append({"name": names[number], "op": "define", "alternatives": alternatives, "conditions": [], "at": [number + 1, 1]})
     return {
         "format": DOM_FORMAT,
@@ -399,9 +414,9 @@ def random_eliding(rng: random.Random) -> dict[str, Any]:
     def item() -> dict[str, Any]:
         roll = rng.random()
         if roll < 0.25:
-            return {"optional": {"ref": "T"}}
+            return {"optional": {"ref": "T"}, "elidable": True}
         if roll < 0.4:
-            return {"optional": {"seq": [{"ref": "T"}, random_expression(rng, count, 2)]}}
+            return {"optional": {"seq": [{"ref": "T"}, random_expression(rng, count, 2)]}, "elidable": True}
         return random_expression(rng, count)
 
     rules = []
@@ -414,10 +429,7 @@ def random_eliding(rng: random.Random) -> dict[str, Any]:
     return {
         "format": DOM_FORMAT,
         "rules": rules,
-        "directives": [
-            {"name": "ambiguity-resolution", "args": ["late-elision"], "at": [9, 1]},
-            {"name": "elidable", "args": ["T"], "at": [10, 1]},
-        ],
+        "directives": [{"name": "ambiguity-resolution", "args": ["late-elision"], "at": [9, 1]}],
         "constants": [],
     }
 
@@ -549,25 +561,43 @@ def random_rules_grammar(rng: random.Random) -> tuple[dict[str, Any], str, bool,
                 # maximal tests, so its own test often decides (engine §4).
                 if rng.random() < 0.5:
                     symbols.append(reference(0.6))
-                symbols.append({"optional": {"ref": "T"}} if rng.random() < 0.5 else {"optional": {"seq": [{"ref": "T"}, symbol]}})
+                symbols.append(
+                    {"optional": {"ref": "T"}, "elidable": True}
+                    if rng.random() < 0.5
+                    else {"optional": {"seq": [{"ref": "T"}, symbol]}, "elidable": True}
+                )
             elif sugar < 0.08:
                 symbols.append({"optional": symbol})
-            elif sugar < 0.12:
-                symbols.append({"repeat": symbol, "min": 1})
+            elif sugar < 0.11:
+                symbols.append({"repeat": symbol})
+            elif sugar < 0.14:
+                symbols.append({"optional": {"repeat": symbol}})
             elif sugar < 0.16:
-                symbols.append({"repeat": symbol, "min": 0})
+                symbols.append({"repeat": symbol, "separator": {"ref": rng.choice(terminals)}})
             else:
                 symbols.append(symbol)
         if not symbols:
             return {"empty": True}
         return symbols[0] if len(symbols) == 1 else {"seq": symbols}
 
+    def item() -> dict[str, Any]:
+        return {"ref": rng.choice(terminals)} if rng.random() < 0.5 else reference()
+
+    def alternatives(count: int) -> list[dict[str, Any]]:
+        """A rule's alternatives; now and then a rule is a chain, whose
+        levels are its own nodes (engine §3.3)."""
+        if count == 2:
+            roll = rng.random()
+            if roll < 0.1:
+                return [{"guards": [], "expr": {"repeat": item(), "separator": item(), "chain": "left" if roll < 0.05 else "right"}}]
+        return [{"guards": [], "expr": body()} for _ in range(count)]
+
     definitions = [("text", 3)] + [(rule, 2) for rule in rules]
     dom_rules = [
         {
             "name": name,
             "op": "define",
-            "alternatives": [{"guards": [], "expr": body()} for _ in range(count)],
+            "alternatives": alternatives(count),
             "conditions": [],
             "at": [number + 3, 1],
         }
@@ -575,8 +605,6 @@ def random_rules_grammar(rng: random.Random) -> tuple[dict[str, Any], str, bool,
     ]
     args = ["greedy" if lean == "none" else lean] + (["maximal"] if maximal else [])
     directives: list[dict[str, Any]] = [{"name": "ambiguity-resolution", "args": args, "at": [1, 1]}]
-    if elidable:
-        directives.append({"name": "elidable", "args": ["T"], "at": [2, 1]})
     dom = {"format": DOM_FORMAT, "rules": dom_rules, "directives": directives, "constants": []}
     return dom, lean, elidable, maximal, terminals
 
@@ -748,14 +776,19 @@ class RankingProperty(unittest.TestCase):
 
     def test_sugar_against_enumeration(self) -> None:
         """The same over grammars with helpers, whose closes are transparent
-        whatever their length, and trailing repetitions."""
+        whatever their length, and chains, whose levels are visible."""
         cases = int(os.environ.get("GENCMU_PROPERTY_CASES", "1000")) // 2
         seed = int(os.environ.get("GENCMU_PROPERTY_SEED", "1"))
         compared = skipped = 0
         verdicts: dict[Any, int] = {}
         for number in range(cases):
             rng = random.Random(10_000_000 + seed + number)
-            lowered = lower(stitch("main", [("g.md", random_sugared(rng))], _unicode_table(_resources().unicode)), frozenset())
+            try:
+                lowered = lower(stitch("main", [("g.md", random_sugared(rng))], _unicode_table(_resources().unicode)), frozenset())
+            except gencmu.GencmuError:
+                # A grammar that repeats an item that can be empty is an
+                # error of lowering (engine §3.3), and the round is skipped.
+                continue
             productions = [(p.lhs, tuple(s if t else s for s, t in zip(p.rhs, p.terminal)), p.transparent) for p in lowered.productions]
             plain_rules: list[list[list[Any]]] = [[] for _ in lowered.rule_names]
             for lhs, rhs, _ in productions:
@@ -787,7 +820,11 @@ class RankingProperty(unittest.TestCase):
         verdicts: dict[Any, int] = {}
         for number in range(cases):
             rng = random.Random(20_000_000 + seed + number)
-            lowered = lower(stitch("main", [("g.md", random_eliding(rng))], _unicode_table(_resources().unicode)), frozenset())
+            try:
+                lowered = lower(stitch("main", [("g.md", random_eliding(rng))], _unicode_table(_resources().unicode)), frozenset())
+            except gencmu.GencmuError:
+                # An item of braces that can be empty (engine §3.3).
+                continue
             productions = [(p.lhs, tuple(p.rhs), p.transparent) for p in lowered.productions]
             elided = frozenset(p.id for p in lowered.productions if p.helper and p.elided is not None and not p.rhs)
             plain_rules: list[list[list[Any]]] = [[] for _ in lowered.rule_names]
@@ -871,14 +908,17 @@ class LongInputs(unittest.TestCase):
         def ref(name: str) -> dict[str, Any]:
             return {"ref": name}
 
-        units = [{"seq": [ref("A"), {"optional": ref("T")}]}, {"seq": [ref("A"), {"optional": ref("T")}, {"optional": ref("T")}]}]
+        def elidable(name: str) -> dict[str, Any]:
+            return {"optional": ref(name), "elidable": True}
+
+        units = [{"seq": [ref("A"), elidable("T")]}, {"seq": [ref("A"), elidable("T"), elidable("T")]}]
         dom = {
             "format": DOM_FORMAT,
             "rules": [
-                {"name": "text", "op": "define", "alternatives": [{"guards": [], "expr": {"repeat": ref("unit"), "min": 1}}], "conditions": [], "at": [3, 1]},
+                {"name": "text", "op": "define", "alternatives": [{"guards": [], "expr": {"repeat": ref("unit")}}], "conditions": [], "at": [3, 1]},
                 {"name": "unit", "op": "define", "alternatives": [{"guards": [], "expr": unit} for unit in units], "conditions": [], "at": [4, 1]},
             ],
-            "directives": [{"name": "ambiguity-resolution", "args": ["late-elision"], "at": [1, 1]}, {"name": "elidable", "args": ["T"], "at": [2, 1]}],
+            "directives": [{"name": "ambiguity-resolution", "args": ["late-elision"], "at": [1, 1]}],
             "constants": [],
         }
         unicode = _unicode_table(_resources().unicode)

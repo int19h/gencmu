@@ -74,7 +74,7 @@ def oracle(forest: Forest, witnesses: list[int], budget: int) -> list[int]:
     def maximal_after(item: int) -> bool:
         """Whether the optional after the item is of a maximal terminator."""
         symbol = production(item).rhs[forest.dot[item]]
-        return any(p.lhs == symbol and p.elided in forest.lowered.grammar.maximal_terminals for p in productions)
+        return any(p.lhs == symbol and p.elided is not None and p.lhs in forest.lowered.maximal_helpers for p in productions)
 
     def longer(constituent: int) -> bool:
         """Whether the chart has a longer completed item of the
@@ -142,25 +142,26 @@ def random_dom(rng: random.Random) -> dict[str, Any]:
         for _ in range(rng.randrange(4)):
             pick = rng.random()
             if pick < 0.2:
-                symbols.append({"optional": {"ref": "T"}})
+                symbols.append(marked({"ref": "T"}, maximal_t))
             elif pick < 0.3:
-                symbols.append({"optional": {"ref": "U"}})
+                symbols.append(marked({"ref": "U"}, maximal_u))
             elif pick < 0.38:
-                symbols.append({"optional": {"seq": [{"ref": "T"}, symbol()]}})
+                symbols.append(marked({"seq": [{"ref": "T"}, symbol()]}, maximal_t))
             else:
                 symbols.append(symbol())
         if not symbols:
             return {"empty": True}
         return symbols[0] if len(symbols) == 1 else {"seq": symbols}
 
-    # Now and then T or U is a maximal terminator.
+    def marked(expr: dict[str, Any], maximal: bool) -> dict[str, Any]:
+        """An elidable optional, [+…], or [++…] where it is maximal."""
+        return {"optional": expr, "elidable": True, "maximal": True} if maximal else {"optional": expr, "elidable": True}
+
+    # Now and then T or U is maximal: every optional of it is marked ++
+    # (engine §3.8).
     pick = rng.random()
-    if pick < 0.5:
-        elidable = [{"name": "elidable", "args": ["T", "U"], "at": [2, 1]}]
-    elif pick < 0.75:
-        elidable = [{"name": "elidable", "args": ["U"], "at": [2, 1]}, {"name": "elidable", "args": ["T"], "maximal": True, "at": [2, 2]}]
-    else:
-        elidable = [{"name": "elidable", "args": ["T", "U"], "maximal": True, "at": [2, 1]}]
+    maximal_t = pick >= 0.5
+    maximal_u = pick >= 0.75
     definitions = [("text", [{"ref": "A"}])] + [(rule, [body(), body()]) for rule in RULES]
     return {
         "format": DOM_FORMAT,
@@ -168,7 +169,7 @@ def random_dom(rng: random.Random) -> dict[str, Any]:
             {"name": name, "op": "define", "alternatives": [{"guards": [], "expr": expr} for expr in alternatives], "conditions": [], "at": [number + 3, 1]}
             for number, (name, alternatives) in enumerate(definitions)
         ],
-        "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}] + elidable,
+        "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
         "constants": [],
     }
 
@@ -309,11 +310,11 @@ class MaximalQueryCost(unittest.TestCase):
     # each such check asks for the furthest end where it holds, from the
     # start. In MANY, matches() makes a y from every position, each with a
     # test, so the checks ask for the completions of y from many origins.
-    PLAIN = "%elidable maximal T\n%rule text body B\n%conditions begins(from($), r)\n%rule body A ...\n%rule r y [T]\n%rule y A ..."
-    TESTED = "%elidable maximal T\n%rule text body B\n%conditions begins(from($), r)\n%rule body A ...\n%rule r y⊇~p [T]\n%rule y A ... <~p>"
+    PLAIN = "%rule text body B\n%conditions begins(from($), r)\n%rule body {A}\n%rule r y [++T]\n%rule y {A}"
+    TESTED = "%rule text body B\n%conditions begins(from($), r)\n%rule body {A}\n%rule r y⊇~p [++T]\n%rule y {A} <~p>"
     MANY = (
-        "%elidable maximal T\n%rule text body B\n%conditions matches($, r)\n%rule body A ...\n"
-        "%rule r parts B\n%rule parts part ...\n%rule part y⊇~p [T]\n%rule y A <~p>"
+        "%rule text body B\n%conditions matches($, r)\n%rule body {A}\n"
+        "%rule r parts B\n%rule parts {part}\n%rule part y⊇~p [++T]\n%rule y A <~p>"
     )
     GRAMMARS = (("plain", PLAIN), ("tested", TESTED), ("many origins", MANY))
 

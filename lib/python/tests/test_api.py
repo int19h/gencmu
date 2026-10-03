@@ -56,7 +56,7 @@ SOUNDS = """# Sounds
 %ambiguity-resolution greedy
 
 %rule text
-  [c] ...
+  [{c}]
 
 %rule c
   's' </s/> | 'a' </a/> | 'm' </m/> | 'i' </i/> | '\\p{White_Space}' </./>
@@ -71,7 +71,7 @@ WORDS = """# Words
 %ambiguity-resolution lazy
 
 %rule text
-  [piece] ...
+  [{piece}]
 
 %rule piece
   word | pause
@@ -94,7 +94,7 @@ SYNTAX = """# Syntax
 %ambiguity-resolution greedy
 
 %rule text
-  ¬sa-su? WORD ... | sa-su? WORD ... <ERASING>
+  ¬sa-su? {WORD} | sa-su? {WORD} <ERASING>
 ```
 """
 
@@ -102,7 +102,7 @@ SOURCES = {"dialect.md": PIPELINE, "sounds.md": SOUNDS, "words.md": WORDS, "synt
 
 ELIDING = {
     "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy elision-only\n%elidable KU\n%rule text s [KU] | s B [KU]\n%rule s A [B]\n```\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy elision-only\n%rule text s [+KU] | s B [+KU]\n%rule s A [B]\n```\n",
 }
 
 
@@ -274,7 +274,7 @@ class Options(unittest.TestCase):
         """An elided terminator with an = test keeps the test's string
         inside, and its output is that of any elided node (engine §7,
         §12)."""
-        grammar = '```jbogenbau\n%ambiguity-resolution greedy\n%elidable KU\n%rule text A [KU="ku"]\n```\n'
+        grammar = '```jbogenbau\n%ambiguity-resolution greedy\n%rule text A [+KU="ku"]\n```\n'
         dialect = gencmu.load_dialect_sources({"p.md": ELIDING["p.md"], "g.md": grammar}, "p.md")
         result = dialect.parse_tokens([gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1), "a")], "a")
         assert result.tree is not None
@@ -459,7 +459,7 @@ ATTACHING = {
     "p.md": '```jbogenbau\n%stage a\n%include "a.md"\n%stage b\n%include "b.md"\n```\n',
     "a.md": """```jbogenbau
 %ambiguity-resolution greedy
-%rule text item ...
+%rule text {item}
 %rule item | $w(word) | $b(bb) $w(word) | $w(word) $a(ind) | $b(bb) $w(word) $a(ind)
 %emits ($b) $w ($a)
 %rule word 'w' <W> | 'z' <Z>
@@ -472,7 +472,7 @@ ATTACHING = {
 %emits $ <~low>
 ```
 """,
-    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text pair ...\n%rule pair W Z\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {pair}\n%rule pair W Z\n```\n",
 }
 
 
@@ -538,9 +538,9 @@ class GrammarFaults(unittest.TestCase):
             "the grammar defines text in terms of itself over the same text"
         )
         for grammar, message in [
-            ("%implies A ⟹ /o/\n%rule text [word] ...\n%rule word $w(W) <A ∪ /e/>\n%emits\n  $", "an emitted token has two phoneme tags: /e/, /o/"),
-            ("%rule text [word] ...\n%rule word $w(W) </e/ ∪ /o/>\n%emits\n  $\n%opaque", "an emitted token has two phoneme tags: /e/, /o/"),
-            ("%implies /e/ ⟹ /o/\n%rule text [word] ...\n%rule word $w(W)\n%emits\n  $w, /e/", "an emitted token has two phoneme tags: /e/, /o/"),
+            ("%implies A ⟹ /o/\n%rule text [{word}]\n%rule word $w(W) <A ∪ /e/>\n%emits\n  $", "an emitted token has two phoneme tags: /e/, /o/"),
+            ("%rule text [{word}]\n%rule word $w(W) </e/ ∪ /o/>\n%emits\n  $\n%opaque", "an emitted token has two phoneme tags: /e/, /o/"),
+            ("%implies /e/ ⟹ /o/\n%rule text [{word}]\n%rule word $w(W)\n%emits\n  $w, /e/", "an emitted token has two phoneme tags: /e/, /o/"),
             ("%rule text $a(W) %emits $a <tags($a) ∩ Z>", "text emits a token with no tags; a rule that emits nothing says %emits ε"),
             ("%rule text $a(x) %conditions ¬matches($a, text)\n%rule x W", own_span),
             ("%rule text $a(x) %conditions ¬begins(from($a), text)\n%rule x W", own_span),
@@ -578,10 +578,10 @@ class Warnings(unittest.TestCase):
         self.assertEqual(quiet.warnings, [])
         self.assertNotIn("warnings", gencmu.result_json(quiet))
 
-    def test_trailing_repetition(self) -> None:
-        """The prefixes of a trailing repetition are no nodes of the tree, so
-        they give no warnings of their own (engine §3.3, §12)."""
-        dialect = self.dialect("%rule text w! x ...\n%rule x v! A")
+    def test_flat_braces(self) -> None:
+        """A list of flat braces is no node of the tree, so its helper gives
+        no warnings of its own (engine §3.2, §12)."""
+        dialect = self.dialect("%rule text w! {x}\n%rule x v! A")
         tokens = [gencmu.Token(str(n), frozenset({"A"}), (n, n + 1), (2 * n, 2 * n + 1)) for n in range(3)]
         result = dialect.parse_tokens(tokens, "0 1 2", features=["v", "w"])
         self.assertEqual(

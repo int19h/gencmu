@@ -87,7 +87,7 @@ class LoneSurrogates(unittest.TestCase):
 
     def test_a_text_with_a_lone_surrogate_is_a_usage_error(self) -> None:
         # Each of these would read U+D800 if it became a character tag.
-        rules = ("'\\p{Cs}'", "'\\p{Any}'", "'\\u{D7FF}'..'\\u{E000}'", "[character] ...\n%rule character '\\p{Any}'")
+        rules = ("'\\p{Cs}'", "'\\p{Any}'", "'\\u{D7FF}'..'\\u{E000}'", "[{character}]\n%rule character '\\p{Any}'")
         for rule in rules:
             dialect = gencmu.load_dialect_sources(self._sources(rule), "p.md")
             for text in ("\ud800", "a\udc00", "\udbff\udbff", "\udfff\ud800"):
