@@ -1,5 +1,5 @@
 {
-  "description": "A capture stands at the top level of an alternative, not inside [ ], ( ), ..., & or a choice (engine §3.5); the error is at the capture.",
+  "description": "A capture stands at the top level of an alternative, not inside [ ], { }, ( ), & or a choice (engine §3.5); the error is at the capture.",
   "document": "```jbogenbau\n%rule a [$x(A)] B\n```\n",
   "expect": {
     "error": {

@@ -17,7 +17,7 @@ import { characterTag } from "../lib/js/src/tags.js";
 // (engine §9).
 const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.txt", import.meta.url), "utf8"));
 
-const SYMBOLS = ["...", "..", "|", "&", "(", ")", "[", "]", "<", ">", "#", "ε", ",", "∧", "∨", "¬", "⟹", "=", "≠",
+const SYMBOLS = ["...", "..", "|", "&", "(", ")", "[", "]", "{", "}", "\\", "<", ">", "#", "ε", ",", "∧", "∨", "¬", "⟹", "=", "≠",
   "∈", "∉", "⊆", "⊈", "⊇", "⊉", "∪", "∩", "∖", "∅"];
 
 const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%tags", "%conditions", "%emits", "%opaque",
@@ -190,6 +190,10 @@ class Parser {
   constructor(tokens) {
     this.tokens = tokens;
     this.index = 0;
+    // How many braces the parser is inside, where no capture stands, and
+    // the chains of the alternative being read, each with its `{`.
+    this.braces = 0;
+    this.chains = [];
   }
   peek(offset = 0) { return this.tokens[this.index + offset]; }
   is(kind, offset = 0) { const t = this.peek(offset); return t !== undefined && t.kind === kind; }
@@ -333,7 +337,11 @@ class Parser {
       const token = this.take();
       guards.push({ feature: token.name, kind: token.text.endsWith("!") ? "warning" : "gate", negated: token.text.startsWith("¬") });
     }
+    this.chains = [];
     const alternative = { guards, expr: this.conjunction() };
+    // A chain is the whole expression of its alternative (engine §9).
+    const misplaced = this.chains.find((chain) => chain.expr !== alternative.expr);
+    if (misplaced) fail("a chain is the whole expression of its alternative", misplaced.token);
     if (this.is("<")) alternative.tags = this.angleTerm();
     return alternative;
   }
@@ -346,20 +354,37 @@ class Parser {
   }
 
   sequence() {
-    const items = [this.element()];
-    while (this.startsPrimary()) items.push(this.element());
+    const items = [this.primary()];
+    while (this.startsPrimary()) items.push(this.primary());
     return items.length === 1 ? items[0] : { seq: items };
   }
 
   startsPrimary() {
-    return ["identifier", "tag", "character", "property", "phoneme", "capture", "(", "[", "#", "ε"].includes((this.peek() || {}).kind);
+    return ["identifier", "tag", "character", "property", "phoneme", "capture", "(", "[", "{", "#", "ε"].includes((this.peek() || {}).kind);
   }
 
-  element() {
-    const primary = this.primary();
-    if (!this.accept("...")) return primary;
-    if (primary.optional !== undefined) return { repeat: primary.optional, min: 0 };
-    return { repeat: primary, min: 1 };
+  // Braces: `{x}`, `{x \ s}`, and the chains `{... x \ s}` and
+  // `{x ... \ s}` (engine §9).
+  repetition() {
+    const open = this.take("{");
+    let chain = this.accept("...") ? "left" : null;
+    this.braces++;
+    const item = this.choice();
+    if (this.is("...")) {
+      if (chain) fail("braces have one chain marker ... at most", this.peek());
+      this.index++;
+      chain = "right";
+    }
+    const separator = this.accept("\\") ? this.choice() : undefined;
+    this.braces--;
+    this.take("}");
+    const expr = { repeat: item };
+    if (separator !== undefined) expr.separator = separator;
+    if (chain) {
+      expr.chain = chain;
+      this.chains.push({ expr, token: open });
+    }
+    return expr;
   }
 
   primary() {
@@ -370,7 +395,7 @@ class Parser {
     while (this.startsTest()) {
       const testToken = this.peek();
       const testable = ["identifier", "tag", "character", "property", "phoneme"].includes(token.kind) && expr.test === undefined;
-      if (!testable) fail("a test follows only a reference other than # or a terminal, not a group, an optional, a capture, ε, # or another test", testToken);
+      if (!testable) fail("a test follows only a reference other than # or a terminal, not a group, an optional, braces, a capture, ε, # or another test", testToken);
       let test = this.take().kind;
       const operandToken = this.peek();
       const value = this.testOperand();
@@ -415,6 +440,7 @@ class Parser {
       case "tag": case "phoneme": this.index++; return { terminal: tagOf(token) };
       case "capture": {
         this.index++;
+        if (this.braces > 0) fail("a capture cannot stand inside braces", token);
         if (token.name === "") fail("$ is the whole constituent and wraps nothing", token);
         this.take("(");
         const inner = this.primary();
@@ -424,6 +450,7 @@ class Parser {
       }
       case "(": { this.index++; const inner = this.choice(); this.take(")"); return inner; }
       case "[": { this.index++; const inner = this.choice(); this.take("]"); return { optional: inner }; }
+      case "{": return this.repetition();
       case "#": this.index++; return { ref: "#" };
       case "ε": this.index++; return { empty: true };
       default: fail("expected an expression", token);

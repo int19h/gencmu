@@ -1,6 +1,6 @@
 {
-  "description": "A reference, a tag literal or a phoneme tag followed by = and a string is a tested symbol. The test binds tighter than ..., an optional or a capture can hold one, layout can stand before the test, and the string keeps its apostrophes and periods (engine §9).",
-  "document": "```jbogenbau\n%rule text $l(LE=\"la\") ~zo=\"zo\" /a/=\"a\" UI=\"ui\" ... [KU =\"ku\"] BY=\"broda.bu\" LE=\"la'i\"\n```\n",
+  "description": "A reference, a tag literal or a phoneme tag followed by = and a string is a tested symbol. Braces, an optional or a capture can hold one, layout can stand before the test, and the string keeps its apostrophes and periods (engine §9).",
+  "document": "```jbogenbau\n%rule text $l(LE=\"la\") ~zo=\"zo\" /a/=\"a\" {UI=\"ui\"} [KU =\"ku\"] BY=\"broda.bu\" LE=\"la'i\"\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -48,8 +48,7 @@
                       "expr": {
                         "ref": "UI"
                       }
-                    },
-                    "min": 1
+                    }
                   },
                   {
                     "optional": {
