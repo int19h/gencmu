@@ -514,31 +514,35 @@ The check recognizes R with G in the reconstruction mode. The mode adds no produ
 
 An elidable optional (§3.8) has a helper `h`. Its productions are the empty production `h → ε` and the productions of its content, each of which begins with the optional's terminal `T`. In the reconstruction mode, the helper reads in one of three ways, its routes:
 
-1. The restoration. The empty production reads exactly one synthetic token. The token must be compatible with the optional. Its recognition tags hold `T`. Where `T` has a test, the test holds of the token's recognition sound. The restoration is a read of that token as `T` followed by a close of the empty production over its one-token span. It has the tags of the empty production, which are none (§3.7). It evaluates nothing of the optional's content. The empty production never derives the empty sequence in this mode.
+1. The restoration. The empty production reads exactly one synthetic token, the one at its position. The token must be compatible with the optional. Its recognition tags hold `T`. Where `T` has a test, the test holds of the token's recognition sound. The restoration is a read of that token as `T` followed by a close of the empty production over its one-token span. It has the tags of the empty production, which are none (§3.7). It evaluates nothing of the optional's content. The empty production never derives the empty sequence in this mode.
 2. The written route from an original token. A production of the content reads its `T` from an original token, and then the rest of the production as §4 says. The rest can be empty.
-3. The written route from a synthetic token. A production of the content reads its `T` from a synthetic token, which must pass `T`'s test as in the restoration. Then the rest of the production must read at least one token of R, original or synthetic. The item after `T` is strict (below), whatever the strictness of the item that read `T`, also where an ordinary prediction shares that item.
+3. The written route from a synthetic token. A production of the content reads its `T` from a synthetic token, which must pass `T`'s test as in the restoration. Then the rest of the production must read at least one token of R, original or synthetic. The item after `T` is strict (below), whatever the strictness of the item that read `T`, also where an ordinary prediction shares the item that read `T`.
 
 Every production of the helper belongs to that elidable helper for the purpose of the routes, its content productions as well as its empty one. So a synthetic token followed by nothing else of the optional is always the restoration, and never a second derivation of the same omission. A synthetic token followed by more of the optional is the written route, which can read original tokens, later synthetic tokens, or both. An optional that is not elidable keeps its empty production as in §4. §3.8 alone decides which optionals are elidable, and this section does not change that.
 
-A strict item must read at least one token before it completes. The recognizer decides once per grammar which productions and which symbols can read, with the routes of this mode:
+A strict item must read at least one token before it completes. In fact it never completes: a strict item whose dot would stand at the end of its production is dropped (§4), so route 3 never applies where the rest is empty. The recognizer decides once per grammar which productions and which symbols can read, with the routes of this mode:
 
 - A terminal can read.
 - A production can read where it holds a symbol that can read.
 - The empty production of an elidable helper can read too, because in this mode it is the restoration, which reads a synthetic token.
 - A rule or helper can read where one of its productions can read.
 
-The sets of productions and symbols that can read are the least sets that these rules give. An implementation starts with nothing that can read and adds until nothing changes. So a rule that can read only through itself, such as `z → z`, cannot read. This ignores tests, conditions and the input. Every rule below that asks whether something can read uses this one definition. A strict item follows these rules:
+The sets of productions and symbols that can read are the least sets that these rules give. An implementation starts with nothing that can read and adds until nothing changes. So a rule that can read only through itself, such as `z → z`, cannot read. This ignores tests, conditions and the input. Every rule below that asks whether something can read uses this one definition.
+
+A production's last reading symbol is the last of its symbols that can read, where it has one. "A later symbol can read" means that the production's last reading symbol stands after the item's next symbol. Some symbol after the next one must read, not the one right after it. A strict item follows these rules:
 
 - Where it reads a token, other than the `T` of route 3, or advances over a completed item whose span is not empty, the new item is not strict.
-- It can advance over a completed item with an empty span only where a symbol after that item's symbol can read. The new item is strict.
-- So a strict item never completes.
-- Where a symbol after its next symbol can read, it predicts its next symbol in the ordinary way. Otherwise it predicts that symbol strictly. A strict prediction predicts only the productions that can read, restorations included, and their predicted items are strict.
+- It can advance over a completed item with an empty span only where a later symbol can read. The new item is strict.
+- So a strict item never reaches the end of its production.
+- Where a later symbol can read, it predicts its next symbol in the ordinary way. Otherwise it predicts that symbol strictly. A strict prediction predicts only the productions that can read, restorations included. Its predicted items are strict, other than restorations, which are complete.
 
 Strictness is not part of an item's identity. An item is strict where every step that makes it is strict. An item that an ordinary step reaches is ordinary from then on, and the recognizer applies to it every step that its strictness held back: the ordinary prediction of its next symbol, and its advances over empty constituents. This holds also where the recognizer has already processed the item as strict, so the order in which the steps come does not change the items. The recognizer's items in this mode are the least set closed under these rules and those of §4. So a strict prediction and an ordinary prediction of one symbol at one position share their items. The derivations through a shared item count once each, however many predictions reach it.
 
-A strict prediction never predicts a production that can read nothing. A strict item never advances over an empty constituent at the end of its production. So the engine evaluates no condition, test or tag term on a path where the rest of the optional is empty after a synthetic terminator. An empty constituent before a symbol that can read is ordinary. Its conditions, tests and tags are evaluated as in §4.
+A strict prediction never predicts a production that can read nothing. A strict item never advances over an empty constituent unless a later symbol can read. So a strict item evaluates nothing past its production's last reading symbol. It evaluates no tag term of its own production, and no condition that becomes ready at its end.
 
-A bare terminal `T` outside an elidable optional reads a synthetic token whose recognition tags hold `T`, as it reads any token. Its test reads the recognition tags and the recognition sound. This is how a competing alternative reads a restored terminator.
+An earlier advance over an empty constituent can still make a condition or a test ready. The engine evaluates it where a later symbol can read by the grammar, whether or not that symbol reads this input. So such a condition can end the check with an error of the grammar, also where the rest of the optional reads nothing in this text. Its conditions, tests and tags are evaluated as in §4.
+
+Any terminal other than the `T` that begins an elidable optional's content reads a synthetic token whose recognition tags hold it, as it reads any token. This includes a bare terminal `T` outside an elidable optional, and a terminal in the rest of an optional. Its test reads the recognition tags and the recognition sound. This is how a competing alternative reads a restored terminator.
 
 In every derivation of the mode, each elidable optional is either restored or written. Leave the observations of §7.5 aside, and compare the mode with a reading of R in which every elidable optional is mandatory. They differ in two ways only:
 
