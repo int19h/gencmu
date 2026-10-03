@@ -285,10 +285,10 @@ At the time of this decision (commit 1ea14a1), 5 of the 29,308 corpus records ti
 CLL's own rule is narrower. It says only that a terminator can be elided if no ambiguity results. It says nothing of the other ambiguities that its EBNF has. `elision-only` is one reading of that rule, for the stage whose grammar declares it. CLL does not say which parse to test, so the check tests the one that the ranking chose. It applies the rule only when the ranking of that stage was `resolved`:
 
 1. Take the `elided` nodes of the chosen tree in the order of its leaves, left to right. This order follows the chosen derivation, also where several nodes stand at one point. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries the tag of that terminator and, for a terminator with an `=` test, the test's string as its sound. The engine marks it synthetic.
-2. Parse the new token sequence with the same grammar, in a mode where each elidable optional is written back or written. Every condition, tag and test of a rule reads the original input through a projection that leaves the synthetic tokens out. A test on a terminal reads the written-back terminator's tag and sound. A query parses the original input with the grammar as it is.
-3. Rank that forest with no lean. If it has exactly one derivation, the check passes. The chosen parse always has its own derivation there, so the forest is never empty. An empty forest is a defect of the engine, the error `elision-witness-lost`.
+2. Parse the new token sequence with the same grammar, in a mode where each elidable optional is restored or written. Every condition, tag and test of a rule reads the original input through a projection that leaves the synthetic tokens out. A test on a terminal reads the written-back terminator's tag and sound. A query parses the original input with the grammar as it is.
+3. Rank that forest with no lean. If it has exactly one derivation, the check passes. The chosen parse always has its own derivation there, so the forest is never empty. An empty forest is a defect of the library, the error `elision-witness-lost`.
 
-   Otherwise, the ambiguity is not about terminators. The result is an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries the first and the second reading of that ranking, shown over the original input.
+   With two or more derivations, the ambiguity is not about terminators. The result is an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries the first and the second reading of that ranking, shown over the original input.
 
 The stage ranks, then emits, and then runs the check. A tie ends the stage before emission and before the check. So a stage reports at most one `ambiguous` error, and a tie comes first. A stage that fails the check keeps its output, but no later stage runs.
 
@@ -298,7 +298,7 @@ The engine cases pin the definition with these cases:
 
 - Two readings that elide different terminators, for which the check passes
 - Two readings that differ with every terminator written, for which the check fails
-- A restored text whose only reading is the chosen one, for which the check passes
+- A text with its terminators written back whose only reading is the chosen one, for which the check passes
 - Several terminators elided at one point
 
 ### Independent options
