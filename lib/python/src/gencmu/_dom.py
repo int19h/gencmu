@@ -572,10 +572,11 @@ class DomBuilder:
         elidable one (engine §3.8, §9). Its form is checked on the tree,
         where a group is still a node: one sequence, whose first primary is
         the terminal itself, ``=``-tested or not."""
+        # Its choice is looked up before its markers are counted (engine §9).
+        choice = self.only(node, "choice")
         markers = [kid for kid in self.kids(node) if self._token_text(kid) in ("+", "++")]
         if len(markers) >= 2:
             raise self.fail(markers[1], "an optional has one marker + or ++ at most")
-        choice = self.only(node, "choice")
         if not markers:
             return {"optional": (yield self._expr(choice))}
         form = (
@@ -617,6 +618,8 @@ class DomBuilder:
         """Braces: the item, its separator if a backslash has one, and a
         chain's direction from its marker, a ``...`` among the parts
         (engine §9)."""
+        # Its choices are looked up before its markers are counted (engine
+        # §9).
         kids = self.kids(node)
         choices = self.some(node, "choice")
         markers = [index for index, kid in enumerate(kids) if self._token_text(kid) == "..."]
