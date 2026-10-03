@@ -117,6 +117,23 @@ type privateOptions struct {
 	// "roots" drops the completed items of text over R, and "count" drops
 	// their derivations.
 	loseWitness string
+	// fault turns on a fault of the library's own paths in the check, to
+	// show that the shared cases catch it (tests/README.md,
+	// faults_test.go):
+	//   - "reprocess" leaves an item that an ordinary step reaches as it
+	//     was processed while strict (§7.4);
+	//   - "route3" makes the item after the T of route 3 ordinary (§7.4);
+	//   - "restore" makes a restoration without the test of its terminal,
+	//     outside add (§7.4);
+	//   - "rank-restoration" gives a restoration no derivation in the
+	//     ranking, so the ranking does not count W(D) though the chart
+	//     holds it.
+	fault string
+}
+
+// fault says whether a test turned on this fault of the check.
+func (ps *parseState) fault(name string) bool {
+	return ps.private != nil && ps.private.fault == name
 }
 
 // checkElision is the check of §7 for the chosen derivation d, whose tree is

@@ -205,7 +205,7 @@ func (r *recognizer) restore(k int, p *production) {
 	if !ok || !rc.tagsets[k].has(p.elided) {
 		return
 	}
-	if p.elidedTest != nil && !r.tokenTest(p.elidedTest, k) {
+	if p.elidedTest != nil && !r.tokenTest(p.elidedTest, k) && !r.run.ps.fault("restore") {
 		return
 	}
 	key := itemKey{prod: p, origin: int32(k)}
@@ -286,7 +286,7 @@ func (r *recognizer) add(k int, key itemKey, l link, hasLink, strict bool) {
 		s.queue = append(s.queue, it)
 	} else if it.strict && !strict {
 		it.strict = false
-		if !it.queued {
+		if !it.queued && !(r.recon != nil && r.run.ps.fault("reprocess")) {
 			it.queued = true
 			s.queue = append(s.queue, it)
 		}
@@ -337,7 +337,7 @@ func (r *recognizer) process(k int, it *item) {
 					tags, strict := ts.id, false
 					if r.recon != nil && r.recon.synthetic[k] {
 						tags = r.run.ps.in.empty().id
-						strict = it.dot == 0 && r.recon.reading.elidable[p.lhs]
+						strict = it.dot == 0 && r.recon.reading.elidable[p.lhs] && !r.run.ps.fault("route3")
 					}
 					r.advance(it, k+1, capVal{int32(k), int32(k + 1), tags}, link{prev: it, tok: int32(k), term: sym.id}, strict)
 				}

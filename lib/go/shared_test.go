@@ -26,6 +26,9 @@ type engineCase struct {
 	// Parses, when present, parses the input several times with the one
 	// loaded dialect, each with its own options and expectation, in place
 	// of the case's (tests/README.md).
+	// fault, which no case file sets, is a fault of the library's own
+	// paths that the parses of the case turn on (faults_test.go).
+	fault  string
 	Parses []struct {
 		Options caseOptions
 		Expect  caseExpect
@@ -148,6 +151,7 @@ func runCaseLogged(d *Dialect, c *engineCase, o *caseOptions, lose string) (*Par
 	opts := ParseOptions{Features: o.Features, WithoutFeatures: o.WithoutFeatures, ElisionOnly: o.ElisionOnly, Until: o.Until, NoAutoFeatures: true}
 	log := withChecks(&opts)
 	opts.private.loseWitness = lose
+	opts.private.fault = c.fault
 	if o.AutoFeatures != nil && *o.AutoFeatures {
 		opts.NoAutoFeatures = false
 	}
