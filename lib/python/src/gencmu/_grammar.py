@@ -721,7 +721,9 @@ class Production:
     slots: tuple[int, ...] = ()
     conds_predict: list[Dom] = field(default_factory=list)
     conds_at: dict[int, list[Dom]] = field(default_factory=dict)
-    conds_whole: list[Dom] = field(default_factory=list)
+    # Whether a condition at the last symbol reads ``$``, which then has the
+    # constituent's tags (engine §4).
+    whole_ready: bool = False
     tags_term: Dom | None = None
     emit: Any = None
     # Whether its constituent is an opaque part, which sounds ``?`` and
@@ -1012,8 +1014,11 @@ class _Lowerer:
                     return
                 names = captures_in(condition)
                 if WHOLE in names and rhs:
-                    # Evaluated when the item is complete (engine §4).
-                    production.conds_whole.append(condition)
+                    # Evaluated when the item is complete, in written order
+                    # with the conditions on captures that become ready at
+                    # the same advance (engine §4).
+                    production.conds_at.setdefault(len(rhs) - 1, []).append(condition)
+                    production.whole_ready = True
                 elif names - {WHOLE}:
                     production.conds_at.setdefault(max(captures[name] for name in names), []).append(condition)
                 else:

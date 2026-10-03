@@ -358,7 +358,7 @@ class Evaluator:
         self.project = project
 
     def bind(
-        self, production: Production, caps: Caps, whole: tuple[int, int, int | None] | None = None
+        self, production: Production, caps: Caps, whole: tuple[int, int, int | Callable[[], int] | None] | None = None
     ) -> dict[str, tuple[int, int, int]]:
         """The captures of an item, and ``$`` when ``whole`` gives the
         constituent's span and tag set (``None`` while its tag set is being
@@ -412,10 +412,11 @@ class Evaluator:
                 return (end - 1, end, None)
         raise _GrammarFault("a span is needed here")
 
-    def span_tags(self, span: tuple[int, int, int | None]) -> Tags:
+    def span_tags(self, span: tuple[int, int, int | Callable[[], int] | None]) -> Tags:
         start, end, whole = span
         if whole is not None:
-            return self.context.tagtab.get(whole)
+            # $ of a completing item gives its tags on first use (engine §4).
+            return self.context.tagtab.get(whole() if callable(whole) else whole)
         result: Tags = EMPTY
         for index in range(start, end):
             result = union(result, self.context.tokens[index].tags)
@@ -679,6 +680,18 @@ class Parser:
                 return captured[production.slots[0]][2]
             return tagtab.empty
 
+        def lazy_tag(production: Production, captured: Caps, start: int, at: int) -> Callable[[], int]:
+            """The tag set of a completing item, computed on first use (engine
+            §4)."""
+            memo: list[int] = []
+
+            def tag() -> int:
+                if not memo:
+                    memo.append(constituent_tag(production, captured, start, at))
+                return memo[0]
+
+            return tag
+
         def advance(item: int, part: tuple[int, int, int], at: int, edge: tuple[Any, ...], strict_step: bool = False, read_tag: int = -1) -> None:
             production = productions[prod[item]]
             position = dot[item]
@@ -713,16 +726,15 @@ class Parser:
                 captured = captured + (part,)
             conditions = production.conds_at.get(position)
             if conditions:
-                bound = evaluator.bind(production, captured)
+                # The conditions that the advance makes ready, in written
+                # order. Once the constituent is complete, $ has its tags,
+                # and the tag term runs only where a condition reads them
+                # (engine §4).
+                if production.whole_ready and position + 1 == len(production.rhs):
+                    bound = evaluator.bind(production, captured, (origin[item], at, lazy_tag(production, captured, origin[item], at)))
+                else:
+                    bound = evaluator.bind(production, captured)
                 for condition in conditions:
-                    if not evaluator.condition(condition, bound):
-                        return
-            if production.conds_whole and position + 1 == len(production.rhs):
-                # The conditions on $, once the constituent is complete.
-                start = origin[item]
-                whole = (start, at, constituent_tag(production, captured, start, at))
-                bound = evaluator.bind(production, captured, whole)
-                for condition in production.conds_whole:
                     if not evaluator.condition(condition, bound):
                         return
             add(production.id, position + 1, origin[item], captured, at, edge, strict_step)
@@ -740,7 +752,9 @@ class Parser:
             if not production.conds_predict:
                 return True
             # $ is bound for an empty production, whose span is empty at j.
-            whole = (j, j, constituent_tag(production, (), j, j)) if not production.rhs else None
+            # Its tag term runs only where a condition reads $'s tags (engine
+            # §4).
+            whole = (j, j, lazy_tag(production, (), j, j)) if not production.rhs else None
             bound = evaluator.bind(production, (), whole)
             return all(evaluator.condition(c, bound) for c in production.conds_predict)
 
