@@ -187,7 +187,9 @@ class NotationReader:
         for number, (name, lowered) in enumerate(self.stages):
             last = number == len(self.stages) - 1
             runner = StageRunner(name, lowered, tokens, grammar_text.text, self.unicode, emit=not last)
-            outcome = runner.run(False)
+            # Each notation stage runs the check of elision-only where its
+            # own directive declares it (engine §8).
+            outcome = runner.run(lowered.grammar.elision_only)
             if outcome.error is not None and outcome.error.kind == "ambiguous":
                 # A tie has no single position, so the error names the
                 # document alone, never its start (engine §8).
