@@ -332,7 +332,8 @@ export type Expr = {
     seq: Expr[];
 } | {
     repeat: Expr;
-    min: number;
+    separator?: Expr;
+    chain?: "left" | "right";
 } | {
     optional: Expr;
 } | {
@@ -495,7 +496,6 @@ export type Production = {
      * which sounds `?` and shows its text (engine §11)
      */
     opaque: boolean;
-    recursivePrefix: boolean;
     /**
      * the features of the alternative's warnings,
      * in the order they are written; none for a helper
@@ -918,7 +918,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * A rule body expression.
- * @typedef {{choice: Expr[]} | {and: Expr[]} | {seq: Expr[]} | {repeat: Expr, min: number}
+ * @typedef {{choice: Expr[]} | {and: Expr[]} | {seq: Expr[]}
+ *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
  *   | {optional: Expr} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
  *   | {range: [string, string]} | {property: string}
  *   | {test: TestOp, value: Term, expr: TestedSymbol} | {empty: true}} Expr
@@ -1026,7 +1027,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Emission | null} emit
  * @property {boolean} opaque whether its constituent is an opaque part,
  *   which sounds `?` and shows its text (engine §11)
- * @property {boolean} recursivePrefix
  * @property {string[]} warnings the features of the alternative's warnings,
  *   in the order they are written; none for a helper
  */

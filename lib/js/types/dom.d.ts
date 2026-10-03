@@ -1,7 +1,7 @@
 import type { GrammarDom } from "./types.js";
 export declare const CAPTURE_NAME: RegExp;
 export declare const DOM_MAX_DEPTH = 256;
-export declare const DOM_FORMAT = 17;
+export declare const DOM_FORMAT = 18;
 export declare const CONSTANT_NAME: RegExp;
 export declare const CLASSIFIER_NAME: RegExp;
 export declare const TEST_OPS: Set<string>;

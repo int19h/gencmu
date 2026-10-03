@@ -39,6 +39,7 @@ export type SequenceItem = {
 };
 export type Where = {
     rule: StitchedRule;
+    alternative: StitchedAlternative;
     pending: PendingHelper[];
 };
 export type PendingHelper = {
