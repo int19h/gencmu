@@ -23,6 +23,9 @@ type parseState struct {
 	// consts holds the tag set of each constant's value a term has read,
 	// made once (engine §2).
 	consts map[*constValue]*tagset
+	// private holds the switches and hooks of the library's own tests, or
+	// nil.
+	private *privateOptions
 }
 
 func newParseState(uni *unicodeTable, text []rune) *parseState {

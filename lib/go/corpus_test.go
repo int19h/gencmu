@@ -75,9 +75,26 @@ func readCorpus(t *testing.T) []*corpusCase {
 
 // corpusOutcome is what gencmu makes of a case, in the case's own terms.
 func corpusOutcome(d *Dialect, c *corpusCase) (map[string]any, error) {
-	res, err := d.Parse(c.Text, ParseOptions{Features: c.Features, WithoutFeatures: c.WithoutFeatures})
+	return corpusOutcomeLosing(d, c, "")
+}
+
+// corpusOutcomeLosing is corpusOutcome, with a private switch that loses
+// the witness of each check of elision-only, or "" for none. A result with
+// the error elision-witness-lost fails, whatever the case expects, and so
+// does a check that did not keep its witness (tests/README.md).
+func corpusOutcomeLosing(d *Dialect, c *corpusCase, lose string) (map[string]any, error) {
+	opts := ParseOptions{Features: c.Features, WithoutFeatures: c.WithoutFeatures}
+	log := withChecks(&opts)
+	opts.private.loseWitness = lose
+	res, err := d.Parse(c.Text, opts)
 	if err != nil {
 		return nil, err
+	}
+	if res.Error != nil && res.Error.Code != "" {
+		return nil, fmt.Errorf("the result is the error %s, which no grammar gives", res.Error.Code)
+	}
+	if n := log.lost(); n > 0 {
+		return nil, fmt.Errorf("%d checks of elision-only lost the witness of their chosen derivation", n)
 	}
 	data, _ := MarshalResult(res)
 	var canonical any

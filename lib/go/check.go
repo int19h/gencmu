@@ -101,14 +101,19 @@ type elisionCheckRun struct {
 	originalAt, recordAt []int
 }
 
-// elisionCheckHook, when set, receives each check of elision-only that ran
-// and met no error of the grammar. Only the library's own tests set it.
-var elisionCheckHook func(*elisionCheckRun)
-
-// elisionLost is a switch of the library's own tests that loses the witness
-// after recognition (§7.9): "roots" drops the completed items of text over
-// R, and "count" drops their derivations. Only those tests set it.
-var elisionLost string
+// privateOptions are the switches and hooks of the library's own tests,
+// which a parse takes through an unexported field of ParseOptions, so that
+// no caller can set them and parses that run at once keep them apart.
+type privateOptions struct {
+	// elisionCheck, when set, receives each check of elision-only that ran
+	// and met no error of the grammar, for the witness test of
+	// tests/README.md.
+	elisionCheck func(*elisionCheckRun)
+	// loseWitness loses the witness of a check after recognition (§7.9):
+	// "roots" drops the completed items of text over R, and "count" drops
+	// their derivations.
+	loseWitness string
+}
 
 // checkElision is the check of §7 for the chosen derivation d, whose tree is
 // tree, of the recognition rec. It is nil where the check passes. A check
@@ -163,17 +168,21 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	r := &recognizer{run: run, g: g, n: len(toks), recon: rc}
 	r.loop(start)
 	top := r.accepted(start)
-	if elisionLost == "roots" {
+	private := run.ps.private
+	if private == nil {
+		private = &privateOptions{}
+	}
+	if private.loseWitness == "roots" {
 		top = nil
 	}
 	// Neither form of maximality applies to R, and the check ranks with no
 	// lean (§7.7).
 	var res *rankResult
-	if len(top) > 0 && elisionLost != "count" {
+	if len(top) > 0 && private.loseWitness != "count" {
 		res = newRanker(r, "", nil).rank(top)
 	}
-	if elisionCheckHook != nil {
-		elisionCheckHook(&elisionCheckRun{chosen: d, rec: r, top: top, recon: rc, originalAt: originalAt, recordAt: recordAt})
+	if private.elisionCheck != nil {
+		private.elisionCheck(&elisionCheckRun{chosen: d, rec: r, top: top, recon: rc, originalAt: originalAt, recordAt: recordAt})
 	}
 	if res == nil {
 		// The witness of the chosen derivation is lost: a defect of the
