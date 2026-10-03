@@ -241,6 +241,34 @@ type ranker struct {
 	marked   map[*item]bool
 	// leaves holds the one vector of a single elision at each position.
 	leaves map[int32]*elSeq
+	// only, where it is set, is the part of the forest that the ranker
+	// ranks: the items it may use, each with the links it may use. The
+	// witness hook ranks W(D) alone in this way (tests/README.md).
+	only map[*item][]link
+}
+
+// linksOf is an item's links, or those of the part of the forest that the
+// ranker ranks.
+func (rk *ranker) linksOf(it *item) []link {
+	if rk.only != nil {
+		return rk.only[it]
+	}
+	return it.links
+}
+
+// itemsOf is a constituent's completed items, or those of the part of the
+// forest that the ranker ranks.
+func (rk *ranker) itemsOf(s *symNode) []*item {
+	if rk.only == nil {
+		return s.items
+	}
+	var out []*item
+	for _, c := range s.items {
+		if _, ok := rk.only[c]; ok {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // newRanker ranks under the rule of a directive, greedy, lazy or
@@ -751,7 +779,7 @@ func (rk *ranker) itemVal(it *item, f forbidden) *entry {
 	var vals []linkVal
 	all, allowed := summary{}, summary{}
 	forbade := false
-	for _, l := range it.links {
+	for _, l := range rk.linksOf(it) {
 		prev := unitEntry
 		if l.prev != nil {
 			var pf forbidden
@@ -857,7 +885,7 @@ func (rk *ranker) symVal(s *symNode, f forbidden) *entry {
 	}
 	var vals []itemVal
 	var sum summary
-	for _, c := range s.items {
+	for _, c := range rk.itemsOf(s) {
 		e := rk.itemVal(c, inner)
 		if e == nil || e.count == 0 {
 			continue
@@ -902,7 +930,7 @@ func (rk *ranker) prepare(top []*symNode) {
 			return
 		}
 		seen[s] = true
-		for _, c := range s.items {
+		for _, c := range rk.itemsOf(s) {
 			if !rk.marked[c] {
 				rk.marked[c] = true
 				stack = append(stack, c)
@@ -915,7 +943,7 @@ func (rk *ranker) prepare(top []*symNode) {
 	for len(stack) > 0 {
 		it := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
-		for _, l := range it.links {
+		for _, l := range rk.linksOf(it) {
 			if l.prev != nil && !rk.marked[l.prev] {
 				rk.marked[l.prev] = true
 				stack = append(stack, l.prev)
