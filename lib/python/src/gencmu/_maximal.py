@@ -42,7 +42,7 @@ class Maximal:
         """Whether an item's next symbol is an elidable optional whose
         elision the node before it can forbid: not at the start of a
         production, and not after a production's first symbol when that is
-        its own rule, what a repetition has read so far."""
+        its own rule, what braces or a left chain have read so far."""
         forest = self.forest
         production = self.productions[forest.prod[item]]
         dot = forest.dot[item]

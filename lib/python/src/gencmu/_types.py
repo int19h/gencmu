@@ -273,7 +273,8 @@ def tests_in(expr: Any) -> list[dict[str, Any]]:
             items = current.get(key)
             if isinstance(items, list):
                 stack.extend(reversed(items))
-        for key in ("optional", "repeat", "expr"):
+        # In reverse, so that a repeat's item comes before its separator.
+        for key in ("expr", "separator", "repeat", "optional"):
             if key in current:
                 stack.append(current[key])
     return found
