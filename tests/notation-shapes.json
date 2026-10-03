@@ -360,6 +360,21 @@
         "line": 3,
         "column": 12
       }
+    },
+    {
+      "description": "A tested looks up its test before its primary: one that lacks its test, and whose primary holds no known part, is an error at the tested, not at its primary (engine §9).",
+      "find": "{\"name\":\"primary\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"reference\"}},{\"guards\":[],\"expr\":{\"ref\":\"tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"character\"}},{\"guards\":[],\"expr\":{\"ref\":\"phoneme\"}},{\"guards\":[],\"expr\":{\"ref\":\"range\"}},{\"guards\":[],\"expr\":{\"ref\":\"property\"}},{\"guards\":[],\"expr\":{\"ref\":\"tested\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture\"}},{\"guards\":[],\"expr\":{\"ref\":\"group\"}},{\"guards\":[],\"expr\":{\"ref\":\"optional\"}},{\"guards\":[],\"expr\":{\"ref\":\"repetition\"}},{\"guards\":[],\"expr\":{\"ref\":\"empty\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-reference\"}}],\"conditions\":[],\"at\":[126,1]},{\"name\":\"tested\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"primary\"},{\"ref\":\"test\"}]}}],\"conditions\":[],\"at\":[131,1]}",
+      "replace": "{\"name\":\"primary\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"reference\"}},{\"guards\":[],\"expr\":{\"ref\":\"tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"character\"}},{\"guards\":[],\"expr\":{\"ref\":\"phoneme\"}},{\"guards\":[],\"expr\":{\"ref\":\"range\"}},{\"guards\":[],\"expr\":{\"ref\":\"property\"}},{\"guards\":[],\"expr\":{\"ref\":\"tested\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture\"}},{\"guards\":[],\"expr\":{\"ref\":\"group\"}},{\"guards\":[],\"expr\":{\"ref\":\"optional\"}},{\"guards\":[],\"expr\":{\"ref\":\"repetition\"}},{\"guards\":[],\"expr\":{\"ref\":\"empty\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-reference\"}},{\"guards\":[],\"expr\":{\"terminal\":\"'+'\"}}],\"conditions\":[],\"at\":[126,1]},{\"name\":\"tested\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'='\"},{\"terminal\":\"'='\"},{\"ref\":\"primary\"}]}}],\"conditions\":[],\"at\":[131,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text == +\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
     }
   ]
 }
