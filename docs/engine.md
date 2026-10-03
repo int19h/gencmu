@@ -214,8 +214,8 @@ The recognizer evaluates a condition that uses no capture when it predicts the i
 
 A step of the recognizer is an advance of one item, or the prediction of one production at one position. Each step evaluates its parts in one order, and it stops at the first part that drops the item:
 
-1. The test of the symbol that the step advances over, where that symbol has one.
-2. In the check of §7, a strict item whose dot would reach the end of its production. The step drops it here (§7.4). It evaluates nothing more.
+1. In the check of §7, a strict item whose dot would reach the end of its production. The step drops it here (§7.4), before it evaluates anything.
+2. The test of the symbol that the step advances over, where that symbol has one.
 3. The conditions that the step makes ready, in their written order. A condition on captures and a condition on `$` that become ready at one advance keep that order. Each one stops early as §10 says. The first that fails drops the item.
 4. Where the step completes the item, its production's tag term. The recognizer evaluates it where a condition of step 3 first reads `tags($)` or `classes($)`. Otherwise it evaluates it once every ready condition holds. So a failing condition that does not read them stops the tag term. This holds also for a production with no symbols at its prediction.
 5. Within the tag term, where the alternative's own term and its definition's `%tags` join (§3.7), the alternative's own term comes first.
