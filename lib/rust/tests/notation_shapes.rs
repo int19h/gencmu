@@ -101,3 +101,31 @@ fn notation_shapes() {
         assert_eq!(&outcome(item, changed), item.get("expect").expect("expect"), "{}", text("description"));
     }
 }
+
+/// Each notation stage runs the check of `elision-only` where its own
+/// directive declares it (engine §8). With `greedy` and `elision-only` on
+/// the lexical stage, the check finds the ambiguity that `greedy` settled
+/// in the pipeline document itself, and the document does not load.
+#[test]
+fn a_notation_stage_that_declares_elision_only_runs_the_check() {
+    let bootstrap = read(&["grammars", "notation", "bootstrap.json"]);
+    let directive = r#""name":"ambiguity-resolution","args":["greedy"]"#;
+    let lexical = bootstrap.find(r#""path":"notation/lexical.md""#).expect("the lexical document");
+    let syntax = bootstrap.find(r#""path":"notation/syntax.md""#).expect("the syntax document");
+    let at = bootstrap.find(directive).expect("the directive");
+    assert!(lexical < at && at < syntax, "the first directive is the lexical stage's");
+    let elision = bootstrap.replacen(directive, r#""name":"ambiguity-resolution","args":["greedy","elision-only"]"#, 1);
+    let sources = |bootstrap: String| {
+        [
+            ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+            ("g.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A B\n```\n".to_string()),
+            ("notation/bootstrap.json", bootstrap),
+        ]
+    };
+    // The bundled bootstrap loads the same documents.
+    gencmu::load_dialect_sources(sources(bootstrap), "p.md").expect("the bundled bootstrap");
+    let error = gencmu::load_dialect_sources(sources(elision), "p.md").expect_err("the check of the lexical stage");
+    assert_eq!(error.kind, gencmu::ErrorKind::Grammar, "{error}");
+    assert!(error.to_string().contains("lexical stage of the notation"), "{error}");
+    assert_eq!(error.line, None, "{error}");
+}
