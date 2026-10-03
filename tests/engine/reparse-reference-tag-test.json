@@ -1,0 +1,25 @@
+{
+  "description": "A tag test on a reference reads the constituent's tags. t over the synthetic T has none, so t⊇T fails, and the check passes with the chosen reading alone. Compare reparse-terminal-tag-test (engine §7.5).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T U\n%rule text a | b | c\n%rule a A [T]\n%rule b A [T] [U]\n%rule c A t⊇T\n%rule t T",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ]
+    }
+  }
+}

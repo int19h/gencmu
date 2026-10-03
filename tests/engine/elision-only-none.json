@@ -1,5 +1,5 @@
 {
-  "description": "Restoring the chosen tree's elided terminators can reject every reading. Under lazy, a closes before B is read, so a B beats A B. Written back, KU after A fails the lookahead of a, and A B has no alternative with KU. With no derivation of the restored text, no two readings exist to report, so the check passes (engine §7).",
+  "description": "Under lazy, a closes before B is read, so a B beats A B. In the reconstruction, the KU that a elided is a synthetic token after A. after($x) is the original B, which k does not begin, so the chosen reading survives. A B cannot read the synthetic, so the chosen reading is the only one, and the check passes (engine §7.8).",
   "grammar": "%ambiguity-resolution lazy elision-only\n%elidable KU\n%rule text a B | A B\n%rule a $x(A) [KU]\n%conditions ¬begins(after($x), k)\n%rule k KU",
   "tokens": [
     {

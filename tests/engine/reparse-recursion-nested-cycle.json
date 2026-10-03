@@ -1,0 +1,30 @@
+{
+  "description": "A query cycle in the reconstruction is still an error. c's $x covers A and the synthetic T and projects to [0, 1). begins($x, q) asks about q over [0, 1), and q asks matches about q over the same original span while that query runs. The kinds differ, but the rule and the span are the same, so the parse fails with an error of the grammar (engine §4, §7.6).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T U\n%rule text a | b | c\n%rule a A [T]\n%rule b A [T] [U]\n%rule c $x(p)\n%conditions begins($x, q)\n%rule p A T\n%rule q $f(A)\n%conditions matches(from($f), q)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "kind": "grammar",
+        "stage": "main"
+      }
+    }
+  }
+}

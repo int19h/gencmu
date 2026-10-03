@@ -1,0 +1,25 @@
+{
+  "description": "A synthetic T followed by an empty suffix is the restoration and nothing else. The written route that reads the synthetic and then derives suffix as empty would be a second derivation of the same omission, so it does not exist, and the check passes (engine §7.4).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b\n%rule a A [T suffix]\n%rule b A [T suffix] [T suffix]\n%rule suffix ε",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ]
+    }
+  }
+}

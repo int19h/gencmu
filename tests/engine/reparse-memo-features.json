@@ -1,0 +1,75 @@
+{
+  "description": "One loaded dialect parses with f off, on and off again. The query's grammar follows the features of each parse, and no reconstruction changes the grammar of a later parse (engine §3, §7.4).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a $x(A) [T]\n%conditions matches($x, probe)\n%rule b A [T] [T]\n%rule c A T\n%rule probe ¬f? A [T] | f? B [T]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "parses": [
+    {
+      "options": {},
+      "expect": {
+        "error": "ambiguous",
+        "result": {
+          "ok": false,
+          "tree": null,
+          "stages": [
+            {
+              "name": "main",
+              "verdict": "resolved"
+            }
+          ],
+          "error": {
+            "kind": "ambiguous",
+            "reason": "elision-only",
+            "stage": "main"
+          }
+        }
+      }
+    },
+    {
+      "options": {
+        "features": [
+          "f"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "error": null,
+          "stages": [
+            {
+              "name": "main",
+              "verdict": "unique"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "options": {},
+      "expect": {
+        "error": "ambiguous",
+        "result": {
+          "ok": false,
+          "tree": null,
+          "stages": [
+            {
+              "name": "main",
+              "verdict": "resolved"
+            }
+          ],
+          "error": {
+            "kind": "ambiguous",
+            "reason": "elision-only",
+            "stage": "main"
+          }
+        }
+      }
+    }
+  ]
+}
