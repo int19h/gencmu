@@ -290,11 +290,6 @@ export type DomConstant = {
 export type DomDirective = {
     name: string;
     args: string[];
-    /**
-     * for `%elidable maximal`: its terminators are
-     * maximal (engine §2, §4)
-     */
-    maximal?: true;
     at: Position;
 };
 export type DomRule = {
@@ -336,6 +331,8 @@ export type Expr = {
     chain?: "left" | "right";
 } | {
     optional: Expr;
+    elidable?: true;
+    maximal?: true;
 } | {
     capture: string;
     expr: Expr;
@@ -518,12 +515,12 @@ export type Resolution = {
 export type LoweredGrammar = {
     productions: Production[];
     byLhs: Map<string, Production[]>;
-    elidable: Set<string>;
     /**
-     * the elidable terminators that are
-     * maximal (engine §4)
+     * the helpers of the elidable
+     * optionals written [++T x], whose terminators are maximal (engine §3.8,
+     * §4)
      */
-    maximalTerminals: Set<string>;
+    maximalHelpers: Set<string>;
     resolution: Resolution;
     /**
      * each classifier
@@ -888,8 +885,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} DomDirective
  * @property {string} name
  * @property {string[]} args
- * @property {true} [maximal] for `%elidable maximal`: its terminators are
- *   maximal (engine §2, §4)
  * @property {Position} at
  */
 /**
@@ -920,7 +915,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * A rule body expression.
  * @typedef {{choice: Expr[]} | {and: Expr[]} | {seq: Expr[]}
  *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
- *   | {optional: Expr} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
+ *   | {optional: Expr, elidable?: true, maximal?: true} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
  *   | {range: [string, string]} | {property: string}
  *   | {test: TestOp, value: Term, expr: TestedSymbol} | {empty: true}} Expr
  */
@@ -1043,9 +1038,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} LoweredGrammar
  * @property {Production[]} productions
  * @property {Map<string, Production[]>} byLhs
- * @property {Set<string>} elidable
- * @property {Set<string>} maximalTerminals the elidable terminators that are
- *   maximal (engine §4)
+ * @property {Set<string>} maximalHelpers the helpers of the elidable
+ *   optionals written [++T x], whose terminators are maximal (engine §3.8,
+ *   §4)
  * @property {Resolution} resolution
  * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
  *   of the stage, resolved for these features: each key's classes (engine

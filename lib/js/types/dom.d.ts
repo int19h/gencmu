@@ -122,11 +122,41 @@ export declare function simplify(node: any, has: (name: string) => boolean): any
  */
 export declare function capturesUsed(node: unknown): string[];
 /**
- * The captures of an alternative's top level, name to position.
+ * The captures of each production of an alternative, name to its place in
+ * the order that the production reads them, with `$` at -1 (engine §3.5).
  * @param {any} alternative
- * @returns {Map<string, number>}
+ * @returns {Map<string, number>[]}
  */
-export declare function alternativeCaptures(alternative: any): Map<string, number>;
+export declare function alternativeCaptures(alternative: any): Map<string, number>[];
+/**
+ * The distinct sequences of captures that the productions of an expression
+ * read, each in the order read (engine §3.2, §3.5): a choice gives each
+ * branch's, an `&` each subsequence's, a plain optional none or its
+ * content's, and braces and an elidable optional none. Productions that
+ * read the same names in the same order are one sequence. `duplicates` are
+ * the captures that some production reads after one of the same name, in
+ * no particular order. Gates do not matter, since they drop whole
+ * alternatives.
+ * @param {any} expr
+ * @returns {{sequences: {capture: string}[][], duplicates: {capture: string}[]}}
+ */
+export declare function captureSequences(expr: any): {
+    sequences: {
+        capture: string;
+    }[][];
+    duplicates: {
+        capture: string;
+    }[];
+};
+/**
+ * The terminal at the head of an elidable optional's expression, or null
+ * when the expression has no such head (engine §3.8, §9): a `ref` whose
+ * name begins with a capital, a `terminal` whose tag is a name, or an `=`
+ * test of one of these, alone or first in a `seq`.
+ * @param {any} expr
+ * @returns {any}
+ */
+export declare function elidableHead(expr: any): any;
 /**
  * Why a definition, a rule's alternatives with its own clauses, cannot be
  * read (engine §9), or null. The DOM's shape must already be checked. The

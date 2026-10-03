@@ -69,10 +69,6 @@ export declare class Grammar {
     rules: Map<string, StitchedRule>;
     /** @type {RuleChange[]} */
     changes: RuleChange[];
-    /** @type {Set<string>} */
-    elidable: Set<string>;
-    /** @type {Set<string>} */
-    maximalTerminals: Set<string>;
     /** @type {Resolution | null} */
     resolution: Resolution | null;
     /**
@@ -200,13 +196,6 @@ export declare class Grammar {
      * §10).
      */
     resolveConstants(): void;
-    /**
-     * The terminal of an elidable optional has no test or an `=` test, since
-     * elision-only restores it with a sound (engine §3.8). The check runs once
-     * the stage is stitched, since a later %elidable can make an optional
-     * elidable, over every alternative whatever the features.
-     */
-    checkElidableTests(): void;
     /**
      * A test of a body with its value, from the constants' final values
      * (engine §2, §4).
