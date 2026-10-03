@@ -291,6 +291,10 @@ pub(crate) struct Lowered {
     /// the empty text. Only the rules of one cycle can complete again below
     /// one another over one span.
     pub cycle: Vec<Option<u32>>,
+    /// For each production, one more than the position of its last symbol
+    /// that can read in the reconstruction mode of `elision-only`, or 0
+    /// where none can (§7.4).
+    pub reads_until: Vec<u32>,
     /// The stage's classifiers, resolved for the same features (§2).
     pub classifiers: Arc<ClassifierTables>,
     /// The stage's implications, which apply to each token it emits (§11).
@@ -319,7 +323,6 @@ struct HelperDef {
 
 struct Lowerer<'a> {
     grammar: &'a StageGrammar,
-    mandatory: bool,
     terminals: Vec<String>,
     characters: Vec<Option<Characters>>,
     terminal_index: FxMap<String, u32>,
@@ -474,10 +477,7 @@ impl<'a> Lowerer<'a> {
                 // terminal, tested or not; one of a choice or an `&` never
                 // is (§3.8).
                 let elided = self.elidable_terminal(inner).filter(|(name, _)| self.grammar.elidable.contains(name));
-                let mut prods = Vec::new();
-                if !(self.mandatory && elided.is_some()) {
-                    prods.push(Vec::new());
-                }
+                let mut prods = vec![Vec::new()];
                 prods.extend(body);
                 let sym = self.helper(prods, elided);
                 vec![vec![(sym, None, None)]]
@@ -665,17 +665,16 @@ pub(crate) struct LowerError {
     pub rule: u32,
 }
 
-/// Lowers a stage grammar for a set of features; `mandatory` makes every
-/// optional that begins with an elidable terminator mandatory (§3.8).
+/// Lowers a stage grammar for a set of features. The check of
+/// `elision-only` reads the same productions in a mode of its own (§3.8,
+/// §7.4).
 pub(crate) fn lower(
     grammar: &StageGrammar,
     features: &BTreeSet<String>,
-    mandatory: bool,
     classifiers: Arc<ClassifierTables>,
 ) -> Result<Lowered, LowerError> {
     let mut lowerer = Lowerer {
         grammar,
-        mandatory,
         terminals: Vec::new(),
         characters: Vec::new(),
         terminal_index: FxMap::default(),
@@ -963,6 +962,7 @@ pub(crate) fn lower(
     }
 
     let cycle = cycles(&rules, &prods);
+    let reads_until = reads_until(&rules, &prods);
     let tests = std::mem::take(&mut lowerer.tests);
     Ok(Lowered {
         start: grammar.index["text"] as u32,
@@ -972,9 +972,48 @@ pub(crate) fn lower(
         tests,
         characters,
         cycle,
+        reads_until,
         classifiers,
         implications: grammar.implications.clone(),
     })
+}
+
+/// Which productions can read in the reconstruction mode of the check of
+/// `elision-only` (§7.4): for each production, one more than the position
+/// of its last symbol that can read, or 0 where none can. A terminal can
+/// read; so can a rule with a production that can, and the empty
+/// production of an elidable helper, which is the restoration there. The
+/// sets are the least that these rules give, so a rule that can read only
+/// through itself cannot.
+fn reads_until(rules: &[LRule], prods: &[Prod]) -> Vec<u32> {
+    let mut reads = vec![false; rules.len()];
+    let symbol_reads = |reads: &[bool], symbol: &Sym| match *symbol {
+        Sym::T(_) => true,
+        Sym::N(rule) => reads[rule as usize],
+    };
+    loop {
+        let mut changed = false;
+        for production in prods {
+            if reads[production.rule as usize] {
+                continue;
+            }
+            let rule = &rules[production.rule as usize];
+            let restoration = production.syms.is_empty() && rule.helper && rule.elided.is_some();
+            if restoration || production.syms.iter().any(|symbol| symbol_reads(&reads, symbol)) {
+                reads[production.rule as usize] = true;
+                changed = true;
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    prods
+        .iter()
+        .map(|production| {
+            production.syms.iter().rposition(|symbol| symbol_reads(&reads, symbol)).map_or(0, |at| at as u32 + 1)
+        })
+        .collect()
 }
 
 /// For each nonterminal, the cycle of the unit graph that it lies on, if

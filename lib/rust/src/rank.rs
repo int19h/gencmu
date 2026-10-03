@@ -439,6 +439,9 @@ pub(crate) struct Dag<'c> {
     /// symbols read (§4, §5).
     unicode: &'c Unicode,
     tags: &'c Tags,
+    /// In the check of `elision-only`, O and π: a test of a reference reads
+    /// its projected span (§7.5); `None` elsewhere.
+    projection: Option<(&'c [Tok], &'c [u32])>,
     lean: Lean,
     pub arena: Vec<DNode>,
     /// The number of visible actions and of all actions of each node,
@@ -813,6 +816,7 @@ impl<'c> Ranker<'c> {
             tokens,
             unicode: shared.unicode,
             tags: &shared.tags,
+            projection: None,
             lean,
             arena: Vec::new(),
             vlen: Vec::new(),
@@ -830,6 +834,22 @@ impl<'c> Ranker<'c> {
         };
         ranker.fset_index.insert(Vec::new(), 0);
         ranker
+    }
+
+    /// Ranks the derivations of the reconstructed input of `elision-only`,
+    /// whose tests of references read the projected span in O (§7.5).
+    pub(crate) fn observing(mut self, observed: &'c [Tok], project: &'c [u32]) -> Ranker<'c> {
+        self.dag.projection = Some((observed, project));
+        self
+    }
+
+    /// The tokens that a test of a reference over `start..end` reads: those
+    /// of the projected span in the check, else the span's own (§7.5).
+    fn reference_span(&self, start: u32, end: u32) -> &'c [Tok] {
+        match self.dag.projection {
+            Some((observed, project)) => &observed[project[start as usize] as usize..project[end as usize] as usize],
+            None => &self.dag.tokens[start as usize..end as usize],
+        }
     }
 
     pub(crate) fn chart(&self) -> &Chart {
@@ -894,8 +914,20 @@ impl<'c> Ranker<'c> {
                 let test_id = production.test(position).unwrap_or(NO_TEST);
                 let test = self.dag.g.test(item.prod, position);
                 let (tokens, unicode, tags) = (self.dag.tokens, self.dag.unicode, self.dag.tags);
+                // A test of a terminal reads its token with its recognition
+                // values, and one of a reference its projected span (§7.5).
+                let terminal_test = matches!(production.syms[position], Sym::T(_));
+                let projection = self.dag.projection;
                 let holds = |m: u32, own: SetId| {
-                    test.map_or(true, |test| test_holds(test, &tokens[m as usize..set as usize], unicode, tags, own))
+                    test.map_or(true, |test| {
+                        let span = match projection {
+                            Some((observed, project)) if !terminal_test => {
+                                &observed[project[m as usize] as usize..project[set as usize] as usize]
+                            }
+                            _ => &tokens[m as usize..set as usize],
+                        };
+                        test_holds(test, span, unicode, tags, own)
+                    })
                 };
                 match production.syms[position] {
                     Sym::T(terminal) => {
@@ -954,7 +986,7 @@ impl<'c> Ranker<'c> {
             Node::Group { rule, origin, set, tags, test } => {
                 let eset = &self.dag.chart.sets[set as usize];
                 let test = (test != NO_TEST).then(|| &self.dag.g.tests[test as usize]);
-                let span = &self.dag.tokens[origin as usize..set as usize];
+                let span = self.reference_span(origin, set);
                 let (unicode, tag_table) = (self.dag.unicode, self.dag.tags);
                 let members = eset
                     .completed
@@ -1159,6 +1191,15 @@ impl<'c> Ranker<'c> {
                     let x = self.dag.push(DNode::Read { tok, terminal }, Nat::ONE, Nat::ONE);
                     NodeResult { entries: vec![Entry { x, comps: Vec::new() }], count: 1, allowed: None }
                 }
+                // A restoration of the check of `elision-only` reads its
+                // synthetic token, and its own close follows (§7.4, §7.7).
+                // Only a restoration has its first item after its origin.
+                Node::Item { set, index } if self.item(set, index).origin != set => {
+                    let item = self.item(set, index);
+                    let terminal = restored_terminal(self.dag.g, item.prod);
+                    let x = self.dag.push(DNode::Read { tok: item.origin, terminal }, Nat::ONE, Nat::ONE);
+                    NodeResult { entries: vec![Entry { x, comps: Vec::new() }], count: 1, allowed: None }
+                }
                 _ => NodeResult { entries: vec![Entry { x: EMPTY, comps: Vec::new() }], count: 1, allowed: None },
             },
             Deps::Links(links) => {
@@ -1334,6 +1375,19 @@ impl<'c> Ranker<'c> {
         });
         Some(Ranking { verdict, first: chosen, second, witness })
     }
+}
+
+/// The terminal of the elidable optional whose empty production is `prod`:
+/// the first symbol of the helper's other productions (§3.8).
+pub(crate) fn restored_terminal(g: &Lowered, prod: u32) -> u32 {
+    let rule = &g.rules[g.prods[prod as usize].rule as usize];
+    rule.prods
+        .iter()
+        .find_map(|&other| match g.prods[other as usize].syms.first() {
+            Some(&Sym::T(terminal)) => Some(terminal),
+            _ => None,
+        })
+        .expect("an elidable optional begins with its terminal")
 }
 
 #[cfg(test)]

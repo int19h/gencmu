@@ -60,6 +60,7 @@ mod result;
 mod tags;
 mod tree;
 mod unicode;
+mod witness;
 
 pub use dialect::{Dialect, Feature, InputToken, ParseOptions};
 pub use dom::FeatureKind;
@@ -84,6 +85,13 @@ pub mod tools {
     /// of the documented API.
     #[doc(hidden)]
     pub use crate::earley::{recognizer_items, reset_recognizer_items};
+
+    /// The test hook of the check of `elision-only` (tests/README.md): the
+    /// checks that ran in a parse, each with whether its forest kept the
+    /// witness of the chosen derivation, and the ways to lose it on
+    /// purpose. Not part of the documented API.
+    #[doc(hidden)]
+    pub use crate::witness::{losing_witness, with_elision_checks, ElisionCheckRun, Loss};
 }
 
 #[cfg(test)]
