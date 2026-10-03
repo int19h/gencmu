@@ -16,7 +16,7 @@ import unittest
 from concurrent.futures import ProcessPoolExecutor
 from typing import Any, Callable
 
-from .shared import SHARED, apply_mutant, load_case_dialect, parse_case, result_mutants, result_problems
+from .shared import SHARED, apply_mutant, load_case, load_case_dialect, parse_case, parse_checked, result_mutants, result_problems, witness_lost
 
 FIELDS = ("expect", "verdict", "stage", "at", "error", "ties", "words", "brackets")
 
@@ -47,7 +47,11 @@ def outcome(
         dialect = _dialects.get(case["dialect"])
         if dialect is None:
             dialect = _dialects[case["dialect"]] = gencmu.load_dialect(case["dialect"])
-        result = dialect.parse(case["text"], features=case.get("features", []), without_features=case.get("withoutFeatures", []))
+        # Every check of elision-only that ran keeps its witness
+        # (tests/README.md).
+        result = parse_checked(
+            lambda: dialect.parse(case["text"], features=case.get("features", []), without_features=case.get("withoutFeatures", []))
+        )
     # A tied stage emits nothing and ends the run with its error
     # (tests/README.md).
     value = gencmu.result_json(result)
@@ -56,6 +60,10 @@ def outcome(
     problems = result_problems(value)
     if problems:
         raise AssertionError(f"the result breaks an invariant: {'; '.join(problems)}")
+    # No corpus case gives elision-witness-lost, whatever it expects
+    # (tests/README.md).
+    if witness_lost(value):
+        raise AssertionError("the result is the error elision-witness-lost, which no grammar gives")
     got: dict[str, Any] = {"expect": "accept" if result.ok else "reject"}
     if result.ok:
         got["verdict"] = result.stages[-1].verdict
@@ -152,6 +160,37 @@ class Corpus(unittest.TestCase):
         for case in all_cases():
             if "ties" in case:
                 self.assertIsNone(mismatch(case, outcome(case)))
+
+
+    def test_the_runner_refuses_the_error_elision_witness_lost(self) -> None:
+        """The runner fails a corpus case whose result is the error
+        elision-witness-lost, or whose check loses its witness
+        (tests/README.md). The check of le sutra tavla runs in cll-ebnf,
+        since the ranking chooses the fragment (grammars/syntax/cll.md). A
+        replaced step of the check loses its witness after recognition."""
+        from unittest import mock
+
+        from gencmu import _stage
+
+        from .shared import WitnessLost
+
+        case = {"id": "lost", "dialect": "cll-ebnf", "text": "le sutra tavla"}
+        clean = outcome(case)
+        self.assertEqual(clean.get("verdict"), "resolved")
+        reconstruct = _stage._reconstruct
+
+        def no_roots(context: Any) -> Any:
+            forest = reconstruct(context)
+            forest.roots = []
+            return forest
+
+        with mock.patch.object(_stage, "_reconstruct", no_roots), self.assertRaises(WitnessLost):
+            outcome(case)
+        dialect = _dialects["cll-ebnf"]
+        with mock.patch.object(_stage, "_rank_check", lambda forest: None):
+            result = dialect.parse(case["text"])
+        with self.assertRaisesRegex(AssertionError, "elision-witness-lost"):
+            outcome(case, result=result)
 
 
 if __name__ == "__main__":

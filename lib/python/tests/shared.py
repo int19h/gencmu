@@ -17,6 +17,8 @@ import gencmu
 from gencmu._model import Token
 from gencmu._tags import is_tag
 
+from .witness import checks, keeps_witness
+
 REPOSITORY = Path(__file__).resolve().parents[3]
 SHARED = REPOSITORY / "tests"
 
@@ -105,6 +107,23 @@ def result_problems(value: dict[str, Any]) -> list[str]:
         for member in ("token", "source"):
             if member in error:
                 problems.append(f"the ambiguous error has a member {member}")
+    # An error that loses the witness of elision-only is a grammar error of
+    # the last stage, with its chosen tree and completion, and nothing else
+    # (engine §7.9).
+    if isinstance(error, dict) and error.get("code") == "elision-witness-lost":
+        if (
+            error.get("kind") != "grammar"
+            or not isinstance(error.get("stage"), str)
+            or "chosen" not in error
+            or not isinstance(error.get("completion"), list)
+        ):
+            problems.append("the elision-witness-lost error lacks its kind grammar, stage, chosen or completion")
+        for member in ("token", "source", "line", "column", "expected", "reason", "readings"):
+            if member in error:
+                problems.append(f"the elision-witness-lost error has a member {member}")
+        last = stages[-1] if stages else None
+        if last is None or last["name"] != error.get("stage") or last["verdict"] != "resolved" or "output" in last:
+            problems.append("the stage of the elision-witness-lost error is not the last, resolved, with no output")
     for index, stage in enumerate(stages):
         if "tied" in stage:
             problems.append(f"stage {stage['name']} has a tied tree")
@@ -127,6 +146,32 @@ def result_problems(value: dict[str, Any]) -> list[str]:
         ):
             problems.append(f"the tied stage {stage['name']} lacks its error of kind ambiguous, reason tie and two readings")
     return problems
+
+
+def witness_lost(value: dict[str, Any]) -> bool:
+    """Whether a canonical result has the error elision-witness-lost. No
+    grammar gives it (engine §7.8), so a shared case or a corpus case that
+    gives it fails, whatever it expects (tests/README.md). The library's own
+    tests that lose the witness on purpose do not run through the runner."""
+    error = value.get("error")
+    return isinstance(error, dict) and error.get("code") == "elision-witness-lost"
+
+
+class WitnessLost(AssertionError):
+    """A check of elision-only that lost the witness of its chosen
+    derivation (tests/README.md)."""
+
+
+def parse_checked(parse: Any) -> Any:
+    """The value of ``parse()``, after asking the library whether every
+    check of elision-only that ran in it kept its witness (tests/README.md);
+    a check that did not fails the case."""
+    with checks() as runs:
+        value = parse()
+    lost = sum(1 for run in runs if not keeps_witness(run))
+    if lost:
+        raise WitnessLost(f"{lost} check(s) of elision-only lost the witness of the chosen derivation")
+    return value
 
 
 def case_sources(case: dict[str, Any]) -> tuple[dict[str, str], str]:
@@ -192,11 +237,13 @@ def parse_case(
         "elision_only": options.get("elisionOnly"),
     }
     try:
+        # Every check of elision-only that ran must keep its witness
+        # (tests/README.md).
         if "tokens" in case:
             tokens, text = case_tokens(case)
-            result = dialect.parse_tokens(tokens, text, **kwargs)
+            result = parse_checked(lambda: dialect.parse_tokens(tokens, text, **kwargs))
         else:
-            result = dialect.parse(case.get("input", ""), **kwargs)
+            result = parse_checked(lambda: dialect.parse(case.get("input", ""), **kwargs))
     except gencmu.GencmuError as error:
         if error.kind != "usage":
             raise
