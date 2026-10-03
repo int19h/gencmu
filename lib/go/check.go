@@ -90,14 +90,17 @@ type reconstruction struct {
 
 // elisionCheckRun is what a check of elision-only that met no error of the
 // grammar hands its test hook (tests/README.md): D, the chosen derivation,
-// the recognition of R and its completed items of text, whether the ranking
-// of the check counted a derivation, and how R relates to O.
+// the recognition of R and its completed items of text, the check's own
+// ranking of a part of its forest, and how R relates to O.
 type elisionCheckRun struct {
-	chosen  *dn
-	rec     *recognizer
-	top     []*symNode
-	counted bool
-	recon   *reconstruction
+	chosen *dn
+	rec    *recognizer
+	top    []*symNode
+	// counts says whether the check's ranker, with no lean and no
+	// maximality, counts a derivation of the part of the forest made of
+	// these items, each with these links.
+	counts func(only map[*item][]link) bool
+	recon  *reconstruction
 	// originalAt is each token of O's index in R, recordAt each record's.
 	originalAt, recordAt []int
 }
@@ -183,7 +186,15 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 		res = newRanker(r, "", nil).rank(top)
 	}
 	if private.elisionCheck != nil {
-		private.elisionCheck(&elisionCheckRun{chosen: d, rec: r, top: top, counted: res != nil, recon: rc, originalAt: originalAt, recordAt: recordAt})
+		counts := func(only map[*item][]link) bool {
+			if len(top) == 0 || private.loseWitness == "count" {
+				return false
+			}
+			rk := newRanker(r, "", nil)
+			rk.only = only
+			return rk.rank(top) != nil
+		}
+		private.elisionCheck(&elisionCheckRun{chosen: d, rec: r, top: top, counts: counts, recon: rc, originalAt: originalAt, recordAt: recordAt})
 	}
 	if res == nil {
 		// The witness of the chosen derivation is lost: a defect of the

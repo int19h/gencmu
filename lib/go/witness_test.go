@@ -40,19 +40,17 @@ func withChecks(opts *ParseOptions) *checkLog {
 func (log *checkLog) lost() int { return log.bad }
 
 // keepsWitness says whether a check's forest holds W(D) as a counted
-// derivation: for each node of W(D), from the leaves up, a completed item of
-// the node's production over the node's span of R with a link whose
-// children are the items of the node's children. A read is of the original
-// token that D reads, found by its provenance. An elided terminator of D is
-// the restoration of its helper over its own synthetic token. W(D) is not
-// cyclic, so an item found this way has a counted derivation, provided that
-// the ranking counted one.
+// derivation. First, the chart must hold it: for each node of W(D), from
+// the leaves up, a completed item of the node's production over the node's
+// span of R with a link whose children are the items of the node's
+// children. A read is of the original token that D reads, found by its
+// provenance. An elided terminator of D is the restoration of its helper
+// over its own synthetic token. Then the check's own ranking must count it:
+// the part of the forest made of the items found, each with only the links
+// that the walk matched, must have a derivation that counts. A faulty
+// ranker can lose W(D) from a chart that holds it. The walk pins the shape
+// of W(D) and its count, not its tags, which the cases pin.
 func keepsWitness(run *elisionCheckRun) bool {
-	// The ranking must have counted a derivation. The walk below then shows
-	// that W(D) is one of them.
-	if !run.counted {
-		return false
-	}
 	rc := run.recon
 	// The nodes of W(D) in post-order, each with its span in R. The ranking
 	// shares a derivation among the places where it occurs, so a node is
@@ -159,8 +157,18 @@ func keepsWitness(run *elisionCheckRun) bool {
 		return index[where{k, p, int32(dot), int32(origin)}]
 	}
 
-	// For each close of W(D), the items that derive it exactly.
+	// For each close of W(D), the items that derive it exactly; and for
+	// each item found, the links that the walk matched.
 	found := map[*wnode]map[*item]bool{}
+	only := map[*item][]link{}
+	keep := func(it *item, l link) {
+		for _, x := range only[it] {
+			if x == l {
+				return
+			}
+		}
+		only[it] = append(only[it], l)
+	}
 	for _, w := range order {
 		n := w.d
 		if n.kind == dRead {
@@ -171,6 +179,9 @@ func keepsWitness(run *elisionCheckRun) bool {
 			for _, it := range itemsAt(w.end, n.prod, 0, w.start) {
 				if it.restores {
 					set[it] = true
+					for _, l := range it.links {
+						keep(it, l)
+					}
 				}
 			}
 			found[w] = set
@@ -182,6 +193,11 @@ func keepsWitness(run *elisionCheckRun) bool {
 		for _, it := range itemsAt(w.start, n.prod, 0, w.start) {
 			if !it.restores {
 				current[it], predicted = true, true
+				// A predicted item has no links, and the part of the
+				// forest holds it all the same.
+				if _, ok := only[it]; !ok {
+					only[it] = nil
+				}
 			}
 		}
 		for i, k := range w.kids {
@@ -208,7 +224,7 @@ func keepsWitness(run *elisionCheckRun) bool {
 					}
 					if ok {
 						next[it] = true
-						break
+						keep(it, l)
 					}
 				}
 			}
@@ -216,14 +232,15 @@ func keepsWitness(run *elisionCheckRun) bool {
 		}
 		found[w] = current
 	}
+	held := false
 	for _, s := range run.top {
 		for _, it := range s.items {
 			if found[root][it] {
-				return true
+				held = true
 			}
 		}
 	}
-	return false
+	return held && run.counts(only)
 }
 
 // lostCase is a two-stage pipeline whose first stage runs the check of
