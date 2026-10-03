@@ -7,7 +7,7 @@ use crate::fxhash::FxMap;
 use std::sync::Arc;
 
 use crate::clauses::{simplify_cond, simplify_value, Simple};
-use crate::dom::{Arg, Cond, EmitItem, Expr, FeatureKind, Term};
+use crate::dom::{Arg, Chain, Cond, EmitItem, Expr, FeatureKind, Mark, Term};
 use crate::grammar::{is_terminal_name, ClassifierTables, Implication, StageGrammar, StitchedAlternative};
 use crate::tags::{code_of_character_tag, property_name, range_name};
 use crate::unicode::Property;
@@ -238,8 +238,6 @@ pub(crate) struct Prod {
     /// Conditions, each with the dot at which it is evaluated.
     pub conds: Vec<(LCond, usize)>,
     pub visible: bool,
-    /// `r → r x`, the step of a trailing repetition (§3.3).
-    pub trailing_step: bool,
     /// The features of its alternative's warnings, in the order they are
     /// written (§12); none for a helper.
     pub warnings: Vec<String>,
@@ -253,14 +251,14 @@ pub(crate) struct LRule {
     pub name: String,
     pub helper: bool,
     pub prods: Vec<u32>,
-    /// For the helper of an optional that begins with an elidable
-    /// terminator: that terminator (§12).
+    /// For the helper of an elidable optional, `[+T …]` or `[++T …]`: its
+    /// terminator `T` (§3.8, §12).
     pub elided: Option<String>,
     /// The id of that terminator's test, if it has one: an `=` test,
     /// whose string a restored token sounds like (engine §7).
     pub elided_test: Option<u32>,
-    /// Whether that terminator is maximal: a `%elidable maximal` names it
-    /// (engine §4).
+    /// Whether that terminator is maximal: its optional is written
+    /// `[++T …]` (engine §3.8, §4).
     pub maximal: bool,
 }
 
@@ -317,6 +315,8 @@ struct HelperDef {
     owner: u32,
     prods: Vec<Sequence>,
     elided: Option<(String, Option<u32>)>,
+    /// Whether the optional is written `[++T …]` (§3.8).
+    maximal: bool,
     /// The helpers of the places written inside this one, in order.
     children: Vec<usize>,
 }
@@ -380,29 +380,30 @@ impl<'a> Lowerer<'a> {
         }
     }
 
-    /// The terminal an optional's content begins with, if it is a symbol or
-    /// a sequence that begins, recursively, with one, and the id of its
-    /// test, if it is tested.
-    fn elidable_terminal(&mut self, expr: &Expr) -> Option<(String, Option<u32>)> {
-        match expr {
-            Expr::Ref(name) if is_terminal_name(name) => Some((name.clone(), None)),
-            Expr::Terminal(name) => Some((name.clone(), None)),
+    /// The terminator of an elidable optional, the first item of its
+    /// content, and the id of its `=` test, if it has one (§3.8). The
+    /// reader, or the check of a DOM, has made sure that it is one.
+    fn elided_terminal(&mut self, expr: &Expr) -> (String, Option<u32>) {
+        let first = match expr {
+            Expr::Seq(items) => &items[0],
+            other => other,
+        };
+        match first {
+            Expr::Ref(name) | Expr::Terminal(name) => (name.clone(), None),
             Expr::Tested(op, value, inner) => match inner.as_ref() {
-                Expr::Ref(name) if is_terminal_name(name) => Some((name.clone(), Some(self.test(op, value)))),
-                Expr::Terminal(name) => Some((name.clone(), Some(self.test(op, value)))),
-                _ => None,
+                Expr::Ref(name) | Expr::Terminal(name) => (name.clone(), Some(self.test(op, value))),
+                _ => unreachable!("an elidable optional begins with its terminator"),
             },
-            Expr::Seq(items) => items.first().and_then(|first| self.elidable_terminal(first)),
-            _ => None,
+            _ => unreachable!("an elidable optional begins with its terminator"),
         }
     }
 
     /// Makes the helper of a place whose inside `enter` began.
-    fn helper(&mut self, prods: Vec<Sequence>, elided: Option<(String, Option<u32>)>) -> Sym {
+    fn helper(&mut self, prods: Vec<Sequence>, elided: Option<(String, Option<u32>)>, maximal: bool) -> Sym {
         let id = (self.grammar.rules.len() + self.helpers.len()) as u32;
         let children = self.places.pop().expect("a place entered");
         self.places.last_mut().expect("an alternative").push(self.helpers.len());
-        self.helpers.push(HelperDef { owner: self.owner, prods, elided, children });
+        self.helpers.push(HelperDef { owner: self.owner, prods, elided, maximal, children });
         Sym::N(id)
     }
 
@@ -418,22 +419,26 @@ impl<'a> Lowerer<'a> {
         }
     }
 
-    fn repeat(&mut self, inner: &Expr, min: u8) -> Sym {
-        self.enter();
-        let body = self.expand(inner);
-        let id = (self.grammar.rules.len() + self.helpers.len()) as u32;
-        let mut prods = Vec::new();
-        if min == 0 {
-            prods.push(Vec::new());
-        } else {
-            prods.extend(body.iter().cloned());
-        }
-        for sequence in &body {
-            let mut step = vec![(Sym::N(id), None, None)];
-            step.extend(sequence.iter().cloned());
-            prods.push(step);
-        }
-        self.helper(prods, None)
+    /// The expansions of a chain's recursion, or of flat braces' helper:
+    /// its base sequences, one for each expansion of the item, then its
+    /// recursive ones, one for each expansion of what the recursion adds,
+    /// `s x` after `this` from the left, or `x s` before it from the right
+    /// (§3.2, §3.3). The places inside the item come before those inside
+    /// the separator.
+    fn braces(&mut self, item: &Expr, separator: Option<&Expr>, this: Sym, chain: Chain) -> Vec<Sequence> {
+        let items = self.expand(item);
+        let separators = match separator {
+            Some(separator) => self.expand(separator),
+            None => vec![Vec::new()],
+        };
+        let this: Vec<Sequence> = vec![vec![(this, None, None)]];
+        let recursive = match chain {
+            Chain::Left => product(product(this, &separators), &items),
+            Chain::Right => product(product(items.clone(), &separators), &this),
+        };
+        let mut prods = items;
+        prods.extend(recursive);
+        prods
     }
 
     fn expand(&mut self, expr: &Expr) -> Vec<Sequence> {
@@ -469,20 +474,28 @@ impl<'a> Lowerer<'a> {
                 }
                 out
             }
-            Expr::Optional(inner) => {
+            Expr::Optional(inner, mark) => {
                 self.enter();
                 let body = self.expand(inner);
-                // An optional of a symbol, or of a sequence that begins with
-                // one, is elidable when that symbol is an elidable
-                // terminal, tested or not; one of a choice or an `&` never
-                // is (§3.8).
-                let elided = self.elidable_terminal(inner).filter(|(name, _)| self.grammar.elidable.contains(name));
+                // A marked optional is elidable, with the terminal that its
+                // marker names, and `++` makes it maximal (§3.8).
+                let elided = (*mark != Mark::Plain).then(|| self.elided_terminal(inner));
                 let mut prods = vec![Vec::new()];
                 prods.extend(body);
-                let sym = self.helper(prods, elided);
+                let sym = self.helper(prods, elided, *mark == Mark::Maximal);
                 vec![vec![(sym, None, None)]]
             }
-            Expr::Repeat(inner, min) => vec![vec![(self.repeat(inner, *min), None, None)]],
+            // Flat braces are a helper, `h → x | h s x` (§3.2).
+            Expr::Repeat(item, separator, _) => {
+                self.enter();
+                let id = Sym::N((self.grammar.rules.len() + self.helpers.len()) as u32);
+                let prods = self.braces(item, separator.as_deref(), id, Chain::Left);
+                // The helpers inside the braces are made first, so that the
+                // id is the helper's own.
+                let sym = self.helper(prods, None, false);
+                debug_assert_eq!(sym, id);
+                vec![vec![(sym, None, None)]]
+            }
             Expr::Ref(name) => vec![vec![(self.symbol(name, true), None, None)]],
             Expr::Terminal(name) => vec![vec![(self.symbol(name, false), None, None)]],
             // A range or a property is a terminal whose name is its written
@@ -643,18 +656,6 @@ struct Pending {
     rule: u32,
     sequence: Sequence,
     source: Option<(usize, usize)>,
-    trailing_step: bool,
-}
-
-fn ends_in_repeat(expr: &Expr) -> Option<(Vec<Expr>, &Expr, u8)> {
-    match expr {
-        Expr::Repeat(inner, min) => Some((Vec::new(), inner, *min)),
-        Expr::Seq(items) => match items.last() {
-            Some(Expr::Repeat(inner, min)) => Some((items[..items.len() - 1].to_vec(), inner, *min)),
-            _ => None,
-        },
-        _ => None,
-    }
 }
 
 /// An error of the grammar found when it is lowered for a set of features
@@ -705,45 +706,19 @@ pub(crate) fn lower(
                 })
             })
             .collect();
-        let trailing = if live.len() == 1 { ends_in_repeat(&live[0].alternative.expr) } else { None };
-        // A trailing repetition's recursive productions could not have its
-        // captures, whose parts lie inside the inner constituent (§3.3).
-        if trailing.is_some() {
-            let top: &[Expr] = match &live[0].alternative.expr {
-                Expr::Seq(items) => items,
-                other => std::slice::from_ref(other),
-            };
-            if top.iter().any(|item| matches!(item, Expr::Capture(..))) {
-                return Err(LowerError {
-                    message: format!(
-                        "an alternative of {} captures a part, and is lowered as a trailing repetition",
-                        rule.name
-                    ),
-                    rule: index as u32,
-                });
-            }
-        }
         for (number, alternative) in live.iter().enumerate() {
             lowerer.places = vec![Vec::new()];
-            let own = |sequence, trailing_step| {
-                Slot::Own(Pending { rule: index as u32, sequence, source: Some((number, 0)), trailing_step })
+            let own = |sequence| Slot::Own(Pending { rule: index as u32, sequence, source: Some((number, 0)) });
+            let sequences = match &alternative.alternative.expr {
+                // A chain is recursion on the rule itself, with no helper
+                // (§3.3).
+                Expr::Repeat(item, separator, Some(chain)) => {
+                    lowerer.braces(item, separator.as_deref(), Sym::N(index as u32), *chain)
+                }
+                expr => lowerer.expand(expr),
             };
-            if let Some((prefix, repeated, min)) = &trailing {
-                let base = lowerer.expand(&Expr::Seq(prefix.clone()));
-                let body = lowerer.expand(repeated);
-                let bases = if *min == 0 { base } else { product(base, &body) };
-                for sequence in bases {
-                    slots.push(own(sequence, false));
-                }
-                for sequence in body {
-                    let mut step = vec![(Sym::N(index as u32), None, None)];
-                    step.extend(sequence);
-                    slots.push(own(step, true));
-                }
-            } else {
-                for sequence in lowerer.expand(&alternative.alternative.expr) {
-                    slots.push(own(sequence, false));
-                }
+            for sequence in sequences {
+                slots.push(own(sequence));
             }
             let roots = lowerer.places.pop().expect("the alternative's places");
             let mut stack: Vec<usize> = roots.into_iter().rev().collect();
@@ -775,7 +750,7 @@ pub(crate) fn lower(
             prods: Vec::new(),
             elided: helper.elided.as_ref().map(|(name, _)| name.clone()),
             elided_test: helper.elided.as_ref().and_then(|(_, test)| *test),
-            maximal: helper.elided.as_ref().is_some_and(|(name, _)| grammar.maximal_terminals.contains(name)),
+            maximal: helper.maximal,
         });
     }
     let mut order: Vec<Pending> = Vec::new();
@@ -784,12 +759,7 @@ pub(crate) fn lower(
             Slot::Own(pending) => order.push(pending),
             Slot::Helper(helper) => {
                 for sequence in std::mem::take(&mut lowerer.helpers[helper].prods) {
-                    order.push(Pending {
-                        rule: (user_count + helper) as u32,
-                        sequence,
-                        source: None,
-                        trailing_step: false,
-                    });
+                    order.push(Pending { rule: (user_count + helper) as u32, sequence, source: None });
                 }
             }
         }
@@ -829,7 +799,6 @@ pub(crate) fn lower(
             emit: LEmit::None,
             opaque: false,
             conds: Vec::new(),
-            trailing_step: pending.trailing_step,
             warnings: Vec::new(),
             document: None,
             at: (0, 0),

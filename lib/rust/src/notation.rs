@@ -1,10 +1,11 @@
 //! From the notation's document tree to a grammar DOM (engine §9).
 
+use crate::clauses::CaptureSequences;
 use crate::dom::{
     comparison_problem, cond_type_problem, constant_value_type, expected_problem, is_capture_name, is_classifier_name,
     is_sound_test, joined_type, literal_call_problem, property_problem, range_problem, sound_problem, tag_term_problem,
-    term_type, test_type_problem, Alternative, Arg, Attachments, ClassifierDef, Cond, ConstDef, Directive, Dom,
-    EmitItem, Entry, Expr, FeatureKind, Guard, ImplicationDef, Op, RuleDef, Term, Type,
+    term_type, test_type_problem, Alternative, Arg, Attachments, Chain, ClassifierDef, Cond, ConstDef, Directive, Dom,
+    EmitItem, Entry, Expr, FeatureKind, Guard, ImplicationDef, Mark, Op, RuleDef, Term, Type,
 };
 use crate::error::Error;
 use crate::result::{Node, NodeKind, Token};
@@ -20,8 +21,13 @@ const MAX_DEPTH: usize = 12_000;
 
 pub(crate) struct Reader<'a> {
     pub tokens: &'a [Token],
-    /// The capture names of the alternative being read.
-    pub captures: std::cell::RefCell<Vec<String>>,
+    /// The captures of the alternative being read, in the order written,
+    /// where an error about one is reported.
+    pub captures: std::cell::RefCell<Vec<&'a Node>>,
+    /// How many braces, and how many elidable optionals, the reader is
+    /// inside, where no capture stands (engine §9).
+    pub braces: std::cell::Cell<usize>,
+    pub marked: std::cell::Cell<usize>,
     /// The document position of a grammar-text index.
     pub position: &'a dyn Fn(usize) -> (usize, usize),
     /// The lowercase mapping that the strings of sound tests are checked
@@ -267,24 +273,13 @@ impl<'a> Reader<'a> {
     fn directive(&self, node: &'a Node) -> R<Directive> {
         let token = self.token(node)?;
         let name = self.text(token).trim_start_matches('%').to_string();
-        let mut parts: Vec<&Node> = Self::parts(node)
+        let parts: Vec<&Node> = Self::parts(node)
             .into_iter()
             .filter(|child| {
                 child.kind == NodeKind::Rule
                     && matches!(rule_name(child), "argument-word" | "argument-string" | "argument-tag")
             })
             .collect();
-        // In `%elidable`, a first word `maximal` is the modifier, which
-        // gives the member `maximal` and no operand. A tag `~maximal` stays
-        // an operand (engine §9).
-        let maximal = name == "elidable"
-            && parts.first().is_some_and(|first| {
-                rule_name(first) == "argument-word"
-                    && self.token(first).is_ok_and(|token| self.text(token) == "maximal")
-            });
-        if maximal {
-            parts.remove(0);
-        }
         let operands: Vec<(&Node, &Node)> = parts
             .into_iter()
             // A token, or the node of a range or a property.
@@ -324,7 +319,7 @@ impl<'a> Reader<'a> {
                 _ => self.tag_of(operand)?,
             });
         }
-        Ok(Directive { name, args, maximal, at: self.at(token) })
+        Ok(Directive { name, args, at: self.at(token) })
     }
 
     fn rule(&self, node: &'a Node) -> R<RuleDef> {
@@ -335,16 +330,15 @@ impl<'a> Reader<'a> {
             "%extend-rule" => Op::Extend,
             _ => Op::Define,
         };
-        let tags = match Self::rules(node, "tags-clause").next() {
-            Some(clause) => Some(self.constituent_tags(clause)?),
-            None => None,
-        };
+        // The parts of a definition are read in the order written: the
+        // body, then its clauses in their fixed order, and the checks of the
+        // whole definition last (§9).
         let mut alternatives = Vec::new();
         for alternative in self.some(self.one(node, "body")?, "alternative", 1)? {
             alternatives.push(self.alternative(alternative)?);
         }
-        let emit = match Self::rules(node, "emits-clause").next() {
-            Some(clause) => Some(self.emission(clause)?),
+        let tags = match Self::rules(node, "tags-clause").next() {
+            Some(clause) => Some(self.constituent_tags(clause)?),
             None => None,
         };
         // Each condition of the list is one condition (§9).
@@ -354,6 +348,10 @@ impl<'a> Reader<'a> {
                 conditions.push(self.implication(implication, 0)?);
             }
         }
+        let emit = match Self::rules(node, "emits-clause").next() {
+            Some(clause) => Some(self.emission(clause)?),
+            None => None,
+        };
         let rule = RuleDef {
             name: self.text(name_token).to_string(),
             op,
@@ -389,6 +387,16 @@ impl<'a> Reader<'a> {
             .collect::<R<_>>()?;
         self.captures.borrow_mut().clear();
         let expr = self.conjunction(self.one(node, "conjunction")?, 0, true)?;
+        // A name stands at most once in each production, gates aside: the
+        // error stands at the second capture that such a production reads,
+        // the first in the text where there are several (§3.5, §9).
+        if let Some(&twice) = CaptureSequences::of(&expr).duplicates.first() {
+            let capture = self.captures.borrow()[twice];
+            let name = self.text(self.token(capture)?).trim_start_matches('$').to_string();
+            return Err(
+                self.error(capture, format!("the capture ${name} is read twice by one production of the alternative"))
+            );
+        }
         let tags = match Self::rules(node, "alternative-tags").next() {
             Some(tags) => Some(self.constituent_tags(tags)?),
             None => None,
@@ -418,19 +426,21 @@ impl<'a> Reader<'a> {
         Ok(term)
     }
 
-    /// `top` is whether this is an alternative's own expression, whose
-    /// sequence's items may be captures (engine §3.5), unless it is an `&`.
-    fn conjunction(&self, node: &'a Node, depth: usize, top: bool) -> R<Expr> {
+    /// `whole` is whether this is its alternative's whole expression, where
+    /// a chain may stand (§9).
+    fn conjunction(&self, node: &'a Node, depth: usize, whole: bool) -> R<Expr> {
         let depth = self.deeper(node, depth)?;
         let sequences = self.some(node, "sequence", 1)?;
-        let top = top && sequences.len() == 1;
+        let whole = whole && sequences.len() == 1;
         let mut parts = Vec::new();
         for sequence in sequences {
-            let mut elements = Vec::new();
-            for element in self.some(sequence, "element", 1)? {
-                elements.push(self.element(element, depth, top)?);
+            let primaries = self.some(sequence, "primary", 1)?;
+            let whole = whole && primaries.len() == 1;
+            let mut items = Vec::new();
+            for primary in primaries {
+                items.push(self.primary(primary, depth, whole)?);
             }
-            parts.push(single_or(elements, Expr::Seq));
+            parts.push(single_or(items, Expr::Seq));
         }
         if parts.len() > crate::grammar::MAX_AND {
             return Err(self.error(
@@ -450,18 +460,8 @@ impl<'a> Reader<'a> {
         Ok(single_or(parts, Expr::Choice))
     }
 
-    fn element(&self, node: &'a Node, depth: usize, top: bool) -> R<Expr> {
-        let repeated = Self::tokens_of(node).any(|token| self.text(token) == "...");
-        let primary = self.primary(self.one(node, "primary")?, depth, top && !repeated)?;
-        Ok(match (repeated, primary) {
-            (false, primary) => primary,
-            (true, Expr::Optional(inner)) => Expr::Repeat(inner, 0),
-            (true, primary) => Expr::Repeat(Box::new(primary), 1),
-        })
-    }
-
-    /// `top` is whether a capture may stand here (engine §3.5).
-    fn primary(&self, node: &'a Node, depth: usize, top: bool) -> R<Expr> {
+    /// `whole` is whether a chain may stand here (§9).
+    fn primary(&self, node: &'a Node, depth: usize, whole: bool) -> R<Expr> {
         let depth = self.deeper(node, depth)?;
         let inner = self.inner(node, &PRIMARIES)?;
         let token = || self.token(inner);
@@ -469,6 +469,21 @@ impl<'a> Reader<'a> {
             "reference" | "tag" | "character" | "phoneme" | "range" | "property" => self.symbol(inner)?,
             "tested" => self.tested(inner, depth)?,
             "capture" => {
+                // A capture stands anywhere but in braces or an elidable
+                // optional (§3.5, §9), and its own form is checked before
+                // what it wraps.
+                if self.braces.get() > 0 {
+                    return Err(self.error(
+                        inner,
+                        "a capture cannot stand inside braces, whose parts repeat: name the list as a rule, and capture that",
+                    ));
+                }
+                if self.marked.get() > 0 {
+                    return Err(self.error(
+                        inner,
+                        "a capture cannot stand inside an elidable optional, which elision restores as one unit",
+                    ));
+                }
                 let capture = token()?;
                 if self.text(capture) == "$" {
                     return Err(self.error(capture, "$ is the whole constituent and wraps nothing"));
@@ -488,27 +503,123 @@ impl<'a> Reader<'a> {
                 ) {
                     return Err(self.error(capture, "a capture must wrap a single symbol"));
                 }
-                if !top {
-                    return Err(self.error(
-                        capture,
-                        "a capture stands at the top level of an alternative, not inside [ ], ( ), ..., & or a choice",
-                    ));
-                }
-                if self.captures.borrow().contains(&name) {
-                    return Err(self.error(capture, format!("the capture ${name} is used twice in one alternative")));
-                }
-                self.captures.borrow_mut().push(name.clone());
-                if self.captures.borrow().len() > 4 {
-                    return Err(self.error(capture, "an alternative has at most four captures"));
-                }
+                self.captures.borrow_mut().push(inner);
                 Expr::Capture(name, Box::new(self.primary(primary, depth, false)?))
             }
             "group" => self.choice(self.one(inner, "choice")?, depth)?,
-            "optional" => Expr::Optional(Box::new(self.choice(self.one(inner, "choice")?, depth)?)),
+            "optional" => self.optional(inner, depth)?,
+            "repetition" => self.repetition(inner, depth, whole)?,
             "empty" => Expr::Empty,
             "constant-reference" => return Err(self.error(inner, CONSTANT_IN_BODY)),
             other => return Err(self.unknown(node, other)),
         })
+    }
+
+    /// An optional, and with a marker `+` or `++` among its parts an
+    /// elidable one (§3.8, §9). Its form is checked on the tree, where a
+    /// group is still a node: one sequence, whose first primary is the
+    /// terminal itself, `=`-tested or not.
+    fn optional(&self, node: &'a Node, depth: usize) -> R<Expr> {
+        let markers: Vec<&Node> =
+            Self::tokens_of(node).filter(|token| matches!(self.text(token), "+" | "++")).collect();
+        if let Some(second) = markers.get(1) {
+            return Err(self.error(second, "an optional has one marker + or ++ at most"));
+        }
+        let choice = self.one(node, "choice")?;
+        let Some(&marker) = markers.first() else {
+            return Ok(Expr::Optional(Box::new(self.choice(choice, depth)?), Mark::Plain));
+        };
+        let form = || {
+            self.error(
+                node,
+                "an elidable optional begins with its terminator, a name with a capital or ~name, written directly \
+                 after the marker, and joins it to nothing with | or &",
+            )
+        };
+        // One conjunction of one sequence, with no leading | or & either:
+        // the terminator stands directly after the marker (§9).
+        let conjunctions: Vec<&Node> = Self::rules(choice, "conjunction").collect();
+        let leading = Self::tokens_of(choice).any(|token| self.text(token) == "|")
+            || (conjunctions.len() == 1 && Self::tokens_of(conjunctions[0]).any(|token| self.text(token) == "&"));
+        let sequences: Vec<&Node> = if conjunctions.len() == 1 && !leading {
+            Self::rules(conjunctions[0], "sequence").collect()
+        } else {
+            Vec::new()
+        };
+        let primary = match sequences[..] {
+            [sequence] => Self::rules(sequence, "primary").next(),
+            _ => None,
+        };
+        let Some(primary) = primary else {
+            return Err(form());
+        };
+        let head = self.inner(primary, &PRIMARIES)?;
+        let is_terminal = |symbol: &Node| {
+            rule_name(symbol) == "tag"
+                || (rule_name(symbol) == "reference"
+                    && Self::tokens_of(symbol).next().is_some_and(|token| is_capital(self.text(token))))
+        };
+        if rule_name(head) == "tested" {
+            if !is_terminal(self.inner(self.one(head, "primary")?, &PRIMARIES)?) {
+                return Err(form());
+            }
+            let test = self.one(head, "test")?;
+            let comparator: String = Self::tokens_of(test).map(|token| self.text(token)).collect();
+            if comparator != "=" {
+                return Err(self.error(
+                    test,
+                    "the terminator of an elidable optional takes no test but =, since elision-only restores it with its sound",
+                ));
+            }
+        } else if !is_terminal(head) {
+            return Err(form());
+        }
+        self.marked.set(self.marked.get() + 1);
+        let expr = self.choice(choice, depth);
+        self.marked.set(self.marked.get() - 1);
+        let mark = if self.text(marker) == "++" { Mark::Maximal } else { Mark::Elidable };
+        Ok(Expr::Optional(Box::new(expr?), mark))
+    }
+
+    /// Braces: the item, its separator if a backslash has one, and a
+    /// chain's direction from its marker, a `...` among the parts (§9).
+    /// `whole` is whether the braces are their alternative's whole
+    /// expression.
+    fn repetition(&self, node: &'a Node, depth: usize, whole: bool) -> R<Expr> {
+        let found = Self::parts(node);
+        let choices = self.some(node, "choice", 1)?;
+        let place = |part: &Node| found.iter().position(|other| std::ptr::eq(*other, part)).unwrap_or(found.len());
+        let markers: Vec<usize> = (0..found.len())
+            .filter(|&index| found[index].kind == NodeKind::Token && self.text(found[index]) == "...")
+            .collect();
+        // Two markers are an error at the second, and a marker after the
+        // separator is an error at that marker, whichever a reader meets
+        // first.
+        if let Some(&second) = markers.get(1) {
+            return Err(self.error(found[second], "braces have one chain marker ... at most"));
+        }
+        let separator_at = choices.get(1).map_or(found.len(), |separator| place(separator));
+        if let Some(&marker) = markers.first().filter(|&&marker| marker > separator_at) {
+            return Err(
+                self.error(found[marker], "a separator has no chain marker: ... stands after { or after the item")
+            );
+        }
+        let chain = markers.first().map(|&marker| if marker < place(choices[0]) { Chain::Left } else { Chain::Right });
+        // A chain is the whole expression of its alternative, as the
+        // lowering of its levels needs (§3.3, §9).
+        if chain.is_some() && !whole {
+            return Err(self
+                .error(node, "a chain is the whole expression of its alternative: name it as a rule to use it here"));
+        }
+        self.braces.set(self.braces.get() + 1);
+        let item = self.choice(choices[0], depth);
+        let separator = match (&item, choices.get(1)) {
+            (Ok(_), Some(&separator)) => Some(self.choice(separator, depth)),
+            _ => None,
+        };
+        self.braces.set(self.braces.get() - 1);
+        let separator = separator.transpose()?.map(Box::new);
+        Ok(Expr::Repeat(Box::new(item?), separator, chain))
     }
 
     /// A reference other than `#` or a terminal, and one test on its own
@@ -525,7 +636,7 @@ impl<'a> Reader<'a> {
         if !matches!(kind, "reference" | "tag" | "character" | "phoneme" | "range" | "property") || hash {
             return Err(self.error(
                 test,
-                "a test follows only a reference other than # or a terminal, not a group, an optional, a capture, ε, # or another test",
+                "a test follows only a reference other than # or a terminal, not a group, an optional, braces, a capture, ε, # or another test",
             ));
         }
         let expr = self.symbol(symbol)?;
@@ -1135,8 +1246,8 @@ const KNOWN: [&str; 67] = [
     "choice",
     "conjunction",
     "sequence",
-    "element",
     "primary",
+    "repetition",
     "reference",
     "tag",
     "character",
@@ -1182,7 +1293,7 @@ const KNOWN: [&str; 67] = [
 
 /// What a primary, a condition, a term and a term atom hold: the one rule
 /// among their parts is one of these (engine §9).
-const PRIMARIES: [&str; 12] = [
+const PRIMARIES: [&str; 13] = [
     "reference",
     "tag",
     "character",
@@ -1193,6 +1304,7 @@ const PRIMARIES: [&str; 12] = [
     "capture",
     "group",
     "optional",
+    "repetition",
     "empty",
     "constant-reference",
 ];
@@ -1290,11 +1402,6 @@ fn operand_problem(name: &str, kinds: &[Operand]) -> Option<String> {
         "stage" => (kinds.len() == 1 && names, "%stage takes one name".to_string()),
         "include" => (kinds == [Operand::String], "%include takes one string".to_string()),
         "features" => (!kinds.is_empty() && names, "%features takes one or more names".to_string()),
-        // Identifier tags: a name with a capital, or `~name`.
-        "elidable" => (
-            kinds.iter().all(|kind| matches!(kind, Operand::Class | Operand::Tag)),
-            "%elidable takes identifier tags: names with a capital, or ~name".to_string(),
-        ),
         _ => (names, format!("%{name} takes names only")),
     };
     (!ok).then_some(problem)

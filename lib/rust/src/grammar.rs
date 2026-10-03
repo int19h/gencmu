@@ -74,9 +74,6 @@ pub(crate) struct StageGrammar {
     /// Whether an elided terminator is forbidden where its constituent
     /// could have been longer (engine §4).
     pub maximal: bool,
-    pub elidable: Vec<String>,
-    /// The elidable terminators that a `%elidable maximal` names (§2, §4).
-    pub maximal_terminals: Vec<String>,
     pub changes: Vec<Change>,
     /// The stage's `%classifier` items in stitching order, each with its
     /// document (engine §2).
@@ -171,8 +168,6 @@ pub(crate) fn stitch(
         lean: Lean::Greedy,
         elision_only: false,
         maximal: false,
-        elidable: Vec::new(),
-        maximal_terminals: Vec::new(),
         changes: Vec::new(),
         classifiers: Vec::new(),
         implications: Arc::from(Vec::new()),
@@ -281,18 +276,6 @@ pub(crate) fn stitch(
                     }
                     resolution = Some((document.clone(), directive.at));
                 }
-                "elidable" => {
-                    for arg in &directive.args {
-                        if !grammar.elidable.contains(arg) {
-                            grammar.elidable.push(arg.clone());
-                        }
-                        // A terminator is maximal when any `%elidable
-                        // maximal` names it (§2).
-                        if directive.maximal && !grammar.maximal_terminals.contains(arg) {
-                            grammar.maximal_terminals.push(arg.clone());
-                        }
-                    }
-                }
                 other => return Err(here(format!("an unknown directive %{other}"))),
             }
         }
@@ -309,7 +292,6 @@ pub(crate) fn stitch(
         .map(|(document, implication)| constants.implication(document, implication))
         .collect::<Result<Vec<_>, _>>()?
         .into();
-    check_elidable_tests(&grammar)?;
     if resolution.is_none() {
         return Err(Error::grammar(format!("stage {stage} has no %ambiguity-resolution directive")).in_stage(stage));
     }
@@ -632,8 +614,10 @@ impl Constants<'_> {
                 while let Some(expr) = stack.pop() {
                     match expr {
                         Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => stack.extend(items.iter_mut()),
-                        Expr::Optional(inner) | Expr::Repeat(inner, _) | Expr::Capture(_, inner) => {
-                            stack.push(inner);
+                        Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push(inner),
+                        Expr::Repeat(item, separator, _) => {
+                            stack.push(item);
+                            stack.extend(separator.as_deref_mut());
                         }
                         Expr::Tested(_, value, inner) => {
                             *value = self.evaluate(value, &alternative.document, alternative.at)?.term();
@@ -772,78 +756,8 @@ fn calls_in_rule<'r>(rule: &'r RuleDef, out: &mut Vec<(&'r str, &'r [Arg])>) {
     rule.conditions.iter().for_each(|c| cond(c, out));
 }
 
-/// The terminal of an elidable optional has no test or an `=` test, since
-/// elision-only restores it with a sound (§3.8). The check runs once the
-/// stage is stitched, since a later `%elidable` can make an optional
-/// elidable, over every alternative whatever the features. The error
-/// stands at the definition that wrote the alternative.
-fn check_elidable_tests(grammar: &StageGrammar) -> Result<(), Error> {
-    for rule in &grammar.rules {
-        for alternative in &rule.alternatives {
-            let mut stack = vec![&alternative.alternative.expr];
-            while let Some(expr) = stack.pop() {
-                if let Expr::Optional(inner) = expr {
-                    let mut first = inner.as_ref();
-                    while let Expr::Seq(items) = first {
-                        first = &items[0];
-                    }
-                    if let Expr::Tested(op, _, symbol) = first {
-                        // A reference in lower case names a rule, which is
-                        // never a terminator, even where an identifier tag
-                        // of %elidable shares its name.
-                        let name = match symbol.as_ref() {
-                            Expr::Ref(name) if is_terminal_name(name) => Some(name),
-                            Expr::Terminal(name) => Some(name),
-                            _ => None,
-                        };
-                        if let Some(name) = name.filter(|name| op != "=" && grammar.elidable.contains(name)) {
-                            return Err(located(
-                                format!(
-                                    "{} can elide {name}, whose test {op} gives it no sound to restore; \
-                                     an elidable terminator has no test or an = test",
-                                    rule.name
-                                ),
-                                &alternative.document,
-                                alternative.at,
-                            ));
-                        }
-                    }
-                }
-                match expr {
-                    Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => stack.extend(items.iter()),
-                    Expr::Optional(inner)
-                    | Expr::Repeat(inner, _)
-                    | Expr::Capture(_, inner)
-                    | Expr::Tested(_, _, inner) => stack.push(inner),
-                    Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {}
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
 fn check_alternative(grammar: &StageGrammar, alternative: &StitchedAlternative) -> Result<(), String> {
-    let expr = &alternative.alternative.expr;
-    let top: &[Expr] = match expr {
-        Expr::Seq(items) => items,
-        other => std::slice::from_ref(other),
-    };
-    for item in top {
-        check_expr(grammar, item, true)?;
-    }
-    let mut names: Vec<&str> = Vec::new();
-    for item in top {
-        if let Expr::Capture(name, _) = item {
-            if names.contains(&name.as_str()) {
-                return Err(format!("the capture ${name} is used twice"));
-            }
-            names.push(name);
-        }
-    }
-    if names.len() > 4 {
-        return Err("an alternative has at most four captures".to_string());
-    }
+    check_expr(grammar, &alternative.alternative.expr)?;
     for term in alternative.alternative.tags.iter().chain(alternative.rule_tags.iter()) {
         check_term(grammar, term)?;
     }
@@ -866,18 +780,22 @@ fn check_rule(grammar: &StageGrammar, name: &str) -> Result<(), String> {
     }
 }
 
-fn check_expr(grammar: &StageGrammar, expr: &Expr, top: bool) -> Result<(), String> {
+fn check_expr(grammar: &StageGrammar, expr: &Expr) -> Result<(), String> {
     match expr {
         Expr::And(items) if items.len() > MAX_AND => {
             Err(format!("an & of {} items; at most {MAX_AND} are allowed", items.len()))
         }
         Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
             for item in items {
-                check_expr(grammar, item, false)?;
+                check_expr(grammar, item)?;
             }
             Ok(())
         }
-        Expr::Optional(inner) | Expr::Repeat(inner, _) | Expr::Tested(_, _, inner) => check_expr(grammar, inner, false),
+        Expr::Repeat(item, separator, _) => {
+            check_expr(grammar, item)?;
+            separator.as_deref().map_or(Ok(()), |separator| check_expr(grammar, separator))
+        }
+        Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => check_expr(grammar, inner),
         Expr::Ref(name) => {
             if is_terminal_name(name) {
                 Ok(())
@@ -886,17 +804,9 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr, top: bool) -> Result<(), Stri
             }
         }
         Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => Ok(()),
-        Expr::Capture(name, inner) => {
-            if !top {
-                return Err(format!("the capture ${name} is not at the top level of its alternative"));
-            }
-            match inner.as_ref() {
-                Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Tested(..) => {
-                    check_expr(grammar, inner, false)
-                }
-                _ => Err(format!("the capture ${name} does not wrap a single symbol")),
-            }
-        }
+        // The reader, or the check of a DOM, has made sure that a capture
+        // wraps one symbol (§9).
+        Expr::Capture(_, inner) => check_expr(grammar, inner),
     }
 }
 

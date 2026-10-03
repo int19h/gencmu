@@ -7,7 +7,7 @@ use crate::tags::{character_code, is_name, is_tag};
 use crate::unicode::{is_property_name, Unicode};
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 17;
+pub const DOM_FORMAT: i64 = 18;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -128,8 +128,12 @@ pub(crate) enum Expr {
     Seq(Vec<Expr>),
     Choice(Vec<Expr>),
     And(Vec<Expr>),
-    Optional(Box<Expr>),
-    Repeat(Box<Expr>, u8),
+    /// An optional `[x]`, or, with a marker, an elidable one, `[+T x]` or
+    /// `[++T x]` (engine §3.8).
+    Optional(Box<Expr>, Mark),
+    /// Braces: the item, the separator after `\` if any, and a chain's
+    /// direction, from its marker `...` (engine §3.2, §3.3).
+    Repeat(Box<Expr>, Option<Box<Expr>>, Option<Chain>),
     Ref(String),
     Terminal(String),
     /// A range `'a'..'z'`: its two ends, character tags in their canonical
@@ -144,6 +148,23 @@ pub(crate) enum Expr {
     /// (engine §2, §4).
     Tested(String, Term, Box<Expr>),
     Empty,
+}
+
+/// The marker of an optional (engine §3.8): none, `+` for an elidable
+/// optional, or `++` for one whose terminator is also maximal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Mark {
+    Plain,
+    Elidable,
+    Maximal,
+}
+
+/// The direction of a chain (engine §3.3): `{... x \ s}` nests from the
+/// left, `{x ... \ s}` from the right.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Chain {
+    Left,
+    Right,
 }
 
 /// A term, or a span: `{"capture":"x"}` and the calls `head`, `tail`,
@@ -226,9 +247,6 @@ impl Attachments {
 pub(crate) struct Directive {
     pub name: String,
     pub args: Vec<String>,
-    /// `%elidable maximal`: the terminators it names are maximal (engine
-    /// §2, §4). Only an `elidable` directive has it.
-    pub maximal: bool,
     pub at: (usize, usize),
 }
 
@@ -272,7 +290,6 @@ pub(crate) fn dom_from_json(value: &Json, unicode: &Unicode) -> R<Dom> {
                     .iter()
                     .map(|arg| arg.as_str().map(str::to_string).ok_or_else(|| "a bad directive argument".to_string()))
                     .collect::<R<Vec<_>>>()?,
-                maximal: directive.get("maximal").is_some(),
                 at: position(directive)?,
             })
         })
@@ -393,10 +410,23 @@ fn expr_from_json(value: &Json) -> R<Expr> {
         "seq" => Expr::Seq(list("seq")?),
         "choice" => Expr::Choice(list("choice")?),
         "and" => Expr::And(list("and")?),
-        "optional" => Expr::Optional(Box::new(expr_from_json(field(value, "optional")?)?)),
+        "optional" => {
+            let mark = match (is_true(value.get("elidable")), is_true(value.get("maximal"))) {
+                (false, _) => Mark::Plain,
+                (true, false) => Mark::Elidable,
+                (true, true) => Mark::Maximal,
+            };
+            Expr::Optional(Box::new(expr_from_json(field(value, "optional")?)?), mark)
+        }
         "repeat" => {
-            let min = field(value, "min")?.as_int().ok_or("a bad repeat")?;
-            Expr::Repeat(Box::new(expr_from_json(field(value, "repeat")?)?), if min == 0 { 0 } else { 1 })
+            let separator = value.get("separator").map(expr_from_json).transpose()?.map(Box::new);
+            let chain = match value.get("chain").and_then(Json::as_str) {
+                None => None,
+                Some("left") => Some(Chain::Left),
+                Some("right") => Some(Chain::Right),
+                Some(_) => return Err("a bad chain".to_string()),
+            };
+            Expr::Repeat(Box::new(expr_from_json(field(value, "repeat")?)?), separator, chain)
         }
         "ref" => Expr::Ref(string(value, "ref")?),
         "terminal" => Expr::Terminal(string(value, "terminal")?),
@@ -527,8 +557,8 @@ const EXPR_FORMS: [&[&str]; 12] = [
     &["seq"],
     &["choice"],
     &["and"],
-    &["optional"],
-    &["repeat", "min"],
+    &["optional", "elidable?", "maximal?"],
+    &["repeat", "separator?", "chain?"],
     &["ref"],
     &["terminal"],
     &["capture", "expr"],
@@ -570,15 +600,17 @@ const COND_FORMS: [&[&str]; 9] = [
 
 /// Whether a node has exactly the members of one of its forms, and no
 /// other. So a node that joins two forms, such as `{"tag":…,"string":…}`,
-/// is refused before it is read, whatever the order of its members.
+/// is refused before it is read, whatever the order of its members. A
+/// member that ends in `?` may be absent.
 fn has_one_form(value: &Json, forms: &[&[&str]]) -> bool {
     let Some(members) = value.as_object() else {
         return false;
     };
-    forms
-        .iter()
-        .find(|form| has(value, form[0]))
-        .is_some_and(|form| members.len() == form.len() && form.iter().all(|member| has(value, member)))
+    let Some(form) = forms.iter().find(|form| has(value, form[0])) else {
+        return false;
+    };
+    form.iter().all(|member| member.ends_with('?') || has(value, member))
+        && members.iter().all(|(key, _)| form.iter().any(|member| member.trim_end_matches('?') == key))
 }
 
 fn is_str(value: Option<&Json>) -> bool {
@@ -730,6 +762,26 @@ fn is_testable_json(value: &Json, unicode: &Unicode) -> bool {
     }
 }
 
+/// The terminal at the head of an elidable optional's expression, or
+/// `None` where it has none (engine §3.8, §9): a `ref` whose name begins
+/// with a capital, a `terminal` whose tag is a name, or an `=` test of one
+/// of these, alone or first in a `seq`.
+fn elidable_head_json(expr: &Json) -> Option<&Json> {
+    let head = match expr.get("seq").and_then(Json::as_array) {
+        Some(items) => items.first()?,
+        None => expr,
+    };
+    let is_terminal = |node: &Json| match node.as_object() {
+        Some([(key, Json::Str(name))]) if key == "ref" => is_rule_name(name) && crate::grammar::is_terminal_name(name),
+        Some([(key, Json::Str(tag))]) if key == "terminal" => is_name(tag),
+        _ => false,
+    };
+    if is_terminal(head) {
+        return Some(head);
+    }
+    (head.get("test").and_then(Json::as_str) == Some("=") && head.get("expr").is_some_and(is_terminal)).then_some(head)
+}
+
 /// What is wrong with a test's value (engine §9), or `None`: it must be a
 /// closed term, of type string for a sound test and tag set for a tag test,
 /// and a string literal of a sound test must be a canonical sound. The
@@ -754,7 +806,13 @@ fn test_value_problem(op: &str, value: &Json, unicode: &Unicode) -> Option<&'sta
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Kind {
-    Expr,
+    /// An expression: `whole` where it is its alternative's whole
+    /// expression, where a chain may stand, and `sealed` where it is inside
+    /// braces or an elidable optional, where no capture stands (engine §9).
+    Expr {
+        whole: bool,
+        sealed: bool,
+    },
     Term,
     /// A rule's or an alternative's tag term, which may not read the tags
     /// it defines: `$`, `tags($)` or `classes($)` (engine §9).
@@ -798,23 +856,18 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
         // (engine §9).
         let args: Vec<&str> = args.unwrap_or(&[]).iter().filter_map(Json::as_str).collect();
         let is_name = |arg: &&str| *arg != "#" && is_rule_name(arg);
+        // The notation has four directives, and `%elidable` is none of them
+        // (engine §9).
         let operands_ok = match directive.get("name").and_then(Json::as_str) {
             Some("stage") => args.len() == 1 && args.iter().all(is_name),
             Some("include") => args.len() == 1,
             Some("features") => !args.is_empty() && args.iter().all(is_name),
-            // Identifier tags, which the DOM writes as their names.
-            Some("elidable") => args.iter().all(is_name),
-            _ => true,
+            Some("ambiguity-resolution") => true,
+            _ => false,
         };
-        if !operands_ok {
+        // No directive has the member `maximal` (engine §9).
+        if !operands_ok || has(directive, "maximal") {
             return Some("a malformed directive");
-        }
-        // Only `elidable` has the member `maximal`, and its value is
-        // always `true` (engine §9).
-        if let Some(maximal) = directive.get("maximal") {
-            if directive.get("name").and_then(Json::as_str) != Some("elidable") || *maximal != Json::Bool(true) {
-                return Some("a malformed directive");
-            }
         }
     }
     let mut pending: Vec<(Kind, &Json, usize)> = Vec::new();
@@ -923,45 +976,10 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
             if !is_object(alternative) || !guards_ok {
                 return Some("a malformed alternative");
             }
-            // A capture only at the top level, the expression itself or an
-            // item of its top-level seq (§3.5), and a name once per
-            // alternative, as the reader requires.
-            let mut names: Vec<&str> = Vec::new();
-            // 0: the alternative's expression; 1: an item of its top-level
-            // seq; 2: anything deeper.
-            let mut stack: Vec<(&Json, u8)> = alternative.get("expr").map(|expr| (expr, 0)).into_iter().collect();
-            while let Some((expr, level)) = stack.pop() {
-                if let Some(name) = expr.get("capture").and_then(Json::as_str) {
-                    if level > 1 {
-                        return Some("a capture inside [ ], ( ), ..., & or a choice");
-                    }
-                    if names.contains(&name) {
-                        return Some("a capture name used twice in one alternative");
-                    }
-                    if !is_capture_name(name) {
-                        return Some("a capture name is not all lower case");
-                    }
-                    names.push(name);
-                    if names.len() > 4 {
-                        return Some("more than four captures in an alternative");
-                    }
-                }
-                if let Some(items) = expr.get("seq").and_then(Json::as_array) {
-                    stack.extend(items.iter().map(|item| (item, if level == 0 { 1 } else { 2 })));
-                }
-                for key in ["choice", "and"] {
-                    if let Some(items) = expr.get(key).and_then(Json::as_array) {
-                        stack.extend(items.iter().map(|item| (item, 2)));
-                    }
-                }
-                for key in ["optional", "repeat"] {
-                    if let Some(inner) = expr.get(key) {
-                        stack.push((inner, 2));
-                    }
-                }
-            }
+            // The alternative's whole expression, where a chain may stand
+            // (engine §9).
             match alternative.get("expr") {
-                Some(expr) => pending.push((Kind::Expr, expr, 0)),
+                Some(expr) => pending.push((Kind::Expr { whole: true, sealed: false }, expr, 0)),
                 None => return Some("a malformed alternative"),
             }
             if let Some(tags) = alternative.get("tags") {
@@ -978,7 +996,7 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
         }
         if !is_object(value) {
             return Some(match kind {
-                Kind::Expr => "a malformed expression",
+                Kind::Expr { .. } => "a malformed expression",
                 Kind::Term | Kind::TagTerm | Kind::Argument => "a malformed term",
                 Kind::Condition | Kind::TagCondition => "a malformed condition",
                 Kind::Emission => "a malformed emission",
@@ -986,12 +1004,13 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
         }
         let next = depth + 1;
         match kind {
-            Kind::Expr => {
+            Kind::Expr { whole, sealed } => {
                 // An expression has exactly the members of one form
                 // (docs/output.md).
                 if !has_one_form(value, &EXPR_FORMS) {
                     return Some("a malformed expression");
                 }
+                let expr = |item, inside: bool| (Kind::Expr { whole: false, sealed: sealed || inside }, item, next);
                 if has(value, "range") || has(value, "property") {
                     if !is_character_class_json(value, unicode) {
                         return Some("a malformed expression");
@@ -1001,42 +1020,63 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     if !list(items, 2, usize::MAX) {
                         return Some("a malformed expression");
                     }
-                    pending.extend(
-                        items.and_then(Json::as_array).unwrap_or(&[]).iter().map(|item| (Kind::Expr, item, next)),
-                    );
+                    pending.extend(items.and_then(Json::as_array).unwrap_or(&[]).iter().map(|item| expr(item, false)));
                 } else if has(value, "and") {
                     if !list(value.get("and"), 2, crate::grammar::MAX_AND) {
                         return Some("a malformed expression");
                     }
                     pending.extend(
-                        value
-                            .get("and")
-                            .and_then(Json::as_array)
-                            .unwrap_or(&[])
-                            .iter()
-                            .map(|item| (Kind::Expr, item, next)),
+                        value.get("and").and_then(Json::as_array).unwrap_or(&[]).iter().map(|item| expr(item, false)),
                     );
                 } else if let Some(inner) = value.get("repeat") {
-                    if !matches!(value.get("min"), Some(Json::Int(0 | 1))) {
+                    // A chain is the whole expression of its alternative,
+                    // and its direction is left or right (engine §9). The
+                    // separator counts on from the depth of its repeat, as
+                    // the item does, and neither holds a capture.
+                    if let Some(chain) = value.get("chain") {
+                        if !whole || !matches!(chain.as_str(), Some("left" | "right")) {
+                            return Some("a malformed expression");
+                        }
+                    }
+                    pending.push(expr(inner, true));
+                    if let Some(separator) = value.get("separator") {
+                        pending.push(expr(separator, true));
+                    }
+                } else if let Some(inner) = value.get("optional") {
+                    // An elidable optional is marked true, and maximal only
+                    // with it; its expression begins with its terminal
+                    // (engine §3.8, §9).
+                    let elidable = value.get("elidable");
+                    let maximal = value.get("maximal");
+                    if elidable.is_some_and(|marked| *marked != Json::Bool(true))
+                        || maximal.is_some_and(|marked| *marked != Json::Bool(true) || elidable.is_none())
+                    {
                         return Some("a malformed expression");
                     }
-                    pending.push((Kind::Expr, inner, next));
-                } else if let Some(inner) = value.get("optional") {
-                    pending.push((Kind::Expr, inner, next));
+                    if elidable.is_some() && elidable_head_json(inner).is_none() {
+                        return Some("a malformed elidable optional");
+                    }
+                    pending.push(expr(inner, elidable.is_some()));
                 } else if has(value, "capture") {
-                    // A capture wraps one symbol: a reference, a terminal, a
-                    // range, a property or a tested one of these (§9).
+                    // A capture stands anywhere but in braces or an elidable
+                    // optional, and wraps one symbol: a reference, a
+                    // terminal, a range, a property or a tested one of these
+                    // (engine §3.5, §9).
+                    if sealed {
+                        return Some("a capture inside braces or an elidable optional");
+                    }
                     let inner = value.get("expr").filter(|inner| {
                         ["ref", "terminal", "range", "property", "test"].iter().any(|member| has(inner, member))
                     });
-                    // `$` is the whole constituent and wraps nothing.
-                    let named = value.get("capture").and_then(Json::as_str).is_some_and(|name| !name.is_empty());
+                    // `$` is the whole constituent and wraps nothing, and a
+                    // name is all lower case.
+                    let named = value.get("capture").and_then(Json::as_str).is_some_and(is_capture_name);
                     let Some(inner) = inner.filter(|_| named) else {
                         return Some("a malformed capture");
                     };
                     // A capture is a compound node, and its symbol below it
                     // is checked as any expression is.
-                    pending.push((Kind::Expr, inner, next));
+                    pending.push(expr(inner, false));
                 } else if let Some(op) = value.get("test") {
                     // A compound node (engine §9) over one symbol; its value
                     // counts on from its depth, and is checked once the
@@ -1050,7 +1090,7 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     if !is_testable_json(inner, unicode) {
                         return Some("a test follows only a reference other than # or a terminal");
                     }
-                    pending.push((Kind::Expr, inner, next));
+                    pending.push(expr(inner, false));
                     pending.push((Kind::Term, test_value, next));
                     tests.push(value);
                 } else if !(value.get("ref").and_then(Json::as_str).is_some_and(is_rule_name)
@@ -1295,7 +1335,15 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
     }
     // Terms and conditions whose types do not agree (engine §10).
     for rule in dom.get("rules").and_then(Json::as_array).unwrap_or(&[]) {
+        // A capture name stands at most once in each production (engine
+        // §3.5).
+        let twice = |rule: &RuleDef| {
+            rule.alternatives
+                .iter()
+                .any(|alternative| !crate::clauses::CaptureSequences::of(&alternative.expr).duplicates.is_empty())
+        };
         match rule_from_json(rule) {
+            Ok(rule) if twice(&rule) => return Some("a capture name used twice in one production"),
             Ok(rule) if rule_type_problem(&rule).is_none() => {}
             Ok(_) => return Some("a term or a condition whose types do not agree"),
             Err(_) => return Some("a malformed rule"),
@@ -1403,9 +1451,6 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
             write_str(&mut out, arg);
         }
         out.push(']');
-        if directive.maximal {
-            out.push_str(",\"maximal\":true");
-        }
         out.push_str(&format!(",\"at\":[{},{}]}}", directive.at.0, directive.at.1));
     }
     out.push_str("],\"constants\":[");
@@ -1578,15 +1623,27 @@ fn write_expr(out: &mut String, expr: &Expr) {
         Expr::Seq(items) => write_list(out, "seq", items, write_expr),
         Expr::Choice(items) => write_list(out, "choice", items, write_expr),
         Expr::And(items) => write_list(out, "and", items, write_expr),
-        Expr::Optional(inner) => {
+        Expr::Optional(inner, mark) => {
             out.push_str("{\"optional\":");
             write_expr(out, inner);
-            out.push('}');
+            out.push_str(match mark {
+                Mark::Plain => "}",
+                Mark::Elidable => ",\"elidable\":true}",
+                Mark::Maximal => ",\"elidable\":true,\"maximal\":true}",
+            });
         }
-        Expr::Repeat(inner, min) => {
+        Expr::Repeat(item, separator, chain) => {
             out.push_str("{\"repeat\":");
-            write_expr(out, inner);
-            out.push_str(&format!(",\"min\":{min}}}"));
+            write_expr(out, item);
+            if let Some(separator) = separator {
+                out.push_str(",\"separator\":");
+                write_expr(out, separator);
+            }
+            out.push_str(match chain {
+                None => "}",
+                Some(Chain::Left) => ",\"chain\":\"left\"}",
+                Some(Chain::Right) => ",\"chain\":\"right\"}",
+            });
         }
         Expr::Ref(name) => {
             out.push_str("{\"ref\":");
@@ -1852,7 +1909,12 @@ pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
     while let Some(current) = stack.pop() {
         match current {
             Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => stack.extend(items.iter().rev()),
-            Expr::Optional(inner) | Expr::Repeat(inner, _) | Expr::Capture(_, inner) => stack.push(inner),
+            Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push(inner),
+            // The item before the separator.
+            Expr::Repeat(item, separator, _) => {
+                stack.extend(separator.as_deref());
+                stack.push(item);
+            }
             Expr::Tested(op, value, inner) => {
                 found.push((op.as_str(), value, inner.as_ref()));
                 stack.push(inner);

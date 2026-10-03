@@ -182,8 +182,8 @@ pub(crate) fn source_of(sources: &Sources, start: usize, end: usize) -> std::ops
     }
 }
 
-/// Builds the result's tree (§12): helpers and the prefixes of trailing
-/// repetitions spliced out, absent elidable optionals as elided nodes.
+/// Builds the result's tree (§12): helpers spliced out, a chain's levels
+/// as nested rule nodes, absent elidable optionals as elided nodes.
 pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
     let originals = Sources::new(context.tokens);
     let mut fragments: Vec<Vec<Node>> = (0..tree.nodes.len()).map(|_| Vec::new()).collect();
@@ -225,12 +225,12 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
                 let production = &context.g.prods[prod as usize];
                 let rule = &context.g.rules[production.rule as usize];
                 let mut children = Vec::new();
-                for (position, &child) in node.children.iter().enumerate() {
+                for &child in &node.children {
                     let mut made = std::mem::take(&mut fragments[child as usize]);
-                    if position == 0 && production.trailing_step && made.len() == 1 && made[0].kind == NodeKind::Rule {
-                        // Take over the prefix's list rather than copy it, so
-                        // that a long repetition costs linear time.
-                        children = std::mem::take(&mut made[0].children);
+                    if children.is_empty() {
+                        // Take over a spliced helper's list rather than copy
+                        // it, so that a long list costs linear time.
+                        children = made;
                     } else {
                         children.append(&mut made);
                     }
@@ -277,9 +277,9 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
 /// The warnings of a stage's chosen tree (§12): each rule node gives one
 /// for each warning of its production whose feature is on, in the order a
 /// walk meets the nodes, parent before children and children left to
-/// right. The walk passes through what the tree splices out, helpers and
-/// the prefixes of trailing repetitions, without counting them as nodes,
-/// and so meets the tree's nodes in the tree's own order.
+/// right. The walk passes through the helpers that the tree splices out,
+/// without counting them as nodes, and so meets the tree's nodes in the
+/// tree's own order.
 pub(crate) fn warnings_of(
     tree: &ITree,
     g: &Lowered,
@@ -289,29 +289,24 @@ pub(crate) fn warnings_of(
 ) -> Vec<Warning> {
     let sources = Sources::new(tokens);
     let mut warnings = Vec::new();
-    // Each node with whether the tree splices it out as a prefix.
-    let mut stack = vec![(0u32, false)];
-    while let Some((index, prefix)) = stack.pop() {
+    let mut stack = vec![0u32];
+    while let Some(index) = stack.pop() {
         let node = &tree.nodes[index as usize];
         let IKind::Close { prod, start, end, .. } = node.kind else {
             continue;
         };
         let production = &g.prods[prod as usize];
-        if !prefix {
-            // A helper's productions have no warnings.
-            for feature in production.warnings.iter().filter(|&feature| features.contains(feature)) {
-                warnings.push(Warning {
-                    stage: stage.to_string(),
-                    feature: feature.clone(),
-                    rule: g.rules[production.rule as usize].name.clone(),
-                    span: start as usize..end as usize,
-                    source: source_of(&sources, start as usize, end as usize),
-                });
-            }
+        // A helper's productions have no warnings.
+        for feature in production.warnings.iter().filter(|&feature| features.contains(feature)) {
+            warnings.push(Warning {
+                stage: stage.to_string(),
+                feature: feature.clone(),
+                rule: g.rules[production.rule as usize].name.clone(),
+                span: start as usize..end as usize,
+                source: source_of(&sources, start as usize, end as usize),
+            });
         }
-        for (position, &child) in node.children.iter().enumerate().rev() {
-            stack.push((child, position == 0 && production.trailing_step));
-        }
+        stack.extend(node.children.iter().rev());
     }
     warnings
 }

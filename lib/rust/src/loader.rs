@@ -188,6 +188,8 @@ pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error
                 let reader = Reader {
                     tokens: &stage.input,
                     captures: Default::default(),
+                    braces: Default::default(),
+                    marked: Default::default(),
                     position: &position,
                     unicode: &notation.unicode,
                     closed_for: Default::default(),

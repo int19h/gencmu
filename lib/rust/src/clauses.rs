@@ -2,7 +2,7 @@
 //! §9): simplifying a clause for a production, the captures a clause uses,
 //! and the checks of a definition as a whole.
 
-use crate::dom::{constants_in_cond, constants_in_term, Alternative, Arg, Cond, EmitItem, Expr, RuleDef, Term};
+use crate::dom::{constants_in_cond, constants_in_term, Arg, Cond, EmitItem, Expr, Mark, RuleDef, Term};
 
 /// A condition simplified for a production: decided, or still to evaluate.
 #[derive(Debug, Clone, PartialEq)]
@@ -208,20 +208,134 @@ fn cond_presences<'a>(cond: &'a Cond, out: &mut Vec<&'a str>) {
     }
 }
 
-/// The captures of an alternative's top level, each with its position;
-/// `$` is not among them.
-pub(crate) fn alternative_captures(alternative: &Alternative) -> Vec<(&str, usize)> {
-    let top: &[Expr] = match &alternative.expr {
-        Expr::Seq(items) => items,
-        other => std::slice::from_ref(other),
-    };
-    top.iter()
-        .enumerate()
-        .filter_map(|(position, item)| match item {
-            Expr::Capture(name, _) => Some((name.as_str(), position)),
-            _ => None,
-        })
-        .collect()
+/// The distinct sequences of captures that the productions of an
+/// expression read, each in the order read (engine §3.2, §3.5): a choice
+/// gives each branch's, an `&` each subsequence's, a plain optional none
+/// or its content's, and braces and an elidable optional none. Productions
+/// that read the same names in the same order are one sequence. Gates do
+/// not matter, since they drop whole alternatives.
+///
+/// A capture is known by its index among the expression's captures in the
+/// order written, which is the order a reader meets them.
+pub(crate) struct CaptureSequences<'e> {
+    /// The name of each capture, by index.
+    pub names: Vec<&'e str>,
+    /// Each distinct sequence, as indices.
+    pub sequences: Vec<Vec<usize>>,
+    /// The captures that some production reads after one of the same name,
+    /// in increasing order.
+    pub duplicates: Vec<usize>,
+}
+
+impl<'e> CaptureSequences<'e> {
+    pub(crate) fn of(expr: &'e Expr) -> CaptureSequences<'e> {
+        let mut found = CaptureSequences { names: Vec::new(), sequences: Vec::new(), duplicates: Vec::new() };
+        found.sequences = found.visit(expr);
+        found.duplicates.sort_unstable();
+        found.duplicates.dedup();
+        found
+    }
+
+    /// Each production's capture names, in the order it reads them.
+    pub(crate) fn named(&self) -> Vec<Vec<&'e str>> {
+        self.sequences.iter().map(|sequence| sequence.iter().map(|&index| self.names[index]).collect()).collect()
+    }
+
+    fn distinct(&self, lists: Vec<Vec<usize>>) -> Vec<Vec<usize>> {
+        let mut seen: Vec<Vec<&str>> = Vec::new();
+        let mut out = Vec::new();
+        for list in lists {
+            let key: Vec<&str> = list.iter().map(|&index| self.names[index]).collect();
+            if !seen.contains(&key) {
+                seen.push(key);
+                out.push(list);
+            }
+        }
+        out
+    }
+
+    fn product(&mut self, left: &[Vec<usize>], right: &[Vec<usize>]) -> Vec<Vec<usize>> {
+        let mut out = Vec::with_capacity(left.len() * right.len());
+        for first in left {
+            for second in right {
+                for &capture in second {
+                    if first.iter().any(|&other| self.names[other] == self.names[capture]) {
+                        self.duplicates.push(capture);
+                    }
+                }
+                out.push(first.iter().chain(second).copied().collect());
+            }
+        }
+        self.distinct(out)
+    }
+
+    /// Counts the captures of a part no production reads, so that the
+    /// indices stay those of the order written.
+    fn skip(&mut self, expr: &'e Expr) {
+        let mut stack = vec![expr];
+        while let Some(current) = stack.pop() {
+            match current {
+                Expr::Capture(name, _) => self.names.push(name),
+                Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => stack.extend(items.iter().rev()),
+                Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => stack.push(inner),
+                Expr::Repeat(item, separator, _) => {
+                    stack.extend(separator.as_deref());
+                    stack.push(item);
+                }
+                Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {}
+            }
+        }
+    }
+
+    fn visit(&mut self, expr: &'e Expr) -> Vec<Vec<usize>> {
+        match expr {
+            Expr::Capture(name, _) => {
+                self.names.push(name);
+                vec![vec![self.names.len() - 1]]
+            }
+            Expr::Seq(items) => {
+                let mut sequences = vec![Vec::new()];
+                for item in items {
+                    let part = self.visit(item);
+                    sequences = self.product(&sequences, &part);
+                }
+                sequences
+            }
+            Expr::Choice(items) => {
+                let mut all = Vec::new();
+                for item in items {
+                    all.extend(self.visit(item));
+                }
+                self.distinct(all)
+            }
+            Expr::And(items) => {
+                let parts: Vec<Vec<Vec<usize>>> = items.iter().map(|item| self.visit(item)).collect();
+                let mut all = Vec::new();
+                for mask in 1u64..(1u64 << parts.len().min(63)) {
+                    let mut sequences = vec![Vec::new()];
+                    for (bit, part) in parts.iter().enumerate() {
+                        if mask & (1 << bit) != 0 {
+                            sequences = self.product(&sequences, part);
+                        }
+                    }
+                    all.extend(sequences);
+                }
+                self.distinct(all)
+            }
+            Expr::Optional(inner, Mark::Plain) => {
+                let mut all = vec![Vec::new()];
+                all.extend(self.visit(inner));
+                self.distinct(all)
+            }
+            Expr::Optional(..) | Expr::Repeat(..) => {
+                self.skip(expr);
+                vec![Vec::new()]
+            }
+            Expr::Tested(..) | Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {
+                vec![Vec::new()]
+            }
+        }
+    }
 }
 
 /// Whether a term holds a constant. A constant is its value in
@@ -244,12 +358,22 @@ fn cond_waits(cond: &Cond) -> bool {
 /// error of the document (engine §9), or `None`. The checks that
 /// simplification decides skip a clause that holds a constant.
 pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
-    let alternatives: Vec<Vec<(&str, usize)>> = rule.alternatives.iter().map(alternative_captures).collect();
+    // Each production of each alternative, as the alternative and the
+    // captures it reads in order (engine §3.5, §9); productions that read
+    // the same captures in the same order are one.
+    let productions: Vec<(usize, Vec<&str>)> = rule
+        .alternatives
+        .iter()
+        .enumerate()
+        .flat_map(|(index, alternative)| {
+            CaptureSequences::of(&alternative.expr).named().into_iter().map(move |names| (index, names))
+        })
+        .collect();
     let captures_of = |index: usize| {
-        let captures = &alternatives[index];
-        move |name: &str| name.is_empty() || captures.iter().any(|(captured, _)| *captured == name)
+        let captures = &productions[index].1;
+        move |name: &str| name.is_empty() || captures.contains(&name)
     };
-    let any_has = |name: &str| name.is_empty() || alternatives.iter().flatten().any(|(captured, _)| *captured == name);
+    let any_has = |name: &str| name.is_empty() || productions.iter().any(|(_, captures)| captures.contains(&name));
     let items: &[EmitItem] = rule.emit.as_deref().unwrap_or(&[]);
     // A constituent that does not count is never an opaque part (§9).
     if rule.opaque && rule.emit.is_some() && items.is_empty() {
@@ -285,9 +409,9 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         return Some(format!("${name} is captured by no alternative of {}", rule.name));
     }
 
-    // A condition that applies to no alternative.
+    // A condition that applies to no production.
     for cond in rule.conditions.iter().filter(|cond| !cond_waits(cond)) {
-        let applies = (0..alternatives.len()).any(|index| {
+        let applies = (0..productions.len()).any(|index| {
             let has = captures_of(index);
             match simplify_cond(cond, &has) {
                 Simple::True => false,
@@ -296,14 +420,15 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
             }
         });
         if !applies {
-            return Some(format!("a condition of {} applies to no alternative", rule.name));
+            return Some(format!("a condition of {} applies to no production", rule.name));
         }
     }
 
     let unguarded = |name: &str| {
-        format!("a tag term of {} uses ${name}, which an alternative lacks; guard it with ${name} ⟹", rule.name)
+        format!("a tag term of {} uses ${name}, which a production lacks; guard it with ${name} ⟹", rule.name)
     };
-    for (index, alternative) in rule.alternatives.iter().enumerate() {
+    for (index, (alternative, captures)) in productions.iter().enumerate() {
+        let alternative = &rule.alternatives[*alternative];
         let has = captures_of(index);
         for term in
             [rule.tags.as_ref(), alternative.tags.as_ref()].into_iter().flatten().filter(|term| !term_waits(term))
@@ -327,10 +452,10 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         // Nothing left to emit is an error only where the rule lists items:
         // `%emits ε` lists none (§9).
         if present.is_empty() && !items.is_empty() {
-            return Some(format!("%emits of {} leaves an alternative nothing to emit", rule.name));
+            return Some(format!("%emits of {} leaves a production nothing to emit", rule.name));
         }
-        // An alternative without an item's carrier lacks its attachments
-        // too (§9).
+        // A production without an item's carrier lacks its attachments too
+        // (§9).
         for item in items {
             if let EmitItem::Capture(carrier, _, attachments) = item {
                 if has(carrier) {
@@ -338,7 +463,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
                 }
                 if let Some(stray) = attachments.names().find(|name| has(name)) {
                     return Some(format!(
-                        "%emits of {} attaches ${stray} in an alternative without its carrier ${carrier}",
+                        "%emits of {} attaches ${stray} in a production without its carrier ${carrier}",
                         rule.name
                     ));
                 }
@@ -358,9 +483,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
                     .collect(),
                 _ => Vec::new(),
             })
-            .filter_map(|name| {
-                alternatives[index].iter().find(|(captured, _)| *captured == name).map(|(_, position)| *position)
-            })
+            .filter_map(|name| captures.iter().position(|captured| *captured == name))
             .collect();
         if positions.windows(2).any(|pair| pair[1] < pair[0]) {
             return Some(format!("%emits of {} lists captures out of the order they stand in", rule.name));
@@ -380,7 +503,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
     }
 
     // An inserted tag whose anchor, the capture listed next after it, some
-    // alternative lacks.
+    // production lacks.
     for (index, item) in items.iter().enumerate() {
         if !matches!(item, EmitItem::Insert(_)) {
             continue;
@@ -390,9 +513,9 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
             EmitItem::Insert(_) => None,
         });
         if let Some(anchor) = anchor {
-            if !(0..alternatives.len()).all(|alternative| captures_of(alternative)(anchor)) {
+            if !(0..productions.len()).all(|production| captures_of(production)(anchor)) {
                 return Some(format!(
-                    "%emits of {} inserts a tag before ${anchor}, which an alternative lacks",
+                    "%emits of {} inserts a tag before ${anchor}, which a production lacks",
                     rule.name
                 ));
             }
