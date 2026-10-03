@@ -140,3 +140,36 @@ func TestNotationShapes(t *testing.T) {
 		}
 	}
 }
+
+// Each notation stage runs the check of elision-only where its own
+// directive declares it (engine §8). With greedy and elision-only on the
+// lexical stage, the check finds the ambiguity that greedy settled in the
+// pipeline document itself, and the document does not load.
+func TestNotationStageRunsTheCheck(t *testing.T) {
+	raw, err := os.ReadFile("../../grammars/notation/bootstrap.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bootstrap := string(raw)
+	directive := `"name":"ambiguity-resolution","args":["greedy"]`
+	lexical := strings.Index(bootstrap, `"path":"notation/lexical.md"`)
+	syntax := strings.Index(bootstrap, `"path":"notation/syntax.md"`)
+	at := strings.Index(bootstrap, directive)
+	if lexical < 0 || !(lexical < at && at < syntax) {
+		t.Fatalf("the first directive is not the lexical stage's: %d %d %d", lexical, at, syntax)
+	}
+	elision := strings.Replace(bootstrap, directive, `"name":"ambiguity-resolution","args":["greedy","elision-only"]`, 1)
+	sources := func(boot string) map[string]string {
+		return map[string]string{"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
+			"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A B\n```\n", "notation/bootstrap.json": boot}
+	}
+	// The bundled bootstrap loads the same documents.
+	if _, err := LoadDialectSources(sources(bootstrap), "p.md"); err != nil {
+		t.Fatal(err)
+	}
+	_, err = LoadDialectSources(sources(elision), "p.md")
+	e, ok := err.(*Error)
+	if !ok || e.Kind != ErrorGrammar || e.Line != 0 || !strings.Contains(e.Message, "lexical stage of the notation") {
+		t.Fatalf("%v", err)
+	}
+}
