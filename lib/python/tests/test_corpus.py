@@ -18,7 +18,7 @@ from typing import Any, Callable
 
 from .shared import SHARED, load_case, load_case_dialect, parse_case, result_problems
 
-FIELDS = ("expect", "verdict", "stage", "error", "ties", "words", "brackets")
+FIELDS = ("expect", "verdict", "stage", "at", "error", "ties", "words", "brackets")
 
 _dialects: dict[str, Any] = {}
 
@@ -61,6 +61,9 @@ def outcome(
         got["verdict"] = result.stages[-1].verdict
     else:
         got["stage"] = result.error.stage if result.error else None
+        # A rejection pins where its stage stopped (tests/README.md).
+        if result.error is not None and result.error.token is not None:
+            got["at"] = result.error.token
     if result.error is not None and result.error.kind == "ambiguous":
         # An ambiguous error pins its kind and its reason (tests/README.md).
         got["error"] = {"kind": result.error.kind, "reason": result.error.reason}
