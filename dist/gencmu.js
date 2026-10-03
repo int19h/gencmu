@@ -1342,6 +1342,10 @@
             // A fault makes the item after T ordinary where a strict item
             // read T (F31).
             strict = fromSynthetic && !fault("F15") && !(fault("F31") && item.strict);
+            // An optional whose content is T alone would complete here, which
+            // a strict item never does: drop the item before evaluating its
+            // test or its tags (engine §7.4).
+            if (strict && item.dot + 1 === item.production.rhs.length) continue;
           }
           const advanced = advance(item, position, position + 1, null);
           if (advanced) {
