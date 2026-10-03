@@ -50,6 +50,9 @@ Every runner also checks these invariants on each canonical result that a case g
 - No stage has a member `tied`.
 - A stage whose verdict is `tie` has no member `output`, and it is the last stage of the result.
 - Such a result has `ok` false, `tree` null, and an error of kind `ambiguous` with the reason `tie`, that stage's name and two readings.
+- An error with the code `elision-witness-lost` has the kind `grammar`, a `stage`, `chosen` and `completion`. It has no `token`, `source`, `line`, `column`, `expected`, `reason` or `readings`. Its stage has the verdict `resolved` and no `output`, and it is the last stage of the result.
+
+Take each stage where the check of engine §7 ran and ended without an error of the grammar. Every runner also asks its library whether that check kept its witness. The library answers through a hook of its own tests, never through its API. The answer is yes only where the forest of the check holds W(D), the mapped chosen derivation of engine §7.8, as a counted derivation. A positive count of derivations is not enough, because another reading can survive without W(D). Equal trees are not enough either, because transparent productions can give equal trees. A runner fails a case, or a corpus case, whose answer is no.
 
 A pattern matches a result that has members beyond its own. So the invariants, and not the patterns, say that a tied stage has no output.
 

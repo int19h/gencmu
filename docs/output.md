@@ -11,10 +11,10 @@ Libraries write object keys in the order that this document gives. They write no
 ### A parse result
 
 ```
-{"format":7,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
+{"format":8,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
 ```
 
-`format` is the version of the shape of the result, 7. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one warning (engine §12, §13).
+`format` is the version of the shape of the result, 8. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one warning (engine §12, §13).
 
 A stage has one of these forms:
 
@@ -29,7 +29,7 @@ If there is no visible difference, it is the pair at their first difference. Tha
 
 The readings themselves are in the result's error (below), and the stage holds no tree of them. The canonical order *T* of engine §6 orders the ambiguity diagnostics and selects the forbidden terminator that a maximality rejection reports (engine §4). The canonical tie-break keys never turn a tie into an accepted reading.
 
-`output` is the emitted tokens of a stage whose verdict is `unique` or `resolved`, the last stage included. It is absent for a tie, since a tied stage emits nothing (engine §6, §11). It is absent when the emission of the stage fails (engine §11). It is also absent when the reparse of `elision-only` meets an error of the grammar (engine §7).
+`output` is the emitted tokens of a stage whose verdict is `unique` or `resolved`, the last stage included. It is absent for a tie, since a tied stage emits nothing (engine §6, §11). It is absent when the emission of the stage fails (engine §11). It is also absent where the check of `elision-only` meets an error of the grammar or loses its witness (engine §7.7, §7.9).
 
 A token has this form. This one is the token of `mi` that the forms stage of the `cll-ebnf` dialect emits:
 
@@ -84,8 +84,8 @@ An error has one of these forms:
 - `rejected`: The grammar of the stage does not accept its input.
 - `ambiguous` (engine §6, §7): The error has `stage`, `reason`, `"readings":[NODE,NODE]` and `message`, and no position. `reason` says which of two cases the error is:
   - `tie`: The ranking of the stage has two or more best derivations (engine §6). The stage's verdict is `tie`, and it has no output. The readings are the first and the second reading of the tie, over the stage's input as the stage read it. They are two derivations, but they can be equal as `NODE` values. The engine counts derivations, and it merges neither those that differ only at transparent closes nor those with equal trees (engine §6). The witness then names the actions where they differ.
-  - `elision-only`: The stage chose one derivation, but its text stays ambiguous with its elided terminators written back (engine §7). The stage's verdict is `resolved`, and it keeps its output. The readings hold the written-back terminators as elided nodes.
-- `grammar`: A grammar failed to load, or the parser found a defect while parsing. For a grammar that failed to load, the error has `document`, `line` and `column` where known. A tie in a stage of the notation dialect has the `document` and no `line` or `column` (engine §8). For a defect found while parsing, the error has `stage` and no position. An example of such a defect is a nested parse asked about its own span as the same rule.
+  - `elision-only`: The stage chose one derivation, but its text stays ambiguous with its elided terminators written back (engine §7). The stage's verdict is `resolved`, and it keeps its output. The readings hold the written-back terminators as elided nodes, also where a reading reads one as a bare terminal (engine §7.10).
+- `grammar`: A grammar failed to load, or the parser found a defect while parsing. For a grammar that failed to load, the error has `document`, `line` and `column` where known. A tie in a stage of the notation dialect has the `document` and no `line` or `column` (engine §8). For a defect found while parsing, the error has `stage` and no position. An example of such a defect is a nested parse asked about its own span as the same rule. A defect found by the check of `elision-only` can have the member `code` with the value `elision-witness-lost` (engine §7.9). Such an error also has `chosen`, the chosen tree. It has `completion`, the terminators written back. Each of them is `{"terminal":T,"at":N,"source":[S,S]}`, with `"sound":"..."` last for a tested terminator. The members stand in the order `kind`, `stage`, `code`, `message`, `chosen`, `completion`. Any other error has no `code`.
 
 For example, `text → [[X]]` on the empty input ties, and both readings are `{"kind":"rule","rule":"text","span":[0,0],"source":[0,0],"tags":[],"children":[]}`. The witness names two different productions of the helpers. A nullable `&`, such as `[A] & [B]`, gives such a tie in the same way, with three derivations.
 
