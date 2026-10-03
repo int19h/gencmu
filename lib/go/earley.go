@@ -243,9 +243,10 @@ func (r *recognizer) reads(ts *tagset, term int32) bool {
 func (r *recognizer) predictable(p *production, k int) bool {
 	if len(p.predictConds) > 0 {
 		var caps [4]capVal
-		var tags *tagset
+		var tags func() *tagset
 		if len(p.rhs) == 0 {
-			tags = r.completedTags(p, &caps, int32(k), int32(k))
+			// The tag term runs only where a condition reads $'s tags (§4).
+			tags = r.lazyTags(p, &caps, int32(k), int32(k))
 		}
 		ev := r.run.evaluator(r.g, r.captureFunc(p, &caps, int32(k), int32(k), tags))
 		ok := true
@@ -404,6 +405,11 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) {
 	p := it.prod
 	key := it.itemKey
 	pos := int(key.dot)
+	// A strict item never completes: the step drops it before its test, and
+	// evaluates nothing (§4, §7.4).
+	if strict && pos+1 == len(p.rhs) {
+		return
+	}
 	// A tested symbol's test must hold of its own span and tags, which is
 	// checked before any condition the advance makes ready (§4).
 	if t := p.testAt(pos); t != nil && !r.symbolTest(t, cv, l.sym == nil) {
@@ -413,13 +419,14 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) {
 		key.caps[slot] = cv
 	}
 	key.dot++
-	var whole *tagset
+	var whole func() *tagset
 	for _, c := range p.conds {
 		if c.trigger == int(key.dot) {
-			// A condition on $ is evaluated once the item is complete,
-			// with the tags its production's tag term gives it (§4).
+			// A condition on $ is evaluated once the item is complete. Its
+			// production's tag term gives $ its tags, and runs only where a
+			// condition reads them (§4).
 			if c.whole && whole == nil {
-				whole = r.completedTags(p, &key.caps, key.origin, int32(k))
+				whole = r.lazyTags(p, &key.caps, key.origin, int32(k))
 			}
 			if !r.run.evaluator(r.g, r.captureFunc(p, &key.caps, key.origin, int32(k), whole)).cond(c.cond) {
 				return
@@ -459,15 +466,15 @@ func (r *recognizer) tokenTest(t *symTest, k int) bool {
 }
 
 // captureFunc gives an item's captures; $ spans [origin, end) and has the
-// given tags, nil while they are being computed, when a term cannot read
-// them (§9).
-func (r *recognizer) captureFunc(p *production, caps *[4]capVal, origin, end int32, whole *tagset) func(string) (spanVal, bool) {
+// tags that whole gives on demand, or none while they are being computed,
+// when a term cannot read them (§9).
+func (r *recognizer) captureFunc(p *production, caps *[4]capVal, origin, end int32, whole func() *tagset) func(string) (spanVal, bool) {
 	// In the check of elision-only, every observation reads the projected
 	// span, and the projection comes before any function of it (§7.5).
 	return func(name string) (spanVal, bool) {
 		if name == "" {
 			a, b := r.observed(origin, end)
-			return spanVal{a: a, b: b, whole: whole != nil, tags: whole}, true
+			return spanVal{a: a, b: b, whole: whole != nil, lazy: whole}, true
 		}
 		slot, ok := p.slotOf[name]
 		if !ok {
@@ -476,6 +483,18 @@ func (r *recognizer) captureFunc(p *production, caps *[4]capVal, origin, end int
 		cv := caps[slot]
 		a, b := r.observed(cv.start, cv.end)
 		return spanVal{a: a, b: b, whole: true, tags: r.run.ps.in.all[cv.tags]}, true
+	}
+}
+
+// lazyTags gives the constituent tags of a completing item on first use,
+// and the same set after that (§4).
+func (r *recognizer) lazyTags(p *production, caps *[4]capVal, origin, end int32) func() *tagset {
+	var tags *tagset
+	return func() *tagset {
+		if tags == nil {
+			tags = r.completedTags(p, caps, origin, end)
+		}
+		return tags
 	}
 }
 
