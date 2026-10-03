@@ -516,6 +516,7 @@ impl Dialect {
         ParseError {
             kind: ParseErrorKind::Grammar,
             stage: Some(stage.name.clone()),
+            code: None,
             reason: None,
             token: None,
             source: None,
@@ -525,6 +526,8 @@ impl Dialect {
             expected: Vec::new(),
             readings: Vec::new(),
             message,
+            chosen: None,
+            completion: Vec::new(),
         }
     }
 
@@ -697,6 +700,7 @@ impl Dialect {
         ParseError {
             kind: ParseErrorKind::Ambiguous,
             stage: Some(stage.clone()),
+            code: None,
             reason: Some(AmbiguityReason::Tie),
             token: None,
             source: None,
@@ -706,6 +710,8 @@ impl Dialect {
             expected: Vec::new(),
             readings,
             message: format!("stage {stage} has two best readings of its text, a tie"),
+            chosen: None,
+            completion: Vec::new(),
         }
     }
 
@@ -732,6 +738,7 @@ impl Dialect {
         ParseError {
             kind: ParseErrorKind::Rejected,
             stage: Some(stage.clone()),
+            code: None,
             reason: None,
             token: Some(position),
             source: Some(source),
@@ -741,6 +748,8 @@ impl Dialect {
             expected,
             readings: Vec::new(),
             message,
+            chosen: None,
+            completion: Vec::new(),
         }
     }
 
@@ -832,6 +841,7 @@ impl Dialect {
         Ok(Some(ParseError {
             kind: ParseErrorKind::Ambiguous,
             stage: Some(stage.clone()),
+            code: None,
             reason: Some(AmbiguityReason::ElisionOnly),
             token: None,
             source: None,
@@ -843,6 +853,8 @@ impl Dialect {
             message: format!(
                 "stage {stage} is ambiguous with every elided terminator written, so the ambiguity is not about terminators"
             ),
+            chosen: None,
+            completion: Vec::new(),
         }))
     }
 }

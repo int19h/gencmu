@@ -356,6 +356,31 @@ pub enum AmbiguityReason {
     ElisionOnly,
 }
 
+/// What a defect that the library found in itself is (engine §7.9). Only
+/// an error of kind `Grammar` can have one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ErrorCode {
+    /// The check of `elision-only` lost the chosen derivation: the text with
+    /// its elided terminators written back had no reading at all. It is a
+    /// defect of the library, not of the text or the grammar.
+    ElisionWitnessLost,
+}
+
+/// A terminator that the check of `elision-only` wrote back (engine §7.2,
+/// §7.9).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Restoration {
+    /// The terminal.
+    pub terminal: String,
+    /// Its position in the stage's input.
+    pub at: usize,
+    /// The empty source of its elided node.
+    pub source: Range<usize>,
+    /// The string of the terminator's `=` test, its saved sound; `None`
+    /// for a terminator with no such test.
+    pub sound: Option<String>,
+}
+
 /// A terminal a rejected stage could have read next, with the rules whose
 /// items could have read it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -373,6 +398,9 @@ pub struct ParseError {
     pub kind: ParseErrorKind,
     /// The stage it concerns.
     pub stage: Option<String>,
+    /// For a defect that the library found in itself, what it is (engine
+    /// §7.9); `None` for every other error.
+    pub code: Option<ErrorCode>,
     /// For an ambiguity, why it is one.
     pub reason: Option<AmbiguityReason>,
     /// The stage-input token it concerns.
@@ -393,6 +421,11 @@ pub struct ParseError {
     pub readings: Vec<Node>,
     /// The human description.
     pub message: String,
+    /// For `ErrorCode::ElisionWitnessLost`, the stage's chosen tree.
+    pub chosen: Option<Node>,
+    /// For `ErrorCode::ElisionWitnessLost`, the terminators that the check
+    /// wrote back, in their order of insertion; empty for any other error.
+    pub completion: Vec<Restoration>,
 }
 
 impl fmt::Display for ParseError {
