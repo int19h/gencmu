@@ -814,10 +814,9 @@ def written_symbol(name: str, test: SymbolTest | None) -> str:
 
 
 class _Lowerer:
-    def __init__(self, grammar: Grammar, features: frozenset[str], elision: bool) -> None:
+    def __init__(self, grammar: Grammar, features: frozenset[str]) -> None:
         self.grammar = grammar
         self.features = features
-        self.elision = elision
         self.rule_names: list[str] = list(grammar.rules)
         self.rule_ids = {name: index for index, name in enumerate(self.rule_names)}
         self.rule_display: list[str] = list(self.rule_names)
@@ -925,8 +924,6 @@ class _Lowerer:
             body = yield self._expand(inner)
             first = self.first_terminal(inner)
             elidable = first is not None and first[0] in self.grammar.elidable
-            if elidable and self.elision:
-                return [[(("n", self.new_helper(body)), None)]]
             helper = self.new_helper([[]] + body, first if elidable else None)
             return [[(("n", helper), None)]]
         if "repeat" in expr:
@@ -1190,12 +1187,12 @@ class _Lowerer:
         )
 
 
-def lower(grammar: Grammar, features: frozenset[str], elision: bool = False) -> Lowered:
+def lower(grammar: Grammar, features: frozenset[str]) -> Lowered:
     """Lower a stage's grammar for a set of enabled features (engine §3).
     The stage resolves its classifiers for the same features, before it
     lowers its rules (engine §2, §3)."""
     classifiers = grammar.classifiers(features)
-    lowered = _Lowerer(grammar, features, elision).lower()
+    lowered = _Lowerer(grammar, features).lower()
     lowered.classifiers = classifiers
     lowered.implications = grammar.implications
     return lowered
