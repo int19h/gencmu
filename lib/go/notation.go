@@ -746,8 +746,11 @@ func (b *domBuilder) comparator(testNode *Node) string {
 // optional reads an optional, and with a marker + or ++ among its parts an
 // elidable one (engine §3.8, §9). Its form is checked on the tree, where a
 // group is still a node: one sequence, with no leading | or &, whose first
-// primary is the terminal itself, =-tested or not.
+// primary is the terminal itself, =-tested or not. Its parts are looked up
+// in the order of §9: its choice, then its markers.
 func (b *domBuilder) optional(n *Node) *domExpr {
+	// Its choice is looked up before its markers are counted (§9).
+	choice := b.only(n, "choice")
 	var markers []*Node
 	for _, p := range parts(n) {
 		if p.Kind == KindToken && (b.text(p) == "+" || b.text(p) == "++") {
@@ -757,7 +760,6 @@ func (b *domBuilder) optional(n *Node) *domExpr {
 	if len(markers) >= 2 {
 		b.fail(markers[1], "an optional has one marker + or ++ at most")
 	}
-	choice := b.only(n, "choice")
 	if len(markers) == 0 {
 		return &domExpr{Kind: exOptional, Inner: b.expr(choice)}
 	}
