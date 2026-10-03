@@ -578,7 +578,7 @@ The corpus was seeded once from the prototype's fixtures and their verdicts. Som
 
 A change to a case's expected `words` or `brackets` needs no field of its own. It is a change to what gencmu produces. The author of the change makes it in the same commit as the grammar change that causes it. The message of that commit explains it. After seeding, the corpus is ours: a change that alters an expectation updates the file in the same commit.
 
-Every library runs the whole corpus. On a pull request, a sampled core of about 1,200 cases (`tests/core.txt`) runs in every language. Rust and JavaScript also run the whole corpus there. All four languages run the whole corpus nightly and before a release, sharded if Python needs it. No language is permanently exempt.
+Every library runs the whole corpus. On a pull request, a core of about 1,500 cases (`tests/core.txt`) runs in every language. It is a sample, together with the cases that pin the texts that the grammar documents quote. Rust and JavaScript also run the whole corpus there. All four languages run the whole corpus nightly and before a release, sharded if Python needs it. No language is permanently exempt.
 
 ## CI
 

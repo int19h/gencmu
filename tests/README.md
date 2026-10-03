@@ -131,7 +131,7 @@ A runner also checks the invariants of a tie (above) on the result of each corpu
 
 The corpus started from a seed: a fixture collection whose verdicts came from another parser. Where the expectation of gencmu differs from that seed, the case says so. `"seeded": "accept"` or `"reject"` is the verdict of the seed, and `reason` says why gencmu differs, in terms of its own grammars. `node tools/corpus-departures.js` lists every such case, grouped by reason. A change to the `words` or `brackets` of a case needs no field of its own. It is a change to what gencmu produces, made in the same commit as the grammar change that causes it.
 
-`core.txt` lists the ids of the sample that every library runs on each pull request. On a pull request, the JavaScript and Rust libraries also run the whole corpus, and the others run it nightly. To run every case in JavaScript, run `GENCMU_CORPUS=full node --test test/corpus.test.js` in `lib/js/`.
+`core.txt` lists the ids of the sample that every library runs on each pull request. It holds every case that pins a text that a checked document quotes ("Quoted texts" below), so a change that makes such prose false fails in every library. On a pull request, the JavaScript and Rust libraries also run the whole corpus, and the others run it nightly. To run every case in JavaScript, run `GENCMU_CORPUS=full node --test test/corpus.test.js` in `lib/js/`.
 
 ## Quoted texts: `quoted-allow.txt`
 
@@ -152,6 +152,8 @@ A sentence that says how a text reads quotes that exact text. For example, it sa
 The case pins what the sentence says about the text: its verdict, and its brackets or words where the sentence says how the text reads. Before a case is added, the claim is checked by running the text. A false claim is corrected in the prose, not pinned. No tool compares the verdict that a sentence states with the case.
 
 When a case fails, the JavaScript corpus runner names the lines of the checked documents that quote its text, as `quoted at grammars/syntax/cll.md:669`. The prose there may now be false.
+
+Every case that pins a quoted text, by its own text or through an entry of `quoted-allow.txt`, is in `core.txt`. So every library runs it on a pull request. The check reports a case that is not there.
 
 Each entry of `quoted-allow.txt` covers one quoted text in one document. Its line is the text, then ` # `, then the document, and then one of these:
 

@@ -244,7 +244,8 @@ function holds(c, text) {
  * an entry that is not needed, since the document does not quote the text
  * or cases pin it, and an entry whose cases are missing, do not hold the
  * text as consecutive words, or leave out a dialect that the text needs.
- * Also a dialect document that neither DOCUMENTS nor UNCHECKED lists.
+ * Also a dialect document that neither DOCUMENTS nor UNCHECKED lists, and
+ * a case that pins a quoted text and is not in tests/core.txt.
  * @param {string} [base] the repository
  * @param {{documents?: Record<string, string[]>, unchecked?: Record<string, string>, layered?: Record<string, Record<string, string>>}} [scope]
  *   the lists that the check reads, DOCUMENTS, UNCHECKED and LAYERED unless given
@@ -254,18 +255,32 @@ export function quotedTextProblems(base = root, { documents = DOCUMENTS, uncheck
   const all = corpusCases(base);
   /** @type {Map<string, Set<string>>} each case text, with its dialects */
   const cases = new Map();
+  /** @type {Map<string, {id: string, dialect: string}[]>} the cases of each text */
+  const idsOf = new Map();
   /** @type {Map<string, {text: string, words: string, dialect: string}>} */
   const byId = new Map();
   for (const c of all) {
     const text = normal(c.text);
     if (!cases.has(text)) cases.set(text, new Set());
     cases.get(text).add(c.dialect);
+    if (!idsOf.has(text)) idsOf.set(text, []);
+    idsOf.get(text).push({ id: c.id, dialect: c.dialect });
     byId.set(c.id, { text, words: (c.words || []).join(" "), dialect: c.dialect });
   }
   const allowFile = path.join(base, "tests", "quoted-allow.txt");
   const { entries, problems } = readAllowList(fs.existsSync(allowFile) ? fs.readFileSync(allowFile, "utf8") : "");
   const allowed = new Map(entries.map((entry) => [`${entry.document}\0${entry.text}`, entry]));
   const used = new Set();
+  // Every case that pins a quoted text is in the core sample, which every
+  // library runs on a pull request.
+  const coreFile = path.join(base, "tests", "core.txt");
+  const core = fs.existsSync(coreFile) ? new Set(fs.readFileSync(coreFile, "utf8").split(/\r\n|\r|\n/).filter(Boolean)) : null;
+  const outsideCore = new Set();
+  const inCore = (/** @type {string} */ id, /** @type {string} */ at) => {
+    if (!core || core.has(id) || outsideCore.has(id)) return;
+    outsideCore.add(id);
+    problems.push(`${at}: ${id} pins a quoted text and is not in tests/core.txt`);
+  };
   const dialectsOf = documentDialects(base);
   for (const document of dialectDocuments(base)) {
     if (!(document in documents) && !(document in unchecked)) {
@@ -287,6 +302,7 @@ export function quotedTextProblems(base = root, { documents = DOCUMENTS, uncheck
     problems.push(...proseLineProblems(markdown, document));
     for (const { text, line, dialects } of quotedTexts(markdown)) {
       const needed = [...new Set([...claimed, ...dialects])];
+      for (const { id, dialect } of idsOf.get(text) || []) if (needed.includes(dialect)) inCore(id, `${document}:${line}`);
       const missing = needed.filter((name) => !(cases.get(text) || new Set()).has(name));
       if (!missing.length) continue;
       const entry = allowed.get(`${document}\0${text}`);
@@ -302,7 +318,10 @@ export function quotedTextProblems(base = root, { documents = DOCUMENTS, uncheck
         const c = byId.get(id);
         if (!c) problems.push(`tests/quoted-allow.txt:${entry.line}: no case has the id ${id}`);
         else if (!holds(c, text)) problems.push(`tests/quoted-allow.txt:${entry.line}: neither the text nor the words of ${id} hold \`${text}\``);
-        else holding.add(c.dialect);
+        else {
+          holding.add(c.dialect);
+          inCore(id, `tests/quoted-allow.txt:${entry.line}`);
+        }
       }
       const uncovered = missing.filter((name) => !holding.has(name));
       if (uncovered.length) problems.push(`${document}:${line}: \`${text}\` is held by no listed case of ${uncovered.join(" or of ")} (tests/quoted-allow.txt:${entry.line})`);
