@@ -2,26 +2,27 @@
 // docs/design.md ("Pipelines") prescribes: the %include's block is the first
 // thing under a list item, indented to the item's text, and the item's own
 // line has an inline link [text](PATH) to the same path. tools/sync.js uses
-// it, so that the prose and the blocks name the same documents.
+// it, so that the prose and the blocks name the same documents. The code
+// spans of a line are here too, since a link cannot stand in one;
+// tools/quoted-texts.js reads them.
 
 /**
- * The targets of the inline links on one line of Markdown: `[text](target)`,
- * `[text](<target>)` and either with a title after spaces or tabs. An
- * escaped `[`, a code span and a whole image, its description included, hold
- * no link. A target can hold balanced parentheses.
+ * The code spans on one line of Markdown, each with its content and the
+ * code points it covers, backticks included: [start, end). A span opens with
+ * a run of backticks that no backslash escapes, and closes at the next run of
+ * exactly the same length. A run that no such run closes is text.
  * @param {string} line
- * @returns {string[]}
+ * @returns {{content: string, start: number, end: number}[]}
  */
-export function inlineLinkTargets(line) {
+export function codeSpans(line) {
   const chars = [...line];
-  // Code spans are not prose: each becomes spaces. A span closes at the next
-  // backtick run of exactly the length that opened it.
   /** @param {number} at */
   const runAt = (at) => {
     let end = at;
     while (chars[end] === "`") end++;
     return end - at;
   };
+  const spans = [];
   for (let i = 0; i < chars.length; i++) {
     if (chars[i] === "\\") { i++; continue; }
     if (chars[i] !== "`") continue;
@@ -34,9 +35,24 @@ export function inlineLinkTargets(line) {
       close += length;
     }
     if (close >= chars.length) { i += run - 1; continue; }
-    for (let k = i; k < close + run; k++) chars[k] = " ";
+    spans.push({ content: chars.slice(i + run, close).join(""), start: i, end: close + run });
     i = close + run - 1;
   }
+  return spans;
+}
+
+/**
+ * The targets of the inline links on one line of Markdown: `[text](target)`,
+ * `[text](<target>)` and either with a title after spaces or tabs. An
+ * escaped `[`, a code span and a whole image, its description included, hold
+ * no link. A target can hold balanced parentheses.
+ * @param {string} line
+ * @returns {string[]}
+ */
+export function inlineLinkTargets(line) {
+  const chars = [...line];
+  // Code spans are not prose: each becomes spaces.
+  for (const span of codeSpans(line)) for (let k = span.start; k < span.end; k++) chars[k] = " ";
   const targets = [];
   for (let i = 0; i < chars.length; i++) {
     if (chars[i] === "\\") { i++; continue; }

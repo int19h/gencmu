@@ -131,3 +131,19 @@ A runner also checks the invariants of a tie (above) on the result of each corpu
 The corpus started from a seed: a fixture collection whose verdicts came from another parser. Where the expectation of gencmu differs from that seed, the case says so. `"seeded": "accept"` or `"reject"` is the verdict of the seed, and `reason` says why gencmu differs, in terms of its own grammars. `node tools/corpus-departures.js` lists every such case, grouped by reason. A change to the `words` or `brackets` of a case needs no field of its own. It is a change to what gencmu produces, made in the same commit as the grammar change that causes it.
 
 `core.txt` lists the ids of the sample that every library runs on each pull request. On a pull request, the JavaScript and Rust libraries also run the whole corpus, and the others run it nightly. To run every case in JavaScript, run `GENCMU_CORPUS=full node --test test/corpus.test.js` in `lib/js/`.
+
+## Quoted texts: `quoted-allow.txt`
+
+A grammar document often says what gencmu does with a Lojban text that it quotes. A corpus case pins that text, so that a grammar change that makes the sentence false fails the case. `node tools/quoted-texts.js` checks that each quoted text has a case or is on the allow-list `quoted-allow.txt`, and `node tools/sync.js --check` runs the same check.
+
+A quoted text is a code span in the prose of a document, outside fenced blocks, with these properties:
+
+- Its words, separated by white space, number three or more. Below three words, most spans are single words, names and short parts of a rule.
+- It holds only lowercase ASCII letters, apostrophes, full stops, commas and white space. So a rule name, which has a hyphen or a digit, a selma'o or a token, which is uppercase, and jbogenbau, which has brackets and other symbols, are not quoted texts.
+- It holds no `...` or `…`, which mark a gap in the words.
+
+Its words joined by single spaces are compared with the text of each corpus case, written the same way. A text quoted in `grammars/dialects/X.md` needs a case of dialect X. A text quoted in another document needs a case of any dialect. The case pins what the sentence says about the text: its verdict, and its brackets or words where the sentence says how the text reads. Before a case is added, the claim is checked by running the text. A false claim is corrected in the prose, not pinned.
+
+`quoted-allow.txt` lists the quoted texts that need no case. Each line is the text, then ` # `, then the reason. A text on the list is a part of a text, such as a sumti or a tanru that shows the shape of a rule, or it is notation, such as `nu'i terms nu'u`. Lines that begin with `#` are comments. An entry that no checked document quotes without a case is an error, so the list does not keep stale entries.
+
+The check covers the documents that `DOCUMENTS` in `tools/quoted-texts.js` lists. Now these are the CLL syntax grammar and the cll-ebnf and bpfk dialect documents.
