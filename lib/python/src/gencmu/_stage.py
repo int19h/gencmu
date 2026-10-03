@@ -794,7 +794,7 @@ class StageRunner:
         ranking = _rank_check(forest)
         hook = _testing.elision_check
         if hook is not None:
-            hook(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at))
+            hook(_testing.CheckRun(chosen, forest, ranking is not None, synthetic, original_at, record_at))
         if ranking is None:
             # The witness of the chosen derivation is lost: a defect of the
             # engine (engine §7.9).

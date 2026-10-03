@@ -17,7 +17,7 @@ import gencmu
 from gencmu._model import Token
 from gencmu._tags import is_tag
 
-from .witness import checks, keeps_witness
+from .witness import checks
 
 REPOSITORY = Path(__file__).resolve().parents[3]
 SHARED = REPOSITORY / "tests"
@@ -166,9 +166,9 @@ def parse_checked(parse: Any) -> Any:
     """The value of ``parse()``, after asking the library whether every
     check of elision-only that ran in it kept its witness (tests/README.md);
     a check that did not fails the case."""
-    with checks() as runs:
+    with checks() as answers:
         value = parse()
-    lost = sum(1 for run in runs if not keeps_witness(run))
+    lost = answers.count(False)
     if lost:
         raise WitnessLost(f"{lost} check(s) of elision-only lost the witness of the chosen derivation")
     return value

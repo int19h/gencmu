@@ -22,10 +22,12 @@ class CheckRun:
     roots are the completed items of ``text`` over R; for each token of R,
     whether it is synthetic, by its provenance; for each token of the
     stage's input, its index in R; and for each restoration record, the
-    index of its synthetic token in R."""
+    index of its synthetic token in R. ``counted`` says whether the ranking
+    of the check counted a derivation."""
 
     chosen: DNode
     forest: Forest
+    counted: bool
     synthetic: list[bool]
     original_at: list[int]
     record_at: list[int]

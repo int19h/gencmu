@@ -13,7 +13,7 @@ from typing import Any, Callable
 from unittest import mock
 
 import gencmu
-from gencmu import _stage
+from gencmu import _stage, _testing
 
 from .shared import SHARED, WitnessLost, case_tokens, load_case, load_case_dialect, parse_checked, result_problems, run_case, witness_lost
 from .witness import checks, keeps_witness
@@ -111,22 +111,28 @@ class WitnessLostError(unittest.TestCase):
 
 class WitnessHook(unittest.TestCase):
     def test_the_hook_finds_the_witness_of_a_check(self) -> None:
-        with checks() as runs:
+        with checks() as answers:
             result = parse()
         self.assertTrue(result.ok)
-        self.assertEqual(len(runs), 1)
-        self.assertTrue(keeps_witness(runs[0]))
+        self.assertEqual(answers, [True])
 
-    def test_the_runner_refuses_a_check_without_its_witness(self) -> None:
-        # The hook reads the forest of the check, so a forest with no root
-        # fails the case. A loss after the forest, in the count, keeps the
-        # forest whole, and the error of its result fails the case instead.
-        with lose_roots(), self.assertRaises(WitnessLost):
-            parse_checked(parse)
+    def test_the_hook_sees_both_losses(self) -> None:
+        # The hook sees the loss also where the forest still holds W(D) but
+        # the ranking counted nothing, and the runner refuses either.
+        for name, lose in LOSSES.items():
+            with self.subTest(loss=name):
+                with lose(), checks() as answers:
+                    parse()
+                self.assertEqual(answers, [False])
+                with lose(), self.assertRaises(WitnessLost):
+                    parse_checked(parse)
+
+    def test_a_forest_without_the_chosen_root_has_no_witness(self) -> None:
         # A forest that holds another reading but not W(D) is no witness,
         # however many derivations it counts: here, the item of the chosen
         # derivation's root is taken away from the roots.
-        with checks() as runs:
+        runs: list[_testing.CheckRun] = []
+        with mock.patch.object(_testing, "elision_check", runs.append):
             parse()
         run = runs[0]
         self.assertTrue(keeps_witness(run))

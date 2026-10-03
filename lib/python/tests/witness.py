@@ -14,14 +14,15 @@ from gencmu._stage import DNode, DRead
 
 
 @contextmanager
-def checks() -> Iterator[list[_testing.CheckRun]]:
-    """Collect the checks of elision-only that run inside the block and meet
-    no error of the grammar."""
-    runs: list[_testing.CheckRun] = []
+def checks() -> Iterator[list[bool]]:
+    """For each check of elision-only that runs inside the block and meets
+    no error of the grammar, whether it kept its witness. The hook answers
+    as the check runs, so that no check's forest outlives it."""
+    answers: list[bool] = []
     before = _testing.elision_check
-    _testing.elision_check = runs.append
+    _testing.elision_check = lambda run: answers.append(keeps_witness(run))
     try:
-        yield runs
+        yield answers
     finally:
         _testing.elision_check = before
 
@@ -42,7 +43,12 @@ def keeps_witness(run: _testing.CheckRun) -> bool:
     are the items of the node's children. A read is of the original token
     that D reads, found by its provenance. An elided terminator of D is the
     restoration of its helper over its own synthetic token. W(D) is not
-    cyclic, so an item found this way has a counted derivation."""
+    cyclic, so an item found this way has a counted derivation, provided
+    that the ranking counted one."""
+    # The ranking must have counted a derivation. The walk below then shows
+    # that W(D) is one of them.
+    if not run.counted:
+        return False
     forest = run.forest
     synthetic = run.synthetic
     # The nodes of D in post-order, each with its span in R. A cursor walks
@@ -90,10 +96,24 @@ def keeps_witness(run: _testing.CheckRun) -> bool:
     if records != len(run.record_at) or cursor != len(synthetic):
         return False
 
-    # The items of the forest by their end, production, dot and origin.
+    # The items of the forest by their end, production, dot and origin, for
+    # the keys that W(D) asks for alone.
     index: dict[tuple[int, int, int, int], list[int]] = {}
+    for node in order:
+        if isinstance(node, DRead):
+            continue
+        start, end = spans[id(node)]
+        production = node.production.id
+        if is_elided(node):
+            index[(end, production, 0, start)] = []
+            continue
+        index[(start, production, 0, start)] = []
+        for position, child in enumerate(node.children):
+            index[(spans[id(child)][1], production, position + 1, start)] = []
     for item, key in enumerate(zip(forest.end, forest.prod, forest.dot, forest.origin)):
-        index.setdefault(key, []).append(item)
+        found_items = index.get(key)
+        if found_items is not None:
+            found_items.append(item)
     edges = forest.edges
 
     # For each rule node of W(D), the items that derive it exactly.
