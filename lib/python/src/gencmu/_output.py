@@ -8,7 +8,7 @@ from typing import Any
 from ._model import Action, Node, ParseError, ParseResult, ParseWarning, Restoration, Stage, Token
 from ._tags import sorted_tags
 
-FORMAT = 8
+FORMAT = 9
 
 
 def token_json(token: Token) -> dict[str, Any]:
@@ -83,6 +83,8 @@ def node_json(node: Node) -> dict[str, Any]:
 def action_json(action: Action) -> dict[str, Any]:
     if action.kind == "read":
         return {"read": {"token": action.token, "terminal": action.terminal}}
+    if action.kind == "elided":
+        return {"elided": {"at": action.at, "terminal": action.terminal}}
     return {"close": {"rule": action.rule, "production": action.production, "span": list(action.span or (0, 0))}}
 
 
@@ -117,6 +119,8 @@ def error_json(error: ParseError) -> dict[str, Any]:
         value["expected"] = [{"terminal": entry.terminal, "rules": list(entry.rules)} for entry in error.expected]
     if error.readings is not None:
         value["readings"] = [node_json(reading) for reading in error.readings]
+    if error.witness is not None:
+        value["witness"] = [action_json(error.witness[0]), action_json(error.witness[1])]
     value["message"] = error.message
     # The members of elision-witness-lost follow its message
     # (docs/output.md).

@@ -73,9 +73,12 @@ class Node:
 
 @dataclass
 class Action:
-    """One step of a derivation, as a tie's witness shows it (engine §6):
-    a ``"read"`` of ``token`` as ``terminal``, or a ``"close"`` of
-    ``production`` of ``rule`` over ``span``."""
+    """One step of a derivation, as a witness shows it (engine §6): a
+    ``"read"`` of ``token`` as ``terminal``, or a ``"close"`` of
+    ``production`` of ``rule`` over ``span``. In the witness of an error of
+    elision-only, it can also be an ``"elided"`` read, as ``terminal``, of a
+    terminator that the check wrote back at ``at``, a position in the
+    stage's input (engine §7.10)."""
 
     kind: str
     token: int | None = None
@@ -83,6 +86,7 @@ class Action:
     rule: str | None = None
     production: int | None = None
     span: Range | None = None
+    at: int | None = None
 
 
 @dataclass
@@ -102,7 +106,9 @@ class ParseError:
     An ambiguous error has a ``reason``: ``"tie"`` where a stage has two or
     more best readings (engine §6), or ``"elision-only"`` where the check of
     engine §7 fails. Its ``readings`` are two trees: the first and the
-    second reading of the ranking that found the ambiguity.
+    second reading of the ranking that found the ambiguity. An error of
+    elision-only also has a ``witness``, the pair of actions where its two
+    readings first differ, over the stage's input (engine §7.10).
 
     A grammar error has the ``code`` ``"elision-witness-lost"`` where the
     check of engine §7 lost its chosen derivation, a defect of the library
@@ -124,6 +130,7 @@ class ParseError:
     readings: list[Node] | None = None
     chosen: Node | None = None
     completion: list[Restoration] | None = None
+    witness: tuple[Action, Action] | None = None
 
 
 @dataclass(frozen=True)

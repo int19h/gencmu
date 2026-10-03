@@ -813,12 +813,27 @@ class StageRunner:
         for rope in (ranking.first, ranking.second):
             reading = Tree(derivation(forest, rope), context.sources, context.tagtab).root
             readings.append(_map_back(reading, synthetic, project, records, record_of, original))
+        # The witness, mapped to the stage's input as the readings are: a
+        # read of a synthetic token is an elided action at its record's
+        # position, and a close has the projection of its span (engine
+        # §7.10).
+        assert ranking.witness is not None and ranking.witness[0] is not None and ranking.witness[1] is not None
+
+        def mapped(act: Act) -> Action:
+            if act.read and synthetic[act.token]:
+                return Action("elided", terminal=act.terminal, at=project[act.token])
+            if act.read:
+                return Action("read", token=project[act.token], terminal=act.terminal)
+            production = lowered.productions[act.production]
+            return Action("close", rule=production.rule_name, production=production.id, span=(project[act.start], project[act.end]))
+
         return ParseError(
             "ambiguous",
             f"stage {self.name} is ambiguous even with every elided terminator written out",
             stage=self.name,
             reason="elision-only",
             readings=readings,
+            witness=(mapped(ranking.witness[0]), mapped(ranking.witness[1])),
         )
 
 
