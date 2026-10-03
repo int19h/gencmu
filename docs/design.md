@@ -545,6 +545,10 @@ The editor lists a dialect's documents stage by stage. A forgiving scan of the `
 - `json` is the display JSON, a projection of the tree for reading. It is pretty-printed so that a node with one child stays on one line with its parent, as in `{"tanru-unit-2": {"BRIVLA": "mlatu"}}`. This keeps deep trees readable.
 - `canonical` is the canonical JSON of the whole result, which the shared tests compare.
 
+## Documents
+
+Every paragraph, list item, quoted paragraph and table row of a Markdown document in the repository stands on one line, since some renderers show a line break inside a paragraph as a break. A heading is one line, and a blank line or a new block follows it. A code span closes on the line where it opens. Fenced blocks are exempt. `tools/sync.js --check` enforces this (`tools/prose-lines.js`).
+
 ## Tests
 
 There are three kinds of shared test. Every library runs each case that its API can express, as `tests/README.md` says:

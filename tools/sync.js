@@ -19,6 +19,7 @@ import { extractGrammarText } from "../lib/js/src/markdown.js";
 import { includeIsLinked } from "./links.js";
 import { layoutProblems } from "./alternatives.js";
 import { quotedTextProblems } from "./quoted-texts.js";
+import { markdownFiles, proseLineProblems } from "./prose-lines.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const grammars = path.join(root, "grammars");
@@ -111,6 +112,15 @@ if (sprawling.length) {
   console.error(sprawling.join("\n"));
   process.exit(1);
 }
+// Every paragraph, list item, quoted paragraph and table row of every
+// Markdown document stands on one line, with its code spans
+// (docs/design.md, "Documents"; tools/prose-lines.js).
+const broken = markdownFiles(root).flatMap((file) => proseLineProblems(fs.readFileSync(path.join(root, file), "utf8"), file));
+if (broken.length) {
+  console.error(broken.join("\n"));
+  process.exit(1);
+}
+
 // Every Lojban text that a grammar document quotes has a corpus case, or an
 // entry in tests/quoted-allow.txt (tests/README.md, "Quoted texts").
 const unpinned = quotedTextProblems(root);
