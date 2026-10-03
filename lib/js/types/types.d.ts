@@ -562,6 +562,13 @@ export type SpanValue = {
      * which only faults read
      */
     reconstructed?: [number, number];
+    /**
+     * for such a span, the exact span of R
+     * behind it: one original token for head and last, and from the first
+     * original token of the span for tail, from and after; only faults read
+     * it
+     */
+    exact?: [number, number];
 };
 export type Scope = {
     capture: (name: string) => SpanValue;
@@ -1052,6 +1059,10 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {[number, number]} [reconstructed] for a span of the stage's
  *   input that a function computed in the check, the span of R behind it,
  *   which only faults read
+ * @property {[number, number]} [exact] for such a span, the exact span of R
+ *   behind it: one original token for head and last, and from the first
+ *   original token of the span for tail, from and after; only faults read
+ *   it
  */
 /**
  * Where a term looks up its captures.
