@@ -736,9 +736,46 @@
   // `faults` holds the faults of the elision-only check that a test turns on,
   // one at a time, to show which shared cases catch each (proposal of the
   // reconstruction, Part 4). An empty set is the engine as specified. The
-  // names are those of the fault list: F1 has one name per observer, such as
-  // "F1:after"; F27 has "F27:order" and "F27:bare"; "lost:roots" and
-  // "lost:count" lose the witness after recognition (engine §7.9).
+  // names are those of the fault list. Each fault is defined by exactly what
+  // it reads, and a variant of a fault is a switch of its own, so that every
+  // catch that the fault table names is shown by injection:
+  //
+  // - "F1:<observer>", such as "F1:head", computes the observer over the
+  //   tokens of R behind its argument, and projects afterwards. The tokens
+  //   behind a function of a span are exact: one token for head and last,
+  //   and from the first original token for tail, from and after. from and
+  //   after have no such fault, since they give the same span before the
+  //   projection or after it.
+  // - "F1pos:<observer>" reads R at the positions that it is handed, which
+  //   for a function of a span are positions of the stage's input.
+  // - "F7:restoration" gives a restoration the synthetic token's tags,
+  //   "F7:capture" gives them to a capture of the terminal that reads it and
+  //   to a production that inherits from that terminal, and "F7:union" adds
+  //   the synthetic tokens' tags inside the exact span of R behind a span to
+  //   the union of its tokens' tags.
+  // - "F26:lost" loses an error of the grammar that the check meets, and
+  //   "F26:relabel" reports it as elision-witness-lost, which the runner
+  //   invariant of tests/README.md fails.
+  // - "F27:order" reverses the records at one position, and "F27:bare" shows
+  //   a read of a synthetic token as a token.
+  // - "F30" takes the greatest answer of "can read" (engine §7.4), "F31"
+  //   makes the item after the T of route 3 ordinary where a strict item read
+  //   T, and "F32" leaves an item that an ordinary step reaches as it was
+  //   processed while strict.
+  // - "lost:roots" and "lost:count" lose the witness after recognition
+  //   (engine §7.9).
+  //
+  // F25 finds no query cycle at all while the check runs. A detector that
+  // finds only some cycles gives the same public result, because the
+  // recursion meets the same rule and span one level deeper, and only the
+  // message differs, which no pattern pins. The switch ends the recursion at
+  // a bound, with an error that is not the library's.
+  //
+  // A strict and an ordinary prediction of one symbol at one position share
+  // their items (engine §7.4). So a fault of the strict path (F16, F29, F31,
+  // F32) shows only where that path is the only one at its position, or
+  // comes first, and a case that catches it says so. A case for a fault that
+  // depends on the order of processing comes in both orders.
   //
   // `hooks.elisionCheck`, when set, receives each check that ran and met no
   // error of the grammar, for the witness test of tests/README.md.
@@ -1075,8 +1112,9 @@
       let item = set.index.get(key);
       if (item) {
         // One ordinary step makes an item ordinary. It is then processed
-        // again, for what strictness held back (engine §7.4).
-        if (item.strict && !strict) {
+        // again, for what strictness held back (engine §7.4), unless a fault
+        // leaves it as it was processed (F32).
+        if (item.strict && !strict && !fault("F32")) {
           item.strict = false;
           if (!item.queued) {
             item.queued = true;
@@ -1148,8 +1186,8 @@
       recognizerCounters.items++;
       item.end = position + 1;
       // It has the tags of the empty production, none, unless a fault gives
-      // it the synthetic token's (F7).
-      item.tagId = context.interner.intern(fault("F7") ? token.tags : tagSet());
+      // it the synthetic token's (F7:restoration).
+      item.tagId = context.interner.intern(fault("F7:restoration") ? token.tags : tagSet());
       target.items.push(item);
       target.index.set(key, item);
       target.queue.push(item);
@@ -1162,7 +1200,7 @@
       // strict prediction (engine §7.4) leaves some out, so an ordinary one
       // after it adds them.
       const before = set.predicted.get(name);
-      if (before === false || (before === true && strict)) return;
+      if (before === false || (before === true && (strict || fault("F32")))) return;
       set.predicted.set(name, strict);
       const next = set.position < end ? tokens[set.position] : null;
       let skipped = false;
@@ -1218,9 +1256,10 @@
       if (captureIndex >= 0) {
         slots = slots.slice();
         // A terminal that reads a synthetic token captures no tags (engine
-        // §7.5).
+        // §7.5), unless a fault gives it the token's, to a capture and to a
+        // production that inherits from the terminal (F7:capture).
         const tags = child ? child.tagId
-          : context.interner.intern(synthetic !== null && synthetic[from] && !rawObservations(context) && !fault("F7") ? tagSet() : tokens[from].tags);
+          : context.interner.intern(synthetic !== null && synthetic[from] && !rawObservations(context) && !fault("F7:capture") ? tagSet() : tokens[from].tags);
         slots[captureIndex] = [from, to, tags];
       }
       const failed = failedCondition(context, production, item.dot, slots, item.origin, to);
@@ -1298,7 +1337,9 @@
             const fromSynthetic = /** @type {boolean[]} */ (synthetic)[position];
             if (fromSynthetic && fault("F14")) continue;
             if (!fromSynthetic && fault("F24")) continue;
-            strict = fromSynthetic && !fault("F15");
+            // A fault makes the item after T ordinary where a strict item
+            // read T (F31).
+            strict = fromSynthetic && !fault("F15") && !(fault("F31") && item.strict);
           }
           const advanced = advance(item, position, position + 1, null);
           if (advanced) {
@@ -1333,7 +1374,7 @@
    * @typedef {{last: Map<Production, number>}} Reading
    */
 
-  /** @type {WeakMap<LoweredGrammar, Map<boolean, Reading>>} */
+  /** @type {WeakMap<LoweredGrammar, Map<string, Reading>>} */
   const readings = new WeakMap();
 
   /**
@@ -1341,22 +1382,43 @@
    * @returns {Reading}
    */
   function readingOf(lowered) {
-    // A fault leaves the restorations out (F29).
+    // A fault leaves the restorations out (F29). Another takes the greatest
+    // answer in place of the least (F30).
     const withoutRestorations = fault("F29");
+    const greatest = fault("F30");
     let known = readings.get(lowered);
     if (!known) readings.set(lowered, (known = new Map()));
-    let found = known.get(withoutRestorations);
+    const which = `${withoutRestorations} ${greatest}`;
+    let found = known.get(which);
     if (found) return found;
     /** @type {Set<string>} */
     const rules = new Set();
     /** @type {(symbol: GrammarSymbol) => boolean} */
     const reads = (symbol) => symbol.terminal || rules.has(symbol.name);
-    for (let changed = true; changed;) {
+    /** @type {(production: Production) => boolean} */
+    const productionReads = (production) => {
+      const restoration = production.rhs.length === 0 && production.helper && production.elided !== null;
+      return (restoration && !withoutRestorations) || production.rhs.some(reads);
+    };
+    if (greatest) {
+      // Everything can read, until nothing more is removed.
+      for (const production of lowered.productions) rules.add(production.lhs);
+      for (let changed = true; changed;) {
+        changed = false;
+        for (const name of [...rules]) {
+          if (!(lowered.byLhs.get(name) || []).some(productionReads)) {
+            rules.delete(name);
+            changed = true;
+          }
+        }
+      }
+    }
+    // Nothing can read, until nothing more is added (engine §7.4).
+    for (let changed = !greatest; changed;) {
       changed = false;
       for (const production of lowered.productions) {
         if (rules.has(production.lhs)) continue;
-        const restoration = production.rhs.length === 0 && production.helper && production.elided !== null;
-        if ((restoration && !withoutRestorations) || production.rhs.some(reads)) {
+        if (productionReads(production)) {
           rules.add(production.lhs);
           changed = true;
         }
@@ -1372,7 +1434,7 @@
       last.set(production, at);
     }
     found = { last };
-    known.set(withoutRestorations, found);
+    known.set(which, found);
     return found;
   }
 
@@ -1691,8 +1753,11 @@
     if ("capture" in span) return scope.capture(span.capture);
     if ("call" in span && (span.call === "head" || span.call === "tail" || span.call === "last")) {
       // In the check, the projection comes first, then the function (engine
-      // §7.5).
-      const inner = projectedArgument(spanOf(context, span.args[0], scope), scope, span.call);
+      // §7.5), unless a fault applies the function first (F1).
+      const argument = spanOf(context, span.args[0], scope);
+      const first = functionFirst(argument, scope, span.call);
+      if (first) return first;
+      const inner = projectedArgument(argument, scope, span.call);
       const { start, end, space } = inner;
       /** @type {SpanValue} */
       let result;
@@ -1700,10 +1765,14 @@
       else if (span.call === "tail") result = { start: Math.min(start + 1, end), end, space };
       else result = { start: Math.max(end - 1, start), end, space };
       if (inner.reconstructed) result.reconstructed = reconstructedPart(scope, inner.reconstructed, span.call);
+      if (inner.exact) result.exact = exactPart(scope, inner.exact, span.call);
       return result;
     }
     if ("call" in span && (span.call === "from" || span.call === "after")) {
-      const inner = projectedArgument(spanOf(context, span.args[0], scope), scope, span.call);
+      const argument = spanOf(context, span.args[0], scope);
+      const first = functionFirst(argument, scope, span.call);
+      if (first) return first;
+      const inner = projectedArgument(argument, scope, span.call);
       const r = reconstructionOf(scope);
       const end = inner.space === "raw" ? /** @type {ParseContext} */ (r).inputEnd : context.inputEnd;
       /** @type {SpanValue} */
@@ -1712,6 +1781,7 @@
         const [a, b] = inner.reconstructed;
         result.reconstructed = [span.call === "from" ? a : b, /** @type {ParseContext} */ (r).inputEnd];
       }
+      if (inner.exact) result.exact = exactPart(scope, inner.exact, span.call);
       return result;
     }
     throw new GencmuError("grammar", `expected a span, found ${JSON.stringify(span)}`);
@@ -1728,9 +1798,10 @@
 
   /**
    * The argument of a span function in the check: projected to the stage's
-   * input. A projected span remembers the span of R that it came from, which
-   * only faults read. Under a fault of the function (F1), or the old contract,
-   * the function reads R itself at the positions it has (raw).
+   * input. A projected span remembers the span of R that it came from, and
+   * the exact span of R behind it, which only faults read. Under a fault of
+   * the function's positions (F1pos), or the old contract, the function reads
+   * R itself at the positions it has (raw).
    * @param {SpanValue} span
    * @param {Scope} scope
    * @param {string} observer
@@ -1739,16 +1810,93 @@
   function projectedArgument(span, scope, observer) {
     const r = reconstructionOf(scope);
     if (r === null || span.space === "raw") return span;
-    if (fault("F1:" + observer)) return { start: span.start, end: span.end, space: "raw" };
+    if (fault("F1pos:" + observer)) return { start: span.start, end: span.end, space: "raw" };
     if (span.space !== "R") return span;
     const project = /** @type {Reconstruction} */ (r.recon).project;
-    return { start: project[span.start], end: project[span.end], reconstructed: [span.start, span.end] };
+    return { start: project[span.start], end: project[span.end], reconstructed: [span.start, span.end], exact: [span.start, span.end] };
+  }
+
+  /**
+   * The exact span of R behind a span of the check, which only faults read
+   * (F1, F7:union): a capture's own span, or the one that a function of it
+   * computed (exactPart). Null where there is none.
+   * @param {SpanValue} span
+   * @returns {[number, number] | null}
+   */
+  function exactBehind(span) {
+    if (span.space === "R") return [span.start, span.end];
+    if (span.space === "raw") return null;
+    return span.exact || null;
+  }
+
+  /**
+   * Under a fault of a span function (F1), the function applied to the
+   * tokens of R behind its argument, and the projection after it, in place of
+   * the order of engine §7.5. Null where the fault is off or the argument has
+   * no span of R behind it.
+   * @param {SpanValue} argument
+   * @param {Scope} scope
+   * @param {string} call
+   * @returns {SpanValue | null}
+   */
+  function functionFirst(argument, scope, call) {
+    const r = reconstructionOf(scope);
+    if (r === null || !fault("F1:" + call)) return null;
+    const behind = exactBehind(argument);
+    if (behind === null) return null;
+    const [a, b] = behind;
+    /** @type {[number, number]} */
+    let part;
+    if (call === "head") part = [a, Math.min(a + 1, b)];
+    else if (call === "tail") part = [Math.min(a + 1, b), b];
+    else if (call === "last") part = [Math.max(b - 1, a), b];
+    else if (call === "from") part = [a, r.inputEnd];
+    else part = [b, r.inputEnd];
+    const project = /** @type {Reconstruction} */ (r.recon).project;
+    return { start: project[part[0]], end: project[part[1]], reconstructed: part, exact: part };
+  }
+
+  /**
+   * The exact span of R behind a function of a span whose exact span of R is
+   * `span`: the one original token for head and last, and from the first
+   * original token of the result for tail, from and after. Only faults read
+   * it (F1, F7:union).
+   * @param {Scope} scope
+   * @param {[number, number]} span
+   * @param {string} call
+   * @returns {[number, number]}
+   */
+  function exactPart(scope, span, call) {
+    const r = /** @type {ParseContext} */ (reconstructionOf(scope));
+    const synthetic = /** @type {boolean[]} */ (r.synthetic);
+    const [a, b] = span;
+    /** @type {(at: number, limit: number) => number} */
+    const original = (at, limit) => {
+      while (at < limit && synthetic[at]) at++;
+      return at;
+    };
+    if (call === "last") {
+      let at = b - 1;
+      while (at >= a && synthetic[at]) at--;
+      return at >= a ? [at, at + 1] : [b, b];
+    }
+    if (call === "head") {
+      const at = original(a, b);
+      return at < b ? [at, at + 1] : [b, b];
+    }
+    if (call === "tail") {
+      const first = original(a, b);
+      return [first < b ? original(first + 1, b) : b, b];
+    }
+    const end = r.inputEnd;
+    return [original(call === "from" ? a : b, end), end];
   }
 
   /**
    * The part of a span of R that a function of its projection covers: up to
    * and including the first original token for head, after it for tail, and
-   * from the last one for last. Only faults read it (F7 and others).
+   * from the last one for last. Only the faults of queries read it (F3, F4
+   * and F21).
    * @param {Scope} scope
    * @param {[number, number]} span
    * @param {string} call
@@ -1771,38 +1919,42 @@
   /**
    * Where an observation reads a span (engine §7.5): the context and the span
    * in its positions. A span of R projects to the stage's input. A raw span,
-   * or any span under a fault of the observation (F1), reads R itself at the
-   * positions it has. `reconstructed` is the span of R behind the span, where
+   * or any span under a fault of the observation's positions (F1pos), reads
+   * R itself at the positions it has. Under a fault of the observation (F1),
+   * it reads the exact span of R behind the span. `exact` is that span, where
    * there is one.
    * @param {ParseContext} context
    * @param {SpanValue} span
    * @param {Scope} scope
    * @param {string} observer
-   * @returns {{context: ParseContext, start: number, end: number, reconstructed: [number, number] | null}}
+   * @returns {{context: ParseContext, start: number, end: number, exact: [number, number] | null}}
    */
   function observe(context, span, scope, observer) {
     const r = reconstructionOf(scope);
-    if (r === null) return { context, start: span.start, end: span.end, reconstructed: null };
-    if (span.space === "raw" || fault("F1:" + observer)) return { context: r, start: span.start, end: span.end, reconstructed: [span.start, span.end] };
+    if (r === null) return { context, start: span.start, end: span.end, exact: null };
+    if (span.space === "raw" || fault("F1pos:" + observer)) return { context: r, start: span.start, end: span.end, exact: null };
+    const exact = exactBehind(span);
+    if (exact !== null && fault("F1:" + observer)) return { context: r, start: exact[0], end: exact[1], exact: null };
     if (span.space === "R") {
       const project = /** @type {Reconstruction} */ (r.recon).project;
-      return { context, start: project[span.start], end: project[span.end], reconstructed: [span.start, span.end] };
+      return { context, start: project[span.start], end: project[span.end], exact };
     }
-    return { context, start: span.start, end: span.end, reconstructed: span.reconstructed || null };
+    return { context, start: span.start, end: span.end, exact };
   }
 
   /**
    * The tags of a span's tokens where an observation reads them, with the
-   * synthetic tokens' tags of the span of R behind it under fault F7.
-   * @param {{context: ParseContext, start: number, end: number, reconstructed: [number, number] | null}} where
+   * synthetic tokens' tags of the exact span of R behind it under a fault
+   * (F7:union).
+   * @param {{context: ParseContext, start: number, end: number, exact: [number, number] | null}} where
    * @param {Scope} scope
    * @returns {TagSet}
    */
   function observedTokenTags(where, scope) {
     const tags = tokensTags(where.context.tokens, where.start, where.end);
     const r = reconstructionOf(scope);
-    if (where.reconstructed === null || r === null || where.context === r || !fault("F7")) return tags;
-    return tagUnion(tags, syntheticTags(r, where.reconstructed[0], where.reconstructed[1]));
+    if (where.exact === null || r === null || !fault("F7:union")) return tags;
+    return tagUnion(tags, syntheticTags(r, where.exact[0], where.exact[1]));
   }
 
   /**
@@ -2083,6 +2235,10 @@
     return JSON.stringify(key);
   }
 
+  // How deep the queries that fault F25 lets through nest before they end.
+  const UNSEEN_DEPTH = 64;
+  let unseenDepth = 0;
+
   /**
    * @template {boolean | TagSet} T
    * @param {ParseContext} context
@@ -2101,8 +2257,10 @@
       ? JSON.stringify(["at", kind, rule, target.key[0], target.key[1]])
       : nestedKey(context, kind, rule, start, end);
     if (context.nested.has(key)) return /** @type {T} */ (context.nested.get(key));
-    // A fault finds no query cycle while the check runs (F25).
+    // A fault finds no query cycle while the check runs (F25). The recursion
+    // that it lets through ends at a bound, not in a stack overflow.
     const unseen = context.checking && fault("F25");
+    if (unseen && unseenDepth >= UNSEEN_DEPTH) throw new Error("F25: the queries of the check recurse without end");
     // A parse in progress is known by its rule and span, whatever the kind of
     // query, so that alternating kinds cannot hide a query about a span from
     // inside its own parse (engine §4).
@@ -2113,6 +2271,7 @@
         `the grammar defines ${rule} in terms of itself over the same text`, { rule });
     }
     if (!unseen) context.inProgress.add(circular);
+    else unseenDepth++;
     if (context.trace) context.trace.depth++;
     try {
       const chart = recognize(context, rule, start, end);
@@ -2121,6 +2280,7 @@
       return answer;
     } finally {
       if (!unseen) context.inProgress.delete(circular);
+      else unseenDepth--;
       if (context.trace) context.trace.depth--;
     }
   }
@@ -7379,9 +7539,20 @@
           // An error of the grammar in the check ends the stage as one found
           // while emitting does: no output, the rest kept (engine §7.7).
           if (error instanceof GencmuError) {
-            if (fault("F26")) return report;
+            // A fault loses the error (F26:lost), and another reports it as
+            // a lost witness (F26:relabel).
+            if (fault("F26:lost")) return report;
             report.output = null;
-            report.error = { kind: "grammar", stage: this.name, message: error.message };
+            report.error = fault("F26:relabel")
+              ? {
+                kind: "grammar",
+                stage: this.name,
+                code: "elision-witness-lost",
+                message: `the ${this.name} stage could not reconstruct its chosen derivation for elision-only`,
+                chosen: report.tree,
+                completion: [],
+              }
+              : { kind: "grammar", stage: this.name, message: error.message };
             return report;
           }
           throw error;
@@ -10500,6 +10671,10 @@
    * @property {[number, number]} [reconstructed] for a span of the stage's
    *   input that a function computed in the check, the span of R behind it,
    *   which only faults read
+   * @property {[number, number]} [exact] for such a span, the exact span of R
+   *   behind it: one original token for head and last, and from the first
+   *   original token of the span for tail, from and after; only faults read
+   *   it
    */
 
   /**
