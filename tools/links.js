@@ -2,9 +2,8 @@
 // docs/design.md ("Pipelines") prescribes: the %include's block is the first
 // thing under a list item, indented to the item's text, and the item's own
 // line has an inline link [text](PATH) to the same path. tools/sync.js uses
-// it, so that the prose and the blocks name the same documents. The code
-// spans of a line are here too, since a link cannot stand in one;
-// tools/quoted-texts.js reads them.
+// it, so that the prose and the blocks name the same documents. A link
+// cannot stand in a code span, so the code spans of a line are here too.
 
 /**
  * The code spans on one line of Markdown, each with its content and the

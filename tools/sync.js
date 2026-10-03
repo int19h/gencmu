@@ -8,8 +8,10 @@
 //   dist/gencmu.js           the library as one factory function, for the browser
 //
 // and the other packages' copies of grammars/ and of LICENSE under lib/,
-// removing a copy of a document that grammars/ no longer has. No
-// dependencies; run it after editing a grammar.
+// removing a copy of a document that grammars/ no longer has. Run it after
+// editing a grammar. It checks the prose of the documents with a Markdown
+// parser, a development dependency of lib/js (tools/markdown.js): without
+// `npm ci` in lib/js, it skips those checks, and --check fails.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,6 +22,7 @@ import { includeIsLinked } from "./links.js";
 import { layoutProblems } from "./alternatives.js";
 import { quotedTextProblems } from "./quoted-texts.js";
 import { markdownFiles, proseLineProblems } from "./prose-lines.js";
+import { missing as parserMissing } from "./markdown.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const grammars = path.join(root, "grammars");
@@ -112,21 +115,27 @@ if (sprawling.length) {
   console.error(sprawling.join("\n"));
   process.exit(1);
 }
-// Every paragraph, list item, quoted paragraph and table row of every
-// Markdown document stands on one line, with its code spans
-// (docs/design.md, "Documents"; tools/prose-lines.js).
-const broken = markdownFiles(root).flatMap((file) => proseLineProblems(fs.readFileSync(path.join(root, file), "utf8"), file));
-if (broken.length) {
-  console.error(broken.join("\n"));
+// Every paragraph, list item, heading and table row of every Markdown
+// document stands on one line, with its code spans (docs/design.md,
+// "Documents"; tools/prose-lines.js). Every Lojban text that a grammar
+// document quotes has a corpus case, or an entry in tests/quoted-allow.txt
+// (tests/README.md, "Quoted texts").
+if (parserMissing && check) {
+  console.error(`cannot check the prose of the documents: ${parserMissing}`);
   process.exit(1);
-}
-
-// Every Lojban text that a grammar document quotes has a corpus case, or an
-// entry in tests/quoted-allow.txt (tests/README.md, "Quoted texts").
-const unpinned = quotedTextProblems(root);
-if (unpinned.length) {
-  console.error(unpinned.join("\n"));
-  process.exit(1);
+} else if (parserMissing) {
+  console.warn(`the prose of the documents is not checked: ${parserMissing}`);
+} else {
+  const broken = markdownFiles(root).flatMap((file) => proseLineProblems(fs.readFileSync(path.join(root, file), "utf8"), file));
+  if (broken.length) {
+    console.error(broken.join("\n"));
+    process.exit(1);
+  }
+  const unpinned = quotedTextProblems(root);
+  if (unpinned.length) {
+    console.error(unpinned.join("\n"));
+    process.exit(1);
+  }
 }
 write("grammars/compiled.json", JSON.stringify(compiled) + "\n");
 

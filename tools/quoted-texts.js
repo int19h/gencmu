@@ -8,8 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { codeSpans } from "./links.js";
-import { classifyLines } from "./markdown-lines.js";
+import { parseMarkdown, walk } from "./markdown.js";
 import { PROSE, proseLineProblems } from "./prose-lines.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -50,26 +49,43 @@ export function quotedText(content) {
 
 /**
  * The quoted texts of a Markdown document, each with its line (counted
- * from 1) and the dialects that the line names. Every paragraph and list
- * item is one line (tools/prose-lines.js), so a code span opens and closes
- * on one line, and the line is the paragraph or list item that quotes the
- * text. Only lines of prose count (tools/markdown-lines.js): fenced blocks
- * hold grammar and examples of output, and a line whose layout is not
- * modelled is an error of quotedTextProblems.
+ * from 1) and the dialects that its prose block names. They are the code
+ * spans that a CommonMark and GFM parser finds (tools/markdown.js), so a
+ * code block holds none. Every prose block is one line
+ * (tools/prose-lines.js), so the line of a text is the paragraph, list item,
+ * heading or table row that quotes it.
  * @param {string} markdown
  * @returns {{text: string, line: number, dialects: string[]}[]}
  */
 export function quotedTexts(markdown) {
   const texts = [];
-  for (const { line, content, kind } of classifyLines(markdown)) {
-    if (!PROSE.has(kind)) continue;
-    const dialects = namedDialects(content);
-    for (const span of codeSpans(content)) {
-      const text = quotedText(span.content);
-      if (text) texts.push({ text, line, dialects });
-    }
+  /** @type {Map<object, string[]>} the dialects that each prose block names */
+  const named = new Map();
+  for (const { node, ancestors } of walk(parseMarkdown(markdown))) {
+    if (node.type !== "inlineCode") continue;
+    const text = quotedText(node.value);
+    if (!text) continue;
+    const block = [...ancestors].reverse().find((ancestor) => PROSE.has(ancestor.type));
+    if (block && !named.has(block)) named.set(block, namedDialects(proseOf(block)));
+    texts.push({ text, line: node.position.start.line, dialects: block ? named.get(block) : [] });
   }
   return texts;
+}
+
+/**
+ * The prose of a block: its text, the text of its links included, with
+ * each code span as a space. So neither a code span nor a link target
+ * names a dialect.
+ * @param {import("./markdown.js").Node} block
+ * @returns {string}
+ */
+export function proseOf(block) {
+  let prose = "";
+  for (const { node } of walk(block)) {
+    if (node.type === "text") prose += node.value;
+    else if (node.type === "inlineCode") prose += " ";
+  }
+  return prose;
 }
 
 /**

@@ -136,13 +136,13 @@ The corpus started from a seed: a fixture collection whose verdicts came from an
 
 A grammar document often says what gencmu does with a Lojban text that it quotes. A corpus case pins that text, so that a grammar change that makes the sentence false fails the case. `node tools/quoted-texts.js` checks that each quoted text has a case or is on the allow-list `quoted-allow.txt`, and `node tools/sync.js --check` runs the same check.
 
-A quoted text is a code span in the prose of a document, outside fenced blocks, with these properties:
+A quoted text is a code span in the prose of a document, outside code blocks, with these properties:
 
 - Its words, separated by white space, number three or more. Below three words, most spans are single words, names and short parts of a rule.
 - It holds only lowercase ASCII letters, apostrophes, full stops, commas and white space. So a rule name, which has a hyphen or a digit, a selma'o or a token, which is uppercase, and jbogenbau, which has brackets and other symbols, are not quoted texts.
 - It holds no `...` or `…`, which mark a gap in the words.
 
-Every paragraph and list item is one line, with its code spans ("Documents" in `docs/design.md`), so the check reads each line on its own. A line that begins with three backticks opens a fenced block only if no other backtick follows on that line. Otherwise, the line begins with a code span.
+The check finds the code spans with the CommonMark and GFM parser of `tools/markdown.js`, so a code block holds none. Every prose block is one line, with its code spans ("Documents" in `docs/design.md`). So the line of a text's code span is the paragraph, list item, heading or table row that quotes it.
 
 Its words joined by single spaces are compared with the text of each corpus case, written the same way. Each checked document has a dialect that its claims are about: dialect X for `grammars/dialects/X.md`, and cll-ebnf for the CLL syntax grammar. A quoted text needs a case of that dialect. If its line names another dialect, as in "the bpfk dialect rejects it" or "the cll-ebnf and bpfk dialects", the text needs a case of that dialect too. The case pins what the sentence says about the text: its verdict, and its brackets or words where the sentence says how the text reads. Before a case is added, the claim is checked by running the text. A false claim is corrected in the prose, not pinned.
 

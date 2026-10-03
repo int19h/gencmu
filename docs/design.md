@@ -53,7 +53,7 @@ tools/sync.js              regenerates every generated file below
 
 `grammars/` is the single source of the grammars. The repository keeps all generated files checked in, and CI (the checks that run on every change) makes sure that they are up to date. Each package needs its own copy, because the packaging of every ecosystem refuses files outside the package directory. Go's `embed` also refuses symbolic links. The copies are `lib/js/grammars/`, `lib/python/src/gencmu/grammars/`, `lib/go/grammars/`, `lib/rust/grammars/`, and `dist/grammars.js` for the browser.
 
-`dist/gencmu.js`, the library as one classic script (a script that is not an ES module), is generated too. So `index.html` works without a build step, from a clone opened with a double click and from GitHub Pages. One Node script with no dependencies, `node tools/sync.js`, writes all of these files. CI runs it and fails if anything changed. A contributor edits `grammars/` and runs one command.
+`dist/gencmu.js`, the library as one classic script (a script that is not an ES module), is generated too. So `index.html` works without a build step, from a clone opened with a double click and from GitHub Pages. One Node script, `node tools/sync.js`, writes all of these files, and it needs no dependencies to write them. CI runs it and fails if anything changed. A contributor edits `grammars/` and runs one command.
 
 ## The engine
 
@@ -547,7 +547,16 @@ The editor lists a dialect's documents stage by stage. A forgiving scan of the `
 
 ## Documents
 
-Every paragraph, list item and table row of a Markdown document in the repository stands on one line, since some renderers show a line break inside a paragraph as a break. A heading is one line, and a blank line or a new block follows it. A code span closes on the line where it opens. Fenced blocks are exempt. The documents use only headings, paragraphs, list items nested to any depth, tables, and fenced blocks at the top level or in a list item. They use no quotes, HTML blocks, indented code blocks or link reference definitions. `tools/sync.js --check` enforces both rules (`tools/prose-lines.js`), and the tools that read the prose rely on them (`tools/markdown-lines.js`).
+Every paragraph, list item, heading and table row of a Markdown document in the repository stands on one line. Some renderers show a line break inside a paragraph as a break. A code span closes on the line where it opens. A paragraph can follow a heading directly. Code blocks and HTML blocks are exempt.
+
+`tools/sync.js --check` reads each document that git tracks with a CommonMark and GFM parser (`tools/markdown.js`). So it sees each block where GitHub sees it. It reports these layouts (`tools/prose-lines.js`):
+
+- a line that continues a paragraph or a heading, such as a lazy continuation line or the underline of a setext heading
+- a line of prose right after a table, which the table takes in as a row
+- a code span that closes on a later line, and a backtick that opens no code span
+- a fenced block with no closing fence, which takes in the rest of its container
+
+The check of quoted texts relies on this rule, since it gives each text the line of its code span (`tools/quoted-texts.js`).
 
 ## Tests
 
