@@ -12,33 +12,32 @@ import (
 // counted derivation of its forest (engine §7.8). The runners read the
 // checks through the library's private hook, never through its API.
 
-// checkLog collects the checks of elision-only that ran in one parse.
+// checkLog counts the checks of elision-only that ran in one parse, and
+// those that did not keep their witness. The hook asks about the witness
+// while the check's forest is at hand and keeps only the answer, so that no
+// forest outlives its check.
 type checkLog struct {
-	mu   sync.Mutex
-	runs []*elisionCheckRun
+	mu          sync.Mutex
+	checks, bad int
 }
 
-// withChecks sets the options' hook to collect the checks of a parse.
+// withChecks sets the options' hook to count the checks of a parse.
 func withChecks(opts *ParseOptions) *checkLog {
 	log := &checkLog{}
 	opts.private = &privateOptions{elisionCheck: func(run *elisionCheckRun) {
+		kept := keepsWitness(run)
 		log.mu.Lock()
-		log.runs = append(log.runs, run)
+		log.checks++
+		if !kept {
+			log.bad++
+		}
 		log.mu.Unlock()
 	}}
 	return log
 }
 
 // lost counts the checks that did not keep their witness.
-func (log *checkLog) lost() int {
-	n := 0
-	for _, run := range log.runs {
-		if !keepsWitness(run) {
-			n++
-		}
-	}
-	return n
-}
+func (log *checkLog) lost() int { return log.bad }
 
 // keepsWitness says whether a check's forest holds W(D) as a counted
 // derivation: for each node of W(D), from the leaves up, a completed item of
@@ -46,8 +45,14 @@ func (log *checkLog) lost() int {
 // children are the items of the node's children. A read is of the original
 // token that D reads, found by its provenance. An elided terminator of D is
 // the restoration of its helper over its own synthetic token. W(D) is not
-// cyclic, so an item found this way has a counted derivation.
+// cyclic, so an item found this way has a counted derivation, provided that
+// the ranking counted one.
 func keepsWitness(run *elisionCheckRun) bool {
+	// The ranking must have counted a derivation. The walk below then shows
+	// that W(D) is one of them.
+	if !run.counted {
+		return false
+	}
 	rc := run.recon
 	// The nodes of W(D) in post-order, each with its span in R. The ranking
 	// shares a derivation among the places where it occurs, so a node is
@@ -114,26 +119,44 @@ func keepsWitness(run *elisionCheckRun) bool {
 		return false
 	}
 
-	// The items of each set by production, dot and origin, made on demand.
+	// The items that W(D) can use, by set, production, dot and origin: only
+	// the keys that its nodes ask for are indexed.
 	type where struct {
+		set         int
 		prod        *production
 		dot, origin int32
 	}
-	indexes := map[int]map[where][]*item{}
-	itemsAt := func(k int, p *production, dot, origin int) []*item {
+	index := map[where][]*item{}
+	need := map[int]bool{}
+	for _, w := range order {
+		if w.d.kind == dRead {
+			continue
+		}
+		if elided(w.d) {
+			index[where{w.end, w.d.prod, 0, int32(w.start)}] = nil
+			need[w.end] = true
+			continue
+		}
+		index[where{w.start, w.d.prod, 0, int32(w.start)}] = nil
+		need[w.start] = true
+		for i, k := range w.kids {
+			index[where{k.end, w.d.prod, int32(i + 1), int32(w.start)}] = nil
+			need[k.end] = true
+		}
+	}
+	for k := range need {
 		if k >= len(run.rec.sets) {
-			return nil
+			continue
 		}
-		index := indexes[k]
-		if index == nil {
-			index = map[where][]*item{}
-			for _, it := range run.rec.sets[k].items {
-				w := where{it.prod, it.dot, it.origin}
-				index[w] = append(index[w], it)
+		for _, it := range run.rec.sets[k].items {
+			key := where{k, it.prod, it.dot, it.origin}
+			if list, ok := index[key]; ok {
+				index[key] = append(list, it)
 			}
-			indexes[k] = index
 		}
-		return index[where{p, int32(dot), int32(origin)}]
+	}
+	itemsAt := func(k int, p *production, dot, origin int) []*item {
+		return index[where{k, p, int32(dot), int32(origin)}]
 	}
 
 	// For each close of W(D), the items that derive it exactly.
@@ -230,8 +253,8 @@ func lostCase(t *testing.T) (*Dialect, *engineCase) {
 func TestWitnessLost(t *testing.T) {
 	d, c := lostCase(t)
 	clean, log, err := runCaseLogged(d, c, &c.Options, "")
-	if err != nil || !clean.OK || len(log.runs) != 1 || log.lost() != 0 {
-		t.Fatalf("%v %#v: %d checks, %d lost", err, clean.Error, len(log.runs), log.lost())
+	if err != nil || !clean.OK || log.checks != 1 || log.lost() != 0 {
+		t.Fatalf("%v %#v: %d checks, %d lost", err, clean.Error, log.checks, log.lost())
 	}
 	// The chosen tree is that of the main stage, as a run that ends there
 	// shows it.
@@ -243,8 +266,10 @@ func TestWitnessLost(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(log.runs) != 1 || (lose == "roots") != (log.lost() == 1) {
-			t.Fatalf("%s: %d checks, %d lost", lose, len(log.runs), log.lost())
+		// The witness hook sees the loss too, also where the chart still
+		// holds W(D) but the ranking counted nothing.
+		if log.checks != 1 || log.lost() != 1 {
+			t.Fatalf("%s: %d checks, %d lost", lose, log.checks, log.lost())
 		}
 		data, _ := MarshalResult(res)
 		var got map[string]any
