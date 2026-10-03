@@ -17,7 +17,7 @@
 //! follows them. Derivations are kept as a shared DAG, so comparing two of
 //! them walks only where they differ.
 
-use crate::fxhash::FxMap;
+use crate::fxhash::{FxMap, FxSet};
 use std::cmp::Ordering;
 
 use crate::earley::{test_holds, Chart, Item, Shared, Tok};
@@ -460,6 +460,9 @@ pub(crate) struct Ranker<'c> {
     maximal: Option<&'c Maximal<'c>>,
     /// Under `late-elision`, the vectors and the summaries.
     elisions: Option<Elisions>,
+    /// The items, by set and index, that the ranking may use, where only a
+    /// part of the forest is ranked: the witness hook's W(D) (tests/README.md).
+    within: Option<&'c FxSet<(u32, u32)>>,
 }
 
 impl<'c> Dag<'c> {
@@ -831,6 +834,7 @@ impl<'c> Ranker<'c> {
             fset_index: FxMap::default(),
             maximal,
             elisions: late.then(|| Elisions { vectors: Vectors::new(), summaries: FxMap::default() }),
+            within: None,
         };
         ranker.fset_index.insert(Vec::new(), 0);
         ranker
@@ -840,6 +844,13 @@ impl<'c> Ranker<'c> {
     /// whose tests of references read the projected span in O (§7.5).
     pub(crate) fn observing(mut self, observed: &'c [Tok], project: &'c [u32]) -> Ranker<'c> {
         self.dag.projection = Some((observed, project));
+        self
+    }
+
+    /// Ranks only the part of the forest made of these items, each given by
+    /// its set and its index there, with the links between them.
+    pub(crate) fn within(mut self, items: &'c FxSet<(u32, u32)>) -> Ranker<'c> {
+        self.within = Some(items);
         self
     }
 
@@ -907,6 +918,8 @@ impl<'c> Ranker<'c> {
                 let pred = Item { prod: item.prod, dot: item.dot - 1, origin: item.origin, caps: previous };
                 let mut links = Vec::new();
                 let same = |m: u32, fset: u32| if m == set { fset } else { 0 };
+                let within = self.within;
+                let allows = |m: u32, p: &u32| within.map_or(true, |items| items.contains(&(m, *p)));
                 // The predecessors are rebuilt from completed spans, so a
                 // tested symbol's test is applied again, to the candidate
                 // constituent itself, with its own span and its own tags: a
@@ -933,7 +946,9 @@ impl<'c> Ranker<'c> {
                     Sym::T(terminal) => {
                         let m = set - 1;
                         let own = tokens[m as usize].tags;
-                        if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| holds(m, own)) {
+                        if let Some(p) =
+                            self.dag.chart.sets[m as usize].find(&pred).filter(|p| allows(m, p) && holds(m, own))
+                        {
                             links.push(((Node::Item { set: m, index: p }, 0), (Node::Read { tok: m, terminal }, 0)));
                         }
                     }
@@ -941,7 +956,9 @@ impl<'c> Ranker<'c> {
                         if captured {
                             let cap = caps[caps.len() - 1];
                             let m = cap.start;
-                            if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| holds(m, cap.tags))
+                            if let Some(p) = self.dag.chart.sets[m as usize]
+                                .find(&pred)
+                                .filter(|p| allows(m, p) && holds(m, cap.tags))
                             {
                                 let child = Node::Group { rule, origin: m, set, tags: cap.tags, test: NO_TEST };
                                 let child_fset = if m == item.origin { fset } else { 0 };
@@ -963,7 +980,9 @@ impl<'c> Ranker<'c> {
                                     || eset.completed.get(&(rule, m)).is_some_and(|items| {
                                         items.iter().any(|&index| holds(m, eset.tagset[index as usize]))
                                     });
-                                if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| passes) {
+                                if let Some(p) =
+                                    self.dag.chart.sets[m as usize].find(&pred).filter(|p| passes && allows(m, p))
+                                {
                                     let child = Node::Group { rule, origin: m, set, tags: ANY, test: test_id };
                                     let child_fset = if m == item.origin { fset } else { 0 };
                                     links.push(((Node::Item { set: m, index: p }, same(m, fset)), (child, child_fset)));
@@ -988,6 +1007,7 @@ impl<'c> Ranker<'c> {
                 let test = (test != NO_TEST).then(|| &self.dag.g.tests[test as usize]);
                 let span = self.reference_span(origin, set);
                 let (unicode, tag_table) = (self.dag.unicode, self.dag.tags);
+                let within = self.within;
                 let members = eset
                     .completed
                     .get(&(rule, origin))
@@ -995,6 +1015,7 @@ impl<'c> Ranker<'c> {
                         items
                             .iter()
                             .filter(|&&index| tags == ANY || eset.tagset[index as usize] == tags)
+                            .filter(|&&index| within.map_or(true, |items| items.contains(&(set, index))))
                             .filter(|&&index| {
                                 test.map_or(true, |test| {
                                     test_holds(test, span, unicode, tag_table, eset.tagset[index as usize])

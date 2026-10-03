@@ -902,7 +902,16 @@ impl Dialect {
                 tags: &shared.tags,
                 empty,
             };
-            let keeps = witness::keeps_witness(&forest, chosen) && ranking.is_some();
+            // The chart must hold W(D), and the check's own ranking of the
+            // part of it that holds W(D) must count a derivation.
+            let keeps = witness::witness_items(&forest, chosen).is_some_and(|items| {
+                loss != Some(witness::Loss::Count)
+                    && Ranker::new(g, &chart, &tokens, shared, Lean::Neither, None)
+                        .observing(input, &recon.project)
+                        .within(&items)
+                        .rank()
+                        .is_some()
+            });
             witness::record(&self.stages[index].name, keeps);
         }
         let Some((_, readings)) = ranking else {
