@@ -315,6 +315,51 @@
         "line": 3,
         "column": 16
       }
+    },
+    {
+      "description": "A tested that lacks its test is an error at the tested, before its primary, here a constant, is read (engine §9).",
+      "find": "{\"name\":\"tested\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"primary\"},{\"ref\":\"test\"}]}}],\"conditions\":[],\"at\":[131,1]}",
+      "replace": "{\"name\":\"tested\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'='\"},{\"terminal\":\"'='\"},{\"ref\":\"primary\"}]}}],\"conditions\":[],\"at\":[131,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text == $C\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "An optional looks up its choice before its markers: one with two markers and no choice is an error at the optional, not at the second marker (engine §9).",
+      "find": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"optional\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}},{\"ref\":\"choice\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[172,1]}",
+      "replace": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"terminal\":\"'+'\"},{\"terminal\":\"'+'\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[172,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a' [+ +]\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 16
+      }
+    },
+    {
+      "description": "A repetition looks up its choices before its markers: one with two markers and no choice is an error at the repetition, not at the second marker (engine §9).",
+      "find": "{\"name\":\"repetition\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"terminal\":\"ellipsis\"},{\"ref\":\"choice\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"terminal\":\"ellipsis\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}}],\"conditions\":[],\"at\":[175,1]}",
+      "replace": "{\"name\":\"repetition\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"terminal\":\"ellipsis\"},{\"terminal\":\"ellipsis\"},{\"terminal\":\"'}'\"}]}}],\"conditions\":[],\"at\":[175,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {... ...}\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
     }
   ]
 }
