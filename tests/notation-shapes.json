@@ -221,7 +221,12 @@
       "inputs": [
         "a"
       ],
-      "expect": "grammar"
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 21
+      }
     },
     {
       "description": "Three markers are an error of the document at the second (engine §9).",
@@ -231,7 +236,12 @@
       "inputs": [
         "a"
       ],
-      "expect": "grammar"
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 16
+      }
     },
     {
       "description": "A marker after the second choice is an error of the document at that marker, since the separator has no marker (engine §9).",
@@ -241,7 +251,12 @@
       "inputs": [
         "a"
       ],
-      "expect": "grammar"
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 23
+      }
     },
     {
       "description": "A third choice is a part that the reader does not read (engine §9).",
