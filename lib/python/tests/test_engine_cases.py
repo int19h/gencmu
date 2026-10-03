@@ -12,7 +12,19 @@ from typing import Any
 
 import gencmu
 
-from .shared import CaseTimeout, case_features, cases, deadline, load_case, load_case_dialect, mismatch, parse_case, result_problems, run_case
+from .shared import (
+    CaseTimeout,
+    case_features,
+    cases,
+    deadline,
+    load_case,
+    load_case_dialect,
+    mismatch,
+    parse_case,
+    result_problems,
+    run_case,
+    witness_lost,
+)
 
 
 # The members of `expect` that only a loaded dialect can meet.
@@ -88,6 +100,7 @@ class EngineCases(unittest.TestCase):
         # The invariants hold of every result, whatever the case expects
         # (tests/README.md).
         self.assertEqual(result_problems(value), [], f"{label} breaks an invariant of the result\n{text[:2000]}")
+        self.assertFalse(witness_lost(value), f"{label} gives the error elision-witness-lost, which no grammar gives\n{text[:2000]}")
         # The canonical JSON is the key order of docs/output.md and parses
         # back to the same value.
         self.assertEqual(json.loads(gencmu.to_json(result)), value)
