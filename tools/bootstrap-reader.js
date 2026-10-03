@@ -8,7 +8,7 @@
 
 import fs from "node:fs";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
-import { DOM_FORMAT, expectedProblem, openPart, propertyProblem, rangeProblem, soundProblem, termType, testValueFault } from "../lib/js/src/dom.js";
+import { DOM_FORMAT, captureSequences, elidableHead, expectedProblem, openPart, propertyProblem, rangeProblem, soundProblem, termType, testValueFault } from "../lib/js/src/dom.js";
 import { operandProblem } from "../lib/js/src/reader.js";
 import { UnicodeTable } from "../lib/js/src/unicode.js";
 import { characterTag } from "../lib/js/src/tags.js";
@@ -17,11 +17,11 @@ import { characterTag } from "../lib/js/src/tags.js";
 // (engine §9).
 const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.txt", import.meta.url), "utf8"));
 
-const SYMBOLS = ["...", "..", "|", "&", "(", ")", "[", "]", "{", "}", "\\", "<", ">", "#", "ε", ",", "∧", "∨", "¬", "⟹", "=", "≠",
+const SYMBOLS = ["...", "..", "++", "+", "|", "&", "(", ")", "[", "]", "{", "}", "\\", "<", ">", "#", "ε", ",", "∧", "∨", "¬", "⟹", "=", "≠",
   "∈", "∉", "⊆", "⊈", "⊇", "⊉", "∪", "∩", "∖", "∅"];
 
 const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%tags", "%conditions", "%emits", "%opaque",
-  "%ambiguity-resolution", "%elidable", "%stage", "%include", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
+  "%ambiguity-resolution", "%stage", "%include", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
 
 function fail(message, token) {
   const error = new Error(message);
@@ -147,7 +147,7 @@ export function decodeString(text, token) {
   return result;
 }
 
-const DIRECTIVES = new Set(["%ambiguity-resolution", "%elidable", "%stage", "%include", "%features"]);
+const DIRECTIVES = new Set(["%ambiguity-resolution", "%stage", "%include", "%features"]);
 const RULE_KEYWORDS = { "%rule": "define", "%redefine-rule": "redefine", "%extend-rule": "extend" };
 const CONSTANT_KEYWORDS = { "%const": "define", "%redefine-const": "redefine" };
 const COMPARATORS = ["=", "≠", "∈", "∉", "⊆", "⊈"];
@@ -194,6 +194,10 @@ class Parser {
     // the chains of the alternative being read, each with its `{`.
     this.braces = 0;
     this.chains = [];
+    // How many elidable optionals the parser is inside, where no capture
+    // stands either, and the token of each capture of the alternative.
+    this.marked = 0;
+    this.captureTokens = new Map();
   }
   peek(offset = 0) { return this.tokens[this.index + offset]; }
   is(kind, offset = 0) { const t = this.peek(offset); return t !== undefined && t.kind === kind; }
@@ -217,14 +221,8 @@ class Parser {
         this.index++;
         const args = [];
         const kinds = [];
-        let maximal = false;
         while (["identifier", "string", "tag", "phoneme", "character", "property"].some((kind) => this.is(kind))) {
           const operand = this.take();
-          // A first word maximal of %elidable is no operand (engine §9).
-          if (token.name === "elidable" && args.length === 0 && !maximal && kinds.length === 0 && operand.kind === "identifier" && operand.text === "maximal") {
-            maximal = true;
-            continue;
-          }
           if (operand.kind === "character" && this.accept("..")) {
             this.take("character");
             kinds.push("range");
@@ -235,7 +233,7 @@ class Parser {
         }
         const problem = operandProblem(token.name, kinds);
         if (problem) fail(problem, token);
-        directives.push(maximal ? { name: token.name, args, maximal: true, at: token.at } : { name: token.name, args, at: token.at });
+        directives.push({ name: token.name, args, at: token.at });
       } else if (RULE_KEYWORDS[token.kind]) {
         rules.push(this.rule());
       } else if (CONSTANT_KEYWORDS[token.kind]) {
@@ -338,7 +336,14 @@ class Parser {
       guards.push({ feature: token.name, kind: token.text.endsWith("!") ? "warning" : "gate", negated: token.text.startsWith("¬") });
     }
     this.chains = [];
+    this.captureTokens = new Map();
     const alternative = { guards, expr: this.conjunction() };
+    // A name stands at most once in each production (engine §3.5, §9).
+    const twice = captureSequences(alternative.expr).duplicates.map((capture) => this.captureTokens.get(capture));
+    if (twice.length > 0) {
+      const first = twice.reduce((a, b) => (b.at[0] < a.at[0] || (b.at[0] === a.at[0] && b.at[1] < a.at[1]) ? b : a));
+      fail("a capture name is read twice by one production", first);
+    }
     // A chain is the whole expression of its alternative (engine §9).
     const misplaced = this.chains.find((chain) => chain.grouped || chain.expr !== alternative.expr);
     if (misplaced) fail("a chain is the whole expression of its alternative", misplaced.token);
@@ -361,6 +366,30 @@ class Parser {
 
   startsPrimary() {
     return ["identifier", "tag", "character", "property", "phoneme", "capture", "(", "[", "{", "#", "ε"].includes((this.peek() || {}).kind);
+  }
+
+  // An optional, or with `+` or `++` an elidable one, whose terminator
+  // stands directly after the marker, with no group around it, and which
+  // joins it to nothing with | or & (engine §3.8, §9).
+  optional() {
+    const open = this.take("[");
+    const marker = this.is("+") || this.is("++") ? this.take().kind : null;
+    if (!marker) {
+      const inner = this.choice();
+      this.take("]");
+      return { optional: inner };
+    }
+    const first = this.peek();
+    if (!first || !((first.kind === "identifier" && isCapital(first.text)) || first.kind === "tag")) fail("an elidable optional begins with its terminator", first && (first.kind === "+" || first.kind === "++") ? first : open);
+    const testToken = this.peek(1);
+    this.marked++;
+    const inner = this.choice();
+    this.marked--;
+    this.take("]");
+    const head = inner.seq ? inner.seq[0] : inner;
+    if (head.test !== undefined && head.test !== "=") fail("the terminator of an elidable optional takes no test but =", testToken);
+    if (elidableHead(inner) === null) fail("an elidable optional begins with its terminator, and joins it to nothing with | or &", open);
+    return marker === "++" ? { optional: inner, elidable: true, maximal: true } : { optional: inner, elidable: true };
   }
 
   // Braces: `{x}`, `{x \ s}`, and the chains `{... x \ s}` and
@@ -441,12 +470,15 @@ class Parser {
       case "capture": {
         this.index++;
         if (this.braces > 0) fail("a capture cannot stand inside braces", token);
+        if (this.marked > 0) fail("a capture cannot stand inside an elidable optional", token);
         if (token.name === "") fail("$ is the whole constituent and wraps nothing", token);
         this.take("(");
         const inner = this.primary();
         this.take(")");
         if (inner.ref === undefined && inner.terminal === undefined && inner.test === undefined && inner.range === undefined && inner.property === undefined) fail("a capture wraps one symbol", token);
-        return { capture: token.name, expr: inner };
+        const capture = { capture: token.name, expr: inner };
+        this.captureTokens.set(capture, token);
+        return capture;
       }
       case "(": {
         // A group makes no node, so a chain inside it is marked here, while
@@ -458,7 +490,7 @@ class Parser {
         for (const chain of this.chains.slice(before)) chain.grouped = true;
         return inner;
       }
-      case "[": { this.index++; const inner = this.choice(); this.take("]"); return { optional: inner }; }
+      case "[": return this.optional();
       case "{": return this.repetition();
       case "#": this.index++; return { ref: "#" };
       case "ε": this.index++; return { empty: true };
