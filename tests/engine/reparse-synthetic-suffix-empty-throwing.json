@@ -1,0 +1,25 @@
+{
+  "description": "The suffix's only derivation is empty, and its tag term is an error over the empty span. The restoration does not evaluate it, and the written route never predicts it after a synthetic. So no error arises, and the check passes (engine §7.4).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b\n%rule a A [T suffix]\n%rule b A [T suffix] [T suffix]\n%rule suffix ε <tag(text($))>",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ]
+    }
+  }
+}

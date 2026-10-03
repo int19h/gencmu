@@ -1,0 +1,36 @@
+{
+  "description": "As reparse-written-observation-head, where terms come before the optional. tt marks a written T by the first original token after $m, where its own span goes past $m. In the check, that token is F, so c is no reading, and the check passes (engine §7.4, §7.5).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a A m [T] f\n%rule b A m [T] [T] f\n%rule c A $t(tt)\n%conditions ~written ⊆ tags($t)\n%rule tt $m(m) [T #] <text($) ≠ text($m) ∧ T ⊆ tags(head(after($m))) ⟹ ~written>\n%rule # [F ...]\n%rule f F\n%rule m B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "f",
+      "tags": [
+        "F"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ]
+    }
+  }
+}

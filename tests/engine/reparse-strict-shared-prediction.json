@@ -1,0 +1,32 @@
+{
+  "description": "a predicts y after its restoration, and c's written route predicts y after the same synthetic T, through productions that can read. Both reach the one item of y over B. The item is shared, so the chosen a has one derivation, c fails for want of Z, and the check passes (engine §7.4).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a A [T] y\n%rule b A [T] [T] y\n%rule c A [T y] Z\n%rule y B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ]
+    }
+  }
+}

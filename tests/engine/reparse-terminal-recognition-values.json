@@ -1,0 +1,31 @@
+{
+  "description": "A bare T=\"ta\" reads the synthetic by its saved sound, but a capture of it observes nothing: its phonemes are empty and its tags are none (engine §7.4, §7.5).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T U\n%rule text a | b | c\n%rule a A [T=\"ta\"]\n%rule b A [T=\"ta\"] [U]\n%rule c A $t(T=\"ta\")\n%conditions phonemes($t) = \"\", tags($t) = ∅",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "elision-only",
+        "stage": "main"
+      }
+    }
+  }
+}

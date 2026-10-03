@@ -1,0 +1,38 @@
+{
+  "description": "The observer in `initial($x)` reads the original input through the span projection. The chosen a elides T at 0 and at 2, so the reconstructed input is T A B T, and c reads both synthetic T as bare terminals. a survives only if the projected start of $x is 0; then a and c are two readings. Read over the reconstructed tokens, $x starts at 1, after the leading synthetic, a is lost, and c alone would pass (engine §7.5).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a [T=\"ta\"] $x(pair) [T=\"ta\"]\n%conditions initial($x)\n%rule b [T=\"ta\"] [T=\"ta\"] pair [T=\"ta\"]\n%rule c T=\"ta\" pair T=\"ta\"\n%rule pair A B\n%rule term T",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "elision-only",
+        "stage": "main"
+      }
+    }
+  }
+}

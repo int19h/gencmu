@@ -1,0 +1,38 @@
+{
+  "description": "A query in the reconstruction keeps the query policy of engine §4: stage-wide maximal does not apply in it. So probe reads chunk as A, omits T, and reads B, and the chosen a survives beside c (engine §7.6).",
+  "grammar": "%ambiguity-resolution late-elision elision-only maximal\n%elidable U\n%elidable T\n%rule text a | b | c\n%rule a $x(pair) [U]\n%conditions begins($x, probe)\n%rule b pair [U] [U]\n%rule c pair U\n%rule pair A B\n%rule probe chunk [T] B\n%rule chunk A | A B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "elision-only",
+        "stage": "main"
+      }
+    }
+  }
+}
