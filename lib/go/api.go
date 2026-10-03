@@ -376,6 +376,9 @@ type ParseOptions struct {
 	Until string
 	// ElisionOnly, when set, switches elision-only on or off for every stage.
 	ElisionOnly *bool
+	// private holds the switches and hooks of the library's own tests,
+	// which no caller can set.
+	private *privateOptions
 }
 
 // StageNames lists the dialect's stages in order.
@@ -542,6 +545,7 @@ func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (res 
 		}
 	}
 	ps := newParseState(d.uni, text)
+	ps.private = options.private
 	if tokens == nil {
 		tokens = ps.characterTokens()
 	}
@@ -557,6 +561,7 @@ func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (res 
 		if len(outcomes) != words+1 || probe.err != nil || hasSaSu(probe) {
 			features["sa-su"] = true
 			ps = newParseState(d.uni, text)
+			ps.private = options.private
 			outcomes = nil
 		} else if words < last {
 			outcomes = append(outcomes, d.runStages(ps, features, options, probe.stage.Output, words+1, last)...)
