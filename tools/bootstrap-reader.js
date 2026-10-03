@@ -340,7 +340,7 @@ class Parser {
     this.chains = [];
     const alternative = { guards, expr: this.conjunction() };
     // A chain is the whole expression of its alternative (engine §9).
-    const misplaced = this.chains.find((chain) => chain.expr !== alternative.expr);
+    const misplaced = this.chains.find((chain) => chain.grouped || chain.expr !== alternative.expr);
     if (misplaced) fail("a chain is the whole expression of its alternative", misplaced.token);
     if (this.is("<")) alternative.tags = this.angleTerm();
     return alternative;
@@ -448,7 +448,16 @@ class Parser {
         if (inner.ref === undefined && inner.terminal === undefined && inner.test === undefined && inner.range === undefined && inner.property === undefined) fail("a capture wraps one symbol", token);
         return { capture: token.name, expr: inner };
       }
-      case "(": { this.index++; const inner = this.choice(); this.take(")"); return inner; }
+      case "(": {
+        // A group makes no node, so a chain inside it is marked here, while
+        // the reader still sees the parentheses (engine §9).
+        this.index++;
+        const before = this.chains.length;
+        const inner = this.choice();
+        this.take(")");
+        for (const chain of this.chains.slice(before)) chain.grouped = true;
+        return inner;
+      }
       case "[": { this.index++; const inner = this.choice(); this.take("]"); return { optional: inner }; }
       case "{": return this.repetition();
       case "#": this.index++; return { ref: "#" };

@@ -1,0 +1,10 @@
+{
+  "description": "A whole right chain inside two pairs of parentheses, beside guards and tags, is an error at its { (engine §9).",
+  "document": "```jbogenbau\n%rule a f? (({A ...})) <~T>\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 14
+    }
+  }
+}

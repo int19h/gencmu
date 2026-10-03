@@ -1,0 +1,10 @@
+{
+  "description": "A whole chain inside parentheses is still not the whole expression of its alternative, since the reader sees the group, although a group makes no node of the DOM: an error at its { (engine §9).",
+  "document": "```jbogenbau\n%rule a ({... A \\ S})\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 10
+    }
+  }
+}
