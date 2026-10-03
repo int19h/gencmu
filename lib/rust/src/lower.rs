@@ -335,10 +335,19 @@ struct Lowerer<'a> {
     /// Where the alternative being lowered was written: its definition's
     /// document and position (§3).
     written: (Arc<str>, (usize, usize)),
-    /// The item of each pair of braces, as its expansions' symbols, with
-    /// where its alternative was written, in the order lowering meets the
+    /// The item of each pair of braces, in the order lowering meets the
     /// braces (§3.3).
-    brace_items: Vec<(Vec<Vec<Sym>>, Arc<str>, (usize, usize), u32)>,
+    brace_items: Vec<BraceItem>,
+}
+
+/// The item of a pair of braces, as its expansions' symbols, with the
+/// document and position of the definition that wrote its alternative,
+/// and the rule that owns it.
+struct BraceItem {
+    expansions: Vec<Vec<Sym>>,
+    document: Arc<str>,
+    at: (usize, usize),
+    owner: u32,
 }
 
 fn product(mut left: Vec<Sequence>, right: &[Sequence]) -> Vec<Sequence> {
@@ -437,9 +446,14 @@ impl<'a> Lowerer<'a> {
     fn braces(&mut self, item: &Expr, separator: Option<&Expr>, this: Option<Sym>, chain: Chain) -> Vec<Sequence> {
         // The braces are met before the braces inside them.
         let met = self.brace_items.len();
-        self.brace_items.push((Vec::new(), self.written.0.clone(), self.written.1, self.owner));
+        self.brace_items.push(BraceItem {
+            expansions: Vec::new(),
+            document: self.written.0.clone(),
+            at: self.written.1,
+            owner: self.owner,
+        });
         let items = self.expand(item);
-        self.brace_items[met].0 =
+        self.brace_items[met].expansions =
             items.iter().map(|sequence| sequence.iter().map(|(sym, ..)| *sym).collect()).collect();
         let separators = match separator {
             Some(separator) => self.expand(separator),
@@ -839,10 +853,14 @@ pub(crate) fn lower(
             break;
         }
     }
-    for (items, document, at, owner) in &lowerer.brace_items {
-        if items.iter().any(|item| empty(&nullable, item)) {
-            let name = &grammar.rules[*owner as usize].name;
-            return Err(LowerError::at(document, *at, format!("an item of braces in {name} can match no tokens")));
+    for item in &lowerer.brace_items {
+        if item.expansions.iter().any(|expansion| empty(&nullable, expansion)) {
+            let name = &grammar.rules[item.owner as usize].name;
+            return Err(LowerError::at(
+                &item.document,
+                item.at,
+                format!("an item of braces in {name} can match no tokens"),
+            ));
         }
     }
 
