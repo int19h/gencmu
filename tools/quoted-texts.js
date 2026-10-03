@@ -12,12 +12,19 @@ import { codeSpans } from "./links.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-/** The documents whose quoted texts are checked, relative to the repository. */
-export const DOCUMENTS = [
-  "grammars/syntax/cll.md",
-  "grammars/dialects/cll-ebnf.md",
-  "grammars/dialects/bpfk.md",
-];
+/**
+ * The documents whose quoted texts are checked, relative to the repository,
+ * each with the dialect that its claims are about.
+ * @type {Record<string, string>}
+ */
+export const DOCUMENTS = {
+  "grammars/syntax/cll.md": "cll-ebnf",
+  "grammars/dialects/cll-ebnf.md": "cll-ebnf",
+  "grammars/dialects/bpfk.md": "bpfk",
+};
+
+/** The dialects that a block of prose can name, as "the bpfk dialect". */
+export const DIALECTS = ["cll-ebnf", "bpfk", "experimental", "zantufa"];
 
 /** The least number of words that makes a code span a quoted text. */
 export const MIN_WORDS = 3;
@@ -40,28 +47,70 @@ export function quotedText(content) {
 }
 
 /**
- * The quoted texts of a Markdown document, each with its line (counted
- * from 1). Fenced blocks hold grammar and examples of output, not prose, so
- * their lines are skipped.
+ * The quoted texts of a Markdown document, each with the line where its
+ * span begins (counted from 1) and the dialects that its block names. A
+ * block is a paragraph, a list item's text or a heading: a code span can
+ * run over the lines of one block, as in Markdown, and not past it. Fenced
+ * blocks hold grammar and examples of output, not prose, so their lines are
+ * skipped. A line opens a fence only as Markdown says: three backticks or
+ * tildes or more, and after backticks no backtick on the line, so a line
+ * that begins with a code span of three backticks is prose.
  * @param {string} markdown
- * @returns {{text: string, line: number}[]}
+ * @returns {{text: string, line: number, dialects: string[]}[]}
  */
 export function quotedTexts(markdown) {
   const texts = [];
+  /** @type {{text: string, line: number}[]} */
+  let block = [];
+  const flush = () => {
+    if (!block.length) return;
+    const joined = block.map((part) => part.text).join("\n");
+    const chars = [...joined];
+    const dialects = namedDialects(joined.replace(/\s+/g, " "));
+    for (const span of codeSpans(joined)) {
+      const text = quotedText(span.content);
+      if (!text) continue;
+      const breaks = chars.slice(0, span.start).filter((c) => c === "\n").length;
+      texts.push({ text, line: block[0].line + breaks, dialects });
+    }
+    block = [];
+  };
+  /** @type {string | null} */
   let fence = null;
   markdown.split(/\r\n|\r|\n/).forEach((line, index) => {
-    const marker = /^\s*(`{3,}|~{3,})/.exec(line);
     if (fence) {
-      if (marker && marker[1][0] === fence[0] && marker[1].length >= fence.length && /^\s*[`~]+\s*$/.test(line)) fence = null;
+      const close = /^\s*(`{3,}|~{3,})\s*$/.exec(line);
+      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
       return;
     }
-    if (marker) { fence = marker[1]; return; }
-    for (const span of codeSpans(line)) {
-      const text = quotedText(span.content);
-      if (text) texts.push({ text, line: index + 1 });
+    const open = /^\s*(`{3,}|~{3,})(.*)$/.exec(line);
+    if (open && !(open[1][0] === "`" && open[2].includes("`"))) {
+      flush();
+      fence = open[1];
+      return;
     }
+    // A blank line ends a block, and a heading, a list item, a quote or a
+    // table row begins one.
+    if (!line.trim()) { flush(); return; }
+    if (/^\s*(#{1,6}(\s|$)|[-*+]\s|\d{1,9}[.)]\s|>|\|)/.test(line)) flush();
+    block.push({ text: line, line: index + 1 });
   });
+  flush();
   return texts;
+}
+
+/**
+ * The dialects that a text names as "the X dialect", or "the X and Y
+ * dialects", in DIALECTS.
+ * @param {string} prose
+ * @returns {string[]}
+ */
+export function namedDialects(prose) {
+  const name = DIALECTS.join("|");
+  const list = new RegExp(`\\b((?:${name})(?:(?:, and |, | and )(?:${name}))*) dialects?\\b`, "g");
+  const named = new Set();
+  for (const match of prose.matchAll(list)) for (const dialect of match[1].split(/, and |, | and /)) named.add(dialect);
+  return [...named];
 }
 
 /**
@@ -86,19 +135,9 @@ export function readAllowList(list) {
 }
 
 /**
- * The dialect whose cases pin the texts of a document: X for
- * grammars/dialects/X.md, and any dialect (null) for the others.
- * @param {string} document
- * @returns {string | null}
- */
-export function pinningDialect(document) {
-  const match = /^grammars\/dialects\/([^/]+)\.md$/.exec(document);
-  return match ? match[1] : null;
-}
-
-/**
- * Every quoted text of DOCUMENTS that no case pins and the allow-list does
- * not list, and every entry of the allow-list that is not needed: a text
+ * Every quoted text of DOCUMENTS that lacks a case of its document's
+ * dialect, or of a dialect that its block names, and that the allow-list
+ * does not list, and every entry of the allow-list that is not needed: a text
  * that no document quotes, or that a case pins wherever it is quoted.
  * @param {string} [base] the repository
  * @returns {string[]}
@@ -119,13 +158,13 @@ export function quotedTextProblems(base = root) {
   const allowFile = path.join(base, "tests", "quoted-allow.txt");
   const { entries, problems } = readAllowList(fs.existsSync(allowFile) ? fs.readFileSync(allowFile, "utf8") : "");
   const used = new Set();
-  for (const document of DOCUMENTS) {
-    const dialect = pinningDialect(document);
-    for (const { text, line } of quotedTexts(fs.readFileSync(path.join(base, document), "utf8"))) {
-      const dialects = cases.get(text);
-      if (dialects && (!dialect || dialects.has(dialect))) continue;
+  for (const [document, dialect] of Object.entries(DOCUMENTS)) {
+    for (const { text, line, dialects } of quotedTexts(fs.readFileSync(path.join(base, document), "utf8"))) {
+      // The document's own dialect, and every dialect that the block names.
+      const missing = [...new Set([dialect, ...dialects])].filter((name) => !(cases.get(text) || new Set()).has(name));
+      if (!missing.length) continue;
       if (entries.has(text)) { used.add(text); continue; }
-      problems.push(`${document}:${line}: \`${text}\` is pinned by no case${dialect ? ` of ${dialect}` : ""}; add one to tests/corpus/adhoc.jsonl, or list it in tests/quoted-allow.txt with the reason`);
+      problems.push(`${document}:${line}: \`${text}\` is pinned by no case of ${missing.join(" or of ")}; add one to tests/corpus/adhoc.jsonl, or list it in tests/quoted-allow.txt with the reason`);
     }
   }
   for (const [text, line] of entries) {
