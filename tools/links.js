@@ -1,119 +1,35 @@
 // Whether an %include of a pipeline has its link in the prose, in the layout
 // docs/design.md ("Pipelines") prescribes: the %include's block is the first
-// thing under a list item, indented to the item's text, and the item's own
-// line has an inline link [text](PATH) to the same path. tools/sync.js uses
-// it, so that the prose and the blocks name the same documents. A link
-// cannot stand in a code span, so the code spans of a line are here too.
+// thing under a list item, right after the item's own line and indented to
+// the item's text, and that line has an inline link [text](PATH) to the same
+// path. tools/sync.js uses it, so that the prose and the blocks name the
+// same documents. The list items, blocks and links are those of the
+// CommonMark and GFM parser of tools/markdown.js.
+import { parseMarkdown, walk } from "./markdown.js";
 
 /**
- * The code spans on one line of Markdown, each with its content and the
- * code points it covers, backticks included: [start, end). A span opens with
- * a run of backticks that no backslash escapes, and closes at the next run of
- * exactly the same length. A run that no such run closes is text.
- * @param {string} line
- * @returns {{content: string, start: number, end: number}[]}
- */
-export function codeSpans(line) {
-  const chars = [...line];
-  /** @param {number} at */
-  const runAt = (at) => {
-    let end = at;
-    while (chars[end] === "`") end++;
-    return end - at;
-  };
-  const spans = [];
-  for (let i = 0; i < chars.length; i++) {
-    if (chars[i] === "\\") { i++; continue; }
-    if (chars[i] !== "`") continue;
-    const run = runAt(i);
-    let close = i + run;
-    while (close < chars.length) {
-      if (chars[close] !== "`") { close++; continue; }
-      const length = runAt(close);
-      if (length === run) break;
-      close += length;
-    }
-    if (close >= chars.length) { i += run - 1; continue; }
-    spans.push({ content: chars.slice(i + run, close).join(""), start: i, end: close + run });
-    i = close + run - 1;
-  }
-  return spans;
-}
-
-/**
- * The targets of the inline links on one line of Markdown: `[text](target)`,
- * `[text](<target>)` and either with a title after spaces or tabs. An
- * escaped `[`, a code span and a whole image, its description included, hold
- * no link. A target can hold balanced parentheses.
- * @param {string} line
+ * The targets of the inline links in a piece of Markdown, as the parser
+ * reads them. A reference link, an image and a link with an empty target
+ * give none.
+ * @param {string} markdown
  * @returns {string[]}
  */
-export function inlineLinkTargets(line) {
-  const chars = [...line];
-  // Code spans are not prose: each becomes spaces.
-  for (const span of codeSpans(line)) for (let k = span.start; k < span.end; k++) chars[k] = " ";
-  const targets = [];
-  for (let i = 0; i < chars.length; i++) {
-    if (chars[i] === "\\") { i++; continue; }
-    const image = chars[i] === "!" && chars[i + 1] === "[";
-    if (!image && chars[i] !== "[") continue;
-    const link = linkAt(chars, image ? i + 1 : i);
-    if (!link) continue;
-    if (!image) targets.push(link.target);
-    i = link.end;
-  }
-  return targets;
+export function inlineLinkTargets(markdown) {
+  return linkTargets(parseMarkdown(markdown));
 }
 
 /**
- * The link whose `[` is at `start`: its target and the index of its `)`.
- * @param {string[]} chars
- * @param {number} start
- * @returns {{target: string, end: number} | null}
+ * @param {import("./markdown.js").Node} node
+ * @param {number} [line] only the links that begin on this line
+ * @returns {string[]}
  */
-function linkAt(chars, start) {
-  // The link text, with brackets balanced and escapes skipped.
-  let depth = 1;
-  let j = start + 1;
-  for (; j < chars.length && depth > 0; j++) {
-    if (chars[j] === "\\") j++;
-    else if (chars[j] === "[") depth++;
-    else if (chars[j] === "]") depth--;
+function linkTargets(node, line) {
+  const targets = [];
+  for (const { node: link } of walk(node)) {
+    if (link.type !== "link" || !link.url) continue;
+    if (line === undefined || link.position.start.line === line) targets.push(link.url);
   }
-  if (depth > 0 || chars[j] !== "(") return null;
-  const blank = (/** @type {string | undefined} */ c) => c === " " || c === "\t";
-  let k = j + 1;
-  while (blank(chars[k])) k++;
-  let target = "";
-  if (chars[k] === "<") {
-    for (k++; k < chars.length && chars[k] !== ">"; k++) {
-      if (chars[k] === "\\") k++;
-      target += chars[k];
-    }
-    if (chars[k] !== ">") return null;
-    k++;
-  } else {
-    let parens = 0;
-    for (; k < chars.length && !blank(chars[k]); k++) {
-      if (chars[k] === "\\") { target += chars[++k] || ""; continue; }
-      if (chars[k] === "(") parens++;
-      else if (chars[k] === ")" && parens-- === 0) break;
-      target += chars[k];
-    }
-    if (target === "") return null;
-  }
-  // An optional title, after at least one space or tab.
-  const beforeTitle = k;
-  while (blank(chars[k])) k++;
-  const close = { '"': '"', "'": "'", "(": ")" }[chars[k]];
-  if (close) {
-    if (k === beforeTitle) return null;
-    for (k++; k < chars.length && chars[k] !== close; k++) if (chars[k] === "\\") k++;
-    if (chars[k] !== close) return null;
-    k++;
-    while (blank(chars[k])) k++;
-  }
-  return chars[k] === ")" ? { target, end: k } : null;
+  return targets;
 }
 
 /**
@@ -125,12 +41,18 @@ function linkAt(chars, start) {
  * @returns {boolean}
  */
 export function includeIsLinked(markdown, line, path) {
-  const lines = markdown.split(/\r\n|\r|\n/);
-  let fence = line - 2;
-  while (fence >= 0 && !/^ {0,3}(`{3,}|~{3,})\s*jbogenbau\s*$/.test(lines[fence])) fence--;
-  if (fence < 1) return false;
-  const item = /^( {0,3}(?:[-*+]|\d{1,9}[.)]) +)(.*)$/.exec(lines[fence - 1]);
-  if (!item) return false;
-  const indent = /^ */.exec(lines[fence])[0].length;
-  return indent === item[1].length && inlineLinkTargets(item[2]).includes(path);
+  for (const { node, ancestors } of walk(parseMarkdown(markdown))) {
+    if (node.type !== "code" || node.lang !== "jbogenbau") continue;
+    if (!(node.position.start.line < line && line < node.position.end.line)) continue;
+    const item = ancestors[ancestors.length - 1];
+    if (!item || item.type !== "listItem") return false;
+    const [text, block] = item.children;
+    return block === node
+      && text.type === "paragraph"
+      && text.position.start.line === item.position.start.line
+      && node.position.start.line === text.position.end.line + 1
+      && node.position.start.column === text.position.start.column
+      && linkTargets(text, item.position.start.line).includes(path);
+  }
+  return false;
 }
