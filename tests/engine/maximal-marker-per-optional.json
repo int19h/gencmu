@@ -47,8 +47,7 @@
               "y"
             ]
           }
-        ],
-        "message": "the main stage could not continue at token 2; expected T"
+        ]
       }
     },
     "error": "rejected"

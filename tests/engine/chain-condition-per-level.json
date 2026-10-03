@@ -47,8 +47,7 @@
               "r"
             ]
           }
-        ],
-        "message": "the main stage could not continue at token 0; expected A"
+        ]
       }
     },
     "error": "rejected"

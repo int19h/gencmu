@@ -44,6 +44,8 @@ Auto features (engine §13) are off for a case unless its options say `"autoFeat
 - An array matches when it has the same length and each element matches.
 - Anything else matches when it is equal.
 
+A pattern never pins the `message` of an error. Its wording is each library's own (`docs/output.md`), so the JavaScript runner refuses a case whose pattern holds one.
+
 Every runner also checks these invariants on each canonical result that a case gives, whatever the case expects. A case cannot turn them off, and its pattern need not repeat them:
 
 - An error of kind `ambiguous` has no member `token` and no member `source`.

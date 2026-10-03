@@ -931,8 +931,7 @@
               "text"
             ]
           }
-        ],
-        "message": "the main stage could not continue at token 128; expected A"
+        ]
       }
     },
     "error": "rejected"

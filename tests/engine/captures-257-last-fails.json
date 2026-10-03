@@ -1827,8 +1827,7 @@
               "text"
             ]
           }
-        ],
-        "message": "the main stage could not continue at token 256; expected A"
+        ]
       }
     },
     "error": "rejected"

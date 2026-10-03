@@ -133,8 +133,7 @@
               }
             ]
           }
-        ],
-        "message": "the main stage's text has two best readings, a tie"
+        ]
       }
     },
     "error": "ambiguous"
