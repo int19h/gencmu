@@ -239,7 +239,8 @@ Elidability was a property of a terminal. `%elidable KU` made every optional who
 
 - The old rule acted at a distance. An optional changed its meaning when a directive in another document of the stage named its first terminal. A document that several stages include could be elidable in one and not in another. Now the text of the optional says it.
 - The old rule hid the cases that it excluded. `[KU | VAU]`, `[{KU}]` and `[(KU A) B]` began with an elidable terminal, but only some of them were elidable, by rules of engine §3.8 that a reader of the grammar had to know. Now an optional that is not marked is plain, and one that is marked has one form, which the reader checks.
-- The marker is local, so a wrong test on a terminator is an error of the document. Before, the loader found it only after it stitched the stage.
+- The marker is local, so a wrong test on a terminator is an error of the document.
+- The terminator stands directly after the marker. A group there, even `[+(KU) #]`, is an error of the document, although parentheses mean nothing elsewhere. The reason is one spelling and one check: the readers check the written text, while a DOM cannot show a group and checks only the normalized form. Before, the loader found it only after it stitched the stage.
 
 Everything else about an elided terminator stays: the elided node, its constituent, the elision vector, the restoration of `elision-only` and its routes, and the saved sound of an `=` test. Only what selects the optionals changes. The migration marks exactly the optionals that were elidable, so no tree and no verdict changes. A probe checked every optional of every stage of every bundled dialect, and found none whose elidability or maximality would change, and no plain optional that begins with a terminal that the same stage marks.
 

@@ -316,9 +316,9 @@ An elidable optional cannot hold a capture, at any depth. gencmu restores an eli
 
 gencmu expands each alternative into productions, as engine §3 says. A production is one way to read the alternative, with one branch of each choice, one subsequence of each `&`, and each optional read or not. A plain optional that holds a capture is expanded in place, as if it were `(ε | x)`: first the production without it, then those with it. So `A [$b(B)] [$c(C)]` gives four productions, in this order: `A`, `A C`, `A B` and `A B C`. A plain optional without a capture stays one optional, as before. A production has a capture where it reads the captured symbol, and lacks it elsewhere.
 
-The tree is the same either way: a rule node holds the parts that its production reads, and an optional makes no node. Two things follow from the expansion, though. A production that reads one symbol has that symbol's tags where no tags are written (see "Tags"). So `%rule r A [$b(B)]` without tags has the tags of `A` where `B` is absent. And an elided terminator after the optional has the constituent that the production gives it (see "Elided terminators"). In `A [$b(B)] [+KU]`, the constituent of an elided `ku` is `A` or `B`.
+The tree is the same either way: a rule node holds the parts that its production reads, and an optional makes no node. Two things follow from the expansion, though. A production that reads one symbol has that symbol's tags where no tags are written (see "Tags"). So `%rule r A [$b(B)]` without tags has the tags of `A` where `B` is absent. And an elided terminator after the optional has the constituent that the production gives it (see "Elided terminators"). In `a [$b(b)] [+KU]`, where `a` and `b` are rules, the constituent of an elided `ku` is `b` where the production reads `b`, and `a` where it does not.
 
-Each plain optional that holds a capture doubles the productions of its alternative, as an item of `&` does. Each capture can also multiply the work of the parser. The parser keeps a captured part's span with each partial reading, so readings that differ only in where a captured part ends are not merged. So a capture whose span can end in many places costs much more than one that reads a single token.
+A plain optional that holds a capture, whose content has k expansions, contributes 1 + k: the empty one and those k. A sequence multiplies these counts. So `[$b(B)]` doubles the productions of its alternative, `[($a(A) | B | C)]` contributes four, and `[A [$b(B)]]` three, not four. Each capture can also multiply the work of the parser. The parser keeps a captured part's span with each partial reading, so readings that differ only in where a captured part ends are not merged. So a capture whose span can end in many places costs much more than one that reads a single token.
 
 The clauses of a rule serve all its productions, and the productions need not capture the same parts. gencmu knows whether a production captured a part when it reads the grammar. A clause can refer to a capture that a production lacks. What happens then depends on the kind of clause.
 
@@ -620,7 +620,8 @@ A grammar marks each terminator that can be elided where it writes it. An elidab
   | LI # mex [+LOhO #]
 ```
 
-- The terminator `T` is the first item. It is an identifier tag: a bare name that begins with a capital, or `~name`. So `[+KU]` and `[+~KU]` mark the same terminator. A phoneme tag, a character tag, a range, a property, a rule and `#` cannot be the terminator.
+- The terminator `T` stands directly after the marker, as written, with no parentheses around it. So `[+(KU) #]`, `[+((KU)) #]`, `[+(KU #)]` and `[+(KU #) A]` are errors, although parentheses make no node elsewhere. One spelling for each marked optional keeps every reader's check the same, and the check reads the written text, before parentheses are dropped.
+- `T` is an identifier tag: a bare name that begins with a capital, or `~name`. So `[+KU]` and `[+~KU]` mark the same terminator. A phoneme tag, a character tag, a range, a property, a rule and `#` cannot be the terminator.
 - `T` can have an `=` test, as in `[+KU="ku"]`. Any other test on `T` is an error, because `elision-only` restores `T` with the sound of its test (below). A test on a later item is no error.
 - The rest is a sequence of any primaries, or nothing. A choice or `&` in the rest stands in parentheses, as in `[+KU (A | B)]`. A `|` or `&` that joins `T` to something else is an error, because then some reading of the optional would not begin with `T`. So `[+KU | VAU]` is an error.
 - No capture stands inside an elidable optional, at any depth (see "Captures").
@@ -636,7 +637,7 @@ An elided terminator ends the part of its alternative that is written just befor
 
 A production is an alternative of the expanded grammar (engine §3). An elided terminator also has no constituent when it immediately follows the production's initial reference to its own rule. So a rule that an author writes with left recursion can have such terminators too.
 
-A plain optional that holds a capture is expanded in place (see "Captures"), so it is no part of its own here. The part before the terminator is what the production reads before it. In `A [$b(B)] [+KU]`, that is `B` where the production reads `B`, and `A` where it does not.
+A plain optional that holds a capture is expanded in place (see "Captures"), so it is no part of its own here. The part before the terminator is what the production reads before it. In `a [$b(b)] [+KU]`, where `a` and `b` are rules, that is `b` where the production reads `b`, and `a` where it does not. The usual exceptions still apply: in `A [$b(B)] [+KU]`, both productions put `KU` after a terminal, so it has no constituent in either.
 
 By default, the constituent of an elided terminator can end wherever a parse of the whole text needs it to end. The ranking above chooses among the parses. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses. The `sumti-tail` of `le lojbo` ends before `se farvi`, which becomes the selbri (the main predicate). A parse with the longer `sumti-tail` `lojbo se farvi` leaves the sentence without a selbri.
 
