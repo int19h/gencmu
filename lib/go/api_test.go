@@ -268,7 +268,7 @@ func TestMarshalResult(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"format":8,"ok":true,"stages":[{"name":"main","verdict":"unique","output":[]}],"tree":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"'é'","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"KU","span":[1,1],"source":[1,1]}]},"error":null}`
+	want := `{"format":9,"ok":true,"stages":[{"name":"main","verdict":"unique","output":[]}],"tree":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"'é'","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"KU","span":[1,1],"source":[1,1]}]},"error":null}`
 	if string(data) != want {
 		t.Fatalf("got  %s\nwant %s", data, want)
 	}
@@ -280,7 +280,7 @@ func TestMarshalResult(t *testing.T) {
 	}
 	res, _ = d.Parse("x", ParseOptions{})
 	data, _ = MarshalResult(res)
-	if !strings.HasPrefix(string(data), `{"format":8,"ok":false,"stages":[{"name":"main","verdict":null}],"tree":null,"error":{"kind":"rejected","stage":"main","token":0,"source":[0,1],"line":1,"column":1,"expected":[{"terminal":"'é'","rules":["text"]}],"message":`) {
+	if !strings.HasPrefix(string(data), `{"format":9,"ok":false,"stages":[{"name":"main","verdict":null}],"tree":null,"error":{"kind":"rejected","stage":"main","token":0,"source":[0,1],"line":1,"column":1,"expected":[{"terminal":"'é'","rules":["text"]}],"message":`) {
 		t.Fatalf("%s", data)
 	}
 	// The warnings follow the error, only when there is one; the result's
@@ -1373,7 +1373,7 @@ func TestMarshalWitnessLost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"format":8,"ok":false,"stages":[{"name":"main","verdict":"resolved"}],"tree":null,"error":{"kind":"grammar","stage":"main","code":"elision-witness-lost","message":"the main stage could not reconstruct its chosen derivation for elision-only","chosen":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"A","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"T","span":[1,1],"source":[1,1]}]},"completion":[{"terminal":"T","at":1,"source":[1,1],"sound":"ta"},{"terminal":"U","at":1,"source":[1,1]}]}}`
+	want := `{"format":9,"ok":false,"stages":[{"name":"main","verdict":"resolved"}],"tree":null,"error":{"kind":"grammar","stage":"main","code":"elision-witness-lost","message":"the main stage could not reconstruct its chosen derivation for elision-only","chosen":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"A","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"T","span":[1,1],"source":[1,1]}]},"completion":[{"terminal":"T","at":1,"source":[1,1],"sound":"ta"},{"terminal":"U","at":1,"source":[1,1]}]}}`
 	if string(data) != want {
 		t.Fatalf("got  %s\nwant %s", data, want)
 	}

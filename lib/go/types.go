@@ -54,10 +54,20 @@ type Node struct {
 }
 
 // Action is one step of a derivation read bottom-up: a read of a token as a
-// terminal, or a close of a production over a span (engine §6).
+// terminal, or a close of a production over a span (engine §6). In the
+// witness of an error of elision-only, it can also be a read of a
+// terminator that the check wrote back (engine §7.10).
 type Action struct {
-	Read  *ReadAction
-	Close *CloseAction
+	Read   *ReadAction
+	Close  *CloseAction
+	Elided *ElidedAction
+}
+
+// ElidedAction reads a terminator that the check of elision-only wrote back
+// at At, a position in the stage's input, as Terminal (engine §7.10).
+type ElidedAction struct {
+	At       int
+	Terminal string
 }
 
 type ReadAction struct {
@@ -142,7 +152,9 @@ type Expected struct {
 // Token and Source are nil when unknown; Line and Column are 0 when unknown.
 // For a rejection they give the position in the text; for a grammar error,
 // the position in Document. An ambiguous error has Readings, two trees over
-// the stage's input, and no position. Code is set only for the grammar error
+// the stage's input, and no position. An error of elision-only also has
+// Witness, the pair of actions where its readings first differ, over the
+// stage's input (engine §7.10). Code is set only for the grammar error
 // CodeElisionWitnessLost, which also has Chosen, the stage's chosen tree,
 // and Completion, the terminators that the check wrote back (engine §7.9).
 type ParseError struct {
@@ -157,6 +169,7 @@ type ParseError struct {
 	Column     int
 	Expected   []Expected
 	Readings   []*Node
+	Witness    []Action
 	Message    string
 	Chosen     *Node
 	Completion []Restoration
