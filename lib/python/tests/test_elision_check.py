@@ -42,7 +42,7 @@ def lose_roots() -> Any:
 
 def lose_count() -> Any:
     # The roots stay, and the ranking finds no counted derivation.
-    return mock.patch.object(_stage, "_rank_check", lambda forest: None)
+    return mock.patch.object(_stage, "_rank_check", lambda forest, groups_of=None: None)
 
 
 LOSSES: dict[str, Callable[[], Any]] = {"no root item": lose_roots, "no counted derivation": lose_count}

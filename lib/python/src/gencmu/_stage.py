@@ -794,7 +794,7 @@ class StageRunner:
         ranking = _rank_check(forest)
         hook = _testing.elision_check
         if hook is not None:
-            hook(_testing.CheckRun(chosen, forest, ranking is not None, synthetic, original_at, record_at))
+            hook(_testing.CheckRun(chosen, forest, lambda part: _rank_check(part, forest), synthetic, original_at, record_at))
         if ranking is None:
             # The witness of the chosen derivation is lost: a defect of the
             # engine (engine §7.9).
@@ -828,13 +828,18 @@ def _reconstruct(context: StageContext) -> Forest:
     return Parser(context).parse(context.lowered.rule_ids["text"])
 
 
-def _rank_check(forest: Forest) -> Ranking | None:
+def _rank_check(forest: Forest, groups_of: Forest | None = None) -> Ranking | None:
     """The ranking of the check's derivations with no lean and no
     maximality (engine §7.7); ``None`` where R has no derivation that
-    counts."""
+    counts. ``groups_of``, when given, is the whole forest of the check,
+    whose groups of rules give the contexts of cycles where ``forest`` is
+    only a part of it, as the witness hook ranks it (tests/README.md)."""
     if not forest.roots:
         return None
-    return Ranker(forest, "none").rank(forest.roots)
+    ranker = Ranker(forest, "none")
+    if groups_of is not None:
+        ranker.groups_memo = Ranker(groups_of, "none").groups()
+    return ranker.rank(forest.roots)
 
 
 def _map_back(

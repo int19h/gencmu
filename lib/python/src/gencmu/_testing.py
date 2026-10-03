@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
     from ._earley import Forest
+    from ._rank import Ranking
     from ._stage import DNode
 
 
@@ -22,12 +23,13 @@ class CheckRun:
     roots are the completed items of ``text`` over R; for each token of R,
     whether it is synthetic, by its provenance; for each token of the
     stage's input, its index in R; and for each restoration record, the
-    index of its synthetic token in R. ``counted`` says whether the ranking
-    of the check counted a derivation."""
+    index of its synthetic token in R. ``rank`` is the check's own ranking
+    of a part of its forest, in the cycle contexts of the whole: ``None``
+    where it counts no derivation."""
 
     chosen: DNode
     forest: Forest
-    counted: bool
+    rank: Callable[[Forest], Ranking | None]
     synthetic: list[bool]
     original_at: list[int]
     record_at: list[int]
