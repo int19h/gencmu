@@ -217,6 +217,13 @@ fn write_action(out: &mut String, action: &Action) {
             write_range(out, span);
             out.push_str("}}");
         }
+        Action::Elided { at, terminal } => {
+            out.push_str("{\"elided\":{\"at\":");
+            out.push_str(&at.to_string());
+            out.push_str(",\"terminal\":");
+            write_str(out, terminal);
+            out.push_str("}}");
+        }
     }
 }
 
@@ -323,6 +330,13 @@ fn write_error(out: &mut String, error: &ParseError) {
                 write_node(out, reading);
             }
             out.push(']');
+            if let Some([first, second]) = &error.witness {
+                out.push_str(",\"witness\":[");
+                write_action(out, first);
+                out.push(',');
+                write_action(out, second);
+                out.push(']');
+            }
         }
         ParseErrorKind::Grammar => {}
     }
@@ -376,7 +390,7 @@ fn write_warning(out: &mut String, warning: &Warning) {
 /// documented order, no whitespace, non-ASCII characters as themselves.
 pub fn to_json(result: &ParseResult) -> String {
     let mut out = String::new();
-    out.push_str("{\"format\":8,\"ok\":");
+    out.push_str("{\"format\":9,\"ok\":");
     out.push_str(if result.ok { "true" } else { "false" });
     out.push_str(",\"stages\":[");
     for (index, stage) in result.stages.iter().enumerate() {

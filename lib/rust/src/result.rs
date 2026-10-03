@@ -290,7 +290,8 @@ pub enum Verdict {
     Tie,
 }
 
-/// An action of a derivation, in a tie's witness (engine §6).
+/// An action of a derivation, in a tie's witness (engine §6) or in that of
+/// an error of `elision-only` (engine §7.10).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     /// A read of a token as a terminal.
@@ -309,6 +310,14 @@ pub enum Action {
         production: usize,
         /// The range of the stage's input tokens it covers.
         span: Range<usize>,
+    },
+    /// In the witness of an error of `elision-only`, a read of a terminator
+    /// that the check wrote back (engine §7.10).
+    Elided {
+        /// The position in the stage's input where it was written back.
+        at: usize,
+        /// The terminal it was read as.
+        terminal: String,
     },
 }
 
@@ -419,6 +428,10 @@ pub struct ParseError {
     /// For an ambiguity, the two readings: the first and the second
     /// reading of the tie, or of the ranking of the `elision-only` check.
     pub readings: Vec<Node>,
+    /// For an error of `elision-only`, the pair of actions where its two
+    /// readings first differ, over the stage's input (engine §7.10). A
+    /// tie's witness is its stage's.
+    pub witness: Option<[Action; 2]>,
     /// The human description.
     pub message: String,
     /// For `ErrorCode::ElisionWitnessLost`, the stage's chosen tree.
