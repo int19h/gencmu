@@ -508,7 +508,7 @@ The CLI is `node lib/js/cli.js` (and `npx gencmu` once published). It has these 
 - `features`, to list a dialect's features
 - `audit`, to report the undefined, unreachable, replaced and extended rules of a dialect
 - `stitch`, to print a dialect's pipeline as one jbogenbau text, with each classifier's entries as written
-- `test`, to run a test file against a dialect
+- `test`, to check a grammar author's own file of corpus-format cases against a dialect. It compares each case as the library's corpus runner does, with the same code. It checks the cases, not the engine, so it runs none of the engine's self-checks, such as the witness hook of `elision-only`
 - `help`, to list the commands and every option
 
 `parse` prints any warning on standard error, as it prints an error, a tie included. The CLI needs Node and nothing else.
