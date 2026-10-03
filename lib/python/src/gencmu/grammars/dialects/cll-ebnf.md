@@ -2,7 +2,7 @@
 
 This dialect is Lojban as *The Complete Lojban Language* (CLL) describes it. The dialect reads the grammar printed in chapter 21 of the book, and the word forms of its chapters 3 and 4. A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. The dialect gives each cmavo the selma'o of the book's dictionary.
 
-The printed grammar is normative here, with the repairs that [the CLL grammar](../syntax/cll.md) lists. Any parse that the printed grammar admits counts. The dialect accepts a text that the grammar admits. But the text must not have two readings or more once the syntax stage writes back its elided terminators. The option `elision-only` states this rule, and `docs/engine.md` (§7) gives it exactly.
+The printed grammar is normative here, with the repairs that [the CLL grammar](../syntax/cll.md) lists. Any parse that the printed grammar admits counts. The dialect accepts a text that the grammar admits. But the text must not have two readings or more once the syntax stage writes back its elided terminators. Conditions and tags in that parse read the original words, so a written-back terminator is not a written one. The option `elision-only` states this rule, and `docs/engine.md` (§7) gives it exactly.
 
 A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. Each stage reads the tokens that the stage before it emitted.
 
