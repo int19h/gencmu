@@ -145,6 +145,15 @@ class StageContext:
     carried: dict[tuple[str, int], bool] = field(default_factory=dict)
     # The tags of each range that a term holds, made once (engine §10).
     range_sets: dict[tuple[str, str], Tags] = field(default_factory=dict)
+    # On the context of the reconstructed input R of the check of engine §7,
+    # and nowhere else: whether each token of R is synthetic, by its
+    # provenance (engine §7.2); π, the number of original tokens before each
+    # position of R (engine §7.3); and the context of the stage's input,
+    # whose tokens every observation reads and whose memo and nested parses
+    # running the check's queries share (engine §7.5, §7.6).
+    synthetic: list[bool] | None = None
+    project: list[int] | None = None
+    observed: StageContext | None = None
 
     def __post_init__(self) -> None:
         self.token_tags = [self.tagtab.intern(token.tags) for token in self.tokens]
@@ -329,13 +338,19 @@ def _as_string(value: Any) -> str:
 class Evaluator:
     """Terms and conditions (engine §10) over one parse's captures."""
 
-    def __init__(self, context: StageContext, base: int, end: int) -> None:
+    def __init__(self, context: StageContext, base: int, end: int, project: list[int] | None = None) -> None:
         self.context = context
         # Where the parse's input begins, in the stage's tokens: the captures
         # count from here, and initial() holds here (engine §10).
         self.base = base
         # Where it ends: from() and after() run to here.
         self.end = end
+        # In the check of engine §7, π: the captures are spans of the
+        # reconstructed input R, and every observation reads their
+        # projections in the stage's input, which is ``context``'s. So the
+        # projection comes first, and then any function of a span (engine
+        # §7.3, §7.5). None elsewhere.
+        self.project = project
 
     def bind(
         self, production: Production, caps: Caps, whole: tuple[int, int, int | None] | None = None
@@ -345,13 +360,22 @@ class Evaluator:
         computed, when no term may read it)."""
         bound: dict[str, tuple[int, int, int]] = {}
         base = self.base
+        project = self.project
         for name, position in production.captures.items():
             slot = production.slots[position]
             if 0 <= slot < len(caps):
                 start, end, tag = caps[slot]
-                bound[name] = (start + base, end + base, tag)
+                if project is None:
+                    bound[name] = (start + base, end + base, tag)
+                else:
+                    # A capture keeps its constituent's own tags, also where
+                    # its span projects to empty (engine §7.5).
+                    bound[name] = (project[start], project[end], tag)
         if whole is not None:
-            bound[WHOLE] = (whole[0] + base, whole[1] + base, whole[2])  # type: ignore[assignment]
+            if project is None:
+                bound[WHOLE] = (whole[0] + base, whole[1] + base, whole[2])  # type: ignore[assignment]
+            else:
+                bound[WHOLE] = (project[whole[0]], project[whole[1]], whole[2])  # type: ignore[assignment]
         return bound
 
     def _span(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> Walk:
@@ -541,7 +565,20 @@ class Parser:
         self.context = context
         self.base = start
         self.end = len(context.tokens) if end is None else end
-        self.evaluator = Evaluator(context, start, self.end)
+        observed = context.observed
+        if observed is None:
+            self.evaluator = Evaluator(context, start, self.end)
+        else:
+            # The recognition of R in the check of engine §7: its conditions,
+            # tag terms and tests of references read the stage's input
+            # through π, and the input that initial(), from() and after()
+            # see is the stage's. Its queries run in the context of the
+            # stage's input, with the main grammar in its ordinary mode, so
+            # they name their spans in positions of that input and share
+            # the main parse's memo and the nested parses running (engine
+            # §4, §7.6).
+            assert context.project is not None
+            self.evaluator = Evaluator(observed, 0, len(observed.tokens), context.project)
 
     def parse(self, start_rule: int) -> Forest:
         context = self.context
