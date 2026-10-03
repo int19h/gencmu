@@ -486,7 +486,7 @@ Take the elided terminators of D (§4, §12) in the order of the tree's leaves, 
 
 The reconstructed input R is O with one synthetic token for each record. The synthetic token stands before the input token at `p`, or at the end for `p` = N. Records at one position keep their order. Every token of O stands in R once, in its order, with all its fields unchanged.
 
-A synthetic token has two values that the recognizer reads. Its recognition tags are its terminal alone. Its recognition sound is its saved sound. Without a saved sound, it is the empty string. It has no attachments. It is not emitted, so no implication applies to it (§11). An original token's recognition tags and sound are its own tags and the canonical sound of its phonemes (§5).
+A synthetic token has two values that the recognizer reads. Its recognition tags are its terminal alone. Its recognition sound is its saved sound. The saved sound is already canonical, as §9 requires. Without a saved sound, it is the empty string. It has no attachments. It is not emitted, so no implication applies to it (§11). An original token's recognition tags and sound are its own tags and the canonical sound of its phonemes (§5).
 
 Each token of R has a provenance, which the engine keeps to itself. It is an original token, with its index in O, or a synthetic token, with the index of its record. Nothing else tells them apart. An earlier stage can emit a token with an empty span, an empty source, empty text or `insertedBy` (§11). Such a token of O is still an original token.
 
@@ -508,7 +508,7 @@ An elidable optional (§3.8) has a helper `h`. Its productions are the empty pro
 2. The written route from an original token. A production of the content reads its `T` from an original token, and then the rest of the production as §4 says. The rest can be empty.
 3. The written route from a synthetic token. A production of the content reads its `T` from a synthetic token, which must pass `T`'s test as in the restoration. Then the rest of the production must read at least one token of R, original or synthetic. The item after `T` is strict (below), whatever the strictness of the item that read `T`, also where an ordinary prediction shares that item.
 
-So a synthetic token followed by nothing else of the optional is always the restoration, and never a second derivation of the same omission. A synthetic token followed by more of the optional is the written route, which can read original tokens, later synthetic tokens, or both. An optional that is not elidable keeps its empty production as in §4. §3.8 alone decides which optionals are elidable, and this section does not change that.
+Every production of the helper belongs to that elidable helper for the purpose of the routes, its content productions as well as its empty one. So a synthetic token followed by nothing else of the optional is always the restoration, and never a second derivation of the same omission. A synthetic token followed by more of the optional is the written route, which can read original tokens, later synthetic tokens, or both. An optional that is not elidable keeps its empty production as in §4. §3.8 alone decides which optionals are elidable, and this section does not change that.
 
 A strict item must read at least one token before it completes. The recognizer decides once per grammar which productions and which symbols can read, with the routes of this mode:
 
@@ -595,7 +595,7 @@ The witness of D is the derivation W(D) of R that has D's productions in D's ord
 - Each read of an original token reads the same token in R.
 - Each elided terminator of D is the restoration of its helper over its own synthetic token.
 - Each written elidable optional of D takes the written route from an original token.
-- Each node spans the positions of R that hold its original tokens and the synthetic tokens of the elided terminators below it.
+- Each occurrence in the derivation tree, even where the representation shares one object between occurrences, spans the positions of R that hold its original tokens and the synthetic tokens of the elided terminators below it.
 
 W(D) is a derivation of R that counts. In outline:
 
