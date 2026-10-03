@@ -31,6 +31,8 @@ data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 
   A text that a stage reads in two or more best ways is a tie. Its result is not `OK`, and its `Error` has the kind `ambiguous` and the `Reason` `tie`, with two `Readings`. The stage has the verdict `tie` and a `Witness`, and it has no output. The `Reason` of the error of `ElisionOnly` is `elision-only`.
 
+  A text that does not parse gives a result whose `OK` is false and whose `Error` says why: `rejected`, `ambiguous` or `grammar` (`docs/api.md`). An error of kind `grammar` with the `Code` `elision-witness-lost` (`CodeElisionWitnessLost`) marks a defect of the library in the check of `elision-only`. It also has `Chosen`, the stage's chosen tree, and `Completion`, the terminators that the check wrote back (engine §7.9). Each of those is a `Restoration` with `Terminal`, `At`, `Source` and, for a terminator with an `=` test, `Sound`. The canonical JSON writes them as `chosen` and `completion` (`docs/output.md`). No other error has a `Code`.
+
   For tests and tools, `(*Dialect).ParseTokens(text, tokens, options)` feeds pre-built tokens to the first stage. Each of those tokens has its `Text` as its label, whatever its `Label` says. A caller cannot supply attachments: a token with a non-empty `Before` or `After` is a usage error, and empty ones are dropped. The parse copies the tokens, so the caller's stay as they are.
 - `(*Dialect).Features()` lists the features of the dialect, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
 - `MarshalResult(result)` writes the canonical JSON.
@@ -59,6 +61,8 @@ go test -race -run Concurrent ./...
 The tests read the shared cases in `../../tests/`. They run every engine and notation case, the core sample of the corpus and the fixpoint of the bootstrap. For an engine case whose grammar cannot be loaded, they also compare where the error stands, when the case gives it. An engine case with `parses` loads its dialect once and parses its input with each item's options in turn. An engine case that takes longer than 30 seconds fails, so that a hang is a failure. `GENCMU_CASE_TIMEOUT` sets this time, as a Go duration such as `2m`. They also compare `compiled.json` with a fresh reading, with the cache both used and bypassed.
 
 `TestCorpus` runs the core sample of the Lojban corpus (`../../tests/core.txt`) on as many goroutines as there are CPUs. The goroutines share one `*Dialect` for each dialect. `GENCMU_CORPUS=full` runs every case of `../../tests/corpus/`, and `GENCMU_CORPUS_WORKERS` sets the number of goroutines.
+
+The shared and corpus runners also fail a result with the error `elision-witness-lost`, and each check of `elision-only` whose forest does not hold the witness of its chosen derivation (`tests/README.md`). They ask through a hook that a parse takes from an unexported field of `ParseOptions`, which no caller can set (`check.go`, `witness_test.go`). The library's own tests lose the witness on purpose through the same field, and check the form of the error.
 
 `TestRankingProperty` compares the ranking with a brute-force enumeration of every derivation of small random grammars. To run a larger sweep, run this command:
 
