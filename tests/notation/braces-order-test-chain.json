@@ -1,0 +1,10 @@
+{
+  "description": "A test after braces is an error at the test, before the braces and what they hold (engine §9).",
+  "document": "```jbogenbau\n%rule a {... $c(B)}=\"b\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 20
+    }
+  }
+}

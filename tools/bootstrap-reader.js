@@ -23,9 +23,20 @@ const SYMBOLS = ["...", "..", "++", "+", "|", "&", "(", ")", "[", "]", "{", "}",
 const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%tags", "%conditions", "%emits", "%opaque",
   "%ambiguity-resolution", "%stage", "%include", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
 
-function fail(message, token) {
+// The reader reports a syntax error before any other error of the document,
+// wherever each stands, as the notation's reader does, which reads only a
+// tree that the syntax grammar gave (engine §9). So a document with another
+// error is read again with only its syntax checked: there, an error of any
+// other kind does not end the reading, except inside an attempt, whose
+// failure decides how the parser reads on.
+let syntaxOnly = false;
+let attempts = 0;
+
+function fail(message, token, syntax = false) {
   const error = new Error(message);
   error.at = token ? token.at : null;
+  error.syntax = syntax;
+  if (syntaxOnly && !syntax && attempts === 0) return { tag: "X" };
   throw error;
 }
 
@@ -42,7 +53,7 @@ function lex(text, positions) {
     if (c === "(" && chars[i + 1] === "*") {
       let j = i + 2;
       while (j < chars.length && !(chars[j] === "*" && chars[j + 1] === ")")) j++;
-      if (j >= chars.length) fail("an unclosed comment", { at: at(i) });
+      if (j >= chars.length) fail("an unclosed comment", { at: at(i) }, true);
       i = j + 2;
       continue;
     }
@@ -54,7 +65,7 @@ function lex(text, positions) {
       while (j < chars.length && isNameChar(chars[j])) j++;
       const name = chars.slice(negated ? i + 1 : i, j).join("");
       if (chars[j] === "?" || chars[j] === "!") {
-        if (negated && chars[j] === "!") fail("a warning has no negated form", { at: at(j) });
+        if (negated && chars[j] === "!") fail("a warning has no negated form", { at: at(j) }, true);
         tokens.push({ kind: "guard", text: chars.slice(i, j + 1).join(""), at: at(start), name });
         i = j + 1;
         continue;
@@ -67,7 +78,7 @@ function lex(text, positions) {
     }
     if (c === "~") {
       i++;
-      if (!isLetter(chars[i] || "")) fail("a name after ~", { at: at(start) });
+      if (!isLetter(chars[i] || "")) fail("a name after ~", { at: at(start) }, true);
       while (i < chars.length && isNameChar(chars[i])) i++;
       tokens.push({ kind: "tag", text: chars.slice(start, i).join(""), at: at(start) });
       continue;
@@ -78,7 +89,7 @@ function lex(text, positions) {
     if (c === "'" && chars[i + 1] === "\\" && chars[i + 2] === "p") {
       i += 3;
       while (i < chars.length && chars[i] !== "'") i += chars[i] === "\\" ? 2 : 1;
-      if (i >= chars.length) fail("an unclosed property", { at: at(start) });
+      if (i >= chars.length) fail("an unclosed property", { at: at(start) }, true);
       i++;
       tokens.push({ kind: "property", text: chars.slice(start, i).join(""), at: at(start) });
       continue;
@@ -86,7 +97,7 @@ function lex(text, positions) {
     if (c === "'") {
       i++;
       while (i < chars.length && chars[i] !== "'") i += chars[i] === "\\" ? 2 : 1;
-      if (i >= chars.length) fail("an unclosed character tag", { at: at(start) });
+      if (i >= chars.length) fail("an unclosed character tag", { at: at(start) }, true);
       i++;
       tokens.push({ kind: "character", text: chars.slice(start, i).join(""), at: at(start) });
       continue;
@@ -94,7 +105,7 @@ function lex(text, positions) {
     if (c === '"') {
       i++;
       while (i < chars.length && chars[i] !== '"') i += chars[i] === "\\" ? 2 : 1;
-      if (i >= chars.length) fail("an unclosed string", { at: at(start) });
+      if (i >= chars.length) fail("an unclosed string", { at: at(start) }, true);
       i++;
       tokens.push({ kind: "string", text: chars.slice(start, i).join(""), at: at(start) });
       continue;
@@ -108,17 +119,17 @@ function lex(text, positions) {
       i++;
       const nameStart = i;
       // `$` alone is the whole constituent; a keyword needs a name.
-      if (!isLetter(chars[i] || "") && c !== "$") fail(`a name after ${c}`, { at: at(start) });
+      if (!isLetter(chars[i] || "") && c !== "$") fail(`a name after ${c}`, { at: at(start) }, true);
       while (i < chars.length && isNameChar(chars[i])) i++;
       const text = chars.slice(start, i).join("");
-      if (c === "%" && !KEYWORDS.has(text)) fail(`an unknown keyword ${text}`, { at: at(start) });
+      if (c === "%" && !KEYWORDS.has(text)) fail(`an unknown keyword ${text}`, { at: at(start) }, true);
       // `$` and a name with a capital is a constant (engine §2).
       const kind = c === "$" ? (isCapital(chars[nameStart] || "") ? "constant" : "capture") : text;
       tokens.push({ kind, text, at: at(start), name: chars.slice(nameStart, i).join("") });
       continue;
     }
     const symbol = SYMBOLS.find((s) => chars.slice(i, i + [...s].length).join("") === s);
-    if (!symbol) fail(`unexpected character ${c}`, { at: at(i) });
+    if (!symbol) fail(`unexpected character ${c}`, { at: at(i) }, true);
     tokens.push({ kind: symbol, text: symbol, at: at(start) });
     i += [...symbol].length;
   }
@@ -193,21 +204,50 @@ class Parser {
     // How many braces the parser is inside, where no capture stands, and
     // the chains of the alternative being read, each with its `{`.
     this.braces = 0;
-    this.chains = [];
     // How many elidable optionals the parser is inside, where no capture
     // stands either, and the token of each capture of the alternative.
     this.marked = 0;
     this.captureTokens = new Map();
+    // How many groups, optionals, braces and captures the parser is
+    // inside, and where the expression of the alternative begins: a chain
+    // is that whole expression, or misplaced.
+    this.nest = 0;
+    this.start = 0;
   }
   peek(offset = 0) { return this.tokens[this.index + offset]; }
   is(kind, offset = 0) { const t = this.peek(offset); return t !== undefined && t.kind === kind; }
   take(kind) {
     const token = this.peek();
-    if (!token || (kind && token.kind !== kind)) fail(`expected ${kind || "more"}`, token || { at: this.endAt });
+    if (!token || (kind && token.kind !== kind)) fail(`expected ${kind || "more"}`, token || { at: this.endAt }, true);
     this.index++;
     return token;
   }
   accept(kind) { if (this.is(kind)) { this.index++; return true; } return false; }
+
+  // The index of the token that closes the (, [ or { at `index`.
+  closing(index) {
+    let depth = 0;
+    for (let i = index; i < this.tokens.length; i++) {
+      const kind = this.tokens[i].kind;
+      if (kind === "(" || kind === "[" || kind === "{") depth++;
+      else if (kind === ")" || kind === "]" || kind === "}") depth--;
+      if (depth === 0) return i;
+    }
+    return this.tokens.length;
+  }
+
+  // Whether the tokens from `from` to `to`, not inside any (, [ or {
+  // between them, hold one of `kinds`.
+  holdsAtTop(from, to, kinds) {
+    let depth = 0;
+    for (let i = from; i < to; i++) {
+      const kind = this.tokens[i].kind;
+      if (kind === "(" || kind === "[" || kind === "{") depth++;
+      else if (kind === ")" || kind === "]" || kind === "}") depth--;
+      else if (depth === 0 && kinds.includes(kind)) return true;
+    }
+    return false;
+  }
 
   document() {
     const rules = [];
@@ -258,7 +298,7 @@ class Parser {
         }
         implications.push({ if: sides[0], then: sides[1], at: token.at });
       } else {
-        fail("expected a rule or a directive", token);
+        fail("expected a rule or a directive", token, true);
       }
     }
     return { format: DOM_FORMAT, rules, directives, constants, classifiers, implications };
@@ -288,9 +328,9 @@ class Parser {
         keys.push(key);
       } while (this.is("string"));
       const op = this.take();
-      if (op.kind !== "∈" && op.kind !== "∉") fail("expected ∈ or ∉", op);
+      if (op.kind !== "∈" && op.kind !== "∉") fail("expected ∈ or ∉", op, true);
       const written = this.take();
-      if (written.kind !== "identifier" && written.kind !== "tag") fail("expected a class", written);
+      if (written.kind !== "identifier" && written.kind !== "tag") fail("expected a class", written, true);
       const className = written.kind === "tag" ? written.text.slice(1) : written.text;
       if (!isCapital(className)) fail("a class begins with a capital", written);
       entries.push({ guards, keys, op: op.kind, class: className, at: first.at });
@@ -335,8 +375,8 @@ class Parser {
       const token = this.take();
       guards.push({ feature: token.name, kind: token.text.endsWith("!") ? "warning" : "gate", negated: token.text.startsWith("¬") });
     }
-    this.chains = [];
     this.captureTokens = new Map();
+    this.start = this.index;
     const alternative = { guards, expr: this.conjunction() };
     // A name stands at most once in each production (engine §3.5, §9).
     const twice = captureSequences(alternative.expr).duplicates.map((capture) => this.captureTokens.get(capture));
@@ -344,9 +384,6 @@ class Parser {
       const first = twice.reduce((a, b) => (b.at[0] < a.at[0] || (b.at[0] === a.at[0] && b.at[1] < a.at[1]) ? b : a));
       fail("a capture name is read twice by one production", first);
     }
-    // A chain is the whole expression of its alternative (engine §9).
-    const misplaced = this.chains.find((chain) => chain.grouped || chain.expr !== alternative.expr);
-    if (misplaced) fail("a chain is the whole expression of its alternative", misplaced.token);
     if (this.is("<")) alternative.tags = this.angleTerm();
     return alternative;
   }
@@ -370,54 +407,77 @@ class Parser {
 
   // An optional, or with `+` or `++` an elidable one, whose terminator
   // stands directly after the marker, with no group around it, and which
-  // joins it to nothing with | or & (engine §3.8, §9).
+  // joins it to nothing with | or & (engine §3.8, §9). As the notation's
+  // reader does, it checks the optional's form first, then the test on its
+  // terminator, and then what it holds, in the order written.
   optional() {
     const open = this.take("[");
     const marker = this.is("+") || this.is("++") ? this.take().kind : null;
+    this.nest++;
     if (!marker) {
       const inner = this.choice();
       this.take("]");
+      this.nest--;
       return { optional: inner };
     }
     const first = this.peek();
-    if (!first || !((first.kind === "identifier" && isCapital(first.text)) || first.kind === "tag")) fail("an elidable optional begins with its terminator", first && (first.kind === "+" || first.kind === "++") ? first : open);
+    // A second marker is a syntax error, as the notation's grammar reads it.
+    if (first && (first.kind === "+" || first.kind === "++")) fail("an optional has one marker", first, true);
+    const close = this.closing(this.index - 2);
+    const terminal = first && ((first.kind === "identifier" && isCapital(first.text)) || first.kind === "tag");
+    if (!terminal || this.holdsAtTop(this.index, close, ["|", "&"])) fail("an elidable optional begins with its terminator, and joins it to nothing with | or &", open);
     const testToken = this.peek(1);
+    if (testToken && ["≠", "⊇", "⊉", "∩"].includes(testToken.kind)) fail("the terminator of an elidable optional takes no test but =", testToken);
     this.marked++;
     const inner = this.choice();
     this.marked--;
     this.take("]");
-    const head = inner.seq ? inner.seq[0] : inner;
-    if (head.test !== undefined && head.test !== "=") fail("the terminator of an elidable optional takes no test but =", testToken);
+    this.nest--;
     if (elidableHead(inner) === null) fail("an elidable optional begins with its terminator, and joins it to nothing with | or &", open);
     return marker === "++" ? { optional: inner, elidable: true, maximal: true } : { optional: inner, elidable: true };
   }
 
   // Braces: `{x}`, `{x \ s}`, and the chains `{... x \ s}` and
-  // `{x ... \ s}` (engine §9).
+  // `{x ... \ s}` (engine §9). Before what they hold, the braces of a
+  // chain must be the whole expression of their alternative.
   repetition() {
+    const openIndex = this.index;
     const open = this.take("{");
+    const close = this.closing(openIndex);
+    if (this.holdsAtTop(openIndex + 1, close, ["..."])) {
+      const after = this.tokens[close + 1];
+      const ends = after === undefined || after.kind === "|" || after.kind === "<" || after.kind.startsWith("%");
+      if (this.nest > 0 || openIndex !== this.start || !ends) fail("a chain is the whole expression of its alternative", open);
+    }
     let chain = this.accept("...") ? "left" : null;
     this.braces++;
+    this.nest++;
     const item = this.choice();
     if (this.is("...")) {
-      if (chain) fail("braces have one chain marker ... at most", this.peek());
+      if (chain) fail("braces have one chain marker ... at most", this.peek(), true);
       this.index++;
       chain = "right";
     }
     const separator = this.accept("\\") ? this.choice() : undefined;
     this.braces--;
+    this.nest--;
     this.take("}");
     const expr = { repeat: item };
     if (separator !== undefined) expr.separator = separator;
-    if (chain) {
-      expr.chain = chain;
-      this.chains.push({ expr, token: open });
-    }
+    if (chain) expr.chain = chain;
     return expr;
   }
 
   primary() {
     const token = this.peek();
+    // A test after a group, an optional, braces or a capture is refused
+    // before what they hold, as the notation's reader does (engine §9).
+    if (token && ["(", "[", "{", "capture"].includes(token.kind)) {
+      const after = this.tokens[this.closing(token.kind === "capture" ? this.index + 1 : this.index) + 1];
+      if (after && ["=", "≠", "⊇", "⊉", "∩"].includes(after.kind)) {
+        fail("a test follows only a reference other than # or a terminal, not a group, an optional, braces, a capture, ε, # or another test", after);
+      }
+    }
     let expr = this.symbol();
     // A reference other than # or a terminal may take one test on its own
     // span; the reader refuses a test after anything else (engine §2, §9).
@@ -452,13 +512,13 @@ class Parser {
       this.index++;
       return { tag: token.text };
     }
-    if (token && token.kind === "capture") fail("expected a term", token);
+    if (token && token.kind === "capture") fail("expected a term", token, true);
     return this.termAtom();
   }
 
   symbol() {
     const token = this.peek();
-    if (!token) fail("expected an expression", { at: this.endAt });
+    if (!token) fail("expected an expression", { at: this.endAt }, true);
     switch (token.kind) {
       case "identifier": this.index++; return { ref: token.text };
       case "character":
@@ -473,31 +533,31 @@ class Parser {
         if (this.marked > 0) fail("a capture cannot stand inside an elidable optional", token);
         if (token.name === "") fail("$ is the whole constituent and wraps nothing", token);
         this.take("(");
+        this.nest++;
         // A capture wraps one symbol, never a group, an optional or braces,
         // even of one symbol (engine §9).
         if (["(", "[", "{"].includes((this.peek() || {}).kind)) fail("a capture wraps one symbol", token);
         const inner = this.primary();
         this.take(")");
+        this.nest--;
         if (inner.ref === undefined && inner.terminal === undefined && inner.test === undefined && inner.range === undefined && inner.property === undefined) fail("a capture wraps one symbol", token);
         const capture = { capture: token.name, expr: inner };
         this.captureTokens.set(capture, token);
         return capture;
       }
       case "(": {
-        // A group makes no node, so a chain inside it is marked here, while
-        // the reader still sees the parentheses (engine §9).
         this.index++;
-        const before = this.chains.length;
+        this.nest++;
         const inner = this.choice();
         this.take(")");
-        for (const chain of this.chains.slice(before)) chain.grouped = true;
+        this.nest--;
         return inner;
       }
       case "[": return this.optional();
       case "{": return this.repetition();
       case "#": this.index++; return { ref: "#" };
       case "ε": this.index++; return { empty: true };
-      default: fail("expected an expression", token);
+      default: fail("expected an expression", token, true);
     }
   }
 
@@ -547,7 +607,7 @@ class Parser {
     else if (token.kind === "property" || (token.kind === "character" && this.is(".."))) fail("an inserted item is one tag, not a range or a property", token);
     else if (token.kind === "tag" || token.kind === "character" || token.kind === "phoneme") item = { insert: tagOf(token) };
     else if (token.kind === "identifier" && isCapital(token.text)) item = { insert: token.text };
-    else fail("expected a capture or a tag after %emits", token);
+    else fail("expected a capture or a tag after %emits", token, true);
     if (this.is("<")) {
       if (item.insert !== undefined) fail("an inserted tag takes no tags of its own", token);
       item.tags = this.angleTerm();
@@ -564,12 +624,15 @@ class Parser {
   // Tries a parse, and rewinds if it fails.
   attempt(parse) {
     const saved = this.index;
+    attempts++;
     try {
       return parse();
     } catch (error) {
       void error;
       this.index = saved;
       return undefined;
+    } finally {
+      attempts--;
     }
   }
 
@@ -632,7 +695,7 @@ class Parser {
     }
     const left = this.union();
     const op = this.take();
-    if (!COMPARATORS.includes(op.kind)) fail("expected a comparison", op);
+    if (!COMPARATORS.includes(op.kind)) fail("expected a comparison", op, true);
     const right = this.union();
     return { op: op.kind, left, right };
   }
@@ -678,7 +741,7 @@ class Parser {
 
   termAtom() {
     const token = this.peek();
-    if (!token) fail("expected a term", { at: this.endAt });
+    if (!token) fail("expected a term", { at: this.endAt }, true);
     switch (token.kind) {
       case "string": this.index++; return { string: decodeString(token.text, token) };
       case "character":
@@ -696,7 +759,7 @@ class Parser {
         if (!isCapital(token.text)) fail("a rule is not a value", token);
         this.index++;
         return { tag: token.text };
-      default: fail("expected a term", token);
+      default: fail("expected a term", token, true);
     }
   }
 
@@ -739,7 +802,25 @@ class Parser {
 export function readDocument(markdown, path) {
   const { text, positions } = extractGrammarText(markdown, path);
   const tokens = lex(text, positions);
-  const parser = new Parser(tokens);
-  parser.endAt = positions.length ? positions[positions.length - 1] : [1, 1];
-  return parser.document();
+  const parse = () => {
+    const parser = new Parser(tokens);
+    parser.endAt = positions.length ? positions[positions.length - 1] : [1, 1];
+    return parser.document();
+  };
+  try {
+    return parse();
+  } catch (error) {
+    if (error.syntax) throw error;
+    // Another error: a syntax error anywhere in the document comes first.
+    syntaxOnly = true;
+    try {
+      parse();
+    } catch (syntax) {
+      if (syntax.syntax) throw syntax;
+    } finally {
+      syntaxOnly = false;
+      attempts = 0;
+    }
+    throw error;
+  }
 }

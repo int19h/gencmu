@@ -1,0 +1,10 @@
+{
+  "description": "Several productions read a name twice, at different second captures: $y(C) in the production B C, and $x(D) in A D. The error is at the one that stands first in the text, $y(C) (engine §9).",
+  "document": "```jbogenbau\n%rule a ($x(A) | $y(B)) ($y(C) | $x(D))\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 26
+    }
+  }
+}

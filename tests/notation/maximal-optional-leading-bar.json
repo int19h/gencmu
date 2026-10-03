@@ -1,0 +1,10 @@
+{
+  "description": "A leading | in an optional marked ++ is an error at the [ (engine §9).",
+  "document": "```jbogenbau\n%rule a [++| TOI]\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

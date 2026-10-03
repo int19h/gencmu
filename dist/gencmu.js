@@ -9242,8 +9242,12 @@
       const choice = only(node, "choice");
       if (markers.length === 0) return { optional: readExpression(choice) };
       const form = "an elidable optional begins with its terminator, a name with a capital or ~name, written directly after the marker, and joins it to nothing with | or &";
+      // One conjunction of one sequence, with no leading | or & either: the
+      // terminator stands directly after the marker (engine §9).
       const conjunctions = ofRule(choice, "conjunction");
-      const sequences = conjunctions.length === 1 ? ofRule(conjunctions[0], "sequence") : [];
+      const leading = parts(choice).some((child) => tokenText(child) === "|") ||
+        (conjunctions.length === 1 && parts(conjunctions[0]).some((child) => tokenText(child) === "&"));
+      const sequences = conjunctions.length === 1 && !leading ? ofRule(conjunctions[0], "sequence") : [];
       const primary = sequences.length === 1 ? ofRule(sequences[0], "primary")[0] : undefined;
       const head = primary ? knownOf(primary, PRIMARIES) : undefined;
       /** @type {(symbol: RuleNode) => boolean} */
