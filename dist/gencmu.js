@@ -764,6 +764,9 @@
   //   processed while strict.
   // - "lost:roots" and "lost:count" lose the witness after recognition
   //   (engine §7.9).
+  // - "lost:rank" gives a restoration no derivation in the ranking, so the
+  //   check's ranking does not count W(D) though its chart holds it. Only the
+  //   witness hook sees that W(D) is gone where other readings remain.
   // - "order:tags" evaluates a completing item's tag term before its
   //   conditions, and "order:conditions" evaluates the conditions that read
   //   only captures before those that read `$`, against the order of one step
@@ -796,7 +799,9 @@
    * @property {import("./earley.js").Chart} chart the recognition of R
    * @property {import("./types.js").Item[]} roots the completed items of
    *   `text` over R
-   * @property {boolean} counted whether the ranking of the check counted a
+   * @property {(roots: import("./earley.js").Item[]) => import("./rank.js").Ranking | null} rank
+   *   the check's own ranking of a part of its forest, whose roots are given,
+   *   in the cycle contexts of the whole forest: null where it counts no
    *   derivation
    * @property {boolean[]} synthetic for each token of R, whether it is
    *   synthetic, by its provenance
@@ -6074,6 +6079,7 @@
 
 
 
+
   /**
    * @import { Action, Derivation, Item, Lean, Production, ReadAction, Rope, RopeConcat, RopeLeaf, Token } from "./types.js"
    * @import { Maximal } from "./maximal.js"
@@ -6536,7 +6542,9 @@
           if (edge.kind === "seed") produced = [{ seq: EMPTY, alts: [], at: Infinity }];
           // A restoration reads its synthetic token, and its own close
           // follows (engine §7.4, §7.7).
-          else if (edge.kind === "restore") produced = [{ seq: this.readLeaf(edge.token, edge.terminal), alts: [], at: Infinity }];
+          // A fault gives a restoration no derivation in the ranking
+          // (lost:rank), here and in the summaries and the counts below.
+          else if (edge.kind === "restore") produced = fault("lost:rank") ? [] : [{ seq: this.readLeaf(edge.token, edge.terminal), alts: [], at: Infinity }];
           else if (edge.kind === "scan") {
             const read = this.readLeaf(edge.token, edge.terminal);
             produced = dependency(edge.previous).all.map((entry) => extend(entry, read));
@@ -6589,6 +6597,7 @@
           let least;
           let total;
           let permitted = true;
+          if (edge.kind === "restore" && fault("lost:rank")) return;
           if (edge.kind === "seed" || edge.kind === "restore") {
             // The helper of an elidable optional that derives ε elides its
             // terminator where it is empty. A restoration elides nothing.
@@ -6788,6 +6797,7 @@
         let allowed = 0;
         for (const edge of current.edges) {
           let ways;
+          if (edge.kind === "restore" && fault("lost:rank")) continue;
           if (edge.kind === "seed" || edge.kind === "restore") ways = 1;
           else if (edge.kind === "scan") ways = dependency(edge.previous).all;
           else {
@@ -7029,10 +7039,14 @@
     // diverges from the first earliest, and the witness.
     /**
      * @param {Item[]} roots
+     * @param {Item[]} [groupsOf] the roots whose forest gives the rules'
+     *   groups, and so the contexts of cycles: by default `roots`. The witness
+     *   hook of the check ranks a part of a forest in the contexts of the
+     *   whole.
      * @returns {Ranking | null} null when every derivation is cyclic
      */
-    rank(roots) {
-      this.groupRules(roots);
+    rank(roots, groupsOf = roots) {
+      this.groupRules(groupsOf);
       let count;
       let ranked = roots;
       let tied = false;
@@ -7713,7 +7727,10 @@
       // unless a fault finds them over projected spans (F19).
       const maximal = fault("F20") && (lowered.resolution.maximal || lowered.maximalTerminals.size > 0)
         ? maximalRule(chart, lowered, lowered.resolution.maximal) : null;
-      let ranking = roots.length === 0 ? null : new Ranker(restored, "none", maximal, fault("F19") ? project : null).rank(roots);
+      // The check's ranker: no lean, and cycles over spans of R (engine §7.7).
+      /** @type {(ranked: import("./earley.js").Item[]) => import("./rank.js").Ranking | null} */
+      const rankOf = (ranked) => ranked.length === 0 ? null : new Ranker(restored, "none", maximal, fault("F19") ? project : null).rank(ranked, roots);
+      let ranking = rankOf(roots);
       if (fault("lost:count")) ranking = null;
       if (fault("F23")) {
         // A fault leaves the main grammar in the mode of the check.
@@ -7721,7 +7738,7 @@
           lowered.byLhs.set(name, productions.filter((production) => !(production.rhs.length === 0 && production.helper && production.elided !== null)));
         }
       }
-      if (hooks.elisionCheck) hooks.elisionCheck({ chosen, chart, roots, counted: ranking !== null, synthetic, originalAt, recordAt });
+      if (hooks.elisionCheck) hooks.elisionCheck({ chosen, chart, roots, rank: (ranked) => fault("lost:count") ? null : rankOf(ranked), synthetic, originalAt, recordAt });
       if (ranking === null) return old ? { kind: "pass" } : { kind: "lost", completion: records };
       if (ranking.verdict !== "tie") return { kind: "pass" };
       // The readings, mapped to the stage's input (engine §7.10).
