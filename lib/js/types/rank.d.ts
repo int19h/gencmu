@@ -75,6 +75,8 @@ declare function totalOrder(left: Rope, right: Rope, lean: Lean): number;
 export type TraversalContext = Set<string>;
 export declare class Ranker {
     tokens: import("./tokens.js").Token[];
+    /** @type {(left: Item, right: Item) => boolean} */
+    sameSpan: (left: Item, right: Item) => boolean;
     elisions: boolean;
     /** @type {Lean} */
     lean: Lean;
@@ -109,8 +111,11 @@ export declare class Ranker {
      * @param {Lean} lean
      * @param {Maximal | null} [maximal] the resolution's maximal, if it has
      *   it (engine §4)
+     * @param {number[] | null} [project] positions to find cycles over in
+     *   place of the items' own, which only a fault of the check of engine
+     *   §7 gives (F19)
      */
-    constructor(tokens: Token[], lean: Lean, maximal?: Maximal | null);
+    constructor(tokens: Token[], lean: Lean, maximal?: Maximal | null, project?: number[] | null);
     /**
      * @param {Item} item
      * @returns {Candidate[]}
