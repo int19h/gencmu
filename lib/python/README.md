@@ -40,6 +40,8 @@ result = dialect.parse(text, features=(), without_features=(), auto_features=Tru
 
 A `text` with a lone surrogate raises `GencmuError` with `kind` `"usage"`. A text that does not parse is a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous` or `grammar`. An `ambiguous` error has a `reason` and two `readings`. The reason is `"tie"` where a stage has two or more best readings (`docs/engine.md`, §6). The stage then has the verdict `"tie"` and a `witness`, and it has no tree and no output. The reason is `"elision-only"` where the check of §7 fails. Here, `grammar` is for a defect of a grammar found only while parsing. An example is a classifier's entry that adds a class that a key already has, under the features of the parse. The message of that error names the document, line and column of the entry.
 
+An error of kind `grammar` whose `code` is `"elision-witness-lost"` marks a defect of the library, not of the text or the grammar. The check of `elision-only` lost the chosen derivation, which it must always find again (`docs/engine.md`, §7.9). Such an error also has `chosen`, the stage's chosen tree, and `completion`, the terminators that the check wrote back, in their order. Each of them is a `Restoration` with its `terminal`, its position `at` in the stage's input, the empty `source` of its elided node, and the `sound` of a terminator with an `=` test, or `None`. The stage keeps its verdict, `"resolved"`, and its warnings, but it has no output. No other error has a `code`, so its `code`, `chosen` and `completion` are `None`.
+
 For tests and tools, `Dialect.parse_tokens(tokens, text, ...)` takes pre-built tokens in place of the characters of the first stage. Such a token has its text as its label, whatever `label` it carries (`docs/engine.md`, §5). It cannot have attachments. A token whose `before` or `after` is not empty raises `GencmuError` with `kind` `"usage"`, and empty lists are dropped. The parse copies each token, so your tokens stay as they are.
 
 `dialect.features` lists the features of the dialect in code point order of their names, as a tuple of `Feature`. The list includes the gates of the entries of its classifiers. Each `Feature` has these fields:
@@ -54,7 +56,7 @@ You can use a dialect for any number of parses, and you can share it between thr
 
 ## The result
 
-`ParseResult`, `Stage`, `Node`, `Token`, `ParseError`, `ParseWarning`, `Action` and `Expected` are dataclasses. A tag set is a `frozenset[str]` of tags, each in its canonical spelling, such as `KOhA`, `/a/` or `'a'` (`docs/engine.md`, §1). A character token of the first stage carries one tag, its character tag.
+`ParseResult`, `Stage`, `Node`, `Token`, `ParseError`, `ParseWarning`, `Action`, `Expected` and `Restoration` are dataclasses. A tag set is a `frozenset[str]` of tags, each in its canonical spelling, such as `KOhA`, `/a/` or `'a'` (`docs/engine.md`, §1). A character token of the first stage carries one tag, its character tag.
 
 A `Token` has its `text`, `phonemes`, `label`, `tags`, `span` and `source`, and `inserted_by` for a token that an emission inserted. The `label` is what the token shows to people. A pause shows as a space. An opaque part, such as the body of a `zoi` quote, shows its text as written (`docs/engine.md`, §5 and §11). A character token's label is its text.
 
@@ -95,3 +97,7 @@ The wheel build needs `build` and setuptools, at build time only. To build the w
 ```sh
 python -m build
 ```
+
+### Tests of the check of elision-only
+
+`src/gencmu/_testing.py` holds a hook for the library's own tests, which the package does not export. The runners of the shared cases and of the corpus ask the hook, after each check of `elision-only`, whether the check's forest kept the witness of the chosen derivation (`tests/README.md`, `tests/witness.py`). `tests/test_elision_check.py` loses the witness on purpose and checks the form of the error `elision-witness-lost`.
