@@ -6,7 +6,7 @@ import (
 )
 
 // resultFormat is the version of docs/output.md.
-const resultFormat = 7
+const resultFormat = 8
 
 // MarshalResult writes the canonical JSON of a result (docs/output.md).
 func MarshalResult(result *ParseResult) ([]byte, error) {
@@ -243,6 +243,10 @@ func writeError(w *jsonWriter, e *ParseError) {
 		w.raw(`,"stage":`)
 		w.str(e.Stage)
 	}
+	if e.Code != "" {
+		w.raw(`,"code":`)
+		w.str(e.Code)
+	}
 	if e.Reason != "" {
 		w.raw(`,"reason":`)
 		w.str(e.Reason)
@@ -296,6 +300,30 @@ func writeError(w *jsonWriter, e *ParseError) {
 	}
 	w.raw(`,"message":`)
 	w.str(e.Message)
+	// The members of elision-witness-lost follow its message
+	// (docs/output.md).
+	if e.Code == CodeElisionWitnessLost {
+		w.raw(`,"chosen":`)
+		writeNode(w, e.Chosen)
+		w.raw(`,"completion":[`)
+		for i, r := range e.Completion {
+			if i > 0 {
+				w.raw(",")
+			}
+			w.raw(`{"terminal":`)
+			w.str(r.Terminal)
+			w.raw(`,"at":`)
+			w.int(r.At)
+			w.raw(`,"source":`)
+			w.pair(r.Source)
+			if r.tested {
+				w.raw(`,"sound":`)
+				w.str(r.Sound)
+			}
+			w.raw("}")
+		}
+		w.raw("]")
+	}
 	w.raw("}")
 }
 

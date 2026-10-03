@@ -454,3 +454,9 @@ func elidedSound(t *symTest) string {
 	}
 	return t.sound
 }
+
+// elidedTested says whether an elided terminator has an = test, whose
+// string is its saved sound (§7.2).
+func elidedTested(t *symTest) bool {
+	return t != nil && t.op == "="
+}
