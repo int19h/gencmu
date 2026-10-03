@@ -29,13 +29,18 @@
 // # Parsing
 //
 //	dialect, err := gencmu.LoadDialect("notation")
-//	result, err := dialect.Parse("%rule text A [B] ...", gencmu.ParseOptions{})
+//	result, err := dialect.Parse("%rule text A [{B}]", gencmu.ParseOptions{})
 //	if result.OK { fmt.Println(gencmu.Brackets(result, gencmu.BracketOptions{})) }
 //	data, err := gencmu.MarshalResult(result) // the canonical JSON
 //
 // A text that does not parse is a result whose OK is false and whose Error
 // says why: the input was rejected, was ambiguous under elision-only, or a
-// grammar defect showed while parsing. Parse returns an error only for a
+// grammar defect showed while parsing. A defect that lowering finds for the
+// features of the parse, such as a chain beside another alternative of its
+// rule or an item of braces that can match no tokens, is such an error of
+// kind grammar: the dialect loads, and the message begins with the
+// document, line and column of the definition at fault (engine §3).
+// Parse returns an error only for a
 // caller's mistake, such as an unknown stage in ParseOptions.Until.
 // ParseTokens feeds pre-built tokens to the first stage in place of the
 // text's characters; it is for tests and tools. Each of those tokens has

@@ -143,7 +143,7 @@ type braceItem struct {
 	rule  string
 }
 
-// helperNode is the helper of one place where [ ] or ... is written,
+// helperNode is the helper of one place where [ ] or flat { } is written,
 // with the helpers of the places written inside it.
 type helperNode struct {
 	rule     int32
@@ -538,10 +538,9 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 	}
 }
 
-// elidableTerminal is the terminal an optional's content is, or begins
-// with as a sequence, recursively (§3.8), and its tested node, if it is
-// tested; a choice or an & begins with none. A tested terminal is elidable
-// when its terminal is.
+// elidableTerminal is the terminal of an elidable optional, the content or
+// the first item of its sequence (§3.8), and its tested node, if it is
+// tested.
 func elidableTerminal(e *domExpr) (string, *domExpr) {
 	switch {
 	case e.Kind == exSeq:
@@ -556,8 +555,8 @@ func elidableTerminal(e *domExpr) (string, *domExpr) {
 
 // isTagSymbol says whether a symbol matches by a tag: a terminal, or a
 // reference whose name begins with a capital. A reference in lower case
-// names a rule, so %elidable never makes it a terminator, even one that
-// shares its name with an identifier tag (§2, §3.8).
+// names a rule, so it is never the terminator of an elidable optional,
+// even one that shares its name with an identifier tag (§2, §3.8).
 func isTagSymbol(e *domExpr) bool {
 	return e.Kind == exTerminal || e.Kind == exRef && isTerminalName(e.Name)
 }

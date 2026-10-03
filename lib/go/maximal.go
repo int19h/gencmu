@@ -3,8 +3,9 @@ package gencmu
 // Maximality (engine §4): an elided terminator is forbidden where its
 // constituent, the node before it, could have been longer. Stage-wide
 // maximal, of %ambiguity-resolution, restricts every elidable terminator in
-// the main parse. A maximal terminator, of %elidable maximal, restricts
-// itself in the main parse and in nested queries.
+// the main parse. A maximal terminator, the terminator of an optional
+// written [++T x], restricts itself in the main parse and in nested
+// queries (§3.8).
 
 // maximal is what the ranking asks of maximal, over one parse's chart.
 type maximal struct {
@@ -60,7 +61,7 @@ func (mx *maximal) elided(rule, start, end int32) bool {
 // guards says whether an item's next symbol is a restricted optional whose
 // elision the node before it can forbid: not at the start of a production,
 // and not after a production's first symbol when that is its own rule, what
-// a repetition has read so far.
+// left recursion, such as a left chain's, has read so far.
 func (mx *maximal) guards(it *item) bool {
 	rhs := it.prod.rhs
 	if it.dot == 0 || int(it.dot) == len(rhs) {
