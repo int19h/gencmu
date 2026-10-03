@@ -358,7 +358,7 @@ The check's recognizer keeps the strictness of its items (engine §7.4), which a
 
 For example, take `text → A body [+T] B` and `body → X | X B`. On `A X B`, the one complete parse uses `body → X` and elides `T`. `maximal` forbids that elision, because `body → X B` is longer, so the text is an error. Without `maximal`, every ranking rule accepts the one parse.
 
-`elision-only` parses again with the terminators written back. That can let another alternative match, or a test on a terminal read a written-back terminator. A ranking of the original parses sees neither. For example, take `text → a | b | c`, `a → A [T]`, `b → A [T] [T]` and `c → A T`. On `A`, `late-elision` prefers `a`, with one elided `T`, to `b`, with two. Written back, `A T` parses through both `a` and `c`, so `elision-only` reports the text.
+`elision-only` parses again with the terminators written back. That can let another alternative match, or a test on a terminal read a written-back terminator. A ranking of the original parses sees neither. For example, take `text → a | b | c`, `a → A [+T]`, `b → A [+T] [+T]` and `c → A T`. On `A`, `late-elision` prefers `a`, with one elided `T`, to `b`, with two. Written back, `A T` parses through both `a` and `c`, so `elision-only` reports the text.
 
 ### Nested queries and elided terminators
 
