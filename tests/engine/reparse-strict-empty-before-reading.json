@@ -1,0 +1,37 @@
+{
+  "description": "The chosen a0 elides T, so R is A T B. c's written [T r] reads the synthetic T, and its rest r must read. q can read by the grammar, through X, though nothing here reads it. So the strict item of r may advance over the empty p, and that advance makes the condition on $x ready. The condition is evaluated, and tag(\"\") ends the check with an error of the grammar, though every route-3 path through [T r] has an empty rest (engine §4, §7.4). Compare reparse-strict-empty-before-reading-control.",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T U\n%rule text a0 | c\n%rule a0 A [T] B\n%rule c A [T r] B [U]\n%rule r $x(p) q\n%conditions ~z ⊆ tag(text($x))\n%rule p ε | B\n%rule q ε | X",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "kind": "grammar",
+        "stage": "main"
+      }
+    }
+  }
+}

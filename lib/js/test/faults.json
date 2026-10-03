@@ -170,6 +170,15 @@
     "reparse-same-boundary-order.json": [
       "F27:order"
     ],
+    "reparse-strict-empty-before-reading-control.json": [
+      "F16"
+    ],
+    "reparse-strict-empty-before-reading.json": [
+      "F14"
+    ],
+    "reparse-strict-later-reading-symbol.json": [
+      "F14"
+    ],
     "reparse-strict-least-fixpoint.json": [
       "F30"
     ],
@@ -500,6 +509,8 @@
       "reparse-root-maximal-stage.json": "hook",
       "reparse-root-maximal-terminal.json": "hook",
       "reparse-same-boundary-order.json": "hook",
+      "reparse-strict-empty-before-reading-control.json": "result",
+      "reparse-strict-later-reading-symbol.json": "result+hook",
       "reparse-strict-least-fixpoint.json": "result",
       "reparse-strict-nested-route.json": "result",
       "reparse-strict-reclose-late.json": "hook",
@@ -532,6 +543,8 @@
       "step-order-tag-term-definition-check.json": "hook"
     },
     "F14": {
+      "reparse-strict-empty-before-reading.json": "result",
+      "reparse-strict-later-reading-symbol.json": "result",
       "reparse-strict-nested-route.json": "result",
       "reparse-synthetic-suffix-consumes-original.json": "result",
       "reparse-synthetic-suffix-consumes-synthetic.json": "result",
@@ -548,6 +561,7 @@
       "reparse-incompatible-terminal-sound.json": "result",
       "reparse-reference-sound-test.json": "result",
       "reparse-reference-tag-test.json": "result",
+      "reparse-strict-empty-before-reading-control.json": "result",
       "reparse-strict-least-fixpoint.json": "result",
       "reparse-strict-nested-route.json": "result",
       "reparse-strict-shared-prediction.json": "result",
@@ -563,6 +577,7 @@
       "step-order-tag-term-definition-check.json": "result"
     },
     "F16": {
+      "reparse-strict-empty-before-reading-control.json": "result",
       "reparse-strict-least-fixpoint.json": "result",
       "reparse-strict-nested-route.json": "result",
       "reparse-synthetic-suffix-empty-throwing.json": "result",
@@ -601,14 +616,17 @@
     },
     "F26:lost": {
       "reparse-competing-evaluation-error.json": "result",
-      "reparse-recursion-nested-cycle.json": "result"
+      "reparse-recursion-nested-cycle.json": "result",
+      "reparse-strict-empty-before-reading.json": "result"
     },
     "F26:relabel": {
       "reparse-competing-evaluation-error.json": "result",
-      "reparse-recursion-nested-cycle.json": "result"
+      "reparse-recursion-nested-cycle.json": "result",
+      "reparse-strict-empty-before-reading.json": "result"
     },
     "F27:bare": {
       "reparse-same-boundary-order.json": "result",
+      "reparse-strict-later-reading-symbol.json": "result",
       "reparse-synthetic-suffix-consumes-original.json": "result",
       "reparse-witness-hook-only.json": "result"
     },
@@ -670,6 +688,8 @@
       "reparse-root-maximal-stage.json": "result+hook",
       "reparse-root-maximal-terminal.json": "result+hook",
       "reparse-same-boundary-order.json": "result+hook",
+      "reparse-strict-empty-before-reading-control.json": "result+hook",
+      "reparse-strict-later-reading-symbol.json": "result+hook",
       "reparse-strict-least-fixpoint.json": "result+hook",
       "reparse-strict-nested-route.json": "result+hook",
       "reparse-strict-reclose-late.json": "result+hook",
@@ -762,6 +782,8 @@
       "reparse-root-maximal-stage.json": "result+hook",
       "reparse-root-maximal-terminal.json": "result+hook",
       "reparse-same-boundary-order.json": "result+hook",
+      "reparse-strict-empty-before-reading-control.json": "result+hook",
+      "reparse-strict-later-reading-symbol.json": "result+hook",
       "reparse-strict-least-fixpoint.json": "result+hook",
       "reparse-strict-nested-route.json": "result+hook",
       "reparse-strict-reclose-late.json": "result+hook",
