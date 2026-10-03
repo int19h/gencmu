@@ -484,7 +484,10 @@ impl<'a> Reader<'a> {
                         "a capture cannot stand inside an elidable optional, which elision restores as one unit",
                     ));
                 }
+                // Its token and its primary, then the checks of `$` and of
+                // the name, then the one known part of the primary (§9).
                 let capture = token()?;
+                let primary = self.one(inner, "primary")?;
                 if self.text(capture) == "$" {
                     return Err(self.error(capture, "$ is the whole constituent and wraps nothing"));
                 }
@@ -492,7 +495,6 @@ impl<'a> Reader<'a> {
                 if !is_capture_name(&name) {
                     return Err(self.error(capture, "a capture's name is all lower case"));
                 }
-                let primary = self.one(inner, "primary")?;
                 let wrapped = self.inner(primary, &PRIMARIES)?;
                 if rule_name(wrapped) == "constant-reference" {
                     return Err(self.error(wrapped, CONSTANT_IN_BODY));
@@ -520,12 +522,13 @@ impl<'a> Reader<'a> {
     /// group is still a node: one sequence, whose first primary is the
     /// terminal itself, `=`-tested or not.
     fn optional(&self, node: &'a Node, depth: usize) -> R<Expr> {
+        // Its required part first, then its markers (§9).
+        let choice = self.one(node, "choice")?;
         let markers: Vec<&Node> =
             Self::tokens_of(node).filter(|token| matches!(self.text(token), "+" | "++")).collect();
         if let Some(second) = markers.get(1) {
             return Err(self.error(second, "an optional has one marker + or ++ at most"));
         }
-        let choice = self.one(node, "choice")?;
         let Some(&marker) = markers.first() else {
             return Ok(Expr::Optional(Box::new(self.choice(choice, depth)?), Mark::Plain));
         };
@@ -626,8 +629,10 @@ impl<'a> Reader<'a> {
     /// span (engine §2, §9). The syntax grammar reads a test after any
     /// primary, so that the reader can name the reason.
     fn tested(&self, node: &'a Node, depth: usize) -> R<Expr> {
-        let symbol = self.inner(self.one(node, "primary")?, &PRIMARIES)?;
+        // Its test first, then its primary and the primary's one known part
+        // (§9).
         let test = self.one(node, "test")?;
+        let symbol = self.inner(self.one(node, "primary")?, &PRIMARIES)?;
         let kind = rule_name(symbol);
         if kind == "constant-reference" {
             return Err(self.error(symbol, CONSTANT_IN_BODY));
