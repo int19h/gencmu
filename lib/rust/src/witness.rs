@@ -1,13 +1,14 @@
 //! The private test hook of the check of `elision-only` (tests/README.md,
 //! engine §7.8, §7.9): whether a check kept W(D), the chosen derivation
-//! mapped to the reconstructed input, as a counted derivation of its
-//! forest; and two ways to lose that witness on purpose, after
+//! mapped to the reconstructed input, as a derivation of its forest that
+//! its own ranking counts; and two ways to lose that witness on purpose, after
 //! recognition. Nothing here is part of the documented API, and a parse
 //! that no test watches pays nothing for it.
 
 use std::cell::RefCell;
 
 use crate::earley::{test_holds, Cap, Chart, Item, Tok};
+use crate::fxhash::FxSet;
 use crate::lower::{Lowered, Sym};
 use crate::tags::{SetId, Tags};
 use crate::tree::{IKind, ITree};
@@ -28,7 +29,7 @@ pub enum Loss {
 pub struct ElisionCheckRun {
     /// The stage whose check it was.
     pub stage: String,
-    /// Whether the check's forest holds W(D) as a counted derivation.
+    /// Whether the check's chart holds W(D), and its own ranking counts it.
     pub keeps_witness: bool,
 }
 
@@ -113,17 +114,20 @@ pub(crate) struct CheckForest<'a> {
     pub empty: SetId,
 }
 
-/// Whether a check's forest holds W(D) as a counted derivation (engine
-/// §7.8): for each node of W(D), from the leaves up, a completed item of the
-/// node's production over the node's span of R, reached from the item of its
+/// The items of a check's chart that hold W(D) (engine §7.8), each by its
+/// set and its index there, or `None` where the chart does not hold it: for
+/// each node of W(D), from the leaves up, a completed item of the node's
+/// production over the node's span of R, reached from the item of its
 /// production at its origin through items that read exactly the node's
 /// children, as the ranking links them, tests included. A read is of the
 /// original token that D reads, found by its provenance. An elided
 /// terminator of D is the restoration of its helper over its own synthetic
-/// token. W(D) is not cyclic, since D is not, so such items count.
-pub(crate) fn keeps_witness(forest: &CheckForest, chosen: &ITree) -> bool {
+/// token. The check's own ranking of the chart restricted to these items
+/// must then count a derivation, since a faulty ranker can lose W(D) from a
+/// chart that holds it. The walk pins the shape of W(D), not its tags.
+pub(crate) fn witness_items(forest: &CheckForest, chosen: &ITree) -> Option<FxSet<(u32, u32)>> {
     if !forest.rooted {
-        return false;
+        return None;
     }
     let g = forest.g;
     let elided = |node: &IKind| match node {
@@ -154,16 +158,14 @@ pub(crate) fn keeps_witness(forest: &CheckForest, chosen: &ITree) -> bool {
                 Some(at == cursor && !forest.synthetic[at as usize])
             }
             ref kind if elided(kind) => {
-                let Some(&at) = forest.record_at.get(records) else {
-                    return false;
-                };
+                let &at = forest.record_at.get(records)?;
                 records += 1;
                 Some(at == cursor && forest.synthetic[at as usize])
             }
             _ => None,
         };
         match leaf {
-            Some(false) => return false,
+            Some(false) => return None,
             Some(true) => {
                 spans[index as usize] = (cursor, cursor + 1);
                 cursor += 1;
@@ -183,12 +185,14 @@ pub(crate) fn keeps_witness(forest: &CheckForest, chosen: &ITree) -> bool {
         }
     }
     if records != forest.record_at.len() || cursor as usize != forest.synthetic.len() {
-        return false;
+        return None;
     }
 
     // For each rule node of W(D), the indices of the completed items that
-    // derive it exactly, in the set at its end.
+    // derive it exactly, in the set at its end; and every item that the walk
+    // reaches, by set and index.
     let mut found: Vec<Vec<u32>> = vec![Vec::new(); count];
+    let mut items: FxSet<(u32, u32)> = FxSet::default();
     for &index in &order {
         let node = &chosen.nodes[index as usize];
         let IKind::Close { prod, .. } = node.kind else {
@@ -200,6 +204,7 @@ pub(crate) fn keeps_witness(forest: &CheckForest, chosen: &ITree) -> bool {
             // The restoration: the empty production's item from `start`,
             // in the set after it.
             found[index as usize] = at(end, Item { prod, dot: 0, origin: start, caps: 0 }).into_iter().collect();
+            items.extend(found[index as usize].iter().map(|&item| (end, item)));
             continue;
         }
         let production = &g.prods[prod as usize];
@@ -207,6 +212,7 @@ pub(crate) fn keeps_witness(forest: &CheckForest, chosen: &ITree) -> bool {
             .map(|_| Item { prod, dot: 0, origin: start, caps: 0 })
             .into_iter()
             .collect();
+        items.extend(at(start, Item { prod, dot: 0, origin: start, caps: 0 }).map(|item| (start, item)));
         for (position, &child) in node.children.iter().enumerate() {
             let (from, to) = spans[child as usize];
             let test = g.test(prod, position);
@@ -267,13 +273,15 @@ pub(crate) fn keeps_witness(forest: &CheckForest, chosen: &ITree) -> bool {
                     }
                 }
             }
+            items.extend(next.iter().filter_map(|&item| at(to, item)).map(|item| (to, item)));
             current = next;
         }
         found[index as usize] = current.into_iter().filter_map(|item| at(end, item)).collect();
     }
     let (start, end) = spans[0];
     let IKind::Close { prod, .. } = chosen.nodes[0].kind else {
-        return false;
+        return None;
     };
-    start == 0 && end as usize == forest.tokens.len() && g.prods[prod as usize].rule == g.start && !found[0].is_empty()
+    let whole = start == 0 && end as usize == forest.tokens.len() && g.prods[prod as usize].rule == g.start;
+    (whole && !found[0].is_empty()).then_some(items)
 }
