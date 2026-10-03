@@ -590,7 +590,7 @@ class RankingProperty(unittest.TestCase):
         case = load_case(SHARED / "engine" / "cycle-repeated-partial-item.json")
         dialect, error = load_case_dialect(case)
         assert dialect is not None, error
-        lowered = dialect.lowered(0, frozenset(), False)
+        lowered = dialect.lowered(0, frozenset())
         tokens, text = case_tokens(case)
         context = StageContext(lowered, tokens, text, dialect.unicode)
         context.count = count_roots
@@ -614,7 +614,7 @@ class RankingProperty(unittest.TestCase):
                 )
                 dialect, error = load_case_dialect({"grammar": grammar})
                 assert dialect is not None, error
-                lowered = dialect.lowered(0, frozenset(), False)
+                lowered = dialect.lowered(0, frozenset())
                 context = StageContext(lowered, [Token("a", frozenset(["A"]), (0, 1), (0, 1))], "a", dialect.unicode)
                 context.count = count_roots
                 forest = Parser(context).parse(lowered.rule_ids["text"])
@@ -699,7 +699,7 @@ class RankingProperty(unittest.TestCase):
             found = library_ranking(forest, lean, Maximal(forest, context) if maximal else None)
             self.assertEqual(found, expected, where)
             if lean != "none":
-                stage = StageRunner("main", lowered, lambda: lowered, tokens, text, unicode).run(False)
+                stage = StageRunner("main", lowered, tokens, text, unicode).run(False)
                 self.assertEqual(stage.verdict, expected["verdict"], f"the stage's verdict, {where}")
             verdicts[(lean, expected["verdict"])] = verdicts.get((lean, expected["verdict"]), 0) + 1
             if expected["verdict"] is None:
