@@ -356,7 +356,7 @@ The check's recognizer keeps the strictness of its items (engine §7.4), which a
 
 `late-elision` makes neither `maximal` nor `elision-only` redundant, so both keep their order and their meaning. `maximal` (below) removes a parse because of a longer constituent. That constituent need not fit any parse of the whole text. A ranking sees only parses of the whole text, so it cannot reproduce this rejection.
 
-For example, take `text → A body [T] B` and `body → X | X B`, with `T` elidable. On `A X B`, the one complete parse uses `body → X` and elides `T`. `maximal` forbids that elision, because `body → X B` is longer, so the text is an error. Without `maximal`, every ranking rule accepts the one parse.
+For example, take `text → A body [+T] B` and `body → X | X B`. On `A X B`, the one complete parse uses `body → X` and elides `T`. `maximal` forbids that elision, because `body → X B` is longer, so the text is an error. Without `maximal`, every ranking rule accepts the one parse.
 
 `elision-only` parses again with the terminators written back. That can let another alternative match, or a test on a terminal read a written-back terminator. A ranking of the original parses sees neither. For example, take `text → a | b | c`, `a → A [T]`, `b → A [T] [T]` and `c → A T`. On `A`, `late-elision` prefers `a`, with one elided `T`, to `b`, with two. Written back, `A T` parses through both `a` and `c`, so `elision-only` reports the text.
 
@@ -370,7 +370,7 @@ In Zantufa, `cy to roi toi klama` holds the parenthesis `to roi toi` after the l
 
 In the experimental dialect, `mi klama na to broda toi` has the same problem. The nested parse of a condition reads `na to broda` as a negated selbri, with `broda` taken from inside the parenthesis. With priority, the brackets output is `(mi [klama {na (to broda toi)}])`. camxes-exp also puts `broda` inside the parenthesis after `na`, and it closes `na` with an elided `ku`.
 
-The priority is a local commitment, not a proof that the shorter reading is impossible. Take `r → A c [T] T` and `c → B`, with `T` elidable, on `A B T`. Without priority, `r` leaves out `[T]` and reads the token as its last `T`. With priority, the token belongs to `[T]`, so the query fails.
+The priority is a local commitment, not a proof that the shorter reading is impossible. Take `r → A c [+T] T` and `c → B`, on `A B T`. Without priority, `r` leaves out `[+T]` and reads the token as its last `T`. With priority, the token belongs to `[+T]`, so the query fails.
 
 The window of a query is its span. A `matches` over a captured span does not look at a terminator written after the span. A `begins` with `from` or `after` already sees the rest of the input.
 
