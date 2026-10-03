@@ -204,6 +204,11 @@ pub fn matches(pattern: &Value, actual: &Value, path: &str) -> Result<(), String
     match (pattern, actual) {
         (Value::Object(members), Value::Object(_)) => {
             for (name, expected) in members {
+                // An error's message is the description for people, and the
+                // shared tests do not compare its wording (docs/output.md).
+                if name == "message" && path.ends_with(".error") {
+                    continue;
+                }
                 let here = format!("{path}.{name}");
                 match actual.get(name) {
                     Some(found) => matches(expected, found, &here)?,

@@ -294,7 +294,7 @@ impl Dialect {
             let classifiers = self.classifiers(stage, &on)?;
             lower(&self.stages[stage], &on, classifiers)
                 .map(Arc::new)
-                .map_err(|error| EngineError { message: error.message, rule: Some(error.rule) })
+                .map_err(|error| EngineError { message: error.message, rule: None })
         })
         .clone()
     }

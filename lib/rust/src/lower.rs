@@ -28,7 +28,7 @@ pub(crate) enum Characters {
 
 #[derive(Debug, Clone)]
 pub(crate) enum Span {
-    Cap(u8),
+    Cap(u32),
     /// `$`, the whole constituent: from the item's origin to its end.
     Whole,
     Head(Box<Span>),
@@ -100,11 +100,11 @@ pub(crate) enum LCond {
 pub(crate) enum LEmitItem {
     /// A capture, emitted over its part with the item's tags or the part's,
     /// with the captures of its attachments before it and after it (§11).
-    Cap(u8, Option<LTerm>, Box<[u8]>, Box<[u8]>),
+    Cap(u32, Option<LTerm>, Box<[u32]>, Box<[u32]>),
     /// An inserted tag, anchored at the start of the first written part of
     /// the capture item listed next after it, or at the constituent's end
     /// if none is.
-    Insert(String, Option<u8>),
+    Insert(String, Option<u32>),
 }
 
 #[derive(Debug, Clone)]
@@ -223,7 +223,7 @@ pub(crate) struct Prod {
     pub owner: u32,
     pub syms: Vec<Sym>,
     /// For each position, its capture slot.
-    pub cap_at: Vec<Option<u8>>,
+    pub cap_at: Vec<Option<u32>>,
     /// For each position, the id of its symbol's test in the grammar's
     /// `tests`, or `NO_TEST` (engine §4); empty when no symbol of the
     /// production is tested.
@@ -332,6 +332,13 @@ struct Lowerer<'a> {
     /// For each place of sugar being expanded, and the alternative itself at
     /// the bottom, the helpers of the places written inside it so far.
     places: Vec<Vec<usize>>,
+    /// Where the alternative being lowered was written: its definition's
+    /// document and position (§3).
+    written: (Arc<str>, (usize, usize)),
+    /// The item of each pair of braces, as its expansions' symbols, with
+    /// where its alternative was written, in the order lowering meets the
+    /// braces (§3.3).
+    brace_items: Vec<(Vec<Vec<Sym>>, Arc<str>, (usize, usize), u32)>,
 }
 
 fn product(mut left: Vec<Sequence>, right: &[Sequence]) -> Vec<Sequence> {
@@ -425,12 +432,20 @@ impl<'a> Lowerer<'a> {
     /// `s x` after `this` from the left, or `x s` before it from the right
     /// (§3.2, §3.3). The places inside the item come before those inside
     /// the separator.
-    fn braces(&mut self, item: &Expr, separator: Option<&Expr>, this: Sym, chain: Chain) -> Vec<Sequence> {
+    /// `this` is the chain's rule, or `None` for the helper of flat braces,
+    /// whose id follows those of the helpers inside it.
+    fn braces(&mut self, item: &Expr, separator: Option<&Expr>, this: Option<Sym>, chain: Chain) -> Vec<Sequence> {
+        // The braces are met before the braces inside them.
+        let met = self.brace_items.len();
+        self.brace_items.push((Vec::new(), self.written.0.clone(), self.written.1, self.owner));
         let items = self.expand(item);
+        self.brace_items[met].0 =
+            items.iter().map(|sequence| sequence.iter().map(|(sym, ..)| *sym).collect()).collect();
         let separators = match separator {
             Some(separator) => self.expand(separator),
             None => vec![Vec::new()],
         };
+        let this = this.unwrap_or(Sym::N((self.grammar.rules.len() + self.helpers.len()) as u32));
         let this: Vec<Sequence> = vec![vec![(this, None, None)]];
         let recursive = match chain {
             Chain::Left => product(product(this, &separators), &items),
@@ -474,6 +489,14 @@ impl<'a> Lowerer<'a> {
                 }
                 out
             }
+            // A plain optional that holds a capture expands in place, as
+            // `(ε | x)` would: first the empty sequence, then each expansion
+            // of `x` (§3.2).
+            Expr::Optional(inner, Mark::Plain) if holds_capture(inner) => {
+                let mut out = vec![Vec::new()];
+                out.extend(self.expand(inner));
+                out
+            }
             Expr::Optional(inner, mark) => {
                 self.enter();
                 let body = self.expand(inner);
@@ -488,12 +511,8 @@ impl<'a> Lowerer<'a> {
             // Flat braces are a helper, `h → x | h s x` (§3.2).
             Expr::Repeat(item, separator, _) => {
                 self.enter();
-                let id = Sym::N((self.grammar.rules.len() + self.helpers.len()) as u32);
-                let prods = self.braces(item, separator.as_deref(), id, Chain::Left);
-                // The helpers inside the braces are made first, so that the
-                // id is the helper's own.
+                let prods = self.braces(item, separator.as_deref(), None, Chain::Left);
                 let sym = self.helper(prods, None, false);
-                debug_assert_eq!(sym, id);
                 vec![vec![(sym, None, None)]]
             }
             Expr::Ref(name) => vec![vec![(self.symbol(name, true), None, None)]],
@@ -538,11 +557,22 @@ impl<'a> Lowerer<'a> {
     }
 }
 
+/// Whether an expression holds a capture, at any depth (§3.5).
+fn holds_capture(expr: &Expr) -> bool {
+    match expr {
+        Expr::Capture(..) => true,
+        Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => items.iter().any(holds_capture),
+        Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => holds_capture(inner),
+        Expr::Repeat(item, separator, _) => holds_capture(item) || separator.as_deref().is_some_and(holds_capture),
+        Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => false,
+    }
+}
+
 /// A term or condition that mentions a capture the production lacks.
 struct Missing;
 
 struct Scope<'a> {
-    names: &'a FxMap<String, u8>,
+    names: &'a FxMap<String, u32>,
     cap_pos: &'a [usize],
     rules: &'a std::collections::HashMap<String, usize>,
     /// The latest position of a capture mentioned so far.
@@ -659,11 +689,17 @@ struct Pending {
 }
 
 /// An error of the grammar found when it is lowered for a set of features
-/// (§3.3): the message, and the rule it is in.
+/// (§3): its message, which begins with the document, line and column of
+/// the definition that wrote the alternative at fault.
 #[derive(Debug, Clone)]
 pub(crate) struct LowerError {
     pub message: String,
-    pub rule: u32,
+}
+
+impl LowerError {
+    fn at(document: &str, (line, column): (usize, usize), message: String) -> LowerError {
+        LowerError { message: format!("{document}:{line}:{column}: {message}") }
+    }
 }
 
 /// Lowers a stage grammar for a set of features. The check of
@@ -683,6 +719,8 @@ pub(crate) fn lower(
         helpers: Vec::new(),
         owner: 0,
         places: Vec::new(),
+        written: (Arc::from(""), (0, 0)),
+        brace_items: Vec::new(),
     };
     // Each alternative's own productions, then its helpers in the order
     // their places are written, each followed at once by the helpers
@@ -706,14 +744,29 @@ pub(crate) fn lower(
                 })
             })
             .collect();
+        // A chain is the only alternative of its rule that the gates
+        // leave (§3.3); a %extend-rule can add another. This is reported
+        // before the rule's alternatives are lowered.
+        let chain = live.iter().find(|alternative| matches!(alternative.alternative.expr, Expr::Repeat(_, _, Some(_))));
+        if let Some(chain) = chain.filter(|_| live.len() > 1) {
+            return Err(LowerError::at(
+                &chain.document,
+                chain.at,
+                format!(
+                    "{} is a chain, which is the whole of its rule, but another alternative stands beside it",
+                    rule.name
+                ),
+            ));
+        }
         for (number, alternative) in live.iter().enumerate() {
             lowerer.places = vec![Vec::new()];
+            lowerer.written = (alternative.document.clone(), alternative.at);
             let own = |sequence| Slot::Own(Pending { rule: index as u32, sequence, source: Some((number, 0)) });
             let sequences = match &alternative.alternative.expr {
                 // A chain is recursion on the rule itself, with no helper
                 // (§3.3).
                 Expr::Repeat(item, separator, Some(chain)) => {
-                    lowerer.braces(item, separator.as_deref(), Sym::N(index as u32), *chain)
+                    lowerer.braces(item, separator.as_deref(), Some(Sym::N(index as u32)), *chain)
                 }
                 expr => lowerer.expand(expr),
             };
@@ -765,6 +818,34 @@ pub(crate) fn lower(
         }
     }
 
+    // An item of braces that can derive the empty sequence is an error
+    // (§3.3), decided over the structural grammar: every production made
+    // so far, helpers included, before a false condition removes any, with
+    // tests ignored. Every remaining alternative counts, reachable or not.
+    let mut nullable = vec![false; rules.len()];
+    let empty = |nullable: &[bool], syms: &[Sym]| {
+        syms.iter().all(|sym| matches!(sym, Sym::N(rule) if nullable[*rule as usize]))
+    };
+    loop {
+        let mut changed = false;
+        for pending in &order {
+            let syms: Vec<Sym> = pending.sequence.iter().map(|(sym, ..)| *sym).collect();
+            if !nullable[pending.rule as usize] && empty(&nullable, &syms) {
+                nullable[pending.rule as usize] = true;
+                changed = true;
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    for (items, document, at, owner) in &lowerer.brace_items {
+        if items.iter().any(|item| empty(&nullable, item)) {
+            let name = &grammar.rules[*owner as usize].name;
+            return Err(LowerError::at(document, *at, format!("an item of braces in {name} can match no tokens")));
+        }
+    }
+
     let terminals = std::mem::take(&mut lowerer.terminals);
     let characters = std::mem::take(&mut lowerer.characters);
     let mut prods = Vec::with_capacity(order.len());
@@ -780,8 +861,8 @@ pub(crate) fn lower(
         let mut names = FxMap::default();
         for (position, (_, name, _)) in pending.sequence.iter().enumerate() {
             if let Some(name) = name {
-                cap_at[position] = Some(cap_pos.len() as u8);
-                names.insert(name.clone(), cap_pos.len() as u8);
+                cap_at[position] = Some(cap_pos.len() as u32);
+                names.insert(name.clone(), cap_pos.len() as u32);
                 cap_pos.push(position);
             }
         }
@@ -922,7 +1003,7 @@ pub(crate) fn lower(
         // A production with one symbol and no tags has its symbol's tags:
         // the symbol is captured (§3.7).
         if production.tags.is_none() && production.syms.len() == 1 && production.cap_at[0].is_none() {
-            production.cap_at[0] = Some(production.cap_pos.len() as u8);
+            production.cap_at[0] = Some(production.cap_pos.len() as u32);
             production.cap_pos.push(0);
         }
         let number = prods.len() as u32;
