@@ -256,6 +256,20 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 		return root
 	}
 	readings := []*Node{mapTree(over.buildTree(r, res.first)), mapTree(over.buildTree(r, res.second))}
-	return &ParseError{Kind: ErrorAmbiguous, Stage: run.name, Reason: ReasonElisionOnly, Readings: readings,
+	// The witness, mapped to O as the readings are: a read of a synthetic
+	// token is an elided action at its record's position, and a close has
+	// the projection of its span (§7.10).
+	witness := make([]Action, 2)
+	for i, a := range res.witness {
+		switch {
+		case a.read && rc.synthetic[a.tok]:
+			witness[i] = Action{Elided: &ElidedAction{At: rc.project[a.tok], Terminal: g.terminals[a.term]}}
+		case a.read:
+			witness[i] = Action{Read: &ReadAction{Token: rc.project[a.tok], Terminal: g.terminals[a.term]}}
+		case a.prod != nil:
+			witness[i] = Action{Close: &CloseAction{Rule: a.prod.ruleName, Production: a.prod.num, Span: [2]int{rc.project[a.start], rc.project[a.end]}}}
+		}
+	}
+	return &ParseError{Kind: ErrorAmbiguous, Stage: run.name, Reason: ReasonElisionOnly, Readings: readings, Witness: witness,
 		Message: "stage " + run.name + ": the text is ambiguous even with every elided terminator written"}
 }
