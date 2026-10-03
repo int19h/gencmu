@@ -1,6 +1,6 @@
 {
-  "description": "$q captures only a restored T. It is still present and keeps its own tags ~mark, while head($q) and phonemes($q) see the empty original span. So tags($q) and tags(head($q)) differ (engine §7.5).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T U\n%rule text a | b | c\n%rule a A $q(q)\n%conditions $q ∧ ~mark ⊆ tags($q), tags(head($q)) = ∅, phonemes($q) = \"\"\n%rule q [T] <~mark>\n%rule b A [T] [U]\n%rule c A T",
+  "description": "$q captures only a restored T, whose saved sound is ta. It is still present and keeps its own tags ~mark, while head($q) and phonemes($q) see the empty original span: the sound of the synthetic T is not the sound of $q. So tags($q) and tags(head($q)) differ (engine §7.5).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T U\n%rule text a | b | c\n%rule a A $q(q)\n%conditions $q ∧ ~mark ⊆ tags($q), tags(head($q)) = ∅, phonemes($q) = \"\"\n%rule q [T=\"ta\"] <~mark>\n%rule b A [T=\"ta\"] [U]\n%rule c A T=\"ta\"",
   "tokens": [
     {
       "text": "a",
