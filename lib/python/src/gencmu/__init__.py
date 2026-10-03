@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from ._dialect import Dialect, load_dialect, load_dialect_file, load_dialect_sources
 from ._errors import GencmuError
-from ._model import Action, Expected, Feature, Node, ParseError, ParseResult, ParseWarning, Stage, Token
+from ._model import Action, Expected, Feature, Node, ParseError, ParseResult, ParseWarning, Restoration, Stage, Token
 from ._output import result_json, to_brackets, to_json
 
 __all__ = [
@@ -31,6 +31,7 @@ __all__ = [
     "ParseError",
     "ParseResult",
     "ParseWarning",
+    "Restoration",
     "Stage",
     "Token",
     "load_dialect",
