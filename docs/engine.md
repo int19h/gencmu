@@ -146,7 +146,7 @@ Lowering turns a grammar, given the set of enabled features, into a context-free
 
    Every level of a chain is then a constituent of `r`. The ranking sees its closes (§6), and the clauses of the alternative attach to its base productions and to its recursive productions alike (step 6). The default tags of step 7 come from each production as it stands. So without written tags, `r → x` has the tags of `x` where `x` expands to one symbol, and a recursive production has none.
 
-   An item of braces, flat or chain, that can derive the empty sequence is an error of the grammar. Lowering decides this over the productions that it makes for the enabled features, read as a context-free grammar without their tests and conditions. A separator can derive the empty sequence. So a list or a chain never has a derivation that repeats an empty item, and `[{x}]` derives the empty sequence in exactly one way.
+   An item of braces, flat or chain, that can derive the empty sequence is an error of the grammar. Lowering decides this over the structural grammar of the enabled features. That is every production that steps 1 to 5 make from the stitched stage, helpers included, before step 6 removes any production whose condition simplifies to false. Tests are ignored. So a production that a false condition removes still counts, and so does a production that a test can never pass. A rule that `text` cannot reach counts too, and lowering checks the braces of every remaining alternative, reachable or not. An alternative that a gate drops, and a definition that a later `%redefine-rule` replaces, do not count. An alternative that an `%extend-rule` adds counts like any other. Every implementation decides nullability in this phase, whatever order it builds its productions in. A separator can derive the empty sequence. So a list or a chain never has a derivation that repeats an empty item, and `[{x}]` derives the empty sequence in exactly one way.
 
    Lowering finds both errors of this step when it lowers the grammar for features that make them. It reports each one at the definition that wrote the alternative, as for any error of lowering. A gate or a `%extend-rule` can make either error depend on the features, and a warning guard never removes an alternative.
 
@@ -317,7 +317,7 @@ An elided terminator has no constituent in three cases:
 - It follows a terminal.
 - It is the second symbol of a production whose first symbol is that production's own left side. Such a production is a recursive production of flat braces or of a left chain (§3.2, §3.3), or a left-recursive production that the author wrote. In a recursive production of braces, the first symbol stands for what the braces read so far.
 
-So a terminator elided at the start of the first item of braces has no constituent, as the first symbol of its production. One elided at the start of each later item of `{x}`, or at the start of each separator of `{x \ s}` or of a left chain, has none either. In a right chain, `r → x s r`, a terminator elided at the start of `s` has the node of the last symbol of `x` as its constituent.
+Braces add no case of their own. The rule for the constituent and these three cases apply to the productions of §3 as lowering makes them, whatever the source wrote. So a terminator elided at the start of the first item of braces has no constituent, as the first symbol of its production. One elided at the start of each later item of `{x}`, or at the start of each separator of `{x \ s}` or of a left chain, has none either, as the second symbol after the initial self-reference. In a right chain, `r → x s r`, a terminator elided at the start of `s` follows the last symbol of the expansion of `x`. That symbol's node is its constituent, unless the symbol is a terminal, or unless `x` is the one symbol `r`, which makes the production start with its own left side.
 
 A PEG (parsing expression grammar) repetition such as `{[T] A}` reads its next item after what it read. It does not make what it read longer first.
 
@@ -736,7 +736,7 @@ The notation's syntax grammar names its constituents so that the reader can read
 | `choice` | `choice` of its `conjunction`s, or the one conjunction itself |
 | `conjunction` | `and` of its `sequence`s, or the one sequence itself |
 | `sequence` | `seq` of its `primary`s, or the one primary itself |
-| `repetition` | `repeat`, its first `choice`. `separator`, its second `choice`, if it has one. `chain`, `left` if a `...` token stands before its first `choice`, or `right` if one stands after it: `{"repeat":{"ref":"x"},"separator":{"ref":"s"},"chain":"left"}` |
+| `repetition` | `repeat`, its first `choice`. `separator`, its second `choice`, if it has one. `chain`, `left` if its marker stands before its first `choice`, or `right` if it stands after it: `{"repeat":{"ref":"x"},"separator":{"ref":"s"},"chain":"left"}`. A marker is a token `...` among its parts. The reader ignores a third and any later `choice`, as it ignores any part that it does not read |
 | `reference` | `ref`, the name, or `#` |
 | `tag` in a body | `terminal`, the name after `~` |
 | `character` in a body | `terminal`, the decoded character tag in its canonical spelling (§1) |
@@ -793,7 +793,7 @@ A node must have the parts that the reader reads from it. A node without one is 
 | `alternative` | a `conjunction` |
 | `choice`, `conjunction`, `sequence` | one or more `conjunction`, `sequence` and `primary` in turn |
 | `primary` | one known part: a `reference`, `tag`, `character`, `phoneme`, `range`, `property`, `tested`, `capture`, `group`, `optional`, `repetition`, `empty` or `constant-reference` |
-| `repetition` | one or two `choice`. A `...` token among its parts, before or after its first `choice`, is its marker |
+| `repetition` | one or more `choice`. The reader reads the first two. A `...` token among its parts is a marker |
 | `range` | two `character` |
 | `tested` | a `primary` and a `test` |
 | `test` | a `test-operand`. Its tokens make its comparator |
@@ -826,6 +826,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A `$` that wraps anything is an error.
 - A capture name used twice in one alternative is an error.
 - A test after anything but a reference other than `#` or a terminal is an error, reported at the test. So a test after a group, an optional, braces, a capture, `ε`, `#` or another test is an error. The syntax grammar permits a test after any primary.
+- A `repetition` with two or more markers is an error, reported at the second marker. A marker after its second `choice` is an error, reported at that marker, since the separator has no marker. The bundled syntax grammar never gives such a node, but a bootstrap of another notation can (`docs/api.md`). So every reader decides these cases the same way, and never by which marker it meets first.
 - A capture inside braces is an error, reported at the capture. A capture that wraps braces is an error by the first item of this list.
 - A chain, a `repetition` with a marker, that is not the whole expression of its alternative is an error, reported at its `{`. The whole expression is the alternative's `conjunction` when that is one `sequence` of one `primary`, the `repetition` itself. So a chain inside a group, an optional, other braces, a capture, a test, a sequence, a choice or `&` is an error, although a group makes no node of the DOM. The lowering of §3.3 makes sure that the chain's alternative is the only one of its rule.
 - A range whose start is above its end is an error, reported at the range.

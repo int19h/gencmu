@@ -136,7 +136,7 @@ A chain is the whole of its rule. That means two things. First, the chain is the
 
 The chain's alternative can still have guards and tags of its own, and its rule can have clauses. A chain can be optional, or part of a sequence, through a rule. Name the chain as a rule, and write the rule's name there, as in `[tag]`.
 
-An item of braces must read at least one token. An item that can match no tokens is an error of the grammar, found as the error above. So `{[x]}`, `{ε}` and `{#}` are errors, and so is `{r}` where `r` can match no tokens for the features of the parse. gencmu decides this from the rules alone, without their tests and conditions. A separator can match no tokens. So `{relative-clause \ [joik]}` reads relative clauses with or without `joik` between them. Since an item is never empty, `[{x}]` reads nothing in exactly one way.
+An item of braces must read at least one token. An item that can match no tokens is an error of the grammar, found as the error above. So `{[x]}`, `{ε}` and `{#}` are errors, and so is `{r}` where `r` can match no tokens for the features of the parse. gencmu decides this from the rules alone, as the gates and the stitching leave them, ignoring every test and condition. So a rule `r` whose only alternative is `ε` with a condition that never holds still makes `{r}` an error. An alternative that a gate drops does not count, and one that an `%extend-rule` adds does. A separator can match no tokens. So `{relative-clause \ [joik]}` reads relative clauses with or without `joik` between them. Since an item is never empty, `[{x}]` reads nothing in exactly one way.
 
 ### Lists in the tree
 
@@ -165,7 +165,13 @@ The clauses of the rule serve every level, as they serve every alternative:
 
 A chain cannot hold a capture, since a capture never stands inside braces (see "Captures"). So a clause can say nothing about a part of a chain, only about a level, `$`.
 
-A right chain is not the same as an optional suffix. In a rule `r`, the body `x [s r]` and the chain `{x ... \ s}` read the same words and give the same tree. But the level of one item is `x` alone in the chain, and `x` with an empty optional in the suffix. So that level has the tags of `x` in the chain, where `x` is one symbol, and none with the suffix, unless the rule writes tags. An elidable terminator that begins `s` also differs. In the chain, the last symbol of `x` stands before it and is its constituent. In the suffix, it has none (see "Elided terminators").
+A right chain is not the same as an optional suffix. In a rule `r`, the body `x [s r]` and the chain `{x ... \ s}` read the same words. But the level of one item is `x` alone in the chain, and `x` with an empty optional in the suffix. That makes three differences:
+
+- Where `s` begins with an elidable terminator, `[s r]` is itself an elidable optional (see "Directives"). Where the suffix is absent, it leaves an elided node, and `late-elision` counts it. The chain has no optional there, so it elides nothing. So a text can tie, or resolve otherwise, under `late-elision`, and `maximal` and `elision-only` see a different terminator.
+- That level has the tags of `x` in the chain, where `x` is one symbol, and none with the suffix, unless the rule writes tags.
+- Where `s` begins with an elidable optional `[T]`, the two place `[T]` differently. In the suffix, it starts the optional's content, so it has no constituent. In the chain, it follows `x`, and the rules of "Elided terminators" decide its constituent.
+
+Where `s` begins with neither, the two give the same tree.
 
 ## Feature guards
 
@@ -597,7 +603,7 @@ The forms and words stages are lazy. The word forms divide a run in one way only
 
 CLL permits eliding a terminator "if no grammatical ambiguity results", and says no more about how a parser decides that. By default, a stage decides it from the whole text. A stage that declares `maximal` decides it as a PEG does.
 
-An elided terminator ends the part of its alternative that is written just before it. That part is its *constituent*: a rule, an optional or braces, once parentheses are spelled out. In `le nanmu joi le ninmu`, the `ku` elided after `nanmu` ends the `sumti-tail` of `LE sumti-tail [KU #]`, which is `nanmu`. Some elided terminators have no constituent. These are the terminators elided directly after a terminal, at the start of their alternative, or at the start of the first item of braces. Inside braces, the start of each later item of `{x}`, and the start of each separator of `{x \ s}` or of a left chain, has no constituent either. What the braces read so far stands before the terminator there. In a right chain, the last symbol of the item before a separator is the constituent of a terminator elided at the start of that separator.
+An elided terminator ends the part of its alternative that is written just before it. That part is its *constituent*: a rule, an optional or braces, once parentheses are spelled out. In `le nanmu joi le ninmu`, the `ku` elided after `nanmu` ends the `sumti-tail` of `LE sumti-tail [KU #]`, which is `nanmu`. Some elided terminators have no constituent. These are the terminators elided directly after a terminal or at the start of their alternative. The next paragraph gives one more case. Braces add no case of their own: these rules apply to the expanded productions that gencmu makes from the braces (engine §3, §4). So a terminator elided at the start of the first item of braces has no constituent, as at the start of an alternative. One at the start of each later item of `{x}`, or of each separator of `{x \ s}` or of a left chain, has none either, since what the braces read so far stands before it. At the start of a separator of a right chain, the end of the item stands before it. Its constituent is the last part of that item, unless that part is a terminal, or the item is a reference to the chain's own rule.
 
 A production is an alternative of the expanded grammar (engine §3). An elided terminator also has no constituent when it immediately follows the production's initial reference to its own rule. So a rule that an author writes with left recursion can have such terminators too.
 
