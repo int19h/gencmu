@@ -313,7 +313,7 @@ func TestNotationLexicalTags(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := d.Parse(`%rule a ¬f? ~b 'c' /d/ E ... | g! %tags X %rulex $e ¬h 'x'..'y' '\p{L}' 'a'...`, ParseOptions{Until: "lexical"})
+	res, err := d.Parse(`%rule a ¬f? ~b 'c' /d/ {E ... \ '\\'} [+KU] [++TOI] | g! %tags X %rulex $e ¬h 'x'..'y' '\p{L}' 'a'...`, ParseOptions{Until: "lexical"})
 	if err != nil || !res.OK {
 		t.Fatalf("%v %+v", err, res)
 	}
@@ -323,7 +323,9 @@ func TestNotationLexicalTags(t *testing.T) {
 	}
 	want := [][2]string{
 		{"%rule", "keyword-rule"}, {"a", "identifier"}, {"¬f?", "guard"}, {"~b", "tag"}, {"'c'", "character"},
-		{"/d/", "phoneme"}, {"E", "identifier"}, {"...", "ellipsis"}, {"|", "'|'"}, {"g!", "guard"},
+		{"/d/", "phoneme"}, {"{", "'{'"}, {"E", "identifier"}, {"...", "ellipsis"}, {`\`, `'\u{5C}'`}, {`'\\'`, "character"}, {"}", "'}'"},
+		{"[", "'['"}, {"+", "'+'"}, {"KU", "identifier"}, {"]", "']'"}, {"[", "'['"}, {"++", "double-plus"}, {"TOI", "identifier"}, {"]", "']'"},
+		{"|", "'|'"}, {"g!", "guard"},
 		{"%tags", "keyword-tags"}, {"X", "identifier"}, {"%rulex", "keyword"}, {"$e", "capture"}, {"¬", "'¬'"}, {"h", "identifier"},
 		{"'x'", "character"}, {"..", "double-dot"}, {"'y'", "character"}, {`'\p{L}'`, "property"}, {"'a'", "character"}, {"...", "ellipsis"},
 	}
@@ -530,5 +532,31 @@ func TestUnicodeTable(t *testing.T) {
 	}
 	if uni.hasProperty("White_Space", 0x200B) || !uni.hasProperty("L", 'é') || uni.hasProperty("L", '1') || !uni.hasProperty("Any", 0x378) {
 		t.Error("hasProperty is wrong")
+	}
+}
+
+// A precompiled DOM of format 17 is never used: compiled.json of that
+// format is a miss, and so is a DOM of that shape, a repeat with min, in a
+// file of format 18.
+func TestFormat17Refused(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	dom := func(format int, expr string) string {
+		return `{"format":` + strconv.Itoa(format) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
+	}
+	entry := func(format int, d string) string {
+		return `{"format":` + strconv.Itoa(format) + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"0","dom":` + d + `}}}`
+	}
+	if got := readCompiled(entry(domFormat, dom(domFormat, `{"repeat":{"ref":"A"}}`)), bundled.reader.hash); len(got) != 1 {
+		t.Fatalf("a compiled.json of format %d is not used", domFormat)
+	}
+	if got := readCompiled(entry(17, dom(17, `{"repeat":{"ref":"A"},"min":1}`)), bundled.reader.hash); len(got) != 0 {
+		t.Fatal("a compiled.json of format 17 is used")
+	}
+	for _, d := range []string{dom(17, `{"repeat":{"ref":"A"}}`), dom(domFormat, `{"repeat":{"ref":"A"},"min":1}`)} {
+		if _, err := decodeDOM(json.RawMessage(d), bundled.uni); err == nil {
+			t.Errorf("a DOM of format 17 decodes: %s", d)
+		}
 	}
 }

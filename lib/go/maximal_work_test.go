@@ -13,9 +13,9 @@ import (
 // holds, from the start; and, where matches() makes a tested y from every
 // position, the completions of y from many origins.
 func TestMaximalWorkLinear(t *testing.T) {
-	plain := "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text body B\n%conditions begins(from($), r)\n%rule body A ...\n%rule r y [T]\n%rule y A ..."
-	tested := "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text body B\n%conditions begins(from($), r)\n%rule body A ...\n%rule r y⊇~p [T]\n%rule y A ... <~p>"
-	many := "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text body B\n%conditions matches($, r)\n%rule body A ...\n%rule r parts B\n%rule parts part ...\n%rule part y⊇~p [T]\n%rule y A <~p>"
+	plain := "%ambiguity-resolution greedy\n%rule text body B\n%conditions begins(from($), r)\n%rule body {A}\n%rule r y [++T]\n%rule y {A}"
+	tested := "%ambiguity-resolution greedy\n%rule text body B\n%conditions begins(from($), r)\n%rule body {A}\n%rule r y⊇~p [++T]\n%rule y {A} <~p>"
+	many := "%ambiguity-resolution greedy\n%rule text body B\n%conditions matches($, r)\n%rule body {A}\n%rule r parts B\n%rule parts {part}\n%rule part y⊇~p [++T]\n%rule y A <~p>"
 	type counts struct{ checks, scanned, candidates int64 }
 	for _, grammar := range []string{plain, tested, many} {
 		d := mustLoad(t, oneStage(grammar))

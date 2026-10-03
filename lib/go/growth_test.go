@@ -61,3 +61,36 @@ func TestGrowth(t *testing.T) {
 		})
 	}
 }
+
+// A captured part's span is part of an item's identity (engine §4), so a
+// capture of a rule that can end in many places keeps one completed item
+// for each place: with t → $l(t) $r(t) | A over n tokens, n − 1 completed
+// items of that production span the input, and with t → t t | A one
+// (tests/README.md).
+func TestCaptureGrowth(t *testing.T) {
+	wholeItems := func(grammar string, n int) int {
+		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n"+grammar))
+		lg := d.lower(0, map[string]bool{})
+		toks := make([]Token, n)
+		for i := range toks {
+			toks[i] = Token{Text: "a", Tags: []string{"A"}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
+		}
+		ps := newParseState(d.uni, []rune(strings.TrimSpace(strings.Repeat("a ", n))))
+		rec := ps.newRun("main", d.stages[0], toks).recognize(lg, lg.byName["text"], 0, n)
+		count := 0
+		for _, it := range rec.sets[n].items {
+			if int(it.dot) == len(it.prod.rhs) && it.origin == 0 && lg.rules[it.prod.lhs].name == "t" && len(it.prod.rhs) == 2 {
+				count++
+			}
+		}
+		return count
+	}
+	for n := 2; n <= 5; n++ {
+		if got := wholeItems("%rule text t\n%rule t t t | A", n); got != 1 {
+			t.Errorf("t t over %d: %d completed items", n, got)
+		}
+		if got := wholeItems("%rule text t\n%rule t $l(t) $r(t) | A", n); got != n-1 {
+			t.Errorf("$l(t) $r(t) over %d: %d completed items, not %d", n, got, n-1)
+		}
+	}
+}

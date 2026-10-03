@@ -430,4 +430,8 @@ type nestedResult struct {
 // parse (engine §4, §5). It has a message and no position (§13).
 type parseFailure struct {
 	message string
+	// located says that the message begins with the document, line and
+	// column at fault, as an error of lowering does (§3), and needs no
+	// stage before it.
+	located bool
 }

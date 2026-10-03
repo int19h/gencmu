@@ -313,8 +313,8 @@ func walkWitness(run *elisionCheckRun) (map[*item]map[link]bool, *dn) {
 // warning on its chosen tree.
 func lostCase(t *testing.T) (*Dialect, *engineCase) {
 	c := &engineCase{
-		Documents: map[string]string{"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n%elidable T U\n" +
-			"%rule text a | b\n%rule a w! A [T=\"ta\"] [U] %emits $ <~x>\n%rule b A [T=\"ta\"] [U] [U]\n" +
+		Documents: map[string]string{"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n" +
+			"%rule text a | b\n%rule a w! A [+T=\"ta\"] [+U] %emits $ <~x>\n%rule b A [+T=\"ta\"] [+U] [+U]\n" +
 			"%stage later\n%ambiguity-resolution greedy\n%rule text ~x\n```\n"},
 		Pipeline: "p.md",
 		Tokens:   []caseToken{{Text: "a", Tags: []string{"A"}}},

@@ -6,18 +6,18 @@ import (
 	"testing"
 )
 
-// doublingGrammar declares T elidable and adds the rules r0 → [T] and
+// doublingGrammar adds the rules r0 → [+T], with T elidable, and
 // rN → rN-1 rN-1 up to rn, and the same chain of q from q0 when qChain is
 // set, so that rn and qn each elide 2^n terminators at boundary 0 of the
 // empty input, in two chains that share no node.
 func doublingGrammar(rule string, n int, qChain bool, text string) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%%ambiguity-resolution %s\n%%elidable T\n", rule)
+	fmt.Fprintf(&b, "%%ambiguity-resolution %s\n", rule)
 	for _, chain := range []string{"r", "q"} {
 		if chain == "q" && !qChain {
 			break
 		}
-		fmt.Fprintf(&b, "%%rule %s0 [T]\n", chain)
+		fmt.Fprintf(&b, "%%rule %s0 [+T]\n", chain)
 		for i := 1; i <= n; i++ {
 			fmt.Fprintf(&b, "%%rule %s%d %s%d %s%d\n", chain, i, chain, i-1, chain, i-1)
 		}
@@ -50,11 +50,11 @@ func TestRankExponential(t *testing.T) {
 			t.Errorf("greedy, n = %d: %s, the witness closes %v", n, res.verdict, res.witness[1].prod)
 		}
 		for _, tc := range []struct{ text, verdict string }{
-			{"%rule text rN | rN [T]", VerdictResolved},
-			{"%rule text rN [T] | [T] rN", VerdictTie},
+			{"%rule text rN | rN [+T]", VerdictResolved},
+			{"%rule text rN [+T] | [+T] rN", VerdictTie},
 			{"%rule text rN | qN", VerdictTie},
-			{"%rule text rN | qN [T]", VerdictResolved},
-			{"%rule text qN [T] | [T] rN", VerdictTie},
+			{"%rule text rN | qN [+T]", VerdictResolved},
+			{"%rule text qN [+T] | [+T] rN", VerdictTie},
 		} {
 			if res := rankEmpty(t, doublingGrammar("late-elision", n, true, tc.text)); res.verdict != tc.verdict {
 				t.Errorf("late-elision, n = %d, %s: %s, want %s", n, tc.text, res.verdict, tc.verdict)

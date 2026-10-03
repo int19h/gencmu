@@ -221,16 +221,25 @@ func TestEligibleProperty(t *testing.T) {
 			}
 			return rules[r.Intn(len(rules))]
 		}
+		// Now and then T or U is maximal: every optional of it is marked
+		// ++ (engine §3.8).
+		markT, markU := "+", "+"
+		switch r.Intn(4) {
+		case 0:
+			markT = "++"
+		case 1:
+			markT, markU = "++", "++"
+		}
 		body := func() string {
 			var syms []string
 			for i := r.Intn(4); i > 0; i-- {
 				switch k := r.Intn(50); {
 				case k < 10:
-					syms = append(syms, "[T]")
+					syms = append(syms, "["+markT+"T]")
 				case k < 15:
-					syms = append(syms, "[U]")
+					syms = append(syms, "["+markU+"U]")
 				case k < 19:
-					syms = append(syms, "[T "+symbol()+"]")
+					syms = append(syms, "["+markT+"T "+symbol()+"]")
 				default:
 					syms = append(syms, symbol())
 				}
@@ -244,15 +253,7 @@ func TestEligibleProperty(t *testing.T) {
 		for _, rule := range rules {
 			lines = append(lines, "%rule "+rule+" "+body()+" | "+body())
 		}
-		// Now and then T or U is a maximal terminator.
-		elidable, maximalT := "%elidable T U", map[string]bool{}
-		switch r.Intn(4) {
-		case 0:
-			elidable, maximalT = "%elidable U\n%elidable maximal T", map[string]bool{"T": true}
-		case 1:
-			elidable, maximalT = "%elidable maximal T U", map[string]bool{"T": true, "U": true}
-		}
-		grammar := "%ambiguity-resolution greedy\n" + elidable + "\n%rule text A\n" + strings.Join(lines, "\n")
+		grammar := "%ambiguity-resolution greedy\n%rule text A\n" + strings.Join(lines, "\n")
 		dom, err := bundled.reader.read("```jbogenbau\n"+grammar+"\n```\n", "g.md")
 		if err != nil {
 			skipped++
@@ -296,7 +297,7 @@ func TestEligibleProperty(t *testing.T) {
 		for _, p := range lg.prods {
 			if p.helper && p.elided != "" {
 				o.helpers[p.lhs] = true
-				if maximalT[p.elided] {
+				if lg.maximalH[p.lhs] {
 					o.maximal[p.lhs] = true
 				}
 			}
@@ -341,7 +342,7 @@ func TestEligibleProperty(t *testing.T) {
 // A nested tags query over several tag sets searches eligibility once, over
 // the items of all of them (engine §4).
 func TestTagsQueryEligibleOnce(t *testing.T) {
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%elidable T\n%rule text A B\n%tags tags($, r)\n%rule r A [T] B <X> | A [T] B <Y> | A [T] B <Z>"))
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text A B\n%tags tags($, r)\n%rule r A [+T] B <X> | A [+T] B <Y> | A [+T] B <Z>"))
 	toks := []Token{{Text: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "b", Tags: []string{"B"}, Span: [2]int{1, 2}, Source: [2]int{2, 3}}}
 	w := countWork(t)
 	res, err := d.ParseTokens("a b", toks, ParseOptions{})
