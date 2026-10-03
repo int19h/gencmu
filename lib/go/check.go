@@ -145,7 +145,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	// The records, in the order of the tree's leaves (§7.2).
 	var records []Restoration
 	for _, n := range elidedNodes(tree) {
-		records = append(records, Restoration{Terminal: n.Terminal, At: n.Span[0], Source: n.Source, Sound: n.sound, tested: n.tested})
+		records = append(records, Restoration{Terminal: n.Terminal, At: n.Span[0], Source: n.Source, Sound: n.sound, Tested: n.tested})
 	}
 	// R: O with one synthetic token before the token at each record's
 	// position, or at the end. Records at one position keep their order.
@@ -242,7 +242,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 					// record's source.
 					rec := records[rc.record[k]]
 					p := rc.project[k]
-					*n = Node{Kind: KindElided, Terminal: rec.Terminal, Span: [2]int{p, p}, Source: rec.Source, sound: rec.Sound, tested: rec.tested}
+					*n = Node{Kind: KindElided, Terminal: rec.Terminal, Span: [2]int{p, p}, Source: rec.Source, sound: rec.Sound, tested: rec.Tested}
 				} else {
 					i := rc.original[k]
 					n.Token, n.Span, n.Source = i, [2]int{i, i + 1}, run.toks[i].Source

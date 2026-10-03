@@ -1365,7 +1365,7 @@ func TestMarshalWitnessLost(t *testing.T) {
 		Message: "the main stage could not reconstruct its chosen derivation for elision-only",
 		Chosen:  chosen,
 		Completion: []Restoration{
-			{Terminal: "T", At: 1, Source: [2]int{1, 1}, Sound: "ta", tested: true},
+			{Terminal: "T", At: 1, Source: [2]int{1, 1}, Sound: "ta", Tested: true},
 			{Terminal: "U", At: 1, Source: [2]int{1, 1}},
 		},
 	}}

@@ -118,15 +118,16 @@ const CodeElisionWitnessLost = "elision-witness-lost"
 // Restoration is an elided terminator that the check of elision-only wrote
 // back (engine §7.2, §7.9): its terminal, its position in the stage's input,
 // the empty source of its elided node, and, for a terminator with an = test,
-// that test's string, its saved sound ("" where it has none).
+// that test's string, its saved sound. Sound is "" both for a terminator
+// with no test and for one whose test is T="", so Tested tells them apart.
 type Restoration struct {
 	Terminal string
 	At       int
 	Source   [2]int
 	Sound    string
-	// tested says that the terminator has an = test, so Sound is shown,
-	// even where it is empty.
-	tested bool
+	// Tested says that the terminator has an = test, so Sound is its
+	// saved sound and the output shows it, even where it is empty.
+	Tested bool
 }
 
 // Expected is a terminal a rejected input could have continued with, and
