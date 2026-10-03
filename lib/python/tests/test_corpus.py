@@ -187,7 +187,7 @@ class Corpus(unittest.TestCase):
         with mock.patch.object(_stage, "_reconstruct", no_roots), self.assertRaises(WitnessLost):
             outcome(case)
         dialect = _dialects["cll-ebnf"]
-        with mock.patch.object(_stage, "_rank_check", lambda forest: None):
+        with mock.patch.object(_stage, "_rank_check", lambda forest, groups_of=None: None):
             result = dialect.parse(case["text"])
         with self.assertRaisesRegex(AssertionError, "elision-witness-lost"):
             outcome(case, result=result)
