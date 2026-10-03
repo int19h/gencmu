@@ -5,8 +5,8 @@ use std::ops::Range;
 
 use crate::json::write_str;
 use crate::result::{
-    Action, AmbiguityReason, Attachment, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Stage, Tags, Token,
-    Verdict, Warning,
+    Action, AmbiguityReason, Attachment, ErrorCode, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Stage,
+    Tags, Token, Verdict, Warning,
 };
 
 fn write_range(out: &mut String, range: &Range<usize>) {
@@ -261,6 +261,12 @@ fn write_error(out: &mut String, error: &ParseError) {
         out.push_str(",\"stage\":");
         write_str(out, stage);
     }
+    if let Some(code) = error.code {
+        out.push_str(",\"code\":");
+        out.push_str(match code {
+            ErrorCode::ElisionWitnessLost => "\"elision-witness-lost\"",
+        });
+    }
     if let Some(reason) = error.reason {
         out.push_str(",\"reason\":");
         out.push_str(match reason {
@@ -322,6 +328,33 @@ fn write_error(out: &mut String, error: &ParseError) {
     }
     out.push_str(",\"message\":");
     write_str(out, &error.message);
+    // The members of elision-witness-lost follow its message
+    // (docs/output.md).
+    if error.code == Some(ErrorCode::ElisionWitnessLost) {
+        out.push_str(",\"chosen\":");
+        match &error.chosen {
+            Some(chosen) => write_node(out, chosen),
+            None => out.push_str("null"),
+        }
+        out.push_str(",\"completion\":[");
+        for (index, record) in error.completion.iter().enumerate() {
+            if index > 0 {
+                out.push(',');
+            }
+            out.push_str("{\"terminal\":");
+            write_str(out, &record.terminal);
+            out.push_str(",\"at\":");
+            out.push_str(&record.at.to_string());
+            out.push_str(",\"source\":");
+            write_range(out, &record.source);
+            if let Some(sound) = &record.sound {
+                out.push_str(",\"sound\":");
+                write_str(out, sound);
+            }
+            out.push('}');
+        }
+        out.push(']');
+    }
     out.push('}');
 }
 
@@ -343,7 +376,7 @@ fn write_warning(out: &mut String, warning: &Warning) {
 /// documented order, no whitespace, non-ASCII characters as themselves.
 pub fn to_json(result: &ParseResult) -> String {
     let mut out = String::new();
-    out.push_str("{\"format\":7,\"ok\":");
+    out.push_str("{\"format\":8,\"ok\":");
     out.push_str(if result.ok { "true" } else { "false" });
     out.push_str(",\"stages\":[");
     for (index, stage) in result.stages.iter().enumerate() {
