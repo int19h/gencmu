@@ -441,7 +441,7 @@ class Dialect:
         self.unicode = unicode
         # Each stage's lowered grammars, keyed by the gates that are on and
         # by strictness, or the error that lowering found.
-        self._lowered: list[Recent[tuple[frozenset[str], bool], Lowered | ErrorData]] = [Recent(MAX_LOWERED) for _ in stages]
+        self._lowered: list[Recent[frozenset[str], Lowered | ErrorData]] = [Recent(MAX_LOWERED) for _ in stages]
         self._lock = threading.Lock()
         for number in range(len(stages)):
             try:
