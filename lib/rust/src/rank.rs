@@ -27,6 +27,7 @@ use crate::maximal::Maximal;
 use crate::nat::Nat;
 use crate::tags::{SetId, Tags};
 use crate::unicode::Unicode;
+use crate::witness::{self, Fault};
 
 pub(crate) const EMPTY: u32 = 0;
 const ANY: u32 = u32::MAX;
@@ -858,6 +859,7 @@ impl<'c> Ranker<'c> {
     /// of the projected span in the check, else the span's own (§7.5).
     fn reference_span(&self, start: u32, end: u32) -> &'c [Tok] {
         match self.dag.projection {
+            Some(_) if witness::fault(Fault::ReferenceSpan) => &self.dag.tokens[start as usize..end as usize],
             Some((observed, project)) => &observed[project[start as usize] as usize..project[end as usize] as usize],
             None => &self.dag.tokens[start as usize..end as usize],
         }
@@ -930,17 +932,25 @@ impl<'c> Ranker<'c> {
                 // A test of a terminal reads its token with its recognition
                 // values, and one of a reference its projected span (§7.5).
                 let terminal_test = matches!(production.syms[position], Sym::T(_));
-                let projection = self.dag.projection;
+                let mut projection = self.dag.projection;
+                // Faults of the check (tests/README.md): no test at all, or
+                // a test of a reference over its span of R.
+                let checking = projection.is_some();
+                let no_tests = checking && witness::fault(Fault::RankerTests);
+                if checking && witness::fault(Fault::ReferenceSpan) {
+                    projection = None;
+                }
                 let holds = |m: u32, own: SetId| {
-                    test.map_or(true, |test| {
-                        let span = match projection {
-                            Some((observed, project)) if !terminal_test => {
-                                &observed[project[m as usize] as usize..project[set as usize] as usize]
-                            }
-                            _ => &tokens[m as usize..set as usize],
-                        };
-                        test_holds(test, span, unicode, tags, own)
-                    })
+                    no_tests
+                        || test.map_or(true, |test| {
+                            let span = match projection {
+                                Some((observed, project)) if !terminal_test => {
+                                    &observed[project[m as usize] as usize..project[set as usize] as usize]
+                                }
+                                _ => &tokens[m as usize..set as usize],
+                            };
+                            test_holds(test, span, unicode, tags, own)
+                        })
                 };
                 match production.syms[position] {
                     Sym::T(terminal) => {
@@ -1004,7 +1014,9 @@ impl<'c> Ranker<'c> {
             }
             Node::Group { rule, origin, set, tags, test } => {
                 let eset = &self.dag.chart.sets[set as usize];
-                let test = (test != NO_TEST).then(|| &self.dag.g.tests[test as usize]);
+                // A fault applies no test in the check (tests/README.md).
+                let no_tests = self.dag.projection.is_some() && witness::fault(Fault::RankerTests);
+                let test = (test != NO_TEST && !no_tests).then(|| &self.dag.g.tests[test as usize]);
                 let span = self.reference_span(origin, set);
                 let (unicode, tag_table) = (self.dag.unicode, self.dag.tags);
                 let within = self.within;
@@ -1216,6 +1228,10 @@ impl<'c> Ranker<'c> {
                 // synthetic token, and its own close follows (§7.4, §7.7).
                 // Only a restoration has its first item after its origin.
                 Node::Item { set, index } if self.item(set, index).origin != set => {
+                    // A fault gives it no derivation (tests/README.md).
+                    if witness::fault(Fault::RankRestoration) {
+                        return NodeResult { entries: Vec::new(), count: 0, allowed: None };
+                    }
                     let item = self.item(set, index);
                     let terminal = restored_terminal(self.dag.g, item.prod);
                     let x = self.dag.push(DNode::Read { tok: item.origin, terminal }, Nat::ONE, Nat::ONE);

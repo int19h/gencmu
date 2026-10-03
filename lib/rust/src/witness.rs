@@ -33,9 +33,50 @@ pub struct ElisionCheckRun {
     pub keeps_witness: bool,
 }
 
+/// A fault of this library's own paths in the check of `elision-only`,
+/// which a test turns on to show that the shared cases catch it
+/// (tests/README.md). Each applies only while the check runs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Fault {
+    /// The ranker, which rebuilds the links of the check's derivations from
+    /// completed spans, applies no symbol test to them.
+    RankerTests,
+    /// The ranker reads a test of a reference over its span of R, not over
+    /// the projected span in O (§7.5).
+    ReferenceSpan,
+    /// An item that an ordinary step reaches after it was processed as
+    /// strict is not processed again (§7.4).
+    Reprocess,
+    /// The item after the `T` of the written route from a synthetic token
+    /// is ordinary, not strict (§7.4).
+    Route3,
+    /// The ranker gives a restoration no derivation, so the ranking does not
+    /// count W(D) though the chart holds it.
+    RankRestoration,
+}
+
 thread_local! {
     static RUNS: RefCell<Option<Vec<ElisionCheckRun>>> = const { RefCell::new(None) };
     static LOSS: RefCell<Option<Loss>> = const { RefCell::new(None) };
+    static FAULT: RefCell<Option<Fault>> = const { RefCell::new(None) };
+}
+
+/// Runs `parse` on this thread with a fault of the check turned on.
+pub fn with_fault<T>(fault: Fault, parse: impl FnOnce() -> T) -> T {
+    // Puts back the fault before, also where `parse` panics.
+    struct Restore(Option<Fault>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            FAULT.with(|current| current.replace(self.0));
+        }
+    }
+    let _restore = Restore(FAULT.with(|current| current.replace(Some(fault))));
+    parse()
+}
+
+/// Whether a test turned on this fault on this thread.
+pub(crate) fn fault(fault: Fault) -> bool {
+    FAULT.with(|current| *current.borrow() == Some(fault))
 }
 
 /// Runs `parse` on this thread and returns its value with the checks of

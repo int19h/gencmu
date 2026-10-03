@@ -91,7 +91,7 @@ pub mod tools {
     /// witness of the chosen derivation, and the ways to lose it on
     /// purpose. Not part of the documented API.
     #[doc(hidden)]
-    pub use crate::witness::{losing_witness, with_elision_checks, ElisionCheckRun, Loss};
+    pub use crate::witness::{losing_witness, with_elision_checks, with_fault, ElisionCheckRun, Fault, Loss};
 }
 
 #[cfg(test)]
