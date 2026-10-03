@@ -176,6 +176,9 @@
     "reparse-strict-nested-route.json": [
       "F31"
     ],
+    "reparse-strict-reclose-late.json": [
+      "F32"
+    ],
     "reparse-strict-reclose-swapped.json": [],
     "reparse-strict-reclose.json": [
       "F32"
@@ -242,6 +245,7 @@
     "reparse-terminal-tag-test.json": [
       "F10"
     ],
+    "reparse-tested-rebuilt-derivations.json": [],
     "reparse-witness-hook-only.json": [
       "F28",
       "lost:rank"
@@ -498,6 +502,7 @@
       "reparse-same-boundary-order.json": "hook",
       "reparse-strict-least-fixpoint.json": "result",
       "reparse-strict-nested-route.json": "result",
+      "reparse-strict-reclose-late.json": "hook",
       "reparse-strict-reclose-swapped.json": "hook",
       "reparse-strict-reclose.json": "hook",
       "reparse-strict-shared-prediction.json": "hook",
@@ -517,6 +522,7 @@
       "reparse-terminal-recognition-values.json": "result+hook",
       "reparse-terminal-sound-test.json": "hook",
       "reparse-terminal-tag-test.json": "hook",
+      "reparse-tested-rebuilt-derivations.json": "hook",
       "reparse-witness-hook-only.json": "hook",
       "reparse-written-observation-after.json": "result+hook",
       "reparse-written-observation-head.json": "result+hook",
@@ -549,6 +555,7 @@
       "reparse-synthetic-suffix-empty-throwing.json": "result",
       "reparse-synthetic-suffix-empty.json": "result",
       "reparse-synthetic-suffix-nullable-reads.json": "result",
+      "reparse-tested-rebuilt-derivations.json": "result",
       "reparse-written-observation-after.json": "result",
       "reparse-written-observation-head.json": "result",
       "step-order-conditions-written-check.json": "result",
@@ -665,6 +672,7 @@
       "reparse-same-boundary-order.json": "result+hook",
       "reparse-strict-least-fixpoint.json": "result+hook",
       "reparse-strict-nested-route.json": "result+hook",
+      "reparse-strict-reclose-late.json": "result+hook",
       "reparse-strict-reclose-swapped.json": "result+hook",
       "reparse-strict-reclose.json": "result+hook",
       "reparse-strict-shared-prediction.json": "result+hook",
@@ -684,6 +692,7 @@
       "reparse-terminal-recognition-values.json": "result+hook",
       "reparse-terminal-sound-test.json": "result+hook",
       "reparse-terminal-tag-test.json": "result+hook",
+      "reparse-tested-rebuilt-derivations.json": "result+hook",
       "reparse-witness-hook-only.json": "result+hook",
       "reparse-written-observation-after.json": "result+hook",
       "reparse-written-observation-head.json": "result+hook",
@@ -705,6 +714,7 @@
       "reparse-strict-nested-route.json": "result"
     },
     "F32": {
+      "reparse-strict-reclose-late.json": "result",
       "reparse-strict-reclose.json": "result"
     },
     "lost:rank": {
@@ -754,6 +764,7 @@
       "reparse-same-boundary-order.json": "result+hook",
       "reparse-strict-least-fixpoint.json": "result+hook",
       "reparse-strict-nested-route.json": "result+hook",
+      "reparse-strict-reclose-late.json": "result+hook",
       "reparse-strict-reclose-swapped.json": "result+hook",
       "reparse-strict-reclose.json": "result+hook",
       "reparse-strict-shared-prediction.json": "result+hook",
@@ -773,6 +784,7 @@
       "reparse-terminal-recognition-values.json": "result+hook",
       "reparse-terminal-sound-test.json": "result+hook",
       "reparse-terminal-tag-test.json": "result+hook",
+      "reparse-tested-rebuilt-derivations.json": "result+hook",
       "reparse-witness-hook-only.json": "result+hook",
       "reparse-written-observation-after.json": "result+hook",
       "reparse-written-observation-head.json": "result+hook",

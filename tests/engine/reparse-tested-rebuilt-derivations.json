@@ -1,0 +1,33 @@
+{
+  "description": "The check's derivations are made only of advances that the test allowed, as the main parse's are (tested-rebuilt-derivations). The chosen a elides one T, so R is X Y T. Only the body over Y sounds y, so a's [X] must read X. The derivation of R that reads [X] as empty and body over X Y is not counted, not even by a library that rebuilds the check's derivations from completed spans. So R has one reading, and the check passes (engine §4, §7.7).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b\n%rule a [X] body=\"y\" [T]\n%rule b [X] body=\"y\" [T] [T]\n%rule body X Y | Y",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "x"
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ],
+      "phonemes": "y"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ]
+    },
+    "brackets": "(x y)"
+  }
+}

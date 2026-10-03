@@ -733,10 +733,10 @@
   // Switches and hooks for the library's own tests. Nothing here is part of
   // the API, and index.js does not export it.
   //
-  // `faults` holds the faults of the elision-only check that a test turns on,
-  // one at a time, to show which shared cases catch each (proposal of the
-  // reconstruction, Part 4). An empty set is the engine as specified. The
-  // names are those of the fault list. Each fault is defined by exactly what
+  // `faults` holds the faults that a test turns on, one at a time, to show
+  // which shared cases catch each (tests/README.md). An empty set is the
+  // engine as specified. The names F1 to F32 are those of the fault list of
+  // the check of elision-only. Each fault is defined by exactly what
   // it reads, and a variant of a fault is a switch of its own, so that every
   // catch that the fault table names is shown by injection:
   //
