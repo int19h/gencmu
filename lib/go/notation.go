@@ -57,7 +57,7 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (*notationReader, er
 		if gerr != nil {
 			return nil, gerr
 		}
-		l := lower(g, nil, false)
+		l := lower(g, nil)
 		if l.fault != "" {
 			return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Stage: *s.Name, Message: l.fault}
 		}
@@ -81,7 +81,7 @@ func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
 	var out stageOutcome
 	for i, g := range nr.stages {
 		run := ps.newRun(g.name, g, toks)
-		out = run.run(nr.lowered[i], nil, false)
+		out = run.run(nr.lowered[i], false)
 		if out.err != nil && out.err.Kind == ErrorAmbiguous {
 			// A tie has no single position, so the error names the document
 			// alone, with no line or column (engine §8).

@@ -263,7 +263,7 @@ func TestEligibleProperty(t *testing.T) {
 			skipped++
 			continue
 		}
-		lg := lower(sg, nil, false)
+		lg := lower(sg, nil)
 		if lg.fault != "" {
 			skipped++
 			continue

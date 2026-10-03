@@ -722,8 +722,11 @@ func memoSlotFor(m *itemRank, f forbidden) *memoSlot {
 // the links whose last symbol's node maximal does not forbid, which an
 // elided terminator may follow. A link over an elided terminator combines
 // the second of the item before it.
+//
+// A restoration (engine §7.4) has one link, a read of its synthetic token,
+// and its close follows (§7.7).
 func (rk *ranker) itemVal(it *item, f forbidden) *entry {
-	if it.dot == 0 {
+	if it.dot == 0 && !it.restores {
 		return unitEntry
 	}
 	f = rk.restrict(f, it.prod.lhs)
@@ -860,7 +863,7 @@ func (rk *ranker) symVal(s *symNode, f forbidden) *entry {
 			continue
 		}
 		vec := e.vec
-		if rk.elisions && c.prod.helper && c.prod.elided != "" && len(c.prod.rhs) == 0 {
+		if rk.elisions && c.prod.restoration() && !c.restores {
 			// The helper of an elidable optional that derives ε elides its
 			// terminator at its position (engine §6).
 			vec = rk.leaf(s.start)
