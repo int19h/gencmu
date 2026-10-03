@@ -131,7 +131,7 @@ A runner also checks the invariants of a tie (above) on the result of each corpu
 
 The corpus started from a seed: a fixture collection whose verdicts came from another parser. Where the expectation of gencmu differs from that seed, the case says so. `"seeded": "accept"` or `"reject"` is the verdict of the seed, and `reason` says why gencmu differs, in terms of its own grammars. `node tools/corpus-departures.js` lists every such case, grouped by reason. A change to the `words` or `brackets` of a case needs no field of its own. It is a change to what gencmu produces, made in the same commit as the grammar change that causes it.
 
-`core.txt` lists the ids of the sample that every library runs on each pull request. It holds every case that pins a text that a checked document quotes ("Quoted texts" below), so a change that makes such prose false fails in every library. On a pull request, the JavaScript and Rust libraries also run the whole corpus, and the others run it nightly. To run every case in JavaScript, run `GENCMU_CORPUS=full node --test test/corpus.test.js` in `lib/js/`.
+`core.txt` lists the ids of the sample that every library runs on each pull request. It holds every case that pins a text that a checked document quotes ("Quoted texts" below). So a change that makes such prose false fails in every library. On a pull request, the JavaScript and Rust libraries also run the whole corpus, and the others run it nightly. To run every case in JavaScript, run `GENCMU_CORPUS=full node --test test/corpus.test.js` in `lib/js/`.
 
 ## Quoted texts: `quoted-allow.txt`
 
@@ -140,7 +140,7 @@ A grammar document often says what gencmu does with a Lojban text that it quotes
 A quoted text is a code span in the prose of a document, outside code blocks, with these properties:
 
 - It has two words or more, separated by white space. A single word is often a name or a part of a rule.
-- It holds only lowercase ASCII letters, apostrophes, full stops, commas and white space, and each word has a letter. So these are not quoted texts: a rule name, which has a hyphen or a digit; a selma'o or a token, which is uppercase; and jbogenbau, which has brackets and other symbols.
+- It holds only lowercase ASCII letters, apostrophes, full stops, commas and white space, and each word has a letter. So a rule name is not a quoted text, since it has a hyphen or a digit. Nor is a selma'o or a token, which is uppercase, or jbogenbau, which has brackets and other symbols.
 - It holds no `...` or `…`, which mark a gap in the words.
 
 The check finds the code spans with the CommonMark and GFM parser of `tools/markdown.js`, so a code block holds none. Every prose block is one line, with its code spans ("Documents" in `docs/design.md`). So the line of a text's code span is the paragraph, list item, heading or table row that quotes it.
