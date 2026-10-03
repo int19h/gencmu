@@ -306,7 +306,7 @@ Implications apply only to the tokens that the stage emits. They do not change a
 
 Writing `$name(symbol)` around a symbol of a rule's body captures that symbol. A capture gives a part of the constituent a name that the clauses of the rule can use. A capture's name is all lower case.
 
-A capture wraps one symbol. That symbol can stand anywhere in an alternative, except inside braces and inside an elidable optional, `[+ ]` or `[++ ]`. So a capture can stand in a group, in a choice, in an item of `&` and in a plain optional, at any depth. Two captures of one alternative cannot have the same name, even in two branches of a choice. An alternative can have any number of captures, but each one has a cost (below). `$` alone is the whole constituent, a capture that every alternative has without writing it.
+A capture wraps one symbol. That symbol can stand anywhere in an alternative, except inside braces and inside an elidable optional, `[+ ]` or `[++ ]`. So a capture can stand in a group, in a choice, in an item of `&` and in a plain optional, at any depth. A name can stand at most once in each production (below), so two branches of a choice can capture one name, as two alternatives can. `A ($x(B) | $x(C))` is valid, but `[$x(A)] $x(B)` and `$x(A) & $x(B)` are errors, because one of their productions reads `$x` twice. gencmu checks this when it reads the grammar, before the gates, so a guard does not excuse it. An alternative can have any number of captures, but each one has a cost (below). `$` alone is the whole constituent, a capture that every alternative has without writing it.
 
 A capture cannot wrap anything but one symbol. So `$x((a | b))`, `$x((a b))` and `$x([a])` are errors. A capture names one constituent, with one span and one set of tags, and a group or an optional is no constituent. To capture a choice or a sequence, make it a rule of its own and capture the reference. To capture a part that can be absent, write the capture inside the optional, as in `[$x(a)]`. A presence test then says whether the part is there.
 
@@ -455,7 +455,7 @@ The stage walks a rule with no `%emits`. What it hands to the next stage is what
 
 An item of the list can be a capture. The stage hands a capture on as one token. The token has the captured part's tags, or the tags of a tag term after the capture in angle brackets.
 
-An item can also be a single tag literal: an identifier tag, a phoneme tag or a character tag. The stage hands it on as a token with that one tag and no text of its own. A string is not a tag, so `%emits "foo"` is an error. A range or a property is not one tag, so it is an error there too. The author must list the captures in the order they stand in the text.
+An item can also be a single tag literal: an identifier tag, a phoneme tag or a character tag. The stage hands it on as a token with that one tag and no text of its own. A string is not a tag, so `%emits "foo"` is an error. A range or a property is not one tag, so it is an error there too. The author must list the captures in the order in which each production reads them.
 
 `$` is the whole constituent. A list of `$` items hands on one token over the whole constituent for each item. For example, `%emits $ </n/>, $ </o/>` is how the digit `0` becomes the phonemes of `no`. A list with a `$` item holds only `$` items.
 
@@ -476,7 +476,7 @@ A capture item can carry attachments: other tokens that belong to its token, whi
 
 The carrier's token covers its own capture only. An attachment is the list of tokens that its captured part hands on, as if the stage walked that part. So `mi ui klama` hands on `mi` with `ui` attached after it, and the next stage reads `mi klama`. The carrier does not run the emission of its own part. So a structure inside the carrier's part stays only where the item captures it separately.
 
-An attachment capture stands in exactly one item, and never as an item of its own. A production without the carrier emits nothing for the item, and it must also lack the item's attachment captures. The captures of an emission, attachments included, must be written in the order that they stand in the text. Where a production lacks an attachment capture, the item has one attachment fewer.
+An attachment capture stands in exactly one item, and never as an item of its own. A production without the carrier emits nothing for the item, and it must also lack the item's attachment captures. The captures of an emission, attachments included, must be written in the order in which each production reads them. A production reads each name at most once, so each name is one part of it and the order is clear. Two productions can read names in different orders, as in `($a(A) $b(B) | $b(B) $a(A))`. Then no order of `$a` and `$b` fits both, and an emission of both is an error. Where a production lacks an attachment capture, the item has one attachment fewer.
 
 The four alternatives of `item` above can also be one, with two optionals that hold captures: `[$b(bahe-run)] $w(unit) [$a(indicator-run)]`. That alternative expands to the same four productions, `$w`, `$w $a`, `$b $w` and `$b $w $a`, in that order (see "Captures"). Only the numbers of the productions differ.
 
