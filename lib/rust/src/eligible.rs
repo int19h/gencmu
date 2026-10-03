@@ -808,7 +808,9 @@ mod tests {
             })
             .collect();
         let matchers = matchers(&g, &mut shared.tags);
-        let chart = Recognizer { g: &g, matchers: &matchers, shared: &mut shared }.recognize(&input, 0, start).ok()?;
+        let chart = Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None }
+            .recognize(&input, 0, start)
+            .ok()?;
         // The witnesses of begins: completed items of r from the start, in
         // any set.
         let witnesses: Vec<(u32, u32)> = (0..chart.sets.len())
@@ -899,7 +901,7 @@ mod tests {
             })
             .collect();
         let matchers = matchers(&g, &mut shared.tags);
-        let chart = Recognizer { g: &g, matchers: &matchers, shared: &mut shared }
+        let chart = Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None }
             .recognize(&input, 0, start)
             .expect("a chart");
         let end = n + 1;

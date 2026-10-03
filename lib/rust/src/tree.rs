@@ -8,7 +8,7 @@ use crate::earley::{Cap, EngineError, Frame, Recognizer, Tok};
 use crate::fxhash::{FxMap, FxSet};
 use crate::lower::{LEmit, LEmitItem, LTerm, Lowered};
 use crate::rank::{DNode, Ranker};
-use crate::result::{Attachment, Node, NodeKind, Warning};
+use crate::result::{Attachment, Node, NodeKind, Restoration, Warning};
 use crate::tags::{phoneme_of, union, SetId, TagList, Tags};
 
 #[derive(Debug, Clone)]
@@ -75,25 +75,32 @@ pub(crate) fn build(ranker: &Ranker, root: u32) -> ITree {
 /// What the public tree needs to know of a stage: its tokens and tag names.
 pub(crate) struct TreeContext<'a> {
     pub g: &'a Lowered,
+    /// The stage's input.
     pub tokens: &'a [Tok],
     pub tag_map: &'a dyn Fn(SetId) -> BTreeSet<String>,
-    /// For the `elision-only` check: which tokens are written-back
-    /// terminators, to be shown as elided nodes over the original input.
-    pub synthetic: Option<&'a [bool]>,
+    /// For a reading of the check of `elision-only`, how the reconstructed
+    /// input maps to the stage's input (§7.10).
+    pub reading: Option<&'a ReadingMap<'a>>,
+}
+
+/// How a reading of the reconstructed input R of `elision-only` maps to
+/// the stage's input O (§7.10).
+pub(crate) struct ReadingMap<'a> {
+    /// π: for each position of R, the number of original tokens before it.
+    pub project: &'a [u32],
+    /// For each token of R, the index of its restoration record if it is
+    /// synthetic.
+    pub record_of: &'a [Option<u32>],
+    /// The restoration records, in their order of insertion.
+    pub records: &'a [Restoration],
 }
 
 impl<'a> TreeContext<'a> {
+    /// A position of the derivation's input as one of the stage's input.
     fn original(&self, index: u32) -> usize {
-        match self.synthetic {
+        match self.reading {
             None => index as usize,
-            Some(flags) => index as usize - flags[..index as usize].iter().filter(|&&flag| flag).count(),
-        }
-    }
-
-    fn original_tokens(&self) -> Vec<&'a Tok> {
-        match self.synthetic {
-            None => self.tokens.iter().collect(),
-            Some(flags) => self.tokens.iter().zip(flags).filter(|(_, &flag)| !flag).map(|(token, _)| token).collect(),
+            Some(map) => map.project[index as usize] as usize,
         }
     }
 }
@@ -177,25 +184,40 @@ pub(crate) fn source_of(sources: &Sources, start: usize, end: usize) -> std::ops
 /// Builds the result's tree (§12): helpers and the prefixes of trailing
 /// repetitions spliced out, absent elidable optionals as elided nodes.
 pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
-    let originals = Sources::new(context.original_tokens());
+    let originals = Sources::new(context.tokens);
     let mut fragments: Vec<Vec<Node>> = (0..tree.nodes.len()).map(|_| Vec::new()).collect();
     for index in (0..tree.nodes.len()).rev() {
         let node = &tree.nodes[index];
         let made = match node.kind {
             IKind::Read { tok, terminal } => {
                 let at = context.original(tok);
-                let name = context.g.terminals[terminal as usize].clone();
-                let synthetic = context.synthetic.is_some_and(|flags| flags[tok as usize]);
-                let source = source_of(&originals, at, if synthetic { at } else { at + 1 });
-                vec![Node {
-                    kind: if synthetic { NodeKind::Elided } else { NodeKind::Token },
-                    rule: None,
-                    terminal: Some(name),
-                    token: if synthetic { None } else { Some(at) },
-                    span: at..if synthetic { at } else { at + 1 },
-                    source,
-                    tags: BTreeSet::new(),
-                    children: Vec::new(),
+                // A read of a synthetic token is an elided node of its
+                // record's terminal, at the record's position, with the
+                // record's source (§7.10).
+                let record = context
+                    .reading
+                    .and_then(|map| map.record_of[tok as usize].map(|index| &map.records[index as usize]));
+                vec![match record {
+                    Some(record) => Node {
+                        kind: NodeKind::Elided,
+                        rule: None,
+                        terminal: Some(record.terminal.clone()),
+                        token: None,
+                        span: at..at,
+                        source: record.source.clone(),
+                        tags: BTreeSet::new(),
+                        children: Vec::new(),
+                    },
+                    None => Node {
+                        kind: NodeKind::Token,
+                        rule: None,
+                        terminal: Some(context.g.terminals[terminal as usize].clone()),
+                        token: Some(at),
+                        span: at..at + 1,
+                        source: source_of(&originals, at, at + 1),
+                        tags: BTreeSet::new(),
+                        children: Vec::new(),
+                    },
                 }]
             }
             IKind::Close { prod, start, end, tags, .. } => {
@@ -215,6 +237,10 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
                 let (start, end) = (context.original(start), context.original(end));
                 if rule.helper {
                     match (&rule.elided, production.syms.is_empty()) {
+                        // A restoration of the check gives exactly the
+                        // elided node of the synthetic token it read
+                        // (§7.10).
+                        (Some(_), true) if !children.is_empty() => children,
                         (Some(terminal), true) => vec![Node {
                             kind: NodeKind::Elided,
                             rule: None,
@@ -783,7 +809,8 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                         let IKind::Close { prod, start, end, tags, caps } = &tree.nodes[owner as usize].kind else {
                             unreachable!("an emission's constituent")
                         };
-                        let frame = Frame { caps, prod: *prod, origin: *start, end: *end, tags: Some(*tags) };
+                        let frame =
+                            Frame { caps, prod: *prod, origin: *start, end: *end, tags: Some(*tags), project: None };
                         item_tags(recognizer, term, &frame, tokens)?
                     }
                     None => tags,
