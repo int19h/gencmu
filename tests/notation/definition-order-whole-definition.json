@@ -1,0 +1,10 @@
+{
+  "description": "The checks of the whole definition stand at the definition: $q, which no alternative captures, is an error at %rule (engine §9).",
+  "document": "```jbogenbau\n%rule a A\n  %conditions $q\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

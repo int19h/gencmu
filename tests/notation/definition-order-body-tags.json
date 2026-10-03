@@ -1,0 +1,10 @@
+{
+  "description": "A definition is checked in the order written, its body before its clauses: the name read twice in the body is the error, at the second $x, before the %tags that reads its own tags (engine §9).",
+  "document": "```jbogenbau\n%rule a $x(A) $x(B)\n  %tags tags($)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 15
+    }
+  }
+}

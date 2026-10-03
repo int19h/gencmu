@@ -1,0 +1,10 @@
+{
+  "description": "The clauses are checked in their fixed order: %tags, at %tags, comes before the comparison of %conditions whose sides do not fit (engine §9).",
+  "document": "```jbogenbau\n%rule a $x(A)\n  %tags tags($)\n  %conditions text($x) ⊆ \"a\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 3
+    }
+  }
+}

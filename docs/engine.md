@@ -840,9 +840,12 @@ A document can hold several errors. The reader reports one, and every reader cho
    - A capture: a capture inside braces, then one inside an elidable optional, then `$` that wraps something, then a name that is not all lower case, then a capture that wraps anything but one symbol, each at the capture, before what it wraps.
    - An optional: two markers, at the second; then an elidable optional that is not of the form below, at its `[`; then a test other than `=` on its terminator, at the test; then what it holds. So `[+KU | $x(A)]` is an error at the `[`, and `[+KU≠"ku" $x(A)]` at the `≠`.
    - Braces: two markers, at the second, or a marker after the separator, at that marker; then a chain that is not the whole expression of its alternative, at its `{`; then the item and the separator. So `A {$c(B) ... \ S}` is an error at the `{`, although its marker follows the capture.
-3. The names that a production reads twice come after the whole expression of the alternative, by the rule above.
+3. The names that a production reads twice come after the whole expression of the alternative, by the rule above, and before the alternative's own tags.
+4. A definition is checked in the order in which it is written. Its alternatives come first, each with its guards, its expression and then its own tags. Then come its clauses, in their fixed order: `%tags`, `%conditions`, `%emits` and `%opaque`. Each clause's own errors, such as tags made of the constituent's own tags, a comparison whose sides do not fit, or `$` beside another item of an emission, stand at the clause or at the part of it that is wrong, and come in the order of the text. The checks of the whole definition below, which stand at the definition, come last.
+5. The items of a document are checked in the order written, so the first item with an error decides, whatever kind of item it is.
+6. A stage's documents are read in the order in which its pipeline includes them (§13), and the first document with an error of reading decides. Every document is read before the loader stitches the stage, so an error of reading in any document comes before an error of stitching (§2), and those come before the errors of lowering, which a parse finds (§3).
 
-These steps make every reader report the same token for every combination of these errors. The order of the other errors of a definition, such as those of its clauses, is not part of this rule.
+These steps make every reader report the same token for every combination of errors.
 
 
 - A capture that wraps anything but one symbol is an error, `$x((B))`, `$x((A | B))` and `$x([B])` included. A symbol is a reference, a tag literal, a character tag, a phoneme tag, a range, a property or a tested one of these.

@@ -1,0 +1,10 @@
+{
+  "description": "The definitions of a document are checked in the order written: the first rule's error comes before the second's (engine §9).",
+  "document": "```jbogenbau\n%rule a $x(A) $x(B)\n%rule b [+KU≠\"k\"]\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 15
+    }
+  }
+}

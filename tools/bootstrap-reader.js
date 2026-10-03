@@ -8,7 +8,7 @@
 
 import fs from "node:fs";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
-import { DOM_FORMAT, captureSequences, elidableHead, expectedProblem, openPart, propertyProblem, rangeProblem, soundProblem, termType, testValueFault } from "../lib/js/src/dom.js";
+import { DOM_FORMAT, captureSequences, comparisonProblem, constantValueType, definitionProblem, elidableHead, expectedProblem, readsOwnTags, openPart, propertyProblem, rangeProblem, soundProblem, termType, testValueFault } from "../lib/js/src/dom.js";
 import { operandProblem } from "../lib/js/src/reader.js";
 import { UnicodeTable } from "../lib/js/src/unicode.js";
 import { characterTag } from "../lib/js/src/tags.js";
@@ -281,7 +281,13 @@ class Parser {
         // value, which the notation's own documents never hold.
         this.index++;
         const name = this.take("constant");
-        constants.push({ name: name.name, op: CONSTANT_KEYWORDS[token.kind], value: this.term(), at: token.at });
+        const valueStart = this.peek();
+        const value = this.term();
+        // The value is a closed term of a type that a constant can have
+        // (engine §2, §9, §10).
+        const found = constantValueType(value, CONSTANT_KEYWORDS[token.kind] === "redefine");
+        if ("problem" in found) fail(found.problem, valueStart);
+        constants.push({ name: name.name, op: CONSTANT_KEYWORDS[token.kind], value, at: token.at });
       } else if (token.kind === "%classifier") {
         classifiers.push(this.classifier());
       } else if (token.kind === "%implies") {
@@ -342,8 +348,15 @@ class Parser {
     const keyword = this.take();
     const name = this.is("#") ? this.take("#") : this.take("identifier");
     const rule = { name: name.text, op: RULE_KEYWORDS[keyword.kind] };
+    // The parts of a definition are checked in the order written: the body,
+    // then its clauses, and the checks of the whole definition last
+    // (engine §9).
     const alternatives = this.body();
-    if (this.accept("%tags")) rule.tags = this.term();
+    if (this.is("%tags")) {
+      const clause = this.take();
+      rule.tags = this.term();
+      if (readsOwnTags(rule.tags)) fail("a constituent's tags cannot be made of its own tags", clause);
+    }
     rule.alternatives = alternatives;
     const conditions = [];
     if (this.accept("%conditions")) {
@@ -351,7 +364,7 @@ class Parser {
       conditions.push(this.implication());
       while (this.accept(",")) conditions.push(this.implication());
     }
-    if (this.accept("%emits")) rule.emit = this.emission(keyword);
+    if (this.is("%emits")) rule.emit = this.emission(this.take());
     rule.conditions = conditions;
     if (this.accept("%opaque")) {
       // A constituent that does not count is never an opaque part (engine §9).
@@ -359,6 +372,8 @@ class Parser {
       rule.opaque = true;
     }
     rule.at = keyword.at;
+    const problem = definitionProblem(rule);
+    if (problem) fail(problem, keyword);
     return rule;
   }
 
@@ -384,7 +399,11 @@ class Parser {
       const first = twice.reduce((a, b) => (b.at[0] < a.at[0] || (b.at[0] === a.at[0] && b.at[1] < a.at[1]) ? b : a));
       fail("a capture name is read twice by one production", first);
     }
-    if (this.is("<")) alternative.tags = this.angleTerm();
+    if (this.is("<")) {
+      const open = this.peek();
+      alternative.tags = this.angleTerm();
+      if (readsOwnTags(alternative.tags)) fail("a constituent's tags cannot be made of its own tags", open);
+    }
     return alternative;
   }
 
@@ -693,10 +712,20 @@ class Parser {
       }
       this.index = saved;
     }
+    const start = this.peek();
     const left = this.union();
     const op = this.take();
     if (!COMPARATORS.includes(op.kind)) fail("expected a comparison", op, true);
+    const rightStart = this.peek();
     const right = this.union();
+    // Each side is a value, at its own place, and the two sides fit the
+    // comparator, at the comparison (engine §9, §10).
+    const leftType = termType(left);
+    const rightType = termType(right);
+    if ("problem" in leftType || leftType.type === "span") fail("problem" in leftType ? leftType.problem : "a span is not a value", start);
+    if ("problem" in rightType || rightType.type === "span") fail("problem" in rightType ? rightType.problem : "a span is not a value", rightStart);
+    const problem = comparisonProblem(op.kind, leftType.type, rightType.type);
+    if (problem) fail(problem, start);
     return { op: op.kind, left, right };
   }
 

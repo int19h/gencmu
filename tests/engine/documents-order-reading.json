@@ -1,0 +1,25 @@
+{
+  "description": "The documents of a pipeline are read in the order that it includes them, and the first error of reading stands: a.md's, although b.md has one too (engine §8, §9).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"a.md\"\n%include \"b.md\"\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n%rule x [+KU≠\"k\"]\n```\n",
+    "b.md": "```jbogenbau\n%rule y $x(A) $x(B)\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "a.md",
+      "line": 4,
+      "column": 13
+    }
+  }
+}
