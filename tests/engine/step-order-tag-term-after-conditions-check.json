@@ -1,0 +1,25 @@
+{
+  "description": "The check of elision-only meets the order of engine §4 on a competing route that the main parse never takes. In R, c reads the synthetic T through x, whose `$` condition fails without reading `tags($)`. Its tag term, tag(\"\") over an empty span, would be an error of the grammar, but it comes after the conditions and never runs. So the check passes (engine §4, §7.7).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a A [T]\n%rule b A [T] [T]\n%rule c A x\n%rule x T <tag(text(tail($)))>\n%conditions text($) = \"q\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ]
+    },
+    "brackets": "a"
+  }
+}

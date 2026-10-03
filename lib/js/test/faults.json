@@ -257,6 +257,27 @@
     ],
     "reparse-written-optional-suffix.json": [
       "F24"
+    ],
+    "step-order-chosen-tag-term.json": [
+      "order:tags"
+    ],
+    "step-order-conditions-written-check.json": [
+      "order:conditions"
+    ],
+    "step-order-conditions-written.json": [
+      "order:conditions"
+    ],
+    "step-order-tag-term-after-conditions-check.json": [
+      "order:tags"
+    ],
+    "step-order-tag-term-after-conditions.json": [
+      "order:tags"
+    ],
+    "step-order-tag-term-at-prediction.json": [
+      "order:tags"
+    ],
+    "step-order-tag-term-definition-check.json": [
+      "order:tags"
     ]
   },
   "unconfirmed": {},
@@ -498,7 +519,10 @@
       "reparse-witness-hook-only.json",
       "reparse-written-observation-after.json",
       "reparse-written-observation-head.json",
-      "reparse-written-observation-text.json"
+      "reparse-written-observation-text.json",
+      "step-order-conditions-written-check.json",
+      "step-order-tag-term-after-conditions-check.json",
+      "step-order-tag-term-definition-check.json"
     ],
     "F14": [
       "reparse-strict-nested-route.json",
@@ -525,7 +549,10 @@
       "reparse-synthetic-suffix-empty.json",
       "reparse-synthetic-suffix-nullable-reads.json",
       "reparse-written-observation-after.json",
-      "reparse-written-observation-head.json"
+      "reparse-written-observation-head.json",
+      "step-order-conditions-written-check.json",
+      "step-order-tag-term-after-conditions-check.json",
+      "step-order-tag-term-definition-check.json"
     ],
     "F16": [
       "reparse-strict-least-fixpoint.json",
@@ -658,7 +685,10 @@
       "reparse-witness-hook-only.json",
       "reparse-written-observation-after.json",
       "reparse-written-observation-head.json",
-      "reparse-written-observation-text.json"
+      "reparse-written-observation-text.json",
+      "step-order-conditions-written-check.json",
+      "step-order-tag-term-after-conditions-check.json",
+      "step-order-tag-term-definition-check.json"
     ],
     "F29": [
       "reparse-strict-nested-route.json",
@@ -674,6 +704,17 @@
     ],
     "F32": [
       "reparse-strict-reclose.json"
+    ],
+    "order:conditions": [
+      "step-order-conditions-written-check.json",
+      "step-order-conditions-written.json"
+    ],
+    "order:tags": [
+      "step-order-chosen-tag-term.json",
+      "step-order-tag-term-after-conditions-check.json",
+      "step-order-tag-term-after-conditions.json",
+      "step-order-tag-term-at-prediction.json",
+      "step-order-tag-term-definition-check.json"
     ]
   }
 }

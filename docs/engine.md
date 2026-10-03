@@ -202,7 +202,7 @@ A test is an ordinary predicate, and an empty span is no exception. So `X=""` an
 
 When an item reads a tested symbol, the recognizer produces the advanced item only if the test holds. This holds over a token, for a terminal, and over a completed item, for a reference. It includes an advance over a constituent that completed empty at the item's position. Two completed items over one span can have different tag sets. So a tag test can let an item advance over one of them and not over the other.
 
-The recognizer applies the test before any condition that the advance makes ready. The paragraphs below say when a condition is ready. If the test fails, the recognizer evaluates none of those conditions. The order is observable, because a condition can end the parse with an error of the grammar. The test does not stop the conditions that run earlier. These are the conditions inside the referenced rule, which run before that rule completes, and those that run when the recognizer predicts the item.
+The recognizer applies the test before any condition that the advance makes ready. The paragraphs below say when a condition is ready, and they give the order of one step in full. If the test fails, the recognizer evaluates none of those conditions. The order is observable, because a condition can end the parse with an error of the grammar. The test does not stop the conditions that run earlier. These are the conditions inside the referenced rule, which run before that rule completes, and those that run when the recognizer predicts the item.
 
 The test is not part of the terminal's identity. A tested terminal `T="s"` is the terminal `T` for the actions of §6. It is also `T` in the tree's token nodes (§12) and in the witness. The test only removes matches.
 
@@ -211,6 +211,16 @@ When an item completes, its constituent's tags are its production's tag terms ev
 The recognizer evaluates a condition, as simplified for its production (§3.6), as soon as the item reads the last capture that it uses. It evaluates a condition that uses `$` as soon as the item is complete. At that point, `$` spans from the item's origin to the set that the item completes in. It has the tags that its production's tag term gives it. If the condition fails, the recognizer does not produce the advanced item.
 
 The recognizer evaluates a condition that uses no capture when it predicts the item. It does the same with a condition that uses only `$` in a production with no symbols, over the empty span there. So a rule whose only production has no symbols and the condition `initial($)` completes only at the start of the input. Anywhere else, the recognizer never advances an alternative that begins with that rule, and that alternative predicts nothing after the rule.
+
+A step of the recognizer is an advance of one item, or the prediction of one production at one position. Each step evaluates its parts in one order, and it stops at the first part that drops the item:
+
+1. The test of the symbol that the step advances over, where that symbol has one.
+2. In the check of §7, a strict item whose dot would reach the end of its production. The step drops it here (§7.4). It evaluates nothing more.
+3. The conditions that the step makes ready, in their written order. A condition on captures and a condition on `$` that become ready at one advance keep that order. Each one stops early as §10 says. The first that fails drops the item.
+4. Where the step completes the item, its production's tag term. The recognizer evaluates it where a condition of step 3 first reads `tags($)` or `classes($)`. Otherwise it evaluates it once every ready condition holds. So a failing condition that does not read them stops the tag term. This holds also for a production with no symbols at its prediction.
+5. Within the tag term, where the alternative's own term and its definition's `%tags` join (§3.7), the alternative's own term comes first.
+
+The order is observable, because a test, a condition or a tag term can end the parse with an error of the grammar. Where another part drops the item first, that error never happens. The order between steps, between items and between sets is not observable. Every step that the rules of this section reach runs in the end, so the same errors happen. Two such errors differ only in their message.
 
 `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` each run a nested parse. A nested parse is one recognition over the span's tokens alone, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does. A query that the check of §7 starts reads the projected span in the stage's input. It uses this lowered grammar in its ordinary mode (§7.6). Its chart is every item, partial or completed, that this recognition holds after it ends. The three functions read the eligible proof trees of the chart (below), before any ranking and before stage-wide `maximal`:
 
@@ -901,7 +911,7 @@ A constant's value is a closed term, whose type is a string, a set of strings or
 
 `A ⟹ B`, a condition, holds when `A` does not or `B` does. `⟹` binds looser than `∨`, which binds looser than `∧`. `⟹` groups to the right, and parentheses group.
 
-Evaluating a condition can run a nested parse, which can fail with an error of the grammar (§4). `split` and `tag` can fail in the same way. So which parts the engine evaluates is observable, and this section fixes the order of evaluation.
+Evaluating a condition can run a nested parse, which can fail with an error of the grammar (§4). `split` and `tag` can fail in the same way. So which parts the engine evaluates is observable, and this section fixes the order of evaluation within one condition or term. §4 fixes the order of the tests, conditions and tag terms of one step of the recognizer.
 
 The engine evaluates conditions joined by `∧` or `∨` from left to right. Evaluation stops at the first that decides the whole: a false one for `∧`, a true one for `∨`. `A ⟹ B` evaluates `A` first, and `B` only if `A` holds. A guarded term `A ⟹ t` likewise evaluates `t` only if `A` holds.
 

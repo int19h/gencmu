@@ -1,0 +1,36 @@
+{
+  "description": "A condition on `$` and a condition on a capture become ready at one advance. They run in their written order: the `$` condition fails first, so the capture condition, which would be an error of the grammar, never runs, and the text is rejected (engine §4).",
+  "grammar": "%rule text A x\n%rule x $y(B)\n%conditions text($) = \"q\", ~z ⊆ tag(text(tail($y)))",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "token": 1
+      }
+    },
+    "error": "rejected"
+  }
+}

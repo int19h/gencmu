@@ -1,0 +1,36 @@
+{
+  "description": "A completed item's `$` condition fails without reading `tags($)`, and its tag term would end the parse with an error of the grammar, tag(\"\"). The tag term comes after the conditions, so it never runs, and the text is rejected (engine §4).",
+  "grammar": "%rule text A x\n%rule x B <tag(text(tail($)))>\n%conditions text($) = \"q\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "token": 1
+      }
+    },
+    "error": "rejected"
+  }
+}
