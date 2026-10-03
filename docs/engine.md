@@ -82,7 +82,7 @@ To stitch a stage's items, the loader reads them in order, whatever documents th
 
 When `%extend-rule` extends a rule, each appended alternative carries the extension's own clauses: its rule-level tags, conditions and emission. These clauses apply to the appended alternatives alone, and the base rule's clauses do not apply to them. The earlier alternatives keep their own clauses. So a script document can add letters to a rule without restating its clauses, and its own clauses do not leak into the base rule. A definition is a `%rule`, `%redefine-rule` or `%extend-rule` statement: its alternatives and the clauses written with them. The loader records every replacement and extension.
 
-The loader collects directives from all the stage's items. `%stage`, `%include` and `%features` shape the pipeline (§13) and do not belong to a stage. The other two directives belong to the stage.
+The loader collects directives from all the stage's items. `%stage`, `%include` and `%features` shape the pipeline (§13) and do not belong to a stage. The other directive, `%ambiguity-resolution`, belongs to the stage.
 
 A stage also has constants. A constant is a named value that terms and conditions use (§10). Its name is `$` and a name (§9) that begins with `A` to `Z`, such as `$SU-STOPS`. By convention, the whole name is in capitals.
 
@@ -114,9 +114,9 @@ A call `classify(a, C)` names the classifier `C` (§10). A `classify` whose clas
 
 A stage also has implications. An item `%implies A ⟹ B` (`implication`) adds one. `A` and `B` are closed terms (§10) whose type is a tag set. A constant in them has the value that the last definition of the stage gives it, as in a rule. After the loader stitches the stage, it makes sure that their types agree, as it does for a rule (§9). §11 says how the stage applies its implications.
 
-A stage has exactly one `%ambiguity-resolution L [elision-only] [maximal]`, or it is an error naming the stage. `L` is the rule of the ranking, `greedy`, `lazy` or `late-elision` (§6). If both `elision-only` (§7) and `maximal` (§4) are written, they stand in that order. `%elidable T…` names the elidable terminators, and repeated directives add up.
+A stage has exactly one `%ambiguity-resolution L [elision-only] [maximal]`, or it is an error naming the stage. `L` is the rule of the ranking, `greedy`, `lazy` or `late-elision` (§6). If both `elision-only` (§7) and `maximal` (§4) are written, they stand in that order.
 
-`%elidable maximal T…` names elidable terminators that are also maximal (§4). A terminator is maximal when any `%elidable maximal` of the stage names it, whatever a plain `%elidable` says. A `%elidable maximal` with no operands names nothing, as a plain `%elidable` with none does.
+No directive names elidable terminators. A rule marks each elidable optional in its body, as `[+T …]`, or as `[++T …]` where its terminator is also maximal (§3.8, §4). `%elidable` is not a directive. So whether an optional is elidable, and whether its terminator is maximal, is a property of the optional itself, the same in every stage that includes its document.
 
 A name whose first character is `A` to `Z` is a terminal, the identifier tag of that name. The DOM writes both kinds of name as `ref`, and lowering (§3) tells them apart by that first letter. Any other name is a rule reference, and must be defined in the stage, or it is an error. `#`, the free-modifier slot, is a rule's name like any other.
 
@@ -141,9 +141,11 @@ A stage lowers its grammar when a parse gives it the enabled features. So a dial
 Where a grammar has several errors of lowering, the parse reports one, in this order. Errors of classifiers come first. Then lowering takes the rules in order (Numbering, below). For each rule, it reports a chain beside another alternative (step 3) before it lowers that rule's alternatives, and an error that lowering one alternative finds, such as a capture that does not wrap one symbol, as it meets it. An item of braces that can match no tokens (step 3) comes last: lowering decides nullability once all rules are lowered, and reports the first such item in the order in which lowering met the braces. So a chain beside another alternative is reported before an empty item, whichever rules hold them.
 
 1. Lowering drops an alternative whose gates do not all hold. A gate `f?` holds when the feature `f` is on, and `¬f?` when it is off. A warning `f!` is not a gate and never drops its alternative (§12).
-2. Lowering expands each remaining alternative into sequences of symbols. `(a | b)` expands to both, in written order. `[x]` is a helper `h → ε | x` (step 4). Flat braces are a helper too: `{x}` is `h → x | h x`, and `{x \ s}` is `h → x | h s x`. So `[{x}]` is a helper `o → ε | h` around the helper `h` of `{x}`. Lowering expands `x` and `s` in place in these productions, as anywhere in an alternative, so a sequence or a choice there needs no helper of its own.
+2. Lowering expands each remaining alternative into sequences of symbols. `(a | b)` expands to both, in written order. A plain optional `[x]` that holds a capture (step 5), at any depth, expands in place as `(ε | x)` would: first to the empty sequence, then to each expansion of `x`, in order. It has no helper. Any other `[x]`, plain or elidable (step 8), is a helper `h → ε | x` (step 4). An elidable optional `[+T x]` or `[++T x]` is always a helper `h → ε | T x`, since it never holds a capture. Flat braces are a helper too: `{x}` is `h → x | h x`, and `{x \ s}` is `h → x | h s x`. So `[{x}]` is a helper `o → ε | h` around the helper `h` of `{x}`. Lowering expands `x` and `s` in place in these productions, as anywhere in an alternative, so a sequence or a choice there needs no helper of its own.
 
    `A₁ & … & Aₙ` has at most 16 items. More is an error of the document (§9), since the expansions number 2ⁿ−1. It expands to every non-empty subsequence that keeps their order. The subsequences come in the order of the binary numbers 1 to 2ⁿ−1, with `A₁` as the lowest bit. `ε` is the empty sequence. A sequence's expansions are the products of its items' expansions, the first item varying slowest.
+
+   So `A [$b(B)] [$c(C)]` expands to `A`, `A C`, `A B` and `A B C`, in that order, and `A [B] [$c(C)]` to `A h`, `A h C`, with one helper `h → ε | B` that both share. Each plain optional that holds a capture doubles the expansions of its alternative, as an item of `&` does. An optional expanded in place is no symbol of its own. So the rules that read the symbols of a production read its expansion as it stands: the default tags of step 7, the transparent closes of §6, the constituent of an elided terminator (§4) and the cycle rule (§4). For example, the expansion `A` of `A [$b(B)]` has one symbol, so it inherits the tags of `A` and its close is transparent, while `A [B]` always has two symbols, `A` and a helper.
 
    A tested symbol expands to that one symbol, which carries the test. It adds no helper. So the numbering, the transparent closes of §6 and the constituents of a production are those of the symbol without its test. Two productions that differ only in the test of a symbol are two productions.
 3. A chain is an alternative whose whole expression is `{... x \ s}`, a left chain, or `{x ... \ s}`, a right chain, with or without `\ s`. The reader makes sure that a chain is the whole expression of its alternative (§9). A chain must also be the only alternative of its rule left after step 1. Another alternative beside it is an error of the grammar. Lowering turns the chain into recursion on the rule itself, with no helper for the braces. `{... x \ s}` becomes `r → x | r s x`, and `{x ... \ s}` becomes `r → x | x s r`. Without a separator, `s` is left out of these productions. Lowering expands `x` and `s` in place, as in step 2.
@@ -156,8 +158,8 @@ Where a grammar has several errors of lowering, the parse reports one, in this o
 
    A flat list is one helper, so its closes are transparent (§6), and the clauses of its rule apply only to the rule's whole constituent. A grammar that needs each prefix of a list as a constituent, which the ranking and the rule's conditions see, writes a chain or explicit recursion.
 4. The engine names the helpers, and it never shows their names. A helper is a production whose left side is a helper name.
-5. A capture `$x(s)` must wrap a single symbol `s`, which can be tested, in a sequence at the top level of an alternative. It must not stand inside `[ ]`, `{ }`, `( )` or `&`. It labels the symbol's position in the production. An alternative has at most four captures. `$`, the whole constituent, is a capture of every production that no alternative writes. Its span runs from the item's origin to its end, and its tags are the constituent's (§4).
-6. Conditions, tags, emission and `%opaque` attach to the production that an alternative lowers to, or to each production if it expands to several. They attach with the clauses of the alternative's definition (§2). A production has a capture if its alternative captures it, and every production has `$`.
+5. A capture `$x(s)` must wrap a single symbol `s`, which can be tested. It can stand anywhere in the expression of an alternative, in a group, a choice, an item of `&` or a plain optional, at any depth. It must not stand inside braces, flat or chain, or inside an elidable optional (step 8), at any depth (§9). It labels the symbol's position in each production that reads the symbol. A production has the capture `x` exactly when its expansion reads the symbol that `$x` wraps. The other productions of the alternative lack it, and the missing-capture rules of step 6 apply to them. The names of an alternative's captures are distinct, even in two branches of a choice (§9). So the captures of every production stand in the order in which the alternative writes them. An alternative can have any number of captures. Each costs what §4 says. `$`, the whole constituent, is a capture of every production that no alternative writes. Its span runs from the item's origin to its end, and its tags are the constituent's (§4).
+6. Conditions, tags, emission and `%opaque` attach to the production that an alternative lowers to, or to each production if it expands to several. They attach with the clauses of the alternative's definition (§2). A production has a capture where its expansion reads the captured symbol (step 5), and every production has `$`.
 
    Before lowering attaches a clause, it simplifies the clause for the production, by these rules:
 
@@ -174,9 +176,11 @@ Where a grammar has several errors of lowering, the parse reports one, in this o
    - Lowering drops an emission item whose carrier (§11) the production lacks from that production's emission. It also drops each attachment capture that the production lacks from its item.
    - A tag term, the alternative's own or the definition's `%tags`, that uses a capture the production lacks is an error of the document.
 7. A production's tags are the union of its alternative's own tag term and its definition's `%tags` term, where either is written. A production with neither has the tags of its symbol's constituent if it has one symbol, and none if it has none or several. Lowering makes this explicit: it treats the single symbol as captured. In the check of §7, a restoration has the tags of the empty production that it stands for, which are none. A terminal that reads a synthetic token gives no tags to the production that inherits from it (§7.5).
-8. An optional `[x]` is elidable when two things hold. `x` is a symbol, or a sequence whose first item is, recursively, one. That symbol is an `%elidable` terminal, tested or not. An optional whose content is a choice, an `&` or braces is never elidable, even if every branch or item begins with an elidable terminal. So `[{KU}]` is not elidable, but the `[KU]` of `{[KU] A}` can be. The `elision-only` check (§7) reads this same lowered grammar in a mode of its own. In that mode, an elidable optional is restored or written, and never empty (§7.4). A tested elidable terminal keeps its test there.
+8. An optional is elidable exactly when it is written `[+T x]` or `[++T x]`. Its terminal is `T`, an identifier tag, which can carry an `=` test. `x` is a sequence of any primaries, possibly empty, and holds no capture at any depth. The reader makes sure of this form (§9). An optional written `[++T x]` is maximal: its terminator follows the rule of maximal terminators (§4). A plain optional `[x]` is never elidable, whatever its content, also where it begins with a terminal that another optional marks. So `[KU]`, `[KU | VAU]` and `[{KU}]` are ordinary optionals, and the `[+KU]` of `{[+KU] A}` is elidable. The `elision-only` check (§7) reads this same lowered grammar in a mode of its own. In that mode, an elidable optional is restored or written, and never empty (§7.4). A tested elidable terminal keeps its test there.
 
-   The terminal of an elidable optional has no test or an `=` test, since §7 restores it with its sound. Any other test on it is an error of the grammar. The loader finds this error after it stitches the stage, since a later `%elidable` can make an optional elidable. It makes sure that no alternative of the stitched stage has such a test, whatever the features. It reports the error at the definition that wrote the alternative. A test on a later symbol of the optional is no error, since §7 restores only the terminal.
+   The terminal of an elidable optional has no test or an `=` test, since §7 restores it with its sound. Any other test on it is an error of the document, which the reader reports at the test (§9). The marker is part of the optional's text, so no later item of the stage can change whether an optional is elidable. A test on a later symbol of the optional is no error, since §7 restores only the terminal.
+
+   Lowering keeps, with each helper, whether it is the helper of an elidable optional, its terminal `T` with its test, and whether it is maximal. The rest of this document says "elidable optional" and "maximal terminator" of these helpers. Two elidable optionals of one terminal can differ: `[+T]` and `[++T]` in one stage are one plain and one maximal terminator.
 
 Lowering numbers the productions from 0. The canonical order *T* of §6 uses this numbering. *T* orders the ambiguity diagnostics and selects the forbidden terminator that a maximality rejection reports (§4). The canonical tie-break keys never turn a tie into an accepted reading.
 
@@ -184,7 +188,7 @@ A production that a condition false for it removes (§3.6) takes no number, thou
 
 Within a rule, lowering takes its remaining alternatives in order. Each alternative contributes its own productions first, and then its helpers. Its own productions come in the order of its expansions (step 2). For a chain, the base productions come first, one for each expansion of `x`. The recursive ones follow, one for each expansion of the sequence that the recursion adds, `s x` in a left chain and `x s` in a right chain, in the order of step 2.
 
-Its helpers come one for each place in the alternative where `[ ]` or flat `{ }` is written. They come in the order in which those places are written, left to right. The helpers of the places written inside a helper follow that helper's productions at once, depth first, before the next helper of the alternative. A helper of flat braces has its base productions first and then its recursive ones, as a chain does. The places inside `x` come before those inside `s`, since `x` is written first.
+Its helpers come one for each place in the alternative where a helper's `[ ]` or flat `{ }` is written. They come in the order in which those places are written, left to right. A plain optional that holds a capture is expanded in place (step 2) and has no helper and no place of its own. The places written inside it keep their order among the others. So the expansions of such an optional are productions of the rule itself, numbered in the order of step 2, and the canonical order *T* of §6 compares them by those numbers. The helpers of the places written inside a helper follow that helper's productions at once, depth first, before the next helper of the alternative. A helper of flat braces has its base productions first and then its recursive ones, as a chain does. The places inside `x` come before those inside `s`, since `x` is written first.
 
 The braces of a chain (step 3) have no helper: they are lowered into the rule's own productions. But the `[ ]` and flat `{ }` inside its item and its separator have helpers, as anywhere else.
 
@@ -197,6 +201,10 @@ The parser is an Earley recognizer, a parser for any context-free grammar, over 
 An item has a production, a dot position and an origin, the position where the item began. For each capture before the dot, it also has the captured part's span and tag set. Two items equal in all of these are one item. Two items that differ in a captured part's tag set are two items, even over the same span. So derivations that differ in nothing that a condition or tag clause can see share an item.
 
 Take one production, dot position, origin and input position, and one tag set for each captured part. Then the captures add items only where the span of a captured part can vary. For example, with `t → $l(t) $r(t) | A`, a completed item over one span exists once for each position where `$l` can end. Without the captures, it exists once.
+
+This is the cost of a capture, and the notation sets no limit on their number. A captured part's span before the dot is part of an item's identity. So items that differ only in where a captured part began or ended are not merged, and neither are the summaries of §6 and the states of eligibility above that are kept for each item. Take one production, dot position, origin and input position. Each captured part before the dot can multiply the number of its items by the number of its possible spans. That is up to N + 1 for each end of the part that the origin, the input position or a neighbouring captured part does not fix, where N is the length of the input. Its tag sets can multiply the items again. A capture of a terminal, or of a part whose length is fixed, costs little, since its start fixes its end. A capture of a rule that can end in many places, such as a list, costs the most. Where a clause only needs the whole constituent, `$` costs nothing, since the origin and the position fix it.
+
+No memo depends on the number of captures. The memo of nested queries (below) is keyed by the query's kind, rule and span or content, never by captures. Only the identity of items, and what is keyed by items, grows with them.
 
 A terminal `T` matches a token whose tags contain `T`. A range matches a token that carries at least one character tag of the range. A property matches a token that carries a character tag whose scalar value has the property. Either one matches such a token once, with one reading, however many of its tags qualify.
 
@@ -263,17 +271,17 @@ An omission of a maximal terminator (below) is also forbidden when its constitue
 
 The candidate comes from the unfiltered chart of the query. It need not have an eligible proof tree, and it need not fit a proof tree of `rule`. This holds whether or not a terminator is written, also where the whole written optional cannot complete. The query's chart ends with its span. So a `matches` over a captured span sees no longer constituent past the span. A `begins` with `from` or `after` sees the rest of the input.
 
-The nonempty alternative is the whole content of the optional, not only its terminator. So a written terminator forbids an omission only where the whole optional can complete after it. For example, let `T` be elidable, and take `r → c [T A] D` and `c → B | B D`. On `B D T`, `begins` of `r` holds. The longer `c` reaches the `T`, but `[T A]` cannot complete. On `B D T A`, `begins` is false, because the whole written optional completes.
+The nonempty alternative is the whole content of the optional, not only its terminator. So a written terminator forbids an omission only where the whole optional can complete after it. For example, take `r → c [+T A] D` and `c → B | B D`. On `B D T`, `begins` of `r` holds. The longer `c` reaches the `T`, but `[+T A]` cannot complete. On `B D T A`, `begins` is false, because the whole written optional completes.
 
 The advances of a blocking path come from the chart. So their tests and conditions passed. They need not belong to a proof tree of `rule`, and they need not be eligible themselves. An attempt that never completes `rule` can still forbid an omission.
 
 So eligibility belongs to a whole proof tree, not to an advance alone. Two proof trees of one item can hold different items fixed before `Y`. An omission is permitted only through a proof tree whose own fixed prefix permits it, and that same tree must be eligible. An eligible prefix of one tree never combines with the permitted omission of another.
 
-For example, let `T` and `U` be elidable. Take `r → [A] y [T] C T U` and `y → A B | A B C | B z [U]`. Also take `z → ε | C T`. On `A B C T U`, `begins` of `r` is false.
+For example, take `r → [A] y [+T] C T U` and `y → A B | A B C | B z [+U]`. Also take `z → ε | C T`. On `A B C T U`, `begins` of `r` is false.
 
-Two proof trees reach the omission of `[T]` after `y`. In the first, `[A]` is empty and `y → A B`. That prefix is eligible, but the omission is forbidden, since the same prefix reads `A B C` as `y` and then the written `T`.
+Two proof trees reach the omission of `[+T]` after `y`. In the first, `[A]` is empty and `y → A B`. That prefix is eligible, but the omission is forbidden, since the same prefix reads `A B C` as `y` and then the written `T`.
 
-In the second tree, `[A]` reads `A` and `y → B z [U]`, so the omission of `[T]` is permitted. But that tree is not eligible. Its omission of `[U]` is forbidden, because `z` can read `C T`, and then the written `U` follows. Without the `[U]` of `y → B z [U]`, the second tree is eligible, and `begins` holds.
+In the second tree, `[A]` reads `A` and `y → B z [+U]`, so the omission of `[+T]` is permitted. But that tree is not eligible. Its omission of `[+U]` is forbidden, because `z` can read `C T`, and then the written `U` follows. Without the `[+U]` of `y → B z [+U]`, the second tree is eligible, and `begins` holds.
 
 An implementation can keep two states for each item. The first, E, says that the item has an eligible proof tree. The second, P, says that it has an eligible proof tree whose fixed prefix permits the next optional to be empty. The two states follow these transitions:
 
@@ -313,7 +321,7 @@ Derivations are made only of advances that the tests allowed. An implementation 
 
 A tag test works in the same way. Take `text → [X] body⊇~b` and `body → X Y | Y`, where the second production of `body` has the tag term `~b`. Only the `body` over `Y` carries `b`, so again `[X]` reads `X`.
 
-In a derivation, the helper of an elidable optional (§3.8) that derives `ε` is an elided terminator, at the position where it is empty. Its constituent is the node of the symbol just before the helper in the production that has the helper among its symbols. In `LE sumti-tail [KU #]`, it is the node of `sumti-tail`. In `[terms] [VAU #]`, it is the node of the helper of `[terms]`, whether that optional is empty or not. In `(number | lerfu-string) [BOI #]`, it is the node of `number` or `lerfu-string`, as the production has one or the other.
+In a derivation, the helper of an elidable optional (§3.8) that derives `ε` is an elided terminator, at the position where it is empty. Its constituent is the node of the symbol just before the helper in the production that has the helper among its symbols. In `LE sumti-tail [+KU #]`, it is the node of `sumti-tail`. In `[terms] [+VAU #]`, it is the node of the helper of `[terms]`, whether that optional is empty or not. In `(number | lerfu-string) [+BOI #]`, it is the node of `number` or `lerfu-string`, as the production has one or the other. A plain optional that holds a capture has no helper (§3.2), so in `[$t(terms)] [+VAU #]` it is the node of `terms` in the production that reads `terms`. In the production that does not, the elided terminator is the first symbol, and has no constituent (below).
 
 An elided terminator has no constituent in three cases:
 
@@ -323,7 +331,7 @@ An elided terminator has no constituent in three cases:
 
 Braces add no case of their own. The rule for the constituent and these three cases apply to the productions of §3 as lowering makes them, whatever the source wrote. So a terminator elided at the start of the first item of braces has no constituent, as the first symbol of its production. One elided at the start of each later item of `{x}`, or at the start of each separator of `{x \ s}` or of a left chain, has none either, as the second symbol after the initial self-reference. In a right chain, `r → x s r`, a terminator elided at the start of `s` follows the last symbol of the expansion of `x`. That symbol's node is its constituent, unless the symbol is a terminal, or unless `x` is the one symbol `r`, which makes the production start with its own left side.
 
-A PEG (parsing expression grammar) repetition such as `{[T] A}` reads its next item after what it read. It does not make what it read longer first.
+A PEG (parsing expression grammar) repetition such as `{[+T] A}` reads its next item after what it read. It does not make what it read longer first.
 
 When the stage's directive has stage-wide `maximal`, the engine does not count some more derivations, as it does not count cyclic ones. It does not count a derivation if one of its elided terminators has a constituent that is not the longest possible. Such a constituent is a node of a symbol `Y` spanning `[s, p)`. The recognizer also has a completed item of a production of `Y`, with origin `s`, in a set after `p`.
 
@@ -331,15 +339,15 @@ When `Y` is tested, the longer constituent counts only if the test holds of it, 
 
 Only the constituent matters, not what follows the elided terminator in its production. Whether a constituent is the longest possible depends only on its symbol, its test, its origin and its end. So an implementation can find, once per parse, the furthest set in which each symbol completes from each origin. For a tested symbol, it needs each completed item of the symbol from each origin, since the furthest one need not pass the test. Maximality does not apply to the derivations of the check of §7, whose restorations read tokens and omit nothing. The queries that the check starts follow the query policy above. Stage-wide `maximal` also does not apply to a nested parse, which follows written-terminator priority instead (above).
 
-A maximal terminator is one that `%elidable maximal` names (§2). It brings the condition of stage-wide `maximal` to that terminator alone. Maximality is this restriction to the longest constituent, from either form. The engine does not count a derivation in which an elided terminator of a maximal terminal has a constituent that is not the longest possible. The terminal is that of the elidable optional (§3.8). The constituent, its origin, its test and the three cases with no constituent are as above.
+A maximal terminator is the terminator of an optional written `[++T …]` (§3.8). It brings the condition of stage-wide `maximal` to that optional alone. Another optional of the same terminal written `[+T …]` is not maximal. Maximality is this restriction to the longest constituent, from either form. The engine does not count a derivation in which a maximal terminator is elided and has a constituent that is not the longest possible. The terminal is that of the elidable optional (§3.8). The constituent, its origin, its test and the three cases with no constituent are as above.
 
 Maximality never forbids an omission with no constituent. Written-terminator priority still applies in a query.
 
-The longer constituent need not fit into any derivation of `text`, as above. Stage-wide `maximal` restricts every elidable terminator, but in the main parse only. It adds no terminal to the selection in nested queries. A maximal terminator applies whether or not `%ambiguity-resolution` includes `maximal`. It applies in the main parse and in a nested parse (above).
+The longer constituent need not fit into any derivation of `text`, as above. Stage-wide `maximal` restricts every elidable optional, but in the main parse only. It makes no optional maximal in nested queries. A maximal terminator applies whether or not `%ambiguity-resolution` includes `maximal`. It applies in the main parse and in a nested parse (above).
 
 The ranking (§6) sees only the derivations that remain, under every ranking rule. `elision-only` writes back a maximal terminator as any other (§7). The check's derivations have no elided terminator, so no terminator there is maximal or forbidden.
 
-Lowering keeps the set of maximal terminals with the lowered grammar, as part of what identifies it. An implementation already finds the furthest completion of each symbol from each origin for stage-wide `maximal`. The main parse builds that table whenever either form needs it. A nested parse whose grammar has a maximal terminator builds that table from its own chart, once per query. The table depends only on the query's chart, so the keys of the memo (above) fit the answer.
+Lowering keeps, with each helper of an elidable optional, whether it is maximal (§3.8), as part of the lowered grammar and of what identifies it. An implementation already finds the furthest completion of each symbol from each origin for stage-wide `maximal`. The main parse builds that table whenever either form needs it. A nested parse whose grammar has a maximal terminator builds that table from its own chart, once per query. The table depends only on the query's chart, so the keys of the memo (above) fit the answer.
 
 A stage accepts when an item of the start rule `text` spans the whole input and has at least one derivation that is counted. It rejects an input whose every such derivation is cyclic, as it rejects one with no such item. A stage that accepts its input can still end with a tie, which is an error (§6). A rejected input reports the furthest position that any item reached. It also reports the terminals that the items there can read next, together with the rules that those items belong to (§11). The stage writes a tested terminal with its test, such as `LE="la"` (`docs/output.md`).
 
@@ -349,7 +357,7 @@ That ranking reads the same chart of the main parse. It does not run recognition
 
 This report covers only main derivations that maximality removes. If a nested query's answer makes a condition false, the recognizer does not make that advanced item. If no counted main derivation remains, the ordinary rejection rules apply. An ordinary rejection reports the furthest position and the terminals expected there, and those terminals can include a terminator.
 
-For example, take `%elidable maximal T` and `text → A B` with the condition `begins(from($), r)`. Also take `r → y [T] B` and `y → A | A B`. On `A B`, the query fails, because `y → A B` is longer. No main root remains, so the rejection is an ordinary one, at the furthest position.
+For example, take `text → A B` with the condition `begins(from($), r)`. Also take `r → y [++T] B` and `y → A | A B`. On `A B`, the query fails, because `y → A B` is longer. No main root remains, so the rejection is an ordinary one, at the furthest position.
 
 The reported terminator comes from `m` whatever the verdict of that ranking. So *T* (§6) selects the forbidden terminator that such a rejection reports. The canonical tie-break keys never turn a tie into an accepted reading.
 
@@ -399,7 +407,7 @@ Transparency removes a close from the comparison, but it does not merge derivati
 
 For example, `text → [[X]]` derives the empty input in two ways. The outer helper derives ε itself, or through the inner helper. `text → [A] & [B]` derives it in three ways, through the expansions of its `&` (§3.2). These use `[A]` alone, `[B]` alone, or both. All have the same empty tree, and all three ranking rules report a tie. The error of such a tie can carry two equal trees, while its witness names two different productions.
 
-With `%elidable KU`, `text → [[KU]]` also derives the empty input in two ways. The outer helper is empty, which elides nothing, or the inner one is, which elides `KU`. Their vectors are (0) and (1). So the input ties under `greedy` and `lazy`, and it is `resolved` under `late-elision`.
+`text → [[+KU]]` also derives the empty input in two ways. The outer helper is empty, which elides nothing, or the inner one is, which elides `KU`. Their vectors are (0) and (1). So the input ties under `greedy` and `lazy`, and it is `resolved` under `late-elision`.
 
 The engine does not merge derivations whose trees are equal either. Such derivations can still differ in what the stage does with them. Two definitions of `text → A` give equal trees, but their emission clauses can emit different tokens. Their alternatives can also differ in their warning guards, or in `%opaque`.
 
@@ -417,7 +425,7 @@ Under `late-elision`, the stage compares the elided terminators of two derivatio
 
 The vector counts each elided terminator once, whatever its terminal, its constituent or its depth. So two terminators elided at one position count two, also when they are of different terminals. An ordinary empty optional, such as an empty `[{x}]`, and a close of any other production count nothing.
 
-`%elidable` alone decides what counts. It also decides which empty optionals become `elided` nodes (§12), what maximality forbids (§4) and what §7 restores. An optional that is not elidable (§3.8), such as an optional separator, can still be empty. Its absence counts nothing and leaves no node. The ranking knows no particular terminal, so a grammar that wants a separator not to count leaves it out of `%elidable`.
+The markers of §3.8 alone decide what counts. They also decide which empty optionals become `elided` nodes (§12), what maximality forbids (§4) and what §7 restores. An optional that is not elidable (§3.8), such as an optional separator, can still be empty. Its absence counts nothing and leaves no node. The ranking knows no particular terminal, so a grammar that wants a separator not to count writes it as a plain optional, `[CU #]`.
 
 Under `late-elision`, one derivation beats another when its elision vector is less. The stage compares two vectors from boundary 0 to boundary N. At the first boundary where they differ, the vector with the smaller count is less. Two derivations with equal vectors are tied, even where their trees differ. So a stage whose derivations elide nothing has a tie whenever its input has more than one derivation.
 
@@ -494,7 +502,7 @@ The root combines its items in the same way. A total of two with a least count o
 
 The best derivations form a smaller forest. For each summary, the implementation keeps the edges that attain the summary's least vector. Each kept edge leads to the summaries of its children, in their own contexts. The stage finds `m` and `t` by a ranking with no lean over that forest. That ranking keeps the same contexts, so it reaches a child only through the summary that its context allows.
 
-For example, take `text → [A] y [T] B` and `y → A A | A A B | A [U]`. `T` and `U` are elidable, and the stage declares `maximal`. On `A A B`, the least prefix before `[T]` over all edges uses `y → A A` and elides nothing. `maximal` forbids `T` after it, because `y → A A B` ends later. The only eligible prefix reads the first `A` alone and uses `y → A [U]`. A forest of the least edges over all derivations loses the only derivation that counts.
+For example, take `text → [A] y [+T] B` and `y → A A | A A B | A [+U]`. The stage declares `maximal`. On `A A B`, the least prefix before `[+T]` over all edges uses `y → A A` and elides nothing. `maximal` forbids `T` after it, because `y → A A B` ends later. The only eligible prefix reads the first `A` alone and uses `y → A [+U]`. A forest of the least edges over all derivations loses the only derivation that counts.
 
 A vector has N + 1 components. So a sparse vector, or a shared sequence of elisions, keeps the cost of each addition and comparison small.
 
@@ -730,7 +738,7 @@ The notation's syntax grammar names its constituents so that the reader can read
 
 | rule | DOM |
 | --- | --- |
-| `directive` | a directive: name from its keyword without `%`, arguments in order. An `argument-word` gives its name, an `argument-string` the decoded string, and an `argument-tag` of `~name` the name. In `%elidable`, a first `argument-word` `maximal` gives the member `maximal`, `true`, and no argument. An `argument-tag` `~maximal` stays an argument |
+| `directive` | a directive: name from its keyword without `%`, arguments in order. An `argument-word` gives its name, an `argument-string` the decoded string, and an `argument-tag` of `~name` the name |
 | `classifier` | a classifier: name from its `classifier-name`, a name. Entries from its `classifier-entry`s, in order |
 | `classifier-entry` | an entry: gates from its `guard`s, as an alternative reads them. Keys from its `classifier-key`s, each the decoded string, in order. Operator from its `classifier-operator`, `∈` or `∉`. Class from its `classifier-class`: the name, or the name after `~` |
 | `implication-declaration` | an implication: `if` from the `union` before `⟹` and `then` from the `union` after it, each read as a `term` is |
@@ -751,7 +759,7 @@ The notation's syntax grammar names its constituents so that the reader can read
 | `test-operand` | its term, as a `term-atom` reads it |
 | `capture` | `capture`, the name without `$`, of its primary, which must be a `reference`, `tag`, `character`, `phoneme`, `range`, `property` or `tested` |
 | `group` | its `choice` |
-| `optional` | `optional` of its `choice` |
+| `optional` | `optional` of its `choice`. With a marker, also `elidable`, `true`, and for the marker `++` also `maximal`, `true`: `{"optional":{"seq":[{"ref":"KU"},{"ref":"#"}]},"elidable":true}` for `[+KU #]`. A marker is a token `+` or `++` among its parts |
 | `empty` | `empty` |
 | `tags-clause` | its `term` |
 | `conditions-clause` | its `implication`s, each one condition of the list, in order |
@@ -785,7 +793,7 @@ A node must have the parts that the reader reads from it. A node without one is 
 | rule | parts |
 | --- | --- |
 | the root | no part. Each known part is an item: a `directive`, a `rule`, a `constant-definition`, a `classifier` or an `implication-declaration`. Any other known part is an error |
-| `directive` | a token, its keyword. Its operands are its `argument-word`, `argument-string` and `argument-tag` parts, except the first `argument-word` `maximal` of an `%elidable` |
+| `directive` | a token, its keyword. Its operands are its `argument-word`, `argument-string` and `argument-tag` parts |
 | `argument-word`, `argument-string`, `classifier-name`, `classifier-key`, `classifier-operator`, `classifier-class`, `constant-definer`, `constant-reference`, `definer`, `rule-name`, `guard`, `reference`, `tag`, `character`, `phoneme`, `property`, `string`, `name`, `presence`, `capture-reference`, `comparator`, `call` | a token. For a `call`, it is the function's name, and the `argument` parts are its arguments |
 | `argument-tag`, `emit-target` | a first part that is a token, a `range` or a `property` |
 | `classifier` | a `classifier-name` |
@@ -802,7 +810,7 @@ A node must have the parts that the reader reads from it. A node without one is 
 | `tested` | a `primary` and a `test` |
 | `test` | a `test-operand`. Its tokens make its comparator |
 | `capture` | a token, its capture, and a `primary` |
-| `group`, `optional` | a `choice` |
+| `group`, `optional` | a `choice`. An `optional` can also have a marker, a token `+` or `++` |
 | `tags-clause`, `alternative-tags`, `emit-tags`, `guarded-term` | a `term`. A `guarded-term` also needs an `any-of` |
 | `conditions-clause` | one or more `implication` |
 | `emits-clause` | a token `ε`, or one or more `emit-item` |
@@ -820,18 +828,22 @@ A node must have the parts that the reader reads from it. A node without one is 
 
 The other known rules need no part.
 
-The lexical stage reads the longest symbol. So `...` is always one token, the chain marker, and never `..` followed by a period. So `'a'...'z'` is not a range. It is an error at `...`, which only braces can hold. A range is two character tags joined by `..`, with any layout between them. `{`, `}` and a backslash outside a string or a character tag are one-character symbols. Inside a string, a character tag or a property, they are part of that token, as in `'\\'` and `'\p{L}'`.
+The lexical stage reads the longest symbol. So `...` is always one token, the chain marker, and never `..` followed by a period. So `'a'...'z'` is not a range. It is an error at `...`, which only braces can hold. A range is two character tags joined by `..`, with any layout between them. In the same way, `++` is always one token, the marker of an elidable optional whose terminator is maximal, and `+` alone is the marker of any other elidable optional. `+` has no other use. `{`, `}` and a backslash outside a string or a character tag are one-character symbols. Inside a string, a character tag or a property, they are part of that token, as in `'\\'` and `'\p{L}'`.
 
 The grammar does not state the restrictions below. Each of these is an error of the document, and the reader reports it at the first token of the offending construct:
 
-- A capture that wraps anything but one symbol is an error, `$x((B))` included. A symbol is a reference, a tag literal, a character tag, a phoneme tag, a range, a property or a tested one of these.
+- A capture that wraps anything but one symbol is an error, `$x((B))`, `$x((A | B))` and `$x([B])` included. A symbol is a reference, a tag literal, a character tag, a phoneme tag, a range, a property or a tested one of these.
 - A capture whose name has a capital is an error. Capture names are all lower case.
 - A constant in a body is an error, reported at the constant. A body names a class of tokens with a rule, such as `%rule digit '0'..'9'`, and never with a constant.
 - A `$` that wraps anything is an error.
-- A capture name used twice in one alternative is an error.
+- A capture name used twice in one alternative is an error, also in two branches of a choice.
 - A test after anything but a reference other than `#` or a terminal is an error, reported at the test. So a test after a group, an optional, braces, a capture, `ε`, `#` or another test is an error. The syntax grammar permits a test after any primary.
 - A `repetition` with two or more markers is an error, reported at the second marker. A marker after its second `choice` is an error, reported at that marker, since the separator has no marker. The bundled syntax grammar never gives such a node, but a bootstrap of another notation can (`docs/api.md`). So every reader decides these cases the same way, and never by which marker it meets first.
 - A capture inside braces is an error, reported at the capture. A capture that wraps braces is an error by the first item of this list.
+- A capture inside an elidable optional, an `optional` with a marker, is an error at any depth, reported at the capture.
+- An `optional` with two or more markers is an error, reported at the second marker. The bundled syntax grammar never gives such a node, but a bootstrap of another notation can.
+- An elidable optional whose expression is not of the form of §3.8 is an error, reported at its `[`. The expression must be its terminal, or a `seq` whose first expression is its terminal. The terminal is a `ref` whose name begins with `A` to `Z`, a `terminal` whose tag is a name, or a `test` with the comparator `=` of one of these. So a choice, an `and`, a rule, `#`, a phoneme tag, a character tag, a range, a property, `ε` and a group or an optional in first place are errors there. A group around the whole content makes no node, so `[+(KU #)]` is `[+KU #]`.
+- A test other than `=` on the terminal of an elidable optional is an error, reported at the test. Such a test fits the form above in every other way.
 - A chain, a `repetition` with a marker, that is not the whole expression of its alternative is an error, reported at its `{`. The whole expression is the alternative's `conjunction` when that is one `sequence` of one `primary`, the `repetition` itself. So a chain inside a group, an optional, other braces, a capture, a test, a sequence, a choice or `&` is an error, although a group makes no node of the DOM. The lowering of §3.3 makes sure that the chain's alternative is the only one of its rule.
 - A range whose start is above its end is an error, reported at the range.
 - A property whose text is not `'\p{Name}'` with a name of §1 is an error, reported at the property. So a long name, such as `Letter`, and a name in other case, such as `lu`, are errors.
@@ -870,20 +882,20 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A capture other than `$` named twice in one emission, as an item or as an attachment, is an error. So an attachment capture is never an item of its own.
 - A rule's or an alternative's tag term that reads the tags that it defines is an error: `tags($)` or `classes($)` in it. `tags(head($))` and the like read the tokens' tags, not the constituent's, and are allowed, as is `tags($, R)`.
 - An unknown directive or keyword is an error. The syntax grammar already refuses it.
-- A directive with the wrong operands is an error, reported at the directive. `%stage` takes one name, `%include` one string, and `%features` one or more names. `%elidable` takes identifier tags: names that begin with a capital, or `~name`. Before them, it can take the one word `maximal`, which sets the directive's `maximal` member and is no operand. `%elidable maximal ~maximal` names the terminal `maximal`. A range or a property there is an error, as a phoneme tag or a character tag is. `%ambiguity-resolution` takes names only.
+- A directive with the wrong operands is an error, reported at the directive. `%stage` takes one name, `%include` one string, and `%features` one or more names. `%ambiguity-resolution` takes names only. `%elidable` is no directive, and the syntax grammar refuses it as an unknown keyword.
 
-Once the reader reads a definition (§2), it makes sure that the whole definition meets its requirements. Each of the following is an error of the document too, and the reader reports it at the definition:
+Once the reader reads a definition (§2), it makes sure that the whole definition meets its requirements. These checks are about the productions of the definition's alternatives, the expansions of §3.2 with the captures of §3.5. Gates do not matter here, so every alternative counts. Two expansions of one alternative with the same captures are one case for these checks, so the reader can decide them over the sets of captures that the expansions have, without listing the expansions. Each of the following is an error of the document too, and the reader reports it at the definition:
 
 - A capture that no alternative of the definition captures is an error, in any clause, `$x` presence tests included.
-- A condition that applies (§3.6) to no alternative of the definition, whatever features are enabled, is an error.
-- A tag term that uses (§3.6) a capture that an alternative it serves lacks is an error. An alternative's own tags serve that alternative, and `%tags` serves every alternative of the definition. An emission item's tags serve every alternative in which the item is not dropped.
+- A condition that applies (§3.6) to no production of the definition, whatever features are enabled, is an error.
+- A tag term that uses (§3.6) a capture that a production it serves lacks is an error. An alternative's own tags serve the productions of that alternative, and `%tags` serves every production of the definition. An emission item's tags serve every production in which the item is not dropped.
 - `%opaque` in a definition whose emission is `ε` is an error. A constituent that does not count gives no part, so it is never an opaque part (§11).
-- In an emission, captures written in an order other than the one in which some alternative that has them captures them are an error. The written order runs item after item. Within an item, it runs through the before-attachments, the carrier and the after-attachments. For each alternative, the reader makes sure that the captures that the alternative has stand in the written order. So `%emits ($a) $c, $b` is an error when the body has `$a`, `$b` and `$c` in that order.
-- In an emission, an attachment capture in an alternative that lacks the carrier of its item is an error.
-- In an emission, an inserted tag before a capture item whose carrier some alternative of the definition lacks is an error. The capture item is the first one listed after the inserted tag.
-- An alternative for which every item of the emission is dropped is an error. It emits nothing although the rule lists what to emit. A rule that emits nothing says so with `ε`.
+- In an emission, captures written in an order other than the one in which the body writes them are an error. The written order runs item after item. Within an item, it runs through the before-attachments, the carrier and the after-attachments. The names of an alternative's captures are distinct, and every production reads its captures in the order in which the alternative writes them (§3.5). So for each alternative, the reader makes sure that the captures that the alternative writes stand in the written order of the emission. So `%emits ($a) $c, $b` is an error when the body has `$a`, `$b` and `$c` in that order, wherever they stand in it.
+- In an emission, an attachment capture in a production that lacks the carrier of its item is an error.
+- In an emission, an inserted tag before a capture item whose carrier some production of the definition lacks is an error. The capture item is the first one listed after the inserted tag.
+- A production for which every item of the emission is dropped is an error. It emits nothing although the rule lists what to emit. A rule that emits nothing says so with `ε`. So `A [$b(B)]` with `%emits $b` is an error, because the production `A` emits nothing.
 
-Two of these checks depend on simplification (§3.6). They are the check that a condition applies to an alternative, and the check of the captures that a tag term uses. In simplification, a constant is its value, and the reader does not know that value. So the reader leaves these two checks to the loader for each clause that holds a constant. The loader makes them after it gives the constants their values (§2), and it reports an error at the definition. The check that some alternative captures each mentioned capture does not depend on a value, so the reader makes it for every clause.
+Two of these checks depend on simplification (§3.6). They are the check that a condition applies to a production, and the check of the captures that a tag term uses. In simplification, a constant is its value, and the reader does not know that value. So the reader leaves these two checks to the loader for each clause that holds a constant. The loader makes them after it gives the constants their values (§2), and it reports an error at the definition. The check that some alternative captures each mentioned capture does not depend on a value, so the reader makes it for every clause.
 
 A document's items are its rules, its directives, its constant definitions, its classifiers and its implications. The DOM keeps them in five lists, each in the order written. Every item has the position of its first token, so the order of all of a document's items is the order of their positions.
 
@@ -893,10 +905,13 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has an expression, a term or a condition with members of two forms, or with a member that its form lacks (`docs/output.md`).
 - It has a `ref` that is not a name or `#`.
 - It has a `repeat` with a `chain` other than `left` or `right`, or with a `chain` that is not the whole `expr` of an alternative. A `repeat` with a `min` member is malformed too, since the form has no such member.
+- It has an `optional` with an `elidable` member whose value is not `true`, or with a `maximal` member whose value is not `true`, or with `maximal` and no `elidable`. It has an elidable `optional` whose expression the reader refuses (above).
+- It has a capture that the reader refuses: one that wraps anything but a symbol, one inside a `repeat` or inside an elidable `optional`, a name used twice in one alternative, or a name that is not all lower case.
 - It has an emission with a member other than `items`.
 - It has a guard of an alternative whose feature is not a name, or that has a member other than its feature, its kind and whether it is negated.
-- It has a `stage`, `include`, `features` or `elidable` directive whose operands the reader refuses.
-- It has a `maximal` member on a directive other than `elidable`, or a `maximal` member whose value is not `true`.
+- It has a directive whose name is not `ambiguity-resolution`, `stage`, `include` or `features`. So a directive named `elidable` is malformed.
+- It has a `stage`, `include` or `features` directive whose operands the reader refuses.
+- It has a `maximal` member on a directive. No directive has one.
 - It has a test that the reader refuses. That is a test after anything but a reference other than `#` or a terminal, or an unknown comparator. It is also a value that is not a closed term of the right type. It is also a string that holds a comma or that the lowercase mapping of the canonical sound changes.
 - It has a `terminal`, a `tag` or an inserted tag that is not a tag in its canonical spelling (§1).
 - It has a `range` whose ends are not two character tags in their canonical spelling, or whose start is above its end.
@@ -1055,7 +1070,7 @@ The result's tree comes from the chosen derivation, and each reading of an `ambi
 
 - A closed production of a rule that the author wrote is a `rule` node, its children in order.
 - A read token is a `token` node holding the index of the input token and the terminal that the recognizer read it as.
-- The engine splices out helper productions, those of `[ ]` and of flat `{ }`: their children take their place. So a list is never a node. Its items and separators are children of the node of the rule that writes it, in order.
+- The engine splices out helper productions, those of `[ ]` and of flat `{ }`: their children take their place. So a list is never a node. Its items and separators are children of the node of the rule that writes it, in order. A plain optional that holds a capture has no helper (§3.2), so what it reads is already a child of the rule's node. So an optional is never a node, whether it is a helper or expanded in place.
 - A level of a chain is a closed production of its rule (§3.3), so each level is a `rule` node, and the levels nest.
 - An elidable optional (§3.8) that is absent becomes an `elided` node for its terminal `T`. In a reading of the check of §7, a read of a synthetic token also becomes an `elided` node, as §7.10 says. This holds also on route 3 and for a bare terminal. The node has an empty span at the position where the optional is empty. The node of a terminator with an `=` test records the test's string, for the synthetic token of §7. The output does not show it (`docs/output.md`). The readings of the check of §7 map the reconstructed input back to the stage's input, as §7.10 says.
 
@@ -1079,7 +1094,7 @@ The names of every `%features` of the stream are the features the pipeline turns
 
 - An `%include` of a document that does not exist is an error at the `%include`. The error names the documents that included it.
 - An `%include` of a document that is already being included, which is a cycle, is an error at the `%include`. The error names the documents that included it.
-- A rule, an `%ambiguity-resolution`, an `%elidable`, a constant definition, a classifier or an implication before the first `%stage` is an error.
+- A rule, an `%ambiguity-resolution`, a constant definition, a classifier or an implication before the first `%stage` is an error.
 - A `%stage` with the name of an earlier one is an error.
 - A stage with no rules is an error at its `%stage`.
 - A pipeline with no `%stage` is an error.

@@ -148,15 +148,16 @@ The operators of a body are those of CLL, except for repetition (see "Repetition
 - `[x]` is optional.
 - `{x}` is one or more, and `[{x}]` is zero or more. `{x \ s}` is a separated list.
 - `{... x \ s}` is a left chain, and `{x ... \ s}` a right chain. A chain is the whole of its rule.
+- `[+T x]` is an elidable optional, which begins with the terminator `T`. `[++T x]` also makes `T` maximal there, for Zantufa alone, until its redesign.
 - `A & B` is and/or, in order.
 - `( )` is grouping.
 - `ε` is empty.
 - `f?` and `¬f?` are gates, and `f!` is a warning. These are the feature guards on an alternative (see "Gates and warnings").
-- `$x(symbol)` is a capture, and `$` is the whole constituent.
+- `$x(symbol)` is a capture, and `$` is the whole constituent. A capture can stand anywhere but in braces and in an elidable optional.
 
 `#` is not built in. It is a rule that the grammar defines as `[{free}]`, as CLL's EBNF defines it with `[free ...]`. So the free modifiers of one slot, such as vocatives, are one node of the tree.
 
-CLL writes `/KU/` for an elidable terminator, a closing word that the speaker can leave out. Here it is written `[KU]`, and `/KU#/` is `[KU #]`. The grammar declares which terminators are elidable (see below). `[KU #]` is exactly what CLL prints: an elided terminator takes its free-modifier slot with it. So `xy. xi ky.` (CLL example 17.38) needs `xy. boi xi ky.` under the printed grammar, as CLL's official parser does, and as the corpus scans of the prototype show. The grammars that allow free modifiers after an elided terminator, as the camxes family does, write `[KU] #`.
+CLL writes `/KU/` for an elidable terminator, a closing word that the speaker can leave out. Here it is written `[+KU]`, and `/KU#/` is `[+KU #]`. The `+` marks the optional as elidable in its place (see "Elidable optionals and captures" below). `[+KU #]` is exactly what CLL prints: an elided terminator takes its free-modifier slot with it. So `xy. xi ky.` (CLL example 17.38) needs `xy. boi xi ky.` under the printed grammar, as CLL's official parser does, and as the corpus scans of the prototype show. The grammars that allow free modifiers after an elided terminator, as the camxes family does, write `[+KU] #`.
 
 `%tags` gives the tags that the constituent of every alternative carries. An alternative's own tags, after it in angle brackets, add to them. A tag has no strength: a constituent carries it or not. There is one notation for a set of tags, the union: `UI ∪ CAI ∪ ~indicator`.
 
@@ -174,13 +175,13 @@ The engine does not tie `%opaque` to any tag, because a grammar chooses its own 
 
 The word stage makes `zoi` and `zo'oi` bodies opaque, and the bodies of the quotes that work like `zoi`, such as `la'o`. Their payloads and Zantufa's quoted rafsi forms carry `quoted-text`, the mark for what a quote hands the syntax as one unit. A quoted rafsi form keeps its phonemes.
 
-A clause can refer to a capture that some alternative lacks. Lowering decides such a clause before the recognizer reads any text. A condition or an emitted item then does not apply to that alternative. A tag term is an error unless it is guarded, as in `($c ⟹ classify(phonemes($c), lexicon))`. The reason is that a tag term has no value that can mean "nothing to say". A clause that applies to no alternative, or a capture that no alternative captures, is an error.
+A clause can refer to a capture that some production lacks. A production is one expansion of an alternative, with one branch of each choice and each optional read or not. Lowering decides such a clause before the recognizer reads any text. A condition or an emitted item then does not apply to that production. A tag term is an error unless it is guarded, as in `($c ⟹ classify(phonemes($c), lexicon))`. The reason is that a tag term has no value that can mean "nothing to say". A clause that applies to no production, or a capture that no alternative captures, is an error.
 
 Directives are keywords too, and can stand in any block.
 
 `%ambiguity-resolution` says how the stage chooses among parses (see "Ambiguity"). Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` and then `maximal` can follow it. Every stage must have exactly one, in any of its documents. A stage with none or two is a load error that names the stage.
 
-`%elidable KU KEI VAU` lists terminators that can be elided. An absent optional whose first symbol is one of them appears in the tree as that terminator, elided at that point. `elision-only` restores these terminators. A stage can have several `%elidable` directives, and their terminators add up. `%elidable maximal TOI SEhU` also makes its terminators maximal (see "Maximal terminators").
+No directive lists the elidable terminators. An absent elidable optional, `[+KU]`, appears in the tree as its terminator, elided at that point. `elision-only` restores these terminators. `[++TOI]` also makes its terminator maximal (see "Maximal terminators").
 
 By convention, a directive stands in a block of its own, after prose that says why the grammar needs it. gencmu does not enforce the convention.
 
@@ -229,8 +230,30 @@ The change has these consequences, which `docs/engine.md` (§3) states as rules:
 - A flat list is always a helper. So the ranking of `greedy` and `lazy` no longer sees where each prefix of a trailing list ends, and the conditions of a rule no longer apply to each prefix. The ranking of `late-elision` sees only elided terminators, so it does not change. A grammar that needs the prefixes writes a chain or explicit recursion. The notation's own lexical grammar is such a grammar: its `text` stays explicit recursion, because with a flat list `greedy` reads `ab` as two names.
 - The old error of a capture in a trailing repetition is gone. A capture next to flat braces is allowed, as in `$a(A) {B}`.
 - A chain's levels see the clauses of their rule, each level its own `$`. A warning on the chain's alternative gives one warning per level.
-- A right chain differs from an optional suffix, `x [s r]`, at its level of one item. Where `s` begins with an elidable terminator, the suffix is an elidable optional and the chain has none, so the elision vectors differ, and `late-elision` can choose otherwise. The level has the tags of `x` where `x` is one symbol. A terminator elided at the start of `s` has a constituent by the ordinary rules, where the suffix gave it none. More generally, a rewrite that adds or removes an optional can change which terminators are elidable. So a migration checks each optional that it removes.
+- A right chain differs from an optional suffix, `x [s r]`, at its level of one item. Where the suffix is an elidable optional, `[+T s′ r]`, the chain has none, so the elision vectors differ, and `late-elision` can choose otherwise. The level has the tags of `x` where `x` is one symbol. A terminator elided at the start of `s` has a constituent by the ordinary rules, where the suffix gave it none. More generally, a rewrite that adds or removes an elidable optional changes which terminators can be elided. So a migration checks each optional that it removes. With the markers, the check reads the text: it looks for `[+` and `[++`.
 - Two CLL constructs become rules of their own, so that each level holds its first part: the operator chain of `mex` and the connected abstractors of `tanru-unit-2`. So a single abstractor with `nai` or free modifiers is now a group of its own.
+
+## Elidable optionals and captures
+
+Elidability was a property of a terminal. `%elidable KU` made every optional whose first symbol is `KU` elidable, anywhere in the stage. Now a grammar marks each elidable optional where it writes it, `[+KU #]`, and a plain optional, `[KU #]`, is never elidable. The reasons are these:
+
+- The old rule acted at a distance. An optional changed its meaning when a directive in another document of the stage named its first terminal. A document that several stages include could be elidable in one and not in another. Now the text of the optional says it.
+- The old rule hid the cases that it excluded. `[KU | VAU]`, `[{KU}]` and `[(KU A) B]` began with an elidable terminal, but only some of them were elidable, by rules of engine §3.8 that a reader of the grammar had to know. Now an optional that is not marked is plain, and one that is marked has one form, which the reader checks.
+- The marker is local, so a wrong test on a terminator is an error of the document. Before, the loader found it only after it stitched the stage.
+
+Everything else about an elided terminator stays: the elided node, its constituent, the elision vector, the restoration of `elision-only` and its routes, and the saved sound of an `=` test. Only what selects the optionals changes. The migration marks exactly the optionals that were elidable, so no tree and no verdict changes. A probe checked every optional of every stage of every bundled dialect, and found none whose elidability or maximality would change, and no plain optional that begins with a terminal that the same stage marks.
+
+`[++T]` keeps today's maximal terminators, which only Zantufa uses, for `TOI` and `SEhU`. It is transitional, until the Zantufa redesign (GitHub issues #138 and #139). Stage-wide `maximal` in `%ambiguity-resolution` stays for the bpfk dialect, and a later change retires it once bpfk no longer needs it. Maximality now belongs to an optional, not to a terminal. Where every optional of a terminal is written `[++T]`, as in Zantufa, that is the same thing.
+
+Captures used to stand only at the top level of an alternative, at most four of them. Now a capture can stand anywhere except inside braces and inside an elidable optional. An alternative already expands into productions, one for each branch of a choice and each subsequence of `&`. A plain optional that holds a capture now expands in the same way, into the production without it and the productions with it. So a capture is present in some productions and missing in others, as it was missing in some alternatives before. The rules for a missing capture apply unchanged: presence tests, `⟹` guards, conditions and emission items that do not apply, and tag terms that are errors unless guarded. The reasons are these:
+
+- Alternatives that differ only in an optional captured part had to be written out. The indicator stage writes `$w`, `$b $w`, `$w $a` and `$b $w $a` as four alternatives. `[$b(bahe-run)] $w(unit) [$a(indicator-run)]` says the same.
+- An optional without a capture stays a helper. So no bundled grammar changes, since none holds a capture in an optional.
+- An elidable optional stays a helper, because the elided node, the elision vector and the routes of `elision-only` are defined on its helper. So it cannot hold a capture.
+
+A capture still wraps one symbol only. A capture names one constituent, with one span and one tag set, and a group or an optional is no constituent. `$x([a])` says no more than `[$x(a)]`, and `$x((a | b))` needs a rule, as a list does. The names of an alternative's captures stay distinct, even in two branches of a choice. So every production reads its captures in the order that the alternative writes them, and the check of an emission's order stays a check of the written text.
+
+The limit of four captures is gone. It was never a limit of the engine's design, only of one representation of items. The real cost is that a captured span before the dot is part of an item's identity. Items that differ only in where a captured part ended are not merged, so each capture can multiply the items of a production by up to the length of the input. engine §4 states the cost.
 
 ## Pipelines
 
@@ -362,9 +385,9 @@ Written-terminator priority does not settle these texts, because no `toi` or `se
 
 Stage-wide `maximal` inside nested parses was measured in two variants ("Nested queries and elided terminators" above). V1 searched the whole stage input and changed 39 jobs, with 31 false ties. V2 searched the query's chart and changed 24 jobs, with 17 false ties. That policy applied to every elidable terminator. This feature lets a grammar select single terminators instead. For those selected constructs, a change to a query with no written terminator is the intent.
 
-So a grammar can make single terminators maximal (engine §4). Maximality is the restriction to the longest constituent. `%elidable maximal` selects terminals for it in the main parse and in nested queries. `%ambiguity-resolution … maximal` also restricts every elidable terminator, but in the main parse only, and it adds no terminal to the nested selection.
+So a grammar can make single terminators maximal (engine §4). Maximality is the restriction to the longest constituent. `[++T]` selects an optional's terminator for it in the main parse and in nested queries. `%ambiguity-resolution … maximal` also restricts every elidable optional, but in the main parse only, and it selects nothing for nested queries.
 
-The notation is a word on `%elidable`: `%elidable maximal TOI SEhU`. A maximal terminator is always elidable, so one directive declares both. No new keyword is needed. In the DOM, the word is the member `"maximal":true`, not an operand, so it stays apart from an operand `~maximal`. The DOM format becomes 17.
+The notation first said this with a word on a directive, `%elidable maximal TOI SEhU`, in DOM format 17. Since format 18, it is a second `+` on the optional, `[++TOI #]`, which the DOM writes as `"maximal":true` on the `optional` (see "Elidable optionals and captures"). A maximal terminator is always elidable, so one marker says both.
 
 Inside a query, the longer constituent comes from the query's own chart. A `begins` with `from` or `after` already sees the rest of the input. A bounded `matches` sees only its span, and a constituent that goes on past the span does not count there.
 
@@ -453,7 +476,7 @@ Other conditions state the reference's ordered choices where the ranking would l
 
 The vocative follows the reference. Zantufa merges cmevla and brivla, so a name is an ordinary tanru unit. The selbri of an address reads as far as it can, so `doi djan klama` is one vocative with the address `djan klama`. The dialect also keeps an odd reading of the reference. In `pe'usai doi xod ko jmina fi lo kamjikca lisri`, the vocative `pe'u` takes `ko` as its address, so `jmina` has no first place.
 
-Zantufa's `%elidable` lists neither `CU` nor `IAU`, as CLL's grammar does not list `CU`. Both are separators, and neither closes a constituent. An absent `cu` or `i'au` is an ordinary empty optional. It counts for nothing, leaves no `elided` node, and `maximal` and `elision-only` do not see it. `%elidable` is the only control, and the ranker has no logic for `CU` or for any other terminal.
+Zantufa marks neither `CU` nor `IAU` as elidable, as CLL's grammar does not mark `CU`. Both are separators, and neither closes a constituent. So both are plain optionals, `[CU #]` and `[IAU #]`. An absent `cu` or `i'au` counts for nothing, leaves no `elided` node, and `maximal` and `elision-only` do not see it. The marker is the only control, and the ranker has no logic for `CU` or for any other terminal.
 
 ## The result, and why it has no types
 
@@ -483,7 +506,7 @@ The tree is lossless with respect to the grammar that the author wrote. Every ru
 
 The engine splices out only one kind of node, because no author wrote it: the helper rules that lowering invents for `[ ]` and flat `{ }`. So `%rule text {item}` gives one `text` node over all its items. A chain's levels are nodes of the rule that the author wrote, so they stay (see "Repetition, lists and chains").
 
-An absent optional that begins with an `%elidable` terminator leaves an `elided` node with an empty span, at the place of the missing terminator. Collapsing chains is a choice of the renderers, not of the tree. `text` and `phonemes` are not stored on nodes. The libraries compute them from the tokens, so that the two cannot disagree.
+An absent elidable optional leaves an `elided` node with an empty span, at the place of the missing terminator. Collapsing chains is a choice of the renderers, not of the tree. `text` and `phonemes` are not stored on nodes. The libraries compute them from the tokens, so that the two cannot disagree.
 
 Each library exposes this structure in the idiom of its language. JavaScript uses plain objects and arrays, and Python uses dataclasses. Go uses structs with slices, and Rust uses structs with `Vec` and owned `String`. These types let a result outlive the text and the dialect that it came from. Each library can serialize a result to the canonical JSON of `docs/output.md`. Each library also renders the canonical bracket form, because the shared tests compare it.
 

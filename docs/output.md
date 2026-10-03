@@ -106,7 +106,7 @@ A grammar DOM (document object model) is the parsed form of a grammar document (
 {"format":18,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
 ```
 
-`format` is the version of the DOM. It changes whenever the shape of the DOM changes. A library never uses a cached DOM of another version.
+`format` is the version of the DOM. It changes whenever the shape of the DOM changes. A library never uses a cached DOM of another version. Format 18 brings braces (`repeat` without `min`, `separator` and `chain`), the markers of elidable optionals (`elidable` and `maximal` on an `optional`), and the removal of the `elidable` directive. Format 18 was never released with only some of these, so it stays 18 for all of them. A DOM of format 18 that still holds an `elidable` directive is malformed. Every such DOM was read with an earlier bootstrap, so its cache entry misses anyway (engine §8).
 
 A rule is `{"name":"sumti","op":"define","tags":TERM,"alternatives":[ALT...],"emit":EMIT,"conditions":[COND...],"opaque":true,"at":[line,column]}`. `op` is `define`, `redefine` or `extend`. `tags`, `emit` and `opaque` are optional. `opaque` is present, and `true`, only for a rule that has `%opaque`. The name of a rule is a name, or `#`.
 
@@ -116,7 +116,8 @@ An expression is one of these forms:
 
 ```
 {"seq":[EXPR...]}  {"choice":[EXPR...]}  {"and":[EXPR...]}
-{"optional":EXPR}  {"repeat":EXPR,"separator":EXPR,"chain":"left"}
+{"optional":EXPR}  {"optional":EXPR,"elidable":true,"maximal":true}
+{"repeat":EXPR,"separator":EXPR,"chain":"left"}
 {"ref":"sumti"}    {"terminal":"KOhA"}    {"capture":"x","expr":EXPR}
 {"range":["'a'","'z'"]}    {"property":"L"}
 {"test":"=","value":TERM,"expr":EXPR}
@@ -126,6 +127,8 @@ An expression is one of these forms:
 An expression has no member but those of its one form.
 
 `repeat` is braces (engine §3, §9). Its value is the item, and its `separator` is present only where the braces have `\`. Its `chain` is present only for a chain: `left` for `{... x \ s}` and `right` for `{x ... \ s}`. So `{x}` is `{"repeat":X}`, `{x \ s}` is `{"repeat":X,"separator":S}`, and `[{x}]` is `{"optional":{"repeat":X}}`. A `repeat` with a `chain` is the whole `expr` of its alternative, and never part of another expression. A `repeat` has no `min`: a list counts one or more items, and an optional list is an `optional`. `terminal` holds a tag in its canonical spelling (engine §1): a name from `~name`, a phoneme tag `/p/`, or a character tag such as `'a'`. A bare name is a `ref`, whether it names a rule or, with a capital, a terminal. So a `ref` holds a name (engine §9), or `#`. A `range` holds its start and its end, each a character tag in its canonical spelling, and the start is not above the end. A `property` holds its name, one of those of engine §1.
+
+An `optional` with `"elidable":true` is an elidable optional (engine §3.8): `[+KU #]` is `{"optional":{"seq":[{"ref":"KU"},{"ref":"#"}]},"elidable":true}`. `[++TOI #]` also has `"maximal":true`, after `elidable`. A plain optional has neither member. Each member, where present, is `true`, and `maximal` never stands without `elidable`. The `expr` of an elidable optional is its terminal, or a `seq` whose first expression is its terminal. The terminal is a `ref` whose name begins with `A` to `Z`, a `terminal` whose tag is a name, or a `test` with the comparator `=` of one of these. No capture stands inside an elidable optional or a `repeat`, at any depth. A capture can stand anywhere else in an alternative's `expr` (engine §3.5).
 
 A tested symbol has no member but `test`, `value` and `expr`. `test` is its comparator: `=`, `≠`, `⊇`, `⊉`, `∩=∅` or `∩≠∅`. Its `expr` is a `ref` other than `#`, a `terminal`, a `range` or a `property`, with no other member. Its `value` is a closed term (engine §10), a string for `=` and `≠` and a tag set for the other four. A string there holds no comma and no code point that the lowercase mapping changes (engine §9). A capture's `expr` is a `ref`, a `terminal`, a `range`, a `property` or a tested symbol.
 
@@ -163,9 +166,9 @@ An implication is `{"if":TERM,"then":TERM,"at":[line,column]}`, for `%implies A 
 
 A classifier and an implication have no member but those shown.
 
-A directive is `{"name":"elidable","args":["KU","KEI"],"at":[line,column]}`. An operand `~KU` of `%elidable` is the name `KU`. The name is the keyword without `%`: `ambiguity-resolution`, `elidable`, `stage`, `include` or `features`. An argument is a name, or, for `include`, the decoded string: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
+A directive is `{"name":"features","args":["cbm"],"at":[line,column]}`. The name is the keyword without `%`: `ambiguity-resolution`, `stage`, `include` or `features`. A directive of any other name is malformed, `elidable` included (engine §9). An argument is a name, or, for `include`, the decoded string: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
 
-An `%elidable maximal` directive has the member `"maximal":true` after `args`: `{"name":"elidable","args":["TOI","SEhU"],"maximal":true,"at":[line,column]}`. The modifier `maximal` contributes no argument, but an operand `~maximal` written after it does: `%elidable maximal ~maximal` has `"args":["maximal"]`. A `%elidable maximal` with no operands has `"args":[]`. Any other directive has no `maximal` member, and the value of the member is always `true` (engine §9). A library ignores any other member of a directive. The members that it knows, `name`, `args`, `maximal` and `at`, keep their rules, so an unknown member does not make a malformed `maximal` member valid.
+A directive has no `maximal` member, and one with that member is malformed (engine §9). A library ignores any other member of a directive. The members that it knows, `name`, `args`, `maximal` and `at`, keep their rules, so an unknown member does not excuse a malformed known one.
 
 `rules`, `directives`, `constants`, `classifiers` and `implications` each keep the order in which the document has them. `at` is the line and column of an item's first token. So the order of all of a document's items is the order of their positions. No two items of a DOM share a position (engine §9).
 
