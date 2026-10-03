@@ -11,10 +11,10 @@ Libraries write object keys in the order that this document gives. They write no
 ### A parse result
 
 ```
-{"format":8,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
+{"format":9,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
 ```
 
-`format` is the version of the shape of the result, 8. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one warning (engine §12, §13).
+`format` is the version of the shape of the result, 9. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one warning (engine §12, §13).
 
 A stage has one of these forms:
 
@@ -69,7 +69,7 @@ A warning has this form:
 
 As in a node, `span` counts the input tokens of the stage, and `source` counts the code points of the original text. The example is the warning for `ka'y` in `mi ka'y`, in the cll-ebnf dialect with the feature `y-cmavo` on.
 
-An action in a witness is `{"read":{"token":4,"terminal":"KOhA"}}` or `{"close":{"rule":"sumti","production":57,"span":[2,5]}}`. The production is numbered from 0, as in engine §3. For a production of a helper, `rule` is the rule whose alternative introduced the helper.
+An action in a witness is `{"read":{"token":4,"terminal":"KOhA"}}` or `{"close":{"rule":"sumti","production":57,"span":[2,5]}}`. The witness of an error of `elision-only` can also hold `{"elided":{"at":3,"terminal":"KU"}}`, a read of a terminator written back at that position (engine §7.10). The production is numbered from 0, as in engine §3. For a production of a helper, `rule` is the rule whose alternative introduced the helper.
 
 An error has one of these forms:
 
@@ -77,14 +77,15 @@ An error has one of these forms:
 {"kind":"rejected","stage":"syntax","token":4,"source":[12,15],"line":1,"column":13,
  "expected":[{"terminal":"KU","rules":["sumti"]},...],"message":"..."}
 {"kind":"ambiguous","stage":"syntax","reason":"tie","readings":[NODE,NODE],"message":"..."}
+{"kind":"ambiguous","stage":"syntax","reason":"elision-only","readings":[NODE,NODE],"witness":[ACTION,ACTION],"message":"..."}
 ```
 
 `kind` is one of these values:
 
 - `rejected`: The grammar of the stage does not accept its input.
-- `ambiguous` (engine §6, §7): The error has `stage`, `reason`, `"readings":[NODE,NODE]` and `message`, and no position. `reason` says which of two cases the error is:
+- `ambiguous` (engine §6, §7): The error has `stage`, `reason`, `"readings":[NODE,NODE]` and `message`, and no position. `message` is free, and the shared tests do not compare it. `reason` says which of two cases the error is:
   - `tie`: The ranking of the stage has two or more best derivations (engine §6). The stage's verdict is `tie`, and it has no output. The readings are the first and the second reading of the tie, over the stage's input as the stage read it. They are two derivations, but they can be equal as `NODE` values. The engine counts derivations, and it merges neither those that differ only at transparent closes nor those with equal trees (engine §6). The witness then names the actions where they differ.
-  - `elision-only`: The stage chose one derivation, but its text stays ambiguous with its elided terminators written back (engine §7). The stage's verdict is `resolved`, and it keeps its output. The readings hold the written-back terminators as elided nodes: a restored optional's, and also a terminator that a reading reads on the written route of an optional or as a bare terminal (engine §7.10).
+  - `elision-only`: The stage chose one derivation, but its text stays ambiguous with its elided terminators written back (engine §7). The stage's verdict is `resolved`, and it keeps its output. The readings hold the written-back terminators as elided nodes: a restored optional's, and also a terminator that a reading reads on the written route of an optional or as a bare terminal (engine §7.10). So the two readings can be equal as `NODE` values, as a tie's can. The error also has `"witness":[ACTION,ACTION]` after its readings: the actions at the first difference between the two derivations, over the stage's input (engine §7.10). Over that input, the two actions can be equal too. The stage itself has no witness.
 - `grammar`: A grammar failed to load, or the parser found a defect while parsing. For a grammar that failed to load, the error has `document`, `line` and `column` where known. A tie in a stage of the notation dialect has the `document` and no `line` or `column` (engine §8). For a defect found while parsing, the error has `stage` and no position. An example of such a defect is a nested parse asked about its own span as the same rule. A defect found by the check of `elision-only` can have the member `code` with the value `elision-witness-lost` (engine §7.9). Such an error also has `chosen`, the chosen tree. It has `completion`, the terminators written back. Each of them is `{"terminal":T,"at":N,"source":[S,S]}`, with `"sound":"..."` last for a tested terminator. The members stand in the order `kind`, `stage`, `code`, `message`, `chosen`, `completion`. Any other error has no `code`.
 
 For example, `text → [[X]]` on the empty input ties, and both readings are `{"kind":"rule","rule":"text","span":[0,0],"source":[0,0],"tags":[],"children":[]}`. The witness names two different productions of the helpers. A nullable `&`, such as `[A] & [B]`, gives such a tie in the same way, with three derivations.

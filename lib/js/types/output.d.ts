@@ -50,6 +50,11 @@ export type ActionJson = {
         production: number;
         span: Span;
     };
+} | {
+    elided: {
+        at: number;
+        terminal: string;
+    };
 };
 export type ErrorJson = {
     kind: ParseError["kind"];
@@ -62,6 +67,7 @@ export type ErrorJson = {
     column?: number;
     expected?: import("./types.js").Expectation[];
     readings?: NodeJson[];
+    witness?: (ActionJson | null)[];
     document?: string;
     message: string;
     chosen?: NodeJson;
@@ -118,7 +124,8 @@ export type DisplayValue = {
 /**
  * A witness action in the result JSON.
  * @typedef {{read: {token: number, terminal: string}}
- *   | {close: {rule: string, production: number, span: Span}}} ActionJson
+ *   | {close: {rule: string, production: number, span: Span}}
+ *   | {elided: {at: number, terminal: string}}} ActionJson
  */
 /**
  * An error in the result JSON.
@@ -133,6 +140,7 @@ export type DisplayValue = {
  * @property {number} [column]
  * @property {import("./types.js").Expectation[]} [expected]
  * @property {NodeJson[]} [readings]
+ * @property {(ActionJson | null)[]} [witness]
  * @property {string} [document]
  * @property {string} message
  * @property {NodeJson} [chosen]
@@ -170,7 +178,7 @@ export type DisplayValue = {
  * member, its rule or terminal.
  * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | string[] | null}} DisplayValue
  */
-export declare const RESULT_FORMAT = 8;
+export declare const RESULT_FORMAT = 9;
 /**
  * @param {ResultNode} node
  * @returns {NodeJson}

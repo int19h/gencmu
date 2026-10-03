@@ -24,7 +24,7 @@
   ],
   "expect": {
     "result": {
-      "format": 8,
+      "format": 9,
       "ok": false,
       "stages": [
         {

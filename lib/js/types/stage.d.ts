@@ -68,6 +68,7 @@ export type ElisionCheck = ({
 } | {
     kind: "ambiguous";
     readings: ResultNode[];
+    witness: import("./types.js").Witness;
 } | {
     kind: "lost";
     completion: RestorationRecord[];

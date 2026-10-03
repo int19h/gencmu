@@ -212,9 +212,13 @@ export declare class Ranker {
     groupRules(roots: Item[]): void;
     /**
      * @param {Item[]} roots
+     * @param {Item[]} [groupsOf] the roots whose forest gives the rules'
+     *   groups, and so the contexts of cycles: by default `roots`. The witness
+     *   hook of the check ranks a part of a forest in the contexts of the
+     *   whole.
      * @returns {Ranking | null} null when every derivation is cyclic
      */
-    rank(roots: Item[]): Ranking | null;
+    rank(roots: Item[], groupsOf?: Item[]): Ranking | null;
 }
 /**
  * @param {Rope} rope
