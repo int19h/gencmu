@@ -528,6 +528,7 @@ impl Dialect {
             message,
             chosen: None,
             completion: Vec::new(),
+            witness: None,
         }
     }
 
@@ -693,6 +694,7 @@ impl Dialect {
                         ),
                         chosen: Some(tree),
                         completion,
+                        witness: None,
                     };
                     run.stages.push(stage);
                     return Err(Box::new(error));
@@ -739,6 +741,7 @@ impl Dialect {
             message: format!("stage {stage} has two best readings of its text, a tie"),
             chosen: None,
             completion: Vec::new(),
+            witness: None,
         }
     }
 
@@ -777,6 +780,7 @@ impl Dialect {
             message,
             chosen: None,
             completion: Vec::new(),
+            witness: None,
         }
     }
 
@@ -878,7 +882,9 @@ impl Dialect {
                 Ranker::new(g, &chart, &tokens, shared, Lean::Neither, None).observing(input, &recon.project);
             ranker.rank().filter(|_| loss != Some(witness::Loss::Count)).map(|ranking| {
                 let readings = match (ranking.verdict, ranking.second) {
-                    (RankVerdict::Tie, Some(second)) => Some((build(&ranker, ranking.first), build(&ranker, second))),
+                    (RankVerdict::Tie, Some(second)) => {
+                        Some((build(&ranker, ranking.first), build(&ranker, second), ranking.witness))
+                    }
                     _ => None,
                 };
                 (ranking, readings)
@@ -917,9 +923,27 @@ impl Dialect {
         let Some((_, readings)) = ranking else {
             return Ok(Check::Lost(records));
         };
-        let Some((first, second)) = readings else {
+        let Some((first, second, difference)) = readings else {
             return Ok(Check::Pass);
         };
+        // The witness, mapped to the stage's input as the readings are: a
+        // read of a synthetic token is an elided action at its record's
+        // position, and a close has the projection of its span (§7.10).
+        let project = &recon.project;
+        let mapped = |act: Act| match act {
+            Act::Read { tok, terminal } if recon.synthetic[tok as usize] => {
+                Action::Elided { at: project[tok as usize] as usize, terminal: g.terminals[terminal as usize].clone() }
+            }
+            Act::Read { tok, terminal } => {
+                Action::Read { token: project[tok as usize] as usize, terminal: g.terminals[terminal as usize].clone() }
+            }
+            Act::Close { prod, start, end, .. } => Action::Close {
+                rule: g.rules[g.prods[prod as usize].owner as usize].name.clone(),
+                production: prod as usize,
+                span: project[start as usize] as usize..project[end as usize] as usize,
+            },
+        };
+        let witness = difference.map(|(left, right)| [mapped(left), mapped(right)]);
         // The readings, mapped to the stage's input (§7.10).
         let tag_set = |set: u32| shared.tags.to_set(set);
         let map = ReadingMap { project: &recon.project, record_of: &record_of, records: &records };
@@ -943,6 +967,7 @@ impl Dialect {
             ),
             chosen: None,
             completion: Vec::new(),
+            witness,
         })))
     }
 }

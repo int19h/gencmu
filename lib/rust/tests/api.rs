@@ -413,7 +413,7 @@ fn results_outlive_the_dialect_and_cross_threads() {
         dialect.parse(&text, &ParseOptions::default()).unwrap()
     };
     let json = std::thread::spawn(move || gencmu::to_json(&result)).join().unwrap();
-    assert!(json.starts_with("{\"format\":8,\"ok\":true"));
+    assert!(json.starts_with("{\"format\":9,\"ok\":true"));
 
     let dialect = std::sync::Arc::new(gencmu::load_dialect("notation").unwrap());
     let threads: Vec<_> = (0..4)
@@ -945,7 +945,7 @@ fn nested_queries_with_many_omissions_take_linear_time() {
 
 /// The members of the error elision-witness-lost, in the order of
 /// docs/output.md, and an error with no code, which has none of them
-/// (format 8).
+/// (format 9).
 #[test]
 fn the_witness_lost_error_writes_its_members_in_order() {
     use gencmu::{ErrorCode, ParseError, ParseResult, Restoration};
@@ -971,6 +971,7 @@ fn the_witness_lost_error_writes_its_members_in_order() {
         column: None,
         expected: Vec::new(),
         readings: Vec::new(),
+        witness: None,
         message: "the syntax stage could not reconstruct its chosen derivation for elision-only".to_string(),
         chosen: Some(chosen),
         completion: vec![
@@ -983,7 +984,7 @@ fn the_witness_lost_error_writes_its_members_in_order() {
     assert_eq!(
         gencmu::to_json(&result),
         concat!(
-            r#"{"format":8,"ok":false,"stages":[],"tree":null,"error":{"kind":"grammar","stage":"syntax","code":"elision-witness-lost","#,
+            r#"{"format":9,"ok":false,"stages":[],"tree":null,"error":{"kind":"grammar","stage":"syntax","code":"elision-witness-lost","#,
             r#""message":"the syntax stage could not reconstruct its chosen derivation for elision-only","#,
             r#""chosen":{"kind":"rule","rule":"text","span":[0,0],"source":[0,0],"tags":[],"children":[]},"#,
             r#""completion":[{"terminal":"KU","at":3,"source":[9,9]},{"terminal":"VAU","at":5,"source":[16,16],"sound":"vau"}]}}"#
