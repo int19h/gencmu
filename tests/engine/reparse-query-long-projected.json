@@ -1,6 +1,6 @@
 {
   "description": "A query over more than 64 tokens. $x covers the synthetic T and 65 original A tokens, and projects to the 65 A. The query reads them with the main grammar, where [U] is optional, so probe matches and the chosen a survives beside c. A library that keys long spans by position must project them first (engine §4, §7.6).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T U\n%rule text a | b | c\n%rule a $x(body)\n%conditions matches($x, probe)\n%rule body [T] run\n%rule b [T] [T] run\n%rule c T run\n%rule run A ...\n%rule probe [U] A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T U\n%rule text a | b | c\n%rule a $x(body)\n%conditions matches($x, probe)\n%rule body [T] run\n%rule b [T] [T] run\n%rule c T run\n%rule run {A}\n%rule probe [U] A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A",
   "tokens": [
     {
       "text": "a",

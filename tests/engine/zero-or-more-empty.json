@@ -1,0 +1,31 @@
+{
+  "description": "[{x}] is an optional around the helper of {x}, so it reads the empty input in exactly one way (engine §3.2, §3.3).",
+  "grammar": "%rule text [{A}]",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          0
+        ],
+        "source": [
+          0,
+          0
+        ],
+        "tags": [],
+        "children": []
+      }
+    },
+    "brackets": ""
+  }
+}

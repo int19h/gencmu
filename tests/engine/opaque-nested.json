@@ -2,7 +2,7 @@
   "description": "An opaque part inside another opaque part gives nothing of its own, since the outer one counts once: `outer` holds `inner` and sounds one `?`. Two sibling opaque parts are two parts, so `whole` sounds `??` and its label joins their texts (engine §5, §11).",
   "documents": {
     "p.md": "## letters\n\n```jbogenbau\n%stage letters\n```\n\n- [g.md](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## parts\n\n```jbogenbau\n%stage parts\n```\n\n- [h.md](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [part] ...\n%rule part letter | pause | mark\n%rule letter 'a' <L ∪ /a/> | 'b' <L ∪ /b/> | 'c' <L ∪ /c/> | 'd' <L ∪ /d/>\n%emits $\n%rule pause ' ' <P ∪ /./>\n%emits $\n%rule mark '!'\n```\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{part}]\n%rule part letter | pause | mark\n%rule letter 'a' <L ∪ /a/> | 'b' <L ∪ /b/> | 'c' <L ∪ /c/> | 'd' <L ∪ /d/>\n%emits $\n%rule pause ' ' <P ∪ /./>\n%emits $\n%rule mark '!'\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $o(outer) P $w(whole)\n%emits $o <O>, $w <W>\n%rule outer inner L\n%opaque\n%rule inner L L\n%opaque\n%rule whole inner inner\n%emits $\n```\n"
   },
   "pipeline": "p.md",

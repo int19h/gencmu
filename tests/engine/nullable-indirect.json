@@ -1,0 +1,15 @@
+{
+  "description": "Nullability goes through rules and optionals: {r} with r → s, s → [t], t → A is an error (engine §3.3).",
+  "grammar": "%rule text {r}\n%rule r s\n%rule s [t]\n%rule t A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

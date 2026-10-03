@@ -1,6 +1,6 @@
 {
-  "description": "A token with its own phoneme tag sounds like that phoneme and has it as its label, even over an opaque part. The part still gives the token its source and text (engine §5, §11).",
-  "grammar": "%rule text [piece] ...\n%rule piece word | '\\p{White_Space}'\n%rule word 'a' | word 'a'\n%emits $ <W ∪ /a/>\n%opaque",
+  "description": "A token with its own phoneme tag sounds like that phoneme and has it as its label, even over an opaque part. The part still gives the token its source and text (engine §5, §11). Each greedy stage's text is written with left recursion, so that the ranking sees where each piece ends (engine §3.3).",
+  "grammar": "%rule text ε | text piece\n%rule piece word | '\\p{White_Space}'\n%rule word 'a' | word 'a'\n%emits $ <W ∪ /a/>\n%opaque",
   "input": "aa aaa",
   "expect": {
     "result": {

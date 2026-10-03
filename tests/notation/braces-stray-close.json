@@ -1,0 +1,10 @@
+{
+  "description": "A } that closes no braces is a syntax error at the } (engine §9).",
+  "document": "```jbogenbau\n%rule a x } y\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

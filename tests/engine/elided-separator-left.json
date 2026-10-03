@@ -1,0 +1,202 @@
+{
+  "description": "In a left chain, r → r s x, a terminator elided at the start of the separator follows the production's initial reference to its own rule, so it has no constituent, and maximal forbids nothing (engine §3.3, §4).",
+  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T\n%rule text c\n%rule c {... a \\ [T] s}\n%rule a A | A B\n%rule s B S",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "s",
+      "tags": [
+        "S"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          4
+        ],
+        "source": [
+          0,
+          7
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "c",
+            "span": [
+              0,
+              4
+            ],
+            "source": [
+              0,
+              7
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "c",
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": [
+                  "A"
+                ],
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "a",
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ],
+                    "tags": [
+                      "A"
+                    ],
+                    "children": [
+                      {
+                        "kind": "token",
+                        "terminal": "A",
+                        "token": 0,
+                        "span": [
+                          0,
+                          1
+                        ],
+                        "source": [
+                          0,
+                          1
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "elided",
+                "terminal": "T",
+                "span": [
+                  1,
+                  1
+                ],
+                "source": [
+                  1,
+                  1
+                ]
+              },
+              {
+                "kind": "rule",
+                "rule": "s",
+                "span": [
+                  1,
+                  3
+                ],
+                "source": [
+                  2,
+                  5
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "B",
+                    "token": 1,
+                    "span": [
+                      1,
+                      2
+                    ],
+                    "source": [
+                      2,
+                      3
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "S",
+                    "token": 2,
+                    "span": [
+                      2,
+                      3
+                    ],
+                    "source": [
+                      4,
+                      5
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "rule",
+                "rule": "a",
+                "span": [
+                  3,
+                  4
+                ],
+                "source": [
+                  6,
+                  7
+                ],
+                "tags": [
+                  "A"
+                ],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 3,
+                    "span": [
+                      3,
+                      4
+                    ],
+                    "source": [
+                      6,
+                      7
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "(a [b s] a)"
+  }
+}

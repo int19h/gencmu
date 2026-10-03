@@ -1,0 +1,10 @@
+{
+  "description": "A chain that is an item of & is an error at its { (engine §9).",
+  "document": "```jbogenbau\n%rule a {... A} & B\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

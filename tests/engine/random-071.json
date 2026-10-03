@@ -1,20 +1,21 @@
 {
-  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 1 derivations.",
-  "grammar": "%ambiguity-resolution lazy\n%rule text ε | (A | A) | A t\n%rule t [u] ... B | ε\n%rule u ε | v u\n%rule v ε | B C",
+  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 2 derivations.",
+  "grammar": "%ambiguity-resolution lazy\n%elidable T\n%rule text A T | u≠\"x\" [T u] | A\n%rule t ε | ε\n%rule u T | ε\n%rule v {... B \\ T}",
   "tokens": [
     {
-      "text": "a",
+      "text": "x",
       "tags": [
-        "A",
-        "B"
-      ]
+        "B",
+        "T"
+      ],
+      "phonemes": "y"
     },
     {
-      "text": "b",
+      "text": "x",
       "tags": [
-        "A",
-        "B"
-      ]
+        "T"
+      ],
+      "phonemes": "y"
     }
   ],
   "expect": {
@@ -24,7 +25,7 @@
       "stages": [
         {
           "name": "main",
-          "verdict": "unique",
+          "verdict": "resolved",
           "output": []
         }
       ],
@@ -42,8 +43,22 @@
         "tags": [],
         "children": [
           {
+            "kind": "rule",
+            "rule": "u",
+            "span": [
+              0,
+              0
+            ],
+            "source": [
+              0,
+              0
+            ],
+            "tags": [],
+            "children": []
+          },
+          {
             "kind": "token",
-            "terminal": "A",
+            "terminal": "T",
             "token": 0,
             "span": [
               0,
@@ -56,7 +71,7 @@
           },
           {
             "kind": "rule",
-            "rule": "t",
+            "rule": "u",
             "span": [
               1,
               2
@@ -65,11 +80,13 @@
               2,
               3
             ],
-            "tags": [],
+            "tags": [
+              "T"
+            ],
             "children": [
               {
                 "kind": "token",
-                "terminal": "B",
+                "terminal": "T",
                 "token": 1,
                 "span": [
                   1,
@@ -86,6 +103,6 @@
       },
       "error": null
     },
-    "brackets": "(a b)"
+    "brackets": "(x x)"
   }
 }

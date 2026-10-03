@@ -1,0 +1,102 @@
+{
+  "description": "Braces: {x} is a repeat, {x \\ s} has a separator, and a marker right after { or after the item makes a left or a right chain, with or without a separator. [{x}] is an optional around a repeat (engine §9, docs/output.md).",
+  "document": "```jbogenbau\n%rule a {x}\n%rule b {x \\ s}\n%rule c {... x \\ s}\n%rule d {x ... \\ s}\n%rule e {... x}\n%rule f [{x}]\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "a",
+          "alternatives": [
+            {
+              "expr": {
+                "repeat": {
+                  "ref": "x"
+                }
+              }
+            }
+          ],
+          "conditions": []
+        },
+        {
+          "name": "b",
+          "alternatives": [
+            {
+              "expr": {
+                "repeat": {
+                  "ref": "x"
+                },
+                "separator": {
+                  "ref": "s"
+                }
+              }
+            }
+          ],
+          "conditions": []
+        },
+        {
+          "name": "c",
+          "alternatives": [
+            {
+              "expr": {
+                "repeat": {
+                  "ref": "x"
+                },
+                "separator": {
+                  "ref": "s"
+                },
+                "chain": "left"
+              }
+            }
+          ],
+          "conditions": []
+        },
+        {
+          "name": "d",
+          "alternatives": [
+            {
+              "expr": {
+                "repeat": {
+                  "ref": "x"
+                },
+                "separator": {
+                  "ref": "s"
+                },
+                "chain": "right"
+              }
+            }
+          ],
+          "conditions": []
+        },
+        {
+          "name": "e",
+          "alternatives": [
+            {
+              "expr": {
+                "repeat": {
+                  "ref": "x"
+                },
+                "chain": "left"
+              }
+            }
+          ],
+          "conditions": []
+        },
+        {
+          "name": "f",
+          "alternatives": [
+            {
+              "expr": {
+                "optional": {
+                  "repeat": {
+                    "ref": "x"
+                  }
+                }
+              }
+            }
+          ],
+          "conditions": []
+        }
+      ]
+    }
+  }
+}

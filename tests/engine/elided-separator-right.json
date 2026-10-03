@@ -1,0 +1,62 @@
+{
+  "description": "In a right chain, r → x s r, a terminator elided at the start of the separator follows the item, whose node is its constituent. Here a could be longer, so maximal forbids the elided T, and the text is rejected (engine §3.3, §4).",
+  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T\n%rule text c\n%rule c {a ... \\ [T] s}\n%rule a A | A B\n%rule s B S",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "s",
+      "tags": [
+        "S"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 1,
+        "source": [
+          2,
+          3
+        ],
+        "line": 1,
+        "column": 3,
+        "expected": [
+          {
+            "terminal": "T",
+            "rules": [
+              "c"
+            ]
+          }
+        ],
+        "message": "the main stage could not continue at token 1; expected T"
+      }
+    },
+    "error": "rejected"
+  }
+}

@@ -1,6 +1,6 @@
 {
-  "description": "The test binds tighter than ...: every repetition of UI=\"ui\" ... must sound ui, so the third token stops the text (engine §2, §4).",
-  "grammar": "%rule text UI=\"ui\" ... B",
+  "description": "A test belongs to its one symbol, so every item of {UI=\"ui\"} must sound ui, and the third token stops the text (engine §2, §4).",
+  "grammar": "%rule text {UI=\"ui\"} B",
   "tokens": [
     {
       "text": "ui",

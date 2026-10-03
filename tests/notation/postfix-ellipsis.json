@@ -1,0 +1,10 @@
+{
+  "description": "CLL's postfix x ... is not the notation's: ... stands only in braces, so it is a syntax error at ... (engine §9).",
+  "document": "```jbogenbau\n%rule a x ... y\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

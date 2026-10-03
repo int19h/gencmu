@@ -1,0 +1,30 @@
+{
+  "description": "A terminator elided at the start of an item of braces has no constituent: at the first item it is the first symbol of the helper's production, and at each later item it follows the production's initial reference to its own left side. So a PEG's (T? A)+ over a a parses under maximal (engine §3.2, §4).",
+  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T\n%rule text x\n%rule x {[T] A}",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "(a a)"
+  }
+}

@@ -1,16 +1,7 @@
 {
   "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 3 derivations.",
-  "grammar": "%ambiguity-resolution lazy\n%rule text A | u ... B | A\n%rule t ε | B v\n%rule u u t | [C]\n%rule v u | ε",
-  "tokens": [
-    {
-      "text": "a",
-      "tags": [
-        "A",
-        "B",
-        "C"
-      ]
-    }
-  ],
+  "grammar": "%ambiguity-resolution greedy\n%rule text v | [v] | A\n%rule t A | [v]\n%rule u {... C \\ C}\n%rule v ε | A",
+  "tokens": [],
   "expect": {
     "result": {
       "format": 9,
@@ -21,15 +12,23 @@
           "verdict": "tie",
           "witness": [
             {
-              "read": {
-                "token": 0,
-                "terminal": "A"
+              "close": {
+                "rule": "text",
+                "production": 2,
+                "span": [
+                  0,
+                  0
+                ]
               }
             },
             {
-              "read": {
-                "token": 0,
-                "terminal": "B"
+              "close": {
+                "rule": "v",
+                "production": 11,
+                "span": [
+                  0,
+                  0
+                ]
               }
             }
           ]
@@ -46,49 +45,31 @@
             "rule": "text",
             "span": [
               0,
-              1
+              0
             ],
             "source": [
               0,
-              1
+              0
             ],
-            "tags": [
-              "A",
-              "B",
-              "C"
-            ],
-            "children": [
-              {
-                "kind": "token",
-                "terminal": "A",
-                "token": 0,
-                "span": [
-                  0,
-                  1
-                ],
-                "source": [
-                  0,
-                  1
-                ]
-              }
-            ]
+            "tags": [],
+            "children": []
           },
           {
             "kind": "rule",
             "rule": "text",
             "span": [
               0,
-              1
+              0
             ],
             "source": [
               0,
-              1
+              0
             ],
             "tags": [],
             "children": [
               {
                 "kind": "rule",
-                "rule": "u",
+                "rule": "v",
                 "span": [
                   0,
                   0
@@ -99,23 +80,11 @@
                 ],
                 "tags": [],
                 "children": []
-              },
-              {
-                "kind": "token",
-                "terminal": "B",
-                "token": 0,
-                "span": [
-                  0,
-                  1
-                ],
-                "source": [
-                  0,
-                  1
-                ]
               }
             ]
           }
-        ]
+        ],
+        "message": "the main stage's text has two best readings, a tie"
       }
     },
     "error": "ambiguous"

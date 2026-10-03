@@ -1,0 +1,231 @@
+{
+  "description": "The check of elision-only over a chain whose levels each elide a terminator keeps the witness of its chosen derivation (engine §3.3, §7.8).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable KU\n%rule text c [N]\n%rule c {... d \\ J}\n%rule d L {N} [KU]",
+  "tokens": [
+    {
+      "text": "l",
+      "tags": [
+        "L"
+      ]
+    },
+    {
+      "text": "n",
+      "tags": [
+        "N"
+      ]
+    },
+    {
+      "text": "j",
+      "tags": [
+        "J"
+      ]
+    },
+    {
+      "text": "l",
+      "tags": [
+        "L"
+      ]
+    },
+    {
+      "text": "n",
+      "tags": [
+        "N"
+      ]
+    },
+    {
+      "text": "n",
+      "tags": [
+        "N"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          6
+        ],
+        "source": [
+          0,
+          11
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "c",
+            "span": [
+              0,
+              6
+            ],
+            "source": [
+              0,
+              11
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "c",
+                "span": [
+                  0,
+                  2
+                ],
+                "source": [
+                  0,
+                  3
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "d",
+                    "span": [
+                      0,
+                      2
+                    ],
+                    "source": [
+                      0,
+                      3
+                    ],
+                    "tags": [],
+                    "children": [
+                      {
+                        "kind": "token",
+                        "terminal": "L",
+                        "token": 0,
+                        "span": [
+                          0,
+                          1
+                        ],
+                        "source": [
+                          0,
+                          1
+                        ]
+                      },
+                      {
+                        "kind": "token",
+                        "terminal": "N",
+                        "token": 1,
+                        "span": [
+                          1,
+                          2
+                        ],
+                        "source": [
+                          2,
+                          3
+                        ]
+                      },
+                      {
+                        "kind": "elided",
+                        "terminal": "KU",
+                        "span": [
+                          2,
+                          2
+                        ],
+                        "source": [
+                          3,
+                          3
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "J",
+                "token": 2,
+                "span": [
+                  2,
+                  3
+                ],
+                "source": [
+                  4,
+                  5
+                ]
+              },
+              {
+                "kind": "rule",
+                "rule": "d",
+                "span": [
+                  3,
+                  6
+                ],
+                "source": [
+                  6,
+                  11
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "L",
+                    "token": 3,
+                    "span": [
+                      3,
+                      4
+                    ],
+                    "source": [
+                      6,
+                      7
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "N",
+                    "token": 4,
+                    "span": [
+                      4,
+                      5
+                    ],
+                    "source": [
+                      8,
+                      9
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "N",
+                    "token": 5,
+                    "span": [
+                      5,
+                      6
+                    ],
+                    "source": [
+                      10,
+                      11
+                    ]
+                  },
+                  {
+                    "kind": "elided",
+                    "terminal": "KU",
+                    "span": [
+                      6,
+                      6
+                    ],
+                    "source": [
+                      11,
+                      11
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "([l n] j [l n n])"
+  }
+}

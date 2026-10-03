@@ -164,6 +164,100 @@
       "expect": [
         "a"
       ]
+    },
+    {
+      "description": "A repetition with no marker, in a shape of its own, reads its first choice as the item and its second as the separator (engine §9).",
+      "find": "[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"terminal\":\"ellipsis\"},{\"ref\":\"choice\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"terminal\":\"ellipsis\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}}]",
+      "replace": "[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"},{\"terminal\":\"'}'\"}]}}]",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {'a' \\ 'b'}\n```\n",
+      "inputs": [
+        "a",
+        "aba",
+        "ab"
+      ],
+      "expect": [
+        "a",
+        "(a b a)",
+        "rejected"
+      ]
+    },
+    {
+      "description": "A marker before the first choice makes a left chain, wherever it stands before it (engine §9).",
+      "find": "[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"terminal\":\"ellipsis\"},{\"ref\":\"choice\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"terminal\":\"ellipsis\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}}]",
+      "replace": "[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"ellipsis\"},{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"},{\"terminal\":\"'}'\"}]}}]",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ... {'a' \\ 'b'}\n```\n",
+      "inputs": [
+        "a",
+        "ababa",
+        "ab"
+      ],
+      "expect": [
+        "a",
+        "([a b a] b a)",
+        "rejected"
+      ]
+    },
+    {
+      "description": "A marker after the first choice, with no second choice before it, makes a right chain (engine §9).",
+      "find": "[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"terminal\":\"ellipsis\"},{\"ref\":\"choice\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"terminal\":\"ellipsis\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}}]",
+      "replace": "[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"terminal\":\"'\\\\u{5C}'\"},{\"terminal\":\"ellipsis\"},{\"ref\":\"choice\"},{\"terminal\":\"'}'\"}]}}]",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {'a' \\ ... 'b'}\n```\n",
+      "inputs": [
+        "a",
+        "ababa",
+        "ab"
+      ],
+      "expect": [
+        "a",
+        "(a b [a b a])",
+        "rejected"
+      ]
+    },
+    {
+      "description": "Two markers are an error of the document at the second (engine §9).",
+      "find": "[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"terminal\":\"ellipsis\"},{\"ref\":\"choice\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"terminal\":\"ellipsis\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}}]",
+      "replace": "[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"terminal\":\"ellipsis\"},{\"ref\":\"choice\"},{\"terminal\":\"ellipsis\"},{\"terminal\":\"'}'\"}]}}]",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {... 'a' ...}\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar"
+    },
+    {
+      "description": "Three markers are an error of the document at the second (engine §9).",
+      "find": "[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"terminal\":\"ellipsis\"},{\"ref\":\"choice\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"terminal\":\"ellipsis\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}}]",
+      "replace": "[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"ellipsis\"},{\"terminal\":\"ellipsis\"},{\"terminal\":\"ellipsis\"},{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"terminal\":\"'}'\"}]}}]",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ... ... ... {'a'}\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar"
+    },
+    {
+      "description": "A marker after the second choice is an error of the document at that marker, since the separator has no marker (engine §9).",
+      "find": "[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"terminal\":\"ellipsis\"},{\"ref\":\"choice\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"terminal\":\"ellipsis\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}}]",
+      "replace": "[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"},{\"terminal\":\"ellipsis\"},{\"terminal\":\"'}'\"}]}}]",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {'a' \\ 'b' ...}\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar"
+    },
+    {
+      "description": "A third choice is a part that the reader does not read (engine §9).",
+      "find": "[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"terminal\":\"ellipsis\"},{\"ref\":\"choice\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"terminal\":\"ellipsis\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}}]",
+      "replace": "[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"},{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"},{\"terminal\":\"'}'\"}]}}]",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {'a' \\ 'b' \\ '\\u{110000}'}\n```\n",
+      "inputs": [
+        "a",
+        "aba",
+        "ab"
+      ],
+      "expect": [
+        "a",
+        "(a b a)",
+        "rejected"
+      ]
     }
   ]
 }

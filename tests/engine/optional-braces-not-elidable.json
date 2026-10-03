@@ -1,6 +1,6 @@
 {
-  "description": "A trailing repetition's ... has no helper: it is lowered into the rule's own productions (engine §3, Numbering), so y's production is number 4 in the witness.",
-  "grammar": "%rule text x | y\n%rule x A ...\n%rule y A",
+  "description": "[{T}] is not an elidable optional, even with T elidable: its absence leaves no elided node and counts nothing under late-elision, so x and y tie (engine §3.8, §6).",
+  "grammar": "%ambiguity-resolution late-elision\n%elidable T\n%rule text x | y\n%rule x A [{T}]\n%rule y A",
   "tokens": [
     {
       "text": "a",
@@ -11,7 +11,6 @@
   ],
   "expect": {
     "result": {
-      "format": 9,
       "ok": false,
       "stages": [
         {
@@ -20,8 +19,8 @@
           "witness": [
             {
               "close": {
-                "rule": "x",
-                "production": 2,
+                "rule": "y",
+                "production": 7,
                 "span": [
                   0,
                   1
@@ -30,10 +29,10 @@
             },
             {
               "close": {
-                "rule": "y",
-                "production": 4,
+                "rule": "x",
+                "production": 3,
                 "span": [
-                  0,
+                  1,
                   1
                 ]
               }
@@ -41,7 +40,6 @@
           ]
         }
       ],
-      "tree": null,
       "error": {
         "kind": "ambiguous",
         "stage": "main",
@@ -64,7 +62,7 @@
             "children": [
               {
                 "kind": "rule",
-                "rule": "x",
+                "rule": "y",
                 "span": [
                   0,
                   1
@@ -105,13 +103,11 @@
               0,
               1
             ],
-            "tags": [
-              "A"
-            ],
+            "tags": [],
             "children": [
               {
                 "kind": "rule",
-                "rule": "y",
+                "rule": "x",
                 "span": [
                   0,
                   1
@@ -120,9 +116,7 @@
                   0,
                   1
                 ],
-                "tags": [
-                  "A"
-                ],
+                "tags": [],
                 "children": [
                   {
                     "kind": "token",
@@ -141,7 +135,8 @@
               }
             ]
           }
-        ]
+        ],
+        "message": "the main stage's text has two best readings, a tie"
       }
     },
     "error": "ambiguous"

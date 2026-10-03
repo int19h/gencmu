@@ -1,6 +1,6 @@
 {
   "description": "A nested parse applies tests as the main parse does: la matches the first word, which sounds lai, only where a test does not stop it, and it stops it at the second, which sounds la (engine §4).",
-  "grammar": "%rule text w ...\n%rule w $x(W) %conditions ¬matches($x, la)\n%rule la LE=\"la\"",
+  "grammar": "%rule text {w}\n%rule w $x(W) %conditions ¬matches($x, la)\n%rule la LE=\"la\"",
   "tokens": [
     {
       "text": "lai",

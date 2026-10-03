@@ -1,6 +1,6 @@
 {
   "description": "An entry whose gates do not all hold does nothing, and a stage resolves its classifiers for the features of each parse. One loaded dialect parses with f off, on and off again, and each parse gets its own classes (engine §2).",
-  "grammar": "%classifier lex\n  \"mi\" \"do\" ∈ KOhA\n  f? \"mi\" ∉ KOhA\n  f? \"mi\" ∈ UI\n  ¬f? \"do\" ∉ KOhA\n%rule text [word] ...\n%rule word $w(W) <~w ∪ classify(phonemes($w), lex)>\n%emits\n  $",
+  "grammar": "%classifier lex\n  \"mi\" \"do\" ∈ KOhA\n  f? \"mi\" ∉ KOhA\n  f? \"mi\" ∈ UI\n  ¬f? \"do\" ∉ KOhA\n%rule text [{word}]\n%rule word $w(W) <~w ∪ classify(phonemes($w), lex)>\n%emits\n  $",
   "tokens": [
     {
       "text": "mi",

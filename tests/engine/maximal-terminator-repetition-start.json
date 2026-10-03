@@ -1,6 +1,6 @@
 {
-  "description": "A maximal terminator elided at the start of a repeated item has no constituent, so maximality forbids nothing there (engine §4).",
-  "grammar": "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text x\n%rule x ([T] A) ...",
+  "description": "A maximal terminator elided at the start of an item of braces has no constituent, so maximality forbids nothing there (engine §3.2, §4).",
+  "grammar": "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text x\n%rule x {[T] A}",
   "tokens": [
     {
       "text": "a",

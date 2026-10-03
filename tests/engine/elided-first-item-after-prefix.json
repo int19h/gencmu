@@ -1,0 +1,149 @@
+{
+  "description": "The first item of braces starts the helper's production, so a terminator elided at its start has no constituent, whatever stands before the braces: only the short b fits before y, with T elided, and maximal forbids nothing (engine §3.2, §4).",
+  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T\n%rule text x\n%rule x b {[T] y}\n%rule b B | B C\n%rule y C A",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          3
+        ],
+        "source": [
+          0,
+          5
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "x",
+            "span": [
+              0,
+              3
+            ],
+            "source": [
+              0,
+              5
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "b",
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": [
+                  "B"
+                ],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "B",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "elided",
+                "terminal": "T",
+                "span": [
+                  1,
+                  1
+                ],
+                "source": [
+                  1,
+                  1
+                ]
+              },
+              {
+                "kind": "rule",
+                "rule": "y",
+                "span": [
+                  1,
+                  3
+                ],
+                "source": [
+                  2,
+                  5
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "C",
+                    "token": 1,
+                    "span": [
+                      1,
+                      2
+                    ],
+                    "source": [
+                      2,
+                      3
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 2,
+                    "span": [
+                      2,
+                      3
+                    ],
+                    "source": [
+                      4,
+                      5
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "(b [c a])"
+  }
+}

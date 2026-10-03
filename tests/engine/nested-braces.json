@@ -1,0 +1,234 @@
+{
+  "description": "Braces nest, in the item and in the separator, and every flat helper is spliced: {{A} \\ S} and {A \\ {S}} (engine §3.2, §12).",
+  "grammar": "%rule text p Z q\n%rule p {{A} \\ S}\n%rule q {A \\ {S}}",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "s",
+      "tags": [
+        "S"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "z",
+      "tags": [
+        "Z"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "s",
+      "tags": [
+        "S"
+      ]
+    },
+    {
+      "text": "s",
+      "tags": [
+        "S"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          9
+        ],
+        "source": [
+          0,
+          17
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "p",
+            "span": [
+              0,
+              4
+            ],
+            "source": [
+              0,
+              7
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 1,
+                "span": [
+                  1,
+                  2
+                ],
+                "source": [
+                  2,
+                  3
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "S",
+                "token": 2,
+                "span": [
+                  2,
+                  3
+                ],
+                "source": [
+                  4,
+                  5
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 3,
+                "span": [
+                  3,
+                  4
+                ],
+                "source": [
+                  6,
+                  7
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "Z",
+            "token": 4,
+            "span": [
+              4,
+              5
+            ],
+            "source": [
+              8,
+              9
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "q",
+            "span": [
+              5,
+              9
+            ],
+            "source": [
+              10,
+              17
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 5,
+                "span": [
+                  5,
+                  6
+                ],
+                "source": [
+                  10,
+                  11
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "S",
+                "token": 6,
+                "span": [
+                  6,
+                  7
+                ],
+                "source": [
+                  12,
+                  13
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "S",
+                "token": 7,
+                "span": [
+                  7,
+                  8
+                ],
+                "source": [
+                  14,
+                  15
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 8,
+                "span": [
+                  8,
+                  9
+                ],
+                "source": [
+                  16,
+                  17
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "([a a s a] z [a s s a])"
+  }
+}

@@ -2,8 +2,8 @@
   "description": "An inserted tag before an item stands before its first before-attachment where the alternative has it, and before its carrier where it does not (engine §11).",
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
-    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $b(bb) $w(word) | $w(word)\n%emits\n  X, ($b) $w\n%rule word\n  'w' <W>\n%rule bb\n  'b' <B>\n%emits\n  $\n```\n",
-    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text (X W) ...\n```\n"
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item\n  | $b(bb) $w(word) | $w(word)\n%emits\n  X, ($b) $w\n%rule word\n  'w' <W>\n%rule bb\n  'b' <B>\n%emits\n  $\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {X W}\n```\n"
   },
   "pipeline": "p.md",
   "input": "bww",

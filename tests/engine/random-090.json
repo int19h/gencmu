@@ -1,23 +1,7 @@
 {
-  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 123 derivations.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text ε | [A] ... v ... | C\n%rule t [A] u | C B ...\n%rule u ε | v\n%rule v ε | [C] ... [t]",
-  "tokens": [
-    {
-      "text": "a",
-      "tags": [
-        "A",
-        "B"
-      ]
-    },
-    {
-      "text": "b",
-      "tags": [
-        "A",
-        "B",
-        "C"
-      ]
-    }
-  ],
+  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 3 derivations.",
+  "grammar": "%ambiguity-resolution lazy maximal\n%elidable T\n%rule text v≠\"x\" | [T v] | T u≠\"x\"\n%rule t [T] [T t] | v [T t]\n%rule u {... u=\"x\" \\ u}\n%rule v ε | ε",
+  "tokens": [],
   "expect": {
     "result": {
       "format": 9,
@@ -28,15 +12,23 @@
           "verdict": "tie",
           "witness": [
             {
-              "read": {
-                "token": 1,
-                "terminal": "A"
+              "close": {
+                "rule": "text",
+                "production": 2,
+                "span": [
+                  0,
+                  0
+                ]
               }
             },
             {
-              "read": {
-                "token": 1,
-                "terminal": "C"
+              "close": {
+                "rule": "v",
+                "production": 15,
+                "span": [
+                  0,
+                  0
+                ]
               }
             }
           ]
@@ -53,82 +45,24 @@
             "rule": "text",
             "span": [
               0,
-              2
+              0
             ],
             "source": [
               0,
-              3
+              0
             ],
             "tags": [],
             "children": [
               {
-                "kind": "token",
-                "terminal": "A",
-                "token": 0,
+                "kind": "elided",
+                "terminal": "T",
                 "span": [
                   0,
-                  1
+                  0
                 ],
                 "source": [
                   0,
-                  1
-                ]
-              },
-              {
-                "kind": "rule",
-                "rule": "v",
-                "span": [
-                  1,
-                  2
-                ],
-                "source": [
-                  2,
-                  3
-                ],
-                "tags": [],
-                "children": [
-                  {
-                    "kind": "rule",
-                    "rule": "t",
-                    "span": [
-                      1,
-                      2
-                    ],
-                    "source": [
-                      2,
-                      3
-                    ],
-                    "tags": [],
-                    "children": [
-                      {
-                        "kind": "token",
-                        "terminal": "A",
-                        "token": 1,
-                        "span": [
-                          1,
-                          2
-                        ],
-                        "source": [
-                          2,
-                          3
-                        ]
-                      },
-                      {
-                        "kind": "rule",
-                        "rule": "u",
-                        "span": [
-                          2,
-                          2
-                        ],
-                        "source": [
-                          3,
-                          3
-                        ],
-                        "tags": [],
-                        "children": []
-                      }
-                    ]
-                  }
+                  0
                 ]
               }
             ]
@@ -138,87 +72,32 @@
             "rule": "text",
             "span": [
               0,
-              2
+              0
             ],
             "source": [
               0,
-              3
+              0
             ],
             "tags": [],
             "children": [
               {
-                "kind": "token",
-                "terminal": "A",
-                "token": 0,
-                "span": [
-                  0,
-                  1
-                ],
-                "source": [
-                  0,
-                  1
-                ]
-              },
-              {
                 "kind": "rule",
                 "rule": "v",
                 "span": [
-                  1,
-                  2
+                  0,
+                  0
                 ],
                 "source": [
-                  2,
-                  3
+                  0,
+                  0
                 ],
                 "tags": [],
-                "children": [
-                  {
-                    "kind": "token",
-                    "terminal": "C",
-                    "token": 1,
-                    "span": [
-                      1,
-                      2
-                    ],
-                    "source": [
-                      2,
-                      3
-                    ]
-                  },
-                  {
-                    "kind": "rule",
-                    "rule": "t",
-                    "span": [
-                      2,
-                      2
-                    ],
-                    "source": [
-                      3,
-                      3
-                    ],
-                    "tags": [],
-                    "children": [
-                      {
-                        "kind": "rule",
-                        "rule": "u",
-                        "span": [
-                          2,
-                          2
-                        ],
-                        "source": [
-                          3,
-                          3
-                        ],
-                        "tags": [],
-                        "children": []
-                      }
-                    ]
-                  }
-                ]
+                "children": []
               }
             ]
           }
-        ]
+        ],
+        "message": "the main stage's text has two best readings, a tie"
       }
     },
     "error": "ambiguous"

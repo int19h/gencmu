@@ -1,0 +1,90 @@
+{
+  "description": "A capture can stand next to flat braces: $a(A) {B} parses, since braces are a helper and the alternative's productions keep the capture (engine §3.2, §3.5).",
+  "grammar": "%rule text $a(A) {B}\n%conditions text($a) = \"a\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          3
+        ],
+        "source": [
+          0,
+          5
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "B",
+            "token": 1,
+            "span": [
+              1,
+              2
+            ],
+            "source": [
+              2,
+              3
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "B",
+            "token": 2,
+            "span": [
+              2,
+              3
+            ],
+            "source": [
+              4,
+              5
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "(a b b)"
+  }
+}

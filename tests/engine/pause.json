@@ -2,7 +2,7 @@
   "description": "The pause, /./, is `.`: a token tagged with it has `.` as its phonemes. phonemes() of a span joins its tokens' phonemes and keeps both pauses, and split() at `.` drops the empty string between them (engine §5, §10).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage sounds\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage words\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c 'a' </a/> | '\\p{White_Space}' </./> %emits $\n```\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{c}]\n%rule c 'a' </a/> | '\\p{White_Space}' </./> %emits $\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w(run) %conditions phonemes($w) = \"a..a\", \"a\" ∈ split(phonemes($w), \".\"), \"\" ∉ split(phonemes($w), \".\")\n%rule run /a/ /./ /./ /a/\n```\n"
   },
   "pipeline": "p.md",

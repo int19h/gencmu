@@ -1,6 +1,6 @@
 {
-  "description": "A trailing repetition is left recursion on the rule, and its prefixes are spliced out of the tree (engine §3.3, §12).",
-  "grammar": "%rule text A ...",
+  "description": "Flat braces are a helper, h → x | h x, which the tree splices: %rule text {A} gives one text node over all its items (engine §3.2, §12).",
+  "grammar": "%rule text {A}",
   "tokens": [
     {
       "text": "a",

@@ -1,6 +1,6 @@
 {
   "description": "An empty input is accepted by a nullable start rule.",
-  "grammar": "%rule text [A] ...",
+  "grammar": "%rule text [{A}]",
   "tokens": [],
   "expect": {
     "result": {

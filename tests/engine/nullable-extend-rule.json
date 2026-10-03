@@ -1,0 +1,20 @@
+{
+  "description": "An alternative that a later %extend-rule adds counts: %extend-rule r ε makes {r} an error of the grammar (engine §2, §3.3).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"a.md\"\n%include \"b.md\"\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {r}\n%rule r A\n```\n",
+    "b.md": "```jbogenbau\n%extend-rule r\n  ε\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

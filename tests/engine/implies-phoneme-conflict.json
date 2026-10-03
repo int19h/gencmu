@@ -1,6 +1,6 @@
 {
   "description": "Two phoneme tags on one emitted token are an error of the grammar, also when an implication added one of them (engine §5, §11).",
-  "grammar": "%implies A ⟹ /o/\n%rule text [word] ...\n%rule word $w(W) <A ∪ /e/>\n%emits\n  $",
+  "grammar": "%implies A ⟹ /o/\n%rule text [{word}]\n%rule word $w(W) <A ∪ /e/>\n%emits\n  $",
   "tokens": [
     {
       "text": "x",

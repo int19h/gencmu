@@ -1,6 +1,6 @@
 {
   "description": "A tag test on a reference reads the tags of its completed constituent: w⊇~a holds for the w over X, which the rule tags a, and w⊉~a for the w over Y, although the token Y carries a (engine §2, §4).",
-  "grammar": "%rule text [p] ...\n%rule p hit | miss\n%rule hit w⊇~a\n%rule miss w⊉~a\n%rule w X <~a> | Y <~b>",
+  "grammar": "%rule text [{p}]\n%rule p hit | miss\n%rule hit w⊇~a\n%rule miss w⊉~a\n%rule w X <~a> | Y <~b>",
   "tokens": [
     {
       "text": "x",

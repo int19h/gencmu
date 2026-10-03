@@ -1,6 +1,6 @@
 {
   "description": "A range can be t, and a property, a terminal, can carry a test: '\\p{L}'∩'a'..'c'≠∅ reads a letter from a to c, and '\\p{L}'∩'a'..'c'=∅ any other letter (engine §2, §4).",
-  "grammar": "%rule text [p] ...\n%rule p hit | miss\n%rule hit '\\p{L}'∩'a'..'c'≠∅\n%rule miss '\\p{L}'∩'a'..'c'=∅",
+  "grammar": "%rule text [{p}]\n%rule p hit | miss\n%rule hit '\\p{L}'∩'a'..'c'≠∅\n%rule miss '\\p{L}'∩'a'..'c'=∅",
   "input": "azbé",
   "expect": {
     "result": {

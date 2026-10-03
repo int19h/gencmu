@@ -1,6 +1,6 @@
 {
   "description": "∉ removes a membership, and a key can gain and lose a class again. ko'a ends with no class, and classify gives ∅ for it (engine §2, §10).",
-  "grammar": "%classifier lex\n  \"ko'a\" ∈ KOhA\n  \"ko'a\" ∉ KOhA\n  \"ko'a\" ∈ KOhA\n  \"ko'a\" ∉ KOhA\n  \"ko'e\" ∈ KOhA\n%rule text [word] ...\n%rule word $w(W) <~w ∪ classify(phonemes($w), lex)>\n%emits\n  $",
+  "grammar": "%classifier lex\n  \"ko'a\" ∈ KOhA\n  \"ko'a\" ∉ KOhA\n  \"ko'a\" ∈ KOhA\n  \"ko'a\" ∉ KOhA\n  \"ko'e\" ∈ KOhA\n%rule text [{word}]\n%rule word $w(W) <~w ∪ classify(phonemes($w), lex)>\n%emits\n  $",
   "tokens": [
     {
       "text": "ko'a",

@@ -1,0 +1,87 @@
+{
+  "description": "The item and the separator of braces are each a whole choice, which can begin with |, as in parentheses. A marker after the whole choice makes a right chain of that choice (engine §9).",
+  "document": "```jbogenbau\n%rule a {a | b \\ c | d}\n%rule b {a | b ... \\ s}\n%rule c {| a | b \\ | c}\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "a",
+          "alternatives": [
+            {
+              "expr": {
+                "repeat": {
+                  "choice": [
+                    {
+                      "ref": "a"
+                    },
+                    {
+                      "ref": "b"
+                    }
+                  ]
+                },
+                "separator": {
+                  "choice": [
+                    {
+                      "ref": "c"
+                    },
+                    {
+                      "ref": "d"
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "conditions": []
+        },
+        {
+          "name": "b",
+          "alternatives": [
+            {
+              "expr": {
+                "repeat": {
+                  "choice": [
+                    {
+                      "ref": "a"
+                    },
+                    {
+                      "ref": "b"
+                    }
+                  ]
+                },
+                "separator": {
+                  "ref": "s"
+                },
+                "chain": "right"
+              }
+            }
+          ],
+          "conditions": []
+        },
+        {
+          "name": "c",
+          "alternatives": [
+            {
+              "expr": {
+                "repeat": {
+                  "choice": [
+                    {
+                      "ref": "a"
+                    },
+                    {
+                      "ref": "b"
+                    }
+                  ]
+                },
+                "separator": {
+                  "ref": "c"
+                }
+              }
+            }
+          ],
+          "conditions": []
+        }
+      ]
+    }
+  }
+}

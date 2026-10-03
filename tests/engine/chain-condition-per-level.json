@@ -1,0 +1,56 @@
+{
+  "description": "A condition on $ holds of each level of a chain: text($) ≠ \"a\" fails at the level of one item, so the chain reads nothing (engine §3.3, §3.6).",
+  "grammar": "%rule text r\n%rule r {... A \\ S}\n%conditions text($) ≠ \"a\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "s",
+      "tags": [
+        "S"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 0,
+        "source": [
+          0,
+          1
+        ],
+        "line": 1,
+        "column": 1,
+        "expected": [
+          {
+            "terminal": "A",
+            "rules": [
+              "r"
+            ]
+          }
+        ],
+        "message": "the main stage could not continue at token 0; expected A"
+      }
+    },
+    "error": "rejected"
+  }
+}

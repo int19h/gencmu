@@ -1,6 +1,6 @@
 {
   "description": "The output writes a character tag in its canonical spelling: the character itself, or \\u{h…} for a control character, a nonspacing mark, a private-use character, the quote and the backslash. A character token carries its character tag and nothing else (engine §1, docs/output.md).",
-  "grammar": "%rule text [c] ...\n%rule c '\\u{61}' | '\\u{0301}' | '\\'' | '\\\\' | '\\u{E000}' | '\\u{9}' | 'é'\n%emits $",
+  "grammar": "%rule text [{c}]\n%rule c '\\u{61}' | '\\u{0301}' | '\\'' | '\\\\' | '\\u{E000}' | '\\u{9}' | 'é'\n%emits $",
   "input": "á'\\\té",
   "expect": {
     "result": {

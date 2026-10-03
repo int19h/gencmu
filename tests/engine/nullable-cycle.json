@@ -1,0 +1,15 @@
+{
+  "description": "A cycle of rules is nullable when one of them can match no tokens: {r} with r → s | A and s → r | ε is an error (engine §3.3).",
+  "grammar": "%rule text {r}\n%rule r s | A\n%rule s r | ε",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

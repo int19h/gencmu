@@ -1,22 +1,7 @@
 {
-  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 2 derivations.",
-  "grammar": "%ambiguity-resolution lazy\n%rule text A [C] | v [t] | ε\n%rule t B | ε\n%rule u C | ε\n%rule v [t] ... A | C",
-  "tokens": [
-    {
-      "text": "a",
-      "tags": [
-        "A",
-        "B",
-        "C"
-      ]
-    },
-    {
-      "text": "b",
-      "tags": [
-        "A"
-      ]
-    }
-  ],
+  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 3 derivations.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text ε | [A] | t\n%rule t t | ε\n%rule u ε | ε\n%rule v {v≠\"x\" \\ A} C | t B",
+  "tokens": [],
   "expect": {
     "result": {
       "format": 9,
@@ -29,20 +14,20 @@
             {
               "close": {
                 "rule": "text",
-                "production": 3,
+                "production": 2,
                 "span": [
                   0,
-                  2
+                  0
                 ]
               }
             },
             {
               "close": {
-                "rule": "t",
-                "production": 8,
+                "rule": "text",
+                "production": 0,
                 "span": [
-                  2,
-                  2
+                  0,
+                  0
                 ]
               }
             }
@@ -60,166 +45,31 @@
             "rule": "text",
             "span": [
               0,
-              2
+              0
             ],
             "source": [
               0,
-              3
+              0
             ],
             "tags": [],
-            "children": [
-              {
-                "kind": "rule",
-                "rule": "v",
-                "span": [
-                  0,
-                  2
-                ],
-                "source": [
-                  0,
-                  3
-                ],
-                "tags": [],
-                "children": [
-                  {
-                    "kind": "rule",
-                    "rule": "t",
-                    "span": [
-                      0,
-                      1
-                    ],
-                    "source": [
-                      0,
-                      1
-                    ],
-                    "tags": [
-                      "A",
-                      "B",
-                      "C"
-                    ],
-                    "children": [
-                      {
-                        "kind": "token",
-                        "terminal": "B",
-                        "token": 0,
-                        "span": [
-                          0,
-                          1
-                        ],
-                        "source": [
-                          0,
-                          1
-                        ]
-                      }
-                    ]
-                  },
-                  {
-                    "kind": "token",
-                    "terminal": "A",
-                    "token": 1,
-                    "span": [
-                      1,
-                      2
-                    ],
-                    "source": [
-                      2,
-                      3
-                    ]
-                  }
-                ]
-              }
-            ]
+            "children": []
           },
           {
             "kind": "rule",
             "rule": "text",
             "span": [
               0,
-              2
+              0
             ],
             "source": [
               0,
-              3
+              0
             ],
             "tags": [],
-            "children": [
-              {
-                "kind": "rule",
-                "rule": "v",
-                "span": [
-                  0,
-                  2
-                ],
-                "source": [
-                  0,
-                  3
-                ],
-                "tags": [],
-                "children": [
-                  {
-                    "kind": "rule",
-                    "rule": "t",
-                    "span": [
-                      0,
-                      1
-                    ],
-                    "source": [
-                      0,
-                      1
-                    ],
-                    "tags": [
-                      "A",
-                      "B",
-                      "C"
-                    ],
-                    "children": [
-                      {
-                        "kind": "token",
-                        "terminal": "B",
-                        "token": 0,
-                        "span": [
-                          0,
-                          1
-                        ],
-                        "source": [
-                          0,
-                          1
-                        ]
-                      }
-                    ]
-                  },
-                  {
-                    "kind": "token",
-                    "terminal": "A",
-                    "token": 1,
-                    "span": [
-                      1,
-                      2
-                    ],
-                    "source": [
-                      2,
-                      3
-                    ]
-                  }
-                ]
-              },
-              {
-                "kind": "rule",
-                "rule": "t",
-                "span": [
-                  2,
-                  2
-                ],
-                "source": [
-                  3,
-                  3
-                ],
-                "tags": [],
-                "children": []
-              }
-            ]
+            "children": []
           }
-        ]
+        ],
+        "message": "the main stage's text has two best readings, a tie"
       }
     },
     "error": "ambiguous"

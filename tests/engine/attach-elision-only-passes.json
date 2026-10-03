@@ -2,7 +2,7 @@
   "description": "elision-only over input tokens with attachments: the parse with the elided terminators written back reads no attachments, the check passes, and the stage forwards the attachments (engine §7, §11).",
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
-    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $w(word) | $w(word) $a(ii)\n%emits\n  $w ($a)\n%rule word\n  | 'l' <LE> | 'b' <BRIVLA> | 'c' <BRIVLA> | 'a' <A> | 'd' <B> | 'w' <W>\n%rule ii\n  'i' <I>\n%emits\n  $\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item\n  | $w(word) | $w(word) $a(ii)\n%emits\n  $w ($a)\n%rule word\n  | 'l' <LE> | 'b' <BRIVLA> | 'c' <BRIVLA> | 'a' <A> | 'd' <B> | 'w' <W>\n%rule ii\n  'i' <I>\n%emits\n  $\n```\n",
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy elision-only\n%elidable KU\n%rule text d BRIVLA | d\n%rule d\n  $l(LE) $b(BRIVLA) [BRIVLA] [KU]\n%emits\n  $l, $b\n```\n"
   },
   "pipeline": "p.md",

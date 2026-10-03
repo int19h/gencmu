@@ -2,8 +2,8 @@
   "description": "An attachment capture whose part emits nothing gives no attachment: a bare terminal with no emission above it, and a part that emits ε (engine §11).",
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
-    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $w(word) | $w(word) $a(silent) | $w(word) $e(erased)\n%emits\n  $w ($a) ($e)\n%rule word\n  'w' <W>\n%rule silent\n  'i'\n%rule erased\n  'e'\n%emits\n  ε\n```\n",
-    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text W ...\n```\n"
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item\n  | $w(word) | $w(word) $a(silent) | $w(word) $e(erased)\n%emits\n  $w ($a) ($e)\n%rule word\n  'w' <W>\n%rule silent\n  'i'\n%rule erased\n  'e'\n%emits\n  ε\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {W}\n```\n"
   },
   "pipeline": "p.md",
   "input": "wiwew",

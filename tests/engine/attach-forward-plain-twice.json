@@ -2,7 +2,7 @@
   "description": "An input token without attachments can be the one part of two emitted tokens (engine §11).",
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n%stage c\n%include \"c.md\"\n```\n",
-    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $w(word) | $b(bb) $w(word) | $w(word) $a(ii) | $b(bb) $w(word) $a(ii)\n%emits\n  ($b) $w ($a)\n%rule word\n  | 'w' <W> | 'z' <Z>\n%rule bb\n  'b' <B>\n%emits\n  $\n%rule ii\n  'i' <I>\n%emits\n  $\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item\n  | $w(word) | $b(bb) $w(word) | $w(word) $a(ii) | $b(bb) $w(word) $a(ii)\n%emits\n  ($b) $w ($a)\n%rule word\n  | 'w' <W> | 'z' <Z>\n%rule bb\n  'b' <B>\n%emits\n  $\n%rule ii\n  'i' <I>\n%emits\n  $\n```\n",
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text\n  W\n%emits\n  $ <T>, $ <U>\n```\n",
     "c.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text T U\n```\n"
   },

@@ -1,28 +1,7 @@
 {
-  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 8 derivations.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text u v ... | [A] ... B | u A\n%rule t ε | ε\n%rule u ε | ε\n%rule v [B] C | ε",
-  "tokens": [
-    {
-      "text": "a",
-      "tags": [
-        "B",
-        "C"
-      ]
-    },
-    {
-      "text": "b",
-      "tags": [
-        "A",
-        "C"
-      ]
-    },
-    {
-      "text": "c",
-      "tags": [
-        "C"
-      ]
-    }
-  ],
+  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 3 derivations.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text ε | ε | ε\n%rule t {A ... \\ v}\n%rule u t | u C\n%rule v ε | t [{u}]",
+  "tokens": [],
   "expect": {
     "result": {
       "format": 9,
@@ -34,8 +13,8 @@
           "witness": [
             {
               "close": {
-                "rule": "u",
-                "production": 9,
+                "rule": "text",
+                "production": 0,
                 "span": [
                   0,
                   0
@@ -44,8 +23,8 @@
             },
             {
               "close": {
-                "rule": "u",
-                "production": 10,
+                "rule": "text",
+                "production": 1,
                 "span": [
                   0,
                   0
@@ -66,198 +45,31 @@
             "rule": "text",
             "span": [
               0,
-              3
+              0
             ],
             "source": [
               0,
-              5
+              0
             ],
             "tags": [],
-            "children": [
-              {
-                "kind": "rule",
-                "rule": "u",
-                "span": [
-                  0,
-                  0
-                ],
-                "source": [
-                  0,
-                  0
-                ],
-                "tags": [],
-                "children": []
-              },
-              {
-                "kind": "rule",
-                "rule": "v",
-                "span": [
-                  0,
-                  2
-                ],
-                "source": [
-                  0,
-                  3
-                ],
-                "tags": [],
-                "children": [
-                  {
-                    "kind": "token",
-                    "terminal": "B",
-                    "token": 0,
-                    "span": [
-                      0,
-                      1
-                    ],
-                    "source": [
-                      0,
-                      1
-                    ]
-                  },
-                  {
-                    "kind": "token",
-                    "terminal": "C",
-                    "token": 1,
-                    "span": [
-                      1,
-                      2
-                    ],
-                    "source": [
-                      2,
-                      3
-                    ]
-                  }
-                ]
-              },
-              {
-                "kind": "rule",
-                "rule": "v",
-                "span": [
-                  2,
-                  3
-                ],
-                "source": [
-                  4,
-                  5
-                ],
-                "tags": [],
-                "children": [
-                  {
-                    "kind": "token",
-                    "terminal": "C",
-                    "token": 2,
-                    "span": [
-                      2,
-                      3
-                    ],
-                    "source": [
-                      4,
-                      5
-                    ]
-                  }
-                ]
-              }
-            ]
+            "children": []
           },
           {
             "kind": "rule",
             "rule": "text",
             "span": [
               0,
-              3
+              0
             ],
             "source": [
               0,
-              5
+              0
             ],
             "tags": [],
-            "children": [
-              {
-                "kind": "rule",
-                "rule": "u",
-                "span": [
-                  0,
-                  0
-                ],
-                "source": [
-                  0,
-                  0
-                ],
-                "tags": [],
-                "children": []
-              },
-              {
-                "kind": "rule",
-                "rule": "v",
-                "span": [
-                  0,
-                  2
-                ],
-                "source": [
-                  0,
-                  3
-                ],
-                "tags": [],
-                "children": [
-                  {
-                    "kind": "token",
-                    "terminal": "B",
-                    "token": 0,
-                    "span": [
-                      0,
-                      1
-                    ],
-                    "source": [
-                      0,
-                      1
-                    ]
-                  },
-                  {
-                    "kind": "token",
-                    "terminal": "C",
-                    "token": 1,
-                    "span": [
-                      1,
-                      2
-                    ],
-                    "source": [
-                      2,
-                      3
-                    ]
-                  }
-                ]
-              },
-              {
-                "kind": "rule",
-                "rule": "v",
-                "span": [
-                  2,
-                  3
-                ],
-                "source": [
-                  4,
-                  5
-                ],
-                "tags": [],
-                "children": [
-                  {
-                    "kind": "token",
-                    "terminal": "C",
-                    "token": 2,
-                    "span": [
-                      2,
-                      3
-                    ],
-                    "source": [
-                      4,
-                      5
-                    ]
-                  }
-                ]
-              }
-            ]
+            "children": []
           }
-        ]
+        ],
+        "message": "the main stage's text has two best readings, a tie"
       }
     },
     "error": "ambiguous"

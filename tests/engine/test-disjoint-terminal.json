@@ -1,6 +1,6 @@
 {
   "description": "X∩t=∅ holds where the token's tags include no tag of t, and X∩t≠∅ where they include one at least. t can be a term in parentheses (engine §2, §4).",
-  "grammar": "%rule text [p] ...\n%rule p hit | miss\n%rule hit X∩(A ∪ B)=∅\n%rule miss X∩(A ∪ B)≠∅",
+  "grammar": "%rule text [{p}]\n%rule p hit | miss\n%rule hit X∩(A ∪ B)=∅\n%rule miss X∩(A ∪ B)≠∅",
   "tokens": [
     {
       "text": "x",
