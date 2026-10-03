@@ -9,6 +9,7 @@ use crate::lower::{Characters, CmpOp, LCond, LTerm, Lowered, Span, Sym, SymbolTe
 use crate::result::Attachment;
 use crate::tags::{character_tag, difference, intersection, is_name, is_subset, union, SetId, TagId, TagList, Tags};
 use crate::unicode::Unicode;
+use crate::witness::{self, Fault};
 
 /// How a terminal matches a token (engine §4): by a tag the token carries,
 /// or, for a range or a property, by one of its character tags.
@@ -452,7 +453,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             // must read, so the item after it is strict
                             // (§7.4).
                             let rule = &g.rules[production.rule as usize];
-                            let strict = synthetic && item.dot == 0 && rule.helper && rule.elided.is_some();
+                            let strict = synthetic
+                                && item.dot == 0
+                                && rule.helper
+                                && rule.elided.is_some()
+                                && !witness::fault(Fault::Route3);
                             let cap = Cap { start: e as u32, end: e as u32 + 1, tags };
                             self.advance(&mut chart, tokens, base, item, cap, e + 1, strict)?;
                         }
@@ -517,7 +522,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             let index = index as usize;
             if target.strict[index] && !strict {
                 target.strict[index] = false;
-                if target.processed[index] {
+                // A fault leaves it as it was processed (tests/README.md).
+                if target.processed[index] && !(self.recon.is_some() && witness::fault(Fault::Reprocess)) {
                     target.queue.push((index as u32, true));
                 }
             }
