@@ -316,7 +316,7 @@ func writeError(w *jsonWriter, e *ParseError) {
 			w.int(r.At)
 			w.raw(`,"source":`)
 			w.pair(r.Source)
-			if r.tested {
+			if r.Tested {
 				w.raw(`,"sound":`)
 				w.str(r.Sound)
 			}
