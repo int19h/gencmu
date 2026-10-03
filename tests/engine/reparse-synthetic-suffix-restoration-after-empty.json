@@ -1,5 +1,5 @@
 {
-  "description": "The rest of c's written [T [X] [U]] is an empty ordinary optional and then a restoration. Because [U] can read, [X] is predicted in the ordinary way and may be empty, and [U] restores U. So c is a second reading (engine §7.4).",
+  "description": "The rest of c's written [T [X] [U]] is an empty ordinary optional and then a restoration. Because [U] can read, [X] is predicted in the ordinary way and may be empty, and [U] restores U. So c is a second reading (engine §7.4). Here c's inner [U] is predicted only strictly. A strict and an ordinary prediction of one helper at one position share their items, so a fault in the strict path shows only where that path is the only one, or comes first.",
   "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T U V W\n%rule text a | b | c\n%rule a A [T] [U] [V]\n%rule b A [T] [U] [V] [W]\n%rule c A [T [X] [U]] V",
   "tokens": [
     {

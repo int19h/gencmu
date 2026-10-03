@@ -1,0 +1,31 @@
+{
+  "description": "c's written [T [U s]] reads the synthetic T, so the item after T is strict, and it predicts the helper of [U s] strictly. That helper reads the synthetic U by route 3 too, and the item after U is strict, although a strict item read U. Nothing after s can read and s itself cannot, so s is not predicted there, and its tag term, which fails over an empty span, is never evaluated. [U s] is the restoration of U, the rest of [T [U s]] reads, and c is a second reading with V read as a bare terminal. A library that makes the item after U ordinary because the item that read it was strict evaluates s and fails with an error of the grammar. The empty rest must throw, since an empty rest that does not throw only adds a derivation to a reading that already competes (engine §7.4).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T U V W\n%rule text a | b | c\n%rule a A [T] [U] [V]\n%rule b A [T] [U] [V] [W]\n%rule c A [T [U s]] V\n%rule s ε <tag(text($))>",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "elision-only",
+        "stage": "main"
+      }
+    }
+  }
+}
