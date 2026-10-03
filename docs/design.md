@@ -284,9 +284,9 @@ At the time of this decision (commit 1ea14a1), 5 of the 29,308 corpus records ti
 
 CLL's own rule is narrower. It says only that a terminator can be elided if no ambiguity results. It says nothing of the other ambiguities that its EBNF has. `elision-only` is one reading of that rule, for the stage whose grammar declares it. CLL does not say which parse to test, so the check tests the one that the ranking chose. It applies the rule only when the ranking of that stage was `resolved`:
 
-1. Take the `elided` nodes of the chosen tree in the order of its leaves, left to right. This order follows the chosen derivation, also where several nodes stand at one point. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries only the tag of that terminator, and is marked synthetic.
-2. Lower the same grammar again, and make mandatory every optional whose first symbol is an `%elidable` terminator. Parse the new token sequence.
-3. Build the ranking of that forest (the set of all its parses) with no lean to any rule. If the forest has exactly one derivation, the check passes. It also passes if the forest has none, since then no two restored readings exist to report. In that case, every other reading of the original input needed a terminator elided where the chosen reading did not. CLL's rule forbids that elision, because it made the text ambiguous.
+1. Take the `elided` nodes of the chosen tree in the order of its leaves, left to right. This order follows the chosen derivation, also where several nodes stand at one point. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries only the tag of that terminator, and the engine marks it synthetic.
+2. Parse the new token sequence with the same grammar, in a mode where each elidable optional is written back or written. Every condition, tag and test of a rule reads the original input through a projection that leaves the synthetic tokens out. A query parses the original input with the grammar as it is.
+3. Rank that forest with no lean. If it has exactly one derivation, the check passes. The chosen parse always has its own derivation there, so the forest is never empty. An empty forest is a defect of the engine, the error `elision-witness-lost`.
 
    Otherwise, the ambiguity is not about terminators. The result is an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries the first and the second reading of that ranking, shown over the original input.
 
@@ -298,7 +298,7 @@ The engine cases pin the definition with these cases:
 
 - Two readings that elide different terminators, for which the check passes
 - Two readings that differ with every terminator written, for which the check fails
-- A restored text with no derivation, for which the check passes
+- A restored text whose only reading is the chosen one, for which the check passes
 - Several terminators elided at one point
 
 ### Independent options
@@ -307,7 +307,7 @@ The engine cases pin the definition with these cases:
 
 For example, take `text → A body [T] B` and `body → X | X B`, with `T` elidable. On `A X B`, the one complete parse uses `body → X` and elides `T`. `maximal` forbids that elision, because `body → X B` is longer, so the text is an error. Without `maximal`, every ranking rule accepts the one parse.
 
-`elision-only` parses again with the terminators written back. That can let another alternative match, and a condition or a test can answer differently. A ranking of the original parses sees neither. For example, take `text → a | b | c`, `a → A [T]`, `b → A [T] [T]` and `c → A T`. On `A`, `late-elision` prefers `a`, with one elided `T`, to `b`, with two. Written back, `A T` parses through both `a` and `c`, so `elision-only` reports the text.
+`elision-only` parses again with the terminators written back. That can let another alternative match, or a test on a terminal read a written-back terminator. A ranking of the original parses sees neither. For example, take `text → a | b | c`, `a → A [T]`, `b → A [T] [T]` and `c → A T`. On `A`, `late-elision` prefers `a`, with one elided `T`, to `b`, with two. Written back, `A T` parses through both `a` and `c`, so `elision-only` reports the text.
 
 ### Nested queries and elided terminators
 
