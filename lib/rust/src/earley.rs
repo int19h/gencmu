@@ -134,13 +134,16 @@ pub(crate) struct ESet {
     pub items: Vec<Item>,
     /// In the reconstruction mode of `elision-only` (§7.4), whether each
     /// item is strict: every step that made it was strict. An ordinary step
-    /// makes it ordinary for good.
+    /// makes it ordinary for good. Empty in any other parse, where no item
+    /// is strict.
     strict: Vec<bool>,
-    /// The items to process, in order, each with whether it is processed
-    /// again, because an ordinary step reached it after it was processed
-    /// as strict (§7.4).
-    queue: Vec<(u32, bool)>,
-    /// Whether each item has been taken from the queue.
+    /// The items to process, in order. An item that an ordinary step
+    /// reached after it was processed as strict is processed again (§7.4),
+    /// and its entry then has the bit `AGAIN`, which only the
+    /// reconstruction mode sets.
+    queue: Vec<u32>,
+    /// In the reconstruction mode, whether each item has been taken from
+    /// the queue; empty in any other parse.
     processed: Vec<bool>,
     /// For a completed item, its constituent's tag set; else `u32::MAX`.
     pub tagset: Vec<SetId>,
@@ -162,9 +165,28 @@ pub(crate) struct ESet {
     pub skipped: Vec<u32>,
 }
 
+/// The bit of a queue entry that marks an item processed again (§7.4).
+const AGAIN: u32 = 1 << 31;
+
 impl ESet {
     pub(crate) fn find(&self, item: &Item) -> Option<u32> {
         self.index.get(item).copied()
+    }
+
+    /// Whether an item is strict, which only the reconstruction mode
+    /// records.
+    fn is_strict(&self, index: usize) -> bool {
+        self.strict.get(index).copied().unwrap_or(false)
+    }
+
+    /// Queues a new item, and in the reconstruction mode records its
+    /// strictness.
+    fn enqueue(&mut self, index: u32, recon: bool, strict: bool) {
+        if recon {
+            self.strict.push(strict);
+            self.processed.push(false);
+        }
+        self.queue.push(index);
     }
 }
 
@@ -430,10 +452,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             chart.reached = e;
             let mut head = 0;
             while head < chart.sets[e].queue.len() {
-                let (k, again) = chart.sets[e].queue[head];
+                let entry = chart.sets[e].queue[head];
                 head += 1;
-                let k = k as usize;
-                chart.sets[e].processed[k] = true;
+                let (k, again) = ((entry & !AGAIN) as usize, entry & AGAIN != 0);
+                if let Some(processed) = chart.sets[e].processed.get_mut(k) {
+                    *processed = true;
+                }
                 let item = chart.sets[e].items[k];
                 let g = self.g;
                 let production = &g.prods[item.prod as usize];
@@ -466,7 +490,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         if !again {
                             chart.sets[e].waiting.entry(rule).or_default().push(k as u32);
                         }
-                        let strict = chart.sets[e].strict[k];
+                        let strict = chart.sets[e].is_strict(k);
                         // A strict item predicts its next symbol strictly
                         // where no symbol after it can read, and it advances
                         // over an empty constituent only where one can
@@ -520,11 +544,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             // One ordinary step makes an item ordinary. It is then processed
             // again, for what strictness held back, if it was processed.
             let index = index as usize;
-            if target.strict[index] && !strict {
+            if target.is_strict(index) && !strict {
                 target.strict[index] = false;
                 // A fault leaves it as it was processed (tests/README.md).
-                if target.processed[index] && !(self.recon.is_some() && witness::fault(Fault::Reprocess)) {
-                    target.queue.push((index as u32, true));
+                if target.processed[index] && !witness::fault(Fault::Reprocess) {
+                    target.queue.push(index as u32 | AGAIN);
                 }
             }
             return Ok(());
@@ -550,9 +574,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         target.index.insert(item, index);
         target.items.push(item);
         target.tagset.push(u32::MAX);
-        target.strict.push(strict);
-        target.processed.push(false);
-        target.queue.push((index, false));
+        target.enqueue(index, self.recon.is_some(), strict);
         Ok(())
     }
 
@@ -666,9 +688,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         target.index.insert(item, index);
         target.items.push(item);
         target.tagset.push(u32::MAX);
-        target.strict.push(false);
-        target.processed.push(false);
-        target.queue.push((index, false));
+        target.enqueue(index, true, false);
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -761,7 +781,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             let waiting = chart.sets[origin].items[waiter as usize];
             // A strict item advances over an empty constituent only where a
             // later symbol can read, and stays strict (§7.4).
-            let strict = empty && chart.sets[origin].strict[waiter as usize];
+            let strict = empty && chart.sets[origin].is_strict(waiter as usize);
             if strict && !self.reads_later(waiting) {
                 continue;
             }
