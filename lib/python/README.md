@@ -100,4 +100,4 @@ python -m build
 
 ### Tests of the check of elision-only
 
-`src/gencmu/_testing.py` holds a hook for the library's own tests, which the package does not export. The runners of the shared cases and of the corpus ask the hook, after each check of `elision-only`, whether the check's forest kept the witness of the chosen derivation (`tests/README.md`, `tests/witness.py`). `tests/test_elision_check.py` loses the witness on purpose and checks the form of the error `elision-witness-lost`.
+`src/gencmu/_testing.py` holds a hook for the library's own tests, which the package does not export. The runners of the shared cases and of the corpus ask the hook, after each check of `elision-only`, whether the check's forest kept the witness of the chosen derivation (`tests/README.md`, `tests/witness.py`). `tests/test_elision_check.py` loses the witness on purpose and checks the form of the error `elision-witness-lost`. The hook's `faults` turn on faults of the library's own paths in the check, and `tests/test_faults.py` shows that the shared cases catch each one (`tests/README.md`).

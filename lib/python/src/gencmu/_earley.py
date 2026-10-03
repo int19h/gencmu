@@ -9,6 +9,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
+from . import _testing
 from ._clauses import WHOLE
 from ._eligible import eligible
 from ._errors import _GrammarFault
@@ -666,7 +667,7 @@ class Parser:
                     # recognizer then applies to it what its strictness held
                     # back (engine §7.4).
                     strict[found] = False
-                    if processed[found]:
+                    if processed[found] and "reprocess" not in _testing.faults:
                         agenda.append(found)
             else:
                 edges[found].append(edge)
@@ -771,7 +772,7 @@ class Parser:
             if production.elided not in tokens[j].tags:
                 return
             test = production.elided_test
-            if test is not None and not context.test_holds(test, j, j + 1, token_tags[j]):
+            if test is not None and not context.test_holds(test, j, j + 1, token_tags[j]) and "restore" not in _testing.faults:
                 return
             restorations.append(number)
 
@@ -837,6 +838,8 @@ class Parser:
                         # next symbol, and its advances over empty
                         # constituents (engine §7.4). The step's own edge is
                         # already in place.
+                        if "again" in _testing.faults:
+                            continue
                         if position < len(production.rhs) and not production.terminal[position]:
                             rule = production.rhs[position]
                             predict(rule, j)  # type: ignore[arg-type]
@@ -918,6 +921,7 @@ class Parser:
                             # read, so the item after its terminal is strict
                             # (engine §7.4).
                             route = from_synthetic and dot[waiter] == 0 and productions[prod[waiter]].lhs in elidable_helpers
+                            route = route and "route3" not in _testing.faults
                             advance(waiter, (j, j + 1, captured_tag), j + 1, (waiter, 1, j, terminal), route, token_tag)
         # The last set, if the parse reached it.
         final = sets[n] if n < len(sets) else {}

@@ -16,6 +16,7 @@ from __future__ import annotations
 import math
 from typing import Any, Iterator, Optional
 
+from . import _testing
 from ._earley import RESTORE, Forest
 from ._maximal import Maximal
 
@@ -426,6 +427,9 @@ class Summaries:
         start, end = forest.origin[item], forest.end[item]
         found = []
         for index, (pred, kind, a, b) in enumerate(forest.edges[item]):
+            if kind == RESTORE and "rank-restoration" in _testing.faults:
+                # A fault gives a restoration no derivation (tests/README.md).
+                continue
             if kind == 0 or kind == RESTORE:
                 found.append((index, kind, None, None, a, b))
                 continue

@@ -3,7 +3,22 @@ the package does not export it.
 
 ``elision_check``, when set, receives each check of elision-only (engine
 §7) that ran and met no error of the grammar, for the witness test of
-tests/README.md."""
+tests/README.md.
+
+``faults`` holds the faults of the library's own paths in the check that a
+test turns on, one at a time, to show that the shared cases catch each
+(tests/README.md, tests/test_faults.py). An empty set is the engine as
+specified:
+
+- "reprocess" leaves an item that an ordinary step reaches after it was
+  processed as strict as it was (engine §7.4).
+- "again" makes the processing of such an item again do nothing: no
+  ordinary prediction of its next symbol, and no advance over an empty
+  constituent.
+- "route3" makes the item after the T of route 3 ordinary (engine §7.4).
+- "restore" makes a restoration without the test of its terminal.
+- "rank-restoration" gives a restoration no derivation in the ranking, so
+  the ranking does not count W(D) though the chart holds it."""
 
 from __future__ import annotations
 
@@ -36,3 +51,5 @@ class CheckRun:
 
 
 elision_check: Callable[[CheckRun], None] | None = None
+
+faults: set[str] = set()
