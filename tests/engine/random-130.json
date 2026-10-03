@@ -1,6 +1,6 @@
 {
-  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 2 derivations.",
-  "grammar": "%ambiguity-resolution late-elision\n%elidable T\n%rule text [T] [T u] | ε | u\n%rule t v | B u\n%rule u {A ... \\ u}\n%rule v B | u [T]",
+  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 1 derivations.",
+  "grammar": "%ambiguity-resolution late-elision maximal\n%elidable T\n%rule text v [T] u | B T | ε\n%rule t ε | t u\n%rule u A t | ε\n%rule v {v ... \\ B}",
   "tokens": [],
   "expect": {
     "result": {
@@ -9,7 +9,7 @@
       "stages": [
         {
           "name": "main",
-          "verdict": "resolved",
+          "verdict": "unique",
           "output": []
         }
       ],

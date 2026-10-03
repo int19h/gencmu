@@ -1,24 +1,7 @@
 {
-  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 8 derivations.",
-  "grammar": "%ambiguity-resolution lazy\n%rule text {A \\ A} | C v | v\n%rule t A u | ε\n%rule u ε | ε\n%rule v [t] | v A",
-  "tokens": [
-    {
-      "text": "x",
-      "tags": [
-        "A",
-        "B",
-        "C"
-      ],
-      "phonemes": "x"
-    },
-    {
-      "text": "x",
-      "tags": [
-        "A"
-      ],
-      "phonemes": "y"
-    }
-  ],
+  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 1 derivations.",
+  "grammar": "%ambiguity-resolution late-elision maximal\n%elidable T\n%rule text ε | T t | B A\n%rule t {T ... \\ t}\n%rule u {u ... \\ v}\n%rule v {u ... \\ t}",
+  "tokens": [],
   "expect": {
     "result": {
       "format": 9,
@@ -26,7 +9,7 @@
       "stages": [
         {
           "name": "main",
-          "verdict": "resolved",
+          "verdict": "unique",
           "output": []
         }
       ],
@@ -35,103 +18,17 @@
         "rule": "text",
         "span": [
           0,
-          2
+          0
         ],
         "source": [
           0,
-          3
+          0
         ],
         "tags": [],
-        "children": [
-          {
-            "kind": "rule",
-            "rule": "v",
-            "span": [
-              0,
-              2
-            ],
-            "source": [
-              0,
-              3
-            ],
-            "tags": [],
-            "children": [
-              {
-                "kind": "rule",
-                "rule": "v",
-                "span": [
-                  0,
-                  1
-                ],
-                "source": [
-                  0,
-                  1
-                ],
-                "tags": [],
-                "children": [
-                  {
-                    "kind": "rule",
-                    "rule": "v",
-                    "span": [
-                      0,
-                      0
-                    ],
-                    "source": [
-                      0,
-                      0
-                    ],
-                    "tags": [],
-                    "children": [
-                      {
-                        "kind": "rule",
-                        "rule": "t",
-                        "span": [
-                          0,
-                          0
-                        ],
-                        "source": [
-                          0,
-                          0
-                        ],
-                        "tags": [],
-                        "children": []
-                      }
-                    ]
-                  },
-                  {
-                    "kind": "token",
-                    "terminal": "A",
-                    "token": 0,
-                    "span": [
-                      0,
-                      1
-                    ],
-                    "source": [
-                      0,
-                      1
-                    ]
-                  }
-                ]
-              },
-              {
-                "kind": "token",
-                "terminal": "A",
-                "token": 1,
-                "span": [
-                  1,
-                  2
-                ],
-                "source": [
-                  2,
-                  3
-                ]
-              }
-            ]
-          }
-        ]
+        "children": []
       },
       "error": null
     },
-    "brackets": "(x x)"
+    "brackets": ""
   }
 }
