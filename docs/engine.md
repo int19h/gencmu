@@ -662,7 +662,17 @@ The message is the same in every library. The engine never passes a check whose 
 
 ### 7.10 Readings
 
-When R has two or more derivations, the result is an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries the first and the second reading of the ranking of §7.7, each as a tree over O. The result's `tree` is null. The stage keeps its verdict, output and warnings, since it accepted its input and chose its derivation. The error has no `token` or `source`.
+When R has two or more derivations, the result is an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries the first and the second reading of the ranking of §7.7, each as a tree over O, and a witness. The result's `tree` is null. The stage keeps its verdict, output and warnings, since it accepted its input and chose its derivation. The error has no `token` or `source`.
+
+The two readings are two derivations of R, but they can be equal as trees over O. For example, one can restore an optional, and the other can read the same synthetic token as a bare terminal of a production with the same tree. So the error also has a witness, as a tie has (§6). It is the pair of actions at the first difference between the two derivations of R, visible if there is one, mapped to O:
+
+- A read of an original token is a read of that token's index in O.
+- A read of a synthetic token is an `elided` action of its record's terminal at the record's position in O.
+- A close has the projection of its span.
+
+Mapped to O, the two actions can still be equal, where they differ only in synthetic tokens. Two records of one terminal at one position are an example.
+
+The message of the error is free. Only the message of §7.9 is the same in every library.
 
 A reading is the tree of its derivation (§12), mapped to O:
 

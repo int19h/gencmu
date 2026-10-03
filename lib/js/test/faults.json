@@ -18,6 +18,7 @@
       "F1pos:head",
       "F1pos:phonemes"
     ],
+    "reparse-equal-readings-witness.json": [],
     "reparse-incompatible-optional-sound.json": [
       "F11"
     ],
@@ -469,6 +470,7 @@
       "reparse-competitor-effects.json": "hook",
       "reparse-derivation-tags.json": "hook",
       "reparse-empty-capture-provenance.json": "result+hook",
+      "reparse-equal-readings-witness.json": "hook",
       "reparse-incompatible-optional-sound.json": "hook",
       "reparse-incompatible-terminal-sound.json": "hook",
       "reparse-memo-features.json": "result+hook",
@@ -625,6 +627,7 @@
       "reparse-strict-empty-before-reading.json": "result"
     },
     "F27:bare": {
+      "reparse-equal-readings-witness.json": "result",
       "reparse-same-boundary-order.json": "result",
       "reparse-strict-later-reading-symbol.json": "result",
       "reparse-synthetic-suffix-consumes-original.json": "result",
@@ -648,6 +651,7 @@
       "reparse-competitor-effects.json": "result+hook",
       "reparse-derivation-tags.json": "result+hook",
       "reparse-empty-capture-provenance.json": "result+hook",
+      "reparse-equal-readings-witness.json": "result+hook",
       "reparse-incompatible-optional-sound.json": "result+hook",
       "reparse-incompatible-terminal-sound.json": "result+hook",
       "reparse-memo-features.json": "result+hook",
@@ -742,6 +746,7 @@
       "reparse-competitor-effects.json": "result+hook",
       "reparse-derivation-tags.json": "result+hook",
       "reparse-empty-capture-provenance.json": "result+hook",
+      "reparse-equal-readings-witness.json": "result+hook",
       "reparse-incompatible-optional-sound.json": "result+hook",
       "reparse-incompatible-terminal-sound.json": "result+hook",
       "reparse-memo-features.json": "result+hook",

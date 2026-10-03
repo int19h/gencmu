@@ -4823,7 +4823,8 @@
   /**
    * A witness action in the result JSON.
    * @typedef {{read: {token: number, terminal: string}}
-   *   | {close: {rule: string, production: number, span: Span}}} ActionJson
+   *   | {close: {rule: string, production: number, span: Span}}
+   *   | {elided: {at: number, terminal: string}}} ActionJson
    */
 
   /**
@@ -4839,6 +4840,7 @@
    * @property {number} [column]
    * @property {import("./types.js").Expectation[]} [expected]
    * @property {NodeJson[]} [readings]
+   * @property {(ActionJson | null)[]} [witness]
    * @property {string} [document]
    * @property {string} message
    * @property {NodeJson} [chosen]
@@ -4881,7 +4883,7 @@
    * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | string[] | null}} DisplayValue
    */
 
-  const RESULT_FORMAT = 8;
+  const RESULT_FORMAT = 9;
 
   /**
    * A token in the result JSON. An attached token has no span, and a list of
@@ -4926,6 +4928,7 @@
   function actionJson(action) {
     if (action === null) return null;
     if (action.kind === "read") return { read: { token: action.token, terminal: action.terminal } };
+    if (action.kind === "elided") return { elided: { at: action.at, terminal: action.terminal } };
     return { close: { rule: action.rule, production: action.production, span: [action.span[0], action.span[1]] } };
   }
 
@@ -4945,6 +4948,7 @@
     if (error.column !== undefined) result.column = error.column;
     if (error.expected !== undefined) result.expected = error.expected;
     if (error.readings !== undefined) result.readings = error.readings.map(nodeJson);
+    if (error.witness !== undefined) result.witness = error.witness.map(actionJson);
     if (error.document !== undefined) result.document = error.document;
     result.message = error.message;
     // The members of elision-witness-lost follow its message (docs/output.md).
@@ -5483,6 +5487,13 @@
       lines.push(`The ${error.stage} stage's text is ambiguous even with every elided terminator written out,`);
       lines.push("so the ambiguity is not about terminators (elision-only). Two readings:");
       for (const reading of error.readings || []) lines.push("  " + nodeBrackets(reading, tokens, { showElided: true }));
+      // Two readings can show the same brackets, so the witness says where
+      // they first differ (engine §7.10).
+      if (error.witness) {
+        lines.push("They first differ where:");
+        lines.push(`  the first reading ${describeAction(error.witness[0], tokens)}`);
+        lines.push(`  the second reading ${describeAction(error.witness[1], tokens)}`);
+      }
     } else {
       const where = error.document ? `${error.document}${error.line ? `:${error.line}:${error.column}` : ""}: ` : "";
       lines.push(`A grammar error${error.stage ? ` in the ${error.stage} stage` : ""}: ${where}${error.message}`);
@@ -5500,6 +5511,7 @@
   function describeAction(action, tokens) {
     if (!action) return "ends there";
     if (action.kind === "read") return `reads ${quoted(tokens[action.token] ? tokens[action.token].text : "")} as ${action.terminal}`;
+    if (action.kind === "elided") return `reads the ${action.terminal} written back before token ${action.at}`;
     const rule = action.helper ? `part of ${action.rule}` : action.rule;
     return `closes ${rule} over tokens ${action.span[0]} to ${action.span[1]}`;
   }
@@ -5538,7 +5550,7 @@
       const tokens = stage.input || [];
       const [first, second] = stage.witness;
       const action = first || second;
-      const at = action ? (action.kind === "read" ? action.token : action.span[1]) : 0;
+      const at = action ? (action.kind === "read" ? action.token : action.kind === "elided" ? action.at : action.span[1]) : 0;
       const lines = [`The ${stage.name} stage is ambiguous: its grammar reads the text in two ways, and no rule ranks one above the other.`,
         "They first differ here:"];
       if (tokens.length) {
@@ -7611,6 +7623,7 @@
             stage: this.name,
             reason: "elision-only",
             readings: check.readings,
+            witness: check.witness,
             message: `the ${this.name} stage's text is ambiguous with every elided terminator written out`,
           };
         }
@@ -7779,8 +7792,26 @@
           return { ...node, span: [start, end], source: sourceOf(original, start, end), tags, children };
         });
       const ropes = [ranking.first, /** @type {import("./types.js").Rope} */ (ranking.second)];
+      // The witness, mapped to the stage's input as the readings are
+      // (engine §7.10).
+      /** @type {(action: Action | null) => import("./types.js").WitnessAction | null} */
+      const mapAction = (action) => {
+        if (action === null) return null;
+        if (action.kind === "read") {
+          return synthetic[action.token]
+            ? { kind: "elided", at: project[action.token], terminal: action.terminal }
+            : { kind: "read", token: project[action.token], terminal: action.terminal };
+        }
+        const { production, origin, end } = action.item;
+        return { kind: "close", rule: production.owner, production: production.id, helper: production.helper, span: [project[origin], project[end]] };
+      };
+      const witness = /** @type {[Action | null, Action | null]} */ (ranking.witness);
       /** @type {ElisionCheck} */
-      const result = { kind: "ambiguous", readings: ropes.map((rope) => remap(resultTree(derivationTree(rope), r)[0])) };
+      const result = {
+        kind: "ambiguous",
+        readings: ropes.map((rope) => remap(resultTree(derivationTree(rope), r)[0])),
+        witness: [mapAction(witness[0]), mapAction(witness[1])],
+      };
       // A competing reading gives no warning (engine §7.10), unless a fault
       // takes its warnings (F22).
       if (fault("F22")) result.competitorWarnings = warningsOf(derivationTree(ropes[1]), r, features, this.name);
@@ -7797,7 +7828,7 @@
 
   /**
    * What the check of engine §7 found: one reading, two, or none.
-   * @typedef {({kind: "pass"} | {kind: "ambiguous", readings: ResultNode[]} | {kind: "lost", completion: RestorationRecord[]})
+   * @typedef {({kind: "pass"} | {kind: "ambiguous", readings: ResultNode[], witness: import("./types.js").Witness} | {kind: "lost", completion: RestorationRecord[]})
    *   & {competitorWarnings?: import("./types.js").ParseWarning[]}} ElisionCheck
    */
 
@@ -10289,6 +10320,8 @@
    * @property {number} [column]
    * @property {Expectation[]} [expected]
    * @property {ResultNode[]} [readings]
+   * @property {Witness} [witness] for an error of elision-only, where its
+   *   two readings first differ (engine §7.10)
    * @property {string} [document]
    * @property {string} message
    */
@@ -10345,8 +10378,18 @@
    */
 
   /**
-   * An action of a witness: a token read, or a production closed.
-   * @typedef {WitnessRead | WitnessClose} WitnessAction
+   * An action of a witness: a token read, a production closed, or, in the
+   * witness of an error of elision-only, a read of a terminator that the
+   * check wrote back (engine §7.10).
+   * @typedef {WitnessRead | WitnessClose | WitnessElided} WitnessAction
+   */
+
+  /**
+   * @typedef {object} WitnessElided
+   * @property {"elided"} kind
+   * @property {number} at the position in the stage's input where the
+   *   terminator was written back
+   * @property {string} terminal the terminal that read it
    */
 
   /**

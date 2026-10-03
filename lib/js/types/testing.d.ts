@@ -16,10 +16,11 @@ export type ElisionCheckRun = {
      */
     roots: import("./types.js").Item[];
     /**
-     * whether the ranking of the check counted a
-     * derivation
+     *   the check's own ranking of a part of its forest, whose roots are given,
+     *   in the cycle contexts of the whole forest: null where it counts no
+     *   derivation
      */
-    counted: boolean;
+    rank: (roots: import("./earley.js").Item[]) => import("./rank.js").Ranking | null;
     /**
      * for each token of R, whether it is
      * synthetic, by its provenance
@@ -44,7 +45,9 @@ export type ElisionCheckRun = {
  * @property {import("./earley.js").Chart} chart the recognition of R
  * @property {import("./types.js").Item[]} roots the completed items of
  *   `text` over R
- * @property {boolean} counted whether the ranking of the check counted a
+ * @property {(roots: import("./earley.js").Item[]) => import("./rank.js").Ranking | null} rank
+ *   the check's own ranking of a part of its forest, whose roots are given,
+ *   in the cycle contexts of the whole forest: null where it counts no
  *   derivation
  * @property {boolean[]} synthetic for each token of R, whether it is
  *   synthetic, by its provenance

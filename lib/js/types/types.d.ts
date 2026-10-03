@@ -76,6 +76,11 @@ export type ParseError = {
     column?: number;
     expected?: Expectation[];
     readings?: ResultNode[];
+    /**
+     * for an error of elision-only, where its
+     * two readings first differ (engine §7.10)
+     */
+    witness?: Witness;
     document?: string;
     message: string;
 };
@@ -105,7 +110,19 @@ export type SettledStageReport = StageReportBase & {
     witness: null;
 };
 export type Witness = [WitnessAction | null, WitnessAction | null];
-export type WitnessAction = WitnessRead | WitnessClose;
+export type WitnessAction = WitnessRead | WitnessClose | WitnessElided;
+export type WitnessElided = {
+    kind: "elided";
+    /**
+     * the position in the stage's input where the
+     * terminator was written back
+     */
+    at: number;
+    /**
+     * the terminal that read it
+     */
+    terminal: string;
+};
 export type WitnessRead = {
     kind: "read";
     /**
@@ -691,6 +708,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {number} [column]
  * @property {Expectation[]} [expected]
  * @property {ResultNode[]} [readings]
+ * @property {Witness} [witness] for an error of elision-only, where its
+ *   two readings first differ (engine §7.10)
  * @property {string} [document]
  * @property {string} message
  */
@@ -738,8 +757,17 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {[WitnessAction | null, WitnessAction | null]} Witness
  */
 /**
- * An action of a witness: a token read, or a production closed.
- * @typedef {WitnessRead | WitnessClose} WitnessAction
+ * An action of a witness: a token read, a production closed, or, in the
+ * witness of an error of elision-only, a read of a terminator that the
+ * check wrote back (engine §7.10).
+ * @typedef {WitnessRead | WitnessClose | WitnessElided} WitnessAction
+ */
+/**
+ * @typedef {object} WitnessElided
+ * @property {"elided"} kind
+ * @property {number} at the position in the stage's input where the
+ *   terminator was written back
+ * @property {string} terminal the terminal that read it
  */
 /**
  * @typedef {object} WitnessRead

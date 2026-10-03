@@ -1,54 +1,37 @@
 {
-  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 2 derivations.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text v | B | ε\n%rule t v [u] | v u\n%rule u ε | [u]\n%rule v A v | A ...",
+  "description": "The two readings of an error of elision-only can be equal trees, and the witness tells them apart. Under late-elision, a with one elided T beats b with two, so R is A T B. a restores its [T]. Its second alternative, A T B, reads the synthetic T as a bare terminal. Both readings map to the same tree over the stage's input, with T as an elided node. The witness names their first visible difference: they close a with two different productions (engine §7.10, docs/output.md).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b\n%rule a A [T] B | A T B\n%rule b A [T] [T] B",
   "tokens": [
     {
       "text": "a",
       "tags": [
         "A"
-      ]
+      ],
+      "phonemes": "a"
     },
     {
       "text": "b",
       "tags": [
-        "A",
-        "C"
-      ]
+        "B"
+      ],
+      "phonemes": "b"
     }
   ],
   "expect": {
+    "error": "ambiguous",
     "result": {
-      "format": 9,
       "ok": false,
+      "tree": null,
       "stages": [
         {
           "name": "main",
-          "verdict": "tie",
-          "witness": [
-            {
-              "close": {
-                "rule": "v",
-                "production": 13,
-                "span": [
-                  0,
-                  1
-                ]
-              }
-            },
-            {
-              "read": {
-                "token": 1,
-                "terminal": "A"
-              }
-            }
-          ]
+          "verdict": "resolved"
         }
       ],
-      "tree": null,
       "error": {
         "kind": "ambiguous",
+        "reason": "elision-only",
         "stage": "main",
-        "reason": "tie",
         "readings": [
           {
             "kind": "rule",
@@ -65,7 +48,7 @@
             "children": [
               {
                 "kind": "rule",
-                "rule": "v",
+                "rule": "a",
                 "span": [
                   0,
                   2
@@ -90,8 +73,20 @@
                     ]
                   },
                   {
+                    "kind": "elided",
+                    "terminal": "T",
+                    "span": [
+                      1,
+                      1
+                    ],
+                    "source": [
+                      1,
+                      1
+                    ]
+                  },
+                  {
                     "kind": "token",
-                    "terminal": "A",
+                    "terminal": "B",
                     "token": 1,
                     "span": [
                       1,
@@ -121,7 +116,7 @@
             "children": [
               {
                 "kind": "rule",
-                "rule": "v",
+                "rule": "a",
                 "span": [
                   0,
                   2
@@ -146,8 +141,21 @@
                     ]
                   },
                   {
-                    "kind": "rule",
-                    "rule": "v",
+                    "kind": "elided",
+                    "terminal": "T",
+                    "span": [
+                      1,
+                      1
+                    ],
+                    "source": [
+                      1,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "B",
+                    "token": 1,
                     "span": [
                       1,
                       2
@@ -155,34 +163,36 @@
                     "source": [
                       2,
                       3
-                    ],
-                    "tags": [
-                      "A",
-                      "C"
-                    ],
-                    "children": [
-                      {
-                        "kind": "token",
-                        "terminal": "A",
-                        "token": 1,
-                        "span": [
-                          1,
-                          2
-                        ],
-                        "source": [
-                          2,
-                          3
-                        ]
-                      }
                     ]
                   }
                 ]
               }
             ]
           }
+        ],
+        "witness": [
+          {
+            "close": {
+              "rule": "a",
+              "production": 2,
+              "span": [
+                0,
+                2
+              ]
+            }
+          },
+          {
+            "close": {
+              "rule": "a",
+              "production": 5,
+              "span": [
+                0,
+                2
+              ]
+            }
+          }
         ]
       }
-    },
-    "error": "ambiguous"
+    }
   }
 }
