@@ -678,6 +678,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     ) -> Result<(), EngineError> {
         let g = self.g;
         let production = &g.prods[item.prod as usize];
+        // A strict item never completes: the step drops it before its test,
+        // and evaluates nothing (§4, §7.4).
+        if strict && item.dot as usize + 1 == production.syms.len() {
+            return Ok(());
+        }
         // A tested symbol's test must hold of its own span and tags, which
         // is checked before any condition the advance makes ready (§4). A
         // test of a terminal reads the token with its recognition values; in
