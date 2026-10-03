@@ -222,7 +222,9 @@ A step of the recognizer is an advance of one item, or the prediction of one pro
 
 The order is observable, because a test, a condition or a tag term can end the parse with an error of the grammar. Where another part drops the item first, that error never happens. The order between steps, between items and between sets is not observable. Every step that the rules of this section reach runs in the end, so the same errors happen. Two such errors differ only in their message.
 
-`matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` each run a nested parse. A nested parse is one recognition over the span's tokens alone, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does. A query that the check of §7 starts reads the projected span in the stage's input. It uses this lowered grammar in its ordinary mode (§7.6). Its chart is every item, partial or completed, that this recognition holds after it ends. The three functions read the eligible proof trees of the chart (below), before any ranking and before stage-wide `maximal`:
+`matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` each run a nested parse. A nested parse is one recognition over the span's tokens alone, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does.
+
+A query that the check of §7 starts reads the projected span in the stage's input. It uses this lowered grammar in its ordinary mode (§7.6). Its chart is every item, partial or completed, that this recognition holds after it ends. The three functions read the eligible proof trees of the chart (below), before any ranking and before stage-wide `maximal`:
 
 - `matches` holds when a completed item of `rule` spans the tokens and has an eligible proof tree.
 - `begins` holds when a completed item of `rule` has its origin at the span's start, in any set, and has an eligible proof tree. So it covers a prefix of the span, the empty prefix included.
@@ -482,21 +484,25 @@ A vector has N + 1 components. So a sparse vector, or a shared sequence of elisi
 
 ### 7.1 When the check runs
 
-The check runs where the stage's verdict is `resolved` and the check is on. It is on where the stage's directive has `elision-only` or the caller asks for it. It runs after the stage emits its tokens (§6, §11). A tie never reaches it, because a tie ends the stage first. It does not run for `unique`. An error of the grammar found while emitting ends the stage before it. A caller can switch the check off for a stage that declares it.
+The check runs where the stage's verdict is `resolved` and the check is on. It is on where the stage's directive has `elision-only` or the caller asks for it. It runs after the stage emits its tokens (§6, §11).
 
-The check asks one question: does the chosen derivation, with its elided terminators written back, have more than one reading? It does not choose another derivation, and it does not test other ways to write terminators back.
+A tie never reaches it, because a tie ends the stage first. It does not run for `unique`. An error of the grammar found while emitting ends the stage before it. A caller can switch the check off for a stage that declares it.
+
+The check asks one question: does the text, with D's elided terminators written back, have more than one reading? It does not choose another derivation, and it does not test other ways to write terminators back.
 
 The check uses the main parse's lowered grammar, features, classifiers, constants and Unicode table. It does not lower the grammar again, and it does not run earlier stages again.
 
 ### 7.2 The two inputs
 
-Let O be the stage's input, N tokens long. Here the input is what this stage reads, the output of the stage before it. Let G be the grammar lowered for the main parse, and D the chosen derivation.
+Let O be the stage's input, N tokens long. Here the input is what this stage reads: the output of the stage before it, or, for the first stage, the character tokens. Let G be the grammar lowered for the main parse, and D the chosen derivation.
 
 Take the elided terminators of D (§4, §12) in the order of the tree's leaves, left to right, also where several stand at one position. Each one gives a restoration record. The record holds the terminal, its position `p` in O and the empty source of its elided node (§12). For a terminator with an `=` test, it also holds that test's string, its saved sound.
 
 The reconstructed input R is O with one synthetic token for each record. The synthetic token stands before the input token at `p`, or at the end for `p` = N. Records at one position keep their order. Every token of O stands in R once, in its order, with all its fields unchanged.
 
-A synthetic token has two values that the recognizer reads. Its recognition tags are its terminal alone. Its recognition sound is its saved sound. The saved sound is already canonical, as §9 requires. Without a saved sound, it is the empty string. It has no attachments. It is not emitted, so no implication applies to it (§11). An original token's recognition tags and sound are its own tags and the canonical sound of its phonemes (§5).
+A synthetic token has two values that the recognizer reads. Its recognition tags are its terminal alone. Its recognition sound is its saved sound. The saved sound is already canonical, as §9 requires. Without a saved sound, it is the empty string.
+
+A synthetic token has no attachments. It is not emitted, so no implication applies to it (§11). An original token's recognition tags and sound are its own tags and the canonical sound of its phonemes (§5).
 
 Each token of R has a provenance, which the engine keeps to itself. It is an original token, with its index in O, or a synthetic token, with the index of its record. Nothing else tells them apart. An earlier stage can emit a token with an empty span, an empty source, empty text or `insertedBy` (§11). Such a token of O is still an original token.
 
@@ -506,7 +512,7 @@ For a position `k` of R, from 0 to the length of R, π(k) is the number of origi
 
 The recognizer reads R, and its items, spans and cycles are in positions of R. Every observation (§7.5) reads the projected span, in positions of O. A span of R that holds only synthetic tokens projects to an empty span at its position.
 
-A projected span is a span of O like any other. Its text and sound come from its own tokens, as §5 says. A synthetic token's source never widens the source of a span.
+A projected span is a span of O like any other. Its text and sound come from its own tokens, as §5 says.
 
 ### 7.4 The reconstruction mode
 
@@ -516,11 +522,11 @@ An elidable optional (§3.8) has a helper `h`. Its productions are the empty pro
 
 1. The restoration. The empty production reads exactly one synthetic token, the one at its position. The token must be compatible with the optional. Its recognition tags hold `T`. Where `T` has a test, the test holds of the token's recognition sound. The restoration is a read of that token as `T` followed by a close of the empty production over its one-token span. It has the tags of the empty production, which are none (§3.7). It evaluates nothing of the optional's content. The empty production never derives the empty sequence in this mode.
 2. The written route from an original token. A production of the content reads its `T` from an original token, and then the rest of the production as §4 says. The rest can be empty.
-3. The written route from a synthetic token. A production of the content reads its `T` from a synthetic token, which must pass `T`'s test as in the restoration. Then the rest of the production must read at least one token of R, original or synthetic. The item after `T` is strict (below), whatever the strictness of the item that read `T`, also where an ordinary prediction shares the item that read `T`.
+3. The written route from a synthetic token. A production of the content reads its `T` from a synthetic token, which must pass `T`'s test as in the restoration. Then the rest of the production must read at least one token of R, original or synthetic. The item after `T` is strict (below). This holds whatever the strictness of the item that read `T`, and also where an ordinary prediction shares the item that read `T`.
 
 Every production of the helper belongs to that elidable helper for the purpose of the routes, its content productions as well as its empty one. So a synthetic token followed by nothing else of the optional is always the restoration, and never a second derivation of the same omission. A synthetic token followed by more of the optional is the written route, which can read original tokens, later synthetic tokens, or both. An optional that is not elidable keeps its empty production as in §4. §3.8 alone decides which optionals are elidable, and this section does not change that.
 
-A strict item must read at least one token before it completes. In fact it never completes: a strict item whose dot would stand at the end of its production is dropped (§4), so route 3 never applies where the rest is empty. The recognizer decides once per grammar which productions and which symbols can read, with the routes of this mode:
+A strict item must read at least one token before it completes. In fact it never completes. A strict item whose dot would stand at the end of its production is dropped (§4). So route 3 never applies where the rest is empty. The recognizer decides once per grammar which productions and which symbols can read, with the routes of this mode:
 
 - A terminal can read.
 - A production can read where it holds a symbol that can read.
@@ -531,18 +537,20 @@ The sets of productions and symbols that can read are the least sets that these 
 
 A production's last reading symbol is the last of its symbols that can read, where it has one. "A later symbol can read" means that the production's last reading symbol stands after the item's next symbol. Some symbol after the next one must read, not the one right after it. A strict item follows these rules:
 
-- Where it reads a token, other than the `T` of route 3, or advances over a completed item whose span is not empty, the new item is not strict.
+- The new item is not strict where it reads a token other than the `T` of route 3. It is not strict either where it advances over a completed item whose span is not empty.
 - It can advance over a completed item with an empty span only where a later symbol can read. The new item is strict.
 - So a strict item never reaches the end of its production.
 - Where a later symbol can read, it predicts its next symbol in the ordinary way. Otherwise it predicts that symbol strictly. A strict prediction predicts only the productions that can read, restorations included. Its predicted items are strict, other than restorations, which are complete.
 
-Strictness is not part of an item's identity. An item is strict where every step that makes it is strict. An item that an ordinary step reaches is ordinary from then on, and the recognizer applies to it every step that its strictness held back: the ordinary prediction of its next symbol, and its advances over empty constituents. This holds also where the recognizer has already processed the item as strict, so the order in which the steps come does not change the items. The recognizer's items in this mode are the least set closed under these rules and those of §4. So a strict prediction and an ordinary prediction of one symbol at one position share their items. The derivations through a shared item count once each, however many predictions reach it.
+Strictness is not part of an item's identity. An item is strict where every step that makes it is strict. An item that an ordinary step reaches is ordinary from then on. The recognizer then applies to it every step that its strictness held back: the ordinary prediction of its next symbol, and its advances over empty constituents. This holds also where the recognizer has already processed the item as strict. So the order of the steps does not change the items.
+
+The recognizer's items in this mode are the least set closed under these rules and those of §4. So a strict prediction and an ordinary prediction of one symbol at one position share their items. The derivations through a shared item count once each, however many predictions reach it.
 
 A strict prediction never predicts a production that can read nothing. A strict item never advances over an empty constituent unless a later symbol can read. So a strict item evaluates nothing past its production's last reading symbol. It evaluates no tag term of its own production, and no condition that becomes ready at its end.
 
-An earlier advance over an empty constituent can still make a condition or a test ready. The engine evaluates it where a later symbol can read by the grammar, whether or not that symbol reads this input. So such a condition can end the check with an error of the grammar, also where the rest of the optional reads nothing in this text. Its conditions, tests and tags are evaluated as in §4.
+An earlier advance over an empty constituent can still make a condition or a test ready. The engine evaluates it where a later symbol can read by the grammar, whether or not that symbol reads this input. So such a condition can end the check with an error of the grammar. This holds also where the rest of the optional reads nothing in this text. Its conditions, tests and tags are evaluated as in §4.
 
-Any terminal other than the `T` that begins an elidable optional's content reads a synthetic token whose recognition tags hold it, as it reads any token. This includes a bare terminal `T` outside an elidable optional, and a terminal in the rest of an optional. Its test reads the recognition tags and the recognition sound. This is how a competing alternative reads a restored terminator.
+Any terminal other than the `T` that begins an elidable optional's content reads a synthetic token whose recognition tags hold it. It reads that token as it reads any token. This includes a bare terminal `T` outside an elidable optional, and a terminal in the rest of an optional. Its test reads the recognition tags and the recognition sound. This is how a competing alternative reads a written-back terminator.
 
 In every derivation of the mode, each elidable optional is either restored or written. Leave the observations of §7.5 aside, and compare the mode with a reading of R in which every elidable optional is mandatory. They differ in two ways only:
 
@@ -570,21 +578,25 @@ A capture whose span holds only synthetic tokens is present, and `$x` holds as a
 
 A constituent's tags are its production's tag terms, evaluated over its own captures (§4). A synthetic token gives a constituent no tag. A capture of a terminal that read a synthetic token has no tags. A production that inherits from one symbol (§3.7) inherits none from such a terminal. A restoration has none, as its empty production has none. A tag term can still give a constituent tags of its own, such as `<~ke-group>`, also where its span projects to empty.
 
-A test of a reference reads the reference's projected span and its constituent's tags. `t="s"` compares `s` with the canonical sound of the projected span, and the four tag tests read the constituent's tags. A test of a terminal reads the token that the terminal reads, with its recognition values. This is the one observation that reads a synthetic token's values. Recognition reads them too, to match a terminal and to restore (§7.4). It lets `T="ta"` read a restored `T="ta"`.
+A test of a reference reads the reference's projected span and its constituent's tags. `t="s"` compares `s` with the canonical sound of the projected span, and the four tag tests read the constituent's tags. A test of a terminal reads the token that the terminal reads, with its recognition values. This is the one observation that reads a synthetic token's values. Recognition reads them too, to match a terminal and to restore (§7.4). It lets `T="ta"` read a written-back `T="ta"`.
 
-So a terminal and a unary rule over it differ under a test in the check. `T="ta"` reads a synthetic `T` whose saved sound is ta. `t="ta"`, with `t → T`, does not read it, because the projected sound of `t` is empty. `T⊇T` and `t⊇T` differ in the same way. The difference is deliberate. A test of a reference must read the original input. Otherwise the chosen derivation loses its witness where its span holds a restored terminator (§7.8).
+So a terminal and a unary rule over it differ under a test in the check. `T="ta"` reads a synthetic `T` whose saved sound is ta. `t="ta"`, with `t → T`, does not read it, because the projected sound of `t` is empty. `T⊇T` and `t⊇T` differ in the same way.
+
+The difference is deliberate. A test of a reference must read the original input. Otherwise the chosen derivation loses its witness where its span holds a written-back terminator (§7.8).
 
 Presence tests `$x`, feature guards, closed terms and constants mean what they mean in the main parse. `classify`, `split` and `tag` take arguments computed as above, and fail as §10 says.
 
 ### 7.6 Nested queries
 
-A nested query that the check starts reads the tokens of `s′`, the projected span, in O. It runs with G in its ordinary mode, as in the main parse. In that mode every elidable optional is an optional. The query reads no synthetic token, and its own nested queries do the same. It follows the query policy of §4. Written-terminator priority applies to the tokens that it reads, and a maximal terminator (§4) is maximal in it. Stage-wide `maximal` does not apply in it. It does not rank its proof trees, and it emits nothing.
+A nested query that the check starts reads the tokens of `s′`, the projected span, in O. It runs with G in its ordinary mode, as in the main parse. In that mode every elidable optional is an optional. The query reads no synthetic token, and its own nested queries do the same. It follows the query policy of §4.
+
+Written-terminator priority applies to the tokens that it reads, and a maximal terminator (§4) is maximal in it. Stage-wide `maximal` does not apply in it. It does not rank its proof trees, and it emits nothing.
 
 Inside the query, `initial`, `from` and `after` read the query's span of O. Its start and end are positions of O.
 
 A query is about a rule and a span of O. For the recursive-query rule of §4, `matches`, `begins` and `tags(s, R)` of one rule and span are one query. The rule is unchanged. A query is an error of the grammar where a query about the same rule and span is active. Only queries are active.
 
-The reconstruction's recognition of R is not a query. This holds also where the span of `$` projects to all of O and the query asks about `text`. So a condition of the reconstruction can ask whether the original input parses as `text`. That query runs with G over O. It is an error only where it, or a query inside it, asks about `text` over all of O again.
+The reconstruction's recognition of R is not a query. This holds also where the span of `$` projects to all of O and the query asks about `text`. So a condition of the reconstruction can ask whether the original input parses as `text`. That query runs with G over O, and it is active while it runs. It is an error only where a query inside it asks about `text` over all of O.
 
 `tags(s, R)` is the union of the tags of the query's eligible readings (§4). `tags($x)`, with no rule, is the capture's own constituent tags. The two do not stand in for each other.
 
@@ -609,25 +621,25 @@ The witness of D is the derivation W(D) of R that has D's productions in D's ord
 - Each read of an original token reads the same token in R.
 - Each elided terminator of D is the restoration of its helper over its own synthetic token.
 - Each written elidable optional of D takes the written route from an original token.
-- Each occurrence in the derivation tree, even where the representation shares one object between occurrences, spans the positions of R that hold its original tokens and the synthetic tokens of the elided terminators below it.
+- Each occurrence in the derivation tree spans the positions of R that hold its original tokens and the synthetic tokens of the elided terminators below it. This holds even where the representation shares one object between occurrences.
 
 W(D) is a derivation of R that counts. In outline:
 
 1. Every token read of W(D) is allowed. An original token reads as in D. A synthetic token is compatible with its own optional, because its tags and saved sound come from that optional's terminal and test.
 2. Every route of W(D) exists. A restoration needs no rest of its optional, so it exists even where the rest of the optional cannot be empty. A written optional of D starts with an original token, so it takes route 2 and reads what D read.
 3. Every node of W(D) projects to the span of its node in D, because the synthetic tokens below it project to nothing. So every capture has the projected span that it has in D.
-4. Every constituent of W(D) has the tags of its node in D. This holds by induction from the leaves. An original token has its own tags. A restoration has the tags of the empty production, which D's elided helper had. A production's tag terms then read captures with the same projected spans and the same tags, and a nested query in a tag term gives the answer it gave in D (§7.6). So they give the same tags.
+4. Every constituent of W(D) has the tags of its node in D. This holds by induction from the leaves. An original token has its own tags. A restoration has the tags of the empty production, which D's elided helper had. A production's tag terms then read captures with the same projected spans and the same tags. A nested query in a tag term gives the answer it gave in D (§7.6). So the tag terms give the same tags.
 5. Every condition and test holds as in D. Each reads the same projected spans and the same tags (3, 4). A nested query reads the same tokens of O with the same grammar and policy (§7.6), so it gives the same answer. A test of a terminal reads an original token as in D, or a compatible synthetic token. No query of W(D) is recursive. The reconstruction's recognition is not a query, and each query of W(D) is a query of D.
 6. W(D) is not cyclic. Suppose that two nested nodes of one rule have one span of R. Both project to one span of O. Then D has two nested nodes of that rule over one span. That is a cycle, but D is not cyclic.
 7. Maximality does not apply (§7.7), so nothing removes W(D).
 
-So, unless an error of the grammar ends the check, R has at least one derivation, and the check's verdict is never "no reading". The argument depends on no corpus, no terminal and no shape of the optional's content. It depends on every observer, every test and every tag rule following §7.5 and §7.6. The strict items of §7.4 do not touch W(D), whose written optionals all start with an original token.
+So, unless an error of the grammar ends the check, R has at least one derivation, and the check never ends with no reading. The argument depends on no corpus, no terminal and no shape of the optional's content. It depends on every observer, every test and every tag rule following §7.5 and §7.6. The strict items of §7.4 do not touch W(D), whose written optionals all start with an original token.
 
 The theorem does not excuse errors. A competing derivation can meet an error of the grammar, such as a `split` with an empty delimiter, that D never met. That error is the result's (§7.7).
 
 ### 7.9 A reconstruction with no reading
 
-A check that ends without an error of the grammar and finds no derivation of R does not hold the witness of §7.8. This is a defect of the engine, not a property of the text. The result is an error of kind `grammar` with the code `elision-witness-lost`:
+A check that ends without an error of the grammar and finds no derivation of R does not hold the witness of §7.8. This is a defect of the library, not a property of the text. The result is an error of kind `grammar` with the code `elision-witness-lost`:
 
 ```json
 {"kind":"grammar","stage":"syntax","code":"elision-witness-lost",
@@ -635,7 +647,7 @@ A check that ends without an error of the grammar and finds no derivation of R d
  "chosen":NODE,"completion":[{"terminal":"KU","at":3,"source":[9,9]},{"terminal":"VAU","at":5,"source":[16,16],"sound":"vau"}]}
 ```
 
-The stage's name stands for `syntax` in `stage` and in `message`. `chosen` is D's tree (§12), over O. `completion` lists the restoration records in their order of insertion. Each record has these members, in this order:
+The stage's name stands for `syntax` in `stage` and in `message`. `chosen` is D's tree (§12), over O. `completion` lists the restoration records in the order of the tree's leaves (§7.2). Each record has these members, in this order:
 
 - `terminal`, the terminal.
 - `at`, its position in O.
@@ -1008,7 +1020,7 @@ The result's tree comes from the chosen derivation, and each reading of an `ambi
 - A read token is a `token` node holding the index of the input token and the terminal that the recognizer read it as.
 - The engine splices out helper productions: their children take their place.
 - The engine splices out the prefixes of a trailing repetition (§3.3), so the rule is one node whose children are its items in order.
-- An elidable optional (§3.8) that is absent becomes an `elided` node for its terminal `T`. The node has an empty span at the position where the optional is empty. The node of a terminator with an `=` test records the test's string, for the synthetic token of §7. The output does not show it (`docs/output.md`). The readings of the check of §7 map the reconstructed input back to the stage's input, as §7.10 says.
+- An elidable optional (§3.8) that is absent becomes an `elided` node for its terminal `T`. In a reading of the check of §7, a read of a synthetic token also becomes an `elided` node, also on route 3 and for a bare terminal, as §7.10 says. The node has an empty span at the position where the optional is empty. The node of a terminator with an `=` test records the test's string, for the synthetic token of §7. The output does not show it (`docs/output.md`). The readings of the check of §7 map the reconstructed input back to the stage's input, as §7.10 says.
 
 The input token of a token node can carry attachments (§11). The node does not hold them, and the renderings take them from the token (`docs/output.md`). The two readings of an `ambiguous` error read the same input tokens, so they show the same attachments.
 

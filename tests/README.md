@@ -50,7 +50,7 @@ Every runner also checks these invariants on each canonical result that a case g
 - No stage has a member `tied`.
 - A stage whose verdict is `tie` has no member `output`, and it is the last stage of the result.
 - Such a result has `ok` false, `tree` null, and an error of kind `ambiguous` with the reason `tie`, that stage's name and two readings.
-- No result has an error with the code `elision-witness-lost`. Engine §7.8 proves that no grammar can give it, so it is a defect of the library, whatever the case expects.
+- No result has an error with the code `elision-witness-lost`. Engine §7.8 proves that a check that meets no error of the grammar finds W(D), and §7.9 gives this error only where a check finds no derivation of R at all. So no grammar can give it, and it is a defect of the library, whatever the case expects.
 
 A library's own tests lose the witness on purpose, through a private switch, and call the engine directly, not through the runner. They check the form of the error: it has the kind `grammar`, a `stage`, `chosen` and `completion`, and no `token`, `source`, `line`, `column`, `expected`, `reason` or `readings`. Its stage has the verdict `resolved` and no `output`, and it is the last stage of the result. A library's own tests also show that an ordinary error of the grammar in the check has no `code`.
 

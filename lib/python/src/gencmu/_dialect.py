@@ -439,8 +439,8 @@ class Dialect:
         self.features = _dialect_features(path, stages, pipeline.features)
         self.grammars = stages
         self.unicode = unicode
-        # Each stage's lowered grammars, keyed by the gates that are on and
-        # by strictness, or the error that lowering found.
+        # Each stage's lowered grammars, keyed by the gates that are on, or
+        # the error that lowering found.
         self._lowered: list[Recent[frozenset[str], Lowered | ErrorData]] = [Recent(MAX_LOWERED) for _ in stages]
         self._lock = threading.Lock()
         for number in range(len(stages)):
