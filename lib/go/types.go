@@ -47,8 +47,10 @@ type Node struct {
 	Children []*Node
 	// sound is the string of an elided node's terminator's = test, if it
 	// has one, which elision-only gives the restored token as its phonemes
-	// (engine §7, §12); the output does not show it.
-	sound string
+	// (engine §7, §12); the output does not show it. tested says that the
+	// terminator has an = test, so that sound holds, even where it is "".
+	sound  string
+	tested bool
 }
 
 // Action is one step of a derivation read bottom-up: a read of a token as a
@@ -108,6 +110,25 @@ const (
 	ReasonElisionOnly = "elision-only"
 )
 
+// CodeElisionWitnessLost is the code of a grammar error that marks a defect
+// of the library: the check of elision-only lost the witness of the chosen
+// derivation (engine §7.9).
+const CodeElisionWitnessLost = "elision-witness-lost"
+
+// Restoration is an elided terminator that the check of elision-only wrote
+// back (engine §7.2, §7.9): its terminal, its position in the stage's input,
+// the empty source of its elided node, and, for a terminator with an = test,
+// that test's string, its saved sound ("" where it has none).
+type Restoration struct {
+	Terminal string
+	At       int
+	Source   [2]int
+	Sound    string
+	// tested says that the terminator has an = test, so Sound is shown,
+	// even where it is empty.
+	tested bool
+}
+
 // Expected is a terminal a rejected input could have continued with, and
 // the rules whose items could have read it.
 type Expected struct {
@@ -120,19 +141,24 @@ type Expected struct {
 // Token and Source are nil when unknown; Line and Column are 0 when unknown.
 // For a rejection they give the position in the text; for a grammar error,
 // the position in Document. An ambiguous error has Readings, two trees over
-// the stage's input, and no position.
+// the stage's input, and no position. Code is set only for the grammar error
+// CodeElisionWitnessLost, which also has Chosen, the stage's chosen tree,
+// and Completion, the terminators that the check wrote back (engine §7.9).
 type ParseError struct {
-	Kind     string
-	Stage    string
-	Reason   string
-	Token    *int
-	Source   *[2]int
-	Document string
-	Line     int
-	Column   int
-	Expected []Expected
-	Readings []*Node
-	Message  string
+	Kind       string
+	Stage      string
+	Code       string
+	Reason     string
+	Token      *int
+	Source     *[2]int
+	Document   string
+	Line       int
+	Column     int
+	Expected   []Expected
+	Readings   []*Node
+	Message    string
+	Chosen     *Node
+	Completion []Restoration
 }
 
 // Warning reports a rule node of a stage's chosen tree that an alternative
