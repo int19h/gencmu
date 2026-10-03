@@ -116,9 +116,15 @@ func (run *stageRun) soundIs(sound string, a, b int) bool {
 // [a, b), and its own tags (§4): a token's for a terminal, the completed
 // item's for a reference.
 func (run *stageRun) testHolds(t *symTest, a, b int, tags *tagset) bool {
+	return testHoldsOf(t, func(s string) bool { return run.soundIs(s, a, b) }, tags)
+}
+
+// testHoldsOf says whether a test holds of a symbol whose canonical sound
+// is the string that soundIs accepts, and whose own tags are tags (§4).
+func testHoldsOf(t *symTest, soundIs func(string) bool, tags *tagset) bool {
 	switch t.op {
 	case "=", "≠":
-		return run.soundIs(t.sound, a, b) == (t.op == "=")
+		return soundIs(t.sound) == (t.op == "=")
 	case "⊇", "⊉":
 		all := true
 		for _, name := range t.tags {
@@ -168,7 +174,7 @@ func (run *stageRun) actions(rec *recognizer, w [2]action) []Action {
 }
 
 // run runs one stage over its input (engine §4-§7, §11, §12).
-func (run *stageRun) run(g *lowered, mandatory func() *lowered, elisionOnly bool) (out stageOutcome) {
+func (run *stageRun) run(g *lowered, elisionOnly bool) (out stageOutcome) {
 	out.stage = Stage{Name: run.name, Input: run.toks}
 	defer func() {
 		if x := recover(); x != nil {
@@ -177,9 +183,9 @@ func (run *stageRun) run(g *lowered, mandatory func() *lowered, elisionOnly bool
 				panic(x)
 			}
 			// A fault found once the stage has chosen its tree, while
-			// emitting or in the reparse of elision-only, leaves it without
+			// emitting or in the check of elision-only, leaves it without
 			// output; it keeps its verdict and warnings, neither of which is
-			// set if the fault came earlier (§7, §11, §12).
+			// set if the fault came earlier (§7.7, §11, §12).
 			out.stage.Output = nil
 			out.tree = nil
 			out.err = run.failure(f)
@@ -226,7 +232,7 @@ func (run *stageRun) run(g *lowered, mandatory func() *lowered, elisionOnly bool
 		return out
 	}
 	out.tree = run.buildTree(rec, res.first)
-	// Only the chosen tree gives warnings: not the reparse of elision-only
+	// Only the chosen tree gives warnings: not the check of elision-only
 	// (§12).
 	if g.warns {
 		out.warnings = run.warnings(rec, res.first)
@@ -237,12 +243,16 @@ func (run *stageRun) run(g *lowered, mandatory func() *lowered, elisionOnly bool
 	// check (§6).
 	out.stage.Output = run.emit(rec, res.first)
 	if elisionOnly && res.verdict == VerdictResolved {
-		if err := run.checkElision(out.tree, mandatory()); err != nil {
+		if err := run.checkElision(rec, res.first, out.tree); err != nil {
 			// The stage accepted its input and chose its derivation: it keeps
 			// its verdict, output and warnings, and the result has no tree
-			// (§7).
+			// (§7.10). A lost witness leaves it without output, as an error
+			// of the grammar in the check does (§7.9).
 			out.err = err
 			out.tree = nil
+			if err.Code == CodeElisionWitnessLost {
+				out.stage.Output = nil
+			}
 		}
 	}
 	return out
@@ -361,80 +371,6 @@ func (run *stageRun) rejectedAt(k int, expected []Expected) *ParseError {
 // message, and no position (§13).
 func (run *stageRun) failure(f *parseFailure) *ParseError {
 	return &ParseError{Kind: ErrorGrammar, Stage: run.name, Message: "stage " + run.name + ": " + f.message}
-}
-
-// checkElision is engine §7: write the chosen tree's elided terminators back
-// and parse again with none elidable. The check passes when that parse has
-// one derivation or none, and fails with two readings when it has more:
-// ranked with no lean, whatever the rule of the stage, any two derivations
-// that differ are tied, and the readings are the first and the second.
-func (run *stageRun) checkElision(tree *Node, g *lowered) *ParseError {
-	elided := elidedNodes(tree)
-	var toks []Token
-	var orig []int // new index → original index, or -1 for a written-back terminator
-	var terms []string
-	e := 0
-	for i := 0; i <= len(run.toks); i++ {
-		for e < len(elided) && elided[e].Span[0] == i {
-			src := run.emptySource(i)
-			// A restored terminator with an = test sounds like the test's
-			// string, so that it matches its own terminator in the stricter
-			// grammar (§7).
-			toks = append(toks, Token{Tags: []string{elided[e].Terminal}, Phonemes: elided[e].sound, Span: [2]int{i, i}, Source: src})
-			orig = append(orig, -1)
-			terms = append(terms, elided[e].Terminal)
-			e++
-		}
-		if i < len(run.toks) {
-			toks = append(toks, run.toks[i])
-			orig = append(orig, i)
-			terms = append(terms, "")
-		}
-	}
-	run2 := run.ps.newRun(run.name, run.grammar, toks)
-	start := g.byName["text"]
-	rec := run2.recognize(g, start, 0, len(toks))
-	top := rec.accepted(start)
-	if len(top) == 0 {
-		return nil
-	}
-	res := newRanker(rec, "", nil).rank(top)
-	if res == nil || res.second == nil {
-		return nil
-	}
-	before := make([]int, len(toks)+1)
-	for j := range toks {
-		before[j+1] = before[j]
-		if orig[j] >= 0 {
-			before[j+1]++
-		}
-	}
-	mapTree := func(root *Node) *Node {
-		stack := []*Node{root}
-		for len(stack) > 0 {
-			n := stack[len(stack)-1]
-			stack = stack[:len(stack)-1]
-			switch n.Kind {
-			case KindToken:
-				j := n.Token
-				if orig[j] < 0 {
-					p := before[j]
-					*n = Node{Kind: KindElided, Terminal: n.Terminal, Span: [2]int{p, p}, Source: run.emptySource(p)}
-				} else {
-					i := orig[j]
-					n.Token, n.Span, n.Source = i, [2]int{i, i + 1}, run.toks[i].Source
-				}
-			default:
-				a, b := before[n.Span[0]], before[n.Span[1]]
-				n.Span, n.Source = [2]int{a, b}, run.spanSource(a, b)
-			}
-			stack = append(stack, n.Children...)
-		}
-		return root
-	}
-	readings := []*Node{mapTree(run2.buildTree(rec, res.first)), mapTree(run2.buildTree(rec, res.second))}
-	return &ParseError{Kind: ErrorAmbiguous, Stage: run.name, Reason: ReasonElisionOnly, Readings: readings,
-		Message: "stage " + run.name + ": the text is ambiguous even with every elided terminator written"}
 }
 
 // writtenSymbol is a terminal as the diagnostics write it: its name,

@@ -394,8 +394,10 @@ func (run *stageRun) spanContent(s spanVal) string {
 }
 
 // spanKey is a parse of tokens [a, b) as a rule, by position. The tokens of
-// a lowered grammar's stage do not change within one parse: the reparse of
-// elision-only, over other tokens, has a lowered grammar of its own.
+// a lowered grammar's stage do not change within one parse. The queries
+// that the check of elision-only starts read the stage's own input, at
+// their projected spans, with the main lowering (§4, §7.6). So they share
+// the main parse's answers and active queries.
 type spanKey struct {
 	g    *lowered
 	rule int32
