@@ -79,6 +79,15 @@ A load that fails gives only its error. Its kind is `grammar` for a grammar that
 
 `expect.where`, when present, is where the error of a grammar that cannot be loaded stands. It is only for an error of kind `grammar`. It names a document of the case and a line and a column in it. For a case with `grammar`, the document is `main.md`. Its fence is line 1, so the rules start on line 3, or on line 2 when they hold their own `%ambiguity-resolution`.
 
+### Faults
+
+A shared case shows that a library is wrong where it fails. It cannot show that a library is right. So each library also breaks itself on purpose, one fault at a time, and checks that the shared cases see the break. A fault is a private switch of the library's own tests, which the documented API does not name. Each one changes one path of the engine, mostly a path of the check of engine §7, in a way that the specification forbids.
+
+- The JavaScript library holds the full table. Its faults cover each observer of engine §7.5, the tags of synthetic tokens, the routes and strictness of §7.4, the projection, the queries of §7.6, cycles and maximality in the check, the order of one step of §4, and the ways to lose W(D). `lib/js/test/faults.json` names the cases that must catch each fault. It also records every catch, and whether the case caught it through the public result, through the witness hook alone, or through both. The witness hook alone catches a fault where another reading takes the place of W(D) and the result keeps its form.
+- Each other library has a few faults of its own paths, the ones that the JavaScript library does not have. Examples are a ranker that rebuilds the check's links from completed spans and applies the tests there, an item that an ordinary step reaches after it was processed as strict, and the strictness of route 3. Its own tests name, for each fault, the shared cases that catch it.
+
+A test runs every named case with the fault on, and fails where a named case passes. So a change that weakens a case, or the hook, shows at once.
+
 ## Notation cases: `notation/*.json`
 
 ```
