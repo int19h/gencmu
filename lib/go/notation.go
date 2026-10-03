@@ -81,7 +81,9 @@ func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
 	var out stageOutcome
 	for i, g := range nr.stages {
 		run := ps.newRun(g.name, g, toks)
-		out = run.run(nr.lowered[i], false)
+		// Each notation stage runs the check of elision-only where its own
+		// directive declares it (§8).
+		out = run.run(nr.lowered[i], g.elisionOnly)
 		if out.err != nil && out.err.Kind == ErrorAmbiguous {
 			// A tie has no single position, so the error names the document
 			// alone, with no line or column (engine §8).
