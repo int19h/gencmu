@@ -74,7 +74,10 @@ type caseExpect struct {
 	}
 }
 
-// match matches a value against a pattern (tests/README.md).
+// match matches a value against a pattern (tests/README.md). The message
+// of the result's error is the description for people, whose wording the
+// shared tests do not compare (docs/output.md), so a pattern's message
+// there is not matched.
 func match(pattern, value any, path string) error {
 	switch p := pattern.(type) {
 	case map[string]any:
@@ -84,6 +87,9 @@ func match(pattern, value any, path string) error {
 		}
 		keys := make([]string, 0, len(p))
 		for k := range p {
+			if path == "result.error" && k == "message" {
+				continue
+			}
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)

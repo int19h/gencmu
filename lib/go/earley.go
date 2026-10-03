@@ -11,11 +11,76 @@ type capVal struct {
 	tags       int32
 }
 
+// itemKey is an item's identity. A captured part's span and tags are part
+// of it (engine §4), and a production can have any number of captures:
+// cap0 holds the first capture slot, and more the rest, a vector interned
+// by the recognizer, 0 for none. The common case of one slot, the implicit
+// capture of a production with one symbol, needs no interning.
 type itemKey struct {
 	prod   *production
 	dot    int32
 	origin int32
-	caps   [4]capVal
+	cap0   capVal
+	more   int32
+}
+
+// capStep is the vector of the capture slots after the first, extended by
+// one capture: the key of the interned vector it makes.
+type capStep struct {
+	parent int32
+	cv     capVal
+}
+
+// itemCaps is an item's captures, slot by slot.
+type itemCaps struct {
+	first capVal
+	rest  []capVal
+}
+
+func (c itemCaps) at(slot int32) capVal {
+	if slot == 0 {
+		return c.first
+	}
+	return c.rest[slot-1]
+}
+
+// caps is the captures of an item.
+func (r *recognizer) caps(key *itemKey) itemCaps {
+	if key.more == 0 {
+		return itemCaps{first: key.cap0}
+	}
+	return itemCaps{first: key.cap0, rest: r.capVecs[key.more]}
+}
+
+// setCap captures cv in a slot of an item's key. A production's slots are
+// numbered in the order of their positions, so an item fills them in order,
+// and each slot after the first extends the interned vector by one.
+func (r *recognizer) setCap(key *itemKey, slot int32, cv capVal) {
+	if slot == 0 {
+		key.cap0 = cv
+		return
+	}
+	if len(r.capVecs) == 0 {
+		r.capVecs = [][]capVal{nil}
+	}
+	parent := r.capVecs[key.more]
+	if int(slot-1) != len(parent) {
+		panic("a capture slot filled out of order")
+	}
+	step := capStep{key.more, cv}
+	id, ok := r.capIndex[step]
+	if !ok {
+		vec := make([]capVal, len(parent)+1)
+		copy(vec, parent)
+		vec[len(parent)] = cv
+		id = int32(len(r.capVecs))
+		r.capVecs = append(r.capVecs, vec)
+		if r.capIndex == nil {
+			r.capIndex = map[capStep]int32{}
+		}
+		r.capIndex[step] = id
+	}
+	key.more = id
 }
 
 type item struct {
@@ -83,6 +148,11 @@ type recognizer struct {
 	recon    *reconstruction
 	sets     []*eset
 	furthest int
+	// capVecs holds the interned vectors of the capture slots after an
+	// item's first, the empty one at 0, and capIndex each by the vector it
+	// extends and the capture it adds.
+	capVecs  [][]capVal
+	capIndex map[capStep]int32
 }
 
 func (r *recognizer) set(k int) *eset {
@@ -238,13 +308,13 @@ func (r *recognizer) reads(ts *tagset, term int32) bool {
 // production with no symbols that mention $, over the empty span there.
 func (r *recognizer) predictable(p *production, k int) bool {
 	if len(p.predictConds) > 0 {
-		var caps [4]capVal
+		var caps itemCaps
 		var tags func() *tagset
 		if len(p.rhs) == 0 {
 			// The tag term runs only where a condition reads $'s tags (§4).
-			tags = r.lazyTags(p, &caps, int32(k), int32(k))
+			tags = r.lazyTags(p, caps, int32(k), int32(k))
 		}
-		ev := r.run.evaluator(r.g, r.captureFunc(p, &caps, int32(k), int32(k), tags))
+		ev := r.run.evaluator(r.g, r.captureFunc(p, caps, int32(k), int32(k), tags))
 		ok := true
 		for _, c := range p.predictConds {
 			if !ev.cond(c) {
@@ -361,7 +431,7 @@ func (r *recognizer) process(k int, it *item) {
 		// A restoration has the tags of the empty production, none (§7.4).
 		ts = r.run.ps.in.empty()
 	} else {
-		ts = r.completedTags(p, &it.caps, it.origin, int32(k))
+		ts = r.completedTags(p, r.caps(&it.itemKey), it.origin, int32(k))
 	}
 	key := symKey{p.lhs, it.origin, ts.id}
 	c := s.syms[key]
@@ -411,7 +481,7 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) {
 		return
 	}
 	if slot := p.capSlot[pos]; slot >= 0 {
-		key.caps[slot] = cv
+		r.setCap(&key, slot, cv)
 	}
 	key.dot++
 	var whole func() *tagset
@@ -420,10 +490,11 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) {
 			// A condition on $ is evaluated once the item is complete. Its
 			// production's tag term gives $ its tags, and runs only where a
 			// condition reads them (§4).
+			caps := r.caps(&key)
 			if c.whole && whole == nil {
-				whole = r.lazyTags(p, &key.caps, key.origin, int32(k))
+				whole = r.lazyTags(p, caps, key.origin, int32(k))
 			}
-			if !r.run.evaluator(r.g, r.captureFunc(p, &key.caps, key.origin, int32(k), whole)).cond(c.cond) {
+			if !r.run.evaluator(r.g, r.captureFunc(p, caps, key.origin, int32(k), whole)).cond(c.cond) {
 				return
 			}
 		}
@@ -463,7 +534,7 @@ func (r *recognizer) tokenTest(t *symTest, k int) bool {
 // captureFunc gives an item's captures; $ spans [origin, end) and has the
 // tags that whole gives on demand, or none while they are being computed,
 // when a term cannot read them (§9).
-func (r *recognizer) captureFunc(p *production, caps *[4]capVal, origin, end int32, whole func() *tagset) func(string) (spanVal, bool) {
+func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32, whole func() *tagset) func(string) (spanVal, bool) {
 	// In the check of elision-only, every observation reads the projected
 	// span, and the projection comes before any function of it (§7.5).
 	return func(name string) (spanVal, bool) {
@@ -475,7 +546,7 @@ func (r *recognizer) captureFunc(p *production, caps *[4]capVal, origin, end int
 		if !ok {
 			return spanVal{}, false
 		}
-		cv := caps[slot]
+		cv := caps.at(slot)
 		a, b := r.observed(cv.start, cv.end)
 		return spanVal{a: a, b: b, whole: true, tags: r.run.ps.in.all[cv.tags]}, true
 	}
@@ -483,7 +554,7 @@ func (r *recognizer) captureFunc(p *production, caps *[4]capVal, origin, end int
 
 // lazyTags gives the constituent tags of a completing item on first use,
 // and the same set after that (§4).
-func (r *recognizer) lazyTags(p *production, caps *[4]capVal, origin, end int32) func() *tagset {
+func (r *recognizer) lazyTags(p *production, caps itemCaps, origin, end int32) func() *tagset {
 	var tags *tagset
 	return func() *tagset {
 		if tags == nil {
@@ -495,13 +566,13 @@ func (r *recognizer) lazyTags(p *production, caps *[4]capVal, origin, end int32)
 
 // completedTags is the constituent tags of a production's item over
 // [origin, end) with the given captures (engine §4).
-func (r *recognizer) completedTags(p *production, caps *[4]capVal, origin, end int32) *tagset {
+func (r *recognizer) completedTags(p *production, caps itemCaps, origin, end int32) *tagset {
 	in := r.run.ps.in
 	switch {
 	case p.tags != nil:
 		return r.run.evaluator(r.g, r.captureFunc(p, caps, origin, end, nil)).tagsOf(p.tags)
 	case p.implicit:
-		return in.all[caps[p.capSlot[0]].tags]
+		return in.all[caps.at(p.capSlot[0]).tags]
 	}
 	return in.empty()
 }

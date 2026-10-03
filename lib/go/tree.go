@@ -97,24 +97,18 @@ func (st *sourceTable) source(a, b int) [2]int {
 	return [2]int{min(st.lows[k][a], st.lows[k][o]), max(st.highs[k][a], st.highs[k][o])}
 }
 
-type pendingKid struct {
-	n      *dn
-	splice bool // the prefix of a trailing repetition
-}
-
 // treeFrame is a rule node being built; pending holds its remaining
 // children in reverse, the next one last.
 type treeFrame struct {
 	node    *Node
-	pending []pendingKid
+	pending []*dn
 }
 
-// pushKids pushes a close's children onto a pending stack, the first last,
-// marking the first as spliced when the close is a trailing repetition's.
-func pushKids(pending []pendingKid, n *dn, splice bool) []pendingKid {
+// pushKids pushes a close's children onto a pending stack, the first last.
+func pushKids(pending []*dn, n *dn) []*dn {
 	kids := flattenKids(n.a)
 	for i := len(kids) - 1; i >= 0; i-- {
-		pending = append(pending, pendingKid{n: kids[i], splice: splice && i == 0 && n.prod.repeatPrefix})
+		pending = append(pending, kids[i])
 	}
 	return pending
 }
@@ -126,7 +120,7 @@ func (run *stageRun) buildTree(rec *recognizer, d *dn) *Node {
 	newRule := func(n *dn) *treeFrame {
 		a, b := base+int(n.start), base+int(n.end)
 		node := &Node{Kind: KindRule, Rule: n.prod.ruleName, Span: [2]int{a, b}, Source: run.spanSource(a, b), Tags: n.tags.list(), Children: []*Node{}}
-		return &treeFrame{node: node, pending: pushKids(nil, n, true)}
+		return &treeFrame{node: node, pending: pushKids(nil, n)}
 	}
 	root := newRule(d)
 	stack := []*treeFrame{root}
@@ -140,9 +134,8 @@ func (run *stageRun) buildTree(rec *recognizer, d *dn) *Node {
 			}
 			continue
 		}
-		k := f.pending[len(f.pending)-1]
+		n := f.pending[len(f.pending)-1]
 		f.pending = f.pending[:len(f.pending)-1]
-		n := k.n
 		switch {
 		case n.kind == dRead:
 			i := base + int(n.tok)
@@ -150,8 +143,10 @@ func (run *stageRun) buildTree(rec *recognizer, d *dn) *Node {
 		case n.prod.helper && n.a == nil && n.prod.elided != "":
 			p := base + int(n.start)
 			f.node.Children = append(f.node.Children, &Node{Kind: KindElided, Terminal: n.prod.elided, Span: [2]int{p, p}, Source: run.emptySource(p), sound: elidedSound(n.prod.elidedTest), tested: elidedTested(n.prod.elidedTest)})
-		case n.prod.helper || k.splice:
-			f.pending = pushKids(f.pending, n, k.splice)
+		case n.prod.helper:
+			// A helper is spliced: its children stand in its place, and a
+			// chain's levels are rule nodes, which stay (§12).
+			f.pending = pushKids(f.pending, n)
 		default:
 			stack = append(stack, newRule(n))
 		}
@@ -162,28 +157,23 @@ func (run *stageRun) buildTree(rec *recognizer, d *dn) *Node {
 // warnings lists the warnings of a chosen derivation (engine §12): each rule
 // node of its tree gives one for each warning of its production, in the
 // order a walk meets the nodes, parent before children and children left to
-// right. Helpers and the prefixes of a trailing repetition give their
-// children in their place, as in buildTree.
+// right. Helpers give their children in their place, as in buildTree.
 func (run *stageRun) warnings(rec *recognizer, d *dn) []Warning {
 	var out []Warning
-	pending := []pendingKid{{n: d}}
+	pending := []*dn{d}
 	for len(pending) > 0 {
-		k := pending[len(pending)-1]
+		n := pending[len(pending)-1]
 		pending = pending[:len(pending)-1]
-		n := k.n
 		if n.kind == dRead {
 			continue
 		}
-		if !n.prod.helper && !k.splice {
+		if !n.prod.helper {
 			a, b := rec.base+int(n.start), rec.base+int(n.end)
 			for _, f := range n.prod.warnings {
 				out = append(out, Warning{Stage: run.name, Feature: f, Rule: n.prod.ruleName, Span: [2]int{a, b}, Source: run.spanSource(a, b)})
 			}
 		}
-		// buildTree splices the first child of a rule node or of a spliced
-		// prefix whose production is r → r x; a helper's never is, so true
-		// serves for every close.
-		pending = pushKids(pending, n, true)
+		pending = pushKids(pending, n)
 	}
 	return out
 }

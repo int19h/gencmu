@@ -19,11 +19,11 @@ type production struct {
 	rhs          []symbol
 	tests        []*symTest // per position: the test its symbol must pass, or nil; nil when no symbol is tested (§4)
 	capName      []string   // per position: the capture's name, or ""
-	capSlot      []int8     // per position: the item's capture slot, or -1
+	capSlot      []int32    // per position: the item's capture slot, or -1
 	nslots       int
-	slotOf       map[string]int8 // capture name → slot
-	tags         *domTerm        // nil: default tags (§4)
-	implicit     bool            // one symbol and no tags: the constituent has its symbol's tags (§3.7)
+	slotOf       map[string]int32 // capture name → slot
+	tags         *domTerm         // nil: default tags (§4)
+	implicit     bool             // one symbol and no tags: the constituent has its symbol's tags (§3.7)
 	conds        []lcond
 	predictConds []*domCond // conditions using no capture but $ of an empty production, checked at prediction
 	emit         *domEmit   // as dropped and simplified for the production (§3.6)
@@ -33,7 +33,6 @@ type production struct {
 	helper       bool
 	elided       string   // for the ε production of an optional beginning with an elidable terminal
 	elidedTest   *symTest // the test of that terminal, if it is tested; a restored token sounds like the string of an = test (§7)
-	repeatPrefix bool     // r → r x of a trailing repetition: the first child is spliced out (§12)
 	ruleName     string   // the rule the author wrote (for a helper, the one it serves)
 	doc          string
 	at           [2]int
@@ -124,6 +123,24 @@ type lowerer struct {
 	memo     map[*domExpr][][]slot // expansions of one alternative, by place
 	tests    map[*domExpr]*symTest // the tests of that alternative with their values
 	into     *[]*helperNode        // where a new helper goes
+	// structural is every production that the gates and the expansion
+	// make, before a false condition removes any (§3.3).
+	structural []structuralProduction
+	// braceItems is the item of each pair of braces, as its expansions,
+	// with the alternative and the rule that wrote it, in the order
+	// lowering met them.
+	braceItems []braceItem
+}
+
+type structuralProduction struct {
+	lhs int32
+	rhs []symbol
+}
+
+type braceItem struct {
+	items [][]slot
+	alt   *sAlt
+	rule  string
 }
 
 // helperNode is the helper of one place where [ ] or ... is written,
@@ -156,10 +173,65 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 		l.rules = append(l.rules, &lrule{name: r.name, owner: r.name, scc: -1})
 	}
 	for _, r := range g.rules {
-		lw.lowerRule(r)
+		if lw.lowerRule(r); l.fault != "" {
+			return l
+		}
+	}
+	// An item of braces that can match no tokens comes last, once every
+	// rule is lowered (§3.3).
+	if lw.checkBraceItems(); l.fault != "" {
+		return l
 	}
 	l.computeCycles()
 	return l
+}
+
+// loweringFault records an error of the grammar that lowering finds (§3),
+// the first one, which ends lowering. Its message begins with the
+// document, line and column of the definition that wrote the alternative
+// at fault.
+func (lw *lowerer) loweringFault(a *sAlt, format string, args ...any) {
+	if lw.l.fault == "" {
+		lw.l.fault = fmt.Sprintf("%s:%d:%d: ", a.doc, a.at[0], a.at[1]) + fmt.Sprintf(format, args...)
+	}
+}
+
+// checkBraceItems reports the first item of braces, in the order lowering
+// met them, that can derive the empty sequence (§3.3). Nullability is
+// decided over the structural grammar: every production that the gates and
+// the expansion make, helpers included, before a false condition removes
+// any, with tests ignored, reachable or not.
+func (lw *lowerer) checkBraceItems() {
+	nullable := make([]bool, len(lw.l.rules))
+	empty := func(rhs []symbol) bool {
+		for _, s := range rhs {
+			if s.term || !nullable[s.id] {
+				return false
+			}
+		}
+		return true
+	}
+	for changed := true; changed; {
+		changed = false
+		for _, p := range lw.structural {
+			if !nullable[p.lhs] && empty(p.rhs) {
+				nullable[p.lhs] = true
+				changed = true
+			}
+		}
+	}
+	for _, b := range lw.braceItems {
+		for _, x := range b.items {
+			rhs := make([]symbol, len(x))
+			for i, s := range x {
+				rhs[i] = s.sym
+			}
+			if empty(rhs) {
+				lw.loweringFault(b.alt, "an item of braces in %s can match no tokens", b.rule)
+				return
+			}
+		}
+	}
 }
 
 func (lw *lowerer) terminal(name string) symbol { return lw.classTerminal(name, nil) }
@@ -202,6 +274,14 @@ func (lw *lowerer) lowerRule(r *sRule) {
 			alts = append(alts, a)
 		}
 	}
+	// A chain is the only alternative of its rule that the gates leave
+	// (§3.3); a %extend-rule can add another.
+	for _, a := range alts {
+		if isChain(a.alt.Expr) && len(alts) > 1 {
+			lw.loweringFault(a, "%s is a chain, which is the whole of its rule, but another alternative stands beside it", r.name)
+			return
+		}
+	}
 	lhs := lw.l.byName[r.name]
 	for _, a := range alts {
 		var helpers []*helperNode
@@ -211,8 +291,37 @@ func (lw *lowerer) lowerRule(r *sRule) {
 			lw.tests[t] = a.tests[i]
 		}
 		lw.into = &helpers
-		for _, x := range lw.expand(a.alt.Expr, a, r.name) {
-			lw.addProduction(lhs, x, a, false)
+		if e := a.alt.Expr; isChain(e) {
+			// A chain is recursion on the rule itself, with no helper: its
+			// base productions first, one for each expansion of the item,
+			// then its recursive ones (§3.3).
+			xs := lw.expand(e.Inner, a, r.name)
+			lw.braceItems = append(lw.braceItems, braceItem{xs, a, r.name})
+			ss := [][]slot{{}}
+			if e.Sep != nil {
+				ss = lw.expand(e.Sep, a, r.name)
+			}
+			self := []slot{{sym: symbol{id: lhs}}}
+			for _, x := range xs {
+				lw.addProduction(lhs, x, a)
+			}
+			if e.Chain == "left" {
+				for _, s := range ss {
+					for _, x := range xs {
+						lw.addProduction(lhs, concat(concat(self, s), x), a)
+					}
+				}
+			} else {
+				for _, x := range xs {
+					for _, s := range ss {
+						lw.addProduction(lhs, concat(concat(x, s), self), a)
+					}
+				}
+			}
+		} else {
+			for _, x := range lw.expand(e, a, r.name) {
+				lw.addProduction(lhs, x, a)
+			}
 		}
 		// Then the helpers, in the order their places are written, each
 		// followed at once by those inside it (§3, Numbering).
@@ -220,6 +329,7 @@ func (lw *lowerer) lowerRule(r *sRule) {
 		number = func(hs []*helperNode) {
 			for _, h := range hs {
 				for _, b := range h.bodies {
+					lw.structural = append(lw.structural, structuralProduction{h.rule, symbolsOf(b)})
 					p := lw.newProduction(h.rule, b)
 					p.helper = true
 					p.transparent = true
@@ -237,15 +347,46 @@ func (lw *lowerer) lowerRule(r *sRule) {
 	}
 }
 
+// isChain says whether an expression is a chain, {... x \ s} or
+// {x ... \ s}.
+func isChain(e *domExpr) bool {
+	return e.Kind == exRepeat && e.Chain != ""
+}
+
+// holdsCapture says whether an expression holds a capture, at any depth
+// (§3.5).
+func holdsCapture(e *domExpr) bool {
+	if e == nil {
+		return false
+	}
+	if e.Kind == exCapture {
+		return true
+	}
+	for _, it := range e.Items {
+		if holdsCapture(it) {
+			return true
+		}
+	}
+	return holdsCapture(e.Inner) || holdsCapture(e.Sep)
+}
+
+func symbolsOf(body []slot) []symbol {
+	out := make([]symbol, len(body))
+	for i, s := range body {
+		out[i] = s.sym
+	}
+	return out
+}
+
 func concat(a, b []slot) []slot {
 	out := make([]slot, 0, len(a)+len(b))
 	return append(append(out, a...), b...)
 }
 
 func (lw *lowerer) newProduction(lhs int32, body []slot) *production {
-	p := &production{num: len(lw.l.prods), lhs: lhs, slotOf: map[string]int8{}}
+	p := &production{num: len(lw.l.prods), lhs: lhs, slotOf: map[string]int32{}}
 	p.capName = make([]string, len(body))
-	p.capSlot = make([]int8, len(body))
+	p.capSlot = make([]int32, len(body))
 	for i, s := range body {
 		p.rhs = append(p.rhs, s.sym)
 		p.capSlot[i] = -1
@@ -269,7 +410,10 @@ func (lw *lowerer) newProduction(lhs int32, body []slot) *production {
 	return p
 }
 
-func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix bool) {
+func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
+	// The structural grammar counts the production, whatever its
+	// conditions (§3.3).
+	lw.structural = append(lw.structural, structuralProduction{lhs, symbolsOf(body)})
 	position := map[string]int{}
 	for i, s := range body {
 		if s.capture != "" {
@@ -301,7 +445,6 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix b
 		}
 	}
 	p := lw.newProduction(lhs, body)
-	p.repeatPrefix = repeatPrefix
 	p.opaque = a.opaque
 	p.ruleName = lw.l.rules[lhs].name
 	p.doc, p.at = a.doc, a.at
@@ -318,8 +461,8 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix b
 		p.capName[i] = s.capture
 		p.capSlot[i] = -1
 		if s.capture != "" {
-			p.capSlot[i] = int8(p.nslots)
-			p.slotOf[s.capture] = int8(p.nslots)
+			p.capSlot[i] = int32(p.nslots)
+			p.slotOf[s.capture] = int32(p.nslots)
 			p.nslots++
 		}
 	}
@@ -340,7 +483,7 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix b
 	if p.tags == nil && len(body) == 1 {
 		p.implicit = true
 		if p.capSlot[0] < 0 {
-			p.capSlot[0] = int8(p.nslots)
+			p.capSlot[0] = int32(p.nslots)
 			p.nslots++
 		}
 	}
@@ -481,6 +624,15 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		return out
 	case exOptional:
 		inner := e.Inner
+		// A plain optional that holds a capture expands in place, as
+		// (ε | x) would: first the empty sequence, then each expansion of
+		// x (§3.2).
+		if !e.Elidable && holdsCapture(inner) {
+			return append([][]slot{{}}, lw.expand(inner, a, ruleName)...)
+		}
+		// Any other optional is a helper, and a marked one is elidable,
+		// with the terminal that its marker names; ++ makes it maximal
+		// (§3.8).
 		elide := ""
 		var elideT *symTest
 		if e.Elidable {
@@ -499,9 +651,16 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		}
 		return out
 	case exRepeat:
+		// Flat braces are a helper, h → x | h s x, its base productions
+		// first; the places inside the item come before those inside the
+		// separator (§3.2).
+		if isChain(e) {
+			lw.loweringFault(a, "a chain in %s is not the whole of its rule", ruleName)
+		}
 		item, sep := e.Inner, e.Sep
 		return lw.helper(a, ruleName, "", nil, func(h int32) [][]slot {
 			xs := lw.expand(item, a, ruleName)
+			lw.braceItems = append(lw.braceItems, braceItem{xs, a, ruleName})
 			ss := [][]slot{{}}
 			if sep != nil {
 				ss = lw.expand(sep, a, ruleName)
