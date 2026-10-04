@@ -2,6 +2,8 @@
 //! capture before the dot, the captured part's span and tag set; with the
 //! evaluation of terms and conditions (§10) and nested parses.
 
+use std::cell::Cell;
+
 use crate::eligible::Proofs;
 use crate::fxhash::{FxMap, FxSet};
 
@@ -371,15 +373,17 @@ pub(crate) struct Recognizer<'g, 's, 'a> {
 
 /// What terms and conditions are evaluated over (§10): an item's captured
 /// parts, and `$`, the whole constituent, from the item's origin to `end`.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub(crate) struct Frame<'c> {
     pub caps: &'c [Cap],
     pub prod: u32,
     pub origin: u32,
     pub end: u32,
     /// The constituent's tags, when known; otherwise its production's tag
-    /// term gives them when they are read (§4).
-    pub tags: Option<SetId>,
+    /// term gives them when they are first read (§4), and they are kept
+    /// here, so that one step evaluates the term at most once. That saves
+    /// time only: how many times the term runs is not observable.
+    pub tags: Cell<Option<SetId>>,
     /// In the check of `elision-only`, π, which takes the positions of the
     /// frame, which are of R, to those of O, where every observation reads
     /// (§7.3, §7.5); `None` elsewhere.
@@ -556,24 +560,34 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         if target.failed.contains(&item) {
             return Ok(());
         }
-        for (cond, trigger) in &production.conds {
-            if *trigger == item.dot as usize {
-                let caps = chart.caps(item.caps).to_vec();
-                let (observed, project) = self.observed(tokens);
-                let frame =
-                    Frame { caps: &caps, prod: item.prod, origin: item.origin, end: set as u32, tags: None, project };
-                if !self.condition(cond, &frame, observed, base)? {
+        // The constituent's tags, where a condition of this step read them.
+        let mut known = u32::MAX;
+        if production.conds.iter().any(|(_, trigger)| *trigger == item.dot as usize) {
+            let caps = chart.caps(item.caps).to_vec();
+            let (observed, project) = self.observed(tokens);
+            let frame = Frame {
+                caps: &caps,
+                prod: item.prod,
+                origin: item.origin,
+                end: set as u32,
+                tags: Cell::new(None),
+                project,
+            };
+            for (cond, trigger) in &production.conds {
+                if *trigger == item.dot as usize && !self.condition(cond, &frame, observed, base)? {
                     chart.sets[set].failed.insert(item);
                     return Ok(());
                 }
             }
+            known = frame.tags.get().unwrap_or(u32::MAX);
         }
         let target = &mut chart.sets[set];
         ITEMS.with(|items| items.set(items.get() + 1));
         let index = target.items.len() as u32;
         target.index.insert(item, index);
         target.items.push(item);
-        target.tagset.push(u32::MAX);
+        // The tags that the conditions read, which completion reuses.
+        target.tagset.push(known);
         target.enqueue(index, self.recon.is_some(), strict);
         Ok(())
     }
@@ -758,8 +772,20 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let production = &g.prods[item.prod as usize];
         let caps = chart.caps(item.caps).to_vec();
         let (observed, project) = self.observed(tokens);
-        let frame = Frame { caps: &caps, prod: item.prod, origin: item.origin, end: e as u32, tags: None, project };
-        let tags = self.constituent_tags(&frame, observed, base)?;
+        let known = chart.sets[e].tagset[k];
+        let tags = if known != u32::MAX {
+            known
+        } else {
+            let frame = Frame {
+                caps: &caps,
+                prod: item.prod,
+                origin: item.origin,
+                end: e as u32,
+                tags: Cell::new(None),
+                project,
+            };
+            self.constituent_tags(&frame, observed, base)?
+        };
         let rule = production.rule;
         chart.sets[e].tagset[k] = tags;
         let completed = chart.sets[e].completed.entry((rule, item.origin)).or_default();
@@ -801,7 +827,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         Ok(match &production.tags {
             Some(term) => {
                 // The term cannot read `$`'s tags, which it defines (§9).
-                let frame = Frame { tags: Some(0), ..*frame };
+                let frame = Frame { tags: Cell::new(Some(0)), ..*frame };
                 let list = self.set_term(term, &frame, tokens, base)?;
                 self.shared.tags.set(list)
             }
@@ -966,9 +992,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         Ok(match bounds {
             (_, _, Whose::Cap(set)) => self.shared.tags.list(set).clone(),
             (_, _, Whose::Whole) => {
-                let set = match frame.tags {
+                let set = match frame.tags.get() {
                     Some(set) => set,
-                    None => self.constituent_tags(frame, tokens, base)?,
+                    None => {
+                        let set = self.constituent_tags(frame, tokens, base)?;
+                        frame.tags.set(Some(set));
+                        set
+                    }
                 };
                 self.shared.tags.list(set).clone()
             }

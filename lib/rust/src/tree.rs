@@ -2,6 +2,7 @@
 //! §12), and to the next stage's tokens (§11). Every walk here is
 //! iterative.
 
+use std::cell::Cell;
 use std::collections::BTreeSet;
 
 use crate::earley::{Cap, EngineError, Frame, Recognizer, Tok};
@@ -809,8 +810,14 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                         let IKind::Close { prod, start, end, tags, caps } = &tree.nodes[owner as usize].kind else {
                             unreachable!("an emission's constituent")
                         };
-                        let frame =
-                            Frame { caps, prod: *prod, origin: *start, end: *end, tags: Some(*tags), project: None };
+                        let frame = Frame {
+                            caps,
+                            prod: *prod,
+                            origin: *start,
+                            end: *end,
+                            tags: Cell::new(Some(*tags)),
+                            project: None,
+                        };
                         item_tags(recognizer, term, &frame, tokens)?
                     }
                     None => tags,
