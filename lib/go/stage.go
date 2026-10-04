@@ -311,7 +311,15 @@ func (run *stageRun) rejection(rec *recognizer) *ParseError {
 		// token (earley.go, predict).
 		for rule := range rec.sets[k].predicted {
 			for _, p := range rec.g.rules[rule].prods {
-				if rec.predictable(p, k) {
+				// A nested parse that the conditions need runs on a stack
+				// of its own, and they go on from where they halted.
+				ok, q := rec.predictable(p, k)
+				for q != nil {
+					run.startQuery(q)
+					run.drive(q.recognizer(run))
+					ok, q = rec.predictable(p, k)
+				}
+				if ok {
 					expect(p, 0)
 				}
 			}

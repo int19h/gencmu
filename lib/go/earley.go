@@ -214,12 +214,30 @@ type recognizer struct {
 	step    step
 	// query is the nested parse that this recognition answers, or nil.
 	query *nestedQuery
+	// w walks the conditions and terms of the step. A step that halts for
+	// a nested parse keeps its walk, and its place in the walk's
+	// evaluations: adv for an advance, and for a prediction or a
+	// completion, pending, with the condition at condAt and its evaluator.
+	w       walk
+	adv     advancing
+	pending bool
+	condAt  int
+	ev      *evaluator
+}
+
+// advancing is an advance that halted in its conditions: its key, the
+// condition it halted in, and the tags of $ for the conditions that read
+// them. active says that the advance goes on once the step does.
+type advancing struct {
+	active bool
+	key    itemKey
+	i      int
+	whole  *lazyTags
 }
 
 // The kinds of a recognition's step. A step that halts for a nested parse
-// is made again from its start once the answer is known. What it did
-// before it halted, it does again to the same effect, since an evaluation
-// changes only caches before it halts.
+// keeps its place, and its walk keeps its frames, so the step goes on from
+// where it halted once the answer is known (engine §4).
 const (
 	// stepNext takes the next entry of the queue.
 	stepNext = iota
@@ -290,21 +308,27 @@ func (r *recognizer) begin(start int32) {
 	}
 }
 
-// resume goes on with the recognition until it finishes or halts for a
-// nested parse. A step that halts keeps its place in r.step.
-func (r *recognizer) resume() {
+// resume goes on with the recognition until it finishes, or halts for the
+// nested parse that it returns. A step that halts keeps its place in
+// r.step, and comes back here with the same arguments for what it halted
+// in, which then goes on from where it halted.
+func (r *recognizer) resume() *nestedQuery {
 	for {
 		st := &r.step
 		switch st.kind {
 		case stepNext:
 			if !r.nextEntry() {
-				return
+				return nil
 			}
 		case stepTerminal:
-			r.advance(st.it, st.k, st.cv, st.l, st.strict)
+			if q := r.advance(st.it, st.k, st.cv, st.l, st.strict); q != nil {
+				return q
+			}
 			r.step.kind = stepNext
 		case stepPredict:
-			r.predictFrom(st)
+			if q := r.predictFrom(st); q != nil {
+				return q
+			}
 			if st.empties {
 				st.kind, st.list, st.next = stepEmpties, r.sets[st.k].empties[st.rule], 0
 			} else {
@@ -313,11 +337,15 @@ func (r *recognizer) resume() {
 		case stepEmpties:
 			for ; st.next < len(st.list); st.next++ {
 				c := st.list[st.next]
-				r.advance(st.it, st.k, capVal{c.start, c.end, c.tags.id}, link{prev: st.it, sym: c}, st.it.strict)
+				if q := r.advance(st.it, st.k, capVal{c.start, c.end, c.tags.id}, link{prev: st.it, sym: c}, st.it.strict); q != nil {
+					return q
+				}
 			}
 			r.step.kind = stepNext
 		case stepComplete:
-			r.complete(st.k, st.it)
+			if q := r.complete(st.k, st.it); q != nil {
+				return q
+			}
 		case stepWaiters:
 			// The waiters are those there were at completion. An advance
 			// adds none, so the list keeps them while the step halts.
@@ -327,7 +355,9 @@ func (r *recognizer) resume() {
 				if st.empty && r.heldBack(w) {
 					continue
 				}
-				r.advance(w, st.k, capVal{st.c.start, st.c.end, st.ts.id}, link{prev: w, sym: st.c}, st.empty && w.strict)
+				if q := r.advance(w, st.k, capVal{st.c.start, st.c.end, st.ts.id}, link{prev: w, sym: st.c}, st.empty && w.strict); q != nil {
+					return q
+				}
 			}
 			r.step.kind = stepNext
 		}
@@ -390,8 +420,8 @@ func (r *recognizer) observed(a, b int32) (int, int) {
 // the productions that can read, and its items are strict. An ordinary
 // prediction after a strict one adds what the strict one left out, and
 // makes ordinary the items that they share. beginPredict and predictFrom
-// make it in two parts, so that a production that halts for a nested parse
-// is predicted again alone.
+// make it in two parts, so that a production whose conditions halt for a
+// nested parse goes on alone.
 //
 // beginPredict records the prediction of a rule in a set, and says whether
 // it adds anything there.
@@ -411,8 +441,9 @@ func (r *recognizer) beginPredict(s *eset, rule int32, strict bool) bool {
 }
 
 // predictFrom predicts the productions of st.rule at st.k from st.next on.
-// A production whose conditions halt for a nested parse keeps st.next.
-func (r *recognizer) predictFrom(st *step) {
+// A production whose conditions halt for a nested parse keeps st.next, and
+// goes on in its conditions when the step does.
+func (r *recognizer) predictFrom(st *step) *nestedQuery {
 	k, strict := st.k, st.strict
 	var reading *readingSets
 	if r.recon != nil {
@@ -421,21 +452,27 @@ func (r *recognizer) predictFrom(st *step) {
 	prods := r.g.rules[st.rule].prods
 	for ; st.next < len(prods); st.next++ {
 		p := prods[st.next]
-		if reading != nil && p.restoration() {
-			r.restore(k, p)
-			continue
+		if !r.pending {
+			if reading != nil && p.restoration() {
+				r.restore(k, p)
+				continue
+			}
+			if strict && reading.last[p] < 0 {
+				continue
+			}
+			if len(p.rhs) > 0 && p.rhs[0].term && !r.canRead(k, p.rhs[0].id) {
+				continue
+			}
 		}
-		if strict && reading.last[p] < 0 {
-			continue
+		ok, q := r.predictable(p, k)
+		if q != nil {
+			return q
 		}
-		if len(p.rhs) > 0 && p.rhs[0].term && !r.canRead(k, p.rhs[0].id) {
-			continue
+		if ok {
+			r.add(k, itemKey{prod: p, origin: int32(k)}, link{}, false, strict)
 		}
-		if !r.predictable(p, k) {
-			continue
-		}
-		r.add(k, itemKey{prod: p, origin: int32(k)}, link{}, false, strict)
 	}
+	return nil
 }
 
 // restore adds the restoration of an elidable optional at k (§7.4): its
@@ -488,27 +525,34 @@ func (r *recognizer) reads(ts *tagset, term int32) bool {
 // predictable checks the conditions of a production that mention no
 // capture, which hold or fail at prediction at k, as do those of a
 // production with no symbols that mention $, over the empty span there.
-func (r *recognizer) predictable(p *production, k int) bool {
-	if len(p.predictConds) > 0 {
+// Where they halt for a nested parse, it gives the query, and goes on from
+// where they halted when it is called again.
+func (r *recognizer) predictable(p *production, k int) (bool, *nestedQuery) {
+	if !r.pending {
+		if len(p.predictConds) == 0 {
+			return true, nil
+		}
 		var caps itemCaps
-		var tags func() *tagset
+		var tags *lazyTags
 		if len(p.rhs) == 0 {
 			// The tag term runs only where a condition reads $'s tags (§4).
 			tags = r.lazyTags(p, caps, int32(k), int32(k))
 		}
-		ev := r.run.evaluator(r.g, r.captureFunc(p, caps, int32(k), int32(k), tags))
-		ok := true
-		for _, c := range p.predictConds {
-			if !ev.cond(c) {
-				ok = false
-				break
-			}
-		}
-		if !ok {
-			return false
-		}
+		r.ev = r.run.evaluator(r.g, r.captureFunc(p, caps, int32(k), int32(k), tags))
+		r.pending, r.condAt = true, 0
+		r.w.cond(r.ev, p.predictConds[0])
 	}
-	return true
+	for {
+		if q := r.w.resume(); q != nil {
+			return false, q
+		}
+		r.condAt++
+		if !r.w.b || r.condAt == len(p.predictConds) {
+			r.pending, r.ev = false, nil
+			return r.w.b, nil
+		}
+		r.w.cond(r.ev, p.predictConds[r.condAt])
+	}
 }
 
 // add adds an item, or a link to it where it exists. strict says whether
@@ -599,8 +643,7 @@ func (r *recognizer) heldBack(it *item) bool {
 }
 
 // process takes an item from the queue of set k, and readies the step that
-// it makes: false when it makes none. What it records here, it records
-// once, so a step that halts and is made again does not record it twice.
+// it makes: false when it makes none.
 func (r *recognizer) process(k int, it *item) bool {
 	p := it.prod
 	s := r.sets[k]
@@ -657,23 +700,38 @@ func (r *recognizer) process(k int, it *item) bool {
 }
 
 // complete completes item it of set k. Its constituent's tags may halt for
-// a nested parse, before the step records anything.
-func (r *recognizer) complete(k int, it *item) {
+// a nested parse, before the step records anything. Called again, it goes
+// on with them from where they halted.
+func (r *recognizer) complete(k int, it *item) *nestedQuery {
 	p := it.prod
 	s := r.sets[k]
+	in := r.run.ps.in
 	var ts *tagset
-	if it.restores {
+	switch {
+	case it.restores:
 		// A restoration has the tags of the empty production, none (§7.4).
-		ts = r.run.ps.in.empty()
-	} else {
-		ts = r.completedTags(p, r.caps(&it.itemKey), it.origin, int32(k))
+		ts = in.empty()
+	case p.tags != nil:
+		if !r.pending {
+			r.pending = true
+			r.w.term(r.run.evaluator(r.g, r.captureFunc(p, r.caps(&it.itemKey), it.origin, int32(k), nil)), p.tags)
+		}
+		if q := r.w.resume(); q != nil {
+			return q
+		}
+		r.pending = false
+		ts = toSet(r.w.v)
+	case p.implicit:
+		ts = in.all[r.caps(&it.itemKey).at(p.capSlot[0]).tags]
+	default:
+		ts = in.empty()
 	}
 	key := symKey{p.lhs, it.origin, ts.id}
 	c := s.syms[key]
 	if c != nil {
 		c.items = append(c.items, it)
 		r.step.kind = stepNext
-		return
+		return nil
 	}
 	c = &symNode{rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
 	if s.syms == nil {
@@ -690,59 +748,72 @@ func (r *recognizer) complete(k int, it *item) {
 	st := &r.step
 	st.kind, st.k, st.origin, st.rule, st.c, st.ts = stepWaiters, k, it.origin, p.lhs, c, ts
 	st.empty, st.count, st.next = int(it.origin) == k, count, 0
+	return nil
 }
 
 // advance moves an item over its next symbol, read over cv, into set k,
 // unless the symbol's test does not hold of it or a condition triggered
-// there fails.
-func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) {
+// there fails. Where a condition halts for a nested parse, it gives the
+// query and keeps its place in r.adv. Called again with the same
+// arguments, it goes on from that condition, in the walk that halted.
+func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *nestedQuery {
 	p := it.prod
-	key := it.itemKey
-	pos := int(key.dot)
-	// A strict step that completes, route 3's read of T with nothing after
-	// it, makes a strict item at the end of its production. The step drops
-	// it before it evaluates anything (§4, §7.4; JS earley.js, the written
-	// routes).
-	if strict && pos+1 == len(p.rhs) {
-		return
-	}
-	// A tested symbol's test must hold of its own span and tags, which is
-	// checked before any condition the advance makes ready (§4).
-	if t := p.testAt(pos); t != nil && !r.symbolTest(t, cv, l.sym == nil) {
-		return
-	}
-	if slot := p.capSlot[pos]; slot >= 0 {
-		r.setCap(&key, slot, cv)
-	}
-	key.dot++
-	var whole func() *tagset
-	evaluated, held := 0, true
-	for _, c := range p.condsAt(int(key.dot)) {
-		evaluated++
-		// A condition on $ is evaluated once the item is complete. Its
-		// production's tag term gives $ its tags, and runs only where a
-		// condition reads them (§4).
-		caps := r.caps(&key)
-		if c.whole && whole == nil {
-			whole = r.lazyTags(p, caps, key.origin, int32(k))
+	var key itemKey
+	var whole *lazyTags
+	i, resuming := 0, r.adv.active
+	if resuming {
+		key, i, whole = r.adv.key, r.adv.i, r.adv.whole
+		r.adv = advancing{}
+	} else {
+		key = it.itemKey
+		pos := int(key.dot)
+		// A strict step that completes, route 3's read of T with nothing
+		// after it, makes a strict item at the end of its production. The
+		// step drops it before it evaluates anything (§4, §7.4; JS
+		// earley.js, the written routes).
+		if strict && pos+1 == len(p.rhs) {
+			return nil
 		}
-		if !r.run.evaluator(r.g, r.captureFunc(p, caps, key.origin, int32(k), whole)).cond(c.cond) {
-			held = false
-			break
+		// A tested symbol's test must hold of its own span and tags, which
+		// is checked before any condition the advance makes ready (§4).
+		if t := p.testAt(pos); t != nil && !r.symbolTest(t, cv, l.sym == nil) {
+			return nil
 		}
+		if slot := p.capSlot[pos]; slot >= 0 {
+			r.setCap(&key, slot, cv)
+		}
+		key.dot++
 	}
-	// A step that halts for a nested parse is made again, so the
-	// conditions count once the advance has its answer, and count once.
-	if w := work.Load(); w != nil && evaluated > 0 {
-		w.conditions.addN(int64(evaluated), "conditions")
-	}
-	if !held {
-		return
+	conds := p.condsAt(int(key.dot))
+	for ; i < len(conds); i++ {
+		if !resuming {
+			c := conds[i]
+			if w := work.Load(); w != nil {
+				w.conditions.add("conditions")
+			}
+			// A condition on $ is evaluated once the item is complete. Its
+			// production's tag term gives $ its tags, and runs only where a
+			// condition reads them (§4).
+			caps := r.caps(&key)
+			if c.whole && whole == nil {
+				whole = r.lazyTags(p, caps, key.origin, int32(k))
+			}
+			r.w.cond(r.run.evaluator(r.g, r.captureFunc(p, caps, key.origin, int32(k), whole)), c.cond)
+		}
+		resuming = false
+		if q := r.w.resume(); q != nil {
+			r.adv = advancing{active: true, key: key, i: i, whole: whole}
+			return q
+		}
+		if !r.w.b {
+			return nil
+		}
 	}
 	if l.prev != nil && l.prev.dot == 0 {
 		l.prev = nil // a predicted item has no derivation of its own
 	}
 	r.add(k, key, l, true, strict)
+	return nil
 }
 
 // symbolTest says whether a test holds where an item advances over its
@@ -774,7 +845,7 @@ func (r *recognizer) tokenTest(t *symTest, k int) bool {
 // captureFunc gives an item's captures; $ spans [origin, end) and has the
 // tags that whole gives on demand, or none while they are being computed,
 // when a term cannot read them (§9).
-func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32, whole func() *tagset) func(string) (spanVal, bool) {
+func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32, whole *lazyTags) func(string) (spanVal, bool) {
 	// In the check of elision-only, every observation reads the projected
 	// span, and the projection comes before any function of it (§7.5).
 	// A capture is found when it is read: the last at once, an earlier one
@@ -815,29 +886,10 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 	}
 }
 
-// lazyTags gives the constituent tags of a completing item on first use,
-// and the same set after that (§4).
-func (r *recognizer) lazyTags(p *production, caps itemCaps, origin, end int32) func() *tagset {
-	var tags *tagset
-	return func() *tagset {
-		if tags == nil {
-			tags = r.completedTags(p, caps, origin, end)
-		}
-		return tags
-	}
-}
-
-// completedTags is the constituent tags of a production's item over
-// [origin, end) with the given captures (engine §4).
-func (r *recognizer) completedTags(p *production, caps itemCaps, origin, end int32) *tagset {
-	in := r.run.ps.in
-	switch {
-	case p.tags != nil:
-		return r.run.evaluator(r.g, r.captureFunc(p, caps, origin, end, nil)).tagsOf(p.tags)
-	case p.implicit:
-		return in.all[caps.at(p.capSlot[0]).tags]
-	}
-	return in.empty()
+// lazyTags is the constituent tags of a completing item, which the walk
+// that first reads them computes, and the same set after that (§4).
+func (r *recognizer) lazyTags(p *production, caps itemCaps, origin, end int32) *lazyTags {
+	return &lazyTags{r: r, p: p, caps: caps, origin: origin, end: end}
 }
 
 // accepted lists the completed start-rule constituents over the whole input.

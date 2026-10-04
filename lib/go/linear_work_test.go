@@ -91,7 +91,7 @@ func TestUnionsLinear(t *testing.T) {
 			if got := len(run.evaluator(nil, nil).spanTags(spanVal{a: 0, b: n}).names); got != n+1 {
 				t.Fatalf("%d tags, not %d", got, n+1)
 			}
-			if got := len(run.evaluator(nil, nil).term(tagUnion(n)).set.names); got != n {
+			if got := len(run.evaluate(run.evaluator(nil, nil), tagUnion(n)).set.names); got != n {
 				t.Fatalf("%d tags, not %d", got, n)
 			}
 			v, err := (&stageGrammar{}).evaluateClosed("", tagUnion(n), [2]int{})

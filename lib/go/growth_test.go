@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -348,5 +349,50 @@ func TestDeepGrammar(t *testing.T) {
 				t.Fatalf("%s: no output: %v", c.name, err)
 			}
 		}()
+	}
+}
+
+// TestQueryWork parses each case of tests/query-work.json, whose step or
+// term starts many queries. A query halts the evaluation, which then goes
+// on from where it halted. Every visit of a node of a condition or a term
+// counts, so a step made again from its start passes the budget.
+func TestQueryWork(t *testing.T) {
+	data, err := os.ReadFile("../../tests/query-work.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cases []struct {
+		Name, Head, Item, Joiner, Tail, Rule, Text string
+		Count                                      int
+		Most                                       int64
+	}
+	if err := json.Unmarshal(data, &cases); err != nil {
+		t.Fatal(err)
+	}
+	if len(cases) == 0 {
+		t.Fatal("no query work cases")
+	}
+	for _, c := range cases {
+		items := make([]string, c.Count)
+		var rules strings.Builder
+		for i := range items {
+			n := strconv.Itoa(i)
+			items[i] = strings.ReplaceAll(c.Item, "{i}", n)
+			rules.WriteString(strings.ReplaceAll(c.Rule, "{i}", n))
+		}
+		d := mustLoad(t, oneStage(c.Head+strings.Join(items, c.Joiner)+c.Tail+rules.String()))
+		w := &workCounts{}
+		w.visits.most = c.Most * int64(c.Count)
+		var res *ParseResult
+		countWorkIn(w, func() { res, err = d.Parse(c.Text, ParseOptions{}) })
+		if err != nil {
+			t.Errorf("%s: %v", c.Name, err)
+			continue
+		}
+		if !res.OK {
+			t.Errorf("%s: %+v", c.Name, res.Error)
+			continue
+		}
+		t.Logf("%s: %d visits", c.Name, w.visits.Load())
 	}
 }

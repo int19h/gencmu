@@ -13,7 +13,7 @@ type spanVal struct {
 	tags  *tagset // for a whole capture: the captured part's tags
 	// lazy, for $ of a completing item, gives its tags on first use: the
 	// tag term runs only where a condition reads them (§4).
-	lazy func() *tagset
+	lazy *lazyTags
 }
 
 // A term's value is a string or a set, of strings or of tags (§10). The
@@ -30,6 +30,8 @@ type value struct {
 	set  *tagset
 }
 
+// evaluator is what an evaluation reads: the stage run, the grammar, and
+// the captures of the item or the constituent that it evaluates.
 type evaluator struct {
 	run     *stageRun
 	g       *lowered
@@ -42,60 +44,27 @@ func (run *stageRun) evaluator(g *lowered, capture func(string) (spanVal, bool))
 
 func (ev *evaluator) in() *interner { return ev.run.ps.in }
 
-func (ev *evaluator) span(t *domTerm) spanVal {
-	switch t.Kind {
-	case tmCapture:
-		s, ok := ev.capture(t.Str)
-		if !ok {
-			return spanVal{}
-		}
-		return s
-	case tmCall:
-		if len(t.Items) == 1 {
-			s := ev.span(t.Items[0])
-			s.whole, s.tags, s.lazy = false, nil, nil
-			switch t.Str {
-			case "head":
-				if s.b > s.a {
-					s.b = s.a + 1
-				}
-				return s
-			case "tail":
-				if s.b > s.a {
-					s.a++
-				}
-				return s
-			case "last":
-				if s.b > s.a {
-					s.a = s.b - 1
-				}
-				return s
-			case "from", "after":
-				// To the end of the input of the parse that evaluates the
-				// condition (§10).
-				if t.Str == "after" {
-					s.a = s.b
-				}
-				s.b = ev.run.inputEnd
-				return s
-			}
-		}
-	}
-	panic(&parseFailure{message: "not a span: " + t.Kind})
+// lazyTags is the constituent tags of a completing item, which $ has. The
+// tag term that gives them runs on first use, as part of the evaluation
+// that reads them, and only where a condition reads them (§4).
+type lazyTags struct {
+	r           *recognizer
+	p           *production
+	caps        itemCaps
+	origin, end int32
+	tags        *tagset
 }
 
-func (ev *evaluator) toSet(v value) *tagset {
+// toSet is a value that must be a set.
+func toSet(v value) *tagset {
 	if v.kind != vSet {
 		panic(&parseFailure{message: "expected a set"})
 	}
 	return v.set
 }
 
-func (ev *evaluator) tagsOf(t *domTerm) *tagset { return ev.toSet(ev.term(t)) }
-
-// str is the value of a term that is a string.
-func (ev *evaluator) str(t *domTerm) string {
-	v := ev.term(t)
+// toStr is a value that must be a string.
+func toStr(v value) string {
 	if v.kind != vString {
 		panic(&parseFailure{message: "expected a string"})
 	}
@@ -103,10 +72,10 @@ func (ev *evaluator) str(t *domTerm) string {
 }
 
 // spanTags is tags(s): the captured part's tags for a whole capture, else
-// the union of its tokens' tags.
+// the union of its tokens' tags. A lazy $ has its tags by now.
 func (ev *evaluator) spanTags(s spanVal) *tagset {
 	if s.whole && s.tags == nil && s.lazy != nil {
-		s.tags = s.lazy()
+		s.tags = s.lazy.tags
 	}
 	if s.whole && s.tags != nil {
 		return s.tags
@@ -117,13 +86,177 @@ func (ev *evaluator) spanTags(s spanVal) *tagset {
 	return ev.in().unionAll(ev.run.tagsets[s.a:s.b])
 }
 
-func (ev *evaluator) term(t *domTerm) value {
+// walk evaluates a condition or a term on a stack of frames, not of calls
+// (engine §4). A query whose answer is not yet known halts the walk, which
+// keeps its frames. Once the nested parse has answered, the walk goes on
+// from the frame that halted, so no node is evaluated twice. The order of
+// evaluation, and so of errors, is the order of a recursive evaluation.
+type walk struct {
+	frames []frame
+	// b and v are the value of the frame that ended last: b of a
+	// condition, v of a term.
+	b bool
+	v value
+	// chain holds the calls of a span while it is read.
+	chain []*domTerm
+}
+
+// frame is one node of a condition or a term, being evaluated: at says
+// how far it has got, and s, v and sets keep what it has so far. A frame
+// with neither a condition nor a term fills lazy with the value of the
+// term above it, the tags of $.
+type frame struct {
+	ev   *evaluator
+	c    *domCond
+	t    *domTerm
+	at   int
+	s    spanVal
+	v    value
+	sets []*tagset
+	lazy *lazyTags
+}
+
+// cond begins the walk of a condition.
+func (w *walk) cond(ev *evaluator, c *domCond) {
+	w.frames = w.frames[:0]
+	w.push(frame{ev: ev, c: c})
+}
+
+// term begins the walk of a term.
+func (w *walk) term(ev *evaluator, t *domTerm) {
+	w.frames = w.frames[:0]
+	w.push(frame{ev: ev, t: t})
+}
+
+// push enters a node, which counts as one visit before it is evaluated.
+func (w *walk) push(f frame) {
+	if f.lazy == nil {
+		if wc := work.Load(); wc != nil {
+			wc.visits.add("visits")
+		}
+	}
+	w.frames = append(w.frames, f)
+}
+
+func (w *walk) endCond(b bool) {
+	w.frames = w.frames[:len(w.frames)-1]
+	w.b = b
+}
+
+func (w *walk) endTerm(v value) {
+	w.frames = w.frames[:len(w.frames)-1]
+	w.v = v
+}
+
+func (w *walk) endSet(set *tagset) { w.endTerm(value{kind: vSet, set: set}) }
+
+// resume goes on with the walk until it ends, or halts for the nested parse
+// that it returns. Each step works on the frame on top: it enters a child,
+// ends the frame with its value, or halts and keeps it as it is.
+func (w *walk) resume() *nestedQuery {
+	for len(w.frames) > 0 {
+		f := &w.frames[len(w.frames)-1]
+		var q *nestedQuery
+		switch {
+		case f.c != nil:
+			q = w.condStep(f)
+		case f.t != nil:
+			q = w.termStep(f)
+		default:
+			// The tag term of $ has ended. Its value is the tags.
+			f.lazy.tags = toSet(w.v)
+			w.frames = w.frames[:len(w.frames)-1]
+		}
+		if q != nil {
+			return q
+		}
+	}
+	return nil
+}
+
+// span is the value of a term that is a span: a capture, or a chain of
+// calls of one argument that ends in one. It never halts, so it is read
+// at once, without recursion. Each node of the chain counts as a visit.
+func (w *walk) span(ev *evaluator, t *domTerm) spanVal {
+	w.chain = w.chain[:0]
+	for {
+		if wc := work.Load(); wc != nil {
+			wc.visits.add("visits")
+		}
+		if t.Kind != tmCall || len(t.Items) != 1 {
+			break
+		}
+		w.chain = append(w.chain, t)
+		t = t.Items[0]
+	}
+	if t.Kind != tmCapture {
+		panic(&parseFailure{message: "not a span: " + t.Kind})
+	}
+	s, ok := ev.capture(t.Str)
+	if !ok {
+		s = spanVal{}
+	}
+	for i := len(w.chain) - 1; i >= 0; i-- {
+		call := w.chain[i]
+		s.whole, s.tags, s.lazy = false, nil, nil
+		switch call.Str {
+		case "head":
+			if s.b > s.a {
+				s.b = s.a + 1
+			}
+		case "tail":
+			if s.b > s.a {
+				s.a++
+			}
+		case "last":
+			if s.b > s.a {
+				s.a = s.b - 1
+			}
+		case "from", "after":
+			// To the end of the input of the parse that evaluates the
+			// condition (§10).
+			if call.Str == "after" {
+				s.a = s.b
+			}
+			s.b = ev.run.inputEnd
+		default:
+			panic(&parseFailure{message: "not a span: " + call.Kind})
+		}
+	}
+	return s
+}
+
+// fillLazy enters the tag term of a lazy $ whose tags a frame is about to
+// read, and says whether it did. Tags that need no term are set at once.
+func (w *walk) fillLazy(s spanVal) bool {
+	lz := s.lazy
+	if !s.whole || s.tags != nil || lz == nil || lz.tags != nil {
+		return false
+	}
+	r, p := lz.r, lz.p
+	switch {
+	case p.tags != nil:
+		w.frames = append(w.frames, frame{lazy: lz})
+		w.push(frame{ev: r.run.evaluator(r.g, r.captureFunc(p, lz.caps, lz.origin, lz.end, nil)), t: p.tags})
+		return true
+	case p.implicit:
+		lz.tags = r.run.ps.in.all[lz.caps.at(p.capSlot[0]).tags]
+	default:
+		lz.tags = r.run.ps.in.empty()
+	}
+	return false
+}
+
+func (w *walk) termStep(f *frame) *nestedQuery {
+	ev, t := f.ev, f.t
 	in := ev.in()
 	switch t.Kind {
 	case tmString:
-		return value{kind: vString, s: t.Str}
+		w.endTerm(value{kind: vString, s: t.Str})
+		return nil
 	case tmTag:
-		return value{kind: vSet, set: in.single(t.Str)}
+		w.endSet(in.single(t.Str))
+		return nil
 	case tmRange:
 		ps := ev.run.ps
 		set := ps.ranges[t.Range]
@@ -131,9 +264,11 @@ func (ev *evaluator) term(t *domTerm) value {
 			set = in.fromList(rangeTags(t.Range, ps.uni.isMark))
 			ps.ranges[t.Range] = set
 		}
-		return value{kind: vSet, set: set}
+		w.endSet(set)
+		return nil
 	case tmEmptySet:
-		return value{kind: vSet, set: in.empty()}
+		w.endSet(in.empty())
+		return nil
 	case tmConst:
 		// A constant holds its final value once the stage is stitched (§2).
 		v := t.value
@@ -141,7 +276,8 @@ func (ev *evaluator) term(t *domTerm) value {
 			panic(&parseFailure{message: "the constant $" + t.Str + " has no value"})
 		}
 		if v.ty == tyString {
-			return value{kind: vString, s: v.s}
+			w.endTerm(value{kind: vString, s: v.s})
+			return nil
 		}
 		ps := ev.run.ps
 		set := ps.consts[v]
@@ -149,55 +285,116 @@ func (ev *evaluator) term(t *domTerm) value {
 			set = in.make(v.names)
 			ps.consts[v] = set
 		}
-		return value{kind: vSet, set: set}
+		w.endSet(set)
+		return nil
 	case tmUnion:
-		sets := make([]*tagset, len(t.Items))
-		for i, it := range t.Items {
-			sets[i] = ev.tagsOf(it)
+		// Each part, then the union of them all.
+		if f.at == 0 {
+			f.sets = make([]*tagset, 0, len(t.Items))
+		} else {
+			f.sets = append(f.sets, toSet(w.v))
 		}
-		return value{kind: vSet, set: in.unionAll(sets)}
+		if f.at == len(t.Items) {
+			w.endSet(in.unionAll(f.sets))
+			return nil
+		}
+		f.at++
+		w.push(frame{ev: ev, t: t.Items[f.at-1]})
+		return nil
 	case tmIntersection:
-		out := ev.tagsOf(t.Items[0])
-		for _, it := range t.Items[1:] {
-			out = in.intersection(out, ev.tagsOf(it))
+		switch {
+		case f.at == 1:
+			f.v = value{kind: vSet, set: toSet(w.v)}
+		case f.at > 1:
+			f.v.set = in.intersection(f.v.set, toSet(w.v))
 		}
-		return value{kind: vSet, set: out}
+		if f.at == len(t.Items) {
+			w.endTerm(f.v)
+			return nil
+		}
+		f.at++
+		w.push(frame{ev: ev, t: t.Items[f.at-1]})
+		return nil
 	case tmDifference:
-		return value{kind: vSet, set: in.difference(ev.tagsOf(t.Items[0]), ev.tagsOf(t.Items[1]))}
+		switch f.at {
+		case 0:
+			f.at = 1
+			w.push(frame{ev: ev, t: t.Items[0]})
+		case 1:
+			f.v, f.at = value{kind: vSet, set: toSet(w.v)}, 2
+			w.push(frame{ev: ev, t: t.Items[1]})
+		default:
+			w.endSet(in.difference(f.v.set, toSet(w.v)))
+		}
+		return nil
 	case tmCall:
 		switch t.Str {
 		case "phonemes":
-			return value{kind: vString, s: ev.run.phonemes(ev.span(t.Items[0]))}
+			w.endTerm(value{kind: vString, s: ev.run.phonemes(w.span(ev, t.Items[0]))})
+			return nil
 		case "text":
-			return value{kind: vString, s: ev.run.spanText(ev.span(t.Items[0]))}
+			w.endTerm(value{kind: vString, s: ev.run.spanText(w.span(ev, t.Items[0]))})
+			return nil
 		case "split":
 			// A set of strings (§10); an empty delimiter that only a parse
 			// sees is an error of the grammar.
-			str, delimiter := ev.str(t.Items[0]), ev.str(t.Items[1])
-			if delimiter == "" {
-				panic(&parseFailure{message: "split has an empty delimiter"})
+			switch f.at {
+			case 0:
+				f.at = 1
+				w.push(frame{ev: ev, t: t.Items[0]})
+			case 1:
+				f.v, f.at = value{kind: vString, s: toStr(w.v)}, 2
+				w.push(frame{ev: ev, t: t.Items[1]})
+			default:
+				delimiter := toStr(w.v)
+				if delimiter == "" {
+					panic(&parseFailure{message: "split has an empty delimiter"})
+				}
+				w.endSet(in.fromList(splitString(f.v.s, delimiter)))
 			}
-			return value{kind: vSet, set: in.fromList(splitString(str, delimiter))}
+			return nil
 		case "tag":
-			name := ev.str(t.Items[0])
+			if f.at == 0 {
+				f.at = 1
+				w.push(frame{ev: ev, t: t.Items[0]})
+				return nil
+			}
+			name := toStr(w.v)
 			if !isName(name) {
 				panic(&parseFailure{message: "tag(" + strconv.Quote(name) + "): the string is not a name"})
 			}
-			return value{kind: vSet, set: in.single(name)}
+			w.endSet(in.single(name))
+			return nil
 		case "tags":
-			s := ev.span(t.Items[0])
+			if f.at == 0 {
+				f.s, f.at = w.span(ev, t.Items[0]), 1
+				if len(t.Items) == 1 && w.fillLazy(f.s) {
+					return nil
+				}
+			}
 			if len(t.Items) == 2 {
 				// The same parse, and the same answer, as matches().
-				_, tags := ev.run.nested(ev.g, cdMatches, t.Items[1].Str, s)
-				return value{kind: vSet, set: tags}
+				_, tags, q := ev.run.nested(ev.g, cdMatches, t.Items[1].Str, f.s)
+				if q != nil {
+					return q
+				}
+				w.endSet(tags)
+				return nil
 			}
-			return value{kind: vSet, set: ev.spanTags(s)}
+			w.endSet(ev.spanTags(f.s))
+			return nil
 		case "classify":
 			// The classes that the classifier gives the string, for the
 			// features of the parse, or none for an unknown key (§10).
-			classes := ev.g.classifiers[t.Items[1].Str][ev.str(t.Items[0])]
+			if f.at == 0 {
+				f.at = 1
+				w.push(frame{ev: ev, t: t.Items[0]})
+				return nil
+			}
+			classes := ev.g.classifiers[t.Items[1].Str][toStr(w.v)]
 			if classes == nil {
-				return value{kind: vSet, set: in.empty()}
+				w.endSet(in.empty())
+				return nil
 			}
 			ps := ev.run.ps
 			set := ps.consts[classes]
@@ -205,31 +402,61 @@ func (ev *evaluator) term(t *domTerm) value {
 				set = in.make(classes.names)
 				ps.consts[classes] = set
 			}
-			return value{kind: vSet, set: set}
+			w.endSet(set)
+			return nil
 		case "classes":
-			all := ev.spanTags(ev.span(t.Items[0]))
+			if f.at == 0 {
+				f.s, f.at = w.span(ev, t.Items[0]), 1
+				if w.fillLazy(f.s) {
+					return nil
+				}
+			}
+			all := ev.spanTags(f.s)
 			var names []string
 			for _, n := range all.names {
 				if isTerminalName(n) {
 					names = append(names, n)
 				}
 			}
-			return value{kind: vSet, set: in.make(names)}
+			w.endSet(in.make(names))
+			return nil
 		}
 	case tmIf:
 		// Its term, evaluated only where its condition holds (§10).
-		if ev.cond(t.Cond) {
-			return value{kind: vSet, set: ev.tagsOf(t.Items[0])}
+		switch f.at {
+		case 0:
+			f.at = 1
+			w.push(frame{ev: ev, c: t.Cond})
+		case 1:
+			if !w.b {
+				w.endSet(in.empty())
+				return nil
+			}
+			f.at = 2
+			w.push(frame{ev: ev, t: t.Items[0]})
+		default:
+			w.endSet(toSet(w.v))
 		}
-		return value{kind: vSet, set: in.empty()}
+		return nil
 	}
 	panic(&parseFailure{message: "cannot evaluate term " + t.Kind + " " + t.Str})
 }
 
-func (ev *evaluator) cond(c *domCond) bool {
+func (w *walk) condStep(f *frame) *nestedQuery {
+	ev, c := f.ev, f.c
 	switch c.Kind {
 	case cdCompare:
-		l, r := ev.term(c.Left), ev.term(c.Right)
+		switch f.at {
+		case 0:
+			f.at = 1
+			w.push(frame{ev: ev, t: c.Left})
+			return nil
+		case 1:
+			f.v, f.at = w.v, 2
+			w.push(frame{ev: ev, t: c.Right})
+			return nil
+		}
+		l, r := f.v, w.v
 		switch c.Op {
 		case "=", "≠":
 			var eq bool
@@ -237,51 +464,101 @@ func (ev *evaluator) cond(c *domCond) bool {
 			case l.kind == vString && r.kind == vString:
 				eq = l.s == r.s
 			default:
-				eq = ev.toSet(l).key == ev.toSet(r).key
+				eq = toSet(l).key == toSet(r).key
 			}
-			return eq == (c.Op == "=")
+			w.endCond(eq == (c.Op == "="))
+			return nil
 		case "∈", "∉":
 			// A string in a set of strings; the reader refuses any other
 			// pair (§10).
 			if l.kind != vString {
 				panic(&parseFailure{message: "the left side of " + c.Op + " is a string"})
 			}
-			return ev.toSet(r).has(l.s) == (c.Op == "∈")
+			w.endCond(toSet(r).has(l.s) == (c.Op == "∈"))
+			return nil
 		case "⊆", "⊈":
-			return subset(ev.toSet(l), ev.toSet(r)) == (c.Op == "⊆")
+			w.endCond(subset(toSet(l), toSet(r)) == (c.Op == "⊆"))
+			return nil
 		}
 	case cdMatches, cdBegins:
-		ok, _ := ev.run.nested(ev.g, c.Kind, c.Rule, ev.span(c.Span))
-		return ok
+		// The span is read once. A halt keeps it for the answer.
+		if f.at == 0 {
+			f.s, f.at = w.span(ev, c.Span), 1
+		}
+		ok, _, q := ev.run.nested(ev.g, c.Kind, c.Rule, f.s)
+		if q != nil {
+			return q
+		}
+		w.endCond(ok)
+		return nil
 	case cdInitial:
 		// Where the input of the parse that reads the condition begins (§10).
-		return ev.span(c.Span).a == ev.run.inputStart
+		w.endCond(w.span(ev, c.Span).a == ev.run.inputStart)
+		return nil
 	case cdNot:
-		return !ev.cond(c.Inner)
+		if f.at == 0 {
+			f.at = 1
+			w.push(frame{ev: ev, c: c.Inner})
+			return nil
+		}
+		w.endCond(!w.b)
+		return nil
 	case cdCaptured:
 		// Simplification decides every presence test (§3.6); one left here
 		// asks the production.
 		_, ok := ev.capture(c.Rule)
-		return ok
+		w.endCond(ok)
+		return nil
 	case cdIf:
 		// The consequent only where the antecedent holds (§10).
-		return !ev.cond(c.Items[0]) || ev.cond(c.Items[1])
-	case cdAny:
-		for _, it := range c.Items {
-			if ev.cond(it) {
-				return true
+		switch f.at {
+		case 0:
+			f.at = 1
+			w.push(frame{ev: ev, c: c.Items[0]})
+		case 1:
+			if !w.b {
+				w.endCond(true)
+				return nil
 			}
+			f.at = 2
+			w.push(frame{ev: ev, c: c.Items[1]})
+		default:
+			w.endCond(w.b)
 		}
-		return false
-	case cdAll:
-		for _, it := range c.Items {
-			if !ev.cond(it) {
-				return false
-			}
+		return nil
+	case cdAny, cdAll:
+		// The parts in order, up to the first that decides: one that
+		// holds decides any, and one that fails decides all.
+		decides := c.Kind == cdAny
+		if f.at > 0 && w.b == decides {
+			w.endCond(decides)
+			return nil
 		}
-		return true
+		if f.at == len(c.Items) {
+			w.endCond(!decides)
+			return nil
+		}
+		f.at++
+		w.push(frame{ev: ev, c: c.Items[f.at-1]})
+		return nil
 	}
 	panic(&parseFailure{message: "cannot evaluate condition " + c.Kind})
+}
+
+// evaluate walks a term outside any recognition, as emission does, and
+// answers each nested parse that it halts for, on a stack of its own,
+// before it goes on.
+func (run *stageRun) evaluate(ev *evaluator, t *domTerm) value {
+	var w walk
+	w.term(ev, t)
+	for {
+		q := w.resume()
+		if q == nil {
+			return w.v
+		}
+		run.startQuery(q)
+		run.drive(q.recognizer(run))
+	}
 }
 
 // phonemes(span): the canonical sound of the span, its tokens' phonemes
@@ -319,9 +596,9 @@ const contentKeyLimit = 64
 // which also gives the tags of tags(span, rule), or cdBegins, whether a
 // prefix of the span, the empty one included, parses as rule. The answer
 // is remembered for the whole parse. Where it is not yet known, nested
-// halts the evaluation with a panic of the query, which the recognition
-// that evaluates it, or emission, answers on a stack of its own.
-func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *tagset) {
+// gives the query instead, which halts the walk that asked it. The
+// recognition that walks, or emission, answers it on a stack of its own.
+func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *tagset, *nestedQuery) {
 	ps := run.ps
 	start := g.byName[rule]
 	k := nestedKey{g: g, kind: kind, rule: start, a: s.a, b: s.b}
@@ -329,18 +606,13 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 		k.content, k.a, k.b = run.spanContent(s), -1, -1
 	}
 	if r, ok := ps.nested[k]; ok {
-		return r.holds, r.tags
+		return r.holds, r.tags, nil
 	}
-	panic(&nestedQuery{g: g, name: rule, start: start, key: k, at: spanKey{g: g, rule: start, a: s.a, b: s.b}})
+	return false, nil, &nestedQuery{g: g, name: rule, start: start, key: k, at: spanKey{g: g, rule: start, a: s.a, b: s.b}}
 }
 
 // nestedQuery is a nested parse that an evaluation needs: the span at as
 // the rule named name, for the query that key remembers.
-//
-// The Rust library returns such a query up the evaluation as a value. The
-// evaluator here reports an error of the grammar by a panic already, so a
-// query halts it by a panic too, and every term and condition stays as it
-// is. The panic unwinds no further than the step that evaluates.
 type nestedQuery struct {
 	g     *lowered
 	name  string
@@ -361,8 +633,8 @@ func (q *nestedQuery) recognizer(run *stageRun) *recognizer {
 // drive runs a recognition and the nested parses it needs, on a stack of
 // recognitions and not of calls, so that queries nest to any depth (§4). A
 // recognition that halts for a nested parse waits below the one that
-// answers it, and then makes its step again. Each sees its own input
-// while it runs.
+// answers it, and then goes on from where it halted. Each sees its own
+// input while it runs.
 func (run *stageRun) drive(root *recognizer) {
 	outerStart, outerEnd := run.inputStart, run.inputEnd
 	frames := []*recognizer{root}
@@ -378,7 +650,7 @@ func (run *stageRun) drive(root *recognizer) {
 	for len(frames) > 0 {
 		r := frames[len(frames)-1]
 		run.inputStart, run.inputEnd = r.lo, r.hi
-		if q := halted(r.resume); q != nil {
+		if q := r.resume(); q != nil {
 			run.startQuery(q)
 			frames = append(frames, q.recognizer(run))
 			continue
@@ -388,34 +660,6 @@ func (run *stageRun) drive(root *recognizer) {
 			delete(run.ps.inProgress, r.query.at)
 			run.settle(r)
 		}
-	}
-}
-
-// halted runs f, and gives the nested parse it halted for, or nil when it
-// ran to its end. Any other panic goes on.
-func halted(f func()) (q *nestedQuery) {
-	defer func() {
-		if x := recover(); x != nil {
-			var ok bool
-			if q, ok = x.(*nestedQuery); !ok {
-				panic(x)
-			}
-		}
-	}()
-	f()
-	return nil
-}
-
-// settled runs f outside any recognition, as emission does, and answers
-// each nested parse it halts for before it runs f again.
-func (run *stageRun) settled(f func()) {
-	for {
-		q := halted(f)
-		if q == nil {
-			return
-		}
-		run.startQuery(q)
-		run.drive(q.recognizer(run))
 	}
 }
 

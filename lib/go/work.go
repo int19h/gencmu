@@ -22,7 +22,9 @@ import (
 //     reading a captured part takes.
 //   - linkSteps: the links that the check of elision-only compares and
 //     looks up to find a repeated link.
-//   - conditions: the conditions that advances look at.
+//   - conditions: the conditions that advances look at, each as it begins.
+//   - visits: the nodes of conditions and terms that an evaluation enters,
+//     each before it is evaluated, in an evaluation that halts as well.
 //   - soundSteps: the tokens that sound tests and phonemes() visit.
 //   - readerSteps: the steps of the notation's reader and of the walks it
 //     makes of what it reads.
@@ -48,7 +50,7 @@ type workCounts struct {
 	captureSteps, linkSteps, conditions, soundSteps, readerSteps workCount
 	interned, loweredSlots, ruleSetSteps, clauseSteps, emitSteps workCount
 	classSteps, implicationSteps, decodeSteps, elidableSteps     workCount
-	spliceSteps                                                  workCount
+	spliceSteps, visits                                          workCount
 }
 
 // workCount is one count of workCounts, with its budget, or 0 for none,
