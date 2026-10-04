@@ -7,7 +7,8 @@
 // Usage: node tools/peg-lexicon.js PEG LEXICON.md [CLASS,...]
 // The optional list names the classes that the lexicon's implication marks
 // as indicators. An empty list writes no implication. The blocks are those
-// that the Markdown parser of tools/markdown.js finds at the top level.
+// that the Markdown parser of tools/markdown.js finds at the top level, so
+// run npm ci in lib/js first.
 import fs from "node:fs";
 import { parseMarkdown } from "./markdown.js";
 

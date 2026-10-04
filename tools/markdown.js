@@ -45,9 +45,10 @@ try {
  *   whether a closing fence ends it (the block has two fence tokens);
  * - a table row's `data.leadingPipe` says whether its first cell begins
  *   with a cell divider;
- * - the root's `data.strayBackticks` lists the place of each backtick that
- *   the parser read as plain text: one that opens no code span and has no
- *   backslash.
+ * - the root's `data.strayBackticks` lists the line of each run of text
+ *   that holds a backtick the parser read as plain text: one that opens no
+ *   code span and has no backslash, outside a link's destination and
+ *   title.
  * @param {Node} tree
  * @param {[string, {type: string, start: {line: number, column: number, offset: number}, end: {offset: number}}][]} events
  * @param {string} markdown
@@ -60,6 +61,9 @@ function annotate(tree, events, markdown) {
   const stray = [];
   let block = null;
   let row = null;
+  // The depth of link definitions and link destinations and titles, whose
+  // text is not prose.
+  let outside = 0;
   for (const [kind, token] of events) {
     // The first token in the first cell of a row.
     if (kind === "enter" && row !== null && token.type !== "tableHeader" && token.type !== "tableData") {
@@ -70,13 +74,11 @@ function annotate(tree, events, markdown) {
     else if (kind === "enter" && token.type === "codeFencedFence" && block) block.fences++;
     else if (kind === "exit" && token.type === "codeFenced") block = null;
     else if (kind === "enter" && token.type === "tableRow") row = token.start.offset;
-    else if (kind === "exit" && token.type === "data") {
+    else if (token.type === "definition" || token.type === "resource") outside += kind === "enter" ? 1 : -1;
+    else if (kind === "exit" && token.type === "data" && !outside) {
       const text = markdown.slice(token.start.offset, token.end.offset);
-      let { line, column } = token.start;
-      for (const char of text) {
-        if (char === "`") stray.push({ line, column });
-        if (char === "\n") { line++; column = 1; } else column++;
-      }
+      // A data token stands on one line.
+      if (text.includes("`")) stray.push({ line: token.start.line });
     }
   }
   for (const { node } of walk(tree)) {

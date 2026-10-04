@@ -143,7 +143,7 @@ A quoted text is a code span in the prose of a document, outside code blocks, wi
 - It holds only lowercase ASCII letters, apostrophes, full stops, commas and white space, and each word has a letter. So a rule name is not a quoted text, since it has a hyphen or a digit. Nor is a selma'o or a token, which is uppercase, or jbogenbau, which has brackets and other symbols.
 - It holds no `...` or `…`, which mark a gap in the words.
 
-The check finds the code spans with the CommonMark and GFM parser of `tools/markdown.js`, so a code block holds none. Every prose block is one line, with its code spans ("Documents" in `docs/design.md`). So the line of a text's code span is the paragraph, list item, heading or table row that quotes it.
+The check finds the code spans with the CommonMark and GFM parser of `tools/markdown.js`, so a code block holds none. Every prose block is one line, with its code spans ("Documents" in `docs/design.md`). So the line of a text's code span is the paragraph, heading or table row that quotes it.
 
 The words of a quoted text, joined by single spaces, are compared with the text of each corpus case, written the same way. Each checked document has the dialects that its claims are about. A quoted text needs a case of each of them. Its line can name more dialects, as in "the bpfk dialect rejects it" or "In cll-ebnf and bpfk". The text then needs a case of each of those too. A name counts when it stands as a word in the prose, or in the text of a link. A name in a code span or a link target does not count.
 

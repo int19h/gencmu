@@ -547,14 +547,17 @@ The editor lists a dialect's documents stage by stage. A forgiving scan of the `
 
 ## Documents
 
-Every paragraph, list item, heading and table row of a Markdown document in the repository stands on one line. Some renderers show a line break inside a paragraph as a break. A code span closes on the line where it opens. A paragraph can follow a heading directly. Code blocks and HTML blocks are exempt.
+Every paragraph, heading and table row of a Markdown document in the repository stands on one line. A list item can hold several paragraphs, each on its own line. Some renderers show a line break inside a paragraph as a break. A code span closes on the line where it opens. A paragraph can follow a heading directly. The content of a fenced block is not prose.
 
-`tools/sync.js --check` reads each document that git tracks with a CommonMark and GFM parser (`tools/markdown.js`). So it sees each block where GitHub sees it. It reports these layouts (`tools/prose-lines.js`):
+The tools list the repository's documents in one way (`tools/documents.js`). In a git checkout whose top level is the repository, the documents are those that git tracks. Anywhere else, such as in an exported tree, they are every Markdown file under the repository. `tools/sync.js` fails when git does not track a grammar file that it would bundle.
+
+`tools/sync.js --check` reads each document with a CommonMark and GFM parser (`tools/markdown.js`). So it sees each block where GitHub sees it. It reports these layouts (`tools/prose-lines.js`):
 
 - a line that continues a paragraph or a heading, such as a lazy continuation line or the underline of a setext heading
-- a line of prose right after a table, which the table takes in as a row
+- a table row that does not begin with `|`, such as a line of prose right after a table, which the table takes in as a row
 - a code span that closes on a later line, and a backtick that opens no code span
 - a fenced block with no closing fence, which takes in the rest of its container
+- an indented code block, such as a paragraph indented too far in a list item, and an HTML block, since either can hide prose
 
 The check of quoted texts relies on this rule, since it gives each text the line of its code span (`tools/quoted-texts.js`).
 

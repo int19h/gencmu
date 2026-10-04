@@ -23,7 +23,8 @@ import { extractGrammarText } from "../lib/js/src/markdown.js";
 import { includeIsLinked } from "./links.js";
 import { layoutProblems } from "./alternatives.js";
 import { quotedTextProblems } from "./quoted-texts.js";
-import { markdownFiles, proseLineProblems } from "./prose-lines.js";
+import { proseLineProblems } from "./prose-lines.js";
+import { markdownFiles, repositoryFiles } from "./documents.js";
 import { missing as parserMissing } from "./markdown.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -52,6 +53,16 @@ function grammarFiles(directory = grammars, prefix = "") {
     else if (relative !== "compiled.json") files.push(relative);
   }
   return files;
+}
+
+// Every grammar file that this script bundles is one of the repository's
+// files, as every tool lists them (tools/documents.js). So the checks below
+// see each document that the packages ship.
+const listed = new Set(repositoryFiles(root));
+const unlisted = grammarFiles().map((file) => `grammars/${file}`).filter((file) => !listed.has(file));
+if (unlisted.length) {
+  console.error(unlisted.map((file) => `${file}: git does not track this file, and sync.js would bundle it; add it to git, or remove it`).join("\n"));
+  process.exit(1);
 }
 
 // The bootstrap: the notation's own pipeline read with the bootstrap, until
@@ -108,9 +119,10 @@ if (sprawling.length) {
 // - Every %include of a document follows, in the same list item, a link to
 //   the same path, so that the prose and the blocks name the same documents
 //   (docs/design.md, "Pipelines"; tools/links.js).
-// - Every paragraph, list item, heading and table row of every Markdown
-//   document stands on one line, with its code spans (docs/design.md,
-//   "Documents"; tools/prose-lines.js).
+// - Every paragraph, heading and table row of every Markdown document
+//   stands on one line, with its code spans, and no document has an
+//   indented code block or an HTML block (docs/design.md, "Documents";
+//   tools/prose-lines.js).
 // - Every Lojban text that a grammar document quotes has a corpus case, or
 //   an entry in tests/quoted-allow.txt (tests/README.md, "Quoted texts").
 if (parserMissing && check) {

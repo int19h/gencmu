@@ -76,8 +76,8 @@ export function quotedText(content) {
  * from 1) and the dialects that its prose block names. They are the code
  * spans that a CommonMark and GFM parser finds (tools/markdown.js), so a
  * code block holds none. Every prose block is one line
- * (tools/prose-lines.js), so the line of a text is the paragraph, list item,
- * heading or table row that quotes it.
+ * (tools/prose-lines.js), so the line of a text is the paragraph, heading
+ * or table row that quotes it.
  * @param {string} markdown
  * @returns {{text: string, line: number, dialects: string[]}[]}
  */
