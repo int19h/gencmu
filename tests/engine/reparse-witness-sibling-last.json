@@ -1,6 +1,6 @@
 {
   "description": "As reparse-witness-sibling-first, with W(D)'s production A [T] B last of a's three. In JavaScript W(D)'s edge is then the last of three siblings, and W(D) is neither reported reading: the two A T B derivations come first in the order T. A ranker that drops W(D)'s edge where it has siblings gives the same result, readings and witness included. Only the witness hook, which asks whether the check's own count counted W(D), sees the loss (engine §7.8, tests/README.md).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b\n%rule a A T B | A T B | A [T] B\n%rule b A [T] [T] B",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b\n%rule a A T B | A T B | A [+T] B\n%rule b A [+T] [+T] B",
   "tokens": [
     {
       "text": "a",

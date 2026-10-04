@@ -13,7 +13,7 @@ import json
 import re
 from typing import Any, Protocol
 
-from ._clauses import definition_problem
+from ._clauses import definition_problem, duplicate_captures
 from ._tags import character_of_tag, is_tag
 from ._types import constant_value_problem, expected_problem, is_sound_test, open_part, rule_type_problem, term_type, test_type_problem
 from ._unicode import PROPERTY_NAMES
@@ -29,7 +29,7 @@ class Lowercase(Protocol):
     def is_mark(self, code: int) -> bool: ...
 
 
-FORMAT = 17
+FORMAT = 18
 """The version of the DOM's shape (docs/output.md)."""
 
 CONSTANT_NAME = re.compile(r"[A-Z][A-Za-z0-9-]*")
@@ -59,6 +59,16 @@ CAPTURE_NAME = re.compile(r"[a-z][a-z0-9-]*")
 """A capture's name is all lower case (engine §9)."""
 _WHOLE = ""
 """The capture name of ``$``, the whole constituent (engine §3.5)."""
+_DIRECTIVE_NAMES = frozenset(["ambiguity-resolution", "stage", "include", "features"])
+"""The directives of the notation (engine §9)."""
+_TERMINAL_NAME = re.compile(r"[A-Z][A-Za-z0-9-]*")
+"""A reference that names a terminal begins with a capital (engine §2)."""
+
+# The flags of an expression to check: whether it is an alternative's whole
+# expression, where a chain may stand, and whether it lies inside braces or
+# an elidable optional, where no capture stands.
+_WHOLE_EXPR = 1
+_SEALED = 2
 
 
 def _is_int(value: Any) -> bool:
@@ -138,8 +148,8 @@ _EXPRESSION_FORMS = (
     ("seq",),
     ("choice",),
     ("and",),
-    ("optional",),
-    ("repeat", "min"),
+    ("optional", "elidable?", "maximal?"),
+    ("repeat", "separator?", "chain?"),
     ("ref",),
     ("terminal",),
     ("capture", "expr"),
@@ -178,9 +188,12 @@ def _has_one_form(value: dict[str, Any], forms: tuple[tuple[str, ...], ...]) -> 
     """Whether a node has exactly the members of one of its forms. So a node
     that joins two forms, such as ``{"tag":…,"string":…}``, is refused
     before it is read, and no library reads it one way where another reads
-    it another way."""
+    it another way. A member that ends in ``?`` may be absent."""
     form = next((members for members in forms if members[0] in value), None)
-    return form is not None and len(value) == len(form) and all(member in value for member in form)
+    if form is None:
+        return False
+    names = {member.rstrip("?") for member in form}
+    return all(member.endswith("?") or member in value for member in form) and all(key in names for key in value)
 
 
 def _is_ref(value: Any) -> bool:
@@ -349,10 +362,9 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
             or not _is_position(directive.get("at"))
         ):
             return "a malformed directive"
-        # Only an elidable directive can be maximal, and the member is then
-        # the boolean True itself: 1 equals True in Python, but it is no
-        # boolean (engine §9).
-        if "maximal" in directive and (directive["name"] != "elidable" or directive["maximal"] is not True):
+        # No directive has a maximal member, and the notation has four
+        # directives; %elidable is none of them (engine §9).
+        if "maximal" in directive or directive["name"] not in _DIRECTIVE_NAMES:
             return "a malformed directive"
         # The operands the notation's syntax allows these directives (engine §9).
         name, args = directive["name"], directive["args"]
@@ -360,13 +372,15 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
             (name == "stage" and not (len(args) == 1 and _NAME.fullmatch(args[0])))
             or (name == "include" and len(args) != 1)
             or (name == "features" and not (args and all(_NAME.fullmatch(arg) for arg in args)))
-            or (name == "elidable" and not all(_NAME.fullmatch(arg) for arg in args))
         ):
             return "a malformed directive"
     # Each entry is a node to check, its kind, its depth, and whether it
     # lies in a rule's or an alternative's tag term, which may not read
     # the tags it defines.
-    pending: list[tuple[str, Any, int, bool]] = []
+    pending: list[tuple[str, Any, int, int]] = []
+    # The expressions of the alternatives, whose capture names are checked
+    # per production once their shape is.
+    expressions: list[Any] = []
     # A constant's definition: its name, its op, its position and a value
     # that is a closed term (engine §2, §10).
     for constant in dom["constants"]:
@@ -432,21 +446,10 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
                 or not all(_is_guard(guard) for guard in alternative["guards"])
             ):
                 return "a malformed alternative"
-            # A capture stands only at the top level of an alternative: the
-            # expression itself, or an item of its sequence (engine §3.5);
-            # an alternative has at most four, each named once.
-            expr = alternative.get("expr")
-            top = expr["seq"] if isinstance(expr, dict) and isinstance(expr.get("seq"), list) else [expr]
-            names = [item["capture"] for item in top if isinstance(item, dict) and isinstance(item.get("capture"), str)]
-            if _WHOLE in names:
-                return "$ wrapping a symbol"
-            if len(set(names)) != len(names):
-                return "a capture name used twice in an alternative"
-            if len(names) > 4:
-                return "more than four captures in an alternative"
-            if not all(CAPTURE_NAME.fullmatch(name) for name in names if name != _WHOLE):
-                return "a capture name is not all lower case"
-            pending.append(("top", expr, 0, False))
+            # The whole expression, where a chain may stand; its capture
+            # names are checked per production once its shape is.
+            pending.append(("expr", alternative.get("expr"), 0, _WHOLE_EXPR))
+            expressions.append(alternative.get("expr"))
             if "tags" in alternative:
                 pending.append(("term", alternative["tags"], 0, True))
     # The tested symbols, whose values are checked once the nesting is
@@ -474,6 +477,10 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
         fault = test_value_fault(test["test"], test["value"], unicode)
         if fault is not None:
             return fault[0]
+    # A capture name stands at most once in each production (engine §3.5).
+    for expr in expressions:
+        if duplicate_captures(expr):
+            return "a capture name used twice in one production"
     # A definition is checked as a whole (engine §9), once its clauses are
     # known to be well formed, and so are the types of its terms and
     # conditions (engine §10).
@@ -496,12 +503,14 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
     return None
 
 
-def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase, tests: list[dict[str, Any]]) -> str | None:
+def _walk(pending: list[tuple[str, Any, int, int]], unicode: Lowercase, tests: list[dict[str, Any]]) -> str | None:
     """Check the nodes of expressions, emissions, conditions and terms, each
-    entry a node, its kind, its depth, and whether it lies in a rule's or an
-    alternative's tag term, which may not read the tags it defines. The
-    tested symbols go into ``tests``, whose values the caller checks once
-    the nesting is bounded."""
+    entry a node, its kind, its depth, and a mark. For a term or a
+    condition, the mark says whether it lies in a rule's or an alternative's
+    tag term, which may not read the tags it defines; for an expression, it
+    holds the flags _WHOLE_EXPR and _SEALED. The tested symbols go into
+    ``tests``, whose values the caller checks once the nesting is
+    bounded."""
     items: Any
     args: Any
     while pending:
@@ -509,11 +518,13 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase, tests: 
         if depth > MAX_DEPTH:
             return TOO_DEEP
         if not isinstance(value, dict):
-            return f"a malformed {'expression' if kind in ('top', 'item') else kind}"
+            return f"a malformed {'expression' if kind == 'expr' else kind}"
         below = depth + 1
-        if kind in ("expr", "top", "item"):
+        if kind == "expr":
             # An expression has exactly the members of one form
-            # (docs/output.md).
+            # (docs/output.md). A place inside braces or an elidable
+            # optional holds no capture, at any depth (engine §3.5).
+            sealed = own & _SEALED
             if not _has_one_form(value, _EXPRESSION_FORMS):
                 return "a malformed expression"
             if "range" in value or "property" in value:
@@ -523,34 +534,51 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase, tests: 
                 items = value["choice"] if "choice" in value else value["seq"]
                 if not _items(items, 2):
                     return "a malformed expression"
-                child_kind = "item" if kind == "top" and "seq" in value else "expr"
-                pending.extend((child_kind, item, below, False) for item in items)
+                pending.extend(("expr", item, below, sealed) for item in items)
             elif "and" in value:
                 if not _items(value["and"], 2, 16):
                     return "a malformed expression"
-                pending.extend(("expr", item, below, False) for item in value["and"])
+                pending.extend(("expr", item, below, sealed) for item in value["and"])
             elif "repeat" in value:
-                if not (_is_int(value.get("min")) and value["min"] in (0, 1)):
+                # A chain is the whole expression of its alternative (engine
+                # §9), and its direction is left or right. A separator
+                # counts on from the depth of its repeat, as the item does.
+                if "chain" in value and (not own & _WHOLE_EXPR or not _is_one_of(value["chain"], {"left", "right"})):
                     return "a malformed expression"
-                pending.append(("expr", value["repeat"], below, False))
+                pending.append(("expr", value["repeat"], below, _SEALED))
+                if "separator" in value:
+                    pending.append(("expr", value["separator"], below, _SEALED))
             elif "optional" in value:
-                pending.append(("expr", value["optional"], below, False))
+                # An elidable optional is marked true, and maximal only with
+                # it; its expression begins with its terminal (engine §3.8,
+                # §9). The member is the boolean True itself: 1 equals True
+                # in Python, but it is no boolean.
+                if ("elidable" in value and value["elidable"] is not True) or (
+                    "maximal" in value and (value["maximal"] is not True or "elidable" not in value)
+                ):
+                    return "a malformed expression"
+                elidable = value.get("elidable") is True
+                if elidable and elidable_head(value["optional"]) is None:
+                    return "a malformed elidable optional"
+                pending.append(("expr", value["optional"], below, _SEALED if elidable else sealed))
             elif "capture" in value:
-                inner = value.get("expr")
-                if kind == "expr":
-                    return "a capture below the top level of an alternative"
                 # A capture wraps one symbol: a reference, a terminal, a
-                # range, a property or a tested one of these (engine §9).
+                # range, a property or a tested one of these, and stands
+                # anywhere but in braces or an elidable optional (engine
+                # §3.5, §9).
+                if sealed:
+                    return "a capture inside braces or an elidable optional"
+                inner = value.get("expr")
                 if (
                     not isinstance(value["capture"], str)
-                    or value["capture"] == _WHOLE
+                    or not CAPTURE_NAME.fullmatch(value["capture"])
                     or not isinstance(inner, dict)
                     or not any(member in inner for member in ("ref", "terminal", "range", "property", "test"))
                 ):
                     return "a malformed capture"
                 # A capture is a compound node, and its symbol below it is
                 # checked as any expression is.
-                pending.append(("expr", inner, below, False))
+                pending.append(("expr", inner, below, 0))
             elif "test" in value:
                 # A compound node (engine §9) over one symbol; its value
                 # counts on from its depth, and is checked once the nesting
@@ -559,7 +587,7 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase, tests: 
                     return "a malformed test"
                 if not _is_testable(value["expr"], unicode):
                     return "a test follows only a reference other than # or a terminal"
-                pending.append(("expr", value["expr"], below, False))
+                pending.append(("expr", value["expr"], below, 0))
                 pending.append(("term", value["value"], below, False))
                 tests.append(value)
             elif not (_is_ref(value.get("ref")) or is_tag(value.get("terminal"), unicode) or value.get("empty") is True):
@@ -719,6 +747,32 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase, tests: 
                 )
             ):
                 return "a malformed term"
+    return None
+
+
+def elidable_head(expr: Any) -> Any:
+    """The terminal at the head of an elidable optional's expression, or
+    None when the expression has no such head (engine §3.8, §9): a ``ref``
+    whose name begins with a capital, a ``terminal`` whose tag is a name, or
+    an ``=`` test of one of these, alone or first in a ``seq``."""
+    head = expr["seq"][0] if isinstance(expr, dict) and isinstance(expr.get("seq"), list) and expr["seq"] else expr
+    if not isinstance(head, dict):
+        return None
+
+    def is_terminal(node: Any) -> bool:
+        return (
+            isinstance(node, dict)
+            and len(node) == 1
+            and (
+                (isinstance(node.get("ref"), str) and _TERMINAL_NAME.fullmatch(node["ref"]) is not None)
+                or (isinstance(node.get("terminal"), str) and _NAME.fullmatch(node["terminal"]) is not None)
+            )
+        )
+
+    if is_terminal(head):
+        return head
+    if head.get("test") == "=" and is_terminal(head.get("expr")):
+        return head
     return None
 
 

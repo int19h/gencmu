@@ -1,6 +1,6 @@
 {
   "description": "W(D) has siblings, and the check reports two readings. Under late-elision, a with one elided T beats b with two, so R is A T B. a has three productions that read R: A [T] B restores T, and A T B, written twice, reads the synthetic T as a bare terminal. So the item of text over a has three edges, and W(D) uses the first. The case pins the readings and the witness. The witness hook must see W(D) in the check's own count, whatever an edge's place among its siblings (engine §7.8, tests/README.md).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b\n%rule a A [T] B | A T B | A T B\n%rule b A [T] [T] B",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b\n%rule a A [+T] B | A T B | A T B\n%rule b A [+T] [+T] B",
   "tokens": [
     {
       "text": "a",

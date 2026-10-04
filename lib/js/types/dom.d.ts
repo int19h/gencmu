@@ -1,7 +1,7 @@
 import type { GrammarDom } from "./types.js";
 export declare const CAPTURE_NAME: RegExp;
 export declare const DOM_MAX_DEPTH = 256;
-export declare const DOM_FORMAT = 17;
+export declare const DOM_FORMAT = 18;
 export declare const CONSTANT_NAME: RegExp;
 export declare const CLASSIFIER_NAME: RegExp;
 export declare const TEST_OPS: Set<string>;
@@ -115,6 +115,126 @@ export declare const DOM_FALSE: Readonly<{
  * @returns {any}
  */
 export declare function simplify(node: any, has: (name: string) => boolean): any;
+export type PreparedClause = {
+    /**
+     * how the parts join, or
+     * null for a clause alone
+     */
+    join: "union" | "all" | "any" | null;
+    parts: any[];
+    /**
+     * whether the parts are the conditions of a list,
+     * each of which is prepared in turn
+     */
+    list: boolean;
+    /**
+     * the parts that every production keeps, in
+     * order: those that test no presence and do not vanish, and the others
+     */
+    fixed: number[];
+    /**
+     * each part's simplified value,
+     * where it is the same for every production that keeps it
+     */
+    values: (any | undefined)[];
+    /**
+     * the parts that a production
+     * keeps only if it has a capture, by that capture, each list in order
+     */
+    guards: Map<string, number[]>;
+    /**
+     * for a guarded clause alone, its value for a
+     * production without the capture
+     */
+    absent: any;
+    /**
+     * for a ∨, whether a part true for every
+     * production makes it true
+     */
+    decided: boolean;
+    /**
+     * for a ∨, whether a guarded part is true
+     * where its capture is present
+     */
+    guardedTrue: boolean;
+};
+export type CaptureNames = {
+    size: number;
+    keys(): Iterable<string>;
+};
+/**
+ * A clause prepared for the productions of its definition, once for each
+ * clause.
+ * @param {any} node a condition or a term
+ * @returns {PreparedClause}
+ */
+export declare function prepareClause(node: any): PreparedClause;
+/**
+ * A list of conditions prepared for the productions of its definition,
+ * once for each list. A condition false for a production removes it, and
+ * one true is dropped, as the items of an ∧ are. A condition that uses a
+ * capture the production lacks is left out, which the caller would drop.
+ * @param {any[]} conditions
+ * @returns {PreparedClause}
+ */
+export declare function prepareConditions(conditions: any[]): PreparedClause;
+/**
+ * The indexes of the parts kept for a production, in order: those every
+ * production keeps, and those under the captures it has.
+ * @param {number[]} fixed
+ * @param {Map<string, number[]>} guards
+ * @param {(name: string) => boolean} has
+ * @param {CaptureNames} names
+ * @returns {number[]}
+ */
+export declare function keptIndexes(fixed: number[], guards: Map<string, number[]>, has: (name: string) => boolean, names: CaptureNames): number[];
+/**
+ * The values of a prepared clause's parts that a production keeps, in
+ * order: each simplified, without those its join drops.
+ * @param {PreparedClause} prepared
+ * @param {(name: string) => boolean} has
+ * @param {CaptureNames} names
+ * @returns {any[]}
+ */
+export declare function partsFor(prepared: PreparedClause, has: (name: string) => boolean, names: CaptureNames): any[];
+/**
+ * A prepared clause simplified for a production, the same as simplify
+ * gives (engine §3.6).
+ * @param {PreparedClause} prepared
+ * @param {(name: string) => boolean} has
+ * @param {CaptureNames} names
+ * @returns {any}
+ */
+export declare function simplifyFor(prepared: PreparedClause, has: (name: string) => boolean, names: CaptureNames): any;
+export type EmissionIndex = {
+    fixed: number[];
+    carriers: Map<string, number[]>;
+    attached: Map<string, number[]>;
+};
+/**
+ * The index of an emission's items, once for each list of items.
+ * @param {any[]} items
+ * @returns {EmissionIndex}
+ */
+export declare function emissionIndex(items: any[]): EmissionIndex;
+/**
+ * The indexes of the emission items that a production keeps, in order:
+ * those whose carrier it has, and those with none (engine §3.6).
+ * @param {any[]} items
+ * @param {(name: string) => boolean} has
+ * @param {CaptureNames} names
+ * @returns {number[]}
+ */
+export declare function presentItems(items: any[], has: (name: string) => boolean, names: CaptureNames): number[];
+/**
+ * The first emission item, in order, whose carrier a production lacks but
+ * one of whose attachments it has (engine §9), or -1.
+ * @param {any[]} items
+ * @param {(name: string) => boolean} has
+ * @param {CaptureNames} names
+ * @returns {number}
+ */
+export declare function strayAttachment(items: any[], has: (name: string) => boolean, names: CaptureNames): number;
 /**
  * The captures a clause uses as values or spans, presence tests aside.
  * @param {unknown} node
@@ -122,11 +242,61 @@ export declare function simplify(node: any, has: (name: string) => boolean): any
  */
 export declare function capturesUsed(node: unknown): string[];
 /**
- * The captures of an alternative's top level, name to position.
+ * The captures of each production of an alternative, name to its place in
+ * the order that the production reads them, with `$` at -1 (engine §3.5).
  * @param {any} alternative
- * @returns {Map<string, number>}
+ * @returns {Map<string, number>[]}
  */
-export declare function alternativeCaptures(alternative: any): Map<string, number>;
+export declare function alternativeCaptures(alternative: any): Map<string, number>[];
+export type CaptureNode = {
+    parent: CaptureNode | null;
+    name: string;
+    length: number;
+    children: Map<string, CaptureNode> | null;
+};
+/**
+ * A sequence of capture names, as a node of a trie of all the sequences
+ * of one expression: one node for each distinct sequence, which shares its
+ * prefix with the sequences it extends.
+ * @typedef {{parent: CaptureNode | null, name: string, length: number, children: Map<string, CaptureNode> | null}} CaptureNode
+ */
+/**
+ * The distinct sequences of captures that the productions of an expression
+ * read, each in the order read (engine §3.2, §3.5): a choice gives each
+ * branch's, an `&` each subsequence's, a plain optional none or its
+ * content's, and braces and an elidable optional none. Productions that
+ * read the same names in the same order are one sequence. Gates do not
+ * matter, since they drop whole alternatives.
+ *
+ * The sequences are nodes of a trie, so that extending one by a capture
+ * costs one step and two equal sequences are one node. A copy of each
+ * growing prefix would cost the square of a sequence's length.
+ * @param {any} expr
+ * @returns {string[][]}
+ */
+export declare function captureSequences(expr: any): string[][];
+/**
+ * The captures that some production of an expression reads after a
+ * capture of the same name (engine §3.5, §9), found from the structure
+ * alone: two captures are read by one production exactly when they stand
+ * in different items of one sequence or one &, since each item is read in
+ * any of its expansions. So no production is listed. A choice's branches
+ * never meet. Braces and an elidable optional hold no capture.
+ * @param {any} expr
+ * @returns {{capture: string}[]}
+ */
+export declare function duplicateCaptures(expr: any): {
+    capture: string;
+}[];
+/**
+ * The terminal at the head of an elidable optional's expression, or null
+ * when the expression has no such head (engine §3.8, §9): a `ref` whose
+ * name begins with a capital, a `terminal` whose tag is a name, or an `=`
+ * test of one of these, alone or first in a `seq`.
+ * @param {any} expr
+ * @returns {any}
+ */
+export declare function elidableHead(expr: any): any;
 /**
  * Why a definition, a rule's alternatives with its own clauses, cannot be
  * read (engine §9), or null. The DOM's shape must already be checked. The

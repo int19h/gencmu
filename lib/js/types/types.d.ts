@@ -290,11 +290,6 @@ export type DomConstant = {
 export type DomDirective = {
     name: string;
     args: string[];
-    /**
-     * for `%elidable maximal`: its terminators are
-     * maximal (engine §2, §4)
-     */
-    maximal?: true;
     at: Position;
 };
 export type DomRule = {
@@ -332,9 +327,12 @@ export type Expr = {
     seq: Expr[];
 } | {
     repeat: Expr;
-    min: number;
+    separator?: Expr;
+    chain?: "left" | "right";
 } | {
     optional: Expr;
+    elidable?: true;
+    maximal?: true;
 } | {
     capture: string;
     expr: Expr;
@@ -487,7 +485,22 @@ export type Production = {
      */
     elidedTest: SymbolTest | null;
     captures: Capture[];
+    /**
+     * for each position of `rhs`, the index in
+     * `captures` of the capture there, or -1
+     */
+    captureAt: number[];
+    /**
+     * each capture's name, with its
+     * index in `captures`
+     */
+    captureSlot: Map<string, number>;
     conditions: ReadyCondition[];
+    /**
+     * the conditions ready after
+     * each position, at `readyAt + 1`, in written order
+     */
+    conditionsAt: ReadyCondition[][];
     tags: Term | null;
     emit: Emission | null;
     /**
@@ -495,7 +508,6 @@ export type Production = {
      * which sounds `?` and shows its text (engine §11)
      */
     opaque: boolean;
-    recursivePrefix: boolean;
     /**
      * the features of the alternative's warnings,
      * in the order they are written; none for a helper
@@ -518,12 +530,12 @@ export type Resolution = {
 export type LoweredGrammar = {
     productions: Production[];
     byLhs: Map<string, Production[]>;
-    elidable: Set<string>;
     /**
-     * the elidable terminators that are
-     * maximal (engine §4)
+     * the helpers of the elidable
+     * optionals written [++T x], whose terminators are maximal (engine §3.8,
+     * §4)
      */
-    maximalTerminals: Set<string>;
+    maximalHelpers: Set<string>;
     resolution: Resolution;
     /**
      * each classifier
@@ -541,7 +553,16 @@ export type LoweredGrammar = {
     }[];
 };
 export type Lean = "greedy" | "lazy" | "late-elision" | "none";
-export type Slot = [number, number, number] | null;
+export type Captured = {
+    parent: Captured;
+    jump: Captured;
+    depth: number;
+    index: number;
+    start: number;
+    end: number;
+    tags: number;
+    id: number;
+} | null;
 export type Edge = {
     kind: "seed";
 } | {
@@ -888,8 +909,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} DomDirective
  * @property {string} name
  * @property {string[]} args
- * @property {true} [maximal] for `%elidable maximal`: its terminators are
- *   maximal (engine §2, §4)
  * @property {Position} at
  */
 /**
@@ -918,8 +937,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * A rule body expression.
- * @typedef {{choice: Expr[]} | {and: Expr[]} | {seq: Expr[]} | {repeat: Expr, min: number}
- *   | {optional: Expr} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
+ * @typedef {{choice: Expr[]} | {and: Expr[]} | {seq: Expr[]}
+ *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
+ *   | {optional: Expr, elidable?: true, maximal?: true} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
  *   | {range: [string, string]} | {property: string}
  *   | {test: TestOp, value: Term, expr: TestedSymbol} | {empty: true}} Expr
  */
@@ -1021,12 +1041,17 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {SymbolTest | null} elidedTest the test of that terminator, an
  *   `=` test whose string a restored token sounds like, or null (engine §7)
  * @property {Capture[]} captures
+ * @property {number[]} captureAt for each position of `rhs`, the index in
+ *   `captures` of the capture there, or -1
+ * @property {Map<string, number>} captureSlot each capture's name, with its
+ *   index in `captures`
  * @property {ReadyCondition[]} conditions
+ * @property {ReadyCondition[][]} conditionsAt the conditions ready after
+ *   each position, at `readyAt + 1`, in written order
  * @property {Term | null} tags
  * @property {Emission | null} emit
  * @property {boolean} opaque whether its constituent is an opaque part,
  *   which sounds `?` and shows its text (engine §11)
- * @property {boolean} recursivePrefix
  * @property {string[]} warnings the features of the alternative's warnings,
  *   in the order they are written; none for a helper
  */
@@ -1043,9 +1068,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} LoweredGrammar
  * @property {Production[]} productions
  * @property {Map<string, Production[]>} byLhs
- * @property {Set<string>} elidable
- * @property {Set<string>} maximalTerminals the elidable terminators that are
- *   maximal (engine §4)
+ * @property {Set<string>} maximalHelpers the helpers of the elidable
+ *   optionals written [++T x], whose terminators are maximal (engine §3.8,
+ *   §4)
  * @property {Resolution} resolution
  * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
  *   of the stage, resolved for these features: each key's classes (engine
@@ -1059,9 +1084,12 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {"greedy" | "lazy" | "late-elision" | "none"} Lean
  */
 /**
- * A captured part as a chart item records it: its span and the number of
- * its tag set.
- * @typedef {[number, number, number] | null} Slot
+ * The captured parts of a chart item, the last one first: each part's
+ * capture by its index in the production, its span and the number of its
+ * tag set, after the parts before it. A context makes each sequence once,
+ * with its number (engine §4). `depth` counts the parts, and `jump` is an
+ * earlier sequence that a search for a part can skip to.
+ * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, id: number} | null} Captured
  */
 /**
  * How an item was built.

@@ -1,0 +1,10 @@
+{
+  "description": "+++ is ++ and then +, a syntax error at the + (engine §9).",
+  "document": "```jbogenbau\n%rule a [+++KU]\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 12
+    }
+  }
+}

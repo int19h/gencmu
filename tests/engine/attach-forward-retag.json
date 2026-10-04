@@ -2,7 +2,7 @@
   "description": "A token over exactly one input token with attachments inherits them, whatever tags its item gives it. Its own new attachments are outer: new after-attachments follow the inherited ones (engine §11).",
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n%stage c\n%include \"c.md\"\n```\n",
-    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $w(word) | $b(bb) $w(word) | $w(word) $a(ii) | $b(bb) $w(word) $a(ii)\n%emits\n  ($b) $w ($a)\n%rule word\n  | 'w' <W> | 'z' <Z>\n%rule bb\n  'b' <B>\n%emits\n  $\n%rule ii\n  'i' <I>\n%emits\n  $\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item\n  | $w(word) | $b(bb) $w(word) | $w(word) $a(ii) | $b(bb) $w(word) $a(ii)\n%emits\n  ($b) $w ($a)\n%rule word\n  | 'w' <W> | 'z' <Z>\n%rule bb\n  'b' <B>\n%emits\n  $\n%rule ii\n  'i' <I>\n%emits\n  $\n```\n",
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w(W) $z(zz)\n%emits\n  $w <Y> ($z)\n%rule zz\n  Z\n%emits\n  $\n```\n",
     "c.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text Y\n```\n"
   },

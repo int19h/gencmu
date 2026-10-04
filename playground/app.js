@@ -331,6 +331,13 @@
 
   // ---- Drawing helpers ------------------------------------------------------
 
+  // Replaces a node's children with a list of them, nested at any depth,
+  // one append at a time: a list can be longer than a call takes arguments.
+  function fill(node, children) {
+    node.replaceChildren();
+    for (const child of children.flat(Infinity)) if (child !== null && child !== undefined && child !== false) node.append(child);
+  }
+
   function element(tag, attributes, ...children) {
     const node = document.createElement(tag);
     for (const [name, value] of Object.entries(attributes || {})) {
@@ -349,18 +356,17 @@
   // column when given, is a button that opens it in the editor there.
   function linkified(text) {
     const fragment = document.createDocumentFragment();
-    const pattern = /((?:[a-z0-9-]+\/)+[a-z0-9-]+\.md)(?::(\d+)(?::(\d+))?)?/g;
     let at = 0;
-    for (let match = pattern.exec(text); match; match = pattern.exec(text)) {
-      if (!(match[1] in bundled) && !client.edits.has(match[1])) continue;
-      fragment.append(text.slice(at, match.index));
-      const [, path, line, column] = match;
+    for (const mention of self.gencmuPipeline.documentMentions(text)) {
+      const { path, line, column } = mention;
+      if (!(path in bundled) && !client.edits.has(path)) continue;
+      fragment.append(text.slice(at, mention.index));
       fragment.append(element("button", {
-        type: "button", class: "link", text: match[0],
+        type: "button", class: "link", text: mention.text,
         title: `Open ${path}${line ? ` at line ${line}` : ""} in the editor`,
         onclick: () => openDocument(path, line ? Number(line) : 0, column ? Number(column) : 1),
       }));
-      at = match.index + match[0].length;
+      at = mention.index + mention.text.length;
     }
     fragment.append(text.slice(at));
     return fragment;
@@ -450,7 +456,7 @@
     const used = message.parse ? message.parse.features : [];
     const features = element("p", { class: "features-used" }, used.length ? ["Features: ", used.map((name, index) => [index ? ", " : "",
       element("code", { text: name }), (message.autoFeatures || []).includes(name) ? " (auto)" : ""])] : "No features.");
-    summary.replaceChildren(...[element("div", { class: "verdict" }, verdict), element("div", { class: "stages", "aria-label": "Stages" }, chips),
+    fill(summary, [element("div", { class: "verdict" }, verdict), element("div", { class: "stages", "aria-label": "Stages" }, chips),
       message.parse ? features : null].filter(Boolean));
     // The parse's own time; the run's, which includes loading the dialect
     // and rendering, or nothing much when the parse was cached, on hover.
@@ -513,7 +519,7 @@
             element("figure", {}, element("figcaption", { text: "second" }), element("pre", { text: tie.secondTree })))),
         element("p", { class: "hint", text: tie.advice })));
     }
-    $("diagnostics").replaceChildren(...boxes);
+    fill($("diagnostics"), boxes);
   }
 
   function renderOutput(message) {
@@ -557,8 +563,8 @@
     else if (result.text === "" && result.format === "brackets") {
       // A tree can render as nothing: a hollow tree, or tokens whose labels
       // are empty (docs/output.md). So the note is about the rendering only.
-      output.replaceChildren(element("p", { class: "hint", text: "The bracket rendering is empty." }), ...withCopy(""));
-    } else output.replaceChildren(...withCopy(result.text));
+      fill(output, [element("p", { class: "hint", text: "The bracket rendering is empty." }), withCopy("")]);
+    } else fill(output, withCopy(result.text));
   }
 
   async function copy(text, button) {
@@ -574,7 +580,7 @@
   function renderTokens(result) {
     state.tokenStage = result.stage || "";
     const group = $("token-stages");
-    group.replaceChildren(...result.stages.map((stage) => element("button", {
+    fill(group, result.stages.map((stage) => element("button", {
       type: "button", role: "radio", class: "small", "aria-checked": String(stage.name === result.stage),
       text: `${stage.name}${stage.count === null ? "" : ` (${stage.count})`}`,
       onclick: () => {
@@ -599,7 +605,7 @@
         row.insertedBy ? element("span", { class: "muted", text: ` inserted by ${row.insertedBy}` }) : null,
         row.attachments ? element("span", { class: "muted", text: ` attached: ${row.attachments}` }) : null)));
     const note = result.total > result.rows.length ? element("p", { class: "hint", text: `The first ${result.rows.length} of ${result.total} tokens.` }) : null;
-    $("output").replaceChildren(...[
+    fill($("output"), [
       element("p", { class: "hint", text: `What the ${result.stage} stage handed on.` }),
       element("div", { class: "table-wrap" }, element("table", { class: "tokens" }, element("thead", {}, header), element("tbody", {}, rows))), note,
     ].filter(Boolean));
@@ -639,7 +645,7 @@
     });
     items.push(gap(trace.from + trace.tokens.length));
     if (trace.from + trace.tokens.length < trace.count) items.push(element("span", { class: "muted", text: "…" }));
-    picker.replaceChildren(...items);
+    fill(picker, items);
     $("output").replaceChildren(element("pre", { class: "result-text", tabindex: "0", text: trace.text }));
   }
 
@@ -665,7 +671,7 @@
     }
     if (!info.features.length) features.replaceChildren(element("span", { class: "muted", text: "none: no grammar of this dialect is guarded on a feature" }));
     else {
-      features.replaceChildren(...info.features.map((feature) => {
+      fill(features, info.features.map((feature) => {
         const name = feature.name;
         const on = feature.default ? !state.without.has(name) : state.features.has(name);
         const auto = name === "sa-su" && feature.kind === "gate" && state.autoFeatures && !on && !state.without.has(name);
@@ -691,13 +697,13 @@
       }));
     }
     const until = $("until");
-    until.replaceChildren(element("option", { value: "", text: "the last stage" }),
-      ...info.stages.slice(0, -1).map((stage) => element("option", { value: stage.name, text: stage.name })));
+    fill(until, [element("option", { value: "", text: "the last stage" }),
+      info.stages.slice(0, -1).map((stage) => element("option", { value: stage.name, text: stage.name }))]);
     until.value = state.until;
     const strict = info.stages.filter((stage) => stage.elisionOnly).map((stage) => stage.name);
     $("elision").options[0].textContent = `grammar's own (${strict.length ? "on for " + strict.join(", ") : "off"})`;
     const traceStage = $("trace-stage");
-    traceStage.replaceChildren(...info.stages.map((stage) => element("option", { value: stage.name, text: stage.name })));
+    fill(traceStage, info.stages.map((stage) => element("option", { value: stage.name, text: stage.name })));
     if (state.trace.stage) traceStage.value = state.trace.stage;
   }
 
@@ -761,14 +767,14 @@
     for (const stage of stages) {
       groups.push(element("div", { class: "doc-group" }, element("span", { class: "doc-stage", text: stage.name }), stage.documents.map(button)));
     }
-    $("documents").replaceChildren(...groups);
+    fill($("documents"), groups);
     const listed = new Set(documents);
     const elsewhere = [...client.edits.keys()].filter((path) => !listed.has(path));
     const note = $("edited-elsewhere");
     note.hidden = !elsewhere.length;
-    note.replaceChildren("Also edited, outside this dialect: ", ...elsewhere.flatMap((path, index) => [index ? ", " : "", element("button", {
+    fill(note, ["Also edited, outside this dialect: ", elsewhere.flatMap((path, index) => [index ? ", " : "", element("button", {
       type: "button", class: "link", text: path, onclick: () => openDocument(path, 0, 1),
-    })]));
+    })])]);
     const count = client.edits.size;
     $("download-all").disabled = !count;
     $("download-all").textContent = count ? `Download edited (${count})` : "Download edited";
@@ -931,7 +937,7 @@
 
   function initControls() {
     const dialect = $("dialect");
-    dialect.replaceChildren(...dialectPaths.map((path) => element("option", {
+    fill(dialect, dialectPaths.map((path) => element("option", {
       value: path, text: `${dialectName(path)}: ${firstHeading(bundled[path]).replace(/^The\s+/i, "").replace(/\s+dialect$/i, "")}`,
     })));
     const examples = $("examples");

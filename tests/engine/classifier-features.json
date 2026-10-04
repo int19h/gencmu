@@ -1,6 +1,6 @@
 {
   "description": "A dialect's features include the gates of its classifiers' entries, negated or not, beside the guards of its rules (engine §13).",
-  "grammar": "%classifier lex\n  g? \"mi\" ∈ KOhA\n  ¬h? \"do\" ∈ KOhA\n%rule text [word] ...\n%rule word v! $w(W) <~w ∪ classify(phonemes($w), lex)>\n%emits\n  $",
+  "grammar": "%classifier lex\n  g? \"mi\" ∈ KOhA\n  ¬h? \"do\" ∈ KOhA\n%rule text [{word}]\n%rule word v! $w(W) <~w ∪ classify(phonemes($w), lex)>\n%emits\n  $",
   "tokens": [
     {
       "text": "mi",

@@ -1,8 +1,8 @@
 //! Maximality (engine §4): an elided terminator is forbidden where its
 //! constituent, the node before it, could have been longer. Stage-wide
 //! `maximal` restricts every elidable terminator of the main parse, and a
-//! maximal terminator, which `%elidable maximal` names, restricts its own
-//! elided terminators in the main parse and in nested queries.
+//! maximal terminator, of an optional written `[++T …]`, restricts that
+//! optional's elided terminators in the main parse and in nested queries.
 
 use std::cell::{OnceCell, RefCell};
 
@@ -11,7 +11,7 @@ use crate::fxhash::FxMap;
 use crate::lower::{Lowered, Sym, SymbolTest};
 use crate::tags::{SetId, Tags};
 use crate::unicode::Unicode;
-use crate::work::{self, Work};
+use crate::work::{self, Mutant, Work};
 
 /// Every completed item of each symbol from each origin, by (symbol,
 /// origin), as its set and its tag set, in order.
@@ -129,33 +129,49 @@ impl<'c> Maximal<'c> {
     // furthest set holding a completed item of each symbol from each origin
     // decides it.
     fn furthest(&self) -> &FxMap<(u32, u32), u32> {
-        self.furthest.get_or_init(|| {
-            let mut furthest = FxMap::default();
-            // The sets in order, so that the last to insert a key is the
-            // furthest.
-            for (set, eset) in self.chart.sets.iter().enumerate() {
-                work::count(Work::Looked, eset.completed.len() as u64);
-                for &key in eset.completed.keys() {
-                    furthest.insert(key, set as u32);
-                }
+        if work::mutated(Mutant::TablePerCheck) {
+            // A mutation of the tests finds the table again for each
+            // check, and keeps each one until the test ends.
+            return Box::leak(Box::new(self.furthest_table()));
+        }
+        self.furthest.get_or_init(|| self.furthest_table())
+    }
+
+    /// The furthest set of each symbol and origin, in one pass that counts
+    /// each key of the chart as it is examined.
+    fn furthest_table(&self) -> FxMap<(u32, u32), u32> {
+        let mut furthest = FxMap::default();
+        // The sets in order, so that the last to insert a key is the
+        // furthest.
+        for (set, eset) in self.chart.sets.iter().enumerate() {
+            for &key in eset.completed.keys() {
+                work::count(Work::Looked, 1);
+                furthest.insert(key, set as u32);
             }
-            furthest
-        })
+        }
+        furthest
     }
 
     fn completed(&self) -> &Completed {
-        self.completed.get_or_init(|| {
-            let mut completed = Completed::default();
-            for (set, eset) in self.chart.sets.iter().enumerate() {
-                for (&key, items) in &eset.completed {
-                    work::count(Work::Looked, items.len() as u64);
-                    let list = completed.entry(key).or_default();
-                    for &index in items {
-                        list.push((set as u32, eset.tagset[index as usize]));
-                    }
+        if work::mutated(Mutant::TablePerCheck) {
+            return Box::leak(Box::new(self.completed_table()));
+        }
+        self.completed.get_or_init(|| self.completed_table())
+    }
+
+    /// The completions of each symbol and origin, in one pass that counts
+    /// each completed item of the chart as it is examined.
+    fn completed_table(&self) -> Completed {
+        let mut completed = Completed::default();
+        for (set, eset) in self.chart.sets.iter().enumerate() {
+            for (&key, items) in &eset.completed {
+                let list = completed.entry(key).or_default();
+                for &index in items {
+                    work::count(Work::Looked, 1);
+                    list.push((set as u32, eset.tagset[index as usize]));
                 }
             }
-            completed
-        })
+        }
+        completed
     }
 }

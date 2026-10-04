@@ -1,0 +1,10 @@
+{
+  "description": "A property cannot be the terminator of a marked optional: an error at the [ (engine §9).",
+  "document": "```jbogenbau\n%rule a [+'\\p{L}']\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

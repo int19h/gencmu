@@ -1,9 +1,6 @@
 package gencmu
 
-import (
-	"fmt"
-	"sort"
-)
+import "fmt"
 
 // A rule's clauses against the captures of its alternatives (engine §3.6,
 // §9): simplifying a clause for one production, the captures a clause uses
@@ -37,6 +34,9 @@ func isEmptySet(t *domTerm) bool {
 // left to evaluate; the one given is returned where nothing changed. A
 // reduced part is never evaluated (§10).
 func simplifyCond(c *domCond, has func(string) bool) (*domCond, truth) {
+	if w := work.Load(); w != nil {
+		w.readerSteps.add("reader steps")
+	}
 	switch c.Kind {
 	case cdCaptured:
 		if has(c.Rule) {
@@ -121,6 +121,9 @@ func simplifyCond(c *domCond, has func(string) bool) (*domCond, truth) {
 // intersection with one. A difference whose first part is empty is empty,
 // and one whose second part is empty is its first part.
 func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
+	if w := work.Load(); w != nil {
+		w.readerSteps.add("reader steps")
+	}
 	if t == nil {
 		return nil
 	}
@@ -189,82 +192,70 @@ func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
 // termCaptures adds the captures a term uses, as values or spans, "" for $;
 // a presence test is not a use.
 func termCaptures(t *domTerm, into map[string]bool) {
-	if t == nil {
-		return
-	}
-	if t.Kind == tmCapture {
-		into[t.Str] = true
-	}
-	if t.Cond != nil {
-		condCaptures(t.Cond, into)
-	}
-	for _, it := range t.Items {
-		termCaptures(it, into)
-	}
+	walkClause(clausePart{t: t}, func(p clausePart) bool {
+		if p.t != nil && p.t.Kind == tmCapture {
+			into[p.t.Str] = true
+		}
+		return true
+	})
 }
 
 func condCaptures(c *domCond, into map[string]bool) {
-	switch c.Kind {
-	case cdCompare:
-		termCaptures(c.Left, into)
-		termCaptures(c.Right, into)
-	case cdMatches, cdBegins, cdInitial:
-		termCaptures(c.Span, into)
-	case cdNot:
-		condCaptures(c.Inner, into)
-	case cdAny, cdAll, cdIf:
-		for _, it := range c.Items {
-			condCaptures(it, into)
+	walkClause(clausePart{c: c}, func(p clausePart) bool {
+		if p.t != nil && p.t.Kind == tmCapture {
+			into[p.t.Str] = true
 		}
-	}
+		return true
+	})
 }
 
 // termMentions adds every capture a term mentions, presence tests included.
 func termMentions(t *domTerm, into map[string]bool) {
-	if t == nil {
-		return
-	}
-	if t.Kind == tmCapture {
-		into[t.Str] = true
-	}
-	if t.Cond != nil {
-		condMentions(t.Cond, into)
-	}
-	for _, it := range t.Items {
-		termMentions(it, into)
-	}
+	walkClause(clausePart{t: t}, func(p clausePart) bool {
+		switch {
+		case p.t != nil && p.t.Kind == tmCapture:
+			into[p.t.Str] = true
+		case p.c != nil && p.c.Kind == cdCaptured:
+			into[p.c.Rule] = true
+		}
+		return true
+	})
 }
 
 func condMentions(c *domCond, into map[string]bool) {
-	switch c.Kind {
-	case cdCaptured:
-		into[c.Rule] = true
-	case cdCompare:
-		termMentions(c.Left, into)
-		termMentions(c.Right, into)
-	case cdMatches, cdBegins, cdInitial:
-		termMentions(c.Span, into)
-	case cdNot:
-		condMentions(c.Inner, into)
-	case cdAny, cdAll, cdIf:
-		for _, it := range c.Items {
-			condMentions(it, into)
+	walkClause(clausePart{c: c}, func(p clausePart) bool {
+		switch {
+		case p.t != nil && p.t.Kind == tmCapture:
+			into[p.t.Str] = true
+		case p.c != nil && p.c.Kind == cdCaptured:
+			into[p.c.Rule] = true
 		}
-	}
+		return true
+	})
 }
 
-// altCaptures maps each capture of an alternative to its position among the
-// items of its top level; $ is at -1.
-func altCaptures(a *domAlt) map[string]int {
-	out := map[string]int{"": -1}
-	items := []*domExpr{a.Expr}
-	if a.Expr.Kind == exSeq {
-		items = a.Expr.Items
-	}
-	for i, it := range items {
-		if it.Kind == exCapture {
-			out[it.Name] = i
+// anyAltTags says whether an alternative of a rule has tags of its own.
+func anyAltTags(r *domRule) bool {
+	for _, a := range r.Alternatives {
+		if a.Tags != nil {
+			return true
 		}
+	}
+	return false
+}
+
+// altCaptures lists, for each production of an alternative, each capture
+// it reads with its place in the order read; $ is at -1 (engine §3.5).
+// Productions that read the same captures in the same order are one.
+func altCaptures(a *domAlt) []map[string]int {
+	seqs := captureSequences(a.Expr)
+	out := make([]map[string]int, len(seqs))
+	for i, seq := range seqs {
+		caps := map[string]int{"": -1}
+		for j, c := range seq {
+			caps[c.Name] = j
+		}
+		out[i] = caps
 	}
 	return out
 }
@@ -279,10 +270,244 @@ func usesAll(names map[string]bool, has func(string) bool) (string, bool) {
 	return "", true
 }
 
+// outcome is what a clause gives for a production once simplified (§3.6),
+// as far as the checks of a definition need it: a condition true or false,
+// or else whether its simplified form uses a capture the production lacks,
+// the first such in the order written; a term empty, or else that capture.
+type outcome struct {
+	kind    int8
+	lacks   bool
+	missing string
+}
+
+const (
+	oUses int8 = iota
+	oTrue
+	oFalse
+	oEmpty
+)
+
+// simplifiedOutcome is the outcome of a clause for a production that has
+// the captures has says it has. It walks the clause once, with an explicit
+// stack, and builds no simplified clause, so a deep clause costs its size.
+//
+// With req, the clause must hold no presence test, and has is not asked.
+// Its outcome is then the same for every production but for what it
+// lacks, so req gets, in order, each capture whose absence makes it lack
+// one: the captures its parts use, less those of parts it reduces away.
+func simplifiedOutcome(start clausePart, has func(string) bool, req *[]string) outcome {
+	type frame struct {
+		p       clausePart
+		combine bool
+		start   int
+	}
+	if req != nil {
+		has = func(string) bool { return true }
+	}
+	first := func(a, b outcome) outcome {
+		if a.lacks {
+			return outcome{kind: oUses, lacks: true, missing: a.missing}
+		}
+		return outcome{kind: oUses, lacks: b.lacks, missing: b.missing}
+	}
+	// What a part gives as written: the first capture it uses that the
+	// production lacks.
+	asWritten := func(p clausePart) outcome {
+		used := outcome{kind: oUses}
+		if req != nil {
+			walkClause(p, func(q clausePart) bool {
+				if q.t != nil && q.t.Kind == tmCapture {
+					*req = append(*req, q.t.Str)
+				}
+				return true
+			})
+			return used
+		}
+		walkClause(p, func(q clausePart) bool {
+			if !used.lacks && q.t != nil && q.t.Kind == tmCapture && !has(q.t.Str) {
+				used = outcome{kind: oUses, lacks: true, missing: q.t.Str}
+			}
+			return !used.lacks
+		})
+		return used
+	}
+	kids := func(p clausePart) []clausePart {
+		if p.t != nil {
+			switch p.t.Kind {
+			case tmIf, tmUnion, tmIntersection, tmDifference:
+				return p.children()
+			}
+			return nil
+		}
+		switch p.c.Kind {
+		case cdNot, cdAny, cdAll, cdIf, cdCompare:
+			return p.children()
+		}
+		return nil
+	}
+	stack := []frame{{p: start}}
+	var done []outcome
+	for len(stack) > 0 {
+		if w := work.Load(); w != nil {
+			w.readerSteps.add("reader steps")
+		}
+		top := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		p := top.p
+		if !top.combine {
+			ks := kids(p)
+			at := 0
+			if req != nil {
+				at = len(*req)
+			}
+			stack = append(stack, frame{p: p, combine: true, start: at})
+			for i := len(ks) - 1; i >= 0; i-- {
+				stack = append(stack, frame{p: ks[i]})
+			}
+			continue
+		}
+		n := len(kids(p))
+		parts := appendCounted(nil, done[len(done)-n:], readerCount(), "reader steps")
+		done = done[:len(done)-n]
+		var o outcome
+		if p.t != nil {
+			switch p.t.Kind {
+			case tmEmptySet:
+				o = outcome{kind: oEmpty}
+			case tmConst:
+				// A constant is its value here; an empty one is ∅.
+				if isEmptySet(p.t) {
+					o = outcome{kind: oEmpty}
+				} else {
+					o = outcome{kind: oUses}
+				}
+			case tmIf:
+				cond, then := parts[0], parts[1]
+				switch {
+				case cond.kind == oFalse || then.kind == oEmpty:
+					o = outcome{kind: oEmpty}
+				case cond.kind == oTrue:
+					o = then
+				default:
+					o = first(cond, then)
+				}
+			case tmUnion:
+				o = outcome{kind: oEmpty}
+				for _, part := range parts {
+					if part.kind == oEmpty {
+						continue
+					}
+					if o.kind == oEmpty {
+						o = part
+					} else {
+						o = first(o, part)
+					}
+				}
+			case tmIntersection:
+				o = outcome{kind: oUses}
+				for _, part := range parts {
+					if part.kind == oEmpty {
+						o = outcome{kind: oEmpty}
+						break
+					}
+					o = first(o, part)
+				}
+			case tmDifference:
+				switch {
+				case parts[0].kind == oEmpty:
+					o = outcome{kind: oEmpty}
+				case parts[1].kind == oEmpty:
+					o = parts[0]
+				default:
+					o = first(parts[0], parts[1])
+				}
+			default:
+				// A capture, a literal or a call, as written.
+				o = asWritten(p)
+			}
+		} else {
+			switch p.c.Kind {
+			case cdCaptured:
+				o = outcome{kind: oFalse}
+				if has(p.c.Rule) {
+					o = outcome{kind: oTrue}
+				}
+			case cdNot:
+				o = parts[0]
+				switch o.kind {
+				case oTrue:
+					o = outcome{kind: oFalse}
+				case oFalse:
+					o = outcome{kind: oTrue}
+				}
+			case cdAll, cdAny:
+				decides, drops := oFalse, oTrue
+				if p.c.Kind == cdAny {
+					decides, drops = oTrue, oFalse
+				}
+				o = outcome{kind: drops}
+				for _, part := range parts {
+					if part.kind == decides {
+						o = outcome{kind: decides}
+						break
+					}
+					if part.kind == drops {
+						continue
+					}
+					if o.kind == drops {
+						o = part
+					} else {
+						o = first(o, part)
+					}
+				}
+			case cdIf:
+				premise, then := parts[0], parts[1]
+				switch {
+				case premise.kind == oFalse:
+					o = outcome{kind: oTrue}
+				case premise.kind == oTrue:
+					o = then
+				case then.kind == oTrue:
+					o = outcome{kind: oTrue}
+				case then.kind == oFalse:
+					o = premise
+				default:
+					o = first(premise, then)
+				}
+			case cdCompare:
+				// An empty side is ∅, which uses nothing.
+				left, right := parts[0], parts[1]
+				if left.kind == oEmpty {
+					left = outcome{kind: oUses}
+				}
+				if right.kind == oEmpty {
+					right = outcome{kind: oUses}
+				}
+				o = first(left, right)
+			default:
+				// matches(), begins() and initial(), as written.
+				o = asWritten(p)
+			}
+		}
+		// A part whose outcome is a constant lacks nothing, whatever the
+		// parts below it use.
+		if req != nil && o.kind != oUses {
+			*req = (*req)[:top.start]
+		}
+		done = append(done, o)
+	}
+	return done[0]
+}
+
 // definitionProblem is why a definition, a rule's alternatives with the
 // clauses written with them, cannot be read (engine §9), or "". The DOM's
 // shape must already be sound.
 func definitionProblem(r *domRule) string {
+	// A definition with no clause has nothing to check about its captures,
+	// and its productions, whose number can be exponential, are not listed.
+	if r.Tags == nil && len(r.Conditions) == 0 && r.Emit == nil && !anyAltTags(r) {
+		return ""
+	}
 	// A constant is its value in simplification (§3.6). A clause that holds
 	// a constant without one waits for the loader, which checks the
 	// definition again once the constants have their values (§9).
@@ -294,9 +519,32 @@ func definitionProblem(r *domRule) string {
 		}
 		return false
 	}
-	alts := make([]map[string]int, len(r.Alternatives))
-	for i, a := range r.Alternatives {
-		alts[i] = altCaptures(a)
+	// Each production of each alternative, with the captures it reads
+	// (engine §3.5, §9).
+	type prodCaptures struct {
+		caps map[string]int
+		alt  *domAlt
+	}
+	var prods []prodCaptures
+	var alts []map[string]int
+	// How many productions capture each name, made once, so that a
+	// mentioned name or an anchor is one lookup and not a search of every
+	// production. Each name entered and each lookup counts before it is.
+	step := func() {
+		if w := work.Load(); w != nil {
+			w.readerSteps.add("reader steps")
+		}
+	}
+	capturedBy := map[string]int{}
+	for _, a := range r.Alternatives {
+		for _, caps := range altCaptures(a) {
+			prods = append(prods, prodCaptures{caps, a})
+			alts = append(alts, caps)
+			for name := range caps {
+				step()
+				capturedBy[name]++
+			}
+		}
 	}
 	var items []*domEmitItem
 	if r.Emit != nil {
@@ -326,90 +574,111 @@ func definitionProblem(r *domRule) string {
 		}
 		termMentions(it.Tags, mentioned)
 	}
-	for _, name := range sortedKeys(mentioned) {
-		found := false
-		for _, caps := range alts {
-			if _, ok := caps[name]; ok {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return fmt.Sprintf("$%s is captured by no alternative of %s", name, r.Name)
+	names := make([]string, 0, len(mentioned))
+	for name := range mentioned {
+		step()
+		names = append(names, name)
+	}
+	sortStrings(names, readerCount(), "reader steps")
+	for _, name := range names {
+		step()
+		if capturedBy[name] == 0 {
+			return fmt.Sprintf("$%s is captured by no production of %s", name, r.Name)
 		}
 	}
-	// A condition that applies to no alternative.
-	for _, c := range r.Conditions {
-		if waits(c) {
-			continue
+	// The clauses are split by the presence of captures once, so that the
+	// checks below cost each production its own captures and what applies
+	// to it, not every part of every clause (engine §3.6).
+	namesOf := func(caps map[string]int) []string {
+		out := make([]string, 0, len(caps))
+		for name := range caps {
+			step()
+			out = append(out, name)
 		}
-		applies := false
-		for _, caps := range alts {
-			has := hasIn(caps)
-			s, tv := simplifyCond(c, has)
-			if tv == alwaysTrue {
-				continue
-			}
-			if tv == alwaysFalse {
-				applies = true
-				break
-			}
-			used := map[string]bool{}
-			condCaptures(s, used)
-			if _, ok := usesAll(used, has); ok {
-				applies = true
-				break
-			}
+		return out
+	}
+	// A condition that applies to no alternative. Each production marks
+	// the conditions that apply to it.
+	conds := newCondCheck(r.Conditions, func(c *domCond) bool { return waits(c) })
+	for _, caps := range alts {
+		if conds.left == 0 {
+			break
 		}
-		if !applies {
-			return fmt.Sprintf("a condition of %s applies to no alternative", r.Name)
-		}
+		conds.see(namesOf(caps), hasIn(caps))
+	}
+	if conds.left > 0 {
+		return fmt.Sprintf("a condition of %s applies to no production", r.Name)
 	}
 	unguarded := func(t *domTerm, has func(string) bool) string {
 		if t == nil || waits(t) {
 			return ""
 		}
-		used := map[string]bool{}
-		termCaptures(simplifyTerm(t, has), used)
-		if name, ok := usesAll(used, has); !ok {
-			return fmt.Sprintf("a tag term of %s uses $%s, which an alternative lacks; guard it with $%s ⟹", r.Name, name, name)
+		if o := simplifiedOutcome(clausePart{t: t}, has, nil); o.kind == oUses && o.lacks {
+			return fmt.Sprintf("a tag term of %s uses $%s, which a production lacks; guard it with $%s ⟹", r.Name, o.missing, o.missing)
 		}
 		return ""
 	}
-	for i, a := range r.Alternatives {
-		caps := alts[i]
+	// Each tag term is split once, and found again by the term itself. A
+	// production found to lack a capture is checked as written, which
+	// gives the message.
+	// A term that waits for its constants is nil here.
+	checks := map[*domTerm]*termCheck{}
+	lacking := func(t *domTerm, ns []string, has func(string) bool) string {
+		if t == nil {
+			return ""
+		}
+		tc, ok := checks[t]
+		if !ok {
+			if !waits(t) {
+				tc = newTermCheck(t)
+			}
+			checks[t] = tc
+		}
+		if tc == nil || !tc.lacks(ns, has) {
+			return ""
+		}
+		return unguarded(t, has)
+	}
+	var emits *emitSplit
+	if r.Emit != nil {
+		emits = newEmitSplit(items)
+	}
+	for _, prod := range prods {
+		caps, a := prod.caps, prod.alt
 		has := hasIn(caps)
-		// The tags an alternative's constituent carries serve it.
+		ns := namesOf(caps)
+		// The tags a production's constituent carries serve it.
 		for _, t := range []*domTerm{r.Tags, a.Tags} {
-			if msg := unguarded(t, has); msg != "" {
+			if msg := lacking(t, ns, has); msg != "" {
 				return msg
 			}
 		}
 		if r.Emit == nil {
 			continue
 		}
-		// What is left of the emission for this alternative: something, in
+		// What is left of the emission for this production: something, in
 		// the order its captures stand, each item's tags using only what it
 		// has.
 		var present []*domEmitItem
-		for _, it := range items {
-			if it.IsInsert || has(it.Capture) {
-				present = append(present, it)
-			}
+		for _, i := range emits.present(ns) {
+			present = append(present, items[i])
 		}
 		// Only a rule that lists items can leave nothing; ε lists none.
 		if len(present) == 0 && len(items) > 0 {
-			return fmt.Sprintf("%%emits of %s leaves an alternative nothing to emit; a rule that emits nothing says %%emits ε", r.Name)
+			return fmt.Sprintf("%%emits of %s leaves a production nothing to emit; a rule that emits nothing says %%emits ε", r.Name)
 		}
-		// An alternative without an item's carrier lacks its attachments
-		// too (engine §9).
-		for _, it := range items {
-			if it.IsInsert || has(it.Capture) {
-				continue
-			}
-			for _, name := range it.attachments() {
-				if has(name) {
-					return fmt.Sprintf("%%emits of %s attaches $%s in an alternative without its carrier $%s", r.Name, name, it.Capture)
+		// A production without an item's carrier lacks its attachments too
+		// (engine §9). The first such item in the order written gives the
+		// message.
+		if emits.strandsAttachment(items, ns, has) {
+			for _, it := range items {
+				if it.IsInsert || has(it.Capture) {
+					continue
+				}
+				for _, name := range it.attachments() {
+					if has(name) {
+						return fmt.Sprintf("%%emits of %s attaches $%s in a production without its carrier $%s", r.Name, name, it.Capture)
+					}
 				}
 			}
 		}
@@ -421,6 +690,7 @@ func definitionProblem(r *domRule) string {
 				continue
 			}
 			for _, name := range it.captures() {
+				step()
 				at, ok := caps[name]
 				if !ok {
 					continue
@@ -432,38 +702,44 @@ func definitionProblem(r *domRule) string {
 			}
 		}
 		for _, it := range present {
-			if msg := unguarded(it.Tags, has); msg != "" {
+			if msg := lacking(it.Tags, ns, has); msg != "" {
 				return msg
 			}
 		}
 	}
 	// An inserted tag's anchor, the capture listed next after it, is one
-	// every alternative has.
+	// every production has.
+	following := nextCaptureItems(items)
 	for i, it := range items {
-		if !it.IsInsert {
+		if !it.IsInsert || following[i] < 0 {
 			continue
 		}
-		for _, next := range items[i+1:] {
-			if next.IsInsert {
-				continue
-			}
-			for _, caps := range alts {
-				if _, ok := caps[next.Capture]; !ok {
-					return fmt.Sprintf("%%emits of %s inserts a tag before $%s, which an alternative lacks", r.Name, next.Capture)
-				}
-			}
-			break
+		next := items[following[i]]
+		step()
+		if capturedBy[next.Capture] < len(alts) {
+			return fmt.Sprintf("%%emits of %s inserts a tag before $%s, which a production lacks", r.Name, next.Capture)
 		}
 	}
 	return ""
 }
 
-func sortedKeys(m map[string]bool) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
+// nextCaptureItems gives, for each emitted item, the index of the first
+// item after it that is not an inserted tag, or -1. One backward pass finds
+// every anchor, where a scan from each insert would cost a run of inserts
+// its square.
+func nextCaptureItems(items []*domEmitItem) []int {
+	w := work.Load()
+	out := make([]int, len(items))
+	next := -1
+	for i := len(items) - 1; i >= 0; i-- {
+		if w != nil {
+			w.emitSteps.add("emit steps")
+		}
+		out[i] = next
+		if !items[i].IsInsert {
+			next = i
+		}
 	}
-	sort.Strings(out)
 	return out
 }
 

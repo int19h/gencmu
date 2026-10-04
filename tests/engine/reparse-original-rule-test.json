@@ -1,6 +1,6 @@
 {
   "description": "A tested reference reads its projected original sound. a=\"a\" holds of the chosen a, whose reconstructed span also holds the synthetic T=\"ta\". c reads that synthetic with a terminal test, which reads the saved sound (engine §7.5).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a=\"a\" | b | c\n%rule a A [T=\"ta\"]\n%rule b A [T] [T]\n%rule c A T=\"ta\"",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a=\"a\" | b | c\n%rule a A [+T=\"ta\"]\n%rule b A [+T] [+T]\n%rule c A T=\"ta\"",
   "tokens": [
     {
       "text": "a",

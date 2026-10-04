@@ -2,11 +2,9 @@ package gencmu
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"sort"
 	"strconv"
@@ -51,12 +49,15 @@ func readCorpus(t *testing.T) []*corpusCase {
 			if line == "" {
 				continue
 			}
-			c := &corpusCase{}
-			if err := json.Unmarshal([]byte(line), c); err != nil {
+			tree, err := decodeJSON([]byte(line))
+			if err != nil {
 				t.Fatalf("%s: %v", f, err)
 			}
-			var all map[string]any
-			json.Unmarshal([]byte(line), &all)
+			c := &corpusCase{}
+			if err := fromTree(tree, c); err != nil {
+				t.Fatalf("%s: %v", f, err)
+			}
+			all, _ := tree.(map[string]any)
 			c.fields = map[string]any{}
 			for _, k := range corpusFields {
 				if v, ok := all[k]; ok {
@@ -97,8 +98,8 @@ func corpusOutcomeLosing(d *Dialect, c *corpusCase, lose string) (map[string]any
 		return nil, fmt.Errorf("%d checks of elision-only lost the witness of their chosen derivation", n)
 	}
 	data, _ := MarshalResult(res)
-	var canonical any
-	if err := json.Unmarshal(data, &canonical); err != nil {
+	canonical, err := decodeJSON(data)
+	if err != nil {
 		return nil, err
 	}
 	return corpusOutcomeOf(res, canonical)
@@ -160,8 +161,7 @@ func corpusOutcomeOf(res *ParseResult, canonical any) (map[string]any, error) {
 func TestCorpusRunnerInvariants(t *testing.T) {
 	for _, m := range loadResultMutants(t) {
 		res, data := mutantResult(t, m)
-		var got map[string]any
-		json.Unmarshal(data, &got)
+		got := decodedResult(t, data)
 		if _, err := corpusOutcomeOf(res, got); err != nil {
 			t.Fatalf("%s: %v", m.Case, err)
 		}
@@ -306,14 +306,13 @@ func checkCorpusCase(d *Dialect, c *corpusCase) (failure string) {
 		if !inCase && !inGot {
 			continue
 		}
-		if !reflect.DeepEqual(want, have) {
-			w, _ := json.Marshal(want)
-			h, _ := json.Marshal(have)
+		if !equalJSON(want, have) {
+			w, h := encodeJSON(want, 0), encodeJSON(have, 0)
 			if !inCase {
-				w = []byte("(absent)")
+				w = "(absent)"
 			}
 			if !inGot {
-				h = []byte("(absent)")
+				h = "(absent)"
 			}
 			return fmt.Sprintf("%s (%s): %s expected %s, got %s", c.ID, c.Dialect, k, w, h)
 		}

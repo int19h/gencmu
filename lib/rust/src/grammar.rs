@@ -12,9 +12,10 @@ use crate::dom::{
     FeatureKind, ImplicationDef, Op, RuleDef, Term, Type,
 };
 use crate::error::Error;
-use crate::fxhash::FxMap;
+use crate::fxhash::{FxMap, FxSet};
 use crate::tags::{character_tag, code_of_character_tag, is_name};
 use crate::unicode::Unicode;
+use crate::work::{self, Mutant, Work};
 
 /// The rule by which a stage ranks its derivations (engine §6): the lean
 /// of rule 2, the counts of elided terminators, or, for the `elision-only`
@@ -30,14 +31,21 @@ pub(crate) enum Lean {
     Neither,
 }
 
+/// The clauses of a rule, which each of its alternatives shares, so that
+/// they are stored, substituted and checked once for the rule.
+#[derive(Debug, Clone)]
+pub(crate) struct RuleClauses {
+    pub tags: Option<Term>,
+    pub emit: Option<Vec<EmitItem>>,
+    pub conditions: Vec<Cond>,
+}
+
 /// An alternative after stitching, with the clauses of the rule that
 /// contributed it.
 #[derive(Debug, Clone)]
 pub(crate) struct StitchedAlternative {
     pub alternative: Alternative,
-    pub rule_tags: Option<Term>,
-    pub emit: Option<Vec<EmitItem>>,
-    pub conditions: Vec<Cond>,
+    pub clauses: Arc<RuleClauses>,
     pub opaque: bool,
     pub document: Arc<str>,
     pub at: (usize, usize),
@@ -74,9 +82,6 @@ pub(crate) struct StageGrammar {
     /// Whether an elided terminator is forbidden where its constituent
     /// could have been longer (engine §4).
     pub maximal: bool,
-    pub elidable: Vec<String>,
-    /// The elidable terminators that a `%elidable maximal` names (§2, §4).
-    pub maximal_terminals: Vec<String>,
     pub changes: Vec<Change>,
     /// The stage's `%classifier` items in stitching order, each with its
     /// document (engine §2).
@@ -105,9 +110,17 @@ impl StageGrammar {
     /// one that does not, is an error of the grammar for these features,
     /// whose message names the entry's document, line and column.
     pub(crate) fn resolve_classifiers(&self, features: &BTreeSet<String>) -> Result<ClassifierTables, String> {
-        let mut tables = ClassifierTables::default();
+        // Each key's classes as slots in the order added, a removed one
+        // emptied, with where each class held stands, so that an entry
+        // finds its class without a scan of the key's classes.
+        #[derive(Default)]
+        struct Classes {
+            slots: Vec<Option<String>>,
+            at: FxMap<String, usize>,
+        }
+        let mut building: FxMap<String, FxMap<String, Classes>> = FxMap::default();
         for (document, classifier) in &self.classifiers {
-            let table = tables.entry(classifier.name.clone()).or_default();
+            let table = building.entry(classifier.name.clone()).or_default();
             for entry in &classifier.entries {
                 let on = entry
                     .guards
@@ -118,11 +131,18 @@ impl StageGrammar {
                 }
                 for key in &entry.keys {
                     let classes = table.entry(key.clone()).or_default();
-                    let held = classes.iter().position(|class| *class == entry.class);
+                    // One lookup, where a scan of the key's classes was one
+                    // step for each.
+                    work::count(Work::Classified, 1);
+                    let held = classes.at.get(&entry.class).copied();
                     match (entry.adds, held) {
-                        (true, None) => classes.push(entry.class.clone()),
+                        (true, None) => {
+                            classes.at.insert(entry.class.clone(), classes.slots.len());
+                            classes.slots.push(Some(entry.class.clone()));
+                        }
                         (false, Some(index)) => {
-                            classes.remove(index);
+                            classes.at.remove(&entry.class);
+                            classes.slots[index] = None;
                         }
                         (adds, _) => {
                             let problem = if adds {
@@ -140,7 +160,16 @@ impl StageGrammar {
                 }
             }
         }
-        Ok(tables)
+        Ok(building
+            .into_iter()
+            .map(|(name, keys)| {
+                let keys = keys
+                    .into_iter()
+                    .map(|(key, classes)| (key, classes.slots.into_iter().flatten().collect()))
+                    .collect();
+                (name, keys)
+            })
+            .collect())
     }
 }
 
@@ -171,8 +200,6 @@ pub(crate) fn stitch(
         lean: Lean::Greedy,
         elision_only: false,
         maximal: false,
-        elidable: Vec::new(),
-        maximal_terminals: Vec::new(),
         changes: Vec::new(),
         classifiers: Vec::new(),
         implications: Arc::from(Vec::new()),
@@ -189,14 +216,26 @@ pub(crate) fn stitch(
             if !constants_in_rule(rule).is_empty() {
                 users.push((document, rule));
             }
+            // The clauses are copied once for the rule, not for each
+            // alternative. Each condition counts as it is copied.
+            let copy_clauses = || {
+                Arc::new(RuleClauses {
+                    tags: rule.tags.clone(),
+                    emit: rule.emit.clone(),
+                    conditions: rule.conditions.iter().inspect(|_| work::count(Work::Stitched, 1)).cloned().collect(),
+                })
+            };
+            let clauses = copy_clauses();
             let alternatives: Vec<StitchedAlternative> = rule
                 .alternatives
                 .iter()
                 .map(|alternative| StitchedAlternative {
                     alternative: alternative.clone(),
-                    rule_tags: rule.tags.clone(),
-                    emit: rule.emit.clone(),
-                    conditions: rule.conditions.clone(),
+                    clauses: if work::mutated(Mutant::ClausesPerAlternative) {
+                        copy_clauses()
+                    } else {
+                        clauses.clone()
+                    },
                     opaque: rule.opaque,
                     document: document.clone(),
                     at: rule.at,
@@ -281,18 +320,6 @@ pub(crate) fn stitch(
                     }
                     resolution = Some((document.clone(), directive.at));
                 }
-                "elidable" => {
-                    for arg in &directive.args {
-                        if !grammar.elidable.contains(arg) {
-                            grammar.elidable.push(arg.clone());
-                        }
-                        // A terminator is maximal when any `%elidable
-                        // maximal` names it (§2).
-                        if directive.maximal && !grammar.maximal_terminals.contains(arg) {
-                            grammar.maximal_terminals.push(arg.clone());
-                        }
-                    }
-                }
                 other => return Err(here(format!("an unknown directive %{other}"))),
             }
         }
@@ -309,16 +336,19 @@ pub(crate) fn stitch(
         .map(|(document, implication)| constants.implication(document, implication))
         .collect::<Result<Vec<_>, _>>()?
         .into();
-    check_elidable_tests(&grammar)?;
     if resolution.is_none() {
         return Err(Error::grammar(format!("stage {stage} has no %ambiguity-resolution directive")).in_stage(stage));
     }
     if !grammar.index.contains_key("text") {
         return Err(Error::grammar(format!("stage {stage} does not define its start rule text")).in_stage(stage));
     }
+    // Shared clauses are checked once, with the first alternative that
+    // holds them.
+    let mut checked: FxSet<*const RuleClauses> = FxSet::default();
     for rule in &grammar.rules {
         for alternative in &rule.alternatives {
-            check_alternative(&grammar, alternative).map_err(|message| {
+            let first = checked.insert(Arc::as_ptr(&alternative.clauses));
+            check_alternative(&grammar, alternative, first).map_err(|message| {
                 located(format!("in {}: {message}", rule.name), &alternative.document, alternative.at)
             })?;
         }
@@ -602,21 +632,37 @@ impl Constants<'_> {
         if users.is_empty() {
             return Ok(());
         }
-        // Each reference holds the final value.
+        // Each reference holds the final value. Shared clauses are
+        // substituted once, and the alternatives that share them share the
+        // result.
+        // The map keeps each original alive, so that no address is reused.
+        let mut substituted: FxMap<*const RuleClauses, (Arc<RuleClauses>, Arc<RuleClauses>)> = FxMap::default();
         for rule in &mut grammar.rules {
             for alternative in &mut rule.alternatives {
-                let terms = alternative.alternative.tags.iter_mut().chain(alternative.rule_tags.iter_mut()).chain(
-                    alternative.emit.iter_mut().flatten().filter_map(|item| match item {
-                        EmitItem::Capture(_, tags, ..) => tags.as_mut(),
-                        EmitItem::Insert(_) => None,
-                    }),
-                );
-                for term in terms {
-                    self.substitute_term(term);
+                if let Some(tags) = alternative.alternative.tags.as_mut() {
+                    self.substitute_term(tags);
                 }
-                for cond in &mut alternative.conditions {
-                    self.substitute_cond(cond);
-                }
+                let clauses = substituted
+                    .entry(Arc::as_ptr(&alternative.clauses))
+                    .or_insert_with(|| {
+                        let mut clauses = RuleClauses::clone(&alternative.clauses);
+                        let terms = clauses.tags.iter_mut().chain(clauses.emit.iter_mut().flatten().filter_map(
+                            |item| match item {
+                                EmitItem::Capture(_, tags, ..) => tags.as_mut(),
+                                EmitItem::Insert(_) => None,
+                            },
+                        ));
+                        for term in terms {
+                            self.substitute_term(term);
+                        }
+                        for cond in &mut clauses.conditions {
+                            self.substitute_cond(cond);
+                        }
+                        (alternative.clauses.clone(), Arc::new(clauses))
+                    })
+                    .1
+                    .clone();
+                alternative.clauses = clauses;
             }
         }
         Ok(())
@@ -632,8 +678,10 @@ impl Constants<'_> {
                 while let Some(expr) = stack.pop() {
                     match expr {
                         Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => stack.extend(items.iter_mut()),
-                        Expr::Optional(inner) | Expr::Repeat(inner, _) | Expr::Capture(_, inner) => {
-                            stack.push(inner);
+                        Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push(inner),
+                        Expr::Repeat(item, separator, _) => {
+                            stack.push(item);
+                            stack.extend(separator.as_deref_mut());
                         }
                         Expr::Tested(_, value, inner) => {
                             *value = self.evaluate(value, &alternative.document, alternative.at)?.term();
@@ -691,6 +739,7 @@ impl Constants<'_> {
     }
 
     fn substitute_cond(&self, cond: &mut Cond) {
+        work::count(Work::Stitched, 1);
         match cond {
             Cond::Compare(_, left, right) => {
                 self.substitute_term(left);
@@ -772,85 +821,24 @@ fn calls_in_rule<'r>(rule: &'r RuleDef, out: &mut Vec<(&'r str, &'r [Arg])>) {
     rule.conditions.iter().for_each(|c| cond(c, out));
 }
 
-/// The terminal of an elidable optional has no test or an `=` test, since
-/// elision-only restores it with a sound (§3.8). The check runs once the
-/// stage is stitched, since a later `%elidable` can make an optional
-/// elidable, over every alternative whatever the features. The error
-/// stands at the definition that wrote the alternative.
-fn check_elidable_tests(grammar: &StageGrammar) -> Result<(), Error> {
-    for rule in &grammar.rules {
-        for alternative in &rule.alternatives {
-            let mut stack = vec![&alternative.alternative.expr];
-            while let Some(expr) = stack.pop() {
-                if let Expr::Optional(inner) = expr {
-                    let mut first = inner.as_ref();
-                    while let Expr::Seq(items) = first {
-                        first = &items[0];
-                    }
-                    if let Expr::Tested(op, _, symbol) = first {
-                        // A reference in lower case names a rule, which is
-                        // never a terminator, even where an identifier tag
-                        // of %elidable shares its name.
-                        let name = match symbol.as_ref() {
-                            Expr::Ref(name) if is_terminal_name(name) => Some(name),
-                            Expr::Terminal(name) => Some(name),
-                            _ => None,
-                        };
-                        if let Some(name) = name.filter(|name| op != "=" && grammar.elidable.contains(name)) {
-                            return Err(located(
-                                format!(
-                                    "{} can elide {name}, whose test {op} gives it no sound to restore; \
-                                     an elidable terminator has no test or an = test",
-                                    rule.name
-                                ),
-                                &alternative.document,
-                                alternative.at,
-                            ));
-                        }
-                    }
-                }
-                match expr {
-                    Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => stack.extend(items.iter()),
-                    Expr::Optional(inner)
-                    | Expr::Repeat(inner, _)
-                    | Expr::Capture(_, inner)
-                    | Expr::Tested(_, _, inner) => stack.push(inner),
-                    Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {}
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
-fn check_alternative(grammar: &StageGrammar, alternative: &StitchedAlternative) -> Result<(), String> {
-    let expr = &alternative.alternative.expr;
-    let top: &[Expr] = match expr {
-        Expr::Seq(items) => items,
-        other => std::slice::from_ref(other),
-    };
-    for item in top {
-        check_expr(grammar, item, true)?;
-    }
-    let mut names: Vec<&str> = Vec::new();
-    for item in top {
-        if let Expr::Capture(name, _) = item {
-            if names.contains(&name.as_str()) {
-                return Err(format!("the capture ${name} is used twice"));
-            }
-            names.push(name);
-        }
-    }
-    if names.len() > 4 {
-        return Err("an alternative has at most four captures".to_string());
-    }
-    for term in alternative.alternative.tags.iter().chain(alternative.rule_tags.iter()) {
+/// Checks an alternative, and its rule's clauses where `clauses` says that
+/// no alternative before it shared them.
+fn check_alternative(grammar: &StageGrammar, alternative: &StitchedAlternative, clauses: bool) -> Result<(), String> {
+    check_expr(grammar, &alternative.alternative.expr)?;
+    for term in alternative.alternative.tags.iter() {
         check_term(grammar, term)?;
     }
-    for cond in &alternative.conditions {
+    if !clauses {
+        return Ok(());
+    }
+    let clauses = &alternative.clauses;
+    for term in clauses.tags.iter() {
+        check_term(grammar, term)?;
+    }
+    for cond in &clauses.conditions {
         check_cond(grammar, cond)?;
     }
-    for item in alternative.emit.iter().flatten() {
+    for item in clauses.emit.iter().flatten() {
         if let EmitItem::Capture(_, Some(term), ..) = item {
             check_term(grammar, term)?;
         }
@@ -866,18 +854,22 @@ fn check_rule(grammar: &StageGrammar, name: &str) -> Result<(), String> {
     }
 }
 
-fn check_expr(grammar: &StageGrammar, expr: &Expr, top: bool) -> Result<(), String> {
+fn check_expr(grammar: &StageGrammar, expr: &Expr) -> Result<(), String> {
     match expr {
         Expr::And(items) if items.len() > MAX_AND => {
             Err(format!("an & of {} items; at most {MAX_AND} are allowed", items.len()))
         }
         Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
             for item in items {
-                check_expr(grammar, item, false)?;
+                check_expr(grammar, item)?;
             }
             Ok(())
         }
-        Expr::Optional(inner) | Expr::Repeat(inner, _) | Expr::Tested(_, _, inner) => check_expr(grammar, inner, false),
+        Expr::Repeat(item, separator, _) => {
+            check_expr(grammar, item)?;
+            separator.as_deref().map_or(Ok(()), |separator| check_expr(grammar, separator))
+        }
+        Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => check_expr(grammar, inner),
         Expr::Ref(name) => {
             if is_terminal_name(name) {
                 Ok(())
@@ -886,17 +878,9 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr, top: bool) -> Result<(), Stri
             }
         }
         Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => Ok(()),
-        Expr::Capture(name, inner) => {
-            if !top {
-                return Err(format!("the capture ${name} is not at the top level of its alternative"));
-            }
-            match inner.as_ref() {
-                Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Tested(..) => {
-                    check_expr(grammar, inner, false)
-                }
-                _ => Err(format!("the capture ${name} does not wrap a single symbol")),
-            }
-        }
+        // The reader, or the check of a DOM, has made sure that a capture
+        // wraps one symbol (§9).
+        Expr::Capture(_, inner) => check_expr(grammar, inner),
     }
 }
 
@@ -964,6 +948,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
 }
 
 fn check_cond(grammar: &StageGrammar, cond: &Cond) -> Result<(), String> {
+    work::count(Work::Stitched, 1);
     match cond {
         Cond::Compare(op, left, right) => {
             if !matches!(op.as_str(), "=" | "≠" | "∈" | "∉" | "⊆" | "⊈") {
@@ -989,5 +974,96 @@ fn check_cond(grammar: &StageGrammar, cond: &Cond) -> Result<(), String> {
             }
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::{BTreeSet, HashMap};
+    use std::sync::Arc;
+
+    use super::{stitch, Lean, StageGrammar};
+    use crate::dom::{Alternative, ClassifierDef, Cond, ConstDef, Directive, Dom, Entry, Expr, Op, RuleDef, Term};
+    use crate::unicode::Unicode;
+    use crate::work::{assert_linear, assert_mutant_stops, Mutant, Work};
+
+    /// A rule of n alternatives with n conditions, each of which reads a
+    /// constant, stitches in about n: its alternatives share its clauses,
+    /// they are checked once, and the constants are found in one walk.
+    #[test]
+    fn alternatives_share_their_rules_clauses() {
+        let unicode = Unicode::parse(crate::loader::bundled("unicode.txt").expect("the table")).expect("the table");
+        let dom = |n: usize| {
+            let same = || Cond::Compare("=".into(), Term::Const("k".into(), (1, 1)), Term::Str("a".into()));
+            let rule = RuleDef {
+                name: "text".into(),
+                op: Op::Define,
+                tags: None,
+                alternatives: (0..n)
+                    .map(|_| Alternative { guards: Vec::new(), expr: Expr::Terminal("A".into()), tags: None })
+                    .collect(),
+                emit: None,
+                conditions: (0..n).map(|_| same()).collect(),
+                opaque: false,
+                at: (0, 0),
+            };
+            let directive = Directive { name: "ambiguity-resolution".into(), args: vec!["greedy".into()], at: (0, 0) };
+            let dom = Dom {
+                rules: vec![rule],
+                directives: vec![directive],
+                constants: vec![ConstDef {
+                    name: "k".into(),
+                    redefine: false,
+                    value: Term::Str("a".into()),
+                    at: (1, 1),
+                }],
+                classifiers: Vec::new(),
+                implications: Vec::new(),
+            };
+            vec![(Arc::<str>::from("d.md"), Arc::new(dom))]
+        };
+        let doms = [dom(1000), dom(4000)];
+        let mut run = |n: usize| {
+            let grammar = stitch("s", &doms[usize::from(n != 1000)], &unicode).expect("a grammar");
+            assert_eq!(grammar.rules[0].alternatives.len(), n);
+        };
+        assert_linear(Work::Stitched, 1000, &mut run);
+        assert_linear(Work::Walked, 1000, &mut run);
+        // A copy of the clauses for each alternative stops at the first
+        // count past the budget.
+        assert_mutant_stops(Work::Stitched, Mutant::ClausesPerAlternative, 1000, &mut run);
+    }
+
+    /// A key that a classifier puts in n classes and then takes out of
+    /// them, first first, resolves in about n.
+    #[test]
+    fn a_key_of_many_classes_resolves_in_linear_work() {
+        let grammar = |n: usize| {
+            let entry = |index: usize, adds: bool| Entry {
+                guards: Vec::new(),
+                keys: vec!["k".into()],
+                adds,
+                class: format!("C{index}"),
+                at: (0, 0),
+            };
+            let entries =
+                (0..n).map(|index| entry(index, true)).chain((0..n).map(|index| entry(index, false))).collect();
+            StageGrammar {
+                name: "s".into(),
+                rules: Vec::new(),
+                index: HashMap::new(),
+                lean: Lean::Greedy,
+                elision_only: false,
+                maximal: false,
+                changes: Vec::new(),
+                classifiers: vec![(Arc::from("d.md"), ClassifierDef { name: "c".into(), entries, at: (0, 0) })],
+                implications: Arc::from(Vec::new()),
+            }
+        };
+        let grammars = [grammar(20_000), grammar(80_000)];
+        assert_linear(Work::Classified, 20_000, &mut |n| {
+            let tables = grammars[usize::from(n != 20_000)].resolve_classifiers(&BTreeSet::new()).expect("tables");
+            assert!(tables["c"]["k"].is_empty());
+        });
     }
 }

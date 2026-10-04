@@ -10,7 +10,7 @@ A character reaches this grammar with one tag, its character tag, such as `'a'`.
 
 ## Choosing among readings
 
-A name is the longest run of name characters, and `...` is one symbol, not three periods or `..` and a period. That is the greedy reading: where one reading ends a token and another reads on, the one that reads on wins.
+A name is the longest run of name characters, and `...` is one symbol, not three periods or `..` and a period. In the same way, `++` is one symbol, not two `+`. That is the greedy reading: where one reading ends a token and another reads on, the one that reads on wins.
 
 ```jbogenbau
 %ambiguity-resolution greedy
@@ -18,11 +18,11 @@ A name is the longest run of name characters, and `...` is one symbol, not three
 
 ## The text
 
-A text is any number of pieces, each a token or layout.
+A text is any number of pieces, each a token or layout. The rule is written as left recursion, not as a list in braces. Each shorter text is then a constituent of its own, so the greedy reading above sees where each piece ends. A list in braces is not a constituent, so the ranking could not compare where its pieces end. The condition of `whole-name` already keeps a name from ending inside a run. But with a list in braces, `++` could be one token or two `+`, and the two readings would tie.
 
 ```jbogenbau
 %rule text
-  [piece] ...
+  ε | text piece
 
 %rule piece
   | word | string | tag-literal | phoneme | character-tag | property
@@ -33,20 +33,27 @@ A text is any number of pieces, each a token or layout.
 
 A name is an ASCII letter followed by ASCII letters, digits and hyphens. Its first letter decides later whether it names a rule or a terminal. Here, every name is an `identifier`. A tag literal is `~` and a name, such as `~word`, and the stage tags it `tag`.
 
+The name in a token is a whole run of name characters, which `whole-name` reads. Its condition holds only where no name character follows. So no token ends inside a run, and `$ab?` is `$` and the guard `ab?`, never `$a` and `b?`. A run then starts one piece only. So the stage's work grows with the text's length, not with the square of a name's length.
+
 ```jbogenbau
 %rule word
-  name
+  whole-name
 %tags
   ~identifier
 %emits
   $
 
 %rule tag-literal
-  '~' name
+  '~' whole-name
 %tags
   ~tag
 %emits
   $
+
+%rule whole-name
+  name
+%conditions
+  ¬begins(after($), name-character)
 
 %rule name
   letter | name name-character
@@ -77,7 +84,7 @@ A property is a quote, `\p`, and anything up to the next quote that no backslash
 
 ```jbogenbau
 %rule string
-  '"' [string-part] ... '"'
+  '"' [{string-part}] '"'
 %tags
   ~string
 %emits
@@ -91,7 +98,7 @@ A property is a quote, `\p`, and anything up to the next quote that no backslash
   text($c) ≠ "\\"
 
 %rule character-tag
-  '\'' [character-tag-first [character-tag-part] ...] '\''
+  '\'' [character-tag-first [{character-tag-part}]] '\''
 %tags
   ~character
 %emits
@@ -113,7 +120,7 @@ A property is a quote, `\p`, and anything up to the next quote that no backslash
   text($c) ≠ "\\"
 
 %rule property
-  '\'' '\\' 'p' [character-tag-part] ... '\''
+  '\'' '\\' 'p' [{character-tag-part}] '\''
 %tags
   ~property
 %emits
@@ -140,9 +147,11 @@ A `¬` directly before a guard belongs to the guard. Anywhere else, `¬` is a sy
 
 ```jbogenbau
 %rule capture
-  '$' [lower-name]
+  '$' | '$' $n(lower-name)
 %tags
   ~capture
+%conditions
+  ¬begins(after($n), name-character)
 %emits
   $
 
@@ -150,6 +159,8 @@ A `¬` directly before a guard belongs to the guard. Anywhere else, `¬` is a sy
   '$' upper-name
 %tags
   ~constant
+%conditions
+  ¬begins(after($), name-character)
 %emits
   $
 
@@ -173,23 +184,22 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
 
 ```jbogenbau
 %rule keyword
-  | '%' $rule(name) <~keyword-rule>
-  | '%' $redefine-rule(name) <~keyword-redefine-rule>
-  | '%' $extend-rule(name) <~keyword-extend-rule>
-  | '%' $tags(name) <~keyword-tags>
-  | '%' $conditions(name) <~keyword-conditions>
-  | '%' $emits(name) <~keyword-emits>
-  | '%' $opaque(name) <~keyword-opaque>
-  | '%' $ambiguity-resolution(name) <~keyword-ambiguity-resolution>
-  | '%' $elidable(name) <~keyword-elidable>
-  | '%' $stage(name) <~keyword-stage>
-  | '%' $include(name) <~keyword-include>
-  | '%' $features(name) <~keyword-features>
-  | '%' $const(name) <~keyword-const>
-  | '%' $redefine-const(name) <~keyword-redefine-const>
-  | '%' $classifier(name) <~keyword-classifier>
-  | '%' $implies(name) <~keyword-implies>
-  | '%' $other(name) <~keyword>
+  | '%' $rule(whole-name) <~keyword-rule>
+  | '%' $redefine-rule(whole-name) <~keyword-redefine-rule>
+  | '%' $extend-rule(whole-name) <~keyword-extend-rule>
+  | '%' $tags(whole-name) <~keyword-tags>
+  | '%' $conditions(whole-name) <~keyword-conditions>
+  | '%' $emits(whole-name) <~keyword-emits>
+  | '%' $opaque(whole-name) <~keyword-opaque>
+  | '%' $ambiguity-resolution(whole-name) <~keyword-ambiguity-resolution>
+  | '%' $stage(whole-name) <~keyword-stage>
+  | '%' $include(whole-name) <~keyword-include>
+  | '%' $features(whole-name) <~keyword-features>
+  | '%' $const(whole-name) <~keyword-const>
+  | '%' $redefine-const(whole-name) <~keyword-redefine-const>
+  | '%' $classifier(whole-name) <~keyword-classifier>
+  | '%' $implies(whole-name) <~keyword-implies>
+  | '%' $other(whole-name) <~keyword>
 %conditions
   text($rule) = "rule",
   text($redefine-rule) = "redefine-rule",
@@ -199,7 +209,6 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
   text($emits) = "emits",
   text($opaque) = "opaque",
   text($ambiguity-resolution) = "ambiguity-resolution",
-  text($elidable) = "elidable",
   text($stage) = "stage",
   text($include) = "include",
   text($features) = "features",
@@ -209,7 +218,7 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
   text($implies) = "implies",
   text($other) ≠ "rule", text($other) ≠ "redefine-rule", text($other) ≠ "extend-rule",
   text($other) ≠ "tags", text($other) ≠ "conditions", text($other) ≠ "emits",
-  text($other) ≠ "opaque", text($other) ≠ "ambiguity-resolution", text($other) ≠ "elidable",
+  text($other) ≠ "opaque", text($other) ≠ "ambiguity-resolution",
   text($other) ≠ "stage", text($other) ≠ "include", text($other) ≠ "features",
   text($other) ≠ "const", text($other) ≠ "redefine-const",
   text($other) ≠ "classifier", text($other) ≠ "implies"
@@ -219,14 +228,17 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
 
 ## Symbols
 
-Every other token is a symbol. A symbol of one character keeps the character tag of its one character, such as `'|'`. `⊇` and `⊉` stand only in a test in a body, such as `UI⊇~indicator`. The rule for `...` tags it `ellipsis`, and `..`, which joins the two ends of a range, is `double-dot`.
+Every other token is a symbol. A symbol of one character keeps the character tag of its one character, such as `'|'`. `⊇` and `⊉` stand only in a test in a body, such as `UI⊇~indicator`. Braces, `{` and `}`, hold a repetition, and a backslash, `\`, separates its item from its separator. A backslash inside a string, a character tag or a property belongs to that token, so it is a symbol only outside them.
+
+The rule for `...`, the marker of a chain, tags it `ellipsis`, and `..`, which joins the two ends of a range, is `double-dot`. A `+` after a bracket marks an elidable optional, and `++` one whose terminator is also maximal. The rule tags `++` `double-plus`, so `+++` is `++` and then `+`, never three markers.
 
 ```jbogenbau
 %rule symbol
-  | '|' | '&' | '(' | ')' | '[' | ']' | '<' | '>' | '#' | 'ε' | ',' | '∧' | '∨' | '⟹'
+  | '|' | '&' | '(' | ')' | '[' | ']' | '{' | '}' | '\\' | '+' | '<' | '>' | '#' | 'ε' | ',' | '∧' | '∨' | '⟹'
   | '=' | '≠' | '∈' | '∉' | '⊆' | '⊈' | '⊇' | '⊉' | '∪' | '∩' | '∖' | '∅'
   | '.' '.' '.' <~ellipsis>
   | '.' '.' <~double-dot>
+  | '+' '+' <~double-plus>
 %emits
   $
 ```
@@ -243,7 +255,7 @@ Spaces, tabs and line breaks separate tokens and mean nothing else. A comment ru
   '\p{White_Space}'
 
 %rule comment
-  '(' '*' [comment-part] ... stars ')'
+  '(' '*' [{comment-part}] stars ')'
 
 %rule comment-part
   | $c(character)

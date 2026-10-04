@@ -1,13 +1,23 @@
 {
   "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 2 derivations.",
-  "grammar": "%ambiguity-resolution lazy\n%rule text [t] ... | C B ... | [v]\n%rule t [B] ... A | ε\n%rule u A | ε\n%rule v [C] [A] | ε",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text t B | T A | u [+T]\n%rule t T | t [+T]\n%rule u B v=\"x\" | ε\n%rule v {... v \\ u=\"x\"}",
   "tokens": [
     {
-      "text": "a",
+      "text": "x",
       "tags": [
         "A",
-        "B"
-      ]
+        "T"
+      ],
+      "phonemes": "x"
+    },
+    {
+      "text": "x",
+      "tags": [
+        "A",
+        "B",
+        "T"
+      ],
+      "phonemes": "y"
     }
   ],
   "expect": {
@@ -20,23 +30,15 @@
           "verdict": "tie",
           "witness": [
             {
-              "close": {
-                "rule": "t",
-                "production": 9,
-                "span": [
-                  0,
-                  1
-                ]
+              "read": {
+                "token": 1,
+                "terminal": "A"
               }
             },
             {
-              "close": {
-                "rule": "v",
-                "production": 15,
-                "span": [
-                  0,
-                  1
-                ]
+              "read": {
+                "token": 1,
+                "terminal": "B"
               }
             }
           ]
@@ -53,11 +55,52 @@
             "rule": "text",
             "span": [
               0,
-              1
+              2
             ],
             "source": [
               0,
-              1
+              3
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "T",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 1,
+                "span": [
+                  1,
+                  2
+                ],
+                "source": [
+                  2,
+                  3
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              2
+            ],
+            "source": [
+              0,
+              3
             ],
             "tags": [],
             "children": [
@@ -72,11 +115,14 @@
                   0,
                   1
                 ],
-                "tags": [],
+                "tags": [
+                  "A",
+                  "T"
+                ],
                 "children": [
                   {
                     "kind": "token",
-                    "terminal": "A",
+                    "terminal": "T",
                     "token": 0,
                     "span": [
                       0,
@@ -88,48 +134,18 @@
                     ]
                   }
                 ]
-              }
-            ]
-          },
-          {
-            "kind": "rule",
-            "rule": "text",
-            "span": [
-              0,
-              1
-            ],
-            "source": [
-              0,
-              1
-            ],
-            "tags": [],
-            "children": [
+              },
               {
-                "kind": "rule",
-                "rule": "v",
+                "kind": "token",
+                "terminal": "B",
+                "token": 1,
                 "span": [
-                  0,
-                  1
+                  1,
+                  2
                 ],
                 "source": [
-                  0,
-                  1
-                ],
-                "tags": [],
-                "children": [
-                  {
-                    "kind": "token",
-                    "terminal": "A",
-                    "token": 0,
-                    "span": [
-                      0,
-                      1
-                    ],
-                    "source": [
-                      0,
-                      1
-                    ]
-                  }
+                  2,
+                  3
                 ]
               }
             ]

@@ -8,7 +8,7 @@ import unittest
 import gencmu
 from gencmu._dialect import read_document
 
-from .shared import cases, load_case, mismatch
+from .shared import cases, load_case, mismatch, write_json
 
 
 class NotationCases(unittest.TestCase):
@@ -22,7 +22,7 @@ class NotationCases(unittest.TestCase):
                 if "dom" in expect:
                     dom = read_document(case["document"], path.name)
                     problem = mismatch(expect["dom"], dom)
-                    self.assertIsNone(problem, f"{path.name}: {problem}\n{json.dumps(dom, ensure_ascii=False)[:2000]}")
+                    self.assertIsNone(problem, f"{path.name}: {problem}\n{write_json(dom)[:2000]}")
                 else:
                     with self.assertRaises(gencmu.GencmuError) as caught:
                         read_document(case["document"], path.name)

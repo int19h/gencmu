@@ -2,6 +2,7 @@ package gencmu
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 )
 
@@ -19,12 +20,14 @@ type production struct {
 	rhs          []symbol
 	tests        []*symTest // per position: the test its symbol must pass, or nil; nil when no symbol is tested (§4)
 	capName      []string   // per position: the capture's name, or ""
-	capSlot      []int8     // per position: the item's capture slot, or -1
+	capSlot      []int32    // per position: the item's capture slot, or -1
 	nslots       int
-	slotOf       map[string]int8 // capture name → slot
-	tags         *domTerm        // nil: default tags (§4)
-	implicit     bool            // one symbol and no tags: the constituent has its symbol's tags (§3.7)
+	slotOf       map[string]int32 // capture name → slot
+	posOf        map[string]int   // capture name → its first position
+	tags         *domTerm         // nil: default tags (§4)
+	implicit     bool             // one symbol and no tags: the constituent has its symbol's tags (§3.7)
 	conds        []lcond
+	condFrom     []int32    // conds[condFrom[d]:condFrom[d+1]] are those triggered at dot d, or nil for none
 	predictConds []*domCond // conditions using no capture but $ of an empty production, checked at prediction
 	emit         *domEmit   // as dropped and simplified for the production (§3.6)
 	nothing      bool       // %emits ε: the constituent emits nothing and does not count (§11)
@@ -33,7 +36,6 @@ type production struct {
 	helper       bool
 	elided       string   // for the ε production of an optional beginning with an elidable terminal
 	elidedTest   *symTest // the test of that terminal, if it is tested; a restored token sounds like the string of an = test (§7)
-	repeatPrefix bool     // r → r x of a trailing repetition: the first child is spliced out (§12)
 	ruleName     string   // the rule the author wrote (for a helper, the one it serves)
 	doc          string
 	at           [2]int
@@ -41,6 +43,15 @@ type production struct {
 	// in the order written, each giving a warning for a node of the chosen
 	// tree built by the production (§12); a helper has none.
 	warnings []string
+}
+
+// condRange is where the conditions that are ready once an item's dot
+// reaches d lie in conds: from lo up to hi, and none when the two are equal.
+func (p *production) condRange(d int) (lo, hi int) {
+	if p.condFrom == nil {
+		return 0, 0
+	}
+	return int(p.condFrom[d]), int(p.condFrom[d+1])
 }
 
 // lcond is a condition, simplified for its production, with the dot
@@ -69,11 +80,13 @@ type lowered struct {
 	termID    map[string]int32
 	// classes holds, for each terminal that is a range or a property, the
 	// characters it matches; nil for a terminal that is a tag (§4).
-	classes    []*charClass
-	prods      []*production
-	lean       string          // "greedy", "lazy", "late-elision", or "" for no lean (§6, §7)
-	maximal    bool            // no terminator is elided where its constituent could have been longer (§4)
-	maximalT   map[string]bool // the maximal terminators, which maximality restricts anyway (§4)
+	classes []*charClass
+	prods   []*production
+	lean    string // "greedy", "lazy", "late-elision", or "" for no lean (§6, §7)
+	maximal bool   // no terminator is elided where its constituent could have been longer (§4)
+	// maximalH holds the helpers of the optionals written [++T x], whose
+	// terminators are maximal, which maximality restricts anyway (§3.8, §4).
+	maximalH   map[int32]bool
 	sccMembers [][]int32
 	// fault is an error of the grammar that lowering for these features
 	// found (§3.3), or "": parsing with it is a result with that error.
@@ -87,6 +100,13 @@ type lowered struct {
 	// elision-only, made once, when a check first needs it (§7.4).
 	readingOnce sync.Once
 	reading     *readingSets
+	// elidable says, for each rule, whether it is the helper of an elidable
+	// optional, and anyElidable whether one is. Both are made once, since
+	// every nested query asks (§3.8).
+	elidable    []bool
+	anyElidable bool
+	// maximalElides is maximalElides without and with stage-wide maximal.
+	maximalElides [2][]string
 }
 
 type slot struct {
@@ -122,9 +142,41 @@ type lowerer struct {
 	memo     map[*domExpr][][]slot // expansions of one alternative, by place
 	tests    map[*domExpr]*symTest // the tests of that alternative with their values
 	into     *[]*helperNode        // where a new helper goes
+	// structural is every production that the gates and the expansion
+	// make, before a false condition removes any (§3.3).
+	structural []structuralProduction
+	// braceItems is the item of each pair of braces, as its expansions,
+	// with the alternative and the rule that wrote it, in the order
+	// lowering met them.
+	braceItems []braceItem
+	// The clauses of each rule, split by the presence of captures once
+	// for all its productions, by the term, list or emission split, and
+	// the warnings of each alternative, found once (§3.6).
+	terms    map[*domTerm]*termLowering
+	condsOf  map[condsKey]*condLowering
+	emits    map[*domEmit]*emitSplit
+	warnings map[*sAlt][]string
 }
 
-// helperNode is the helper of one place where [ ] or ... is written,
+// condsKey is a list of conditions, known by its first element and its
+// length.
+type condsKey struct {
+	first **domCond
+	n     int
+}
+
+type structuralProduction struct {
+	lhs int32
+	rhs []symbol
+}
+
+type braceItem struct {
+	items [][]slot
+	alt   *sAlt
+	rule  string
+}
+
+// helperNode is the helper of one place where [ ] or flat { } is written,
 // with the helpers of the places written inside it.
 type helperNode struct {
 	rule     int32
@@ -138,7 +190,7 @@ type helperNode struct {
 // lower lowers a stage's grammar for a set of features. The check of
 // elision-only reads the same productions in a mode of its own (§3.8, §7.4).
 func lower(g *stageGrammar, features map[string]bool) *lowered {
-	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, lean: g.lean, maximal: g.maximal, maximalT: g.maximalT}
+	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, lean: g.lean, maximal: g.maximal, maximalH: map[int32]bool{}}
 	// The stage resolves its classifiers for the same features, before it
 	// lowers its rules; an error there ends the stage as an error of
 	// lowering does (§2, §3.3).
@@ -148,16 +200,64 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 		return l
 	}
 	l.classifiers = tables.tables
-	lw := &lowerer{g: g, l: l, features: features}
+	lw := &lowerer{g: g, l: l, features: features, terms: map[*domTerm]*termLowering{}, condsOf: map[condsKey]*condLowering{}, emits: map[*domEmit]*emitSplit{}, warnings: map[*sAlt][]string{}}
 	for _, r := range g.rules {
 		l.byName[r.name] = int32(len(l.rules))
 		l.rules = append(l.rules, &lrule{name: r.name, owner: r.name, scc: -1})
 	}
 	for _, r := range g.rules {
-		lw.lowerRule(r)
+		if lw.lowerRule(r); l.fault != "" {
+			return l
+		}
+	}
+	// An item of braces that can match no tokens comes last, once every
+	// rule is lowered (§3.3).
+	if lw.checkBraceItems(); l.fault != "" {
+		return l
 	}
 	l.computeCycles()
+	l.elidable, l.anyElidable = elidableHelpers(l)
+	l.maximalElides = [2][]string{maximalElides(l, false), maximalElides(l, true)}
 	return l
+}
+
+// loweringFault records an error of the grammar that lowering finds (§3),
+// the first one, which ends lowering. Its message begins with the
+// document, line and column of the definition that wrote the alternative
+// at fault.
+func (lw *lowerer) loweringFault(a *sAlt, format string, args ...any) {
+	if lw.l.fault == "" {
+		lw.l.fault = fmt.Sprintf("%s:%d:%d: ", a.doc, a.at[0], a.at[1]) + fmt.Sprintf(format, args...)
+	}
+}
+
+// checkBraceItems reports the first item of braces, in the order lowering
+// met them, that can derive the empty sequence (§3.3). Nullability is
+// decided over the structural grammar: every production that the gates and
+// the expansion make, helpers included, before a false condition removes
+// any, with tests ignored, reachable or not.
+func (lw *lowerer) checkBraceItems() {
+	nullable := nullableRules(len(lw.l.rules), len(lw.structural), func(i int) (int32, []symbol) { return lw.structural[i].lhs, lw.structural[i].rhs })
+	empty := func(rhs []symbol) bool {
+		for _, s := range rhs {
+			if s.term || !nullable[s.id] {
+				return false
+			}
+		}
+		return true
+	}
+	for _, b := range lw.braceItems {
+		for _, x := range b.items {
+			rhs := make([]symbol, len(x))
+			for i, s := range x {
+				rhs[i] = s.sym
+			}
+			if empty(rhs) {
+				lw.loweringFault(b.alt, "an item of braces in %s can match no tokens", b.rule)
+				return
+			}
+		}
+	}
 }
 
 func (lw *lowerer) terminal(name string) symbol { return lw.classTerminal(name, nil) }
@@ -200,6 +300,14 @@ func (lw *lowerer) lowerRule(r *sRule) {
 			alts = append(alts, a)
 		}
 	}
+	// A chain is the only alternative of its rule that the gates leave
+	// (§3.3); a %extend-rule can add another.
+	for _, a := range alts {
+		if isChain(a.alt.Expr) && len(alts) > 1 {
+			lw.loweringFault(a, "%s is a chain, which is the whole of its rule, but another alternative stands beside it", r.name)
+			return
+		}
+	}
 	lhs := lw.l.byName[r.name]
 	for _, a := range alts {
 		var helpers []*helperNode
@@ -209,45 +317,36 @@ func (lw *lowerer) lowerRule(r *sRule) {
 			lw.tests[t] = a.tests[i]
 		}
 		lw.into = &helpers
-		e := a.alt.Expr
-		var last *domExpr
-		var prefix []*domExpr
-		if len(alts) == 1 {
-			if e.Kind == exRepeat {
-				last = e
-			} else if e.Kind == exSeq && e.Items[len(e.Items)-1].Kind == exRepeat {
-				last = e.Items[len(e.Items)-1]
-				prefix = e.Items[:len(e.Items)-1]
+		if e := a.alt.Expr; isChain(e) {
+			// A chain is recursion on the rule itself, with no helper: its
+			// base productions first, one for each expansion of the item,
+			// then its recursive ones (§3.3).
+			xs := lw.expand(e.Inner, a, r.name)
+			lw.braceItems = append(lw.braceItems, braceItem{xs, a, r.name})
+			ss := [][]slot{{}}
+			if e.Sep != nil {
+				ss = lw.expand(e.Sep, a, r.name)
 			}
-		}
-		if last != nil && lw.l.fault == "" && hasCapture(e) {
-			// Its recursive productions could not have its captures, whose
-			// parts lie inside the inner constituent (§3.3).
-			lw.l.fault = fmt.Sprintf("%s: an alternative of %s captures a part, and is lowered as a trailing repetition", a.doc, r.name)
-		}
-		if last != nil {
-			// Trailing repetition (§3.3): r → p x ... is r → p x | r x, and
-			// r → p [x] ... is r → p | r x. The places are expanded in the
-			// order they are written, which numbers their helpers.
-			ps := lw.expandSeq(prefix, a, r.name)
-			xs := lw.expand(last.Inner, a, r.name)
-			if last.Min == 1 {
-				for _, p := range ps {
+			self := []slot{{sym: symbol{id: lhs}}}
+			for _, x := range xs {
+				lw.addProduction(lhs, x, a)
+			}
+			if e.Chain == "left" {
+				for _, s := range ss {
 					for _, x := range xs {
-						lw.addProduction(lhs, concat(p, x), a, false)
+						lw.addProduction(lhs, concat(concat(self, s), x), a)
 					}
 				}
 			} else {
-				for _, p := range ps {
-					lw.addProduction(lhs, p, a, false)
+				for _, x := range xs {
+					for _, s := range ss {
+						lw.addProduction(lhs, concat(concat(x, s), self), a)
+					}
 				}
 			}
-			for _, x := range xs {
-				lw.addProduction(lhs, concat([]slot{{sym: symbol{id: lhs}}}, x), a, true)
-			}
 		} else {
-			for _, s := range lw.expand(e, a, r.name) {
-				lw.addProduction(lhs, s, a, false)
+			for _, x := range lw.expand(e, a, r.name) {
+				lw.addProduction(lhs, x, a)
 			}
 		}
 		// Then the helpers, in the order their places are written, each
@@ -256,6 +355,7 @@ func (lw *lowerer) lowerRule(r *sRule) {
 		number = func(hs []*helperNode) {
 			for _, h := range hs {
 				for _, b := range h.bodies {
+					lw.structural = append(lw.structural, structuralProduction{h.rule, symbolsOf(b)})
 					p := lw.newProduction(h.rule, b)
 					p.helper = true
 					p.transparent = true
@@ -273,30 +373,61 @@ func (lw *lowerer) lowerRule(r *sRule) {
 	}
 }
 
-// hasCapture says whether an alternative's expression captures a part,
-// which it can only at its top level (§3.5).
-func hasCapture(e *domExpr) bool {
-	items := []*domExpr{e}
-	if e.Kind == exSeq {
-		items = e.Items
+// isChain says whether an expression is a chain, {... x \ s} or
+// {x ... \ s}.
+func isChain(e *domExpr) bool {
+	return e.Kind == exRepeat && e.Chain != ""
+}
+
+// holdsCapture says whether an expression holds a capture, at any depth
+// (§3.5).
+func holdsCapture(e *domExpr) bool {
+	if e == nil {
+		return false
 	}
-	for _, it := range items {
-		if it.Kind == exCapture {
+	if e.Kind == exCapture {
+		return true
+	}
+	for _, it := range e.Items {
+		if holdsCapture(it) {
 			return true
 		}
 	}
-	return false
+	return holdsCapture(e.Inner) || holdsCapture(e.Sep)
 }
 
+func symbolsOf(body []slot) []symbol {
+	out := make([]symbol, len(body))
+	for i, s := range body {
+		out[i] = s.sym
+	}
+	return out
+}
+
+// concat is a new body of a's slots then b's. Each slot counts before it
+// is copied, so that a budget stops a copy at its first slot past it.
 func concat(a, b []slot) []slot {
 	out := make([]slot, 0, len(a)+len(b))
-	return append(append(out, a...), b...)
+	return appendSlots(appendSlots(out, a), b)
+}
+
+// appendSlots appends each slot of xs to out, each counted before it is
+// copied.
+func appendSlots(out, xs []slot) []slot {
+	w := work.Load()
+	for _, x := range xs {
+		if w != nil {
+			w.loweredSlots.add("lowered slots")
+		}
+		out = append(out, x)
+	}
+	return out
 }
 
 func (lw *lowerer) newProduction(lhs int32, body []slot) *production {
-	p := &production{num: len(lw.l.prods), lhs: lhs, slotOf: map[string]int8{}}
+	p := &production{num: len(lw.l.prods), lhs: lhs, slotOf: map[string]int32{}}
 	p.capName = make([]string, len(body))
-	p.capSlot = make([]int8, len(body))
+	p.capSlot = make([]int32, len(body))
 	for i, s := range body {
 		p.rhs = append(p.rhs, s.sym)
 		p.capSlot[i] = -1
@@ -320,7 +451,10 @@ func (lw *lowerer) newProduction(lhs int32, body []slot) *production {
 	return p
 }
 
-func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix bool) {
+func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
+	// The structural grammar counts the production, whatever its
+	// conditions (§3.3).
+	lw.structural = append(lw.structural, structuralProduction{lhs, symbolsOf(body)})
 	position := map[string]int{}
 	for i, s := range body {
 		if s.capture != "" {
@@ -332,45 +466,61 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix b
 		_, ok := position[name]
 		return ok || name == ""
 	}
+	// The names of the captures the production has, by which the parts of
+	// its clauses are found.
+	names := []string{""}
+	for name := range position {
+		presenceStep()
+		names = append(names, name)
+	}
 	// The clauses are simplified for the production (§3.6). A condition
 	// that became true is dropped, and one that became false removes the
 	// production; one that uses a capture the production lacks does not
 	// apply to it.
 	var conds []*domCond
-	for _, c := range a.conds {
-		s, tv := simplifyCond(c, has)
-		switch tv {
-		case alwaysTrue:
-			continue
-		case alwaysFalse:
-			return
+	if len(a.conds) > 0 {
+		key := condsKey{&a.conds[0], len(a.conds)}
+		cl := lw.condsOf[key]
+		if cl == nil {
+			cl = newCondLowering(a.conds)
+			lw.condsOf[key] = cl
 		}
-		used := map[string]bool{}
-		condCaptures(s, used)
-		if _, ok := usesAll(used, has); ok {
-			conds = append(conds, s)
+		var ok bool
+		if conds, ok = cl.forProduction(names, has); !ok {
+			return
 		}
 	}
 	p := lw.newProduction(lhs, body)
-	p.repeatPrefix = repeatPrefix
 	p.opaque = a.opaque
 	p.ruleName = lw.l.rules[lhs].name
 	p.doc, p.at = a.doc, a.at
-	for _, gd := range a.alt.Guards {
-		if gd.Kind == FeatureWarning && lw.features[gd.Feature] {
-			p.warnings = append(p.warnings, gd.Feature)
-			lw.l.warns = true
+	warnings, ok := lw.warnings[a]
+	if !ok {
+		for _, gd := range a.alt.Guards {
+			presenceStep()
+			if gd.Kind == FeatureWarning && lw.features[gd.Feature] {
+				warnings = append(warnings, gd.Feature)
+			}
 		}
+		lw.warnings[a] = warnings
+	}
+	if len(warnings) > 0 {
+		p.warnings = appendCounted(nil, warnings, readerCount(), "reader steps")
+		lw.l.warns = true
 	}
 	p.transparent = len(body) == 1
 	p.implicit = false
 	p.nslots = 0
+	p.posOf = make(map[string]int, len(position))
 	for i, s := range body {
 		p.capName[i] = s.capture
 		p.capSlot[i] = -1
+		if _, ok := p.posOf[s.capture]; !ok && s.capture != "" {
+			p.posOf[s.capture] = i
+		}
 		if s.capture != "" {
-			p.capSlot[i] = int8(p.nslots)
-			p.slotOf[s.capture] = int8(p.nslots)
+			p.capSlot[i] = int32(p.nslots)
+			p.slotOf[s.capture] = int32(p.nslots)
 			p.nslots++
 		}
 	}
@@ -379,7 +529,7 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix b
 	var written []*domTerm
 	for _, t := range []*domTerm{a.alt.Tags, a.ruleTags} {
 		if t != nil {
-			written = append(written, simplifyTerm(t, has))
+			written = append(written, lw.simplifyTerm(t, names, has))
 		}
 	}
 	switch len(written) {
@@ -391,7 +541,7 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix b
 	if p.tags == nil && len(body) == 1 {
 		p.implicit = true
 		if p.capSlot[0] < 0 {
-			p.capSlot[0] = int8(p.nslots)
+			p.capSlot[0] = int32(p.nslots)
 			p.nslots++
 		}
 	}
@@ -414,6 +564,18 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix b
 			p.conds = append(p.conds, lcond{cond: c, trigger: trigger, whole: names[""]})
 		}
 	}
+	if len(p.conds) > 0 {
+		// By trigger, each dot's in the order written, so that an advance
+		// finds those ready at its dot without a scan of them all.
+		sort.SliceStable(p.conds, func(i, j int) bool { return p.conds[i].trigger < p.conds[j].trigger })
+		p.condFrom = make([]int32, len(body)+2)
+		for _, c := range p.conds {
+			p.condFrom[c.trigger+1]++
+		}
+		for d := 1; d < len(p.condFrom); d++ {
+			p.condFrom[d] += p.condFrom[d-1]
+		}
+	}
 	if a.emit != nil {
 		// An item whose carrier the production lacks is dropped, and so is
 		// each attachment capture it lacks (§3.6).
@@ -427,14 +589,17 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix b
 			}
 			return out
 		}
-		for _, it := range a.emit.Items {
-			if !it.IsInsert && !has(it.Capture) {
-				continue
-			}
+		es := lw.emits[a.emit]
+		if es == nil {
+			es = newEmitSplit(a.emit.Items)
+			lw.emits[a.emit] = es
+		}
+		for _, i := range es.present(names) {
+			it := a.emit.Items[i]
 			if it.Tags != nil || len(it.Before)+len(it.After) > 0 {
 				kept := *it
 				if it.Tags != nil {
-					kept.Tags = simplifyTerm(it.Tags, has)
+					kept.Tags = lw.simplifyTerm(it.Tags, names, has)
 				}
 				kept.Before, kept.After = present(it.Before), present(it.After)
 				it = &kept
@@ -446,10 +611,21 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix b
 	}
 }
 
-// elidableTerminal is the terminal an optional's content is, or begins
-// with as a sequence, recursively (§3.8), and its tested node, if it is
-// tested; a choice or an & begins with none. A tested terminal is elidable
-// when its terminal is.
+// simplifyTerm simplifies a term for a production whose captures are
+// names, by has, as simplifyTerm does, the term split once for all the
+// productions that simplify it.
+func (lw *lowerer) simplifyTerm(t *domTerm, names []string, has func(string) bool) *domTerm {
+	tl := lw.terms[t]
+	if tl == nil {
+		tl = newTermLowering(t)
+		lw.terms[t] = tl
+	}
+	return tl.forProduction(names, has)
+}
+
+// elidableTerminal is the terminal of an elidable optional, the content or
+// the first item of its sequence (§3.8), and its tested node, if it is
+// tested.
 func elidableTerminal(e *domExpr) (string, *domExpr) {
 	switch {
 	case e.Kind == exSeq:
@@ -464,16 +640,26 @@ func elidableTerminal(e *domExpr) (string, *domExpr) {
 
 // isTagSymbol says whether a symbol matches by a tag: a terminal, or a
 // reference whose name begins with a capital. A reference in lower case
-// names a rule, so %elidable never makes it a terminator, even one that
-// shares its name with an identifier tag (§2, §3.8).
+// names a rule, so it is never the terminator of an elidable optional,
+// even one that shares its name with an identifier tag (§2, §3.8).
 func isTagSymbol(e *domExpr) bool {
 	return e.Kind == exTerminal || e.Kind == exRef && isTerminalName(e.Name)
 }
 
+// expandSeq is the product of the expansions of a sequence's items. Each
+// body of out is its own, so an item with one expansion extends every body
+// in place. Copying each body at each item would cost a long sequence the
+// square of its length.
 func (lw *lowerer) expandSeq(items []*domExpr, a *sAlt, ruleName string) [][]slot {
 	out := [][]slot{{}}
 	for _, it := range items {
 		xs := lw.expand(it, a, ruleName)
+		if len(xs) == 1 {
+			for i := range out {
+				out[i] = appendSlots(out[i], xs[0])
+			}
+			continue
+		}
 		var next [][]slot
 		for _, o := range out {
 			for _, x := range xs {
@@ -481,6 +667,11 @@ func (lw *lowerer) expandSeq(items []*domExpr, a *sAlt, ruleName string) [][]slo
 			}
 		}
 		out = next
+	}
+	// The bodies are shared through the memo, so none may grow in place
+	// later.
+	for i := range out {
+		out[i] = out[i][:len(out[i]):len(out[i])]
 	}
 	return out
 }
@@ -532,29 +723,52 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		return out
 	case exOptional:
 		inner := e.Inner
+		// A plain optional that holds a capture expands in place, as
+		// (ε | x) would: first the empty sequence, then each expansion of
+		// x (§3.2).
+		if !e.Elidable && holdsCapture(inner) {
+			return append([][]slot{{}}, lw.expand(inner, a, ruleName)...)
+		}
+		// Any other optional is a helper, and a marked one is elidable,
+		// with the terminal that its marker names; ++ makes it maximal
+		// (§3.8).
 		elide := ""
 		var elideT *symTest
-		if t, tested := elidableTerminal(inner); t != "" && lw.g.elidable[t] {
-			elide = t
-			if tested != nil {
-				elideT = lw.tests[tested]
+		if e.Elidable {
+			if t, tested := elidableTerminal(inner); t != "" {
+				elide = t
+				if tested != nil {
+					elideT = lw.tests[tested]
+				}
 			}
 		}
-		return lw.helper(a, ruleName, elide, elideT, func(int32) [][]slot {
+		out := lw.helper(a, ruleName, elide, elideT, func(int32) [][]slot {
 			return append([][]slot{{}}, lw.expand(inner, a, ruleName)...)
 		})
+		if e.Maximal {
+			lw.l.maximalH[out[0][0].sym.id] = true
+		}
+		return out
 	case exRepeat:
-		inner, min := e.Inner, e.Min
+		// Flat braces are a helper, h → x | h s x, its base productions
+		// first; the places inside the item come before those inside the
+		// separator (§3.2).
+		if isChain(e) {
+			lw.loweringFault(a, "a chain in %s is not the whole of its rule", ruleName)
+		}
+		item, sep := e.Inner, e.Sep
 		return lw.helper(a, ruleName, "", nil, func(h int32) [][]slot {
-			xs := lw.expand(inner, a, ruleName)
-			var out [][]slot
-			if min == 0 {
-				out = append(out, []slot{})
-			} else {
-				out = append(out, xs...)
+			xs := lw.expand(item, a, ruleName)
+			lw.braceItems = append(lw.braceItems, braceItem{xs, a, ruleName})
+			ss := [][]slot{{}}
+			if sep != nil {
+				ss = lw.expand(sep, a, ruleName)
 			}
-			for _, x := range xs {
-				out = append(out, concat([]slot{{sym: symbol{id: h}}}, x))
+			out := append([][]slot{}, xs...)
+			for _, s := range ss {
+				for _, x := range xs {
+					out = append(out, concat(concat([]slot{{sym: symbol{id: h}}}, s), x))
+				}
 			}
 			return out
 		})
@@ -593,53 +807,153 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 	panic("unknown expression " + e.Kind)
 }
 
+// derivedRules is the least set of rules closed under the productions:
+// a production's rule is in it when seed says so, or when one of its
+// symbols is a rule in it (any), or when all of its symbols are (all, and
+// none is a terminal). A worklist indexed by each rule's uses settles each
+// rule once. A pass over every production until nothing changes would
+// settle one rule per pass, and cost the rules times the grammar.
+func derivedRules(rules, prods int, prod func(i int) (int32, []symbol), seed func(i int) bool, all bool) []bool {
+	w := work.Load()
+	in := make([]bool, rules)
+	// waiting[i] is the number of symbols of production i still to be
+	// settled: all of them for all, one for any.
+	waiting := make([]int, prods)
+	uses := make([][]int32, rules)
+	var queue []int32
+	settle := func(rule int32) {
+		if !in[rule] {
+			in[rule] = true
+			queue = append(queue, rule)
+		}
+	}
+	for i := 0; i < prods; i++ {
+		if w != nil {
+			w.ruleSetSteps.add("rule set steps")
+		}
+		lhs, rhs := prod(i)
+		if seed(i) {
+			settle(lhs)
+			continue
+		}
+		blocked := false
+		for _, s := range rhs {
+			if w != nil {
+				w.ruleSetSteps.add("rule set steps")
+			}
+			if s.term {
+				blocked = all
+				if !all {
+					settle(lhs)
+				}
+				break
+			}
+		}
+		if blocked || in[lhs] {
+			continue
+		}
+		waiting[i] = 1
+		if all {
+			waiting[i] = len(rhs)
+		}
+		if all && len(rhs) == 0 {
+			settle(lhs)
+			continue
+		}
+		for _, s := range rhs {
+			if w != nil {
+				w.ruleSetSteps.add("rule set steps")
+			}
+			uses[s.id] = append(uses[s.id], int32(i))
+		}
+	}
+	for len(queue) > 0 {
+		rule := queue[0]
+		queue = queue[1:]
+		for _, i := range uses[rule] {
+			if w != nil {
+				w.ruleSetSteps.add("rule set steps")
+			}
+			if waiting[i] == 0 {
+				continue
+			}
+			waiting[i]--
+			if waiting[i] == 0 {
+				lhs, _ := prod(int(i))
+				settle(lhs)
+			}
+		}
+	}
+	return in
+}
+
+// nullableRules is the rules that can derive the empty sequence.
+func nullableRules(rules, prods int, prod func(i int) (int32, []symbol)) []bool {
+	return derivedRules(rules, prods, prod, func(int) bool { return false }, true)
+}
+
+// othersNullable is the quadratic check of unit edges that the test-only
+// switch checkOthers restores: whether every symbol of rhs but the one at
+// j is a nullable rule, each symbol counted before it is checked.
+func othersNullable(w *workCounts, rhs []symbol, j int, nullable []bool) bool {
+	for o, x := range rhs {
+		if o == j {
+			continue
+		}
+		w.ruleSetSteps.add("rule set steps")
+		if x.term || !nullable[x.id] {
+			return false
+		}
+	}
+	return true
+}
+
 // computeCycles finds the rules that can lie below themselves over the same
 // span: A reaches B when A → α B β with α and β nullable. A forbidden set of
 // ancestors (engine §4, derivations) matters only within such a class.
 func (l *lowered) computeCycles() {
-	for changed := true; changed; {
-		changed = false
-		for _, r := range l.rules {
-			if r.nullable {
-				continue
-			}
-			for _, p := range r.prods {
-				all := true
-				for _, s := range p.rhs {
-					if s.term || !l.rules[s.id].nullable {
-						all = false
-						break
-					}
-				}
-				if all {
-					r.nullable = true
-					changed = true
-					break
-				}
-			}
-		}
+	nullable := nullableRules(len(l.rules), len(l.prods), func(i int) (int32, []symbol) { return l.prods[i].lhs, l.prods[i].rhs })
+	for i, r := range l.rules {
+		r.nullable = nullable[i]
 	}
 	n := len(l.rules)
 	edges := make([][]int32, n)
 	self := make([]bool, n)
+	// Each symbol and edge counts before it is examined, so that a check of
+	// every other symbol for each passes the budget at once.
+	wc := work.Load()
 	for i, r := range l.rules {
 		for _, p := range r.prods {
+			// B is reached through every other symbol nullable. One count of
+			// the symbols that are not finds each B, where a check of the
+			// others for each B would cost a long production its square.
+			blocking, at := 0, -1
+			for j, o := range p.rhs {
+				if wc != nil {
+					wc.ruleSetSteps.add("rule set steps")
+				}
+				if o.term || !nullable[o.id] {
+					blocking++
+					at = j
+				}
+			}
 			for j, s := range p.rhs {
+				if wc != nil {
+					wc.ruleSetSteps.add("rule set steps")
+				}
 				if s.term {
 					continue
 				}
-				ok := true
-				for k, o := range p.rhs {
-					if k != j && (o.term || !l.rules[o.id].nullable) {
-						ok = false
-						break
+				if wc != nil && wc.checkOthers {
+					if !othersNullable(wc, p.rhs, j, nullable) {
+						continue
 					}
+				} else if blocking > 1 || (blocking == 1 && at != j) {
+					continue
 				}
-				if ok {
-					edges[i] = append(edges[i], s.id)
-					if s.id == int32(i) {
-						self[i] = true
-					}
+				edges[i] = append(edges[i], s.id)
+				if s.id == int32(i) {
+					self[i] = true
 				}
 			}
 		}
@@ -658,6 +972,9 @@ func (l *lowered) computeCycles() {
 		e int
 	}
 	for root := 0; root < n; root++ {
+		if wc != nil {
+			wc.ruleSetSteps.add("rule set steps")
+		}
 		if index[root] >= 0 {
 			continue
 		}
@@ -670,6 +987,9 @@ func (l *lowered) computeCycles() {
 			f := &calls[len(calls)-1]
 			v := f.v
 			if f.e < len(edges[v]) {
+				if wc != nil {
+					wc.ruleSetSteps.add("rule set steps")
+				}
 				w := edges[v][f.e]
 				f.e++
 				if index[w] < 0 {

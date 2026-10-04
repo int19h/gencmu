@@ -1,0 +1,15 @@
+{
+  "description": "An item of braces that is ε is an error of the grammar (engine §3.3).",
+  "grammar": "%rule text A {ε}",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

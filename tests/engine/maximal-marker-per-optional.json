@@ -1,0 +1,55 @@
+{
+  "description": "Maximality belongs to the optional: [++T] and [+T] of one terminal in one stage. On C X B, y elides T after body → X, but body → X B is longer, so the [++T] omission is forbidden and the text is rejected at the T (engine §3.8, §4).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text x | y\n%rule x A body [+T] B\n%rule y C body [++T] B\n%rule body X | X B",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 2,
+        "source": [
+          4,
+          5
+        ],
+        "line": 1,
+        "column": 5,
+        "expected": [
+          {
+            "terminal": "T",
+            "rules": [
+              "y"
+            ]
+          }
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

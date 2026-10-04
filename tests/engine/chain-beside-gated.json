@@ -1,0 +1,118 @@
+{
+  "description": "Whether a chain stands beside another alternative depends on the gates: f? B leaves the chain alone without f, and is an error of the grammar with f on, in one loaded dialect (engine §3.1, §3.3).",
+  "grammar": "%rule text r\n%rule r {... A} | f? B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "parses": [
+    {
+      "options": {},
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {
+              "name": "main",
+              "verdict": "unique"
+            }
+          ],
+          "tree": {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              2
+            ],
+            "source": [
+              0,
+              3
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "r",
+                "span": [
+                  0,
+                  2
+                ],
+                "source": [
+                  0,
+                  3
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "r",
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ],
+                    "tags": [
+                      "A"
+                    ],
+                    "children": [
+                      {
+                        "kind": "token",
+                        "terminal": "A",
+                        "token": 0,
+                        "span": [
+                          0,
+                          1
+                        ],
+                        "source": [
+                          0,
+                          1
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 1,
+                    "span": [
+                      1,
+                      2
+                    ],
+                    "source": [
+                      2,
+                      3
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "brackets": "(a a)"
+      }
+    },
+    {
+      "options": {
+        "features": [
+          "f"
+        ]
+      },
+      "expect": {
+        "error": "grammar"
+      }
+    }
+  ]
+}

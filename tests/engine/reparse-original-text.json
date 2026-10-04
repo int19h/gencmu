@@ -1,6 +1,6 @@
 {
   "description": "text($) of a reads the source of its original tokens alone. A synthetic T that leads the span does not pull in the space before b, so text($) is \"b\", not \" b\". a and c both survive (engine §7.5).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text A a | A b | A c\n%rule a [T] B\n%conditions text($) = \"b\"\n%rule b [T] [T] B\n%rule c T B",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text A a | A b | A c\n%rule a [+T] B\n%conditions text($) = \"b\"\n%rule b [+T] [+T] B\n%rule c T B",
   "tokens": [
     {
       "text": "a",

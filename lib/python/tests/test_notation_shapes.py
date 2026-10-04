@@ -5,22 +5,20 @@ outcome that every library gives."""
 
 from __future__ import annotations
 
-import json
 import unittest
 from typing import Any, Callable
 
 import gencmu
 
-from .shared import SHARED, REPOSITORY
+from .shared import SHARED, REPOSITORY, load_json, read_json
 
-with open(SHARED / "notation-shapes.json", encoding="utf-8") as _file:
-    SHAPES: dict[str, Any] = json.load(_file)
+SHAPES: dict[str, Any] = load_json(SHARED / "notation-shapes.json")
 with open(REPOSITORY / "grammars" / "notation" / "bootstrap.json", encoding="utf-8") as _file:
     BOOTSTRAP = _file.read()
 SYNTAX_AT = BOOTSTRAP.index('"path":"notation/syntax.md"')
 NAMES = [
     rule["name"]
-    for stage in json.loads(BOOTSTRAP)["stages"]
+    for stage in read_json(BOOTSTRAP)["stages"]
     for document in stage["documents"]
     if document["path"] == "notation/syntax.md"
     for rule in document["dom"]["rules"]
@@ -28,17 +26,22 @@ NAMES = [
 ]
 
 
-def outcome(bootstrap: str, document: str | None = None, inputs: list[str] | None = None) -> Any:
+def outcome(bootstrap: str, document: str | None = None, inputs: list[str] | None = None, where: dict[str, Any] | None = None) -> Any:
     """Loads a document with a bootstrap, and parses each input: its
     brackets, or the kind of its error. A load that fails gives the kind of
-    its error. Any other exception escapes, and fails the test."""
+    its error, and must fail at ``where`` where an item gives it
+    (tests/README.md). Any other exception escapes, and fails the test."""
     document = SHAPES["document"] if document is None else document
     inputs = SHAPES["inputs"] if inputs is None else inputs
     sources = {"p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "g.md": document, "notation/bootstrap.json": bootstrap}
     try:
         dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
     except gencmu.GencmuError as error:
+        if where is not None:
+            found = {"document": error.document, "line": error.line, "column": error.column}
+            assert found == where, f"{error}: expected the error at {where}"
         return error.kind
+    assert where is None, "the document loaded, but the item gives where its error stands"
     results = []
     for text in inputs:
         result = dialect.parse(text)
@@ -60,7 +63,7 @@ class NotationShapes(unittest.TestCase):
         """Each notation stage runs the check of elision-only where its own
         directive declares it (engine §8). With greedy and elision-only on
         the lexical stage, the check finds the ambiguity that greedy settled
-        in the pipeline document itself, and the document does not load."""
+        in `++`, which is also two `+`, and the document does not load."""
         directive = '"name":"ambiguity-resolution","args":["greedy"]'
         lexical = BOOTSTRAP.index('"path":"notation/lexical.md"')
         at = BOOTSTRAP.index(directive)
@@ -70,7 +73,7 @@ class NotationShapes(unittest.TestCase):
         def sources(bootstrap: str) -> dict[str, str]:
             return {
                 "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
-                "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A B\n```\n",
+                "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A [++B]\n```\n",
                 "notation/bootstrap.json": bootstrap,
             }
 
@@ -114,4 +117,4 @@ class NotationShapes(unittest.TestCase):
             with self.subTest(item["description"]):
                 self.assertEqual(BOOTSTRAP[SYNTAX_AT:].count(item["find"]), 1)
                 changed = with_syntax(lambda syntax, item=item: syntax.replace(item["find"], item["replace"]))
-                self.assertEqual(outcome(changed, item["document"], item["inputs"]), item["expect"])
+                self.assertEqual(outcome(changed, item["document"], item["inputs"], item.get("where")), item["expect"])

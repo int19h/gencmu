@@ -1,6 +1,6 @@
 {
   "description": "Implications chain: a token emitted with A takes b, and then c and d from b's implication. An implication whose left side the token does not meet adds nothing (engine §11).",
-  "grammar": "%implies ~b ⟹ ~c ∪ ~d\n%implies A ⟹ ~b\n%implies ~z ⟹ ~y\n%rule text [word] ...\n%rule word $w(W) <tags($w) ∪ A>\n%emits\n  $",
+  "grammar": "%implies ~b ⟹ ~c ∪ ~d\n%implies A ⟹ ~b\n%implies ~z ⟹ ~y\n%rule text [{word}]\n%rule word $w(W) <tags($w) ∪ A>\n%emits\n  $",
   "tokens": [
     {
       "text": "x",

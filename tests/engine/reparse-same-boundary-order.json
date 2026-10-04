@@ -1,6 +1,6 @@
 {
   "description": "Two terminators restored at one boundary keep the leaf order of the chosen tree, T before U. Each reading shows them as elided nodes at that boundary, also where c reads them as bare terminals (engine §7.2, §7.10).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T U V\n%rule text a | b | c\n%rule a A [T] [U]\n%rule b A [T] [U] [V]\n%rule c A T U",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a A [+T] [+U]\n%rule b A [+T] [+U] [+V]\n%rule c A T U",
   "tokens": [
     {
       "text": "a",

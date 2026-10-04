@@ -1,6 +1,6 @@
 {
-  "description": "Optional, repetition, zero-or-more, grouping, and/or, # as a rule and ε (engine §9).",
-  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule text [A] B ... [C] ... (D | E) F & G # ε\n```\n",
+  "description": "Optional, braces, an optional list, grouping, and/or, # as a rule and ε (engine §9).",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule text [A] {B} [{C}] (D | E) F & G # ε\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -19,14 +19,14 @@
                       {
                         "repeat": {
                           "ref": "B"
-                        },
-                        "min": 1
+                        }
                       },
                       {
-                        "repeat": {
-                          "ref": "C"
-                        },
-                        "min": 0
+                        "optional": {
+                          "repeat": {
+                            "ref": "C"
+                          }
+                        }
                       },
                       {
                         "choice": [

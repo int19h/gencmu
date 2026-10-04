@@ -1,14 +1,23 @@
 {
-  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 3 derivations.",
-  "grammar": "%ambiguity-resolution lazy\n%rule text v | v v | ε\n%rule t [v] ... u | B\n%rule u u A | v [A]\n%rule v ε | B v ...",
+  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 2 derivations.",
+  "grammar": "%ambiguity-resolution lazy\n%rule text ε | v≠\"x\" v | u\n%rule t [A] A | [{A}] u\n%rule u ε | C v=\"x\"\n%rule v A A | ε",
   "tokens": [
     {
-      "text": "a",
+      "text": "x",
       "tags": [
         "A",
         "B",
         "C"
-      ]
+      ],
+      "phonemes": "x"
+    },
+    {
+      "text": "x",
+      "tags": [
+        "A",
+        "B"
+      ],
+      "phonemes": "y"
     }
   ],
   "expect": {
@@ -27,11 +36,11 @@
         "rule": "text",
         "span": [
           0,
-          1
+          2
         ],
         "source": [
           0,
-          1
+          3
         ],
         "tags": [],
         "children": [
@@ -54,17 +63,17 @@
             "rule": "v",
             "span": [
               0,
-              1
+              2
             ],
             "source": [
               0,
-              1
+              3
             ],
             "tags": [],
             "children": [
               {
                 "kind": "token",
-                "terminal": "B",
+                "terminal": "A",
                 "token": 0,
                 "span": [
                   0,
@@ -76,18 +85,17 @@
                 ]
               },
               {
-                "kind": "rule",
-                "rule": "v",
+                "kind": "token",
+                "terminal": "A",
+                "token": 1,
                 "span": [
                   1,
-                  1
+                  2
                 ],
                 "source": [
-                  1,
-                  1
-                ],
-                "tags": [],
-                "children": []
+                  2,
+                  3
+                ]
               }
             ]
           }
@@ -95,6 +103,6 @@
       },
       "error": null
     },
-    "brackets": "a"
+    "brackets": "(x x)"
   }
 }

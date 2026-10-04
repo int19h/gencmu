@@ -1,15 +1,7 @@
 {
-  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 2 derivations.",
-  "grammar": "%ambiguity-resolution lazy\n%rule text ε | v A | ε\n%rule t (B | C) | ε\n%rule u ε | ε\n%rule v [C] ... C ... | u ... [t] ...",
-  "tokens": [
-    {
-      "text": "a",
-      "tags": [
-        "A",
-        "B"
-      ]
-    }
-  ],
+  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 3 derivations.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text ε | ε | ε\n%rule t u [u] | ε\n%rule u u | u\n%rule v [{B}] t | A",
+  "tokens": [],
   "expect": {
     "result": {
       "format": 9,
@@ -21,8 +13,8 @@
           "witness": [
             {
               "close": {
-                "rule": "u",
-                "production": 6,
+                "rule": "text",
+                "production": 0,
                 "span": [
                   0,
                   0
@@ -31,8 +23,8 @@
             },
             {
               "close": {
-                "rule": "u",
-                "production": 7,
+                "rule": "text",
+                "production": 1,
                 "span": [
                   0,
                   0
@@ -53,114 +45,28 @@
             "rule": "text",
             "span": [
               0,
-              1
+              0
             ],
             "source": [
               0,
-              1
+              0
             ],
             "tags": [],
-            "children": [
-              {
-                "kind": "rule",
-                "rule": "v",
-                "span": [
-                  0,
-                  0
-                ],
-                "source": [
-                  0,
-                  0
-                ],
-                "tags": [],
-                "children": [
-                  {
-                    "kind": "rule",
-                    "rule": "u",
-                    "span": [
-                      0,
-                      0
-                    ],
-                    "source": [
-                      0,
-                      0
-                    ],
-                    "tags": [],
-                    "children": []
-                  }
-                ]
-              },
-              {
-                "kind": "token",
-                "terminal": "A",
-                "token": 0,
-                "span": [
-                  0,
-                  1
-                ],
-                "source": [
-                  0,
-                  1
-                ]
-              }
-            ]
+            "children": []
           },
           {
             "kind": "rule",
             "rule": "text",
             "span": [
               0,
-              1
+              0
             ],
             "source": [
               0,
-              1
+              0
             ],
             "tags": [],
-            "children": [
-              {
-                "kind": "rule",
-                "rule": "v",
-                "span": [
-                  0,
-                  0
-                ],
-                "source": [
-                  0,
-                  0
-                ],
-                "tags": [],
-                "children": [
-                  {
-                    "kind": "rule",
-                    "rule": "u",
-                    "span": [
-                      0,
-                      0
-                    ],
-                    "source": [
-                      0,
-                      0
-                    ],
-                    "tags": [],
-                    "children": []
-                  }
-                ]
-              },
-              {
-                "kind": "token",
-                "terminal": "A",
-                "token": 0,
-                "span": [
-                  0,
-                  1
-                ],
-                "source": [
-                  0,
-                  1
-                ]
-              }
-            ]
+            "children": []
           }
         ]
       }

@@ -1,6 +1,6 @@
 {
   "description": "Under maximal, a longer constituent of a tested symbol for which the test also holds forbids the elided terminator: y could have been a b, which sounds a too, since b has no sound (engine §4).",
-  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T\n%rule text x B C\n%rule x y=\"a\" [T]\n%rule y A | A B",
+  "grammar": "%ambiguity-resolution greedy maximal\n%rule text x B C\n%rule x y=\"a\" [+T]\n%rule y A | A B",
   "tokens": [
     {
       "text": "a",

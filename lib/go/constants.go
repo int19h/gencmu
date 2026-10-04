@@ -116,7 +116,18 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int) (*con
 	case tmConst:
 		v := *g.constants[t.Str].value
 		return &v, nil
-	case tmUnion, tmIntersection, tmDifference:
+	case tmUnion:
+		// Gathered at once, since a pairwise fold copies the growing union.
+		sets := make([]*tagset, len(t.Items))
+		for i, it := range t.Items {
+			s, err := set(it)
+			if err != nil {
+				return nil, err
+			}
+			sets[i] = in.make(s.names)
+		}
+		return &constValue{ty: tySet, names: in.unionAll(sets).names}, nil
+	case tmIntersection, tmDifference:
 		var out *tagset
 		for i, it := range t.Items {
 			s, err := set(it)
@@ -126,8 +137,6 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int) (*con
 			switch {
 			case i == 0:
 				out = in.make(s.names)
-			case t.Kind == tmUnion:
-				out = in.union(out, in.make(s.names))
 			case t.Kind == tmIntersection:
 				out = in.intersection(out, in.make(s.names))
 			default:
@@ -232,11 +241,11 @@ func (g *stageGrammar) resolveConstants() *Error {
 			a.ruleTags = r.term(a.ruleTags)
 			a.emit = r.emit(a.emit)
 			a.conds = r.condList(a.conds)
-			if a.alt.Tags != nil && len(constRefs(a.alt.Tags)) > 0 {
+			if tags := r.term(a.alt.Tags); tags != a.alt.Tags {
 				alt, ok := r.alts[a.alt]
 				if !ok {
 					copied := *a.alt
-					copied.Tags = r.term(a.alt.Tags)
+					copied.Tags = tags
 					alt = &copied
 					r.alts[a.alt] = alt
 				}
@@ -297,17 +306,27 @@ func closedCalls(rule *domRule) []*domTerm {
 }
 
 // resolver copies clauses with each reference to a constant holding its
-// value, each node once, and leaves a node without one as it is.
+// value, each node once, and leaves a node without one as it is. Each node
+// is looked up before it is walked, so a clause that many alternatives
+// share costs one walk, not one for each.
 type resolver struct {
 	constants map[string]*stageConst
 	terms     map[*domTerm]*domTerm
 	conds     map[*domCond]*domCond
+	condLists map[condListKey][]*domCond
 	emits     map[*domEmit]*domEmit
 	alts      map[*domAlt]*domAlt
 }
 
+// condListKey is a list of conditions by identity: where it starts in
+// memory and how long it is.
+type condListKey struct {
+	first **domCond
+	n     int
+}
+
 func newResolver(constants map[string]*stageConst) *resolver {
-	return &resolver{constants: constants, terms: map[*domTerm]*domTerm{}, conds: map[*domCond]*domCond{}, emits: map[*domEmit]*domEmit{}, alts: map[*domAlt]*domAlt{}}
+	return &resolver{constants: constants, terms: map[*domTerm]*domTerm{}, conds: map[*domCond]*domCond{}, condLists: map[condListKey][]*domCond{}, emits: map[*domEmit]*domEmit{}, alts: map[*domAlt]*domAlt{}}
 }
 
 // rule copies a rule definition with each reference to a constant holding
@@ -320,64 +339,114 @@ func (r *resolver) rule(rule *domRule) *domRule {
 	copied.Alternatives = make([]*domAlt, len(rule.Alternatives))
 	for i, a := range rule.Alternatives {
 		copied.Alternatives[i] = a
-		if a.Tags != nil && len(constRefs(a.Tags)) > 0 {
+		if tags := r.term(a.Tags); tags != a.Tags {
 			alt := *a
-			alt.Tags = r.term(a.Tags)
+			alt.Tags = tags
 			copied.Alternatives[i] = &alt
 		}
 	}
 	return &copied
 }
 
+// term is t with each constant holding its value: t itself where no part
+// of it is a constant, else a copy.
 func (r *resolver) term(t *domTerm) *domTerm {
-	if t == nil || len(constRefs(t)) == 0 {
-		return t
+	if t == nil {
+		return nil
 	}
 	if done, ok := r.terms[t]; ok {
 		return done
+	}
+	if w := work.Load(); w != nil {
+		w.clauseSteps.add("clause steps")
+	}
+	changed := t.Kind == tmConst
+	var items []*domTerm
+	if t.Items != nil {
+		items = make([]*domTerm, len(t.Items))
+		for i, it := range t.Items {
+			items[i] = r.term(it)
+			changed = changed || items[i] != it
+		}
+	}
+	cond := r.cond(t.Cond)
+	changed = changed || cond != t.Cond
+	if !changed {
+		r.terms[t] = t
+		return t
 	}
 	copied := *t
 	if t.Kind == tmConst {
 		copied.value = r.constants[t.Str].value
 	}
-	if t.Items != nil {
-		copied.Items = make([]*domTerm, len(t.Items))
-		for i, it := range t.Items {
-			copied.Items[i] = r.term(it)
-		}
-	}
-	copied.Cond = r.cond(t.Cond)
+	copied.Items = items
+	copied.Cond = cond
 	r.terms[t] = &copied
 	return &copied
 }
 
+// cond is c with each constant holding its value, as term is.
 func (r *resolver) cond(c *domCond) *domCond {
-	if c == nil || len(constRefs(c)) == 0 {
-		return c
+	if c == nil {
+		return nil
 	}
 	if done, ok := r.conds[c]; ok {
 		return done
 	}
-	copied := *c
-	copied.Left, copied.Right, copied.Span = r.term(c.Left), r.term(c.Right), r.term(c.Span)
-	copied.Inner = r.cond(c.Inner)
-	if c.Items != nil {
-		copied.Items = r.condList(c.Items)
+	if w := work.Load(); w != nil {
+		w.clauseSteps.add("clause steps")
 	}
+	left, right, span := r.term(c.Left), r.term(c.Right), r.term(c.Span)
+	inner := r.cond(c.Inner)
+	items := c.Items
+	if c.Items != nil {
+		items = r.condList(c.Items)
+	}
+	if left == c.Left && right == c.Right && span == c.Span && inner == c.Inner && sameConds(items, c.Items) {
+		r.conds[c] = c
+		return c
+	}
+	copied := *c
+	copied.Left, copied.Right, copied.Span, copied.Inner, copied.Items = left, right, span, inner, items
 	r.conds[c] = &copied
 	return &copied
+}
+
+// sameConds says whether two lists of conditions are one list.
+func sameConds(a, b []*domCond) bool {
+	return len(a) == len(b) && (len(a) == 0 || &a[0] == &b[0])
 }
 
 // condList copies a list of conditions where one of them holds a
 // constant; a list without one stays as it is, shared.
 func (r *resolver) condList(cs []*domCond) []*domCond {
-	if len(constRefs(cs)) == 0 {
+	if len(cs) == 0 {
 		return cs
 	}
-	out := make([]*domCond, len(cs))
-	for i, c := range cs {
-		out[i] = r.cond(c)
+	key := condListKey{&cs[0], len(cs)}
+	if done, ok := r.condLists[key]; ok {
+		return done
 	}
+	// Each condition counts as it is looked at, also one already resolved,
+	// so that a list resolved again for each alternative passes the budget.
+	w := work.Load()
+	var out []*domCond
+	for i, c := range cs {
+		if w != nil {
+			w.clauseSteps.add("clause steps")
+		}
+		if resolved := r.cond(c); resolved != c && out == nil {
+			out = make([]*domCond, len(cs))
+			copy(out, cs[:i])
+			out[i] = resolved
+		} else if out != nil {
+			out[i] = resolved
+		}
+	}
+	if out == nil {
+		out = cs
+	}
+	r.condLists[key] = out
 	return out
 }
 

@@ -1,0 +1,10 @@
+{
+  "description": "The items of a document are checked in the order written: the constant's value, whose parts do not join, comes before the rule's error (engine §9).",
+  "document": "```jbogenbau\n%const $A \"a\" ∪ ~B\n%rule b [+KU≠\"k\"]\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

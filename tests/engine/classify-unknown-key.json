@@ -1,6 +1,6 @@
 {
   "description": "classify gives ∅ for a key that no entry names, and a %classifier with no entries names a classifier whose every key gives ∅ (engine §2, §10).",
-  "grammar": "%classifier lex\n  \"mi\" ∈ KOhA\n%classifier none\n%rule text [word] ...\n%rule word $w(W) <~w ∪ classify(phonemes($w), lex) ∪ classify(phonemes($w), none)>\n%emits\n  $",
+  "grammar": "%classifier lex\n  \"mi\" ∈ KOhA\n%classifier none\n%rule text [{word}]\n%rule word $w(W) <~w ∪ classify(phonemes($w), lex) ∪ classify(phonemes($w), none)>\n%emits\n  $",
   "tokens": [
     {
       "text": "mi",

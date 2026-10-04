@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 17
+const domFormat = 18
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -101,12 +102,18 @@ const (
 type domExpr struct {
 	Kind  string
 	Items []*domExpr // seq, choice, and
-	Inner *domExpr   // optional, repeat, capture, test (its symbol)
-	Min   int        // repeat
-	Name  string     // ref, terminal (a tag in its canonical spelling), capture, property (its name)
-	Range [2]string  // range: its two ends, character tags in their canonical spelling
-	Op    string     // test: its comparator, one of testOps
-	Value *domTerm   // test: its value, a closed term
+	Inner *domExpr   // optional, repeat (its item), capture, test (its symbol)
+	// Sep is a repeat's separator, or nil; Chain is "left" or "right" for
+	// a chain, "" for flat braces (engine §3.2, §3.3).
+	Sep   *domExpr
+	Chain string
+	// Elidable marks an optional written [+T x] or [++T x], and Maximal one
+	// written [++T x] (engine §3.8).
+	Elidable, Maximal bool
+	Name              string    // ref, terminal (a tag in its canonical spelling), capture, property (its name)
+	Range             [2]string // range: its two ends, character tags in their canonical spelling
+	Op                string    // test: its comparator, one of testOps
+	Value             *domTerm  // test: its value, a closed term
 }
 
 // testOps are the comparators of a test in a body (engine §2): the two
@@ -234,10 +241,7 @@ func (e *domEmit) nothing() bool {
 type domDirective struct {
 	Name string
 	Args []string
-	// Maximal is set by %elidable maximal: its terminators are maximal
-	// (engine §2, §4). No other directive has it.
-	Maximal bool
-	At      [2]int
+	At   [2]int
 }
 
 // ---- writing
@@ -267,9 +271,6 @@ func (d *domDoc) writeJSON(w *jsonWriter) {
 			w.str(a)
 		}
 		w.raw("]")
-		if dir.Maximal {
-			w.raw(`,"maximal":true`)
-		}
 		w.raw(`,"at":`)
 		w.pair(dir.At)
 		w.raw("}")
@@ -418,12 +419,24 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 	case exOptional:
 		w.raw(`{"optional":`)
 		e.Inner.writeJSON(w)
+		if e.Elidable {
+			w.raw(`,"elidable":true`)
+		}
+		if e.Maximal {
+			w.raw(`,"maximal":true`)
+		}
 		w.raw("}")
 	case exRepeat:
 		w.raw(`{"repeat":`)
 		e.Inner.writeJSON(w)
-		w.raw(`,"min":`)
-		w.int(e.Min)
+		if e.Sep != nil {
+			w.raw(`,"separator":`)
+			e.Sep.writeJSON(w)
+		}
+		if e.Chain != "" {
+			w.raw(`,"chain":`)
+			w.str(e.Chain)
+		}
 		w.raw("}")
 	case exRef, exTerminal:
 		w.raw("{")
@@ -612,9 +625,21 @@ func (d *domDoc) json() []byte {
 
 // ---- reading
 
+// errTooDeep refuses a DOM nested deeper than validateDOM allows, while it
+// is decoded. Each level of decoding reads its subtree again, so a DOM
+// nested as deep as JSON allows would cost its size times its depth.
+var errTooDeep = fmt.Errorf("an expression, term or condition is nested more than %d deep", maxDOMDepth)
+
 type jobj map[string]json.RawMessage
 
 func decodeObj(raw json.RawMessage) (jobj, error) {
+	// The bytes are charged in one sum before the call, since
+	// encoding/json reads them where no count can reach. Counting each
+	// byte would mean a decoder of our own, whose errors would differ.
+	// The charge is the input of the call, not the size of its result.
+	if w := work.Load(); w != nil {
+		w.decodeSteps.addN(int64(len(raw)), "decoded bytes")
+	}
 	var o jobj
 	if err := json.Unmarshal(raw, &o); err != nil {
 		return nil, err
@@ -694,16 +719,11 @@ func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
 		if err != nil {
 			return nil, fmt.Errorf("a malformed directive")
 		}
-		// A maximal member stands only on elidable, and its value is the
-		// boolean true (engine §9).
-		maximal := false
-		if raw, ok := o["maximal"]; ok {
-			if name != "elidable" || string(bytes.TrimSpace(raw)) != "true" {
-				return nil, fmt.Errorf("a malformed directive")
-			}
-			maximal = true
+		// No directive has a maximal member (engine §9).
+		if _, ok := o["maximal"]; ok {
+			return nil, fmt.Errorf("a malformed directive")
 		}
-		d.Directives = append(d.Directives, &domDirective{Name: name, Args: args, Maximal: maximal, At: at})
+		d.Directives = append(d.Directives, &domDirective{Name: name, Args: args, At: at})
 	}
 	if err := validateDOM(d, uni); err != nil {
 		return nil, err
@@ -952,11 +972,21 @@ func decodePosition(raw json.RawMessage) ([2]int, error) {
 	return [2]int{at[0], at[1]}, nil
 }
 
-func decodeExpr(raw json.RawMessage) (*domExpr, error) {
+func decodeExpr(raw json.RawMessage) (*domExpr, error) { return decodeExprAt(raw, 0) }
+
+func decodeExprAt(raw json.RawMessage, depth int) (*domExpr, error) {
+	if depth > maxDOMDepth {
+		return nil, errTooDeep
+	}
 	o, err := decodeObj(raw)
 	if err != nil {
 		return nil, err
 	}
+	return decodeExprObj(raw, o, depth)
+}
+
+// decodeExprObj reads an expression, raw, whose members o are decoded.
+func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 	// An expression has exactly the members of one form (docs/output.md).
 	if !hasOneForm(o, exprForms) {
 		return nil, fmt.Errorf("a malformed expression")
@@ -971,29 +1001,59 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 	}
 	for _, k := range []string{exSeq, exChoice, exAnd} {
 		if v, ok := o[k]; ok {
-			items, err := decodeList(v, decodeExpr)
+			items, err := decodeList(v, func(r json.RawMessage) (*domExpr, error) { return decodeExprAt(r, depth+1) })
 			return &domExpr{Kind: k, Items: items}, err
 		}
 	}
 	if v, ok := o["optional"]; ok {
-		inner, err := decodeExpr(v)
-		return &domExpr{Kind: exOptional, Inner: inner}, err
+		inner, err := decodeExprAt(v, depth+1)
+		if err != nil {
+			return nil, err
+		}
+		// An elidable optional is marked true, and a maximal one too; a
+		// maximal member stands only beside elidable (engine §9).
+		e := &domExpr{Kind: exOptional, Inner: inner}
+		for _, flag := range []struct {
+			name string
+			into *bool
+		}{{"elidable", &e.Elidable}, {"maximal", &e.Maximal}} {
+			if raw, ok := o[flag.name]; ok {
+				if string(bytes.TrimSpace(raw)) != "true" {
+					return nil, fmt.Errorf("a malformed expression")
+				}
+				*flag.into = true
+			}
+		}
+		if e.Maximal && !e.Elidable {
+			return nil, fmt.Errorf("a malformed expression")
+		}
+		return e, nil
 	}
 	if v, ok := o["repeat"]; ok {
-		inner, err := decodeExpr(v)
+		inner, err := decodeExprAt(v, depth+1)
 		if err != nil {
 			return nil, err
 		}
 		e := &domExpr{Kind: exRepeat, Inner: inner}
-		err = unmarshal(o["min"], &e.Min)
-		return e, err
+		if sep, ok := o["separator"]; ok {
+			if e.Sep, err = decodeExprAt(sep, depth+1); err != nil {
+				return nil, err
+			}
+		}
+		// A chain's direction is left or right (engine §9).
+		if raw, ok := o["chain"]; ok {
+			if err := unmarshal(raw, &e.Chain); err != nil || (e.Chain != "left" && e.Chain != "right") {
+				return nil, fmt.Errorf("a malformed expression")
+			}
+		}
+		return e, nil
 	}
 	if v, ok := o["capture"]; ok {
 		name, err := decodeString(v)
 		if err != nil {
 			return nil, err
 		}
-		inner, err := decodeExpr(o["expr"])
+		inner, err := decodeExprAt(o["expr"], depth+1)
 		return &domExpr{Kind: exCapture, Name: name, Inner: inner}, err
 	}
 	if v, ok := o["test"]; ok {
@@ -1003,14 +1063,15 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 		if err != nil {
 			return nil, fmt.Errorf("a malformed test")
 		}
-		if io, err := decodeObj(o["expr"]); err != nil || len(io) != 1 {
+		io, err := decodeObj(o["expr"])
+		if err != nil || len(io) != 1 {
 			return nil, fmt.Errorf("a test follows only a reference other than # or a terminal")
 		}
-		inner, err := decodeExpr(o["expr"])
+		inner, err := decodeExprObj(o["expr"], io, depth+1)
 		if err != nil {
 			return nil, err
 		}
-		value, err := decodeTerm(o["value"])
+		value, err := decodeTermAt(o["value"], depth+1)
 		return &domExpr{Kind: exTest, Op: op, Inner: inner, Value: value}, err
 	}
 	for _, k := range []string{exRef, exTerminal} {
@@ -1030,7 +1091,7 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 // member names the form. A rule argument and a classifier argument are
 // forms of a term too.
 var exprForms = [][]string{
-	{exSeq}, {exChoice}, {exAnd}, {exOptional}, {exRepeat, "min"}, {exRef}, {exTerminal}, {exCapture, "expr"},
+	{exSeq}, {exChoice}, {exAnd}, {exOptional, "elidable?", "maximal?"}, {exRepeat, "separator?", "chain?"}, {exRef}, {exTerminal}, {exCapture, "expr"},
 	{exRange}, {exProperty}, {exTest, "value", "expr"}, {exEmpty},
 }
 
@@ -1056,26 +1117,33 @@ func decodeRange(raw json.RawMessage) ([2]string, error) {
 // hasOneForm says whether a node has exactly the members of one of its
 // forms, and no other. So a node that joins two forms, such as
 // {"tag":…,"string":…}, is refused before it is read, and no library reads
-// it one way where another reads it another way.
+// it one way where another reads it another way. A member that ends in ?
+// may be absent.
 func hasOneForm(o jobj, forms [][]string) bool {
 	for _, form := range forms {
 		if _, ok := o[form[0]]; !ok {
 			continue
 		}
-		if len(o) != len(form) {
-			return false
-		}
+		known := 0
 		for _, member := range form {
-			if _, ok := o[member]; !ok {
+			name, optional := strings.CutSuffix(member, "?")
+			if _, ok := o[name]; ok {
+				known++
+			} else if !optional {
 				return false
 			}
 		}
-		return true
+		return known == len(o)
 	}
 	return false
 }
 
-func decodeTerm(raw json.RawMessage) (*domTerm, error) {
+func decodeTerm(raw json.RawMessage) (*domTerm, error) { return decodeTermAt(raw, 0) }
+
+func decodeTermAt(raw json.RawMessage, depth int) (*domTerm, error) {
+	if depth > maxDOMDepth {
+		return nil, errTooDeep
+	}
 	o, err := decodeObj(raw)
 	if err != nil {
 		return nil, err
@@ -1106,7 +1174,7 @@ func decodeTerm(raw json.RawMessage) (*domTerm, error) {
 	}
 	for _, k := range []string{tmUnion, tmIntersection, tmDifference} {
 		if v, ok := o[k]; ok {
-			items, err := decodeList(v, decodeTerm)
+			items, err := decodeList(v, func(r json.RawMessage) (*domTerm, error) { return decodeTermAt(r, depth+1) })
 			return &domTerm{Kind: k, Items: items}, err
 		}
 	}
@@ -1115,21 +1183,26 @@ func decodeTerm(raw json.RawMessage) (*domTerm, error) {
 		if err != nil {
 			return nil, err
 		}
-		args, err := decodeList(o["args"], decodeTerm)
+		args, err := decodeList(o["args"], func(r json.RawMessage) (*domTerm, error) { return decodeTermAt(r, depth+1) })
 		return &domTerm{Kind: tmCall, Str: name, Items: args}, err
 	}
 	if v, ok := o["if"]; ok {
-		cond, err := decodeCond(v)
+		cond, err := decodeCondAt(v, depth+1)
 		if err != nil {
 			return nil, err
 		}
-		then, err := decodeTerm(o["then"])
+		then, err := decodeTermAt(o["then"], depth+1)
 		return &domTerm{Kind: tmIf, Cond: cond, Items: []*domTerm{then}}, err
 	}
 	return nil, fmt.Errorf("unknown term %s", string(raw))
 }
 
-func decodeCond(raw json.RawMessage) (*domCond, error) {
+func decodeCond(raw json.RawMessage) (*domCond, error) { return decodeCondAt(raw, 0) }
+
+func decodeCondAt(raw json.RawMessage, depth int) (*domCond, error) {
+	if depth > maxDOMDepth {
+		return nil, errTooDeep
+	}
 	o, err := decodeObj(raw)
 	if err != nil {
 		return nil, err
@@ -1143,10 +1216,10 @@ func decodeCond(raw json.RawMessage) (*domCond, error) {
 		if c.Op, err = decodeString(v); err != nil {
 			return nil, err
 		}
-		if c.Left, err = decodeTerm(o["left"]); err != nil {
+		if c.Left, err = decodeTermAt(o["left"], depth+1); err != nil {
 			return nil, err
 		}
-		c.Right, err = decodeTerm(o["right"])
+		c.Right, err = decodeTermAt(o["right"], depth+1)
 		return c, err
 	}
 	for _, k := range []string{cdMatches, cdBegins} {
@@ -1156,7 +1229,7 @@ func decodeCond(raw json.RawMessage) (*domCond, error) {
 				return nil, fmt.Errorf("a malformed condition")
 			}
 			c := &domCond{Kind: k}
-			if c.Span, err = decodeTerm(v); err != nil {
+			if c.Span, err = decodeTermAt(v, depth+1); err != nil {
 				return nil, err
 			}
 			c.Rule, err = decodeString(o["rule"])
@@ -1168,11 +1241,11 @@ func decodeCond(raw json.RawMessage) (*domCond, error) {
 		if len(o) != 1 {
 			return nil, fmt.Errorf("a malformed condition")
 		}
-		span, err := decodeTerm(v)
+		span, err := decodeTermAt(v, depth+1)
 		return &domCond{Kind: cdInitial, Span: span}, err
 	}
 	if v, ok := o["not"]; ok {
-		inner, err := decodeCond(v)
+		inner, err := decodeCondAt(v, depth+1)
 		return &domCond{Kind: cdNot, Inner: inner}, err
 	}
 	if v, ok := o["captured"]; ok {
@@ -1180,16 +1253,16 @@ func decodeCond(raw json.RawMessage) (*domCond, error) {
 		return &domCond{Kind: cdCaptured, Rule: name}, err
 	}
 	if v, ok := o["if"]; ok {
-		premise, err := decodeCond(v)
+		premise, err := decodeCondAt(v, depth+1)
 		if err != nil {
 			return nil, err
 		}
-		then, err := decodeCond(o["then"])
+		then, err := decodeCondAt(o["then"], depth+1)
 		return &domCond{Kind: cdIf, Items: []*domCond{premise, then}}, err
 	}
 	for _, k := range []string{cdAny, cdAll} {
 		if v, ok := o[k]; ok {
-			items, err := decodeList(v, decodeCond)
+			items, err := decodeList(v, func(r json.RawMessage) (*domCond, error) { return decodeCondAt(r, depth+1) })
 			return &domCond{Kind: k, Items: items}, err
 		}
 	}

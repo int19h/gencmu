@@ -95,6 +95,19 @@ def with_bare_alternative(*changes: Callable[[Dom], None]) -> Callable[[Dom], No
     return change
 
 
+def bare(change: Callable[[Dom], None]) -> Callable[[Dom], None]:
+    """No clause that uses $x: no condition, no tags of the alternative,
+    and an emission of $; then the change."""
+
+    def changed(dom: Dom) -> None:
+        rule(dom)["conditions"] = []
+        alt(dom).pop("tags", None)
+        rule(dom)["emit"] = {"items": [WHOLE]}
+        change(dom)
+
+    return changed
+
+
 def nested_union(depth: int) -> Any:
     term: Any = {"tag": "T"}
     for _ in range(depth):
@@ -118,6 +131,14 @@ def nested(depth: int) -> Any:
 
 
 A = {"terminal": "'a'"}
+CAP_X = {"capture": "x", "expr": A}
+KU = {"ref": "KU"}
+
+
+def marked(expr: Any, maximal: bool = False) -> Dom:
+    """An elidable optional, ``[+…]`` or ``[++…]``, of an expression."""
+    return {"optional": expr, "elidable": True, "maximal": True} if maximal else {"optional": expr, "elidable": True}
+
 X = {"capture": "x"}
 TAGS_X = {"call": "tags", "args": [X]}
 WHOLE = {"capture": ""}
@@ -149,18 +170,53 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("seq of one item", set_expr({"seq": [A]})),
     ("choice of one item", set_expr({"choice": [A]})),
     ("& of more than 16 items", set_expr({"and": [A] * 17})),
-    ("repetition with min 2", set_expr({"repeat": A, "min": 2})),
+    # Format 17's repeat had a min, which format 18 has not (docs/output.md).
+    ("repetition with a min", set_expr({"seq": [CAP_X, {"repeat": A, "min": 1}]})),
+    ("separated list with a min", set_expr({"seq": [CAP_X, {"repeat": A, "separator": A, "min": 0}]})),
+    ("separator of a bad reference", set_expr({"seq": [CAP_X, {"repeat": A, "separator": {"ref": "x y"}}]})),
+    # A chain is the whole expression of its alternative, to the left or
+    # to the right (engine §9).
+    ("chain in a sequence", set_expr({"seq": [CAP_X, {"repeat": A, "chain": "left"}]})),
+    ("chain in an optional", set_expr({"seq": [CAP_X, {"optional": {"repeat": A, "separator": A, "chain": "right"}}]})),
+    ("chain in a separator", set_expr({"seq": [CAP_X, {"repeat": A, "separator": {"repeat": A, "chain": "left"}}]})),
+    ("chain in a choice", set_expr({"seq": [CAP_X, {"choice": [{"repeat": A, "chain": "left"}, A]}]})),
+    ("chain neither left nor right", set_expr({"repeat": A, "chain": "up"})),
+    ("chain that is no string", set_expr({"repeat": A, "chain": True})),
+    # An elidable optional is marked true, maximal only with it, and begins
+    # with its terminal (engine §3.8, §9).
+    ("optional elidable false", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": False}]})),
+    ("optional elidable 'true'", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": "true"}]})),
+    ("optional elidable null", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": None}]})),
+    ("optional elidable 1", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": 1}]})),
+    ("optional maximal without elidable", set_expr({"seq": [CAP_X, {"optional": KU, "maximal": True}]})),
+    ("optional maximal false", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": True, "maximal": False}]})),
+    ("elidable choice", set_expr({"seq": [CAP_X, marked({"choice": [KU, {"ref": "VAU"}]})]})),
+    ("elidable and", set_expr({"seq": [CAP_X, marked({"and": [KU, {"ref": "A"}]})]})),
+    ("elidable rule", set_expr({"seq": [CAP_X, marked({"ref": "ku"})]})),
+    ("elidable #", set_expr({"seq": [CAP_X, marked({"ref": "#"})]})),
+    ("elidable phoneme tag", set_expr({"seq": [CAP_X, marked({"terminal": "/a/"})]})),
+    ("elidable character tag", set_expr({"seq": [CAP_X, marked({"terminal": "'a'"})]})),
+    ("elidable range", set_expr({"seq": [CAP_X, marked({"range": ["'a'", "'z'"]})]})),
+    ("elidable ≠ test", set_expr({"seq": [CAP_X, marked({"test": "≠", "value": {"string": "ku"}, "expr": KU})]})),
+    ("elidable sequence first", set_expr({"seq": [CAP_X, marked({"seq": [{"seq": [KU, {"ref": "#"}]}, {"ref": "A"}]})]})),
+    ("elidable optional first", set_expr({"seq": [CAP_X, marked({"optional": KU})]})),
+    ("elidable ε", set_expr({"seq": [CAP_X, marked({"empty": True})]})),
     ("capture of an optional", set_expr({"capture": "x", "expr": {"optional": A}})),
     ("capture of a group", set_expr({"capture": "x", "expr": {"seq": [A, A]}})),
-    ("capture inside an optional", set_expr({"seq": [{"optional": {"capture": "x", "expr": A}}, A]})),
-    ("capture inside a group", set_expr({"seq": [{"seq": [{"capture": "x", "expr": A}, A]}, A]})),
-    ("capture inside a choice", set_expr({"choice": [{"capture": "x", "expr": A}, A]})),
-    ("capture inside a repetition", set_expr({"repeat": {"capture": "x", "expr": A}, "min": 1})),
+    # A capture stands anywhere but inside braces or an elidable optional
+    # (engine §3.5).
+    ("capture inside an elidable optional", set_expr({"seq": [marked({"seq": [KU, CAP_X]}), A]})),
+    ("capture deep inside an elidable optional", set_expr({"seq": [marked({"seq": [KU, {"optional": CAP_X}]}), A]})),
+    ("capture inside a repetition", set_expr({"repeat": CAP_X})),
+    ("capture inside a separator", set_expr({"seq": [A, {"repeat": A, "separator": CAP_X}]})),
     ("unknown expression", set_expr({"star": A})),
     ("$ wrapping a symbol", set_expr({"capture": "", "expr": A})),
     ("nested more than 256 deep", set_expr(nested(257))),
-    ("five captures in an alternative", set_expr({"seq": [{"capture": name, "expr": A} for name in "xyzvw"]})),
+    # A name stands once in each production (engine §3.5).
     ("a capture name used twice", set_expr({"seq": [{"capture": "x", "expr": A}, {"capture": "x", "expr": A}]})),
+    ("a capture name in an optional and beside it", set_expr({"seq": [{"optional": CAP_X}, CAP_X]})),
+    ("a capture name in two items of &", set_expr({"and": [CAP_X, CAP_X]})),
+    ("a capture name in two choices", set_expr({"seq": [{"choice": [CAP_X, A]}, {"choice": [CAP_X, {"ref": "B"}]}]})),
     ("$ with an inserted tag", set_emit({"items": [WHOLE, {"insert": "Y"}]})),
     ("$ with a capture", set_emit({"items": [WHOLE, {"capture": "x"}]})),
     ("an item with a key of no item", set_emit({"items": [{"capture": "x", "tags": TAG, "weak": True}]})),
@@ -227,7 +283,10 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("a terminal that is no tag", set_expr({"capture": "x", "expr": {"terminal": "é"}})),
     ("a terminal of two characters", set_expr({"capture": "x", "expr": {"terminal": "'ab'"}})),
     ("a capture name with a capital", set_expr({"capture": "X", "expr": A})),
-    ("an elidable phoneme tag", lambda dom: dom["directives"].append({"name": "elidable", "args": ["/a/"], "at": [9, 1]})),
+    # %elidable is no directive, and no directive has a maximal member
+    # (engine §9).
+    ("an elidable directive", lambda dom: dom["directives"].append({"name": "elidable", "args": ["KU"], "at": [9, 1]})),
+    ("a maximal member on a directive", lambda dom: dom["directives"].append({"name": "features", "args": ["f"], "maximal": True, "at": [9, 1]})),
     ("phonemes of two spans", set_tags({"call": "phonemes", "args": [X, X]})),
     ("phonemes of a tag", set_tags({"call": "phonemes", "args": [TAG]})),
     ("tags with a term for a rule", set_tags({"call": "tags", "args": [X, TAG]})),
@@ -508,7 +567,25 @@ class PrecompiledDomRules(unittest.TestCase):
             ("constants on both sides of ∈", set_condition({"op": "∈", "left": {"const": "S", "at": [9, 20]}, "right": {"const": "T", "at": [9, 30]}})),
             ("a constant as split's delimiter", set_condition({"op": "∈", "left": TEXT, "right": {"call": "split", "args": [TEXT, {"const": "D", "at": [9, 20]}]}})),
             ("a character tag", set_tags({"union": [{"tag": "'\\u{5C}'"}, {"tag": "'é'"}]})),
-            ("an elidable tag", lambda dom: dom["directives"].append({"name": "elidable", "args": ["KU", "ku"], "at": [9, 1]})),
+            # Braces, chains, marked optionals and captures beyond the top
+            # level (engine §3, §9, docs/output.md).
+            ("flat braces", set_expr({"seq": [CAP_X, {"repeat": A}]})),
+            ("a separated list", set_expr({"seq": [CAP_X, {"repeat": A, "separator": {"optional": A}}]})),
+            ("optional braces", set_expr({"seq": [CAP_X, {"optional": {"repeat": A}}]})),
+            ("a left chain", bare(set_expr({"repeat": A, "chain": "left"}))),
+            ("a right chain with a separator", bare(set_expr({"repeat": A, "separator": KU, "chain": "right"}))),
+            ("an elidable optional", set_expr({"seq": [CAP_X, marked(KU)]})),
+            ("a maximal optional", set_expr({"seq": [CAP_X, marked(KU, True)]})),
+            ("an elidable terminal tag", set_expr({"seq": [CAP_X, marked({"terminal": "KU"})]})),
+            ("an elidable sequence", set_expr({"seq": [CAP_X, marked({"seq": [KU, {"ref": "#"}]})]})),
+            ("an elidable = test", set_expr({"seq": [CAP_X, marked({"test": "=", "value": {"string": "ku"}, "expr": KU})]})),
+            ("an elidable sequence with a choice", set_expr({"seq": [CAP_X, marked({"seq": [KU, {"choice": [A, {"ref": "B"}]}]})]})),
+            ("a capture in an optional", bare(set_expr({"seq": [{"optional": CAP_X}, A]}))),
+            ("a capture in a choice", bare(set_expr({"choice": [CAP_X, A]}))),
+            ("a capture in &", bare(set_expr({"and": [CAP_X, A]}))),
+            ("a capture in a nested optional", bare(set_expr({"seq": [A, {"optional": {"seq": [A, {"optional": CAP_X}]}}]}))),
+            ("a capture name in two branches", set_expr({"seq": [A, {"choice": [CAP_X, {"capture": "x", "expr": {"ref": "B"}}]}]})),
+            ("six captures", set_expr({"seq": [{"capture": name, "expr": A} for name in "xyzvwu"]})),
             ("an emitted item dropped where its capture is missing", with_bare_alternative(set_emit({"items": [{"capture": "x"}, {"insert": "Y"}]}))),
         ):
             with self.subTest(what=name):
@@ -528,7 +605,8 @@ class PrecompiledDomRules(unittest.TestCase):
         for name, expr, problem in (
             ("a tested terminal", {"capture": "x", "expr": tested("a")}, None),
             ("a tested reference", {"seq": [{"capture": "x", "expr": A}, tested("la", {"ref": "text"})]}, None),
-            ("a repeated tested symbol", {"seq": [{"capture": "x", "expr": A}, {"repeat": tested("a"), "min": 1}]}, None),
+            ("a repeated tested symbol", {"seq": [{"capture": "x", "expr": A}, {"repeat": tested("a")}]}, None),
+            ("a tested separator", {"seq": [{"capture": "x", "expr": A}, {"repeat": A, "separator": tested("a")}]}, None),
             ("an empty string", {"capture": "x", "expr": tested("")}, None),
             ("≠", {"capture": "x", "expr": tested("a", A, "≠")}, None),
             ("∩=∅ of a tag", {"capture": "x", "expr": tested({"tag": "UI"}, A, "∩=∅")}, None),
@@ -651,10 +729,25 @@ class PrecompiledDomRules(unittest.TestCase):
         set_emit({"items": [{"insert": "'a'..'z'"}]})(dom)
         self.assertIsNotNone(dom_problem(dom))
 
-    def test_four_captures_are_allowed(self) -> None:
-        dom = copy.deepcopy(self.dom)
-        set_expr({"seq": [{"capture": name, "expr": A} for name in "xyzv"]})(dom)
-        self.assertIsNone(dom_problem(dom))
+    def test_any_number_of_captures_is_allowed(self) -> None:
+        """An alternative can have any number of captures (engine §3.5)."""
+        for count in (4, 5, 6, 300):
+            with self.subTest(count=count):
+                dom = copy.deepcopy(self.dom)
+                set_expr({"seq": [{"capture": "x" if index == 0 else f"c{index}", "expr": A} for index in range(count)]})(dom)
+                self.assertIsNone(dom_problem(dom))
+
+    def test_the_separator_counts_on_from_its_repeat(self) -> None:
+        """The separator of a repeat lies below it, as its item does, in the
+        bound on nesting (engine §9)."""
+        deep: Any = {"ref": "S"}
+        for _ in range(256):
+            deep = {"optional": deep}
+        # The sequence around the braces is one more compound node.
+        for separator, problem in ((deep["optional"], "nested too deeply"), (deep["optional"]["optional"], None)):
+            dom = copy.deepcopy(self.dom)
+            set_expr({"seq": [CAP_X, {"repeat": A, "separator": separator}]})(dom)
+            self.assertEqual(dom_problem(dom), problem)
 
     def test_attachments(self) -> None:
         """Attachments are named captures of the rule, on a named capture,
@@ -854,9 +947,11 @@ def _mixed_changes() -> list[tuple[str, Callable[[Dom], None]]]:
         ("a choice with a sequence", second({"choice": [b, c], "seq": [c, c]})),
         ("a sequence with a choice", second({"seq": [c, c], "choice": [b, c]})),
         ("a choice with a sequence of a bad reference", second({"choice": [b, c], "seq": [{"ref": 5}, c]})),
-        ("a repetition with an optional", second({"repeat": b, "min": 1, "optional": c})),
-        ("an optional with a repetition", second({"optional": c, "repeat": b, "min": 1})),
-        ("a repetition with an optional of a bad reference", second({"repeat": b, "min": 1, "optional": {"ref": ["x"]}})),
+        ("a repetition with an optional", second({"repeat": b, "optional": c})),
+        ("an optional with a repetition", second({"optional": c, "repeat": b})),
+        ("a repetition with an optional of a bad reference", second({"repeat": b, "optional": {"ref": ["x"]}})),
+        ("a repetition with the min of format 17", second({"repeat": b, "min": 1})),
+        ("a separated list with the min of format 17", second({"repeat": b, "separator": c, "min": 0})),
         ("a reference that is not a name", second({"ref": "x y"})),
         ("a top-level sequence with a choice", beside("choice", [b, c])),
         ("a captured terminal not in its canonical spelling", captured({"terminal": "'ab'"})),

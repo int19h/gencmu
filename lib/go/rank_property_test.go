@@ -58,13 +58,13 @@ func (g *genGrammar) ruleRef() *domExpr {
 	return ref
 }
 
-// elidableOptional is [T] or [T x].
+// elidableOptional is [+T] or [+T x] (engine §3.8).
 func (g *genGrammar) elidableOptional() *domExpr {
 	t := &domExpr{Kind: exRef, Name: "T"}
 	if g.r.Intn(2) == 0 {
-		return &domExpr{Kind: exOptional, Inner: t}
+		return &domExpr{Kind: exOptional, Inner: t, Elidable: true}
 	}
-	return &domExpr{Kind: exOptional, Inner: &domExpr{Kind: exSeq, Items: []*domExpr{t, g.ref()}}}
+	return &domExpr{Kind: exOptional, Inner: &domExpr{Kind: exSeq, Items: []*domExpr{t, g.ref()}}, Elidable: true}
 }
 
 func (g *genGrammar) item(depth int) *domExpr {
@@ -77,10 +77,12 @@ func (g *genGrammar) item(depth int) *domExpr {
 		return g.ref()
 	case k < 13:
 		return &domExpr{Kind: exOptional, Inner: g.seq(depth + 1)}
-	case k < 15:
-		return &domExpr{Kind: exRepeat, Inner: g.ref(), Min: 1}
+	case k < 14:
+		return &domExpr{Kind: exRepeat, Inner: g.ref()}
+	case k < 16:
+		return &domExpr{Kind: exOptional, Inner: &domExpr{Kind: exRepeat, Inner: g.ref()}}
 	case k < 17:
-		return &domExpr{Kind: exRepeat, Inner: g.ref(), Min: 0}
+		return &domExpr{Kind: exRepeat, Inner: g.ref(), Sep: &domExpr{Kind: exRef, Name: g.terms[g.r.Intn(len(g.terms))]}}
 	case k < 18:
 		return &domExpr{Kind: exChoice, Items: []*domExpr{g.seq(depth + 1), g.seq(depth + 1)}}
 	case k < 19:
@@ -130,11 +132,23 @@ func (g *genGrammar) grammar() *domDoc {
 		args = append(args, "maximal")
 	}
 	d.Directives = []*domDirective{{Name: "ambiguity-resolution", Args: args}}
-	if g.elidable {
-		d.Directives = append(d.Directives, &domDirective{Name: "elidable", Args: []string{"T"}})
-	}
 	for _, name := range g.rules {
 		r := &domRule{Name: name, Op: "define"}
+		// Now and then a rule is a chain, whose levels are its own nodes
+		// (engine §3.3).
+		if name != "text" {
+			if k := g.r.Intn(20); k < 2 {
+				item := func() *domExpr {
+					if g.r.Intn(2) == 0 {
+						return &domExpr{Kind: exRef, Name: g.terms[g.r.Intn(len(g.terms))]}
+					}
+					return g.ruleRef()
+				}
+				r.Alternatives = []*domAlt{{Expr: &domExpr{Kind: exRepeat, Inner: item(), Sep: item(), Chain: []string{"left", "right"}[k]}}}
+				d.Rules = append(d.Rules, r)
+				continue
+			}
+		}
 		n := g.r.Intn(3) + 1
 		for i := 0; i < n; i++ {
 			var e *domExpr
@@ -184,12 +198,25 @@ func exprText(e *domExpr) string {
 		}
 		return strings.Join(parts, sep)
 	case exOptional:
+		if e.Maximal {
+			return "[++" + exprText(e.Inner) + "]"
+		}
+		if e.Elidable {
+			return "[+" + exprText(e.Inner) + "]"
+		}
 		return "[" + exprText(e.Inner) + "]"
 	case exRepeat:
-		if e.Min == 0 {
-			return "[" + exprText(e.Inner) + "] ..."
+		item := exprText(e.Inner)
+		switch e.Chain {
+		case "left":
+			item = "... " + item
+		case "right":
+			item += " ..."
 		}
-		return exprText(e.Inner) + " ..."
+		if e.Sep != nil {
+			item += " \\ " + exprText(e.Sep)
+		}
+		return "{" + item + "}"
 	case exEmpty:
 		return "ε"
 	case exCapture:

@@ -21,7 +21,29 @@ type tagset struct {
 }
 
 func (t *tagset) has(name string) bool {
-	i := sort.SearchStrings(t.names, name)
+	return t.find(name, nil)
+}
+
+// find says whether the set holds a member, by a binary search whose
+// probes each count in c, unless it is nil, before they are made. The set
+// operations below count their searches so that a slower search shows.
+func (t *tagset) find(name string, c *workCount) bool {
+	if c != nil && work.Load().scanOther {
+		// The mutation: a scan of every member before the one sought.
+		for _, n := range t.names {
+			c.add("interned members")
+			if n >= name {
+				return n == name
+			}
+		}
+		return false
+	}
+	i := sort.Search(len(t.names), func(k int) bool {
+		if c != nil {
+			c.add("interned members")
+		}
+		return t.names[k] >= name
+	})
 	return i < len(t.names) && t.names[i] == name
 }
 
@@ -39,12 +61,27 @@ func newInterner() *interner {
 	return &interner{byKey: map[string]*tagset{}}
 }
 
-// make interns a set from its members, sorted and each once.
+// internedCount is the count of interned members, or nil when work is not
+// counted.
+func internedCount() *workCount {
+	if w := work.Load(); w != nil {
+		return &w.interned
+	}
+	return nil
+}
+
+// make interns a set from its members, sorted and each once. Each member
+// counts before it is written into the key, as in every loop below that
+// gathers the members of a set.
 func (in *interner) make(names []string) *tagset {
+	c := internedCount()
 	// Each name is written with its length before it, so that no two sets
 	// share a key, whatever characters their names hold.
 	var b strings.Builder
 	for _, n := range names {
+		if c != nil {
+			c.add("interned members")
+		}
 		b.WriteString(strconv.Itoa(len(n)))
 		b.WriteByte(':')
 		b.WriteString(n)
@@ -59,13 +96,35 @@ func (in *interner) make(names []string) *tagset {
 	return t
 }
 
-// fromList interns the set of a list of members in any order, repeats
-// allowed.
-func (in *interner) fromList(list []string) *tagset {
-	names := append([]string{}, list...)
-	sort.Strings(names)
+// fromList interns the set of the members of some lists, in any order,
+// repeats allowed. Each member counts as it is copied, so that a copy
+// which grows faster than the lists shows.
+func (in *interner) fromList(lists ...[]string) *tagset {
+	c := internedCount()
+	total := 0
+	for _, list := range lists {
+		total += len(list)
+	}
+	names := make([]string, 0, total)
+	w := work.Load()
+	for _, list := range lists {
+		for _, n := range list {
+			if w != nil && w.copyGrowing {
+				// The mutation: the members so far copied again for each.
+				names = appendCounted(make([]string, 0, total), names, c, "interned members")
+			}
+			if c != nil {
+				c.add("interned members")
+			}
+			names = append(names, n)
+		}
+	}
+	sortStrings(names, c, "interned members")
 	out := names[:0]
 	for i, n := range names {
+		if c != nil {
+			c.add("interned members")
+		}
 		if i == 0 || n != names[i-1] {
 			out = append(out, n)
 		}
@@ -87,9 +146,13 @@ func (in *interner) union(a, b *tagset) *tagset {
 	if len(a.names) == 0 {
 		return b
 	}
+	c := internedCount()
 	var names []string
 	i, j := 0, 0
 	for i < len(a.names) || j < len(b.names) {
+		if c != nil {
+			c.add("interned members")
+		}
 		switch {
 		case j == len(b.names) || (i < len(a.names) && a.names[i] < b.names[j]):
 			names = append(names, a.names[i])
@@ -106,11 +169,43 @@ func (in *interner) union(a, b *tagset) *tagset {
 	return in.make(names)
 }
 
+// unionAll holds every member of any of the sets. A union folded pair by
+// pair copies and interns each growing partial result, so k sets cost k
+// times the result. This gathers the members once and interns the result
+// alone.
+func (in *interner) unionAll(sets []*tagset) *tagset {
+	var only *tagset
+	total := 0
+	for _, s := range sets {
+		if len(s.names) > 0 {
+			if only == nil {
+				only = s
+			}
+			total += len(s.names)
+		}
+	}
+	if only == nil {
+		return in.empty()
+	}
+	if total == len(only.names) {
+		return only
+	}
+	lists := make([][]string, len(sets))
+	for i, s := range sets {
+		lists[i] = s.names
+	}
+	return in.fromList(lists...)
+}
+
 // intersection holds the members of both.
 func (in *interner) intersection(a, b *tagset) *tagset {
+	c := internedCount()
 	var names []string
 	for _, n := range a.names {
-		if b.has(n) {
+		if c != nil {
+			c.add("interned members")
+		}
+		if b.find(n, c) {
 			names = append(names, n)
 		}
 	}
@@ -122,19 +217,28 @@ func (in *interner) difference(a, b *tagset) *tagset {
 	if len(b.names) == 0 {
 		return a
 	}
+	c := internedCount()
 	var names []string
 	for _, n := range a.names {
-		if !b.has(n) {
+		if c != nil {
+			c.add("interned members")
+		}
+		if !b.find(n, c) {
 			names = append(names, n)
 		}
 	}
 	return in.make(names)
 }
 
-// subset says whether every member of a is in b.
+// subset says whether every member of a is in b. Each member of a and
+// each probe of b counts before it is looked at.
 func subset(a, b *tagset) bool {
+	c := internedCount()
 	for _, n := range a.names {
-		if !b.has(n) {
+		if c != nil {
+			c.add("interned members")
+		}
+		if !b.find(n, c) {
 			return false
 		}
 	}

@@ -5,7 +5,7 @@
     "pb.md": "```jbogenbau\n%stage main\n%include \"b.md\"\n%include \"shared.md\"\n```\n",
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%const $K ~a\n%rule thing '\\p{Any}'\n```\n",
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%const $K ~b\n%rule thing '\\p{Any}'\n```\n",
-    "shared.md": "```jbogenbau\n%rule text [item] ...\n%rule item $t(thing) <$K>\n%emits\n  $\n```\n"
+    "shared.md": "```jbogenbau\n%rule text [{item}]\n%rule item $t(thing) <$K>\n%emits\n  $\n```\n"
   },
   "pipeline": "pa.md",
   "input": "x",

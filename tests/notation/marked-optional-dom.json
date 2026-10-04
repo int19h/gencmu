@@ -1,0 +1,136 @@
+{
+  "description": "A marker after [ makes an elidable optional: + gives elidable, ++ also maximal. Its terminal can be a tag literal or =-tested, its rest any sequence, with a choice in parentheses; layout can stand between its parts (engine §3.8, §9, docs/output.md).",
+  "document": "```jbogenbau\n%rule a [+KU #]\n%rule b [++TOI #]\n%rule c [+~KU]\n%rule d [+KU=\"ku\" #]\n%rule e [+KU (A | B)]\n%rule f [ + KU ]\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "a",
+          "alternatives": [
+            {
+              "expr": {
+                "optional": {
+                  "seq": [
+                    {
+                      "ref": "KU"
+                    },
+                    {
+                      "ref": "#"
+                    }
+                  ]
+                },
+                "elidable": true
+              }
+            }
+          ],
+          "conditions": []
+        },
+        {
+          "name": "b",
+          "alternatives": [
+            {
+              "expr": {
+                "optional": {
+                  "seq": [
+                    {
+                      "ref": "TOI"
+                    },
+                    {
+                      "ref": "#"
+                    }
+                  ]
+                },
+                "elidable": true,
+                "maximal": true
+              }
+            }
+          ],
+          "conditions": []
+        },
+        {
+          "name": "c",
+          "alternatives": [
+            {
+              "expr": {
+                "optional": {
+                  "terminal": "KU"
+                },
+                "elidable": true
+              }
+            }
+          ],
+          "conditions": []
+        },
+        {
+          "name": "d",
+          "alternatives": [
+            {
+              "expr": {
+                "optional": {
+                  "seq": [
+                    {
+                      "test": "=",
+                      "value": {
+                        "string": "ku"
+                      },
+                      "expr": {
+                        "ref": "KU"
+                      }
+                    },
+                    {
+                      "ref": "#"
+                    }
+                  ]
+                },
+                "elidable": true
+              }
+            }
+          ],
+          "conditions": []
+        },
+        {
+          "name": "e",
+          "alternatives": [
+            {
+              "expr": {
+                "optional": {
+                  "seq": [
+                    {
+                      "ref": "KU"
+                    },
+                    {
+                      "choice": [
+                        {
+                          "ref": "A"
+                        },
+                        {
+                          "ref": "B"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "elidable": true
+              }
+            }
+          ],
+          "conditions": []
+        },
+        {
+          "name": "f",
+          "alternatives": [
+            {
+              "expr": {
+                "optional": {
+                  "ref": "KU"
+                },
+                "elidable": true
+              }
+            }
+          ],
+          "conditions": []
+        }
+      ]
+    }
+  }
+}

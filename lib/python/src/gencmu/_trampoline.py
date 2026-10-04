@@ -4,6 +4,9 @@ A walk over a tree nests as deep as the tree does, and a grammar or a
 derivation may nest deeper than Python's recursion limit allows. A walk is
 written as a generator that yields a generator for each recursive call and
 receives its result; ``run`` drives them with a list for a stack.
+
+The recognizer's nested parses run the same way, since a chain of them can
+be as long as the text (engine §4).
 """
 
 from __future__ import annotations

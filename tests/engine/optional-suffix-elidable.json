@@ -1,0 +1,54 @@
+{
+  "description": "Twin of right-chain-elidable-suffix.json: the optional suffix [+S r] is marked, so its absence is an elided S, which late-elision counts, and the reading A alone wins. optional-suffix-plain.json has the plain suffix (engine §3.8, §6).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text r | A\n%rule r A [+S r]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": [
+          "A"
+        ],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "a"
+  }
+}

@@ -3,19 +3,17 @@ library refuses, or accepts, in a DOM (tests/README.md, engine §9)."""
 
 from __future__ import annotations
 
-import json
 import unittest
 
 from gencmu._dialect import DOM_FORMAT, _resources, _unicode_table
 from gencmu._validate import dom_problem
 
-from .shared import SHARED
+from .shared import SHARED, load_json
 
 
 class DomMalformed(unittest.TestCase):
     def test_cases(self) -> None:
-        with open(SHARED / "dom-malformed.json", encoding="utf-8") as file:
-            cases = json.load(file)
+        cases = load_json(SHARED / "dom-malformed.json")
         self.assertTrue(cases, "no cases found")
         unicode = _unicode_table(_resources().unicode)
         for case in cases:

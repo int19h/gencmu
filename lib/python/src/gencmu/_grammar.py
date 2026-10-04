@@ -9,11 +9,12 @@ import threading
 from dataclasses import dataclass, field
 from typing import Any, Union
 
-from ._clauses import WHOLE, applies, captures_in, definition_problem, simplify_term
+from ._clauses import WHOLE, Emission, Prepared, captures_in, definition_problem, prepare, prepare_conditions, simplify_term
 from ._errors import ErrorData, GencmuError
 from ._recent import Recent
 from ._tags import (
     EMPTY,
+    Gathered,
     code_of_character_tag,
     difference,
     intersection,
@@ -22,7 +23,6 @@ from ._tags import (
     range_name,
     range_tags,
     split_string,
-    union,
     written_test,
 )
 from ._trampoline import Walk, run
@@ -130,7 +130,6 @@ class Grammar:
     # Whether an elided terminator is forbidden where its constituent could
     # have been longer (engine §4).
     maximal: bool
-    elidable: frozenset[str]
     changes: list[Change] = field(default_factory=list)
     # The stage's %classifier items in stitching order, each with its
     # document (engine §2).
@@ -138,9 +137,6 @@ class Grammar:
     # The stage's implications, each side's tags with the constants' final
     # values (engine §2, §11).
     implications: list[tuple[frozenset[str], frozenset[str]]] = field(default_factory=list)
-    # The elidable terminators that some %elidable maximal names (engine
-    # §2, §4).
-    maximal_terminals: frozenset[str] = frozenset()
     # The features that gate an entry of a classifier. Only these change
     # the classifiers.
     classifier_gates: frozenset[str] = field(init=False, repr=False, compare=False)
@@ -197,16 +193,20 @@ each key's classes."""
 
 
 def _resolve_classifiers(items: list[tuple[str, Dom]], features: frozenset[str]) -> Classifiers:
-    tables: Classifiers = {}
+    # Each key's classes grow in one mutable set, frozen at the end, since
+    # a frozen set copied at each entry costs a key of C classes C².
+    building: dict[str, dict[str, set[str]]] = {}
     for path, classifier in items:
-        table = tables.setdefault(classifier["name"], {})
+        table = building.setdefault(classifier["name"], {})
         for entry in classifier["entries"]:
             if not all((guard["feature"] in features) != guard["negated"] for guard in entry["guards"]):
                 continue
             adds = entry["op"] == "∈"
             name = entry["class"]
             for key in entry["keys"]:
-                classes = table.get(key, EMPTY)
+                classes = table.get(key)
+                if classes is None:
+                    classes = table[key] = set()
                 if adds == (name in classes):
                     line, column = int(entry["at"][0]), int(entry["at"][1])
                     word = json.dumps(key, ensure_ascii=False)
@@ -214,8 +214,11 @@ def _resolve_classifiers(items: list[tuple[str, Dom]], features: frozenset[str])
                     # A lowering error is a result's, whose message alone
                     # names the entry (engine §2).
                     raise GencmuError(f"{path}:{line}:{column}: the classifier {classifier['name']}: {message}")
-                table[key] = classes | {name} if adds else classes - {name}
-    return tables
+                if adds:
+                    classes.add(name)
+                else:
+                    classes.discard(name)
+    return {name: {key: frozenset(classes) for key, classes in table.items()} for name, table in building.items()}
 
 
 def _error(message: str, document: str, at: Any = None, stage: str | None = None) -> GencmuError:
@@ -311,10 +314,10 @@ class _Constants:
         if "const" in term:
             return self.values[term["const"]].value
         if "union" in term:
-            result: Any = EMPTY
+            gathered = Gathered()
             for part in term["union"]:
-                result = union(result, _set((yield self._closed(path, part, item))))
-            return result
+                gathered.add(_set((yield self._closed(path, part, item))))
+            return gathered.value()
         if "intersection" in term:
             parts = term["intersection"]
             result = _set((yield self._closed(path, parts[0], item)))
@@ -431,30 +434,42 @@ class _Constants:
         alternatives share stay shared."""
         if not self.users:
             return
+        # Each node's copy, or the node itself where it holds no constant,
+        # by identity: the rule-level clauses that alternatives share are
+        # walked once, not once for each alternative.
         copies: dict[int, Any] = {}
 
-        def resolve(node: Any) -> Any:
-            if not isinstance(node, (dict, list)) or not constants_in(node):
+        # A walk, since each level of a clause's nesting costs a few frames
+        # of the call stack, more than the depth limit of 256 leaves room
+        # for before Python 3.12.
+        def resolve(node: Any) -> Walk:
+            if not isinstance(node, (dict, list)):
                 return node
             done = copies.get(id(node))
             if done is not None:
                 return done
             copy: Any
             if isinstance(node, list):
-                copy = [resolve(item) for item in node]
+                items: list[Any] = []
+                for item in node:
+                    items.append((yield resolve(item)))
+                copy = node if all(item is old for item, old in zip(items, node)) else items
             elif isinstance(node.get("const"), str):
                 copy = {"const": node["const"], "at": node["at"], "value": self.values[node["const"]].value}
             else:
-                copy = {key: resolve(value) for key, value in node.items()}
+                values: dict[str, Any] = {}
+                for key, value in node.items():
+                    values[key] = yield resolve(value)
+                copy = node if all(values[key] is value for key, value in node.items()) else values
             copies[id(node)] = copy
             return copy
 
         for rule in rules.values():
             for alternative in rule.alternatives:
-                alternative.tags = resolve(alternative.tags)
-                alternative.rule_tags = resolve(alternative.rule_tags)
-                alternative.emit = resolve(alternative.emit)
-                alternative.conditions = resolve(alternative.conditions)
+                alternative.tags = run(resolve(alternative.tags))
+                alternative.rule_tags = run(resolve(alternative.rule_tags))
+                alternative.emit = run(resolve(alternative.emit))
+                alternative.conditions = run(resolve(alternative.conditions))
 
 
 def _set(value: Any) -> Any:
@@ -488,8 +503,6 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
     constants = _Constants(stage, unicode)
     changes: list[Change] = []
     resolutions: list[tuple[list[str], str, Any]] = []
-    elidable: set[str] = set()
-    maximal_terminals: set[str] = set()
     classifier_items: list[tuple[str, Dom]] = []
     implication_items: list[tuple[str, Dom]] = []
     for path, dom in documents:
@@ -498,6 +511,9 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
                 constants.users.append((path, rule))
             name = rule["name"]
             at: tuple[int, int] = (int(rule.get("at", (0, 0))[0]), int(rule.get("at", (0, 0))[1]))
+            # One list that the alternatives share, as they share the other
+            # rule-level clauses, so that walks of it can skip it once seen.
+            conditions = list(rule.get("conditions", []))
             alternatives = [
                 Alternative(
                     guards=list(alt.get("guards", [])),
@@ -505,7 +521,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
                     tags=alt.get("tags"),
                     rule_tags=rule.get("tags"),
                     emit=rule.get("emit"),
-                    conditions=list(rule.get("conditions", [])),
+                    conditions=conditions,
                     opaque=rule.get("opaque") is True,
                     document=path,
                     at=at,
@@ -540,10 +556,6 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
             at = directive.get("at")
             if name == "ambiguity-resolution":
                 resolutions.append((args, path, at))
-            elif name == "elidable":
-                elidable.update(args)
-                if directive.get("maximal") is True:
-                    maximal_terminals.update(args)
             else:
                 raise _error(f"an unknown directive %{name}", path, at, stage)
         for constant in dom.get("constants", []):
@@ -554,7 +566,6 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
     constants.resolve(rules)
     _resolve_tests(rules, constants)
     implications = [constants.implication(path, implication) for path, implication in implication_items]
-    _check_elidable_tests(stage, rules, elidable)
     if not resolutions:
         raise GencmuError(f"stage {stage} has no %ambiguity-resolution", stage=stage)
     if len(resolutions) > 1:
@@ -580,9 +591,20 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
     if "text" not in rules:
         raise GencmuError(f"stage {stage} has no rule text, its start rule", stage=stage)
     classifier_names = {classifier["name"] for _, classifier in classifier_items}
+    # The clauses of a rule that its alternatives share, by identity, once
+    # checked: an error in one would have stopped the first check, at the
+    # same document and place.
+    checked: set[int] = set()
+
+    def unchecked(clause: Any) -> Any:
+        if clause is None or id(clause) in checked:
+            return None
+        checked.add(id(clause))
+        return clause
+
     for rule in rules.values():
         for alt in rule.alternatives:
-            stack: list[Any] = [alt.expr, alt.tags, alt.rule_tags, alt.emit, alt.conditions]
+            stack: list[Any] = [alt.expr, alt.tags, unchecked(alt.rule_tags), unchecked(alt.emit), unchecked(alt.conditions)]
             while stack:
                 value = stack.pop()
                 if isinstance(value, dict):
@@ -610,11 +632,9 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
         args[0],
         elision_only,
         maximal,
-        frozenset(elidable),
         changes,
         classifier_items=classifier_items,
         implications=implications,
-        maximal_terminals=frozenset(maximal_terminals),
     )
 
 
@@ -629,9 +649,33 @@ def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
     DOMs are shared by every stage and dialect that includes them, so the
     tests go into copies of the expressions that hold them."""
     copies: dict[int, Any] = {}
+    # Whether each node holds a test, by identity, found once: a walk of a
+    # node's whole subtree at each level of its nesting would cost a deep
+    # expression its depth times its size.
+    tested: dict[int, bool] = {}
 
-    def resolve(node: Any, alt: Alternative) -> Any:
-        if not isinstance(node, dict) or not tests_in(node):
+    # Walks, since an expression nests as deep as the depth limit of 256,
+    # and each level costs a few frames of the call stack before Python
+    # 3.12.
+    def holds_test(node: Any) -> Walk:
+        if not isinstance(node, dict):
+            return False
+        found = tested.get(id(node))
+        if found is None:
+            found = isinstance(node.get("test"), str)
+            for key in ("choice", "and", "seq"):
+                items = node.get(key)
+                if isinstance(items, list):
+                    for item in items:
+                        found = (yield holds_test(item)) or found
+            for key in ("expr", "separator", "repeat", "optional"):
+                if key in node:
+                    found = (yield holds_test(node[key])) or found
+            tested[id(node)] = found
+        return found
+
+    def resolve(node: Any, alt: Alternative) -> Walk:
+        if not isinstance(node, dict) or not (yield holds_test(node)):
             return node
         done = copies.get(id(node))
         if done is not None:
@@ -639,9 +683,12 @@ def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
         copy: dict[str, Any] = {}
         for key, value in node.items():
             if isinstance(value, list):
-                copy[key] = [resolve(item, alt) for item in value]
-            elif key in ("optional", "repeat", "expr"):
-                copy[key] = resolve(value, alt)
+                items: list[Any] = []
+                for item in value:
+                    items.append((yield resolve(item, alt)))
+                copy[key] = items
+            elif key in ("optional", "repeat", "separator", "expr"):
+                copy[key] = yield resolve(value, alt)
             else:
                 copy[key] = value
         if isinstance(node.get("test"), str):
@@ -651,47 +698,7 @@ def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
 
     for rule in rules.values():
         for alt in rule.alternatives:
-            alt.expr = resolve(alt.expr, alt)
-
-
-def _check_elidable_tests(stage: str, rules: dict[str, Rule], elidable: set[str]) -> None:
-    """The terminal of an elidable optional has no test or an ``=`` test,
-    since elision-only restores it with a sound (engine §3.8). The check
-    runs once the stage is stitched, since a later %elidable can make an
-    optional elidable, over every alternative whatever the features."""
-    for rule in rules.values():
-        for alt in rule.alternatives:
-            stack: list[Any] = [alt.expr]
-            while stack:
-                expr = stack.pop()
-                if not isinstance(expr, dict):
-                    continue
-                if "optional" in expr:
-                    first = expr["optional"]
-                    while "seq" in first:
-                        first = first["seq"][0]
-                    if "test" in first and first["test"] != "=":
-                        # A reference in lower case names a rule, which is
-                        # never a terminator, even where an identifier tag
-                        # of %elidable shares its name.
-                        inner = first["expr"]
-                        name = inner.get("terminal")
-                        if name is None and is_terminal_name(inner.get("ref", "")):
-                            name = inner["ref"]
-                        if name is not None and name in elidable:
-                            raise _error(
-                                f"{rule.name} can elide {name}, whose test {first['test']} gives it no sound to restore;"
-                                " an elidable terminator has no test or an = test",
-                                alt.document,
-                                alt.at,
-                                stage,
-                            )
-                for key in ("seq", "choice", "and"):
-                    if isinstance(expr.get(key), list):
-                        stack.extend(expr[key])
-                for key in ("optional", "repeat", "expr"):
-                    if key in expr:
-                        stack.append(expr[key])
+            alt.expr = run(resolve(alt.expr, alt))
 
 
 # ---------------------------------------------------------------------------
@@ -708,7 +715,6 @@ class Production:
     terminal: tuple[bool, ...]
     rule_name: str
     helper: bool
-    rep_splice: bool = False
     elided: str | None = None
     # The test of that terminator, if it is tested; a restored token
     # sounds like the string of its = test (engine §7).
@@ -771,21 +777,32 @@ class Lowered:
     # the rules of the productions whose empty alternative is an elided
     # terminator.
     elidable_helpers: frozenset[int] = frozenset()
+    # The helpers of the optionals written [++T x], whose terminators are
+    # maximal (engine §3.8, §4).
     maximal_helpers: frozenset[int] = frozenset()
     # For each production, the index of its last symbol that can read in
     # the reconstruction mode of engine §7.4, or -1; found when the check
     # first needs it.
     reading_last: list[int] | None = None
+    # For each tag, the implications whose premise holds it, by their
+    # place in ``implications``; made when emission first needs it.
+    implications_by_tag: dict[str, list[int]] | None = None
+
+    def implication_index(self) -> dict[str, list[int]]:
+        index = self.implications_by_tag
+        if index is None:
+            # Built whole before it is kept, since a lowered grammar can be
+            # shared by parses on other threads.
+            index = {}
+            for number, (premise, _) in enumerate(self.implications):
+                for tag in premise:
+                    index.setdefault(tag, []).append(number)
+            self.implications_by_tag = index
+        return index
 
     def __post_init__(self) -> None:
         self.elidable_helpers = frozenset(
             production.lhs for production in self.productions if production.helper and production.elided is not None
-        )
-        # The helpers of the maximal terminators among them (engine §4).
-        self.maximal_helpers = frozenset(
-            production.lhs
-            for production in self.productions
-            if production.helper and production.elided is not None and production.elided in self.grammar.maximal_terminals
         )
         self.by_first_terminal = [{} for _ in self.rule_names]
         self.by_first_characters = [{} for _ in self.rule_names]
@@ -829,13 +846,48 @@ class _Lowerer:
         self.current: Rule | None = None
         self.current_alt: Alternative | None = None
         self.characters: dict[str, CharacterClass] = {}
+        # The helpers of the optionals written [++T x], whose terminators
+        # are maximal (engine §3.8, §4).
+        self.maximal_helpers: set[int] = set()
+        # The structural grammar (engine §3.3): every production that the
+        # gates and the expansion make, before a false condition removes
+        # any, as its left side and its symbols, with their tests ignored.
+        self.structural: list[tuple[int, tuple[Union[str, int], ...], tuple[bool, ...]]] = []
+        # The item of each pair of braces, as its expansions, with the
+        # definition that wrote it, in the order lowering meets them.
+        self.brace_items: list[tuple[list[list[_Sym]], Alternative | None, Rule | None]] = []
+        # Each clause prepared once for all the productions that share it,
+        # by its identity, with the clause kept so that the identity stays
+        # its own.
+        self.prepared: dict[int, tuple[Any, Any]] = {}
 
-    def fail(self, message: str) -> GencmuError:
-        rule = self.current
-        alt = self.current_alt
-        document = alt.document if alt else (rule.document if rule else None)
+    def emission(self, emit: Dom | None) -> Emission | None:
+        """An emission's items indexed once for all the productions that
+        share it."""
+        if emit is None:
+            return None
+        known = self.prepared.get(id(emit))
+        if known is None:
+            known = self.prepared[id(emit)] = (emit, Emission(emit.get("items", [])))
+        return known[1]  # type: ignore[return-value]
+
+    def prepare(self, clause: Any, condition: bool) -> Prepared:
+        known = self.prepared.get(id(clause))
+        if known is None:
+            known = self.prepared[id(clause)] = (clause, prepare_conditions(clause) if condition else prepare(clause, False))
+        return known[1]
+
+    def fail(self, message: str, alt: Alternative | None = None, rule: Rule | None = None) -> GencmuError:
+        """An error of the grammar that lowering finds (engine §3). A parse
+        reports it as a result, whose error has no position of its own
+        (docs/output.md), so the message begins with the document, line and
+        column of the definition that wrote the alternative at fault."""
+        rule = rule or self.current
+        alt = alt or self.current_alt
+        document = alt.document if alt else (rule.document if rule else "")
         at = alt.at if alt else (rule.at if rule else None)
-        return _error(message, document or "", at, self.grammar.stage)
+        place = f"{document}:{at[0]}:{at[1]}" if at is not None else document
+        return GencmuError(f"{place}: {message}", stage=self.grammar.stage)
 
     # -- expansions
 
@@ -849,27 +901,18 @@ class _Lowerer:
             self.helper_elided[number] = elided
         return number
 
-    def first_terminal(self, expr: Dom) -> tuple[str, SymbolTest | None] | None:
-        """The terminal an expression begins with, if any, and its test: a
-        tested terminal is elidable when its terminal is (engine §3.8)."""
-        test: SymbolTest | None = None
-        while True:
-            if "seq" in expr:
-                if not expr["seq"]:
-                    return None
-                expr = expr["seq"][0]
-                continue
-            if "test" in expr:
-                test = expr[RESOLVED]
-                expr = expr["expr"]
-                continue
-            if "ref" in expr:
-                name: str = expr["ref"]
-                return (name, test) if is_terminal_name(name) else None
-            if "terminal" in expr:
-                terminal: str = expr["terminal"]
-                return (terminal, test)
-            return None
+    def elided_terminal(self, expr: Dom) -> tuple[str, SymbolTest | None]:
+        """The terminal of an elidable optional, the first item of its
+        content, and its ``=`` test, if any (engine §3.8, §12)."""
+        first = expr["seq"][0] if "seq" in expr and expr["seq"] else expr
+        test: SymbolTest | None = first[RESOLVED] if "test" in first else None
+        symbol = first["expr"] if "test" in first else first
+        name = symbol.get("terminal")
+        if name is None and is_terminal_name(symbol.get("ref", "")):
+            name = symbol["ref"]
+        if not isinstance(name, str):
+            raise self.fail(f"an elidable optional in {self.current.name if self.current else '?'} does not begin with its terminator")
+        return (name, test)
 
     def character_class(self, expr: Dom) -> tuple[str, Any] | None:
         """A range or a property as a terminal, whose name is its written
@@ -894,15 +937,15 @@ class _Lowerer:
             raise self.fail(f"{name} is not a rule of stage {self.grammar.stage}")
         return ("n", number)
 
-    def expand(self, expr: Dom, top: bool = False) -> list[list[_Sym]]:
+    def expand(self, expr: Dom) -> list[list[_Sym]]:
         """An expression's expansions (engine §3.2), without recursion."""
-        return run(self._expand(expr, top))  # type: ignore[no-any-return]
+        return run(self._expand(expr))  # type: ignore[no-any-return]
 
-    def _expand(self, expr: Dom, top: bool = False) -> Walk:
+    def _expand(self, expr: Dom) -> Walk:
         if "seq" in expr:
             parts = []
             for item in expr["seq"]:
-                parts.append((yield self._expand(item, top)))
+                parts.append((yield self._expand(item)))
             return [[sym for part in combination for sym in part] for combination in itertools.product(*parts)]
         if "choice" in expr:
             options = []
@@ -923,14 +966,30 @@ class _Lowerer:
             return result
         if "optional" in expr:
             inner = expr["optional"]
+            elidable = expr.get("elidable") is True
             body = yield self._expand(inner)
-            first = self.first_terminal(inner)
-            elidable = first is not None and first[0] in self.grammar.elidable
-            helper = self.new_helper([[]] + body, first if elidable else None)
+            # A plain optional that holds a capture expands in place, as
+            # (ε | x) would: first the empty sequence, then each expansion
+            # of x (engine §3.2).
+            if not elidable and _holds_capture(inner):
+                return [[], *body]
+            # Any other optional is a helper, and a marked one is elidable,
+            # with the terminal that its marker names; ++ makes it maximal
+            # (engine §3.8).
+            helper = self.new_helper([[]] + body, self.elided_terminal(inner) if elidable else None)
+            if expr.get("maximal") is True:
+                self.maximal_helpers.add(helper)
             return [[(("n", helper), None)]]
         if "repeat" in expr:
-            body = yield self._expand(expr["repeat"])
-            return [[(("n", self.repeat_helper(body, expr.get("min", 1))), None)]]
+            # Flat braces are a helper, h → x | h s x, its base productions
+            # first; the places inside the item come before those inside the
+            # separator (engine §3.2).
+            if "chain" in expr:
+                raise self.fail(f"a chain in {self.current.name if self.current else '?'} is not the whole of its rule")
+            items = yield self._expand(expr["repeat"])
+            self.brace_items.append((items, self.current_alt, self.current))
+            separators = (yield self._expand(expr["separator"])) if "separator" in expr else [[]]
+            return [[(("n", self.repeat_helper(items, separators)), None)]]
         if "empty" in expr:
             return [[]]
         if "ref" in expr:
@@ -946,8 +1005,6 @@ class _Lowerer:
             kind, name = tested[0][0][0][:2]
             return [[((kind, name, expr[RESOLVED]), None)]]
         if "capture" in expr:
-            if not top:
-                raise self.fail(f"the capture ${expr['capture']} is not at the top level of its alternative")
             inner = expr.get("expr", {})
             test = inner[RESOLVED] if "test" in inner else None
             if test is not None:
@@ -966,27 +1023,25 @@ class _Lowerer:
             return [[(symbol, expr["capture"])]]
         raise self.fail(f"an unknown expression {sorted(expr)}")
 
-    def repeat_helper(self, body: list[list[_Sym]], minimum: int) -> int:
+    def repeat_helper(self, items: list[list[_Sym]], separators: list[list[_Sym]]) -> int:
         number = len(self.rule_names)
-        recursive: list[list[_Sym]] = [[(("n", number), None)] + expansion for expansion in body]
-        base: list[list[_Sym]] = [[]] if minimum == 0 else body
-        helper = self.new_helper(base + recursive)
+        recursive: list[list[_Sym]] = [[(("n", number), None)] + separator + item for separator in separators for item in items]
+        helper = self.new_helper(items + recursive)
         assert helper == number
         return helper
 
     # -- productions
 
-    def add(
-        self, lhs: int, expansion: list[_Sym], alt: Alternative | None, rep_splice: bool = False, elided: tuple[str, SymbolTest | None] | None = None
-    ) -> None:
+    def add(self, lhs: int, expansion: list[_Sym], alt: Alternative | None, elided: tuple[str, SymbolTest | None] | None = None) -> None:
         rhs = tuple(sym[1] for sym, _ in expansion)
         terminal = tuple(sym[0] == "t" for sym, _ in expansion)
+        self.structural.append((lhs, rhs, terminal))
         tests = tuple(sym[2] if len(sym) > 2 else None for sym, _ in expansion)
+        # A production reads each name at most once (engine §3.5); the
+        # reader and the check of a DOM have made sure of it.
         captures: dict[str, int] = {}
         for position, (_, name) in enumerate(expansion):
             if name is not None:
-                if name in captures:
-                    raise self.fail(f"the capture ${name} appears twice in one alternative")
                 captures[name] = position
         production = Production(
             id=len(self.productions),
@@ -995,7 +1050,6 @@ class _Lowerer:
             terminal=terminal,
             rule_name=self.rule_display[lhs],
             helper=alt is None,
-            rep_splice=rep_splice,
             elided=elided[0] if elided is not None else None,
             elided_test=elided[1] if elided is not None else None,
             tests=tests if any(test is not None for test in tests) else None,
@@ -1005,14 +1059,18 @@ class _Lowerer:
             # $ is a capture every production has, and each clause is
             # simplified for the captures this one has (engine §3.6).
             present = captures.keys() | {WHOLE}
-            for written in alt.conditions:
-                condition = applies(written, present)
-                if condition is None:
-                    continue
+            # The conditions not true for this production, in order, each
+            # prepared once for all productions, so that one costs its own
+            # captures and output, not every part of the conditions.
+            for condition in self.prepare(alt.conditions, True).kept(present):
                 if condition is False:
                     # A condition false for this production removes it.
                     return
                 names = captures_in(condition)
+                if not names <= present:
+                    # A condition that uses a capture this production lacks
+                    # does not apply to it.
+                    continue
                 if WHOLE in names and rhs:
                     # Evaluated when the item is complete, in written order
                     # with the conditions on captures that become ready at
@@ -1028,10 +1086,10 @@ class _Lowerer:
             # The union of the alternative's own tags and the definition's
             # (engine §3.7); the reader has made sure neither uses a capture
             # the alternative lacks.
-            terms = [simplify_term(term, present) for term in (alt.tags, alt.rule_tags) if term is not None]
+            terms = [self.prepare(term, False).simplified(present) for term in (alt.tags, alt.rule_tags) if term is not None]
             if terms:
                 production.tags_term = terms[0] if len(terms) == 1 else {"union": terms}
-            production.emit = self.lower_emit(alt.emit, captures)
+            production.emit = self.lower_emit(alt.emit, captures, self.emission(alt.emit))
             production.opaque = alt.opaque
             production.warnings = tuple(guard["feature"] for guard in alt.guards if guard.get("kind") == "warning")
         if production.tags_term is None and len(rhs) == 1 and 0 not in captures.values():
@@ -1064,7 +1122,7 @@ class _Lowerer:
                 self.add(number, expansion, None, elided=elided if not expansion else None)
             stack.extend(reversed(used(own)))
 
-    def lower_emit(self, emit: Dom | None, captures: dict[str, int]) -> list[tuple[Any, ...]] | None:
+    def lower_emit(self, emit: Dom | None, captures: dict[str, int], emission: Emission | None = None) -> list[tuple[Any, ...]] | None:
         """A production's emission, the items it emits in list order, less
         those whose carrier the production lacks, and each item less the
         attachment captures it lacks (engine §3.6, §11): ``("whole", term
@@ -1074,10 +1132,13 @@ class _Lowerer:
         being the position of the first written part of the capture item
         listed next after it, its first before-attachment or else its
         carrier, or ``None`` for the constituent's end. ``%emits ε`` is the
-        empty list."""
+        empty list. ``emission`` is the emission's items indexed, which
+        the productions that share it share."""
         if emit is None:
             return None
         present = captures.keys() | {WHOLE}
+        if emission is None:
+            emission = Emission(emit.get("items", []))
 
         def own(term: Any) -> Any:
             return simplify_term(term, present) if term is not None else None
@@ -1085,91 +1146,69 @@ class _Lowerer:
         def positions(names: Any) -> tuple[int, ...]:
             return tuple(captures[name] for name in names or () if name in captures)
 
-        items = [item for item in emit.get("items", []) if "insert" in item or item["capture"] in present]
+        # The items this production keeps, found by their carriers, not by
+        # a scan of every item.
+        items = [emission.items[index] for index in emission.kept(present)]
+        # Built from the last item back, so that each inserted tag's anchor
+        # comes from the capture item last passed, found once for all the
+        # tags before it.
         lowered: list[tuple[Any, ...]] = []
-        for index, item in enumerate(items):
+        following: Dom | None = None
+        anchor: int | None = None
+        anchored = True
+        for item in reversed(items):
             if "insert" in item:
-                following = next((other for other in items[index + 1 :] if "capture" in other), None)
-                anchor = None
-                if following is not None:
+                if not anchored:
+                    assert following is not None
                     first = positions(following.get("before"))
                     anchor = first[0] if first else captures[following["capture"]]
+                    anchored = True
                 lowered.append(("insert", item["insert"], anchor))
-            elif item["capture"] == WHOLE:
+                continue
+            following, anchor, anchored = item, None, False
+            if item["capture"] == WHOLE:
                 lowered.append(("whole", own(item.get("tags"))))
             else:
                 lowered.append(
                     ("capture", captures[item["capture"]], own(item.get("tags")), positions(item.get("before")), positions(item.get("after")))
                 )
+        lowered.reverse()
         return lowered
-
-    def check_captures(self, expr: Dom) -> None:
-        top = expr["seq"] if "seq" in expr else [expr]
-        count = 0
-        nested: list[Any] = []
-        for item in top:
-            if "capture" in item and "expr" in item:
-                count += 1
-                inner = item["expr"]
-                # A capture may wrap a tested symbol (engine §3.5).
-                if isinstance(inner, dict) and "test" in inner:
-                    inner = inner.get("expr")
-                if not isinstance(inner, dict) or not ("ref" in inner or "terminal" in inner or "range" in inner or "property" in inner):
-                    raise self.fail(f"the capture ${item['capture']} does not wrap one symbol")
-            else:
-                nested.append(item)
-        while nested:
-            value = nested.pop()
-            if isinstance(value, dict):
-                if "capture" in value and "expr" in value:
-                    raise self.fail(f"the capture ${value['capture']} is not at the top level of its alternative")
-                nested.extend(value.values())
-            elif isinstance(value, list):
-                nested.extend(value)
-        if count > 4:
-            raise self.fail("an alternative has more than four captures")
 
     def lower(self) -> Lowered:
         for name, rule in self.grammar.rules.items():
             self.current = rule
             lhs = self.rule_ids[name]
-            for alt in rule.alternatives:
-                self.current_alt = alt
-                self.check_captures(alt.expr)
             alternatives = [alt for alt in rule.alternatives if self.holds(alt.guards)]
+            # A chain is the only alternative of its rule that the gates
+            # leave (engine §3.3); a %extend-rule can add another.
+            chain = next((alt for alt in alternatives if "repeat" in alt.expr and "chain" in alt.expr), None)
+            if chain is not None and len(alternatives) > 1:
+                raise self.fail(f"{name} is a chain, which is the whole of its rule, but another alternative stands beside it", chain)
             for alt in alternatives:
                 self.current_alt = alt
                 expr = alt.expr
-                trailing: tuple[list[Dom], Dom] | None = None
-                if len(alternatives) == 1:
-                    if "repeat" in expr:
-                        trailing = ([], expr)
-                    elif "seq" in expr and expr["seq"] and "repeat" in expr["seq"][-1]:
-                        trailing = (expr["seq"][:-1], expr["seq"][-1])
-                if trailing is None:
-                    expansions = self.expand(expr, top=True)
-                    for expansion in expansions:
-                        self.add(lhs, expansion, alt)
-                    self.flush(expansions)
-                    continue
-                prefix, repeat = trailing
-                if any("capture" in item and "expr" in item for item in prefix):
-                    # The recursive productions could not have the capture,
-                    # whose part lies inside the inner constituent (engine
-                    # §3.3).
-                    raise self.fail(f"an alternative of {name} captures a part, and is lowered as a trailing repetition")
-                heads = self.expand({"seq": prefix}, top=True)
-                body = self.expand(repeat["repeat"])
-                if repeat.get("min", 1) == 1:
-                    bases = [head + item for head in heads for item in body]
+                if "repeat" in expr and "chain" in expr:
+                    # A chain is recursion on the rule itself, with no
+                    # helper: its base productions first, one for each
+                    # expansion of the item, then its recursive ones
+                    # (engine §3.3).
+                    items = self.expand(expr["repeat"])
+                    self.brace_items.append((items, alt, rule))
+                    separators = self.expand(expr["separator"]) if "separator" in expr else [[]]
+                    me: list[_Sym] = [(("n", lhs), None)]
+                    if expr["chain"] == "left":
+                        recursive = [me + separator + item for separator in separators for item in items]
+                    else:
+                        recursive = [item + separator + me for item in items for separator in separators]
+                    expansions = items + recursive
                 else:
-                    bases = heads
-                for expansion in bases:
+                    expansions = self.expand(expr)
+                for expansion in expansions:
                     self.add(lhs, expansion, alt)
-                for expansion in body:
-                    self.add(lhs, [(("n", lhs), None)] + expansion, alt, rep_splice=True)
-                self.flush(bases + body)
+                self.flush(expansions)
             self.current_alt = None
+        self.check_brace_items()
         rule_productions: list[list[int]] = [[] for _ in self.rule_names]
         for production in self.productions:
             rule_productions[production.lhs].append(production.id)
@@ -1182,7 +1221,42 @@ class _Lowerer:
             rule_display=self.rule_display,
             lean=self.grammar.lean,
             characters=self.characters,
+            maximal_helpers=frozenset(self.maximal_helpers),
         )
+
+    def check_brace_items(self) -> None:
+        """An item of braces that can derive the empty sequence is an error
+        of the grammar (engine §3.3). Nullability is decided over the
+        structural grammar, every production that the gates leave,
+        reachable or not, before a false condition removes any."""
+        nullable: set[Union[str, int]] = set()
+        # Each rule's productions that are not yet known to derive ε, by
+        # the rules among their symbols that are not yet known to.
+        waiting: dict[Union[str, int], list[int]] = {}
+        missing: list[int] = []
+        queue: list[Union[str, int]] = []
+        for index, (lhs, rhs, terminal) in enumerate(self.structural):
+            if any(terminal):
+                missing.append(-1)
+                continue
+            symbols = set(rhs)
+            missing.append(len(symbols))
+            for symbol in symbols:
+                waiting.setdefault(symbol, []).append(index)
+            if not symbols and lhs not in nullable:
+                nullable.add(lhs)
+                queue.append(lhs)
+        while queue:
+            symbol = queue.pop()
+            for index in waiting.get(symbol, ()):
+                missing[index] -= 1
+                lhs = self.structural[index][0]
+                if missing[index] == 0 and lhs not in nullable:
+                    nullable.add(lhs)
+                    queue.append(lhs)
+        for items, alt, rule in self.brace_items:
+            if any(all(sym[0] == "n" and sym[1] in nullable for sym, _ in item) for item in items):
+                raise self.fail(f"an item of braces in {rule.name if rule else '?'} can match no tokens", alt, rule)
 
     def holds(self, guards: list[Dom]) -> bool:
         # Only gates drop an alternative; a warning keeps it (engine §3.1).
@@ -1190,6 +1264,21 @@ class _Lowerer:
             guard.get("kind") == "warning" or (guard["feature"] in self.features) != bool(guard.get("negated"))
             for guard in guards
         )
+
+
+def _holds_capture(expr: Any) -> bool:
+    """Whether an expression holds a capture, at any depth (engine §3.5)."""
+    stack: list[Any] = [expr]
+    while stack:
+        value = stack.pop()
+        if isinstance(value, dict):
+            if isinstance(value.get("capture"), str) and "expr" in value:
+                return True
+            stack.extend(value.get(key) for key in ("seq", "choice", "and") if isinstance(value.get(key), list))
+            stack.extend(value[key] for key in ("optional", "repeat", "separator", "expr") if key in value)
+        elif isinstance(value, list):
+            stack.extend(value)
+    return False
 
 
 def lower(grammar: Grammar, features: frozenset[str]) -> Lowered:

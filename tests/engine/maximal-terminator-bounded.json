@@ -1,6 +1,6 @@
 {
   "description": "The chart of a query ends with its span. matches of r over the captured A sees no longer y, although y → A B continues past the span in the text. So the omission of [T] is permitted, and matches holds (engine §4).",
-  "grammar": "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text $x(A) B\n%conditions matches($x, r)\n%rule r y [T]\n%rule y A | A B",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $x(A) B\n%conditions matches($x, r)\n%rule r y [++T]\n%rule y A | A B",
   "tokens": [
     {
       "text": "a",

@@ -1,0 +1,15 @@
+{
+  "description": "A rule that text never reaches counts too: {[A]} in such a rule is an error of the grammar (engine §3.3).",
+  "grammar": "%rule text B\n%rule u {[A]}",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

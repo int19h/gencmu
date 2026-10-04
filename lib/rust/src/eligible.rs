@@ -21,7 +21,7 @@ use crate::lower::{Lowered, Sym};
 use crate::maximal::Maximal;
 use crate::tags::Tags;
 use crate::unicode::Unicode;
-use crate::work::{self, Work};
+use crate::work::{self, Mutant, Work};
 
 /// A place in the chart: the set and the index of an item there.
 type Place = (u32, u32);
@@ -84,8 +84,10 @@ impl<'a> Proofs<'a> {
         Proofs { g, chart, tokens, unicode, tags, index: OnceCell::new(), maximal: OnceCell::new() }
     }
 
-    fn count(&self, entries: usize) {
-        work::count(Work::Searched, entries as u64);
+    /// Counts one entry of the chart or the index that a search examines,
+    /// before it is read.
+    fn count(&self) {
+        work::count(Work::Searched, 1);
     }
 
     fn item(&self, (set, index): Place) -> Item {
@@ -104,13 +106,7 @@ impl<'a> Proofs<'a> {
                 return None;
             }
         }
-        let caps = if production.cap_at[dot].is_some() {
-            let mut caps = self.chart.caps(item.caps).to_vec();
-            caps.push(cap);
-            self.chart.lookup_caps(&caps)?
-        } else {
-            item.caps
-        };
+        let caps = if production.cap_at[dot].is_some() { self.chart.lookup_caps(item.caps, cap)? } else { item.caps };
         let next = Item { prod: item.prod, dot: item.dot + 1, origin: item.origin, caps };
         let set = cap.end;
         self.chart.sets.get(set as usize)?.find(&next).map(|index| (set, index))
@@ -120,19 +116,32 @@ impl<'a> Proofs<'a> {
     /// from an index of the whole chart, which one pass over the chart
     /// builds for the whole query.
     fn completed(&self, rule: u32, origin: u32) -> impl Iterator<Item = Place> + '_ {
-        let index = self.index.get_or_init(|| {
-            let mut index = CompletedIndex::default();
-            for (set, entries) in self.chart.sets.iter().enumerate() {
-                self.count(entries.completed.len());
-                for (&key, list) in &entries.completed {
-                    index.entry(key).or_default().extend(list.iter().map(|&at| (set as u32, at)));
+        let index: &CompletedIndex = if work::mutated(Mutant::IndexPerSearch) {
+            // A mutation of the tests builds the index again for each
+            // search, and keeps each one until the test ends.
+            Box::leak(Box::new(self.completed_index()))
+        } else {
+            self.index.get_or_init(|| self.completed_index())
+        };
+        let found = index.get(&(rule, origin)).map_or(&[][..], Vec::as_slice);
+        // Each completed item counts as the search reads it.
+        found.iter().copied().inspect(|_| work::count(Work::Searched, 1))
+    }
+
+    /// The index of the completed items of the whole chart, in one pass
+    /// that counts each item as it is examined.
+    fn completed_index(&self) -> CompletedIndex {
+        let mut index = CompletedIndex::default();
+        for (set, entries) in self.chart.sets.iter().enumerate() {
+            for (&key, list) in &entries.completed {
+                let places = index.entry(key).or_default();
+                for &at in list {
+                    self.count();
+                    places.push((set as u32, at));
                 }
             }
-            index
-        });
-        let found = index.get(&(rule, origin)).map_or(&[][..], Vec::as_slice);
-        self.count(found.len());
-        found.iter().copied()
+        }
+        index
     }
 
     /// The constituent of a completed item at `place`.
@@ -200,13 +209,12 @@ impl<'a> Proofs<'a> {
         }
         let production = &self.g.prods[item.prod as usize];
         let position = item.dot as usize - 1;
-        let caps = self.chart.caps(item.caps);
         let captured = production.cap_at[position].is_some();
         let before_caps = if captured {
-            match self.chart.lookup_caps(&caps[..caps.len() - 1]) {
-                Some(id) => id,
-                None => return Vec::new(),
+            if item.caps == 0 {
+                return Vec::new();
             }
+            self.chart.caps_parent(item.caps)
         } else {
             item.caps
         };
@@ -216,13 +224,9 @@ impl<'a> Proofs<'a> {
             Sym::T(_) => find(set - 1).map(|before| (Some(before), None)).into_iter().collect(),
             Sym::N(rule) => {
                 let origins: Vec<u32> = if captured {
-                    vec![caps[caps.len() - 1].start]
+                    vec![self.chart.last_cap(item.caps).start]
                 } else {
-                    self.chart.sets[set as usize]
-                        .origins
-                        .get(&rule)
-                        .map(|origins| origins.iter().copied().filter(|&m| m >= item.origin).collect())
-                        .unwrap_or_default()
+                    self.chart.origins_between(&before, rule, item.origin, set)
                 };
                 let mut edges = Vec::new();
                 for m in origins {
@@ -245,7 +249,7 @@ impl<'a> Proofs<'a> {
     /// eligible proof tree (§4).
     pub(crate) fn eligible(&self, witnesses: &[Place]) -> Vec<bool> {
         let everything = vec![true; witnesses.len()];
-        if witnesses.is_empty() || !self.g.rules.iter().any(|rule| rule.elided.is_some()) {
+        if witnesses.is_empty() || !self.g.elides {
             return everything;
         }
         // The items that the witnesses rest on, children before the items
@@ -310,6 +314,9 @@ impl<'a> Proofs<'a> {
         while changed {
             changed = false;
             for x in 0..order.len() {
+                // Each item of each sweep counts, so that sweeps that each
+                // settle only a few items show their cost.
+                self.count();
                 if e[x] && (p[x] || next[x] == Next::Other) {
                     continue;
                 }
@@ -329,7 +336,13 @@ impl<'a> Proofs<'a> {
                     has_e = true;
                     match (next[x], *edge) {
                         (Next::Alone, _) if !has_p => {
-                            has_p = !*written.entry(place).or_insert_with(|| self.reads_written(place));
+                            has_p = !if work::mutated(Mutant::AskWrittenAgain) {
+                                // A mutation of the tests asks again at each
+                                // edge, with no memo.
+                                self.reads_written(place)
+                            } else {
+                                *written.entry(place).or_insert_with(|| self.reads_written(place))
+                            };
                         }
                         // The fixed prefix is the item before the advance
                         // over the constituent.
@@ -402,6 +415,7 @@ mod tests {
     use super::Proofs;
     use crate::earley::{matchers, Recognizer, Shared, Tok};
     use crate::lower::{Lowered, Sym};
+    use crate::work::{assert_linear, assert_mutant_stops, assert_stops, Mutant, Mutation, Work};
 
     /// SplitMix64.
     struct Rng(u64);
@@ -665,8 +679,9 @@ mod tests {
         }
     }
 
-    /// A random alternative, as text and as its DOM's expression.
-    fn body(rng: &mut Rng) -> (String, String) {
+    /// A random alternative, as text and as its DOM's expression. `marks`
+    /// are the markers of the optionals of `T` and of `U`, `+` or `++`.
+    fn body(rng: &mut Rng, marks: [&str; 2]) -> (String, String) {
         let symbol = |rng: &mut Rng| {
             if rng.below(2) == 0 {
                 TERMINALS[rng.below(4)]
@@ -675,21 +690,25 @@ mod tests {
             }
         };
         let reference = |name: &str| format!(r#"{{"ref":"{name}"}}"#);
+        let marked = |mark: &str, expr: String| {
+            let maximal = if mark == "++" { r#","maximal":true"# } else { "" };
+            format!(r#"{{"optional":{expr},"elidable":true{maximal}}}"#)
+        };
         let (mut text, mut dom) = (Vec::new(), Vec::new());
         for _ in 0..rng.below(4) {
             match rng.below(50) {
                 0..=9 => {
-                    text.push("[T]".to_string());
-                    dom.push(format!(r#"{{"optional":{}}}"#, reference("T")));
+                    text.push(format!("[{}T]", marks[0]));
+                    dom.push(marked(marks[0], reference("T")));
                 }
                 10..=14 => {
-                    text.push("[U]".to_string());
-                    dom.push(format!(r#"{{"optional":{}}}"#, reference("U")));
+                    text.push(format!("[{}U]", marks[1]));
+                    dom.push(marked(marks[1], reference("U")));
                 }
                 15..=18 => {
                     let after = symbol(rng);
-                    text.push(format!("[T {after}]"));
-                    dom.push(format!(r#"{{"optional":{{"seq":[{},{}]}}}}"#, reference("T"), reference(after)));
+                    text.push(format!("[{}T {after}]", marks[0]));
+                    dom.push(marked(marks[0], format!(r#"{{"seq":[{},{}]}}"#, reference("T"), reference(after))));
                 }
                 _ => {
                     let name = symbol(rng);
@@ -712,27 +731,20 @@ mod tests {
     /// the loader so that a round does not read the document through the
     /// notation.
     fn grammar(rng: &mut Rng) -> (String, String, Vec<&'static str>) {
-        // Now and then T or U is a maximal terminator.
-        let (elidable, directives, maximal): (&str, &str, Vec<&str>) = match rng.below(4) {
-            0 => (
-                "%elidable U\n%elidable maximal T",
-                r#"{"name":"elidable","args":["U"],"at":[3,1]},{"name":"elidable","args":["T"],"maximal":true,"at":[4,1]}"#,
-                vec!["T"],
-            ),
-            1 => (
-                "%elidable maximal T U",
-                r#"{"name":"elidable","args":["T","U"],"maximal":true,"at":[3,1]}"#,
-                vec!["T", "U"],
-            ),
-            _ => ("%elidable T U", r#"{"name":"elidable","args":["T","U"],"at":[3,1]}"#, Vec::new()),
+        // Now and then T or U is maximal: every optional of it is marked
+        // `++` (engine §3.8).
+        let (marks, maximal): ([&str; 2], Vec<&str>) = match rng.below(4) {
+            0 => (["++", "+"], vec!["T"]),
+            1 => (["++", "++"], vec!["T", "U"]),
+            _ => (["+", "+"], Vec::new()),
         };
-        let text_line = 3 + elidable.lines().count();
+        let text_line = 3;
         let mut lines = Vec::new();
         let mut rules = vec![format!(
             r#"{{"name":"text","op":"define","alternatives":[{{"guards":[],"expr":{{"ref":"A"}}}}],"conditions":[],"at":[{text_line},1]}}"#
         )];
         for (line, rule) in RULES.iter().enumerate() {
-            let (first, second) = (body(rng), body(rng));
+            let (first, second) = (body(rng, marks), body(rng, marks));
             lines.push(format!("%rule {rule} {} | {}", first.0, second.0));
             let alternatives = [first.1, second.1].map(|expr| format!(r#"{{"guards":[],"expr":{expr}}}"#)).join(",");
             rules.push(format!(
@@ -740,12 +752,9 @@ mod tests {
                 line + text_line + 1
             ));
         }
-        let document = format!(
-            "```jbogenbau\n%ambiguity-resolution greedy\n{elidable}\n%rule text A\n{}\n```\n",
-            lines.join("\n")
-        );
+        let document = format!("```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n{}\n```\n", lines.join("\n"));
         let dom = format!(
-            r#"{{"format":{},"rules":[{}],"directives":[{{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}},{directives}],"constants":[],"classifiers":[],"implications":[]}}"#,
+            r#"{{"format":{},"rules":[{}],"directives":[{{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}"#,
             crate::dom::DOM_FORMAT,
             rules.join(",")
         );
@@ -786,6 +795,7 @@ mod tests {
                 source: (index * 2, index * 2 + 1),
                 label: "x".to_string(),
                 sound: Default::default(),
+                quiet: 0,
                 before: Vec::new(),
                 after: Vec::new(),
             })
@@ -827,24 +837,25 @@ mod tests {
     /// entries that they look at grows linearly with the text.
     #[test]
     fn the_searches_for_blocking_paths_look_at_each_set_once() {
-        let grammar = "%ambiguity-resolution greedy\n%elidable T\n%rule text body B\n%conditions matches($, r)\n\
-                       %rule body A ...\n%rule r parts B\n%rule parts part ...\n%rule part A [T]\n";
-        let operations = |n: usize, budget: Option<u64>| {
-            let (eligible, operations, items) = query_work(grammar, n, 0, false, budget);
+        let grammar = "%ambiguity-resolution greedy\n%rule text body B\n%conditions matches($, r)\n\
+                       %rule body {A}\n%rule r parts B\n%rule parts {part}\n%rule part A [+T]\n";
+        let operations = |n: usize, most: &dyn Fn(u64) -> u64| {
+            let (eligible, operations, items) = query_work(grammar, n, 0, false, most);
             assert!(eligible.iter().all(|&eligible| eligible));
             (operations, items)
         };
-        let (small, items) = operations(500, None);
+        let (small, items) = operations(500, &|items| 4 * items);
         assert!(small > 0, "the searches ran");
-        // The index is one pass over the chart, and the searches read each
-        // completed item of it at most once: at most twice the chart's
-        // items. An index built again for each search would read the chart
-        // once per search, so this fails on the shorter text, before the
-        // longer one costs much.
-        assert!(small <= 2 * items, "{small} operations for 500 tokens, over a chart of {items} items");
+        // The index is one pass over the chart, the searches read each
+        // completed item of it at most once, and two sweeps settle the
+        // items they rest on: at most four times the chart's items. An
+        // index built again for each search would read the chart once per
+        // search, so this stops the shorter text at the first operation
+        // past that, before the longer one costs much.
+        assert!(small <= 4 * items, "{small} operations for 500 tokens, over a chart of {items} items");
         // Four times the text costs about four times as much, not sixteen,
         // and the longer text's run stops at the first entry past that.
-        let (large, _) = operations(2000, Some(6 * small));
+        let (large, _) = operations(2000, &|_| 6 * small);
         assert!(large < small * 6, "{small} operations for 500 tokens, {large} for 2000");
     }
 
@@ -858,37 +869,108 @@ mod tests {
     /// tested `y` from every position, the completions from many origins.
     #[test]
     fn the_checks_of_maximal_terminators_grow_linearly() {
-        let plain = "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text body B\n\
-                     %conditions begins(from($), r)\n%rule body A ...\n%rule r y [T]\n%rule y A ...\n";
-        let tested = "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text body B\n\
-                      %conditions begins(from($), r)\n%rule body A ...\n%rule r y⊇~p [T]\n%rule y A ... <~p>\n";
-        let many = "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text body B\n\
-                    %conditions matches($, r)\n%rule body A ...\n%rule r parts B\n%rule parts part ...\n\
-                    %rule part y⊇~p [T]\n%rule y A <~p>\n";
-        // After the A's come as many C's, so y completes from the start at
-        // every end, and the test holds only of those that end before the
-        // C's: the furthest end where it holds lies far before the furthest
-        // completion.
-        let far = "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text body B\n\
-                   %conditions begins(from($), r)\n%rule body A ... C ...\n%rule r y⊇~p [T]\n\
-                   %rule y A ... <~p> | A ... C ...\n";
-        for (grammar, begins, c) in [(plain, true, 0), (tested, true, 0), (many, false, 0), (far, true, 1)] {
-            let (eligible, small, items) = query_work(grammar, 1000, c * 1000, begins, None);
+        for (grammar, begins, c) in maximal_grammars() {
+            let (eligible, small, items) = query_work(grammar, 1000, c * 1000, begins, &|items| 6 * items);
             // The searches read the index once and each completed item
-            // once, and the checks find each table once, in a pass over the
-            // chart, and test each completion at most once: at most four
-            // times the chart's items. A table found again for each check
-            // would read the chart once per check, so this fails on the
-            // shorter text, before the longer one costs much.
-            assert!(small <= 4 * items, "{small} operations for 1000 tokens, over a chart of {items} items\n{grammar}");
+            // once, two sweeps settle the items they rest on, and the
+            // checks find each table once, in a pass over the chart, and
+            // test each completion at most once: at most six times the
+            // chart's items. A table found again for each check
+            // would read the chart once per check, so this stops the
+            // shorter text at the first operation past that.
+            assert!(small <= 6 * items, "{small} operations for 1000 tokens, over a chart of {items} items\n{grammar}");
             // Only the longest y permits the omission, or with the C's, the
             // longest where the test holds.
             assert_eq!(eligible.iter().filter(|&&eligible| eligible).count(), 1, "{grammar}");
             // The longer text's run stops at the first entry past its
             // budget.
-            let (_, large, _) = query_work(grammar, 4000, c * 4000, begins, Some(6 * small));
+            let (_, large, _) = query_work(grammar, 4000, c * 4000, begins, &|_| 6 * small);
             assert!(large < small * 6, "{small} operations for 1000 tokens, {large} for 4000\n{grammar}");
         }
+    }
+
+    /// An index of the chart built again for each search, or a table of
+    /// maximality found again for each check, stops at the first count past
+    /// the budget that `the_checks_of_maximal_terminators_grow_linearly`
+    /// gives the longer text. The second and fourth grammars find their
+    /// one table of passing ends once, so only the others repeat a table.
+    #[test]
+    fn indexes_found_again_stop_at_the_budget() {
+        for (at, (grammar, begins, c)) in maximal_grammars().into_iter().enumerate() {
+            let (_, small, _) = query_work(grammar, 1000, c * 1000, begins, &|_| u64::MAX);
+            let mutants = [(Mutant::IndexPerSearch, Work::Searched), (Mutant::TablePerCheck, Work::Looked)];
+            for (mutant, work) in mutants.into_iter().take(if at % 2 == 0 { 2 } else { 1 }) {
+                let _mutation = Mutation::on(mutant);
+                assert_stops(work, 6 * small, || {
+                    query_work(grammar, 4000, c * 4000, begins, &|_| 6 * small);
+                });
+            }
+        }
+    }
+
+    /// A query over a text where one item before an optional that stands
+    /// alone has many completion edges, one for each way its first
+    /// constituent completes. Each edge asks whether the chart reads the
+    /// optional as written there. Asked once per item, the searches grow
+    /// with n. Asked again at each edge, they grow with n².
+    fn written_question_work(n: usize) {
+        let starts: Vec<String> = (0..n).map(|index| format!("A{index}")).collect();
+        let tagged: Vec<String> = (0..n).map(|index| format!("A{index} <~z>")).collect();
+        let bs = vec!["b"; n].join(" ");
+        let grammar = format!(
+            "%ambiguity-resolution greedy\n%rule text $q(body) C\n%conditions text($) ≠ \"\" ∧ matches($q,r)\n\
+             %rule body a KU tail\n%rule a {}\n%rule tail {{... B}}\n%rule r $prev(r) [+KU tail] | {}\n\
+             %conditions $prev ⟹ text($) = \"a ku {bs}\"\n",
+            starts.join(" | "),
+            tagged.join(" | ")
+        );
+        let sources = [("main.md", format!("```jbogenbau\n{grammar}```\n")), ("p.md", PIPELINE.to_string())];
+        let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
+        let token = |text: &str, tags: Vec<String>| crate::InputToken {
+            text: text.to_string(),
+            tags: tags.into_iter().collect(),
+            phonemes: None,
+        };
+        let tokens: Vec<_> = [token("a", starts.clone()), token("ku", vec!["KU".to_string()])]
+            .into_iter()
+            .chain((0..n).map(|_| token("b", vec!["B".to_string()])))
+            .chain([token("c", vec!["C".to_string()])])
+            .collect();
+        let options = crate::ParseOptions { auto_features: false, ..crate::ParseOptions::default() };
+        // The token a reads as any of the n starts, so the stage ends in a
+        // tie. The query runs before that, which is the work counted here.
+        let result = dialect.parse_tokens(&tokens, &options).expect("a result");
+        assert_eq!(result.stages[0].verdict, Some(crate::Verdict::Tie), "{n}");
+    }
+
+    /// The question whether an optional is read as written, asked once for
+    /// each item, keeps the searches linear in n: 266 entries at 20 and 986
+    /// at 80. Asked again at each edge, they take 1085 and 13865, so the
+    /// larger run stops at the first entry past five times 266.
+    #[test]
+    fn the_question_of_a_written_optional_is_asked_once_per_item() {
+        assert_linear(Work::Searched, 20, &mut written_question_work);
+        assert_mutant_stops(Work::Searched, Mutant::AskWrittenAgain, 20, &mut written_question_work);
+    }
+
+    /// The grammars of the tests of maximality's work, each with whether
+    /// its query is `begins`, and how many C's follow each A.
+    fn maximal_grammars() -> [(&'static str, bool, usize); 4] {
+        let plain = "%ambiguity-resolution greedy\n%rule text body B\n\
+                     %conditions begins(from($), r)\n%rule body {A}\n%rule r y [++T]\n%rule y {A}\n";
+        let tested = "%ambiguity-resolution greedy\n%rule text body B\n\
+                      %conditions begins(from($), r)\n%rule body {A}\n%rule r y⊇~p [++T]\n%rule y {A} <~p>\n";
+        let many = "%ambiguity-resolution greedy\n%rule text body B\n\
+                    %conditions matches($, r)\n%rule body {A}\n%rule r parts B\n%rule parts {part}\n\
+                    %rule part y⊇~p [++T]\n%rule y A <~p>\n";
+        // After the A's come as many C's, so y completes from the start at
+        // every end, and the test holds only of those that end before the
+        // C's: the furthest end where it holds lies far before the furthest
+        // completion.
+        let far = "%ambiguity-resolution greedy\n%rule text body B\n\
+                   %conditions begins(from($), r)\n%rule body {A} {C}\n%rule r y⊇~p [++T]\n\
+                   %rule y {A} <~p> | {A} {C}\n";
+        [(plain, true, 0), (tested, true, 0), (many, false, 0), (far, true, 1)]
     }
 
     /// Recognizes `n` tokens `A`, `c` tokens `C` and then a `B` as the rule `r` of the
@@ -897,7 +979,7 @@ mod tests {
     /// entries of the chart the searches and the checks looked at, and how
     /// many items the chart holds. With a budget, the searches and the
     /// checks each panic at the first entry past it.
-    fn query_work(grammar: &str, n: usize, c: usize, begins: bool, budget: Option<u64>) -> (Vec<bool>, u64, u64) {
+    fn query_work(grammar: &str, n: usize, c: usize, begins: bool, most: &dyn Fn(u64) -> u64) -> (Vec<bool>, u64, u64) {
         let sources = [("main.md", format!("```jbogenbau\n{grammar}```\n")), ("p.md", PIPELINE.to_string())];
         let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
         let g = dialect.lowered_stage(0);
@@ -918,6 +1000,7 @@ mod tests {
                 source: (index * 2, index * 2 + 1),
                 label: "x".to_string(),
                 sound: Default::default(),
+                quiet: 0,
                 before: Vec::new(),
                 after: Vec::new(),
             })
@@ -935,13 +1018,13 @@ mod tests {
             .collect();
         assert!(!witnesses.is_empty(), "r completes");
         let proofs = Proofs::new(&g, &chart, &input, &dialect.unicode, &shared.tags);
-        crate::work::reset();
-        if let Some(most) = budget {
-            crate::work::budget(crate::work::Work::Searched, most);
-            crate::work::budget(crate::work::Work::Looked, most);
-        }
-        let eligible = proofs.eligible(&witnesses);
+        // The chart is made before the searches, so the budget of the
+        // searches can depend on its items.
         let items = chart.sets.iter().map(|set| set.items.len() as u64).sum();
+        crate::work::reset();
+        crate::work::budget(crate::work::Work::Searched, most(items));
+        crate::work::budget(crate::work::Work::Looked, most(items));
+        let eligible = proofs.eligible(&witnesses);
         (
             eligible,
             crate::work::counted(crate::work::Work::Searched) + crate::work::counted(crate::work::Work::Looked),

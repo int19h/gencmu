@@ -1,0 +1,10 @@
+{
+  "description": "A name in two items of & is an error at the second capture, since one expansion reads both (engine §9).",
+  "document": "```jbogenbau\n%rule a $x(A) & $x(B)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 17
+    }
+  }
+}

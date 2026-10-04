@@ -1,0 +1,10 @@
+{
+  "description": "A test after a marked optional is an error at the test, before anything that the optional holds (engine §9).",
+  "document": "```jbogenbau\n%rule a [+KU $x(A)]=\"a\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 20
+    }
+  }
+}

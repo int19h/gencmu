@@ -1,6 +1,6 @@
 {
   "description": "The witness of an error of elision-only maps a read of a synthetic token to an elided action at its record's position. The chosen a elides T, so R is T A. a restores T, and c closes the empty e before it restores T. The first difference is a's read of the written-back T, an elided action, against c's close of e (engine §7.10, docs/output.md).",
-  "grammar": "%ambiguity-resolution greedy elision-only\n%elidable T\n%rule text a | c\n%rule a [T] A\n%rule c e [T] A\n%rule e ε",
+  "grammar": "%ambiguity-resolution greedy elision-only\n%rule text a | c\n%rule a [+T] A\n%rule c e [+T] A\n%rule e ε",
   "tokens": [
     {
       "text": "a",

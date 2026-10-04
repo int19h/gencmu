@@ -1,0 +1,15 @@
+{
+  "description": "Nullability is decided before a false condition removes a production: r → ε with %conditions ¬$ still makes {r} an error, although §3.6 removes that production (engine §3.3, §3.6).",
+  "grammar": "%rule text {r} | A\n%rule r ε | B\n%conditions ¬$",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

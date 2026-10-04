@@ -1,6 +1,6 @@
 {
   "description": "maximal follows elision-only in the directive, when both are written (engine §2).",
-  "grammar": "%ambiguity-resolution greedy maximal elision-only\n%elidable T\n%rule text x\n%rule x A [T]",
+  "grammar": "%ambiguity-resolution greedy maximal elision-only\n%rule text x\n%rule x A [+T]",
   "tokens": [
     {
       "text": "a",

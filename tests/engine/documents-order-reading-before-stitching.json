@@ -1,0 +1,25 @@
+{
+  "description": "Every document is read before the stage is stitched, so an error of reading in a later document comes before an error of stitching that an earlier one makes: b.md's duplicate capture, not a.md's second %rule text (engine §2, §8, §9).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"a.md\"\n%include \"b.md\"\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n%rule text B\n```\n",
+    "b.md": "```jbogenbau\n%rule y $x(A) $x(B)\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "b.md",
+      "line": 2,
+      "column": 15
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "description": "A production that would read $x twice is an error of the document, decided before the gates: f? [$x(A)] $x(B) is refused at the second $x although f is off (engine §3.5, §9).",
+  "grammar": "%rule text f? [$x(A)] $x(B) | C",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

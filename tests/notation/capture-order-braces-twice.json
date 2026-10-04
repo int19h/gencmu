@@ -1,0 +1,10 @@
+{
+  "description": "A capture inside braces is an error at the capture, before any duplicate name, which the reader checks after the whole expression (engine §9).",
+  "document": "```jbogenbau\n%rule a {$c(B)} $c(C)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 10
+    }
+  }
+}

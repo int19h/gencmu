@@ -1,6 +1,6 @@
 {
   "description": "text → [KU] | [VAU] on the empty input ties under late-elision: each derivation elides one terminator at 0, and the name of the terminator does not count. The witness compares the actions themselves: the closes of the two helpers over the empty span (engine §6).",
-  "grammar": "%ambiguity-resolution late-elision\n%elidable KU VAU\n%rule text [KU] | [VAU]",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text [+KU] | [+VAU]",
   "tokens": [],
   "expect": {
     "result": {

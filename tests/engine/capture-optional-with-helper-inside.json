@@ -1,0 +1,141 @@
+{
+  "description": "An optional expanded in place keeps the helpers inside it, shared by every expansion through their place: [($a(A) | E) [B]] C gives C, A h C and E h C, numbered 0 to 2, then the one helper h → ε | B, 3 and 4, then text → A C, 5. The tie on a c names the productions 1 and 5 (engine §3.2, Numbering).",
+  "grammar": "%rule text [($a(A) | E) [B]] C | A C",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie",
+          "witness": [
+            {
+              "close": {
+                "rule": "text",
+                "production": 1,
+                "span": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "close": {
+                "rule": "text",
+                "production": 5,
+                "span": [
+                  0,
+                  2
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              2
+            ],
+            "source": [
+              0,
+              3
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "C",
+                "token": 1,
+                "span": [
+                  1,
+                  2
+                ],
+                "source": [
+                  2,
+                  3
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              2
+            ],
+            "source": [
+              0,
+              3
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "C",
+                "token": 1,
+                "span": [
+                  1,
+                  2
+                ],
+                "source": [
+                  2,
+                  3
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
+  }
+}

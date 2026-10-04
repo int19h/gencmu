@@ -1,0 +1,169 @@
+{
+  "description": "Flat braces are a helper whose base productions come first, then its recursive ones, and the helpers of the places inside the item come before those inside the separator: in {C [A] \\ [A]}, h → C o₁ is 1, h → h o₂ C o₁ is 2, and the item's o₁ → ε is 3, which the witness names (engine §3, Numbering).",
+  "grammar": "%rule text {C [A] \\ [A]}",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie",
+          "witness": [
+            {
+              "read": {
+                "token": 1,
+                "terminal": "A"
+              }
+            },
+            {
+              "close": {
+                "rule": "text",
+                "production": 3,
+                "span": [
+                  1,
+                  1
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              3
+            ],
+            "source": [
+              0,
+              5
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "C",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 1,
+                "span": [
+                  1,
+                  2
+                ],
+                "source": [
+                  2,
+                  3
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "C",
+                "token": 2,
+                "span": [
+                  2,
+                  3
+                ],
+                "source": [
+                  4,
+                  5
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              3
+            ],
+            "source": [
+              0,
+              5
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "C",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 1,
+                "span": [
+                  1,
+                  2
+                ],
+                "source": [
+                  2,
+                  3
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "C",
+                "token": 2,
+                "span": [
+                  2,
+                  3
+                ],
+                "source": [
+                  4,
+                  5
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
+  }
+}

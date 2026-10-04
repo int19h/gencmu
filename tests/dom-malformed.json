@@ -15,7 +15,7 @@
     "malformed": true
   },
   {
-    "description": "A maximal member whose value is false (engine §9).",
+    "description": "A maximal member whose value is false (engine §9). A directive named elidable is malformed, since %elidable is no directive (engine §9).",
     "directive": {
       "name": "elidable",
       "args": [
@@ -30,7 +30,7 @@
     "malformed": true
   },
   {
-    "description": "A maximal member whose value is the string true (engine §9).",
+    "description": "A maximal member whose value is the string true (engine §9). A directive named elidable is malformed, since %elidable is no directive (engine §9).",
     "directive": {
       "name": "elidable",
       "args": [
@@ -45,7 +45,7 @@
     "malformed": true
   },
   {
-    "description": "A maximal member whose value is null (engine §9).",
+    "description": "A maximal member whose value is null (engine §9). A directive named elidable is malformed, since %elidable is no directive (engine §9).",
     "directive": {
       "name": "elidable",
       "args": [
@@ -60,7 +60,7 @@
     "malformed": true
   },
   {
-    "description": "A maximal member whose value is the number 1, which is not true, also in a language where 1 equals true (engine §9).",
+    "description": "A maximal member whose value is the number 1, which is not true, also in a language where 1 equals true (engine §9). A directive named elidable is malformed, since %elidable is no directive (engine §9).",
     "directive": {
       "name": "elidable",
       "args": [
@@ -75,7 +75,7 @@
     "malformed": true
   },
   {
-    "description": "A maximal elidable directive with no arguments, as %elidable maximal gives (docs/output.md).",
+    "description": "A maximal elidable directive with no arguments, as %elidable maximal gives (docs/output.md). A directive named elidable is malformed, since %elidable is no directive (engine §9).",
     "directive": {
       "name": "elidable",
       "args": [],
@@ -85,10 +85,10 @@
         1
       ]
     },
-    "malformed": false
+    "malformed": true
   },
   {
-    "description": "A maximal elidable directive whose argument is maximal, as %elidable maximal ~maximal gives (docs/output.md).",
+    "description": "A maximal elidable directive whose argument is maximal, as %elidable maximal ~maximal gives (docs/output.md). A directive named elidable is malformed, since %elidable is no directive (engine §9).",
     "directive": {
       "name": "elidable",
       "args": [
@@ -100,10 +100,10 @@
         1
       ]
     },
-    "malformed": false
+    "malformed": true
   },
   {
-    "description": "A plain elidable directive whose argument is maximal, as %elidable ~maximal gives (docs/output.md).",
+    "description": "A plain elidable directive whose argument is maximal, as %elidable ~maximal gives (docs/output.md). A directive named elidable is malformed, since %elidable is no directive (engine §9).",
     "directive": {
       "name": "elidable",
       "args": [
@@ -114,10 +114,10 @@
         1
       ]
     },
-    "malformed": false
+    "malformed": true
   },
   {
-    "description": "A maximal elidable directive with an unknown member. A library ignores a member of a directive that it does not know, and checks the members that it knows (docs/output.md).",
+    "description": "A maximal elidable directive with an unknown member. A library ignores a member of a directive that it does not know, and checks the members that it knows (docs/output.md). A directive named elidable is malformed, since %elidable is no directive (engine §9).",
     "directive": {
       "name": "elidable",
       "args": [
@@ -130,7 +130,7 @@
         1
       ]
     },
-    "malformed": false
+    "malformed": true
   },
   {
     "description": "An unknown member does not excuse a malformed known member: maximal on ambiguity-resolution stays malformed (docs/output.md, engine §9).",
@@ -141,6 +141,21 @@
       ],
       "maximal": true,
       "note": "an unknown member",
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A features directive with a maximal member: no directive has one (engine §9, docs/output.md).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "maximal": true,
       "at": [
         1,
         1

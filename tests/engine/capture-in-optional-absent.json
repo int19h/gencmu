@@ -1,0 +1,52 @@
+{
+  "description": "Twin of capture-in-optional-present.json: on a alone, the production A has no $b, so the condition holds and the tag term gives nothing (engine §3.2, §3.6).",
+  "grammar": "%rule text A [$b(B)]\n%tags $b ⟹ tags($b)\n%conditions $b ⟹ phonemes($b) = \"b\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "a"
+  }
+}

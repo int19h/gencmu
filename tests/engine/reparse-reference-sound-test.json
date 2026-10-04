@@ -1,6 +1,6 @@
 {
   "description": "A tested reference reads the projected original span. t reads the synthetic T, which projects to the empty span, so t=\"ta\" fails and c is no reading. The check passes with the chosen reading alone. Compare reparse-terminal-sound-test (engine §7.5).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T U\n%rule text a | b | c\n%rule a A [T=\"ta\"]\n%rule b A [T=\"ta\"] [U]\n%rule c A t=\"ta\"\n%rule t T",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a A [+T=\"ta\"]\n%rule b A [+T=\"ta\"] [+U]\n%rule c A t=\"ta\"\n%rule t T",
   "tokens": [
     {
       "text": "a",

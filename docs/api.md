@@ -9,7 +9,7 @@ Every gencmu library offers the same operations on the same data. Each library s
 A pipeline document and the grammar documents that it includes define a dialect. The pipeline document names the stages of the dialect. A library loads a dialect in three ways:
 
 - It loads a dialect by name, from the grammars bundled in the package. The name is the file name of a pipeline document under `grammars/dialects/` without `.md`. So the names are `cll-ebnf`, `bpfk`, `experimental`, `zantufa` and `notation`.
-- It loads a pipeline document from disk. The library finds its grammar documents relative to it. Its `unicode.txt` and `notation/bootstrap.json` come from the bundled grammars.
+- It loads a pipeline document from disk. The library finds its grammar documents relative to it. Its `unicode.txt` and `notation/bootstrap.json` come from the bundled grammars. Each document is known by its absolute path, so an error names the same file from any working directory.
 - It loads documents held in memory: a map from `/`-separated path to text, and the path of the pipeline document in the map. The map can supply its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`. Any of these that the map lacks come from the bundled grammars. The exception is the portable JavaScript entry point, which has no bundle to read. There, the map must hold the first two (see "JavaScript").
 
 A `unicode.txt` in the map replaces the bundled table entirely, with no fallback to the bundled data. This holds for `White_Space` too, so the table must list the white space that the documents use. A code point that the table omits has the category `Cn`, no White_Space and no lowercase mapping (engine §1).

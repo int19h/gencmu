@@ -1,0 +1,91 @@
+{
+  "description": "Twin of capture-name-in-branches.json: on a c, the tags and the token are C's (engine §3.5).",
+  "grammar": "%rule text A ($x(B) | $x(C))\n%tags tags($x)\n%emits $x",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "c",
+              "phonemes": "",
+              "label": "c",
+              "tags": [
+                "C"
+              ],
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                2,
+                3
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          2
+        ],
+        "source": [
+          0,
+          3
+        ],
+        "tags": [
+          "C"
+        ],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "C",
+            "token": 1,
+            "span": [
+              1,
+              2
+            ],
+            "source": [
+              2,
+              3
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "(a c)"
+  }
+}

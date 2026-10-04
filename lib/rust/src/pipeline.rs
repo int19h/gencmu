@@ -6,6 +6,8 @@ use std::sync::Arc;
 
 use crate::dom::{ClassifierDef, ConstDef, Directive, Dom, ImplicationDef, RuleDef};
 use crate::error::Error;
+use crate::fxhash::{FxMap, FxSet};
+use crate::work::{self, Work};
 
 /// An item of a document: a rule, a directive, a constant's definition, a
 /// classifier or an implication.
@@ -30,21 +32,59 @@ impl Item<'_> {
     }
 }
 
-/// A document's rules, directives, constants, classifiers and implications
-/// in the order they were written, which is the order of their positions
-/// (engine §9).
-pub(crate) fn items_in_order(dom: &Dom) -> Vec<Item<'_>> {
-    let mut items: Vec<Item> = dom
-        .rules
-        .iter()
-        .map(Item::Rule)
-        .chain(dom.directives.iter().map(Item::Directive))
-        .chain(dom.constants.iter().map(Item::Constant))
-        .chain(dom.classifiers.iter().map(Item::Classifier))
-        .chain(dom.implications.iter().map(Item::Implication))
+/// Where an item stands in its document's DOM: its list, and its index in
+/// that list. A frame of the splice holds these, since it cannot hold
+/// borrows of a DOM that it also owns.
+#[derive(Clone, Copy)]
+enum Place {
+    Rule(usize),
+    Directive(usize),
+    Constant(usize),
+    Classifier(usize),
+    Implication(usize),
+}
+
+impl Place {
+    fn item(self, dom: &Dom) -> Item<'_> {
+        match self {
+            Place::Rule(index) => Item::Rule(&dom.rules[index]),
+            Place::Directive(index) => Item::Directive(&dom.directives[index]),
+            Place::Constant(index) => Item::Constant(&dom.constants[index]),
+            Place::Classifier(index) => Item::Classifier(&dom.classifiers[index]),
+            Place::Implication(index) => Item::Implication(&dom.implications[index]),
+        }
+    }
+}
+
+/// The places of a document's rules, directives, constants, classifiers
+/// and implications in the order they were written, which is the order of
+/// their positions (engine §9).
+fn places_in_order(dom: &Dom) -> Vec<Place> {
+    let mut places: Vec<Place> = (0..dom.rules.len())
+        .map(Place::Rule)
+        .chain((0..dom.directives.len()).map(Place::Directive))
+        .chain((0..dom.constants.len()).map(Place::Constant))
+        .chain((0..dom.classifiers.len()).map(Place::Classifier))
+        .chain((0..dom.implications.len()).map(Place::Implication))
         .collect();
-    items.sort_by_key(Item::at);
-    items
+    places.sort_by_key(|place| place.item(dom).at());
+    places
+}
+
+/// A document that the splice is in: its path, its DOM, its items in
+/// order, and the next of them to place.
+struct Frame {
+    path: Arc<str>,
+    dom: Arc<Dom>,
+    order: Vec<Place>,
+    next: usize,
+}
+
+impl Frame {
+    fn new(path: Arc<str>, dom: Arc<Dom>) -> Frame {
+        let order = places_in_order(&dom);
+        Frame { path, dom, order, next: 0 }
+    }
 }
 
 /// One stage of a spliced pipeline: its name, where its `%stage` stands,
@@ -79,14 +119,40 @@ struct Splicer<'d> {
     documents: &'d mut dyn Documents,
     stages: Vec<SplicedStage>,
     features: Vec<String>,
+    /// The documents on the chain of includes, the stages' names with
+    /// where each is in `stages`, and the features listed, so that a
+    /// check of one is not a scan.
+    on_chain: FxSet<Arc<str>>,
+    stage_index: FxMap<String, usize>,
+    feature_set: FxSet<String>,
     /// Whether the last item placed went into the stage's last run: an
     /// include or a `%stage` ends a run.
     open_run: bool,
 }
 
 impl Splicer<'_> {
-    fn splice(&mut self, path: &Arc<str>, dom: &Dom, chain: &mut Vec<Arc<str>>) -> Result<(), Error> {
-        for item in items_in_order(dom) {
+    /// Splices the document `path` and the documents it includes. Each
+    /// include is a frame on a stack of the splice's own, not a call, so
+    /// that a long chain of includes costs heap and not the call stack.
+    fn splice(&mut self, path: Arc<str>, dom: Arc<Dom>) -> Result<(), Error> {
+        let mut frames = vec![Frame::new(path, dom)];
+        // The documents whose includes are being spliced, outermost first.
+        let mut chain: Vec<Arc<str>> = Vec::new();
+        while let Some(frame) = frames.last_mut() {
+            let Some(&place) = frame.order.get(frame.next) else {
+                // The document is done, and its includer goes on after
+                // the include, in a new run.
+                frames.pop();
+                if let Some(includer) = chain.pop() {
+                    self.on_chain.remove(&includer);
+                    self.open_run = false;
+                }
+                continue;
+            };
+            frame.next += 1;
+            let (path, dom) = (frame.path.clone(), frame.dom.clone());
+            let path = &path;
+            let item = place.item(&dom);
             let (line, column) = item.at();
             let here = |message: String| Error::grammar(message).in_document(path).at(line, column);
             // An error of a document read on the way belongs to the stage
@@ -103,37 +169,42 @@ impl Splicer<'_> {
                         return Err(in_stage(here(format!("the document path {target_text} leaves the grammars"))));
                     };
                     chain.push(path.clone());
+                    self.on_chain.insert(path.clone());
                     let through = || {
                         let mut names: Vec<&str> = chain.iter().map(|name| &**name).collect();
                         names.push(&target);
                         names.join(" → ")
                     };
-                    if chain.iter().any(|earlier| **earlier == *target) {
+                    // Each check of the chain, the features and the stages
+                    // is one lookup, where a scan was one step for each.
+                    work::count(Work::Spliced, 1);
+                    if self.on_chain.contains(target.as_str()) {
                         return Err(in_stage(here(format!("{target} includes itself ({})", through()))));
                     }
                     let Some(included) = self.documents.dom(&target).map_err(in_stage)? else {
                         return Err(in_stage(here(format!("{target} was not found ({})", through()))));
                     };
                     self.open_run = false;
-                    self.splice(&Arc::from(target.as_str()), &included, chain)?;
-                    chain.pop();
-                    self.open_run = false;
+                    frames.push(Frame::new(Arc::from(target.as_str()), included));
                 }
                 Item::Directive(directive) if directive.name == "features" => {
                     for name in &directive.args {
-                        if !self.features.contains(name) {
+                        work::count(Work::Spliced, 1);
+                        if self.feature_set.insert(name.clone()) {
                             self.features.push(name.clone());
                         }
                     }
                 }
                 Item::Directive(directive) if directive.name == "stage" => {
                     let name = directive.args.first().cloned().unwrap_or_default();
-                    if let Some(earlier) = self.stages.iter().find(|stage| stage.name == name) {
+                    work::count(Work::Spliced, 1);
+                    if let Some(earlier) = self.stage_index.get(&name).map(|&index| &self.stages[index]) {
                         return Err(here(format!(
                             "a second stage named {name}; the first is at {}:{}:{}",
                             earlier.document, earlier.at.0, earlier.at.1
                         )));
                     }
+                    self.stage_index.insert(name.clone(), self.stages.len());
                     self.stages.push(SplicedStage {
                         name,
                         document: path.clone(),
@@ -178,8 +249,16 @@ pub(crate) fn splice(path: &str, documents: &mut dyn Documents) -> Result<Splice
     let Some(top) = documents.dom(path)? else {
         return Err(Error::grammar(format!("the pipeline document {path} was not found")).in_document(path));
     };
-    let mut splicer = Splicer { documents, stages: Vec::new(), features: Vec::new(), open_run: false };
-    splicer.splice(&Arc::from(path), &top, &mut Vec::new())?;
+    let mut splicer = Splicer {
+        documents,
+        stages: Vec::new(),
+        features: Vec::new(),
+        on_chain: FxSet::default(),
+        stage_index: FxMap::default(),
+        feature_set: FxSet::default(),
+        open_run: false,
+    };
+    splicer.splice(Arc::from(path), top)?;
     let Splicer { stages, mut features, .. } = splicer;
     if stages.is_empty() {
         return Err(Error::grammar("a pipeline needs at least one %stage").in_document(path));
@@ -194,4 +273,68 @@ pub(crate) fn splice(path: &str, documents: &mut dyn Documents) -> Result<Splice
     }
     features.sort();
     Ok(Spliced { stages, features })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use super::{splice, Documents};
+    use crate::dom::{Alternative, Directive, Dom, Expr, Op, RuleDef};
+    use crate::error::Error;
+    use crate::work::{assert_linear, Work};
+
+    /// Documents held in memory, each path its own name.
+    struct Held(HashMap<String, Arc<Dom>>);
+
+    impl Documents for Held {
+        fn dom(&mut self, path: &str) -> Result<Option<Arc<Dom>>, Error> {
+            Ok(self.0.get(path).cloned())
+        }
+
+        fn resolve(&self, _: &str, target: &str) -> Option<String> {
+            Some(target.to_string())
+        }
+    }
+
+    /// A chain of n documents, each including the next, the last with n
+    /// features and n stages, splices in about n: the chain, the stages
+    /// and the features are checked by sets, not scans.
+    #[test]
+    fn a_long_include_chain_splices_in_linear_work() {
+        let directive = |name: &str, args: Vec<String>| Directive { name: name.into(), args, at: (1, 1) };
+        let held = move |n: usize| {
+            let mut documents: HashMap<String, Arc<Dom>> = (0..n - 1)
+                .map(|index| {
+                    let include = directive("include", vec![format!("d{}", index + 1)]);
+                    (format!("d{index}"), Arc::new(Dom { directives: vec![include], ..Dom::default() }))
+                })
+                .collect();
+            // Each stage at line 2k + 2, with its rule on the next line.
+            let rule = |index: usize| RuleDef {
+                name: "text".into(),
+                op: Op::Define,
+                tags: None,
+                alternatives: vec![Alternative { guards: Vec::new(), expr: Expr::Empty, tags: None }],
+                emit: None,
+                conditions: Vec::new(),
+                opaque: false,
+                at: (2 * index + 3, 1),
+            };
+            let features = directive("features", (0..n).map(|index| format!("f{index}")).collect());
+            let stages = (0..n)
+                .map(|index| Directive { at: (2 * index + 2, 1), ..directive("stage", vec![format!("s{index}")]) });
+            let directives = [features].into_iter().chain(stages).collect();
+            let last = Dom { rules: (0..n).map(rule).collect(), directives, ..Dom::default() };
+            documents.insert(format!("d{}", n - 1), Arc::new(last));
+            Held(documents)
+        };
+        let mut helds = [held(1500), held(6000)];
+        assert_linear(Work::Spliced, 1500, &mut |n| {
+            let spliced = splice("d0", &mut helds[usize::from(n != 1500)]).expect("spliced");
+            assert_eq!(spliced.features.len(), n);
+            assert_eq!(spliced.stages.len(), n);
+        });
+    }
 }

@@ -1,0 +1,69 @@
+{
+  "description": "An alternative that a gate drops does not count: the empty item of f? {[A]} is an error only with f on (engine §3.1, §3.3).",
+  "grammar": "%rule text f? {[A]} | B",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "parses": [
+    {
+      "options": {},
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {
+              "name": "main",
+              "verdict": "unique"
+            }
+          ],
+          "tree": {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [
+              "B"
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "B",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              }
+            ]
+          }
+        },
+        "brackets": "b"
+      }
+    },
+    {
+      "options": {
+        "features": [
+          "f"
+        ]
+      },
+      "expect": {
+        "error": "grammar"
+      }
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "description": "The alternative of expansions-many-gated-off.json with its gate on lowers to more than 2¹⁸ productions: a b parses through the one that reads $c5 and B (engine §3.2).",
+  "grammar": "%rule text f? ([$c0(A0)] [$c1(A1)] [$c2(A2)] [$c3(A3)] [$c4(A4)] [$c5(A5)] [$c6(A6)] [$c7(A7)] [$c8(A8)] [$c9(A9)] [$c10(A10)] [$c11(A11)] [$c12(A12)] [$c13(A13)] [$c14(A14)] [$c15(A15)] [$c16(A16)]) & B | C\n%conditions $c5 ⟹ text($c5) = \"a\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A5"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "f"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          2
+        ],
+        "source": [
+          0,
+          3
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A5",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "B",
+            "token": 1,
+            "span": [
+              1,
+              2
+            ],
+            "source": [
+              2,
+              3
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "(a b)"
+  }
+}

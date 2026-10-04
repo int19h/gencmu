@@ -1,0 +1,10 @@
+{
+  "description": "A chain is the whole expression of its alternative, so one inside parentheses is an error at its {, although a group makes no node (engine §9).",
+  "document": "```jbogenbau\n%rule a x ({... y \\ z})\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 12
+    }
+  }
+}

@@ -5,12 +5,14 @@
 use std::cell::Cell;
 use std::collections::BTreeSet;
 
-use crate::earley::{Cap, EngineError, Frame, Recognizer, Tok};
+use crate::earley::{Cap, Caps, EngineError, Frame, Recognizer, Tok};
 use crate::fxhash::{FxMap, FxSet};
+use crate::grammar::Implication;
 use crate::lower::{LEmit, LEmitItem, LTerm, Lowered};
 use crate::rank::{DNode, Ranker};
 use crate::result::{Attachment, Node, NodeKind, Restoration, Warning};
-use crate::tags::{phoneme_of, union, SetId, TagList, Tags};
+use crate::tags::{phoneme_of, SetId, TagId, TagList, Tags};
+use crate::work::{self, Mutant, Work as Counted};
 
 #[derive(Debug, Clone)]
 pub(crate) enum IKind {
@@ -49,7 +51,7 @@ pub(crate) fn build(ranker: &Ranker, root: u32) -> ITree {
                         start: it.origin,
                         end: set,
                         tags,
-                        caps: ranker.chart().caps(it.caps).to_vec(),
+                        caps: ranker.chart().caps(it.caps),
                     },
                     children: Vec::new(),
                 });
@@ -182,8 +184,8 @@ pub(crate) fn source_of(sources: &Sources, start: usize, end: usize) -> std::ops
     }
 }
 
-/// Builds the result's tree (§12): helpers and the prefixes of trailing
-/// repetitions spliced out, absent elidable optionals as elided nodes.
+/// Builds the result's tree (§12): helpers spliced out, a chain's levels
+/// as nested rule nodes, absent elidable optionals as elided nodes.
 pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
     let originals = Sources::new(context.tokens);
     let mut fragments: Vec<Vec<Node>> = (0..tree.nodes.len()).map(|_| Vec::new()).collect();
@@ -225,12 +227,12 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
                 let production = &context.g.prods[prod as usize];
                 let rule = &context.g.rules[production.rule as usize];
                 let mut children = Vec::new();
-                for (position, &child) in node.children.iter().enumerate() {
+                for &child in &node.children {
                     let mut made = std::mem::take(&mut fragments[child as usize]);
-                    if position == 0 && production.trailing_step && made.len() == 1 && made[0].kind == NodeKind::Rule {
-                        // Take over the prefix's list rather than copy it, so
-                        // that a long repetition costs linear time.
-                        children = std::mem::take(&mut made[0].children);
+                    if children.is_empty() {
+                        // Take over a spliced helper's list rather than copy
+                        // it, so that a long list costs linear time.
+                        children = made;
                     } else {
                         children.append(&mut made);
                     }
@@ -277,9 +279,9 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
 /// The warnings of a stage's chosen tree (§12): each rule node gives one
 /// for each warning of its production whose feature is on, in the order a
 /// walk meets the nodes, parent before children and children left to
-/// right. The walk passes through what the tree splices out, helpers and
-/// the prefixes of trailing repetitions, without counting them as nodes,
-/// and so meets the tree's nodes in the tree's own order.
+/// right. The walk passes through the helpers that the tree splices out,
+/// without counting them as nodes, and so meets the tree's nodes in the
+/// tree's own order.
 pub(crate) fn warnings_of(
     tree: &ITree,
     g: &Lowered,
@@ -289,29 +291,24 @@ pub(crate) fn warnings_of(
 ) -> Vec<Warning> {
     let sources = Sources::new(tokens);
     let mut warnings = Vec::new();
-    // Each node with whether the tree splices it out as a prefix.
-    let mut stack = vec![(0u32, false)];
-    while let Some((index, prefix)) = stack.pop() {
+    let mut stack = vec![0u32];
+    while let Some(index) = stack.pop() {
         let node = &tree.nodes[index as usize];
         let IKind::Close { prod, start, end, .. } = node.kind else {
             continue;
         };
         let production = &g.prods[prod as usize];
-        if !prefix {
-            // A helper's productions have no warnings.
-            for feature in production.warnings.iter().filter(|&feature| features.contains(feature)) {
-                warnings.push(Warning {
-                    stage: stage.to_string(),
-                    feature: feature.clone(),
-                    rule: g.rules[production.rule as usize].name.clone(),
-                    span: start as usize..end as usize,
-                    source: source_of(&sources, start as usize, end as usize),
-                });
-            }
+        // A helper's productions have no warnings.
+        for feature in production.warnings.iter().filter(|&feature| features.contains(feature)) {
+            warnings.push(Warning {
+                stage: stage.to_string(),
+                feature: feature.clone(),
+                rule: g.rules[production.rule as usize].name.clone(),
+                span: start as usize..end as usize,
+                source: source_of(&sources, start as usize, end as usize),
+            });
         }
-        for (position, &child) in node.children.iter().enumerate().rev() {
-            stack.push((child, position == 0 && production.trailing_step));
-        }
+        stack.extend(node.children.iter().rev());
     }
     warnings
 }
@@ -679,35 +676,93 @@ fn item_tags(recognizer: &mut Recognizer, term: &LTerm, frame: &Frame, tokens: &
     Ok(set)
 }
 
-/// A token's explicit tags with the tags of the stage's implications, added
-/// until no tag changes (§11). An implication only adds tags, so the loop
-/// ends, also over a cycle.
-fn implied(tags: &mut Tags, set: SetId, implications: &[(TagList, TagList)]) -> SetId {
-    if implications.is_empty() {
-        return set;
+/// A stage's implications, as tag sets of one parse (§11), indexed by
+/// each tag of their antecedents, with the closures already found.
+struct Implications {
+    /// Each implication's consequent.
+    consequents: Vec<TagList>,
+    /// The implications whose antecedent holds a tag.
+    by_tag: FxMap<TagId, Vec<u32>>,
+    /// The closure of each set asked about so far.
+    closures: FxMap<SetId, SetId>,
+}
+
+impl Implications {
+    fn new(tags: &mut Tags, implications: &[Implication]) -> Implications {
+        let mut side = |names: &BTreeSet<String>| {
+            let mut list: TagList = names.iter().map(|name| tags.tag(name)).collect();
+            list.sort_unstable();
+            list
+        };
+        let mut consequents = Vec::with_capacity(implications.len());
+        let mut by_tag: FxMap<TagId, Vec<u32>> = FxMap::default();
+        for (index, implication) in (0..).zip(implications) {
+            for tag in side(&implication.antecedent) {
+                by_tag.entry(tag).or_default().push(index);
+            }
+            consequents.push(side(&implication.consequent));
+        }
+        Implications { consequents, by_tag, closures: FxMap::default() }
     }
-    let mut list = tags.list(set).clone();
-    let mut grown = false;
-    loop {
-        let mut changed = false;
-        for (antecedent, consequent) in implications {
-            if antecedent.iter().any(|tag| list.binary_search(tag).is_ok()) {
-                let more = union(&list, consequent);
-                if more.len() != list.len() {
-                    list = more;
-                    changed = true;
+
+    /// A token's explicit tags with the tags of the implications, added
+    /// until no tag changes (§11). Each implication fires at most once,
+    /// when a tag of its antecedent first arrives, so a chain of them
+    /// costs its length, not one pass of every implication for each link.
+    fn implied(&mut self, tags: &mut Tags, set: SetId) -> SetId {
+        if self.by_tag.is_empty() {
+            return set;
+        }
+        if let Some(&closure) = self.closures.get(&set) {
+            return closure;
+        }
+        let start = tags.list(set);
+        let mut have: FxSet<TagId> = start.iter().copied().collect();
+        let mut queue: Vec<TagId> = start.clone();
+        let mut fired: FxSet<u32> = FxSet::default();
+        let mut added: TagList = Vec::new();
+        while let Some(tag) = queue.pop() {
+            // Each tag looks only at the implications it is an antecedent
+            // of, and each implication fires once. Each tag, implication
+            // and consequent counts as it is examined.
+            work::count(Counted::Implied, 1);
+            let scanned: Vec<u32>;
+            let indices = if work::mutated(Mutant::ScanImplications) {
+                // Every implication, each looked at for the tag.
+                scanned = (0..self.consequents.len() as u32)
+                    .filter(|index| {
+                        work::count(Counted::Implied, 1);
+                        self.by_tag.get(&tag).is_some_and(|list| list.contains(index))
+                    })
+                    .collect();
+                &scanned[..]
+            } else {
+                self.by_tag.get(&tag).map_or(&[][..], Vec::as_slice)
+            };
+            for &index in indices {
+                work::count(Counted::Implied, 1);
+                if !fired.insert(index) {
+                    continue;
+                }
+                for &consequent in &self.consequents[index as usize] {
+                    work::count(Counted::Implied, 1);
+                    if have.insert(consequent) {
+                        queue.push(consequent);
+                        added.push(consequent);
+                    }
                 }
             }
         }
-        if !changed {
-            break;
-        }
-        grown = true;
-    }
-    if grown {
-        tags.set(list)
-    } else {
-        set
+        let closure = if added.is_empty() {
+            set
+        } else {
+            let mut list = start.clone();
+            list.append(&mut added);
+            list.sort_unstable();
+            tags.set(list)
+        };
+        self.closures.insert(set, closure);
+        closure
     }
 }
 
@@ -717,19 +772,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
     let g = recognizer.g;
     let sources = Sources::new(tokens);
     // The stage's implications, as tag sets of this parse (§11).
-    let tags = &mut recognizer.shared.tags;
-    let implications: Vec<(TagList, TagList)> = g
-        .implications
-        .iter()
-        .map(|implication| {
-            let mut side = |names: &BTreeSet<String>| {
-                let mut list: TagList = names.iter().map(|name| tags.tag(name)).collect();
-                list.sort_unstable();
-                list
-            };
-            (side(&implication.antecedent), side(&implication.consequent))
-        })
-        .collect();
+    let mut implications = Implications::new(&mut recognizer.shared.tags, &g.implications);
     let mut out: Vec<Emitted> = Vec::new();
     // The opaque parts and their texts, fixed before any token (§11).
     let opaque = opaque_parts(g, tree, tokens, &sources, recognizer.shared.text);
@@ -764,7 +807,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                         // inside the constituent is walked but their
                         // attachments (§11).
                         let (_, end) = span_of(tree, index);
-                        let child = |slot: u8| node.children[production.cap_pos[slot as usize]];
+                        let child = |slot: u32| node.children[production.cap_pos[slot as usize]];
                         let mut sequence = Vec::with_capacity(items.len());
                         for item in items {
                             match item {
@@ -811,7 +854,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                             unreachable!("an emission's constituent")
                         };
                         let frame = Frame {
-                            caps,
+                            caps: Caps::All(caps),
                             prod: *prod,
                             origin: *start,
                             end: *end,
@@ -822,7 +865,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                     }
                     None => tags,
                 };
-                let tags = implied(&mut recognizer.shared.tags, tags, &implications);
+                let tags = implications.implied(&mut recognizer.shared.tags, tags);
                 out.push(cover(recognizer, tree, tokens, &sources, &opaque, &mut forwarding, node, tags)?);
             }
             Work::Mark => marks.push(out.len()),
@@ -856,7 +899,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                 let IKind::Close { prod, .. } = &tree.nodes[node as usize].kind else { unreachable!("a close") };
                 let owner = g.prods[*prod as usize].owner;
                 let set = recognizer.shared.tags.set_of([tag.as_str()]);
-                let set = implied(&mut recognizer.shared.tags, set, &implications);
+                let set = implications.implied(&mut recognizer.shared.tags, set);
                 // Two phoneme tags are an error here too, where an
                 // implication added one (§5). An inserted token has no
                 // parts: a phoneme tag gives its phonemes and its label, or
@@ -876,4 +919,37 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
         }
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use super::Implications;
+    use crate::grammar::Implication;
+    use crate::tags::Tags;
+    use crate::work::{assert_linear, assert_mutant_stops, Mutant, Work};
+
+    /// A chain of implications, written last link first, closes a token's
+    /// tags in work that grows with its length, where a pass over every
+    /// implication would settle only one link each time.
+    #[test]
+    fn a_chain_of_implications_closes_in_one_sweep() {
+        let names = |index: usize| BTreeSet::from([format!("{index}a")]);
+        let mut run = |n: usize| {
+            let chain: Vec<Implication> = (0..n)
+                .rev()
+                .map(|index| Implication { antecedent: names(index), consequent: names(index + 1) })
+                .collect();
+            let mut tags = Tags::new();
+            let mut implications = Implications::new(&mut tags, &chain);
+            let start = tags.set_of(["0a"]);
+            let closure = implications.implied(&mut tags, start);
+            assert_eq!(tags.list(closure).len(), n + 1);
+        };
+        assert_linear(Work::Implied, 100, &mut run);
+        // A scan of every implication for each tag stops at the first
+        // count past the budget.
+        assert_mutant_stops(Work::Implied, Mutant::ScanImplications, 100, &mut run);
+    }
 }

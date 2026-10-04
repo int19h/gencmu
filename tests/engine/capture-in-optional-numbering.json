@@ -1,0 +1,113 @@
+{
+  "description": "A plain optional that holds a capture expands in place, the empty expansion first: [$b(B)] [$c(B)] gives ε, B (by $c), B (by $b) and B B, numbered 0 to 3. On one b, the tie names the productions 1 and 2 (engine §3.2, Numbering).",
+  "grammar": "%rule text [$b(B)] [$c(B)]",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie",
+          "witness": [
+            {
+              "close": {
+                "rule": "text",
+                "production": 1,
+                "span": [
+                  0,
+                  1
+                ]
+              }
+            },
+            {
+              "close": {
+                "rule": "text",
+                "production": 2,
+                "span": [
+                  0,
+                  1
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [
+              "B"
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "B",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [
+              "B"
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "B",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
+  }
+}

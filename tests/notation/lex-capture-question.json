@@ -1,0 +1,10 @@
+{
+  "description": "The lexical stage reads the whole text, so `$a?` is `$` and the guard `a?`, since `$a` would leave `?`, which no token reads. The error is the syntax error at the guard, where `$` needs `(` (engine §9).",
+  "document": "```jbogenbau\n%rule t $a?\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 10
+    }
+  }
+}

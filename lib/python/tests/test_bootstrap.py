@@ -94,7 +94,7 @@ class Compiled(unittest.TestCase):
     def test_parsing_with_and_without_the_cache(self) -> None:
         cached = gencmu.load_dialect("notation")
         fresh = gencmu.load_dialect("notation", use_cache=False)
-        for text in ("%rule text A B", "%rule a $x(A) [B #] ...\n%conditions text($x) = \"y\"\n%emits $", "%elidable KU\n"):
+        for text in ("%rule text A B", "%rule a $x(A) [{B #}]\n%conditions text($x) = \"y\"\n%emits $", "%rule a {... A \\ [+KU]} <~B>\n"):
             with self.subTest(text=text):
                 self.assertEqual(gencmu.to_json(cached.parse(text)), gencmu.to_json(fresh.parse(text)))
 
@@ -120,6 +120,64 @@ class Compiled(unittest.TestCase):
         sources["compiled.json"] = json.dumps(stale)
         with self.assertRaises(gencmu.GencmuError):
             gencmu.load_dialect_sources(sources, "p.md")
+
+    def test_an_entry_of_format_17_is_never_used(self) -> None:
+        """A library never uses a cached DOM of another version
+        (docs/output.md): neither a file of format 17 nor an entry whose
+        DOM is of format 17, such as one whose repeat has a min."""
+        document = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {A}\n```\n"
+        sources = {"p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "g.md": document}
+        bootstrap_hash = fnv1a64(bundled_text("notation/bootstrap.json") or "")
+        # A DOM with no rules: were it used, the stage would have no rule
+        # text and fail to load.
+        empty: Dom = {"rules": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
+
+        def load(file_format: int, dom: Dom) -> gencmu.Dialect:
+            compiled = {"format": file_format, "bootstrap": bootstrap_hash, "documents": {"g.md": {"hash": fnv1a64(document), "dom": dom}}}
+            return gencmu.load_dialect_sources({**sources, "compiled.json": json.dumps(compiled)}, "p.md")
+
+        with self.assertRaises(gencmu.GencmuError):
+            load(DOM_FORMAT, {"format": DOM_FORMAT, **empty})
+        self.assertTrue(load(17, {"format": 17, **empty}).parse_tokens([gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1))], "a").ok)
+        self.assertTrue(load(DOM_FORMAT, {"format": 17, **empty}).parse_tokens([gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1))], "a").ok)
+        # The same document in the shape of format 17, a repeat with min,
+        # whose condition no text meets: it is a miss, and the document is
+        # read afresh.
+        old = read_document(document, "g.md")
+        old["rules"][0]["alternatives"][0]["expr"] = {"repeat": {"ref": "A"}, "min": 1}
+        old["rules"][0]["conditions"] = [{"op": "=", "left": {"string": "a"}, "right": {"string": "b"}}]
+        for file_format in (17, DOM_FORMAT):
+            with self.subTest(file_format=file_format):
+                dialect = load(file_format, {**old, "format": file_format})
+                tokens = [gencmu.Token("a", frozenset({"A"}), (index, index + 1), (2 * index, 2 * index + 1)) for index in range(2)]
+                self.assertEqual(gencmu.to_brackets(dialect.parse_tokens(tokens, "a a")), "(a a)")
+
+
+class Lexical(unittest.TestCase):
+    def test_the_lexical_stage_tags_braces_and_the_backslash(self) -> None:
+        """The notation's lexical stage tags keywords, tag literals,
+        character tags, properties and symbols, braces and the backslash
+        among them (grammars/notation/lexical.md)."""
+        notation = gencmu.load_dialect("notation")
+        result = notation.parse(
+            "%rule a ¬f? ~b 'c' /d/ {E ... \\ '\\\\'} | g! %tags X %rulex $e ¬h 'x'..'y' '\\p{L}' 'a'... [+F] [++G]",
+            until="lexical",
+            auto_features=False,
+        )
+        output = result.stages[0].output
+        assert output is not None
+        tokens = [(token.text, sorted(token.tags)) for token in output]
+        self.assertEqual(
+            tokens,
+            [
+                ("%rule", ["keyword-rule"]), ("a", ["identifier"]), ("¬f?", ["guard"]), ("~b", ["tag"]), ("'c'", ["character"]),
+                ("/d/", ["phoneme"]), ("{", ["'{'"]), ("E", ["identifier"]), ("...", ["ellipsis"]), ("\\", ["'\\u{5C}'"]),
+                ("'\\\\'", ["character"]), ("}", ["'}'"]), ("|", ["'|'"]), ("g!", ["guard"]),
+                ("%tags", ["keyword-tags"]), ("X", ["identifier"]), ("%rulex", ["keyword"]), ("$e", ["capture"]), ("¬", ["'¬'"]), ("h", ["identifier"]),
+                ("'x'", ["character"]), ("..", ["double-dot"]), ("'y'", ["character"]), ("'\\p{L}'", ["property"]), ("'a'", ["character"]), ("...", ["ellipsis"]),
+                ("[", ["'['"]), ("+", ["'+'"]), ("F", ["identifier"]), ("]", ["']'"]), ("[", ["'['"]), ("++", ["double-plus"]), ("G", ["identifier"]), ("]", ["']'"]),
+            ],
+        )
 
 
 if __name__ == "__main__":

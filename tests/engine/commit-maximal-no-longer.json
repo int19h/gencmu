@@ -1,6 +1,6 @@
 {
   "description": "maximal forbids nothing where no longer constituent completes, though one could begin: y reads b but finds no c (engine §4).",
-  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T\n%rule text x B D\n%rule x y [T]\n%rule y A | A B C",
+  "grammar": "%ambiguity-resolution greedy maximal\n%rule text x B D\n%rule x y [+T]\n%rule y A | A B C",
   "tokens": [
     {
       "text": "a",

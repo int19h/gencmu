@@ -90,19 +90,57 @@ func splicePipeline(pipelinePath string, domOf func(p string) (*domDoc, *Error))
 		return p.stages[len(p.stages)-1]
 	}
 
-	var splice func(docPath string, dom *domDoc, chain []string) *Error
-	splice = func(docPath string, dom *domDoc, chain []string) *Error {
-		for _, item := range itemsInOrder(dom) {
+	// The documents being spliced, outermost first, each with its items and
+	// the next one to splice, and the same paths as a set. An explicit stack
+	// keeps a deep chain of includes off the goroutine's stack. The trail of
+	// includes is joined only for an error, so a deep chain costs its
+	// depth, not its square.
+	type spliceFrame struct {
+		path  string
+		items []docItem
+		next  int
+	}
+	var through []*spliceFrame
+	inChain := map[string]bool{}
+	stageNamed := map[string]*splicedStage{}
+	enter := func(docPath string, dom *domDoc) {
+		through = append(through, &spliceFrame{path: docPath, items: itemsInOrder(dom)})
+		inChain[docPath] = true
+	}
+	splice := func() *Error {
+		for len(through) > 0 {
+			f := through[len(through)-1]
+			if f.next == len(f.items) {
+				through = through[:len(through)-1]
+				delete(inChain, f.path)
+				// The includer's items after this include start a new run.
+				run = nil
+				continue
+			}
+			item, docPath := f.items[f.next], f.path
+			f.next++
 			at := item.at()
 			switch {
 			case item.dir != nil && item.dir.Name == "include":
 				target := resolvePath(docPath, item.dir.Args[0])
-				through := append(append([]string{}, chain...), docPath)
-				trail := strings.Join(append(through, target), " → ")
-				for _, c := range through {
-					if c == target {
-						return grammarError(docPath, at, "%s includes itself (%s)", target, trail)
+				trail := func() string {
+					// Each path counts as it is joined, so that a trail joined
+					// at each include passes the budget.
+					w := work.Load()
+					paths := make([]string, 0, len(through)+1)
+					for _, g := range through {
+						if w != nil {
+							w.spliceSteps.add("splice steps")
+						}
+						paths = append(paths, g.path)
 					}
+					return strings.Join(append(paths, target), " → ")
+				}
+				if w := work.Load(); w != nil {
+					w.spliceSteps.add("splice steps")
+				}
+				if inChain[target] {
+					return grammarError(docPath, at, "%s includes itself (%s)", target, trail())
 				}
 				included, err := domOf(target)
 				if err != nil {
@@ -112,13 +150,10 @@ func splicePipeline(pipelinePath string, domOf func(p string) (*domDoc, *Error))
 					return err
 				}
 				if included == nil {
-					return grammarError(docPath, at, "%s was not found (%s)", target, trail)
+					return grammarError(docPath, at, "%s was not found (%s)", target, trail())
 				}
 				run = nil
-				if err := splice(target, included, through); err != nil {
-					return err
-				}
-				run = nil
+				enter(target, included)
 			case item.dir != nil && item.dir.Name == "features":
 				for _, name := range item.dir.Args {
 					if !features[name] {
@@ -128,12 +163,14 @@ func splicePipeline(pipelinePath string, domOf func(p string) (*domDoc, *Error))
 				}
 			case item.dir != nil && item.dir.Name == "stage":
 				name := item.dir.Args[0]
-				for _, s := range p.stages {
-					if s.name == name {
-						return grammarError(docPath, at, "a second stage named %s; the first is at %s:%d:%d", name, s.doc, s.at[0], s.at[1])
-					}
+				if w := work.Load(); w != nil {
+					w.spliceSteps.add("splice steps")
 				}
-				p.stages = append(p.stages, &splicedStage{name: name, doc: docPath, at: at})
+				if s := stageNamed[name]; s != nil {
+					return grammarError(docPath, at, "a second stage named %s; the first is at %s:%d:%d", name, s.doc, s.at[0], s.at[1])
+				}
+				stageNamed[name] = &splicedStage{name: name, doc: docPath, at: at}
+				p.stages = append(p.stages, stageNamed[name])
 				run = nil
 			default:
 				s := current()
@@ -180,7 +217,8 @@ func splicePipeline(pipelinePath string, domOf func(p string) (*domDoc, *Error))
 	if top == nil {
 		return nil, &Error{Kind: ErrorGrammar, Document: pipelinePath, Message: "the pipeline document is missing"}
 	}
-	if err := splice(pipelinePath, top, nil); err != nil {
+	enter(pipelinePath, top)
+	if err := splice(); err != nil {
 		return nil, err
 	}
 	if len(p.stages) == 0 {

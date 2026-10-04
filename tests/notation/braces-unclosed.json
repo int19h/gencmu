@@ -1,0 +1,10 @@
+{
+  "description": "Braces that are never closed are a syntax error at the first token that cannot continue them (engine §9).",
+  "document": "```jbogenbau\n%rule a {x y\n%rule b z\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 1
+    }
+  }
+}

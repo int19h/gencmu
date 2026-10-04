@@ -1,7 +1,7 @@
 {
   "description": "The main stage's tokens come from emissions whose sources are empty and out of order. The projection keeps the original tokens and their sources, so head($) of a is the original Z token and text($) is its empty text. The synthetic T before Z changes neither (engine §7.4, §7.5).",
   "documents": {
-    "p.md": "```jbogenbau\n%stage letters\n%ambiguity-resolution greedy\n%rule text letter\n%rule letter char %emits $ <A>, $ <A>\n%rule char 'a'\n%stage triples\n%ambiguity-resolution greedy\n%rule text prefix edge\n%rule prefix A %emits X\n%rule edge $n(nothing) A %emits Y, $n <Z>\n%rule nothing ε\n%stage main\n%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text X Y a | X Y b | X Y c\n%rule a [T] Z\n%conditions text($) = \"\", Z ⊆ tags(head($))\n%rule b [T] [T] Z\n%rule c T Z\n```\n"
+    "p.md": "```jbogenbau\n%stage letters\n%ambiguity-resolution greedy\n%rule text letter\n%rule letter char %emits $ <A>, $ <A>\n%rule char 'a'\n%stage triples\n%ambiguity-resolution greedy\n%rule text prefix edge\n%rule prefix A %emits X\n%rule edge $n(nothing) A %emits Y, $n <Z>\n%rule nothing ε\n%stage main\n%ambiguity-resolution late-elision elision-only\n%rule text X Y a | X Y b | X Y c\n%rule a [+T] Z\n%conditions text($) = \"\", Z ⊆ tags(head($))\n%rule b [+T] [+T] Z\n%rule c T Z\n```\n"
   },
   "pipeline": "p.md",
   "input": "a",

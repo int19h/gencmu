@@ -1,27 +1,27 @@
 //! From the notation's document tree to a grammar DOM (engine §9).
 
 use crate::dom::{
-    comparison_problem, cond_type_problem, constant_value_type, expected_problem, is_capture_name, is_classifier_name,
-    is_sound_test, joined_type, literal_call_problem, property_problem, range_problem, sound_problem, tag_term_problem,
-    term_type, test_type_problem, Alternative, Arg, Attachments, ClassifierDef, Cond, ConstDef, Directive, Dom,
-    EmitItem, Entry, Expr, FeatureKind, Guard, ImplicationDef, Op, RuleDef, Term, Type,
+    call_type, comparison_problem, constant_type_problem, expected_problem, is_capture_name, is_classifier_name,
+    is_sound_test, joined_type, literal_call_problem, property_problem, range_problem, sound_problem,
+    test_type_problem, Alternative, Arg, Attachments, Chain, ClassifierDef, Cond, ConstDef, Directive, Dom, EmitItem,
+    Entry, Expr, FeatureKind, Guard, ImplicationDef, Mark, Op, RuleDef, Term, Type,
 };
 use crate::error::Error;
+use crate::fxhash::FxSet;
 use crate::result::{Node, NodeKind, Token};
 use crate::tags::character_tag;
 use crate::unicode::Unicode;
-
-/// How deeply constructs may nest before the reader gives up, so that a
-/// pathological document cannot exhaust the stack of the thread that reads
-/// it (see `loader::read_document`). A construct costs a few levels, and
-/// parentheses nest without nesting the DOM, so this is well above the 256
-/// of engine §9, which the DOM is checked against afterwards.
-const MAX_DEPTH: usize = 12_000;
+use crate::work::{self, Work};
 
 pub(crate) struct Reader<'a> {
     pub tokens: &'a [Token],
-    /// The capture names of the alternative being read.
-    pub captures: std::cell::RefCell<Vec<String>>,
+    /// The captures of the alternative being read, in the order written,
+    /// where an error about one is reported.
+    pub captures: std::cell::RefCell<Vec<&'a Node>>,
+    /// How many braces, and how many elidable optionals, the reader is
+    /// inside, where no capture stands (engine §9).
+    pub braces: std::cell::Cell<usize>,
+    pub marked: std::cell::Cell<usize>,
     /// The document position of a grammar-text index.
     pub position: &'a dyn Fn(usize) -> (usize, usize),
     /// The lowercase mapping that the strings of sound tests are checked
@@ -67,20 +67,13 @@ impl<'a> Reader<'a> {
         Error::grammar(message).at(line, column)
     }
 
-    fn deeper(&self, node: &'a Node, depth: usize) -> R<usize> {
-        if depth > MAX_DEPTH {
-            Err(self.error(node, "constructs nest too deeply"))
-        } else {
-            Ok(depth + 1)
-        }
-    }
-
     /// The parts of a node: its children, with each wrapper, a rule that
     /// the reader does not know, replaced by its own parts (engine §9).
     fn parts(node: &Node) -> Vec<&Node> {
         let mut parts = Vec::new();
         let mut stack: Vec<&Node> = node.children.iter().rev().collect();
         while let Some(child) = stack.pop() {
+            work::count(Work::Walked, 1);
             if child.kind == NodeKind::Rule && !KNOWN.contains(&rule_name(child)) {
                 stack.extend(child.children.iter().rev());
             } else {
@@ -229,14 +222,10 @@ impl<'a> Reader<'a> {
         let mut sides = Vec::new();
         for side in self.some(node, "union", 2)?.into_iter().take(2) {
             self.closed_for.set(Some("a side of an implication"));
-            let term = self.union(side, 0, false);
+            let term = self.union(side, false);
             self.closed_for.set(None);
-            let term = term?;
-            let problem = match term_type(&term) {
-                Err(problem) => Some(problem),
-                Ok(ty) => expected_problem(ty, Type::Tags),
-            };
-            if let Some(problem) = problem {
+            let (term, ty) = term?;
+            if let Some(problem) = expected_problem(ty, Type::Tags) {
                 return Err(self.error(side, format!("a side of an implication is a tag set: {problem}")));
             }
             sides.push(term);
@@ -255,11 +244,11 @@ impl<'a> Reader<'a> {
         let redefine = self.text(definer) == "%redefine-const";
         let value_node = self.one(node, "term")?;
         self.closed_for.set(Some("a constant's value"));
-        let value = self.term(value_node, 0, false);
+        let value = self.term(value_node, false);
         self.closed_for.set(None);
-        let value = value?;
-        if let Err(fault) = constant_value_type(&value, redefine, &|_| Type::Any) {
-            return Err(self.error(value_node, fault.problem));
+        let (value, ty) = value?;
+        if let Some(problem) = constant_type_problem(ty, redefine) {
+            return Err(self.error(value_node, problem));
         }
         Ok(ConstDef { name, redefine, value, at: self.at(definer) })
     }
@@ -267,24 +256,13 @@ impl<'a> Reader<'a> {
     fn directive(&self, node: &'a Node) -> R<Directive> {
         let token = self.token(node)?;
         let name = self.text(token).trim_start_matches('%').to_string();
-        let mut parts: Vec<&Node> = Self::parts(node)
+        let parts: Vec<&Node> = Self::parts(node)
             .into_iter()
             .filter(|child| {
                 child.kind == NodeKind::Rule
                     && matches!(rule_name(child), "argument-word" | "argument-string" | "argument-tag")
             })
             .collect();
-        // In `%elidable`, a first word `maximal` is the modifier, which
-        // gives the member `maximal` and no operand. A tag `~maximal` stays
-        // an operand (engine §9).
-        let maximal = name == "elidable"
-            && parts.first().is_some_and(|first| {
-                rule_name(first) == "argument-word"
-                    && self.token(first).is_ok_and(|token| self.text(token) == "maximal")
-            });
-        if maximal {
-            parts.remove(0);
-        }
         let operands: Vec<(&Node, &Node)> = parts
             .into_iter()
             // A token, or the node of a range or a property.
@@ -324,7 +302,7 @@ impl<'a> Reader<'a> {
                 _ => self.tag_of(operand)?,
             });
         }
-        Ok(Directive { name, args, maximal, at: self.at(token) })
+        Ok(Directive { name, args, at: self.at(token) })
     }
 
     fn rule(&self, node: &'a Node) -> R<RuleDef> {
@@ -335,26 +313,29 @@ impl<'a> Reader<'a> {
             "%extend-rule" => Op::Extend,
             _ => Op::Define,
         };
-        let tags = match Self::rules(node, "tags-clause").next() {
-            Some(clause) => Some(self.constituent_tags(clause)?),
-            None => None,
-        };
+        // The parts of a definition are read in the order written: the
+        // body, then its clauses in their fixed order, and the checks of the
+        // whole definition last (§9).
         let mut alternatives = Vec::new();
         for alternative in self.some(self.one(node, "body")?, "alternative", 1)? {
             alternatives.push(self.alternative(alternative)?);
         }
-        let emit = match Self::rules(node, "emits-clause").next() {
-            Some(clause) => Some(self.emission(clause)?),
+        let tags = match Self::rules(node, "tags-clause").next() {
+            Some(clause) => Some(self.constituent_tags(clause)?),
             None => None,
         };
         // Each condition of the list is one condition (§9).
         let mut conditions = Vec::new();
         if let Some(clause) = Self::rules(node, "conditions-clause").next() {
             for implication in self.some(clause, "implication", 1)? {
-                conditions.push(self.implication(implication, 0)?);
+                conditions.push(self.implication(implication)?);
             }
         }
-        let rule = RuleDef {
+        let emit = match Self::rules(node, "emits-clause").next() {
+            Some(clause) => Some(self.emission(clause)?),
+            None => None,
+        };
+        let mut rule = RuleDef {
             name: self.text(name_token).to_string(),
             op,
             tags,
@@ -364,6 +345,7 @@ impl<'a> Reader<'a> {
             opaque: Self::rules(node, "opaque-clause").next().is_some(),
             at: self.at(definer),
         };
+        flatten_groups(&mut rule);
         // The definition is checked as a whole once it is read (§9).
         if let Some(problem) = crate::clauses::definition_problem(&rule) {
             return Err(self.error(definer, problem));
@@ -388,7 +370,17 @@ impl<'a> Reader<'a> {
             })
             .collect::<R<_>>()?;
         self.captures.borrow_mut().clear();
-        let expr = self.conjunction(self.one(node, "conjunction")?, 0, true)?;
+        let expr = self.conjunction(self.one(node, "conjunction")?, true)?;
+        // A name stands at most once in each production, gates aside: the
+        // error stands at the second capture that such a production reads,
+        // the first in the text where there are several (§3.5, §9).
+        if let Some(&twice) = crate::clauses::duplicate_captures(&expr).first() {
+            let capture = self.captures.borrow()[twice];
+            let name = self.text(self.token(capture)?).trim_start_matches('$').to_string();
+            return Err(
+                self.error(capture, format!("the capture ${name} is read twice by one production of the alternative"))
+            );
+        }
         let tags = match Self::rules(node, "alternative-tags").next() {
             Some(tags) => Some(self.constituent_tags(tags)?),
             None => None,
@@ -411,65 +403,181 @@ impl<'a> Reader<'a> {
     /// A whole term that must be a tag set: a constituent's or an item's
     /// tags (engine §10). A type error stands at the term.
     fn tag_term(&self, node: &'a Node) -> R<Term> {
-        let term = self.term(node, 0, false)?;
-        if let Some(problem) = tag_term_problem(&term) {
+        let (term, ty) = self.term(node, false)?;
+        if let Some(problem) = expected_problem(ty, Type::Tags) {
             return Err(self.error(node, problem));
         }
         Ok(term)
     }
 
-    /// `top` is whether this is an alternative's own expression, whose
-    /// sequence's items may be captures (engine §3.5), unless it is an `&`.
-    fn conjunction(&self, node: &'a Node, depth: usize, top: bool) -> R<Expr> {
-        let depth = self.deeper(node, depth)?;
-        let sequences = self.some(node, "sequence", 1)?;
-        let top = top && sequences.len() == 1;
-        let mut parts = Vec::new();
-        for sequence in sequences {
-            let mut elements = Vec::new();
-            for element in self.some(sequence, "element", 1)? {
-                elements.push(self.element(element, depth, top)?);
+    /// `whole` is whether this is its alternative's whole expression, where
+    /// a chain may stand (§9).
+    fn conjunction(&self, node: &'a Node, whole: bool) -> R<Expr> {
+        match self.run(Frame::Conjunction(Conjunction::new(node, whole)))? {
+            Val::Expr(expr) => Ok(expr),
+            _ => unreachable!("a conjunction reads an expression"),
+        }
+    }
+
+    /// A `term`, with its type, which the reader finds as it reads it: the
+    /// type of a part is found once, when the part is read (§10).
+    /// `argument` is whether a span may stand here.
+    fn term(&self, node: &'a Node, argument: bool) -> R<(Term, Type)> {
+        self.typed(Frame::Term(TermFrame::new(node, argument)))
+    }
+
+    fn union(&self, node: &'a Node, argument: bool) -> R<(Term, Type)> {
+        self.typed(Frame::Union(Joined::new(node, argument)))
+    }
+
+    fn typed(&self, frame: Frame<'a>) -> R<(Term, Type)> {
+        match self.run(frame)? {
+            Val::Term(term, ty) => Ok((term, ty)),
+            _ => unreachable!("a term reads a term"),
+        }
+    }
+
+    /// `A ⟹ B`, grouping to the right.
+    fn implication(&self, node: &'a Node) -> R<Cond> {
+        match self.run(Frame::Implication(Conditions::new(node)))? {
+            Val::Cond(cond) => Ok(cond),
+            _ => unreachable!("an implication reads a condition"),
+        }
+    }
+
+    /// Runs the reading of a construct to its value. Each construct is a
+    /// frame that asks for the constructs it holds, one at a time, and the
+    /// frames stand in an explicit stack, not on the call stack: a document
+    /// can nest as deeply as its length allows (engine §9).
+    fn run(&self, first: Frame<'a>) -> R<Val> {
+        let mut stack = vec![first];
+        let mut input: Option<Val> = None;
+        loop {
+            work::count(Work::Walked, 1);
+            let top = stack.last_mut().expect("a frame");
+            match self.resume(top, input.take())? {
+                Step::Call(frame) => stack.push(frame),
+                Step::Done(value) => {
+                    stack.pop();
+                    if stack.is_empty() {
+                        return Ok(value);
+                    }
+                    input = Some(value);
+                }
             }
-            parts.push(single_or(elements, Expr::Seq));
         }
-        if parts.len() > crate::grammar::MAX_AND {
-            return Err(self.error(
-                node,
-                format!("an & of {} items; at most {} are allowed", parts.len(), crate::grammar::MAX_AND),
-            ));
-        }
-        Ok(single_or(parts, Expr::And))
     }
 
-    fn choice(&self, node: &'a Node, depth: usize) -> R<Expr> {
-        let depth = self.deeper(node, depth)?;
-        let mut parts = Vec::new();
-        for conjunction in self.some(node, "conjunction", 1)? {
-            parts.push(self.conjunction(conjunction, depth, false)?);
+    /// Takes a frame on, with the value of the construct it asked for last,
+    /// if it asked for one, to its next request or its value.
+    fn resume(&self, frame: &mut Frame<'a>, input: Option<Val>) -> R<Step<'a>> {
+        match frame {
+            Frame::Conjunction(conjunction) => self.resume_conjunction(conjunction, input),
+            Frame::Choice(choice) => self.resume_choice(choice, input),
+            Frame::Primary(primary) => self.resume_primary(primary, input),
+            Frame::Optional(optional) => self.resume_optional(optional, input),
+            Frame::Repetition(repetition) => self.resume_repetition(repetition, input),
+            Frame::Tested(tested) => self.resume_tested(tested, input),
+            Frame::Term(term) => self.resume_term(term, input),
+            Frame::Union(joined) => self.resume_union(joined, input),
+            Frame::Intersection(joined) => self.resume_intersection(joined, input),
+            Frame::Atom(atom) => self.resume_atom(atom, input),
+            Frame::Call(call) => self.resume_call(call, input),
+            Frame::Argument(argument) => self.resume_argument(argument, input),
+            Frame::Implication(conditions) => self.resume_implication(conditions, input),
+            Frame::AnyOf(conditions) => self.resume_connective(conditions, input, "all-of"),
+            Frame::AllOf(conditions) => self.resume_connective(conditions, input, "condition"),
+            Frame::Condition(condition) => self.resume_condition(condition, input),
         }
-        Ok(single_or(parts, Expr::Choice))
     }
 
-    fn element(&self, node: &'a Node, depth: usize, top: bool) -> R<Expr> {
-        let repeated = Self::tokens_of(node).any(|token| self.text(token) == "...");
-        let primary = self.primary(self.one(node, "primary")?, depth, top && !repeated)?;
-        Ok(match (repeated, primary) {
-            (false, primary) => primary,
-            (true, Expr::Optional(inner)) => Expr::Repeat(inner, 0),
-            (true, primary) => Expr::Repeat(Box::new(primary), 1),
-        })
+    fn resume_conjunction(&self, frame: &mut Conjunction<'a>, input: Option<Val>) -> R<Step<'a>> {
+        if frame.sequences.is_none() {
+            let sequences = self.some(frame.node, "sequence", 1)?;
+            // The bound of an & is its own form, so it comes before its
+            // items (§9).
+            if sequences.len() > crate::grammar::MAX_AND {
+                return Err(self.error(
+                    frame.node,
+                    format!("an & of {} items; at most {} are allowed", sequences.len(), crate::grammar::MAX_AND),
+                ));
+            }
+            frame.whole = frame.whole && sequences.len() == 1;
+            frame.sequences = Some(sequences);
+        }
+        if let Some(Val::Expr(expr)) = input {
+            frame.items.push(expr);
+        }
+        loop {
+            if let Some(primaries) = &frame.primaries {
+                if let Some(&primary) = primaries.get(frame.items.len()) {
+                    return Ok(Step::Call(Frame::Primary(PrimaryFrame::new(primary, frame.sequence_whole))));
+                }
+                frame.parts.push(single_or(std::mem::take(&mut frame.items), Expr::Seq));
+                frame.primaries = None;
+            }
+            let sequences = frame.sequences.as_ref().expect("the sequences");
+            let Some(&sequence) = sequences.get(frame.parts.len()) else {
+                return Ok(Step::Done(Val::Expr(single_or(std::mem::take(&mut frame.parts), Expr::And))));
+            };
+            let primaries = self.some(sequence, "primary", 1)?;
+            frame.sequence_whole = frame.whole && primaries.len() == 1;
+            frame.primaries = Some(primaries);
+        }
     }
 
-    /// `top` is whether a capture may stand here (engine §3.5).
-    fn primary(&self, node: &'a Node, depth: usize, top: bool) -> R<Expr> {
-        let depth = self.deeper(node, depth)?;
+    fn resume_choice(&self, frame: &mut Choice<'a>, input: Option<Val>) -> R<Step<'a>> {
+        if frame.conjunctions.is_none() {
+            frame.conjunctions = Some(self.some(frame.node, "conjunction", 1)?);
+        }
+        if let Some(Val::Expr(expr)) = input {
+            frame.parts.push(expr);
+        }
+        let conjunctions = frame.conjunctions.as_ref().expect("the conjunctions");
+        match conjunctions.get(frame.parts.len()) {
+            Some(&conjunction) => Ok(Step::Call(Frame::Conjunction(Conjunction::new(conjunction, false)))),
+            None => Ok(Step::Done(Val::Expr(single_or(std::mem::take(&mut frame.parts), Expr::Choice)))),
+        }
+    }
+
+    /// `whole` is whether a chain may stand here (§9).
+    fn resume_primary(&self, frame: &mut PrimaryFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
+        if let Some(value) = input {
+            // The construct it holds, read: a capture wraps it, and a group,
+            // an optional, braces and a tested symbol are it.
+            return Ok(Step::Done(match (frame.capture.take(), value) {
+                (Some(name), Val::Expr(expr)) => Val::Expr(Expr::Capture(name, Box::new(expr))),
+                (_, value) => value,
+            }));
+        }
+        let node = frame.node;
         let inner = self.inner(node, &PRIMARIES)?;
         let token = || self.token(inner);
         Ok(match rule_name(inner) {
-            "reference" | "tag" | "character" | "phoneme" | "range" | "property" => self.symbol(inner)?,
-            "tested" => self.tested(inner, depth)?,
+            "reference" | "tag" | "character" | "phoneme" | "range" | "property" => {
+                Step::Done(Val::Expr(self.symbol(inner)?))
+            }
+            "tested" => Step::Call(Frame::Tested(Tested::new(inner))),
             "capture" => {
+                // A capture stands anywhere but in braces or an elidable
+                // optional (§3.5, §9), and its own form is checked before
+                // what it wraps.
+                if self.braces.get() > 0 {
+                    return Err(self.error(
+                        inner,
+                        "a capture cannot stand inside braces, whose parts repeat: name the list as a rule, and capture that",
+                    ));
+                }
+                if self.marked.get() > 0 {
+                    return Err(self.error(
+                        inner,
+                        "a capture cannot stand inside an elidable optional, which elision restores as one unit",
+                    ));
+                }
+                // Its token and its primary, then the checks of `$` and of
+                // the name, then the one known part of the primary (§9).
                 let capture = token()?;
+                let primary = self.one(inner, "primary")?;
                 if self.text(capture) == "$" {
                     return Err(self.error(capture, "$ is the whole constituent and wraps nothing"));
                 }
@@ -477,7 +585,6 @@ impl<'a> Reader<'a> {
                 if !is_capture_name(&name) {
                     return Err(self.error(capture, "a capture's name is all lower case"));
                 }
-                let primary = self.one(inner, "primary")?;
                 let wrapped = self.inner(primary, &PRIMARIES)?;
                 if rule_name(wrapped) == "constant-reference" {
                     return Err(self.error(wrapped, CONSTANT_IN_BODY));
@@ -488,35 +595,167 @@ impl<'a> Reader<'a> {
                 ) {
                     return Err(self.error(capture, "a capture must wrap a single symbol"));
                 }
-                if !top {
-                    return Err(self.error(
-                        capture,
-                        "a capture stands at the top level of an alternative, not inside [ ], ( ), ..., & or a choice",
-                    ));
-                }
-                if self.captures.borrow().contains(&name) {
-                    return Err(self.error(capture, format!("the capture ${name} is used twice in one alternative")));
-                }
-                self.captures.borrow_mut().push(name.clone());
-                if self.captures.borrow().len() > 4 {
-                    return Err(self.error(capture, "an alternative has at most four captures"));
-                }
-                Expr::Capture(name, Box::new(self.primary(primary, depth, false)?))
+                self.captures.borrow_mut().push(inner);
+                frame.capture = Some(name);
+                Step::Call(Frame::Primary(PrimaryFrame::new(primary, false)))
             }
-            "group" => self.choice(self.one(inner, "choice")?, depth)?,
-            "optional" => Expr::Optional(Box::new(self.choice(self.one(inner, "choice")?, depth)?)),
-            "empty" => Expr::Empty,
+            "group" => Step::Call(Frame::Choice(Choice::new(self.one(inner, "choice")?))),
+            "optional" => Step::Call(Frame::Optional(OptionalFrame::new(inner))),
+            "repetition" => Step::Call(Frame::Repetition(Repetition::new(inner, frame.whole))),
+            "empty" => Step::Done(Val::Expr(Expr::Empty)),
             "constant-reference" => return Err(self.error(inner, CONSTANT_IN_BODY)),
             other => return Err(self.unknown(node, other)),
         })
     }
 
+    /// An optional, and with a marker `+` or `++` among its parts an
+    /// elidable one (§3.8, §9). Its form is checked on the tree, where a
+    /// group is still a node: one sequence, whose first primary is the
+    /// terminal itself, `=`-tested or not.
+    fn resume_optional(&self, frame: &mut OptionalFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
+        if let Some(Val::Expr(expr)) = input {
+            if frame.mark != Mark::Plain {
+                self.marked.set(self.marked.get() - 1);
+            }
+            return Ok(Step::Done(Val::Expr(Expr::Optional(Box::new(expr), frame.mark))));
+        }
+        let node = frame.node;
+        // Its required part first, then its markers (§9).
+        let choice = self.one(node, "choice")?;
+        let markers: Vec<&Node> =
+            Self::tokens_of(node).filter(|token| matches!(self.text(token), "+" | "++")).collect();
+        if let Some(second) = markers.get(1) {
+            return Err(self.error(second, "an optional has one marker + or ++ at most"));
+        }
+        let Some(&marker) = markers.first() else {
+            return Ok(Step::Call(Frame::Choice(Choice::new(choice))));
+        };
+        let form = || {
+            self.error(
+                node,
+                "an elidable optional begins with its terminator, a name with a capital or ~name, written directly \
+                 after the marker, and joins it to nothing with | or &",
+            )
+        };
+        // One conjunction of one sequence, with no leading | or & either:
+        // the terminator stands directly after the marker (§9).
+        let conjunctions: Vec<&Node> = Self::rules(choice, "conjunction").collect();
+        let leading = Self::tokens_of(choice).any(|token| self.text(token) == "|")
+            || (conjunctions.len() == 1 && Self::tokens_of(conjunctions[0]).any(|token| self.text(token) == "&"));
+        let sequences: Vec<&Node> = if conjunctions.len() == 1 && !leading {
+            Self::rules(conjunctions[0], "sequence").collect()
+        } else {
+            Vec::new()
+        };
+        let primary = match sequences[..] {
+            [sequence] => Self::rules(sequence, "primary").next(),
+            _ => None,
+        };
+        let Some(primary) = primary else {
+            return Err(form());
+        };
+        let head = self.inner(primary, &PRIMARIES)?;
+        let is_terminal = |symbol: &Node| {
+            rule_name(symbol) == "tag"
+                || (rule_name(symbol) == "reference"
+                    && Self::tokens_of(symbol).next().is_some_and(|token| is_capital(self.text(token))))
+        };
+        if rule_name(head) == "tested" {
+            if !is_terminal(self.inner(self.one(head, "primary")?, &PRIMARIES)?) {
+                return Err(form());
+            }
+            let test = self.one(head, "test")?;
+            let comparator: String = Self::tokens_of(test).map(|token| self.text(token)).collect();
+            if comparator != "=" {
+                return Err(self.error(
+                    test,
+                    "the terminator of an elidable optional takes no test but =, since elision-only restores it with its sound",
+                ));
+            }
+        } else if !is_terminal(head) {
+            return Err(form());
+        }
+        self.marked.set(self.marked.get() + 1);
+        frame.mark = if self.text(marker) == "++" { Mark::Maximal } else { Mark::Elidable };
+        Ok(Step::Call(Frame::Choice(Choice::new(choice))))
+    }
+
+    /// Braces: the item, its separator if a backslash has one, and a
+    /// chain's direction from its marker, a `...` among the parts (§9).
+    /// `whole` is whether the braces are their alternative's whole
+    /// expression.
+    fn resume_repetition(&self, frame: &mut Repetition<'a>, input: Option<Val>) -> R<Step<'a>> {
+        if let Some(Val::Expr(expr)) = input {
+            if frame.item.is_none() {
+                frame.item = Some(expr);
+                if let Some(&separator) = frame.choices.get(1) {
+                    return Ok(Step::Call(Frame::Choice(Choice::new(separator))));
+                }
+            } else {
+                frame.separator = Some(expr);
+            }
+            self.braces.set(self.braces.get() - 1);
+            let item = frame.item.take().expect("the item");
+            let separator = frame.separator.take().map(Box::new);
+            return Ok(Step::Done(Val::Expr(Expr::Repeat(Box::new(item), separator, frame.chain))));
+        }
+        let node = frame.node;
+        let found = Self::parts(node);
+        let choices = self.some(node, "choice", 1)?;
+        let place = |part: &Node| found.iter().position(|other| std::ptr::eq(*other, part)).unwrap_or(found.len());
+        let markers: Vec<usize> = (0..found.len())
+            .filter(|&index| found[index].kind == NodeKind::Token && self.text(found[index]) == "...")
+            .collect();
+        // Two markers are an error at the second, and a marker after the
+        // separator is an error at that marker, whichever a reader meets
+        // first.
+        if let Some(&second) = markers.get(1) {
+            return Err(self.error(found[second], "braces have one chain marker ... at most"));
+        }
+        let separator_at = choices.get(1).map_or(found.len(), |separator| place(separator));
+        if let Some(&marker) = markers.first().filter(|&&marker| marker > separator_at) {
+            return Err(
+                self.error(found[marker], "a separator has no chain marker: ... stands after { or after the item")
+            );
+        }
+        let chain = markers.first().map(|&marker| if marker < place(choices[0]) { Chain::Left } else { Chain::Right });
+        // A chain is the whole expression of its alternative, as the
+        // lowering of its levels needs (§3.3, §9).
+        if chain.is_some() && !frame.whole {
+            return Err(self
+                .error(node, "a chain is the whole expression of its alternative: name it as a rule to use it here"));
+        }
+        self.braces.set(self.braces.get() + 1);
+        frame.chain = chain;
+        let item = choices[0];
+        frame.choices = choices;
+        Ok(Step::Call(Frame::Choice(Choice::new(item))))
+    }
+
     /// A reference other than `#` or a terminal, and one test on its own
     /// span (engine §2, §9). The syntax grammar reads a test after any
     /// primary, so that the reader can name the reason.
-    fn tested(&self, node: &'a Node, depth: usize) -> R<Expr> {
-        let symbol = self.inner(self.one(node, "primary")?, &PRIMARIES)?;
+    fn resume_tested(&self, frame: &mut Tested<'a>, input: Option<Val>) -> R<Step<'a>> {
+        if let Some(Val::Term(value, ty)) = input {
+            self.closed_for.set(None);
+            let operand = frame.operand.expect("the operand");
+            if let Some(problem) = test_type_problem(&frame.op, ty) {
+                return Err(self.error(operand, problem));
+            }
+            if let (true, Term::Str(sound)) = (is_sound_test(&frame.op), &value) {
+                if let Some(problem) = sound_problem(sound, self.unicode) {
+                    let at = first_of_rule(operand, "string").unwrap_or(operand);
+                    return Err(self.error(at, problem.replacen("the string", &format!("the string {sound:?}"), 1)));
+                }
+            }
+            let expr = frame.expr.take().expect("the symbol");
+            return Ok(Step::Done(Val::Expr(Expr::Tested(std::mem::take(&mut frame.op), value, Box::new(expr)))));
+        }
+        let node = frame.node;
+        // Its test first, then its primary and the primary's one known part
+        // (§9).
         let test = self.one(node, "test")?;
+        let symbol = self.inner(self.one(node, "primary")?, &PRIMARIES)?;
         let kind = rule_name(symbol);
         if kind == "constant-reference" {
             return Err(self.error(symbol, CONSTANT_IN_BODY));
@@ -525,32 +764,436 @@ impl<'a> Reader<'a> {
         if !matches!(kind, "reference" | "tag" | "character" | "phoneme" | "range" | "property") || hash {
             return Err(self.error(
                 test,
-                "a test follows only a reference other than # or a terminal, not a group, an optional, a capture, ε, # or another test",
+                "a test follows only a reference other than # or a terminal, not a group, an optional, braces, a capture, ε, # or another test",
             ));
         }
-        let expr = self.symbol(symbol)?;
+        frame.expr = Some(self.symbol(symbol)?);
         // The comparator is the test's tokens: `=`, `≠`, `⊇` or `⊉`, or `∩`
         // and `=∅` or `≠∅` around the operand.
-        let op: String = Self::tokens_of(test).map(|token| self.text(token)).collect();
+        frame.op = Self::tokens_of(test).map(|token| self.text(token)).collect();
         let operand = self.one(test, "test-operand")?;
+        frame.operand = Some(operand);
         self.closed_for.set(Some("a test's operand"));
-        let value = self.atom(operand, depth, false);
-        self.closed_for.set(None);
-        let value = value?;
-        let problem = match term_type(&value) {
-            Err(problem) => Some(problem),
-            Ok(ty) => test_type_problem(&op, ty),
-        };
-        if let Some(problem) = problem {
-            return Err(self.error(operand, problem));
+        Ok(Step::Call(Frame::Atom(Atom::new(operand, false))))
+    }
+
+    /// A `term`: its union, or its guarded term: `if` of each of its
+    /// any-ofs, in turn, around its union, or around the term of a notation
+    /// that writes one after `⟹` (§9). `argument` is whether a span may
+    /// stand here.
+    fn resume_term(&self, frame: &mut TermFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
+        if frame.guards.is_none() {
+            let inner = self.inner(frame.node, &TERMS)?;
+            if rule_name(inner) != "guarded-term" {
+                frame.guards = Some(Vec::new());
+                frame.pass = true;
+                return Ok(Step::Call(Frame::Union(Joined::new(inner, frame.argument))));
+            }
+            if let Some(closed) = self.closed_for.get() {
+                return Err(self.error(inner, format!("{closed} is a closed term, and holds no guarded term")));
+            }
+            let guards = self.some(inner, "any-of", 1)?;
+            let first = guards[0];
+            frame.inner = Some(inner);
+            frame.guards = Some(guards);
+            return Ok(Step::Call(Frame::AnyOf(Conditions::new(first))));
         }
-        if let (true, Term::Str(sound)) = (is_sound_test(&op), &value) {
-            if let Some(problem) = sound_problem(sound, self.unicode) {
-                let at = first_of_rule(operand, "string").unwrap_or(operand);
-                return Err(self.error(at, problem.replacen("the string", &format!("the string {sound:?}"), 1)));
+        if frame.pass {
+            return Ok(Step::Done(input.expect("the union")));
+        }
+        let guards = frame.guards.as_ref().expect("the guards");
+        let count = guards.len();
+        let last = guards[count - 1];
+        match input {
+            Some(Val::Cond(cond)) => {
+                let next = guards.get(count.min(frame.conds.len() + 1)).copied();
+                frame.conds.push(cond);
+                if let Some(guard) = next {
+                    return Ok(Step::Call(Frame::AnyOf(Conditions::new(guard))));
+                }
+                let inner = frame.inner.expect("the guarded term");
+                // The term guarded last: a union, or a term of a notation
+                // that writes one.
+                Ok(Step::Call(match Self::rules(inner, "union").next() {
+                    Some(union) => Frame::Union(Joined::new(union, false)),
+                    None => Frame::Term(TermFrame::new(self.one(inner, "term")?, false)),
+                }))
+            }
+            Some(Val::Term(term, ty)) => {
+                // The reader has checked each comparison of a condition, so
+                // a condition's terms agree; the term guarded last must be a
+                // tag set, an error at its guard.
+                if let Some(problem) = expected_problem(ty, Type::Tags) {
+                    return Err(self.error(last, problem));
+                }
+                let mut guarded = term;
+                while let Some(cond) = frame.conds.pop() {
+                    guarded = Term::If(Box::new(cond), Box::new(guarded));
+                }
+                Ok(Step::Done(Val::Term(guarded, Type::Tags)))
+            }
+            _ => unreachable!("a guarded term reads conditions and a term"),
+        }
+    }
+
+    /// Parts joined by `∪` and `∖`, which group from the left: a run joined
+    /// by `∪` is one union, and each `∖` takes what stands before it (§9).
+    fn resume_union(&self, frame: &mut Joined<'a>, input: Option<Val>) -> R<Step<'a>> {
+        if frame.parts.is_none() {
+            let parts: Vec<&Node> = Self::rules(frame.node, "intersection").collect();
+            match parts[..] {
+                [] => return Err(self.shape_error(frame.node, "intersection")),
+                [part] => {
+                    frame.parts = Some(Vec::new());
+                    frame.pass = true;
+                    return Ok(Step::Call(Frame::Intersection(Joined::new(part, frame.argument))));
+                }
+                _ => {}
+            }
+            frame.parts = Some(parts);
+        }
+        if frame.pass {
+            return Ok(Step::Done(input.expect("the intersection")));
+        }
+        if let Some(Val::Term(term, ty)) = input {
+            frame.items.push(term);
+            frame.types.push(ty);
+        }
+        let parts = frame.parts.as_ref().expect("the parts");
+        if let Some(&part) = parts.get(frame.items.len()) {
+            return Ok(Step::Call(Frame::Intersection(Joined::new(part, false))));
+        }
+        let mut operators: Vec<&str> = Self::tokens_of(frame.node)
+            .map(|token| self.text(token))
+            .filter(|text| matches!(*text, "∪" | "∖"))
+            .collect();
+        // A leading ∪ is a separator, not an operator.
+        while operators.len() >= parts.len() {
+            operators.remove(0);
+        }
+        let operator = if operators.contains(&"∖") { "∖" } else { "∪" };
+        let ty = joined_type(&frame.types, operator).map_err(|problem| self.error(frame.node, problem))?;
+        let mut items = std::mem::take(&mut frame.items).into_iter();
+        let Some(mut result) = items.next() else {
+            return Err(self.shape_error(frame.node, "part"));
+        };
+        let mut open = false;
+        for (operator, next) in operators.into_iter().zip(items) {
+            if operator == "∖" {
+                result = Term::Difference(Box::new(result), Box::new(next));
+                open = false;
+            } else if let (true, Term::Union(parts)) = (open, &mut result) {
+                parts.push(next);
+            } else {
+                result = Term::Union(vec![result, next]);
+                open = true;
             }
         }
-        Ok(Expr::Tested(op, value, Box::new(expr)))
+        Ok(Step::Done(Val::Term(result, ty)))
+    }
+
+    fn resume_intersection(&self, frame: &mut Joined<'a>, input: Option<Val>) -> R<Step<'a>> {
+        if frame.parts.is_none() {
+            let atoms: Vec<&Node> = Self::rules(frame.node, "term-atom").collect();
+            match atoms[..] {
+                [] => return Err(self.shape_error(frame.node, "term-atom")),
+                [atom] => {
+                    frame.parts = Some(Vec::new());
+                    frame.pass = true;
+                    return Ok(Step::Call(Frame::Atom(Atom::new(atom, frame.argument))));
+                }
+                _ => {}
+            }
+            frame.parts = Some(atoms);
+        }
+        if frame.pass {
+            return Ok(Step::Done(input.expect("the atom")));
+        }
+        if let Some(Val::Term(term, ty)) = input {
+            frame.items.push(term);
+            frame.types.push(ty);
+        }
+        let atoms = frame.parts.as_ref().expect("the atoms");
+        if let Some(&atom) = atoms.get(frame.items.len()) {
+            return Ok(Step::Call(Frame::Atom(Atom::new(atom, false))));
+        }
+        let ty = joined_type(&frame.types, "∩").map_err(|problem| self.error(frame.node, problem))?;
+        Ok(Step::Done(Val::Term(Term::Intersection(std::mem::take(&mut frame.items)), ty)))
+    }
+
+    fn resume_atom(&self, frame: &mut Atom<'a>, input: Option<Val>) -> R<Step<'a>> {
+        if let Some(value) = input {
+            // A call, which is no span where a value is due, or a term in
+            // parentheses, which is its term.
+            if let (Some(inner), Val::Term(call @ Term::Call(..), _)) = (frame.call, &value) {
+                if let Term::Call(name, _) = call {
+                    if !frame.argument && is_span(call) {
+                        return Err(self.error(inner, format!("{name}() gives a span, which is not a value")));
+                    }
+                }
+            }
+            return Ok(Step::Done(value));
+        }
+        let node = frame.node;
+        let inner = self.inner(node, &ATOMS)?;
+        let token = || self.token(inner);
+        let typed = |term: Term, ty: Type| Ok(Step::Done(Val::Term(term, ty)));
+        match rule_name(inner) {
+            // A span may stand in parentheses where a span is due.
+            "term" => Ok(Step::Call(Frame::Term(TermFrame::new(inner, frame.argument)))),
+            "string" => typed(Term::Str(self.decode(token()?)?), Type::String),
+            "tag" | "character" | "phoneme" => typed(Term::Tag(self.tag_of(token()?)?), Type::Tags),
+            "range" => {
+                let (start, end) = self.range(inner)?;
+                typed(Term::Range(start, end), Type::Tags)
+            }
+            "property" => {
+                Err(self.error(inner, "a property is not a tag set, and stands only as a terminal in a body"))
+            }
+            // A bare name is a tag literal if it begins with a capital, and
+            // otherwise a rule, which only a function's argument names.
+            "name" => {
+                let name = self.text(token()?);
+                if !is_capital(name) {
+                    return Err(
+                        self.error(inner, format!("{name} names a rule, which is not a value; ~{name} is the tag"))
+                    );
+                }
+                typed(Term::Tag(name.to_string()), Type::Tags)
+            }
+            "empty-set" => typed(Term::EmptySet, Type::Set),
+            // The reader knows no constant's type (§9).
+            "constant-reference" => typed(
+                Term::Const(self.text(token()?).trim_start_matches('$').to_string(), self.at(token()?)),
+                Type::Any,
+            ),
+            "capture-reference" => {
+                let name = self.text(token()?).trim_start_matches('$').to_string();
+                if let Some(closed) = self.closed_for.get() {
+                    return Err(self.error(inner, format!("{closed} is a closed term, and holds no capture")));
+                }
+                if !frame.argument {
+                    return Err(
+                        self.error(inner, format!("a span is not a value: tags(${name}) is the tag set of ${name}"))
+                    );
+                }
+                typed(Term::Capture(name), Type::Span)
+            }
+            "call" => {
+                frame.call = Some(inner);
+                Ok(Step::Call(Frame::Call(CallFrame::new(inner, false))))
+            }
+            other => Err(self.unknown(node, other)),
+        }
+    }
+
+    /// A call, with its arguments: in a term, of a function that gives a
+    /// value or a span, and in a condition, of `matches`, `begins` or
+    /// `initial`.
+    fn resume_call(&self, frame: &mut CallFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
+        let node = frame.node;
+        let name_token = match frame.name {
+            Some(token) => token,
+            None => *frame.name.insert(self.token(node)?),
+        };
+        if frame.arguments.is_none() {
+            let name = self.text(name_token);
+            if frame.condition {
+                if !matches!(name, "matches" | "begins" | "initial") {
+                    let message = if FUNCTIONS.contains(&name) {
+                        format!("{name}() is not a condition; only matches(), begins() and initial() are")
+                    } else {
+                        format!("an unknown function {name}()")
+                    };
+                    return Err(self.error(name_token, message));
+                }
+            } else {
+                if !FUNCTIONS.contains(&name) {
+                    return Err(self.error(name_token, format!("an unknown function {name}()")));
+                }
+                if let Some(closed) = self.closed_for.get().filter(|_| name == "classify") {
+                    return Err(self.error(
+                        name_token,
+                        format!("{closed} is a closed term, and classify depends on the features"),
+                    ));
+                }
+                if let Some(closed) = self.closed_for.get().filter(|_| name != "split" && name != "tag") {
+                    return Err(self.error(name_token, format!("{closed} is a closed term, and {name}() reads a span")));
+                }
+            }
+            frame.arguments = Some(Self::rules(node, "argument").collect());
+        }
+        if let Some(Val::Arg(arg, ty)) = input {
+            frame.args.push(arg);
+            frame.types.push(ty);
+        }
+        let arguments = frame.arguments.as_ref().expect("the arguments");
+        if let Some(&argument) = arguments.get(frame.args.len()) {
+            return Ok(Step::Call(Frame::Argument(ArgumentFrame { node: argument })));
+        }
+        let name = self.text(name_token).to_string();
+        let mut args = std::mem::take(&mut frame.args);
+        if frame.condition {
+            let mut args = args.into_iter();
+            return Ok(Step::Done(Val::Cond(match (name.as_str(), args.next(), args.next(), args.next()) {
+                ("initial", Some(Arg::Term(span)), None, None) if is_span(&span) => Cond::Initial(span),
+                ("matches", Some(Arg::Term(span)), Some(Arg::Rule(rule)), None) if is_span(&span) => {
+                    Cond::Matches(span, rule)
+                }
+                ("begins", Some(Arg::Term(span)), Some(Arg::Rule(rule)), None) if is_span(&span) => {
+                    Cond::Begins(span, rule)
+                }
+                ("initial", ..) => return Err(self.error(name_token, "initial() takes one span")),
+                _ => return Err(self.error(name_token, format!("{name}() takes a span and a rule"))),
+            })));
+        }
+        let span = |arg: &Arg| matches!(arg, Arg::Term(term) if is_span(term));
+        let rule = |arg: &Arg| matches!(arg, Arg::Rule(_));
+        // A constant's type is known only when the loader stitches the
+        // stage.
+        let string_like = |index: usize| matches!(frame.types.get(index), Some(Some(Type::String | Type::Any)));
+        let ok = match (name.as_str(), &args[..]) {
+            ("tags", [first]) => span(first),
+            ("tags" | "matches" | "begins", [first, second]) => span(first) && rule(second),
+            ("split", [Arg::Term(_), Arg::Term(_)]) => string_like(0) && string_like(1),
+            ("tag", [Arg::Term(_)]) => string_like(0),
+            ("classify", [Arg::Term(_), Arg::Rule(_)]) => string_like(0),
+            ("matches" | "begins" | "tags" | "split" | "tag" | "classify", _) => false,
+            (_, [first]) => span(first),
+            _ => false,
+        };
+        if !ok {
+            return Err(self.error(name_token, format!("{name}() is called with the wrong arguments")));
+        }
+        if matches!(name.as_str(), "matches" | "begins" | "initial") {
+            return Err(self.error(name_token, format!("{name}() is a condition, not a term")));
+        }
+        // An empty delimiter or a tag's name that the reader sees (§9).
+        if let Some(problem) = literal_call_problem(&name, &args) {
+            return Err(self.error(name_token, problem));
+        }
+        // The second argument of classify names a classifier, not a rule
+        // (engine §9).
+        if let (true, [_, Arg::Rule(classifier)]) = (name == "classify", &mut args[..]) {
+            let classifier = std::mem::take(classifier);
+            args[1] = Arg::Classifier(classifier);
+        }
+        let ty = call_type(&name);
+        Ok(Step::Done(Val::Term(Term::Call(name, args), ty)))
+    }
+
+    /// A function's argument: a rule, where it is a bare name without a
+    /// capital, alone and perhaps in parentheses, or else a term where a
+    /// span may stand.
+    fn resume_argument(&self, frame: &mut ArgumentFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
+        if let Some(Val::Term(term, ty)) = input {
+            return Ok(Step::Done(Val::Arg(Arg::Term(term), Some(ty))));
+        }
+        let union = self.one(frame.node, "union")?;
+        if let Some(rule) = self.rule_name_in(union) {
+            return Ok(Step::Done(Val::Arg(Arg::Rule(rule), None)));
+        }
+        Ok(Step::Call(Frame::Union(Joined::new(union, true))))
+    }
+
+    /// `A ⟹ B ⟹ C`: its any-ofs in order, and after them the implication
+    /// of a notation that writes one after `⟹`, grouped to the right: `if`
+    /// of each, in turn, around the rest (§9).
+    fn resume_implication(&self, frame: &mut Conditions<'a>, input: Option<Val>) -> R<Step<'a>> {
+        if frame.parts.is_none() {
+            frame.parts = Some(self.some(frame.node, "any-of", 1)?);
+        }
+        if let Some(Val::Cond(cond)) = input {
+            frame.items.push(cond);
+        }
+        let parts = frame.parts.as_ref().expect("the any-ofs");
+        if let Some(&any_of) = parts.get(frame.items.len()) {
+            return Ok(Step::Call(Frame::AnyOf(Conditions::new(any_of))));
+        }
+        if frame.items.len() == parts.len() {
+            if let Some(consequent) = Self::rules(frame.node, "implication").next() {
+                return Ok(Step::Call(Frame::Implication(Conditions::new(consequent))));
+            }
+        }
+        let mut result = frame.items.pop().expect("an any-of");
+        while let Some(antecedent) = frame.items.pop() {
+            result = Cond::If(Box::new(antecedent), Box::new(result));
+        }
+        Ok(Step::Done(Val::Cond(result)))
+    }
+
+    /// Conditions joined by `∨`, of its all-ofs, or by `∧`, of its
+    /// conditions: `any` or `all` of them, or the one itself. A group in
+    /// parentheses of the same connective is folded into this one once the
+    /// rule is read (`flatten_groups`), in one walk, since folding it here
+    /// would move a list at each depth (§9).
+    fn resume_connective(&self, frame: &mut Conditions<'a>, input: Option<Val>, part: &'static str) -> R<Step<'a>> {
+        if frame.parts.is_none() {
+            frame.parts = Some(self.some(frame.node, part, 1)?);
+        }
+        if let Some(Val::Cond(cond)) = input {
+            frame.items.push(cond);
+        }
+        let parts = frame.parts.as_ref().expect("the parts");
+        if let Some(&next) = parts.get(frame.items.len()) {
+            return Ok(Step::Call(if part == "all-of" {
+                Frame::AllOf(Conditions::new(next))
+            } else {
+                Frame::Condition(ConditionFrame::new(next))
+            }));
+        }
+        let items = std::mem::take(&mut frame.items);
+        Ok(Step::Done(Val::Cond(if part == "all-of" {
+            single_or(items, Cond::Any)
+        } else {
+            single_or(items, Cond::All)
+        })))
+    }
+
+    fn resume_condition(&self, frame: &mut ConditionFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
+        let Some(inner) = frame.inner else {
+            let inner = self.inner(frame.node, &CONDITIONS)?;
+            frame.inner = Some(inner);
+            return Ok(match rule_name(inner) {
+                // Parentheses make no node of their own (§9).
+                "implication" => Step::Call(Frame::Implication(Conditions::new(inner))),
+                "comparison" => {
+                    let operands = self.some(inner, "union", 2)?;
+                    let comparator = self.one(inner, "comparator")?;
+                    frame.op = self.text(self.token(comparator)?).to_string();
+                    frame.right = Some(operands[1]);
+                    Step::Call(Frame::Union(Joined::new(operands[0], false)))
+                }
+                "negation" => Step::Call(Frame::Condition(ConditionFrame::new(self.one(inner, "condition")?))),
+                "presence" => {
+                    let token = self.token(inner)?;
+                    Step::Done(Val::Cond(Cond::Captured(self.text(token).trim_start_matches('$').to_string())))
+                }
+                "call" => Step::Call(Frame::Call(CallFrame::new(inner, true))),
+                other => return Err(self.unknown(frame.node, other)),
+            });
+        };
+        let value = input.expect("a part of the condition");
+        match rule_name(inner) {
+            "comparison" => {
+                let Val::Term(term, ty) = value else { unreachable!("a side of a comparison is a term") };
+                if let Some(right) = frame.right.take() {
+                    frame.left = Some((term, ty));
+                    return Ok(Step::Call(Frame::Union(Joined::new(right, false))));
+                }
+                let (left, left_type) = frame.left.take().expect("the left side");
+                // The two sides fit the comparator (engine §10).
+                if let Some(problem) = comparison_problem(&frame.op, left_type, ty) {
+                    return Err(self.error(inner, problem));
+                }
+                Ok(Step::Done(Val::Cond(Cond::Compare(std::mem::take(&mut frame.op), left, term))))
+            }
+            "negation" => {
+                let Val::Cond(cond) = value else { unreachable!("a negation holds a condition") };
+                Ok(Step::Done(Val::Cond(Cond::Not(Box::new(cond)))))
+            }
+            _ => Ok(Step::Done(value)),
+        }
     }
 
     /// A reference, or a terminal: a tag literal, a character tag, a
@@ -612,6 +1255,8 @@ impl<'a> Reader<'a> {
         let mut out = String::new();
         let mut index = 0;
         while index < body.len() {
+            // Each character or escape counts as it is read.
+            work::count(Work::Walked, 1);
             let c = body[index];
             if c != '\\' {
                 out.push(c);
@@ -733,14 +1378,13 @@ impl<'a> Reader<'a> {
         }
         // A capture stands once in an emission, as an item or as an
         // attachment (engine §9).
-        let mut named: Vec<&str> = Vec::new();
+        let mut named: FxSet<&str> = FxSet::default();
         for item in &items {
             if let EmitItem::Capture(name, _, attachments) = item {
                 for name in std::iter::once(name.as_str()).filter(|name| !name.is_empty()).chain(attachments.names()) {
-                    if named.contains(&name) {
+                    if !named.insert(name) {
                         return Err(self.error(arrow, "an emission lists the same capture twice"));
                     }
-                    named.push(name);
                 }
             }
         }
@@ -758,117 +1402,6 @@ impl<'a> Reader<'a> {
             return Err(self.error(node, "an attachment holds a named capture, not $"));
         }
         Ok(name.to_string())
-    }
-
-    /// `A ⟹ B`, grouping to the right: `if` of its `any-of` and the
-    /// implication after `⟹`, or the one `any-of` itself.
-    fn implication(&self, node: &'a Node, depth: usize) -> R<Cond> {
-        let depth = self.deeper(node, depth)?;
-        let antecedent = self.any_of(self.one(node, "any-of")?, depth)?;
-        Ok(match Self::rules(node, "implication").next() {
-            Some(consequent) => Cond::If(Box::new(antecedent), Box::new(self.implication(consequent, depth)?)),
-            None => antecedent,
-        })
-    }
-
-    /// Conditions joined by `∨`: `any` of its `all-of`s, or the one itself.
-    fn any_of(&self, node: &'a Node, depth: usize) -> R<Cond> {
-        let depth = self.deeper(node, depth)?;
-        let mut parts = Vec::new();
-        for all_of in self.some(node, "all-of", 1)? {
-            // A parenthesized group of the same connective makes no node
-            // of its own: its conditions take its place (§9).
-            match self.all_of(all_of, depth)? {
-                Cond::Any(items) => parts.extend(items),
-                other => parts.push(other),
-            }
-        }
-        Ok(single_or(parts, Cond::Any))
-    }
-
-    /// Conditions joined by `∧`: `all` of them, or the one itself.
-    fn all_of(&self, node: &'a Node, depth: usize) -> R<Cond> {
-        let depth = self.deeper(node, depth)?;
-        let mut parts = Vec::new();
-        for condition in self.some(node, "condition", 1)? {
-            // A parenthesized group of the same connective makes no node
-            // of its own: its conditions take its place (§9).
-            match self.condition(condition, depth)? {
-                Cond::All(items) => parts.extend(items),
-                other => parts.push(other),
-            }
-        }
-        Ok(single_or(parts, Cond::All))
-    }
-
-    fn condition(&self, node: &'a Node, depth: usize) -> R<Cond> {
-        let depth = self.deeper(node, depth)?;
-        let inner = self.inner(node, &CONDITIONS)?;
-        match rule_name(inner) {
-            // Parentheses make no node of their own (§9).
-            "implication" => self.implication(inner, depth),
-            "comparison" => {
-                let operands = self.some(inner, "union", 2)?;
-                let comparator = self.one(inner, "comparator")?;
-                let op = self.text(self.token(comparator)?).to_string();
-                let (left, right) = (operands[0], operands[1]);
-                let left = self.union(left, depth, false)?;
-                let right = self.union(right, depth, false)?;
-                // The two sides fit the comparator (engine §10).
-                let problem = match (term_type(&left), term_type(&right)) {
-                    (Err(problem), _) | (_, Err(problem)) => Some(problem),
-                    (Ok(left), Ok(right)) => comparison_problem(&op, left, right),
-                };
-                if let Some(problem) = problem {
-                    return Err(self.error(inner, problem));
-                }
-                Ok(Cond::Compare(op, left, right))
-            }
-            "negation" => Ok(Cond::Not(Box::new(self.condition(self.one(inner, "condition")?, depth)?))),
-            "presence" => {
-                let token = self.token(inner)?;
-                Ok(Cond::Captured(self.text(token).trim_start_matches('$').to_string()))
-            }
-            "call" => {
-                let name_token = self.token(inner)?;
-                let name = self.text(name_token);
-                if !matches!(name, "matches" | "begins" | "initial") {
-                    let message = if FUNCTIONS.contains(&name) {
-                        format!("{name}() is not a condition; only matches(), begins() and initial() are")
-                    } else {
-                        format!("an unknown function {name}()")
-                    };
-                    return Err(self.error(name_token, message));
-                }
-                let mut args = Vec::new();
-                for argument in Self::rules(inner, "argument") {
-                    args.push(self.argument(argument, depth)?);
-                }
-                match (name, &mut args[..]) {
-                    ("initial", [Arg::Term(span)]) if is_span(span) => Ok(Cond::Initial(span.clone())),
-                    ("matches", [Arg::Term(span), Arg::Rule(rule)]) if is_span(span) => {
-                        Ok(Cond::Matches(span.clone(), std::mem::take(rule)))
-                    }
-                    ("begins", [Arg::Term(span), Arg::Rule(rule)]) if is_span(span) => {
-                        Ok(Cond::Begins(span.clone(), std::mem::take(rule)))
-                    }
-                    ("initial", _) => Err(self.error(name_token, "initial() takes one span")),
-                    _ => Err(self.error(name_token, format!("{name}() takes a span and a rule"))),
-                }
-            }
-            other => Err(self.unknown(node, other)),
-        }
-    }
-
-    /// A function's argument: a rule, where it is a bare name without a
-    /// capital, alone and perhaps in parentheses, or else a term where a
-    /// span may stand.
-    fn argument(&self, node: &'a Node, depth: usize) -> R<Arg> {
-        let union = self.one(node, "union")?;
-        if let Some(rule) = self.rule_name_in(union) {
-            return Ok(Arg::Rule(rule));
-        }
-        Ok(Arg::Term(self.union(union, depth, true)?))
     }
 
     /// The bare name without a capital that a union is alone, if it is one.
@@ -894,197 +1427,227 @@ impl<'a> Reader<'a> {
             }
         }
     }
+}
 
-    /// A `term`: its union, or its guarded term, `if` of its condition and
-    /// its term (§9). `argument` is whether a span may stand here.
-    fn term(&self, node: &'a Node, depth: usize, argument: bool) -> R<Term> {
-        let depth = self.deeper(node, depth)?;
-        let inner = self.inner(node, &TERMS)?;
-        match rule_name(inner) {
-            "guarded-term" => {
-                if let Some(closed) = self.closed_for.get() {
-                    return Err(self.error(inner, format!("{closed} is a closed term, and holds no guarded term")));
-                }
-                let depth = self.deeper(inner, depth)?;
-                let cond = self.any_of(self.one(inner, "any-of")?, depth)?;
-                if let Some(problem) = cond_type_problem(&cond) {
-                    return Err(self.error(inner, problem));
-                }
-                let then = self.term(self.one(inner, "term")?, depth, false)?;
-                let guarded = Term::If(Box::new(cond), Box::new(then));
-                if let Err(problem) = term_type(&guarded) {
-                    return Err(self.error(inner, problem));
-                }
-                Ok(guarded)
-            }
-            _ => self.union(inner, depth, argument),
+/// A value that the reading of a construct gives: an expression, a term
+/// with its type, a condition, or a function's argument with its type if it
+/// is a term.
+enum Val {
+    Expr(Expr),
+    Term(Term, Type),
+    Cond(Cond),
+    Arg(Arg, Option<Type>),
+}
+
+/// What a frame does next: ask for a construct it holds, or give its value.
+enum Step<'a> {
+    Call(Frame<'a>),
+    Done(Val),
+}
+
+/// The reading of one construct, with what it has read so far.
+enum Frame<'a> {
+    Conjunction(Conjunction<'a>),
+    Choice(Choice<'a>),
+    Primary(PrimaryFrame<'a>),
+    Optional(OptionalFrame<'a>),
+    Repetition(Repetition<'a>),
+    Tested(Tested<'a>),
+    Term(TermFrame<'a>),
+    Union(Joined<'a>),
+    Intersection(Joined<'a>),
+    Atom(Atom<'a>),
+    Call(CallFrame<'a>),
+    Argument(ArgumentFrame<'a>),
+    Implication(Conditions<'a>),
+    AnyOf(Conditions<'a>),
+    AllOf(Conditions<'a>),
+    Condition(ConditionFrame<'a>),
+}
+
+struct Conjunction<'a> {
+    node: &'a Node,
+    whole: bool,
+    sequences: Option<Vec<&'a Node>>,
+    primaries: Option<Vec<&'a Node>>,
+    sequence_whole: bool,
+    items: Vec<Expr>,
+    parts: Vec<Expr>,
+}
+
+impl<'a> Conjunction<'a> {
+    fn new(node: &'a Node, whole: bool) -> Self {
+        Conjunction {
+            node,
+            whole,
+            sequences: None,
+            primaries: None,
+            sequence_whole: false,
+            items: Vec::new(),
+            parts: Vec::new(),
         }
     }
+}
 
-    /// Parts joined by `∪` and `∖`, which group from the left: a run joined
-    /// by `∪` is one union, and each `∖` takes what stands before it (§9).
-    fn union(&self, node: &'a Node, depth: usize, argument: bool) -> R<Term> {
-        let depth = self.deeper(node, depth)?;
-        let parts: Vec<&Node> = Self::rules(node, "intersection").collect();
-        match parts[..] {
-            [] => return Err(self.shape_error(node, "intersection")),
-            [part] => return self.intersection(part, depth, argument),
-            _ => {}
-        }
-        let mut operators: Vec<&str> =
-            Self::tokens_of(node).map(|token| self.text(token)).filter(|text| matches!(*text, "∪" | "∖")).collect();
-        // A leading ∪ is a separator, not an operator.
-        while operators.len() >= parts.len() {
-            operators.remove(0);
-        }
-        let mut items = Vec::new();
-        for part in &parts {
-            items.push(self.intersection(part, depth, false)?);
-        }
-        let types = items.iter().map(term_type).collect::<Result<Vec<_>, _>>().map_err(|p| self.error(node, p))?;
-        let operator = if operators.contains(&"∖") { "∖" } else { "∪" };
-        joined_type(&types, operator).map_err(|problem| self.error(node, problem))?;
-        let mut items = items.into_iter();
-        let Some(mut result) = items.next() else {
-            return Err(self.shape_error(node, "part"));
-        };
-        let mut open = false;
-        for (operator, next) in operators.into_iter().zip(items) {
-            if operator == "∖" {
-                result = Term::Difference(Box::new(result), Box::new(next));
-                open = false;
-            } else if let (true, Term::Union(parts)) = (open, &mut result) {
-                parts.push(next);
-            } else {
-                result = Term::Union(vec![result, next]);
-                open = true;
-            }
-        }
-        Ok(result)
+struct Choice<'a> {
+    node: &'a Node,
+    conjunctions: Option<Vec<&'a Node>>,
+    parts: Vec<Expr>,
+}
+
+impl<'a> Choice<'a> {
+    fn new(node: &'a Node) -> Self {
+        Choice { node, conjunctions: None, parts: Vec::new() }
     }
+}
 
-    fn intersection(&self, node: &'a Node, depth: usize, argument: bool) -> R<Term> {
-        let depth = self.deeper(node, depth)?;
-        let atoms: Vec<&Node> = Self::rules(node, "term-atom").collect();
-        match atoms[..] {
-            [] => return Err(self.shape_error(node, "term-atom")),
-            [atom] => return self.atom(atom, depth, argument),
-            _ => {}
-        }
-        let mut items = Vec::new();
-        for atom in atoms {
-            items.push(self.atom(atom, depth, false)?);
-        }
-        let types = items.iter().map(term_type).collect::<Result<Vec<_>, _>>().map_err(|p| self.error(node, p))?;
-        joined_type(&types, "∩").map_err(|problem| self.error(node, problem))?;
-        Ok(Term::Intersection(items))
+struct PrimaryFrame<'a> {
+    node: &'a Node,
+    whole: bool,
+    /// The name of the capture that wraps what it asked for, if it is one.
+    capture: Option<String>,
+}
+
+impl<'a> PrimaryFrame<'a> {
+    fn new(node: &'a Node, whole: bool) -> Self {
+        PrimaryFrame { node, whole, capture: None }
     }
+}
 
-    fn atom(&self, node: &'a Node, depth: usize, argument: bool) -> R<Term> {
-        let depth = self.deeper(node, depth)?;
-        let inner = self.inner(node, &ATOMS)?;
-        let token = || self.token(inner);
-        Ok(match rule_name(inner) {
-            // A span may stand in parentheses where a span is due.
-            "term" => self.term(inner, depth, argument)?,
-            "string" => Term::Str(self.decode(token()?)?),
-            "tag" | "character" | "phoneme" => Term::Tag(self.tag_of(token()?)?),
-            "range" => {
-                let (start, end) = self.range(inner)?;
-                Term::Range(start, end)
-            }
-            "property" => {
-                return Err(self.error(inner, "a property is not a tag set, and stands only as a terminal in a body"))
-            }
-            // A bare name is a tag literal if it begins with a capital, and
-            // otherwise a rule, which only a function's argument names.
-            "name" => {
-                let name = self.text(token()?);
-                if !is_capital(name) {
-                    return Err(
-                        self.error(inner, format!("{name} names a rule, which is not a value; ~{name} is the tag"))
-                    );
-                }
-                Term::Tag(name.to_string())
-            }
-            "empty-set" => Term::EmptySet,
-            "constant-reference" => {
-                Term::Const(self.text(token()?).trim_start_matches('$').to_string(), self.at(token()?))
-            }
-            "capture-reference" => {
-                let name = self.text(token()?).trim_start_matches('$').to_string();
-                if let Some(closed) = self.closed_for.get() {
-                    return Err(self.error(inner, format!("{closed} is a closed term, and holds no capture")));
-                }
-                if !argument {
-                    return Err(
-                        self.error(inner, format!("a span is not a value: tags(${name}) is the tag set of ${name}"))
-                    );
-                }
-                Term::Capture(name)
-            }
-            "call" => {
-                let call = self.call(inner, depth)?;
-                if let Term::Call(name, _) = &call {
-                    if !argument && is_span(&call) {
-                        return Err(self.error(inner, format!("{name}() gives a span, which is not a value")));
-                    }
-                }
-                call
-            }
-            other => return Err(self.unknown(node, other)),
-        })
+struct OptionalFrame<'a> {
+    node: &'a Node,
+    mark: Mark,
+}
+
+impl<'a> OptionalFrame<'a> {
+    fn new(node: &'a Node) -> Self {
+        OptionalFrame { node, mark: Mark::Plain }
     }
+}
 
-    fn call(&self, node: &'a Node, depth: usize) -> R<Term> {
-        let name_token = self.token(node)?;
-        let name = self.text(name_token).to_string();
-        if !FUNCTIONS.contains(&name.as_str()) {
-            return Err(self.error(name_token, format!("an unknown function {name}()")));
-        }
-        if let Some(closed) = self.closed_for.get().filter(|_| name == "classify") {
-            return Err(
-                self.error(name_token, format!("{closed} is a closed term, and classify depends on the features"))
-            );
-        }
-        if let Some(closed) = self.closed_for.get().filter(|_| name != "split" && name != "tag") {
-            return Err(self.error(name_token, format!("{closed} is a closed term, and {name}() reads a span")));
-        }
-        let mut args = Vec::new();
-        for argument in Self::rules(node, "argument") {
-            args.push(self.argument(argument, depth)?);
-        }
-        let span = |arg: &Arg| matches!(arg, Arg::Term(term) if is_span(term));
-        let rule = |arg: &Arg| matches!(arg, Arg::Rule(_));
-        let ok = match (name.as_str(), &args[..]) {
-            ("tags", [first]) => span(first),
-            ("tags" | "matches" | "begins", [first, second]) => span(first) && rule(second),
-            // A constant's type is known only when the loader stitches the
-            // stage.
-            ("split", [Arg::Term(a), Arg::Term(d)]) => [a, d].iter().all(|term| string_like(term)),
-            ("tag", [Arg::Term(term)]) => string_like(term),
-            ("classify", [Arg::Term(term), Arg::Rule(_)]) => string_like(term),
-            ("matches" | "begins" | "tags" | "split" | "tag" | "classify", _) => false,
-            (_, [first]) => span(first),
-            _ => false,
-        };
-        if !ok {
-            return Err(self.error(name_token, format!("{name}() is called with the wrong arguments")));
-        }
-        if matches!(name.as_str(), "matches" | "begins" | "initial") {
-            return Err(self.error(name_token, format!("{name}() is a condition, not a term")));
-        }
-        // An empty delimiter or a tag's name that the reader sees (§9).
-        if let Some(problem) = literal_call_problem(&name, &args) {
-            return Err(self.error(name_token, problem));
-        }
-        // The second argument of classify names a classifier, not a rule
-        // (engine §9).
-        if let (true, [_, Arg::Rule(classifier)]) = (name == "classify", &mut args[..]) {
-            let classifier = std::mem::take(classifier);
-            args[1] = Arg::Classifier(classifier);
-        }
-        Ok(Term::Call(name, args))
+struct Repetition<'a> {
+    node: &'a Node,
+    whole: bool,
+    choices: Vec<&'a Node>,
+    chain: Option<Chain>,
+    item: Option<Expr>,
+    separator: Option<Expr>,
+}
+
+impl<'a> Repetition<'a> {
+    fn new(node: &'a Node, whole: bool) -> Self {
+        Repetition { node, whole, choices: Vec::new(), chain: None, item: None, separator: None }
+    }
+}
+
+struct Tested<'a> {
+    node: &'a Node,
+    op: String,
+    operand: Option<&'a Node>,
+    expr: Option<Expr>,
+}
+
+impl<'a> Tested<'a> {
+    fn new(node: &'a Node) -> Self {
+        Tested { node, op: String::new(), operand: None, expr: None }
+    }
+}
+
+struct TermFrame<'a> {
+    node: &'a Node,
+    argument: bool,
+    /// The guarded term, if it is one.
+    inner: Option<&'a Node>,
+    /// Its guards, the any-ofs of a guarded term, once it has looked at it:
+    /// none where it is a union, which it passes on.
+    guards: Option<Vec<&'a Node>>,
+    pass: bool,
+    conds: Vec<Cond>,
+}
+
+impl<'a> TermFrame<'a> {
+    fn new(node: &'a Node, argument: bool) -> Self {
+        TermFrame { node, argument, inner: None, guards: None, pass: false, conds: Vec::new() }
+    }
+}
+
+/// A union or an intersection: its parts, and those read, with their types.
+/// One that has one part is that part, which it passes on.
+struct Joined<'a> {
+    node: &'a Node,
+    argument: bool,
+    parts: Option<Vec<&'a Node>>,
+    pass: bool,
+    items: Vec<Term>,
+    types: Vec<Type>,
+}
+
+impl<'a> Joined<'a> {
+    fn new(node: &'a Node, argument: bool) -> Self {
+        Joined { node, argument, parts: None, pass: false, items: Vec::new(), types: Vec::new() }
+    }
+}
+
+struct Atom<'a> {
+    node: &'a Node,
+    argument: bool,
+    /// The call, if it asked for one.
+    call: Option<&'a Node>,
+}
+
+impl<'a> Atom<'a> {
+    fn new(node: &'a Node, argument: bool) -> Self {
+        Atom { node, argument, call: None }
+    }
+}
+
+struct CallFrame<'a> {
+    node: &'a Node,
+    /// Whether the call stands as a condition.
+    condition: bool,
+    /// The token of its name, found once, since finding it collects every
+    /// part of the call.
+    name: Option<&'a Node>,
+    arguments: Option<Vec<&'a Node>>,
+    args: Vec<Arg>,
+    types: Vec<Option<Type>>,
+}
+
+impl<'a> CallFrame<'a> {
+    fn new(node: &'a Node, condition: bool) -> Self {
+        CallFrame { node, condition, name: None, arguments: None, args: Vec::new(), types: Vec::new() }
+    }
+}
+
+struct ArgumentFrame<'a> {
+    node: &'a Node,
+}
+
+/// An implication, an any-of or an all-of: its parts, and the conditions
+/// read.
+struct Conditions<'a> {
+    node: &'a Node,
+    parts: Option<Vec<&'a Node>>,
+    items: Vec<Cond>,
+}
+
+impl<'a> Conditions<'a> {
+    fn new(node: &'a Node) -> Self {
+        Conditions { node, parts: None, items: Vec::new() }
+    }
+}
+
+struct ConditionFrame<'a> {
+    node: &'a Node,
+    inner: Option<&'a Node>,
+    op: String,
+    left: Option<(Term, Type)>,
+    right: Option<&'a Node>,
+}
+
+impl<'a> ConditionFrame<'a> {
+    fn new(node: &'a Node) -> Self {
+        ConditionFrame { node, inner: None, op: String::new(), left: None, right: None }
     }
 }
 
@@ -1101,10 +1664,16 @@ fn single_or<T>(mut items: Vec<T>, many: impl FnOnce(Vec<T>) -> T) -> T {
 
 /// The first node of a rule at or below a node, in the order written.
 fn first_of_rule<'n>(node: &'n Node, name: &str) -> Option<&'n Node> {
-    if node.kind == NodeKind::Rule && rule_name(node) == name {
-        return Some(node);
+    // In the order written, with an explicit stack.
+    let mut stack = vec![node];
+    while let Some(node) = stack.pop() {
+        work::count(Work::Walked, 1);
+        if node.kind == NodeKind::Rule && rule_name(node) == name {
+            return Some(node);
+        }
+        stack.extend(node.children.iter().rev());
     }
-    node.children.iter().find_map(|child| first_of_rule(child, name))
+    None
 }
 
 /// The rules of the notation's syntax grammar that the reader knows (engine
@@ -1135,8 +1704,8 @@ const KNOWN: [&str; 67] = [
     "choice",
     "conjunction",
     "sequence",
-    "element",
     "primary",
+    "repetition",
     "reference",
     "tag",
     "character",
@@ -1182,7 +1751,7 @@ const KNOWN: [&str; 67] = [
 
 /// What a primary, a condition, a term and a term atom hold: the one rule
 /// among their parts is one of these (engine §9).
-const PRIMARIES: [&str; 12] = [
+const PRIMARIES: [&str; 13] = [
     "reference",
     "tag",
     "character",
@@ -1193,6 +1762,7 @@ const PRIMARIES: [&str; 12] = [
     "capture",
     "group",
     "optional",
+    "repetition",
     "empty",
     "constant-reference",
 ];
@@ -1219,11 +1789,6 @@ const FUNCTIONS: [&str; 15] = [
     "matches", "begins", "initial",
 ];
 
-/// Whether a term is a string, or a constant that may be one (engine §9).
-fn string_like(term: &Term) -> bool {
-    matches!(term_type(term), Ok(Type::String | Type::Any))
-}
-
 /// Whether a name begins with a capital, and so is a terminal and a tag
 /// literal (engine §2).
 fn is_capital(name: &str) -> bool {
@@ -1245,27 +1810,119 @@ fn is_span(term: &Term) -> bool {
 /// `classes($)` (§9). A span argument such as `phonemes($)` reads tokens,
 /// and `tags($, R)` parses them again.
 pub(crate) fn reads_own_tags(term: &Term) -> bool {
-    match term {
-        Term::Capture(name) => name.is_empty(),
-        Term::Call(name, args) => {
-            matches!(name.as_str(), "tags" | "classes")
-                && matches!(&args[..], [Arg::Term(Term::Capture(name))] if name.is_empty())
+    // The parts to look at, with an explicit stack: a term is as deep as
+    // its document nests until the check of its depth (§9).
+    let mut stack = vec![Part::Term(term)];
+    while let Some(part) = stack.pop() {
+        work::count(Work::Walked, 1);
+        match part {
+            Part::Term(term) => match term {
+                Term::Capture(name) => {
+                    if name.is_empty() {
+                        return true;
+                    }
+                }
+                Term::Call(name, args) => {
+                    if matches!(name.as_str(), "tags" | "classes")
+                        && matches!(&args[..], [Arg::Term(Term::Capture(name))] if name.is_empty())
+                    {
+                        return true;
+                    }
+                }
+                Term::Union(items) | Term::Intersection(items) => stack.extend(items.iter().map(Part::Term)),
+                Term::Difference(left, right) => stack.extend([Part::Term(left), Part::Term(right)]),
+                Term::If(cond, then) => stack.extend([Part::Cond(cond), Part::Term(then)]),
+                Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Const(..) => {}
+            },
+            Part::Cond(cond) => match cond {
+                Cond::Compare(_, left, right) => stack.extend([Part::Term(left), Part::Term(right)]),
+                Cond::Not(inner) => stack.push(Part::Cond(inner)),
+                Cond::Any(items) | Cond::All(items) => stack.extend(items.iter().map(Part::Cond)),
+                Cond::If(antecedent, consequent) => stack.extend([Part::Cond(antecedent), Part::Cond(consequent)]),
+                Cond::Matches(..) | Cond::Begins(..) | Cond::Initial(_) | Cond::Captured(_) => {}
+            },
         }
-        Term::Union(items) | Term::Intersection(items) => items.iter().any(reads_own_tags),
-        Term::Difference(left, right) => reads_own_tags(left) || reads_own_tags(right),
-        Term::If(cond, then) => cond_reads_own_tags(cond) || reads_own_tags(then),
-        Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Const(..) => false,
+    }
+    false
+}
+
+/// A part of a clause: a term or a condition.
+enum Part<'t> {
+    Term(&'t Term),
+    Cond(&'t Cond),
+}
+
+/// A part of a clause that a walk changes.
+enum PartMut<'t> {
+    Term(&'t mut Term),
+    Cond(&'t mut Cond),
+}
+
+/// Folds each `any` that stands directly in an `any`, and each `all` in an
+/// `all`, into the one around it: a group in parentheses of the same
+/// connective is part of the one around it (§9). One walk, with an explicit
+/// stack, that gathers each folded list once.
+fn flatten_groups(rule: &mut RuleDef) {
+    let mut stack: Vec<PartMut> = Vec::new();
+    stack.extend(rule.conditions.iter_mut().map(PartMut::Cond));
+    stack.extend(rule.tags.iter_mut().map(PartMut::Term));
+    stack.extend(rule.alternatives.iter_mut().filter_map(|alternative| alternative.tags.as_mut()).map(PartMut::Term));
+    for item in rule.emit.iter_mut().flatten() {
+        if let EmitItem::Capture(_, Some(tags), _) = item {
+            stack.push(PartMut::Term(tags));
+        }
+    }
+    while let Some(part) = stack.pop() {
+        work::count(Work::Walked, 1);
+        match part {
+            PartMut::Term(term) => match term {
+                Term::Union(items) | Term::Intersection(items) => stack.extend(items.iter_mut().map(PartMut::Term)),
+                Term::Difference(left, right) => stack.extend([PartMut::Term(left), PartMut::Term(right)]),
+                Term::If(cond, then) => stack.extend([PartMut::Cond(cond), PartMut::Term(then)]),
+                Term::Call(_, args) => stack.extend(args.iter_mut().filter_map(|arg| match arg {
+                    Arg::Term(term) => Some(PartMut::Term(term)),
+                    _ => None,
+                })),
+                _ => {}
+            },
+            PartMut::Cond(cond) => match cond {
+                Cond::Any(items) => {
+                    fold(items, |cond| if let Cond::Any(inner) = cond { Some(std::mem::take(inner)) } else { None });
+                    stack.extend(items.iter_mut().map(PartMut::Cond));
+                }
+                Cond::All(items) => {
+                    fold(items, |cond| if let Cond::All(inner) = cond { Some(std::mem::take(inner)) } else { None });
+                    stack.extend(items.iter_mut().map(PartMut::Cond));
+                }
+                Cond::Compare(_, left, right) => stack.extend([PartMut::Term(left), PartMut::Term(right)]),
+                Cond::Not(inner) => stack.push(PartMut::Cond(inner)),
+                Cond::If(antecedent, consequent) => {
+                    stack.extend([PartMut::Cond(antecedent), PartMut::Cond(consequent)])
+                }
+                Cond::Matches(span, _) | Cond::Begins(span, _) | Cond::Initial(span) => stack.push(PartMut::Term(span)),
+                Cond::Captured(_) => {}
+            },
+        }
     }
 }
 
-fn cond_reads_own_tags(cond: &Cond) -> bool {
-    match cond {
-        Cond::Compare(_, left, right) => reads_own_tags(left) || reads_own_tags(right),
-        Cond::Not(inner) => cond_reads_own_tags(inner),
-        Cond::Any(items) | Cond::All(items) => items.iter().any(cond_reads_own_tags),
-        Cond::If(antecedent, consequent) => cond_reads_own_tags(antecedent) || cond_reads_own_tags(consequent),
-        Cond::Matches(..) | Cond::Begins(..) | Cond::Initial(_) | Cond::Captured(_) => false,
+/// Replaces each item of a list that `inner` opens, a group of the list's
+/// own connective, with that group's items, at any depth, in order.
+fn fold(items: &mut Vec<Cond>, inner: impl Fn(&mut Cond) -> Option<Vec<Cond>>) {
+    let mut joined = Vec::with_capacity(items.len());
+    let mut pending: Vec<Cond> = std::mem::take(items);
+    pending.reverse();
+    while let Some(mut item) = pending.pop() {
+        work::count(Work::Walked, 1);
+        match inner(&mut item) {
+            Some(mut parts) => {
+                parts.reverse();
+                pending.append(&mut parts);
+            }
+            None => joined.push(item),
+        }
     }
+    *items = joined;
 }
 
 /// A directive's operand: a bare name, with a capital or not, a string, a
@@ -1290,11 +1947,6 @@ fn operand_problem(name: &str, kinds: &[Operand]) -> Option<String> {
         "stage" => (kinds.len() == 1 && names, "%stage takes one name".to_string()),
         "include" => (kinds == [Operand::String], "%include takes one string".to_string()),
         "features" => (!kinds.is_empty() && names, "%features takes one or more names".to_string()),
-        // Identifier tags: a name with a capital, or `~name`.
-        "elidable" => (
-            kinds.iter().all(|kind| matches!(kind, Operand::Class | Operand::Tag)),
-            "%elidable takes identifier tags: names with a capital, or ~name".to_string(),
-        ),
         _ => (names, format!("%{name} takes names only")),
     };
     (!ok).then_some(problem)

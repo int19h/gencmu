@@ -1,6 +1,6 @@
 {
   "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 2 derivations.",
-  "grammar": "%ambiguity-resolution lazy\n%rule text B ... C | A u | [t]\n%rule t (u | B) | [u] ...\n%rule u A ... | [C] C\n%rule v B | ε",
+  "grammar": "%ambiguity-resolution lazy\n%rule text {B} C | A u | [t]\n%rule t (u | B) | [{u}]\n%rule u {A} | [C] C\n%rule v B | ε",
   "tokens": [
     {
       "text": "a",
@@ -19,18 +19,22 @@
           "verdict": "tie",
           "witness": [
             {
-              "read": {
-                "token": 0,
-                "terminal": "A"
+              "close": {
+                "rule": "t",
+                "production": 7,
+                "span": [
+                  0,
+                  1
+                ]
               }
             },
             {
               "close": {
                 "rule": "t",
-                "production": 10,
+                "production": 12,
                 "span": [
                   0,
-                  0
+                  1
                 ]
               }
             }
@@ -118,7 +122,9 @@
               0,
               1
             ],
-            "tags": [],
+            "tags": [
+              "A"
+            ],
             "children": [
               {
                 "kind": "rule",
@@ -131,7 +137,9 @@
                   0,
                   1
                 ],
-                "tags": [],
+                "tags": [
+                  "A"
+                ],
                 "children": [
                   {
                     "kind": "rule",

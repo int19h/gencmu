@@ -16,7 +16,9 @@ export declare function loadDialect(name: string): Dialect;
 /**
  * A dialect from a pipeline document on disk; its grammar documents are
  * found relative to it, and the Unicode table and the bootstrap come from
- * the bundled grammars.
+ * the bundled grammars. Each document is known by its absolute path, with
+ * `/` between the parts, so an error names the file wherever the process
+ * runs.
  * @param {string} file
  * @returns {Dialect}
  */

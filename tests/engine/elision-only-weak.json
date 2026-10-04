@@ -1,6 +1,6 @@
 {
   "description": "Without strength, elision-only does not let tags settle a choice. Late-elision chooses a, which elides one KU, over c, which elides two. Written back, the token read under two tags gives two derivations, through a and b, so the check fails (engine §7).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable KU\n%rule text a | b | c\n%rule a X [KU]\n%rule b Y KU\n%rule c X [KU] [KU]",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a X [+KU]\n%rule b Y KU\n%rule c X [+KU] [+KU]",
   "tokens": [
     {
       "text": "w",

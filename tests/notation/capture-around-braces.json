@@ -1,0 +1,10 @@
+{
+  "description": "A capture wraps one symbol, so a capture around braces is an error at the capture (engine §9).",
+  "document": "```jbogenbau\n%rule a $c({A})\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

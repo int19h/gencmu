@@ -1,0 +1,122 @@
+{
+  "description": "A right chain's level of one item has the item's tags, where the item is one symbol; the optional suffix A [S q] has two symbols there, and no tags (engine §3.3, §3.7).",
+  "grammar": "%rule text r Z q\n%rule r {A ... \\ S}\n%rule q A [S q]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "z",
+      "tags": [
+        "Z"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          3
+        ],
+        "source": [
+          0,
+          5
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "r",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [
+              "A"
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "Z",
+            "token": 1,
+            "span": [
+              1,
+              2
+            ],
+            "source": [
+              2,
+              3
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "q",
+            "span": [
+              2,
+              3
+            ],
+            "source": [
+              4,
+              5
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 2,
+                "span": [
+                  2,
+                  3
+                ],
+                "source": [
+                  4,
+                  5
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "(a z a)"
+  }
+}

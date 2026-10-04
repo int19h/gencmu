@@ -4,6 +4,241 @@
 (function (root) {
   "use strict";
   function gencmuFactory() {
+  // ---- testing.js
+  // Switches and hooks for the library's own tests. Nothing here is part of
+  // the API, and index.js does not export it.
+  //
+  // `faults` holds the faults that a test turns on, one at a time, to show
+  // which shared cases catch each (tests/README.md). An empty set is the
+  // engine as specified. The names F1 to F32 are those of the fault list of
+  // the check of elision-only. Each fault is defined by exactly what
+  // it reads, and a variant of a fault is a switch of its own, so that every
+  // catch that the fault table names is shown by injection:
+  //
+  // - "F1:<observer>", such as "F1:head", computes the observer over the
+  //   tokens of R behind its argument, and projects afterwards. The tokens
+  //   behind a function of a span are exact: one token for head and last,
+  //   and from the first original token for tail, from and after. from and
+  //   after have no such fault, since they give the same span before the
+  //   projection or after it.
+  // - "F1pos:<observer>" reads R at the positions that it is handed, which
+  //   for a function of a span are positions of the stage's input.
+  // - "F7:restoration" gives a restoration the synthetic token's tags,
+  //   "F7:capture" gives them to a capture of the terminal that reads it and
+  //   to a production that inherits from that terminal, and "F7:union" adds
+  //   the synthetic tokens' tags inside the exact span of R behind a span to
+  //   the union of its tokens' tags.
+  // - "F26:lost" loses an error of the grammar that the check meets, and
+  //   "F26:relabel" reports it as elision-witness-lost, which the runner
+  //   invariant of tests/README.md fails.
+  // - "F27:order" reverses the records at one position, and "F27:bare" shows
+  //   a read of a synthetic token as a token.
+  // - "F30" takes the greatest answer of "can read" (engine §7.4), "F31"
+  //   makes the item after the T of route 3 ordinary where a strict item read
+  //   T. "F32:queue" leaves an item that an ordinary step reaches as it was
+  //   processed while strict, and "F32:predict" never predicts again a rule
+  //   that a strict prediction predicted first.
+  // - "lost:roots" and "lost:count" lose the witness after recognition
+  //   (engine §7.9).
+  // - "lost:rank" gives a restoration no derivation in the ranking, so the
+  //   check's ranking does not count W(D) though its chart holds it. Most
+  //   cases see it through the result too, since the readings change or none
+  //   is left. reparse-witness-sibling-last sees it through the hook alone.
+  // - "lost:context" makes the check's count skip the last edge of an item
+  //   that has two or more, and "lost:select" makes its candidates skip it.
+  //   In the sibling cases that edge is W(D)'s. The count channel of the
+  //   witness hook alone sees lost:context, where the readings stay; the
+  //   selection channel sees lost:select, where W(D) was a reading.
+  // - "witness:project" leaves the witness of an error of elision-only over
+  //   R, unmapped: a read keeps its index in R, and a close its span there.
+  // - "order:tags" evaluates a completing item's tag term before its
+  //   conditions, and "order:conditions" evaluates the conditions that read
+  //   only captures before those that read `$`, against the order of one step
+  //   of the recognizer (engine §4). Both apply to every parse, the main parse
+  //   as well as the check.
+  //
+  // F25 finds no query cycle at all while the check runs. A detector that
+  // finds only some cycles gives the same public result, because the
+  // recursion meets the same rule and span one level deeper, and only the
+  // message differs, which no pattern pins. The switch ends the recursion at
+  // a bound, with an error that is not the library's, and faults.json labels
+  // that catch "bound".
+  //
+  // A fault with several sites names the site where it is checked, and
+  // `hits` counts each site that a run enters while the fault is on. The
+  // fault test asserts that the named cases enter every declared site.
+  //
+  // A strict and an ordinary prediction of one symbol at one position share
+  // their items (engine §7.4). So a fault of the strict path (F16, F29, F31,
+  // F32) shows only where that path is the only one at its position, or
+  // comes first, and a case that catches it says so. A case for a fault that
+  // depends on the order of processing comes in both orders.
+  //
+  // `hooks.elisionCheck`, when set, receives each check that recognized R
+  // and met no error of the grammar, before the check ranks, for the witness
+  // test of tests/README.md. It returns the marks of W(D)'s edges, which the
+  // check's own ranker takes, and a callback that receives the ranking.
+  //
+  // `hooks.work`, when set, counts work for the tests that it grows with the
+  // input as it should: the items that the recognizer makes, in parses and
+  // nested parses alike (tests/growth.json), and the checks of maximality in
+  // nested queries, the items of the chart that they read to find their
+  // table, and the completions that they read for a tested symbol (engine
+  // §4). Each is counted where the work is done, as it is done, by
+  // countWork, which throws a WorkBudget at the first count past the budget
+  // that `hooks.work.budget` gives it, if any, so that a regression to
+  // quadratic work stops at once. Unset, a parse counts nothing.
+  //
+  // The other kinds count the steps of reads, scans, checks and formatters
+  // whose work must grow linearly with their input, each where a loop takes
+  // the step. A loop that rescanned or copied a growing list would count
+  // the square of the input, so the tests that read these kinds fail on it.
+  // Tools outside the library count through the same hook.
+
+  /** @type {Set<string>} */
+  const faults = new Set();
+
+  /**
+   * How often each site of a fault was entered while that fault was on, by
+   * the fault's name, or its name and the site's after an @, for a fault
+   * with several sites. The fault test asserts that its named cases enter
+   * every declared site (tests/README.md).
+   * @type {Map<string, number>}
+   */
+  const hits = new Map();
+
+  /**
+   * What the check of engine §7 hands its test hook.
+   * @typedef {object} ElisionCheckRun
+   * @property {import("./types.js").Derivation} chosen D, the chosen
+   *   derivation of the main parse
+   * @property {import("./earley.js").Chart} chart the recognition of R
+   * @property {import("./types.js").Item[]} roots the completed items of
+   *   `text` over R
+   * @property {boolean[]} synthetic for each token of R, whether it is
+   *   synthetic, by its provenance
+   * @property {number[]} originalAt for each token of the stage's input, its
+   *   index in R
+   * @property {number[]} recordAt for each restoration record, the index of
+   *   its synthetic token in R
+   */
+
+  /**
+   * What the witness test hands back to the check: the marks of W(D)'s
+   * edges, for each item the indices of the edges that W(D) uses, or null
+   * where the chart does not hold W(D); and a callback that receives the
+   * check's ranking, with whether its count counted W(D).
+   * @typedef {object} ElisionCheckWatch
+   * @property {Map<import("./earley.js").Item, Set<number>> | null} marks
+   * @property {(outcome: {ranking: import("./rank.js").Ranking | null, counted: boolean}) => void} ranked
+   */
+
+  /**
+   * The counts of `hooks.work`.
+   * @typedef {object} WorkCounts
+   * @property {number} items the items that the recognizer made
+   * @property {number} checks the checks of maximality in nested queries
+   * @property {number} scanned the items of the chart that those checks
+   *   read to find their table of completions
+   * @property {number} candidates the completions that those checks read for
+   *   a tested symbol
+   * @property {number} captures the captured parts that the recognizer made
+   * @property {number} captureSteps the steps that find a captured part from
+   *   the last one, or that list every part at once
+   * @property {number} captureLookups the entries of a production's captures
+   *   that an advance or a formatter reads to find the capture at a position
+   * @property {number} edgeChecks the ways of building an item that the
+   *   recognizer compares with a new way, to find it already there, or that
+   *   it indexes for that
+   * @property {number} conditions the conditions that an advance reads to
+   *   find those ready at its dot
+   * @property {number} visits the nodes of conditions and terms that an
+   *   evaluation visits, each counted before it is evaluated, also where the
+   *   evaluation halts for a nested parse
+   * @property {number} soundSteps the tokens that a sound test or phonemes()
+   *   visits
+   * @property {number} tags the tags that a union of tag sets or an entry of
+   *   a classifier adds to a set or copies, and those that an intersection,
+   *   a difference, a comparison or a test of tag sets reads
+   * @property {number} implications the implications, and their tags and
+   *   the token's, that the closure of a token's tags reads
+   * @property {number} walkSteps the steps of the readers and walks of a
+   *   document, of its notation's tree and of its DOM, in the library and in
+   *   the tools
+   * @property {number} lowering the symbols and captures that lowering and
+   *   the checks of a definition add to a sequence or copy, the helpers
+   *   that lowering moves on its list of those waiting, and the positions,
+   *   captures and conditions of a production that it indexes
+   * @property {number} closures the productions, alternatives and symbols
+   *   that the closures over a grammar's rules read: the nullable rules, the
+   *   rules that can read, and those that can emit
+   * @property {number} clauses the items of an emission and the alternatives
+   *   of a rule that the checks of a definition and the audit read, and the
+   *   nodes of the expressions that the audit walks
+   * @property {number} groups the items, edges, rules and arcs that the
+   *   grouping of rules for the cycle context of a ranking reads
+   * @property {number} traversal the steps, edges, dependencies and rules
+   *   of a context that a traversal of a forest for a ranking reads
+   * @property {number} splice the names, stages and documents that a splice
+   *   of a pipeline checks or copies
+   * @property {number} text the characters, words, lines and cells that the
+   *   formatters of diagnostics and the tools' scans of a text read
+   * @property {Partial<Record<WorkKind, number>>} [budget] the most of each
+   *   count that the work may reach
+   */
+
+  /** @typedef {"items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
+
+  /** @type {readonly WorkKind[]} */
+  const WORK_KINDS = ["items", "checks", "scanned", "candidates", "captures", "captureSteps", "captureLookups", "edgeChecks", "conditions", "visits", "soundSteps", "tags", "implications", "walkSteps", "lowering", "closures", "clauses", "groups", "traversal", "splice", "text"];
+
+  /**
+   * Counts of every kind at zero, for a test to set as `hooks.work`.
+   * @param {Partial<Record<WorkKind, number>>} [budget]
+   * @returns {WorkCounts}
+   */
+  function newWork(budget) {
+    const work = /** @type {WorkCounts} */ ({ budget });
+    for (const kind of WORK_KINDS) work[kind] = 0;
+    return work;
+  }
+
+  /**
+   * A count of `hooks.work` past its budget. It is no GencmuError, so no
+   * handler of the library's catches it.
+   */
+  class WorkBudget extends Error {}
+
+  /**
+   * Counts one or more of `work`, and throws a WorkBudget if that passes its
+   * budget.
+   * @param {WorkCounts} work
+   * @param {WorkKind} kind
+   * @param {number} [steps]
+   */
+  function countWork(work, kind, steps = 1) {
+    const counted = (work[kind] += steps);
+    const most = work.budget?.[kind];
+    if (most !== undefined && counted > most) throw new WorkBudget(`${counted} ${kind}, past the budget of ${most}`);
+  }
+
+  /** @type {{elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null}} */
+  const hooks = { elisionCheck: null, work: null };
+
+  /**
+   * Whether a fault is on, at one of its sites. A fault that is on counts the
+   * site as entered.
+   * @param {string} name
+   * @param {string} [site] the site, for a fault with several
+   * @returns {boolean}
+   */
+  function fault(name, site = "") {
+    if (faults.size === 0 || !faults.has(name)) return false;
+    const key = site === "" ? name : `${name}@${site}`;
+    hits.set(key, (hits.get(key) || 0) + 1);
+    return true;
+  }
+
   // ---- tags.js
   // Tags and tag sets (engine §1). A tag is a string in its canonical
   // spelling: an identifier tag is a name, a phoneme tag is `/p/`, and a
@@ -11,6 +246,8 @@
   // strength, so a tag set is a set of these strings.
 
   /** @import { TagSet } from "./types.js" */
+
+
 
   /**
    * @param {Iterable<string>} [tags]
@@ -29,10 +266,67 @@
   function tagUnion(left, right) {
     if (right.size === 0) return left;
     if (left.size === 0) return right;
-    const result = new Set(left);
-    for (const tag of right) result.add(tag);
+    // Each tag counts as it is copied, so a budget stops the union at the
+    // first tag past it.
+    const result = new Set();
+    for (const tag of left) {
+      if (hooks.work) countWork(hooks.work, "tags");
+      result.add(tag);
+    }
+    for (const tag of right) {
+      if (hooks.work) countWork(hooks.work, "tags");
+      result.add(tag);
+    }
     return result;
   }
+
+  /**
+   * The union of many tag sets, built by adding each to one set that the
+   * union owns. A fold of tagUnion copies its growing left side at every
+   * step, so k sets would cost the square of k. Like tagUnion, the result can
+   * be one of the sets given, until a second set with tags arrives, so no
+   * caller may change it.
+   */
+  class TagUnion {
+    constructor() {
+      /** @type {TagSet} */
+      this.tags = EMPTY_TAGS;
+      this.owned = false;
+    }
+    /** @param {TagSet} tags */
+    add(tags) {
+      if (tags.size === 0) return;
+      if (this.tags.size === 0) {
+        this.tags = tags;
+        return;
+      }
+      if (!this.owned) {
+        /** @type {TagSet} */
+        const owned = new Set();
+        for (const tag of this.tags) {
+          if (hooks.work) countWork(hooks.work, "tags");
+          owned.add(tag);
+        }
+        this.tags = owned;
+        this.owned = true;
+      }
+      for (const tag of tags) {
+        if (hooks.work) countWork(hooks.work, "tags");
+        this.tags.add(tag);
+      }
+    }
+    /**
+     * The union, a new empty set when nothing had tags, as the folds that
+     * this replaces gave.
+     * @returns {TagSet}
+     */
+    result() {
+      return this.tags === EMPTY_TAGS ? new Set() : this.tags;
+    }
+  }
+
+  /** @type {TagSet} */
+  const EMPTY_TAGS = new Set();
 
   /**
    * The tags of both sets.
@@ -41,8 +335,13 @@
    * @returns {TagSet}
    */
   function tagIntersection(left, right) {
+    // Each tag of the left side counts as it is read, before its lookup in
+    // the right side, so a budget stops a fold of many sets at once.
     const result = new Set();
-    for (const tag of left) if (right.has(tag)) result.add(tag);
+    for (const tag of left) {
+      if (hooks.work) countWork(hooks.work, "tags");
+      if (right.has(tag)) result.add(tag);
+    }
     return result;
   }
 
@@ -54,7 +353,10 @@
    */
   function tagDifference(left, right) {
     const result = new Set();
-    for (const tag of left) if (!right.has(tag)) result.add(tag);
+    for (const tag of left) {
+      if (hooks.work) countWork(hooks.work, "tags");
+      if (!right.has(tag)) result.add(tag);
+    }
     return result;
   }
 
@@ -65,7 +367,10 @@
    * @returns {boolean}
    */
   function isSubset(small, large) {
-    for (const tag of small) if (!large.has(tag)) return false;
+    for (const tag of small) {
+      if (hooks.work) countWork(hooks.work, "tags");
+      if (!large.has(tag)) return false;
+    }
     return true;
   }
 
@@ -85,7 +390,10 @@
    */
   function sameTags(left, right) {
     if (left.size !== right.size) return false;
-    for (const tag of left) if (!right.has(tag)) return false;
+    for (const tag of left) {
+      if (hooks.work) countWork(hooks.work, "tags");
+      if (!right.has(tag)) return false;
+    }
     return true;
   }
 
@@ -448,19 +756,54 @@
    * @returns {TokenJson}
    */
   function tokenJson(token) {
-    /** @type {TokenJson} */
-    const result = {
-      text: token.text,
-      phonemes: token.phonemes || "",
-      label: token.label,
-      tags: sortedTags(token.tags),
-      ...("span" in token ? { span: /** @type {Span} */ ([token.span[0], token.span[1]]) } : {}),
-      source: [token.source[0], token.source[1]],
-    };
-    if (token.insertedBy !== undefined) result.insertedBy = token.insertedBy;
-    if (token.before.length > 0) result.before = token.before.map(tokenJson);
-    if (token.after.length > 0) result.after = token.after.map(tokenJson);
-    return result;
+    return withAttachments(token, (current) => {
+      /** @type {TokenJson} */
+      const result = {
+        text: current.text,
+        phonemes: current.phonemes || "",
+        label: current.label,
+        tags: sortedTags(current.tags),
+        ...("span" in current ? { span: /** @type {Span} */ ([current.span[0], current.span[1]]) } : {}),
+        source: [current.source[0], current.source[1]],
+      };
+      if (current.insertedBy !== undefined) result.insertedBy = current.insertedBy;
+      return {
+        value: result,
+        fill: (before, after) => {
+          if (before.length > 0) result.before = before;
+          if (after.length > 0) result.after = after;
+        },
+      };
+    });
+  }
+
+  /**
+   * A value for a token and for each of its attachments at any depth, built
+   * with an explicit stack, since attachments can nest as deep as a text is
+   * long. `make` gives a token's value, and a function that takes the values
+   * of its before- and after-attachments, in order, into it.
+   * @template T
+   * @param {Token | AttachedToken} root
+   * @param {(token: Token | AttachedToken) => {value: T, fill: (before: T[], after: T[]) => void}} make
+   * @returns {T}
+   */
+  function withAttachments(root, make) {
+    const made = make(root);
+    /** @type {{token: Token | AttachedToken, fill: (before: T[], after: T[]) => void}[]} */
+    const stack = [{ token: root, fill: made.fill }];
+    for (let task = stack.pop(); task !== undefined; task = stack.pop()) {
+      /** @type {[T[], T[]]} */
+      const values = [[], []];
+      [task.token.before, task.token.after].forEach((list, side) => {
+        for (const attachment of list) {
+          const inner = make(attachment);
+          values[side].push(inner.value);
+          stack.push({ token: attachment, fill: inner.fill });
+        }
+      });
+      task.fill(values[0], values[1]);
+    }
+    return made.value;
   }
 
   /**
@@ -578,16 +921,36 @@
    * @returns {string}
    */
   function attachmentText(token) {
-    /** @type {string[]} */
-    const parts = [];
-    for (const [mark, list] of /** @type {[string, AttachedToken[]][]} */ ([["◂ ", token.before], ["▸ ", token.after]])) {
-      for (const attachment of list) {
+    // A frame for each token whose attachments are being written, with an
+    // explicit stack, since attachments can nest as deep as a text is long.
+    // A frame's text is done once each of its attachments' is.
+    /** @type {(owner: AttachedToken) => {entries: [string, AttachedToken][], next: number, parts: string[]}} */
+    const frame = (owner) => ({
+      entries: [...owner.before.map((attachment) => /** @type {[string, AttachedToken]} */ (["◂ ", attachment])),
+        ...owner.after.map((attachment) => /** @type {[string, AttachedToken]} */ (["▸ ", attachment]))],
+      next: 0,
+      parts: [],
+    });
+    const frames = [frame(token)];
+    /** @type {string | null} the text of the frame just done */
+    let inner = null;
+    for (;;) {
+      const top = frames[frames.length - 1];
+      if (inner !== null) {
+        const [mark, attachment] = top.entries[top.next - 1];
         const classes = classesOf(attachment);
-        const inner = attachmentText(attachment);
-        parts.push(mark + (classes.length ? classes.join(" ∪ ") + " " : "") + JSON.stringify(attachment.label) + (inner ? ` (${inner})` : ""));
+        top.parts.push(mark + (classes.length ? classes.join(" ∪ ") + " " : "") + JSON.stringify(attachment.label) + (inner ? ` (${inner})` : ""));
+        inner = null;
       }
+      if (top.next < top.entries.length) {
+        frames.push(frame(top.entries[top.next++][1]));
+        continue;
+      }
+      frames.pop();
+      const text = top.parts.join(", ");
+      if (frames.length === 0) return text;
+      inner = text;
     }
-    return parts.join(", ");
   }
 
   /**
@@ -596,7 +959,14 @@
    * @returns {boolean}
    */
   function breaksLine(token) {
-    return /[\n\r]/.test(token.label) || [...token.before, ...token.after].some(breaksLine);
+    // An explicit stack, since attachments can nest as deep as a text is long.
+    const stack = [token];
+    for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+      if (/[\n\r]/.test(current.label)) return true;
+      for (const attachment of current.before) stack.push(attachment);
+      for (const attachment of current.after) stack.push(attachment);
+    }
+    return false;
   }
 
   // The bracket rendering (docs/output.md): nested groups cycling ( [ {.
@@ -627,8 +997,19 @@
     // A token with attachments is a group of its before-attachments, its
     // label and its after-attachments, each rendered the same way.
     /** @type {(token: AttachedToken) => Flat} */
-    const tokenFlat = (token) => (token.before.length === 0 && token.after.length === 0 ? { leaf: token.label }
-      : { group: [...token.before.map(tokenFlat), { leaf: token.label }, ...token.after.map(tokenFlat)] });
+    const tokenFlat = (token) => withAttachments(token, (current) => {
+      if (current.before.length === 0 && current.after.length === 0) return { value: { leaf: current.label }, fill: () => {} };
+      /** @type {Flat[]} */
+      const group = [];
+      return {
+        value: { group },
+        fill: (before, after) => {
+          for (const flat of before) group.push(flat);
+          group.push({ leaf: current.label });
+          for (const flat of after) group.push(flat);
+        },
+      };
+    });
     const flat = foldTree(root,
       /** @returns {Flat | null} */
       (leaf) => (leaf.kind === "token" ? tokenFlat(tokens[leaf.token])
@@ -740,14 +1121,21 @@
     // A token's attachments, each on a line of its own under it: `◂ ` before a
     // before-attachment and `▸ ` before an after-attachment, with its classes
     // and its label, and its own attachments under it (docs/output.md).
+    // An explicit stack, since attachments can nest as deep as a text is long.
     /** @type {(token: AttachedToken, indent: number) => void} */
     const attachmentLines = (token, indent) => {
-      for (const [mark, list] of /** @type {[string, AttachedToken[]][]} */ ([["◂ ", token.before], ["▸ ", token.after]])) {
-        for (const attachment of list) {
-          const classes = classesOf(attachment);
-          lines.push(" ".repeat(indent) + mark + (classes.length ? classes.join(" ∪ ") + " " : "") + JSON.stringify(attachment.label));
-          attachmentLines(attachment, indent + 2);
-        }
+      /** @type {{mark: string, attachment: AttachedToken, indent: number}[]} */
+      const stack = [];
+      /** @type {(owner: AttachedToken, at: number) => void} */
+      const pushAttachments = (owner, at) => {
+        for (let index = owner.after.length - 1; index >= 0; index--) stack.push({ mark: "▸ ", attachment: owner.after[index], indent: at });
+        for (let index = owner.before.length - 1; index >= 0; index--) stack.push({ mark: "◂ ", attachment: owner.before[index], indent: at });
+      };
+      pushAttachments(token, indent);
+      for (let task = stack.pop(); task !== undefined; task = stack.pop()) {
+        const classes = classesOf(task.attachment);
+        lines.push(" ".repeat(task.indent) + task.mark + (classes.length ? classes.join(" ∪ ") + " " : "") + JSON.stringify(task.attachment.label));
+        pushAttachments(task.attachment, task.indent + 2);
       }
     };
     /** @type {{node: ResultNode, indent: number}[]} */
@@ -788,21 +1176,28 @@
     const tokens = finalInput(result);
     // An attachment: its classes, its label and its own attachments, each
     // list left out when it is empty (docs/output.md).
-    /** @type {(token: AttachedToken) => DisplayValue} */
-    const attachment = (token) => {
-      const classes = classesOf(token);
-      return { ...(classes.length ? { classes } : {}), label: token.label, ...attachmentsOf(token) };
+    // Built with an explicit stack, since attachments can nest as deep as a
+    // text is long.
+    /** @type {(value: DisplayValue) => (before: DisplayValue[], after: DisplayValue[]) => void} */
+    const takesAttachments = (value) => (before, after) => {
+      if (before.length) value.before = before;
+      if (after.length) value.after = after;
     };
-    /** @type {(token: AttachedToken) => DisplayValue} */
-    const attachmentsOf = (token) => ({
-      ...(token.before.length ? { before: token.before.map(attachment) } : {}),
-      ...(token.after.length ? { after: token.after.map(attachment) } : {}),
-    });
     /** @type {(leaf: import("./types.js").TokenNode) => DisplayValue} */
     const tokenValue = (leaf) => {
       const token = tokens[leaf.token];
       if (token.before.length === 0 && token.after.length === 0) return { [leaf.terminal]: token.label };
-      return { terminal: leaf.terminal, label: token.label, ...attachmentsOf(token) };
+      return withAttachments(token, (current) => {
+        if (current === token) {
+          /** @type {DisplayValue} */
+          const value = { terminal: leaf.terminal, label: token.label };
+          return { value, fill: takesAttachments(value) };
+        }
+        const classes = classesOf(current);
+        /** @type {DisplayValue} */
+        const value = { ...(classes.length ? { classes } : {}), label: current.label };
+        return { value, fill: takesAttachments(value) };
+      });
     };
     return foldTree(withoutHollowNodes(result.tree),
       /** @returns {DisplayValue} */
@@ -1202,178 +1597,6 @@
     return [...text];
   }
 
-  // ---- testing.js
-  // Switches and hooks for the library's own tests. Nothing here is part of
-  // the API, and index.js does not export it.
-  //
-  // `faults` holds the faults that a test turns on, one at a time, to show
-  // which shared cases catch each (tests/README.md). An empty set is the
-  // engine as specified. The names F1 to F32 are those of the fault list of
-  // the check of elision-only. Each fault is defined by exactly what
-  // it reads, and a variant of a fault is a switch of its own, so that every
-  // catch that the fault table names is shown by injection:
-  //
-  // - "F1:<observer>", such as "F1:head", computes the observer over the
-  //   tokens of R behind its argument, and projects afterwards. The tokens
-  //   behind a function of a span are exact: one token for head and last,
-  //   and from the first original token for tail, from and after. from and
-  //   after have no such fault, since they give the same span before the
-  //   projection or after it.
-  // - "F1pos:<observer>" reads R at the positions that it is handed, which
-  //   for a function of a span are positions of the stage's input.
-  // - "F7:restoration" gives a restoration the synthetic token's tags,
-  //   "F7:capture" gives them to a capture of the terminal that reads it and
-  //   to a production that inherits from that terminal, and "F7:union" adds
-  //   the synthetic tokens' tags inside the exact span of R behind a span to
-  //   the union of its tokens' tags.
-  // - "F26:lost" loses an error of the grammar that the check meets, and
-  //   "F26:relabel" reports it as elision-witness-lost, which the runner
-  //   invariant of tests/README.md fails.
-  // - "F27:order" reverses the records at one position, and "F27:bare" shows
-  //   a read of a synthetic token as a token.
-  // - "F30" takes the greatest answer of "can read" (engine §7.4), "F31"
-  //   makes the item after the T of route 3 ordinary where a strict item read
-  //   T. "F32:queue" leaves an item that an ordinary step reaches as it was
-  //   processed while strict, and "F32:predict" never predicts again a rule
-  //   that a strict prediction predicted first.
-  // - "lost:roots" and "lost:count" lose the witness after recognition
-  //   (engine §7.9).
-  // - "lost:rank" gives a restoration no derivation in the ranking, so the
-  //   check's ranking does not count W(D) though its chart holds it. Most
-  //   cases see it through the result too, since the readings change or none
-  //   is left. reparse-witness-sibling-last sees it through the hook alone.
-  // - "lost:context" makes the check's count skip the last edge of an item
-  //   that has two or more, and "lost:select" makes its candidates skip it.
-  //   In the sibling cases that edge is W(D)'s. The count channel of the
-  //   witness hook alone sees lost:context, where the readings stay; the
-  //   selection channel sees lost:select, where W(D) was a reading.
-  // - "witness:project" leaves the witness of an error of elision-only over
-  //   R, unmapped: a read keeps its index in R, and a close its span there.
-  // - "order:tags" evaluates a completing item's tag term before its
-  //   conditions, and "order:conditions" evaluates the conditions that read
-  //   only captures before those that read `$`, against the order of one step
-  //   of the recognizer (engine §4). Both apply to every parse, the main parse
-  //   as well as the check.
-  //
-  // F25 finds no query cycle at all while the check runs. A detector that
-  // finds only some cycles gives the same public result, because the
-  // recursion meets the same rule and span one level deeper, and only the
-  // message differs, which no pattern pins. The switch ends the recursion at
-  // a bound, with an error that is not the library's, and faults.json labels
-  // that catch "bound".
-  //
-  // A fault with several sites names the site where it is checked, and
-  // `hits` counts each site that a run enters while the fault is on. The
-  // fault test asserts that the named cases enter every declared site.
-  //
-  // A strict and an ordinary prediction of one symbol at one position share
-  // their items (engine §7.4). So a fault of the strict path (F16, F29, F31,
-  // F32) shows only where that path is the only one at its position, or
-  // comes first, and a case that catches it says so. A case for a fault that
-  // depends on the order of processing comes in both orders.
-  //
-  // `hooks.elisionCheck`, when set, receives each check that recognized R
-  // and met no error of the grammar, before the check ranks, for the witness
-  // test of tests/README.md. It returns the marks of W(D)'s edges, which the
-  // check's own ranker takes, and a callback that receives the ranking.
-  //
-  // `hooks.work`, when set, counts work for the tests that it grows with the
-  // input as it should: the items that the recognizer makes, in parses and
-  // nested parses alike (tests/growth.json), and the checks of maximality in
-  // nested queries, the items of the chart that they read to find their
-  // table, and the completions that they read for a tested symbol (engine
-  // §4). Each is counted where the work is done, as it is done, by
-  // countWork, which throws a WorkBudget at the first count past the budget
-  // that `hooks.work.budget` gives it, if any, so that a regression to
-  // quadratic work stops at once. Unset, a parse counts nothing.
-
-  /** @type {Set<string>} */
-  const faults = new Set();
-
-  /**
-   * How often each site of a fault was entered while that fault was on, by
-   * the fault's name, or its name and the site's after an @, for a fault
-   * with several sites. The fault test asserts that its named cases enter
-   * every declared site (tests/README.md).
-   * @type {Map<string, number>}
-   */
-  const hits = new Map();
-
-  /**
-   * What the check of engine §7 hands its test hook.
-   * @typedef {object} ElisionCheckRun
-   * @property {import("./types.js").Derivation} chosen D, the chosen
-   *   derivation of the main parse
-   * @property {import("./earley.js").Chart} chart the recognition of R
-   * @property {import("./types.js").Item[]} roots the completed items of
-   *   `text` over R
-   * @property {boolean[]} synthetic for each token of R, whether it is
-   *   synthetic, by its provenance
-   * @property {number[]} originalAt for each token of the stage's input, its
-   *   index in R
-   * @property {number[]} recordAt for each restoration record, the index of
-   *   its synthetic token in R
-   */
-
-  /**
-   * What the witness test hands back to the check: the marks of W(D)'s
-   * edges, for each item the indices of the edges that W(D) uses, or null
-   * where the chart does not hold W(D); and a callback that receives the
-   * check's ranking, with whether its count counted W(D).
-   * @typedef {object} ElisionCheckWatch
-   * @property {Map<import("./earley.js").Item, Set<number>> | null} marks
-   * @property {(outcome: {ranking: import("./rank.js").Ranking | null, counted: boolean}) => void} ranked
-   */
-
-  /**
-   * The counts of `hooks.work`.
-   * @typedef {object} WorkCounts
-   * @property {number} items the items that the recognizer made
-   * @property {number} checks the checks of maximality in nested queries
-   * @property {number} scanned the items of the chart that those checks
-   *   read to find their table of completions
-   * @property {number} candidates the completions that those checks read for
-   *   a tested symbol
-   * @property {Partial<Record<WorkKind, number>>} [budget] the most of each
-   *   count that the work may reach
-   */
-
-  /** @typedef {"items" | "checks" | "scanned" | "candidates"} WorkKind */
-
-  /**
-   * A count of `hooks.work` past its budget. It is no GencmuError, so no
-   * handler of the library's catches it.
-   */
-  class WorkBudget extends Error {}
-
-  /**
-   * Counts one of `work`, and throws a WorkBudget if that passes its budget.
-   * @param {WorkCounts} work
-   * @param {WorkKind} kind
-   */
-  function countWork(work, kind) {
-    const counted = ++work[kind];
-    const most = work.budget?.[kind];
-    if (most !== undefined && counted > most) throw new WorkBudget(`${counted} ${kind}, past the budget of ${most}`);
-  }
-
-  /** @type {{elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null}} */
-  const hooks = { elisionCheck: null, work: null };
-
-  /**
-   * Whether a fault is on, at one of its sites. A fault that is on counts the
-   * site as entered.
-   * @param {string} name
-   * @param {string} [site] the site, for a fault with several
-   * @returns {boolean}
-   */
-  function fault(name, site = "") {
-    if (faults.size === 0 || !faults.has(name)) return false;
-    const key = site === "" ? name : `${name}@${site}`;
-    hits.set(key, (hits.get(key) || 0) + 1);
-    return true;
-  }
-
   // ---- eligible.js
   // Written-terminator priority for nested queries (engine §4): which
   // completed items of a queried rule have an eligible witness.
@@ -1543,9 +1766,9 @@
     // Whether the optional after each item is of a maximal terminator.
     const lowered = chart.context.lowered;
     const maximalNext = order.map((item, x) => {
-      if (next[x] !== "constituent" || lowered.maximalTerminals.size === 0) return false;
+      if (next[x] !== "constituent" || lowered.maximalHelpers.size === 0) return false;
       const helpers = lowered.byLhs.get(item.production.rhs[item.dot].name) || [];
-      return helpers.some((production) => production.elided !== null && lowered.maximalTerminals.has(production.elided));
+      return helpers.some((production) => production.elided !== null && lowered.maximalHelpers.has(production.lhs));
     });
     // The completed items of each symbol from each origin, in the query's
     // chart, made once per query when a maximal terminator needs them, with
@@ -1757,6 +1980,68 @@
     }
   }
 
+  // ---- trampoline.js
+  // Runs mutually recursive readers and walks without the call stack, so a
+  // document's nesting cannot exhaust it (engine §9).
+
+  /**
+   * A step of a reader written as a generator: it yields the generator of
+   * each call it would make, and receives that call's result in its place,
+   * or the call's error, thrown at the yield.
+   * @typedef {Generator<any, any, any>} Step
+   */
+
+
+
+  // Each step of a run counts as walkSteps of `hooks.work` while a test sets
+  // it, and so does each node that a walk with an explicit stack meets. The
+  // tests of growth compare the steps across depths of nesting
+  // (tests/README.md).
+
+  /**
+   * Runs a reader to its result, keeping the chain of its calls in an
+   * explicit stack.
+   * @template T
+   * @param {Generator<any, T, any>} root
+   * @returns {T}
+   */
+  function run(root) {
+    /** @type {Step[]} */
+    const stack = [root];
+    /** @type {any} */
+    let value;
+    let failed = false;
+    /** @type {unknown} */
+    let error = null;
+    while (stack.length > 0) {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      const top = stack[stack.length - 1];
+      let step;
+      try {
+        step = failed ? top.throw(error) : top.next(value);
+      } catch (thrown) {
+        // A count past a test's budget leaves at once, so the test sees the
+        // first count past it, not a later count of the unwinding steps.
+        if (thrown instanceof WorkBudget) throw thrown;
+        stack.pop();
+        failed = true;
+        error = thrown;
+        continue;
+      }
+      failed = false;
+      error = null;
+      if (step.done) {
+        stack.pop();
+        value = step.value;
+      } else {
+        stack.push(step.value);
+        value = undefined;
+      }
+    }
+    if (failed) throw error;
+    return value;
+  }
+
   // ---- dom.js
   // Checks that a grammar DOM that did not come from reading a document, the
   // bootstrap's or a precompiled one from compiled.json, has the shape the
@@ -1766,11 +2051,16 @@
 
 
 
+
+
   /** @import { Argument, GrammarDom, Term } from "./types.js" */
+  /** @import { Step } from "./trampoline.js" */
 
   const DOM_FUNCTIONS = new Set(["phonemes", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
   const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈"]);
   const DOM_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
+  // The directives of the notation (engine §9).
+  const DIRECTIVE_NAMES = new Set(["ambiguity-resolution", "stage", "include", "features"]);
   // A capture's name is all lower case (engine §9).
   const CAPTURE_NAME = /^[a-z][a-z0-9-]*$/;
   // The nesting the notation allows (engine §9): deeper than any grammar a
@@ -1778,7 +2068,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 17;
+  const DOM_FORMAT = 18;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
@@ -1923,7 +2213,7 @@
    * The forms of an expression, a term and a condition, each as its members
    * (docs/output.md). The first member names the form.
    */
-  const EXPRESSION_FORMS = [["seq"], ["choice"], ["and"], ["optional"], ["repeat", "min"], ["ref"], ["terminal"], ["capture", "expr"],
+  const EXPRESSION_FORMS = [["seq"], ["choice"], ["and"], ["optional", "elidable?", "maximal?"], ["repeat", "separator?", "chain?"], ["ref"], ["terminal"], ["capture", "expr"],
     ["range"], ["property"], ["test", "value", "expr"], ["empty"]];
   const TERM_FORMS = [["union"], ["intersection"], ["difference"], ["if", "then"], ["call", "args"], ["string"], ["tag"], ["range"], ["emptySet"], ["capture"], ["const", "at"]];
   const CONDITION_FORMS = [["op", "left", "right"], ["matches", "rule"], ["begins", "rule"], ["initial"], ["not"], ["any"], ["all"], ["captured"], ["if", "then"]];
@@ -1932,14 +2222,16 @@
    * Whether a node has exactly the members of one of its forms, and no
    * other. So a node that joins two forms, such as {"tag":…,"string":…}, is
    * refused before it is read, and no library reads it one way where
-   * another reads it another way.
+   * another reads it another way. A member that ends in `?` may be absent.
    * @param {Record<string, unknown>} value
    * @param {string[][]} forms
    * @returns {boolean}
    */
   function hasOneForm(value, forms) {
     const form = forms.find((members) => members[0] in value);
-    return form !== undefined && Object.keys(value).length === form.length && form.every((member) => member in value);
+    if (form === undefined) return false;
+    const names = form.map((member) => member.replace(/\?$/, ""));
+    return form.every((member) => member.endsWith("?") || member in value) && Object.keys(value).every((key) => names.includes(key));
   }
 
   /**
@@ -1956,18 +2248,24 @@
     for (const directive of dom.directives) {
       if (!isDomObject(directive) || typeof directive.name !== "string" || !Array.isArray(directive.args) ||
           !directive.args.every((arg) => typeof arg === "string") || !isDomPosition(directive.at)) return "a malformed directive";
-      // Only an elidable directive can be maximal, and the member is then true
-      // (engine §9).
-      if ("maximal" in directive && (directive.name !== "elidable" || directive.maximal !== true)) return "a malformed directive";
+      // No directive has a maximal member, and the notation has four
+      // directives; %elidable is none of them (engine §9).
+      if ("maximal" in directive || !DIRECTIVE_NAMES.has(directive.name)) return "a malformed directive";
       // The operands the notation's syntax allows these directives (engine §9).
       const args = /** @type {string[]} */ (directive.args);
       if ((directive.name === "stage" && !(args.length === 1 && DOM_NAME.test(args[0]))) ||
           (directive.name === "include" && args.length !== 1) ||
-          (directive.name === "features" && !(args.length > 0 && args.every((arg) => DOM_NAME.test(arg)))) ||
-          (directive.name === "elidable" && !args.every((arg) => DOM_NAME.test(arg)))) return "a malformed directive";
+          (directive.name === "features" && !(args.length > 0 && args.every((arg) => DOM_NAME.test(arg))))) return "a malformed directive";
     }
-    /** @type {{kind: string, value: unknown, depth: number}[]} */
+    // `whole` marks an alternative's whole expression, where a chain may
+    // stand, and `sealed` a place inside braces or an elidable optional,
+    // where no capture stands.
+    /** @type {{kind: string, value: unknown, depth: number, whole?: boolean, sealed?: boolean}[]} */
     const pending = [];
+    // The expressions of the alternatives, whose capture names are checked
+    // per production once their shape is.
+    /** @type {unknown[]} */
+    const expressions = [];
     // The tested symbols, whose values are checked once the nesting is
     // bounded.
     /** @type {Record<string, any>[]} */
@@ -2017,30 +2315,15 @@
               (guard.kind === "gate" || (guard.kind === "warning" && guard.negated === false)))) {
           return "a malformed alternative";
         }
-        // A capture stands only at the top level of an alternative: the
-        // expression itself or an item of its sequence (engine §3.5).
         // Depth counts the compound nodes above a node (engine §9): the
         // items of a top-level sequence are below one, the sequence.
-        const expr = alternative.expr;
-        // The expression itself is checked before its sequence is split, so
-        // that a member beside `seq` is never left unread.
-        if (isDomObject(expr) && !hasOneForm(expr, EXPRESSION_FORMS)) return "a malformed expression";
-        const isSeq = isDomObject(expr) && Array.isArray(expr.seq);
-        const top = isSeq ? /** @type {unknown[]} */ (expr.seq) : [expr];
-        for (const item of top) {
-          if (isDomObject(item) && "capture" in item) pending.push({ kind: "top-capture", value: item, depth: isSeq ? 1 : 0 });
-          else pending.push({ kind: "expr", value: item, depth: isSeq ? 1 : 0 });
-        }
-        if (isDomObject(expr) && Array.isArray(expr.seq) && expr.seq.length < 2) return "a malformed expression";
-        const names = top.flatMap((item) => (isDomObject(item) && typeof item.capture === "string" ? [item.capture] : []));
-        if (new Set(names).size !== names.length) return "a capture name used twice in an alternative";
-        if (names.length > 4) return "more than four captures in an alternative";
-        if (names.includes("")) return "a capture that wraps a symbol has a name";
-        if (!names.every((name) => CAPTURE_NAME.test(name))) return "a capture name is not all lower case";
+        pending.push({ kind: "expr", value: alternative.expr, depth: 0, whole: true });
+        expressions.push(alternative.expr);
         if (alternative.tags !== undefined) pending.push({ kind: "constituent-tags", value: alternative.tags, depth: 0 });
       }
     }
     for (let task = pending.pop(); task !== undefined; task = pending.pop()) {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
       const { kind, value, depth } = task;
       // A function's argument is a term where a span may stand.
       const argument = kind === "argument";
@@ -2052,45 +2335,55 @@
       /** @type {(list: unknown, least: number, most?: number) => boolean} */
       const list = (items, least, most = Infinity) => Array.isArray(items) && items.length >= least && items.length <= most;
       // An expression has exactly the members of one form (docs/output.md).
-      if ((kind === "expr" || kind === "top-capture") && !hasOneForm(value, EXPRESSION_FORMS)) return "a malformed expression";
+      if (kind === "expr" && !hasOneForm(value, EXPRESSION_FORMS)) return "a malformed expression";
+      // A place inside braces or an elidable optional holds no capture, at
+      // any depth (engine §3.5).
+      /** @type {(child: unknown, sealed?: boolean) => void} */
+      const pushExpr = (child, sealed = false) => pending.push({ kind: "expr", value: child, depth: next, sealed: task.sealed || sealed });
       if (kind === "expr") {
         if ("range" in value || "property" in value) {
           if (!isCharacterClass(value, unicode)) return "a malformed expression";
         } else if ("choice" in value || "seq" in value) {
           const items = "choice" in value ? value.choice : value.seq;
           if (!list(items, 2)) return "a malformed expression";
-          for (const item of /** @type {unknown[]} */ (items)) push("expr", item);
+          for (const item of /** @type {unknown[]} */ (items)) pushExpr(item);
         } else if ("and" in value) {
           if (!list(value.and, 2, 16)) return "a malformed expression";
-          for (const item of /** @type {unknown[]} */ (value.and)) push("expr", item);
+          for (const item of /** @type {unknown[]} */ (value.and)) pushExpr(item);
         } else if ("repeat" in value) {
-          if (value.min !== 0 && value.min !== 1) return "a malformed expression";
-          push("expr", value.repeat);
+          // A chain is the whole expression of its alternative (engine §9),
+          // and its direction is left or right. A separator counts on from
+          // the depth of its repeat, as the item does.
+          if ("chain" in value && (!task.whole || (value.chain !== "left" && value.chain !== "right"))) return "a malformed expression";
+          pushExpr(value.repeat, true);
+          if ("separator" in value) pushExpr(value.separator, true);
         } else if ("optional" in value) {
-          push("expr", value.optional);
+          // An elidable optional is marked true, and maximal only with it;
+          // its expression begins with its terminal (engine §3.8, §9).
+          if (("elidable" in value && value.elidable !== true) || ("maximal" in value && (value.maximal !== true || !("elidable" in value)))) return "a malformed expression";
+          if (value.elidable === true && elidableHead(value.optional) === null) return "a malformed elidable optional";
+          pushExpr(value.optional, value.elidable === true);
         } else if ("capture" in value) {
-          return "a capture below the top level of an alternative";
+          // A capture wraps one symbol: a reference, a terminal, a range, a
+          // property or a tested one of these, and stands anywhere but in
+          // braces or an elidable optional (engine §3.5, §9).
+          if (task.sealed) return "a capture inside braces or an elidable optional";
+          const inner = value.expr;
+          if (typeof value.capture !== "string" || !CAPTURE_NAME.test(value.capture) || !isDomObject(inner) ||
+              !["ref", "terminal", "range", "property", "test"].some((member) => member in inner)) return "a malformed capture";
+          pushExpr(inner);
         } else if ("test" in value) {
           // A compound node (engine §9) over one symbol; its value counts on
           // from its depth, and is checked once the nesting is bounded.
           if (typeof value.test !== "string" || !TEST_OPS.has(value.test)) return "a malformed test";
           if (!isTestable(value.expr, unicode)) return "a test follows only a reference other than # or a terminal";
-          push("expr", value.expr);
+          pushExpr(value.expr);
           push("term", value.value);
           tests.push(value);
         } else if (!((typeof value.ref === "string" && (DOM_NAME.test(value.ref) || value.ref === "#")) || isTag(value.terminal, unicode) || value.empty === true)) {
           // A reference is a name or `#` (engine §9).
           return "a malformed expression";
         }
-      } else if (kind === "top-capture") {
-        // A capture wraps one symbol: a reference, a terminal, a range, a
-        // property or a tested one of these (engine §9).
-        const inner = value.expr;
-        if (typeof value.capture !== "string" || !isDomObject(inner) ||
-            !["ref", "terminal", "range", "property", "test"].some((member) => member in inner)) return "a malformed capture";
-        // A capture is a compound node, and its symbol below it is checked
-        // as any expression is.
-        push("expr", inner);
       } else if (kind === "constituent-tags") {
         // A constituent's tags cannot be made of its own (engine §9).
         if (readsOwnTags(value)) return "a constituent's tags made of its own";
@@ -2195,6 +2488,10 @@
     }
     // A definition the reader would refuse (engine §9), and terms and
     // conditions whose types do not agree (engine §10).
+    // A capture name stands at most once in each production (engine §3.5).
+    for (const expr of expressions) {
+      if (duplicateCaptures(expr).length > 0) return "a capture name used twice in one production";
+    }
     for (const rule of /** @type {any[]} */ (dom.rules)) {
       const problem = definitionProblem(rule) || ruleTypeProblem(rule);
       if (problem) return problem;
@@ -2271,22 +2568,30 @@
    * @returns {boolean}
    */
   function readsOwnTags(node) {
-    if (!isDomObject(node)) return false;
-    if (node.capture === "" && Object.keys(node).length === 1) return true;
-    if (typeof node.call === "string") {
-      if (!Array.isArray(node.args)) return false;
-      if ((node.call === "tags" || node.call === "classes") && node.args.length === 1) {
-        const span = node.args[0];
-        return isDomObject(span) && span.capture === "";
+    // The parts to look at, with an explicit stack: the depth of a term is
+    // bounded only once the whole document is read (engine §9).
+    const stack = [node];
+    while (stack.length > 0) {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      const current = stack.pop();
+      if (!isDomObject(current)) continue;
+      if (current.capture === "" && Object.keys(current).length === 1) return true;
+      if (typeof current.call === "string") {
+        if (!Array.isArray(current.args)) continue;
+        if ((current.call === "tags" || current.call === "classes") && current.args.length === 1) {
+          const span = current.args[0];
+          if (isDomObject(span) && span.capture === "") return true;
+          continue;
+        }
+        for (const argument of current.args) if (isDomObject(argument) && typeof argument.call === "string") stack.push(argument);
+        continue;
       }
-      return node.args.some((argument) => isDomObject(argument) && typeof argument.call === "string" && readsOwnTags(argument));
+      if ("matches" in current || "begins" in current || "initial" in current) continue;
+      const key = ["union", "intersection", "difference", "any", "all"].find((name) => Array.isArray(current[name]));
+      if (key) for (const item of /** @type {unknown[]} */ (current[key])) stack.push(item);
+      else for (const name of ["left", "right", "not", "if", "then"]) stack.push(current[name]);
     }
-    if ("matches" in node || "begins" in node || "initial" in node) return false;
-    for (const key of ["union", "intersection", "difference", "any", "all"]) {
-      const items = node[key];
-      if (Array.isArray(items)) return items.some(readsOwnTags);
-    }
-    return ["left", "right", "not", "if", "then"].some((key) => readsOwnTags(node[key]));
+    return false;
   }
 
   // ---- Clauses against the captures of alternatives (engine §3.6, §9) ----
@@ -2307,29 +2612,41 @@
    * @returns {any}
    */
   function simplify(node, has) {
+    return run(simplifying(node, has));
+  }
+
+  /**
+   * The steps of simplify, run without the call stack.
+   * @param {any} node
+   * @param {(name: string) => boolean} has
+   * @returns {Generator<Step, any, any>}
+   */
+  function* simplifying(node, has) {
     if (!isDomObject(node)) return node;
     if (typeof node.captured === "string") return has(node.captured) ? DOM_TRUE : DOM_FALSE;
     if ("not" in node) {
-      const inner = simplify(node.not, has);
+      const inner = yield simplifying(node.not, has);
       return inner === DOM_TRUE ? DOM_FALSE : inner === DOM_FALSE ? DOM_TRUE : { not: inner };
     }
     if (Array.isArray(node.all)) {
-      const items = node.all.map((item) => simplify(item, has));
+      const items = [];
+      for (const item of node.all) items.push(yield simplifying(item, has));
       if (items.includes(DOM_FALSE)) return DOM_FALSE;
       const left = items.filter((item) => item !== DOM_TRUE);
       return left.length === 0 ? DOM_TRUE : left.length === 1 ? left[0] : { all: left };
     }
     if (Array.isArray(node.any)) {
-      const items = node.any.map((item) => simplify(item, has));
+      const items = [];
+      for (const item of node.any) items.push(yield simplifying(item, has));
       if (items.includes(DOM_TRUE)) return DOM_TRUE;
       const left = items.filter((item) => item !== DOM_FALSE);
       return left.length === 0 ? DOM_FALSE : left.length === 1 ? left[0] : { any: left };
     }
     if ("if" in node) {
-      const antecedent = simplify(node.if, has);
+      const antecedent = yield simplifying(node.if, has);
       const isTerm = !isCondition(node.then);
       if (antecedent === DOM_FALSE) return isTerm ? DOM_EMPTY : DOM_TRUE;
-      const consequent = simplify(node.then, has);
+      const consequent = yield simplifying(node.then, has);
       if (antecedent === DOM_TRUE) return consequent;
       if (isTerm && isEmptySet(consequent)) return DOM_EMPTY;
       if (!isTerm && consequent === DOM_TRUE) return DOM_TRUE;
@@ -2337,19 +2654,29 @@
       return { if: antecedent, then: consequent };
     }
     if (Array.isArray(node.union)) {
-      const items = node.union.map((item) => simplify(item, has)).filter((item) => !isEmptySet(item));
+      const items = [];
+      for (const item of node.union) {
+        const simple = yield simplifying(item, has);
+        if (!isEmptySet(simple)) items.push(simple);
+      }
       return items.length === 0 ? DOM_EMPTY : items.length === 1 ? items[0] : { union: items };
     }
     if (Array.isArray(node.intersection)) {
-      const items = node.intersection.map((item) => simplify(item, has));
+      const items = [];
+      for (const item of node.intersection) items.push(yield simplifying(item, has));
       return items.some(isEmptySet) ? DOM_EMPTY : { intersection: items };
     }
     if (Array.isArray(node.difference)) {
-      const [left, right] = node.difference.map((item) => simplify(item, has));
+      const left = yield simplifying(node.difference[0], has);
+      const right = yield simplifying(node.difference[1], has);
       return isEmptySet(left) ? DOM_EMPTY : isEmptySet(right) ? left : { difference: [left, right] };
     }
-    if (typeof node.op === "string") return { op: node.op, left: simplify(node.left, has), right: simplify(node.right, has) };
-    if (typeof node.call === "string" && Array.isArray(node.args)) return { call: node.call, args: node.args.map((argument) => simplify(argument, has)) };
+    if (typeof node.op === "string") return { op: node.op, left: yield simplifying(node.left, has), right: yield simplifying(node.right, has) };
+    if (typeof node.call === "string" && Array.isArray(node.args)) {
+      const args = [];
+      for (const argument of node.args) args.push(yield simplifying(argument, has));
+      return { call: node.call, args };
+    }
     return node;
   }
 
@@ -2372,8 +2699,375 @@
    * @returns {boolean}
    */
   function isCondition(node) {
-    return isDomObject(node) && (typeof node.op === "string" || "not" in node || "all" in node || "any" in node ||
-      "matches" in node || "begins" in node || "initial" in node || "captured" in node || ("if" in node && isCondition(node.then)) || "constant" in node);
+    // Down the chain of guards, in a loop.
+    let current = node;
+    while (isDomObject(current) && !(typeof current.op === "string" || "not" in current || "all" in current || "any" in current ||
+      "matches" in current || "begins" in current || "initial" in current || "captured" in current || "constant" in current)) {
+      if (!("if" in current)) return false;
+      current = current.then;
+    }
+    return isDomObject(current);
+  }
+
+  // ---- A clause simplified for many productions (engine §3.6) ----------
+
+  /**
+   * A clause prepared once for the productions of a definition. Its parts
+   * are the items of a top-level union of a term, or ∧ or ∨ of a condition,
+   * the conditions of a list, or the clause alone. A part that tests no
+   * presence simplifies the same for every production, and a part `$c ⟹ X`,
+   * whose X tests none, simplifies to X's value or to its value without c.
+   * Those values are kept, and the guarded parts are indexed by capture. So
+   * a production's simplification costs its own captures and its output, not
+   * the number of parts. Parts of any other shape are simplified for each
+   * production.
+   * @typedef {object} PreparedClause
+   * @property {"union" | "all" | "any" | null} join how the parts join, or
+   *   null for a clause alone
+   * @property {any[]} parts
+   * @property {boolean} list whether the parts are the conditions of a list,
+   *   each of which is prepared in turn
+   * @property {number[]} fixed the parts that every production keeps, in
+   *   order: those that test no presence and do not vanish, and the others
+   * @property {(any | undefined)[]} values each part's simplified value,
+   *   where it is the same for every production that keeps it
+   * @property {Map<string, number[]>} guards the parts that a production
+   *   keeps only if it has a capture, by that capture, each list in order
+   * @property {any} absent for a guarded clause alone, its value for a
+   *   production without the capture
+   * @property {boolean} decided for a ∨, whether a part true for every
+   *   production makes it true
+   * @property {boolean} guardedTrue for a ∨, whether a guarded part is true
+   *   where its capture is present
+   */
+
+  /**
+   * The captures of a production, each once.
+   * @typedef {{size: number, keys(): Iterable<string>}} CaptureNames
+   */
+
+  /** @type {WeakMap<object, PreparedClause>} */
+  const preparedClauses = new WeakMap();
+
+  /**
+   * Whether a clause tests the presence of no capture anywhere inside it.
+   * @param {unknown} node
+   * @returns {boolean}
+   */
+  function testsNoPresence(node) {
+    const stack = [node];
+    for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      if (!isDomObject(current) && !Array.isArray(current)) continue;
+      if (isDomObject(current) && "captured" in current) return false;
+      for (const value of Object.values(current)) if (value && typeof value === "object") stack.push(value);
+    }
+    return true;
+  }
+
+  /**
+   * The capture that a part `$c ⟹ X` tests, where X tests no presence, so
+   * that the part's value for a production depends on that capture alone.
+   * @param {any} part
+   * @returns {string | null}
+   */
+  function guardOf(part) {
+    if (!isDomObject(part) || Object.keys(part).length !== 2 || !("if" in part) || !("then" in part)) return null;
+    const test = part.if;
+    if (!isDomObject(test) || Object.keys(test).length !== 1 || typeof test.captured !== "string") return null;
+    return testsNoPresence(part.then) ? test.captured : null;
+  }
+
+  /** @type {(name: string) => boolean} */
+  const hasNone = () => false;
+
+  /**
+   * The parts of a clause or a list, classified, with the values of those
+   * that are the same for every production.
+   * @param {any[]} parts
+   * @param {"union" | "all" | "any" | null} join
+   * @param {boolean} list
+   * @returns {PreparedClause}
+   */
+  function prepareParts(parts, join, list) {
+    /** @type {PreparedClause} */
+    const prepared = { join, parts, list, fixed: [], values: [], guards: new Map(), absent: undefined, decided: false, guardedTrue: false };
+    // A part's value vanishes from its join where the join drops it. In a
+    // ∨, a part that is true decides the whole instead.
+    const vanishes = (/** @type {any} */ value) => (join === "union" ? isEmptySet(value) : join === "all" ? value === DOM_TRUE : join === "any" ? value === DOM_FALSE : false);
+    /** @type {(name: string, index: number) => void} */
+    const index = (name, at) => {
+      const names = prepared.guards.get(name);
+      if (names) names.push(at);
+      else prepared.guards.set(name, [at]);
+    };
+    parts.forEach((part, at) => {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      const name = guardOf(part);
+      if (name !== null) {
+        const absent = isCondition(part.then) ? DOM_TRUE : DOM_EMPTY;
+        // Without its capture, a guarded part vanishes from a union or an
+        // ∧, and makes a ∨ true.
+        if (join === null || vanishes(absent) || (join === "any" && absent === DOM_TRUE)) {
+          const value = simplify(part.then, hasNone);
+          prepared.values[at] = value;
+          prepared.absent = absent;
+          // A part that vanishes where its capture is present too is never
+          // kept.
+          if (join !== null && vanishes(value)) return;
+          if (join === "any" && value === DOM_TRUE) prepared.guardedTrue = true;
+          index(name, at);
+          return;
+        }
+      } else if (testsNoPresence(part)) {
+        const value = simplify(part, hasNone);
+        prepared.values[at] = value;
+        if (join !== null && vanishes(value)) return;
+        if (join === "any" && value === DOM_TRUE) {
+          prepared.decided = true;
+          return;
+        }
+        // A condition of a list that uses a capture is dropped by every
+        // production without it. So it is kept under the first such name,
+        // and a production without that name never looks at it.
+        if (list && value !== DOM_FALSE) {
+          let first = null;
+          for (const used of capturesUsed(value)) if (used !== "" && (first === null || used < first)) first = used;
+          if (first !== null) {
+            index(first, at);
+            return;
+          }
+        }
+      }
+      prepared.fixed.push(at);
+    });
+    return prepared;
+  }
+
+  /**
+   * A clause prepared for the productions of its definition, once for each
+   * clause.
+   * @param {any} node a condition or a term
+   * @returns {PreparedClause}
+   */
+  function prepareClause(node) {
+    const known = isDomObject(node) ? preparedClauses.get(node) : undefined;
+    if (known) return known;
+    // The join that simplifying reads first decides, as it does there.
+    /** @type {"union" | "all" | "any" | null} */
+    let join = null;
+    if (isDomObject(node) && typeof node.captured !== "string" && !("not" in node)) {
+      if (Array.isArray(node.all)) join = "all";
+      else if (Array.isArray(node.any)) join = "any";
+      else if (!("if" in node) && Array.isArray(node.union)) join = "union";
+    }
+    const prepared = prepareParts(join === "all" ? node.all : join === "any" ? node.any : join === "union" ? node.union : [node], join, false);
+    if (isDomObject(node)) preparedClauses.set(node, prepared);
+    return prepared;
+  }
+
+  /**
+   * A list of conditions prepared for the productions of its definition,
+   * once for each list. A condition false for a production removes it, and
+   * one true is dropped, as the items of an ∧ are. A condition that uses a
+   * capture the production lacks is left out, which the caller would drop.
+   * @param {any[]} conditions
+   * @returns {PreparedClause}
+   */
+  function prepareConditions(conditions) {
+    const known = preparedClauses.get(conditions);
+    if (known) return known;
+    const prepared = prepareParts(conditions, "all", true);
+    preparedClauses.set(conditions, prepared);
+    return prepared;
+  }
+
+  /**
+   * The indexes of the parts kept for a production, in order: those every
+   * production keeps, and those under the captures it has.
+   * @param {number[]} fixed
+   * @param {Map<string, number[]>} guards
+   * @param {(name: string) => boolean} has
+   * @param {CaptureNames} names
+   * @returns {number[]}
+   */
+  function keptIndexes(fixed, guards, has, names) {
+    // The guarded parts this production keeps, found from whichever is
+    // fewer, its captures or the captures that guard parts.
+    /** @type {number[]} */
+    const kept = [];
+    /** @type {(name: string) => void} */
+    const take = (name) => {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      const list = guards.get(name);
+      if (!list || !has(name)) return;
+      for (const index of list) {
+        if (hooks.work) countWork(hooks.work, "walkSteps");
+        kept.push(index);
+      }
+    };
+    if (names.size <= guards.size) for (const name of names.keys()) take(name);
+    else for (const name of guards.keys()) take(name);
+    kept.sort((left, right) => {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      return left - right;
+    });
+    /** @type {number[]} */
+    const merged = [];
+    let next = 0;
+    for (const index of fixed) {
+      while (next < kept.length && kept[next] < index) {
+        if (hooks.work) countWork(hooks.work, "walkSteps");
+        merged.push(kept[next++]);
+      }
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      merged.push(index);
+    }
+    while (next < kept.length) {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      merged.push(kept[next++]);
+    }
+    return merged;
+  }
+
+  /**
+   * The values of a prepared clause's parts that a production keeps, in
+   * order: each simplified, without those its join drops.
+   * @param {PreparedClause} prepared
+   * @param {(name: string) => boolean} has
+   * @param {CaptureNames} names
+   * @returns {any[]}
+   */
+  function partsFor(prepared, has, names) {
+    const { join, parts, values } = prepared;
+    /** @type {any[]} */
+    const items = [];
+    for (const index of keptIndexes(prepared.fixed, prepared.guards, has, names)) {
+      let value = values[index];
+      if (value === undefined) value = prepared.list ? simplifyFor(prepareClause(parts[index]), has, names) : simplify(parts[index], has);
+      if (join === "union" ? !isEmptySet(value) : join === "any" ? value !== DOM_FALSE : value !== DOM_TRUE) items.push(value);
+    }
+    return items;
+  }
+
+  /**
+   * A prepared clause simplified for a production, the same as simplify
+   * gives (engine §3.6).
+   * @param {PreparedClause} prepared
+   * @param {(name: string) => boolean} has
+   * @param {CaptureNames} names
+   * @returns {any}
+   */
+  function simplifyFor(prepared, has, names) {
+    const { join, parts, fixed, values, guards } = prepared;
+    if (join === null) {
+      if (fixed.length === 1) return values[0] !== undefined ? values[0] : simplify(parts[0], has);
+      // A guarded clause alone is its value or vanishes.
+      const [name] = guards.keys();
+      return has(name) ? values[0] : prepared.absent;
+    }
+    if (join === "any") {
+      // A part true for every production, or a guarded part whose capture
+      // the production lacks, makes the ∨ true.
+      if (prepared.decided) return DOM_TRUE;
+      if (names.size < guards.size) return DOM_TRUE;
+      for (const name of guards.keys()) {
+        if (hooks.work) countWork(hooks.work, "walkSteps");
+        if (!has(name)) return DOM_TRUE;
+      }
+      // Every guarded part is kept, and one that is true makes it true.
+      if (prepared.guardedTrue) return DOM_TRUE;
+    }
+    const items = partsFor(prepared, has, names);
+    if (join === "union") return items.length === 0 ? DOM_EMPTY : items.length === 1 ? items[0] : { union: items };
+    if (join === "any") {
+      if (items.includes(DOM_TRUE)) return DOM_TRUE;
+      return items.length === 0 ? DOM_FALSE : items.length === 1 ? items[0] : { any: items };
+    }
+    if (items.includes(DOM_FALSE)) return DOM_FALSE;
+    return items.length === 0 ? DOM_TRUE : items.length === 1 ? items[0] : { all: items };
+  }
+
+  /**
+   * The items of an emission indexed once for the productions of its
+   * definition: those with no carrier, which every production keeps, those
+   * with one, by its name, and those with attachments, by each attachment's
+   * name.
+   * @typedef {{fixed: number[], carriers: Map<string, number[]>, attached: Map<string, number[]>}} EmissionIndex
+   */
+
+  /** @type {WeakMap<object, EmissionIndex>} */
+  const emissionIndexes = new WeakMap();
+
+  /**
+   * The index of an emission's items, once for each list of items.
+   * @param {any[]} items
+   * @returns {EmissionIndex}
+   */
+  function emissionIndex(items) {
+    const known = emissionIndexes.get(items);
+    if (known) return known;
+    /** @type {EmissionIndex} */
+    const index = { fixed: [], carriers: new Map(), attached: new Map() };
+    /** @type {(map: Map<string, number[]>, name: string, at: number) => void} */
+    const add = (map, name, at) => {
+      const list = map.get(name);
+      if (list) {
+        // An item that attaches one name twice is listed once.
+        if (list[list.length - 1] !== at) list.push(at);
+      } else map.set(name, [at]);
+    };
+    items.forEach((item, at) => {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      if (item.capture === undefined) index.fixed.push(at);
+      else add(index.carriers, item.capture, at);
+      for (const name of attachmentsOf(item)) {
+        if (hooks.work) countWork(hooks.work, "walkSteps");
+        add(index.attached, name, at);
+      }
+    });
+    emissionIndexes.set(items, index);
+    return index;
+  }
+
+  /**
+   * The indexes of the emission items that a production keeps, in order:
+   * those whose carrier it has, and those with none (engine §3.6).
+   * @param {any[]} items
+   * @param {(name: string) => boolean} has
+   * @param {CaptureNames} names
+   * @returns {number[]}
+   */
+  function presentItems(items, has, names) {
+    const index = emissionIndex(items);
+    return keptIndexes(index.fixed, index.carriers, has, names);
+  }
+
+  /**
+   * The first emission item, in order, whose carrier a production lacks but
+   * one of whose attachments it has (engine §9), or -1.
+   * @param {any[]} items
+   * @param {(name: string) => boolean} has
+   * @param {CaptureNames} names
+   * @returns {number}
+   */
+  function strayAttachment(items, has, names) {
+    const index = emissionIndex(items);
+    let first = -1;
+    /** @type {(name: string) => void} */
+    const look = (name) => {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      const list = index.attached.get(name);
+      if (!list || !has(name)) return;
+      for (const at of list) {
+        if (hooks.work) countWork(hooks.work, "walkSteps");
+        const carrier = items[at].capture;
+        if (carrier !== undefined && !has(carrier) && (first === -1 || at < first)) first = at;
+      }
+    };
+    if (names.size <= index.attached.size) for (const name of names.keys()) look(name);
+    else for (const name of index.attached.keys()) look(name);
+    return first;
   }
 
   /**
@@ -2386,6 +3080,7 @@
     const names = [];
     const stack = [node];
     for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
       if (!isDomObject(current) && !Array.isArray(current)) continue;
       if (isDomObject(current) && typeof current.capture === "string" && Object.keys(current).length === 1) names.push(current.capture);
       for (const value of Object.values(current)) if (value && typeof value === "object") stack.push(value);
@@ -2402,6 +3097,7 @@
     const names = capturesUsed(node);
     const stack = [node];
     for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
       if (!isDomObject(current) && !Array.isArray(current)) continue;
       if (isDomObject(current) && typeof current.captured === "string") names.push(current.captured);
       for (const value of Object.values(current)) if (value && typeof value === "object") stack.push(value);
@@ -2410,18 +3106,241 @@
   }
 
   /**
-   * The captures of an alternative's top level, name to position.
+   * The captures of each production of an alternative, name to its place in
+   * the order that the production reads them, with `$` at -1 (engine §3.5).
    * @param {any} alternative
-   * @returns {Map<string, number>}
+   * @returns {Map<string, number>[]}
    */
   function alternativeCaptures(alternative) {
-    const top = isDomObject(alternative.expr) && Array.isArray(alternative.expr.seq) ? alternative.expr.seq : [alternative.expr];
-    /** @type {Map<string, number>} */
-    const captures = new Map([["", -1]]);
-    top.forEach((/** @type {any} */ item, /** @type {number} */ index) => {
-      if (isDomObject(item) && typeof item.capture === "string") captures.set(item.capture, index);
+    return captureSequences(alternative.expr).map((sequence) => {
+      /** @type {Map<string, number>} */
+      const captures = new Map([["", -1]]);
+      sequence.forEach((name, index) => captures.set(name, index));
+      return captures;
     });
-    return captures;
+  }
+
+  /**
+   * A sequence of capture names, as a node of a trie of all the sequences
+   * of one expression: one node for each distinct sequence, which shares its
+   * prefix with the sequences it extends.
+   * @typedef {{parent: CaptureNode | null, name: string, length: number, children: Map<string, CaptureNode> | null}} CaptureNode
+   */
+
+  /**
+   * The distinct sequences of captures that the productions of an expression
+   * read, each in the order read (engine §3.2, §3.5): a choice gives each
+   * branch's, an `&` each subsequence's, a plain optional none or its
+   * content's, and braces and an elidable optional none. Productions that
+   * read the same names in the same order are one sequence. Gates do not
+   * matter, since they drop whole alternatives.
+   *
+   * The sequences are nodes of a trie, so that extending one by a capture
+   * costs one step and two equal sequences are one node. A copy of each
+   * growing prefix would cost the square of a sequence's length.
+   * @param {any} expr
+   * @returns {string[][]}
+   */
+  function captureSequences(expr) {
+    /** @type {CaptureNode} */
+    const root = { parent: null, name: "", length: 0, children: null };
+    /** @type {(node: CaptureNode, name: string) => CaptureNode} */
+    const extended = (node, name) => {
+      if (hooks.work) countWork(hooks.work, "lowering");
+      const children = node.children ?? (node.children = new Map());
+      let child = children.get(name);
+      if (!child) children.set(name, (child = { parent: node, name, length: node.length + 1, children: null }));
+      return child;
+    };
+    /** @type {(node: CaptureNode) => string[]} */
+    const names = (node) => {
+      const list = new Array(node.length);
+      for (let at = node; at.parent !== null; at = at.parent) {
+        if (hooks.work) countWork(hooks.work, "lowering");
+        list[at.length - 1] = at.name;
+      }
+      return list;
+    };
+    /** @type {(lists: CaptureNode[]) => CaptureNode[]} */
+    const distinct = (lists) => (lists.length < 2 ? lists : [...new Set(lists)]);
+    /** @type {(left: CaptureNode[], right: CaptureNode[]) => CaptureNode[]} */
+    const product = (left, right) => {
+      /** @type {CaptureNode[]} */
+      const result = [];
+      const suffixes = right.map(names);
+      for (const a of left) {
+        for (const suffix of suffixes) {
+          let node = a;
+          for (const name of suffix) node = extended(node, name);
+          result.push(node);
+        }
+      }
+      return distinct(result);
+    };
+    /** @type {(node: any) => Generator<Step, CaptureNode[], any>} */
+    const visit = function* (node) {
+      if (!isDomObject(node)) return [root];
+      if (typeof node.capture === "string") return [extended(root, node.capture)];
+      if (Array.isArray(node.seq)) {
+        /** @type {CaptureNode[]} */
+        let sequences = [root];
+        for (const item of node.seq) sequences = product(sequences, yield visit(item));
+        return sequences;
+      }
+      if (Array.isArray(node.choice)) {
+        /** @type {CaptureNode[]} */
+        const all = [];
+        for (const item of node.choice) for (const sequence of yield visit(item)) all.push(sequence);
+        return distinct(all);
+      }
+      if (Array.isArray(node.and)) {
+        /** @type {CaptureNode[][]} */
+        const parts = [];
+        for (const item of node.and) parts.push(yield visit(item));
+        /** @type {CaptureNode[]} */
+        const result = [];
+        for (let mask = 1; mask < 1 << parts.length; mask++) {
+          /** @type {CaptureNode[]} */
+          let sequences = [root];
+          parts.forEach((part, index) => {
+            if (mask & (1 << index)) sequences = product(sequences, part);
+          });
+          for (const sequence of sequences) result.push(sequence);
+        }
+        return distinct(result);
+      }
+      if ("optional" in node) {
+        if (node.elidable === true) return [root];
+        /** @type {CaptureNode[]} */
+        const all = [root];
+        for (const sequence of yield visit(node.optional)) all.push(sequence);
+        return distinct(all);
+      }
+      return [root];
+    };
+    return run(visit(expr)).map(names);
+  }
+
+  /**
+   * The captures that some production of an expression reads after a
+   * capture of the same name (engine §3.5, §9), found from the structure
+   * alone: two captures are read by one production exactly when they stand
+   * in different items of one sequence or one &, since each item is read in
+   * any of its expansions. So no production is listed. A choice's branches
+   * never meet. Braces and an elidable optional hold no capture.
+   * @param {any} expr
+   * @returns {{capture: string}[]}
+   */
+  function duplicateCaptures(expr) {
+    /** @type {Set<{capture: string}>} */
+    const duplicates = new Set();
+    // Each node gives its captures by name, and their number, gathered after
+    // its children, with an explicit stack, since the depth of a DOM is
+    // bounded only by its check. An item of a sequence or an & meets the
+    // items before it: the side with fewer captures is looked up in the
+    // other, and the two are then joined, the smaller into the larger, so a
+    // capture moves a number of times that grows with the logarithm of their
+    // count, not with the depth of the expression. A name keeps its place
+    // once its captures are marked, but its list of captures not yet marked
+    // is emptied, so that a capture is marked once and not again at each
+    // level above it.
+    /** @typedef {{names: Map<string, {capture: string}[]>, size: number}} Found */
+    /** @type {{node: any, index: number, parts: Found[]}[]} */
+    const stack = [{ node: expr, index: 0, parts: [] }];
+    /** @type {(node: any) => any[]} */
+    const children = (node) => {
+      if (!isDomObject(node) || typeof node.capture === "string") return [];
+      if (Array.isArray(node.seq)) return node.seq;
+      if (Array.isArray(node.choice)) return node.choice;
+      if (Array.isArray(node.and)) return node.and;
+      if ("optional" in node && node.elidable !== true) return [node.optional];
+      return [];
+    };
+    for (;;) {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      const frame = stack[stack.length - 1];
+      const node = frame.node;
+      const list = children(node);
+      if (frame.index < list.length) {
+        stack.push({ node: list[frame.index++], index: 0, parts: [] });
+        continue;
+      }
+      /** @type {Found} */
+      let joined = { names: new Map(), size: 0 };
+      if (isDomObject(node) && typeof node.capture === "string") {
+        joined = { names: new Map([[node.capture, [/** @type {{capture: string}} */ (node)]]]), size: 1 };
+      } else {
+        const meets = isDomObject(node) && (Array.isArray(node.seq) || Array.isArray(node.and));
+        frame.parts.forEach((part, index) => {
+          if (index === 0) {
+            joined = part;
+            return;
+          }
+          if (meets) {
+            if (joined.size <= part.size) {
+              for (const name of joined.names.keys()) {
+                if (hooks.work) countWork(hooks.work, "walkSteps");
+                const captures = part.names.get(name);
+                if (!captures) continue;
+                for (const capture of captures) {
+                  if (hooks.work) countWork(hooks.work, "walkSteps");
+                  duplicates.add(capture);
+                }
+                part.names.set(name, []);
+              }
+            } else {
+              for (const [name, captures] of part.names) {
+                if (hooks.work) countWork(hooks.work, "walkSteps");
+                if (!joined.names.has(name)) continue;
+                for (const capture of captures) {
+                  if (hooks.work) countWork(hooks.work, "walkSteps");
+                  duplicates.add(capture);
+                }
+                part.names.set(name, []);
+              }
+            }
+          }
+          let [large, small] = joined.size >= part.size ? [joined, part] : [part, joined];
+          for (const [name, captures] of small.names) {
+            if (hooks.work) countWork(hooks.work, "walkSteps");
+            const found = large.names.get(name);
+            if (!found) {
+              large.names.set(name, captures);
+              continue;
+            }
+            for (const capture of captures) {
+              if (hooks.work) countWork(hooks.work, "walkSteps");
+              found.push(capture);
+            }
+          }
+          large.size += small.size;
+          joined = large;
+        });
+      }
+      stack.pop();
+      if (stack.length === 0) break;
+      stack[stack.length - 1].parts.push(joined);
+    }
+    return [...duplicates];
+  }
+
+  /**
+   * The terminal at the head of an elidable optional's expression, or null
+   * when the expression has no such head (engine §3.8, §9): a `ref` whose
+   * name begins with a capital, a `terminal` whose tag is a name, or an `=`
+   * test of one of these, alone or first in a `seq`.
+   * @param {any} expr
+   * @returns {any}
+   */
+  function elidableHead(expr) {
+    const head = isDomObject(expr) && Array.isArray(expr.seq) ? expr.seq[0] : expr;
+    if (!isDomObject(head)) return null;
+    /** @type {(node: any) => boolean} */
+    const isTerminal = (node) => isDomObject(node) && Object.keys(node).length === 1 &&
+      ((typeof node.ref === "string" && /^[A-Z][A-Za-z0-9-]*$/.test(node.ref)) || (typeof node.terminal === "string" && DOM_NAME.test(node.terminal)));
+    if (isTerminal(head)) return head;
+    if (head.test === "=" && isTerminal(head.expr)) return head;
+    return null;
   }
 
   /**
@@ -2436,9 +3355,47 @@
     // A constant is its value in simplification (engine §3.6). A clause that
     // holds a constant without one waits for the loader, which checks the
     // definition again once the constants have their values (engine §9).
-    const waits = (/** @type {unknown} */ clause) => constantsIn(clause).some((reference) => !("value" in reference));
-    const alternatives = rule.alternatives.map(alternativeCaptures);
-    const anyHas = (/** @type {string} */ name) => alternatives.some((/** @type {Map<string, number>} */ captures) => captures.has(name));
+    // Each clause is looked at once, since the checks below ask again for
+    // every production.
+    /** @type {Map<unknown, boolean>} */
+    const waiting = new Map();
+    const waits = (/** @type {unknown} */ clause) => {
+      let known = waiting.get(clause);
+      if (known === undefined) waiting.set(clause, (known = constantsIn(clause).some((reference) => !("value" in reference))));
+      return known;
+    };
+    // A definition with no clause has nothing to check about its captures,
+    // and its productions, whose number can be exponential, are not listed.
+    if (rule.tags === undefined && rule.conditions.length === 0 && rule.emit === undefined &&
+        rule.alternatives.every((/** @type {any} */ alternative) => alternative.tags === undefined)) return null;
+    // Each production of each alternative, with the captures it reads
+    // (engine §3.5, §9); productions that read the same captures in the same
+    // order are one.
+    const productions = rule.alternatives.flatMap((/** @type {any} */ alternative) => alternativeCaptures(alternative).map((captures) => ({ captures, alternative })));
+    const alternatives = productions.map((/** @type {{captures: Map<string, number>}} */ production) => production.captures);
+    // The names some production captures, and those every one does, found
+    // once rather than by a scan of the productions for each name.
+    // The productions that capture each name, in order, which also gives
+    // the names some production captures.
+    /** @type {Map<string, number[]>} */
+    const capturing = new Map();
+    alternatives.forEach((/** @type {Map<string, number>} */ captures, /** @type {number} */ index) => {
+      for (const name of captures.keys()) {
+        if (hooks.work) countWork(hooks.work, "clauses");
+        const list = capturing.get(name);
+        if (list) list.push(index);
+        else capturing.set(name, [index]);
+      }
+    });
+    /** @type {Set<string>} */
+    const everywhere = new Set(alternatives.length ? alternatives[0].keys() : []);
+    for (const captures of alternatives) {
+      for (const name of everywhere) {
+        if (hooks.work) countWork(hooks.work, "clauses");
+        if (!captures.has(name)) everywhere.delete(name);
+      }
+    }
+    const anyHas = (/** @type {string} */ name) => capturing.has(name);
     const items = rule.emit ? rule.emit.items : [];
     // A constituent that does not count is never an opaque part (engine §9).
     if (rule.opaque && rule.emit && items.length === 0) return `${rule.name} is opaque and emits ε`;
@@ -2451,29 +3408,65 @@
     }
     for (const condition of rule.conditions) {
       if (waits(condition)) continue;
-      const applies = alternatives.some((/** @type {Map<string, number>} */ captures) => {
-        const simple = simplify(condition, (name) => captures.has(name));
-        return simple !== DOM_TRUE && capturesUsed(simple).every((name) => captures.has(name));
-      });
-      if (!applies) return `a condition of ${rule.name} applies to no alternative`;
+      const prepared = prepareClause(condition);
+      const applies = (/** @type {number} */ index) => {
+        if (hooks.work) countWork(hooks.work, "clauses");
+        const captures = alternatives[index];
+        const has = (/** @type {string} */ name) => captures.has(name);
+        const simple = simplifyFor(prepared, has, captures);
+        return simple !== DOM_TRUE && capturesUsed(simple).every(has);
+      };
+      // A condition made only of guarded parts is true for a production
+      // that has none of their captures, so only those that have one can
+      // apply. A condition the same for every production applies only where
+      // each capture it uses is present, so only the productions with the
+      // first of them can.
+      /** @type {Iterable<string> | null} */
+      let candidates = null;
+      const guarded = prepared.guards.size > 0 || prepared.join === "all";
+      if (prepared.fixed.length === 0 && guarded && (prepared.join === "all" || prepared.join === "any" || (prepared.join === null && prepared.absent === DOM_TRUE))) {
+        candidates = prepared.guards.keys();
+      } else if (prepared.join === null ? prepared.guards.size === 0 && prepared.values[0] !== undefined : testsNoPresence(condition)) {
+        // A condition that tests no presence anywhere, alone or joined, has
+        // one value for every production.
+        const value = prepared.join === null ? prepared.values[0] : simplify(condition, hasNone);
+        let first = null;
+        for (const used of capturesUsed(value)) if (used !== "" && (first === null || used < first)) first = used;
+        if (first !== null) candidates = [first];
+      }
+      let found = false;
+      if (candidates !== null) {
+        for (const name of candidates) {
+          for (const index of capturing.get(name) ?? []) {
+            if ((found = applies(index))) break;
+          }
+          if (found) break;
+        }
+      } else {
+        found = alternatives.some((/** @type {unknown} */ _, /** @type {number} */ index) => applies(index));
+      }
+      if (!found) return `a condition of ${rule.name} applies to no production`;
     }
-    for (let index = 0; index < alternatives.length; index++) {
-      const captures = alternatives[index];
+    for (const { captures, alternative } of productions) {
       const has = (/** @type {string} */ name) => captures.has(name);
-      for (const term of [rule.tags, rule.alternatives[index].tags]) {
+      for (const term of [rule.tags, alternative.tags]) {
         if (term === undefined || waits(term)) continue;
-        const missing = capturesUsed(simplify(term, has)).find((name) => !has(name));
-        if (missing !== undefined) return `a tag term of ${rule.name} uses $${missing}, which an alternative lacks; guard it with $${missing} ⟹`;
+        const missing = capturesUsed(simplifyFor(prepareClause(term), has, captures)).find((name) => !has(name));
+        if (missing !== undefined) return `a tag term of ${rule.name} uses $${missing}, which a production lacks; guard it with $${missing} ⟹`;
       }
       if (!rule.emit) continue;
-      const present = items.filter((/** @type {any} */ item) => item.capture === undefined || has(item.capture));
-      if (items.length > 0 && present.length === 0) return `%emits of ${rule.name} leaves an alternative nothing to emit`;
-      // An alternative without an item's carrier lacks its attachments too
-      // (engine §9).
-      for (const item of items) {
-        if (item.capture === undefined || has(item.capture)) continue;
+      // The items this production keeps, found from an index of the items
+      // by their carriers, not by a scan of every item.
+      const present = presentItems(items, has, captures).map((index) => items[index]);
+      if (items.length > 0 && present.length === 0) return `%emits of ${rule.name} leaves a production nothing to emit`;
+      // A production without an item's carrier lacks its attachments too
+      // (engine §9). The first such item, in order, is found from the index
+      // of attachments.
+      const strayAt = strayAttachment(items, has, captures);
+      if (strayAt !== -1) {
+        const item = items[strayAt];
         const stray = attachmentsOf(item).find(has);
-        if (stray !== undefined) return `%emits of ${rule.name} attaches $${stray} in an alternative without its carrier $${item.capture}`;
+        return `%emits of ${rule.name} attaches $${stray} in a production without its carrier $${item.capture}`;
       }
       // The written order of the captures, attachments included, is the order
       // they stand in (engine §9).
@@ -2484,15 +3477,26 @@
       }
       for (const item of present) {
         if (!item.tags || waits(item.tags)) continue;
-        const missing = capturesUsed(simplify(item.tags, has)).find((name) => !has(name));
-        if (missing !== undefined) return `a tag term of ${rule.name} uses $${missing}, which an alternative lacks; guard it with $${missing} ⟹`;
+        const missing = capturesUsed(simplifyFor(prepareClause(item.tags), has, captures)).find((name) => !has(name));
+        if (missing !== undefined) return `a tag term of ${rule.name} uses $${missing}, which a production lacks; guard it with $${missing} ⟹`;
       }
     }
+    // Each inserted tag's anchor is the next capture item, found in one
+    // backward pass.
+    /** @type {any[]} */
+    const anchors = new Array(items.length);
+    for (let index = items.length - 1, next = undefined; index >= 0; index--) {
+      if (hooks.work) countWork(hooks.work, "clauses");
+      anchors[index] = next;
+      if (items[index].capture !== undefined) next = items[index];
+    }
+    /** @type {(name: string) => boolean} */
+    const allHave = (name) => alternatives.length === 0 || everywhere.has(name);
     for (let index = 0; index < items.length; index++) {
       if (items[index].insert === undefined) continue;
-      const next = items.slice(index + 1).find((/** @type {any} */ item) => item.capture !== undefined);
-      if (next && next.capture !== "" && !alternatives.every((/** @type {Map<string, number>} */ captures) => captures.has(next.capture))) {
-        return `%emits of ${rule.name} inserts a tag before $${next.capture}, which an alternative lacks`;
+      const next = anchors[index];
+      if (next && next.capture !== "" && !allHave(next.capture)) {
+        return `%emits of ${rule.name} inserts a tag before $${next.capture}, which a production lacks`;
       }
     }
     return null;
@@ -2616,6 +3620,54 @@
    * @returns {{type: TermType} | TypeFault}
    */
   function termType(term, constants = UNKNOWN_CONSTANTS) {
+    return run(typing(term, constants));
+  }
+
+  /**
+   * The types found, by the constants' types and the term or condition: a
+   * reader asks the type of each term it reads and of the terms around it,
+   * so each is found once, and a deep term costs no more than its size. A
+   * DOM is never changed once read.
+   * @type {WeakMap<ConstantTypes, WeakMap<object, any>>}
+   */
+  const typesFound = new WeakMap();
+
+  /**
+   * The memo of types for one way of typing constants.
+   * @param {ConstantTypes} constants
+   * @returns {WeakMap<object, any>}
+   */
+  function typesFor(constants) {
+    let found = typesFound.get(constants);
+    if (!found) {
+      found = new WeakMap();
+      typesFound.set(constants, found);
+    }
+    return found;
+  }
+
+  /**
+   * The steps of termType, run without the call stack.
+   * @param {any} term
+   * @param {ConstantTypes} constants
+   * @returns {Generator<Step, {type: TermType} | TypeFault, any>}
+   */
+  function* typing(term, constants) {
+    const memo = typesFor(constants);
+    if (memo.has(term)) return memo.get(term);
+    const found = yield typingOnce(term, constants);
+    memo.set(term, found);
+    return found;
+  }
+
+  /**
+   * The steps of the type of one term, whose parts are typed through the
+   * memo.
+   * @param {any} term
+   * @param {ConstantTypes} constants
+   * @returns {Generator<Step, {type: TermType} | TypeFault, any>}
+   */
+  function* typingOnce(term, constants) {
     if (typeof term.string === "string") return { type: "string" };
     if (typeof term.tag === "string" || "range" in term) return { type: "tags" };
     if (term.emptySet === true) return { type: "set" };
@@ -2626,7 +3678,7 @@
       /** @type {TermType[]} */
       const types = [];
       for (const item of term[key]) {
-        const found = termType(item, constants);
+        const found = /** @type {{type: TermType} | TypeFault} */ (yield typing(item, constants));
         if ("problem" in found) return found;
         types.push(found.type);
       }
@@ -2634,9 +3686,9 @@
       return "problem" in joined ? { problem: joined.problem, node: term } : joined;
     }
     if ("if" in term) {
-      const fault = conditionTypeFault(term.if, constants);
+      const fault = /** @type {TypeFault | null} */ (yield conditionTyping(term.if, constants));
       if (fault) return fault;
-      const then = termType(term.then, constants);
+      const then = /** @type {{type: TermType} | TypeFault} */ (yield typing(term.then, constants));
       if ("problem" in then) return then;
       const wrong = expectedProblem(then.type, "tags");
       return wrong ? { problem: wrong, node: term } : { type: "tags" };
@@ -2644,7 +3696,7 @@
     if (typeof term.call === "string") {
       for (const argument of term.args) {
         if ("rule" in argument || "classifier" in argument) continue;
-        const found = termType(argument, constants);
+        const found = /** @type {{type: TermType} | TypeFault} */ (yield typing(argument, constants));
         if ("problem" in found) return found;
         if (term.call === "split" || term.call === "tag" || term.call === "classify") {
           const wrong = expectedProblem(found.type, "string");
@@ -2664,19 +3716,44 @@
    * @returns {TypeFault | null}
    */
   function conditionTypeFault(condition, constants = UNKNOWN_CONSTANTS) {
+    return run(conditionTyping(condition, constants));
+  }
+
+  /**
+   * The steps of conditionTypeFault, run without the call stack.
+   * @param {any} condition
+   * @param {ConstantTypes} constants
+   * @returns {Generator<Step, TypeFault | null, any>}
+   */
+  function* conditionTyping(condition, constants) {
+    const memo = typesFor(constants);
+    if (memo.has(condition)) return memo.get(condition);
+    const found = yield conditionTypingOnce(condition, constants);
+    memo.set(condition, found);
+    return found;
+  }
+
+  /**
+   * The steps of the type fault of one condition, whose parts are typed
+   * through the memo.
+   * @param {any} condition
+   * @param {ConstantTypes} constants
+   * @returns {Generator<Step, TypeFault | null, any>}
+   */
+  function* conditionTypingOnce(condition, constants) {
     if (Array.isArray(condition.any) || Array.isArray(condition.all)) {
       for (const item of condition.any ?? condition.all) {
-        const fault = conditionTypeFault(item, constants);
+        const fault = yield conditionTyping(item, constants);
         if (fault) return fault;
       }
       return null;
     }
-    if ("not" in condition) return conditionTypeFault(condition.not, constants);
-    if ("if" in condition) return conditionTypeFault(condition.if, constants) || conditionTypeFault(condition.then, constants);
+    if ("not" in condition) return yield conditionTyping(condition.not, constants);
+    if ("if" in condition) return (yield conditionTyping(condition.if, constants)) || (yield conditionTyping(condition.then, constants));
     if (typeof condition.op === "string") {
-      const left = termType(condition.left, constants);
+      const left = /** @type {{type: TermType} | TypeFault} */ (yield typing(condition.left, constants));
       if ("problem" in left) return left;
-      const right = termType(condition.right, constants);
+      const right = /** @type {{type: TermType} | TypeFault} */ (yield typing(condition.right, constants));
       if ("problem" in right) return right;
       const problem = comparisonProblem(condition.op, left.type, right.type);
       return problem ? { problem, node: condition } : null;
@@ -2750,13 +3827,15 @@
     const found = [];
     const stack = [expr];
     for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
       if (!isDomObject(current)) continue;
       if (typeof current.test === "string") found.push(/** @type {any} */ (current));
       for (const key of ["choice", "and", "seq"]) {
         const items = current[key];
         if (Array.isArray(items)) for (let index = items.length - 1; index >= 0; index--) stack.push(items[index]);
       }
-      for (const key of ["optional", "repeat", "expr"]) if (key in current) stack.push(current[key]);
+      // In reverse, so that a repeat's item comes before its separator.
+      for (const key of ["expr", "separator", "repeat", "optional"]) if (key in current) stack.push(current[key]);
     }
     return found;
   }
@@ -2810,23 +3889,23 @@
    * @returns {any}
    */
   function openPart(term) {
-    if (!isDomObject(term)) return null;
-    if ("capture" in term || "if" in term) return term;
-    if (typeof term.call === "string") {
-      if (term.call !== "split" && term.call !== "tag") return term;
-      for (const argument of Array.isArray(term.args) ? term.args : []) {
-        const open = openPart(argument);
-        if (open) return open;
+    // In the order written, with an explicit stack.
+    const stack = [term];
+    while (stack.length > 0) {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      const current = stack.pop();
+      if (!isDomObject(current)) continue;
+      if ("capture" in current || "if" in current) return current;
+      /** @type {unknown[]} */
+      let items = [];
+      if (typeof current.call === "string") {
+        if (current.call !== "split" && current.call !== "tag") return current;
+        items = Array.isArray(current.args) ? current.args : [];
+      } else {
+        const key = ["union", "intersection", "difference"].find((name) => Array.isArray(current[name]));
+        if (key) items = /** @type {unknown[]} */ (current[key]);
       }
-      return null;
-    }
-    for (const key of ["union", "intersection", "difference"]) {
-      const items = term[key];
-      if (!Array.isArray(items)) continue;
-      for (const item of items) {
-        const open = openPart(item);
-        if (open) return open;
-      }
+      for (let index = items.length - 1; index >= 0; index--) stack.push(items[index]);
     }
     return null;
   }
@@ -2840,22 +3919,27 @@
   function constantsIn(node) {
     /** @type {import("./types.js").ConstantTerm[]} */
     const found = [];
-    /** @param {unknown} current */
-    const walk = (current) => {
-      if (Array.isArray(current)) {
-        for (const item of current) walk(item);
-      } else if (isDomObject(current)) {
+    // In the order written, with an explicit stack.
+    const stack = [node];
+    while (stack.length > 0) {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      const current = stack.pop();
+      /** @type {unknown[]} */
+      let children = [];
+      if (Array.isArray(current)) children = current;
+      else if (isDomObject(current)) {
         if (typeof current.const === "string") found.push(/** @type {any} */ (current));
-        else for (const value of Object.values(current)) walk(value);
+        else children = Object.values(current);
       }
-    };
-    walk(node);
+      for (let index = children.length - 1; index >= 0; index--) stack.push(children[index]);
+    }
     return found;
   }
 
   // ---- grammar.js
   // A stage's grammar: its documents stitched together (engine §2) and
   // lowered to productions for one set of features (engine §3).
+
 
 
 
@@ -2920,8 +4004,9 @@
    */
 
   /**
-   * Where an expansion happens: the rule, and the helpers still to lower.
-   * @typedef {{rule: StitchedRule, pending: PendingHelper[]}} Where
+   * Where an expansion happens: the rule and the alternative, and the
+   * helpers still to lower.
+   * @typedef {{rule: StitchedRule, alternative: StitchedAlternative, pending: PendingHelper[]}} Where
    */
 
   /**
@@ -2932,7 +4017,6 @@
    * @property {SymbolTest | null} elidedTest
    */
 
-  const MAX_CAPTURES = 4;
 
   // The most lowered grammars, and the most classifier tables, that a stage
   // keeps. Each set of the stage's gates that is on has its own, so a stage
@@ -2963,11 +4047,6 @@
       this.rules = new Map();
       /** @type {RuleChange[]} */
       this.changes = [];
-      /** @type {Set<string>} */
-      this.elidable = new Set();
-      // The elidable terminators that %elidable maximal names (engine §2).
-      /** @type {Set<string>} */
-      this.maximalTerminals = new Set();
       /** @type {Resolution | null} */
       this.resolution = null;
       /**
@@ -2999,7 +4078,6 @@
        * @type {WeakMap<object, SymbolTest>}
        */
       this.tests = new WeakMap();
-      this.checkElidableTests();
       if (!this.resolution) {
         throw new GencmuError("grammar", `stage ${stageName} has no %ambiguity-resolution`, { stage: stageName });
       }
@@ -3049,7 +4127,12 @@
             throw new GencmuError("grammar", `${path}:${at.line}: %extend-rule ${rule.name} extends a rule that is not defined before it`, at);
           }
           this.changes.push({ kind: "extended", rule: rule.name, document: path, previous: base.document });
-          base.alternatives = base.alternatives.concat(alternatives);
+          // Added in place: a copy of the list for each %extend-rule would
+          // cost the square of their number.
+          for (const alternative of alternatives) {
+            if (hooks.work) countWork(hooks.work, "clauses");
+            base.alternatives.push(alternative);
+          }
         }
       }
       for (const directive of dom.directives) {
@@ -3070,12 +4153,6 @@
             this.resolution = { lean, elisionOnly, maximal };
             break;
           }
-          case "elidable":
-            for (const terminal of directive.args) {
-              this.elidable.add(terminal);
-              if (directive.maximal) this.maximalTerminals.add(terminal);
-            }
-            break;
           default:
             throw new GencmuError("grammar", `${path}:${at.line}: unknown directive %${directive.name}`, at);
         }
@@ -3131,16 +4208,18 @@
         for (const entry of classifier.entries) {
           if (!entry.guards.every((guard) => features.has(guard.feature) !== guard.negated)) continue;
           for (const word of entry.keys) {
-            const classes = table.get(word) || tagSet();
+            let classes = table.get(word);
+            if (!classes) table.set(word, (classes = tagSet()));
             if ((entry.op === "∈") === classes.has(entry.class)) {
               const [line, column] = entry.at;
               const message = entry.op === "∈" ? `${JSON.stringify(word)} is already in ${entry.class}` : `${JSON.stringify(word)} is not in ${entry.class}, so ∉ has nothing to remove`;
               throw new GencmuError("grammar", `${path}:${line}:${column}: the classifier ${classifier.name}: ${message}`, { document: path, line, column });
             }
-            const changed = new Set(classes);
-            if (entry.op === "∈") changed.add(entry.class);
-            else changed.delete(entry.class);
-            table.set(word, changed);
+            // Each table's sets are its own, so an entry changes one in place:
+            // a copy for each entry would cost the square of a key's entries.
+            if (entry.op === "∈") classes.add(entry.class);
+            else classes.delete(entry.class);
+            if (hooks.work) countWork(hooks.work, "tags");
           }
         }
       }
@@ -3234,7 +4313,11 @@
       if ("range" in term) return { set: rangeTags(term.range, this.unicode) };
       if ("emptySet" in term) return { set: tagSet() };
       if ("const" in term) return /** @type {StageConstant} */ (this.constants.get(term.const)).value;
-      if ("union" in term) return { set: term.union.map(set).reduce(tagUnion, tagSet()) };
+      if ("union" in term) {
+        const result = new TagUnion();
+        for (const part of term.union) result.add(set(part));
+        return { set: result.result() };
+      }
       if ("intersection" in term) {
         const [first, ...rest] = term.intersection.map(set);
         return { set: rest.reduce(tagIntersection, first) };
@@ -3305,10 +4388,16 @@
       const resolved = new Map();
       /** @type {<T>(node: T) => T} */
       const resolve = (node) => /** @type {any} */ (resolveNode(node, this.constants));
+      // Whether the clauses that alternatives share name a constant, found
+      // once for each, not again with each alternative.
+      /** @type {Map<object, boolean>} */
+      const naming = new Map();
       for (const rule of this.rules.values()) {
         rule.alternatives = rule.alternatives.map((alternative) => {
           const { clauses } = alternative;
-          if (constantsIn(alternative.tags).length === 0 && constantsIn([clauses.tags, clauses.conditions, clauses.emit]).length === 0) return alternative;
+          let names = naming.get(clauses);
+          if (names === undefined) naming.set(clauses, (names = constantsIn([clauses.tags, clauses.conditions, clauses.emit]).length > 0));
+          if (constantsIn(alternative.tags).length === 0 && !names) return alternative;
           let shared = resolved.get(clauses);
           if (!shared) {
             shared = { ...clauses, tags: resolve(clauses.tags), conditions: resolve(clauses.conditions), emit: resolve(clauses.emit) };
@@ -3316,33 +4405,6 @@
           }
           return { ...alternative, tags: resolve(alternative.tags), clauses: shared };
         });
-      }
-    }
-
-    /**
-     * The terminal of an elidable optional has no test or an `=` test, since
-     * elision-only restores it with a sound (engine §3.8). The check runs once
-     * the stage is stitched, since a later %elidable can make an optional
-     * elidable, over every alternative whatever the features.
-     */
-    checkElidableTests() {
-      for (const rule of this.rules.values()) {
-        for (const alternative of rule.alternatives) {
-          const stack = [alternative.expr];
-          for (let expr = stack.pop(); expr !== undefined; expr = stack.pop()) {
-            if ("optional" in expr) {
-              let first = expr.optional;
-              while ("seq" in first) first = first.seq[0];
-              if ("test" in first && first.test !== "=") {
-                const name = tagName(first.expr);
-                if (name !== undefined && this.elidable.has(name)) {
-                  throw new GencmuError("grammar", `${alternative.document}: ${rule.name} can elide ${name}, whose test ${first.test} gives it no sound to restore; an elidable terminator has no test or an = test`, alternative.at);
-                }
-              }
-            }
-            stack.push(...childExpressions(expr));
-          }
-        }
       }
     }
 
@@ -3380,23 +4442,30 @@
         if ("ref" in expr && !isTerminalName(expr.ref)) check(expr.ref, rule, alternative);
         for (const child of childExpressions(expr)) visit(child, rule, alternative);
       };
+      // The stage's classifiers by name, rather than a scan of them for each
+      // classifier a clause names.
+      const classifierNames = new Set(this.classifierItems.map((item) => item.classifier.name));
+      // The clauses that a definition's alternatives share are read with the
+      // first of them, where an error in them stands, not again with each.
+      /** @type {Set<RuleClauses>} */
+      const read = new Set();
       for (const rule of this.rules.values()) {
         for (const alternative of rule.alternatives) {
           visit(alternative.expr, rule, alternative);
-          const { tags, conditions, emit } = alternative.clauses;
-          const clauses = [alternative.tags, tags, conditions, emit ? emit.items.map((item) => item.tags) : []];
+          /** @type {unknown[]} */
+          const clauses = [alternative.tags];
+          if (!read.has(alternative.clauses)) {
+            read.add(alternative.clauses);
+            const { tags, conditions, emit } = alternative.clauses;
+            clauses.push(tags, conditions, emit ? emit.items.map((item) => item.tags) : []);
+          }
           for (const name of clauseRules(clauses)) check(name, rule, alternative);
           // A classifier that classify names belongs to the stage (engine §2).
           for (const name of clauseClassifiers(clauses)) {
-            if (!this.classifierItems.some((item) => item.classifier.name === name)) {
+            if (hooks.work) countWork(hooks.work, "clauses");
+            if (!classifierNames.has(name)) {
               throw new GencmuError("grammar", `${alternative.document}: ${rule.name} classifies with ${name}, which no %classifier of stage ${this.stageName} names`, alternative.at);
             }
-          }
-          const top = "seq" in alternative.expr ? alternative.expr.seq : [alternative.expr];
-          const names = top.flatMap((item) => ("capture" in item ? [item.capture] : []));
-          const twice = names.find((name, index) => names.indexOf(name) !== index);
-          if (twice !== undefined) {
-            throw new GencmuError("grammar", `${alternative.document}: an alternative of ${rule.name} captures $${twice} twice`, alternative.at);
           }
         }
       }
@@ -3524,8 +4593,7 @@
   /**
    * The tag of a symbol that matches by a tag: a terminal, or a reference
    * whose name begins with a capital. A reference in lower case names a rule,
-   * so %elidable never makes it a terminator, even one that shares its name
-   * with an identifier tag (engine §2, §3.8).
+   * so it is never the terminator of an elidable optional (engine §2, §3.8).
    * @param {Expr} expr
    * @returns {string | undefined}
    */
@@ -3541,6 +4609,7 @@
    * @returns {Generator<string>}
    */
   function* clauseRules(value) {
+    if (hooks.work) countWork(hooks.work, "clauses");
     if (Array.isArray(value)) {
       for (const item of value) yield* clauseRules(item);
     } else if (value !== null && typeof value === "object") {
@@ -3557,6 +4626,7 @@
    * @returns {Generator<string>}
    */
   function* clauseClassifiers(value) {
+    if (hooks.work) countWork(hooks.work, "clauses");
     if (Array.isArray(value)) {
       for (const item of value) yield* clauseClassifiers(item);
     } else if (value !== null && typeof value === "object") {
@@ -3576,7 +4646,7 @@
     if ("choice" in expr) return expr.choice;
     if ("and" in expr) return expr.and;
     if ("optional" in expr) return [expr.optional];
-    if ("repeat" in expr) return [expr.repeat];
+    if ("repeat" in expr) return expr.separator === undefined ? [expr.repeat] : [expr.repeat, expr.separator];
     if ("capture" in expr || "test" in expr) return [expr.expr];
     return [];
   }
@@ -3595,6 +4665,19 @@
       /** @type {Map<string, Production[]>} */
       this.byLhs = new Map();
       this.helperCount = 0;
+      // The helpers of the optionals written [++T x], whose terminators are
+      // maximal (engine §3.8, §4).
+      /** @type {Set<string>} */
+      this.maximalHelpers = new Set();
+      // The structural grammar (engine §3.3): every production that the gates
+      // and the expansion make, before a false condition removes any, with
+      // its symbols' tests ignored.
+      /** @type {{lhs: string, rhs: import("./types.js").GrammarSymbol[]}[]} */
+      this.structural = [];
+      // The item of each pair of braces, as its expansions, with the
+      // definition that wrote it.
+      /** @type {{items: SequenceItem[][], rule: StitchedRule, alternative: StitchedAlternative}[]} */
+      this.braceItems = [];
     }
 
     /** @returns {Omit<LoweredGrammar, "classifiers" | "implications">} */
@@ -3603,25 +4686,59 @@
         // Only gates drop an alternative; a warning keeps it (engine §3.1).
         const enabled = rule.alternatives.filter((alternative) => alternative.guards.every(
           (guard) => guard.kind === "warning" || this.features.has(guard.feature) !== guard.negated));
-        for (const alternative of enabled) this.lowerAlternative(rule, alternative, enabled.length === 1);
+        // A chain is the only alternative of its rule that the gates leave
+        // (engine §3.3); a %extend-rule can add another.
+        const chain = enabled.find((alternative) => isChain(alternative.expr));
+        if (chain && enabled.length > 1) {
+          throw loweringError(chain.at, `${rule.name} is a chain, which is the whole of its rule, but another alternative stands beside it`);
+        }
+        for (const alternative of enabled) this.lowerAlternative(rule, alternative);
       }
+      this.checkBraceItems();
       return {
         productions: this.productions,
         byLhs: this.byLhs,
-        elidable: this.grammar.elidable,
-        maximalTerminals: this.grammar.maximalTerminals,
+        maximalHelpers: this.maximalHelpers,
         resolution: /** @type {Resolution} */ (this.grammar.resolution),
       };
     }
 
     /**
-     * Numbers a production and adds it.
-     * @param {Omit<Production, "id">} fields
+     * Numbers a production and adds it, with its captures indexed by
+     * position and by name: every advance and every read of a capture looks
+     * one up, so a scan of the list would cost its length each time.
+     * The conditions are grouped by when they are ready, so that an advance
+     * looks only at its own.
+     * @param {Omit<Production, "id" | "captureAt" | "captureSlot" | "conditionsAt">} fields
      * @returns {Production}
      */
     addProduction(fields) {
+      if (fields.helper) this.structural.push({ lhs: fields.lhs, rhs: fields.rhs });
+      // Each position, capture and condition counts before it is indexed, so
+      // that an index built by a scan of the list for each position fails
+      // its budget.
+      /** @type {number[]} */
+      const captureAt = [];
+      /** @type {import("./types.js").ReadyCondition[][]} */
+      const conditionsAt = [[]];
+      for (let index = 0; index < fields.rhs.length; index++) {
+        if (hooks.work) countWork(hooks.work, "lowering");
+        captureAt.push(-1);
+        conditionsAt.push([]);
+      }
+      /** @type {Map<string, number>} */
+      const captureSlot = new Map();
+      fields.captures.forEach((capture, slot) => {
+        if (hooks.work) countWork(hooks.work, "lowering");
+        if (captureAt[capture.index] === -1) captureAt[capture.index] = slot;
+        if (!captureSlot.has(capture.name)) captureSlot.set(capture.name, slot);
+      });
+      for (const condition of fields.conditions) {
+        if (hooks.work) countWork(hooks.work, "lowering");
+        conditionsAt[condition.readyAt + 1].push(condition);
+      }
       /** @type {Production} */
-      const production = { ...fields, id: this.productions.length };
+      const production = { ...fields, captureAt, captureSlot, conditionsAt, id: this.productions.length };
       this.productions.push(production);
       let same = this.byLhs.get(production.lhs);
       if (!same) this.byLhs.set(production.lhs, (same = []));
@@ -3632,45 +4749,110 @@
     /**
      * @param {StitchedRule} rule
      * @param {StitchedAlternative} alternative
-     * @param {boolean} only whether it is the rule's only enabled alternative
      */
-    lowerAlternative(rule, alternative, only) {
+    lowerAlternative(rule, alternative) {
       /** @type {PendingHelper[]} */
       const pending = [];
-      const trailing = only ? trailingRepetition(alternative.expr) : null;
-      // A trailing repetition's recursive productions could not have its
-      // captures, whose parts lie inside the inner constituent (engine §3.3).
-      if (trailing && ("seq" in alternative.expr ? alternative.expr.seq : [alternative.expr]).some((item) => "capture" in item)) {
-        throw new GencmuError("grammar", `${alternative.document}: an alternative of ${rule.name} captures a part, and is lowered as a trailing repetition`, alternative.at);
-      }
       /** @type {Where} */
-      const where = { rule, pending };
-      /** @type {SequenceItem[][]} */
-      let sequences;
-      /** @type {SequenceItem[][] | null} */
-      let recursive = null;
-      if (trailing) {
-        const prefixes = this.expandSequence(trailing.prefix, where);
-        const items = this.expand(trailing.item, where);
-        sequences = trailing.min === 1 ? product(prefixes, items) : prefixes;
-        recursive = items.map((sequence) => [{ symbol: { name: rule.name, terminal: false } }, ...sequence]);
+      const where = { rule, alternative, pending };
+      const expr = alternative.expr;
+      if (isChain(expr)) {
+        // A chain is recursion on the rule itself, with no helper: its base
+        // productions first, one for each expansion of the item, then its
+        // recursive ones (engine §3.3).
+        const items = this.expand(expr.repeat, where);
+        this.braceItems.push({ items, rule, alternative });
+        const separators = expr.separator === undefined ? [[]] : this.expand(expr.separator, where);
+        /** @type {SequenceItem[][]} */
+        const self = [[{ symbol: { name: rule.name, terminal: false } }]];
+        const recursive = expr.chain === "left" ? product(self, product(separators, items)) : product(product(items, separators), self);
+        for (const sequence of [...items, ...recursive]) this.addRuleProduction(rule, alternative, sequence);
       } else {
-        sequences = this.expand(alternative.expr, where);
+        for (const sequence of this.expand(expr, where)) this.addRuleProduction(rule, alternative, sequence);
       }
-      for (const sequence of sequences) this.addRuleProduction(rule, alternative, sequence, false);
-      for (const sequence of recursive || []) this.addRuleProduction(rule, alternative, sequence, true);
-      this.flushHelpers(pending, rule);
+      this.flushHelpers(pending, rule, alternative);
+    }
+
+    /**
+     * An item of braces that can derive the empty sequence is an error of
+     * the grammar (engine §3.3). Nullability is decided over the structural
+     * grammar, every production that the gates leave, reachable or not.
+     */
+    checkBraceItems() {
+      /** @type {Set<string>} */
+      const nullable = new Set();
+      /** @type {(sequence: SequenceItem[]) => boolean} */
+      const empty = (sequence) => {
+        for (const { symbol } of sequence) {
+          if (hooks.work) countWork(hooks.work, "closures");
+          if (symbol.terminal || !nullable.has(symbol.name)) return false;
+        }
+        return true;
+      };
+      // A worklist: each production counts its symbols not yet known to be
+      // nullable, and a rule found nullable counts down the productions that
+      // name it. Passes over every production until none changes would settle
+      // one rule per pass.
+      /** @type {Map<string, number[]>} */
+      const users = new Map();
+      const unknown = this.structural.map((production) => production.rhs.length);
+      /** @type {string[]} */
+      const found = [];
+      /** @type {(name: string) => void} */
+      const add = (name) => {
+        if (nullable.has(name)) return;
+        nullable.add(name);
+        found.push(name);
+      };
+      // Each production and each symbol it reads counts, so that a test of
+      // every other symbol at each one fails its budget.
+      this.structural.forEach((production, index) => {
+        if (hooks.work) countWork(hooks.work, "closures");
+        for (const symbol of production.rhs) {
+          if (hooks.work) countWork(hooks.work, "closures");
+          if (symbol.terminal) return;
+        }
+        if (production.rhs.length === 0) add(production.lhs);
+        for (const symbol of production.rhs) {
+          if (hooks.work) countWork(hooks.work, "closures");
+          const list = users.get(symbol.name);
+          if (list) list.push(index);
+          else users.set(symbol.name, [index]);
+        }
+      });
+      for (let name = found.pop(); name !== undefined; name = found.pop()) {
+        for (const index of users.get(name) ?? []) {
+          if (hooks.work) countWork(hooks.work, "closures");
+          if (--unknown[index] === 0) add(this.structural[index].lhs);
+        }
+      }
+      for (const { items, rule, alternative } of this.braceItems) {
+        for (const sequence of items) {
+          if (empty(sequence)) throw loweringError(alternative.at, `an item of braces in ${rule.name} can match no tokens`);
+        }
+      }
     }
 
     /**
      * @param {PendingHelper[]} pending
      * @param {StitchedRule} rule
+     * @param {StitchedAlternative} alternative
      */
-    flushHelpers(pending, rule) {
-      for (let helper = pending.shift(); helper !== undefined; helper = pending.shift()) {
+    flushHelpers(pending, rule, alternative) {
+      // A stack whose top is the next helper, so that a helper's nested ones
+      // come next, as a queue with each put at its front would give. A shift
+      // or an unshift moves every helper still waiting.
+      /** @type {PendingHelper[]} */
+      const stack = [];
+      for (let index = pending.length - 1; index >= 0; index--) {
+        if (hooks.work) countWork(hooks.work, "lowering");
+        stack.push(pending[index]);
+      }
+      pending.length = 0;
+      for (let helper = stack.pop(); helper !== undefined; helper = stack.pop()) {
         /** @type {PendingHelper[]} */
         const nested = [];
-        for (const sequence of helper.build({ rule, pending: nested })) {
+        for (const sequence of helper.build({ rule, alternative, pending: nested })) {
           // A helper with one symbol has that symbol's tags, like any
           // production (engine §3.7).
           const single = sequence.length === 1;
@@ -3686,11 +4868,13 @@
             tags: single ? { call: "tags", args: [{ capture: "\u0000child" }] } : null,
             emit: null,
             opaque: false,
-            recursivePrefix: false,
             warnings: [],
           });
         }
-        pending.unshift(...nested);
+        for (let index = nested.length - 1; index >= 0; index--) {
+          if (hooks.work) countWork(hooks.work, "lowering");
+          stack.push(nested[index]);
+        }
       }
     }
 
@@ -3698,17 +4882,14 @@
      * @param {StitchedRule} rule
      * @param {StitchedAlternative} alternative
      * @param {SequenceItem[]} sequence
-     * @param {boolean} recursivePrefix
      */
-    addRuleProduction(rule, alternative, sequence, recursivePrefix) {
+    addRuleProduction(rule, alternative, sequence) {
+      this.structural.push({ lhs: rule.name, rhs: sequence.map((item) => item.symbol) });
       /** @type {import("./types.js").Capture[]} */
       const captures = [];
       sequence.forEach((item, index) => {
         if (item.capture) captures.push({ name: item.capture, index });
       });
-      if (captures.length > MAX_CAPTURES) {
-        throw new GencmuError("grammar", `${alternative.document}: an alternative of ${rule.name} has more than ${MAX_CAPTURES} captures`, alternative.at);
-      }
       // `$`, the whole constituent, is a capture every production has.
       const names = new Set(["", ...captures.map((capture) => capture.name)]);
       const clauses = alternative.clauses;
@@ -3718,7 +4899,9 @@
       const has = (name) => names.has(name);
       // The union of the alternative's own tags and the rule's (engine §3.7);
       // the reader has made sure neither uses a capture this production lacks.
-      const written = [alternative.tags, clauses.tags].filter((term) => term !== undefined).map((term) => simplify(term, has));
+      // Each clause is prepared once for all productions, so that one costs
+      // its own captures and output, not every part of the clause.
+      const written = [alternative.tags, clauses.tags].filter((term) => term !== undefined).map((term) => simplifyFor(prepareClause(term), has, names));
       /** @type {Term | null} */
       let tags = written.length === 0 ? null : written.length === 1 ? written[0] : { union: written };
       if (!tags && sequence.length === 1) {
@@ -3730,19 +4913,25 @@
         }
         tags = { call: "tags", args: [{ capture: captures[0].name }] };
       }
+      // Each capture's position, looked up once for every variable of every
+      // condition.
+      /** @type {Map<string, number>} */
+      const positionOf = new Map();
+      for (const capture of captures) if (!positionOf.has(capture.name)) positionOf.set(capture.name, capture.index);
       /** @type {import("./types.js").ReadyCondition[]} */
       const conditions = [];
-      for (const written of clauses.conditions) {
-        const condition = simplify(written, has);
-        if (condition === DOM_TRUE) continue;
-        // A condition false for this production removes it (engine §3.6).
+      // The conditions not true for this production, in order (engine §3.6).
+      for (const condition of partsFor(prepareConditions(clauses.conditions), has, names)) {
+        // A condition false for this production removes it.
         if (condition === DOM_FALSE) return;
         const variables = conditionVariables(condition);
         if (!variables.every((name) => names.has(name))) continue;
         // A condition is ready once its last capture is read, and one that
         // reads `$` once the constituent is complete (engine §4).
-        const readyAt = Math.max(-1, ...variables.map((name) => (name === "" ? sequence.length - 1
-          : /** @type {import("./types.js").Capture} */ (captures.find((capture) => capture.name === name)).index)));
+        let readyAt = -1;
+        for (const name of variables) {
+          readyAt = Math.max(readyAt, name === "" ? sequence.length - 1 : /** @type {number} */ (positionOf.get(name)));
+        }
         conditions.push({ condition, readyAt });
       }
       let emit = clauses.emit || null;
@@ -3750,11 +4939,12 @@
         // An item whose carrier the production lacks is dropped, and so is
         // each attachment capture it lacks (engine §3.6); the reader has made
         // sure the tags of those left use none.
+        const items = emit.items;
         emit = {
-          items: emit.items.filter((item) => item.capture === undefined || names.has(item.capture))
+          items: presentItems(items, has, names).map((index) => items[index])
             .map((item) => {
               /** @type {import("./types.js").EmitItem} */
-              const kept = item.tags ? { ...item, tags: simplify(item.tags, has) } : { ...item };
+              const kept = item.tags ? { ...item, tags: simplifyFor(prepareClause(item.tags), has, names) } : { ...item };
               const before = (item.before ?? []).filter(has);
               const after = (item.after ?? []).filter(has);
               if (before.length) kept.before = before;
@@ -3777,7 +4967,6 @@
         tags,
         emit,
         opaque: clauses.opaque,
-        recursivePrefix,
         warnings: alternative.guards.filter((guard) => guard.kind === "warning").map((guard) => guard.feature),
       });
     }
@@ -3799,27 +4988,40 @@
           /** @type {SequenceItem[][]} */
           let sequences = [[]];
           parts.forEach((part, index) => {
-            if (mask & (1 << index)) sequences = product(sequences, part);
+            if (mask & (1 << index)) sequences = extendAll(sequences, part);
           });
-          result.push(...sequences);
+          for (const sequence of sequences) result.push(sequence);
         }
         return result;
       }
       if ("optional" in expr) {
         const inner = expr.optional;
-        const elided = this.elidedTerminal(inner, where);
+        // A plain optional that holds a capture expands in place, as (ε | x)
+        // would: first the empty sequence, then each expansion of x
+        // (engine §3.2).
+        if (expr.elidable !== true && holdsCapture(inner)) return [/** @type {SequenceItem[]} */ ([]), ...this.expand(inner, where)];
+        // Any other optional is a helper, and a marked one is elidable, with
+        // the terminal that its marker names; ++ makes it maximal
+        // (engine §3.8).
+        const elided = expr.elidable === true ? this.elidedTerminal(inner, where) : null;
         const name = this.helper(where, (context) => [/** @type {SequenceItem[]} */ ([]), ...this.expand(inner, context)], elided);
+        if (expr.maximal === true) this.maximalHelpers.add(name);
         return [[{ symbol: { name, terminal: false } }]];
       }
       if ("repeat" in expr) {
-        const inner = expr.repeat;
-        const min = expr.min;
+        // Flat braces are a helper, `h → x | h s x`, its base productions
+        // first; the places inside the item come before those inside the
+        // separator (engine §3.2).
+        if (isChain(expr)) throw loweringError(where.alternative.at, `a chain in ${where.rule.name} is not the whole of its rule`);
+        const item = expr.repeat;
+        const separator = expr.separator;
         const name = this.helper(where, (context) => {
-          const expansions = this.expand(inner, context);
-          /** @type {SequenceItem} */
-          const self = { symbol: { name, terminal: false } };
-          const recursive = expansions.map((sequence) => [self, ...sequence]);
-          return min === 1 ? [...expansions, ...recursive] : [/** @type {SequenceItem[]} */ ([]), ...recursive];
+          const items = this.expand(item, context);
+          this.braceItems.push({ items, rule: context.rule, alternative: context.alternative });
+          const separators = separator === undefined ? [[]] : this.expand(separator, context);
+          /** @type {SequenceItem[]} */
+          const self = [{ symbol: { name, terminal: false } }];
+          return [...items, ...product(product([self], separators), items)];
         }, null);
         return [[{ symbol: { name, terminal: false } }]];
       }
@@ -3843,11 +5045,11 @@
       if ("capture" in expr) {
         const inner = this.expand(expr.expr, where);
         if (inner.length !== 1 || inner[0].length !== 1) {
-          throw new GencmuError("grammar", `${where.rule.document}: a capture in ${where.rule.name} must wrap one symbol`, where.rule.at);
+          throw loweringError(where.alternative.at, `a capture in ${where.rule.name} must wrap one symbol`);
         }
         return [[{ symbol: inner[0][0].symbol, capture: expr.capture }]];
       }
-      throw new GencmuError("grammar", `${where.rule.document}: an unknown expression in ${where.rule.name}`, where.rule.at);
+      throw loweringError(where.alternative.at, `an unknown expression in ${where.rule.name}`);
     }
 
     /**
@@ -3858,7 +5060,7 @@
     expandSequence(items, where) {
       /** @type {SequenceItem[][]} */
       let sequences = [[]];
-      for (const item of items) sequences = product(sequences, this.expand(item, where));
+      for (const item of items) sequences = extendAll(sequences, this.expand(item, where));
       return sequences;
     }
 
@@ -3876,19 +5078,17 @@
     }
 
     /**
-     * The elidable terminal an optional begins with, if any, and its test: a
-     * tested terminal is elidable when its terminal is (engine §3.8, §12).
+     * The terminal of an elidable optional, the first item of its content,
+     * and its `=` test, if any (engine §3.8, §12).
      * @param {Expr} expr
      * @param {Where} where
-     * @returns {{terminal: string, test: SymbolTest | null} | null}
+     * @returns {{terminal: string, test: SymbolTest | null}}
      */
     elidedTerminal(expr, where) {
-      let first = expr;
-      while ("seq" in first) first = first.seq[0];
+      const first = "seq" in expr ? expr.seq[0] : expr;
       const tested = "test" in first ? first : null;
-      if (tested) first = tested.expr;
-      const name = tagName(first);
-      if (name === undefined || !this.grammar.elidable.has(name)) return null;
+      const name = tagName(tested ? tested.expr : first);
+      if (name === undefined) throw loweringError(where.alternative.at, `an elidable optional in ${where.rule.name} does not begin with its terminator`);
       return { terminal: name, test: tested ? this.grammar.symbolTest(tested, where.rule.document, where.rule.at) : null };
     }
   }
@@ -3901,23 +5101,87 @@
   function product(left, right) {
     /** @type {SequenceItem[][]} */
     const result = [];
-    for (const a of left) for (const b of right) result.push([...a, ...b]);
+    for (const a of left) {
+      for (const b of right) {
+        // Each symbol copied counts before it is copied.
+        /** @type {SequenceItem[]} */
+        const sequence = [];
+        for (const part of [a, b]) {
+          for (const item of part) {
+            if (hooks.work) countWork(hooks.work, "lowering");
+            sequence.push(item);
+          }
+        }
+        result.push(sequence);
+      }
+    }
     return result;
   }
 
   /**
-   * A body ending in a repetition, split into what comes before it and what
-   * repeats.
-   * @param {Expr} expr
-   * @returns {{prefix: Expr[], item: Expr, min: number} | null}
+   * The product of sequences that the caller owns with others, made by
+   * extending each owned sequence in place where it continues one way. A
+   * copy of the growing prefix at each item would cost the square of a
+   * sequence's length. A sequence that continues several ways is copied for
+   * all but the last.
+   * @param {SequenceItem[][]} left owned, and changed
+   * @param {SequenceItem[][]} right only read
+   * @returns {SequenceItem[][]}
    */
-  function trailingRepetition(expr) {
-    if ("repeat" in expr) return { prefix: [], item: expr.repeat, min: expr.min };
-    if ("seq" in expr) {
-      const last = expr.seq[expr.seq.length - 1];
-      if ("repeat" in last) return { prefix: expr.seq.slice(0, -1), item: last.repeat, min: last.min };
+  function extendAll(left, right) {
+    /** @type {SequenceItem[][]} */
+    const result = [];
+    for (const a of left) {
+      for (let index = 0; index < right.length; index++) {
+        /** @type {SequenceItem[]} */
+        let sequence = a;
+        if (index < right.length - 1) {
+          sequence = [];
+          for (const item of a) {
+            if (hooks.work) countWork(hooks.work, "lowering");
+            sequence.push(item);
+          }
+        }
+        for (const item of right[index]) {
+          if (hooks.work) countWork(hooks.work, "lowering");
+          sequence.push(item);
+        }
+        result.push(sequence);
+      }
     }
-    return null;
+    return result;
+  }
+
+  /**
+   * An error of the grammar that lowering finds (engine §3). A parse reports
+   * it as a result, whose error has no position of its own (docs/output.md),
+   * so the message names the document, line and column of the definition
+   * that wrote the alternative.
+   * @param {ErrorLocation} at
+   * @param {string} message
+   * @returns {GencmuError}
+   */
+  function loweringError(at, message) {
+    return new GencmuError("grammar", `${at.document}:${at.line}:${at.column}: ${message}`, at);
+  }
+
+  /**
+   * Whether an expression holds a capture, at any depth (engine §3.5).
+   * @param {Expr} expr
+   * @returns {boolean}
+   */
+  function holdsCapture(expr) {
+    if ("capture" in expr) return true;
+    return childExpressions(expr).some(holdsCapture);
+  }
+
+  /**
+   * Whether an expression is a chain, `{... x \ s}` or `{x ... \ s}`.
+   * @param {Expr} expr
+   * @returns {expr is {repeat: Expr, separator?: Expr, chain: "left" | "right"}}
+   */
+  function isChain(expr) {
+    return "repeat" in expr && expr.chain !== undefined;
   }
 
   /**
@@ -3962,7 +5226,7 @@
 
 
   /**
-   * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, Scope, Slot, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
+   * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, ReadyCondition, Scope, Captured, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
    * @import { Token } from "./tokens.js"
    * @import { UnicodeTable } from "./unicode.js"
    */
@@ -4010,6 +5274,25 @@
     }
   }
 
+  // An item with more than a few further ways, built in an ambiguous grammar,
+  // gets an index of them by `previous` and then `child`. A scan of its list
+  // for each new way would cost the square of their number. Most items have
+  // one way, so the index is made only when the list grows past this.
+  const EDGE_SCAN_LIMIT = 8;
+  /** @type {WeakMap<Item, Map<Item, Set<Item | null>>>} */
+  const edgeIndexes = new WeakMap();
+
+  /**
+   * @param {Map<Item, Set<Item | null>>} index
+   * @param {Item} previous
+   * @param {Item | null} child
+   */
+  function indexEdge(index, previous, child) {
+    const children = index.get(previous);
+    if (children) children.add(child);
+    else index.set(previous, new Set([child]));
+  }
+
   // What a parse and every nested parse it starts share.
   class ParseContext {
     /**
@@ -4029,6 +5312,10 @@
       this.sourceText = sourceText;
       this.unicode = unicode;
       this.interner = interner || new TagInterner();
+      // Each sequence of captured parts that an item of this context has,
+      // made once (captureAfter).
+      /** @type {Map<string, NonNullable<Captured>>} */
+      this.captured = new Map();
       /**
        * How the recognizer reads elidable optionals: null as engine §4 says,
        * "reconstruction" in the mode of engine §7.4, or "mandatory", the old
@@ -4057,6 +5344,13 @@
        * @type {(string | undefined)[]}
        */
       this.sounds = new Array(tokens.length);
+      /**
+       * For each position, the first token at or after it whose sound is not
+       * empty, made on the first sound test. A test then skips a run of
+       * silent tokens in one step, rather than walking it each time.
+       * @type {Int32Array | null}
+       */
+      this.nextSounding = null;
       // The most places a dot can be in one production, for numbering the
       // items of a set (see itemKey).
       this.dots = lowered.productions.reduce((most, production) => Math.max(most, production.rhs.length + 1), 1);
@@ -4117,7 +5411,7 @@
      * @param {Production} production
      * @param {number} dot
      * @param {number} origin
-     * @param {Slot[]} slots
+     * @param {Captured} slots
      * @param {Item | null} previous
      * @param {Item | null} child
      */
@@ -4190,6 +5484,121 @@
   }
 
   /**
+   * A nested parse whose answer is not yet known, which the evaluation that
+   * needs it halts for (engine §4). The recognizer then parses that span on a
+   * stack of its own, so that a chain of nested parses costs heap and not the
+   * call stack. The evaluation returns HALT. Each part of it that has more
+   * to do adds a frame of what is left as HALT leaves it (pause). The answer
+   * then goes through the frames, the innermost first, and the evaluation
+   * goes on from where it halted. Starting it again would evaluate
+   * the parts before the halt once for each query, the square of their number.
+   */
+  class Pending {
+    /**
+     * @param {ParseContext} context
+     * @param {"matches" | "begins" | "tags"} kind
+     * @param {string} rule
+     * @param {number} start
+     * @param {number} end
+     * @param {[number, number] | null} at the span in R that fault F21 keys
+     *   a query of the check by
+     * @param {string} key what the answer is remembered by
+     * @param {boolean} unseen whether fault F25 hides the parse from the
+     *   check for parses already running
+     */
+    constructor(context, kind, rule, start, end, at, key, unseen) {
+      this.context = context;
+      this.kind = kind;
+      this.rule = rule;
+      this.start = start;
+      this.end = end;
+      this.at = at;
+      this.key = key;
+      this.unseen = unseen;
+      /**
+       * What the halted evaluation has left to do, the innermost part first.
+       * Each frame takes the value of the part inside it and gives its own,
+       * or HALT where it halts again.
+       * @type {((value: any) => any)[]}
+       */
+      this.frames = [];
+    }
+  }
+
+  /**
+   * What an evaluation returns where it halts for a nested parse. It is a
+   * value, not a throw, since a long text halts hundreds of thousands of
+   * times. A throw through each part that saves a frame costs far more than
+   * a comparison in each.
+   */
+  const HALT = Symbol("halt");
+
+  /** @typedef {typeof HALT} Halt */
+
+  /**
+   * The nested parse that the evaluation now halting halts for. Only one is
+   * ever in flight, since the recognizer takes it before anything else is
+   * evaluated.
+   * @type {Pending | null}
+   */
+  let halting = null;
+
+  /**
+   * Adds a frame to the halt that leaves a part of an evaluation.
+   * @param {(value: any) => any} frame what the part does with the value of
+   *   the part inside it that halted
+   * @returns {Halt}
+   */
+  function pause(frame) {
+    /** @type {Pending} */ (halting).frames.push(frame);
+    return HALT;
+  }
+
+  /**
+   * Takes the nested parse that an evaluation halted for.
+   * @returns {Pending}
+   */
+  function takeHalt() {
+    const halt = /** @type {Pending} */ (halting);
+    halting = null;
+    return halt;
+  }
+
+  /**
+   * Goes on with a halted evaluation: the answer goes through its frames, the
+   * innermost first. A frame that halts again keeps the frames outside it,
+   * which the new halt adds after its own.
+   * @param {((value: any) => any)[]} frames
+   * @param {any} value
+   * @returns {any}
+   */
+  function proceed(frames, value) {
+    for (let index = 0; index < frames.length; index++) {
+      value = frames[index](value);
+      if (value === HALT) {
+        const inner = /** @type {Pending} */ (halting).frames;
+        for (let outer = index + 1; outer < frames.length; outer++) inner.push(frames[outer]);
+        return HALT;
+      }
+    }
+    return value;
+  }
+
+  /**
+   * One recognition in progress, and the nested parse it answers, if it is
+   * one. `resume` goes on until the chart is done, or until it halts for a
+   * nested parse, which it returns.
+   * @typedef {object} Run
+   * @property {ParseContext} context
+   * @property {(answer?: boolean | TagSet) => Chart | Pending} resume goes
+   *   on, with the answer of the nested parse it halted for, if it did
+   * @property {Pending | null} query
+   * @property {number} outerStart the bounds of the context's input before
+   *   the run, which it restores when it ends
+   * @property {number} outerEnd
+   */
+
+  /**
    * Runs the recognizer over tokens[start, end) with `rule` as the start rule.
    * @param {ParseContext} context
    * @param {string} rule
@@ -4198,26 +5607,173 @@
    * @returns {Chart}
    */
   function recognize(context, rule, start, end) {
-    const outer = context.inputStart;
-    const outerEnd = context.inputEnd;
-    context.inputStart = start;
-    context.inputEnd = end;
+    return drive(startRun(context, rule, start, end, null));
+  }
+
+  /**
+   * Evaluates something outside any recognition, such as a tag term of an
+   * emission (engine §11). A nested parse it needs runs first, and the
+   * evaluation goes on from where it halted.
+   * @template T
+   * @param {() => T | Halt} evaluation
+   * @returns {T}
+   */
+  function settled(evaluation) {
+    /** @type {T | Halt} */
+    let value = evaluation();
+    while (value === HALT) {
+      const halt = takeHalt();
+      drive(startQuery(halt));
+      value = proceed(halt.frames, halt.context.nested.get(halt.key));
+    }
+    return value;
+  }
+
+  /**
+   * Runs a recognition and the nested parses it needs, each on a stack of
+   * runs, not of calls. A run that halts for a nested parse waits below the
+   * run that answers it, and then goes on from where it halted.
+   *
+   * JavaScript has the generator trampoline of trampoline.js, but conditions
+   * and terms run at almost every step, and as generators they would cost
+   * far more. They run as ordinary calls, and only a halt saves frames.
+   * @param {Run} root
+   * @returns {Chart}
+   */
+  function drive(root) {
+    /** @type {Run[]} */
+    const runs = [root];
+    /** @type {boolean | TagSet | undefined} */
+    let answer;
     try {
-      return recognizeFrom(context, rule, start, end);
+      for (;;) {
+        const run = runs[runs.length - 1];
+        const chart = run.resume(answer);
+        answer = undefined;
+        if (chart instanceof Pending) {
+          runs.push(startQuery(chart));
+          continue;
+        }
+        runs.pop();
+        endRun(run);
+        if (run.query !== null) answer = settle(run.query, chart);
+        if (runs.length === 0) return chart;
+      }
     } finally {
-      context.inputStart = outer;
-      context.inputEnd = outerEnd;
+      // A parse that failed frees its place and its bounds, as one that
+      // finished does, the innermost first.
+      for (let index = runs.length - 1; index >= 0; index--) endRun(runs[index]);
     }
   }
 
   /**
+   * The run that answers a nested parse: its span alone, with its rule as the
+   * start rule. A parse in progress is known by its rule and span, whatever
+   * the kind of query, so that alternating kinds cannot hide a query about a
+   * span from inside its own parse (engine §4).
+   * @param {Pending} query
+   * @returns {Run}
+   */
+  function startQuery(query) {
+    const { context, rule, start, end, unseen } = query;
+    // The recursion that fault F25 lets through ends at a bound, not in
+    // running out of memory.
+    if (unseen && unseenDepth >= UNSEEN_DEPTH) throw new Error("F25: the queries of the check recurse without end");
+    const circular = "parse\u0001" + rule + "\u0001" + start + "\u0001" + end;
+    if (context.inProgress.has(circular)) {
+      throw new GencmuError("grammar",
+        `a condition asks whether ${JSON.stringify(textOf(context, start, end))} parses as ${rule} from inside the parse of that span as ${rule}: ` +
+        `the grammar defines ${rule} in terms of itself over the same text`, { rule });
+    }
+    if (!unseen) context.inProgress.add(circular);
+    else unseenDepth++;
+    if (context.trace) context.trace.depth++;
+    return startRun(context, rule, start, end, query);
+  }
+
+  /**
+   * Ends a run: restores the bounds of its context's input and, for a nested
+   * parse, frees its place.
+   * @param {Run} run
+   */
+  function endRun(run) {
+    const { context, query } = run;
+    context.inputStart = run.outerStart;
+    context.inputEnd = run.outerEnd;
+    if (query === null) return;
+    if (!query.unseen) context.inProgress.delete("parse\u0001" + query.rule + "\u0001" + query.start + "\u0001" + query.end);
+    else unseenDepth--;
+    if (context.trace) context.trace.depth--;
+  }
+
+  /**
+   * Remembers the answer of a nested parse from its chart. Only the items
+   * with an eligible witness count.
+   * @param {Pending} query
+   * @param {Chart} chart
+   * @returns {boolean | TagSet}
+   */
+  function settle(query, chart) {
+    const { context, kind, rule, start } = query;
+    /** @type {boolean | TagSet} */
+    let answer;
+    if (kind === "matches") {
+      answer = eligibleWitnesses(chart, rootItems(chart, rule), testHolds).length > 0;
+    } else if (kind === "begins") {
+      // A completed item from the span's start, in any set (engine §4).
+      /** @type {Item[]} */
+      const witnesses = [];
+      for (const set of chart.sets) {
+        if (set === undefined) continue;
+        for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule) witnesses.push(item);
+      }
+      answer = eligibleWitnesses(chart, witnesses, testHolds).length > 0;
+    } else {
+      const result = new TagUnion();
+      for (const item of eligibleWitnesses(chart, rootItems(chart, rule), testHolds)) result.add(context.interner.get(item.tagId));
+      answer = result.result();
+    }
+    context.nested.set(query.key, answer);
+    return answer;
+  }
+
+  // What a run does next. A step that halts for a nested parse keeps its
+  // place and the frames of its evaluation, and goes on from there once the
+  // answer is known. A completed item has no step of its own, since its tags
+  // are evaluated by the advance that makes it. Its step is the advance of
+  // its waiting items.
+  /** Take the next entry of the queue. */
+  const NEXT = 0;
+  /** Predict a rule's productions, from the one at the step's index on. */
+  const PREDICT = 1;
+  /** Advance an item over the empty constituents of a set, from the index on. */
+  const EMPTIES = 2;
+  /** Advance an item over a token. */
+  const TERMINAL = 3;
+  /** Advance the items that wait for a completed item, from the index on. */
+  const WAITERS = 4;
+
+  // The parts of a prediction or an advance, after any tag term that a fault
+  // evaluates first: its conditions, its tag term, and the item it makes.
+  const PART_CONDITIONS = 0;
+  const PART_TAGS = 1;
+  const PART_ITEM = 2;
+
+  /**
+   * Starts a run over tokens[start, end) with `rule` as the start rule. The
+   * run holds its chart, where its queue stands, and the step it is in.
    * @param {ParseContext} context
    * @param {string} rule
    * @param {number} start
    * @param {number} end
-   * @returns {Chart}
+   * @param {Pending | null} query the nested parse it answers, if any
+   * @returns {Run}
    */
-  function recognizeFrom(context, rule, start, end) {
+  function startRun(context, rule, start, end, query) {
+    const outerStart = context.inputStart;
+    const outerEnd = context.inputEnd;
+    context.inputStart = start;
+    context.inputEnd = end;
     const { lowered, tokens } = context;
     /** @type {ChartSet[]} */
     const sets = [];
@@ -4239,7 +5795,7 @@
     // Adds the item `previous` makes advanced over `child`, or over the token
     // before the set when `child` is null; a prediction when both are null.
     // `strict` says whether the step that makes it is strict (engine §7.4).
-    /** @type {(set: ChartSet, production: Production, dot: number, origin: number, slots: Slot[], previous: Item | null, child: Item | null, tagId: number, strict?: boolean) => void} */
+    /** @type {(set: ChartSet, production: Production, dot: number, origin: number, slots: Captured, previous: Item | null, child: Item | null, tagId: number, strict?: boolean) => void} */
     const add = (set, production, dot, origin, slots, previous, child, tagId, strict = false) => {
       // A strict item never completes (engine §7.4).
       if (strict && dot === production.rhs.length) return;
@@ -4263,9 +5819,29 @@
         // has no other edge, since nothing else puts a dot at the start.
         if ((item.previous === previous && item.child === child) || previous === null) return;
         const more = item.more || (item.more = []);
-        for (const edge of more) {
-          if (edge.kind === "scan" && edge.previous === previous) return;
-          if (edge.kind === "complete" && edge.previous === previous && edge.child === child) return;
+        if (more.length < EDGE_SCAN_LIMIT) {
+          for (const edge of more) {
+            if (hooks.work) countWork(hooks.work, "edgeChecks");
+            if (edge.kind === "scan" && edge.previous === previous) return;
+            if (edge.kind === "complete" && edge.previous === previous && edge.child === child) return;
+          }
+        } else {
+          let index = edgeIndexes.get(item);
+          if (!index) {
+            index = new Map();
+            // Each way counts as it is indexed, so that an index built again
+            // for each new way fails its budget.
+            for (const edge of more) {
+              if (hooks.work) countWork(hooks.work, "edgeChecks");
+              if (edge.kind === "scan") indexEdge(index, edge.previous, null);
+              else if (edge.kind === "complete") indexEdge(index, edge.previous, edge.child);
+            }
+            edgeIndexes.set(item, index);
+          }
+          if (hooks.work) countWork(hooks.work, "edgeChecks");
+          const children = index.get(previous);
+          if (children && children.has(child)) return;
+          indexEdge(index, previous, child);
         }
         if (child === null) more.push({ kind: "scan", previous, token: set.position - 1, terminal: production.rhs[dot - 1].name });
         else more.push({ kind: "complete", previous, child });
@@ -4315,9 +5891,12 @@
       const test = production.elidedTest;
       if (test && !fault("F11", "restore") && !testHolds(context, test, position, position + 1, token.tags)) return;
       const target = setAt(position + 1);
-      const key = itemKey((production.id * dots) * width + position - start, emptySlots(production));
+      const key = itemKey((production.id * dots) * width + position - start, null);
+      // A restoration whose item exists is another way to build it. Each
+      // lookup counts, so that a search slower than the index fails a budget.
+      if (hooks.work) countWork(hooks.work, "edgeChecks");
       if (target.index.has(key)) return;
-      const item = new Item(production, 0, position, emptySlots(production), null, null);
+      const item = new Item(production, 0, position, null, null, null);
       item.restores = true;
       if (hooks.work) countWork(hooks.work, "items");
       item.end = position + 1;
@@ -4329,8 +5908,22 @@
       target.queue.push(item);
     };
 
-    /** @type {(set: ChartSet, name: string, strict?: boolean) => void} */
-    const predict = (set, name, strict = false) => {
+    // The prediction in progress: its set and rule, whether it is strict,
+    // what the set held of the rule before, the production it is at, and
+    // whether it skipped one. A prediction that halts for a nested parse goes
+    // on from that production.
+    /** @type {ChartSet} */
+    let predictSet = /** @type {any} */ (null);
+    let predictName = "";
+    let predictStrict = false;
+    /** @type {boolean | undefined} */
+    let predictBefore;
+    let predictIndex = 0;
+    let predictSkipped = false;
+
+    // Begins the prediction of a rule in a set: false when it adds nothing.
+    /** @type {(set: ChartSet, name: string, strict?: boolean) => boolean} */
+    const beginPredict = (set, name, strict = false) => {
       // A rule's productions are the same at every prediction in one set:
       // predicting them again would only rebuild items that already exist. A
       // strict prediction (engine §7.4) leaves some out, so an ordinary one
@@ -4338,11 +5931,32 @@
       const before = set.predicted.get(name);
       // A fault keeps the strict prediction, and predicts nothing more
       // (F32:predict).
-      if (before === false || (before === true && (strict || fault("F32:predict")))) return;
+      if (before === false || (before === true && (strict || fault("F32:predict")))) return false;
       set.predicted.set(name, strict);
+      predictSet = set;
+      predictName = name;
+      predictStrict = strict;
+      predictBefore = before;
+      predictIndex = 0;
+      predictSkipped = false;
+      return true;
+    };
+
+    // Predicts the productions of the prediction in progress, from the one
+    // it is at on, or returns HALT where one halts for a nested parse. The
+    // frames of the halt finish that production, and the run moves past it.
+    // Each part of a production's prediction that halts saves a frame that
+    // does the rest, through predictFrom. A long text starts hundreds of
+    // thousands of nested parses, each a run that makes every closure here.
+    // So the parts after a halt are one closure, not one for each part.
+    /** @type {() => void | Halt} */
+    const predictRest = () => {
+      const set = predictSet;
+      const strict = predictStrict;
+      const productions = lowered.byLhs.get(predictName) || [];
       const next = set.position < end ? tokens[set.position] : null;
-      let skipped = false;
-      for (const production of lowered.byLhs.get(name) || []) {
+      for (; predictIndex < productions.length; predictIndex++) {
+        const production = productions[predictIndex];
         // In the reconstruction mode, the empty production of an elidable
         // optional is its restoration, and it never derives the empty
         // sequence. Under the old contract it is not there at all.
@@ -4353,37 +5967,63 @@
         }
         // A strict prediction predicts only the productions that can read.
         if (strict && !fault("F16", "predict") && /** @type {Reading} */ (reading).last.get(production) === -1) continue;
-        const slots = emptySlots(production);
         // One scope for the step, which evaluates the tag term at most once
         // (engine §4).
         /** @type {StepScope} */
         const step = { scope: null };
-        // The tag term comes after the conditions (engine §4), unless a fault
-        // evaluates it first (order:tags).
-        if (production.rhs.length === 0 && fault("order:tags", "predict")) completeTags(context, production, slots, set.position, set.position, step);
-        const failed = failedCondition(context, production, -1, slots, set.position, set.position, step);
+        // The tag term comes after the conditions (engine §4), unless a
+        // fault evaluates it first (order:tags).
+        if (production.rhs.length === 0 && fault("order:tags", "predict")) {
+          if (completeTags(context, production, null, set.position, set.position, step) === HALT) {
+            return pause(() => predictFrom(set, production, strict, next, step, PART_CONDITIONS, null));
+          }
+        }
+        if (predictFrom(set, production, strict, next, step, PART_CONDITIONS, null) === HALT) return HALT;
+      }
+      if (predictSkipped && predictBefore === undefined) set.skipped.push(predictName);
+    };
+
+    // The prediction of a production from one of its parts on: its
+    // conditions, then its tag term, given whether the conditions held, then
+    // its item, given its tag set.
+    /** @type {(set: ChartSet, production: Production, strict: boolean, next: Token | null, step: StepScope, part: number, value: any) => void | Halt} */
+    const predictFrom = (set, production, strict, next, step, part, value) => {
+      if (part === PART_CONDITIONS) {
+        const failed = failedCondition(context, production, -1, null, set.position, set.position, step);
+        if (failed === HALT) return pause((/** @type {Condition | null} */ found) => predictFrom(set, production, strict, next, step, PART_TAGS, found));
+        value = failed;
+        part = PART_TAGS;
+      }
+      if (part === PART_TAGS) {
+        const failed = /** @type {Condition | null} */ (value);
         if (failed) {
           const trace = context.trace;
           if (trace && trace.depth === 0 && set.position === trace.position) {
             trace.events.push({ kind: "dropped", production, dot: 0, origin: set.position, condition: failed });
           }
-          continue;
+          return;
         }
-        // The conditions above run first, as they did when every prediction
-        // was made an item, so that a trace shows the production as dropped.
+        // The conditions run first, as they did when every prediction was
+        // made an item, so that a trace shows the production as dropped.
         if (lookaheadSkips(context, production, next)) {
-          skipped = true;
-          continue;
+          predictSkipped = true;
+          return;
         }
-        const tagId = production.rhs.length === 0 ? completeTags(context, production, slots, set.position, set.position, step) : -1;
-        add(set, production, 0, set.position, slots, null, null, tagId, strict && !fault("F16", "item"));
+        value = -1;
+        if (production.rhs.length === 0) {
+          const found = completeTags(context, production, null, set.position, set.position, step);
+          if (found === HALT) return pause((/** @type {number} */ tagId) => predictFrom(set, production, strict, next, step, PART_ITEM, tagId));
+          value = found;
+        }
       }
-      if (skipped && before === undefined) set.skipped.push(name);
+      add(set, production, 0, set.position, null, null, null, value, strict && !fault("F16", "item"));
     };
 
     // The item advanced over its next symbol, which spans [from, to) and was
-    // built by `child`, or read as a token; null when a condition fails.
-    /** @type {(item: Item, from: number, to: number, child: Item | null) => {dot: number, slots: Slot[], tagId: number} | null} */
+    // built by `child`, or read as a token; null when a condition fails, and
+    // HALT where the advance halts for a nested parse. Each part that halts
+    // saves a frame that does the rest, through advanceFrom.
+    /** @type {(item: Item, from: number, to: number, child: Item | null) => Advanced | null | Halt} */
     const advance = (item, from, to, child) => {
       const production = item.production;
       // A tested symbol's test must hold of its own span and tags, which is
@@ -4397,30 +6037,53 @@
         return null;
       }
       let slots = item.slots;
-      const captureIndex = production.captures.findIndex((capture) => capture.index === item.dot);
+      const captureIndex = production.captureAt[item.dot];
       if (captureIndex >= 0) {
-        slots = slots.slice();
         // A terminal that reads a synthetic token captures no tags (engine
         // §7.5), unless a fault gives it the token's, to a capture and to a
         // production that inherits from the terminal (F7:capture).
         const tags = child ? child.tagId
           : context.interner.intern(synthetic !== null && synthetic[from] && !rawObservations(context) && !fault("F7:capture") ? tagSet() : tokens[from].tags);
-        slots[captureIndex] = [from, to, tags];
+        slots = captureAfter(context, slots, captureIndex, from, to, tags);
       }
+      if (hooks.work) countWork(hooks.work, "captureLookups");
       /** @type {StepScope} */
       const step = { scope: null };
-      if (item.dot + 1 === production.rhs.length && fault("order:tags", "advance")) completeTags(context, production, slots, item.origin, to, step);
-      const failed = failedCondition(context, production, item.dot, slots, item.origin, to, step);
-      if (failed) {
-        const trace = context.trace;
-        if (trace && trace.depth === 0 && to === trace.position) {
-          trace.events.push({ kind: "dropped", production, dot: item.dot, origin: item.origin, condition: failed });
+      if (item.dot + 1 === production.rhs.length && fault("order:tags", "advance")) {
+        if (completeTags(context, production, slots, item.origin, to, step) === HALT) {
+          return pause(() => advanceFrom(item, to, slots, step, PART_CONDITIONS, null));
         }
-        return null;
       }
-      const dot = item.dot + 1;
-      const tagId = dot === production.rhs.length ? completeTags(context, production, slots, item.origin, to, step) : -1;
-      return { dot, slots, tagId };
+      return advanceFrom(item, to, slots, step, PART_CONDITIONS, null);
+    };
+
+    // An advance from one of its parts on, as predictFrom.
+    /** @type {(item: Item, to: number, slots: Captured, step: StepScope, part: number, value: any) => Advanced | null | Halt} */
+    const advanceFrom = (item, to, slots, step, part, value) => {
+      const production = item.production;
+      if (part === PART_CONDITIONS) {
+        const failed = failedCondition(context, production, item.dot, slots, item.origin, to, step);
+        if (failed === HALT) return pause((/** @type {Condition | null} */ found) => advanceFrom(item, to, slots, step, PART_TAGS, found));
+        value = failed;
+        part = PART_TAGS;
+      }
+      if (part === PART_TAGS) {
+        const failed = /** @type {Condition | null} */ (value);
+        if (failed) {
+          const trace = context.trace;
+          if (trace && trace.depth === 0 && to === trace.position) {
+            trace.events.push({ kind: "dropped", production, dot: item.dot, origin: item.origin, condition: failed });
+          }
+          return null;
+        }
+        value = -1;
+        if (item.dot + 1 === production.rhs.length) {
+          const found = completeTags(context, production, slots, item.origin, to, step);
+          if (found === HALT) return pause((/** @type {number} */ tagId) => advanceFrom(item, to, slots, step, PART_ITEM, tagId));
+          value = found;
+        }
+      }
+      return { dot: item.dot + 1, slots, tagId: value };
     };
 
     // Whether a symbol after an item's next symbol can read (engine §7.4).
@@ -4431,82 +6094,213 @@
     /** @type {(item: Item) => boolean} */
     const emptyHeldBack = (item) => item.strict && !fault("F16", "empty") && !readsLater(item);
 
-    predict(setAt(start), rule);
+    // Where the queue stands: the position of the set being processed, and
+    // whether the run has entered it yet.
+    let position = start;
+    let entered = false;
     let furthest = start;
-    for (let position = start; position <= end; position++) {
-      const set = setAt(position);
-      if (position > start && set.items.length === 0) break;
-      furthest = position;
-      if (position > start) {
-        // Nothing is added to a set once the next one is being built: its
-        // index, queue and predictions can go, which a long text needs, and
-        // the lists it keeps can be copied to arrays of their own length,
-        // rather than of the length growing them by pushes left.
-        const done = setAt(position - 1);
-        done.index = new Map();
-        done.queue = [];
-        done.predicted = new Map();
-        done.nullable = new Map();
-        done.items = done.items.slice();
-        done.skipped = done.skipped.slice();
-        for (const [name, waiting] of done.waiting) if (waiting.length > 1) done.waiting.set(name, waiting.slice());
-      }
-      while (set.head < set.queue.length) {
-        const item = set.queue[set.head++];
-        item.queued = false;
-        const next = item.production.rhs[item.dot];
-        if (!next) {
-          const origin = setAt(item.origin);
-          const empty = item.origin === position;
-          for (const waiting of origin.waiting.get(item.production.lhs) || []) {
-            if (empty && mode === "reconstruction" && emptyHeldBack(waiting)) continue;
-            const advanced = advance(waiting, item.origin, position, item);
-            if (advanced) {
-              add(set, waiting.production, advanced.dot, waiting.origin, advanced.slots, waiting, item, advanced.tagId, empty && waiting.strict);
+    // The step the run is in when it halts for a nested parse, and its place.
+    // An item that predicts goes on to advance over the empty constituents of
+    // its rule, unless it is null, for the start rule's prediction. The
+    // advances over empty constituents, or of the items waiting for a
+    // completed item, are at `index` in `list`. While the run goes on, these
+    // are in locals, which a hot loop reads faster than the variables of a
+    // closure. `halted` holds the frames of the part of the step that halted.
+    let step = PREDICT;
+    /** @type {Item | null} */
+    let item = null;
+    /** @type {Item[]} */
+    let list = [];
+    let index = 0;
+    let strict = false;
+    /** @type {Pending | null} */
+    let halted = null;
+    beginPredict(setAt(start), rule);
+
+    /** @type {Run} */
+    const run = {
+      context,
+      query,
+      outerStart,
+      outerEnd,
+      resume(answer) {
+        let kind = step;
+        let entry = item;
+        let waiting = list;
+        let next = index;
+        let strictly = strict;
+        let at = position;
+        let set = setAt(at);
+        // A step that halts for a nested parse leaves this block, and the run
+        // keeps where it is.
+        pausing: {
+          if (halted !== null) {
+            // The part of the step that halted goes on with the answer. Then
+            // the step goes on after it, as the loop below would have.
+            const frames = halted.frames;
+            halted = null;
+            const value = proceed(frames, answer);
+            if (value === HALT) break pausing;
+            const current = /** @type {Item} */ (entry);
+            if (kind === PREDICT) predictIndex++;
+            else if (kind === EMPTIES) {
+              if (value) add(set, current.production, value.dot, current.origin, value.slots, current, waiting[next], value.tagId, current.strict);
+              next++;
+            } else if (kind === TERMINAL) {
+              if (value) add(setAt(at + 1), current.production, value.dot, current.origin, value.slots, current, null, value.tagId, strictly);
+              kind = NEXT;
+            } else {
+              const waiter = waiting[next];
+              if (value) add(set, waiter.production, value.dot, waiter.origin, value.slots, waiter, current, value.tagId, current.origin === at && waiter.strict);
+              next++;
             }
           }
-        } else if (!next.terminal) {
-          // A strict item predicts its next symbol strictly where no symbol
-          // after it can read (engine §7.4).
-          predict(set, next.name, mode === "reconstruction" && item.strict && !readsLater(item));
-          if (mode === "reconstruction" && emptyHeldBack(item)) continue;
-          for (const done of set.nullable.get(next.name) || []) {
-            const advanced = advance(item, position, position, done);
-            if (advanced) {
-              add(set, item.production, advanced.dot, item.origin, advanced.slots, item, done, advanced.tagId, item.strict);
+          for (;;) {
+            if (kind === NEXT) {
+              // Takes the next entry of the queue, from the next set once one
+              // is done, and sets its step.
+              if (!entered) {
+                if (at > end) break;
+                set = setAt(at);
+                if (at > start && set.items.length === 0) break;
+                furthest = at;
+                if (at > start) {
+                  // Nothing is added to a set once the next one is being
+                  // built: its index, queue and predictions can go, which a
+                  // long text needs, and the lists it keeps can be copied to
+                  // arrays of their own length, rather than of the length
+                  // growing them by pushes left.
+                  const done = setAt(at - 1);
+                  done.index = new Map();
+                  done.queue = [];
+                  done.predicted = new Map();
+                  done.nullable = new Map();
+                  done.items = done.items.slice();
+                  done.skipped = done.skipped.slice();
+                  for (const [name, list] of done.waiting) if (list.length > 1) done.waiting.set(name, list.slice());
+                }
+                entered = true;
+              }
+              if (set.head >= set.queue.length) {
+                position = ++at;
+                entered = false;
+                continue;
+              }
+              const taken = set.queue[set.head++];
+              taken.queued = false;
+              entry = taken;
+              const symbol = taken.production.rhs[taken.dot];
+              if (!symbol) {
+                waiting = setAt(taken.origin).waiting.get(taken.production.lhs) || [];
+                next = 0;
+                kind = WAITERS;
+              } else if (!symbol.terminal) {
+                // A strict item predicts its next symbol strictly where no
+                // symbol after it can read (engine §7.4).
+                kind = beginPredict(set, symbol.name, mode === "reconstruction" && taken.strict && !readsLater(taken)) ? PREDICT : EMPTIES;
+                if (kind === EMPTIES) next = -1;
+              } else if (at < end && (symbol.characters === undefined ? tokens[at].tags.has(symbol.name) : carries(context.unicode, symbol.characters, tokens[at].tags))) {
+                // The written routes of an elidable optional (engine §7.4):
+                // from an original token, or from a synthetic one, after
+                // which the rest of the optional must read, so the item after
+                // it is strict.
+                strictly = false;
+                if (mode === "reconstruction" && taken.dot === 0 && taken.production.helper && taken.production.elided !== null) {
+                  const fromSynthetic = /** @type {boolean[]} */ (synthetic)[at];
+                  if (fromSynthetic && fault("F14")) continue;
+                  if (!fromSynthetic && fault("F24")) continue;
+                  // A fault makes the item after T ordinary where a strict
+                  // item read T (F31).
+                  strictly = fromSynthetic && !fault("F15") && !(fault("F31") && taken.strict);
+                  // An optional whose content is T alone would complete here,
+                  // which a strict item never does: drop the item before
+                  // evaluating its test or its tags (engine §7.4).
+                  if (strictly && taken.dot + 1 === taken.production.rhs.length) continue;
+                }
+                kind = TERMINAL;
+              } else continue;
             }
+            const current = /** @type {Item} */ (entry);
+            switch (kind) {
+              case PREDICT:
+                if (predictRest() === HALT) break pausing;
+                // The start rule's prediction is followed by the queue.
+                if (entry === null) break;
+                next = -1;
+              // falls through
+              case EMPTIES: {
+                // An item that predicted advances over the empty constituents
+                // of its next symbol, unless a strict item is held back there.
+                if (next === -1) {
+                  if (mode === "reconstruction" && emptyHeldBack(current)) break;
+                  waiting = set.nullable.get(/** @type {GrammarSymbol} */ (current.production.rhs[current.dot]).name) || [];
+                  next = 0;
+                  kind = EMPTIES;
+                }
+                // The list can grow while it is walked, and the walk reads
+                // what is added.
+                for (; next < waiting.length; next++) {
+                  const done = waiting[next];
+                  const advanced = advance(current, at, at, done);
+                  if (advanced === HALT) break pausing;
+                  if (advanced) {
+                    add(set, current.production, advanced.dot, current.origin, advanced.slots, current, done, advanced.tagId, current.strict);
+                  }
+                }
+                break;
+              }
+              case TERMINAL: {
+                const advanced = advance(current, at, at + 1, null);
+                if (advanced === HALT) break pausing;
+                if (advanced) {
+                  add(setAt(at + 1), current.production, advanced.dot, current.origin, advanced.slots, current, null, advanced.tagId, strictly);
+                }
+                break;
+              }
+              case WAITERS: {
+                // The items waiting for the completed item advance over it.
+                // The list can grow while it is walked, and the walk reads
+                // what is added.
+                const empty = current.origin === at;
+                for (; next < waiting.length; next++) {
+                  const waiter = waiting[next];
+                  if (empty && mode === "reconstruction" && emptyHeldBack(waiter)) continue;
+                  const advanced = advance(waiter, current.origin, at, current);
+                  if (advanced === HALT) break pausing;
+                  if (advanced) {
+                    add(set, waiter.production, advanced.dot, waiter.origin, advanced.slots, waiter, current, advanced.tagId, empty && waiter.strict);
+                  }
+                }
+                break;
+              }
+            }
+            kind = NEXT;
           }
-        } else if (position < end && (next.characters === undefined ? tokens[position].tags.has(next.name) : carries(context.unicode, next.characters, tokens[position].tags))) {
-          // The written routes of an elidable optional (engine §7.4): from an
-          // original token, or from a synthetic one, after which the rest of
-          // the optional must read, so the item after it is strict.
-          let strict = false;
-          if (mode === "reconstruction" && item.dot === 0 && item.production.helper && item.production.elided !== null) {
-            const fromSynthetic = /** @type {boolean[]} */ (synthetic)[position];
-            if (fromSynthetic && fault("F14")) continue;
-            if (!fromSynthetic && fault("F24")) continue;
-            // A fault makes the item after T ordinary where a strict item
-            // read T (F31).
-            strict = fromSynthetic && !fault("F15") && !(fault("F31") && item.strict);
-            // An optional whose content is T alone would complete here, which
-            // a strict item never does: drop the item before evaluating its
-            // test or its tags (engine §7.4).
-            if (strict && item.dot + 1 === item.production.rhs.length) continue;
-          }
-          const advanced = advance(item, position, position + 1, null);
-          if (advanced) {
-            add(setAt(position + 1), item.production, advanced.dot, item.origin, advanced.slots, item, null, advanced.tagId, strict);
-          }
+          step = NEXT;
+          /** @type {(position: number) => ChartSet} */
+          const peek = (position) => sets[position - start] || new ChartSet(position);
+          return { sets, start, end, setAt: peek, furthest, context };
         }
-      }
-    }
-    /** @type {(position: number) => ChartSet} */
-    const peek = (position) => sets[position - start] || new ChartSet(position);
-    return { sets, start, end, setAt: peek, furthest, context };
+        step = kind;
+        item = entry;
+        list = waiting;
+        index = next;
+        strict = strictly;
+        halted = takeHalt();
+        return halted;
+      },
+    };
+    return run;
   }
 
   /** @type {Edge} */
   const SEED = { kind: "seed" };
+
+  /**
+   * An item advanced: its new dot, its captured parts, and its tags if it is
+   * complete, or -1.
+   * @typedef {{dot: number, slots: Captured, tagId: number}} Advanced
+   */
 
   /**
    * A symbol as the diagnostics write it: its name, followed by its test if
@@ -4547,10 +6341,17 @@
     const rules = new Set();
     /** @type {(symbol: GrammarSymbol) => boolean} */
     const reads = (symbol) => symbol.terminal || rules.has(symbol.name);
+    // Each symbol that the closures read counts, so that a test of every
+    // other symbol at each one fails its budget.
     /** @type {(production: Production) => boolean} */
     const productionReads = (production) => {
       const restoration = production.rhs.length === 0 && production.helper && production.elided !== null;
-      return (restoration && !withoutRestorations) || production.rhs.some(reads);
+      if (restoration && !withoutRestorations) return true;
+      for (const symbol of production.rhs) {
+        if (hooks.work) countWork(hooks.work, "closures");
+        if (reads(symbol)) return true;
+      }
+      return false;
     };
     if (greatest) {
       // Everything can read, until nothing more is removed.
@@ -4565,22 +6366,46 @@
         }
       }
     }
-    // Nothing can read, until nothing more is added (engine §7.4).
-    for (let changed = !greatest; changed;) {
-      changed = false;
+    // Nothing can read, until nothing more is added (engine §7.4). A
+    // worklist: a rule found to read makes each production that names it
+    // read, so the closure costs the size of the grammar, not a pass over it
+    // for each rule found.
+    if (!greatest) {
+      /** @type {Map<string, Production[]>} */
+      const users = new Map();
+      /** @type {string[]} */
+      const found = [];
+      /** @type {(name: string) => void} */
+      const add = (name) => {
+        if (rules.has(name)) return;
+        rules.add(name);
+        found.push(name);
+      };
       for (const production of lowered.productions) {
-        if (rules.has(production.lhs)) continue;
-        if (productionReads(production)) {
-          rules.add(production.lhs);
-          changed = true;
+        if (hooks.work) countWork(hooks.work, "closures");
+        if (productionReads(production)) add(production.lhs);
+        for (const symbol of production.rhs) {
+          if (hooks.work) countWork(hooks.work, "closures");
+          if (symbol.terminal) continue;
+          const list = users.get(symbol.name);
+          if (list) list.push(production);
+          else users.set(symbol.name, [production]);
+        }
+      }
+      for (let name = found.pop(); name !== undefined; name = found.pop()) {
+        for (const production of users.get(name) ?? []) {
+          if (hooks.work) countWork(hooks.work, "closures");
+          add(production.lhs);
         }
       }
     }
     /** @type {Map<Production, number>} */
     const last = new Map();
     for (const production of lowered.productions) {
+      if (hooks.work) countWork(hooks.work, "closures");
       let at = -1;
       production.rhs.forEach((symbol, index) => {
+        if (hooks.work) countWork(hooks.work, "closures");
         if (reads(symbol)) at = index;
       });
       last.set(production, at);
@@ -4631,11 +6456,11 @@
    * @returns {TagSet}
    */
   function syntheticTags(context, from, to) {
-    let result = tagSet();
     const synthetic = context.synthetic;
-    if (synthetic === null) return result;
-    for (let index = from; index < to; index++) if (synthetic[index]) result = tagUnion(result, context.tokens[index].tags);
-    return result;
+    if (synthetic === null) return tagSet();
+    const result = new TagUnion();
+    for (let index = from; index < to; index++) if (synthetic[index]) result.add(context.tokens[index].tags);
+    return result.result();
   }
 
   /**
@@ -4670,6 +6495,7 @@
       default: {
         let meets = false;
         for (const tag of /** @type {TagSet} */ (test.tags)) {
+          if (hooks.work) countWork(hooks.work, "tags");
           if (tags.has(tag)) {
             meets = true;
             break;
@@ -4691,12 +6517,35 @@
    */
   function soundIs(context, sound, from, to) {
     let offset = 0;
-    for (let index = from; index < to; index++) {
+    for (let index = nextSounding(context, from); index < to; index = nextSounding(context, index + 1)) {
       const part = canonicalSound(context, index);
       if (!sound.startsWith(part, offset)) return false;
       offset += part.length;
     }
     return offset === sound.length;
+  }
+
+  /**
+   * The first token at or after a position whose sound is not empty, or the
+   * number of tokens.
+   * @param {ParseContext} context
+   * @param {number} index
+   * @returns {number}
+   */
+  function nextSounding(context, index) {
+    let next = context.nextSounding;
+    if (next === null) {
+      const count = context.tokens.length;
+      next = new Int32Array(count + 1);
+      next[count] = count;
+      for (let at = count - 1; at >= 0; at--) {
+        if (hooks.work) countWork(hooks.work, "soundSteps");
+        next[at] = canonicalSound(context, at) === "" ? next[at + 1] : at;
+      }
+      context.nextSounding = next;
+    }
+    if (hooks.work) countWork(hooks.work, "soundSteps");
+    return next[index];
   }
 
   /**
@@ -4758,38 +6607,73 @@
   /** @type {WeakMap<object, TagSet>} */
   const rangeSets = new WeakMap();
 
-  // The slots of a predicted item, one list per production that all its
-  // predictions share: advancing over a capture copies the list first.
-  /** @type {WeakMap<Production, Slot[]>} */
-  const noSlots = new WeakMap();
+  /**
+   * The captured parts of an item after it reads one more: the parts before
+   * it, extended by the capture at `index` of its production, with its span
+   * and tags. Each sequence of parts is made once per context and shared by
+   * every item that has it and by every longer sequence, so an item adds one
+   * part to the one it advanced, and equal sequences are one object, whose
+   * number is in the item's identity (engine §4).
+   * @param {ParseContext} context
+   * @param {Captured} parent
+   * @param {number} index
+   * @param {number} start
+   * @param {number} end
+   * @param {number} tags
+   * @returns {Captured}
+   */
+  function captureAfter(context, parent, index, start, end, tags) {
+    const key = (parent === null ? "" : parent.id) + ":" + index + ":" + start + ":" + end + ":" + tags;
+    let found = context.captured.get(key);
+    if (!found) {
+      // The jumps of a skew-binary list: a sequence jumps to its parent's
+      // jump's jump where the two jumps skip the same number of parts, and
+      // to its parent otherwise. So a search for any earlier part takes a
+      // number of steps that grows with the logarithm of the parts.
+      const depth = parent === null ? 1 : parent.depth + 1;
+      const skip = parent !== null && parent.jump !== null &&
+        parent.depth - parent.jump.depth === parent.jump.depth - (parent.jump.jump === null ? 0 : parent.jump.jump.depth);
+      const jump = skip ? /** @type {NonNullable<Captured>} */ (/** @type {NonNullable<Captured>} */ (parent).jump).jump : parent;
+      found = { parent, jump, depth, index, start, end, tags, id: context.captured.size };
+      context.captured.set(key, found);
+      if (hooks.work) countWork(hooks.work, "captures");
+    }
+    return found;
+  }
 
   /**
-   * @param {Production} production
-   * @returns {Slot[]}
+   * The captured part at `index` of a production's captures, found from the
+   * last part by its jumps (engine §4). The steps that it took, and one for
+   * the search, add to `searcher.searched`.
+   * @param {NonNullable<Captured>} last
+   * @param {number} index
+   * @param {{searched: number}} searcher
+   * @returns {NonNullable<Captured>}
    */
-  function emptySlots(production) {
-    let slots = noSlots.get(production);
-    if (!slots) noSlots.set(production, (slots = /** @type {Slot[]} */ (Object.freeze(production.captures.map(() => null)))));
-    return slots;
+  function capturedPart(last, index, searcher) {
+    let part = last;
+    let steps = 0;
+    while (part.index > index) {
+      if (hooks.work) countWork(hooks.work, "captureSteps");
+      steps++;
+      const jump = part.jump;
+      part = /** @type {NonNullable<Captured>} */ (jump !== null && jump.index >= index ? jump : part.parent);
+    }
+    searcher.searched += steps + 1;
+    return part;
   }
 
   // An item's key in its set's index: `base`, a number unique to its
   // production, dot and origin, and for an item that has captured something,
-  // a string adding its slots. Almost no item has, and a number is no
-  // allocation.
+  // a string adding the number of its captured parts. Almost no item has,
+  // and a number is no allocation.
   /**
    * @param {number} base
-   * @param {Slot[]} slots
+   * @param {Captured} captured
    * @returns {number | string}
    */
-  function itemKey(base, slots) {
-    /** @type {string | null} */
-    let key = null;
-    for (let index = 0; index < slots.length; index++) {
-      const slot = slots[index];
-      if (slot) key = (key === null ? String(base) : key) + "," + index + ":" + slot[0] + ":" + slot[1] + ":" + slot[2];
-    }
-    return key === null ? base : key;
+  function itemKey(base, captured) {
+    return captured === null ? base : base + "," + captured.id;
   }
 
   /**
@@ -4809,22 +6693,48 @@
    * @param {ParseContext} context
    * @param {Production} production
    * @param {number} readyAt
-   * @param {Slot[]} slots
+   * @param {Captured} slots
    * @param {number} origin where the item began
    * @param {number} end where it ends once it has read the symbol at `readyAt`
-   * @param {StepScope} [step] the scope of the step, shared with its tag term
-   * @returns {Condition | null}
+   * @param {StepScope} step the scope of the step, shared with its tag term
+   * @returns {Condition | null | Halt}
    */
-  function failedCondition(context, production, readyAt, slots, origin, end, step = { scope: null }) {
+  function failedCondition(context, production, readyAt, slots, origin, end, step) {
     // In written order (engine §4), unless a fault takes the conditions that
     // read only captures before those that read `$` (order:conditions).
+    // The conditions ready here, grouped once per production: a scan of all
+    // of them at each advance would cost their number at every dot.
     const conditions = fault("order:conditions")
       ? [...production.conditions].sort((a, b) => Number(conditionVariables(a.condition).includes("")) - Number(conditionVariables(b.condition).includes("")))
-      : production.conditions;
-    for (const { condition, readyAt: at } of conditions) {
+      : production.conditionsAt[readyAt + 1];
+    // Most steps have no condition ready.
+    if (conditions.length === 0) return null;
+    return failedFrom(context, production, conditions, 0, readyAt, slots, origin, end, step);
+  }
+
+  /**
+   * The conditions of failedCondition from `from` on. A condition that halts
+   * for a nested parse saves a frame that goes on after it.
+   * @param {ParseContext} context
+   * @param {Production} production
+   * @param {ReadyCondition[]} conditions
+   * @param {number} from
+   * @param {number} readyAt
+   * @param {Captured} slots
+   * @param {number} origin
+   * @param {number} end
+   * @param {StepScope} step
+   * @returns {Condition | null | Halt}
+   */
+  function failedFrom(context, production, conditions, from, readyAt, slots, origin, end, step) {
+    for (let index = from; index < conditions.length; index++) {
+      if (hooks.work) countWork(hooks.work, "conditions");
+      const { condition, readyAt: at } = conditions[index];
       if (at !== readyAt) continue;
       const scope = step.scope ??= new ChartScope(context, production, slots, origin, end);
-      if (!holds(scope.observing, condition, scope)) return condition;
+      const held = holds(scope.observing, condition, scope);
+      if (held === HALT) return pause((/** @type {boolean} */ value) => value ? failedFrom(context, production, conditions, index + 1, readyAt, slots, origin, end, step) : condition);
+      if (!held) return condition;
     }
     return null;
   }
@@ -4832,16 +6742,18 @@
   /**
    * @param {ParseContext} context
    * @param {Production} production
-   * @param {Slot[]} slots
+   * @param {Captured} slots
    * @param {number} origin
    * @param {number} end
    * @param {StepScope} step the scope of the step, which holds the tag set
    *   once a condition has read it
-   * @returns {number}
+   * @returns {number | Halt}
    */
   function completeTags(context, production, slots, origin, end, step) {
     const scope = step.scope ??= new ChartScope(context, production, slots, origin, end);
-    return context.interner.intern(scope.constituent());
+    const tags = scope.constituent();
+    if (tags === HALT) return pause((/** @type {TagSet} */ value) => context.interner.intern(value));
+    return context.interner.intern(tags);
   }
 
   /**
@@ -4852,16 +6764,23 @@
    * @typedef {{scope: ChartScope | null}} StepScope
    */
 
+  /** @type {WeakMap<Production, Map<string, number>>} */
+  const captureIndexes = new WeakMap();
+
   /**
-   * A completed constituent's tags: its production's tag term, which cannot
-   * read `$`'s own (engine §9).
-   * @param {ParseContext} context
+   * The index of a production's capture by its name.
    * @param {Production} production
-   * @param {Scope} scope
-   * @returns {TagSet}
+   * @param {string} name
+   * @returns {number}
    */
-  function constituentTags(context, production, scope) {
-    return production.tags ? asSet(evaluate(context, production.tags, scope)) : tagSet();
+  function captureIndex(production, name) {
+    let indexes = captureIndexes.get(production);
+    if (!indexes) {
+      indexes = new Map();
+      for (const [index, capture] of production.captures.entries()) if (!indexes.has(capture.name)) indexes.set(capture.name, index);
+      captureIndexes.set(production, indexes);
+    }
+    return /** @type {number} */ (indexes.get(name));
   }
 
   /** @implements {Scope} */
@@ -4869,7 +6788,7 @@
     /**
      * @param {ParseContext} context
      * @param {Production} production
-     * @param {Slot[]} slots
+     * @param {Captured} slots
      * @param {number} origin
      * @param {number} end
      */
@@ -4888,14 +6807,24 @@
       this.space = context.recon ? (context.recon.raw ? "raw" : "R") : undefined;
       /** @type {TagSet | null} the constituent's tags, once evaluated */
       this.tagSet = null;
+      /** @type {NonNullable<Captured>[] | null} every captured part by its index, once many are read */
+      this.parts = null;
+      // The steps that searches for single parts took.
+      this.searched = 0;
     }
     /**
      * The constituent's tags, from its production's tag term, evaluated at
-     * most once.
-     * @returns {TagSet}
+     * most once, or HALT where the term halts for a nested parse.
+     * @returns {TagSet | Halt}
      */
     constituent() {
-      return this.tagSet ??= constituentTags(this.observing, this.production, this);
+      if (this.tagSet !== null) return this.tagSet;
+      // A tag term cannot read `$`'s own tags (engine §9).
+      const term = this.production.tags;
+      if (!term) return (this.tagSet = tagSet());
+      const value = evaluate(this.observing, term, this);
+      if (value === HALT) return pause((/** @type {TermValue} */ found) => (this.tagSet = asSet(found)));
+      return (this.tagSet = asSet(value));
     }
     /**
      * @param {string} name
@@ -4909,13 +6838,29 @@
         return {
           start: this.origin,
           end: this.end,
-          get tags() { return scope.constituent(); },
+          // HALT where the tag term halts, which only evaluate reads.
+          get tags() { return /** @type {TagSet} */ (scope.constituent()); },
           space: this.space,
         };
       }
-      const index = this.production.captures.findIndex((capture) => capture.name === name);
-      const slot = /** @type {[number, number, number]} */ (this.slots[index]);
-      return { start: slot[0], end: slot[1], tags: this.context.interner.get(slot[2]), space: this.space };
+      // A part by the jumps from the last one, so that a condition at each
+      // capture of a long production does not walk every part before it.
+      // Once the searches took half as many steps as there are parts, every
+      // part in one walk, so that a term that reads them all walks them
+      // about twice at most.
+      const last = /** @type {NonNullable<Captured>} */ (this.slots);
+      const index = captureIndex(this.production, name);
+      if (this.parts === null && this.searched * 2 >= last.depth) {
+        this.parts = [];
+        for (let part = this.slots; part !== null; part = part.parent) {
+          this.parts[part.index] = part;
+          if (hooks.work) countWork(hooks.work, "captureSteps");
+        }
+      }
+      let found;
+      if (this.parts !== null) found = this.parts[index];
+      else found = capturedPart(last, index, this);
+      return { start: found.start, end: found.end, tags: this.context.interner.get(found.tags), space: this.space };
     }
   }
 
@@ -4928,6 +6873,7 @@
    * @returns {SpanValue}
    */
   function spanOf(context, span, scope) {
+    if (hooks.work) countWork(hooks.work, "visits");
     if ("capture" in span) return scope.capture(span.capture);
     if ("call" in span && (span.call === "head" || span.call === "tail" || span.call === "last")) {
       // In the check, the projection comes first, then the function (engine
@@ -5176,8 +7122,8 @@
     if (found) return found;
     const observed = recon.observed;
     let lowered = observed.lowered;
-    if (name === "F5") lowered = { ...lowered, maximalTerminals: new Set() };
-    if (name === "F6") lowered = { ...lowered, maximalTerminals: new Set(lowered.productions.flatMap((production) => (production.helper && production.elided !== null ? [production.elided] : []))) };
+    if (name === "F5") lowered = { ...lowered, maximalHelpers: new Set() };
+    if (name === "F6") lowered = { ...lowered, maximalHelpers: new Set(lowered.productions.flatMap((production) => (production.helper && production.elided !== null ? [production.lhs] : []))) };
     const tokens = name === "F3" || name === "F13" ? r.tokens : observed.tokens;
     found = new ParseContext(lowered, tokens, observed.sourceText, observed.unicode);
     if (name === "F13" || name === "F2") {
@@ -5207,21 +7153,23 @@
    * @returns {TagSet}
    */
   function tokensTags(tokens, start, end) {
-    let result = tagSet();
-    for (let index = start; index < end; index++) result = tagUnion(result, tokens[index].tags);
-    return result;
+    const result = new TagUnion();
+    for (let index = start; index < end; index++) result.add(tokens[index].tags);
+    return result.result();
   }
 
   /**
    * A term's value (engine §10): a string, or a set, of strings or of tags.
    * The reader has made sure that the types agree, so a set's kind needs no
-   * mark here.
+   * mark here. HALT where the term halts for a nested parse, and each part
+   * that has more to do saves a frame that goes on after it (see Pending).
    * @param {ParseContext} context
    * @param {Argument} term
    * @param {Scope} scope
-   * @returns {TermValue}
+   * @returns {TermValue | Halt}
    */
   function evaluate(context, term, scope) {
+    if (hooks.work) countWork(hooks.work, "visits");
     if ("string" in term) return { string: term.string };
     if ("tag" in term) return { set: tagSet([term.tag]) };
     // A constant holds its final value once the stage is stitched (engine §2).
@@ -5234,17 +7182,16 @@
       if (!tags) rangeSets.set(term, (tags = rangeTags(term.range, context.unicode)));
       return { set: tags };
     }
-    if ("if" in term) return holds(context, term.if, scope) ? evaluate(context, term.then, scope) : { set: tagSet() };
+    if ("if" in term) {
+      const then = term.then;
+      const held = holds(context, term.if, scope);
+      if (held === HALT) return pause((/** @type {boolean} */ value) => (value ? evaluate(context, then, scope) : { set: tagSet() }));
+      return held ? evaluate(context, then, scope) : { set: tagSet() };
+    }
     if ("emptySet" in term) return { set: tagSet() };
-    if ("union" in term) return { set: term.union.reduce((acc, item) => tagUnion(acc, asSet(evaluate(context, item, scope))), tagSet()) };
-    if ("intersection" in term) {
-      const [first, ...rest] = term.intersection.map((item) => asSet(evaluate(context, item, scope)));
-      return { set: rest.reduce((acc, item) => tagIntersection(acc, item), first) };
-    }
-    if ("difference" in term) {
-      const [left, right] = term.difference.map((item) => asSet(evaluate(context, item, scope)));
-      return { set: tagDifference(left, right) };
-    }
+    if ("union" in term) return unionFrom(context, term.union, 0, new TagUnion(), scope);
+    if ("intersection" in term) return setsFrom(context, term.intersection, 0, [], scope, intersectionOf);
+    if ("difference" in term) return setsFrom(context, term.difference, 0, [], scope, differenceOf);
     if ("call" in term) {
       const args = term.args;
       switch (term.call) {
@@ -5252,7 +7199,9 @@
           // The canonical sound (engine §5).
           const where = observe(context, spanOf(context, args[0], scope), scope, "phonemes");
           let sound = "";
-          for (let index = where.start; index < where.end; index++) sound += canonicalSound(where.context, index);
+          for (let index = nextSounding(where.context, where.start); index < where.end; index = nextSounding(where.context, index + 1)) {
+            sound += canonicalSound(where.context, index);
+          }
           return { string: sound };
         }
         case "text": {
@@ -5262,48 +7211,184 @@
         case "split": {
           // A set of strings (engine §10); an empty delimiter that only a
           // parse sees is an error of the grammar.
-          const string = asString(evaluate(context, args[0], scope));
-          const delimiter = asString(evaluate(context, args[1], scope));
-          if (delimiter === "") throw new GencmuError("grammar", "split has an empty delimiter");
-          return { set: splitString(string, delimiter) };
+          // A frame is made only where a part halts, which a string never
+          // does in a grammar that loads.
+          const string = evaluate(context, args[0], scope);
+          if (string === HALT) return pause((/** @type {TermValue} */ found) => splitBy(context, asString(found), args[1], scope));
+          return splitBy(context, asString(string), args[1], scope);
         }
         case "tag": {
-          const name = asString(evaluate(context, args[0], scope));
-          if (!isName(name)) throw new GencmuError("grammar", `tag(${JSON.stringify(name)}): the string is not a name`);
-          return { set: tagSet([name]) };
+          const name = evaluate(context, args[0], scope);
+          if (name === HALT) return pause((/** @type {TermValue} */ found) => tagNamed(asString(found)));
+          return tagNamed(asString(name));
         }
         case "tags": {
           const span = spanOf(context, args[0], scope);
           if (args.length === 2) {
             const target = queryTarget(context, span, scope);
-            return { set: nestedTags(target.context, ruleName(args[1]), target.start, target.end, target) };
+            const tags = nestedTags(target.context, ruleName(args[1]), target.start, target.end, target);
+            return tags === HALT ? pause(asSetValue) : { set: tags };
           }
-          if (span.tags && "capture" in args[0]) return { set: span.tags };
+          if ("capture" in args[0]) {
+            // The tags of `$` are its tag term's, which can halt.
+            const tags = /** @type {TagSet | Halt} */ (span.tags);
+            return tags === HALT ? pause(asSetValue) : { set: tags };
+          }
           return { set: observedTokenTags(observe(context, span, scope, "tags"), scope) };
         }
         case "classify": {
           // The classes that the classifier gives the string, for the
           // features of the parse, or none for an unknown key (engine §10).
-          const key = asString(evaluate(context, args[0], scope));
+          const key = evaluate(context, args[0], scope);
           const name = /** @type {{classifier: string}} */ (args[1]).classifier;
-          const table = context.lowered.classifiers.get(name);
-          return { set: (table && table.get(key)) || tagSet() };
+          if (key === HALT) return pause((/** @type {TermValue} */ found) => classified(context, name, asString(found)));
+          return classified(context, name, asString(key));
         }
         case "classes": {
           const span = spanOf(context, args[0], scope);
-          const tags = span.tags && "capture" in args[0] ? span.tags : observedTokenTags(observe(context, span, scope, "classes"), scope);
-          const result = tagSet();
-          for (const tag of tags) {
-            const first = tag.charCodeAt(0);
-            if (first >= 0x41 && first <= 0x5a) result.add(tag);
-          }
-          return { set: result };
+          if (!("capture" in args[0])) return classesAmong(observedTokenTags(observe(context, span, scope, "classes"), scope));
+          const tags = /** @type {TagSet | Halt} */ (span.tags);
+          return tags === HALT ? pause(classesAmong) : classesAmong(tags);
         }
         default:
           throw new GencmuError("grammar", `unknown function ${term.call}`);
       }
     }
     throw new GencmuError("grammar", `unknown term ${JSON.stringify(term)}`);
+  }
+
+  /**
+   * A set as a term's value.
+   * @param {TagSet} set
+   * @returns {TermValue}
+   */
+  function asSetValue(set) {
+    return { set };
+  }
+
+  /**
+   * The classes among tags: those that begin with a capital letter.
+   * @param {TagSet} tags
+   * @returns {TermValue}
+   */
+  function classesAmong(tags) {
+    const result = tagSet();
+    for (const tag of tags) {
+      if (hooks.work) countWork(hooks.work, "tags");
+      const first = tag.charCodeAt(0);
+      if (first >= 0x41 && first <= 0x5a) result.add(tag);
+    }
+    return { set: result };
+  }
+
+  /**
+   * A union of terms from `from` on, added to `result`.
+   * @param {ParseContext} context
+   * @param {Argument[]} items
+   * @param {number} from
+   * @param {TagUnion} result
+   * @param {Scope} scope
+   * @returns {TermValue | Halt}
+   */
+  function unionFrom(context, items, from, result, scope) {
+    for (let index = from; index < items.length; index++) {
+      const value = evaluate(context, items[index], scope);
+      if (value === HALT) {
+        return pause((/** @type {TermValue} */ found) => {
+          result.add(asSet(found));
+          return unionFrom(context, items, index + 1, result, scope);
+        });
+      }
+      result.add(asSet(value));
+    }
+    return { set: result.result() };
+  }
+
+  /**
+   * The sets of terms from `from` on, added to `sets`, and then what `finish`
+   * makes of all of them.
+   * @param {ParseContext} context
+   * @param {Argument[]} items
+   * @param {number} from
+   * @param {TagSet[]} sets
+   * @param {Scope} scope
+   * @param {(sets: TagSet[]) => TermValue} finish
+   * @returns {TermValue | Halt}
+   */
+  function setsFrom(context, items, from, sets, scope, finish) {
+    for (let index = from; index < items.length; index++) {
+      const value = evaluate(context, items[index], scope);
+      if (value === HALT) {
+        return pause((/** @type {TermValue} */ found) => {
+          sets.push(asSet(found));
+          return setsFrom(context, items, index + 1, sets, scope, finish);
+        });
+      }
+      sets.push(asSet(value));
+    }
+    return finish(sets);
+  }
+
+  /**
+   * @param {TagSet[]} sets
+   * @returns {TermValue}
+   */
+  function intersectionOf([first, ...rest]) {
+    return { set: rest.reduce((acc, item) => tagIntersection(acc, item), first) };
+  }
+
+  /**
+   * @param {TagSet[]} sets
+   * @returns {TermValue}
+   */
+  function differenceOf([left, right]) {
+    return { set: tagDifference(left, right) };
+  }
+
+  /**
+   * The parts of a string split by a delimiter term (engine §10).
+   * @param {ParseContext} context
+   * @param {string} string
+   * @param {Argument} term the delimiter
+   * @param {Scope} scope
+   * @returns {TermValue | Halt}
+   */
+  function splitBy(context, string, term, scope) {
+    const value = evaluate(context, term, scope);
+    if (value === HALT) return pause((/** @type {TermValue} */ found) => splitOf(string, asString(found)));
+    return splitOf(string, asString(value));
+  }
+
+  /**
+   * @param {string} string
+   * @param {string} delimiter
+   * @returns {TermValue}
+   */
+  function splitOf(string, delimiter) {
+    if (delimiter === "") throw new GencmuError("grammar", "split has an empty delimiter");
+    return { set: splitString(string, delimiter) };
+  }
+
+  /**
+   * The tag that a string names (engine §10).
+   * @param {string} name
+   * @returns {TermValue}
+   */
+  function tagNamed(name) {
+    if (!isName(name)) throw new GencmuError("grammar", `tag(${JSON.stringify(name)}): the string is not a name`);
+    return { set: tagSet([name]) };
+  }
+
+  /**
+   * The classes that a classifier gives a string, or none for an unknown key.
+   * @param {ParseContext} context
+   * @param {string} name the classifier
+   * @param {string} key
+   * @returns {TermValue}
+   */
+  function classified(context, name, key) {
+    const table = context.lowered.classifiers.get(name);
+    return { set: (table && table.get(key)) || tagSet() };
   }
 
   /**
@@ -5335,17 +7420,29 @@
   }
 
   /**
+   * Whether a condition holds (engine §10). HALT where it halts for a
+   * nested parse, and each part that has more to do saves a frame that goes
+   * on after it (see Pending).
    * @param {ParseContext} context
    * @param {Condition} condition
    * @param {Scope} scope
-   * @returns {boolean}
+   * @returns {boolean | Halt}
    */
   function holds(context, condition, scope) {
-    if ("any" in condition) return condition.any.some((item) => holds(context, item, scope));
-    if ("all" in condition) return condition.all.every((item) => holds(context, item, scope));
+    if (hooks.work) countWork(hooks.work, "visits");
+    if ("any" in condition) return anyFrom(context, condition.any, 0, scope);
+    if ("all" in condition) return allFrom(context, condition.all, 0, scope);
     // The consequent is evaluated only where the antecedent holds (engine §10).
-    if ("if" in condition) return !holds(context, condition.if, scope) || holds(context, /** @type {Condition} */ (condition.then), scope);
-    if ("not" in condition) return !holds(context, condition.not, scope);
+    if ("if" in condition) {
+      const then = /** @type {Condition} */ (condition.then);
+      const held = holds(context, condition.if, scope);
+      if (held === HALT) return pause((/** @type {boolean} */ value) => !value || holds(context, then, scope));
+      return !held || holds(context, then, scope);
+    }
+    if ("not" in condition) {
+      const held = holds(context, condition.not, scope);
+      return held === HALT ? pause(negation) : !held;
+    }
     // A presence test is decided when the grammar is lowered (engine §3.6).
     if ("captured" in condition) throw new GencmuError("grammar", "a presence test outlived lowering");
     if ("matches" in condition) {
@@ -5361,24 +7458,97 @@
       const where = observe(context, spanOf(context, condition.initial, scope), scope, "initial");
       return where.start === where.context.inputStart;
     }
-    const left = evaluate(context, condition.left, scope);
+    const comparison = condition;
+    const left = evaluate(context, comparison.left, scope);
+    if (left === HALT) return pause((/** @type {TermValue} */ value) => compareWith(context, comparison, value, scope));
+    return compareWith(context, comparison, left, scope);
+  }
+
+  /**
+   * @param {boolean} held
+   * @returns {boolean}
+   */
+  function negation(held) {
+    return !held;
+  }
+
+  /**
+   * Whether any condition from `from` on holds, in order.
+   * @param {ParseContext} context
+   * @param {Condition[]} items
+   * @param {number} from
+   * @param {Scope} scope
+   * @returns {boolean | Halt}
+   */
+  function anyFrom(context, items, from, scope) {
+    for (let index = from; index < items.length; index++) {
+      const held = holds(context, items[index], scope);
+      if (held === HALT) return pause((/** @type {boolean} */ value) => value || anyFrom(context, items, index + 1, scope));
+      if (held) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Whether every condition from `from` on holds, in order.
+   * @param {ParseContext} context
+   * @param {Condition[]} items
+   * @param {number} from
+   * @param {Scope} scope
+   * @returns {boolean | Halt}
+   */
+  function allFrom(context, items, from, scope) {
+    for (let index = from; index < items.length; index++) {
+      const held = holds(context, items[index], scope);
+      if (held === HALT) return pause((/** @type {boolean} */ value) => value && allFrom(context, items, index + 1, scope));
+      if (!held) return false;
+    }
+    return true;
+  }
+
+  /**
+   * A comparison whose left side is evaluated: its right side, and then the
+   * comparison.
+   * @param {ParseContext} context
+   * @param {Comparison} condition
+   * @param {TermValue} left
+   * @param {Scope} scope
+   * @returns {boolean | Halt}
+   */
+  function compareWith(context, condition, left, scope) {
     const right = evaluate(context, condition.right, scope);
-    switch (condition.op) {
+    if (right === HALT) return pause((/** @type {TermValue} */ value) => compared(condition, left, value));
+    return compared(condition, left, right);
+  }
+
+  /**
+   * @typedef {Extract<Condition, {op: unknown}>} Comparison
+   */
+
+  /**
+   * @param {Comparison} condition
+   * @param {TermValue} left
+   * @param {TermValue} right
+   * @returns {boolean}
+   */
+  function compared(condition, left, right) {
+    const op = condition.op;
+    switch (op) {
       case "=":
       case "≠": {
         let equal;
         if ("string" in left && "string" in right) equal = left.string === right.string;
         else equal = sameTags(asSet(left), asSet(right));
-        return equal === (condition.op === "=");
+        return equal === (op === "=");
       }
       case "∈":
       case "∉":
-        return asSet(right).has(asString(left)) === (condition.op === "∈");
+        return asSet(right).has(asString(left)) === (op === "∈");
       case "⊆":
       case "⊈":
-        return isSubset(asSet(left), asSet(right)) === (condition.op === "⊆");
+        return isSubset(asSet(left), asSet(right)) === (op === "⊆");
       default:
-        throw new GencmuError("grammar", `unknown comparison ${condition.op}`);
+        throw new GencmuError("grammar", `unknown comparison ${op}`);
     }
   }
 
@@ -5418,49 +7588,30 @@
   let unseenDepth = 0;
 
   /**
-   * @template {boolean | TagSet} T
+   * The remembered answer of a nested parse of [start, end) as `rule`. Where
+   * none is remembered yet, the evaluation halts: this returns HALT, with the
+   * Pending in `halting`, and the recognizer runs the nested parse on its own
+   * stack.
    * @param {ParseContext} context
-   * @param {string} kind
+   * @param {"matches" | "begins" | "tags"} kind
    * @param {string} rule
    * @param {number} start
    * @param {number} end
-   * @param {(chart: Chart) => T} compute
-   * @param {{key: [number, number] | null, fromCheck: boolean} | null} [target]
+   * @param {{key: [number, number] | null, fromCheck: boolean} | null} target
    *   where a query of the check came from
-   * @returns {T}
+   * @returns {boolean | TagSet | Halt}
    */
-  function nested(context, kind, rule, start, end, compute, target = null) {
+  function nested(context, kind, rule, start, end, target) {
+    const at = target === null ? null : target.key;
     // A fault keys a long query of the check by its span in R (F21).
-    const key = target !== null && target.key !== null && end - start > CONTENT_KEY_LIMIT
-      ? JSON.stringify(["at", kind, rule, target.key[0], target.key[1]])
+    const key = at !== null && end - start > CONTENT_KEY_LIMIT
+      ? JSON.stringify(["at", kind, rule, at[0], at[1]])
       : nestedKey(context, kind, rule, start, end);
-    if (context.nested.has(key)) return /** @type {T} */ (context.nested.get(key));
-    // A fault finds no query cycle while the check runs (F25). The recursion
-    // that it lets through ends at a bound, not in a stack overflow.
-    const unseen = context.checking && fault("F25");
-    if (unseen && unseenDepth >= UNSEEN_DEPTH) throw new Error("F25: the queries of the check recurse without end");
-    // A parse in progress is known by its rule and span, whatever the kind of
-    // query, so that alternating kinds cannot hide a query about a span from
-    // inside its own parse (engine §4).
-    const circular = "parse\u0001" + rule + "\u0001" + start + "\u0001" + end;
-    if (context.inProgress.has(circular)) {
-      throw new GencmuError("grammar",
-        `a condition asks whether ${JSON.stringify(textOf(context, start, end))} parses as ${rule} from inside the parse of that span as ${rule}: ` +
-        `the grammar defines ${rule} in terms of itself over the same text`, { rule });
-    }
-    if (!unseen) context.inProgress.add(circular);
-    else unseenDepth++;
-    if (context.trace) context.trace.depth++;
-    try {
-      const chart = recognize(context, rule, start, end);
-      const answer = compute(chart);
-      context.nested.set(key, answer);
-      return answer;
-    } finally {
-      if (!unseen) context.inProgress.delete(circular);
-      else unseenDepth--;
-      if (context.trace) context.trace.depth--;
-    }
+    const known = context.nested.get(key);
+    if (known !== undefined) return known;
+    // A fault finds no query cycle while the check runs (F25).
+    halting = new Pending(context, kind, rule, start, end, at, key, context.checking && fault("F25"));
+    return HALT;
   }
 
   /**
@@ -5469,10 +7620,10 @@
    * @param {number} start
    * @param {number} end
    * @param {{key: [number, number] | null, fromCheck: boolean} | null} [target]
-   * @returns {boolean}
+   * @returns {boolean | Halt}
    */
   function nestedMatches(context, rule, start, end, target = null) {
-    return nested(context, "matches", rule, start, end, (chart) => eligibleWitnesses(chart, rootItems(chart, rule), testHolds).length > 0, target);
+    return /** @type {boolean | Halt} */ (nested(context, "matches", rule, start, end, target));
   }
 
   /**
@@ -5484,18 +7635,10 @@
    * @param {number} start
    * @param {number} end
    * @param {{key: [number, number] | null, fromCheck: boolean} | null} [target]
-   * @returns {boolean}
+   * @returns {boolean | Halt}
    */
   function nestedBegins(context, rule, start, end, target = null) {
-    return nested(context, "begins", rule, start, end, (chart) => {
-      /** @type {Item[]} */
-      const witnesses = [];
-      for (const set of chart.sets) {
-        if (set === undefined) continue;
-        for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule) witnesses.push(item);
-      }
-      return eligibleWitnesses(chart, witnesses, testHolds).length > 0;
-    }, target);
+    return /** @type {boolean | Halt} */ (nested(context, "begins", rule, start, end, target));
   }
 
   /**
@@ -5504,11 +7647,10 @@
    * @param {number} start
    * @param {number} end
    * @param {{key: [number, number] | null, fromCheck: boolean} | null} [target]
-   * @returns {TagSet}
+   * @returns {TagSet | Halt}
    */
   function nestedTags(context, rule, start, end, target = null) {
-    return nested(context, "tags", rule, start, end, (chart) =>
-      eligibleWitnesses(chart, rootItems(chart, rule), testHolds).reduce((acc, item) => tagUnion(acc, context.interner.get(item.tagId)), tagSet()), target);
+    return /** @type {TagSet | Halt} */ (nested(context, "tags", rule, start, end, target));
   }
 
   // The furthest position the parse reached, and what could have been read
@@ -5550,7 +7692,9 @@
     const next = position < chart.end ? context.tokens[position] : null;
     for (const rule of set.skipped) {
       for (const production of context.lowered.byLhs.get(rule) || []) {
-        if (!lookaheadSkips(context, production, next) || failedCondition(context, production, -1, emptySlots(production), position, position)) continue;
+        if (!lookaheadSkips(context, production, next)) continue;
+        const failed = settled(() => failedCondition(context, production, -1, null, position, position, { scope: null }));
+        if (failed) continue;
         note(writtenSymbol(production.rhs[0]), production.owner);
       }
     }
@@ -5571,6 +7715,7 @@
 
 
 
+
   /**
    * @import { WitnessAction, Condition, Expr, ParseResult, ResultNode, Span, StageReport, TagSet, Term, Argument, Production } from "./types.js"
    * @import { Token } from "./tokens.js"
@@ -5582,6 +7727,32 @@
   // ---- Where in the text --------------------------------------------------
 
   /**
+   * A text's code points and where its line breaks are, built once so that
+   * each excerpt of the text costs its line, not the text before it.
+   * @typedef {{characters: string[], breaks: number[]}} LineIndex
+   */
+
+  /**
+   * @param {string} text
+   * @returns {LineIndex}
+   */
+  function lineIndex(text) {
+    /** @type {string[]} */
+    const characters = [];
+    for (const character of text) {
+      if (hooks.work) countWork(hooks.work, "text");
+      characters.push(character);
+    }
+    const breaks = [];
+    for (let index = 0; index < characters.length; index++) {
+      if (hooks.work) countWork(hooks.work, "text");
+      const character = characters[index];
+      if (character === "\n" || (character === "\r" && characters[index + 1] !== "\n")) breaks.push(index);
+    }
+    return { characters, breaks };
+  }
+
+  /**
    * The line of the text holding a source range, and a caret line under the
    * range: at least one caret, at the end of the line for an empty range.
    * @param {string} text
@@ -5589,18 +7760,31 @@
    * @returns {{line: number, column: number, excerpt: string}}
    */
   function sourceExcerpt(text, source) {
-    const characters = [...text];
-    let line = 1;
-    let lineStart = 0;
-    for (let index = 0; index < source[0] && index < characters.length; index++) {
-      const character = characters[index];
-      if (character === "\n" || (character === "\r" && characters[index + 1] !== "\n")) {
-        line++;
-        lineStart = index + 1;
-      }
+    return excerptAt(lineIndex(text), source);
+  }
+
+  /**
+   * @param {LineIndex} lines
+   * @param {Span} source code point range
+   * @returns {{line: number, column: number, excerpt: string}}
+   */
+  function excerptAt({ characters, breaks }, source) {
+    // The number of breaks before the range's start, by binary search.
+    let low = 0;
+    let high = breaks.length;
+    while (low < high) {
+      if (hooks.work) countWork(hooks.work, "text");
+      const middle = (low + high) >> 1;
+      if (breaks[middle] < source[0]) low = middle + 1;
+      else high = middle;
     }
+    const line = low + 1;
+    const lineStart = low === 0 ? 0 : breaks[low - 1] + 1;
     let lineEnd = lineStart;
-    while (lineEnd < characters.length && characters[lineEnd] !== "\n" && characters[lineEnd] !== "\r") lineEnd++;
+    while (lineEnd < characters.length && characters[lineEnd] !== "\n" && characters[lineEnd] !== "\r") {
+      if (hooks.work) countWork(hooks.work, "text");
+      lineEnd++;
+    }
     const shown = characters.slice(lineStart, lineEnd).join("").replace(/\t/g, " ");
     const column = source[0] - lineStart + 1;
     const width = Math.max(1, Math.min(source[1], lineEnd) - source[0]);
@@ -5699,15 +7883,66 @@
    * @returns {string}
    */
   function sideBySide(left, right, leftTitle, rightTitle) {
-    const a = [leftTitle, ...left.split("\n")];
-    const b = [rightTitle, ...right.split("\n")];
-    const width = Math.max(...a.map((line) => [...line].length)) + 3;
+    const a = [leftTitle, ...linesOf(left)];
+    const b = [rightTitle, ...linesOf(right)];
+    // Each line's width, and the widest, in a loop: a long tree has more
+    // lines than a call takes arguments. Each code point counts as it is
+    // read.
+    /** @type {number[]} */
+    const widths = [];
+    let width = 0;
+    for (const line of a) {
+      let length = 0;
+      for (const _ of line) {
+        if (hooks.work) countWork(hooks.work, "text");
+        length++;
+      }
+      widths.push(length);
+      width = Math.max(width, length);
+    }
+    width += 3;
     const out = [];
     for (let index = 0; index < Math.max(a.length, b.length); index++) {
-      const line = a[index] || "";
-      out.push(line + " ".repeat(width - [...line].length) + (b[index] || ""));
+      if (hooks.work) countWork(hooks.work, "text");
+      let line = a[index] || "";
+      // Each space of the padding counts as it is added.
+      for (let column = index < a.length ? widths[index] : 0; column < width; column++) {
+        if (hooks.work) countWork(hooks.work, "text");
+        line += " ";
+      }
+      out.push(line + (b[index] || ""));
     }
-    return out.map((line) => line.replace(/\s+$/, "")).join("\n");
+    // Each line trimmed from its end, as trimEnd would. A trim by /\s+$/
+    // tries each space of a long inner run in turn. Each character that the
+    // trim reads counts before it is read.
+    return out.map((line) => {
+      let end = line.length;
+      for (;;) {
+        if (hooks.work) countWork(hooks.work, "text");
+        if (end === 0 || !/\s/.test(line[end - 1])) break;
+        end--;
+      }
+      return line.slice(0, end);
+    }).join("\n");
+  }
+
+  /**
+   * The lines of a text, split at each line feed, as text.split("\n") gives
+   * them. Each character counts as it is read.
+   * @param {string} text
+   * @returns {string[]}
+   */
+  function linesOf(text) {
+    const lines = [];
+    let start = 0;
+    for (let index = 0; index < text.length; index++) {
+      if (hooks.work) countWork(hooks.work, "text");
+      if (text[index] !== "\n") continue;
+      lines.push(text.slice(start, index));
+      start = index + 1;
+    }
+    lines.push(text.slice(start));
+    return lines;
   }
 
   /**
@@ -5757,9 +7992,11 @@
    * @returns {string}
    */
   function explainWarnings(result) {
-    return (result.warnings || []).map((warning) => [
+    const warnings = result.warnings || [];
+    const lines = warnings.length ? lineIndex(result.text) : null;
+    return warnings.map((warning) => [
       `Warning: the ${warning.stage} stage read this with the feature ${warning.feature}, in the rule ${warning.rule}:`,
-      sourceExcerpt(result.text, warning.source).excerpt,
+      excerptAt(/** @type {LineIndex} */ (lines), warning.source).excerpt,
     ].join("\n")).join("\n\n");
   }
 
@@ -5791,7 +8028,10 @@
         `${token.span[0]}-${token.span[1]}`, `${token.source[0]}-${token.source[1]}`, tagList(token.tags) + (token.insertedBy ? `  (inserted by ${token.insertedBy})` : "") +
           (attachmentText(token) ? `  (attached: ${attachmentText(token)})` : "")]);
       const header = ["#", "text", "phonemes", "label", "span", "source", "tags"];
-      const widths = header.map((title, column) => Math.max([...title].length, ...rows.map((row) => [...row[column]].length)));
+      // The widest cell of each column, in a loop: a stage can hand on more
+      // tokens than a call takes arguments.
+      const widths = header.map((title) => [...title].length);
+      for (const row of rows) row.forEach((cell, column) => { widths[column] = Math.max(widths[column], [...cell].length); });
       /** @type {(row: string[]) => string} */
       const format = (row) => row.map((cell, column) => (column === row.length - 1 ? cell : cell + " ".repeat(widths[column] - [...cell].length))).join("  ");
       blocks.push([`${stage.name}: ${stage.output.length} tokens, ${stage.verdict}`, format(header), ...rows.map(format)].join("\n"));
@@ -5806,23 +8046,7 @@
    * @returns {string}
    */
   function formatTerm(term) {
-    if ("rule" in term) return term.rule;
-    if ("classifier" in term) return term.classifier;
-    if ("string" in term) return quoted(term.string);
-    // An identifier tag is a bare name with a capital, or ~name; a phoneme
-    // or character tag is written as it is.
-    if ("tag" in term) return /^[a-z]/.test(term.tag) ? `~${term.tag}` : term.tag;
-    if ("range" in term) return `${term.range[0]}..${term.range[1]}`;
-    if ("emptySet" in term) return "∅";
-    if ("const" in term) return `$${term.const}`;
-    /** @type {(item: Term) => string} */
-    const grouped = (item) => ("union" in item || "difference" in item ? `(${formatTerm(item)})` : formatTerm(item));
-    if ("union" in term) return term.union.map((item, index) => (index > 0 && "difference" in item ? grouped(item) : formatTerm(item))).join(" ∪ ");
-    if ("difference" in term) return `${formatTerm(term.difference[0])} ∖ ${grouped(term.difference[1])}`;
-    if ("intersection" in term) return term.intersection.map(grouped).join(" ∩ ");
-    if ("call" in term) return `${term.call}(${term.args.map(formatTerm).join(", ")})`;
-    if ("if" in term) return `(${formatCondition(term.if)} ⟹ ${formatTerm(term.then)})`;
-    return `$${term.capture}`;
+    return formatNotation({ term });
   }
 
   /**
@@ -5830,15 +8054,92 @@
    * @returns {string}
    */
   function formatCondition(condition) {
-    if ("any" in condition) return condition.any.map(formatCondition).join(" ∨ ");
-    if ("all" in condition) return condition.all.map((item) => ("any" in item ? `(${formatCondition(item)})` : formatCondition(item))).join(" ∧ ");
-    if ("not" in condition) return `¬(${formatCondition(condition.not)})`;
-    if ("captured" in condition) return `$${condition.captured}`;
-    if ("if" in condition) return `(${formatCondition(condition.if)} ⟹ ${formatCondition(/** @type {Condition} */ (condition.then))})`;
-    if ("matches" in condition) return `matches(${formatTerm(condition.matches)}, ${condition.rule})`;
-    if ("begins" in condition) return `begins(${formatTerm(condition.begins)}, ${condition.rule})`;
-    if ("initial" in condition) return `initial(${formatTerm(condition.initial)})`;
-    return `${formatTerm(condition.left)} ${condition.op} ${formatTerm(condition.right)}`;
+    return formatNotation({ condition });
+  }
+
+  /**
+   * A term or a condition, as formatNotation reads it.
+   * @typedef {{term: Argument} | {condition: Condition}} Notation
+   */
+
+  /**
+   * A term or condition printed back, with an explicit stack: a caller can
+   * hand in one nested deeper than the call stack allows, since only a
+   * document's DOM is held to DOM_MAX_DEPTH.
+   * @param {Notation} root
+   * @returns {string}
+   */
+  function formatNotation(root) {
+    /** @type {{shape: {parts: Notation[], combine: (texts: string[]) => string}, next: number, texts: string[]}[]} */
+    const frames = [{ shape: notationShape(root), next: 0, texts: [] }];
+    for (;;) {
+      const frame = frames[frames.length - 1];
+      if (frame.next < frame.shape.parts.length) {
+        frames.push({ shape: notationShape(frame.shape.parts[frame.next++]), next: 0, texts: [] });
+        continue;
+      }
+      frames.pop();
+      const text = frame.shape.combine(frame.texts);
+      if (frames.length === 0) return text;
+      frames[frames.length - 1].texts.push(text);
+    }
+  }
+
+  /**
+   * The parts of a term or condition, and how their texts make its own, in
+   * the order in which the parts are written.
+   * @param {Notation} notation
+   * @returns {{parts: Notation[], combine: (texts: string[]) => string}}
+   */
+  function notationShape(notation) {
+    /** @type {(text: string) => {parts: Notation[], combine: () => string}} */
+    const leaf = (text) => ({ parts: [], combine: () => text });
+    /** @type {(item: Argument) => Notation} */
+    const asTerm = (item) => ({ term: item });
+    /** @type {(item: Condition) => Notation} */
+    const asCondition = (item) => ({ condition: item });
+    if ("condition" in notation) {
+      const condition = notation.condition;
+      if ("any" in condition) return { parts: condition.any.map(asCondition), combine: (texts) => texts.join(" ∨ ") };
+      if ("all" in condition) {
+        const items = condition.all;
+        return { parts: items.map(asCondition), combine: (texts) => texts.map((text, index) => ("any" in items[index] ? `(${text})` : text)).join(" ∧ ") };
+      }
+      if ("not" in condition) return { parts: [asCondition(condition.not)], combine: ([inner]) => `¬(${inner})` };
+      if ("captured" in condition) return leaf(`$${condition.captured}`);
+      if ("if" in condition) return { parts: [asCondition(condition.if), asCondition(/** @type {Condition} */ (condition.then))], combine: ([left, right]) => `(${left} ⟹ ${right})` };
+      if ("matches" in condition) return { parts: [asTerm(condition.matches)], combine: ([span]) => `matches(${span}, ${condition.rule})` };
+      if ("begins" in condition) return { parts: [asTerm(condition.begins)], combine: ([span]) => `begins(${span}, ${condition.rule})` };
+      if ("initial" in condition) return { parts: [asTerm(condition.initial)], combine: ([span]) => `initial(${span})` };
+      return { parts: [asTerm(condition.left), asTerm(condition.right)], combine: ([left, right]) => `${left} ${condition.op} ${right}` };
+    }
+    const term = notation.term;
+    if ("rule" in term) return leaf(term.rule);
+    if ("classifier" in term) return leaf(term.classifier);
+    if ("string" in term) return leaf(quoted(term.string));
+    // An identifier tag is a bare name with a capital, or ~name. A phoneme
+    // or character tag is written as it is.
+    if ("tag" in term) return leaf(/^[a-z]/.test(term.tag) ? `~${term.tag}` : term.tag);
+    if ("range" in term) return leaf(`${term.range[0]}..${term.range[1]}`);
+    if ("emptySet" in term) return leaf("∅");
+    if ("const" in term) return leaf(`$${term.const}`);
+    /** @type {(item: Term, text: string) => string} */
+    const grouped = (item, text) => ("union" in item || "difference" in item ? `(${text})` : text);
+    if ("union" in term) {
+      const items = term.union;
+      return { parts: items.map(asTerm), combine: (texts) => texts.map((text, index) => (index > 0 && "difference" in items[index] ? grouped(items[index], text) : text)).join(" ∪ ") };
+    }
+    if ("difference" in term) {
+      const [, right] = term.difference;
+      return { parts: term.difference.map(asTerm), combine: ([first, second]) => `${first} ∖ ${grouped(right, second)}` };
+    }
+    if ("intersection" in term) {
+      const items = term.intersection;
+      return { parts: items.map(asTerm), combine: (texts) => texts.map((text, index) => grouped(items[index], text)).join(" ∩ ") };
+    }
+    if ("call" in term) return { parts: term.args.map(asTerm), combine: (texts) => `${term.call}(${texts.join(", ")})` };
+    if ("if" in term) return { parts: [asCondition(term.if), asTerm(term.then)], combine: ([guard, value]) => `(${guard} ⟹ ${value})` };
+    return leaf(`$${term.capture}`);
   }
 
   /**
@@ -5851,7 +8152,9 @@
   function formatItem(production, dot) {
     const symbols = production.rhs.map((symbol, index) => {
       const name = symbol.name.includes("·") ? `‹${symbol.name.split("·")[0]} part›` : writtenSymbol(symbol);
-      const capture = production.captures.find((entry) => entry.index === index && !entry.name.startsWith("\u0000"));
+      const slot = production.captureAt[index];
+      if (hooks.work) countWork(hooks.work, "captureLookups");
+      const capture = slot >= 0 && !production.captures[slot].name.startsWith("\u0000") ? production.captures[slot] : undefined;
       return capture ? `$${capture.name}(${name})` : name;
     });
     symbols.splice(dot, 0, "•");
@@ -5862,19 +8165,24 @@
   // ---- Audit ---------------------------------------------------------------
 
   /**
-   * The rules an expression refers to.
+   * The rules an expression refers to. Each node counts before it is read,
+   * so that a walk of an expression for each of its parts fails its budget.
    * @param {Expr} expr
    * @param {Set<string>} into
    */
   function referencedRules(expr, into) {
     const stack = [expr];
     for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+      if (hooks.work) countWork(hooks.work, "clauses");
       if ("ref" in current) into.add(current.ref);
-      else if ("seq" in current) stack.push(...current.seq);
-      else if ("choice" in current) stack.push(...current.choice);
-      else if ("and" in current) stack.push(...current.and);
+      else if ("seq" in current) for (const item of current.seq) stack.push(item);
+      else if ("choice" in current) for (const item of current.choice) stack.push(item);
+      else if ("and" in current) for (const item of current.and) stack.push(item);
       else if ("optional" in current) stack.push(current.optional);
-      else if ("repeat" in current) stack.push(current.repeat);
+      else if ("repeat" in current) {
+        stack.push(current.repeat);
+        if (current.separator !== undefined) stack.push(current.separator);
+      }
       else if ("capture" in current || "test" in current) stack.push(current.expr);
     }
   }
@@ -5929,13 +8237,12 @@
   }
 
   /**
-   * Whether an alternative has a capture; every alternative has `$`.
+   * The captures of an alternative; every alternative has `$`.
    * @param {StitchedAlternative} alternative
-   * @returns {(name: string) => boolean}
+   * @returns {Set<string>}
    */
   function capturesOf(alternative) {
-    const captured = new Set(["", ...topItems(alternative.expr).flatMap((item) => ("capture" in item ? [item.capture] : []))]);
-    return (name) => captured.has(name);
+    return new Set(["", ...topItems(alternative.expr).flatMap((item) => ("capture" in item ? [item.capture] : []))]);
   }
 
   /**
@@ -5945,10 +8252,13 @@
    * @returns {import("./types.js").EmitItem[]}
    */
   function effectiveItems(alternative) {
-    const has = capturesOf(alternative);
-    return (alternative.clauses.emit ? alternative.clauses.emit.items : [])
-      .filter((item) => item.capture === undefined || has(item.capture))
-      .map((item) => (item.tags ? { ...item, tags: simplify(item.tags, has) } : item));
+    const captured = capturesOf(alternative);
+    const has = (/** @type {string} */ name) => captured.has(name);
+    const items = alternative.clauses.emit ? alternative.clauses.emit.items : [];
+    // The items and their terms are indexed and prepared once for every
+    // alternative that shares them.
+    return presentItems(items, has, captured).map((index) => items[index])
+      .map((item) => (item.tags ? { ...item, tags: simplifyFor(prepareClause(item.tags), has, captured) } : item));
   }
 
   /**
@@ -5958,8 +8268,28 @@
    * @returns {Term[]}
    */
   function constituentTerms(alternative) {
-    const has = capturesOf(alternative);
-    return [alternative.tags, alternative.clauses.tags].filter((term) => term !== undefined).map((term) => simplify(term, has));
+    const captured = capturesOf(alternative);
+    const has = (/** @type {string} */ name) => captured.has(name);
+    // Each clause is prepared once for every alternative that shares it.
+    return [alternative.tags, alternative.clauses.tags].filter((term) => term !== undefined).map((term) => simplifyFor(prepareClause(term), has, captured));
+  }
+
+  /**
+   * Whether an alternative's emission lists an item, less those naming
+   * captures it lacks, as effectiveItems would. Each of its own captures is
+   * looked up in the index of the items by carrier, which is built once for
+   * every alternative that shares the emission, not scanned for each.
+   * @param {StitchedAlternative} alternative
+   * @returns {boolean}
+   */
+  function emitsAny(alternative) {
+    const index = emissionIndex(alternative.clauses.emit ? alternative.clauses.emit.items : []);
+    if (index.fixed.length > 0 || index.carriers.has("")) return true;
+    for (const item of topItems(alternative.expr)) {
+      if (hooks.work) countWork(hooks.work, "closures");
+      if ("capture" in item && index.carriers.has(item.capture)) return true;
+    }
+    return false;
   }
 
   /**
@@ -5970,32 +8300,45 @@
    * @returns {Set<string>}
    */
   function emittingRules(alternativesByRule) {
+    /** @type {Set<string>} */
     const emitting = new Set();
-    for (let changed = true; changed;) {
-      changed = false;
-      for (const [name, alternatives] of alternativesByRule) {
-        if (emitting.has(name)) continue;
-        if (alternatives.some((alternative) => alternativeEmits(alternative, emitting))) {
-          emitting.add(name);
-          changed = true;
+    // A worklist: a rule found to emit makes each rule with an alternative
+    // that walks it emit, so the closure costs the size of the grammar, not
+    // a pass over it for each rule found.
+    /** @type {Map<string, string[]>} */
+    const walkers = new Map();
+    /** @type {string[]} */
+    const found = [];
+    /** @type {(name: string) => void} */
+    const add = (name) => {
+      if (emitting.has(name)) return;
+      emitting.add(name);
+      found.push(name);
+    };
+    for (const [name, alternatives] of alternativesByRule) {
+      for (const alternative of alternatives) {
+        if (hooks.work) countWork(hooks.work, "closures");
+        if (alternative.clauses.emit) {
+          if (emitsAny(alternative)) add(name);
+          continue;
+        }
+        /** @type {Set<string>} */
+        const walked = new Set();
+        for (const part of topItems(alternative.expr)) referencedRules(part, walked);
+        for (const part of walked) {
+          const list = walkers.get(part);
+          if (list) list.push(name);
+          else walkers.set(part, [name]);
         }
       }
     }
+    for (let name = found.pop(); name !== undefined; name = found.pop()) {
+      for (const walker of walkers.get(name) ?? []) {
+        if (hooks.work) countWork(hooks.work, "closures");
+        add(walker);
+      }
+    }
     return emitting;
-  }
-
-  /**
-   * Whether an alternative could emit a token, given the rules that could.
-   * @param {StitchedAlternative} alternative
-   * @param {Set<string>} emitting
-   * @returns {boolean}
-   */
-  function alternativeEmits(alternative, emitting) {
-    if (alternative.clauses.emit) return effectiveItems(alternative).length > 0;
-    /** @type {Set<string>} */
-    const walked = new Set();
-    for (const part of topItems(alternative.expr)) referencedRules(part, walked);
-    return [...walked].some((name) => emitting.has(name));
   }
 
   /**
@@ -6083,10 +8426,12 @@
           referencedRules(alternative.expr, found);
           // Rules named in clauses count only where the clause applies to the
           // alternative (engine §3.6).
-          const has = capturesOf(alternative);
+          const captured = capturesOf(alternative);
+          const has = (/** @type {string} */ name) => captured.has(name);
           const clauses = alternative.clauses;
-          const conditions = clauses.conditions.map((condition) => simplify(condition, has))
-            .filter((condition) => condition !== DOM_TRUE && capturesUsed(condition).every(has));
+          // The conditions not true for the alternative, in order, from a
+          // list prepared once for every alternative that shares it.
+          const conditions = partsFor(prepareConditions(clauses.conditions), has, captured).filter((condition) => capturesUsed(condition).every(has));
           namedRules([...constituentTerms(alternative), ...effectiveItems(alternative), ...conditions], found);
         }
         for (const next of found) {
@@ -6106,13 +8451,24 @@
       /** @type {Set<object>} */
       const seen = new Set();
       for (const rule of grammar.rules.values()) {
+        // The alternatives of each clauses, grouped once rather than found by
+        // a scan of the rule for each.
+        /** @type {Map<object, StitchedAlternative[]>} */
+        const siblings = new Map();
+        for (const alternative of rule.alternatives) {
+          if (hooks.work) countWork(hooks.work, "clauses");
+          const group = siblings.get(alternative.clauses);
+          if (group) group.push(alternative);
+          else siblings.set(alternative.clauses, [alternative]);
+        }
         for (const alternative of rule.alternatives) {
           const emit = alternative.clauses.emit;
           if (!emit || emit.items.length > 0 || seen.has(alternative.clauses)) continue;
           seen.add(alternative.clauses);
           /** @type {Set<string>} */
           const reached = new Set();
-          for (const sibling of rule.alternatives.filter((other) => other.clauses === alternative.clauses)) {
+          for (const sibling of /** @type {StitchedAlternative[]} */ (siblings.get(alternative.clauses))) {
+            if (hooks.work) countWork(hooks.work, "clauses");
             for (const part of topItems(sibling.expr)) referencedRules(part, reached);
           }
           if (!sounding.has(rule.name) && ![...reached].some((name) => emitting.has(name))) {
@@ -6769,9 +9125,10 @@
         let all = [];
         /** @type {Candidate[]} */
         let allowed = [];
-        current.edges.forEach((edge, index) => {
+        // The getter builds the list on each read, so it is read once.
+        current.edges.forEach((edge, index, edges) => {
           // A fault skips the last of two or more edges in the check (lost:select).
-          if (this.check && index > 0 && index === current.edges.length - 1 && fault("lost:select")) return;
+          if (this.check && index > 0 && index === edges.length - 1 && fault("lost:select")) return;
           const inAll = summary === null || summary.all.kept.has(index);
           const inAllowed = summary === null || summary.allowed.kept.has(index);
           if (!inAll && !inAllowed) return;
@@ -7111,6 +9468,7 @@
         /** @type {Item[]} */
         const result = [];
         for (const edge of edgesOf ? edgesOf(item, key) : item.edges) {
+          if (hooks.work) countWork(hooks.work, "traversal");
           if (edge.kind === "scan") result.push(edge.previous);
           else if (edge.kind === "complete") result.push(edge.previous, edge.child);
         }
@@ -7155,14 +9513,23 @@
         if (own === undefined) return EMPTY_CONTEXT;
         /** @type {TraversalContext} */
         const context = new Set();
-        for (const key of frame.context) if (group(key.slice(1)) === own) context.add(key);
+        for (const key of frame.context) {
+          if (hooks.work) countWork(hooks.work, "traversal");
+          if (group(key.slice(1)) === own) context.add(key);
+        }
         if (complete(frame.item) && group(frame.item.production.lhs) === own) context.add(ruleKey(frame.item));
         return context.size === 0 ? EMPTY_CONTEXT : context;
       };
       /** @type {(context: TraversalContext) => string} */
       const contextKey = (context) => {
         if (context.size === 0) return "";
-        return [...context].sort().join("\u0001");
+        /** @type {string[]} */
+        const keys = [];
+        for (const key of context) {
+          if (hooks.work) countWork(hooks.work, "traversal");
+          keys.push(key);
+        }
+        return keys.sort().join("\u0001");
       };
       /**
        * @typedef {object} Frame
@@ -7183,7 +9550,11 @@
         if (stack.length === 0) answer = value;
         else stack[stack.length - 1].results.set(done.item, value);
       };
+      // Each step of a frame, edge, dependency and rule of a context counts
+      // before it is read, so that a walk of what was already done for each
+      // new item fails its budget.
       while (stack.length > 0) {
+        if (hooks.work) countWork(hooks.work, "traversal");
         const frame = stack[stack.length - 1];
         if (!frame.started) {
           if (complete(frame.item) && frame.context.has(ruleKey(frame.item))) {
@@ -7202,6 +9573,7 @@
         let pushed = false;
         const pending = /** @type {Item[]} */ (frame.pending);
         for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+          if (hooks.work) countWork(hooks.work, "traversal");
           if (frame.results.has(next)) continue;
           stack.push({ item: next, context: contextBelow(frame, next), results: new Map(), started: false });
           pushed = true;
@@ -7221,7 +9593,9 @@
     // item over its span can complete again below it only if the two rules
     // reach each other in this graph, that is, are in one strongly connected
     // group. So a context needs only the rules of its item's group, and an
-    // item whose rule cannot reach itself has none.
+    // item whose rule cannot reach itself has none. Each item, edge, rule
+    // and arc counts before it is read, so that a search of the arcs found
+    // so far for each new one fails its budget.
     /**
      * @param {Item[]} roots
      */
@@ -7232,9 +9606,11 @@
       const seen = new Set();
       const pending = [...roots];
       for (let item = pending.pop(); item !== undefined; item = pending.pop()) {
+        if (hooks.work) countWork(hooks.work, "groups");
         if (seen.has(item)) continue;
         seen.add(item);
         for (const edge of item.edges) {
+          if (hooks.work) countWork(hooks.work, "groups");
           if (edge.kind === "seed" || edge.kind === "restore") continue;
           pending.push(edge.previous);
           if (edge.kind !== "complete") continue;
@@ -7259,6 +9635,7 @@
       let next = 0;
       let found = 0;
       for (const start of arcs.keys()) {
+        if (hooks.work) countWork(hooks.work, "groups");
         if (index.has(start)) continue;
         /** @type {{rule: string, targets: Iterator<string>}[]} */
         const frames = [];
@@ -7273,6 +9650,7 @@
         };
         enter(start);
         while (frames.length > 0) {
+          if (hooks.work) countWork(hooks.work, "groups");
           const frame = frames[frames.length - 1];
           const step = frame.targets.next();
           if (!step.done) {
@@ -7290,6 +9668,7 @@
             /** @type {string[]} */
             const members = [];
             for (;;) {
+              if (hooks.work) countWork(hooks.work, "groups");
               const member = /** @type {string} */ (open.pop());
               onOpen.delete(member);
               members.push(member);
@@ -7646,7 +10025,7 @@
     /** @type {Set<string>} */
     const elidable = new Set();
     for (const production of lowered.productions) {
-      if (production.helper && production.elided !== null && (stageWide || lowered.maximalTerminals.has(production.elided))) elidable.add(production.lhs);
+      if (production.helper && production.elided !== null && (stageWide || lowered.maximalHelpers.has(production.lhs))) elidable.add(production.lhs);
     }
     // Whether a constituent could have been longer depends only on its
     // symbol, origin and end: the furthest set holding a completed item of
@@ -7784,7 +10163,7 @@
       const resolution = lowered.resolution;
       // Maximality: stage-wide, or for the maximal terminators alone, before
       // the ranking (engine §4).
-      const maximal = resolution.maximal || lowered.maximalTerminals.size > 0 ? maximalRule(chart, lowered, resolution.maximal) : null;
+      const maximal = resolution.maximal || lowered.maximalHelpers.size > 0 ? maximalRule(chart, lowered, resolution.maximal) : null;
       const ranking = roots.length === 0 ? null : new Ranker(tokens, resolution.lean, maximal).rank(roots);
       if (ranking === null) {
         // A text that maximal leaves with no derivation is rejected at the
@@ -8001,7 +10380,7 @@
       // Neither form of maximality applies to the derivations of R (engine
       // §7.7), unless a fault applies them (F20). Cycles are over spans of R,
       // unless a fault finds them over projected spans (F19).
-      const maximal = fault("F20") && (lowered.resolution.maximal || lowered.maximalTerminals.size > 0)
+      const maximal = fault("F20") && (lowered.resolution.maximal || lowered.maximalHelpers.size > 0)
         ? maximalRule(chart, lowered, lowered.resolution.maximal) : null;
       // A test that watches the check marks W(D)'s edges before the check
       // ranks (tests/README.md).
@@ -8155,9 +10534,9 @@
     return context.interner.get(node.item.tagId);
   }
 
-  // The nodes of a left-recursive chain, from the top down: a node whose first
+  // The nodes of a left-recursive spine, from the top down: a node whose first
   // child is a node of the same production's left side, as `r ≔ r x` and the
-  // helper of `x ...` make. Walking them in a loop keeps the walks of a long
+  // helper of `{x}` make. Walking them in a loop keeps the walks of a long
   // text from nesting as deep as the text is long.
   /**
    * @param {DerivationRule} node
@@ -8179,16 +10558,15 @@
   // yields its children.
   /**
    * The children a node's result is built from, in order: a node's own, or,
-   * for a repetition's helper and a rule's left-recursive prefix, those of
-   * the whole chain, the bottom node's first.
+   * for a helper, those of its whole left-recursive spine, the bottom node's
+   * first. A chain's levels are rule nodes, and stay (engine §12).
    * @param {DerivationRule} node
    * @returns {Derivation[]}
    */
   function orderedChildren(node) {
     const production = node.production;
-    if (!production.helper && !production.recursivePrefix) return node.children;
-    let chain = spine(node);
-    if (!production.helper) chain = chain.filter((member, index, all) => index === 0 || all[index - 1].production.recursivePrefix);
+    if (!production.helper) return node.children;
+    const chain = spine(node);
     /** @type {Derivation[]} */
     const result = [];
     for (let index = chain.length - 1; index >= 0; index--) {
@@ -8202,8 +10580,8 @@
    * The warnings of a chosen derivation (engine §12): each rule node of its
    * tree gives one for each warning of its alternative whose feature is on, in
    * the order a walk meets the nodes, parent before children and children left
-   * to right. The walk splices helpers and the prefixes of a trailing
-   * repetition as the tree does, with its own stack for the same reason.
+   * to right. The walk splices helpers as the tree does, with its own stack
+   * for the same reason.
    * @param {Derivation} root
    * @param {ParseContext} context
    * @param {Set<string>} features
@@ -8367,7 +10745,8 @@
     /** @param {string} name */
     capture(name) {
       if (name === "") return { start: this.node.start, end: this.node.end, tags: nodeTags(this.node, this.context) };
-      const capture = /** @type {import("./types.js").Capture} */ (this.node.production.captures.find((entry) => entry.name === name));
+      const production = this.node.production;
+      const capture = production.captures[/** @type {number} */ (production.captureSlot.get(name))];
       const child = this.node.children[capture.index];
       return { start: child.start, end: child.end, tags: nodeTags(child, this.context) };
     }
@@ -8648,31 +11027,67 @@
   }
 
   /**
+   * The implications of a stage indexed by each tag of their `if`, made once
+   * per list of implications.
+   * @type {WeakMap<{if: TagSet, then: TagSet}[], Map<string, number[]>>}
+   */
+  const implicationIndexes = new WeakMap();
+
+  /**
    * A token's explicit tags with the tags of the stage's implications, added
    * until no tag changes (engine §11). An implication only adds tags, so the
-   * loop ends, also over a cycle.
+   * closure ends, also over a cycle. A pass over every implication until none
+   * adds a tag would settle one link of a chain per pass, so a worklist of the
+   * tags added fires each implication at most once.
    * @param {TagSet} tags
    * @param {{if: TagSet, then: TagSet}[]} implications
    * @returns {TagSet}
    */
   function implied(tags, implications) {
-    let result = tags;
-    for (let changed = implications.length > 0; changed;) {
-      changed = false;
-      for (const implication of implications) {
-        let meets = false;
-        for (const tag of implication.if) {
-          if (result.has(tag)) {
-            meets = true;
-            break;
-          }
+    if (implications.length === 0) return tags;
+    let index = implicationIndexes.get(implications);
+    if (!index) {
+      index = new Map();
+      for (let number = 0; number < implications.length; number++) {
+        if (hooks.work) countWork(hooks.work, "implications");
+        for (const tag of implications[number].if) {
+          if (hooks.work) countWork(hooks.work, "implications");
+          const list = index.get(tag);
+          if (list) list.push(number);
+          else index.set(tag, [number]);
         }
-        if (!meets) continue;
-        for (const tag of implication.then) {
+      }
+      implicationIndexes.set(implications, index);
+    }
+    let result = tags;
+    /** @type {Set<number> | null} */
+    let fired = null;
+    // Each tag and implication counts before it is read, and each tag of
+    // the token's as the closure copies it.
+    /** @type {string[]} */
+    const queue = [];
+    for (const tag of tags) {
+      if (hooks.work) countWork(hooks.work, "implications");
+      queue.push(tag);
+    }
+    for (let head = 0; head < queue.length; head++) {
+      for (const number of index.get(queue[head]) ?? []) {
+        if (hooks.work) countWork(hooks.work, "implications");
+        if (fired === null) fired = new Set();
+        else if (fired.has(number)) continue;
+        fired.add(number);
+        for (const tag of implications[number].then) {
+          if (hooks.work) countWork(hooks.work, "implications");
           if (result.has(tag)) continue;
-          if (result === tags) result = new Set(tags);
+          if (result === tags) {
+            result = new Set();
+            for (const own of tags) {
+              if (hooks.work) countWork(hooks.work, "tags");
+              result.add(own);
+            }
+          }
           result.add(tag);
-          changed = true;
+          queue.push(tag);
         }
       }
     }
@@ -8732,7 +11147,8 @@
       /** @type {(item: EmitItem, fallback: TagSet) => TagSet} */
       const valueTags = (item, fallback) => {
         if (!item.tags) return fallback;
-        const tags = asSet(evaluate(context, item.tags, scope));
+        const term = item.tags;
+        const tags = asSet(settled(() => evaluate(context, term, scope)));
         // A token no terminal can read is a mistake; `%emits ε` is how a
         // grammar emits nothing (engine §11).
         if (tags.size === 0) throw new GencmuError("grammar", `${production.owner} emits a token with no tags`);
@@ -8750,19 +11166,28 @@
       // start of its anchor, the first written part of the capture item listed
       // next after it, or the constituent's end.
       /** @type {(name: string) => Derivation} */
-      const part = (name) => node.children[/** @type {import("./types.js").Capture} */ (production.captures.find((entry) => entry.name === name)).index];
+      const part = (name) => node.children[production.captures[/** @type {number} */ (production.captureSlot.get(name))].index];
       // An attachment: what its captured parts emit in their place, walked
       // into a list of their own (engine §11).
       /** @type {(names: string[] | undefined) => EmitTask[]} */
       const walks = (names) => (names ?? []).map((name) => ({ walk: part(name) }));
       // The attachments gathered last, each token without its span.
       const gathered = () => /** @type {Token[]} */ (lists.pop()).map(attached);
+      // Each item's anchor, the next capture item listed after it, found in
+      // one backward pass rather than by a search of the rest for each.
+      /** @type {(EmitItem | undefined)[]} */
+      const anchors = new Array(clause.items.length);
+      for (let index = clause.items.length - 1, next = undefined; index >= 0; index--) {
+        if (hooks.work) countWork(hooks.work, "clauses");
+        anchors[index] = next;
+        if (clause.items[index].capture !== undefined) next = clause.items[index];
+      }
       /** @type {EmitTask[]} */
       const ordered = [];
       clause.items.forEach((item, index) => {
         if (item.insert !== undefined) {
           const insert = item.insert;
-          const next = clause.items.slice(index + 1).find((later) => later.capture !== undefined);
+          const next = anchors[index];
           const at = next && next.capture !== undefined ? part(next.before?.[0] ?? next.capture).start : node.end;
           ordered.push({ run: () => put(insertedToken(insert, at, node, context, production.owner)) });
         } else if (item.capture !== undefined) {
@@ -8774,15 +11199,18 @@
           let before = [];
           /** @type {Token | undefined} */
           let token;
+          // One push for each step: an item can have any number of
+          // attachments, more than a call takes arguments.
+          ordered.push({ run: () => lists.push([]) });
+          for (const step of walks(item.before)) ordered.push(step);
           ordered.push(
-            { run: () => lists.push([]) },
-            ...walks(item.before),
             { run: () => {
               before = gathered();
               token = makeToken(child, valueTags(item, nodeTags(child, context)), emitter);
               lists.push([]);
-            } },
-            ...walks(item.after),
+            } });
+          for (const step of walks(item.after)) ordered.push(step);
+          ordered.push(
             { run: () => {
               const after = gathered();
               const carrier = /** @type {Token} */ (token);
@@ -8807,7 +11235,10 @@
 
 
 
+
+
   /**
+   * @import { Step } from "./trampoline.js"
    * @import { Argument, Comparator, Condition, DomAlternative, DomClassifier, DomConstant, DomDirective, DomEntry, DomImplication, DomRule, EmitItem, Emission, Expr, GrammarDom, Position, ResultNode, RuleNode, Term } from "./types.js"
    * @import { Token } from "./tokens.js"
    */
@@ -8837,14 +11268,19 @@
       throw new GencmuError("grammar", `${path}:${line}:${column}: ${message}`, { document: path, line, column });
     };
 
-    // A rule node's children, with transparent rules read in their place.
+    // A rule node's children, with transparent rules read in their place,
+    // in the order written, with an explicit stack.
     /** @type {(node: ResultNode) => ResultNode[]} */
     const parts = (node) => {
       /** @type {ResultNode[]} */
       const result = [];
       if (node.kind !== "rule") return result;
-      for (const child of node.children) {
-        if (child.kind === "rule" && !NAMED.has(child.rule)) result.push(...parts(child));
+      /** @type {ResultNode[]} */
+      const stack = node.children.slice().reverse();
+      while (stack.length > 0) {
+        if (hooks.work) countWork(hooks.work, "walkSteps");
+        const child = /** @type {ResultNode} */ (stack.pop());
+        if (child.kind === "rule" && !NAMED.has(child.rule)) for (let index = child.children.length - 1; index >= 0; index--) stack.push(child.children[index]);
         else result.push(child);
       }
       return result;
@@ -8891,10 +11327,13 @@
     // The first node of a rule at or below a node, in the order written.
     /** @type {(node: ResultNode, name: string) => ResultNode | null} */
     const firstOfRule = (node, name) => {
-      if (ruleOf(node) === name) return node;
-      for (const child of parts(node)) {
-        const found = firstOfRule(child, name);
-        if (found) return found;
+      const stack = [node];
+      while (stack.length > 0) {
+        if (hooks.work) countWork(hooks.work, "walkSteps");
+        const current = /** @type {ResultNode} */ (stack.pop());
+        if (ruleOf(current) === name) return current;
+        const children = parts(current);
+        for (let index = children.length - 1; index >= 0; index--) stack.push(children[index]);
       }
       return null;
     };
@@ -8913,18 +11352,19 @@
     // test's operand, or null (engine §9, §10).
     /** @type {string | null} */
     let closedFor = null;
-    // The captures of the alternative being read, in order.
-    /** @type {string[]} */
-    let captures = [];
+    // The notation node of each capture of the alternative being read, where
+    // an error about it is reported.
+    /** @type {Map<object, ResultNode>} */
+    let captureNodes = new Map();
+    // How many braces and elidable optionals the reader is inside, where no
+    // capture stands.
+    let braces = 0;
+    let marked = 0;
     for (const item of parts(tree)) {
       if (item.kind === "rule" && !ITEMS.has(item.rule)) fail(`the notation gives a ${item.rule} where an item stands`, item);
       if (ruleOf(item) === "directive") {
         const name = text(token(item)).slice(1);
-        let operands = parts(item).filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag");
-        // A first word maximal of %elidable makes its terminators maximal and
-        // is no operand; a tag ~maximal stays one (engine §9).
-        const maximal = name === "elidable" && operands.length > 0 && ruleOf(operands[0]) === "argument-word" && text(token(operands[0])) === "maximal";
-        if (maximal) operands = operands.slice(1);
+        const operands = parts(item).filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag");
         const problem = operandProblem(name, operands.map((child) => operandKind(child)));
         if (problem) fail(problem, item);
         directives.push({
@@ -8937,17 +11377,16 @@
             // A range or a property has no tag; operandProblem has refused it.
             return tagOf(symbolPart(child));
           }),
-          ...(maximal ? { maximal: /** @type {const} */ (true) } : {}),
           at: at(item),
         });
       } else if (ruleOf(item) === "rule") {
-        rules.push(readRule(item));
+        rules.push(run(readRule(item)));
       } else if (ruleOf(item) === "constant-definition") {
-        constants.push(readConstant(item));
+        constants.push(run(readConstant(item)));
       } else if (ruleOf(item) === "classifier") {
         classifiers.push(readClassifier(item));
       } else if (ruleOf(item) === "implication-declaration") {
-        implications.push(readImplicationDeclaration(item));
+        implications.push(run(readImplicationDeclaration(item)));
       }
     }
     return { format: DOM_FORMAT, rules, directives, constants, classifiers, implications };
@@ -8998,33 +11437,35 @@
      * An implication, `%implies A ⟹ B`: two closed terms whose type is a tag
      * set (engine §2, §9).
      * @param {ResultNode} node
-     * @returns {DomImplication}
+     * @returns {Generator<Step, DomImplication, any>}
      */
-    function readImplicationDeclaration(node) {
-      const [antecedent, consequent] = some(node, "union", 2).slice(0, 2).map((side) => {
+    function* readImplicationDeclaration(node) {
+      /** @type {Term[]} */
+      const sides = [];
+      for (const side of some(node, "union", 2).slice(0, 2)) {
         closedFor = "a side of an implication";
-        const term = readTerm(side);
+        const term = /** @type {Term} */ (yield readTerm(side));
         closedFor = null;
         const found = termType(term);
         const problem = "problem" in found ? found.problem : expectedProblem(found.type, "tags");
         if (problem) fail(`a side of an implication is a tag set: ${problem}`, side);
-        return term;
-      });
-      return { if: antecedent, then: consequent, at: at(node) };
+        sides.push(term);
+      }
+      return { if: sides[0], then: sides[1], at: at(node) };
     }
 
     /**
      * A constant's definition: its name without `$`, and its value, a closed
      * term of a type that a constant can have (engine §2, §9, §10).
      * @param {ResultNode} node
-     * @returns {DomConstant}
+     * @returns {Generator<Step, DomConstant, any>}
      */
-    function readConstant(node) {
+    function* readConstant(node) {
       const keyword = text(token(only(node, "constant-definer")));
       const name = text(token(only(node, "constant-reference"))).slice(1);
       const valueNode = only(node, "term");
       closedFor = "a constant's value";
-      const value = readTerm(valueNode);
+      const value = /** @type {Term} */ (yield readTerm(valueNode));
       closedFor = null;
       const op = keyword === "%redefine-const" ? "redefine" : "define";
       const found = constantValueType(value, op === "redefine");
@@ -9034,23 +11475,35 @@
 
     /**
      * @param {ResultNode} node
-     * @returns {DomRule}
+     * @returns {Generator<Step, DomRule, any>}
      */
-    function readRule(node) {
+    function* readRule(node) {
       const keyword = text(token(only(node, "definer")));
       /** @type {Partial<DomRule>} */
       const rule = { name: text(token(only(node, "rule-name"))), op: keyword === "%extend-rule" ? "extend" : keyword === "%redefine-rule" ? "redefine" : "define" };
-      const tags = one(node, "tags-clause");
-      if (tags) rule.tags = readConstituentTags(tags);
-      rule.alternatives = some(only(node, "body"), "alternative").map(readAlternative);
-      const emits = one(node, "emits-clause");
-      if (emits) rule.emit = readEmission(emits);
+      // The parts of a definition are read in the order written: the body,
+      // then its clauses in their fixed order, and the checks of the whole
+      // definition last (engine §9).
+      /** @type {DomAlternative[]} */
+      const alternatives = [];
+      for (const alternative of some(only(node, "body"), "alternative")) alternatives.push(yield readAlternative(alternative));
+      const tagsClause = one(node, "tags-clause");
+      const tags = tagsClause ? /** @type {Term} */ (yield readConstituentTags(tagsClause)) : undefined;
       // Each condition of the list is one condition, applying where its
       // captures are (engine §3.6).
-      const conditions = one(node, "conditions-clause");
-      rule.conditions = conditions ? some(conditions, "implication").map(readImplication) : [];
+      const conditionsClause = one(node, "conditions-clause");
+      /** @type {Condition[]} */
+      const conditions = [];
+      if (conditionsClause) for (const condition of some(conditionsClause, "implication")) conditions.push(yield readImplication(condition));
+      const emits = one(node, "emits-clause");
+      const emit = emits ? /** @type {Emission} */ (yield readEmission(emits)) : undefined;
+      if (tags) rule.tags = tags;
+      rule.alternatives = alternatives;
+      if (emit) rule.emit = emit;
+      rule.conditions = conditions;
       if (one(node, "opaque-clause")) rule.opaque = true;
       rule.at = at(node);
+      flattenGroups(rule);
       const problem = definitionProblem(rule);
       if (problem) fail(problem, node);
       return /** @type {DomRule} */ (rule);
@@ -9058,9 +11511,9 @@
 
     /**
      * @param {ResultNode} node
-     * @returns {DomAlternative}
+     * @returns {Generator<Step, DomAlternative, any>}
      */
-    function readAlternative(node) {
+    function* readAlternative(node) {
       // A guard's token is its spelling: `f?` or `¬f?` for a gate, `f!` for
       // a warning (engine §9).
       const guards = ofRule(node, "guard").map((guard) => {
@@ -9070,44 +11523,53 @@
         const read = { feature: spelled.slice(negated ? 1 : 0, -1), kind: spelled.endsWith("!") ? "warning" : "gate", negated };
         return read;
       });
-      captures = [];
+      captureNodes = new Map();
       /** @type {DomAlternative} */
-      const alternative = { guards, expr: readExpression(only(node, "conjunction"), true) };
+      const alternative = { guards, expr: /** @type {Expr} */ (yield readExpression(only(node, "conjunction"), true)) };
+      // A name stands at most once in each production, gates aside: the
+      // error stands at the second capture that such a production reads,
+      // the first in the text where there are several (engine §3.5, §9).
+      const twice = duplicateCaptures(alternative.expr).map((capture) => /** @type {ResultNode} */ (captureNodes.get(capture)));
+      if (twice.length > 0) {
+        const first = twice.reduce((a, b) => (firstToken(b) < firstToken(a) ? b : a));
+        fail(`the capture $${text(token(first)).slice(1)} is read twice by one production of the alternative`, first);
+      }
       const tags = one(node, "alternative-tags");
-      if (tags) alternative.tags = readConstituentTags(tags);
+      if (tags) alternative.tags = yield readConstituentTags(tags);
       return alternative;
     }
 
     /**
      * @param {ResultNode} node
-     * @param {boolean} [top] whether the expression is an alternative's top
-     *   level, where a capture may stand (engine §3.5)
-     * @returns {Expr}
+     * @param {boolean} [whole] whether it is the alternative's whole
+     *   expression, where a chain may stand (engine §9)
+     * @returns {Generator<Step, Expr, any>}
      */
-    function readExpression(node, top = false) {
+    function* readExpression(node, whole = false) {
       switch (ruleOf(node)) {
         case "choice": {
           const found = some(node, "conjunction");
-          const items = found.map((item) => readExpression(item, top && found.length === 1));
+          /** @type {Expr[]} */
+          const items = [];
+          for (const item of found) items.push(yield readExpression(item));
           return items.length === 1 ? items[0] : { choice: items };
         }
         case "conjunction": {
           const found = some(node, "sequence");
-          const items = found.map((item) => readExpression(item, top && found.length === 1));
-          // A & of n items expands to 2ⁿ−1 sequences (engine §3.2).
-          if (items.length > 16) fail("an & joins at most 16 items", node);
+          // A & of n items expands to 2ⁿ−1 sequences (engine §3.2). The
+          // bound is the &'s own form, so it comes before its items (§9).
+          if (found.length > 16) fail("an & joins at most 16 items", node);
+          /** @type {Expr[]} */
+          const items = [];
+          for (const item of found) items.push(yield readExpression(item, whole && found.length === 1));
           return items.length === 1 ? items[0] : { and: items };
         }
         case "sequence": {
-          const items = some(node, "element").map((item) => readExpression(item, top));
+          const found = some(node, "primary");
+          /** @type {Expr[]} */
+          const items = [];
+          for (const item of found) items.push(yield readPrimary(knownOf(item, PRIMARIES), whole && found.length === 1));
           return items.length === 1 ? items[0] : { seq: items };
-        }
-        case "element": {
-          const repeated = parts(node).some((child) => tokenText(child) === "...");
-          const primary = readPrimary(knownOf(only(node, "primary"), PRIMARIES), top && !repeated);
-          if (!repeated) return primary;
-          if ("optional" in primary) return { repeat: primary.optional, min: 0 };
-          return { repeat: primary, min: 1 };
         }
         default:
           return fail(`unexpected ${ruleOf(node)}`, node);
@@ -9115,11 +11577,83 @@
     }
 
     /**
-     * @param {ResultNode} node
-     * @param {boolean} [top] whether a capture may stand here
-     * @returns {Expr}
+     * An optional, and with a marker `+` or `++` among its parts an elidable
+     * one (engine §3.8, §9). Its form is checked on the tree, where a group
+     * is still a node: one sequence, whose first primary is the terminal
+     * itself, `=`-tested or not.
+     * @param {RuleNode} node
+     * @returns {Generator<Step, Expr, any>}
      */
-    function readPrimary(node, top = false) {
+    function* readOptional(node) {
+      // Its required part first, then its markers (engine §9).
+      const choice = only(node, "choice");
+      const found = parts(node);
+      const markers = found.filter((child) => tokenText(child) === "+" || tokenText(child) === "++");
+      if (markers.length >= 2) fail("an optional has one marker + or ++ at most", markers[1]);
+      if (markers.length === 0) return { optional: yield readExpression(choice) };
+      const form = "an elidable optional begins with its terminator, a name with a capital or ~name, written directly after the marker, and joins it to nothing with | or &";
+      // One conjunction of one sequence, with no leading | or & either: the
+      // terminator stands directly after the marker (engine §9).
+      const conjunctions = ofRule(choice, "conjunction");
+      const leading = parts(choice).some((child) => tokenText(child) === "|") ||
+        (conjunctions.length === 1 && parts(conjunctions[0]).some((child) => tokenText(child) === "&"));
+      const sequences = conjunctions.length === 1 && !leading ? ofRule(conjunctions[0], "sequence") : [];
+      const primary = sequences.length === 1 ? ofRule(sequences[0], "primary")[0] : undefined;
+      const head = primary ? knownOf(primary, PRIMARIES) : undefined;
+      /** @type {(symbol: RuleNode) => boolean} */
+      const isTerminal = (symbol) => ruleOf(symbol) === "tag" || (ruleOf(symbol) === "reference" && /^[A-Z]/.test(text(token(symbol))));
+      if (!head) fail(form, node);
+      const symbol = /** @type {RuleNode} */ (head);
+      if (ruleOf(symbol) === "tested") {
+        if (!isTerminal(knownOf(only(symbol, "primary"), PRIMARIES))) fail(form, node);
+        const testNode = only(symbol, "test");
+        const comparator = parts(testNode).flatMap((child) => (child.kind === "token" ? [text(child)] : [])).join("");
+        if (comparator !== "=") fail("the terminator of an elidable optional takes no test but =, since elision-only restores it with its sound", testNode);
+      } else if (!isTerminal(symbol)) {
+        fail(form, node);
+      }
+      marked++;
+      const expr = /** @type {Expr} */ (yield readExpression(choice));
+      marked--;
+      return tokenText(markers[0]) === "++" ? { optional: expr, elidable: true, maximal: true } : { optional: expr, elidable: true };
+    }
+
+    /**
+     * Braces: the item, its separator if a backslash has one, and a chain's
+     * direction from its marker, a `...` among the parts (engine §9).
+     * @param {RuleNode} node
+     * @param {boolean} whole whether the braces are their alternative's whole
+     *   expression
+     * @returns {Generator<Step, Expr, any>}
+     */
+    function* readRepetition(node, whole) {
+      const found = parts(node);
+      const choices = some(node, "choice");
+      const markers = found.flatMap((child, index) => (tokenText(child) === "..." ? [index] : []));
+      // Two markers are an error at the second, and a marker after the
+      // separator is an error at that marker, whichever a reader meets first.
+      if (markers.length >= 2) fail("braces have one chain marker ... at most", found[markers[1]]);
+      const second = choices.length >= 2 ? found.indexOf(choices[1]) : found.length;
+      if (markers.length === 1 && markers[0] > second) fail("a separator has no chain marker: ... stands after { or after the item", found[markers[0]]);
+      const chain = markers.length === 0 ? null : markers[0] < found.indexOf(choices[0]) ? "left" : "right";
+      // A chain is the whole expression of its alternative, as the lowering
+      // of its levels needs (engine §3.3, §9).
+      if (chain && !whole) fail("a chain is the whole expression of its alternative: name it as a rule to use it here", node);
+      braces++;
+      /** @type {Expr} */
+      const result = { repeat: yield readExpression(choices[0]) };
+      if (choices.length >= 2) result.separator = yield readExpression(choices[1]);
+      braces--;
+      if (chain) result.chain = chain;
+      return result;
+    }
+
+    /**
+     * @param {ResultNode} node
+     * @param {boolean} [whole] whether a chain may stand here
+     * @returns {Generator<Step, Expr, any>}
+     */
+    function* readPrimary(node, whole = false) {
       switch (ruleOf(node)) {
         case "reference": return { ref: text(token(node)) };
         case "tag": case "character": case "phoneme": return { terminal: tagOf(token(node)) };
@@ -9135,15 +11669,15 @@
           if (kind === "constant-reference") fail(CONSTANT_IN_BODY, symbol);
           if (!["reference", "tag", "character", "phoneme", "range", "property"].includes(/** @type {string} */ (kind)) ||
               (kind === "reference" && text(token(symbol)) === "#")) {
-            fail("a test follows only a reference other than # or a terminal, not a group, an optional, a capture, ε, # or another test", testNode);
+            fail("a test follows only a reference other than # or a terminal, not a group, an optional, braces, a capture, ε, # or another test", testNode);
           }
-          const expr = /** @type {import("./types.js").TestedSymbol} */ (readPrimary(symbol));
+          const expr = /** @type {import("./types.js").TestedSymbol} */ (yield readPrimary(symbol));
           // The comparator is the test's tokens: `=`, `≠`, `⊇` or `⊉`, or
           // `∩` and `=∅` or `≠∅` around the operand.
           const test = /** @type {import("./types.js").TestOp} */ (parts(testNode).flatMap((child) => (child.kind === "token" ? [text(child)] : [])).join(""));
           const operand = only(testNode, "test-operand");
           closedFor = "a test's operand";
-          const value = readTerm(operand);
+          const value = /** @type {Term} */ (yield readTerm(operand));
           closedFor = null;
           const found = termType(value);
           const problem = "problem" in found ? found.problem : expectedProblem(found.type, isSoundTest(test) ? "string" : "tags");
@@ -9155,7 +11689,8 @@
           return { test, value, expr };
         }
         case "capture": {
-          if (!top) fail("a capture stands at the top level of an alternative, not inside [ ], ( ), ..., & or a choice", node);
+          if (braces > 0) fail("a capture cannot stand inside braces, whose parts repeat: name the list as a rule, and capture that", node);
+          if (marked > 0) fail("a capture cannot stand inside an elidable optional, which elision restores as one unit", node);
           const captureToken = token(node);
           const inner = only(node, "primary");
           if (text(captureToken) === "$") fail("$ is the whole constituent and wraps nothing", node);
@@ -9164,18 +11699,16 @@
           const kind = ruleOf(wrapped);
           if (kind === "constant-reference") fail(CONSTANT_IN_BODY, wrapped);
           if (!["reference", "tag", "character", "phoneme", "range", "property", "tested"].includes(/** @type {string} */ (kind))) fail("a capture wraps one symbol", node);
-          // An alternative names a capture once, and has at most four
-          // (engine §3.5, §9).
           const name = text(captureToken).slice(1);
-          if (captures.includes(name)) fail(`the capture $${name} is used twice in one alternative`, node);
-          captures.push(name);
-          if (captures.length > 4) fail("an alternative has at most four captures", node);
-          const expr = readPrimary(wrapped);
-          return { capture: name, expr };
+          const expr = /** @type {Expr} */ (yield readPrimary(wrapped));
+          const capture = { capture: name, expr };
+          captureNodes.set(capture, node);
+          return capture;
         }
         case "constant-reference": return fail(CONSTANT_IN_BODY, node);
-        case "group": return readExpression(only(node, "choice"));
-        case "optional": return { optional: readExpression(only(node, "choice")) };
+        case "group": return yield readExpression(only(node, "choice"));
+        case "optional": return yield readOptional(/** @type {RuleNode} */ (node));
+        case "repetition": return yield readRepetition(/** @type {RuleNode} */ (node), whole);
         case "empty": return { empty: true };
         default: return fail(`unexpected ${ruleOf(node)}`, node);
       }
@@ -9183,12 +11716,14 @@
 
     /**
      * @param {ResultNode} node
-     * @returns {Emission}
+     * @returns {Generator<Step, Emission, any>}
      */
-    function readEmission(node) {
+    function* readEmission(node) {
       // `%emits ε` emits nothing, and the constituent does not count.
       if (parts(node).some((child) => tokenText(child) === "ε")) return { items: [] };
-      const items = some(node, "emit-item").map((itemNode) => {
+      /** @type {EmitItem[]} */
+      const items = [];
+      for (const itemNode of some(node, "emit-item")) {
         const target = symbolPart(only(itemNode, "emit-target"));
         const kind = target.kind === "rule" ? target.rule : target.terminal;
         /** @type {EmitItem} */
@@ -9202,7 +11737,7 @@
         const tags = one(itemNode, "emit-tags");
         if (tags && item.insert !== undefined) fail("an inserted tag takes no tags of its own", itemNode);
         if (tags) {
-          item.tags = readTagTerm(only(tags, "term"));
+          item.tags = /** @type {Term} */ (yield readTagTerm(only(tags, "term")));
           if ("emptySet" in item.tags) fail("<∅> emits a token no terminal can read; %emits ε emits nothing", itemNode);
         }
         // Attachments: named captures in parentheses, before the item and
@@ -9213,14 +11748,14 @@
         if ((before.length || after.length) && item.capture === "") fail("$ carries no attachments; name a capture", itemNode);
         if (before.length) item.before = before;
         if (after.length) item.after = after;
-        return item;
-      });
+        items.push(item);
+      }
       if (items.some((item) => item.capture === "") && !items.every((item) => item.capture === "")) {
         fail("$ goes with no item but another $", node);
       }
       // A capture stands once in an emission, as an item or as an attachment.
       const named = items.flatMap((item) => (item.capture !== undefined && item.capture !== "" ? [item.capture, ...(item.before || []), ...(item.after || [])] : []));
-      if (named.some((name, index) => named.indexOf(name) !== index)) fail("%emits lists a capture twice", node);
+      if (new Set(named).size !== named.length) fail("%emits lists a capture twice", node);
       return { items };
     }
 
@@ -9240,10 +11775,10 @@
      * A constituent's tag term, which cannot read the tags it defines: `$`,
      * `tags($)` or `classes($)` (engine §9).
      * @param {ResultNode} node
-     * @returns {Term}
+     * @returns {Generator<Step, Term, any>}
      */
-    function readConstituentTags(node) {
-      const term = readTagTerm(only(node, "term"));
+    function* readConstituentTags(node) {
+      const term = /** @type {Term} */ (yield readTagTerm(only(node, "term")));
       if (readsOwnTags(term)) fail("a constituent's tags cannot be made of its own tags, tags($) or classes($)", node);
       return term;
     }
@@ -9252,10 +11787,10 @@
      * A whole term that must be a tag set: a constituent's or an item's tags
      * (engine §10). The error stands at the term.
      * @param {ResultNode} node
-     * @returns {Term}
+     * @returns {Generator<Step, Term, any>}
      */
-    function readTagTerm(node) {
-      const term = readTerm(node);
+    function* readTagTerm(node) {
+      const term = /** @type {Term} */ (yield readTerm(node));
       const found = termType(term);
       const problem = "problem" in found ? found.problem : expectedProblem(found.type, "tags");
       if (problem) fail(problem, node);
@@ -9265,46 +11800,58 @@
     /**
      * A condition, or conditions joined by ⟹, grouping to the right.
      * @param {ResultNode} node
-     * @returns {Condition}
+     * @returns {Generator<Step, Condition, any>}
      */
-    function readImplication(node) {
-      const antecedent = readAnyOf(only(node, "any-of"));
+    function* readImplication(node) {
+      // Its any-ofs in order, and after them the implication of a notation
+      // that writes one after `⟹`, grouped to the right (engine §9).
+      /** @type {Condition[]} */
+      const items = [];
+      for (const anyOf of some(node, "any-of")) items.push(yield readAnyOf(anyOf));
       const consequent = one(node, "implication");
-      return consequent ? { if: antecedent, then: readImplication(consequent) } : antecedent;
+      if (consequent) items.push(yield readImplication(consequent));
+      let result = /** @type {Condition} */ (items.pop());
+      while (items.length > 0) result = { if: /** @type {Condition} */ (items.pop()), then: result };
+      return result;
     }
 
     /**
      * Conditions joined by ∨, each several joined by ∧; a parenthesized group
      * of the same connective is part of the one around it (engine §9).
      * @param {ResultNode} node
-     * @returns {Condition}
+     * @returns {Generator<Step, Condition, any>}
      */
-    function readAnyOf(node) {
+    function* readAnyOf(node) {
       // Parentheses make no node, so a group of the same connective as the
       // one around it is part of it: (a ∧ b) ∧ c is a ∧ b ∧ c (engine §9).
-      const items = some(node, "all-of").flatMap((allNode) => {
-        const all = some(allNode, "condition").map(readCondition).flatMap((item) => ("all" in item ? item.all : [item]));
-        const one = all.length === 1 ? all[0] : { all };
-        return "any" in one ? one.any : [one];
-      });
+      // The reader joins such groups once the rule is read (flattenGroups),
+      // in one walk, since joining them here would copy a list at each depth.
+      /** @type {Condition[]} */
+      const items = [];
+      for (const allNode of some(node, "all-of")) {
+        /** @type {Condition[]} */
+        const all = [];
+        for (const conditionNode of some(allNode, "condition")) all.push(yield readCondition(conditionNode));
+        items.push(all.length === 1 ? all[0] : { all });
+      }
       return items.length === 1 ? items[0] : { any: items };
     }
 
     /**
      * @param {ResultNode} node
-     * @returns {Condition}
+     * @returns {Generator<Step, Condition, any>}
      */
-    function readCondition(node) {
+    function* readCondition(node) {
       const inner = knownOf(node, CONDITIONS);
       switch (ruleOf(inner)) {
         case "implication":
-          return readImplication(inner);
+          return yield readImplication(inner);
         case "presence":
           return { captured: text(token(inner)).slice(1) };
         case "comparison": {
           const [left, right] = some(inner, "union", 2);
           const op = /** @type {Comparator} */ (text(token(only(inner, "comparator"))));
-          const condition = { op, left: readTerm(left), right: readTerm(right) };
+          const condition = { op, left: /** @type {Term} */ (yield readTerm(left)), right: /** @type {Term} */ (yield readTerm(right)) };
           // The two sides fit the comparator (engine §10).
           const leftType = termType(condition.left);
           const rightType = termType(condition.right);
@@ -9314,9 +11861,9 @@
           return condition;
         }
         case "negation":
-          return { not: readCondition(only(inner, "condition")) };
+          return { not: yield readCondition(only(inner, "condition")) };
         case "call": {
-          const call = readCall(inner);
+          const call = /** @type {{call: string, args: Argument[]}} */ (yield readCall(inner));
           const [span, rule] = call.args;
           if (call.call === "initial" && call.args.length === 1 && !("rule" in span) && !("classifier" in span)) return { initial: span };
           if ((call.call !== "matches" && call.call !== "begins") || call.args.length !== 2 || !("rule" in rule) || "rule" in span || "classifier" in span) {
@@ -9334,26 +11881,35 @@
      * @param {ResultNode} node
      * @param {boolean} [argument] whether the term is a function's argument,
      *   where a span may stand
-     * @returns {Term}
+     * @returns {Generator<Step, Term, any>}
      */
-    function readTerm(node, argument = false) {
-      if (ruleOf(node) === "term") return readTerm(knownOf(node, TERMS), argument);
+    function* readTerm(node, argument = false) {
+      if (ruleOf(node) === "term") return yield readTerm(knownOf(node, TERMS), argument);
       if (ruleOf(node) === "guarded-term") {
         if (closedFor) fail(`${closedFor} is a closed term, and holds no guarded term`, node);
-        const condition = readAnyOf(only(node, "any-of"));
-        const conditionProblem = conditionTypeProblem(condition);
-        if (conditionProblem) fail(conditionProblem, node);
+        // Its any-ofs, each guarding the rest, and then its union, or the
+        // term of a notation that writes one after `⟹` (engine §9). The
+        // reader has checked each comparison of a condition, so a condition's
+        // terms agree; the term guarded last must be a tag set, an error at
+        // its guard.
+        const guards = some(node, "any-of");
+        /** @type {Condition[]} */
+        const conditions = [];
+        for (const guard of guards) conditions.push(yield readAnyOf(guard));
+        const last = one(node, "union") || only(node, "term");
         /** @type {Term} */
-        const guarded = { if: condition, then: readTerm(only(node, "term")) };
+        let guarded = yield readTerm(last);
         const found = termType(guarded);
-        if ("problem" in found) fail(found.problem, node);
+        const problem = "problem" in found ? found.problem : expectedProblem(found.type, "tags");
+        if (problem) fail(problem, guards[guards.length - 1]);
+        for (let index = conditions.length - 1; index >= 0; index--) guarded = { if: conditions[index], then: guarded };
         return guarded;
       }
       if (ruleOf(node) === "union") {
         // Parts joined by ∪ and ∖ group from the left: a run joined by ∪ is
         // one union, and each ∖ takes what stands before it (engine §9).
         const found = some(node, "intersection");
-        if (found.length === 1) return readTerm(found[0], argument);
+        if (found.length === 1) return yield readTerm(found[0], argument);
         /** @type {string[]} */
         const operators = parts(node).flatMap((child) => {
           const written = tokenText(child);
@@ -9361,7 +11917,9 @@
         });
         // A leading ∪ is a separator, not an operator.
         while (operators.length >= found.length) operators.shift();
-        const items = found.map((item) => readTerm(item));
+        /** @type {Term[]} */
+        const items = [];
+        for (const item of found) items.push(yield readTerm(item));
         const joined = joinedType(items.map((item) => {
           const type = termType(item);
           return "problem" in type ? fail(type.problem, node) : type.type;
@@ -9386,7 +11944,9 @@
       }
       if (ruleOf(node) === "intersection") {
         const found = some(node, "term-atom");
-        const items = found.map((item) => readTerm(item, argument && found.length === 1));
+        /** @type {Term[]} */
+        const items = [];
+        for (const item of found) items.push(yield readTerm(item, argument && found.length === 1));
         if (items.length === 1) return items[0];
         const joined = joinedType(items.map((item) => {
           const type = termType(item);
@@ -9398,12 +11958,12 @@
       if (ruleOf(node) === "term-atom" || ruleOf(node) === "test-operand") {
         const inner = knownOf(node, ATOMS);
         if (ruleOf(inner) === "call") {
-          const call = readCall(inner);
+          const call = /** @type {{call: string, args: Argument[]}} */ (yield readCall(inner));
           if (!argument && SPANS.has(call.call)) fail(`${call.call} gives a span, which is not a value`, inner);
           if (call.call === "matches" || call.call === "begins" || call.call === "initial") fail(`${call.call} is a condition, not a term`, inner);
           return call;
         }
-        return readTerm(inner, argument);
+        return yield readTerm(inner, argument);
       }
       switch (ruleOf(node)) {
         case "string": return { string: decode(token(node)) };
@@ -9419,7 +11979,7 @@
           return fail(`${name} names a rule, which is not a value; ~${name} is the tag`, node);
         }
         case "empty-set": return { emptySet: true };
-        case "call": return readCall(node);
+        case "call": return yield readCall(node);
         case "constant-reference": return { const: text(token(node)).slice(1), at: at(node) };
         case "capture-reference": {
           const capture = text(token(node)).slice(1);
@@ -9433,15 +11993,17 @@
 
     /**
      * @param {ResultNode} node
-     * @returns {{call: string, args: Argument[]}}
+     * @returns {Generator<Step, {call: string, args: Argument[]}, any>}
      */
-    function readCall(node) {
+    function* readCall(node) {
       const name = text(token(node));
       if (!FUNCTIONS.has(name)) fail(`unknown function ${name}`, node);
       if (closedFor && name === "classify") fail(`${closedFor} is a closed term, and classify depends on the features`, node);
       if (closedFor && name !== "split" && name !== "tag") fail(`${closedFor} is a closed term, and ${name} reads a span`, node);
       /** @type {Argument[]} */
-      const args = ofRule(node, "argument").map((argument) => readTerm(only(argument, "union"), true));
+      /** @type {Argument[]} */
+      const args = [];
+      for (const argument of ofRule(node, "argument")) args.push(yield readTerm(only(argument, "union"), true));
       /** @type {(argument: Argument | undefined) => boolean} */
       const isSpan = (argument) => argument !== undefined && ("capture" in argument || ("call" in argument && SPANS.has(argument.call)));
       /** @type {(argument: Argument | undefined) => boolean} */
@@ -9567,6 +12129,45 @@
   }
 
   /**
+   * Joins each `any` that stands directly in an `any`, and each `all` in an
+   * `all`, into the one around it, in place: a group in parentheses of the
+   * same connective is part of the one around it (engine §9). One walk, with
+   * an explicit stack, that gathers each joined list once.
+   * @param {unknown} root
+   */
+  function flattenGroups(root) {
+    /** @type {unknown[]} */
+    const stack = [root];
+    while (stack.length > 0) {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      const current = stack.pop();
+      if (Array.isArray(current)) {
+        for (const item of current) stack.push(item);
+        continue;
+      }
+      if (current === null || typeof current !== "object") continue;
+      const node = /** @type {Record<string, unknown>} */ (current);
+      for (const key of ["any", "all"]) {
+        const items = node[key];
+        if (!Array.isArray(items)) continue;
+        /** @type {unknown[]} */
+        const joined = [];
+        /** @type {unknown[]} */
+        const pending = items.slice().reverse();
+        while (pending.length > 0) {
+          if (hooks.work) countWork(hooks.work, "walkSteps");
+          const item = pending.pop();
+          const inner = item !== null && typeof item === "object" ? /** @type {Record<string, unknown>} */ (item)[key] : undefined;
+          if (Array.isArray(inner)) for (let index = inner.length - 1; index >= 0; index--) pending.push(inner[index]);
+          else joined.push(item);
+        }
+        node[key] = joined;
+      }
+      for (const value of Object.values(node)) if (value !== null && typeof value === "object") stack.push(value);
+    }
+  }
+
+  /**
    * Whether a name begins with a capital, and so is a terminal and a tag
    * literal (engine §2).
    * @param {string} name
@@ -9597,8 +12198,6 @@
     if (name === "stage") return kinds.length === 1 && names ? null : "%stage takes one name";
     if (name === "include") return kinds.length === 1 && kinds[0] === "string" ? null : "%include takes one string";
     if (name === "features") return kinds.length > 0 && names ? null : "%features takes one or more names";
-    // %elidable takes identifier tags: a name with a capital, or ~name.
-    if (name === "elidable") return kinds.every((kind) => kind === "class" || kind === "tag") ? null : "%elidable takes identifier tags: names with a capital, or ~name";
     return names ? null : `%${name} takes names only`;
   }
 
@@ -9616,7 +12215,7 @@
 
   // What a primary, a condition, a term and a term atom hold: the one rule
   // among their parts is one of these (engine §9).
-  const PRIMARIES = new Set(["reference", "tag", "character", "phoneme", "range", "property", "tested", "capture", "group", "optional", "empty", "constant-reference"]);
+  const PRIMARIES = new Set(["reference", "tag", "character", "phoneme", "range", "property", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference"]);
   const CONDITIONS = new Set(["comparison", "call", "negation", "presence", "implication"]);
   const TERMS = new Set(["union", "guarded-term"]);
   const ATOMS = new Set(["string", "tag", "character", "phoneme", "range", "property", "name", "empty-set", "term", "call", "capture-reference", "constant-reference"]);
@@ -9628,7 +12227,7 @@
   // place.
   const NAMED = new Set([
     "directive", "argument-word", "argument-string", "rule", "definer", "rule-name", "body", "alternative", "guard", "alternative-tags",
-    "conjunction", "sequence", "element", "primary", "reference", "string", "phoneme", "tested", "test", "test-operand", "capture", "group", "optional",
+    "conjunction", "sequence", "primary", "repetition", "reference", "string", "phoneme", "tested", "test", "test-operand", "capture", "group", "optional",
     "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "opaque-clause", "emit-item", "emit-target", "emit-tags", "emit-before", "emit-after",
     "implication", "any-of", "all-of", "condition", "comparison", "comparator", "negation", "presence",
     "term", "guarded-term", "union", "intersection", "term-atom", "tag", "character", "name", "empty-set", "call", "argument",
@@ -9641,16 +12240,17 @@
    * @returns {number}
    */
   function firstToken(node) {
-    if (node.kind === "token") return node.token;
-    if (node.kind === "elided") return node.span[0];
-    for (const child of node.children) {
-      if (child.kind === "token") return child.token;
-      if (child.kind === "rule") {
-        const found = firstToken(child);
-        if (found !== undefined) return found;
-      }
+    // Down the first child that is a token or a rule, in a loop: a deep
+    // nesting cannot exhaust the call stack.
+    let current = node;
+    for (;;) {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      if (current.kind === "token") return current.token;
+      if (current.kind === "elided") return current.span[0];
+      const child = current.children.find((candidate) => candidate.kind === "token" || candidate.kind === "rule");
+      if (!child) return current.span[0];
+      current = child;
     }
-    return node.span[0];
   }
 
 
@@ -9739,8 +12339,10 @@
     const parts = from.split("/").slice(0, -1);
     for (const part of relative.split("/")) {
       if (part === "" || part === ".") continue;
-      if (part === "..") parts.pop();
-      else parts.push(part);
+      // Above the root of an absolute path is the root.
+      if (part === "..") {
+        if (!(parts.length === 1 && parts[0] === "")) parts.pop();
+      } else parts.push(part);
     }
     return parts.join("/");
   }
@@ -9749,6 +12351,7 @@
   // A pipeline: the items of a pipeline document, with each %include replaced
   // by the items of the document it names, split into stages at each %stage
   // (engine §13).
+
 
 
 
@@ -9797,65 +12400,89 @@
     const stages = [];
     /** @type {string[]} */
     const features = [];
+    // Sets beside the lists, so that a check of a name costs one lookup and
+    // not a scan of all that came before it.
+    const featureNames = new Set();
+    /** @type {Map<string, SplicedStage>} */
+    const stageNames = new Map();
     /** @type {{path: string, dom: GrammarDom} | null} the run being built */
     let run = null;
 
-    /**
-     * @param {string} documentPath
-     * @param {GrammarDom} dom
-     * @param {string[]} chain the documents being included, outermost first
-     */
-    const splice = (documentPath, dom, chain) => {
-      for (const item of itemsInOrder(dom)) {
-        const where = itemAt(item);
-        const at = { document: documentPath, line: where[0], column: where[1] };
-        const place = `${documentPath}:${at.line}:${at.column}`;
-        if ("directive" in item && item.directive.name === "include") {
-          const target = resolvePath(documentPath, item.directive.args[0]);
-          const through = [...chain, documentPath].join(" → ");
-          if (chain.includes(target) || target === documentPath) {
-            throw new GencmuError("grammar", `${place}: ${target} includes itself (${through} → ${target})`, at);
-          }
-          const included = domOf(target);
-          if (included === undefined) {
-            throw new GencmuError("grammar", `${place}: ${target} was not found (${through} → ${target})`, at);
-          }
-          run = null;
-          splice(target, included, [...chain, documentPath]);
-          run = null;
-        } else if ("directive" in item && item.directive.name === "features") {
-          for (const name of item.directive.args) if (!features.includes(name)) features.push(name);
-        } else if ("directive" in item && item.directive.name === "stage") {
-          const name = item.directive.args[0];
-          const earlier = stages.find((stage) => stage.name === name);
-          if (earlier) {
-            throw new GencmuError("grammar", `${place}: a second stage named ${name}; the first is at ${earlier.at.document}:${earlier.at.line}:${earlier.at.column}`, at);
-          }
-          stages.push({ name, at, documents: [] });
-          run = null;
-        } else {
-          const stage = stages[stages.length - 1];
-          if (!stage) {
-            const what = "rule" in item ? `the rule ${item.rule.name}` : "constant" in item ? `the constant $${item.constant.name}`
-              : "classifier" in item ? `the classifier ${item.classifier.name}` : "implication" in item ? "%implies" : `%${item.directive.name}`;
-            throw new GencmuError("grammar", `${place}: ${what} stands before the first %stage`, at);
-          }
-          if (run === null || run.path !== documentPath) {
-            run = { path: documentPath, dom: { format: dom.format, rules: [], directives: [], constants: [], classifiers: [], implications: [] } };
-            stage.documents.push(run);
-          }
-          if ("rule" in item) run.dom.rules.push(item.rule);
-          else if ("constant" in item) run.dom.constants.push(item.constant);
-          else if ("classifier" in item) run.dom.classifiers.push(item.classifier);
-          else if ("implication" in item) run.dom.implications.push(item.implication);
-          else run.dom.directives.push(item.directive);
-        }
-      }
-    };
-
     const top = domOf(path);
     if (top === undefined) throw new GencmuError("grammar", `${path} was not found`, { document: path });
-    splice(path, top, []);
+    // The documents being included, outermost first, each with its items and
+    // the next one to splice. An explicit stack, since a chain of includes can
+    // be longer than the call stack is deep. A set of their paths finds a
+    // cycle with one lookup.
+    /** @type {{path: string, dom: GrammarDom, items: Item[], next: number}[]} */
+    const frames = [{ path, dom: top, items: itemsInOrder(top), next: 0 }];
+    const including = new Set([path]);
+    while (frames.length > 0) {
+      const frame = frames[frames.length - 1];
+      if (frame.next === frame.items.length) {
+        frames.pop();
+        including.delete(frame.path);
+        // What follows an include starts a run of its own.
+        run = null;
+        continue;
+      }
+      const item = frame.items[frame.next++];
+      const { path: documentPath, dom } = frame;
+      if (hooks.work) countWork(hooks.work, "splice");
+      const where = itemAt(item);
+      const at = { document: documentPath, line: where[0], column: where[1] };
+      const place = `${documentPath}:${at.line}:${at.column}`;
+      if ("directive" in item && item.directive.name === "include") {
+        const target = resolvePath(documentPath, item.directive.args[0]);
+        // Joined only for an error: a chain of D documents joined at each
+        // include would cost the square of D.
+        const through = () => frames.map((open) => open.path).join(" → ");
+        if (including.has(target)) {
+          throw new GencmuError("grammar", `${place}: ${target} includes itself (${through()} → ${target})`, at);
+        }
+        const included = domOf(target);
+        if (included === undefined) {
+          throw new GencmuError("grammar", `${place}: ${target} was not found (${through()} → ${target})`, at);
+        }
+        run = null;
+        frames.push({ path: target, dom: included, items: itemsInOrder(included), next: 0 });
+        including.add(target);
+      } else if ("directive" in item && item.directive.name === "features") {
+        for (const name of item.directive.args) {
+          if (hooks.work) countWork(hooks.work, "splice");
+          if (featureNames.has(name)) continue;
+          featureNames.add(name);
+          features.push(name);
+        }
+      } else if ("directive" in item && item.directive.name === "stage") {
+        const name = item.directive.args[0];
+        const earlier = stageNames.get(name);
+        if (earlier) {
+          throw new GencmuError("grammar", `${place}: a second stage named ${name}; the first is at ${earlier.at.document}:${earlier.at.line}:${earlier.at.column}`, at);
+        }
+        /** @type {SplicedStage} */
+        const stage = { name, at, documents: [] };
+        stages.push(stage);
+        stageNames.set(name, stage);
+        run = null;
+      } else {
+        const stage = stages[stages.length - 1];
+        if (!stage) {
+          const what = "rule" in item ? `the rule ${item.rule.name}` : "constant" in item ? `the constant $${item.constant.name}`
+            : "classifier" in item ? `the classifier ${item.classifier.name}` : "implication" in item ? "%implies" : `%${item.directive.name}`;
+          throw new GencmuError("grammar", `${place}: ${what} stands before the first %stage`, at);
+        }
+        if (run === null || run.path !== documentPath) {
+          run = { path: documentPath, dom: { format: dom.format, rules: [], directives: [], constants: [], classifiers: [], implications: [] } };
+          stage.documents.push(run);
+        }
+        if ("rule" in item) run.dom.rules.push(item.rule);
+        else if ("constant" in item) run.dom.constants.push(item.constant);
+        else if ("classifier" in item) run.dom.classifiers.push(item.classifier);
+        else if ("implication" in item) run.dom.implications.push(item.implication);
+        else run.dom.directives.push(item.directive);
+      }
+    }
     if (stages.length === 0) throw new GencmuError("grammar", `${path}: a pipeline needs at least one %stage`, { document: path });
     for (const stage of stages) {
       if (!stage.documents.some((document) => document.dom.rules.length > 0)) {
@@ -9879,30 +12506,42 @@
     const out = features.length ? [`%features ${features.join(" ")}`, ""] : [];
     /** @type {string | null} */
     let last = null;
+    // The documents being walked, outermost first, each with the next item
+    // to write. An explicit stack, since a chain of includes can be longer
+    // than the call stack is deep.
+    /** @type {{path: string, chars: string[], index: Map<string, number>, items: Item[], next: number}[]} */
+    const frames = [];
     /** @param {string} documentPath */
-    const walk = (documentPath) => {
+    const enter = (documentPath) => {
       const { text, positions } = extractGrammarText(/** @type {string} */ (loader.read(documentPath)), documentPath);
-      const chars = [...text];
-      /** @type {Map<string, number>} */
       const index = new Map(positions.map((position, i) => [`${position[0]}:${position[1]}`, i]));
-      const items = itemsInOrder(loader.documentDom(documentPath));
-      items.forEach((item, i) => {
-        const start = /** @type {number} */ (index.get(`${itemAt(item)[0]}:${itemAt(item)[1]}`));
-        const end = i + 1 < items.length ? /** @type {number} */ (index.get(`${itemAt(items[i + 1])[0]}:${itemAt(items[i + 1])[1]}`)) : chars.length;
-        if ("directive" in item && item.directive.name === "include") {
-          walk(resolvePath(documentPath, item.directive.args[0]));
-          return;
-        }
-        if ("directive" in item && item.directive.name === "features") return;
-        if (last !== documentPath) {
-          if (out.length && out[out.length - 1] !== "") out.push("");
-          out.push(`(* ${commentLabel(documentPath)} *)`);
-          last = documentPath;
-        }
-        out.push(chars.slice(start, end).join("").replace(/\s+$/, ""));
-      });
+      frames.push({ path: documentPath, chars: [...text], index, items: itemsInOrder(loader.documentDom(documentPath)), next: 0 });
     };
-    walk(dialect.path);
+    enter(dialect.path);
+    while (frames.length > 0) {
+      const frame = frames[frames.length - 1];
+      const { path: documentPath, chars, index, items } = frame;
+      if (frame.next === items.length) {
+        frames.pop();
+        continue;
+      }
+      const i = frame.next++;
+      const item = items[i];
+      const start = /** @type {number} */ (index.get(`${itemAt(item)[0]}:${itemAt(item)[1]}`));
+      const end = i + 1 < items.length ? /** @type {number} */ (index.get(`${itemAt(items[i + 1])[0]}:${itemAt(items[i + 1])[1]}`)) : chars.length;
+      if ("directive" in item && item.directive.name === "include") {
+        enter(resolvePath(documentPath, item.directive.args[0]));
+        continue;
+      }
+      if ("directive" in item && item.directive.name === "features") continue;
+      if (last !== documentPath) {
+        if (out.length && out[out.length - 1] !== "") out.push("");
+        out.push(`(* ${commentLabel(documentPath)} *)`);
+        last = documentPath;
+      }
+      // trimEnd, since /\s+$/ tries each space of a long inner run in turn.
+      out.push(chars.slice(start, end).join("").trimEnd());
+    }
     return out.join("\n") + "\n";
   }
 
@@ -9932,6 +12571,7 @@
   // Dialects: loading pipeline documents and their grammars, reading grammar
   // documents with the notation dialect (engine §8), and running a text
   // through the stages (engine §13).
+
 
 
 
@@ -10055,38 +12695,7 @@
         throw new GencmuError("grammar", `${path}:${line}:${column}: ${error.message}`, { document: path, line, column });
       }
       const syntax = run.stages[run.stages.length - 1];
-      /** @type {GrammarDom} */
-      let dom;
-      try {
-        dom = treeToDom(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path, this.unicode);
-      } catch (error) {
-        if (error instanceof GencmuError) throw error;
-        if (error instanceof RangeError) throw new GencmuError("grammar", `${path}: nested too deeply`, { document: path }, { cause: error });
-        // Only a bootstrap that is not the notation's gives a tree that the
-        // reader cannot read. That is an error of the grammar too.
-        throw new GencmuError("grammar", `${path}: the notation's tree cannot be read as a grammar: ${error instanceof Error ? error.message : String(error)}`,
-          { document: path }, { cause: error });
-      }
-      // A document read here is held to the rules of a precompiled DOM
-      // (engine §9). A bootstrap that is not the notation's can give a DOM
-      // that breaks them.
-      const problem = domProblem(dom, this.unicode);
-      if (problem === null) return dom;
-      if (problem === "nested too deeply") {
-        // Reported at the first item, a rule, a constant's definition or an
-        // implication, that
-        // holds it, in the order of the document.
-        const item = itemsAlone(dom).find((candidate) => domProblem(candidate.alone, this.unicode) === "nested too deeply");
-        const [line, column] = item ? item.at : [1, 1];
-        throw new GencmuError("grammar", `${path}:${line}:${column}: an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`, { document: path, line, column });
-      }
-      // Any other problem is reported at the first item that has it alone,
-      // in the order of the document, or else at the document.
-      const item = itemsAlone(dom).map((candidate) => ({ at: candidate.at, problem: domProblem(candidate.alone, this.unicode) }))
-        .find((candidate) => candidate.problem !== null);
-      if (!item) throw new GencmuError("grammar", `${path}: ${problem}`, { document: path });
-      const [line, column] = item.at;
-      throw new GencmuError("grammar", `${path}:${line}:${column}: ${item.problem}`, { document: path, line, column });
+      return domOfTree(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path, this.unicode);
     }
 
     /**
@@ -10129,7 +12738,7 @@
       // The guards of the stitched rules, and the gates of every classifier's
       // entries (engine §13).
       const guards = [...stage.grammar.rules.values()].flatMap((rule) => rule.alternatives.flatMap((alternative) => alternative.guards));
-      for (const { classifier } of stage.grammar.classifierItems) for (const entry of classifier.entries) guards.push(...entry.guards);
+      for (const { classifier } of stage.grammar.classifierItems) for (const entry of classifier.entries) for (const guard of entry.guards) guards.push(guard);
       for (const guard of guards) {
         const known = kinds.get(guard.feature);
         if (known !== undefined && known !== guard.kind) {
@@ -10139,7 +12748,8 @@
       }
     }
     const names = [...new Set([...kinds.keys(), ...declared])].sort(compareCodePoints);
-    return names.map((name) => ({ name, kind: kinds.get(name) || "gate", default: declared.includes(name) }));
+    const defaults = new Set(declared);
+    return names.map((name) => ({ name, kind: kinds.get(name) || "gate", default: defaults.has(name) }));
   }
 
   /**
@@ -10329,6 +12939,53 @@
   function containsEraser(tree) {
     if (!tree) return false;
     return someNode(tree, (node) => node.kind === "rule" && node.rule === "word" && (node.tags.has("SA") || node.tags.has("SU")));
+  }
+
+  /**
+   * A document's DOM from the notation's syntax tree of it: the reader's DOM,
+   * held to the rules of a precompiled DOM, or a grammar error at its place
+   * (engine §9). The hand-written reader of tools/bootstrap-reader.js reads
+   * its own tree with it too.
+   * @param {ResultNode} tree
+   * @param {Token[]} tokens the syntax stage's input tokens
+   * @param {(token: Token) => import("./types.js").Position} positionOf
+   * @param {string} path
+   * @param {UnicodeTable} unicode
+   * @returns {GrammarDom}
+   */
+  function domOfTree(tree, tokens, positionOf, path, unicode) {
+    /** @type {GrammarDom} */
+    let dom;
+    try {
+      dom = treeToDom(tree, tokens, positionOf, path, unicode);
+    } catch (error) {
+      // A count past a test's budget must reach the test as itself, or the
+      // reader's work would run on past the budget as an error of the grammar.
+      if (error instanceof GencmuError || error instanceof WorkBudget) throw error;
+      // Only a bootstrap that is not the notation's gives a tree that the
+      // reader cannot read. That is an error of the grammar too.
+      throw new GencmuError("grammar", `${path}: the notation's tree cannot be read as a grammar: ${error instanceof Error ? error.message : String(error)}`,
+        { document: path }, { cause: error });
+    }
+    // A document read here is held to the rules of a precompiled DOM
+    // (engine §9). A bootstrap that is not the notation's can give a DOM
+    // that breaks them.
+    const problem = domProblem(dom, unicode);
+    if (problem === null) return dom;
+    if (problem === "nested too deeply") {
+      // Reported at the first item, a rule, a constant's definition or an
+      // implication, that holds it, in the order of the document.
+      const item = itemsAlone(dom).find((candidate) => domProblem(candidate.alone, unicode) === "nested too deeply");
+      const [line, column] = item ? item.at : [1, 1];
+      throw new GencmuError("grammar", `${path}:${line}:${column}: an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`, { document: path, line, column });
+    }
+    // Any other problem is reported at the first item that has it alone,
+    // in the order of the document, or else at the document.
+    const item = itemsAlone(dom).map((candidate) => ({ at: candidate.at, problem: domProblem(candidate.alone, unicode) }))
+      .find((candidate) => candidate.problem !== null);
+    if (!item) throw new GencmuError("grammar", `${path}: ${problem}`, { document: path });
+    const [line, column] = item.at;
+    throw new GencmuError("grammar", `${path}:${line}:${column}: ${item.problem}`, { document: path, line, column });
   }
 
   // Adds the line and column of an error's source position.
@@ -10801,8 +13458,6 @@
    * @typedef {object} DomDirective
    * @property {string} name
    * @property {string[]} args
-   * @property {true} [maximal] for `%elidable maximal`: its terminators are
-   *   maximal (engine §2, §4)
    * @property {Position} at
    */
 
@@ -10835,8 +13490,9 @@
 
   /**
    * A rule body expression.
-   * @typedef {{choice: Expr[]} | {and: Expr[]} | {seq: Expr[]} | {repeat: Expr, min: number}
-   *   | {optional: Expr} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
+   * @typedef {{choice: Expr[]} | {and: Expr[]} | {seq: Expr[]}
+   *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
+   *   | {optional: Expr, elidable?: true, maximal?: true} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
    *   | {range: [string, string]} | {property: string}
    *   | {test: TestOp, value: Term, expr: TestedSymbol} | {empty: true}} Expr
    */
@@ -10955,12 +13611,17 @@
    * @property {SymbolTest | null} elidedTest the test of that terminator, an
    *   `=` test whose string a restored token sounds like, or null (engine §7)
    * @property {Capture[]} captures
+   * @property {number[]} captureAt for each position of `rhs`, the index in
+   *   `captures` of the capture there, or -1
+   * @property {Map<string, number>} captureSlot each capture's name, with its
+   *   index in `captures`
    * @property {ReadyCondition[]} conditions
+   * @property {ReadyCondition[][]} conditionsAt the conditions ready after
+   *   each position, at `readyAt + 1`, in written order
    * @property {Term | null} tags
    * @property {Emission | null} emit
    * @property {boolean} opaque whether its constituent is an opaque part,
    *   which sounds `?` and shows its text (engine §11)
-   * @property {boolean} recursivePrefix
    * @property {string[]} warnings the features of the alternative's warnings,
    *   in the order they are written; none for a helper
    */
@@ -10979,9 +13640,9 @@
    * @typedef {object} LoweredGrammar
    * @property {Production[]} productions
    * @property {Map<string, Production[]>} byLhs
-   * @property {Set<string>} elidable
-   * @property {Set<string>} maximalTerminals the elidable terminators that are
-   *   maximal (engine §4)
+   * @property {Set<string>} maximalHelpers the helpers of the elidable
+   *   optionals written [++T x], whose terminators are maximal (engine §3.8,
+   *   §4)
    * @property {Resolution} resolution
    * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
    *   of the stage, resolved for these features: each key's classes (engine
@@ -10997,9 +13658,12 @@
    */
 
   /**
-   * A captured part as a chart item records it: its span and the number of
-   * its tag set.
-   * @typedef {[number, number, number] | null} Slot
+   * The captured parts of a chart item, the last one first: each part's
+   * capture by its index in the production, its span and the number of its
+   * tag set, after the parts before it. A context makes each sequence once,
+   * with its number (engine §4). `depth` counts the parts, and `jump` is an
+   * earlier sequence that a search for a part can skip to.
+   * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, id: number} | null} Captured
    */
 
   /**

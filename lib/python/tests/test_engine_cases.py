@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 import signal
 import subprocess
 import sys
+import tempfile
 import unittest
 from typing import Any
 
@@ -16,16 +16,20 @@ from .shared import (
     CaseTimeout,
     apply_mutant,
     case_features,
+    case_tokens,
     cases,
     deadline,
     load_case,
     load_case_dialect,
     mismatch,
     parse_case,
+    read_json,
     result_mutants,
     result_problems,
     run_case,
+    same_json,
     witness_lost,
+    write_json,
 )
 
 
@@ -35,14 +39,6 @@ AFTER_LOAD = ("result", "brackets", "warnings", "features")
 
 class EngineCases(unittest.TestCase):
     def test_cases(self) -> None:
-        # A canonical result nests as deep as a case's attachments do
-        # (attach-deep.json). The library needs no recursion for that, and
-        # test_api tests it at the default limit. But json and == recurse
-        # over the result here, and before Python 3.12 they count against
-        # the recursion limit.
-        limit = sys.getrecursionlimit()
-        sys.setrecursionlimit(max(limit, 10_000))
-        self.addCleanup(sys.setrecursionlimit, limit)
         paths = cases("engine")
         self.assertTrue(paths, "no engine cases found")
         for path in paths:
@@ -98,14 +94,17 @@ class EngineCases(unittest.TestCase):
             self.assertEqual(expect.get("error"), "usage", f"{label}: unexpected usage error: {error}")
             return
         assert value is not None and result is not None
-        text = json.dumps(value, ensure_ascii=False)
+        # A canonical result nests as deep as a case's attachments do
+        # (attach-deep.json). So the runner reads, writes and compares it
+        # with a list for a stack, as the library does, not with json and ==.
+        text = write_json(value)
         # The invariants hold of every result, whatever the case expects
         # (tests/README.md).
         self.assertEqual(result_problems(value), [], f"{label} breaks an invariant of the result\n{text[:2000]}")
         self.assertFalse(witness_lost(value), f"{label} gives the error elision-witness-lost, which no grammar gives\n{text[:2000]}")
         # The canonical JSON is the key order of docs/output.md and parses
         # back to the same value.
-        self.assertEqual(json.loads(gencmu.to_json(result)), value)
+        self.assertTrue(same_json(read_json(gencmu.to_json(result)), value), f"{label}: the canonical JSON reads back as another value")
         if "warnings" in expect:
             # Compared whole: [] says that there are none.
             self.assertEqual(value.get("warnings", []), expect["warnings"], label)
@@ -149,6 +148,37 @@ class EngineCases(unittest.TestCase):
         self.assertEqual(done.returncode, 1, done.stderr)
         self.assertIn("Timeout (", done.stderr)
         self.assertIn("in hang", done.stderr)
+
+    def test_the_runner_handles_values_far_deeper_than_the_call_stack(self) -> None:
+        # Results and case tokens nest as deep as their attachments do. So
+        # the runner's readers, writers and comparisons need no recursion.
+        depth = 20_000
+        text = '{"a":[' * depth + "1" + "]}" * depth
+        value = read_json(text)
+        self.assertEqual(write_json(value), text)
+        self.assertTrue(same_json(value, read_json(text)))
+        self.assertFalse(same_json(value, read_json(text.replace("1", "2"))))
+        self.assertIsNone(mismatch(value, read_json(text)))
+        problem = mismatch(value, read_json(text.replace("1", "2")))
+        self.assertEqual(problem, "$" + ".a[0]" * depth + ": expected 1, found 2")
+        spec: dict[str, Any] = {"text": "x", "tags": ["A"]}
+        top = spec
+        for _ in range(depth):
+            spec["before"] = [{"text": "y", "tags": ["A"]}]
+            spec = spec["before"][0]
+        tokens, _ = case_tokens({"tokens": [top]})
+        token = tokens[0]
+        for _ in range(depth):
+            token = token.before[0]
+        self.assertEqual(token.text, "y")
+        # A case file can nest as deep, in what it expects, and so can a
+        # mutant's value.
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "deep.json"
+            path.write_text('{"expect":{"result":' + text + "}}", encoding="utf-8")
+            self.assertTrue(same_json(load_case(path)["expect"]["result"], value))
+        changed = apply_mutant({"error": None}, {"path": ["error"], "set": value})
+        self.assertTrue(same_json(changed["error"], value))
 
     def test_a_load_error_meets_only_an_expectation_of_the_error(self) -> None:
         # The runner fails a case whose dialect does not load, when the case

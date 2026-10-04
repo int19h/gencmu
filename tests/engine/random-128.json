@@ -1,14 +1,7 @@
 {
-  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 2 derivations.",
-  "grammar": "%ambiguity-resolution lazy\n%rule text ε | [t] ... v | A t\n%rule t ε | ε\n%rule u (t | B) t | v\n%rule v C t | B",
-  "tokens": [
-    {
-      "text": "a",
-      "tags": [
-        "C"
-      ]
-    }
-  ],
+  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 3 derivations.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text v | ε | u\n%rule t {... u \\ C}\n%rule u B | u\n%rule v ε | ε",
+  "tokens": [],
   "expect": {
     "result": {
       "format": 9,
@@ -20,21 +13,21 @@
           "witness": [
             {
               "close": {
-                "rule": "t",
-                "production": 5,
+                "rule": "text",
+                "production": 1,
                 "span": [
-                  1,
-                  1
+                  0,
+                  0
                 ]
               }
             },
             {
               "close": {
-                "rule": "t",
-                "production": 6,
+                "rule": "v",
+                "production": 7,
                 "span": [
-                  1,
-                  1
+                  0,
+                  0
                 ]
               }
             }
@@ -52,68 +45,25 @@
             "rule": "text",
             "span": [
               0,
-              1
+              0
             ],
             "source": [
               0,
-              1
+              0
             ],
             "tags": [],
-            "children": [
-              {
-                "kind": "rule",
-                "rule": "v",
-                "span": [
-                  0,
-                  1
-                ],
-                "source": [
-                  0,
-                  1
-                ],
-                "tags": [],
-                "children": [
-                  {
-                    "kind": "token",
-                    "terminal": "C",
-                    "token": 0,
-                    "span": [
-                      0,
-                      1
-                    ],
-                    "source": [
-                      0,
-                      1
-                    ]
-                  },
-                  {
-                    "kind": "rule",
-                    "rule": "t",
-                    "span": [
-                      1,
-                      1
-                    ],
-                    "source": [
-                      1,
-                      1
-                    ],
-                    "tags": [],
-                    "children": []
-                  }
-                ]
-              }
-            ]
+            "children": []
           },
           {
             "kind": "rule",
             "rule": "text",
             "span": [
               0,
-              1
+              0
             ],
             "source": [
               0,
-              1
+              0
             ],
             "tags": [],
             "children": [
@@ -122,42 +72,14 @@
                 "rule": "v",
                 "span": [
                   0,
-                  1
+                  0
                 ],
                 "source": [
                   0,
-                  1
+                  0
                 ],
                 "tags": [],
-                "children": [
-                  {
-                    "kind": "token",
-                    "terminal": "C",
-                    "token": 0,
-                    "span": [
-                      0,
-                      1
-                    ],
-                    "source": [
-                      0,
-                      1
-                    ]
-                  },
-                  {
-                    "kind": "rule",
-                    "rule": "t",
-                    "span": [
-                      1,
-                      1
-                    ],
-                    "source": [
-                      1,
-                      1
-                    ],
-                    "tags": [],
-                    "children": []
-                  }
-                ]
+                "children": []
               }
             ]
           }

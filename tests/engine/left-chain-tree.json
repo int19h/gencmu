@@ -1,0 +1,160 @@
+{
+  "description": "A left chain, {... x \\ s}, is r → x | r s x on the rule itself, so each level is a node of the rule, nesting from the left (engine §3.3, §12).",
+  "grammar": "%rule text {... A \\ S}",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "s",
+      "tags": [
+        "S"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "s",
+      "tags": [
+        "S"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          5
+        ],
+        "source": [
+          0,
+          9
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              3
+            ],
+            "source": [
+              0,
+              5
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "text",
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": [
+                  "A"
+                ],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "S",
+                "token": 1,
+                "span": [
+                  1,
+                  2
+                ],
+                "source": [
+                  2,
+                  3
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 2,
+                "span": [
+                  2,
+                  3
+                ],
+                "source": [
+                  4,
+                  5
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "S",
+            "token": 3,
+            "span": [
+              3,
+              4
+            ],
+            "source": [
+              6,
+              7
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 4,
+            "span": [
+              4,
+              5
+            ],
+            "source": [
+              8,
+              9
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "([a s a] s a)"
+  }
+}

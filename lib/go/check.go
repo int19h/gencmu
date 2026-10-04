@@ -34,32 +34,24 @@ func readingOf(g *lowered) *readingSets {
 }
 
 func makeReading(g *lowered) *readingSets {
-	rules := make([]bool, len(g.rules))
+	// From nothing up, so that a rule that can read only through itself,
+	// such as z → z, cannot read.
+	rules := derivedRules(len(g.rules), len(g.prods), func(i int) (int32, []symbol) { return g.prods[i].lhs, g.prods[i].rhs }, func(i int) bool { return g.prods[i].restoration() }, false)
 	reads := func(s symbol) bool { return s.term || rules[s.id] }
-	// From nothing up, until nothing changes, so that a rule that can read
-	// only through itself, such as z → z, cannot read.
-	for changed := true; changed; {
-		changed = false
-		for _, p := range g.prods {
-			if rules[p.lhs] {
-				continue
-			}
-			ok := p.restoration()
-			for _, s := range p.rhs {
-				ok = ok || reads(s)
-			}
-			if ok {
-				rules[p.lhs], changed = true, true
-			}
-		}
-	}
 	rs := &readingSets{last: make(map[*production]int, len(g.prods)), elidable: make([]bool, len(g.rules))}
+	w := work.Load()
 	for _, p := range g.prods {
+		if w != nil {
+			w.ruleSetSteps.add("rule set steps")
+		}
 		if p.restoration() {
 			rs.elidable[p.lhs] = true
 		}
 		at := -1
 		for i, s := range p.rhs {
+			if w != nil {
+				w.ruleSetSteps.add("rule set steps")
+			}
 			if reads(s) {
 				at = i
 			}
@@ -217,7 +209,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	// The recognition of R is not a query, and the input that initial(),
 	// from() and after() see is O (§7.5, §7.6), the main parse's.
 	start := g.byName["text"]
-	r := &recognizer{run: run, g: g, n: len(toks), recon: rc}
+	r := &recognizer{run: run, g: g, n: len(toks), recon: rc, lo: run.inputStart, hi: run.inputEnd}
 	r.loop(start)
 	top := r.accepted(start)
 	private := run.ps.private

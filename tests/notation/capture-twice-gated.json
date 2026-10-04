@@ -1,0 +1,10 @@
+{
+  "description": "A name that one production reads twice is an error at the second capture, whatever the features, since the check is made before the gates (engine §9).",
+  "document": "```jbogenbau\n%rule a f? [$x(A)] $x(B) | C\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 20
+    }
+  }
+}

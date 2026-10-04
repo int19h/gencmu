@@ -1,0 +1,233 @@
+{
+  "description": "The closes of a flat list's helper are transparent, so greedy cannot see where each list ends: text → r r with r → {A} over three tokens ties (engine §3.3, §6).",
+  "grammar": "%rule text r r\n%rule r {A}",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie",
+          "witness": [
+            {
+              "read": {
+                "token": 1,
+                "terminal": "A"
+              }
+            },
+            {
+              "close": {
+                "rule": "r",
+                "production": 1,
+                "span": [
+                  0,
+                  1
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              3
+            ],
+            "source": [
+              0,
+              5
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "r",
+                "span": [
+                  0,
+                  2
+                ],
+                "source": [
+                  0,
+                  3
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 1,
+                    "span": [
+                      1,
+                      2
+                    ],
+                    "source": [
+                      2,
+                      3
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "rule",
+                "rule": "r",
+                "span": [
+                  2,
+                  3
+                ],
+                "source": [
+                  4,
+                  5
+                ],
+                "tags": [
+                  "A"
+                ],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 2,
+                    "span": [
+                      2,
+                      3
+                    ],
+                    "source": [
+                      4,
+                      5
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              3
+            ],
+            "source": [
+              0,
+              5
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "r",
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": [
+                  "A"
+                ],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "rule",
+                "rule": "r",
+                "span": [
+                  1,
+                  3
+                ],
+                "source": [
+                  2,
+                  5
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 1,
+                    "span": [
+                      1,
+                      2
+                    ],
+                    "source": [
+                      2,
+                      3
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 2,
+                    "span": [
+                      2,
+                      3
+                    ],
+                    "source": [
+                      4,
+                      5
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
+  }
+}

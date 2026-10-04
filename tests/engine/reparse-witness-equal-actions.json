@@ -1,6 +1,6 @@
 {
   "description": "The two actions of an elision-only witness can be equal over the stage's input, where they are closes of one production whose spans of R differ only in synthetic tokens. The chosen d elides two T, so R is A T T B. x1 and x2 read the two synthetic T as bare terminals: x1's m covers both, and x2's m only the second. The witness closes m over the empty span at position 1 of the stage's input on both sides (engine §7.10).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text x1 | x2 | d | e\n%rule m [q] T\n%rule q T\n%rule x1 A m B\n%rule x2 A T m B\n%rule d A g B\n%rule g [T] [T]\n%rule e A [T] [T] [T] B",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text x1 | x2 | d | e\n%rule m [q] T\n%rule q T\n%rule x1 A m B\n%rule x2 A T m B\n%rule d A g B\n%rule g [+T] [+T]\n%rule e A [+T] [+T] [+T] B",
   "tokens": [
     {
       "text": "a",

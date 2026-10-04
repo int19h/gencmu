@@ -1,0 +1,64 @@
+{
+  "description": "Only a marked optional is elidable: in text → [+KU] A [KU] on a, the first optional leaves an elided node and the plain one leaves none, although both hold KU (engine §3.8, §12).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text [+KU] A [KU]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "elided",
+            "terminal": "KU",
+            "span": [
+              0,
+              0
+            ],
+            "source": [
+              0,
+              0
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "a"
+  }
+}

@@ -1,6 +1,6 @@
 {
-  "description": "The control of maximal-terminator-main with a plain %elidable T: nothing restricts the omission, and the text parses (engine §4).",
-  "grammar": "%ambiguity-resolution greedy\n%elidable T\n%rule text A body [T] B\n%rule body X | X B",
+  "description": "The control of maximal-terminator-main with [+T] in place of [++T]: nothing restricts the omission, and the text parses (engine §4).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text A body [+T] B\n%rule body X | X B",
   "tokens": [
     {
       "text": "a",

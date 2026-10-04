@@ -1,0 +1,91 @@
+{
+  "description": "Two branches capture one name, and every production has it, so an unguarded tag term and an emission read it: on a b, the tags and the token are B's (engine §3.5).",
+  "grammar": "%rule text A ($x(B) | $x(C))\n%tags tags($x)\n%emits $x",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "b",
+              "phonemes": "",
+              "label": "b",
+              "tags": [
+                "B"
+              ],
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                2,
+                3
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          2
+        ],
+        "source": [
+          0,
+          3
+        ],
+        "tags": [
+          "B"
+        ],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "B",
+            "token": 1,
+            "span": [
+              1,
+              2
+            ],
+            "source": [
+              2,
+              3
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "(a b)"
+  }
+}

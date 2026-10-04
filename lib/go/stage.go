@@ -83,6 +83,23 @@ type stageRun struct {
 	// looks at the token (§4, §5).
 	sounds     []string
 	soundsMade []bool
+	// voiced[i] is the first token at or after i whose sound is not empty,
+	// or len(toks), so that a sound test skips silent tokens in one step.
+	voiced []int
+	// walks holds the walks of recognitions that have finished, for the
+	// next to reuse, since most nested parses are short and many.
+	walks []walk
+}
+
+// walk is a walk for a new recognition: one that a finished recognition
+// left, or a new one.
+func (run *stageRun) walk() walk {
+	if n := len(run.walks); n > 0 {
+		w := run.walks[n-1]
+		run.walks = run.walks[:n-1]
+		return w
+	}
+	return walk{}
 }
 
 // sound is a token's phonemes in canonical form (§5). The lowercase mapping
@@ -100,12 +117,41 @@ func (run *stageRun) sound(i int) string {
 	return run.sounds[i]
 }
 
+// nextVoiced is the first token at or after i whose sound is not empty,
+// or len(toks). A span of silent tokens would otherwise cost its length at
+// every test, though it adds nothing to the sound.
+func (run *stageRun) nextVoiced(i int) int {
+	if run.voiced == nil {
+		// Each token counts as the table is made, so that a table made
+		// again at each test passes the budget.
+		w := work.Load()
+		run.voiced = make([]int, len(run.toks)+1)
+		next := len(run.toks)
+		run.voiced[next] = next
+		for j := len(run.toks) - 1; j >= 0; j-- {
+			if w != nil {
+				w.soundSteps.add("sound steps")
+			}
+			if run.sound(j) != "" {
+				next = j
+			}
+			run.voiced[j] = next
+		}
+	}
+	return run.voiced[i]
+}
+
 // soundIs says whether the tokens [a, b) sound like a string: their
 // canonical sound is exactly it (§4, §5). A token with no phonemes adds
-// nothing, and an empty span sounds like the empty string.
+// nothing, and an empty span sounds like the empty string. Each token
+// visited has a sound that is not empty, so the work is bounded by the
+// length of the string, not of the span.
 func (run *stageRun) soundIs(sound string, a, b int) bool {
 	offset := 0
-	for i := a; i < b; i++ {
+	for i := run.nextVoiced(a); i < b; i = run.nextVoiced(i + 1) {
+		if w := work.Load(); w != nil {
+			w.soundSteps.add("sound steps")
+		}
 		s := run.sound(i)
 		if !strings.HasPrefix(sound[offset:], s) {
 			return false
@@ -200,7 +246,7 @@ func (run *stageRun) run(g *lowered, elisionOnly bool) (out stageOutcome) {
 	// An error of the grammar that lowering for these features found is a
 	// result like one found while parsing (§3.3).
 	if g.fault != "" {
-		panic(&parseFailure{message: g.fault})
+		panic(&parseFailure{message: g.fault, located: true})
 	}
 	start := g.byName["text"]
 	rec := run.recognize(g, start, 0, len(run.toks))
@@ -285,7 +331,15 @@ func (run *stageRun) rejection(rec *recognizer) *ParseError {
 		// token (earley.go, predict).
 		for rule := range rec.sets[k].predicted {
 			for _, p := range rec.g.rules[rule].prods {
-				if rec.predictable(p, k) {
+				// A nested parse that the conditions need runs on a stack
+				// of its own, and they go on from where they halted.
+				ok, q := rec.predictable(p, k)
+				for q != nil {
+					run.startQuery(q)
+					run.drive(q.recognizer(run))
+					ok, q = rec.predictable(p, k)
+				}
+				if ok {
 					expect(p, 0)
 				}
 			}
@@ -376,6 +430,9 @@ func (run *stageRun) rejectedAt(k int, expected []Expected) *ParseError {
 // failure is a grammar error found while parsing: its kind, stage and
 // message, and no position (§13).
 func (run *stageRun) failure(f *parseFailure) *ParseError {
+	if f.located {
+		return &ParseError{Kind: ErrorGrammar, Stage: run.name, Message: f.message}
+	}
 	return &ParseError{Kind: ErrorGrammar, Stage: run.name, Message: "stage " + run.name + ": " + f.message}
 }
 

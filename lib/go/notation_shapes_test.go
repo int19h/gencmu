@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
 )
@@ -28,9 +27,15 @@ func TestNotationShapes(t *testing.T) {
 			Description, Find, Replace, Document string
 			Inputs                               []string
 			Expect                               any
+			// Where is the place of an expected load error in its
+			// document, when the item gives it (tests/README.md).
+			Where *struct {
+				Document     string
+				Line, Column int
+			}
 		}
 	}
-	if err := json.Unmarshal(raw, &shapes); err != nil {
+	if err := unmarshalJSON(raw, &shapes); err != nil {
 		t.Fatal(err)
 	}
 	bootstrapRaw, err := os.ReadFile("../../grammars/notation/bootstrap.json")
@@ -66,14 +71,20 @@ func TestNotationShapes(t *testing.T) {
 	// outcomeOf loads a document with a bootstrap, and parses each input:
 	// its brackets, or the kind of its error. A load that fails gives the
 	// kind of its error, which must be an *Error.
-	outcomeOf := func(boot, document string, inputs []string) any {
+	outcomeAt := func(boot, document string, inputs []string, where *[3]any) any {
 		d, err := LoadDialectSources(map[string]string{"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n", "g.md": document, "notation/bootstrap.json": boot}, "p.md")
 		if err != nil {
 			var e *Error
 			if !errors.As(err, &e) {
 				t.Fatalf("an error that is not an *Error: %v", err)
 			}
+			if where != nil && *where != [3]any{e.Document, e.Line, e.Column} {
+				t.Errorf("the load error stands at %s:%d:%d, not at %v: %v", e.Document, e.Line, e.Column, *where, e)
+			}
 			return e.Kind
+		}
+		if where != nil {
+			t.Errorf("the document loaded, but the error should stand at %v", *where)
 		}
 		var results []any
 		for _, input := range inputs {
@@ -89,11 +100,12 @@ func TestNotationShapes(t *testing.T) {
 		}
 		return results
 	}
+	outcomeOf := func(boot, document string, inputs []string) any { return outcomeAt(boot, document, inputs, nil) }
 	outcome := func(boot string) any { return outcomeOf(boot, shapes.Document, shapes.Inputs) }
 	withSyntax := func(change func(string) string) string {
 		return bootstrap[:syntaxAt] + change(bootstrap[syntaxAt:])
 	}
-	if got := outcome(bootstrap); !reflect.DeepEqual(got, shapes.Control) {
+	if got := outcome(bootstrap); !equalJSON(got, shapes.Control) {
 		t.Errorf("the bundled bootstrap: %v, not %v", got, shapes.Control)
 	}
 	// A wrapper around each rule of the notation changes nothing.
@@ -105,7 +117,7 @@ func TestNotationShapes(t *testing.T) {
 		}
 		return strings.Replace(syntax, `"rules":[`, `"rules":[`+wrappers.String(), 1)
 	})
-	if got := outcome(wrapped); !reflect.DeepEqual(got, shapes.Control) {
+	if got := outcome(wrapped); !equalJSON(got, shapes.Control) {
 		t.Errorf("a wrapper around each rule: %v, not %v", got, shapes.Control)
 	}
 	// Each renamed rule gives the outcome of every library.
@@ -120,7 +132,7 @@ func TestNotationShapes(t *testing.T) {
 		if loads, ok := shapes.Loads[name]; ok {
 			want = loads
 		}
-		if got := outcome(renamed); !reflect.DeepEqual(got, want) {
+		if got := outcome(renamed); !equalJSON(got, want) {
 			t.Errorf("%s renamed: %v, not %v", name, got, want)
 		}
 	}
@@ -135,7 +147,11 @@ func TestNotationShapes(t *testing.T) {
 			t.Fatalf("%s: the text to replace does not stand once", item.Description)
 		}
 		changed := withSyntax(func(syntax string) string { return strings.Replace(syntax, item.Find, item.Replace, 1) })
-		if got := outcomeOf(changed, item.Document, item.Inputs); !reflect.DeepEqual(got, item.Expect) {
+		var where *[3]any
+		if w := item.Where; w != nil {
+			where = &[3]any{w.Document, w.Line, w.Column}
+		}
+		if got := outcomeAt(changed, item.Document, item.Inputs, where); !equalJSON(got, item.Expect) {
 			t.Errorf("%s: %v, not %v", item.Description, got, item.Expect)
 		}
 	}
@@ -143,8 +159,8 @@ func TestNotationShapes(t *testing.T) {
 
 // Each notation stage runs the check of elision-only where its own
 // directive declares it (engine §8). With greedy and elision-only on the
-// lexical stage, the check finds the ambiguity that greedy settled in the
-// pipeline document itself, and the document does not load.
+// lexical stage, the check finds the ambiguity that greedy settled in
+// `++`, which is also two `+`, and the document does not load.
 func TestNotationStageRunsTheCheck(t *testing.T) {
 	raw, err := os.ReadFile("../../grammars/notation/bootstrap.json")
 	if err != nil {
@@ -161,7 +177,7 @@ func TestNotationStageRunsTheCheck(t *testing.T) {
 	elision := strings.Replace(bootstrap, directive, `"name":"ambiguity-resolution","args":["greedy","elision-only"]`, 1)
 	sources := func(boot string) map[string]string {
 		return map[string]string{"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
-			"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A B\n```\n", "notation/bootstrap.json": boot}
+			"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A [++B]\n```\n", "notation/bootstrap.json": boot}
 	}
 	// The bundled bootstrap loads the same documents.
 	if _, err := LoadDialectSources(sources(bootstrap), "p.md"); err != nil {

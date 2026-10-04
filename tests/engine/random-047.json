@@ -1,15 +1,7 @@
 {
   "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 1 derivations.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text C | ε | u ... A\n%rule t C | A A\n%rule u ε | v A\n%rule v ε | ε",
-  "tokens": [
-    {
-      "text": "a",
-      "tags": [
-        "A",
-        "B"
-      ]
-    }
-  ],
+  "grammar": "%ambiguity-resolution lazy\n%rule text B | ε | C B\n%rule t {B ... \\ t}\n%rule u C | v=\"x\" [B]\n%rule v ε | t=\"x\"",
+  "tokens": [],
   "expect": {
     "result": {
       "format": 9,
@@ -26,45 +18,17 @@
         "rule": "text",
         "span": [
           0,
-          1
+          0
         ],
         "source": [
           0,
-          1
+          0
         ],
         "tags": [],
-        "children": [
-          {
-            "kind": "rule",
-            "rule": "u",
-            "span": [
-              0,
-              0
-            ],
-            "source": [
-              0,
-              0
-            ],
-            "tags": [],
-            "children": []
-          },
-          {
-            "kind": "token",
-            "terminal": "A",
-            "token": 0,
-            "span": [
-              0,
-              1
-            ],
-            "source": [
-              0,
-              1
-            ]
-          }
-        ]
+        "children": []
       },
       "error": null
     },
-    "brackets": "a"
+    "brackets": ""
   }
 }

@@ -1,0 +1,15 @@
+{
+  "description": "An item of braces that is a rule that can match no tokens is an error of the grammar, whatever the input (engine §3.3).",
+  "grammar": "%rule text {r}\n%rule r ε | A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

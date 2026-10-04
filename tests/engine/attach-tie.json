@@ -2,7 +2,7 @@
   "description": "A tie whose readings read an input token with attachments: both readings read the same token, whose attachments the first stage's output holds. The tied stage emits nothing (engine §6, §11, §12).",
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
-    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $w(word) | $w(word) $a(ii)\n%emits\n  $w ($a)\n%rule word\n  | 'l' <LE> | 'b' <BRIVLA> | 'c' <BRIVLA> | 'a' <A> | 'd' <B> | 'w' <W>\n%rule ii\n  'i' <I>\n%emits\n  $\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item\n  | $w(word) | $w(word) $a(ii)\n%emits\n  $w ($a)\n%rule word\n  | 'l' <LE> | 'b' <BRIVLA> | 'c' <BRIVLA> | 'a' <A> | 'd' <B> | 'w' <W>\n%rule ii\n  'i' <I>\n%emits\n  $\n```\n",
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text a | b\n%rule a\n  $w(W)\n%emits\n  $w <X>\n%rule b\n  $w(W)\n%emits\n  $w <Y>\n```\n"
   },
   "pipeline": "p.md",

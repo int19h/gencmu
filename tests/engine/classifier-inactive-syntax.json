@@ -1,6 +1,6 @@
 {
   "description": "A key that is not a canonical sound is an error of the document, even in an entry whose gate is off for every parse. The error stands at the key (engine §9).",
-  "grammar": "%classifier lex\n  f? \"Mi\" ∈ KOhA\n%rule text [word] ...\n%rule word $w(W) <~w ∪ classify(phonemes($w), lex)>\n%emits\n  $",
+  "grammar": "%classifier lex\n  f? \"Mi\" ∈ KOhA\n%rule text [{word}]\n%rule word $w(W) <~w ∪ classify(phonemes($w), lex)>\n%emits\n  $",
   "tokens": [
     {
       "text": "mi",

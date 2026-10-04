@@ -1,6 +1,6 @@
 {
   "description": "The suffix has two empty derivations, but the restoration reads none of them, and the written route cannot use an empty suffix after a synthetic. So the restored omission has one derivation, and the check passes (engine §7.4).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b\n%rule a A [T suffix]\n%rule b A [T suffix] [T suffix]\n%rule suffix ε | empty\n%rule empty ε",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b\n%rule a A [+T suffix]\n%rule b A [+T suffix] [+T suffix]\n%rule suffix ε | empty\n%rule empty ε",
   "tokens": [
     {
       "text": "a",

@@ -1,16 +1,7 @@
 {
-  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 6 derivations.",
-  "grammar": "%ambiguity-resolution lazy\n%rule text ε | ε | t ...\n%rule t v C | u\n%rule u t A | ε\n%rule v ε | u",
-  "tokens": [
-    {
-      "text": "a",
-      "tags": [
-        "A",
-        "B",
-        "C"
-      ]
-    }
-  ],
+  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 3 derivations.",
+  "grammar": "%ambiguity-resolution lazy\n%rule text ε | ε | ε\n%rule t {A ... \\ u}\n%rule u u | u\n%rule v T | [+T T] B",
+  "tokens": [],
   "expect": {
     "result": {
       "format": 9,
@@ -22,8 +13,8 @@
           "witness": [
             {
               "close": {
-                "rule": "u",
-                "production": 8,
+                "rule": "text",
+                "production": 0,
                 "span": [
                   0,
                   0
@@ -32,8 +23,8 @@
             },
             {
               "close": {
-                "rule": "v",
-                "production": 9,
+                "rule": "text",
+                "production": 1,
                 "span": [
                   0,
                   0
@@ -54,173 +45,28 @@
             "rule": "text",
             "span": [
               0,
-              1
+              0
             ],
             "source": [
               0,
-              1
+              0
             ],
             "tags": [],
-            "children": [
-              {
-                "kind": "rule",
-                "rule": "t",
-                "span": [
-                  0,
-                  0
-                ],
-                "source": [
-                  0,
-                  0
-                ],
-                "tags": [],
-                "children": [
-                  {
-                    "kind": "rule",
-                    "rule": "u",
-                    "span": [
-                      0,
-                      0
-                    ],
-                    "source": [
-                      0,
-                      0
-                    ],
-                    "tags": [],
-                    "children": []
-                  }
-                ]
-              },
-              {
-                "kind": "rule",
-                "rule": "t",
-                "span": [
-                  0,
-                  1
-                ],
-                "source": [
-                  0,
-                  1
-                ],
-                "tags": [],
-                "children": [
-                  {
-                    "kind": "rule",
-                    "rule": "u",
-                    "span": [
-                      0,
-                      1
-                    ],
-                    "source": [
-                      0,
-                      1
-                    ],
-                    "tags": [],
-                    "children": [
-                      {
-                        "kind": "rule",
-                        "rule": "t",
-                        "span": [
-                          0,
-                          0
-                        ],
-                        "source": [
-                          0,
-                          0
-                        ],
-                        "tags": [],
-                        "children": [
-                          {
-                            "kind": "rule",
-                            "rule": "u",
-                            "span": [
-                              0,
-                              0
-                            ],
-                            "source": [
-                              0,
-                              0
-                            ],
-                            "tags": [],
-                            "children": []
-                          }
-                        ]
-                      },
-                      {
-                        "kind": "token",
-                        "terminal": "A",
-                        "token": 0,
-                        "span": [
-                          0,
-                          1
-                        ],
-                        "source": [
-                          0,
-                          1
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
+            "children": []
           },
           {
             "kind": "rule",
             "rule": "text",
             "span": [
               0,
-              1
+              0
             ],
             "source": [
               0,
-              1
+              0
             ],
             "tags": [],
-            "children": [
-              {
-                "kind": "rule",
-                "rule": "t",
-                "span": [
-                  0,
-                  1
-                ],
-                "source": [
-                  0,
-                  1
-                ],
-                "tags": [],
-                "children": [
-                  {
-                    "kind": "rule",
-                    "rule": "v",
-                    "span": [
-                      0,
-                      0
-                    ],
-                    "source": [
-                      0,
-                      0
-                    ],
-                    "tags": [],
-                    "children": []
-                  },
-                  {
-                    "kind": "token",
-                    "terminal": "C",
-                    "token": 0,
-                    "span": [
-                      0,
-                      1
-                    ],
-                    "source": [
-                      0,
-                      1
-                    ]
-                  }
-                ]
-              }
-            ]
+            "children": []
           }
         ]
       }

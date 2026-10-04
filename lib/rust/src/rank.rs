@@ -401,9 +401,21 @@ impl Least {
         }
     }
 
+    /// Whether the edge `index` is kept. The edges are added in order, so
+    /// the kept ones are sorted.
     fn keeps(&self, index: u32) -> bool {
-        self.kept.contains(&index)
+        holds(&self.kept, index)
     }
+}
+
+/// Whether a sorted list of kept edges holds `index`, by a binary search
+/// whose comparisons are counted: a scan would compare with every edge.
+fn holds(kept: &[u32], index: u32) -> bool {
+    kept.binary_search_by(|edge| {
+        work::count(Work::Kept, 1);
+        edge.cmp(&index)
+    })
+    .is_ok()
 }
 
 /// A node's summaries in one context: over all its derivations, and,
@@ -969,12 +981,11 @@ impl<'c> Ranker<'c> {
                 let production = &self.dag.g.prods[item.prod as usize];
                 let position = item.dot as usize - 1;
                 let captured = production.cap_at[position].is_some();
-                let caps = self.dag.chart.caps(item.caps).to_vec();
                 let previous = if captured {
-                    match self.dag.chart.lookup_caps(&caps[..caps.len() - 1]) {
-                        Some(id) => id,
-                        None => return Deps::Links(Vec::new()),
+                    if item.caps == 0 {
+                        return Deps::Links(Vec::new());
                     }
+                    self.dag.chart.caps_parent(item.caps)
                 } else {
                     item.caps
                 };
@@ -1021,7 +1032,7 @@ impl<'c> Ranker<'c> {
                     }
                     Sym::N(rule) => {
                         if captured {
-                            let cap = caps[caps.len() - 1];
+                            let cap = self.dag.chart.last_cap(item.caps);
                             let m = cap.start;
                             if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| holds(m, cap.tags))
                             {
@@ -1030,12 +1041,7 @@ impl<'c> Ranker<'c> {
                                 links.push(((Node::Item { set: m, index: p }, same(m, fset)), (child, child_fset)));
                             }
                         } else {
-                            let mut origins: Vec<u32> = self.dag.chart.sets[set as usize]
-                                .origins
-                                .get(&rule)
-                                .map(|origins| origins.iter().copied().filter(|&m| m >= item.origin).collect())
-                                .unwrap_or_default();
-                            origins.sort_unstable();
+                            let origins = self.dag.chart.origins_between(&pred, rule, item.origin, set);
                             let eset = &self.dag.chart.sets[set as usize];
                             for m in origins {
                                 // Two completed items over one span can have
@@ -1270,9 +1276,10 @@ impl<'c> Ranker<'c> {
         // link (tests/README.md).
         let marks = self.marks;
         let marked = |set: u32, index: u32| marks.is_some_and(|marks| marks.items.contains(&(set, index)));
-        let in_all = |index: u32| kept.as_ref().map_or(true, |(all, _)| all.contains(&index));
+        // The kept edges are sorted (`Least::keeps`).
+        let in_all = |index: u32| kept.as_ref().map_or(true, |(all, _)| holds(all, index));
         let in_allowed =
-            |index: u32| kept.as_ref().map_or(true, |(all, allowed)| allowed.as_ref().unwrap_or(all).contains(&index));
+            |index: u32| kept.as_ref().map_or(true, |(all, allowed)| holds(allowed.as_ref().unwrap_or(all), index));
         match deps {
             Deps::Leaf => match node {
                 Node::Read { tok, terminal } => {
@@ -1520,7 +1527,24 @@ pub(crate) fn restored_terminal(g: &Lowered, prod: u32) -> u32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{Nat, Ordering, VNode, Vectors};
+    use super::{Least, Nat, Ordering, VNode, Vectors, NO_ELISIONS};
+    use crate::work::{assert_linear, Work};
+
+    /// A node whose many edges all attain the least vector keeps them all,
+    /// and asking of each edge whether it is kept costs about one step, not
+    /// one for each kept edge.
+    #[test]
+    fn kept_edges_are_found_without_a_scan() {
+        let vectors = Vectors::new();
+        assert_linear(Work::Kept, 40_000, &mut |n| {
+            let mut least = Least::NONE;
+            for index in 0..n as u32 {
+                least.add(&vectors, index, &Least::one(NO_ELISIONS));
+            }
+            assert!((0..n as u32).all(|index| least.keeps(index)));
+            assert!(!least.keeps(n as u32));
+        });
+    }
 
     /// 2^k, by doubling from one.
     fn power(k: u32) -> Nat {

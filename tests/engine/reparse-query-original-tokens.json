@@ -1,6 +1,6 @@
 {
   "description": "$x of a covers A and the synthetic T, and projects to the original A alone. The query reads that original token, so probe matches. Read over the reconstructed tokens A T, it would not (engine §7.6).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a $x(body)\n%conditions matches($x, probe)\n%rule body A [T]\n%rule b A [T] [T]\n%rule c A T\n%rule probe A",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a $x(body)\n%conditions matches($x, probe)\n%rule body A [+T]\n%rule b A [+T] [+T]\n%rule c A T\n%rule probe A",
   "tokens": [
     {
       "text": "a",

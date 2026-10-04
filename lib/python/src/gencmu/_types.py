@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from typing import Any, Callable, Optional, Union
 
+from ._trampoline import Walk, run
+
 TermType = str
 """``"string"``, ``"strings"``, ``"tags"``, ``"span"``, ``"set"`` or ``"any"``."""
 
@@ -125,10 +127,30 @@ def test_type_problem(op: str, kind: TermType) -> str | None:
     return f"{op} tests {'a string' if sound else 'a tag set'}: {problem}"
 
 
-def term_type_fault(term: Any, constants: ConstantTypes = _unknown_constants) -> FoundFault:
+def term_type_fault(term: Any, constants: ConstantTypes = _unknown_constants, memo: Optional[Memo] = None) -> FoundFault:
     """The type of a term, or why its parts do not agree with the smallest
     construct that disagrees. The term's shape must already be checked.
-    ``constants`` gives the type of each constant."""
+    ``constants`` gives the type of each constant. ``memo`` keeps the types
+    found, so that a reader that asks the type of each term it reads and of
+    the terms around it finds each once; its terms do not change."""
+    return run(_term_typing(term, constants, {} if memo is None else memo))  # type: ignore[no-any-return]
+
+
+Memo = dict[int, tuple[Any, Any]]
+"""Types found, by the identity of the term or the condition, with the term
+or the condition, which keeps the identity from being reused."""
+
+
+def _term_typing(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
+    found = memo.get(id(term))
+    if found is not None and found[0] is term:
+        return found[1]
+    result = yield _term_typing_once(term, constants, memo)
+    memo[id(term)] = (term, result)
+    return result
+
+
+def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
     if isinstance(term.get("string"), str):
         return "string", None
     if isinstance(term.get("tag"), str) or "range" in term:
@@ -145,65 +167,78 @@ def term_type_fault(term: Any, constants: ConstantTypes = _unknown_constants) ->
             continue
         types: list[TermType] = []
         for item in items:
-            kind, fault = term_type_fault(item, constants)
+            kind, fault = yield _term_typing(item, constants, memo)
             if fault is not None:
                 return None, fault
-            types.append(kind)  # type: ignore[arg-type]
+            types.append(kind)
         joined, problem = joined_type(types, operator)
-        return (None, (problem, term)) if problem is not None else (joined, None)  # type: ignore[return-value]
+        return (None, (problem, term)) if problem is not None else (joined, None)
     if "if" in term:
-        fault = condition_type_fault(term["if"], constants)
+        fault = yield _condition_typing(term["if"], constants, memo)
         if fault is not None:
             return None, fault
-        kind, fault = term_type_fault(term["then"], constants)
+        kind, fault = yield _term_typing(term["then"], constants, memo)
         if fault is not None:
             return None, fault
-        problem = expected_problem(kind, "tags")  # type: ignore[arg-type]
+        problem = expected_problem(kind, "tags")
         return (None, (problem, term)) if problem is not None else ("tags", None)
     call = term.get("call")
     if isinstance(call, str):
         for argument in term.get("args", []):
             if "rule" in argument or "classifier" in argument:
                 continue
-            kind, fault = term_type_fault(argument, constants)
+            kind, fault = yield _term_typing(argument, constants, memo)
             if fault is not None:
                 return None, fault
             if call in _CALL_STRINGS:
-                problem = expected_problem(kind, "string")  # type: ignore[arg-type]
+                problem = expected_problem(kind, "string")
                 if problem is not None:
                     return None, (f"{call} takes {_CALL_STRINGS[call]}: {problem}", term)
         return _call_type(call), None
     return None, ("a malformed term", term)
 
 
-def term_type(term: Any, constants: ConstantTypes = _unknown_constants) -> Found:
+def term_type(term: Any, constants: ConstantTypes = _unknown_constants, memo: Optional[Memo] = None) -> Found:
     """The type of a term, or why its parts do not agree."""
-    kind, fault = term_type_fault(term, constants)
+    kind, fault = term_type_fault(term, constants, memo)
     return (None, fault[0]) if fault is not None else (kind, None)  # type: ignore[return-value]
 
 
-def condition_type_fault(condition: Any, constants: ConstantTypes = _unknown_constants) -> Optional[Fault]:
+def condition_type_fault(condition: Any, constants: ConstantTypes = _unknown_constants, memo: Optional[Memo] = None) -> Optional[Fault]:
     """Why a condition's terms do not agree in type, with the smallest
     construct that disagrees, or None."""
+    return run(_condition_typing(condition, constants, {} if memo is None else memo))  # type: ignore[no-any-return]
+
+
+def _condition_typing(condition: Any, constants: ConstantTypes, memo: Memo) -> Walk:
+    found = memo.get(id(condition))
+    if found is not None and found[0] is condition:
+        return found[1]
+    result = yield _condition_typing_once(condition, constants, memo)
+    memo[id(condition)] = (condition, result)
+    return result
+
+
+def _condition_typing_once(condition: Any, constants: ConstantTypes, memo: Memo) -> Walk:
     items = condition.get("any", condition.get("all"))
     if isinstance(items, list):
         for item in items:
-            fault = condition_type_fault(item, constants)
+            fault = yield _condition_typing(item, constants, memo)
             if fault is not None:
                 return fault
         return None
     if "not" in condition:
-        return condition_type_fault(condition["not"], constants)
+        return (yield _condition_typing(condition["not"], constants, memo))
     if "if" in condition:
-        return condition_type_fault(condition["if"], constants) or condition_type_fault(condition["then"], constants)
+        return (yield _condition_typing(condition["if"], constants, memo)) or (yield _condition_typing(condition["then"], constants, memo))
     if isinstance(condition.get("op"), str):
-        left, fault = term_type_fault(condition["left"], constants)
+        left, fault = yield _term_typing(condition["left"], constants, memo)
         if fault is not None:
             return fault
-        right, fault = term_type_fault(condition["right"], constants)
+        right, fault = yield _term_typing(condition["right"], constants, memo)
         if fault is not None:
             return fault
-        problem = comparison_problem(condition["op"], left, right)  # type: ignore[arg-type]
+        problem = comparison_problem(condition["op"], left, right)
         return (problem, condition) if problem is not None else None
     return None
 
@@ -214,19 +249,19 @@ def condition_type_problem(condition: Any) -> str | None:
     return fault[0] if fault is not None else None
 
 
-def tag_term_fault(term: Any, constants: ConstantTypes = _unknown_constants) -> Optional[Fault]:
+def tag_term_fault(term: Any, constants: ConstantTypes = _unknown_constants, memo: Optional[Memo] = None) -> Optional[Fault]:
     """Why a term that must be a tag set, a constituent's or an item's, is
     not one, with the construct at fault, or None."""
-    kind, fault = term_type_fault(term, constants)
+    kind, fault = term_type_fault(term, constants, memo)
     if fault is not None:
         return fault
     problem = expected_problem(kind, "tags")  # type: ignore[arg-type]
     return (problem, term) if problem is not None else None
 
 
-def tag_term_problem(term: Any) -> str | None:
+def tag_term_problem(term: Any, memo: Optional[Memo] = None) -> str | None:
     """Why a term that must be a tag set is not one, or None."""
-    fault = tag_term_fault(term)
+    fault = tag_term_fault(term, memo=memo)
     return fault[0] if fault is not None else None
 
 
@@ -273,7 +308,8 @@ def tests_in(expr: Any) -> list[dict[str, Any]]:
             items = current.get(key)
             if isinstance(items, list):
                 stack.extend(reversed(items))
-        for key in ("optional", "repeat", "expr"):
+        # In reverse, so that a repeat's item comes before its separator.
+        for key in ("expr", "separator", "repeat", "optional"):
             if key in current:
                 stack.append(current[key])
     return found
@@ -286,12 +322,12 @@ def rule_type_problem(rule: Any) -> str | None:
     return fault[0] if fault is not None else None
 
 
-def constant_value_type(value: Any, redefine: bool, constants: ConstantTypes = _unknown_constants) -> FoundFault:
+def constant_value_type(value: Any, redefine: bool, constants: ConstantTypes = _unknown_constants, memo: Optional[Memo] = None) -> FoundFault:
     """The type of a constant's value, or why it cannot be one (engine §2,
     §10): a string, a set of strings or a tag set. A redefinition keeps the
     constant's type, which gives ``∅`` its kind, so its value can be of
     open kind."""
-    kind, fault = term_type_fault(value, constants)
+    kind, fault = term_type_fault(value, constants, memo)
     if fault is not None:
         return None, fault
     if kind == "span":
@@ -310,28 +346,27 @@ def constant_value_problem(value: Any, redefine: bool) -> str | None:
 def open_part(term: Any) -> Any:
     """The first part of a term that is not closed (engine §10), or None: a
     capture, a guarded term, or a call of anything but split and tag. The
-    shape of the term need not be checked."""
-    if not isinstance(term, dict):
-        return None
-    if "capture" in term or "if" in term:
-        return term
-    if isinstance(term.get("call"), str):
-        if term["call"] not in ("split", "tag"):
-            return term
-        args = term.get("args")
-        for argument in args if isinstance(args, list) else []:
-            found = open_part(argument)
-            if found is not None:
-                return found
-        return None
-    for key in ("union", "intersection", "difference"):
-        items = term.get(key)
-        if not isinstance(items, list):
+    shape of the term need not be checked. In the order written, with a
+    list for a stack."""
+    stack: list[Any] = [term]
+    while stack:
+        current = stack.pop()
+        if not isinstance(current, dict):
             continue
-        for item in items:
-            found = open_part(item)
-            if found is not None:
-                return found
+        if "capture" in current or "if" in current:
+            return current
+        items: Any = []
+        if isinstance(current.get("call"), str):
+            if current["call"] not in ("split", "tag"):
+                return current
+            items = current.get("args")
+        else:
+            for key in ("union", "intersection", "difference"):
+                if isinstance(current.get(key), list):
+                    items = current[key]
+                    break
+        if isinstance(items, list):
+            stack.extend(reversed(items))
     return None
 
 

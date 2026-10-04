@@ -1,0 +1,10 @@
+{
+  "description": "A group around the whole content of a marked optional is an error at the [ (engine §9).",
+  "document": "```jbogenbau\n%rule a [+(KU #)]\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

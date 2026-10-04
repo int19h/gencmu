@@ -167,37 +167,34 @@ fn the_corpus() {
     let threads: Vec<_> = (0..workers)
         .map(|_| {
             let (cases, next, dialects, failures) = (cases.clone(), next.clone(), dialects.clone(), failures.clone());
-            std::thread::Builder::new()
-                .stack_size(16 * 1024 * 1024)
-                .spawn(move || loop {
-                    let index = next.fetch_add(1, Ordering::Relaxed);
-                    let Some(case) = cases.get(index) else { break };
-                    let id = case.get("id").and_then(Value::str).unwrap_or("?");
-                    let name = case.get("dialect").and_then(Value::str).expect("a dialect");
-                    let dialect = {
-                        let mut dialects = dialects.lock().unwrap();
-                        dialects
-                            .entry(name.to_string())
-                            .or_insert_with(|| Arc::new(gencmu::load_dialect(name).expect("a bundled dialect")))
-                            .clone()
-                    };
-                    let problem = match std::panic::catch_unwind(|| outcome(&dialect, case)) {
-                        Ok(Ok(got)) => compare(case, &got),
-                        Ok(Err(problem)) => Some(problem),
-                        Err(panic) => Some(format!(
-                            "crashed: {}",
-                            panic
-                                .downcast_ref::<String>()
-                                .map(String::as_str)
-                                .or(panic.downcast_ref::<&str>().copied())
-                                .unwrap_or("?")
-                        )),
-                    };
-                    if let Some(problem) = problem {
-                        failures.lock().unwrap().push(format!("{id} ({name}): {problem}"));
-                    }
-                })
-                .expect("a worker")
+            std::thread::spawn(move || loop {
+                let index = next.fetch_add(1, Ordering::Relaxed);
+                let Some(case) = cases.get(index) else { break };
+                let id = case.get("id").and_then(Value::str).unwrap_or("?");
+                let name = case.get("dialect").and_then(Value::str).expect("a dialect");
+                let dialect = {
+                    let mut dialects = dialects.lock().unwrap();
+                    dialects
+                        .entry(name.to_string())
+                        .or_insert_with(|| Arc::new(gencmu::load_dialect(name).expect("a bundled dialect")))
+                        .clone()
+                };
+                let problem = match std::panic::catch_unwind(|| outcome(&dialect, case)) {
+                    Ok(Ok(got)) => compare(case, &got),
+                    Ok(Err(problem)) => Some(problem),
+                    Err(panic) => Some(format!(
+                        "crashed: {}",
+                        panic
+                            .downcast_ref::<String>()
+                            .map(String::as_str)
+                            .or(panic.downcast_ref::<&str>().copied())
+                            .unwrap_or("?")
+                    )),
+                };
+                if let Some(problem) = problem {
+                    failures.lock().unwrap().push(format!("{id} ({name}): {problem}"));
+                }
+            })
         })
         .collect();
     for thread in threads {

@@ -1,0 +1,37 @@
+{
+  "description": "Braces are a primary, so & treats them as one operand: {a b} & c repeats the sequence a b (engine §9).",
+  "document": "```jbogenbau\n%rule a {a b} & c\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "a",
+          "alternatives": [
+            {
+              "expr": {
+                "and": [
+                  {
+                    "repeat": {
+                      "seq": [
+                        {
+                          "ref": "a"
+                        },
+                        {
+                          "ref": "b"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "ref": "c"
+                  }
+                ]
+              }
+            }
+          ],
+          "conditions": []
+        }
+      ]
+    }
+  }
+}

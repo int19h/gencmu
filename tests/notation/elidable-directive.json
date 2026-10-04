@@ -1,0 +1,10 @@
+{
+  "description": "%elidable is no directive, so it is a syntax error at the keyword (engine §9).",
+  "document": "```jbogenbau\n%elidable KU\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

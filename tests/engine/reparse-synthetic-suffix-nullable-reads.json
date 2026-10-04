@@ -1,6 +1,6 @@
 {
   "description": "After a synthetic T, the written route predicts its suffix s only through productions that can read. So s → B reads the original B and c is a second reading, while the empty alternative of s, whose tag term would be an error over the empty span, is never evaluated (engine §7.4).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a A [T] B\n%rule b A [T] [T] B\n%rule c A [T s]\n%rule s ε <tag(text($))> | B",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a A [+T] B\n%rule b A [+T] [+T] B\n%rule c A [+T s]\n%rule s ε <tag(text($))> | B",
   "tokens": [
     {
       "text": "a",

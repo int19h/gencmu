@@ -1,0 +1,58 @@
+{
+  "description": "An alternative has any number of captures, six here (engine §3.5, §9).",
+  "document": "```jbogenbau\n%rule a $a(A) $b(B) $c(C) $d(D) $e(E) $f(F)\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "a",
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "capture": "a",
+                    "expr": {
+                      "ref": "A"
+                    }
+                  },
+                  {
+                    "capture": "b",
+                    "expr": {
+                      "ref": "B"
+                    }
+                  },
+                  {
+                    "capture": "c",
+                    "expr": {
+                      "ref": "C"
+                    }
+                  },
+                  {
+                    "capture": "d",
+                    "expr": {
+                      "ref": "D"
+                    }
+                  },
+                  {
+                    "capture": "e",
+                    "expr": {
+                      "ref": "E"
+                    }
+                  },
+                  {
+                    "capture": "f",
+                    "expr": {
+                      "ref": "F"
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "conditions": []
+        }
+      ]
+    }
+  }
+}

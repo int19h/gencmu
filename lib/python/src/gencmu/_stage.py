@@ -105,18 +105,15 @@ class Tree:
         tokens = self.tokens
         top = Node("rule", (root.start, root.end), (0, 0), rule=root.production.rule_name, tags=tagtab.get(root.tag))
         builders: list[Node] = [top]
-        work: list[tuple[str, Any]] = [("close", root), ("kids", (root, root.production.rep_splice))]
+        # The engine splices out helpers, those of [ ] and of flat braces;
+        # a chain's levels are rule nodes, and stay (engine §12).
+        work: list[tuple[str, Any]] = [("close", root), ("kids", root)]
         while work:
             kind, value = work.pop()
             if kind == "kids":
-                node, splice = value
-                children = node.children
+                children = value.children
                 for index in range(len(children) - 1, -1, -1):
-                    child = children[index]
-                    if index == 0 and splice and isinstance(child, DNode):
-                        work.append(("kids", (child, child.production.rep_splice)))
-                    else:
-                        work.append(("visit", child))
+                    work.append(("visit", children[index]))
             elif kind == "visit":
                 child = value
                 parent = builders[-1]
@@ -140,7 +137,7 @@ class Tree:
                             )
                         )
                     else:
-                        work.append(("kids", (child, False)))
+                        work.append(("kids", child))
                 else:
                     node = Node(
                         "rule",
@@ -152,7 +149,7 @@ class Tree:
                     parent.children.append(node)
                     builders.append(node)
                     work.append(("close", child))
-                    work.append(("kids", (child, child.production.rep_splice)))
+                    work.append(("kids", child))
             else:
                 builders.pop()
         # Sources: an empty node stands at the source end of the token
@@ -173,25 +170,22 @@ def warnings_of(root: DNode, tree: Tree, features: frozenset[str], stage: str) -
     """The warnings of a chosen derivation (engine §12): each rule node of its
     tree gives one for each warning of its alternative whose feature is on,
     in the order a walk meets the nodes, parent before children and children
-    left to right. The walk splices helpers and the prefixes of a trailing
-    repetition, which are no nodes of the tree, as the tree does."""
+    left to right. The walk splices helpers, which are no nodes of the
+    tree, as the tree does."""
     warnings: list[ParseWarning] = []
-    # Each entry is a node, and whether it is the prefix of a trailing
-    # repetition, the first child of a production lowered as one.
-    stack: list[tuple[DChild, bool]] = [(root, False)]
+    stack: list[DChild] = [root]
     while stack:
-        node, prefix = stack.pop()
+        node = stack.pop()
         if isinstance(node, DRead):
             continue
         production = node.production
-        if not prefix and not production.helper:
+        if not production.helper:
             for feature in production.warnings:
                 if feature in features:
                     span = (node.start, node.end)
                     warnings.append(ParseWarning(stage, feature, production.rule_name, span, tree.source_of(node)))
         children = node.children
-        for index in range(len(children) - 1, -1, -1):
-            stack.append((children[index], index == 0 and production.rep_splice))
+        stack.extend(reversed(children))
     return warnings
 
 
@@ -322,19 +316,28 @@ def phoneme_tag(tags: Tags) -> str | None:
     return phoneme_of(found[0]) if found else None
 
 
-def implied(tags: Tags, implications: list[tuple[Tags, Tags]]) -> Tags:
+def implied(tags: Tags, lowered: Lowered) -> Tags:
     """A token's explicit tags with the tags of the stage's implications,
-    added until no tag changes (engine §11). An implication only adds tags,
-    so the loop ends, also over a cycle."""
-    result = tags
-    changed = bool(implications)
-    while changed:
-        changed = False
-        for premise, consequence in implications:
-            if not result.isdisjoint(premise) and not consequence <= result:
-                result = result | consequence
-                changed = True
-    return result
+    added until no tag changes (engine §11). Each tag gained is looked up
+    once in an index of the premises, and each implication fires at most
+    once, so a long chain costs its length, not its square."""
+    implications = lowered.implications
+    if not implications:
+        return tags
+    index = lowered.implication_index()
+    result = set(tags)
+    queue = list(tags)
+    fired: set[int] = set()
+    while queue:
+        for number in index.get(queue.pop(), ()):
+            if number in fired:
+                continue
+            fired.add(number)
+            for tag in implications[number][1]:
+                if tag not in result:
+                    result.add(tag)
+                    queue.append(tag)
+    return tags if len(result) == len(tags) else frozenset(result)
 
 
 class Emitter:
@@ -385,7 +388,7 @@ class Emitter:
         the tags that the emission gives it (engine §11)."""
         # The stage's implications apply before the phonemes and the label
         # (engine §11).
-        tags = implied(explicit, self.context.lowered.implications)
+        tags = implied(explicit, self.context.lowered)
         # Two phoneme tags are an error on any token (engine §5).
         phoneme = phoneme_tag(tags)
         # A token over an opaque part has the part's source and text (engine
@@ -559,7 +562,7 @@ class Emitter:
                 at = self.tokens[boundary - 1].source[1]
             else:
                 at = self.tree.source_of(node)[0]
-            tags = implied(frozenset((tag,)), self.context.lowered.implications)
+            tags = implied(frozenset((tag,)), self.context.lowered)
             # An inserted token has no parts: a phoneme tag gives its phonemes
             # and its label, or both are empty (engine §5).
             phoneme = phoneme_tag(tags)

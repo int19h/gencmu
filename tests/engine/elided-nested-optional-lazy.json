@@ -1,6 +1,6 @@
 {
   "description": "With KU elidable, text → [[KU]] on the empty input ties under lazy too, since its two derivations differ only at transparent closes (engine §6).",
-  "grammar": "%ambiguity-resolution lazy\n%elidable KU\n%rule text [[KU]]",
+  "grammar": "%ambiguity-resolution lazy\n%rule text [[+KU]]",
   "tokens": [],
   "expect": {
     "result": {

@@ -1,6 +1,6 @@
 {
   "description": "A sound test on a reference compares the canonical sound of its constituent's whole span: w=\"lai\" holds for the w over la and i, and w≠\"lai\" for the w over lo and i (engine §2, §4).",
-  "grammar": "%rule text [p] ...\n%rule p hit | miss\n%rule hit w=\"lai\"\n%rule miss w≠\"lai\"\n%rule w X Y",
+  "grammar": "%rule text [{p}]\n%rule p hit | miss\n%rule hit w=\"lai\"\n%rule miss w≠\"lai\"\n%rule w X Y",
   "tokens": [
     {
       "text": "la",

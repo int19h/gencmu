@@ -1,0 +1,10 @@
+{
+  "description": "With several defects, the form comes before the test on the terminator: the error is at the [ (engine §9).",
+  "document": "```jbogenbau\n%rule a [+KU≠\"ku\" | A]\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

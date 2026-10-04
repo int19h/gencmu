@@ -4,7 +4,7 @@
     "p.md": "## Letters\n\n```jbogenbau\n%stage letters\n```\n\n- [a](a.md)\n  ```jbogenbau\n  %include \"a.md\"\n  ```\n\n## Pairs\n\n```jbogenbau\n%stage pairs\n```\n\n- [b](b.md)\n  ```jbogenbau\n  %include \"b.md\"\n  ```\n\n## Triples\n\n```jbogenbau\n%stage triples\n```\n\n- [c](c.md)\n  ```jbogenbau\n  %include \"c.md\"\n  ```\n",
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text letter letter\n%rule letter char %emits $ <A>, $ <A>\n%rule char 'a' | 'b'\n```\n",
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text pair pair\n%rule pair prefix edge\n%rule prefix A %emits X\n%rule edge $n(nothing) A %emits Y, $n <Z>\n%rule nothing ε\n```\n",
-    "c.md": "```jbogenbau\n%ambiguity-resolution greedy elision-only\n%elidable KU\n%rule text X s Z triple\n%rule s [KU] Y | [KU] q\n%rule q Y\n%rule triple X Y Z\n```\n"
+    "c.md": "```jbogenbau\n%ambiguity-resolution greedy elision-only\n%rule text X s Z triple\n%rule s [+KU] Y | [+KU] q\n%rule q Y\n%rule triple X Y Z\n```\n"
   },
   "pipeline": "p.md",
   "input": "ab",

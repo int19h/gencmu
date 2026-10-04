@@ -1,0 +1,105 @@
+{
+  "description": "A condition of a rule with flat braces applies to the rule's whole constituent and never to a part of the list: text($) ≠ \"a\" holds of a s a (engine §3.3, §3.6).",
+  "grammar": "%rule text r\n%rule r {A \\ S}\n%conditions text($) ≠ \"a\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "s",
+      "tags": [
+        "S"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          3
+        ],
+        "source": [
+          0,
+          5
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "r",
+            "span": [
+              0,
+              3
+            ],
+            "source": [
+              0,
+              5
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "S",
+                "token": 1,
+                "span": [
+                  1,
+                  2
+                ],
+                "source": [
+                  2,
+                  3
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 2,
+                "span": [
+                  2,
+                  3
+                ],
+                "source": [
+                  4,
+                  5
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "(a s a)"
+  }
+}

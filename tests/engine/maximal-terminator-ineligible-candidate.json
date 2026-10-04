@@ -1,6 +1,6 @@
 {
   "description": "The longer candidate need not have an eligible proof tree. On A B C, r reads y as A, leaves out [T], and reads B C. y → A z [U] C over A B C is longer, though its only proof leaves out [U] after z → B, which the longer z → B C forbids. It still forbids the omission of [T], so begins of r is false (engine §4).",
-  "grammar": "%ambiguity-resolution greedy\n%elidable maximal T U\n%rule text A B C\n%conditions begins(from($), r)\n%rule r y [T] B C\n%rule y A | A z [U] C\n%rule z B | B C",
+  "grammar": "%ambiguity-resolution greedy\n%rule text A B C\n%conditions begins(from($), r)\n%rule r y [++T] B C\n%rule y A | A z [++U] C\n%rule z B | B C",
   "tokens": [
     {
       "text": "a",

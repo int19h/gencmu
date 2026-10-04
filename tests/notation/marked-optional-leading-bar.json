@@ -1,0 +1,10 @@
+{
+  "description": "A leading | in a marked optional is an error at the [: the terminator stands directly after the marker (engine §9).",
+  "document": "```jbogenbau\n%rule a [+| KU]\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

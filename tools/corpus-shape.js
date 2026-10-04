@@ -99,18 +99,21 @@ export function duplicateMembers(json) {
  */
 export function illFormedStrings(value) {
   const found = [];
-  const visit = (/** @type {unknown} */ item) => {
+  // The values still to visit, the next one last. An explicit stack, since
+  // a JSON value can nest deeper than the call stack allows.
+  /** @type {unknown[]} */
+  const stack = [value];
+  while (stack.length > 0) {
+    const item = stack.pop();
     if (typeof item === "string") {
       if (!item.isWellFormed()) found.push(JSON.stringify(item));
-    } else if (Array.isArray(item)) item.forEach(visit);
-    else if (item && typeof item === "object") {
-      for (const [name, member] of Object.entries(item)) {
-        visit(name);
-        visit(member);
-      }
+    } else if (Array.isArray(item)) {
+      for (let index = item.length - 1; index >= 0; index--) stack.push(item[index]);
+    } else if (item && typeof item === "object") {
+      const entries = Object.entries(item);
+      for (let index = entries.length - 1; index >= 0; index--) stack.push(entries[index][1], entries[index][0]);
     }
-  };
-  visit(value);
+  }
   return found;
 }
 

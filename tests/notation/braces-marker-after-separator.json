@@ -1,0 +1,10 @@
+{
+  "description": "A separator has no marker, so {x \\ s ...} is a syntax error at the marker (engine §9).",
+  "document": "```jbogenbau\n%rule a {x \\ s ...}\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 16
+    }
+  }
+}

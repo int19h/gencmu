@@ -1,6 +1,6 @@
 {
   "description": "Where no terminator is written, priority changes nothing. r reads c as A, leaves out [T] and reads B. c could also read A B, but then no T follows, so the omission is permitted, and begins of r holds (engine §4).",
-  "grammar": "%elidable T\n%rule text A B\n%conditions begins(from($), r)\n%rule r c [T] B\n%rule c A | A B",
+  "grammar": "%rule text A B\n%conditions begins(from($), r)\n%rule r c [+T] B\n%rule c A | A B",
   "tokens": [
     {
       "text": "a",

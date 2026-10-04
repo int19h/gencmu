@@ -1,6 +1,6 @@
 {
   "description": "The engine's former class other is a rule: any character that is no letter ('\\p{L}'), nonspacing mark ('\\p{Mn}'), digit ('0'..'9') or whitespace ('\\p{White_Space}'). So q, 漢 and a combining diaeresis are not in it, and a spacing mark such as U+0903 is (design §4, engine §1).",
-  "grammar": "%rule text [c] ...\n%rule c\n  | $x(other) <O>\n  | $y('\\p{Any}') <N>\n%conditions\n  ¬matches($y, other)\n%emits\n  $\n%rule other\n  $c('\\p{Any}')\n%conditions\n  ¬matches($c, alpha),\n  ¬matches($c, mark),\n  ¬matches($c, digit),\n  ¬matches($c, space)\n%rule alpha '\\p{L}'\n%rule mark '\\p{Mn}'\n%rule digit '0'..'9'\n%rule space '\\p{White_Space}'",
+  "grammar": "%rule text [{c}]\n%rule c\n  | $x(other) <O>\n  | $y('\\p{Any}') <N>\n%conditions\n  ¬matches($y, other)\n%emits\n  $\n%rule other\n  $c('\\p{Any}')\n%conditions\n  ¬matches($c, alpha),\n  ¬matches($c, mark),\n  ¬matches($c, digit),\n  ¬matches($c, space)\n%rule alpha '\\p{L}'\n%rule mark '\\p{Mn}'\n%rule digit '0'..'9'\n%rule space '\\p{White_Space}'",
   "input": "q漢ï!7 «€ ः",
   "expect": {
     "result": {

@@ -1,6 +1,6 @@
 {
   "description": "The pair of maximal-terminator-bounded with begins from the capture, which sees the rest of the input. There y → A B is longer, so leaving out [T] after y → A is forbidden. Through y → A B, r finds no B after it. So begins of r is false (engine §4).",
-  "grammar": "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text $x(A) B\n%conditions begins(from($x), r)\n%rule r y [T] B\n%rule y A | A B",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $x(A) B\n%conditions begins(from($x), r)\n%rule r y [++T] B\n%rule y A | A B",
   "tokens": [
     {
       "text": "a",

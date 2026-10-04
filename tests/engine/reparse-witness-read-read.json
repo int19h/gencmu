@@ -1,6 +1,6 @@
 {
   "description": "An elision-only witness whose actions are two reads of one original token as different terminals. The token carries A and B. The chosen x reads it as A and restores T. z reads it as B, and the synthetic T as a bare terminal (engine §7.10).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text x | y | z\n%rule x A [T]\n%rule y B [T] [T]\n%rule z B T",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text x | y | z\n%rule x A [+T]\n%rule y B [+T] [+T]\n%rule z B T",
   "tokens": [
     {
       "text": "x",

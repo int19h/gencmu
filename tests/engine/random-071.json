@@ -1,20 +1,14 @@
 {
   "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 1 derivations.",
-  "grammar": "%ambiguity-resolution lazy\n%rule text ε | (A | A) | A t\n%rule t [u] ... B | ε\n%rule u ε | v u\n%rule v ε | B C",
+  "grammar": "%ambiguity-resolution greedy\n%rule text ε | ε | u\n%rule t ε | T u\n%rule u {... A \\ A}\n%rule v ε | t",
   "tokens": [
     {
-      "text": "a",
+      "text": "x",
       "tags": [
         "A",
         "B"
-      ]
-    },
-    {
-      "text": "b",
-      "tags": [
-        "A",
-        "B"
-      ]
+      ],
+      "phonemes": "x"
     }
   ],
   "expect": {
@@ -33,51 +27,44 @@
         "rule": "text",
         "span": [
           0,
-          2
+          1
         ],
         "source": [
           0,
-          3
+          1
         ],
-        "tags": [],
+        "tags": [
+          "A",
+          "B"
+        ],
         "children": [
           {
-            "kind": "token",
-            "terminal": "A",
-            "token": 0,
-            "span": [
-              0,
-              1
-            ],
-            "source": [
-              0,
-              1
-            ]
-          },
-          {
             "kind": "rule",
-            "rule": "t",
+            "rule": "u",
             "span": [
-              1,
-              2
+              0,
+              1
             ],
             "source": [
-              2,
-              3
+              0,
+              1
             ],
-            "tags": [],
+            "tags": [
+              "A",
+              "B"
+            ],
             "children": [
               {
                 "kind": "token",
-                "terminal": "B",
-                "token": 1,
+                "terminal": "A",
+                "token": 0,
                 "span": [
-                  1,
-                  2
+                  0,
+                  1
                 ],
                 "source": [
-                  2,
-                  3
+                  0,
+                  1
                 ]
               }
             ]
@@ -86,6 +73,6 @@
       },
       "error": null
     },
-    "brackets": "(a b)"
+    "brackets": "x"
   }
 }

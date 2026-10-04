@@ -14,6 +14,7 @@ import { sourceDoms, sourceLoader } from "./grammar-sources.js";
 import { parseMarkdown, walk } from "./markdown.js";
 import { PROSE, proseLineProblems } from "./prose-lines.js";
 import { resolvePath } from "../lib/js/src/markdown.js";
+import { countWork, hooks } from "../lib/js/src/testing.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -121,13 +122,15 @@ export function quotedTexts(markdown, dialects = dialectNames()) {
  */
 export function proseOf(block, { lists = true } = {}) {
   let prose = "";
-  /** @param {any} node */
-  const visit = (node) => {
+  // An explicit stack, since Markdown can nest deeper than the call stack.
+  /** @type {any[]} */
+  const stack = [block];
+  for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
     if (node.type === "text") prose += node.value;
     else if (node.type === "inlineCode" || PROSE.has(node.type)) prose += " ";
-    for (const child of node.children || []) if (lists || child.type !== "list") visit(child);
-  };
-  visit(block);
+    const children = node.children || [];
+    for (let index = children.length - 1; index >= 0; index--) if (lists || children[index].type !== "list") stack.push(children[index]);
+  }
   return prose;
 }
 
@@ -182,19 +185,22 @@ export function documentDialects(base = root, doms = repositoryDoms(base)) {
   const dialects = new Map();
   for (const document of dialectDocuments(base)) {
     const dialect = path.posix.basename(document, ".md");
-    /** @param {string} file the path under grammars/ */
-    const visit = (file) => {
+    // The documents to visit, each path under grammars/, in the order of a
+    // walk down the includes. An explicit stack, since a chain of includes
+    // can be longer than the call stack is deep.
+    const stack = [document.slice("grammars/".length)];
+    for (let file = stack.pop(); file !== undefined; file = stack.pop()) {
       const key = `grammars/${file}`;
       if (!dialects.has(key)) dialects.set(key, []);
-      if (dialects.get(key).includes(dialect)) return;
+      if (dialects.get(key).includes(dialect)) continue;
       dialects.get(key).push(dialect);
-      for (const directive of (doms.get(file) || { directives: [] }).directives) {
+      const directives = (doms.get(file) || { directives: [] }).directives;
+      for (let index = directives.length - 1; index >= 0; index--) {
         // The path as the pipeline resolves it (lib/js/src/pipeline.js), so
         // a `..` above the grammars drops out there as here.
-        if (directive.name === "include") visit(resolvePath(file, directive.args[0]));
+        if (directives[index].name === "include") stack.push(resolvePath(file, directives[index].args[0]));
       }
-    };
-    visit(document.slice("grammars/".length));
+    }
   }
   return dialects;
 }
@@ -368,7 +374,65 @@ function holds(c, text) {
  * @returns {string[]}
  */
 export function wordLabels(text) {
-  return text.split(" ").map((word) => word.replace(/^[.,]+|[.,]+$/g, "").replace(/\./g, " "));
+  return text.split(" ").map((word) => {
+    // The stops and commas at either end trimmed by a loop: /[.,]+$/ tries
+    // each of a long inner run of them in turn.
+    const stop = (/** @type {string} */ c) => c === "." || c === ",";
+    let start = 0;
+    let end = word.length;
+    if (hooks.work) countWork(hooks.work, "text");
+    while (start < end && stop(word[start])) {
+      if (hooks.work) countWork(hooks.work, "text");
+      start++;
+    }
+    while (end > start && stop(word[end - 1])) {
+      if (hooks.work) countWork(hooks.work, "text");
+      end--;
+    }
+    return word.slice(start, end).replace(/\./g, " ");
+  });
+}
+
+/**
+ * Where a list of strings holds another as a run, each start in order, by
+ * Knuth, Morris and Pratt: a comparison of the run at every start would
+ * cost the two lengths multiplied.
+ * @param {string[]} haystack
+ * @param {string[]} needle
+ * @returns {number[]}
+ */
+export function runStarts(haystack, needle) {
+  /** @type {number[]} */
+  const starts = [];
+  if (needle.length === 0) {
+    for (let start = 0; start <= haystack.length; start++) starts.push(start);
+    return starts;
+  }
+  // For each prefix of the needle, the length of its longest proper prefix
+  // that is also its suffix.
+  const border = [0];
+  for (let index = 1, length = 0; index < needle.length; index++) {
+    if (hooks.work) countWork(hooks.work, "text");
+    while (length > 0 && needle[index] !== needle[length]) {
+      if (hooks.work) countWork(hooks.work, "text");
+      length = border[length - 1];
+    }
+    if (needle[index] === needle[length]) length++;
+    border.push(length);
+  }
+  for (let index = 0, matched = 0; index < haystack.length; index++) {
+    if (hooks.work) countWork(hooks.work, "text");
+    while (matched > 0 && haystack[index] !== needle[matched]) {
+      if (hooks.work) countWork(hooks.work, "text");
+      matched = border[matched - 1];
+    }
+    if (haystack[index] === needle[matched]) matched++;
+    if (matched === needle.length) {
+      starts.push(index + 1 - needle.length);
+      matched = border[matched - 1];
+    }
+  }
+  return starts;
 }
 
 /**
@@ -381,22 +445,35 @@ export function wordLabels(text) {
  * @returns {[number, number][]}
  */
 export function rejectionWindows(caseText, text) {
-  const points = Array.from(caseText);
+  /** @type {string[]} */
+  const points = [];
+  for (const point of caseText) {
+    if (hooks.work) countWork(hooks.work, "text");
+    points.push(point);
+  }
   /** @type {{start: number, end: number}[]} the words of the case's text */
   const words = [];
   points.forEach((point, index) => {
+    if (hooks.work) countWork(hooks.work, "text");
     if (/\s/u.test(point)) return;
     if (index && !/\s/u.test(points[index - 1])) words[words.length - 1].end = index + 1;
     else words.push({ start: index, end: index + 1 });
   });
   const wanted = text.split(" ");
+  /** @type {[number, number][]} */
   const windows = [];
-  for (let first = 0; first + wanted.length <= words.length; first++) {
-    const run = words.slice(first, first + wanted.length);
-    if (run.every((word, index) => points.slice(word.start, word.end).join("") === wanted[index])) {
-      const after = words[first + wanted.length];
-      windows.push([run[0].start, after ? after.end : points.length]);
+  // Each word spelled from its points, each counted as it is read.
+  const spelled = words.map((word) => {
+    let spelling = "";
+    for (let index = word.start; index < word.end; index++) {
+      if (hooks.work) countWork(hooks.work, "text");
+      spelling += points[index];
     }
+    return spelling;
+  });
+  for (const first of runStarts(spelled, wanted)) {
+    const after = words[first + wanted.length];
+    windows.push([words[first].start, after ? after.end : points.length]);
   }
   return windows;
 }
@@ -435,15 +512,14 @@ export function roleProblem(c, role, text, dialects, loader) {
   }
   if (role === "words") {
     const wanted = wordLabels(text);
+    const points = Array.from(c.text);
     let apart = false;
     for (const stage of result.stages) {
       if (!stage.output) continue;
       // A pause token has a label of white space, and stands for no word.
       const tokens = stage.output.filter((/** @type {any} */ token) => token.label.trim());
-      for (let first = 0; first + wanted.length <= tokens.length; first++) {
-        const run = tokens.slice(first, first + wanted.length);
-        if (!run.every((token, index) => token.label === wanted[index])) continue;
-        if (together(c.text, run)) return null;
+      for (const first of runStarts(tokens.map((/** @type {any} */ token) => token.label), wanted)) {
+        if (together(points, tokens.slice(first, first + wanted.length))) return null;
         apart = true;
       }
     }
@@ -452,36 +528,114 @@ export function roleProblem(c, role, text, dialects, loader) {
   if (!result.ok) return "its dialect rejects it";
   const wanted = bare(text);
   for (const stage of result.stages) {
-    if (!stage.tree) continue;
-    /** @returns {string[]} the labels of the tokens under a node */
-    const words = (node) => (node.kind === "token" ? [stage.input[node.token].label].filter((label) => label.trim()) : (node.children || []).flatMap(words));
-    const stack = [stage.tree];
-    while (stack.length) {
-      const node = stack.pop();
-      if (node.kind === "rule" && node.rule === role && words(node).join(" ") === wanted) return null;
-      stack.push(...(node.children || []));
-    }
+    if (stage.tree && hasNodeWithWords(stage.tree, stage.input, role, wanted)) return null;
   }
   return `no tree has a node of ${role} whose words are exactly the text's`;
 }
 
 /**
+ * Whether a tree has a node of a rule whose words, the labels of the
+ * tokens under it that are not white space, joined by spaces, are a text.
+ * One walk gives each node its range of words. A node's words are compared
+ * only where their joined length is the text's, once for each range, since
+ * gathering them for each node would cost a chain of nodes the square of
+ * its length.
+ * @param {any} tree
+ * @param {{label: string}[]} input the stage's input tokens
+ * @param {string} role
+ * @param {string} wanted
+ * @returns {boolean}
+ */
+export function hasNodeWithWords(tree, input, role, wanted) {
+  /** @type {string[]} */
+  const labels = [];
+  // The joined length of the words before each word, spaces included.
+  const before = [0];
+  /** @type {any[]} the nodes of the rule, each with its range of words */
+  const found = [];
+  /** @type {{node: any, exit: boolean, start: number}[]} */
+  const stack = [{ node: tree, exit: false, start: 0 }];
+  for (let top = stack.pop(); top !== undefined; top = stack.pop()) {
+    if (hooks.work) countWork(hooks.work, "walkSteps");
+    const { node } = top;
+    if (top.exit) {
+      if (node.kind === "rule" && node.rule === role) found.push([top.start, labels.length]);
+      continue;
+    }
+    if (node.kind === "token") {
+      const label = input[node.token].label;
+      if (label.trim()) {
+        labels.push(label);
+        before.push(before[before.length - 1] + [...label].length + 1);
+      }
+      continue;
+    }
+    stack.push({ node, exit: true, start: labels.length });
+    const children = node.children || [];
+    for (let index = children.length - 1; index >= 0; index--) stack.push({ node: children[index], exit: false, start: 0 });
+  }
+  const length = [...wanted].length;
+  /** @type {Set<string>} */
+  const compared = new Set();
+  for (const [start, end] of found) {
+    const joined = end > start ? before[end] - before[start] - 1 : 0;
+    if (joined !== length) continue;
+    const key = `${start} ${end}`;
+    if (compared.has(key)) continue;
+    compared.add(key);
+    if (joinsTo(labels, start, end, wanted)) return true;
+  }
+  return false;
+}
+
+/**
+ * Whether the labels from `start` to `end`, joined by spaces, are
+ * `wanted`. It compares them label by label, so that each label counts
+ * before it is read, and a mismatch stops the comparison.
+ * @param {string[]} labels
+ * @param {number} start
+ * @param {number} end
+ * @param {string} wanted
+ * @returns {boolean}
+ */
+function joinsTo(labels, start, end, wanted) {
+  let offset = 0;
+  for (let index = start; index < end; index++) {
+    if (hooks.work) countWork(hooks.work, "text");
+    if (index > start) {
+      if (wanted[offset] !== " ") return false;
+      offset++;
+    }
+    if (!wanted.startsWith(labels[index], offset)) return false;
+    offset += labels[index].length;
+  }
+  return offset === wanted.length;
+}
+
+/**
  * Whether tokens, with their attachments, stand together in a text: no
  * letter lies between them that none of them covers.
- * @param {string} caseText
+ * @param {string[]} points the case's text, as code points, split once for
+ *   every run tested
  * @param {any[]} tokens
  * @returns {boolean}
  */
-function together(caseText, tokens) {
-  const points = Array.from(caseText);
+function together(points, tokens) {
   const covered = new Set();
-  const cover = (/** @type {any} */ token) => {
+  // An explicit stack, since attachments can nest as deep as a text is long.
+  /** @type {any[]} */
+  const stack = [...tokens];
+  for (let token = stack.pop(); token !== undefined; token = stack.pop()) {
     if (token.source) for (let index = token.source[0]; index < token.source[1]; index++) covered.add(index);
-    for (const attached of [...(token.before || []), ...(token.after || [])]) cover(attached);
-  };
-  tokens.forEach(cover);
-  const start = Math.min(...covered);
-  const end = Math.max(...covered);
+    for (const attached of token.before || []) stack.push(attached);
+    for (const attached of token.after || []) stack.push(attached);
+  }
+  let start = Infinity;
+  let end = -Infinity;
+  for (const index of covered) {
+    start = Math.min(start, index);
+    end = Math.max(end, index);
+  }
   for (let index = start; index <= end; index++) if (!covered.has(index) && /\p{L}/u.test(points[index])) return false;
   return true;
 }
@@ -544,10 +698,21 @@ export function quotedTextProblems(base = root, { loader, doms, checked = CHECKE
   }
   const allowFile = path.join(base, "tests", "quoted-allow.txt");
   const { entries, problems } = readAllowList(fs.existsSync(allowFile) ? fs.readFileSync(allowFile, "utf8") : "");
+  // The entries by document and text, so that finding one does not scan
+  // the whole list for each quoted text.
+  /** @type {Map<string, AllowEntry[]>} */
+  const entriesOf = new Map();
+  for (const entry of entries) {
+    const key = `${entry.document}\0${entry.text}`;
+    const list = entriesOf.get(key);
+    if (list) list.push(entry);
+    else entriesOf.set(key, [entry]);
+  }
   /** The entry that covers a text on a line: one that names the line, or else one that names no line. */
-  const entryAt = (/** @type {string} */ document, /** @type {string} */ text, /** @type {number} */ line) =>
-    entries.find((entry) => entry.document === document && entry.text === text && entry.lines && entry.lines.includes(line))
-    || entries.find((entry) => entry.document === document && entry.text === text && !entry.lines);
+  const entryAt = (/** @type {string} */ document, /** @type {string} */ text, /** @type {number} */ line) => {
+    const candidates = entriesOf.get(`${document}\0${text}`) || [];
+    return candidates.find((entry) => entry.lines && entry.lines.includes(line)) || candidates.find((entry) => !entry.lines);
+  };
   /** @type {Map<AllowEntry, Set<number>>} the lines on which each entry is needed */
   const used = new Map();
   const documents = checkedDocuments(base, doms, checked);
@@ -581,7 +746,7 @@ export function quotedTextProblems(base = root, { loader, doms, checked = CHECKE
     const markdown = fs.readFileSync(path.join(base, document), "utf8");
     // The quoted texts are read by the line of their block, which holds
     // only for the layout that the one-line check accepts.
-    problems.push(...proseLineProblems(markdown, document));
+    for (const problem of proseLineProblems(markdown, document)) problems.push(problem);
     for (const { text, line, dialects } of quotedTexts(markdown, names)) {
       const at = `${document}:${line}`;
       const needed = [...new Set([...claimed, ...dialects])];
@@ -683,16 +848,31 @@ export function quotingPlaces(base = root, doms = repositoryDoms(base)) {
   }
   /** @type {Map<string, string[]>} */
   const places = new Map();
+  // The places of each case as a set too, for a check that costs one
+  // lookup rather than a scan of the list.
+  /** @type {Map<string, Set<string>>} */
+  const placeSets = new Map();
   const add = (/** @type {string} */ id, /** @type {string[]} */ lines) => {
     if (!lines.length) return;
-    if (!places.has(id)) places.set(id, []);
-    for (const place of lines) if (!places.get(id).includes(place)) places.get(id).push(place);
+    if (!places.has(id)) {
+      places.set(id, []);
+      placeSets.set(id, new Set());
+    }
+    const list = /** @type {string[]} */ (places.get(id));
+    const set = /** @type {Set<string>} */ (placeSets.get(id));
+    for (const place of lines) {
+      if (set.has(place)) continue;
+      set.add(place);
+      list.push(place);
+    }
   };
   /** @type {Map<string, string[]>} the lines that quote each text, in any document */
   const byText = new Map();
   for (const [key, lines] of quoted) {
     const text = key.slice(key.indexOf("\0") + 1);
-    byText.set(text, [...(byText.get(text) || []), ...lines]);
+    const list = byText.get(text);
+    if (list) for (const place of lines) list.push(place);
+    else byText.set(text, [...lines]);
   }
   for (const c of corpusCases(base)) add(c.id, byText.get(normal(c.text)) || []);
   const allowFile = path.join(base, "tests", "quoted-allow.txt");

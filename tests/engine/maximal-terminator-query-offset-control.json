@@ -1,6 +1,6 @@
 {
   "description": "The control of maximal-terminator-query-offset. The longer y sounds \"ab\", so y≠\"ab\" does not hold of it. The omission of [T] after y → A is permitted, and begins of r holds (engine §4).",
-  "grammar": "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text W $s(suffix)\n%conditions begins($s, r)\n%rule suffix A B\n%rule r y≠\"ab\" [T] B\n%rule y A | A B",
+  "grammar": "%ambiguity-resolution greedy\n%rule text W $s(suffix)\n%conditions begins($s, r)\n%rule suffix A B\n%rule r y≠\"ab\" [++T] B\n%rule y A | A B",
   "tokens": [
     {
       "text": "x",

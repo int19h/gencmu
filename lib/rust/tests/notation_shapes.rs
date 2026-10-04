@@ -14,8 +14,10 @@ fn read(path: &[&str]) -> String {
 
 /// Loads the document of `shapes` with a bootstrap, and parses each of its
 /// inputs: its brackets, or the kind of its error. A load that fails gives
-/// the kind of its error.
+/// the kind of its error, and where `shapes` gives `where`, the load must
+/// fail at that document, line and column (tests/README.md).
 fn outcome(shapes: &Value, bootstrap: String) -> Value {
+    let place = shapes.get("where");
     let document = shapes.get("document").and_then(Value::str).expect("a document").to_string();
     let sources = [
         ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
@@ -25,8 +27,19 @@ fn outcome(shapes: &Value, bootstrap: String) -> Value {
     let kind = |debug: String| Value::String(debug.to_lowercase());
     let dialect = match gencmu::load_dialect_sources(sources, "p.md") {
         Ok(dialect) => dialect,
-        Err(error) => return kind(format!("{:?}", error.kind)),
+        Err(error) => {
+            if let Some(place) = place {
+                let expected = (
+                    place.get("document").and_then(Value::str),
+                    place.get("line").and_then(Value::number).map(|line| line as usize),
+                    place.get("column").and_then(Value::number).map(|column| column as usize),
+                );
+                assert_eq!((error.document.as_deref(), error.line, error.column), expected, "{error}");
+            }
+            return kind(format!("{:?}", error.kind));
+        }
     };
+    assert!(place.is_none(), "the document loaded, but the item gives where its error stands");
     let inputs = shapes.get("inputs").expect("inputs").array();
     Value::Array(
         inputs
@@ -105,7 +118,7 @@ fn notation_shapes() {
 /// Each notation stage runs the check of `elision-only` where its own
 /// directive declares it (engine §8). With `greedy` and `elision-only` on
 /// the lexical stage, the check finds the ambiguity that `greedy` settled
-/// in the pipeline document itself, and the document does not load.
+/// in `++`, which is also two `+`, and the document does not load.
 #[test]
 fn a_notation_stage_that_declares_elision_only_runs_the_check() {
     let bootstrap = read(&["grammars", "notation", "bootstrap.json"]);
@@ -118,7 +131,7 @@ fn a_notation_stage_that_declares_elision_only_runs_the_check() {
     let sources = |bootstrap: String| {
         [
             ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
-            ("g.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A B\n```\n".to_string()),
+            ("g.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A [++B]\n```\n".to_string()),
             ("notation/bootstrap.json", bootstrap),
         ]
     };

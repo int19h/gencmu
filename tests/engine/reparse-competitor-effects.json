@@ -1,6 +1,6 @@
 {
   "description": "Only the chosen derivation emits and warns. The competitor c has a warning guard and an emission, and neither reaches the result: the output is a's one token, and there are no warnings (engine §7.10, §11, §12).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a $x(A) [T]\n%emits $x <~kept>\n%rule b A [T] [T]\n%rule c w! A T\n%emits $ <~competitor>",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a $x(A) [+T]\n%emits $x <~kept>\n%rule b A [+T] [+T]\n%rule c w! A T\n%emits $ <~competitor>",
   "options": {
     "features": [
       "w"

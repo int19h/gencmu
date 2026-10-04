@@ -1,6 +1,6 @@
 {
   "description": "The pair of nested-priority-whole-alternative on B D T A. Here the longer c → B D is followed by T A, a whole [T A]. So leaving [T A] out after c → B is forbidden, and begins of r is false (engine §4).",
-  "grammar": "%elidable T\n%rule text B D T A\n%conditions begins(from($), r)\n%rule r c [T A] D\n%rule c B | B D",
+  "grammar": "%rule text B D T A\n%conditions begins(from($), r)\n%rule r c [+T A] D\n%rule c B | B D",
   "tokens": [
     {
       "text": "b",

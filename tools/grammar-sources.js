@@ -21,7 +21,7 @@ export function sourceLoader(base, bootstrap) {
   return new Loader((relative) => {
     if (relative === "notation/bootstrap.json" && bootstrap !== undefined) return bootstrap;
     if (relative === "compiled.json") return undefined;
-    const file = path.join(grammars, ...relative.split("/"));
+    const file = path.join(grammars, relative.split("/").join(path.sep));
     return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : undefined;
   });
 }
@@ -39,7 +39,7 @@ export function sourceDoms(base, loader) {
   return {
     get(file) {
       if (!doms.has(file)) {
-        const source = path.join(base, "grammars", ...file.split("/"));
+        const source = path.join(base, "grammars", file.split("/").join(path.sep));
         doms.set(file, fs.existsSync(source) ? loader.readDocument(fs.readFileSync(source, "utf8"), file) : undefined);
       }
       return doms.get(file);

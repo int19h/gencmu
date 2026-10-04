@@ -1,0 +1,10 @@
+{
+  "description": "A syntax error comes before any other error of the document, wherever each stands: the error is at the ... of the second rule, not at the capture of the first (engine §9).",
+  "document": "```jbogenbau\n%rule a {$c(B)}\n%rule b A ...\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 11
+    }
+  }
+}

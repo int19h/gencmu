@@ -1,0 +1,10 @@
+{
+  "description": "With several defects, a marked optional's form comes first: the | is an error at the [, before the capture inside (engine §9).",
+  "document": "```jbogenbau\n%rule a [+KU | $x(A)]\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

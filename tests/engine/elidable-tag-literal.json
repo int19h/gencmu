@@ -1,6 +1,6 @@
 {
-  "description": "%elidable takes identifier tags: ~ku makes the terminal ~ku elidable, and ~KU and a bare KU are one terminal (design §15, engine §3.8).",
-  "grammar": "%elidable ~ku ~KU\n%rule text A [~ku] [KU]",
+  "description": "An elidable optional's terminator can be a tag literal: [+~ku] marks the terminal ku, and [+~KU] and [+KU] mark one terminal (design §15, engine §3.8).",
+  "grammar": "%rule text A [+~ku] [+KU]",
   "tokens": [
     {
       "text": "a",

@@ -1,0 +1,15 @@
+{
+  "description": "A chain is the only alternative of its rule that the gates leave; another beside it is an error of the grammar (engine §3.3).",
+  "grammar": "%rule text r\n%rule r {... A} | B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

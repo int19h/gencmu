@@ -1,0 +1,10 @@
+{
+  "description": "With several defects, the braces of a misplaced chain are an error at the {, before the capture that they hold, also for a right chain whose marker follows the capture (engine §9).",
+  "document": "```jbogenbau\n%rule a A {$c(B) ... \\ S}\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

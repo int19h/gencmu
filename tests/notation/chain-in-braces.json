@@ -1,0 +1,10 @@
+{
+  "description": "A chain inside other braces is an error at its { (engine §9).",
+  "document": "```jbogenbau\n%rule a {{y ... \\ z}}\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 10
+    }
+  }
+}

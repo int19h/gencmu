@@ -1,0 +1,10 @@
+{
+  "description": "Braces have one chain marker at most, so {... x ...} is a syntax error at the second marker (engine §9).",
+  "document": "```jbogenbau\n%rule a {... x ...}\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 16
+    }
+  }
+}

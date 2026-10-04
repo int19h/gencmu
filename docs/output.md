@@ -59,6 +59,8 @@ A node has one of these forms:
 {"kind":"elided","terminal":"KU","span":[3,3],"source":[9,9]}
 ```
 
+A list that flat braces read has no node of its own. Each level of a chain is a `rule` node of the chain's rule (engine §12). So braces add no kind of node.
+
 A token node's `token` is the index of the stage-input token it read. Its `terminal` is the terminal that read the token. For a range or a property, the terminal is its written form in canonical spelling, such as `'a'..'z'` or `'\p{L}'` (engine §4). A read in a witness and the list of expected terminals use the same form. The output writes an elided node of a tested terminator as any other elided node, without its test.
 
 A warning has this form:
@@ -86,7 +88,11 @@ An error has one of these forms:
 - `ambiguous` (engine §6, §7): The error has `stage`, `reason`, `"readings":[NODE,NODE]` and `message`, and no position. `message` is free, and the shared tests do not compare it. `reason` says which of two cases the error is:
   - `tie`: The ranking of the stage has two or more best derivations (engine §6). The stage's verdict is `tie`, and it has no output. The readings are the first and the second reading of the tie, over the stage's input as the stage read it. They are two derivations, but they can be equal as `NODE` values. The engine counts derivations. It merges neither those that differ only at transparent closes nor those with equal trees (engine §6). The stage's witness then names the actions where they differ.
   - `elision-only`: The stage chose one derivation, but its text stays ambiguous with its elided terminators written back (engine §7). The stage's verdict is `resolved`, and it keeps its output. The readings hold the written-back terminators as elided nodes (engine §7.10). One can be a restored optional's terminator. One can also be a terminator that a reading reads on the written route of an optional, or as a bare terminal. So the two readings can be equal as `NODE` values, as a tie's can. The error also has `"witness":[ACTION,ACTION]` after its readings. It holds the actions at the first difference between the two derivations, visible if there is one, mapped to the stage's input (engine §7.10). Over that input, the two actions can be equal too. The stage itself has no witness.
-- `grammar`: A grammar failed to load, or the parser found a defect while parsing. For a grammar that failed to load, the error has `document`, `line` and `column` where known. A tie in a stage of the notation dialect has the `document` and no `line` or `column` (engine §8). For a defect found while parsing, the error has `stage` and no position. An example of such a defect is a nested parse asked about its own span as the same rule. A defect found by the check of `elision-only` can have the member `code` with the value `elision-witness-lost` (engine §7.9). Such an error also has `chosen`, the chosen tree. It has `completion`, the terminators written back. Each of them is `{"terminal":T,"at":N,"source":[S,S]}`, with `"sound":"..."` last for a tested terminator. The members stand in the order `kind`, `stage`, `code`, `message`, `chosen`, `completion`. Any other error has no `code`.
+- `grammar`: A grammar failed to load, or the parser found a defect while parsing. For a grammar that failed to load, the error has `document`, `line` and `column` where known. A tie in a stage of the notation dialect has the `document` and no `line` or `column` (engine §8).
+
+  For a defect found while parsing, the error has `stage` and no position. An example of such a defect is a nested parse asked about its own span as the same rule. An error that lowering finds for the features of the parse is one too (engine §3). An item of braces that can match no tokens is such an error. Its message begins with the document, line and column of the definition at fault, since the error's position members are for the stage's input.
+
+  A defect found by the check of `elision-only` can have the member `code` with the value `elision-witness-lost` (engine §7.9). Such an error also has `chosen`, the chosen tree. It has `completion`, the terminators written back. Each of them is `{"terminal":T,"at":N,"source":[S,S]}`, with `"sound":"..."` last for a tested terminator. The members stand in the order `kind`, `stage`, `code`, `message`, `chosen`, `completion`. Any other error has no `code`.
 
 For example, `text → [[X]]` on the empty input ties, and both readings are `{"kind":"rule","rule":"text","span":[0,0],"source":[0,0],"tags":[],"children":[]}`. The stage's witness names two different productions of the helpers. A nullable `&`, such as `[A] & [B]`, gives such a tie in the same way, with three derivations.
 
@@ -103,10 +109,12 @@ The test uses notation operators and canonical output tags, with spaces only aro
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
 
 ```
-{"format":17,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
+{"format":18,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
 ```
 
-`format` is the version of the DOM. It changes whenever the shape of the DOM changes. A library never uses a cached DOM of another version.
+`format` is the version of the DOM. It changes whenever the shape of the DOM changes. A library never uses a cached DOM of another version. Format 18 brings braces: `repeat` without `min`, with `separator` and `chain`. It brings the markers of elidable optionals, `elidable` and `maximal` on an `optional`. It also removes the `elidable` directive.
+
+Format 18 was never released with only some of these, so it stays 18 for all of them. A DOM of format 18 that still holds an `elidable` directive is malformed. Every such DOM was read with an earlier bootstrap, so its cache entry misses anyway (engine §8).
 
 A rule is `{"name":"sumti","op":"define","tags":TERM,"alternatives":[ALT...],"emit":EMIT,"conditions":[COND...],"opaque":true,"at":[line,column]}`. `op` is `define`, `redefine` or `extend`. `tags`, `emit` and `opaque` are optional. `opaque` is present, and `true`, only for a rule that has `%opaque`. The name of a rule is a name, or `#`.
 
@@ -116,14 +124,25 @@ An expression is one of these forms:
 
 ```
 {"seq":[EXPR...]}  {"choice":[EXPR...]}  {"and":[EXPR...]}
-{"optional":EXPR}  {"repeat":EXPR,"min":1}
+{"optional":EXPR}  {"optional":EXPR,"elidable":true,"maximal":true}
+{"repeat":EXPR,"separator":EXPR,"chain":"left"}
 {"ref":"sumti"}    {"terminal":"KOhA"}    {"capture":"x","expr":EXPR}
 {"range":["'a'","'z'"]}    {"property":"L"}
 {"test":"=","value":TERM,"expr":EXPR}
 {"empty":true}
 ```
 
-An expression has no member but those of its one form. `terminal` holds a tag in its canonical spelling (engine §1): a name from `~name`, a phoneme tag `/p/`, or a character tag such as `'a'`. A bare name is a `ref`, whether it names a rule or, with a capital, a terminal. So a `ref` holds a name (engine §9), or `#`. A `range` holds its start and its end, each a character tag in its canonical spelling, and the start is not above the end. A `property` holds its name, one of those of engine §1.
+An expression has no member but those of its one form.
+
+`repeat` is braces (engine §3, §9). Its value is the item, and its `separator` is present only where the braces have `\`. Its `chain` is present only for a chain: `left` for `{... x \ s}` and `right` for `{x ... \ s}`. So `{x}` is `{"repeat":X}`, `{x \ s}` is `{"repeat":X,"separator":S}`, and `[{x}]` is `{"optional":{"repeat":X}}`. A `repeat` with a `chain` is the whole `expr` of its alternative, and never part of another expression. A `repeat` has no `min`: a list counts one or more items, and an optional list is an `optional`.
+
+`terminal` holds a tag in its canonical spelling (engine §1): a name from `~name`, a phoneme tag `/p/`, or a character tag such as `'a'`. A bare name is a `ref`, whether it names a rule or, with a capital, a terminal. So a `ref` holds a name (engine §9), or `#`. A `range` holds its start and its end, each a character tag in its canonical spelling, and the start is not above the end. A `property` holds its name, one of those of engine §1.
+
+An `optional` with `"elidable":true` is an elidable optional (engine §3.8): `[+KU #]` is `{"optional":{"seq":[{"ref":"KU"},{"ref":"#"}]},"elidable":true}`. `[++TOI #]` also has `"maximal":true`, after `elidable`. A plain optional has neither member. Each member, where present, is `true`, and `maximal` never stands without `elidable`.
+
+The `expr` of an elidable optional is its terminal, or a `seq` whose first expression is its terminal. The terminal is a `ref` whose name begins with `A` to `Z`, or a `terminal` whose tag is a name. It can also be a `test` with the comparator `=` of one of these. The notation also forbids a group at the head, as in `[+(KU) #]`. The reader checks that on the written text (engine §9), and the DOM does not record it.
+
+No capture stands inside an elidable optional or a `repeat`, at any depth. A capture can stand anywhere else in an alternative's `expr` (engine §3.5).
 
 A tested symbol has no member but `test`, `value` and `expr`. `test` is its comparator: `=`, `≠`, `⊇`, `⊉`, `∩=∅` or `∩≠∅`. Its `expr` is a `ref` other than `#`, a `terminal`, a `range` or a `property`, with no other member. Its `value` is a closed term (engine §10), a string for `=` and `≠` and a tag set for the other four. A string there holds no comma and no code point that the lowercase mapping changes (engine §9). A capture's `expr` is a `ref`, a `terminal`, a `range`, a `property` or a tested symbol.
 
@@ -161,15 +180,15 @@ An implication is `{"if":TERM,"then":TERM,"at":[line,column]}`, for `%implies A 
 
 A classifier and an implication have no member but those shown.
 
-A directive is `{"name":"elidable","args":["KU","KEI"],"at":[line,column]}`. An operand `~KU` of `%elidable` is the name `KU`. The name is the keyword without `%`: `ambiguity-resolution`, `elidable`, `stage`, `include` or `features`. An argument is a name, or, for `include`, the decoded string: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
+A directive is `{"name":"features","args":["cbm"],"at":[line,column]}`. The name is the keyword without `%`: `ambiguity-resolution`, `stage`, `include` or `features`. A directive of any other name is malformed, `elidable` included (engine §9). An argument is a name, or, for `include`, the decoded string: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
 
-An `%elidable maximal` directive has the member `"maximal":true` after `args`: `{"name":"elidable","args":["TOI","SEhU"],"maximal":true,"at":[line,column]}`. The modifier `maximal` contributes no argument, but an operand `~maximal` written after it does: `%elidable maximal ~maximal` has `"args":["maximal"]`. A `%elidable maximal` with no operands has `"args":[]`. Any other directive has no `maximal` member, and the value of the member is always `true` (engine §9). A library ignores any other member of a directive. The members that it knows, `name`, `args`, `maximal` and `at`, keep their rules, so an unknown member does not make a malformed `maximal` member valid.
+A directive has no `maximal` member, and one with that member is malformed (engine §9). A library ignores any other member of a directive. The members that it knows, `name`, `args`, `maximal` and `at`, keep their rules, so an unknown member does not excuse a malformed known one.
 
 `rules`, `directives`, `constants`, `classifiers` and `implications` each keep the order in which the document has them. `at` is the line and column of an item's first token. So the order of all of a document's items is the order of their positions. No two items of a DOM share a position (engine §9).
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":17,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":18,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
 
 A precompiled DOM holds the document's constants, classifiers and implications as the document writes them. The loader gives the constants their values when it stitches a stage, and a stage resolves a classifier for the features of a parse. So one precompiled DOM serves every stage, dialect and set of features that uses the document (engine §2, §8).
 

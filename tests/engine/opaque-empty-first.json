@@ -2,7 +2,7 @@
   "description": "An empty opaque part takes in no text, and its source is that of a node with an empty span. With no input token before it, that is the source start of the first input token, as for an ordinary token over an empty constituent there (engine §11, §12).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage letters\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage parts\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [part] ...\n%rule part letter | space\n%rule letter 'a' | 'b'\n%emits $ <L>\n%rule space ' '\n```\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{part}]\n%rule part letter | space\n%rule letter 'a' | 'b'\n%emits $ <L>\n%rule space ' '\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $e(gap) $n(none) L L\n%emits $e <E>, $n <N>\n%rule gap ε\n%opaque\n%rule none ε\n```\n"
   },
   "pipeline": "p.md",

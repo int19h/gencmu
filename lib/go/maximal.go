@@ -3,8 +3,9 @@ package gencmu
 // Maximality (engine §4): an elided terminator is forbidden where its
 // constituent, the node before it, could have been longer. Stage-wide
 // maximal, of %ambiguity-resolution, restricts every elidable terminator in
-// the main parse. A maximal terminator, of %elidable maximal, restricts
-// itself in the main parse and in nested queries.
+// the main parse. A maximal terminator, the terminator of an optional
+// written [++T x], restricts itself in the main parse and in nested
+// queries (§3.8).
 
 // maximal is what the ranking asks of maximal, over one parse's chart.
 type maximal struct {
@@ -36,18 +37,35 @@ type testOrigin struct {
 // stage-wide maximal, and of the grammar's maximal terminators anyway. It
 // is nil where it restricts nothing.
 func newMaximal(rec *recognizer, stageWide bool) *maximal {
-	mx := &maximal{rec: rec, elides: make([]string, len(rec.g.rules))}
-	restricts := false
-	for _, p := range rec.g.prods {
-		if p.helper && p.elided != "" && (stageWide || rec.g.maximalT[p.elided]) {
-			mx.elides[p.lhs] = p.elided
-			restricts = true
-		}
+	elides := rec.g.maximalElides[0]
+	if stageWide {
+		elides = rec.g.maximalElides[1]
 	}
-	if !restricts {
+	if elides == nil {
 		return nil
 	}
-	return mx
+	return &maximal{rec: rec, elides: elides}
+}
+
+// maximalElides is, for the helper of each elidable optional that
+// maximality restricts, the terminal it elides, and "" for every other
+// rule, or nil where it restricts none. Lowering makes it once, with and
+// without stage-wide maximal, since every nested query asks.
+func maximalElides(g *lowered, stageWide bool) []string {
+	var elides []string
+	w := work.Load()
+	for _, p := range g.prods {
+		if w != nil {
+			w.elidableSteps.add("elidable steps")
+		}
+		if p.helper && p.elided != "" && (stageWide || g.maximalH[p.lhs]) {
+			if elides == nil {
+				elides = make([]string, len(g.rules))
+			}
+			elides[p.lhs] = p.elided
+		}
+	}
+	return elides
 }
 
 // elided says whether a constituent of a rule over [start, end) is an elided
@@ -60,7 +78,7 @@ func (mx *maximal) elided(rule, start, end int32) bool {
 // guards says whether an item's next symbol is a restricted optional whose
 // elision the node before it can forbid: not at the start of a production,
 // and not after a production's first symbol when that is its own rule, what
-// a repetition has read so far.
+// left recursion, such as a left chain's, has read so far.
 func (mx *maximal) guards(it *item) bool {
 	rhs := it.prod.rhs
 	if it.dot == 0 || int(it.dot) == len(rhs) {

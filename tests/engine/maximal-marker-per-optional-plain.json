@@ -1,0 +1,134 @@
+{
+  "description": "Twin of maximal-marker-per-optional.json: on A X B, x elides its [+T] after the same short body, and nothing forbids it (engine §3.8, §4).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text x | y\n%rule x A body [+T] B\n%rule y C body [++T] B\n%rule body X | X B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          3
+        ],
+        "source": [
+          0,
+          5
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "x",
+            "span": [
+              0,
+              3
+            ],
+            "source": [
+              0,
+              5
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "kind": "rule",
+                "rule": "body",
+                "span": [
+                  1,
+                  2
+                ],
+                "source": [
+                  2,
+                  3
+                ],
+                "tags": [
+                  "X"
+                ],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "X",
+                    "token": 1,
+                    "span": [
+                      1,
+                      2
+                    ],
+                    "source": [
+                      2,
+                      3
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "elided",
+                "terminal": "T",
+                "span": [
+                  2,
+                  2
+                ],
+                "source": [
+                  3,
+                  3
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "B",
+                "token": 2,
+                "span": [
+                  2,
+                  3
+                ],
+                "source": [
+                  4,
+                  5
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "(a x b)"
+  }
+}

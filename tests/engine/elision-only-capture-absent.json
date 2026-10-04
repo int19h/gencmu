@@ -1,0 +1,98 @@
+{
+  "description": "Twin of elision-only-capture-beside-marker.json without x: the production A of s has no $x, the guarded tag term gives nothing in the chosen tree and in the restored reading, and the check passes (engine §3.6, §7).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text s [+KU] C | y\n%rule y [+VAU] A [$x(X)] C\n%rule s A [$x(X)]\n%tags $x ⟹ tags($x)\n%conditions $x ⟹ phonemes($x) = \"x\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          2
+        ],
+        "source": [
+          0,
+          3
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "s",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "elided",
+            "terminal": "KU",
+            "span": [
+              1,
+              1
+            ],
+            "source": [
+              1,
+              1
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "C",
+            "token": 1,
+            "span": [
+              1,
+              2
+            ],
+            "source": [
+              2,
+              3
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "(a c)"
+  }
+}

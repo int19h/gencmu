@@ -1,0 +1,235 @@
+{
+  "description": "Default tags pass through a chain's level of one item, from its one symbol, and no longer level has them; tags that the rule writes apply at every level (engine §3.3, §3.7).",
+  "grammar": "%rule text c Z d\n%rule c {... A \\ S}\n%rule d {... A \\ S}\n%tags ~X",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "text": "s",
+      "tags": [
+        "S"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "z",
+      "tags": [
+        "Z"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "text": "s",
+      "tags": [
+        "S"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          7
+        ],
+        "source": [
+          0,
+          13
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "c",
+            "span": [
+              0,
+              3
+            ],
+            "source": [
+              0,
+              5
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "c",
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": [
+                  "A",
+                  "B"
+                ],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "S",
+                "token": 1,
+                "span": [
+                  1,
+                  2
+                ],
+                "source": [
+                  2,
+                  3
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 2,
+                "span": [
+                  2,
+                  3
+                ],
+                "source": [
+                  4,
+                  5
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "Z",
+            "token": 3,
+            "span": [
+              3,
+              4
+            ],
+            "source": [
+              6,
+              7
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "d",
+            "span": [
+              4,
+              7
+            ],
+            "source": [
+              8,
+              13
+            ],
+            "tags": [
+              "X"
+            ],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "d",
+                "span": [
+                  4,
+                  5
+                ],
+                "source": [
+                  8,
+                  9
+                ],
+                "tags": [
+                  "X"
+                ],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 4,
+                    "span": [
+                      4,
+                      5
+                    ],
+                    "source": [
+                      8,
+                      9
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "S",
+                "token": 5,
+                "span": [
+                  5,
+                  6
+                ],
+                "source": [
+                  10,
+                  11
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 6,
+                "span": [
+                  6,
+                  7
+                ],
+                "source": [
+                  12,
+                  13
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "([a s a] z [a s a])"
+  }
+}

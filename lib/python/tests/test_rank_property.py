@@ -15,6 +15,7 @@ GENCMU_PROPERTY_SEED the first seed, for a larger sweep.
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import os
 import random
@@ -28,11 +29,12 @@ from gencmu._dialect import DOM_FORMAT, _resources, _unicode_table
 from gencmu._earley import Forest, Parser, StageContext
 from gencmu._grammar import lower, stitch
 from gencmu._maximal import Maximal
+from gencmu import _rank
 from gencmu._model import Token
 from gencmu._rank import Elided, Least, Vector, actions, compare_vectors, count_roots, join, rank
 from gencmu._stage import StageRunner
 
-from .shared import SHARED, case_tokens, load_case, load_case_dialect
+from .shared import SHARED, OverBudget, Watch, calls, case_tokens, count_work, load_case, load_case_dialect
 
 TERMINALS = ["A", "B", "C"]
 INF = float("inf")
@@ -361,8 +363,15 @@ def random_expression(rng: random.Random, rules: int, depth: int = 0) -> dict[st
         return {"seq": [random_expression(rng, rules, depth + 1) for _ in range(2)]}
     if roll < 0.72:
         return {"optional": random_expression(rng, rules, depth + 1)}
-    if roll < 0.84:
-        return {"repeat": random_expression(rng, rules, depth + 1), "min": rng.choice([0, 1])}
+    if roll < 0.8:
+        # Flat braces, now and then optional, or with a separator.
+        repeated: dict[str, Any] = {"repeat": random_expression(rng, rules, depth + 1)}
+        kind = rng.random()
+        if kind < 0.3:
+            return {"optional": repeated}
+        if kind < 0.5:
+            repeated["separator"] = {"ref": rng.choice(TERMINALS)}
+        return repeated
     if roll < 0.92:
         return {"choice": [random_expression(rng, rules, depth + 1) for _ in range(2)]}
     if roll < 0.96:
@@ -378,9 +387,17 @@ def random_sugared(rng: random.Random) -> dict[str, Any]:
     rules = []
     for number in range(count):
         alternatives = []
-        for _ in range(rng.randint(1, 2)):
-            items = [random_expression(rng, count) for _ in range(rng.choice([1, 1, 2]))]
-            alternatives.append({"guards": [], "expr": items[0] if len(items) == 1 else {"seq": items}})
+        if number > 0 and rng.random() < 0.15:
+            # Now and then a rule is a chain, whose levels are its own
+            # constituents (engine §3.3).
+            chain: dict[str, Any] = {"repeat": random_expression(rng, count, 2), "chain": rng.choice(["left", "right"])}
+            if rng.random() < 0.7:
+                chain["separator"] = {"ref": rng.choice(TERMINALS)}
+            alternatives.append({"guards": [], "expr": chain})
+        else:
+            for _ in range(rng.randint(1, 2)):
+                items = [random_expression(rng, count) for _ in range(rng.choice([1, 1, 2]))]
+                alternatives.append({"guards": [], "expr": items[0] if len(items) == 1 else {"seq": items}})
         rules.append({"name": names[number], "op": "define", "alternatives": alternatives, "conditions": [], "at": [number + 1, 1]})
     return {
         "format": DOM_FORMAT,
@@ -399,9 +416,9 @@ def random_eliding(rng: random.Random) -> dict[str, Any]:
     def item() -> dict[str, Any]:
         roll = rng.random()
         if roll < 0.25:
-            return {"optional": {"ref": "T"}}
+            return {"optional": {"ref": "T"}, "elidable": True}
         if roll < 0.4:
-            return {"optional": {"seq": [{"ref": "T"}, random_expression(rng, count, 2)]}}
+            return {"optional": {"seq": [{"ref": "T"}, random_expression(rng, count, 2)]}, "elidable": True}
         return random_expression(rng, count)
 
     rules = []
@@ -414,10 +431,7 @@ def random_eliding(rng: random.Random) -> dict[str, Any]:
     return {
         "format": DOM_FORMAT,
         "rules": rules,
-        "directives": [
-            {"name": "ambiguity-resolution", "args": ["late-elision"], "at": [9, 1]},
-            {"name": "elidable", "args": ["T"], "at": [10, 1]},
-        ],
+        "directives": [{"name": "ambiguity-resolution", "args": ["late-elision"], "at": [9, 1]}],
         "constants": [],
     }
 
@@ -549,25 +563,43 @@ def random_rules_grammar(rng: random.Random) -> tuple[dict[str, Any], str, bool,
                 # maximal tests, so its own test often decides (engine §4).
                 if rng.random() < 0.5:
                     symbols.append(reference(0.6))
-                symbols.append({"optional": {"ref": "T"}} if rng.random() < 0.5 else {"optional": {"seq": [{"ref": "T"}, symbol]}})
+                symbols.append(
+                    {"optional": {"ref": "T"}, "elidable": True}
+                    if rng.random() < 0.5
+                    else {"optional": {"seq": [{"ref": "T"}, symbol]}, "elidable": True}
+                )
             elif sugar < 0.08:
                 symbols.append({"optional": symbol})
-            elif sugar < 0.12:
-                symbols.append({"repeat": symbol, "min": 1})
+            elif sugar < 0.11:
+                symbols.append({"repeat": symbol})
+            elif sugar < 0.14:
+                symbols.append({"optional": {"repeat": symbol}})
             elif sugar < 0.16:
-                symbols.append({"repeat": symbol, "min": 0})
+                symbols.append({"repeat": symbol, "separator": {"ref": rng.choice(terminals)}})
             else:
                 symbols.append(symbol)
         if not symbols:
             return {"empty": True}
         return symbols[0] if len(symbols) == 1 else {"seq": symbols}
 
+    def item() -> dict[str, Any]:
+        return {"ref": rng.choice(terminals)} if rng.random() < 0.5 else reference()
+
+    def alternatives(count: int) -> list[dict[str, Any]]:
+        """A rule's alternatives; now and then a rule is a chain, whose
+        levels are its own nodes (engine §3.3)."""
+        if count == 2:
+            roll = rng.random()
+            if roll < 0.1:
+                return [{"guards": [], "expr": {"repeat": item(), "separator": item(), "chain": "left" if roll < 0.05 else "right"}}]
+        return [{"guards": [], "expr": body()} for _ in range(count)]
+
     definitions = [("text", 3)] + [(rule, 2) for rule in rules]
     dom_rules = [
         {
             "name": name,
             "op": "define",
-            "alternatives": [{"guards": [], "expr": body()} for _ in range(count)],
+            "alternatives": alternatives(count),
             "conditions": [],
             "at": [number + 3, 1],
         }
@@ -575,8 +607,6 @@ def random_rules_grammar(rng: random.Random) -> tuple[dict[str, Any], str, bool,
     ]
     args = ["greedy" if lean == "none" else lean] + (["maximal"] if maximal else [])
     directives: list[dict[str, Any]] = [{"name": "ambiguity-resolution", "args": args, "at": [1, 1]}]
-    if elidable:
-        directives.append({"name": "elidable", "args": ["T"], "at": [2, 1]})
     dom = {"format": DOM_FORMAT, "rules": dom_rules, "directives": directives, "constants": []}
     return dom, lean, elidable, maximal, terminals
 
@@ -748,14 +778,19 @@ class RankingProperty(unittest.TestCase):
 
     def test_sugar_against_enumeration(self) -> None:
         """The same over grammars with helpers, whose closes are transparent
-        whatever their length, and trailing repetitions."""
+        whatever their length, and chains, whose levels are visible."""
         cases = int(os.environ.get("GENCMU_PROPERTY_CASES", "1000")) // 2
         seed = int(os.environ.get("GENCMU_PROPERTY_SEED", "1"))
         compared = skipped = 0
         verdicts: dict[Any, int] = {}
         for number in range(cases):
             rng = random.Random(10_000_000 + seed + number)
-            lowered = lower(stitch("main", [("g.md", random_sugared(rng))], _unicode_table(_resources().unicode)), frozenset())
+            try:
+                lowered = lower(stitch("main", [("g.md", random_sugared(rng))], _unicode_table(_resources().unicode)), frozenset())
+            except gencmu.GencmuError:
+                # A grammar that repeats an item that can be empty is an
+                # error of lowering (engine §3.3), and the round is skipped.
+                continue
             productions = [(p.lhs, tuple(s if t else s for s, t in zip(p.rhs, p.terminal)), p.transparent) for p in lowered.productions]
             plain_rules: list[list[list[Any]]] = [[] for _ in lowered.rule_names]
             for lhs, rhs, _ in productions:
@@ -787,7 +822,11 @@ class RankingProperty(unittest.TestCase):
         verdicts: dict[Any, int] = {}
         for number in range(cases):
             rng = random.Random(20_000_000 + seed + number)
-            lowered = lower(stitch("main", [("g.md", random_eliding(rng))], _unicode_table(_resources().unicode)), frozenset())
+            try:
+                lowered = lower(stitch("main", [("g.md", random_eliding(rng))], _unicode_table(_resources().unicode)), frozenset())
+            except gencmu.GencmuError:
+                # An item of braces that can be empty (engine §3.3).
+                continue
             productions = [(p.lhs, tuple(p.rhs), p.transparent) for p in lowered.productions]
             elided = frozenset(p.id for p in lowered.productions if p.helper and p.elided is not None and not p.rhs)
             plain_rules: list[list[list[Any]]] = [[] for _ in lowered.rule_names]
@@ -861,43 +900,105 @@ class ElisionVectors(unittest.TestCase):
 
 
 class LongInputs(unittest.TestCase):
-    def test_late_elision_memory_grows_linearly(self) -> None:
-        """A summary shares the vector of the item before it, so a long
-        input with several derivations ranks in memory in proportion to its
-        length: each unit reads A and elides one or two T, so the input is
-        resolved. Four times the input takes about four times the memory,
-        where copying each vector would take sixteen."""
+    MOST = 6
+    """How many times the peak memory at n the peak at 4n may take."""
+
+    def peaks(self, large: Any = contextlib.nullcontext()) -> tuple[int, int]:
+        """The peak memory of ranking 500 tokens, and of 2000 tokens under a
+        budget of MOST times that. Each unit reads A and elides one or two
+        T, so the input is resolved. The budget is checked at each join of
+        two vectors, so a regression stops at the first join past it, with
+        :class:`OverBudget`, whose second argument is the peak there. The
+        larger run is made within ``large``."""
 
         def ref(name: str) -> dict[str, Any]:
             return {"ref": name}
 
-        units = [{"seq": [ref("A"), {"optional": ref("T")}]}, {"seq": [ref("A"), {"optional": ref("T")}, {"optional": ref("T")}]}]
+        def elidable(name: str) -> dict[str, Any]:
+            return {"optional": ref(name), "elidable": True}
+
+        units = [{"seq": [ref("A"), elidable("T")]}, {"seq": [ref("A"), elidable("T"), elidable("T")]}]
         dom = {
             "format": DOM_FORMAT,
             "rules": [
-                {"name": "text", "op": "define", "alternatives": [{"guards": [], "expr": {"repeat": ref("unit"), "min": 1}}], "conditions": [], "at": [3, 1]},
+                {"name": "text", "op": "define", "alternatives": [{"guards": [], "expr": {"repeat": ref("unit")}}], "conditions": [], "at": [3, 1]},
                 {"name": "unit", "op": "define", "alternatives": [{"guards": [], "expr": unit} for unit in units], "conditions": [], "at": [4, 1]},
             ],
-            "directives": [{"name": "ambiguity-resolution", "args": ["late-elision"], "at": [1, 1]}, {"name": "elidable", "args": ["T"], "at": [2, 1]}],
+            "directives": [{"name": "ambiguity-resolution", "args": ["late-elision"], "at": [1, 1]}],
             "constants": [],
         }
         unicode = _unicode_table(_resources().unicode)
         lowered = lower(stitch("main", [("g.md", dom)], unicode), frozenset())
-        peaks = []
-        for length in (500, 2000):
+        # The code of join as the module defines it, which a regression
+        # under test calls in its place.
+        joins = calls(join)
+
+        def peak(length: int, budget: int | None) -> int:
             tokens = [Token("a", frozenset(["A"]), (index, index + 1), (index, index + 1)) for index in range(length)]
             context = StageContext(lowered, tokens, "a" * length, unicode)
             context.count = count_roots
             forest = Parser(context).parse(lowered.rule_ids["text"])
+
+            def over(frame: Any) -> int:
+                # No work counts, but the peak is checked at each join.
+                found = tracemalloc.get_traced_memory()[1]
+                if budget is not None and found > budget:
+                    raise OverBudget(f"more than {budget} bytes", found)
+                return 0
+
             tracemalloc.start()
             try:
-                ranking = rank(forest, "late-elision")
-                peaks.append(tracemalloc.get_traced_memory()[1])
+                with count_work(Watch(joins.calls, joins.codes, over)):
+                    ranking = rank(forest, "late-elision")
+                found = tracemalloc.get_traced_memory()[1]
             finally:
                 tracemalloc.stop()
             assert ranking is not None
             self.assertEqual(ranking.verdict, "resolved")
-        self.assertLess(peaks[1], 6 * peaks[0], f"peak memory {peaks[0]} bytes for 500 tokens, {peaks[1]} for 2000")
+            return found
+
+        small = peak(500, None)
+        with large:
+            return small, peak(2000, self.MOST * small)
+
+    def test_late_elision_memory_grows_linearly(self) -> None:
+        """A summary shares the vector of the item before it, so a long
+        input with several derivations ranks in memory in proportion to its
+        length. Four times the input takes about four times the memory,
+        where copying each vector would take sixteen."""
+        try:
+            self.peaks()
+        except OverBudget as over:
+            self.fail(f"peak memory {over.args[1]} bytes for 2000 tokens, {over.args[0]}")
+
+    def test_copying_each_vector_fails_at_the_first_join_past_the_budget(self) -> None:
+        """A join that copies the vector before it holds memory that grows
+        with the square of the input. The ranking of 2000 tokens stops at
+        the first join past its budget, long before it would end."""
+
+        def copying_join(left: Vector, right: Vector) -> Vector:
+            if left is None or right is None:
+                return join(left, right)
+            # A copy of the left sequence, node by node, joined to the right.
+            copies: dict[int, Elided] = {}
+            pending: list[tuple[Elided, bool]] = [(left, False)]
+            while pending:
+                node, ready = pending.pop()
+                if ready or node.left is None:
+                    inner = (copies[id(node.left)], copies[id(node.right)]) if node.left is not None and node.right is not None else (None, None)
+                    copies[id(node)] = Elided(node.size, node.first, node.last, *inner)
+                    continue
+                pending.append((node, True))
+                pending.append((node.left, False))
+                pending.append((node.right, False))  # type: ignore[arg-type]
+            return join(copies[id(left)], right)
+
+        with self.assertRaises(OverBudget) as raised:
+            self.peaks(mock.patch.object(_rank, "join", copying_join))
+        budget = int(raised.exception.args[0].split()[2])
+        # The first join past the budget stops the ranking: one join adds
+        # a copy of one vector, far less than the budget.
+        self.assertLess(raised.exception.args[1], 2 * budget)
 
 
 if __name__ == "__main__":

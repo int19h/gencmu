@@ -1,0 +1,10 @@
+{
+  "description": "Braces cannot stand first in a marked optional: an error at the [ (engine §9).",
+  "document": "```jbogenbau\n%rule a [+{T}]\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

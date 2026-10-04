@@ -13,9 +13,9 @@ import (
 // holds, from the start; and, where matches() makes a tested y from every
 // position, the completions of y from many origins.
 func TestMaximalWorkLinear(t *testing.T) {
-	plain := "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text body B\n%conditions begins(from($), r)\n%rule body A ...\n%rule r y [T]\n%rule y A ..."
-	tested := "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text body B\n%conditions begins(from($), r)\n%rule body A ...\n%rule r y⊇~p [T]\n%rule y A ... <~p>"
-	many := "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text body B\n%conditions matches($, r)\n%rule body A ...\n%rule r parts B\n%rule parts part ...\n%rule part y⊇~p [T]\n%rule y A <~p>"
+	plain := "%ambiguity-resolution greedy\n%rule text body B\n%conditions begins(from($), r)\n%rule body {A}\n%rule r y [++T]\n%rule y {A}"
+	tested := "%ambiguity-resolution greedy\n%rule text body B\n%conditions begins(from($), r)\n%rule body {A}\n%rule r y⊇~p [++T]\n%rule y {A} <~p>"
+	many := "%ambiguity-resolution greedy\n%rule text body B\n%conditions matches($, r)\n%rule body {A}\n%rule r parts B\n%rule parts {part}\n%rule part y⊇~p [++T]\n%rule y A <~p>"
 	type counts struct{ checks, scanned, candidates int64 }
 	for _, grammar := range []string{plain, tested, many} {
 		d := mustLoad(t, oneStage(grammar))
@@ -31,16 +31,17 @@ func TestMaximalWorkLinear(t *testing.T) {
 			}
 			w := countWork(t)
 			w.checks.most, w.scanned.most, w.candidates.most = most.checks, most.scanned, most.candidates
+			// The tables are found once, in one pass over the query's chart,
+			// whose completed symbols are among the items that the parse
+			// made before. Tables found again for each check would read the
+			// chart once per check, so the first read past the items made
+			// stops the shorter input, before the longer one costs much.
+			w.scanned.under = &w.items
 			if _, err := d.ParseTokens(strings.TrimSpace(strings.Repeat("x ", n+1)), toks, ParseOptions{}); err != nil {
 				t.Fatalf("%d tokens: %v", n, err)
 			}
-			// The tables are found once, in one pass over the query's chart,
-			// whose completed symbols are among the items that the parse
-			// made. Tables found again for each check would read the chart
-			// once per check, so this fails on the shorter input, before
-			// the longer one costs much.
-			if scanned, items := w.scanned.Load(), w.items.Load(); scanned == 0 || scanned > items {
-				t.Fatalf("%d tokens: %d completed symbols read for the tables, of %d items made", n, scanned, items)
+			if w.scanned.Load() == 0 {
+				t.Fatalf("%d tokens: no completed symbol read for the tables", n)
 			}
 			return counts{w.checks.Load(), w.scanned.Load(), w.candidates.Load()}
 		}

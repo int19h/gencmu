@@ -2,8 +2,8 @@
   "description": "A branching rule over a token with attachments: the brackets group the token with its attachments at the depth of its node (docs/output.md).",
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
-    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $w(word) | $b(bb) $w(word) | $w(word) $a(ii) | $b(bb) $w(word) $a(ii)\n%emits\n  ($b) $w ($a)\n%rule word\n  | 'w' <W> | 'z' <Z>\n%rule bb\n  'b' <B>\n%emits\n  $\n%rule ii\n  'i' <I>\n%emits\n  $\n```\n",
-    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text pair ...\n%rule pair W Z\n```\n"
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item\n  | $w(word) | $b(bb) $w(word) | $w(word) $a(ii) | $b(bb) $w(word) $a(ii)\n%emits\n  ($b) $w ($a)\n%rule word\n  | 'w' <W> | 'z' <Z>\n%rule bb\n  'b' <B>\n%emits\n  $\n%rule ii\n  'i' <I>\n%emits\n  $\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {pair}\n%rule pair W Z\n```\n"
   },
   "pipeline": "p.md",
   "input": "wizbwz",

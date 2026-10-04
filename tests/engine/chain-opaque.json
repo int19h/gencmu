@@ -1,0 +1,143 @@
+{
+  "description": "%opaque on a chain makes its outermost level one opaque part, which sounds ? (engine §11).",
+  "grammar": "%rule text c\n%rule c {... A \\ S}\n%emits $ <W>\n%opaque",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "s",
+      "tags": [
+        "S"
+      ],
+      "phonemes": "s"
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "a s a",
+              "phonemes": "?",
+              "label": "a s a",
+              "tags": [
+                "W"
+              ],
+              "span": [
+                0,
+                3
+              ],
+              "source": [
+                0,
+                5
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          3
+        ],
+        "source": [
+          0,
+          5
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "c",
+            "span": [
+              0,
+              3
+            ],
+            "source": [
+              0,
+              5
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "c",
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": [
+                  "A"
+                ],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "S",
+                "token": 1,
+                "span": [
+                  1,
+                  2
+                ],
+                "source": [
+                  2,
+                  3
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 2,
+                "span": [
+                  2,
+                  3
+                ],
+                "source": [
+                  4,
+                  5
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "(a s a)"
+  }
+}

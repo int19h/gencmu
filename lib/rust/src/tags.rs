@@ -3,9 +3,11 @@
 //! is a string in its canonical spelling, and has no strength.
 
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 use crate::fxhash::FxMap;
 use crate::unicode::Unicode;
+use crate::work::{self, Mutant, Work};
 
 pub(crate) type TagId = u32;
 pub(crate) type SetId = u32;
@@ -19,8 +21,9 @@ pub(crate) struct Tags {
     /// For each tag, the scalar value of a character tag, or `u32::MAX`.
     codes: Vec<u32>,
     index: FxMap<String, TagId>,
-    sets: Vec<TagList>,
-    set_index: FxMap<TagList, SetId>,
+    /// The sets, each shared, so that a term can read one without a copy.
+    sets: Vec<Arc<TagList>>,
+    set_index: FxMap<Arc<TagList>, SetId>,
 }
 
 impl Tags {
@@ -60,6 +63,18 @@ impl Tags {
         if let Some(&id) = self.set_index.get(&list) {
             return id;
         }
+        self.add_set(Arc::new(list))
+    }
+
+    /// Interns a shared set, as `set` does.
+    pub(crate) fn set_shared(&mut self, list: Arc<TagList>) -> SetId {
+        if let Some(&id) = self.set_index.get(&*list) {
+            return id;
+        }
+        self.add_set(list)
+    }
+
+    fn add_set(&mut self, list: Arc<TagList>) -> SetId {
         let id = self.sets.len() as SetId;
         self.sets.push(list.clone());
         self.set_index.insert(list, id);
@@ -68,6 +83,11 @@ impl Tags {
 
     pub(crate) fn list(&self, id: SetId) -> &TagList {
         &self.sets[id as usize]
+    }
+
+    /// The set's list, shared rather than copied.
+    pub(crate) fn shared(&self, id: SetId) -> Arc<TagList> {
+        self.sets[id as usize].clone()
     }
 
     pub(crate) fn contains(&self, set: SetId, tag: TagId) -> bool {
@@ -88,45 +108,65 @@ impl Tags {
     }
 }
 
-/// The union of two sorted lists: every tag of either.
-pub(crate) fn union(left: &TagList, right: &TagList) -> TagList {
-    let mut out = Vec::with_capacity(left.len() + right.len());
-    let (mut i, mut j) = (0, 0);
-    while i < left.len() && j < right.len() {
-        match left[i].cmp(&right[j]) {
-            std::cmp::Ordering::Less => {
-                out.push(left[i]);
-                i += 1;
-            }
-            std::cmp::Ordering::Greater => {
-                out.push(right[j]);
-                j += 1;
-            }
-            std::cmp::Ordering::Equal => {
-                out.push(left[i]);
-                i += 1;
-                j += 1;
-            }
+/// The union of many lists, gathered into one: every tag of any. Sorting
+/// once costs what the lists hold, where a fold of pairwise unions copies
+/// the growing union at each list.
+pub(crate) fn union_all<'l>(lists: impl IntoIterator<Item = &'l TagList>) -> TagList {
+    let mut out = TagList::new();
+    // Each tag counts as it is copied.
+    let copied = |&tag: &TagId| {
+        work::count(Work::Listed, 1);
+        tag
+    };
+    for list in lists {
+        // Each part is copied once, where a fold of pairs copied the
+        // growing union again for each part.
+        if work::mutated(Mutant::FoldUnions) {
+            out = out.iter().chain(list).map(copied).collect();
+            out.sort_unstable();
+            out.dedup();
+            continue;
         }
+        out.extend(list.iter().map(copied));
     }
-    out.extend_from_slice(&left[i..]);
-    out.extend_from_slice(&right[j..]);
+    out.sort_unstable();
+    out.dedup();
     out
 }
 
 /// The intersection: the tags of both.
 pub(crate) fn intersection(left: &TagList, right: &TagList) -> TagList {
-    left.iter().filter(|id| right.binary_search(id).is_ok()).copied().collect()
+    left.iter().filter(|&&id| listed(found(right, id))).copied().collect()
 }
 
 /// The difference: the tags of the first that are not in the second.
 pub(crate) fn difference(left: &TagList, right: &TagList) -> TagList {
-    left.iter().filter(|id| right.binary_search(id).is_err()).copied().collect()
+    left.iter().filter(|&&id| listed(!found(right, id))).copied().collect()
+}
+
+/// Counts one tag that a list's evaluation reads, and gives back what the
+/// read found.
+fn listed(found: bool) -> bool {
+    work::count(Work::Listed, 1);
+    found
+}
+
+/// Whether a sorted list holds a tag. Each tag of the list compared counts
+/// before the comparison, so a search that scans the list shows its cost.
+fn found(list: &TagList, id: TagId) -> bool {
+    let probe = |tag: &TagId| {
+        work::count(Work::Listed, 1);
+        tag.cmp(&id)
+    };
+    if work::mutated(Mutant::ScanOther) {
+        return list.iter().any(|tag| probe(tag).is_eq());
+    }
+    list.binary_search_by(probe).is_ok()
 }
 
 /// Whether every tag of the first is in the second.
 pub(crate) fn is_subset(small: &TagList, large: &TagList) -> bool {
-    small.iter().all(|id| large.binary_search(id).is_ok())
+    small.iter().all(|&id| listed(found(large, id)))
 }
 
 /// Whether a tag is a phoneme tag `/p/`, exactly three code points, and if
@@ -222,4 +262,70 @@ pub(crate) fn property_name(name: &str) -> String {
 /// tag or a character tag (engine §1).
 pub(crate) fn is_tag(tag: &str, unicode: &Unicode) -> bool {
     is_name(tag) || phoneme_of(tag).is_some() || is_character_tag(tag, unicode)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{difference, intersection, is_subset, union_all, TagList};
+    use crate::work::{
+        assert_linear, assert_mutant_stops, assert_stops, budget, counted, reset, Mutant, Mutation, Work,
+    };
+
+    /// A union, an intersection and a difference count each tag as they
+    /// copy or read it, so a budget stops a long list at its first tag
+    /// past it, not once the list is made.
+    #[test]
+    fn lists_count_each_tag_as_it_is_read() {
+        let n = 1000;
+        let singles: Vec<TagList> = (0..n).map(|tag| vec![tag]).collect();
+        let all: TagList = (0..n).collect();
+        let even: TagList = (0..n).step_by(2).collect();
+        assert_stops(Work::Listed, 500, || {
+            union_all(&singles);
+        });
+        assert_stops(Work::Listed, 500, || {
+            intersection(&all, &even);
+        });
+        assert_stops(Work::Listed, 500, || {
+            difference(&all, &even);
+        });
+    }
+
+    /// A union of many lists counts about the tags it gathers. A fold of
+    /// pairwise unions, which copies the growing union for each list, stops
+    /// at the first count past the budget.
+    #[test]
+    fn a_union_of_many_lists_copies_each_tag_once() {
+        let mut run = |n: usize| {
+            let singles: Vec<TagList> = (0..n as u32).map(|tag| vec![tag]).collect();
+            assert_eq!(union_all(&singles).len(), n);
+        };
+        assert_linear(Work::Listed, 1000, &mut run);
+        assert_mutant_stops(Work::Listed, Mutant::FoldUnions, 1000, &mut run);
+    }
+
+    /// An intersection, a difference and a test of a subset search the
+    /// other list for each tag of the first. Each search costs at most one
+    /// comparison for each bit of the other list's length. A search that
+    /// scans the other list stops at the first count past that budget.
+    #[test]
+    fn searches_count_each_comparison() {
+        let n = 1000usize;
+        let all: TagList = (0..n as u32).collect();
+        let even: TagList = (0..n as u32).step_by(2).collect();
+        let most = (n * (1 + usize::BITS as usize - all.len().leading_zeros() as usize)) as u64;
+        let operations: [(&str, &dyn Fn()); 3] = [
+            ("intersection", &|| assert_eq!(intersection(&even, &all), even)),
+            ("difference", &|| assert!(difference(&even, &all).is_empty())),
+            ("subset", &|| assert!(is_subset(&even, &all))),
+        ];
+        for (name, operation) in operations {
+            reset();
+            budget(Work::Listed, most);
+            operation();
+            assert!(counted(Work::Listed) > n as u64 / 2, "{name}: {} counted", counted(Work::Listed));
+            let _mutation = Mutation::on(Mutant::ScanOther);
+            assert_stops(Work::Listed, most, operation);
+        }
+    }
 }

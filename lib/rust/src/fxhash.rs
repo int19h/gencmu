@@ -59,11 +59,49 @@ impl Hasher for FxHasher {
         self.add(value as u64);
     }
 
+    /// The state, rotated so that its best-mixed high bits become the low
+    /// bits that a table picks its bucket by. A product's low bits depend
+    /// only on the low bits of what was multiplied, so names that share
+    /// their first bytes, such as `t0` to `t159999`, would otherwise fall
+    /// into a few buckets, and each lookup would scan a long probe chain.
     #[inline]
     fn finish(&self) -> u64 {
-        self.hash
+        self.hash.rotate_left(26)
     }
 }
 
 pub(crate) type FxMap<K, V> = HashMap<K, V, BuildHasherDefault<FxHasher>>;
 pub(crate) type FxSet<K> = HashSet<K, BuildHasherDefault<FxHasher>>;
+
+#[cfg(test)]
+mod tests {
+    use super::FxHasher;
+    use std::collections::HashSet;
+    use std::hash::{Hash, Hasher};
+
+    fn hash(value: impl Hash) -> u64 {
+        let mut hasher = FxHasher::default();
+        value.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    /// Names that differ only after a shared first byte spread over the
+    /// low bits, which a table's buckets come from, and so do numbers and
+    /// pairs of them. With 2^16 keys and the low 16 bits, a good spread
+    /// fills about 63% of the values; one that ignores the later bytes
+    /// fills a handful.
+    #[test]
+    fn similar_keys_spread_over_the_low_bits() {
+        let keys = 1u64 << 16;
+        let low = |hashes: &mut dyn Iterator<Item = u64>| {
+            hashes.map(|h| h & (keys - 1)).collect::<HashSet<u64>>().len() as u64
+        };
+        let names = low(&mut (0..keys).map(|i| hash(format!("t{i}"))));
+        let suffixed = low(&mut (0..keys).map(|i| hash(format!("{i}t"))));
+        let numbers = low(&mut (0..keys).map(|i| hash(i as u32)));
+        let pairs = low(&mut (0..keys).map(|i| hash((i as u32 & 255, i as u32 >> 8))));
+        for (what, filled) in [("names", names), ("suffixed names", suffixed), ("numbers", numbers), ("pairs", pairs)] {
+            assert!(filled * 2 > keys, "{what}: {filled} of {keys} low values");
+        }
+    }
+}

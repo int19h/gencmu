@@ -1,0 +1,57 @@
+{
+  "description": "A marked optional stands wherever an optional can: in braces, and inside another marked optional (engine §3.8, §9).",
+  "document": "```jbogenbau\n%rule a {[+KU] A}\n%rule b [+KU [+VAU]]\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "a",
+          "alternatives": [
+            {
+              "expr": {
+                "repeat": {
+                  "seq": [
+                    {
+                      "optional": {
+                        "ref": "KU"
+                      },
+                      "elidable": true
+                    },
+                    {
+                      "ref": "A"
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "conditions": []
+        },
+        {
+          "name": "b",
+          "alternatives": [
+            {
+              "expr": {
+                "optional": {
+                  "seq": [
+                    {
+                      "ref": "KU"
+                    },
+                    {
+                      "optional": {
+                        "ref": "VAU"
+                      },
+                      "elidable": true
+                    }
+                  ]
+                },
+                "elidable": true
+              }
+            }
+          ],
+          "conditions": []
+        }
+      ]
+    }
+  }
+}

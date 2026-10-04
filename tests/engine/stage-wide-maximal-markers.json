@@ -1,0 +1,55 @@
+{
+  "description": "Stage-wide maximal restricts every marked optional: on A X B, the [+T] after the short body is forbidden, and the text is rejected at the T (engine §4).",
+  "grammar": "%ambiguity-resolution late-elision maximal\n%rule text x | y\n%rule x A body [+T] B\n%rule y C body [T] B\n%rule body X | X B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 2,
+        "source": [
+          4,
+          5
+        ],
+        "line": 1,
+        "column": 5,
+        "expected": [
+          {
+            "terminal": "T",
+            "rules": [
+              "x"
+            ]
+          }
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

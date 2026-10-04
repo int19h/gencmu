@@ -55,14 +55,14 @@ fn notation_cases() {
 /// sound, and an operand of the wrong type (engine §9).
 #[test]
 fn tests_in_a_body_are_read_and_refused() {
-    let document = "```jbogenbau\n%const $C ~c\n%rule text $l(LE=\"la\") UI=\"ui\" ... [KU = \"ku\"] w≠\"\" A⊇B w⊉$C A∩(B ∪ ~c)=∅ A ∩ 'a'..'z' ≠ ∅ '\\p{L}'⊇∅ B (C)\n```\n";
+    let document = "```jbogenbau\n%const $C ~c\n%rule text $l(LE=\"la\") {UI=\"ui\" \\ A=\"a\"} [KU = \"ku\"] w≠\"\" A⊇B w⊉$C A∩(B ∪ ~c)=∅ A ∩ 'a'..'z' ≠ ∅ '\\p{L}'⊇∅ B (C)\n```\n";
     let json = gencmu::tools::read_grammar_document(document).expect("a document with tests");
     let dom = parse_json(&json).expect("a DOM");
     let tests: Vec<String> = json
         .match_indices("\"test\":\"")
         .map(|(at, _)| json[at + 8..].split('"').next().unwrap_or("").to_string())
         .collect();
-    assert_eq!(tests, ["=", "=", "=", "≠", "⊇", "⊉", "∩=∅", "∩≠∅", "⊇"], "{json}");
+    assert_eq!(tests, ["=", "=", "=", "=", "≠", "⊇", "⊉", "∩=∅", "∩≠∅", "⊇"], "{json}");
     assert!(dom.get("rules").is_some());
     for refused in [
         "%rule text (A)=\"a\"",
@@ -72,6 +72,7 @@ fn tests_in_a_body_are_read_and_refused() {
         "%rule text A⊇\"a\"",
         "%rule text A=B",
         "%rule text [A]⊇B",
+        "%rule text {A}=\"a\"",
         "%rule text $x(A)=\"a\"",
         "%rule text ε=\"\"",
         "%rule text A⊇(tags($x))",
@@ -120,23 +121,66 @@ fn a_tie_in_the_notation_is_a_grammar_error_with_no_position() {
     assert_eq!(error.message, "the grammar text is ambiguous: the syntax stage of the notation reads it in two ways");
 }
 
-/// In `%elidable`, only a first word `maximal` is the modifier. A plain
-/// `%elidable` with the operand `~maximal` names the terminal `maximal`
-/// and has no member `maximal` (engine §9).
+/// No directive names elidable terminators: `%elidable` is an unknown
+/// keyword, a syntax error at the keyword. A marker makes an optional
+/// elidable, and `++` also maximal (engine §3.8, §9).
 #[test]
-fn only_a_first_word_maximal_is_the_modifier_of_elidable() {
-    let directives = |text: &str| {
-        let json = gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{text}\n```\n")).expect("a document");
-        parse_json(&json).expect("a DOM").get("directives").cloned().expect("directives")
+fn an_optional_is_marked_elidable_in_place() {
+    let read = |text: &str| gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{text}\n```\n"));
+    for text in ["%elidable KU", "%elidable maximal KU", "%elidable"] {
+        let error = read(text).expect_err(text);
+        assert_eq!((error.line, error.column), (Some(2), Some(1)), "{text}: {error}");
+    }
+    let expr = |text: &str| {
+        let json = read(text).expect(text);
+        let dom = parse_json(&json).expect("a DOM");
+        dom.get("rules").unwrap().array()[0].get("alternatives").unwrap().array()[0].get("expr").unwrap().clone()
     };
     let expect = |json: &str| parse_json(json).unwrap();
     assert_eq!(
-        directives("%elidable ~maximal T"),
-        expect(r#"[{"name":"elidable","args":["maximal","T"],"at":[2,1]}]"#)
+        expr("%rule text A [+KU #]"),
+        expect(r##"{"seq":[{"ref":"A"},{"optional":{"seq":[{"ref":"KU"},{"ref":"#"}]},"elidable":true}]}"##)
     );
-    assert_eq!(
-        directives("%elidable maximal ~maximal T"),
-        expect(r#"[{"name":"elidable","args":["maximal","T"],"maximal":true,"at":[2,1]}]"#)
-    );
-    assert_eq!(directives("%elidable maximal"), expect(r#"[{"name":"elidable","args":[],"maximal":true,"at":[2,1]}]"#));
+    assert_eq!(expr("%rule text [++TOI]"), expect(r#"{"optional":{"ref":"TOI"},"elidable":true,"maximal":true}"#));
+    assert_eq!(expr("%rule text [KU]"), expect(r#"{"optional":{"ref":"KU"}}"#));
+}
+
+/// Braces read as repeat, with a separator and a chain's direction, and
+/// the reader refuses every misplaced form of them (engine §9).
+#[test]
+fn braces_are_read_and_their_misplaced_forms_refused() {
+    let read = |text: &str| gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{text}\n```\n"));
+    let json = read("%rule text $a(A) {B} [{C \\ D | E}] {{F} \\ [G] {H}} {| I | J \\ | K}\n%rule l {... L \\ M}\n%rule r {N | O ...}")
+        .expect("braces");
+    let dom = parse_json(&json).expect("a DOM");
+    let expect = |json: &str| parse_json(json).unwrap();
+    let rules = dom.get("rules").unwrap().array();
+    let expr = |rule: usize| rules[rule].get("alternatives").unwrap().array()[0].get("expr").unwrap().clone();
+    assert_eq!(expr(1), expect(r#"{"repeat":{"ref":"L"},"separator":{"ref":"M"},"chain":"left"}"#));
+    assert_eq!(expr(2), expect(r#"{"repeat":{"choice":[{"ref":"N"},{"ref":"O"}]},"chain":"right"}"#));
+    for refused in [
+        "%rule text {}",
+        "%rule text {A \\}",
+        "%rule text {\\ A}",
+        "%rule text {A \\ B \\ C}",
+        "%rule text {... A ...}",
+        "%rule text {A \\ ... B}",
+        "%rule text A ...",
+        "%rule text 'a'...'z'",
+        "%rule text (A \\ B)",
+        "%rule text A {... B}",
+        "%rule text [{... A}]",
+        "%rule text {$a(A)}",
+        "%rule text $a({A})",
+        "%rule text {A}=\"a\"",
+        "%rule text ({... A})",
+        "%rule text (({A ...}))",
+        "%rule text [+KU $c(A)]",
+        "%rule text [+(KU) #]",
+        "%rule text [+KU | VAU]",
+        "%rule text [+KU≠\"ku\"]",
+        "%rule text [$x(A)] $x(B)",
+    ] {
+        assert!(read(refused).is_err(), "{refused} was read");
+    }
 }

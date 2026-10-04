@@ -1,0 +1,15 @@
+{
+  "description": "Nullability ignores tests: r → q=\"x\" with q → ε makes {r} an error, although the test never passes (engine §3.3).",
+  "grammar": "%rule text {r} | A\n%rule r q=\"x\" | B\n%rule q ε",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

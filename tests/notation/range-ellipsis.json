@@ -1,29 +1,10 @@
 {
-  "description": "The lexer reads the longest symbol, so 'a'...'z' is 'a' repeated, then 'z', and not a range (engine §9).",
+  "description": "The lexer reads the longest symbol, so '...' in 'a'...'z' is the chain marker, not a range, and the marker stands only in braces: an error of the document at the marker (engine §9).",
   "document": "```jbogenbau\n%rule a 'a'...'z'\n```\n",
   "expect": {
-    "dom": {
-      "rules": [
-        {
-          "alternatives": [
-            {
-              "expr": {
-                "seq": [
-                  {
-                    "repeat": {
-                      "terminal": "'a'"
-                    },
-                    "min": 1
-                  },
-                  {
-                    "terminal": "'z'"
-                  }
-                ]
-              }
-            }
-          ]
-        }
-      ]
+    "error": {
+      "line": 2,
+      "column": 12
     }
   }
 }

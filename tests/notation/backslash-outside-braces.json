@@ -1,0 +1,10 @@
+{
+  "description": "A backslash stands only in braces, so one outside them is a syntax error at the backslash (engine §9).",
+  "document": "```jbogenbau\n%rule a x \\ y\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

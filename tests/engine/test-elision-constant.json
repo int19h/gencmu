@@ -1,6 +1,6 @@
 {
   "description": "A string constant can stand for the string of an = test on an elidable terminator, and the restored token sounds like its value: the restored KU matches KU=$KU in the parse of elision-only, and the ambiguity is found (engine §2, §3.8, §7).",
-  "grammar": "%ambiguity-resolution greedy elision-only\n%elidable KU\n%const $KU \"ku\"\n%rule text s [KU=$KU] | s B [KU=$KU]\n%rule s A [B]",
+  "grammar": "%ambiguity-resolution greedy elision-only\n%const $KU \"ku\"\n%rule text s [+KU=$KU] | s B [+KU=$KU]\n%rule s A [B]",
   "tokens": [
     {
       "text": "a",

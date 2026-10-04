@@ -1,6 +1,6 @@
 {
   "description": "tt marks a written T by the original token at the head of its own span. In the check, c reads the synthetic T and then F through #, so the head of tt is F, tt has no ~written, and c is no reading. The check passes. Compare reparse-written-observation-text (engine §7.4, §7.5).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a A [T] f\n%rule b A [T] [T] f\n%rule c A $t(tt)\n%conditions ~written ⊆ tags($t)\n%rule tt [T #] <T ⊆ tags(head($)) ⟹ ~written>\n%rule # [F ...]\n%rule f F",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a A [+T] f\n%rule b A [+T] [+T] f\n%rule c A $t(tt)\n%conditions ~written ⊆ tags($t)\n%rule tt [+T #] <T ⊆ tags(head($)) ⟹ ~written>\n%rule # [{F}]\n%rule f F",
   "tokens": [
     {
       "text": "a",

@@ -97,24 +97,18 @@ func (st *sourceTable) source(a, b int) [2]int {
 	return [2]int{min(st.lows[k][a], st.lows[k][o]), max(st.highs[k][a], st.highs[k][o])}
 }
 
-type pendingKid struct {
-	n      *dn
-	splice bool // the prefix of a trailing repetition
-}
-
 // treeFrame is a rule node being built; pending holds its remaining
 // children in reverse, the next one last.
 type treeFrame struct {
 	node    *Node
-	pending []pendingKid
+	pending []*dn
 }
 
-// pushKids pushes a close's children onto a pending stack, the first last,
-// marking the first as spliced when the close is a trailing repetition's.
-func pushKids(pending []pendingKid, n *dn, splice bool) []pendingKid {
+// pushKids pushes a close's children onto a pending stack, the first last.
+func pushKids(pending []*dn, n *dn) []*dn {
 	kids := flattenKids(n.a)
 	for i := len(kids) - 1; i >= 0; i-- {
-		pending = append(pending, pendingKid{n: kids[i], splice: splice && i == 0 && n.prod.repeatPrefix})
+		pending = append(pending, kids[i])
 	}
 	return pending
 }
@@ -126,7 +120,7 @@ func (run *stageRun) buildTree(rec *recognizer, d *dn) *Node {
 	newRule := func(n *dn) *treeFrame {
 		a, b := base+int(n.start), base+int(n.end)
 		node := &Node{Kind: KindRule, Rule: n.prod.ruleName, Span: [2]int{a, b}, Source: run.spanSource(a, b), Tags: n.tags.list(), Children: []*Node{}}
-		return &treeFrame{node: node, pending: pushKids(nil, n, true)}
+		return &treeFrame{node: node, pending: pushKids(nil, n)}
 	}
 	root := newRule(d)
 	stack := []*treeFrame{root}
@@ -140,9 +134,8 @@ func (run *stageRun) buildTree(rec *recognizer, d *dn) *Node {
 			}
 			continue
 		}
-		k := f.pending[len(f.pending)-1]
+		n := f.pending[len(f.pending)-1]
 		f.pending = f.pending[:len(f.pending)-1]
-		n := k.n
 		switch {
 		case n.kind == dRead:
 			i := base + int(n.tok)
@@ -150,8 +143,10 @@ func (run *stageRun) buildTree(rec *recognizer, d *dn) *Node {
 		case n.prod.helper && n.a == nil && n.prod.elided != "":
 			p := base + int(n.start)
 			f.node.Children = append(f.node.Children, &Node{Kind: KindElided, Terminal: n.prod.elided, Span: [2]int{p, p}, Source: run.emptySource(p), sound: elidedSound(n.prod.elidedTest), tested: elidedTested(n.prod.elidedTest)})
-		case n.prod.helper || k.splice:
-			f.pending = pushKids(f.pending, n, k.splice)
+		case n.prod.helper:
+			// A helper is spliced: its children stand in its place, and a
+			// chain's levels are rule nodes, which stay (§12).
+			f.pending = pushKids(f.pending, n)
 		default:
 			stack = append(stack, newRule(n))
 		}
@@ -162,28 +157,23 @@ func (run *stageRun) buildTree(rec *recognizer, d *dn) *Node {
 // warnings lists the warnings of a chosen derivation (engine §12): each rule
 // node of its tree gives one for each warning of its production, in the
 // order a walk meets the nodes, parent before children and children left to
-// right. Helpers and the prefixes of a trailing repetition give their
-// children in their place, as in buildTree.
+// right. Helpers give their children in their place, as in buildTree.
 func (run *stageRun) warnings(rec *recognizer, d *dn) []Warning {
 	var out []Warning
-	pending := []pendingKid{{n: d}}
+	pending := []*dn{d}
 	for len(pending) > 0 {
-		k := pending[len(pending)-1]
+		n := pending[len(pending)-1]
 		pending = pending[:len(pending)-1]
-		n := k.n
 		if n.kind == dRead {
 			continue
 		}
-		if !n.prod.helper && !k.splice {
+		if !n.prod.helper {
 			a, b := rec.base+int(n.start), rec.base+int(n.end)
 			for _, f := range n.prod.warnings {
 				out = append(out, Warning{Stage: run.name, Feature: f, Rule: n.prod.ruleName, Span: [2]int{a, b}, Source: run.spanSource(a, b)})
 			}
 		}
-		// buildTree splices the first child of a rule node or of a spliced
-		// prefix whose production is r → r x; a helper's never is, so true
-		// serves for every close.
-		pending = pushKids(pending, n, true)
+		pending = pushKids(pending, n)
 	}
 	return out
 }
@@ -224,6 +214,22 @@ type emitTask struct {
 	insert        func() Token
 	inside        bool
 	before, after []*dn
+	// The steps of a carrier's emission: open starts the list that an
+	// attachment's walk gives, collect ends it as an attachment of the
+	// carrier, carrier emits the carrier's own token, and done hands it on.
+	open         bool
+	collect      *carrierWork
+	collectAfter bool
+	carrier      *carrierWork
+	done         *carrierWork
+}
+
+// carrierWork is a carrier's emission in progress: its task, its token
+// once emitted, and its attachments so far.
+type carrierWork struct {
+	t             emitTask
+	tok           Token
+	before, after []Token
 }
 
 // emitter is what one derivation's emission shares: its opaque parts,
@@ -264,33 +270,58 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 // part.
 func (run *stageRun) emitWalk(em *emitter, d *dn, inside bool) []Token {
 	rec := em.rec
-	out := []Token{}
+	// The lists being built: the walk's own, and one for each attachment
+	// whose walk has started and not ended. Attachments nest as deeply as
+	// the derivation does, so their walks share this stack and do not
+	// recurse.
+	outs := [][]Token{{}}
 	stack := []emitTask{{walk: d, inside: inside}}
+	// walks adds an attachment's walks in the order they run: start its
+	// list, walk it, and end the list as an attachment.
+	walks := func(cw *carrierWork, ks []*dn, after bool) {
+		for i := len(ks) - 1; i >= 0; i-- {
+			stack = append(stack, emitTask{collect: cw, collectAfter: after}, emitTask{walk: ks[i], inside: cw.t.inside}, emitTask{open: true})
+		}
+	}
 	for len(stack) > 0 {
 		t := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
+		out := &outs[len(outs)-1]
 		switch {
 		case t.insert != nil:
-			out = append(out, t.insert())
+			*out = append(*out, t.insert())
 		case t.emit != nil:
 			// Before-attachments, then the carrier with its tag term, then
 			// after-attachments; the first error ends the emission. New
 			// attachments are outer to inherited ones (§11).
-			var before, after []Token
-			for _, k := range t.before {
-				before = append(before, attached(run.emitWalk(em, k, t.inside))...)
+			cw := &carrierWork{t: t}
+			stack = append(stack, emitTask{done: cw})
+			walks(cw, t.after, true)
+			stack = append(stack, emitTask{carrier: cw})
+			walks(cw, t.before, false)
+		case t.open:
+			outs = append(outs, []Token{})
+		case t.collect != nil:
+			toks := attached(*out)
+			outs = outs[:len(outs)-1]
+			if t.collectAfter {
+				t.collect.after = append(t.collect.after, toks...)
+			} else {
+				t.collect.before = append(t.collect.before, toks...)
 			}
-			tok := run.emitted(em, t.emit, t.tags(), t.inside)
-			for _, k := range t.after {
-				after = append(after, attached(run.emitWalk(em, k, t.inside))...)
+		case t.carrier != nil:
+			c := t.carrier
+			c.tok = run.emitted(em, c.t.emit, c.t.tags(), c.t.inside)
+		case t.done != nil:
+			c := t.done
+			tok := c.tok
+			if len(c.before) > 0 {
+				tok.Before = append(c.before, tok.Before...)
 			}
-			if len(before) > 0 {
-				tok.Before = append(before, tok.Before...)
+			if len(c.after) > 0 {
+				tok.After = append(tok.After[:len(tok.After):len(tok.After)], c.after...)
 			}
-			if len(after) > 0 {
-				tok.After = append(tok.After[:len(tok.After):len(tok.After)], after...)
-			}
-			out = append(out, tok)
+			*out = append(*out, tok)
 		case t.walk != nil:
 			n := t.walk
 			if n.kind == dRead {
@@ -302,7 +333,7 @@ func (run *stageRun) emitWalk(em *emitter, d *dn, inside bool) []Token {
 			}
 		}
 	}
-	return out
+	return outs[0]
 }
 
 // hasAttachments says whether a token has attachments (§11).
@@ -341,11 +372,12 @@ func (run *stageRun) plan(rec *recognizer, n *dn, inside bool) []emitTask {
 		if name == "" {
 			return spanVal{a: start, b: end, whole: true, tags: n.tags}, true
 		}
-		for i, c := range p.capName {
-			if c == name {
-				a, b, tags := run.kidSpan(rec, kids[i])
-				return spanVal{a: a, b: b, whole: true, tags: tags}, true
-			}
+		if w := work.Load(); w != nil {
+			w.emitSteps.add("emit steps")
+		}
+		if i, ok := p.posOf[name]; ok {
+			a, b, tags := run.kidSpan(rec, kids[i])
+			return spanVal{a: a, b: b, whole: true, tags: tags}, true
 		}
 		return spanVal{}, false
 	})
@@ -356,7 +388,9 @@ func (run *stageRun) plan(rec *recognizer, n *dn, inside bool) []emitTask {
 			if it.Tags == nil {
 				return own
 			}
-			tags := ev.tagsOf(it.Tags)
+			// A nested parse that the term needs runs on a stack of its
+			// own, and the term goes on from where it halted.
+			tags := toSet(run.evaluate(ev, it.Tags))
 			if len(tags.names) == 0 {
 				panic(&parseFailure{message: p.ruleName + " emits a token with no tags"})
 			}
@@ -366,10 +400,11 @@ func (run *stageRun) plan(rec *recognizer, n *dn, inside bool) []emitTask {
 	// The items as listed, and nothing else of the constituent but their
 	// attachments (§11).
 	part := func(name string) *dn {
-		for i, c := range p.capName {
-			if c == name {
-				return kids[i]
-			}
+		if w := work.Load(); w != nil {
+			w.emitSteps.add("emit steps")
+		}
+		if i, ok := p.posOf[name]; ok {
+			return kids[i]
 		}
 		return nil
 	}
@@ -381,6 +416,7 @@ func (run *stageRun) plan(rec *recognizer, n *dn, inside bool) []emitTask {
 		return out
 	}
 	var plan []emitTask
+	following := nextCaptureItems(p.emit.Items)
 	for i, it := range p.emit.Items {
 		switch {
 		case it.IsInsert:
@@ -388,16 +424,14 @@ func (run *stageRun) plan(rec *recognizer, n *dn, inside bool) []emitTask {
 			// written part of the capture item listed next after it, or at
 			// the constituent's end.
 			at := end
-			for _, next := range p.emit.Items[i+1:] {
-				if !next.IsInsert {
-					anchor := next.Capture
-					if len(next.Before) > 0 {
-						anchor = next.Before[0]
-					}
-					if k := part(anchor); k != nil {
-						at, _, _ = run.kidSpan(rec, k)
-					}
-					break
+			if j := following[i]; j >= 0 {
+				next := p.emit.Items[j]
+				anchor := next.Capture
+				if len(next.Before) > 0 {
+					anchor = next.Before[0]
+				}
+				if k := part(anchor); k != nil {
+					at, _, _ = run.kidSpan(rec, k)
 				}
 			}
 			plan = append(plan, run.inserted(it.Insert, at, start, end, p.ruleName))

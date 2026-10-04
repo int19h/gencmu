@@ -1,0 +1,10 @@
+{
+  "description": "A capture wraps one symbol, not a group of a choice: an error at the capture (engine §9).",
+  "document": "```jbogenbau\n%rule a $x((A | B))\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

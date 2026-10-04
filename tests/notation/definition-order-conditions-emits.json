@@ -1,0 +1,10 @@
+{
+  "description": "%conditions comes before %emits: the comparison whose sides do not fit is the error, at its first token, before $ beside another item (engine §9).",
+  "document": "```jbogenbau\n%rule a $x(A)\n  %conditions text($x) ⊆ \"a\"\n  %emits $, $x\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 15
+    }
+  }
+}

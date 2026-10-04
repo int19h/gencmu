@@ -1,0 +1,86 @@
+{
+  "description": "Twin of capture-optional-transparent.json with r → A [B]: the close of r → A h has two symbols and is visible, so greedy resolves (engine §6).",
+  "grammar": "%rule text r [B]\n%rule r A [B]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          2
+        ],
+        "source": [
+          0,
+          3
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "r",
+            "span": [
+              0,
+              2
+            ],
+            "source": [
+              0,
+              3
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "B",
+                "token": 1,
+                "span": [
+                  1,
+                  2
+                ],
+                "source": [
+                  2,
+                  3
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "(a b)"
+  }
+}

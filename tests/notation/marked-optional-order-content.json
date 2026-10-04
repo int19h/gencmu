@@ -1,0 +1,10 @@
+{
+  "description": "What a marked optional holds is checked in the order written: the capture comes before the misplaced chain (engine §9).",
+  "document": "```jbogenbau\n%rule a [+KU $x(A) {... B}]\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 14
+    }
+  }
+}

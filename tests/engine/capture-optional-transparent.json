@@ -1,0 +1,173 @@
+{
+  "description": "The close of r → A, an expansion of r → A [$b(B)] with one symbol, is transparent: text → r [B] on a b ties under greedy (engine §3.2, §6).",
+  "grammar": "%rule text r [B]\n%rule r A [$b(B)]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie",
+          "witness": [
+            {
+              "close": {
+                "rule": "text",
+                "production": 0,
+                "span": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "close": {
+                "rule": "r",
+                "production": 4,
+                "span": [
+                  0,
+                  2
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              2
+            ],
+            "source": [
+              0,
+              3
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "r",
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": [
+                  "A"
+                ],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "B",
+                "token": 1,
+                "span": [
+                  1,
+                  2
+                ],
+                "source": [
+                  2,
+                  3
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              2
+            ],
+            "source": [
+              0,
+              3
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "r",
+                "span": [
+                  0,
+                  2
+                ],
+                "source": [
+                  0,
+                  3
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "B",
+                    "token": 1,
+                    "span": [
+                      1,
+                      2
+                    ],
+                    "source": [
+                      2,
+                      3
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
+  }
+}

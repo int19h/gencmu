@@ -1,0 +1,10 @@
+{
+  "description": "A test after a capture inside braces is an error at the test: the reader checks a tested primary before the capture that it tests, and before the capture's place inside braces (engine §9).",
+  "document": "```jbogenbau\n%rule a {$c(B)=\"b\" [+KU=\"k\"]}\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 15
+    }
+  }
+}

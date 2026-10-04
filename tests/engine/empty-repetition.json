@@ -1,6 +1,6 @@
 {
-  "description": "A repetition whose item can match nothing is allowed (engine §3, Numbering): the derivations that repeat nothing are cyclic and not counted, so [[B]] ... over one A is simply not a reading.",
-  "grammar": "%rule text [A] ... | [[B]] ...",
+  "description": "[{A}] reads one A, through the optional and then the list: one derivation (engine §3.2, §3.3). An item that can match nothing is an error, as nullable-item-optional.json shows.",
+  "grammar": "%rule text [{A}] | [{B}]",
   "tokens": [
     {
       "text": "a",
@@ -11,13 +11,11 @@
   ],
   "expect": {
     "result": {
-      "format": 9,
       "ok": true,
       "stages": [
         {
           "name": "main",
-          "verdict": "unique",
-          "output": []
+          "verdict": "unique"
         }
       ],
       "tree": {
@@ -31,7 +29,9 @@
           0,
           1
         ],
-        "tags": [],
+        "tags": [
+          "A"
+        ],
         "children": [
           {
             "kind": "token",
@@ -47,8 +47,7 @@
             ]
           }
         ]
-      },
-      "error": null
+      }
     },
     "brackets": "a"
   }

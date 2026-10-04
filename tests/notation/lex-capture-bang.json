@@ -1,0 +1,10 @@
+{
+  "description": "`$ab!` is `$` and the warning guard `ab!`, since a name in a token is a whole run of name characters and `$ab` would leave `!`. The syntax error stands at the guard, where the capture needs `(` (engine §9).",
+  "document": "```jbogenbau\n%rule t $ab!\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 10
+    }
+  }
+}

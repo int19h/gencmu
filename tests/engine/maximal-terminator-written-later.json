@@ -1,6 +1,6 @@
 {
   "description": "With T maximal, a longer constituent forbids the omission whether or not the written optional can complete. On B D T, y → B D is longer than y → B, so leaving out [T A] after y → B is forbidden, although [T A] cannot complete. begins of r is false (engine §4).",
-  "grammar": "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text B D T\n%conditions begins(from($), r)\n%rule r y [T A] D\n%rule y B | B D",
+  "grammar": "%ambiguity-resolution greedy\n%rule text B D T\n%conditions begins(from($), r)\n%rule r y [++T A] D\n%rule y B | B D",
   "tokens": [
     {
       "text": "b",

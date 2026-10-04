@@ -1,7 +1,7 @@
 import { Stage } from "./stage.js";
 import { Token } from "./tokens.js";
 import { UnicodeTable } from "./unicode.js";
-import type { Feature, GrammarDom, ParseOptions, ParseResult, Resources } from "./types.js";
+import type { Feature, GrammarDom, ParseOptions, ParseResult, Resources, ResultNode } from "./types.js";
 export type CompiledEntry = {
     hash: string;
     dom: GrammarDom;
@@ -104,6 +104,19 @@ export declare class Dialect {
      */
     run(text: string, options: RunOptions, continued: ParseResult | null): ParseResult;
 }
+/**
+ * A document's DOM from the notation's syntax tree of it: the reader's DOM,
+ * held to the rules of a precompiled DOM, or a grammar error at its place
+ * (engine §9). The hand-written reader of tools/bootstrap-reader.js reads
+ * its own tree with it too.
+ * @param {ResultNode} tree
+ * @param {Token[]} tokens the syntax stage's input tokens
+ * @param {(token: Token) => import("./types.js").Position} positionOf
+ * @param {string} path
+ * @param {UnicodeTable} unicode
+ * @returns {GrammarDom}
+ */
+export declare function domOfTree(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => import("./types.js").Position, path: string, unicode: UnicodeTable): GrammarDom;
 /**
  * @param {string} text
  * @returns {string}

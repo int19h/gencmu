@@ -1,6 +1,6 @@
 {
   "description": "As step-order-conditions-written, on a competing route that only the check of elision-only takes: x reads the synthetic T. The `$` condition, written first, fails, so the failing capture condition never runs, and the check passes (engine §4, §7.7).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a A [T]\n%rule b A [T] [T]\n%rule c A x\n%rule x $y(T)\n%conditions text($) = \"q\", ~z ⊆ tag(text(tail($y)))",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a A [+T]\n%rule b A [+T] [+T]\n%rule c A x\n%rule x $y(T)\n%conditions text($) = \"q\", ~z ⊆ tag(text(tail($y)))",
   "tokens": [
     {
       "text": "a",

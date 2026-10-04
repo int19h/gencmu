@@ -1,6 +1,6 @@
 {
   "description": "The grammar of late-elision-basic under lazy: x closes before B is read, so lazy chooses the reading that elides KU at 1 (engine §6).",
-  "grammar": "%ambiguity-resolution lazy\n%elidable KU\n%rule text x B | y\n%rule x A [KU]\n%rule y A B [KU]",
+  "grammar": "%ambiguity-resolution lazy\n%rule text x B | y\n%rule x A [+KU]\n%rule y A B [+KU]",
   "tokens": [
     {
       "text": "a",

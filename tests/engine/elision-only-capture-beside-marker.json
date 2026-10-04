@@ -1,0 +1,120 @@
+{
+  "description": "elision-only over a capturing plain optional beside a marked one: s → A [$x(X)] reads x, the chosen text → s [+KU] C elides ku, which the check writes back, and the restored text has one reading, with $x present (engine §3.2, §7).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text s [+KU] C | y\n%rule y [+VAU] A [$x(X)] C\n%rule s A [$x(X)]\n%tags $x ⟹ tags($x)\n%conditions $x ⟹ phonemes($x) = \"x\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "x"
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          3
+        ],
+        "source": [
+          0,
+          5
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "s",
+            "span": [
+              0,
+              2
+            ],
+            "source": [
+              0,
+              3
+            ],
+            "tags": [
+              "X"
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "X",
+                "token": 1,
+                "span": [
+                  1,
+                  2
+                ],
+                "source": [
+                  2,
+                  3
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "elided",
+            "terminal": "KU",
+            "span": [
+              2,
+              2
+            ],
+            "source": [
+              3,
+              3
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "C",
+            "token": 2,
+            "span": [
+              2,
+              3
+            ],
+            "source": [
+              4,
+              5
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "([a x] c)"
+  }
+}

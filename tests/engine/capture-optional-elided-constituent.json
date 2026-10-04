@@ -1,0 +1,83 @@
+{
+  "description": "An optional expanded in place leaves the production A h C, where the elided T follows the terminal A and has no constituent, so maximal forbids nothing and a c parses (engine §3.2, §4).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text A [$y(y)] [++T] C\n%rule y C",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          2
+        ],
+        "source": [
+          0,
+          3
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          },
+          {
+            "kind": "elided",
+            "terminal": "T",
+            "span": [
+              1,
+              1
+            ],
+            "source": [
+              1,
+              1
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "C",
+            "token": 1,
+            "span": [
+              1,
+              2
+            ],
+            "source": [
+              2,
+              3
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "(a c)"
+  }
+}

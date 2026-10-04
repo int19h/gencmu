@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -41,7 +42,7 @@ func TestLoadDialectBundled(t *testing.T) {
 	if got := strings.Join(d.StageNames(), " "); got != "lexical syntax" {
 		t.Fatalf("stages %q", got)
 	}
-	res, err := d.Parse("%rule text A [B] ...", ParseOptions{})
+	res, err := d.Parse("%rule text A [{B}]", ParseOptions{})
 	if err != nil || !res.OK {
 		t.Fatalf("%v %+v", err, res.Error)
 	}
@@ -63,7 +64,7 @@ func TestLoadDialectFile(t *testing.T) {
 	os.MkdirAll(filepath.Join(dir, "dialects"), 0o755)
 	os.MkdirAll(filepath.Join(dir, "syntax"), 0o755)
 	os.WriteFile(filepath.Join(dir, "dialects", "mine.md"), []byte(block("%stage main", `%include "../syntax/g.md"`)), 0o644)
-	os.WriteFile(filepath.Join(dir, "syntax", "g.md"), []byte("```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a' ...\n```\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "syntax", "g.md"), []byte("```jbogenbau\n%ambiguity-resolution greedy\n%rule text {'a'}\n```\n"), 0o644)
 	d, err := LoadDialectFile(filepath.Join(dir, "dialects", "mine.md"))
 	if err != nil {
 		t.Fatal(err)
@@ -124,7 +125,7 @@ func TestLoadErrors(t *testing.T) {
 func TestParseOptions(t *testing.T) {
 	d := mustLoad(t, map[string]string{
 		"p.md": block("%features base", "%stage one", `%include "g.md"`, "%stage two", `%include "h.md"`),
-		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [w] ...\n%rule w base? 'a' <A> | extra? 'b' <B>\n%emits $\n```\n",
+		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{w}]\n%rule w base? 'a' <A> | extra? 'b' <B>\n%emits $\n```\n",
 		"h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text s | s B\n%rule s A [B]\n```\n",
 	})
 	res, err := d.Parse("a", ParseOptions{})
@@ -170,18 +171,61 @@ func TestParseOptions(t *testing.T) {
 
 func boolPtr(b bool) *bool { return &b }
 
-// A trailing repetition that captures a part is an error of the grammar
-// found at lowering, for the features that leave it alone in its rule: a
-// result, not a load error (engine §3.3).
+// An error of the grammar that lowering finds is a result, not a load
+// error, for the features that make it, and its message begins with the
+// document, line and column of the definition at fault (engine §3,
+// tests/README.md).
 func TestLoweringFault(t *testing.T) {
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text f? $a(A) B ... | ¬f? A B ..."))
-	toks := []Token{{Text: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "b", Tags: []string{"B"}, Span: [2]int{1, 2}, Source: [2]int{1, 2}}}
-	res, err := d.ParseTokens("ab", toks, ParseOptions{Features: []string{"f"}})
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text c\n%rule c {... A} | f? B"))
+	toks := []Token{{Text: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}
+	res, err := d.ParseTokens("a", toks, ParseOptions{Features: []string{"f"}})
 	if err != nil || res.OK || res.Error.Kind != ErrorGrammar || res.Error.Stage != "main" || res.Stages[0].Verdict != "" || res.Tree != nil {
 		t.Fatalf("expected a grammar error as the result: %v %+v", err, res)
 	}
-	if res, err := d.ParseTokens("ab", toks, ParseOptions{}); err != nil || !res.OK {
-		t.Fatalf("without f the alternative with a capture is not alone: %v %+v", err, res)
+	if !strings.HasPrefix(res.Error.Message, "g.md:6:1: c is a chain") {
+		t.Fatalf("the message does not begin with the definition: %q", res.Error.Message)
+	}
+	if res, err := d.ParseTokens("a", toks, ParseOptions{}); err != nil || !res.OK {
+		t.Fatalf("without f the chain is alone in its rule: %v %+v", err, res)
+	}
+}
+
+// Errors of lowering come in the order of engine §3: a chain beside another
+// alternative before an empty item of braces, whichever rules hold them,
+// and each at the definition that wrote its alternative, whatever document
+// makes the item empty.
+func TestLoweringFaultOrder(t *testing.T) {
+	d := mustLoad(t, map[string]string{
+		"p.md": block("%stage main", `%include "a.md"`, `%include "b.md"`),
+		"a.md": block("%ambiguity-resolution greedy", "%rule text {r} | c", "%rule c {... A} | f? B"),
+		"b.md": block("%rule r A", "%extend-rule r", "  ε"),
+	})
+	toks := []Token{{Text: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}
+	for _, c := range []struct {
+		features []string
+		prefix   string
+	}{
+		// The empty item of text's braces, made so by b.md, is reported at
+		// the definition of text in a.md.
+		{nil, "a.md:3:1: "},
+		// With f on, c's chain stands beside B, which comes before the
+		// empty item of an earlier rule.
+		{[]string{"f"}, "a.md:4:1: c is a chain"},
+	} {
+		res, err := d.ParseTokens("a", toks, ParseOptions{Features: c.features})
+		if err != nil || res.OK || res.Error.Kind != ErrorGrammar || res.Error.Token != nil || res.Error.Line != 0 {
+			t.Fatalf("%v: expected a grammar error with no position: %v %+v", c.features, err, res)
+		}
+		if !strings.HasPrefix(res.Error.Message, c.prefix) {
+			t.Errorf("%v: the message %q does not begin with %q", c.features, res.Error.Message, c.prefix)
+		}
+	}
+	// In one rule, a chain beside another alternative comes before an
+	// empty item of its own braces.
+	d = mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text r\n%rule r {... [A]} | B"))
+	res, err := d.ParseTokens("a", toks, ParseOptions{})
+	if err != nil || res.OK || !strings.HasPrefix(res.Error.Message, "g.md:6:1: r is a chain") {
+		t.Fatalf("expected the chain first: %v %+v", err, res.Error)
 	}
 }
 
@@ -190,9 +234,9 @@ func TestLoweringFault(t *testing.T) {
 func TestAutoFeatures(t *testing.T) {
 	d := mustLoad(t, map[string]string{
 		"p.md": block("%stage sounds", `%include "g.md"`, "%stage words", `%include "h.md"`, "%stage syntax", `%include "s.md"`),
-		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c 's' </s/> | 'a' </a/> | 'u' </u/> | sa-su? 'x' </x/>\n%emits $\n```\n",
-		"h.md": "```jbogenbau\n%ambiguity-resolution lazy\n%rule text [word] ...\n%rule word ¬sa-su? /s/ /a/ <SA> | sa-su? /s/ /a/ <E> | /u/ <W> | /x/ <W>\n%emits $\n```\n",
-		"s.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [W | SA | E] ...\n```\n",
+		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{c}]\n%rule c 's' </s/> | 'a' </a/> | 'u' </u/> | sa-su? 'x' </x/>\n%emits $\n```\n",
+		"h.md": "```jbogenbau\n%ambiguity-resolution lazy\n%rule text [{word}]\n%rule word ¬sa-su? /s/ /a/ <SA> | sa-su? /s/ /a/ <E> | /u/ <W> | /x/ <W>\n%emits $\n```\n",
+		"s.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{W | SA | E}]\n```\n",
 	})
 	tags := func(res *ParseResult) string {
 		var out []string
@@ -262,7 +306,7 @@ func TestDialectFeatures(t *testing.T) {
 }
 
 func TestMarshalResult(t *testing.T) {
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%elidable KU\n%rule text 'é' [KU]"))
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text 'é' [+KU]"))
 	res, _ := d.Parse("é", ParseOptions{})
 	data, err := MarshalResult(res)
 	if err != nil {
@@ -305,24 +349,31 @@ func TestMarshalResult(t *testing.T) {
 	}
 }
 
-// A trailing repetition is one node of the tree, however many times it
-// repeats, and gives its warnings once; the prefixes spliced into it and the
-// helpers of [ ] and ... give none (engine §12).
+// Flat braces are no node of the tree, so a rule that writes them gives
+// its warnings once, however many times they repeat, and the helpers of
+// [ ] and { } give none. A chain's levels are rule nodes, and each gives
+// the warnings of its alternative, parent before children (engine §12).
 func TestWarningsSpliced(t *testing.T) {
 	for _, c := range []struct {
 		grammar, text string
 		want          []Warning
 	}{
-		{"%rule text w! a ['b'] ...\n%rule a v! 'a' ['c']", "acbbb", []Warning{
+		{"%rule text w! a [{'b'}]\n%rule a v! 'a' ['c']", "acbbb", []Warning{
 			{Stage: "main", Feature: "w", Rule: "text", Span: [2]int{0, 5}, Source: [2]int{0, 5}},
 			{Stage: "main", Feature: "v", Rule: "a", Span: [2]int{0, 2}, Source: [2]int{0, 2}},
 		}},
-		{"%rule text w! a 'b' ...\n%rule a v! 'a' ['c']", "abb", []Warning{
+		{"%rule text w! a {'b'}\n%rule a v! 'a' ['c']", "abb", []Warning{
 			{Stage: "main", Feature: "w", Rule: "text", Span: [2]int{0, 3}, Source: [2]int{0, 3}},
 			{Stage: "main", Feature: "v", Rule: "a", Span: [2]int{0, 1}, Source: [2]int{0, 1}},
 		}},
-		{"%rule text x | w! 'q'\n%rule x w! ['a'] ... 'b' | 'c'", "aab", []Warning{
+		{"%rule text x | w! 'q'\n%rule x w! [{'a'}] 'b' | 'c'", "aab", []Warning{
 			{Stage: "main", Feature: "w", Rule: "x", Span: [2]int{0, 3}, Source: [2]int{0, 3}},
+		}},
+		{"%rule text w! {... a \\ 'b'}\n%rule a v! 'a'", "aba", []Warning{
+			{Stage: "main", Feature: "w", Rule: "text", Span: [2]int{0, 3}, Source: [2]int{0, 3}},
+			{Stage: "main", Feature: "w", Rule: "text", Span: [2]int{0, 1}, Source: [2]int{0, 1}},
+			{Stage: "main", Feature: "v", Rule: "a", Span: [2]int{0, 1}, Source: [2]int{0, 1}},
+			{Stage: "main", Feature: "v", Rule: "a", Span: [2]int{2, 3}, Source: [2]int{2, 3}},
 		}},
 	} {
 		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n"+c.grammar))
@@ -384,7 +435,7 @@ func TestConcurrentParses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	texts := []string{"%rule a A", "%rule b [B] ... C & D", "%rule c $x(C) %tags X %conditions text($x) = \"c\" ⟹ $x %emits $", "%elidable KU"}
+	texts := []string{"%rule a A", "%rule b [{B}] C & D", "%rule c $x(C) %tags X %conditions text($x) = \"c\" ⟹ $x %emits $", "%rule e {... A \\ [+KU]}"}
 	want := make([]string, len(texts))
 	for i, text := range texts {
 		res, _ := d.Parse(text, ParseOptions{})
@@ -423,7 +474,7 @@ func TestConcurrentParses(t *testing.T) {
 func TestConcurrentFeatures(t *testing.T) {
 	d := mustLoad(t, map[string]string{
 		"p.md": block("%features g", "%stage main", `%include "g.md"`),
-		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [item] ...\n%rule item g? w! 'a' | ¬g? 'a' <A> | v! 'b'\n```\n",
+		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{item}]\n%rule item g? w! 'a' | ¬g? 'a' <A> | v! 'b'\n```\n",
 	})
 	options := []ParseOptions{
 		{}, {Features: []string{"w"}}, {Features: []string{"v", "w"}},
@@ -475,7 +526,7 @@ func TestConcurrentClassifiers(t *testing.T) {
 	d := mustLoad(t, map[string]string{
 		"p.md": block("%stage main", `%include "g.md"`),
 		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%classifier lex\n  \"a\" ∈ A\n  f? \"a\" ∉ A\n  f? \"b\" ∈ A\n  g? \"a\" ∈ A\n" +
-			"%implies A ⟹ ~m\n%rule text [item] ...\n%rule item $c(letter) <~i ∪ classify(text($c), lex)>\n%emits\n  $\n%rule letter 'a' | 'b'\n```\n",
+			"%implies A ⟹ ~m\n%rule text [{item}]\n%rule item $c(letter) <~i ∪ classify(text($c), lex)>\n%emits\n  $\n%rule letter 'a' | 'b'\n```\n",
 	})
 	options := []ParseOptions{{}, {Features: []string{"f"}}, {Features: []string{"g"}}, {Features: []string{"f", "g"}}}
 	want := make([]string, len(options))
@@ -520,14 +571,18 @@ func TestConcurrentClassifiers(t *testing.T) {
 
 // TestDeepDerivations parses long inputs whose derivations nest as deep as
 // the input is long, to the left and, shorter since right recursion costs
-// an Earley recognizer quadratic time, to the right.
+// an Earley recognizer quadratic time, to the right. The stack of a
+// goroutine is held to 1 MiB, so a walk that recursed down a derivation
+// would end the process.
 func TestDeepDerivations(t *testing.T) {
+	defer debug.SetMaxStack(debug.SetMaxStack(1 << 20))
 	for _, c := range []struct {
 		grammar string
 		n       int
 	}{
 		{"%rule text text 'a' | 'a'", 50000},
-		{"%rule text [w] ...\n%rule w 'a'\n%emits $", 50000},
+		{"%rule text [{w}]\n%rule w 'a'\n%emits $", 50000},
+		{"%rule text {... w}\n%rule w 'a'\n%emits $", 50000},
 		{"%rule text 'a' text | 'a'", 1500},
 	} {
 		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n"+c.grammar))
@@ -830,7 +885,7 @@ func TestInvalidUTF8(t *testing.T) {
 		return errors.As(err, &e) && e.Kind == ErrorUsage
 	}
 	// Each of these would read U+FFFD or U+D800 if the text became tokens.
-	rules := []string{`'\p{Cs}'`, `'\p{Any}'`, `'\u{D7FF}'..'\u{E000}'`, `'\u{FFFD}'`, "[character] ...\n%rule character '\\p{Any}'"}
+	rules := []string{`'\p{Cs}'`, `'\p{Any}'`, `'\u{D7FF}'..'\u{E000}'`, `'\u{FFFD}'`, "[{character}]\n%rule character '\\p{Any}'"}
 	for _, rule := range rules {
 		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+rule))
 		for _, text := range []string{"\xed\xa0\x80", "a\xff", "\xc3", "\xf4\x90\x80\x80", "\xe2\x82"} {
@@ -955,9 +1010,9 @@ func TestEmptyCharacterTag(t *testing.T) {
 func TestGrammarFaultHasNoPosition(t *testing.T) {
 	const twoPhonemes = "stage main: an emitted token has two phoneme tags"
 	for _, c := range []struct{ grammar, message string }{
-		{"%implies A ⟹ /o/\n%rule text [word] ...\n%rule word $w(W) <A ∪ /e/>\n%emits\n  $", twoPhonemes},
-		{"%rule text [word] ...\n%rule word $w(W) </e/ ∪ /o/>\n%emits\n  $\n%opaque", twoPhonemes},
-		{"%implies /e/ ⟹ /o/\n%rule text [word] ...\n%rule word $w(W)\n%emits\n  $w, /e/", twoPhonemes},
+		{"%implies A ⟹ /o/\n%rule text [{word}]\n%rule word $w(W) <A ∪ /e/>\n%emits\n  $", twoPhonemes},
+		{"%rule text [{word}]\n%rule word $w(W) </e/ ∪ /o/>\n%emits\n  $\n%opaque", twoPhonemes},
+		{"%implies /e/ ⟹ /o/\n%rule text [{word}]\n%rule word $w(W)\n%emits\n  $w, /e/", twoPhonemes},
 		{"%rule text $a(W) %emits $a <tags($a) ∩ Z>", "stage main: text emits a token with no tags"},
 		{"%rule text $a(x) %conditions ¬matches($a, text)\n%rule x W",
 			"stage main: a condition asks whether its own span parses as text, which defines text in terms of itself over the same text"},

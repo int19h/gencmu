@@ -44,6 +44,8 @@ Auto features (engine §13) are off for a case unless its options say `"autoFeat
 - An array matches when it has the same length and each element matches.
 - Anything else matches when it is equal.
 
+A pattern never pins the `message` of an error. Its wording is each library's own (`docs/output.md`), so the JavaScript runner refuses a case whose pattern holds one.
+
 Every runner also checks these invariants on each canonical result that a case gives, whatever the case expects. A case cannot turn them off, and its pattern need not repeat them:
 
 - An error of kind `ambiguous` has no member `token` and no member `source`.
@@ -81,6 +83,12 @@ The library loads the dialect once, and then parses the input with each item's o
 `expect.error` is the error kind, when the case is about an error. For a grammar that cannot be loaded, the result is the error alone. For a mistake of the caller, `usage`, there is no result.
 
 A load that fails gives only its error. Its kind is `grammar` for a grammar that cannot be loaded. It is `usage` for a mistake of the caller at load, such as a document held in memory that is not a sequence of Unicode scalar values (engine §1). A case expects such an error with `expect.error` of that kind. For a `grammar` error, it can also give `expect.where`. It gives no `result`, `brackets`, `warnings` or `features`, because only a loaded dialect gives them. A runner fails a case when the load fails with another kind, or when the case expects one of these members. It also fails a case that gives `expect.where` with a kind other than `grammar`.
+
+An error that lowering finds (engine §3), such as an item of braces that can match no tokens, is not a load error. The dialect loads, and the parse gives a result whose error has the kind `grammar`, so a case expects it with `expect.error`. Its message, which names the definition at fault, is the library's own, so no case compares it.
+
+Each library tests that the message of such an error begins with the document, line and column of that definition. It also tests the error order of engine §3: a chain beside another alternative comes before an empty item of braces.
+
+Each library also tests its recognizer on a capture of a rule that can end in many places (engine §4). The rule is `t → $l(t) $r(t) | A`, over n tokens. Then n − 1 completed items of that production span the input. With `t → t t | A`, one item does. A last test reads one production of C captures over C tokens, and counts C stored captured parts, not C².
 
 `expect.where`, when present, is where the error of a grammar that cannot be loaded stands. It is only for an error of kind `grammar`. It names a document of the case and a line and a column in it. For a case with `grammar`, the document is `main.md`. Its fence is line 1, so the rules start on line 3, or on line 2 when they hold their own `%ambiguity-resolution`.
 
@@ -121,7 +129,9 @@ A caller can supply its own `notation/bootstrap.json` (`docs/api.md`). Its notat
 - Then each rule of the bundled bootstrap's syntax document, except `text`, gets a wrapper: a new rule whose one alternative is a reference to it. Every reference to the rule in that document becomes a reference to its wrapper. The outcomes are `control` again.
 - Then each rule of that document, except `text`, gets a new name in turn: its name with `x` after it, in its definition and in every reference to it. A rule named in `loads` gives a dialect, and the outcomes are those of `loads`. Any other rule gives the load error `grammar`. No other error escapes the library.
 
-Each item of `extraParts` gives a rule a part that the reader does not read. In the bundled bootstrap's syntax document, the text `find` stands once, and the bootstrap of the item has `replace` in its place. Each library loads the item's `document` with that bootstrap and parses its `inputs`, as above. The outcomes are those of `expect`. The extra part holds text that the reader refuses if it reads it, so an outcome other than `expect` shows that the library read it.
+Each item of `extraParts` gives a rule a part that the reader does not read. In the bundled bootstrap's syntax document, the text `find` stands once, and the bootstrap of the item has `replace` in its place. Each library loads the item's `document` with that bootstrap and parses its `inputs`, as above. The outcomes are those of `expect`.
+
+The extra part holds text that the reader refuses if it reads it, so an outcome other than `expect` shows that the library read it. Other items give a rule of the notation another shape, such as a `repetition` whose markers stand elsewhere. An item whose `expect` is a load error can give `where`, `{"document": "g.md", "line": 3, "column": 21}`, the place of that error in its document. The load must then fail there, as `expect.where` says for an engine case.
 
 ## Malformed directives: `dom-malformed.json`
 
@@ -140,7 +150,47 @@ Each item is one directive of a DOM (`docs/output.md`). A library puts it alone 
 
 Each item says that a bundled dialect's work on a long text grows in proportion to its length. A condition that parses a whole prefix again at each step makes a long text cost more than its length says, and no other case shows that. The library builds two texts from `text`. It replaces `{links}` with `small` copies of `link`, joined by spaces, and then with `large` copies. Both texts must parse. The library counts the items that its recognizer makes for each text, in the main parse and in every nested parse, but not while it loads the dialect. The count for `large` copies must be at most `most` times the count for `small` copies.
 
+## Notation growth cases: `notation-growth.json`
+
+```
+[{"name": "groups", "description": "...", "prefix": "%rule text ", "open": "(", "middle": "A",
+  "close": ")", "suffix": ""}, ...]
+```
+
+Each item says that reading a document whose constructs nest deep costs work in proportion to its length. A reader that types or copies a whole subtree at each level of nesting makes a deep document cost the square of its depth. No other case shows that.
+
+One item nests sequences that each capture the same name, so the check of repeated captures marks captures at every level. The library counts each marking among its reader's steps.
+
+Some items repeat no nesting but one long token, such as a name, a comment or a string. Each says that the lexical stage reads a long token in work in proportion to its length. A lexer that tries every prefix of a name, or scans to a token's end again from each character inside it, makes the token cost the square of its length.
+
+The library builds the document `prefix`, `open` n times, `middle`, `close` n times and `suffix`, in a fence. It builds it for n = 250 and for n = 1000. It reads each once with its reader, after one read that loads the notation. The read can end in an error. The library counts the items that its recognizer makes and the steps of its reader and of the walks of what the reader reads. The count for 1000 must be at most five times the count for 250.
+
+The JavaScript library also reads each document with the hand-written bootstrap reader, whose lexer counts its steps too. The Rust library reads each on a thread with a stack of 2 MiB, which no depth changes. The Go library also reads each nested 20,000 deep, with the stack of a goroutine held to 1 MiB. A reader or a walk that recursed as deep as the document nests ends the process there.
+
 A library compares only its own two counts. Counts from different libraries are not compared, since each library makes its items in its own way.
+
+## Query depth cases: `query-depth.json`
+
+```
+[{"name": "begins-chain", "description": "...", "grammar": "%rule text {x} ...", "link": "a",
+  "count": 20000, "suffix": "b"}]
+```
+
+Each item says that nested queries nest as deep as the input makes them, with no bound (engine §4). A grammar whose conditions start a query inside each nested parse makes a chain of active queries as long as the text. A library that runs each nested parse on its call stack runs out of stack on such a chain.
+
+The library loads `grammar` as the one stage of a dialect, which reads the text's characters. It parses `link` repeated `count` times, then `suffix`, and the parse must succeed. It runs the parse on an ordinary stack: the main thread in JavaScript and Python, a test thread of the default size in Rust, and a goroutine whose stack is held to 1 MiB in Go.
+
+## Query work cases: `query-work.json`
+
+```
+[{"name": "queries-in-one-step", "description": "...", "head": "%rule text 'a'\n%conditions ",
+  "item": "matches(after($), r{i})", "joiner": ", ", "tail": "", "rule": "\n%rule r{i} ε",
+  "count": 400, "text": "a", "most": 8}]
+```
+
+Each item says that a step or a term that starts many queries evaluates each part of its conditions and terms a bounded number of times. A query whose answer is not yet known halts the evaluation while its nested parse runs. The evaluation must then go on from where it halted. Starting the step again from its first condition would evaluate the earlier parts once for each query, the square of their number.
+
+The library builds the grammar from `head`, then `item` once for each i from 0 to `count` − 1, joined by `joiner`, then `tail`, then `rule` once for each i. In `item` and `rule`, `{i}` stands for i. It loads the grammar as the one stage of a dialect and parses `text`, and the parse must succeed. The library counts every visit of a node of a condition or a term, before it evaluates the node, also in an evaluation that halts. The count has a budget of `most` times `count`, and the parse stops at the first visit past it.
 
 ## Result mutants: `result-mutants.json`
 

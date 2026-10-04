@@ -1,0 +1,10 @@
+{
+  "description": "The alternatives are checked in order, each with its own tags after its expression: the first alternative's tags, at the <, come before the second alternative's duplicate name (engine §9).",
+  "document": "```jbogenbau\n%rule a A <tags($)> | $x(B) $x(C)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

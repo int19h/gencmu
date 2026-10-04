@@ -1,21 +1,7 @@
 {
   "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 1 derivations.",
-  "grammar": "%ambiguity-resolution lazy\n%rule text ε | ε | u (C | A)\n%rule t [C] [v] | ε\n%rule u [A] | u B\n%rule v [B] u ... | u",
-  "tokens": [
-    {
-      "text": "a",
-      "tags": [
-        "A"
-      ]
-    },
-    {
-      "text": "b",
-      "tags": [
-        "B",
-        "C"
-      ]
-    }
-  ],
+  "grammar": "%ambiguity-resolution late-elision maximal\n%rule text ε | T t | B A\n%rule t {T ... \\ t}\n%rule u {u ... \\ v}\n%rule v {u ... \\ t}",
+  "tokens": [],
   "expect": {
     "result": {
       "format": 9,
@@ -32,61 +18,17 @@
         "rule": "text",
         "span": [
           0,
-          2
+          0
         ],
         "source": [
           0,
-          3
+          0
         ],
         "tags": [],
-        "children": [
-          {
-            "kind": "rule",
-            "rule": "u",
-            "span": [
-              0,
-              1
-            ],
-            "source": [
-              0,
-              1
-            ],
-            "tags": [
-              "A"
-            ],
-            "children": [
-              {
-                "kind": "token",
-                "terminal": "A",
-                "token": 0,
-                "span": [
-                  0,
-                  1
-                ],
-                "source": [
-                  0,
-                  1
-                ]
-              }
-            ]
-          },
-          {
-            "kind": "token",
-            "terminal": "C",
-            "token": 1,
-            "span": [
-              1,
-              2
-            ],
-            "source": [
-              2,
-              3
-            ]
-          }
-        ]
+        "children": []
       },
       "error": null
     },
-    "brackets": "(a b)"
+    "brackets": ""
   }
 }

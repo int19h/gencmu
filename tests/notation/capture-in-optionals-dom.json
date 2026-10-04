@@ -1,0 +1,61 @@
+{
+  "description": "A capture can stand in a nested plain optional, and in a group beside another (engine §3.5, §9).",
+  "document": "```jbogenbau\n%rule a [A [$c(B)]]\n%rule b ($a(A) [$b(B)])\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "a",
+          "alternatives": [
+            {
+              "expr": {
+                "optional": {
+                  "seq": [
+                    {
+                      "ref": "A"
+                    },
+                    {
+                      "optional": {
+                        "capture": "c",
+                        "expr": {
+                          "ref": "B"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "conditions": []
+        },
+        {
+          "name": "b",
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "capture": "a",
+                    "expr": {
+                      "ref": "A"
+                    }
+                  },
+                  {
+                    "optional": {
+                      "capture": "b",
+                      "expr": {
+                        "ref": "B"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "conditions": []
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "description": "`¬¬x?` cannot be read: the first `¬` is no negation, since the guard `¬x?` begins after it, and no guard begins with `¬¬`. The lexical error stands at the second `¬`, which the first one's reading reached (engine §9).",
+  "document": "```jbogenbau\n%rule t ¬¬x? A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 10
+    }
+  }
+}

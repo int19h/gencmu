@@ -1,0 +1,10 @@
+{
+  "description": "`%rule?` cannot be read as tokens. A keyword's name is a whole run of name characters, so `%rule` leaves `?`, and `%` alone is no token. The error stands at the `?` (engine §9).",
+  "document": "```jbogenbau\n%rule? t A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 6
+    }
+  }
+}

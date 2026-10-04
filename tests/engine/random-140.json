@@ -1,15 +1,7 @@
 {
   "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 2 derivations.",
-  "grammar": "%ambiguity-resolution lazy\n%rule text C [B] ... | C | ε\n%rule t u t | ε\n%rule u ε | t ...\n%rule v ε | v",
-  "tokens": [
-    {
-      "text": "a",
-      "tags": [
-        "A",
-        "C"
-      ]
-    }
-  ],
+  "grammar": "%ambiguity-resolution lazy maximal\n%rule text ε | t A | ε\n%rule t ε | T t\n%rule u {v ... \\ u=\"x\"}\n%rule v u≠\"x\" | v=\"x\" A",
+  "tokens": [],
   "expect": {
     "result": {
       "format": 9,
@@ -22,20 +14,20 @@
             {
               "close": {
                 "rule": "text",
-                "production": 3,
+                "production": 0,
                 "span": [
                   0,
-                  1
+                  0
                 ]
               }
             },
             {
               "close": {
                 "rule": "text",
-                "production": 1,
+                "production": 2,
                 "span": [
-                  1,
-                  1
+                  0,
+                  0
                 ]
               }
             }
@@ -53,59 +45,28 @@
             "rule": "text",
             "span": [
               0,
-              1
+              0
             ],
             "source": [
               0,
-              1
+              0
             ],
-            "tags": [
-              "A",
-              "C"
-            ],
-            "children": [
-              {
-                "kind": "token",
-                "terminal": "C",
-                "token": 0,
-                "span": [
-                  0,
-                  1
-                ],
-                "source": [
-                  0,
-                  1
-                ]
-              }
-            ]
+            "tags": [],
+            "children": []
           },
           {
             "kind": "rule",
             "rule": "text",
             "span": [
               0,
-              1
+              0
             ],
             "source": [
               0,
-              1
+              0
             ],
             "tags": [],
-            "children": [
-              {
-                "kind": "token",
-                "terminal": "C",
-                "token": 0,
-                "span": [
-                  0,
-                  1
-                ],
-                "source": [
-                  0,
-                  1
-                ]
-              }
-            ]
+            "children": []
           }
         ]
       }

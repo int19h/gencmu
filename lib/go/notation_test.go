@@ -11,8 +11,8 @@ import (
 )
 
 func domValue(t testing.TB, d *domDoc) any {
-	var v any
-	if err := json.Unmarshal(d.json(), &v); err != nil {
+	v, err := decodeJSON(d.json())
+	if err != nil {
 		t.Fatalf("the DOM's JSON does not parse: %v", err)
 	}
 	return v
@@ -35,11 +35,11 @@ func TestNotationCases(t *testing.T) {
 			Description string
 			Document    string
 			Expect      struct {
-				Dom   json.RawMessage
+				Dom   *any
 				Error *struct{ Line, Column int }
 			}
 		}
-		if err := json.Unmarshal(data, &c); err != nil {
+		if err := unmarshalJSON(data, &c); err != nil {
 			t.Fatal(err)
 		}
 		t.Run(strings.TrimSuffix(filepath.Base(f), ".json"), func(t *testing.T) {
@@ -57,7 +57,9 @@ func TestNotationCases(t *testing.T) {
 				t.Fatalf("%s\n%v", c.Description, rerr)
 			}
 			var pattern any
-			json.Unmarshal(c.Expect.Dom, &pattern)
+			if c.Expect.Dom != nil {
+				pattern = *c.Expect.Dom
+			}
 			if err := match(pattern, domValue(t, dom), "dom"); err != nil {
 				t.Fatalf("%s\n%v\n%s", c.Description, err, dom.json())
 			}
@@ -113,9 +115,8 @@ func TestFixpoint(t *testing.T) {
 				t.Errorf("stage %s, run %d: %s, the bootstrap's %s", s.name, j, d.path, want.Documents[j].Path)
 				continue
 			}
-			var wantDOM any
-			json.Unmarshal(want.Documents[j].Dom, &wantDOM)
-			if got := domValue(t, d.dom); !reflect.DeepEqual(got, wantDOM) {
+			wantDOM, _ := decodeJSON(want.Documents[j].Dom)
+			if got := domValue(t, d.dom); !equalJSON(got, wantDOM) {
 				t.Errorf("%s: reading it with the bootstrap does not reproduce the bootstrap\n got %s", d.path, d.dom.json())
 			}
 			// The DOM also writes byte for byte as the bootstrap holds it.
@@ -162,9 +163,8 @@ func TestCompiled(t *testing.T) {
 		if rerr != nil {
 			t.Fatalf("%s: %v", p, rerr)
 		}
-		var want any
-		json.Unmarshal(d.Dom, &want)
-		if !reflect.DeepEqual(domValue(t, dom), want) {
+		want, _ := decodeJSON(d.Dom)
+		if !equalJSON(domValue(t, dom), want) {
 			t.Errorf("%s: compiled.json's DOM differs from a fresh reading", p)
 		}
 	}
@@ -313,7 +313,7 @@ func TestNotationLexicalTags(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := d.Parse(`%rule a ¬f? ~b 'c' /d/ E ... | g! %tags X %rulex $e ¬h 'x'..'y' '\p{L}' 'a'...`, ParseOptions{Until: "lexical"})
+	res, err := d.Parse(`%rule a ¬f? ~b 'c' /d/ {E ... \ '\\'} [+KU] [++TOI] | g! %tags X %rulex $e ¬h 'x'..'y' '\p{L}' 'a'...`, ParseOptions{Until: "lexical"})
 	if err != nil || !res.OK {
 		t.Fatalf("%v %+v", err, res)
 	}
@@ -323,7 +323,9 @@ func TestNotationLexicalTags(t *testing.T) {
 	}
 	want := [][2]string{
 		{"%rule", "keyword-rule"}, {"a", "identifier"}, {"¬f?", "guard"}, {"~b", "tag"}, {"'c'", "character"},
-		{"/d/", "phoneme"}, {"E", "identifier"}, {"...", "ellipsis"}, {"|", "'|'"}, {"g!", "guard"},
+		{"/d/", "phoneme"}, {"{", "'{'"}, {"E", "identifier"}, {"...", "ellipsis"}, {`\`, `'\u{5C}'`}, {`'\\'`, "character"}, {"}", "'}'"},
+		{"[", "'['"}, {"+", "'+'"}, {"KU", "identifier"}, {"]", "']'"}, {"[", "'['"}, {"++", "double-plus"}, {"TOI", "identifier"}, {"]", "']'"},
+		{"|", "'|'"}, {"g!", "guard"},
 		{"%tags", "keyword-tags"}, {"X", "identifier"}, {"%rulex", "keyword"}, {"$e", "capture"}, {"¬", "'¬'"}, {"h", "identifier"},
 		{"'x'", "character"}, {"..", "double-dot"}, {"'y'", "character"}, {`'\p{L}'`, "property"}, {"'a'", "character"}, {"...", "ellipsis"},
 	}
@@ -533,27 +535,28 @@ func TestUnicodeTable(t *testing.T) {
 	}
 }
 
-// The word maximal of %elidable is the first argument part, whatever other
-// parts a custom bootstrap gives the directive, which the reader ignores
-// (engine §9).
-func TestElidableMaximalAfterIgnoredPart(t *testing.T) {
+// A precompiled DOM of format 17 is never used: compiled.json of that
+// format is a miss, and so is a DOM of that shape, a repeat with min, in a
+// file of format 18.
+func TestFormat17Refused(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	bootstrap := bundled.sources["notation/bootstrap.json"]
-	find := `{"seq":[{"ref":"directive-name"},{"repeat":`
-	if strings.Count(bootstrap, find) != 1 {
-		t.Fatalf("the bootstrap has %d of %s", strings.Count(bootstrap, find), find)
+	dom := func(format int, expr string) string {
+		return `{"format":` + strconv.Itoa(format) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
 	}
-	custom, err := newNotationReader(strings.Replace(bootstrap, find, `{"seq":[{"ref":"directive-name"},{"ref":"string"},{"repeat":`, 1), bundled.uni)
-	if err != nil {
-		t.Fatal(err)
+	entry := func(format int, d string) string {
+		return `{"format":` + strconv.Itoa(format) + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"0","dom":` + d + `}}}`
 	}
-	dom, rerr := custom.read("```jbogenbau\n%elidable \"ignored\" maximal T\n```\n", "t.md")
-	if rerr != nil {
-		t.Fatal(rerr)
+	if got := readCompiled(entry(domFormat, dom(domFormat, `{"repeat":{"ref":"A"}}`)), bundled.reader.hash); len(got) != 1 {
+		t.Fatalf("a compiled.json of format %d is not used", domFormat)
 	}
-	if len(dom.Directives) != 1 || !dom.Directives[0].Maximal || !reflect.DeepEqual(dom.Directives[0].Args, []string{"T"}) {
-		t.Fatalf("got %+v", dom.Directives)
+	if got := readCompiled(entry(17, dom(17, `{"repeat":{"ref":"A"},"min":1}`)), bundled.reader.hash); len(got) != 0 {
+		t.Fatal("a compiled.json of format 17 is used")
+	}
+	for _, d := range []string{dom(17, `{"repeat":{"ref":"A"}}`), dom(domFormat, `{"repeat":{"ref":"A"},"min":1}`)} {
+		if _, err := decodeDOM(json.RawMessage(d), bundled.uni); err == nil {
+			t.Errorf("a DOM of format 17 decodes: %s", d)
+		}
 	}
 }

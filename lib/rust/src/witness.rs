@@ -375,9 +375,7 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                             Sym::T(_) if forest.synthetic[from as usize] => forest.empty,
                             _ => tags,
                         };
-                        let mut caps = forest.chart.caps(item.caps).to_vec();
-                        caps.push(Cap { start: from, end: to, tags });
-                        let Some(caps) = forest.chart.lookup_caps(&caps) else {
+                        let Some(caps) = forest.chart.lookup_caps(item.caps, Cap { start: from, end: to, tags }) else {
                             continue;
                         };
                         let advanced = Item { prod, dot: item.dot + 1, origin: start, caps };

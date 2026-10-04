@@ -20,8 +20,8 @@ from .witness import checks, walk_witness
 
 CASE: dict[str, Any] = {
     "documents": {
-        "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n%elidable T U\n"
-        '%rule text a | b\n%rule a w! A [T="ta"] [U] %emits $ <~x>\n%rule b A [T="ta"] [U] [U]\n'
+        "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n"
+        '%rule text a | b\n%rule a w! A [+T="ta"] [+U] %emits $ <~x>\n%rule b A [+T="ta"] [+U] [+U]\n'
         "%stage later\n%ambiguity-resolution greedy\n%rule text ~x\n```\n",
     },
     "pipeline": "p.md",

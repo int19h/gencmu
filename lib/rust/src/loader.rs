@@ -177,29 +177,22 @@ pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error
     let (Some(tree), Some(stage)) = (&result.tree, result.stages.last()) else {
         return Err(Error::grammar("the notation produced no tree"));
     };
-    // The walk from the tree to the DOM recurses as deeply as the document
-    // nests, so it runs on a thread with room for the deepest it allows.
-    let grammar = &grammar;
-    std::thread::scope(|scope| {
-        std::thread::Builder::new()
-            .stack_size(256 << 20)
-            .spawn_scoped(scope, move || {
-                let position = |index: usize| grammar.position(index);
-                let reader = Reader {
-                    tokens: &stage.input,
-                    captures: Default::default(),
-                    position: &position,
-                    unicode: &notation.unicode,
-                    closed_for: Default::default(),
-                };
-                let dom = reader.document(tree)?;
-                check_read(&dom, &notation.unicode)?;
-                Ok(dom)
-            })
-            .map_err(|error| Error::grammar(format!("cannot start a thread to read the document: {error}")))?
-            .join()
-            .unwrap_or_else(|panic| std::panic::resume_unwind(panic))
-    })
+    // The reader, its checks and the drop of what it reads walk the tree
+    // and the DOM with explicit stacks, so a document of any depth reads
+    // on the caller's thread (engine §9).
+    let position = |index: usize| grammar.position(index);
+    let reader = Reader {
+        tokens: &stage.input,
+        captures: Default::default(),
+        braces: Default::default(),
+        marked: Default::default(),
+        position: &position,
+        unicode: &notation.unicode,
+        closed_for: Default::default(),
+    };
+    let dom = reader.document(tree)?;
+    check_read(&dom, &notation.unicode)?;
+    Ok(dom)
 }
 
 /// Holds a DOM just read to the rules a precompiled one is held to, the
@@ -207,6 +200,35 @@ pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error
 /// that breaks one.
 fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
     const TOO_DEEP: &str = "an expression, term or condition is nested more than 256 deep";
+    // The bound on nesting first, on the DOM itself and with an explicit
+    // stack, at the first item in the order of the document that breaks
+    // it: a DOM just read is as deep as its document nests, and the checks
+    // below walk it by recursion.
+    let mut deep: Vec<(usize, usize)> = dom
+        .rules
+        .iter()
+        .filter(|rule| crate::dom::rule_too_deep(rule))
+        .map(|rule| rule.at)
+        .chain(
+            dom.constants
+                .iter()
+                .filter(|constant| crate::dom::term_too_deep(&constant.value))
+                .map(|constant| constant.at),
+        )
+        .chain(
+            dom.implications
+                .iter()
+                .filter(|implication| {
+                    crate::dom::term_too_deep(&implication.antecedent)
+                        || crate::dom::term_too_deep(&implication.consequent)
+                })
+                .map(|implication| implication.at),
+        )
+        .collect();
+    deep.sort();
+    if let Some(&(line, column)) = deep.first() {
+        return Err(Error::grammar(TOO_DEEP).at(line, column));
+    }
     // The problem of a DOM, through its JSON. JSON nested deeper than the
     // parser follows holds a node below far more than 256 compound nodes.
     let problem_of = |dom: &Dom| -> Option<String> {
@@ -388,11 +410,22 @@ pub fn load_dialect(name: &str) -> Result<Dialect, Error> {
 
 /// Loads a dialect from a pipeline document on disk. Each document it
 /// includes is found relative to the document that includes it; the
-/// character table and the notation's
-/// bootstrap come from the bundled grammars.
+/// character table and the notation's bootstrap come from the bundled
+/// grammars. Each document is known by its absolute path, so an error
+/// names the file wherever the process runs.
 pub fn load_dialect_file(path: impl AsRef<Path>) -> Result<Dialect, Error> {
     let context = Context::bundled()?;
-    load(&context, &DiskSources, &path.as_ref().to_string_lossy())
+    let path = path.as_ref();
+    let absolute = if path.is_absolute() {
+        normalize(path)
+    } else {
+        let directory = std::env::current_dir().map_err(|error| {
+            Error::new(ErrorKind::Io, format!("cannot find the working directory: {error}"))
+                .in_document(&path.to_string_lossy())
+        })?;
+        normalize(&directory.join(path))
+    };
+    load(&context, &DiskSources, &absolute.to_string_lossy())
 }
 
 /// Loads a dialect from documents held in memory: a map from
@@ -499,7 +532,9 @@ pub fn bootstrap_hash() -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::normalize;
+    use super::{normalize, read_grammar_document};
+    use crate::json::Json;
+    use crate::work::{assert_mutant_stops, budget, counted, reset, Mutant, Work};
     use std::path::Path;
 
     #[test]
@@ -512,5 +547,143 @@ mod tests {
         assert_eq!(normal("a/../../b"), "../b");
         assert_eq!(normal("./a/./b/.."), "a");
         assert_eq!(normal("/../a"), "/a");
+    }
+    /// The work of reading a document: the recognizer's items and its
+    /// lookups of items, and the steps of the reader, its walks and the
+    /// ranker. Each has its own budget, so that the count past any panics
+    /// at once.
+    fn reading(text: &str, most: Option<[u64; 3]>) -> [u64; 3] {
+        let kinds = [Work::Items, Work::Found, Work::Walked];
+        reset();
+        if let Some(most) = most {
+            for (work, most) in kinds.into_iter().zip(most) {
+                budget(work, most);
+            }
+        }
+        // An error is an outcome too. Its place is the notation cases'
+        // concern.
+        let _ = read_grammar_document(text);
+        let counts = kinds.map(counted);
+        // What reads next does so with no budget.
+        reset();
+        counts
+    }
+
+    /// Five times each count, the budget of a run four times as long.
+    fn five_times(counts: [u64; 3]) -> [u64; 3] {
+        counts.map(|count| 5 * count)
+    }
+
+    /// The shared cases of tests/notation-growth.json: reading a document
+    /// whose constructs nest deep costs work that grows with its length,
+    /// not with its square. The reading runs on a thread with a fixed
+    /// stack of 2 MiB, whatever the depth: no part of it recurses deeper
+    /// than the bound of 256 that the DOM is checked against.
+    #[test]
+    fn reading_deep_nesting_grows_linearly() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/notation-growth.json");
+        let text = std::fs::read_to_string(path).expect("the cases");
+        let cases = crate::json::parse_cases(&text).expect("the cases are JSON");
+        let cases = cases.as_array().expect("an array");
+        assert!(cases.len() > 5);
+        for case in cases {
+            let field = |name: &str| case.get(name).and_then(Json::as_str).expect("a field of the case").to_string();
+            let name = field("name");
+            let (prefix, open, middle, close, suffix) =
+                (field("prefix"), field("open"), field("middle"), field("close"), field("suffix"));
+            let work = |n: usize, most: Option<[u64; 3]>| {
+                let text =
+                    format!("```jbogenbau\n{prefix}{}{middle}{}{suffix}\n```\n", open.repeat(n), close.repeat(n));
+                // The counters belong to the thread that reads.
+                std::thread::Builder::new()
+                    .stack_size(2 << 20)
+                    .spawn(move || reading(&text, most))
+                    .expect("a thread")
+                    .join()
+                    .expect("no overflow, and no count past the budget")
+            };
+            // Once first, so that loading the notation counts in neither.
+            work(250, None);
+            let small = work(250, None);
+            let large = work(1000, Some(five_times(small)));
+            assert!(
+                large.iter().zip(five_times(small)).all(|(&large, most)| large <= most),
+                "{name}: {small:?} for 250 levels, {large:?} for 1000"
+            );
+        }
+    }
+
+    /// A call of many arguments reads in work that grows with its
+    /// arguments, not with their square: the reader finds the call's parts
+    /// once, not at each argument, before the arity error.
+    #[test]
+    fn a_call_of_many_arguments_reads_in_linear_work() {
+        let text = |n: usize| {
+            let arguments = vec!["$"; n].join(", ");
+            format!("```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'\n%tags tags({arguments})\n```\n")
+        };
+        assert!(read_grammar_document(&text(500)).is_err(), "tags() of 500 arguments");
+        let small = reading(&text(500), None);
+        let large = reading(&text(2000), Some(five_times(small)));
+        assert!(
+            large.iter().zip(five_times(small)).all(|(&large, most)| large <= most),
+            "{small:?} for 500 arguments, {large:?} for 2000"
+        );
+    }
+
+    /// Constructs of many items side by side read in work that grows with
+    /// their items, not with their square: a sequence, alternatives, a
+    /// choice, a union, an intersection, a list of conditions and a
+    /// disjunction.
+    /// The shared cases nest their constructs, so each holds few items.
+    #[test]
+    fn wide_constructs_read_in_linear_work() {
+        let wide = |n: usize, item: &str, joiner: &str| vec![item; n].join(joiner);
+        let cases: [(&str, &dyn Fn(usize) -> String); 7] = [
+            ("sequence", &|n| format!("%rule text {}", wide(n, "A", " "))),
+            ("alternatives", &|n| format!("%rule text {}", wide(n, "A", " | "))),
+            ("choice", &|n| format!("%rule text ({})", wide(n, "A", " | "))),
+            ("union", &|n| format!("%rule text A <{}>", wide(n, "~a", " ∪ "))),
+            ("intersection", &|n| format!("%rule text A <{}>", wide(n, "~a", " ∩ "))),
+            ("conditions", &|n| format!("%rule text $x(A) %conditions {}", wide(n, "text($x) = \"a\"", ", "))),
+            ("disjunction", &|n| format!("%rule text $x(A) %conditions {}", wide(n, "text($x) = \"a\"", " ∨ "))),
+        ];
+        for (name, text) in cases {
+            let text = move |n: usize| format!("```jbogenbau\n%ambiguity-resolution greedy\n{}\n```\n", text(n));
+            // Once first, so that loading the notation counts in neither.
+            assert!(read_grammar_document(&text(250)).is_ok(), "{name}");
+            let small = reading(&text(250), None);
+            let large = reading(&text(1000), Some(five_times(small)));
+            assert!(
+                large.iter().zip(five_times(small)).all(|(&large, most)| large <= most),
+                "{name}: {small:?} for 250 items, {large:?} for 1000"
+            );
+        }
+    }
+
+    /// The search for the origins of a derivation, in a version that
+    /// builds the positions of the chart's items at each call or that walks
+    /// the longer list of origins, stops at the first count past the budget
+    /// of `reading_deep_nesting_grows_linearly`. Negations nest each
+    /// constituent at one end, where the longer list holds every origin.
+    #[test]
+    fn quadratic_searches_for_origins_stop_at_the_budget() {
+        for mutant in [Mutant::PositionsPerCall, Mutant::WalkEnding] {
+            std::thread::Builder::new()
+                .stack_size(2 << 20)
+                .spawn(move || {
+                    let text =
+                        |n: usize| format!("```jbogenbau\n%rule text $x(A) %conditions {}$x\n```\n", "¬".repeat(n));
+                    // Once first, so that loading the notation counts in
+                    // neither.
+                    let _ = read_grammar_document(&text(1));
+                    assert_mutant_stops(Work::Walked, mutant, 250, &mut |n| {
+                        let _ = read_grammar_document(&text(n));
+                    });
+                })
+                .expect("a thread")
+                .join()
+                .expect("a stop at the budget");
+        }
     }
 }

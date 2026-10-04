@@ -2,8 +2,8 @@
   "description": "Several attachment captures on one side stand in the order written (engine §11).",
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
-    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $w(word) | $b(bb) $c(cc) $w(word) $a(ii)\n%emits\n  ($b) ($c) $w ($a)\n%rule word\n  'w' <W>\n%rule bb\n  'b' <B>\n%emits\n  $\n%rule cc\n  'c' <C>\n%emits\n  $\n%rule ii\n  'i' <I>\n%emits\n  $\n```\n",
-    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text W ...\n```\n"
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item\n  | $w(word) | $b(bb) $c(cc) $w(word) $a(ii)\n%emits\n  ($b) ($c) $w ($a)\n%rule word\n  'w' <W>\n%rule bb\n  'b' <B>\n%emits\n  $\n%rule cc\n  'c' <C>\n%emits\n  $\n%rule ii\n  'i' <I>\n%emits\n  $\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {W}\n```\n"
   },
   "pipeline": "p.md",
   "input": "bcwi",

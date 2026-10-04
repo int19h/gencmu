@@ -1,7 +1,6 @@
 package gencmu
 
 import (
-	"encoding/json"
 	"strings"
 	"sync"
 	"testing"
@@ -313,8 +312,8 @@ func walkWitness(run *elisionCheckRun) (map[*item]map[link]bool, *dn) {
 // warning on its chosen tree.
 func lostCase(t *testing.T) (*Dialect, *engineCase) {
 	c := &engineCase{
-		Documents: map[string]string{"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n%elidable T U\n" +
-			"%rule text a | b\n%rule a w! A [T=\"ta\"] [U] %emits $ <~x>\n%rule b A [T=\"ta\"] [U] [U]\n" +
+		Documents: map[string]string{"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n" +
+			"%rule text a | b\n%rule a w! A [+T=\"ta\"] [+U] %emits $ <~x>\n%rule b A [+T=\"ta\"] [+U] [+U]\n" +
 			"%stage later\n%ambiguity-resolution greedy\n%rule text ~x\n```\n"},
 		Pipeline: "p.md",
 		Tokens:   []caseToken{{Text: "a", Tags: []string{"A"}}},
@@ -354,8 +353,7 @@ func TestWitnessLost(t *testing.T) {
 			t.Fatalf("%s: %d checks, %d lost", lose, log.checks, log.lost())
 		}
 		data, _ := MarshalResult(res)
-		var got map[string]any
-		json.Unmarshal(data, &got)
+		got := decodedResult(t, data)
 		// The runner fails it, whatever a case expects (tests/README.md),
 		// though it has the form that docs/output.md gives it.
 		problems := resultProblems(got)

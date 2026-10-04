@@ -1,0 +1,10 @@
+{
+  "description": "A backslash needs a separator after it, so {x \\} is a syntax error at } (engine §9).",
+  "document": "```jbogenbau\n%rule a {x \\}\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 13
+    }
+  }
+}

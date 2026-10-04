@@ -1,0 +1,10 @@
+{
+  "description": "A marked optional holds its terminator, so [+] is a syntax error at ] (engine §9).",
+  "document": "```jbogenbau\n%rule a [+]\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

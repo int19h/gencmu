@@ -7,6 +7,22 @@
 (function (root) {
   "use strict";
 
+  // While a test sets `hooks.work`, the scans below count their steps in
+  // it, as the library's hook does (lib/js/src/testing.js), and stop at the
+  // first count past `hooks.work.budget`. Unset, they count nothing.
+  const hooks = { work: null };
+  const count = (kind, steps = 1) => {
+    const work = hooks.work;
+    if (!work) return;
+    work[kind] = (work[kind] || 0) + steps;
+    const most = work.budget && work.budget[kind];
+    if (most !== undefined && work[kind] > most) {
+      const error = new Error(`${work[kind]} ${kind}, past the budget of ${most}`);
+      error.name = "WorkBudget";
+      throw error;
+    }
+  };
+
   // A path relative to a document, resolved and normalized, as the library
   // resolves an %include.
   function resolvePath(from, relative) {
@@ -136,23 +152,102 @@
     const before = [];
     const stages = [];
     const reached = new Set([path]);
-    // Only the documents being included stop the recursion, so that a
-    // document included twice is listed twice, with what it includes.
-    const expand = (documentPath, including) => {
-      for (const directive of scan(documentPath)) {
-        if (directive.stage !== undefined) {
-          stages.push({ name: directive.stage, documents: [] });
-          continue;
-        }
-        const target = resolvePath(documentPath, directive.include);
-        (stages.length ? stages[stages.length - 1].documents : before).push(target);
-        reached.add(target);
-        if (!including.includes(target)) expand(target, [...including, target]);
+    // Only the documents being included stop the scan, so that a document
+    // included twice is listed twice, with what it includes. They are a
+    // stack of frames, each with its directives and the next one to read,
+    // since a chain of includes can be longer than the call stack is deep.
+    // A set of their paths finds a cycle with one lookup.
+    const frames = [{ path, directives: scan(path), next: 0 }];
+    const including = new Set([path]);
+    while (frames.length > 0) {
+      const frame = frames[frames.length - 1];
+      if (frame.next === frame.directives.length) {
+        frames.pop();
+        including.delete(frame.path);
+        continue;
       }
-    };
-    expand(path, [path]);
+      const directive = frame.directives[frame.next++];
+      count("splice");
+      if (directive.stage !== undefined) {
+        stages.push({ name: directive.stage, documents: [] });
+        continue;
+      }
+      const target = resolvePath(frame.path, directive.include);
+      (stages.length ? stages[stages.length - 1].documents : before).push(target);
+      reached.add(target);
+      if (including.has(target)) continue;
+      including.add(target);
+      frames.push({ path: target, directives: scan(target), next: 0 });
+    }
     return { before, stages, documents: [...reached] };
   }
 
-  root.gencmuPipeline = { pipelineStages, resolvePath };
+  // The mentions of grammar documents in a text, as the expression
+  // /((?:[a-z0-9-]+\/)+[a-z0-9-]+\.md)(?::(\d+)(?::(\d+))?)?/g finds them,
+  // each with its index, its whole text, its path, and its line and column
+  // when given. The expression would try every start inside a long run of
+  // names and slashes, and walk the run from each, so a scan finds each
+  // run's one possible start instead.
+  function documentMentions(text) {
+    const found = [];
+    const isNameCharacter = (c) => (c >= "a" && c <= "z") || (c >= "0" && c <= "9") || c === "-";
+    // Each scan below counts each character before it reads it.
+    const digitsAt = (i) => {
+      let end = i;
+      for (;;) {
+        count("text");
+        if (!(end < text.length && text[end] >= "0" && text[end] <= "9")) return end;
+        end++;
+      }
+    };
+    for (let i = 0; i < text.length;) {
+      count("text");
+      if (!isNameCharacter(text[i]) && text[i] !== "/") {
+        i++;
+        continue;
+      }
+      // A run of name characters and slashes, [i, end). A path within it
+      // ends at its end, before ".md", and is a name, then names each after
+      // one slash, with at least one slash. So it starts at the first name
+      // character after any double slash and before the last slash.
+      let end = i;
+      let lastSlash = -1;
+      let afterDouble = i;
+      while (end < text.length && (isNameCharacter(text[end]) || text[end] === "/")) {
+        count("text");
+        if (text[end] === "/") {
+          if (end > i && text[end - 1] === "/") afterDouble = end + 1;
+          lastSlash = end;
+        }
+        end++;
+      }
+      let start = afterDouble;
+      while (start < end && text[start] === "/") {
+        count("text");
+        start++;
+      }
+      if (!text.startsWith(".md", end) || text[end - 1] === "/" || lastSlash < start) {
+        i = end;
+        continue;
+      }
+      let stop = end + 3;
+      let line;
+      let column;
+      if (text[stop] === ":" && digitsAt(stop + 1) > stop + 1) {
+        const lineEnd = digitsAt(stop + 1);
+        line = text.slice(stop + 1, lineEnd);
+        stop = lineEnd;
+        if (text[stop] === ":" && digitsAt(stop + 1) > stop + 1) {
+          const columnEnd = digitsAt(stop + 1);
+          column = text.slice(stop + 1, columnEnd);
+          stop = columnEnd;
+        }
+      }
+      found.push({ index: start, text: text.slice(start, stop), path: text.slice(start, end + 3), line, column });
+      i = stop;
+    }
+    return found;
+  }
+
+  root.gencmuPipeline = { pipelineStages, resolvePath, documentMentions, hooks };
 })(typeof self !== "undefined" ? self : this);

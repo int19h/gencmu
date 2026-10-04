@@ -8,8 +8,9 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
-/// A JSON value. Objects keep their members in order.
-#[derive(Debug, Clone, PartialEq)]
+/// A JSON value. Objects keep their members in order. A canonical result
+/// nests as deep as its text does, so reading, comparing, copying, writing
+/// and dropping a value all walk it with explicit stacks, on any thread.
 pub enum Value {
     Null,
     Bool(bool),
@@ -54,17 +55,262 @@ impl Value {
             _ => None,
         }
     }
+
+    /// The value as compact JSON text.
+    pub fn to_text(&self) -> String {
+        enum Piece<'a> {
+            Value(&'a Value),
+            Key(&'a str),
+            Raw(&'static str),
+        }
+        let mut out = String::new();
+        let mut pieces = vec![Piece::Value(self)];
+        while let Some(piece) = pieces.pop() {
+            match piece {
+                Piece::Raw(text) => out.push_str(text),
+                Piece::Key(key) => {
+                    write_string(&mut out, key);
+                    out.push(':');
+                }
+                Piece::Value(Value::Null) => out.push_str("null"),
+                Piece::Value(Value::Bool(flag)) => out.push_str(if *flag { "true" } else { "false" }),
+                Piece::Value(Value::Number(number)) => {
+                    let _ = write!(out, "{number}");
+                }
+                Piece::Value(Value::String(text)) => write_string(&mut out, text),
+                // The parts are pushed last first, so that they pop in
+                // order.
+                Piece::Value(Value::Array(items)) => {
+                    out.push('[');
+                    pieces.push(Piece::Raw("]"));
+                    for (index, item) in items.iter().enumerate().rev() {
+                        pieces.push(Piece::Value(item));
+                        if index > 0 {
+                            pieces.push(Piece::Raw(","));
+                        }
+                    }
+                }
+                Piece::Value(Value::Object(members)) => {
+                    out.push('{');
+                    pieces.push(Piece::Raw("}"));
+                    for (index, (name, value)) in members.iter().enumerate().rev() {
+                        pieces.push(Piece::Value(value));
+                        pieces.push(Piece::Key(name));
+                        if index > 0 {
+                            pieces.push(Piece::Raw(","));
+                        }
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    /// Moves the elements of an array or the values of an object onto
+    /// `stack`, for the drop.
+    fn take_parts(&mut self, stack: &mut Vec<Value>) {
+        match self {
+            Value::Array(items) => stack.append(items),
+            Value::Object(members) => stack.extend(members.drain(..).map(|(_, value)| value)),
+            _ => {}
+        }
+    }
 }
 
-pub fn parse_json(text: &str) -> Result<Value, String> {
-    let chars: Vec<char> = text.chars().collect();
-    let mut at = 0;
-    let value = parse_value(&chars, &mut at)?;
-    skip(&chars, &mut at);
-    if at != chars.len() {
-        return Err(format!("trailing text at {at}"));
+fn write_string(out: &mut String, text: &str) {
+    out.push('"');
+    for c in text.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            c if (c as u32) < 0x20 => {
+                let _ = write!(out, "\\u{:04x}", c as u32);
+            }
+            c => out.push(c),
+        }
     }
-    Ok(value)
+    out.push('"');
+}
+
+impl Drop for Value {
+    fn drop(&mut self) {
+        // Each value popped here has no parts left when it drops, so the
+        // drop goes no deeper than one call.
+        let mut stack = Vec::new();
+        self.take_parts(&mut stack);
+        while let Some(mut value) = stack.pop() {
+            value.take_parts(&mut stack);
+        }
+    }
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Value) -> bool {
+        let mut pairs = vec![(self, other)];
+        while let Some(pair) = pairs.pop() {
+            match pair {
+                (Value::Array(a), Value::Array(b)) if a.len() == b.len() => pairs.extend(a.iter().zip(b)),
+                (Value::Object(a), Value::Object(b)) if a.len() == b.len() => {
+                    for ((name_a, value_a), (name_b, value_b)) in a.iter().zip(b) {
+                        if name_a != name_b {
+                            return false;
+                        }
+                        pairs.push((value_a, value_b));
+                    }
+                }
+                (Value::Null, Value::Null) => {}
+                (Value::Bool(a), Value::Bool(b)) if a == b => {}
+                (Value::Number(a), Value::Number(b)) if a == b => {}
+                (Value::String(a), Value::String(b)) if a == b => {}
+                _ => return false,
+            }
+        }
+        true
+    }
+}
+
+impl Clone for Value {
+    fn clone(&self) -> Value {
+        // An array or object being copied: the original, and the copies of
+        // its first parts.
+        struct Open<'a> {
+            source: &'a Value,
+            parts: Vec<Value>,
+        }
+        let mut open: Vec<Open> = Vec::new();
+        let mut next: &Value = self;
+        loop {
+            let mut copy = match next {
+                Value::Array(items) if !items.is_empty() => {
+                    open.push(Open { source: next, parts: Vec::with_capacity(items.len()) });
+                    next = &items[0];
+                    continue;
+                }
+                Value::Object(members) if !members.is_empty() => {
+                    open.push(Open { source: next, parts: Vec::with_capacity(members.len()) });
+                    next = &members[0].1;
+                    continue;
+                }
+                Value::Array(_) => Value::Array(Vec::new()),
+                Value::Object(_) => Value::Object(Vec::new()),
+                Value::Null => Value::Null,
+                Value::Bool(flag) => Value::Bool(*flag),
+                Value::Number(number) => Value::Number(*number),
+                Value::String(text) => Value::String(text.clone()),
+            };
+            // The copy goes into the innermost open value, and closes each
+            // that it completes.
+            loop {
+                let Some(top) = open.last_mut() else { return copy };
+                top.parts.push(copy);
+                let (source, done) = (top.source, top.parts.len());
+                let following = match source {
+                    Value::Array(items) => items.get(done),
+                    Value::Object(members) => members.get(done).map(|(_, value)| value),
+                    _ => None,
+                };
+                if let Some(following) = following {
+                    next = following;
+                    break;
+                }
+                let Open { parts, .. } = open.pop().expect("an open value");
+                copy = match source {
+                    Value::Object(members) => {
+                        Value::Object(members.iter().map(|(name, _)| name.clone()).zip(parts).collect())
+                    }
+                    _ => Value::Array(parts),
+                };
+            }
+        }
+    }
+}
+
+impl std::fmt::Debug for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.to_text())
+    }
+}
+
+/// Reads JSON text, with an explicit stack of the arrays and objects that
+/// are open, so that its depth costs heap and not the call stack.
+pub fn parse_json(text: &str) -> Result<Value, String> {
+    // An open array with its items so far, or an open object with its
+    // members so far and the key of the value being read.
+    enum Open {
+        Array(Vec<Value>),
+        Object(Vec<(String, Value)>, String),
+    }
+    let chars: Vec<char> = text.chars().collect();
+    let at = &mut 0;
+    let mut open: Vec<Open> = Vec::new();
+    loop {
+        skip(&chars, at);
+        let mut value = match chars.get(*at) {
+            Some('[') => {
+                *at += 1;
+                skip(&chars, at);
+                if chars.get(*at) == Some(&']') {
+                    *at += 1;
+                    Value::Array(Vec::new())
+                } else {
+                    open.push(Open::Array(Vec::new()));
+                    continue;
+                }
+            }
+            Some('{') => {
+                *at += 1;
+                skip(&chars, at);
+                if chars.get(*at) == Some(&'}') {
+                    *at += 1;
+                    Value::Object(Vec::new())
+                } else {
+                    open.push(Open::Object(Vec::new(), parse_key(&chars, at)?));
+                    continue;
+                }
+            }
+            _ => parse_scalar(&chars, at)?,
+        };
+        // The value goes into the innermost open array or object, and
+        // closes each that ends after it.
+        loop {
+            skip(&chars, at);
+            let closes = match open.last_mut() {
+                None => {
+                    if *at != chars.len() {
+                        return Err(format!("trailing text at {at}"));
+                    }
+                    return Ok(value);
+                }
+                Some(Open::Array(items)) => {
+                    items.push(value);
+                    match chars.get(*at) {
+                        Some(',') => false,
+                        Some(']') => true,
+                        _ => return Err(format!("expected ',' or ']' at {at}")),
+                    }
+                }
+                Some(Open::Object(members, key)) => {
+                    members.push((std::mem::take(key), value));
+                    match chars.get(*at) {
+                        Some(',') => false,
+                        Some('}') => true,
+                        _ => return Err(format!("expected ',' or '}}' at {at}")),
+                    }
+                }
+            };
+            *at += 1;
+            if !closes {
+                if let Some(Open::Object(_, key)) = open.last_mut() {
+                    *key = parse_key(&chars, at)?;
+                }
+                break;
+            }
+            value = match open.pop().expect("an open value") {
+                Open::Array(items) => Value::Array(items),
+                Open::Object(members, _) => Value::Object(members),
+            };
+        }
+    }
 }
 
 fn skip(chars: &[char], at: &mut usize) {
@@ -73,59 +319,25 @@ fn skip(chars: &[char], at: &mut usize) {
     }
 }
 
-fn parse_value(chars: &[char], at: &mut usize) -> Result<Value, String> {
+/// Reads an object's key and the colon after it.
+fn parse_key(chars: &[char], at: &mut usize) -> Result<String, String> {
     skip(chars, at);
+    if chars.get(*at) != Some(&'"') {
+        return Err("a non-string key".into());
+    }
+    let Value::String(key) = &mut parse_scalar(chars, at)? else { unreachable!("a string") };
+    let key = std::mem::take(key);
+    skip(chars, at);
+    if chars.get(*at) != Some(&':') {
+        return Err(format!("expected ':' at {at}"));
+    }
+    *at += 1;
+    Ok(key)
+}
+
+/// Reads a string, a number, `true`, `false` or `null`.
+fn parse_scalar(chars: &[char], at: &mut usize) -> Result<Value, String> {
     match chars.get(*at) {
-        Some('{') => {
-            *at += 1;
-            let mut members = Vec::new();
-            skip(chars, at);
-            if chars.get(*at) == Some(&'}') {
-                *at += 1;
-                return Ok(Value::Object(members));
-            }
-            loop {
-                skip(chars, at);
-                let Value::String(key) = parse_value(chars, at)? else { return Err("a non-string key".into()) };
-                skip(chars, at);
-                if chars.get(*at) != Some(&':') {
-                    return Err(format!("expected ':' at {at}"));
-                }
-                *at += 1;
-                let value = parse_value(chars, at)?;
-                members.push((key, value));
-                skip(chars, at);
-                match chars.get(*at) {
-                    Some(',') => *at += 1,
-                    Some('}') => {
-                        *at += 1;
-                        return Ok(Value::Object(members));
-                    }
-                    _ => return Err(format!("expected ',' or '}}' at {at}")),
-                }
-            }
-        }
-        Some('[') => {
-            *at += 1;
-            let mut items = Vec::new();
-            skip(chars, at);
-            if chars.get(*at) == Some(&']') {
-                *at += 1;
-                return Ok(Value::Array(items));
-            }
-            loop {
-                items.push(parse_value(chars, at)?);
-                skip(chars, at);
-                match chars.get(*at) {
-                    Some(',') => *at += 1,
-                    Some(']') => {
-                        *at += 1;
-                        return Ok(Value::Array(items));
-                    }
-                    _ => return Err(format!("expected ',' or ']' at {at}")),
-                }
-            }
-        }
         Some('"') => {
             *at += 1;
             let mut out = String::new();
@@ -199,31 +411,50 @@ fn parse_value(chars: &[char], at: &mut usize) -> Result<Value, String> {
 /// Matches a value against a pattern (tests/README.md): an object matches
 /// when every member of the pattern matches the member of the same name, an
 /// array when it has the same length and each element matches, and
-/// anything else when it is equal. The error names the path.
+/// anything else when it is equal. The error names the path, and is the
+/// first difference in the order of the pattern.
 pub fn matches(pattern: &Value, actual: &Value, path: &str) -> Result<(), String> {
-    match (pattern, actual) {
-        (Value::Object(members), Value::Object(_)) => {
-            for (name, expected) in members {
-                let here = format!("{path}.{name}");
-                match actual.get(name) {
-                    Some(found) => matches(expected, found, &here)?,
-                    None => return Err(format!("{here} is missing")),
+    // A check still to make: a pattern against a value, or a member that
+    // is missing. They are pushed last first, so that they pop in order.
+    enum Check<'a> {
+        Match(&'a Value, &'a Value, String),
+        Missing(String),
+    }
+    let mut checks = vec![Check::Match(pattern, actual, path.to_string())];
+    while let Some(check) = checks.pop() {
+        let (pattern, actual, path) = match check {
+            Check::Missing(path) => return Err(format!("{path} is missing")),
+            Check::Match(pattern, actual, path) => (pattern, actual, path),
+        };
+        match (pattern, actual) {
+            (Value::Object(members), Value::Object(_)) => {
+                for (name, expected) in members.iter().rev() {
+                    // An error's message is the description for people, and
+                    // the shared tests do not compare its wording
+                    // (docs/output.md).
+                    if name == "message" && path.ends_with(".error") {
+                        continue;
+                    }
+                    let here = format!("{path}.{name}");
+                    checks.push(match actual.get(name) {
+                        Some(found) => Check::Match(expected, found, here),
+                        None => Check::Missing(here),
+                    });
                 }
             }
-            Ok(())
-        }
-        (Value::Array(expected), Value::Array(found)) => {
-            if expected.len() != found.len() {
-                return Err(format!("{path} has {} items, not {}", found.len(), expected.len()));
+            (Value::Array(expected), Value::Array(found)) => {
+                if expected.len() != found.len() {
+                    return Err(format!("{path} has {} items, not {}", found.len(), expected.len()));
+                }
+                for (index, (expected, found)) in expected.iter().zip(found).enumerate().rev() {
+                    checks.push(Check::Match(expected, found, format!("{path}[{index}]")));
+                }
             }
-            for (index, (expected, found)) in expected.iter().zip(found).enumerate() {
-                matches(expected, found, &format!("{path}[{index}]"))?;
-            }
-            Ok(())
+            (expected, found) if expected == found => {}
+            (expected, found) => return Err(format!("{path} is {found:?}, not {expected:?}")),
         }
-        (expected, found) if expected == found => Ok(()),
-        (expected, found) => Err(format!("{path} is {found:?}, not {expected:?}")),
     }
+    Ok(())
 }
 
 /// Compares a value with an expected one whole (tests/README.md): each
@@ -371,12 +602,9 @@ pub fn case_timeout() -> std::time::Duration {
 /// goes on, and the process ends with the test.
 pub fn within<T: Send + 'static>(limit: std::time::Duration, work: impl FnOnce() -> T + Send + 'static) -> Option<T> {
     let (send, receive) = std::sync::mpsc::channel();
-    std::thread::Builder::new()
-        .stack_size(64 << 20)
-        .spawn(move || {
-            let _ = send.send(work());
-        })
-        .expect("a thread");
+    std::thread::spawn(move || {
+        let _ = send.send(work());
+    });
     receive.recv_timeout(limit).ok()
 }
 
@@ -426,21 +654,6 @@ pub fn check_load_error(expect: &Value, error: &gencmu::Error) -> Result<(), Str
         return Err(format!("expect.where is only for a grammar error: {error}"));
     }
     error_where(expect, error)
-}
-
-/// Runs `work` on a thread with a deep stack. The canonical result nests
-/// as deep as a text's attachments do, and this small JSON reader and its
-/// values recurse, as the library does not. So the library runs on the
-/// test's own thread, and only the reading of its JSON runs here.
-fn with_deep_stack<T: Send>(work: impl FnOnce() -> T + Send) -> T {
-    std::thread::scope(|scope| {
-        std::thread::Builder::new()
-            .stack_size(256 << 20)
-            .spawn_scoped(scope, work)
-            .expect("a thread")
-            .join()
-            .expect("the work")
-    })
 }
 
 /// What a canonical result breaks of the invariants that every runner
@@ -601,10 +814,8 @@ fn check_parse(dialect: &gencmu::Dialect, case: &Value, run: &Value, expect: &Va
     if CHECKS.with(std::cell::Cell::get) == Checks::Hook {
         return Ok(());
     }
-    problems.push_str(&with_deep_stack(|| {
-        let actual = parse_json(&json).map_err(|error| format!("the result is not JSON ({error}): {json}"))?;
-        check_json(expect, &actual).map_err(|problem| format!("{problem}result: {json}"))
-    })?);
+    let actual = parse_json(&json).map_err(|error| format!("the result is not JSON ({error}): {json}"))?;
+    problems.push_str(&check_json(expect, &actual).map_err(|problem| format!("{problem}result: {json}"))?);
     if let Some(expected) = expect.get("brackets").and_then(Value::str) {
         let found = gencmu::to_brackets(&result, false);
         if found != expected {
@@ -681,34 +892,57 @@ pub fn apply_mutant(value: &Value, mutant: &Value) -> Value {
             _ => &target.array()[index(target.array(), step)],
         })
     }
-    // The value with `change` applied at the end of `path`.
-    fn change(value: &Value, path: &[Value], apply: &dyn Fn(Option<&Value>) -> Option<Value>) -> Value {
-        let (step, rest) = path.split_first().expect("a path");
-        match (value, step) {
+    // A copy of a container with its part at `step` replaced by `new`, or
+    // removed where `new` is nothing. A member that is replaced moves to
+    // the end of its object.
+    fn put(container: &Value, step: &Value, new: Option<Value>) -> Value {
+        match (container, step) {
             (Value::Object(members), Value::String(key)) => {
-                let current = value.get(key);
-                let next = if rest.is_empty() {
-                    apply(current)
-                } else {
-                    Some(change(current.expect("a member"), rest, apply))
-                };
                 let mut members: Vec<(String, Value)> =
                     members.iter().filter(|(name, _)| name != key).cloned().collect();
-                members.extend(next.map(|next| (key.clone(), next)));
+                members.extend(new.map(|new| (key.clone(), new)));
                 Value::Object(members)
             }
             (Value::Array(items), _) => {
+                // The part that is replaced is not copied, so a deep path
+                // costs its length and not its square.
                 let at = index(items, step);
-                let mut items = items.clone();
-                items[at] = if rest.is_empty() {
-                    apply(Some(&items[at])).expect("a value")
-                } else {
-                    change(&items[at], rest, apply)
-                };
+                let mut new = Some(new.expect("a value"));
+                let items = items
+                    .iter()
+                    .enumerate()
+                    .map(|(index, item)| if index == at { new.take().expect("one part") } else { item.clone() })
+                    .collect();
                 Value::Array(items)
             }
             _ => panic!("a path step that does not fit"),
         }
+    }
+    // The value with `change` applied at the end of `path`. The path is
+    // as long as the mutant makes it, so the containers along it are kept
+    // on a list and rebuilt from the bottom up, not by recursion.
+    fn change(value: &Value, path: &[Value], apply: &dyn Fn(Option<&Value>) -> Option<Value>) -> Value {
+        let (last, steps) = path.split_last().expect("a path");
+        let mut along: Vec<(&Value, &Value)> = Vec::new();
+        let mut target = value;
+        for step in steps {
+            along.push((target, step));
+            target = match (target, step) {
+                (Value::Object(_), Value::String(key)) => target.get(key).expect("a member"),
+                (Value::Array(items), _) => &items[index(items, step)],
+                _ => panic!("a path step that does not fit"),
+            };
+        }
+        let current = match (target, last) {
+            (Value::Object(_), Value::String(key)) => target.get(key),
+            (Value::Array(items), _) => Some(&items[index(items, last)]),
+            _ => panic!("a path step that does not fit"),
+        };
+        let mut new = put(target, last, apply(current));
+        while let Some((container, step)) = along.pop() {
+            new = put(container, step, Some(new));
+        }
+        new
     }
     let path = mutant.get("path").expect("a path").array();
     let new = if let Some(set) = mutant.get("set") {

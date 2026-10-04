@@ -20,7 +20,7 @@ import { fileURLToPath } from "node:url";
 import { Loader, fnv1a64 } from "../lib/js/src/node.js";
 import { DOM_FORMAT } from "../lib/js/src/dom.js";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
-import { includeIsLinked } from "./links.js";
+import { includeLinks } from "./links.js";
 import { layoutProblems } from "./alternatives.js";
 import { quotedTextProblems } from "./quoted-texts.js";
 import { proseLineProblems } from "./prose-lines.js";
@@ -50,7 +50,7 @@ function grammarFiles(directory = grammars, prefix = "") {
   const entries = fs.readdirSync(directory, { withFileTypes: true }).filter((entry) => !entry.name.startsWith("."));
   for (const entry of entries.sort((a, b) => (a.name < b.name ? -1 : 1))) {
     const relative = prefix + entry.name;
-    if (entry.isDirectory()) files.push(...grammarFiles(path.join(directory, entry.name), relative + "/"));
+    if (entry.isDirectory()) for (const file of grammarFiles(path.join(directory, entry.name), relative + "/")) files.push(file);
     else if (relative !== "compiled.json") files.push(relative);
   }
   return files;
@@ -87,7 +87,7 @@ let bootstrapText = fs.readFileSync(bootstrapPath, "utf8");
 const loaderWith = (bootstrap) => new Loader((relative) => {
   if (relative === "notation/bootstrap.json") return bootstrap;
   if (relative === "compiled.json") return undefined;
-  const file = path.join(grammars, ...relative.split("/"));
+  const file = path.join(grammars, relative.split("/").join(path.sep));
   return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : undefined;
 });
 for (let round = 0; ; round++) {
@@ -118,7 +118,7 @@ const compiled = { format: DOM_FORMAT, bootstrap: loader.bootstrapHash, document
 // (docs/notation.md, "Rules"; tools/alternatives.js).
 const sprawling = [];
 for (const [file, { dom }] of Object.entries(documents)) {
-  sprawling.push(...layoutProblems(fs.readFileSync(path.join(grammars, file), "utf8"), dom, file));
+  for (const problem of layoutProblems(fs.readFileSync(path.join(grammars, file), "utf8"), dom, file)) sprawling.push(problem);
 }
 if (sprawling.length) {
   console.error(sprawling.join("\n"));
@@ -144,9 +144,9 @@ if (parserMissing && check) {
 } else {
   const unlinked = [];
   for (const [file, { dom }] of Object.entries(documents)) {
-    const text = fs.readFileSync(path.join(grammars, file), "utf8");
+    const isLinked = includeLinks(fs.readFileSync(path.join(grammars, file), "utf8"));
     for (const directive of dom.directives) {
-      if (directive.name === "include" && !includeIsLinked(text, directive.at[0], directive.args[0])) unlinked.push(`${file}:${directive.at[0]}: %include "${directive.args[0]}" does not follow a list item with a link [text](${directive.args[0]})`);
+      if (directive.name === "include" && !isLinked(directive.at[0], directive.args[0])) unlinked.push(`${file}:${directive.at[0]}: %include "${directive.args[0]}" does not follow a list item with a link [text](${directive.args[0]})`);
     }
   }
   if (unlinked.length) {

@@ -1,0 +1,52 @@
+{
+  "description": "A backslash inside a string, a character tag or a property belongs to that token, and so do the braces of a property and of a \\u{...} escape (engine §9).",
+  "document": "```jbogenbau\n%rule a $x('\\\\') '\\u{7B}' '\\p{L}' '}'\n%conditions text($x) = \"a\\\\b\"\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "a",
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "capture": "x",
+                    "expr": {
+                      "terminal": "'\\u{5C}'"
+                    }
+                  },
+                  {
+                    "terminal": "'{'"
+                  },
+                  {
+                    "property": "L"
+                  },
+                  {
+                    "terminal": "'}'"
+                  }
+                ]
+              }
+            }
+          ],
+          "conditions": [
+            {
+              "op": "=",
+              "left": {
+                "call": "text",
+                "args": [
+                  {
+                    "capture": "x"
+                  }
+                ]
+              },
+              "right": {
+                "string": "a\\b"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

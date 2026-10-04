@@ -1,0 +1,143 @@
+{
+  "description": "[{T}] is a plain optional, so its absence leaves no elided node and counts nothing under late-elision, and x and y tie. A marker cannot stand before braces, as the notation case marked-optional-braces.json shows (engine §3.8, §6).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text x | y\n%rule x A [{T}]\n%rule y A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie",
+          "witness": [
+            {
+              "close": {
+                "rule": "y",
+                "production": 7,
+                "span": [
+                  0,
+                  1
+                ]
+              }
+            },
+            {
+              "close": {
+                "rule": "x",
+                "production": 3,
+                "span": [
+                  1,
+                  1
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [
+              "A"
+            ],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "y",
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": [
+                  "A"
+                ],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "x",
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
+  }
+}

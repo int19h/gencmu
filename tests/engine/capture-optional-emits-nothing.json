@@ -1,0 +1,15 @@
+{
+  "description": "A production for which every item of the emission is dropped is an error of the document: A [$b(B)] with %emits $b, since the production A emits nothing (engine §9).",
+  "grammar": "%rule text A [$b(B)]\n%emits $b",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}
