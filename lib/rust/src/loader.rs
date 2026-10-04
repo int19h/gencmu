@@ -534,7 +534,7 @@ pub fn bootstrap_hash() -> String {
 mod tests {
     use super::{normalize, read_grammar_document};
     use crate::json::Json;
-    use crate::work::{budget, counted, reset, Work};
+    use crate::work::{assert_mutant_stops, budget, counted, reset, Mutant, Work};
     use std::path::Path;
 
     #[test]
@@ -612,5 +612,31 @@ mod tests {
         let small = reading(&text(500), None);
         let large = reading(&text(2000), Some(5 * small));
         assert!(large <= 5 * small, "{small} for 500 arguments, {large} for 2000");
+    }
+
+    /// The search for the origins of a derivation, in a version that
+    /// builds the positions of the chart's items at each call or that walks
+    /// the longer list of origins, stops at the first count past the budget
+    /// of `reading_deep_nesting_grows_linearly`. Negations nest each
+    /// constituent at one end, where the longer list holds every origin.
+    #[test]
+    fn quadratic_searches_for_origins_stop_at_the_budget() {
+        for mutant in [Mutant::PositionsPerCall, Mutant::WalkEnding] {
+            std::thread::Builder::new()
+                .stack_size(2 << 20)
+                .spawn(move || {
+                    let text =
+                        |n: usize| format!("```jbogenbau\n%rule text $x(A) %conditions {}$x\n```\n", "¬".repeat(n));
+                    // Once first, so that loading the notation counts in
+                    // neither.
+                    let _ = read_grammar_document(&text(1));
+                    assert_mutant_stops(Work::Walked, mutant, 250, &mut |n| {
+                        let _ = read_grammar_document(&text(n));
+                    });
+                })
+                .expect("a thread")
+                .join()
+                .expect("a stop at the budget");
+        }
     }
 }

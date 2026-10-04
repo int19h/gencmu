@@ -15,7 +15,7 @@ use crate::tags::{
 };
 use crate::unicode::Unicode;
 use crate::witness::{self, Fault};
-use crate::work::{self, Work};
+use crate::work::{self, Mutant, Work};
 
 /// How a terminal matches a token (engine §4): by a tag the token carries,
 /// or, for a range or a property, by one of its character tags.
@@ -295,6 +295,19 @@ pub(crate) struct Chart {
 }
 
 impl Chart {
+    /// The positions of the sets that hold each item, in order. Each item
+    /// counts as it is examined.
+    fn item_positions(&self) -> FxMap<Item, Vec<u32>> {
+        let mut positions: FxMap<Item, Vec<u32>> = FxMap::default();
+        for (at, eset) in self.sets.iter().enumerate() {
+            for item in &eset.items {
+                work::count(Work::Walked, 1);
+                positions.entry(*item).or_default().push(at as u32);
+            }
+        }
+        positions
+    }
+
     /// The origins `m`, in order, of the derivations of an item that reads
     /// its constituent of `rule` last, from `pred`, the item before that
     /// read, to `set`: the positions from `from` on whose set holds `pred`
@@ -303,25 +316,29 @@ impl Chart {
     /// of a deep nesting, where every rule ends at one place, costs each
     /// item its own few origins, not every origin at that place.
     pub(crate) fn origins_between(&self, pred: &Item, rule: u32, from: u32, set: u32) -> Vec<u32> {
-        let positions = self.positions.get_or_init(|| {
-            let mut positions: FxMap<Item, Vec<u32>> = FxMap::default();
-            for (at, eset) in self.sets.iter().enumerate() {
-                work::count(Work::Walked, eset.items.len() as u64);
-                for item in &eset.items {
-                    positions.entry(*item).or_default().push(at as u32);
-                }
-            }
-            positions
-        });
+        // A mutation of the tests builds the positions again at each call.
+        let rebuilt;
+        let positions = if work::mutated(Mutant::PositionsPerCall) {
+            rebuilt = self.item_positions();
+            &rebuilt
+        } else {
+            self.positions.get_or_init(|| self.item_positions())
+        };
         let held = positions.get(pred).map_or(&[][..], Vec::as_slice);
         let held = &held[held.partition_point(|&m| m < from)..held.partition_point(|&m| m <= set)];
         let eset = &self.sets[set as usize];
         let ending = eset.origins.get(&rule).map_or(&[][..], Vec::as_slice);
-        work::count(Work::Walked, held.len().min(ending.len()) as u64 + 1);
-        let mut found: Vec<u32> = if held.len() <= ending.len() {
-            held.iter().copied().filter(|&m| eset.completed.contains_key(&(rule, m))).collect()
+        // The call counts once, and each origin counts as it is examined.
+        work::count(Work::Walked, 1);
+        let examined = |m: &u32| {
+            work::count(Work::Walked, 1);
+            *m
+        };
+        let shorter = held.len() <= ending.len() && !work::mutated(Mutant::WalkEnding);
+        let mut found: Vec<u32> = if shorter {
+            held.iter().map(examined).filter(|&m| eset.completed.contains_key(&(rule, m))).collect()
         } else {
-            ending.iter().copied().filter(|&m| m >= from && held.binary_search(&m).is_ok()).collect()
+            ending.iter().map(examined).filter(|&m| m >= from && held.binary_search(&m).is_ok()).collect()
         };
         found.sort_unstable();
         found.dedup();

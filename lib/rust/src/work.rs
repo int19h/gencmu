@@ -77,6 +77,13 @@ pub(crate) enum Mutant {
     /// Condition selection scans every condition of the production for
     /// those of the dot.
     ScanConditions,
+    /// The search for the origins of a derivation builds the positions of
+    /// the chart's items again at each call.
+    PositionsPerCall,
+    /// The search for the origins of a derivation walks the origins of the
+    /// rule's constituents that end at the set, even when the other list
+    /// is shorter.
+    WalkEnding,
     /// The search of lowering for the rules that read tests every symbol
     /// of a production for a terminal at each of its symbols.
     TerminalAtEach,
