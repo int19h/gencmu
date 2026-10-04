@@ -129,6 +129,33 @@ def duplicate_captures(expr: Any) -> list[Dom]:
         stack[-1][2].append(joined)
 
 
+class _Sequence:
+    """One sequence of captures as capture_sequences builds it, with the
+    set of its names and its key of names, so that extending it by a few
+    captures costs those captures and not the whole sequence again."""
+
+    __slots__ = ("captures", "names", "cached")
+
+    def __init__(self, captures: list[Dom], names: set[str]) -> None:
+        self.captures = captures
+        self.names = names
+        self.cached: tuple[str, ...] | None = None
+
+    def key(self) -> tuple[str, ...]:
+        if self.cached is None:
+            self.cached = tuple(capture["capture"] for capture in self.captures)
+        return self.cached
+
+    def extend(self, captures: list[Dom]) -> None:
+        if captures:
+            self.captures.extend(captures)
+            self.names.update(capture["capture"] for capture in captures)
+            self.cached = None
+
+    def copy(self) -> _Sequence:
+        return _Sequence(list(self.captures), set(self.names))
+
+
 def capture_sequences(expr: Any) -> tuple[list[list[Dom]], list[Dom]]:
     """The distinct sequences of captures that the productions of an
     expression read, each in the order read (engine §3.2, §3.5): a choice
@@ -140,39 +167,53 @@ def capture_sequences(expr: Any) -> tuple[list[list[Dom]], list[Dom]]:
     drop whole alternatives."""
     duplicates: dict[int, Dom] = {}
 
-    def distinct(lists: list[list[Dom]]) -> list[list[Dom]]:
+    def distinct(sequences: list[_Sequence]) -> list[_Sequence]:
         seen: set[tuple[str, ...]] = set()
-        result: list[list[Dom]] = []
-        for captures in lists:
-            key = tuple(capture["capture"] for capture in captures)
+        result: list[_Sequence] = []
+        for sequence in sequences:
+            key = sequence.key()
             if key not in seen:
                 seen.add(key)
-                result.append(captures)
+                result.append(sequence)
         return result
 
-    def product(left: list[list[Dom]], right: list[list[Dom]]) -> list[list[Dom]]:
-        result: list[list[Dom]] = []
+    def product(left: list[_Sequence], right: list[_Sequence], owned: bool) -> list[_Sequence]:
+        """Each sequence of the left followed by each of the right. Where the
+        right has one sequence, distinct lefts stay distinct, and a left that
+        this product's caller ``owned`` is extended in place, since a copy of
+        each would cost the sequence's whole length at every step."""
         for first in left:
-            names = {capture["capture"] for capture in first}
             for second in right:
-                for capture in second:
-                    if capture["capture"] in names:
+                for capture in second.captures:
+                    if capture["capture"] in first.names:
                         duplicates[id(capture)] = capture
-                result.append(first + second)
-        return distinct(result)
+        if len(right) == 1:
+            result = left if owned else [first.copy() for first in left]
+            for first in result:
+                first.extend(right[0].captures)
+            return result
+        joined: list[_Sequence] = []
+        for first in left:
+            for second in right:
+                sequence = first.copy()
+                sequence.extend(second.captures)
+                joined.append(sequence)
+        return distinct(joined)
 
     def visit(node: Any) -> Walk:
         if not isinstance(node, dict):
-            return [[]]
+            return [_Sequence([], set())]
         if isinstance(node.get("capture"), str) and "expr" in node:
-            return [[node]]
+            return [_Sequence([node], {node["capture"]})]
         if isinstance(node.get("seq"), list):
-            sequences: list[list[Dom]] = [[]]
+            # The sequences built here are this loop's own, so the product
+            # may extend them in place.
+            sequences: list[_Sequence] = [_Sequence([], set())]
             for item in node["seq"]:
-                sequences = product(sequences, (yield visit(item)))
+                sequences = product(sequences, (yield visit(item)), True)
             return sequences
         if isinstance(node.get("choice"), list):
-            branches: list[list[Dom]] = []
+            branches: list[_Sequence] = []
             for item in node["choice"]:
                 branches.extend((yield visit(item)))
             return distinct(branches)
@@ -180,22 +221,22 @@ def capture_sequences(expr: Any) -> tuple[list[list[Dom]], list[Dom]]:
             parts = []
             for item in node["and"]:
                 parts.append((yield visit(item)))
-            result: list[list[Dom]] = []
+            result: list[_Sequence] = []
             for mask in range(1, 1 << len(parts)):
-                chosen: list[list[Dom]] = [[]]
+                chosen: list[_Sequence] = [_Sequence([], set())]
                 for index, part in enumerate(parts):
                     if mask >> index & 1:
-                        chosen = product(chosen, part)
+                        chosen = product(chosen, part, True)
                 result.extend(chosen)
             return distinct(result)
         if "optional" in node:
             if node.get("elidable") is True:
-                return [[]]
-            return distinct([[], *(yield visit(node["optional"]))])
-        return [[]]
+                return [_Sequence([], set())]
+            return distinct([_Sequence([], set()), *(yield visit(node["optional"]))])
+        return [_Sequence([], set())]
 
-    sequences: list[list[Dom]] = run(visit(expr))
-    return sequences, list(duplicates.values())
+    sequences: list[_Sequence] = run(visit(expr))
+    return [sequence.captures for sequence in sequences], list(duplicates.values())
 
 
 def alternative_captures(alternative: Dom) -> list[dict[str, int]]:
@@ -403,6 +444,14 @@ def definition_problem(rule: Dom) -> str | None:
             return "an alternative's tags use a capture that one of its productions lacks; guard the use with ⟹"
         if "tags" in rule and lacks(rule["tags"], present):
             return f"the %tags of {rule['name']} use a capture a production lacks; guard the use with ⟹"
+    # The anchor of each inserted tag, the capture of the next capture
+    # item, found for every item in one backward pass.
+    anchors: list[str | None] = [None] * len(items)
+    following: str | None = None
+    for index in range(len(items) - 1, -1, -1):
+        anchors[index] = following
+        if "capture" in items[index]:
+            following = items[index]["capture"]
     for names, present in zip(captured, presents):
         kept = [item for item in items if "insert" in item or item["capture"] in present]
         if items and not kept:
@@ -421,13 +470,14 @@ def definition_problem(rule: Dom) -> str | None:
         # The written order of the captures, attachments included, is the
         # order they stand in (engine §9).
         written = [name for item in kept if item.get("capture") for name in attachment_order(item)]
-        order = [names.index(name) for name in written if name in names]
+        place = {name: index for index, name in enumerate(names)}
+        order = [place[name] for name in written if name in place]
         if order != sorted(order):
             return f"%emits of {rule['name']} lists captures out of the order they stand in the text"
         for index, item in enumerate(items):
             if "insert" not in item:
                 continue
-            anchor = next((other["capture"] for other in items[index + 1 :] if "capture" in other), None)
+            anchor = anchors[index]
             if anchor is not None and anchor not in present:
                 return f"an inserted tag of {rule['name']} stands before ${anchor}, which a production lacks"
     return None

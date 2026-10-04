@@ -10,8 +10,9 @@ import time
 import unittest
 from typing import Callable
 
+from gencmu._clauses import definition_problem
 from gencmu._earley import EdgeSets, Evaluator, StageContext
-from gencmu._grammar import Lowered, _Constants
+from gencmu._grammar import Lowered, _Constants, _Lowerer
 from gencmu._trampoline import run
 from gencmu._model import Token
 from gencmu._stage import implied
@@ -139,6 +140,42 @@ class Dedupes(Linear):
             return work
 
         self.assert_linear(make, 5000)
+
+
+
+def emitting_rule(n: int) -> dict:
+    """The DOM of a rule of n captures whose %emits puts an inserted tag
+    before each, as the reader makes it."""
+    items: list[dict] = []
+    for index in range(n):
+        items.extend(({"insert": f"X{index}"}, {"capture": f"c{index}"}))
+    return {
+        "name": "text",
+        "op": "define",
+        "alternatives": [{"guards": [], "expr": {"seq": [{"capture": f"c{index}", "expr": {"ref": "A"}} for index in range(n)]}}],
+        "emit": {"items": items},
+        "conditions": [],
+        "at": [2, 1],
+    }
+
+
+class DefinitionChecks(Linear):
+    def test_the_checks_of_a_definition_cost_its_captures_and_items(self) -> None:
+        # The capture sequences, the written order of the captures and the
+        # anchors of the inserted tags, for one production.
+        def make(n: int) -> Callable[[], object]:
+            rule = emitting_rule(n)
+            return lambda: [definition_problem(rule) for _ in range(3)]
+
+        self.assert_linear(make, 1000)
+
+    def test_lowering_an_emission_costs_its_items(self) -> None:
+        def make(n: int) -> Callable[[], object]:
+            emit = emitting_rule(n)["emit"]
+            captures = {f"c{index}": index for index in range(n)}
+            return lambda: [_Lowerer.lower_emit(None, emit, captures) for _ in range(20)]  # type: ignore[arg-type]
+
+        self.assert_linear(make, 1000)
 
 
 if __name__ == "__main__":

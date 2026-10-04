@@ -1057,21 +1057,30 @@ class _Lowerer:
             return tuple(captures[name] for name in names or () if name in captures)
 
         items = [item for item in emit.get("items", []) if "insert" in item or item["capture"] in present]
+        # Built from the last item back, so that each inserted tag's anchor
+        # comes from the capture item last passed, found once for all the
+        # tags before it.
         lowered: list[tuple[Any, ...]] = []
-        for index, item in enumerate(items):
+        following: Dom | None = None
+        anchor: int | None = None
+        anchored = True
+        for item in reversed(items):
             if "insert" in item:
-                following = next((other for other in items[index + 1 :] if "capture" in other), None)
-                anchor = None
-                if following is not None:
+                if not anchored:
+                    assert following is not None
                     first = positions(following.get("before"))
                     anchor = first[0] if first else captures[following["capture"]]
+                    anchored = True
                 lowered.append(("insert", item["insert"], anchor))
-            elif item["capture"] == WHOLE:
+                continue
+            following, anchor, anchored = item, None, False
+            if item["capture"] == WHOLE:
                 lowered.append(("whole", own(item.get("tags"))))
             else:
                 lowered.append(
                     ("capture", captures[item["capture"]], own(item.get("tags")), positions(item.get("before")), positions(item.get("after")))
                 )
+        lowered.reverse()
         return lowered
 
     def lower(self) -> Lowered:
