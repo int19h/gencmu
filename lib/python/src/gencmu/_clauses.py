@@ -370,7 +370,198 @@ def applies(condition: Dom, present: AbstractSet[str]) -> Simplified | None:
     ``present``: ``None`` where it does not apply, having simplified to true
     or using a capture the production lacks; ``False`` where it removes the
     production; else what is left to evaluate (engine §3.6)."""
-    simplified = simplify_condition(condition, present)
+    return _applied(simplify_condition(condition, present), present)
+
+
+def tests_no_presence(node: Any) -> bool:
+    """Whether a clause tests the presence of no capture anywhere inside
+    it, so that it simplifies the same for every production."""
+    stack = [node]
+    while stack:
+        value = stack.pop()
+        if isinstance(value, dict):
+            if "captured" in value:
+                return False
+            stack.extend(value.values())
+        elif isinstance(value, list):
+            stack.extend(value)
+    return True
+
+
+def guard_of(part: Any) -> str | None:
+    """The capture that a part ``$c ⟹ X`` tests, where X tests no presence,
+    so that the part's value for a production depends on that capture
+    alone. ``$`` is no guard, since every production has it."""
+    if not isinstance(part, dict) or "if" not in part or "captured" in part:
+        return None
+    premise = part["if"]
+    if not isinstance(premise, dict) or not isinstance(premise.get("captured"), str) or premise["captured"] == WHOLE:
+        return None
+    return premise["captured"] if tests_no_presence(part["then"]) else None
+
+
+_UNSET: Any = object()
+_NONE: frozenset[str] = frozenset()
+
+
+class Prepared:
+    """A clause prepared once for the productions of a definition, so that
+    simplifying it for one production costs that production's captures and
+    its output, not every part of the clause (engine §3.6).
+
+    The parts are the items of a top-level union of a term or ∧ of a
+    condition, the conditions of a list, or the clause alone. A part that
+    tests no presence simplifies the same for every production, and a part
+    ``$c ⟹ X`` simplifies to X's value or vanishes. Those values are kept,
+    and the guarded parts are indexed by capture. Parts of any other shape
+    are simplified for each production, as before."""
+
+    __slots__ = ("join", "parts", "condition", "listed", "fixed", "values", "guards", "absent", "inner")
+
+    def __init__(self, parts: list[Any], join: str | None, condition: bool, listed: bool) -> None:
+        self.join = join
+        self.parts = parts
+        self.condition = condition
+        # Whether the parts are the conditions of a list, each prepared in
+        # turn when it is simplified for each production.
+        self.listed = listed
+        # The parts that every production keeps, in order: those that test
+        # no presence and do not vanish from the join, and the others.
+        self.fixed: list[int] = []
+        # Each part's value where it is the same for every production that
+        # keeps it.
+        self.values: list[Any] = [_UNSET] * len(parts)
+        # The guarded parts by capture, each list in order.
+        self.guards: dict[str, list[int]] = {}
+        # For a guarded clause alone, its value for a production without
+        # the capture.
+        self.absent: Any = _UNSET
+        self.inner: dict[int, Prepared] = {}
+        absent: Any = True if condition else EMPTY_SET
+        for index, part in enumerate(parts):
+            name = guard_of(part)
+            if name is not None:
+                value = _simplify(part["then"], _NONE, condition)
+                self.values[index] = value
+                self.absent = absent
+                # A join drops a guarded part where its capture is absent,
+                # and a part that it drops where its capture is present too
+                # is never kept.
+                if join is not None and self.vanishes(value):
+                    continue
+                self.guards.setdefault(name, []).append(index)
+                continue
+            if tests_no_presence(part):
+                value = _simplify(part, _NONE, condition)
+                self.values[index] = value
+                if join is not None and self.vanishes(value):
+                    continue
+            self.fixed.append(index)
+
+    def vanishes(self, value: Any) -> bool:
+        """Whether the join drops a part's value: the empty set from a
+        union, and true from a conjunction (engine §3.6)."""
+        return is_empty_set(value) if self.join == "union" else value is True if self.join == "all" else False
+
+    def kept(self, present: AbstractSet[str]) -> list[Any]:
+        """The values of the parts that a production with the captures
+        ``present`` keeps, in order, each simplified, without those that
+        the join drops."""
+        # The guarded parts this production keeps, found from whichever is
+        # fewer, its captures or the captures that guard parts.
+        kept: list[int] = []
+        if len(present) <= len(self.guards):
+            for name in present:
+                found = self.guards.get(name)
+                if found is not None:
+                    kept.extend(found)
+        else:
+            for name, found in self.guards.items():
+                if name in present:
+                    kept.extend(found)
+        kept.sort()
+        items: list[Any] = []
+        next_kept = 0
+        for index in self.fixed:
+            while next_kept < len(kept) and kept[next_kept] < index:
+                self.keep(kept[next_kept], present, items)
+                next_kept += 1
+            self.keep(index, present, items)
+        while next_kept < len(kept):
+            self.keep(kept[next_kept], present, items)
+            next_kept += 1
+        return items
+
+    def keep(self, index: int, present: AbstractSet[str], items: list[Any]) -> None:
+        value = self.values[index]
+        if value is _UNSET:
+            if self.listed:
+                inner = self.inner.get(index)
+                if inner is None:
+                    inner = self.inner[index] = prepare(self.parts[index], True)
+                value = inner.simplified(present)
+            else:
+                value = _simplify(self.parts[index], present, self.condition)
+        if not self.vanishes(value):
+            items.append(value)
+
+    def simplified(self, present: AbstractSet[str]) -> Any:
+        """The clause simplified for a production with the captures
+        ``present``, the same as :func:`simplify_term` or
+        :func:`simplify_condition` gives."""
+        if self.join is None:
+            if self.fixed:
+                value = self.values[0]
+                return _simplify(self.parts[0], present, self.condition) if value is _UNSET else value
+            # A guarded clause alone is its value or the value of its absence.
+            (name,) = self.guards
+            return self.values[0] if name in present else dict(self.absent) if isinstance(self.absent, dict) else self.absent
+        items = self.kept(present)
+        if self.join == "union":
+            if not items:
+                return dict(EMPTY_SET)
+            return items[0] if len(items) == 1 else {"union": items}
+        # ∧ is decided by a false part (engine §3.6).
+        if any(item is False for item in items):
+            return False
+        if not items:
+            return True
+        return items[0] if len(items) == 1 else {"all": items}
+
+
+def _simplify(dom: Any, present: AbstractSet[str], condition: bool) -> Any:
+    return simplify_condition(dom, present) if condition else simplify_term(dom, present)
+
+
+def prepare(clause: Any, condition: bool) -> Prepared:
+    """A condition or a tag term prepared for the productions of its
+    definition. The join that simplifying reads first decides, as it does
+    there. An ∨ does not split, since a guarded part that its capture's
+    absence makes true makes the whole ∨ true."""
+    join: str | None = None
+    if isinstance(clause, dict):
+        if condition:
+            if "captured" not in clause and "if" not in clause and "not" not in clause and isinstance(clause.get("all"), list):
+                join = "all"
+        elif "if" not in clause and isinstance(clause.get("union"), list):
+            join = "union"
+    parts = clause["all"] if join == "all" else clause["union"] if join == "union" else [clause]
+    return Prepared(parts, join, condition, False)
+
+
+def prepare_conditions(conditions: list[Dom]) -> Prepared:
+    """A list of conditions prepared for the productions of its definition.
+    A condition false for a production removes it, and one true is dropped,
+    as the items of an ∧ are (engine §3.6)."""
+    return Prepared(conditions, "all", True, True)
+
+
+def applies_prepared(prepared: Prepared, present: AbstractSet[str]) -> Simplified | None:
+    """What :func:`applies` gives, for a prepared condition."""
+    return _applied(prepared.simplified(present), present)
+
+
+def _applied(simplified: Simplified, present: AbstractSet[str]) -> Simplified | None:
     if simplified is True:
         return None
     if simplified is False:
@@ -442,14 +633,35 @@ def definition_problem(rule: Dom) -> str | None:
     distinct: dict[tuple[str, ...], tuple[list[str], set[str]]] = {}
     for names, present in zip(captured, presents):
         distinct.setdefault(tuple(names), (names, present))
+    # The distinct sequences that capture each name, so that a condition
+    # whose parts are all guarded asks only those with a guard's capture.
+    capturing: dict[str, list[set[str]]] = {}
+    for names, present in distinct.values():
+        for name in names:
+            capturing.setdefault(name, []).append(present)
     for condition in rule["conditions"]:
         if waits(condition):
             continue
-        if all(applies(condition, present) is None for _, present in distinct.values()):
+        prepared = prepare(condition, True)
+        # A condition made only of guarded parts is true for a production
+        # that has none of their captures, so only those that have one can
+        # apply.
+        if not prepared.fixed and (prepared.join == "all" or prepared.join is None and prepared.guards):
+            candidates: Any = (present for name in prepared.guards for present in capturing.get(name, ()))
+        else:
+            candidates = (present for _, present in distinct.values())
+        if all(applies_prepared(prepared, present) is None for present in candidates):
             return f"a condition of {rule['name']} applies to none of its productions"
 
+    # Each term is prepared, and looked at for constants, once, though the
+    # checks below ask again for each production.
+    prepared_terms: dict[int, tuple[bool, Prepared]] = {}
+
     def lacks(term: Dom, present: set[str]) -> bool:
-        return not waits(term) and not captures_in(simplify_term(term, present)) <= present
+        known = prepared_terms.get(id(term))
+        if known is None:
+            known = prepared_terms[id(term)] = (waits(term), prepare(term, False))
+        return not known[0] and not captures_in(known[1].simplified(present)) <= present
 
     rule_lacks: dict[tuple[str, ...], bool] = {}
     for (alternative, _), names, present in zip(productions, captured, presents):

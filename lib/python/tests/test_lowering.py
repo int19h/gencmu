@@ -4,9 +4,13 @@ the recognizer (engine §4)."""
 
 from __future__ import annotations
 
+import itertools
+import random
 import unittest
+from typing import Any
 
 import gencmu
+from gencmu._clauses import WHOLE, applies, applies_prepared, prepare, prepare_conditions, simplify_condition, simplify_term
 from gencmu._earley import Parser, StageContext
 from gencmu._model import Token
 from gencmu._rank import count_roots
@@ -117,3 +121,77 @@ class CaptureGrowth(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PreparedClauses(unittest.TestCase):
+    """A clause prepared once for many productions simplifies, for each,
+    to exactly what simplifying it for that production alone gives,
+    including the order of its parts (engine §3.6)."""
+
+    NAMES = ("a", "b", "c")
+
+    def guarded(self, rng: random.Random, part: Any) -> Any:
+        """A part ``$c ⟹ X``, or now and then X alone."""
+        return part if rng.random() < 0.3 else {"if": {"captured": rng.choice(self.NAMES)}, "then": part}
+
+    def term(self, rng: random.Random, depth: int) -> Any:
+        choice = rng.randrange(9 if depth else 3)
+        if choice == 8:
+            # A union of guarded parts, the shape that preparing indexes.
+            return {"union": [self.guarded(rng, self.term(rng, 0)) for _ in range(rng.randrange(1, 7))]}
+        if choice == 0:
+            return {"tag": rng.choice("xyz")}
+        if choice == 1:
+            return {"emptySet": True}
+        if choice == 2:
+            return {"tags": [{"capture": rng.choice(self.NAMES)}]} if rng.random() < 0.5 else {"const": "K", "at": [1, 1], "value": frozenset(rng.choice(([], ["k"])))}
+        if choice in (3, 4):
+            return {"if": self.condition(rng, depth - 1, presence=True), "then": self.term(rng, depth - 1)}
+        if choice == 5:
+            return {"union": [self.term(rng, depth - 1) for _ in range(rng.randrange(1, 5))]}
+        if choice == 6:
+            return {"intersection": [self.term(rng, depth - 1) for _ in range(rng.randrange(1, 3))]}
+        return {"difference": [self.term(rng, depth - 1), self.term(rng, depth - 1)]}
+
+    def condition(self, rng: random.Random, depth: int, presence: bool = False) -> Any:
+        choice = rng.randrange(8 if depth else 2)
+        if choice == 7 and not presence:
+            # A conjunction of guarded parts, the shape that preparing indexes.
+            return {"all": [self.guarded(rng, self.condition(rng, 0)) for _ in range(rng.randrange(1, 7))]}
+        if choice == 0 or presence and rng.random() < 0.5:
+            return {"captured": rng.choice((*self.NAMES, ""))}
+        if choice == 1:
+            return {"op": "=", "left": self.term(rng, 0), "right": {"string": "a"}}
+        if choice in (2, 3):
+            return {"if": self.condition(rng, depth - 1, presence=True), "then": self.condition(rng, depth - 1)}
+        if choice == 4:
+            return {"not": self.condition(rng, depth - 1)}
+        return {rng.choice(("all", "any")): [self.condition(rng, depth - 1) for _ in range(rng.randrange(1, 5))]}
+
+    def test_a_prepared_clause_simplifies_as_the_clause_does_for_each_production(self) -> None:
+        rng = random.Random(8)
+        presents = [frozenset(names) | {WHOLE} for size in range(4) for names in itertools.combinations(self.NAMES, size)]
+        for _ in range(3000):
+            term = self.term(rng, 3)
+            condition = self.condition(rng, 3)
+            conditions = [self.guarded(rng, self.condition(rng, 1)) for _ in range(rng.randrange(0, 7))]
+            prepared_term, prepared_condition = prepare(term, False), prepare(condition, True)
+            prepared_list = prepare_conditions(conditions)
+            for present in presents:
+                self.assertEqual(prepared_term.simplified(present), simplify_term(term, present), (term, present))
+                self.assertEqual(prepared_condition.simplified(present), simplify_condition(condition, present), (condition, present))
+                self.assertEqual(applies_prepared(prepared_condition, present), applies(condition, present), (condition, present))
+                # The conditions of a list that are not true, in order, up to
+                # the first false one, which removes the production.
+                expected: list[Any] = []
+                for written in conditions:
+                    simplified = simplify_condition(written, present)
+                    if simplified is not True:
+                        expected.append(simplified)
+                    if simplified is False:
+                        break
+                found = prepared_list.kept(present)
+                if False in expected:
+                    self.assertIn(False, found, (conditions, present))
+                    found = found[: found.index(False) + 1]
+                self.assertEqual(found, expected, (conditions, present))

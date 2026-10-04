@@ -18,7 +18,7 @@ import gencmu
 from gencmu import _clauses, _grammar, _pipeline, _tags, _types
 from gencmu._clauses import definition_problem
 from gencmu._earley import EdgeSets, Evaluator, Forest, Parser, StageContext, reading_last
-from gencmu._grammar import Lowered, Production, _Constants, _Lowerer, stitch
+from gencmu._grammar import Lowered, Production, _Constants, _Lowerer, lower, stitch
 from gencmu._model import Token
 from gencmu._pipeline import splice_pipeline
 from gencmu._rank import Summaries
@@ -481,6 +481,121 @@ class SharedClauses(Linear):
 
         self.assert_linear(loading_steps, make, 60)
 
+
+def holds(index: int) -> dict[str, Any]:
+    """The condition text($ci) = "a"."""
+    return {"op": "=", "left": {"call": "text", "args": [{"capture": f"c{index}"}]}, "right": {"string": "a"}}
+
+
+GUARDED: dict[str, Callable[[int], dict[str, Any]]] = {
+    "a union of guarded tags": lambda n: {"tags": {"union": [{"if": {"captured": f"c{index}"}, "then": {"tag": f"t{index}"}} for index in range(n)]}},
+    "a list of guarded conditions": lambda n: {"conditions": [{"if": {"captured": f"c{index}"}, "then": holds(index)} for index in range(n)]},
+    "a conjunction of guarded conditions": lambda n: {"conditions": [{"all": [{"if": {"captured": f"c{index}"}, "then": holds(index)} for index in range(n)]}]},
+    # A constant, which the loader resolves in the clauses that the
+    # alternatives share, and a part that tests no presence.
+    "guarded tags and a constant": lambda n: {
+        "tags": {"union": [{"const": "K", "at": [1, 1]}, *({"if": {"captured": f"c{index}"}, "then": {"tag": f"t{index}"}} for index in range(n))]}
+    },
+}
+"""The clauses of a choice of n captures, $c0(A) | … | $c(n−1)(A), whose
+parts are each guarded by one capture, so that each production keeps one."""
+
+GUARDED_MOST = 256
+"""How many units of the counted lines each production and each node of
+the lowered clauses may cost."""
+
+
+def nodes_of(value: Any) -> int:
+    """The containers within a value, as the size of an output."""
+    count = 0
+    stack = [value]
+    while stack:
+        found = stack.pop()
+        if isinstance(found, dict):
+            count += 1
+            stack.extend(found.values())
+        elif isinstance(found, list):
+            count += 1
+            stack.extend(found)
+    return count
+
+
+class GuardedClauses(Linear):
+    """A choice of n captures with clauses whose parts are each guarded by
+    one capture. Each production keeps one part, so the output is linear
+    in n. The definition check and lowering simplify each clause for each
+    production, and a scan of every part for each would cost n². The work
+    is held to a constant times n and the output, during the work."""
+
+    @staticmethod
+    def documents(n: int, clause: Callable[[int], dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
+        rule = {
+            "name": "text",
+            "op": "define",
+            "alternatives": [{"guards": [], "expr": {"capture": f"c{index}", "expr": {"terminal": "A"}}} for index in range(n)],
+            "conditions": [],
+            "at": [3, 1],
+            **clause(n),
+        }
+        dom = {
+            "format": 18,
+            "rules": [rule],
+            "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
+            "constants": [{"name": "K", "op": "define", "value": {"tag": "k"}, "at": [2, 1]}],
+            "classifiers": [],
+            "implications": [],
+        }
+        return rule, dom
+
+    def budget(self, n: int, clause: Callable[[int], dict[str, Any]]) -> int:
+        """The budget at n: the constant times n and the size of the
+        lowered clauses, which a lowering of the grammar's own finds, since
+        preparing a clause once is part of the work counted."""
+        dialect, error = load_case_dialect({"grammar": "%rule text A"})
+        assert dialect is not None, error
+        _, dom = self.documents(n, clause)
+        lowered = lower(stitch("s", [("t.md", dom)], dialect.unicode), frozenset())
+        output = sum(nodes_of(production.tags_term) + nodes_of(production.conds_predict) + nodes_of(production.conds_at) for production in lowered.productions)
+        return GUARDED_MOST * (n + output)
+
+    def make(self, n: int, clause: Callable[[int], dict[str, Any]]) -> Callable[[], object]:
+        dialect, error = load_case_dialect({"grammar": "%rule text A"})
+        assert dialect is not None, error
+        rule, dom = self.documents(n, clause)
+
+        def work() -> None:
+            self.assertIsNone(_clauses.definition_problem(rule))
+            lower(stitch("s", [("t.md", dom)], dialect.unicode), frozenset())
+
+        return work
+
+    def test_guarded_clauses_cost_the_productions_and_the_output(self) -> None:
+        for name, clause in GUARDED.items():
+            for n in (250, 1000):
+                with self.subTest(clause=name, n=n):
+                    budget = self.budget(n, clause)
+                    try:
+                        counted = self.count(loading_steps, self.make(n, clause), budget)
+                    except OverBudget:
+                        self.fail(f"{name}: more than {budget} units for {n} productions")
+                    self.assertGreater(counted, 0)
+
+    def test_simplifying_every_part_for_each_production_fails_at_the_first_unit_past_its_budget(self) -> None:
+        # Each regression simplifies the whole union of guarded tags for
+        # each production, as lowering and the definition check did before
+        # the clauses were prepared once.
+        clause = GUARDED["a union of guarded tags"]
+        for owner, function, change in (
+            (_Lowerer, "add", ("self.prepare(term, False).simplified(present)", "simplify_term(term, present)")),
+            (_clauses, "definition_problem", ("captures_in(known[1].simplified(present))", "captures_in(simplify_term(term, present))")),
+        ):
+            with self.subTest(function=function):
+                budget = self.budget(1000, clause)
+                large = self.make(1000, clause)
+                works: list[Work] = []
+                with mutant(owner, function, change), self.assertRaises(OverBudget):
+                    self.count(loading_steps, large, budget, works)
+                self.assertEqual(works[0].count, budget + 1)
 
 ONE_CLASS = frozenset(
     {

@@ -9,7 +9,7 @@ import threading
 from dataclasses import dataclass, field
 from typing import Any, Union
 
-from ._clauses import WHOLE, applies, captures_in, definition_problem, simplify_term
+from ._clauses import WHOLE, Prepared, captures_in, definition_problem, prepare, prepare_conditions, simplify_term
 from ._errors import ErrorData, GencmuError
 from ._recent import Recent
 from ._tags import (
@@ -856,6 +856,16 @@ class _Lowerer:
         # The item of each pair of braces, as its expansions, with the
         # definition that wrote it, in the order lowering meets them.
         self.brace_items: list[tuple[list[list[_Sym]], Alternative | None, Rule | None]] = []
+        # Each clause prepared once for all the productions that share it,
+        # by its identity, with the clause kept so that the identity stays
+        # its own.
+        self.prepared: dict[int, tuple[Any, Prepared]] = {}
+
+    def prepare(self, clause: Any, condition: bool) -> Prepared:
+        known = self.prepared.get(id(clause))
+        if known is None:
+            known = self.prepared[id(clause)] = (clause, prepare_conditions(clause) if condition else prepare(clause, False))
+        return known[1]
 
     def fail(self, message: str, alt: Alternative | None = None, rule: Rule | None = None) -> GencmuError:
         """An error of the grammar that lowering finds (engine §3). A parse
@@ -1039,14 +1049,18 @@ class _Lowerer:
             # $ is a capture every production has, and each clause is
             # simplified for the captures this one has (engine §3.6).
             present = captures.keys() | {WHOLE}
-            for written in alt.conditions:
-                condition = applies(written, present)
-                if condition is None:
-                    continue
+            # The conditions not true for this production, in order, each
+            # prepared once for all productions, so that one costs its own
+            # captures and output, not every part of the conditions.
+            for condition in self.prepare(alt.conditions, True).kept(present):
                 if condition is False:
                     # A condition false for this production removes it.
                     return
                 names = captures_in(condition)
+                if not names <= present:
+                    # A condition that uses a capture this production lacks
+                    # does not apply to it.
+                    continue
                 if WHOLE in names and rhs:
                     # Evaluated when the item is complete, in written order
                     # with the conditions on captures that become ready at
@@ -1062,7 +1076,7 @@ class _Lowerer:
             # The union of the alternative's own tags and the definition's
             # (engine §3.7); the reader has made sure neither uses a capture
             # the alternative lacks.
-            terms = [simplify_term(term, present) for term in (alt.tags, alt.rule_tags) if term is not None]
+            terms = [self.prepare(term, False).simplified(present) for term in (alt.tags, alt.rule_tags) if term is not None]
             if terms:
                 production.tags_term = terms[0] if len(terms) == 1 else {"union": terms}
             production.emit = self.lower_emit(alt.emit, captures)
