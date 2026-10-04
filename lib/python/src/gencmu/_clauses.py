@@ -107,15 +107,19 @@ def duplicate_captures(expr: Any) -> list[Dom]:
                     joined = part
                     continue
                 if meets:
+                    # A capture marked as repeated is taken from its list,
+                    # and the name stays with an empty list. So the name
+                    # still meets later items, and no meeting above marks
+                    # that capture again, which would cost each capture the
+                    # depth of the expression.
                     if joined[1] <= part[1]:
-                        for name in joined[0]:
-                            for capture in part[0].get(name, ()):
-                                flagged[id(capture)] = capture
+                        repeated = [name for name in joined[0] if part[0].get(name)]
                     else:
-                        for name, captures in part[0].items():
-                            if name in joined[0]:
-                                for capture in captures:
-                                    flagged[id(capture)] = capture
+                        repeated = [name for name, captures in part[0].items() if captures and name in joined[0]]
+                    for name in repeated:
+                        for capture in part[0][name]:
+                            flagged[id(capture)] = capture
+                        part[0][name] = []
                 large, small = (joined, part) if joined[1] >= part[1] else (part, joined)
                 for name, captures in small[0].items():
                     moved = large[0].setdefault(name, [])

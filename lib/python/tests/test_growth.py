@@ -280,13 +280,15 @@ class ConditionSelection(unittest.TestCase):
 def reader_steps() -> list[Watch]:
     """The steps of the readers and the walks of a document: each pass of
     the loop that runs a walk, each node that a walk with a list for a stack
-    meets, and each capture that the check of repeated captures moves."""
+    meets, and each capture that the check of repeated captures moves or
+    marks as repeated."""
     return [
         steps(_trampoline.run, "top = stack[-1]"),
         steps(_dom.flatten_groups, "current = stack.pop()"),
         steps(_dom.flatten_groups, "item = pending.pop()"),
         steps(_clauses.duplicate_captures, "node, index, parts = stack[-1]"),
         steps(_clauses.duplicate_captures, "moved.append(capture)"),
+        steps(_clauses.duplicate_captures, "flagged[id(capture)] = capture"),
     ]
 
 
