@@ -162,5 +162,21 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "The retired stage-wide maximal operand is malformed in a cached directive.",
+    "directive": {
+      "name": "ambiguity-resolution",
+      "args": [
+        "late-elision",
+        "elision-only",
+        "maximal"
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
   }
 ]

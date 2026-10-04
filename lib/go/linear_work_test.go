@@ -435,7 +435,7 @@ func TestEligibilityQueryConstant(t *testing.T) {
 	countWorkIn(w, func() {
 		for range 100 {
 			r.eligibleItems(nil)
-			newMaximal(r, false)
+			newMaximal(r)
 		}
 	})
 	if steps := w.elidableSteps.Load(); steps != 0 {

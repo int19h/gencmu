@@ -1,6 +1,6 @@
 {
   "description": "Twin of elided-separator-right.json whose item is a terminal: a terminator elided after a terminal has no constituent (engine §3.3, §4).",
-  "grammar": "%ambiguity-resolution greedy maximal\n%rule text c\n%rule c {A ... \\ [+T] s}\n%rule s B S",
+  "grammar": "%ambiguity-resolution greedy\n%rule text c\n%rule c {A ... \\ [++T] s}\n%rule s B S",
   "tokens": [
     {
       "text": "a",

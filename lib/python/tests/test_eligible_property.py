@@ -422,8 +422,7 @@ class MaximalQueryCost(unittest.TestCase):
         def maximal_again(self: Maximal, *args: Any) -> bool:
             # A Maximal made afresh for each check, over the same forest.
             forest = self.forest.forest  # type: ignore[attr-defined]
-            stage_wide = self.elidable is forest.lowered.elidable_helpers
-            return forbids(Maximal(forest, self.context, stage_wide, self.base), *args)
+            return forbids(Maximal(forest, self.context, self.base), *args)
 
         mutations = (
             ("furthest ends", "longest", furthest_again, self.PLAIN, "pass"),

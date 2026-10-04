@@ -252,7 +252,7 @@ func (run *stageRun) run(g *lowered, elisionOnly bool) (out stageOutcome) {
 	rec := run.recognize(g, start, 0, len(run.toks))
 	top := rec.accepted(start)
 	// Maximality applies before the ranking, from either form (§4).
-	mx := newMaximal(rec, g.maximal)
+	mx := newMaximal(rec)
 	var res *rankResult
 	if len(top) > 0 {
 		res = newRanker(rec, g.lean, mx).rank(top)

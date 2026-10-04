@@ -11,7 +11,6 @@ type stageGrammar struct {
 	byName      map[string]*sRule
 	lean        string // the rule of the ranking: "greedy", "lazy" or "late-elision" (engine §6)
 	elisionOnly bool
-	maximal     bool // no terminator is elided where its constituent could have been longer (engine §4)
 	changes     []stitchChange
 	// classifierSet holds the stage's classifiers, and implications its
 	// implications with their values (engine §2, §11).
@@ -132,7 +131,7 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 					return nil, fail(d.path, dir.At, "stage %s has more than one %%ambiguity-resolution", stageName)
 				}
 				// The rule of the ranking, greedy, lazy or late-elision, then
-				// optionally elision-only, then optionally maximal, in that
+				// optionally elision-only, in that
 				// order (engine §2).
 				args := dir.Args
 				rest := args
@@ -143,14 +142,10 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 				if elisionOnly {
 					rest = rest[1:]
 				}
-				maximal := len(rest) > 0 && rest[0] == "maximal"
-				if maximal {
-					rest = rest[1:]
-				}
 				if len(args) == 0 || !isRankingRule(args[0]) || len(rest) > 0 {
-					return nil, fail(d.path, dir.At, "%%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only, then optionally maximal")
+					return nil, fail(d.path, dir.At, "%%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only")
 				}
-				g.lean, g.elisionOnly, g.maximal = args[0], elisionOnly, maximal
+				g.lean, g.elisionOnly = args[0], elisionOnly
 			default:
 				return nil, fail(d.path, dir.At, "unknown directive %%%s", dir.Name)
 			}

@@ -90,7 +90,7 @@ struct Source {
     chains: Vec<Option<Chain>>,
     lean: Lean,
     elision_only: bool,
-    /// Whether the stage declares `maximal` (§4).
+    /// Whether every generated elidable optional uses `[++T]` (§4).
     maximal: bool,
 }
 
@@ -384,7 +384,7 @@ fn grammar_text(source: &Source) -> String {
         (_, true) => "%ambiguity-resolution greedy elision-only",
         _ => "%ambiguity-resolution greedy",
     });
-    text.push_str(if source.maximal { " maximal\n" } else { "\n" });
+    text.push('\n');
     let name = |sym: &Sym| match sym {
         Sym::T(t) => TERMINALS[*t],
         Sym::N(n) => RULES[*n],
@@ -403,7 +403,17 @@ fn grammar_text(source: &Source) -> String {
         let bodies: Vec<String> = alternatives
             .iter()
             .map(|(items, tags)| {
-                let mut body: Vec<String> = items.iter().map(item_text).collect();
+                let mut body: Vec<String> = items
+                    .iter()
+                    .map(|item| {
+                        let text = item_text(item);
+                        if source.maximal {
+                            text.replace("[+", "[++")
+                        } else {
+                            text
+                        }
+                    })
+                    .collect();
                 if body.is_empty() {
                     body.push("ε".to_string());
                 }
@@ -453,7 +463,11 @@ fn grammar_dom(source: &Source) -> String {
                         ),
                         Item::Optional(sym) => format!("{{\"optional\":{}}}", reference(sym)),
                         Item::Elidable(t) => {
-                            format!("{{\"optional\":{},\"elidable\":true}}", reference(&Sym::T(*t)))
+                            format!(
+                                "{{\"optional\":{},\"elidable\":true{}}}",
+                                reference(&Sym::T(*t)),
+                                if source.maximal { ",\"maximal\":true" } else { "" }
+                            )
                         }
                         Item::Repeat(sym) => format!("{{\"repeat\":{}}}", reference(sym)),
                         Item::OptionalRepeat(sym) => format!("{{\"optional\":{{\"repeat\":{}}}}}", reference(sym)),
@@ -484,7 +498,7 @@ fn grammar_dom(source: &Source) -> String {
         (_, true) => "\"greedy\",\"elision-only\"",
         _ => "\"greedy\"",
     };
-    let args = if source.maximal { format!("{args},\"maximal\"") } else { args.to_string() };
+    let args = args.to_string();
     let directives = [format!("{{\"name\":\"ambiguity-resolution\",\"args\":[{args}],\"at\":[2,1]}}")];
     format!(
         "{{\"format\":{DOM_FORMAT},\"rules\":[{}],\"directives\":[{}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}",

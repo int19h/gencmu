@@ -364,7 +364,7 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
             return "a malformed directive"
         # No directive has a maximal member, and the notation has four
         # directives; %elidable is none of them (engine §9).
-        if "maximal" in directive or directive["name"] not in _DIRECTIVE_NAMES:
+        if "maximal" in directive or directive["name"] not in _DIRECTIVE_NAMES or (directive["name"] == "ambiguity-resolution" and "maximal" in directive["args"]):
             return "a malformed directive"
         # The operands the notation's syntax allows these directives (engine §9).
         name, args = directive["name"], directive["args"]

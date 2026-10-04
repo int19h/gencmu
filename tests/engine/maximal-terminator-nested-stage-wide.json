@@ -1,6 +1,6 @@
 {
-  "description": "Stage-wide maximal does not apply in a nested query. With maximal in %ambiguity-resolution and [+T], the query of maximal-terminator-nested holds, since no T is written (engine §4).",
-  "grammar": "%ambiguity-resolution greedy maximal\n%rule text A B\n%conditions begins(from($), r)\n%rule r y [+T] B\n%rule y A | A B",
+  "description": "A plain [+T] keeps the default omission policy in a query. No maximal marker restricts it (engine §4).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text A B\n%conditions begins(from($), r)\n%rule r y [+T] B\n%rule y A | A B",
   "tokens": [
     {
       "text": "a",

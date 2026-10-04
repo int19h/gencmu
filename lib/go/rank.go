@@ -235,7 +235,7 @@ type ranker struct {
 	// derivations tie. Under late-elision it is "", and elisions is set.
 	lean     string
 	elisions bool
-	maximal  *maximal // the resolution's maximal, if it has it (engine §4)
+	maximal  *maximal // the maximal terminators, if there are any (engine §4)
 	items    map[*item]*itemRank
 	syms     map[*symNode]*itemRank
 	marked   map[*item]bool

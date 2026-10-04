@@ -521,11 +521,6 @@ export type Resolution = {
      */
     lean: "greedy" | "lazy" | "late-elision";
     elisionOnly: boolean;
-    /**
-     * whether an elided terminator is forbidden
-     * where its constituent could have been longer (engine §4)
-     */
-    maximal: boolean;
 };
 export type LoweredGrammar = {
     productions: Production[];
@@ -1060,8 +1055,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {"greedy" | "lazy" | "late-elision"} lean the rule of the
  *   ranking (engine §6)
  * @property {boolean} elisionOnly
- * @property {boolean} maximal whether an elided terminator is forbidden
- *   where its constituent could have been longer (engine §4)
  */
 /**
  * A grammar lowered for one set of features.

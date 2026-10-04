@@ -23,7 +23,7 @@ package gencmu
 // forbidden when the chart has a longer Y: a completed item of Y from the
 // same origin with a later end, which passes Y's test. It need not be
 // eligible or fit a proof tree. Maximality never forbids an omission with no
-// constituent, and stage-wide maximal does not apply to a query.
+// constituent, and only maximal markers restrict the longest constituent.
 //
 // Each item has two states, computed together to the least fixpoint. E says
 // that the item has an eligible proof tree. P says that it has one whose
@@ -195,7 +195,7 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 	// mx is the maximality of the grammar's maximal terminators over the
 	// query's chart, nil where the grammar has none, and maximalNext says
 	// whether the optional after an item is of a maximal terminator.
-	mx := newMaximal(r, false)
+	mx := newMaximal(r)
 	maximalNext := make([]bool, n)
 	for i, it := range e.order {
 		next[i] = e.next(it)

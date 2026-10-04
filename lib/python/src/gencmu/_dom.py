@@ -362,7 +362,10 @@ class DomBuilder:
         problem = operand_problem(name, [self.operand_kind(kid) for kid in operands])
         if problem:
             raise self.fail(node, problem)
-        return {"name": name, "args": [self.operand(kid) for kid in operands], "at": list(self.position(node))}
+        args = [self.operand(kid) for kid in operands]
+        if name == "ambiguity-resolution" and "maximal" in args:
+            raise self.fail(node, "stage-wide maximal is retired; use [++T] for an individual terminator")
+        return {"name": name, "args": args, "at": list(self.position(node))}
 
     def operand(self, node: Node) -> str:
         """A directive's operand: a name is its text, a string is decoded,

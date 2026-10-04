@@ -1,7 +1,4 @@
-"""Maximality (engine §4): an elided terminator is forbidden where its
-constituent, the node before it, could have been longer. It holds for every
-elidable terminator under the resolution's stage-wide maximal, and for the
-maximal terminators alone otherwise."""
+"""Maximal terminators restrict omission after a constituent that can be longer."""
 
 from __future__ import annotations
 
@@ -12,7 +9,7 @@ from ._grammar import SymbolTest
 class Maximal:
     """What the ranking asks of maximal about one parse's items."""
 
-    def __init__(self, forest: Forest, context: StageContext, stage_wide: bool = True, base: int = 0) -> None:
+    def __init__(self, forest: Forest, context: StageContext, base: int = 0) -> None:
         self.forest = forest
         # The parse's stage, whose tokens a sound test is checked against,
         # and where the parse's tokens begin among them: a nested parse
@@ -20,12 +17,10 @@ class Maximal:
         self.context = context
         self.base = base
         self.productions = forest.lowered.productions
-        # The helpers whose omission maximality restricts: every elidable
-        # optional's under stage-wide maximal, and otherwise those of the
-        # maximal terminators. An empty production of one is an elided
+        # The helpers of maximal terminators. An empty production of one is an elided
         # terminator.
         lowered = forest.lowered
-        self.elidable = lowered.elidable_helpers if stage_wide else lowered.maximal_helpers
+        self.elidable = lowered.maximal_helpers
         self.furthest: dict[tuple[int, int], int] | None = None
         self.completed: dict[tuple[int, int], list[int]] | None = None
         # For a tested symbol, the furthest end from each origin at which

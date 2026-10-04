@@ -1,6 +1,6 @@
 {
   "description": "The same holds for braces followed by more of their alternative, {[T] A} B: the list is a helper whose recursive production starts with itself (engine §3.2, §4).",
-  "grammar": "%ambiguity-resolution greedy maximal\n%rule text {[+T] A} B",
+  "grammar": "%ambiguity-resolution greedy\n%rule text {[++T] A} B",
   "tokens": [
     {
       "text": "a",

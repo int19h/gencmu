@@ -62,9 +62,9 @@ func (g *genGrammar) ruleRef() *domExpr {
 func (g *genGrammar) elidableOptional() *domExpr {
 	t := &domExpr{Kind: exRef, Name: "T"}
 	if g.r.Intn(2) == 0 {
-		return &domExpr{Kind: exOptional, Inner: t, Elidable: true}
+		return &domExpr{Kind: exOptional, Inner: t, Elidable: true, Maximal: g.maximal}
 	}
-	return &domExpr{Kind: exOptional, Inner: &domExpr{Kind: exSeq, Items: []*domExpr{t, g.ref()}}, Elidable: true}
+	return &domExpr{Kind: exOptional, Inner: &domExpr{Kind: exSeq, Items: []*domExpr{t, g.ref()}}, Elidable: true, Maximal: g.maximal}
 }
 
 func (g *genGrammar) item(depth int) *domExpr {
@@ -128,9 +128,6 @@ func (g *genGrammar) grammar() *domDoc {
 		lean = "late-elision"
 	}
 	args := []string{lean}
-	if g.maximal {
-		args = append(args, "maximal")
-	}
 	d.Directives = []*domDirective{{Name: "ambiguity-resolution", Args: args}}
 	for _, name := range g.rules {
 		r := &domRule{Name: name, Op: "define"}
@@ -690,7 +687,7 @@ func TestRankingProperty(t *testing.T) {
 			texts = append(texts, "x")
 			tagMaps[i] = tags
 		}
-		en := &enumerator{g: lg, tags: tagMaps, sounds: sounds, memo: map[string][]*bnode{}, budget: 20000, maximal: lg.maximal}
+		en := &enumerator{g: lg, tags: tagMaps, sounds: sounds, memo: map[string][]*bnode{}, budget: 20000, maximal: gen.maximal}
 		en.plain = &enumerator{g: lg, tags: tagMaps, sounds: sounds, memo: map[string][]*bnode{}, budget: 20000}
 		trees, err := en.derive(symbol{id: lg.byName["text"]}, 0, n, nil)
 		if err != nil {
@@ -705,8 +702,8 @@ func TestRankingProperty(t *testing.T) {
 			lean = "" // no lean, as elision-only ranks (engine §7)
 		}
 		var mx *maximal
-		if lg.maximal {
-			mx = newMaximal(rec, true)
+		if gen.maximal {
+			mx = newMaximal(rec)
 		}
 		rk := newRanker(rec, lean, mx)
 		var got *rankResult
@@ -767,7 +764,7 @@ func TestRankingProperty(t *testing.T) {
 		if n == 0 {
 			empty++
 		}
-		if lg.maximal {
+		if gen.maximal {
 			withMaximal++
 			// Whether maximal left out a derivation here.
 			if plain, err := en.plain.derive(symbol{id: lg.byName["text"]}, 0, n, nil); err == nil && len(plain) > len(trees) {

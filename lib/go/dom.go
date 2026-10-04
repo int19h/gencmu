@@ -723,6 +723,13 @@ func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
 		if _, ok := o["maximal"]; ok {
 			return nil, fmt.Errorf("a malformed directive")
 		}
+		if name == "ambiguity-resolution" {
+			for _, arg := range args {
+				if arg == "maximal" {
+					return nil, fmt.Errorf("a malformed directive")
+				}
+			}
+		}
 		d.Directives = append(d.Directives, &domDirective{Name: name, Args: args, At: at})
 	}
 	if err := validateDOM(d, uni); err != nil {

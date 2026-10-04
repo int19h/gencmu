@@ -424,6 +424,13 @@ func (b *domBuilder) document(root *Node) *domDoc {
 			if problem := operandProblem(dir.Name, kinds); problem != "" {
 				b.fail(keyword, "%s", problem)
 			}
+			if dir.Name == "ambiguity-resolution" {
+				for _, arg := range dir.Args {
+					if arg == "maximal" {
+						b.fail(keyword, "stage-wide maximal is retired; use [++T] for an individual terminator")
+					}
+				}
+			}
 			d.Directives = append(d.Directives, dir)
 		}
 	}

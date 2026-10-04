@@ -1,6 +1,6 @@
 {
   "description": "Twin of stage-wide-maximal-markers.json: on C X B, the plain [T] is absent after the same short body, and since it elides nothing, maximal does not apply (engine §3.8, §4).",
-  "grammar": "%ambiguity-resolution late-elision maximal\n%rule text x | y\n%rule x A body [+T] B\n%rule y C body [T] B\n%rule body X | X B",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text x | y\n%rule x A body [++T] B\n%rule y C body [T] B\n%rule body X | X B",
   "tokens": [
     {
       "text": "c",

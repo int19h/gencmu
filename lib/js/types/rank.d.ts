@@ -147,8 +147,8 @@ export declare class Ranker {
     /**
      * @param {Token[]} tokens
      * @param {Lean} lean
-     * @param {Maximal | null} [maximal] the resolution's maximal, if it has
-     *   it (engine §4)
+     * @param {Maximal | null} [maximal] the maximal terminators, if there are
+     *   any (engine §4)
      * @param {number[] | null} [project] positions to find cycles over in
      *   place of the items' own, which only a fault of the check of engine
      *   §7 gives (F19)

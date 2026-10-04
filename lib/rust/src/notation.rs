@@ -302,6 +302,9 @@ impl<'a> Reader<'a> {
                 _ => self.tag_of(operand)?,
             });
         }
+        if name == "ambiguity-resolution" && args.iter().any(|arg| arg == "maximal") {
+            return Err(self.error(node, "stage-wide maximal is retired; use [++T] for an individual terminator"));
+        }
         Ok(Directive { name, args, at: self.at(token) })
     }
 

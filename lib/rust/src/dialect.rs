@@ -573,11 +573,9 @@ impl Dialect {
         let n = input.len();
         let accepted = chart.accepts(lowered.start, n);
         let lean = grammar.lean;
-        // Maximality applies under stage-wide `maximal`, and to the maximal
-        // terminators whether or not the stage declares it (§4).
-        let restricted = grammar.maximal || lowered.rules.iter().any(|rule| rule.maximal);
-        let maximal =
-            restricted.then(|| Maximal::new(&lowered, &chart, &input, shared.unicode, &shared.tags, grammar.maximal));
+        // Maximality applies to the marked terminators (§4).
+        let restricted = lowered.rules.iter().any(|rule| rule.maximal);
+        let maximal = restricted.then(|| Maximal::new(&lowered, &chart, &input, shared.unicode, &shared.tags));
         let ranked = if accepted {
             let mut ranker = Ranker::new(&lowered, &chart, &input, shared, lean, maximal.as_ref());
             ranker.rank().map(|ranking| {
@@ -904,7 +902,7 @@ impl Dialect {
         } else {
             None
         };
-        // Neither form of maximality applies to the derivations of R, and
+        // Maximality does not apply to the derivations of R, and
         // the ranking has no lean (§7.7).
         let ranking = if rooted {
             let marks = walk.as_ref().and_then(|walk| walk.as_ref()).map(|walk| &walk.marks);

@@ -1,6 +1,6 @@
 {
   "description": "A terminator elided at the start of an item of braces has no constituent: at the first item it is the first symbol of the helper's production, and at each later item it follows the production's initial reference to its own left side. So a PEG's (T? A)+ over a a parses under maximal (engine §3.2, §4).",
-  "grammar": "%ambiguity-resolution greedy maximal\n%rule text x\n%rule x {[+T] A}",
+  "grammar": "%ambiguity-resolution greedy\n%rule text x\n%rule x {[++T] A}",
   "tokens": [
     {
       "text": "a",

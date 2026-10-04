@@ -83,7 +83,6 @@ type lowered struct {
 	classes []*charClass
 	prods   []*production
 	lean    string // "greedy", "lazy", "late-elision", or "" for no lean (§6, §7)
-	maximal bool   // no terminator is elided where its constituent could have been longer (§4)
 	// maximalH holds the helpers of the optionals written [++T x], whose
 	// terminators are maximal, which maximality restricts anyway (§3.8, §4).
 	maximalH   map[int32]bool
@@ -105,8 +104,8 @@ type lowered struct {
 	// every nested query asks (§3.8).
 	elidable    []bool
 	anyElidable bool
-	// maximalElides is maximalElides without and with stage-wide maximal.
-	maximalElides [2][]string
+	// maximalElides records the helpers of maximal terminators.
+	maximalElides []string
 }
 
 type slot struct {
@@ -190,7 +189,7 @@ type helperNode struct {
 // lower lowers a stage's grammar for a set of features. The check of
 // elision-only reads the same productions in a mode of its own (§3.8, §7.4).
 func lower(g *stageGrammar, features map[string]bool) *lowered {
-	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, lean: g.lean, maximal: g.maximal, maximalH: map[int32]bool{}}
+	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, lean: g.lean, maximalH: map[int32]bool{}}
 	// The stage resolves its classifiers for the same features, before it
 	// lowers its rules; an error there ends the stage as an error of
 	// lowering does (§2, §3.3).
@@ -217,7 +216,7 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 	}
 	l.computeCycles()
 	l.elidable, l.anyElidable = elidableHelpers(l)
-	l.maximalElides = [2][]string{maximalElides(l, false), maximalElides(l, true)}
+	l.maximalElides = maximalElides(l)
 	return l
 }
 

@@ -1,6 +1,6 @@
 {
   "description": "The first item of braces starts the helper's production, so a terminator elided at its start has no constituent, whatever stands before the braces: only the short b fits before y, with T elided, and maximal forbids nothing (engine §3.2, §4).",
-  "grammar": "%ambiguity-resolution greedy maximal\n%rule text x\n%rule x b {[+T] y}\n%rule b B | B C\n%rule y C A",
+  "grammar": "%ambiguity-resolution greedy\n%rule text x\n%rule x b {[++T] y}\n%rule b B | B C\n%rule y C A",
   "tokens": [
     {
       "text": "b",

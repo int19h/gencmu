@@ -1001,7 +1001,7 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has a guard of an alternative whose feature is not a name, or that has a member other than its feature, its kind and whether it is negated.
 - It has a directive whose name is not `ambiguity-resolution`, `stage`, `include` or `features`. So a directive named `elidable` is malformed.
 - It has a `stage`, `include` or `features` directive whose operands the reader refuses.
-- It has a `maximal` member on a directive. No directive has one.
+- It has a `maximal` member on a directive, or the retired `maximal` operand in `ambiguity-resolution`. No directive has that member.
 - It has a test that the reader refuses. That is a test after anything but a reference other than `#` or a terminal, or an unknown comparator. It is also a value that is not a closed term of the right type. It is also a string that holds a comma or that the lowercase mapping of the canonical sound changes.
 - It has a `terminal`, a `tag` or an inserted tag that is not a tag in its canonical spelling (§1).
 - It has a `range` whose ends are not two character tags in their canonical spelling, or whose start is above its end.

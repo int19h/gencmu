@@ -1,6 +1,6 @@
 {
   "description": "Twin of elided-first-item-after-prefix.json with the terminal B before the braces: a terminator elided at the start of the first item has no constituent (engine §3.2, §4).",
-  "grammar": "%ambiguity-resolution greedy maximal\n%rule text x\n%rule x B {[+T] y}\n%rule y C A",
+  "grammar": "%ambiguity-resolution greedy\n%rule text x\n%rule x B {[++T] y}\n%rule y C A",
   "tokens": [
     {
       "text": "b",

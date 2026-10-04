@@ -1,12 +1,8 @@
 package gencmu
 
 // Maximality (engine §4): an elided terminator is forbidden where its
-// constituent, the node before it, could have been longer. Stage-wide
-// maximal, of %ambiguity-resolution, restricts every elidable terminator in
-// the main parse. A maximal terminator, the terminator of an optional
-// written [++T x], restricts itself in the main parse and in nested
-// queries (§3.8).
-
+// constituent, the node before it, could have been longer.
+// A maximal terminator restricts omission in main and nested parses.
 // maximal is what the ranking asks of maximal, over one parse's chart.
 type maximal struct {
 	rec *recognizer
@@ -33,14 +29,10 @@ type testOrigin struct {
 	t  *symTest
 }
 
-// newMaximal is maximality over a chart: of every elidable terminator under
-// stage-wide maximal, and of the grammar's maximal terminators anyway. It
-// is nil where it restricts nothing.
-func newMaximal(rec *recognizer, stageWide bool) *maximal {
-	elides := rec.g.maximalElides[0]
-	if stageWide {
-		elides = rec.g.maximalElides[1]
-	}
+// newMaximal restricts the maximal terminators of a chart.
+// It is nil where the grammar has none.
+func newMaximal(rec *recognizer) *maximal {
+	elides := rec.g.maximalElides
 	if elides == nil {
 		return nil
 	}
@@ -49,16 +41,15 @@ func newMaximal(rec *recognizer, stageWide bool) *maximal {
 
 // maximalElides is, for the helper of each elidable optional that
 // maximality restricts, the terminal it elides, and "" for every other
-// rule, or nil where it restricts none. Lowering makes it once, with and
-// without stage-wide maximal, since every nested query asks.
-func maximalElides(g *lowered, stageWide bool) []string {
+// rule, or nil where it restricts none. Lowering makes it once.
+func maximalElides(g *lowered) []string {
 	var elides []string
 	w := work.Load()
 	for _, p := range g.prods {
 		if w != nil {
 			w.elidableSteps.add("elidable steps")
 		}
-		if p.helper && p.elided != "" && (stageWide || g.maximalH[p.lhs]) {
+		if p.helper && p.elided != "" && g.maximalH[p.lhs] {
 			if elides == nil {
 				elides = make([]string, len(g.rules))
 			}

@@ -564,9 +564,9 @@ def random_rules_grammar(rng: random.Random) -> tuple[dict[str, Any], str, bool,
                 if rng.random() < 0.5:
                     symbols.append(reference(0.6))
                 symbols.append(
-                    {"optional": {"ref": "T"}, "elidable": True}
+                    {"optional": {"ref": "T"}, "elidable": True, **({"maximal": True} if maximal else {})}
                     if rng.random() < 0.5
-                    else {"optional": {"seq": [{"ref": "T"}, symbol]}, "elidable": True}
+                    else {"optional": {"seq": [{"ref": "T"}, symbol]}, "elidable": True, **({"maximal": True} if maximal else {})}
                 )
             elif sugar < 0.08:
                 symbols.append({"optional": symbol})
@@ -605,7 +605,7 @@ def random_rules_grammar(rng: random.Random) -> tuple[dict[str, Any], str, bool,
         }
         for number, (name, count) in enumerate(definitions)
     ]
-    args = ["greedy" if lean == "none" else lean] + (["maximal"] if maximal else [])
+    args = ["greedy" if lean == "none" else lean]
     directives: list[dict[str, Any]] = [{"name": "ambiguity-resolution", "args": args, "at": [1, 1]}]
     dom = {"format": DOM_FORMAT, "rules": dom_rules, "directives": directives, "constants": []}
     return dom, lean, elidable, maximal, terminals
