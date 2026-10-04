@@ -523,6 +523,37 @@ func TestPredictionConditionsStopAtFirst(t *testing.T) {
 	stopsAtFirst(t, w, &w.conditions, "conditions", recognize)
 }
 
+// TestPredictionConditionsLinear: the conditions that hold or fail at
+// prediction are each evaluated once for each prediction, so n tokens cost
+// a bounded number for each token. The rule e is predicted at each token,
+// with three conditions on its empty span. One asks a nested parse, which
+// halts the evaluation and resumes it where it halted.
+func TestPredictionConditionsLinear(t *testing.T) {
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text {A e}\n%rule e ε\n%conditions text($) = \"\", ¬matches($, f), text($) = \"\"\n%rule f A"))
+	lg := d.lower(0, map[string]bool{})
+	if len(lg.rules[lg.byName["e"]].prods[0].predictConds) != 3 {
+		t.Fatal("e has not three conditions at prediction")
+	}
+	for _, n := range []int{100, 400} {
+		toks := make([]Token, n)
+		for i := range toks {
+			toks[i] = Token{Text: "a", Tags: []string{"A"}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
+		}
+		ps := newParseState(d.uni, []rune(strings.TrimSpace(strings.Repeat("a ", n))))
+		run := ps.newRun("main", d.stages[0], toks)
+		// Three conditions at each of the n+1 predictions of e, with room
+		// for a constant factor.
+		w := &workCounts{}
+		w.conditions.most = 3 * 3 * int64(n+1)
+		var rec *recognizer
+		countWorkIn(w, func() { rec = run.recognize(lg, lg.byName["text"], 0, n) })
+		if len(rec.sets[n].items) == 0 {
+			t.Fatalf("%d tokens: no item at the end", n)
+		}
+		t.Logf("%d tokens: %d conditions", n, w.conditions.Load())
+	}
+}
+
 // TestIncludeChainLinear: a chain of documents, each including the next,
 // is spliced without copying the chain at each include, and n stages are
 // told apart by name without a scan of those before (engine §2).

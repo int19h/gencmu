@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 // The shared cases of tests/growth.json: the work of the bundled grammars
@@ -237,22 +238,32 @@ func TestNotationGrowth(t *testing.T) {
 	if len(cases) <= 5 {
 		t.Fatal("too few cases")
 	}
+	// Once first, so that loading the notation counts in no read below.
+	bundled.reader.read("```jbogenbau\n%rule text A\n```\n", "t.md")
 	for _, c := range cases {
+		text := func(n int) string {
+			return "```jbogenbau\n" + c.Prefix + strings.Repeat(c.Open, n) + c.Middle + strings.Repeat(c.Close, n) + c.Suffix + "\n```\n"
+		}
 		// A budget of 0 is none. Each count past its budget stops the read
 		// at once, with the panic that the test reports.
 		read := func(n int, items, steps int64) (w *workCounts, stop any) {
-			text := "```jbogenbau\n" + c.Prefix + strings.Repeat(c.Open, n) + c.Middle + strings.Repeat(c.Close, n) + c.Suffix + "\n```\n"
 			w = &workCounts{}
 			w.items.most, w.readerSteps.most = items, steps
 			defer func() { stop = recover() }()
 			// An error is an outcome too. Its place is the notation cases'
 			// concern.
-			countWorkIn(w, func() { bundled.reader.read(text, "t.md") })
+			countWorkIn(w, func() { bundled.reader.read(text(n), "t.md") })
 			return w, nil
 		}
-		// Once first, so that loading the notation counts in neither.
-		read(250, 0, 0)
-		small, _ := read(250, 0, 0)
+		// The smaller read has a budget of its own, a constant times its
+		// characters, so that work which grows faster than any power of
+		// its input stops too, and does not run on in the read that sets
+		// the larger budget.
+		small, stop := read(250, 0, 20*int64(utf8.RuneCountInString(text(250))))
+		if stop != nil {
+			t.Errorf("%s: %v, for 250 levels", c.Name, stop)
+			continue
+		}
 		// Each count has its own budget, so that work which grows faster
 		// than its input in either stops at the first count past it.
 		large, stop := read(1000, 5*small.items.Load()+1, 5*small.readerSteps.Load()+1)
