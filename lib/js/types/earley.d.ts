@@ -1,5 +1,5 @@
 import { Sources } from "./tokens.js";
-import type { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Slot, SpanValue, SymbolTest, TagSet, TermValue } from "./types.js";
+import type { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Captured, SpanValue, SymbolTest, TagSet, TermValue } from "./types.js";
 import type { Token } from "./tokens.js";
 import type { UnicodeTable } from "./unicode.js";
 export type Chart = {
@@ -18,7 +18,7 @@ export type Chart = {
     context: ParseContext;
 };
 /**
- * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, Scope, Slot, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
+ * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, Scope, Captured, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
  * @import { Token } from "./tokens.js"
  * @import { UnicodeTable } from "./unicode.js"
  */
@@ -58,6 +58,8 @@ export declare class ParseContext {
     sourceText: string[];
     unicode: UnicodeTable;
     interner: TagInterner;
+    /** @type {Map<string, NonNullable<Captured>>} */
+    captured: Map<string, NonNullable<Captured>>;
     /**
      * How the recognizer reads elidable optionals: null as engine §4 says,
      * "reconstruction" in the mode of engine §7.4, or "mandatory", the old
@@ -86,6 +88,13 @@ export declare class ParseContext {
      * @type {(string | undefined)[]}
      */
     sounds: (string | undefined)[];
+    /**
+     * For each position, the first token at or after it whose sound is not
+     * empty, made on the first sound test. A test then skips a run of
+     * silent tokens in one step, rather than walking it each time.
+     * @type {Int32Array | null}
+     */
+    nextSounding: Int32Array | null;
     dots: number;
     /** @type {Map<string, boolean | TagSet>} */
     nested: Map<string, boolean | TagSet>;
@@ -185,7 +194,7 @@ export declare class Item {
     production: Production;
     dot: number;
     origin: number;
-    slots: Slot[];
+    slots: Captured;
     tagId: number;
     end: number;
     previous: Item | null;
@@ -199,11 +208,11 @@ export declare class Item {
      * @param {Production} production
      * @param {number} dot
      * @param {number} origin
-     * @param {Slot[]} slots
+     * @param {Captured} slots
      * @param {Item | null} previous
      * @param {Item | null} child
      */
-    constructor(production: Production, dot: number, origin: number, slots: Slot[], previous: Item | null, child: Item | null);
+    constructor(production: Production, dot: number, origin: number, slots: Captured, previous: Item | null, child: Item | null);
     get complete(): boolean;
     /**
      * Every way the item was built, in the order they were found.
@@ -294,7 +303,7 @@ export type StepScope = {
 declare class ChartScope implements Scope {
     context: ParseContext;
     production: Production;
-    slots: Slot[];
+    slots: Captured;
     origin: number;
     end: number;
     /** @type {ParseContext | null} */
@@ -304,14 +313,17 @@ declare class ChartScope implements Scope {
     space: SpanValue["space"];
     /** @type {TagSet | null} the constituent's tags, once evaluated */
     tagSet: TagSet | null;
+    /** @type {NonNullable<Captured>[] | null} every captured part by its index, once many are read */
+    parts: NonNullable<Captured>[] | null;
+    searched: number;
     /**
      * @param {ParseContext} context
      * @param {Production} production
-     * @param {Slot[]} slots
+     * @param {Captured} slots
      * @param {number} origin
      * @param {number} end
      */
-    constructor(context: ParseContext, production: Production, slots: Slot[], origin: number, end: number);
+    constructor(context: ParseContext, production: Production, slots: Captured, origin: number, end: number);
     /**
      * The constituent's tags, from its production's tag term, evaluated at
      * most once.

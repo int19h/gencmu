@@ -4,6 +4,230 @@
 (function (root) {
   "use strict";
   function gencmuFactory() {
+  // ---- testing.js
+  // Switches and hooks for the library's own tests. Nothing here is part of
+  // the API, and index.js does not export it.
+  //
+  // `faults` holds the faults that a test turns on, one at a time, to show
+  // which shared cases catch each (tests/README.md). An empty set is the
+  // engine as specified. The names F1 to F32 are those of the fault list of
+  // the check of elision-only. Each fault is defined by exactly what
+  // it reads, and a variant of a fault is a switch of its own, so that every
+  // catch that the fault table names is shown by injection:
+  //
+  // - "F1:<observer>", such as "F1:head", computes the observer over the
+  //   tokens of R behind its argument, and projects afterwards. The tokens
+  //   behind a function of a span are exact: one token for head and last,
+  //   and from the first original token for tail, from and after. from and
+  //   after have no such fault, since they give the same span before the
+  //   projection or after it.
+  // - "F1pos:<observer>" reads R at the positions that it is handed, which
+  //   for a function of a span are positions of the stage's input.
+  // - "F7:restoration" gives a restoration the synthetic token's tags,
+  //   "F7:capture" gives them to a capture of the terminal that reads it and
+  //   to a production that inherits from that terminal, and "F7:union" adds
+  //   the synthetic tokens' tags inside the exact span of R behind a span to
+  //   the union of its tokens' tags.
+  // - "F26:lost" loses an error of the grammar that the check meets, and
+  //   "F26:relabel" reports it as elision-witness-lost, which the runner
+  //   invariant of tests/README.md fails.
+  // - "F27:order" reverses the records at one position, and "F27:bare" shows
+  //   a read of a synthetic token as a token.
+  // - "F30" takes the greatest answer of "can read" (engine §7.4), "F31"
+  //   makes the item after the T of route 3 ordinary where a strict item read
+  //   T. "F32:queue" leaves an item that an ordinary step reaches as it was
+  //   processed while strict, and "F32:predict" never predicts again a rule
+  //   that a strict prediction predicted first.
+  // - "lost:roots" and "lost:count" lose the witness after recognition
+  //   (engine §7.9).
+  // - "lost:rank" gives a restoration no derivation in the ranking, so the
+  //   check's ranking does not count W(D) though its chart holds it. Most
+  //   cases see it through the result too, since the readings change or none
+  //   is left. reparse-witness-sibling-last sees it through the hook alone.
+  // - "lost:context" makes the check's count skip the last edge of an item
+  //   that has two or more, and "lost:select" makes its candidates skip it.
+  //   In the sibling cases that edge is W(D)'s. The count channel of the
+  //   witness hook alone sees lost:context, where the readings stay; the
+  //   selection channel sees lost:select, where W(D) was a reading.
+  // - "witness:project" leaves the witness of an error of elision-only over
+  //   R, unmapped: a read keeps its index in R, and a close its span there.
+  // - "order:tags" evaluates a completing item's tag term before its
+  //   conditions, and "order:conditions" evaluates the conditions that read
+  //   only captures before those that read `$`, against the order of one step
+  //   of the recognizer (engine §4). Both apply to every parse, the main parse
+  //   as well as the check.
+  //
+  // F25 finds no query cycle at all while the check runs. A detector that
+  // finds only some cycles gives the same public result, because the
+  // recursion meets the same rule and span one level deeper, and only the
+  // message differs, which no pattern pins. The switch ends the recursion at
+  // a bound, with an error that is not the library's, and faults.json labels
+  // that catch "bound".
+  //
+  // A fault with several sites names the site where it is checked, and
+  // `hits` counts each site that a run enters while the fault is on. The
+  // fault test asserts that the named cases enter every declared site.
+  //
+  // A strict and an ordinary prediction of one symbol at one position share
+  // their items (engine §7.4). So a fault of the strict path (F16, F29, F31,
+  // F32) shows only where that path is the only one at its position, or
+  // comes first, and a case that catches it says so. A case for a fault that
+  // depends on the order of processing comes in both orders.
+  //
+  // `hooks.elisionCheck`, when set, receives each check that recognized R
+  // and met no error of the grammar, before the check ranks, for the witness
+  // test of tests/README.md. It returns the marks of W(D)'s edges, which the
+  // check's own ranker takes, and a callback that receives the ranking.
+  //
+  // `hooks.work`, when set, counts work for the tests that it grows with the
+  // input as it should: the items that the recognizer makes, in parses and
+  // nested parses alike (tests/growth.json), and the checks of maximality in
+  // nested queries, the items of the chart that they read to find their
+  // table, and the completions that they read for a tested symbol (engine
+  // §4). Each is counted where the work is done, as it is done, by
+  // countWork, which throws a WorkBudget at the first count past the budget
+  // that `hooks.work.budget` gives it, if any, so that a regression to
+  // quadratic work stops at once. Unset, a parse counts nothing.
+  //
+  // The other kinds count the steps of reads, scans, checks and formatters
+  // whose work must grow linearly with their input, each where a loop takes
+  // the step. A loop that rescanned or copied a growing list would count
+  // the square of the input, so the tests that read these kinds fail on it.
+  // Tools outside the library count through the same hook.
+
+  /** @type {Set<string>} */
+  const faults = new Set();
+
+  /**
+   * How often each site of a fault was entered while that fault was on, by
+   * the fault's name, or its name and the site's after an @, for a fault
+   * with several sites. The fault test asserts that its named cases enter
+   * every declared site (tests/README.md).
+   * @type {Map<string, number>}
+   */
+  const hits = new Map();
+
+  /**
+   * What the check of engine §7 hands its test hook.
+   * @typedef {object} ElisionCheckRun
+   * @property {import("./types.js").Derivation} chosen D, the chosen
+   *   derivation of the main parse
+   * @property {import("./earley.js").Chart} chart the recognition of R
+   * @property {import("./types.js").Item[]} roots the completed items of
+   *   `text` over R
+   * @property {boolean[]} synthetic for each token of R, whether it is
+   *   synthetic, by its provenance
+   * @property {number[]} originalAt for each token of the stage's input, its
+   *   index in R
+   * @property {number[]} recordAt for each restoration record, the index of
+   *   its synthetic token in R
+   */
+
+  /**
+   * What the witness test hands back to the check: the marks of W(D)'s
+   * edges, for each item the indices of the edges that W(D) uses, or null
+   * where the chart does not hold W(D); and a callback that receives the
+   * check's ranking, with whether its count counted W(D).
+   * @typedef {object} ElisionCheckWatch
+   * @property {Map<import("./earley.js").Item, Set<number>> | null} marks
+   * @property {(outcome: {ranking: import("./rank.js").Ranking | null, counted: boolean}) => void} ranked
+   */
+
+  /**
+   * The counts of `hooks.work`.
+   * @typedef {object} WorkCounts
+   * @property {number} items the items that the recognizer made
+   * @property {number} checks the checks of maximality in nested queries
+   * @property {number} scanned the items of the chart that those checks
+   *   read to find their table of completions
+   * @property {number} candidates the completions that those checks read for
+   *   a tested symbol
+   * @property {number} captures the captured parts that the recognizer made
+   * @property {number} captureSteps the steps that find a captured part from
+   *   the last one, or that list every part at once
+   * @property {number} captureLookups the entries of a production's captures
+   *   that an advance or a formatter reads to find the capture at a position
+   * @property {number} edgeChecks the ways of building an item that the
+   *   recognizer compares with a new way, to find it already there
+   * @property {number} conditions the conditions that an advance reads to
+   *   find those ready at its dot
+   * @property {number} soundSteps the tokens that a sound test or phonemes()
+   *   visits
+   * @property {number} tags the tags that a union of tag sets or an entry of
+   *   a classifier adds to a set or copies
+   * @property {number} implications the implications that the closure of a
+   *   token's tags reads
+   * @property {number} walkSteps the steps of the readers and walks of a
+   *   document, of its notation's tree and of its DOM, in the library and in
+   *   the tools
+   * @property {number} lowering the symbols and captures that lowering and
+   *   the checks of a definition add to a sequence or copy, and the helpers
+   *   that lowering moves on its list of those waiting
+   * @property {number} closures the productions and alternatives that the
+   *   closures over a grammar's rules read: the nullable rules, the rules
+   *   that can read, and those that can emit
+   * @property {number} clauses the items of an emission and the alternatives
+   *   of a rule that the checks of a definition and the audit read
+   * @property {number} splice the names, stages and documents that a splice
+   *   of a pipeline checks or copies
+   * @property {number} text the characters, words, lines and cells that the
+   *   formatters of diagnostics and the tools' scans of a text read
+   * @property {Partial<Record<WorkKind, number>>} [budget] the most of each
+   *   count that the work may reach
+   */
+
+  /** @typedef {"items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "splice" | "text"} WorkKind */
+
+  /** @type {readonly WorkKind[]} */
+  const WORK_KINDS = ["items", "checks", "scanned", "candidates", "captures", "captureSteps", "captureLookups", "edgeChecks", "conditions", "soundSteps", "tags", "implications", "walkSteps", "lowering", "closures", "clauses", "splice", "text"];
+
+  /**
+   * Counts of every kind at zero, for a test to set as `hooks.work`.
+   * @param {Partial<Record<WorkKind, number>>} [budget]
+   * @returns {WorkCounts}
+   */
+  function newWork(budget) {
+    const work = /** @type {WorkCounts} */ ({ budget });
+    for (const kind of WORK_KINDS) work[kind] = 0;
+    return work;
+  }
+
+  /**
+   * A count of `hooks.work` past its budget. It is no GencmuError, so no
+   * handler of the library's catches it.
+   */
+  class WorkBudget extends Error {}
+
+  /**
+   * Counts one or more of `work`, and throws a WorkBudget if that passes its
+   * budget.
+   * @param {WorkCounts} work
+   * @param {WorkKind} kind
+   * @param {number} [steps]
+   */
+  function countWork(work, kind, steps = 1) {
+    const counted = (work[kind] += steps);
+    const most = work.budget?.[kind];
+    if (most !== undefined && counted > most) throw new WorkBudget(`${counted} ${kind}, past the budget of ${most}`);
+  }
+
+  /** @type {{elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null}} */
+  const hooks = { elisionCheck: null, work: null };
+
+  /**
+   * Whether a fault is on, at one of its sites. A fault that is on counts the
+   * site as entered.
+   * @param {string} name
+   * @param {string} [site] the site, for a fault with several
+   * @returns {boolean}
+   */
+  function fault(name, site = "") {
+    if (faults.size === 0 || !faults.has(name)) return false;
+    const key = site === "" ? name : `${name}@${site}`;
+    hits.set(key, (hits.get(key) || 0) + 1);
+    return true;
+  }
+
   // ---- tags.js
   // Tags and tag sets (engine §1). A tag is a string in its canonical
   // spelling: an identifier tag is a name, a phoneme tag is `/p/`, and a
@@ -11,6 +235,8 @@
   // strength, so a tag set is a set of these strings.
 
   /** @import { TagSet } from "./types.js" */
+
+
 
   /**
    * @param {Iterable<string>} [tags]
@@ -29,6 +255,7 @@
   function tagUnion(left, right) {
     if (right.size === 0) return left;
     if (left.size === 0) return right;
+    if (hooks.work) countWork(hooks.work, "tags", left.size + right.size);
     const result = new Set(left);
     for (const tag of right) result.add(tag);
     return result;
@@ -55,9 +282,11 @@
         return;
       }
       if (!this.owned) {
+        if (hooks.work) countWork(hooks.work, "tags", this.tags.size);
         this.tags = new Set(this.tags);
         this.owned = true;
       }
+      if (hooks.work) countWork(hooks.work, "tags", tags.size);
       for (const tag of tags) this.tags.add(tag);
     }
     /**
@@ -1241,178 +1470,6 @@
     return [...text];
   }
 
-  // ---- testing.js
-  // Switches and hooks for the library's own tests. Nothing here is part of
-  // the API, and index.js does not export it.
-  //
-  // `faults` holds the faults that a test turns on, one at a time, to show
-  // which shared cases catch each (tests/README.md). An empty set is the
-  // engine as specified. The names F1 to F32 are those of the fault list of
-  // the check of elision-only. Each fault is defined by exactly what
-  // it reads, and a variant of a fault is a switch of its own, so that every
-  // catch that the fault table names is shown by injection:
-  //
-  // - "F1:<observer>", such as "F1:head", computes the observer over the
-  //   tokens of R behind its argument, and projects afterwards. The tokens
-  //   behind a function of a span are exact: one token for head and last,
-  //   and from the first original token for tail, from and after. from and
-  //   after have no such fault, since they give the same span before the
-  //   projection or after it.
-  // - "F1pos:<observer>" reads R at the positions that it is handed, which
-  //   for a function of a span are positions of the stage's input.
-  // - "F7:restoration" gives a restoration the synthetic token's tags,
-  //   "F7:capture" gives them to a capture of the terminal that reads it and
-  //   to a production that inherits from that terminal, and "F7:union" adds
-  //   the synthetic tokens' tags inside the exact span of R behind a span to
-  //   the union of its tokens' tags.
-  // - "F26:lost" loses an error of the grammar that the check meets, and
-  //   "F26:relabel" reports it as elision-witness-lost, which the runner
-  //   invariant of tests/README.md fails.
-  // - "F27:order" reverses the records at one position, and "F27:bare" shows
-  //   a read of a synthetic token as a token.
-  // - "F30" takes the greatest answer of "can read" (engine §7.4), "F31"
-  //   makes the item after the T of route 3 ordinary where a strict item read
-  //   T. "F32:queue" leaves an item that an ordinary step reaches as it was
-  //   processed while strict, and "F32:predict" never predicts again a rule
-  //   that a strict prediction predicted first.
-  // - "lost:roots" and "lost:count" lose the witness after recognition
-  //   (engine §7.9).
-  // - "lost:rank" gives a restoration no derivation in the ranking, so the
-  //   check's ranking does not count W(D) though its chart holds it. Most
-  //   cases see it through the result too, since the readings change or none
-  //   is left. reparse-witness-sibling-last sees it through the hook alone.
-  // - "lost:context" makes the check's count skip the last edge of an item
-  //   that has two or more, and "lost:select" makes its candidates skip it.
-  //   In the sibling cases that edge is W(D)'s. The count channel of the
-  //   witness hook alone sees lost:context, where the readings stay; the
-  //   selection channel sees lost:select, where W(D) was a reading.
-  // - "witness:project" leaves the witness of an error of elision-only over
-  //   R, unmapped: a read keeps its index in R, and a close its span there.
-  // - "order:tags" evaluates a completing item's tag term before its
-  //   conditions, and "order:conditions" evaluates the conditions that read
-  //   only captures before those that read `$`, against the order of one step
-  //   of the recognizer (engine §4). Both apply to every parse, the main parse
-  //   as well as the check.
-  //
-  // F25 finds no query cycle at all while the check runs. A detector that
-  // finds only some cycles gives the same public result, because the
-  // recursion meets the same rule and span one level deeper, and only the
-  // message differs, which no pattern pins. The switch ends the recursion at
-  // a bound, with an error that is not the library's, and faults.json labels
-  // that catch "bound".
-  //
-  // A fault with several sites names the site where it is checked, and
-  // `hits` counts each site that a run enters while the fault is on. The
-  // fault test asserts that the named cases enter every declared site.
-  //
-  // A strict and an ordinary prediction of one symbol at one position share
-  // their items (engine §7.4). So a fault of the strict path (F16, F29, F31,
-  // F32) shows only where that path is the only one at its position, or
-  // comes first, and a case that catches it says so. A case for a fault that
-  // depends on the order of processing comes in both orders.
-  //
-  // `hooks.elisionCheck`, when set, receives each check that recognized R
-  // and met no error of the grammar, before the check ranks, for the witness
-  // test of tests/README.md. It returns the marks of W(D)'s edges, which the
-  // check's own ranker takes, and a callback that receives the ranking.
-  //
-  // `hooks.work`, when set, counts work for the tests that it grows with the
-  // input as it should: the items that the recognizer makes, in parses and
-  // nested parses alike (tests/growth.json), and the checks of maximality in
-  // nested queries, the items of the chart that they read to find their
-  // table, and the completions that they read for a tested symbol (engine
-  // §4). Each is counted where the work is done, as it is done, by
-  // countWork, which throws a WorkBudget at the first count past the budget
-  // that `hooks.work.budget` gives it, if any, so that a regression to
-  // quadratic work stops at once. Unset, a parse counts nothing.
-
-  /** @type {Set<string>} */
-  const faults = new Set();
-
-  /**
-   * How often each site of a fault was entered while that fault was on, by
-   * the fault's name, or its name and the site's after an @, for a fault
-   * with several sites. The fault test asserts that its named cases enter
-   * every declared site (tests/README.md).
-   * @type {Map<string, number>}
-   */
-  const hits = new Map();
-
-  /**
-   * What the check of engine §7 hands its test hook.
-   * @typedef {object} ElisionCheckRun
-   * @property {import("./types.js").Derivation} chosen D, the chosen
-   *   derivation of the main parse
-   * @property {import("./earley.js").Chart} chart the recognition of R
-   * @property {import("./types.js").Item[]} roots the completed items of
-   *   `text` over R
-   * @property {boolean[]} synthetic for each token of R, whether it is
-   *   synthetic, by its provenance
-   * @property {number[]} originalAt for each token of the stage's input, its
-   *   index in R
-   * @property {number[]} recordAt for each restoration record, the index of
-   *   its synthetic token in R
-   */
-
-  /**
-   * What the witness test hands back to the check: the marks of W(D)'s
-   * edges, for each item the indices of the edges that W(D) uses, or null
-   * where the chart does not hold W(D); and a callback that receives the
-   * check's ranking, with whether its count counted W(D).
-   * @typedef {object} ElisionCheckWatch
-   * @property {Map<import("./earley.js").Item, Set<number>> | null} marks
-   * @property {(outcome: {ranking: import("./rank.js").Ranking | null, counted: boolean}) => void} ranked
-   */
-
-  /**
-   * The counts of `hooks.work`.
-   * @typedef {object} WorkCounts
-   * @property {number} items the items that the recognizer made
-   * @property {number} checks the checks of maximality in nested queries
-   * @property {number} scanned the items of the chart that those checks
-   *   read to find their table of completions
-   * @property {number} candidates the completions that those checks read for
-   *   a tested symbol
-   * @property {Partial<Record<WorkKind, number>>} [budget] the most of each
-   *   count that the work may reach
-   */
-
-  /** @typedef {"items" | "checks" | "scanned" | "candidates"} WorkKind */
-
-  /**
-   * A count of `hooks.work` past its budget. It is no GencmuError, so no
-   * handler of the library's catches it.
-   */
-  class WorkBudget extends Error {}
-
-  /**
-   * Counts one of `work`, and throws a WorkBudget if that passes its budget.
-   * @param {WorkCounts} work
-   * @param {WorkKind} kind
-   */
-  function countWork(work, kind) {
-    const counted = ++work[kind];
-    const most = work.budget?.[kind];
-    if (most !== undefined && counted > most) throw new WorkBudget(`${counted} ${kind}, past the budget of ${most}`);
-  }
-
-  /** @type {{elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null}} */
-  const hooks = { elisionCheck: null, work: null };
-
-  /**
-   * Whether a fault is on, at one of its sites. A fault that is on counts the
-   * site as entered.
-   * @param {string} name
-   * @param {string} [site] the site, for a fault with several
-   * @returns {boolean}
-   */
-  function fault(name, site = "") {
-    if (faults.size === 0 || !faults.has(name)) return false;
-    const key = site === "" ? name : `${name}@${site}`;
-    hits.set(key, (hits.get(key) || 0) + 1);
-    return true;
-  }
-
   // ---- eligible.js
   // Written-terminator priority for nested queries (engine §4): which
   // completed items of a queried rule have an eligible witness.
@@ -1807,13 +1864,12 @@
    * @typedef {Generator<any, any, any>} Step
    */
 
-  /**
-   * The steps that the readers and the walks of a document have taken, in
-   * this process: a measure of work that the tests of growth compare across
-   * depths of nesting (tests/README.md). Each step of a run counts one, and
-   * so does each node that a walk with an explicit stack meets.
-   */
-  const walkCounter = { steps: 0 };
+
+
+  // Each step of a run counts as walkSteps of `hooks.work` while a test sets
+  // it, and so does each node that a walk with an explicit stack meets. The
+  // tests of growth compare the steps across depths of nesting
+  // (tests/README.md).
 
   /**
    * Runs a reader to its result, keeping the chain of its calls in an
@@ -1831,7 +1887,7 @@
     /** @type {unknown} */
     let error = null;
     while (stack.length > 0) {
-      walkCounter.steps++;
+      if (hooks.work) countWork(hooks.work, "walkSteps");
       const top = stack[stack.length - 1];
       let step;
       try {
@@ -1861,6 +1917,7 @@
   // bootstrap's or a precompiled one from compiled.json, has the shape the
   // reader would have given it (docs/output.md, "The DOM"), so that a corrupt
   // or hand-made one is refused rather than failing somewhere inside a parse.
+
 
 
 
@@ -2136,7 +2193,7 @@
       }
     }
     for (let task = pending.pop(); task !== undefined; task = pending.pop()) {
-      walkCounter.steps++;
+      if (hooks.work) countWork(hooks.work, "walkSteps");
       const { kind, value, depth } = task;
       // A function's argument is a term where a span may stand.
       const argument = kind === "argument";
@@ -2385,7 +2442,7 @@
     // bounded only once the whole document is read (engine §9).
     const stack = [node];
     while (stack.length > 0) {
-      walkCounter.steps++;
+      if (hooks.work) countWork(hooks.work, "walkSteps");
       const current = stack.pop();
       if (!isDomObject(current)) continue;
       if (current.capture === "" && Object.keys(current).length === 1) return true;
@@ -2532,7 +2589,7 @@
     const names = [];
     const stack = [node];
     for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
-      walkCounter.steps++;
+      if (hooks.work) countWork(hooks.work, "walkSteps");
       if (!isDomObject(current) && !Array.isArray(current)) continue;
       if (isDomObject(current) && typeof current.capture === "string" && Object.keys(current).length === 1) names.push(current.capture);
       for (const value of Object.values(current)) if (value && typeof value === "object") stack.push(value);
@@ -2549,7 +2606,7 @@
     const names = capturesUsed(node);
     const stack = [node];
     for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
-      walkCounter.steps++;
+      if (hooks.work) countWork(hooks.work, "walkSteps");
       if (!isDomObject(current) && !Array.isArray(current)) continue;
       if (isDomObject(current) && typeof current.captured === "string") names.push(current.captured);
       for (const value of Object.values(current)) if (value && typeof value === "object") stack.push(value);
@@ -2598,6 +2655,7 @@
     const root = { parent: null, name: "", length: 0, children: null };
     /** @type {(node: CaptureNode, name: string) => CaptureNode} */
     const extended = (node, name) => {
+      if (hooks.work) countWork(hooks.work, "lowering");
       const children = node.children ?? (node.children = new Map());
       let child = children.get(name);
       if (!child) children.set(name, (child = { parent: node, name, length: node.length + 1, children: null }));
@@ -2605,6 +2663,7 @@
     };
     /** @type {(node: CaptureNode) => string[]} */
     const names = (node) => {
+      if (hooks.work) countWork(hooks.work, "lowering", node.length);
       const list = new Array(node.length);
       for (let at = node; at.parent !== null; at = at.parent) list[at.length - 1] = at.name;
       return list;
@@ -2702,7 +2761,7 @@
       return [];
     };
     for (;;) {
-      walkCounter.steps++;
+      if (hooks.work) countWork(hooks.work, "walkSteps");
       const frame = stack[stack.length - 1];
       const node = frame.node;
       const list = children(node);
@@ -2733,7 +2792,7 @@
             const found = large.names.get(name);
             if (found) for (const capture of captures) found.push(capture);
             else large.names.set(name, captures);
-            walkCounter.steps += captures.length;
+            if (hooks.work) countWork(hooks.work, "walkSteps", captures.length);
           }
           large.size += small.size;
           joined = large;
@@ -2791,7 +2850,10 @@
     // once rather than by a scan of the productions for each name.
     /** @type {Set<string>} */
     const somewhere = new Set();
-    for (const captures of alternatives) for (const name of captures.keys()) somewhere.add(name);
+    for (const captures of alternatives) {
+      if (hooks.work) countWork(hooks.work, "clauses", captures.size);
+      for (const name of captures.keys()) somewhere.add(name);
+    }
     /** @type {Set<string>} */
     const everywhere = new Set(alternatives.length ? alternatives[0].keys() : []);
     for (const captures of alternatives) for (const name of everywhere) if (!captures.has(name)) everywhere.delete(name);
@@ -2849,6 +2911,7 @@
     /** @type {any[]} */
     const anchors = new Array(items.length);
     for (let index = items.length - 1, next = undefined; index >= 0; index--) {
+      if (hooks.work) countWork(hooks.work, "clauses");
       anchors[index] = next;
       if (items[index].capture !== undefined) next = items[index];
     }
@@ -3189,7 +3252,7 @@
     const found = [];
     const stack = [expr];
     for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
-      walkCounter.steps++;
+      if (hooks.work) countWork(hooks.work, "walkSteps");
       if (!isDomObject(current)) continue;
       if (typeof current.test === "string") found.push(/** @type {any} */ (current));
       for (const key of ["choice", "and", "seq"]) {
@@ -3254,7 +3317,7 @@
     // In the order written, with an explicit stack.
     const stack = [term];
     while (stack.length > 0) {
-      walkCounter.steps++;
+      if (hooks.work) countWork(hooks.work, "walkSteps");
       const current = stack.pop();
       if (!isDomObject(current)) continue;
       if ("capture" in current || "if" in current) return current;
@@ -3284,7 +3347,7 @@
     // In the order written, with an explicit stack.
     const stack = [node];
     while (stack.length > 0) {
-      walkCounter.steps++;
+      if (hooks.work) countWork(hooks.work, "walkSteps");
       const current = stack.pop();
       /** @type {unknown[]} */
       let children = [];
@@ -3301,6 +3364,7 @@
   // ---- grammar.js
   // A stage's grammar: its documents stitched together (engine §2) and
   // lowered to productions for one set of features (engine §3).
+
 
 
 
@@ -3491,6 +3555,7 @@
           // Added in place: a copy of the list for each %extend-rule would
           // cost the square of their number.
           for (const alternative of alternatives) base.alternatives.push(alternative);
+          if (hooks.work) countWork(hooks.work, "clauses", alternatives.length);
         }
       }
       for (const directive of dom.directives) {
@@ -3577,6 +3642,7 @@
             // a copy for each entry would cost the square of a key's entries.
             if (entry.op === "∈") classes.add(entry.class);
             else classes.delete(entry.class);
+            if (hooks.work) countWork(hooks.work, "tags");
           }
         }
       }
@@ -3804,6 +3870,7 @@
           for (const name of clauseRules(clauses)) check(name, rule, alternative);
           // A classifier that classify names belongs to the stage (engine §2).
           for (const name of clauseClassifiers(clauses)) {
+            if (hooks.work) countWork(hooks.work, "clauses");
             if (!classifierNames.has(name)) {
               throw new GencmuError("grammar", `${alternative.document}: ${rule.name} classifies with ${name}, which no %classifier of stage ${this.stageName} names`, alternative.at);
             }
@@ -4125,6 +4192,7 @@
         found.push(name);
       };
       this.structural.forEach((production, index) => {
+        if (hooks.work) countWork(hooks.work, "closures");
         if (production.rhs.some((symbol) => symbol.terminal)) return;
         if (production.rhs.length === 0) add(production.lhs);
         for (const symbol of production.rhs) {
@@ -4134,7 +4202,10 @@
         }
       });
       for (let name = found.pop(); name !== undefined; name = found.pop()) {
-        for (const index of users.get(name) ?? []) if (--unknown[index] === 0) add(this.structural[index].lhs);
+        for (const index of users.get(name) ?? []) {
+          if (hooks.work) countWork(hooks.work, "closures");
+          if (--unknown[index] === 0) add(this.structural[index].lhs);
+        }
       }
       for (const { items, rule, alternative } of this.braceItems) {
         if (items.some((sequence) => empty(sequence.map((item) => item.symbol)))) {
@@ -4155,6 +4226,7 @@
       /** @type {PendingHelper[]} */
       const stack = [];
       for (let index = pending.length - 1; index >= 0; index--) stack.push(pending[index]);
+      if (hooks.work) countWork(hooks.work, "lowering", pending.length);
       pending.length = 0;
       for (let helper = stack.pop(); helper !== undefined; helper = stack.pop()) {
         /** @type {PendingHelper[]} */
@@ -4179,6 +4251,7 @@
           });
         }
         for (let index = nested.length - 1; index >= 0; index--) stack.push(nested[index]);
+        if (hooks.work) countWork(hooks.work, "lowering", nested.length);
       }
     }
 
@@ -4403,7 +4476,12 @@
   function product(left, right) {
     /** @type {SequenceItem[][]} */
     const result = [];
-    for (const a of left) for (const b of right) result.push([...a, ...b]);
+    for (const a of left) {
+      for (const b of right) {
+        if (hooks.work) countWork(hooks.work, "lowering", a.length + b.length);
+        result.push([...a, ...b]);
+      }
+    }
     return result;
   }
 
@@ -4423,6 +4501,7 @@
     for (const a of left) {
       for (let index = 0; index < right.length; index++) {
         const sequence = index === right.length - 1 ? a : a.slice();
+        if (hooks.work) countWork(hooks.work, "lowering", (sequence === a ? 0 : a.length) + right[index].length);
         for (const item of right[index]) sequence.push(item);
         result.push(sequence);
       }
@@ -4551,11 +4630,6 @@
       return this.sets[id];
     }
   }
-
-  // How many items the recognizer has made, in parses and nested parses
-  // alike: a measure of work that tests compare across input lengths.
-  // `edgeChecks` counts the comparisons that look for an edge already found.
-  const recognizerCounters = { items: 0, captures: 0, captureSteps: 0, edgeChecks: 0 };
 
   // An item with more than a few further ways, built in an ambiguous grammar,
   // gets an index of them by `previous` and then `child`. A scan of its list
@@ -4842,7 +4916,7 @@
         const more = item.more || (item.more = []);
         if (more.length < EDGE_SCAN_LIMIT) {
           for (const edge of more) {
-            recognizerCounters.edgeChecks++;
+            if (hooks.work) countWork(hooks.work, "edgeChecks");
             if (edge.kind === "scan" && edge.previous === previous) return;
             if (edge.kind === "complete" && edge.previous === previous && edge.child === child) return;
           }
@@ -4856,7 +4930,7 @@
             }
             edgeIndexes.set(item, index);
           }
-          recognizerCounters.edgeChecks++;
+          if (hooks.work) countWork(hooks.work, "edgeChecks");
           const children = index.get(previous);
           if (children && children.has(child)) return;
           indexEdge(index, previous, child);
@@ -4992,6 +5066,7 @@
       }
       let slots = item.slots;
       const captureIndex = production.captureAt[item.dot];
+      if (hooks.work) countWork(hooks.work, "captureLookups");
       if (captureIndex >= 0) {
         // A terminal that reads a synthetic token captures no tags (engine
         // §7.5), unless a fault gives it the token's, to a capture and to a
@@ -5174,6 +5249,7 @@
         found.push(name);
       };
       for (const production of lowered.productions) {
+        if (hooks.work) countWork(hooks.work, "closures");
         if (productionReads(production)) add(production.lhs);
         for (const symbol of production.rhs) {
           if (symbol.terminal) continue;
@@ -5183,7 +5259,10 @@
         }
       }
       for (let name = found.pop(); name !== undefined; name = found.pop()) {
-        for (const production of users.get(name) ?? []) add(production.lhs);
+        for (const production of users.get(name) ?? []) {
+          if (hooks.work) countWork(hooks.work, "closures");
+          add(production.lhs);
+        }
       }
     }
     /** @type {Map<Production, number>} */
@@ -5323,7 +5402,9 @@
       next = context.nextSounding = new Int32Array(count + 1);
       next[count] = count;
       for (let at = count - 1; at >= 0; at--) next[at] = canonicalSound(context, at) === "" ? next[at + 1] : at;
+      if (hooks.work) countWork(hooks.work, "soundSteps", count);
     }
+    if (hooks.work) countWork(hooks.work, "soundSteps");
     return next[index];
   }
 
@@ -5415,26 +5496,30 @@
       const jump = skip ? /** @type {NonNullable<Captured>} */ (/** @type {NonNullable<Captured>} */ (parent).jump).jump : parent;
       found = { parent, jump, depth, index, start, end, tags, id: context.captured.size };
       context.captured.set(key, found);
-      recognizerCounters.captures++;
+      if (hooks.work) countWork(hooks.work, "captures");
     }
     return found;
   }
 
   /**
    * The captured part at `index` of a production's captures, found from the
-   * last part by its jumps (engine §4). Each step counts in
-   * `recognizerCounters.captureSteps`.
+   * last part by its jumps (engine §4). The steps that it took, and one for
+   * the search, add to `searcher.searched`.
    * @param {NonNullable<Captured>} last
    * @param {number} index
+   * @param {{searched: number}} searcher
    * @returns {NonNullable<Captured>}
    */
-  function capturedPart(last, index) {
+  function capturedPart(last, index, searcher) {
     let part = last;
+    let steps = 0;
     while (part.index > index) {
-      recognizerCounters.captureSteps++;
+      steps++;
       const jump = part.jump;
       part = /** @type {NonNullable<Captured>} */ (jump !== null && jump.index >= index ? jump : part.parent);
     }
+    if (hooks.work) countWork(hooks.work, "captureSteps", steps);
+    searcher.searched += steps + 1;
     return part;
   }
 
@@ -5483,6 +5568,7 @@
       ? [...production.conditions].sort((a, b) => Number(conditionVariables(a.condition).includes("")) - Number(conditionVariables(b.condition).includes("")))
       : production.conditionsAt[readyAt + 1];
     for (const { condition, readyAt: at } of conditions) {
+      if (hooks.work) countWork(hooks.work, "conditions");
       if (at !== readyAt) continue;
       const scope = step.scope ??= new ChartScope(context, production, slots, origin, end);
       if (!holds(scope.observing, condition, scope)) return condition;
@@ -5608,16 +5694,12 @@
         this.parts = [];
         for (let part = this.slots; part !== null; part = part.parent) {
           this.parts[part.index] = part;
-          recognizerCounters.captureSteps++;
+          if (hooks.work) countWork(hooks.work, "captureSteps");
         }
       }
       let found;
       if (this.parts !== null) found = this.parts[index];
-      else {
-        const before = recognizerCounters.captureSteps;
-        found = capturedPart(last, index);
-        this.searched += recognizerCounters.captureSteps - before + 1;
-      }
+      else found = capturedPart(last, index, this);
       return { start: found.start, end: found.end, tags: this.context.interner.get(found.tags), space: this.space };
     }
   }
@@ -6283,6 +6365,7 @@
 
 
 
+
   /**
    * @import { WitnessAction, Condition, Expr, ParseResult, ResultNode, Span, StageReport, TagSet, Term, Argument, Production } from "./types.js"
    * @import { Token } from "./tokens.js"
@@ -6305,6 +6388,7 @@
    */
   function lineIndex(text) {
     const characters = [...text];
+    if (hooks.work) countWork(hooks.work, "text", characters.length);
     const breaks = [];
     for (let index = 0; index < characters.length; index++) {
       const character = characters[index];
@@ -6334,6 +6418,7 @@
     let low = 0;
     let high = breaks.length;
     while (low < high) {
+      if (hooks.work) countWork(hooks.work, "text");
       const middle = (low + high) >> 1;
       if (breaks[middle] < source[0]) low = middle + 1;
       else high = middle;
@@ -6342,6 +6427,7 @@
     const lineStart = low === 0 ? 0 : breaks[low - 1] + 1;
     let lineEnd = lineStart;
     while (lineEnd < characters.length && characters[lineEnd] !== "\n" && characters[lineEnd] !== "\r") lineEnd++;
+    if (hooks.work) countWork(hooks.work, "text", lineEnd - lineStart);
     const shown = characters.slice(lineStart, lineEnd).join("").replace(/\t/g, " ");
     const column = source[0] - lineStart + 1;
     const width = Math.max(1, Math.min(source[1], lineEnd) - source[0]);
@@ -6453,7 +6539,11 @@
       out.push(line + " ".repeat(width - [...line].length) + (b[index] || ""));
     }
     // trimEnd, since /\s+$/ tries each space of a long inner run in turn.
-    return out.map((line) => line.trimEnd()).join("\n");
+    // A trim reads at most its line.
+    return out.map((line) => {
+      if (hooks.work) countWork(hooks.work, "text", line.length);
+      return line.trimEnd();
+    }).join("\n");
   }
 
   /**
@@ -6603,6 +6693,7 @@
     const symbols = production.rhs.map((symbol, index) => {
       const name = symbol.name.includes("·") ? `‹${symbol.name.split("·")[0]} part›` : writtenSymbol(symbol);
       const slot = production.captureAt[index];
+      if (hooks.work) countWork(hooks.work, "captureLookups");
       const capture = slot >= 0 && !production.captures[slot].name.startsWith("\u0000") ? production.captures[slot] : undefined;
       return capture ? `$${capture.name}(${name})` : name;
     });
@@ -6742,6 +6833,7 @@
     };
     for (const [name, alternatives] of alternativesByRule) {
       for (const alternative of alternatives) {
+        if (hooks.work) countWork(hooks.work, "closures");
         if (alternative.clauses.emit) {
           if (effectiveItems(alternative).length > 0) add(name);
           continue;
@@ -6757,7 +6849,10 @@
       }
     }
     for (let name = found.pop(); name !== undefined; name = found.pop()) {
-      for (const walker of walkers.get(name) ?? []) add(walker);
+      for (const walker of walkers.get(name) ?? []) {
+        if (hooks.work) countWork(hooks.work, "closures");
+        add(walker);
+      }
     }
     return emitting;
   }
@@ -6875,6 +6970,7 @@
         /** @type {Map<object, StitchedAlternative[]>} */
         const siblings = new Map();
         for (const alternative of rule.alternatives) {
+          if (hooks.work) countWork(hooks.work, "clauses");
           const group = siblings.get(alternative.clauses);
           if (group) group.push(alternative);
           else siblings.set(alternative.clauses, [alternative]);
@@ -6886,6 +6982,7 @@
           /** @type {Set<string>} */
           const reached = new Set();
           for (const sibling of /** @type {StitchedAlternative[]} */ (siblings.get(alternative.clauses))) {
+            if (hooks.work) countWork(hooks.work, "clauses");
             for (const part of topItems(sibling.expr)) referencedRules(part, reached);
           }
           if (!sounding.has(rule.name) && ![...reached].some((name) => emitting.has(name))) {
@@ -9444,6 +9541,7 @@
     if (!index) {
       index = new Map();
       for (let number = 0; number < implications.length; number++) {
+        if (hooks.work) countWork(hooks.work, "implications");
         for (const tag of implications[number].if) {
           const list = index.get(tag);
           if (list) list.push(number);
@@ -9458,6 +9556,7 @@
     const queue = [...tags];
     for (let head = 0; head < queue.length; head++) {
       for (const number of index.get(queue[head]) ?? []) {
+        if (hooks.work) countWork(hooks.work, "implications");
         if (fired === null) fired = new Set();
         else if (fired.has(number)) continue;
         fired.add(number);
@@ -9555,6 +9654,7 @@
       /** @type {(EmitItem | undefined)[]} */
       const anchors = new Array(clause.items.length);
       for (let index = clause.items.length - 1, next = undefined; index >= 0; index--) {
+        if (hooks.work) countWork(hooks.work, "clauses");
         anchors[index] = next;
         if (clause.items[index].capture !== undefined) next = clause.items[index];
       }
@@ -9612,6 +9712,7 @@
 
 
 
+
   /**
    * @import { Step } from "./trampoline.js"
    * @import { Argument, Comparator, Condition, DomAlternative, DomClassifier, DomConstant, DomDirective, DomEntry, DomImplication, DomRule, EmitItem, Emission, Expr, GrammarDom, Position, ResultNode, RuleNode, Term } from "./types.js"
@@ -9653,7 +9754,7 @@
       /** @type {ResultNode[]} */
       const stack = node.children.slice().reverse();
       while (stack.length > 0) {
-        walkCounter.steps++;
+        if (hooks.work) countWork(hooks.work, "walkSteps");
         const child = /** @type {ResultNode} */ (stack.pop());
         if (child.kind === "rule" && !NAMED.has(child.rule)) for (let index = child.children.length - 1; index >= 0; index--) stack.push(child.children[index]);
         else result.push(child);
@@ -9704,7 +9805,7 @@
     const firstOfRule = (node, name) => {
       const stack = [node];
       while (stack.length > 0) {
-        walkCounter.steps++;
+        if (hooks.work) countWork(hooks.work, "walkSteps");
         const current = /** @type {ResultNode} */ (stack.pop());
         if (ruleOf(current) === name) return current;
         const children = parts(current);
@@ -10514,7 +10615,7 @@
     /** @type {unknown[]} */
     const stack = [root];
     while (stack.length > 0) {
-      walkCounter.steps++;
+      if (hooks.work) countWork(hooks.work, "walkSteps");
       const current = stack.pop();
       if (Array.isArray(current)) {
         for (const item of current) stack.push(item);
@@ -10530,7 +10631,7 @@
         /** @type {unknown[]} */
         const pending = items.slice().reverse();
         while (pending.length > 0) {
-          walkCounter.steps++;
+          if (hooks.work) countWork(hooks.work, "walkSteps");
           const item = pending.pop();
           const inner = item !== null && typeof item === "object" ? /** @type {Record<string, unknown>} */ (item)[key] : undefined;
           if (Array.isArray(inner)) for (let index = inner.length - 1; index >= 0; index--) pending.push(inner[index]);
@@ -10619,7 +10720,7 @@
     // nesting cannot exhaust the call stack.
     let current = node;
     for (;;) {
-      walkCounter.steps++;
+      if (hooks.work) countWork(hooks.work, "walkSteps");
       if (current.kind === "token") return current.token;
       if (current.kind === "elided") return current.span[0];
       const child = current.children.find((candidate) => candidate.kind === "token" || candidate.kind === "rule");
@@ -10731,6 +10832,7 @@
 
 
 
+
   /** @import { DomClassifier, DomConstant, DomDirective, DomImplication, DomRule, GrammarDom } from "./types.js" */
 
   /**
@@ -10793,6 +10895,7 @@
      */
     const splice = (documentPath, dom) => {
       for (const item of itemsInOrder(dom)) {
+        if (hooks.work) countWork(hooks.work, "splice");
         const where = itemAt(item);
         const at = { document: documentPath, line: where[0], column: where[1] };
         const place = `${documentPath}:${at.line}:${at.column}`;
@@ -10817,6 +10920,7 @@
           run = null;
         } else if ("directive" in item && item.directive.name === "features") {
           for (const name of item.directive.args) {
+            if (hooks.work) countWork(hooks.work, "splice");
             if (featureNames.has(name)) continue;
             featureNames.add(name);
             features.push(name);

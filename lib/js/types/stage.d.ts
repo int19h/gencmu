@@ -1,6 +1,6 @@
 import { ParseContext } from "./earley.js";
 import { Token } from "./tokens.js";
-import type { Derivation, ResultNode, Span, StageReport } from "./types.js";
+import type { Derivation, ResultNode, Span, StageReport, TagSet } from "./types.js";
 import type { Grammar } from "./grammar.js";
 import type { UnicodeTable } from "./unicode.js";
 export type StageOptions = {
@@ -106,6 +106,20 @@ export type Emitter = {
      */
     inherited: Set<import("./tokens.js").AttachedToken>;
 };
+/**
+ * A token's explicit tags with the tags of the stage's implications, added
+ * until no tag changes (engine §11). An implication only adds tags, so the
+ * closure ends, also over a cycle. A pass over every implication until none
+ * adds a tag would settle one link of a chain per pass, so a worklist of the
+ * tags added fires each implication at most once.
+ * @param {TagSet} tags
+ * @param {{if: TagSet, then: TagSet}[]} implications
+ * @returns {TagSet}
+ */
+export declare function implied(tags: TagSet, implications: {
+    if: TagSet;
+    then: TagSet;
+}[]): TagSet;
 export type EmitTask = {
     walk: Derivation;
 } | {

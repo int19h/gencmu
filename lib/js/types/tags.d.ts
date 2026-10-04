@@ -1,5 +1,4 @@
 import type { TagSet } from "./types.js";
-/** @import { TagSet } from "./types.js" */
 /**
  * @param {Iterable<string>} [tags]
  * @returns {TagSet}
@@ -12,6 +11,27 @@ export declare function tagSet(tags?: Iterable<string>): TagSet;
  * @returns {TagSet}
  */
 export declare function tagUnion(left: TagSet, right: TagSet): TagSet;
+/**
+ * The union of many tag sets, built by adding each to one set that the
+ * union owns. A fold of tagUnion copies its growing left side at every
+ * step, so k sets would cost the square of k. Like tagUnion, the result can
+ * be one of the sets given, until a second set with tags arrives, so no
+ * caller may change it.
+ */
+export declare class TagUnion {
+    /** @type {TagSet} */
+    tags: TagSet;
+    owned: boolean;
+    constructor();
+    /** @param {TagSet} tags */
+    add(tags: TagSet): void;
+    /**
+     * The union, a new empty set when nothing had tags, as the folds that
+     * this replaces gave.
+     * @returns {TagSet}
+     */
+    result(): TagSet;
+}
 /**
  * The tags of both sets.
  * @param {TagSet} left

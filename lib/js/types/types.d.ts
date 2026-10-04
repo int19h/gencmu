@@ -485,7 +485,22 @@ export type Production = {
      */
     elidedTest: SymbolTest | null;
     captures: Capture[];
+    /**
+     * for each position of `rhs`, the index in
+     * `captures` of the capture there, or -1
+     */
+    captureAt: number[];
+    /**
+     * each capture's name, with its
+     * index in `captures`
+     */
+    captureSlot: Map<string, number>;
     conditions: ReadyCondition[];
+    /**
+     * the conditions ready after
+     * each position, at `readyAt + 1`, in written order
+     */
+    conditionsAt: ReadyCondition[][];
     tags: Term | null;
     emit: Emission | null;
     /**
@@ -538,7 +553,16 @@ export type LoweredGrammar = {
     }[];
 };
 export type Lean = "greedy" | "lazy" | "late-elision" | "none";
-export type Slot = [number, number, number] | null;
+export type Captured = {
+    parent: Captured;
+    jump: Captured;
+    depth: number;
+    index: number;
+    start: number;
+    end: number;
+    tags: number;
+    id: number;
+} | null;
 export type Edge = {
     kind: "seed";
 } | {
@@ -1017,7 +1041,13 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {SymbolTest | null} elidedTest the test of that terminator, an
  *   `=` test whose string a restored token sounds like, or null (engine §7)
  * @property {Capture[]} captures
+ * @property {number[]} captureAt for each position of `rhs`, the index in
+ *   `captures` of the capture there, or -1
+ * @property {Map<string, number>} captureSlot each capture's name, with its
+ *   index in `captures`
  * @property {ReadyCondition[]} conditions
+ * @property {ReadyCondition[][]} conditionsAt the conditions ready after
+ *   each position, at `readyAt + 1`, in written order
  * @property {Term | null} tags
  * @property {Emission | null} emit
  * @property {boolean} opaque whether its constituent is an opaque part,
@@ -1054,9 +1084,12 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {"greedy" | "lazy" | "late-elision" | "none"} Lean
  */
 /**
- * A captured part as a chart item records it: its span and the number of
- * its tag set.
- * @typedef {[number, number, number] | null} Slot
+ * The captured parts of a chart item, the last one first: each part's
+ * capture by its index in the production, its span and the number of its
+ * tag set, after the parts before it. A context makes each sequence once,
+ * with its number (engine §4). `depth` counts the parts, and `jump` is an
+ * earlier sequence that a search for a part can skip to.
+ * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, id: number} | null} Captured
  */
 /**
  * How an item was built.

@@ -2,13 +2,10 @@ import type { Condition, ParseResult, Span, StageReport, Argument, Production } 
 import type { Token } from "./tokens.js";
 import type { Dialect } from "./dialect.js";
 import type { TraceEvent } from "./earley.js";
-/**
- * @import { WitnessAction, Condition, Expr, ParseResult, ResultNode, Span, StageReport, TagSet, Term, Argument, Production } from "./types.js"
- * @import { Token } from "./tokens.js"
- * @import { Dialect } from "./dialect.js"
- * @import { TraceEvent } from "./earley.js"
- * @import { StitchedAlternative } from "./grammar.js"
- */
+export type LineIndex = {
+    characters: string[];
+    breaks: number[];
+};
 /**
  * The line of the text holding a source range, and a caret line under the
  * range: at least one caret, at the end of the line for an empty range.
@@ -31,6 +28,15 @@ export declare function sourceExcerpt(text: string, source: Span): {
  * @returns {string}
  */
 export declare function explainError(result: ParseResult): string;
+/**
+ * Two blocks of text side by side.
+ * @param {string} left
+ * @param {string} right
+ * @param {string} leftTitle
+ * @param {string} rightTitle
+ * @returns {string}
+ */
+export declare function sideBySide(left: string, right: string, leftTitle: string, rightTitle: string): string;
 /**
  * The tie of a result explained: where its two readings first differ, both
  * readings as brackets, and both trees side by side. A tie ends the run, so

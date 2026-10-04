@@ -128,26 +128,33 @@ export declare function capturesUsed(node: unknown): string[];
  * @returns {Map<string, number>[]}
  */
 export declare function alternativeCaptures(alternative: any): Map<string, number>[];
+export type CaptureNode = {
+    parent: CaptureNode | null;
+    name: string;
+    length: number;
+    children: Map<string, CaptureNode> | null;
+};
+/**
+ * A sequence of capture names, as a node of a trie of all the sequences
+ * of one expression: one node for each distinct sequence, which shares its
+ * prefix with the sequences it extends.
+ * @typedef {{parent: CaptureNode | null, name: string, length: number, children: Map<string, CaptureNode> | null}} CaptureNode
+ */
 /**
  * The distinct sequences of captures that the productions of an expression
  * read, each in the order read (engine §3.2, §3.5): a choice gives each
  * branch's, an `&` each subsequence's, a plain optional none or its
  * content's, and braces and an elidable optional none. Productions that
- * read the same names in the same order are one sequence. `duplicates` are
- * the captures that some production reads after one of the same name, in
- * no particular order. Gates do not matter, since they drop whole
- * alternatives.
+ * read the same names in the same order are one sequence. Gates do not
+ * matter, since they drop whole alternatives.
+ *
+ * The sequences are nodes of a trie, so that extending one by a capture
+ * costs one step and two equal sequences are one node. A copy of each
+ * growing prefix would cost the square of a sequence's length.
  * @param {any} expr
- * @returns {{sequences: {capture: string}[][], duplicates: {capture: string}[]}}
+ * @returns {string[][]}
  */
-export declare function captureSequences(expr: any): {
-    sequences: {
-        capture: string;
-    }[][];
-    duplicates: {
-        capture: string;
-    }[];
-};
+export declare function captureSequences(expr: any): string[][];
 /**
  * The captures that some production of an expression reads after a
  * capture of the same name (engine §3.5, §9), found from the structure

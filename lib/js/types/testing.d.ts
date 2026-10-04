@@ -66,12 +66,84 @@ export type WorkCounts = {
      */
     candidates: number;
     /**
+     * the captured parts that the recognizer made
+     */
+    captures: number;
+    /**
+     * the steps that find a captured part from
+     * the last one, or that list every part at once
+     */
+    captureSteps: number;
+    /**
+     * the entries of a production's captures
+     * that an advance or a formatter reads to find the capture at a position
+     */
+    captureLookups: number;
+    /**
+     * the ways of building an item that the
+     * recognizer compares with a new way, to find it already there
+     */
+    edgeChecks: number;
+    /**
+     * the conditions that an advance reads to
+     * find those ready at its dot
+     */
+    conditions: number;
+    /**
+     * the tokens that a sound test or phonemes()
+     * visits
+     */
+    soundSteps: number;
+    /**
+     * the tags that a union of tag sets or an entry of
+     * a classifier adds to a set or copies
+     */
+    tags: number;
+    /**
+     * the implications that the closure of a
+     * token's tags reads
+     */
+    implications: number;
+    /**
+     * the steps of the readers and walks of a
+     * document, of its notation's tree and of its DOM, in the library and in
+     * the tools
+     */
+    walkSteps: number;
+    /**
+     * the symbols and captures that lowering and
+     * the checks of a definition add to a sequence or copy, and the helpers
+     * that lowering moves on its list of those waiting
+     */
+    lowering: number;
+    /**
+     * the productions and alternatives that the
+     * closures over a grammar's rules read: the nullable rules, the rules
+     * that can read, and those that can emit
+     */
+    closures: number;
+    /**
+     * the items of an emission and the alternatives
+     * of a rule that the checks of a definition and the audit read
+     */
+    clauses: number;
+    /**
+     * the names, stages and documents that a splice
+     * of a pipeline checks or copies
+     */
+    splice: number;
+    /**
+     * the characters, words, lines and cells that the
+     * formatters of diagnostics and the tools' scans of a text read
+     */
+    text: number;
+    /**
      * the most of each
      * count that the work may reach
      */
     budget?: Partial<Record<WorkKind, number>>;
 };
-export type WorkKind = "items" | "checks" | "scanned" | "candidates";
+export type WorkKind = "items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "splice" | "text";
 /**
  * What the check of engine §7 hands its test hook.
  * @typedef {object} ElisionCheckRun
@@ -105,10 +177,48 @@ export type WorkKind = "items" | "checks" | "scanned" | "candidates";
  *   read to find their table of completions
  * @property {number} candidates the completions that those checks read for
  *   a tested symbol
+ * @property {number} captures the captured parts that the recognizer made
+ * @property {number} captureSteps the steps that find a captured part from
+ *   the last one, or that list every part at once
+ * @property {number} captureLookups the entries of a production's captures
+ *   that an advance or a formatter reads to find the capture at a position
+ * @property {number} edgeChecks the ways of building an item that the
+ *   recognizer compares with a new way, to find it already there
+ * @property {number} conditions the conditions that an advance reads to
+ *   find those ready at its dot
+ * @property {number} soundSteps the tokens that a sound test or phonemes()
+ *   visits
+ * @property {number} tags the tags that a union of tag sets or an entry of
+ *   a classifier adds to a set or copies
+ * @property {number} implications the implications that the closure of a
+ *   token's tags reads
+ * @property {number} walkSteps the steps of the readers and walks of a
+ *   document, of its notation's tree and of its DOM, in the library and in
+ *   the tools
+ * @property {number} lowering the symbols and captures that lowering and
+ *   the checks of a definition add to a sequence or copy, and the helpers
+ *   that lowering moves on its list of those waiting
+ * @property {number} closures the productions and alternatives that the
+ *   closures over a grammar's rules read: the nullable rules, the rules
+ *   that can read, and those that can emit
+ * @property {number} clauses the items of an emission and the alternatives
+ *   of a rule that the checks of a definition and the audit read
+ * @property {number} splice the names, stages and documents that a splice
+ *   of a pipeline checks or copies
+ * @property {number} text the characters, words, lines and cells that the
+ *   formatters of diagnostics and the tools' scans of a text read
  * @property {Partial<Record<WorkKind, number>>} [budget] the most of each
  *   count that the work may reach
  */
-/** @typedef {"items" | "checks" | "scanned" | "candidates"} WorkKind */
+/** @typedef {"items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "splice" | "text"} WorkKind */
+/** @type {readonly WorkKind[]} */
+export declare const WORK_KINDS: readonly WorkKind[];
+/**
+ * Counts of every kind at zero, for a test to set as `hooks.work`.
+ * @param {Partial<Record<WorkKind, number>>} [budget]
+ * @returns {WorkCounts}
+ */
+export declare function newWork(budget?: Partial<Record<WorkKind, number>>): WorkCounts;
 /**
  * A count of `hooks.work` past its budget. It is no GencmuError, so no
  * handler of the library's catches it.
@@ -116,11 +226,13 @@ export type WorkKind = "items" | "checks" | "scanned" | "candidates";
 export declare class WorkBudget extends Error {
 }
 /**
- * Counts one of `work`, and throws a WorkBudget if that passes its budget.
+ * Counts one or more of `work`, and throws a WorkBudget if that passes its
+ * budget.
  * @param {WorkCounts} work
  * @param {WorkKind} kind
+ * @param {number} [steps]
  */
-export declare function countWork(work: WorkCounts, kind: WorkKind): void;
+export declare function countWork(work: WorkCounts, kind: WorkKind, steps?: number): void;
 /** @type {{elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null}} */
 export declare const hooks: {
     elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null;
