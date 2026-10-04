@@ -136,12 +136,12 @@ pub(crate) fn union_all<'l>(lists: impl IntoIterator<Item = &'l TagList>) -> Tag
 
 /// The intersection: the tags of both.
 pub(crate) fn intersection(left: &TagList, right: &TagList) -> TagList {
-    left.iter().filter(|id| listed(right.binary_search(id).is_ok())).copied().collect()
+    left.iter().filter(|&&id| listed(found(right, id))).copied().collect()
 }
 
 /// The difference: the tags of the first that are not in the second.
 pub(crate) fn difference(left: &TagList, right: &TagList) -> TagList {
-    left.iter().filter(|id| listed(right.binary_search(id).is_err())).copied().collect()
+    left.iter().filter(|&&id| listed(!found(right, id))).copied().collect()
 }
 
 /// Counts one tag that a list's evaluation reads, and gives back what the
@@ -151,9 +151,22 @@ fn listed(found: bool) -> bool {
     found
 }
 
+/// Whether a sorted list holds a tag. Each tag of the list compared counts
+/// before the comparison, so a search that scans the list shows its cost.
+fn found(list: &TagList, id: TagId) -> bool {
+    let probe = |tag: &TagId| {
+        work::count(Work::Listed, 1);
+        tag.cmp(&id)
+    };
+    if work::mutated(Mutant::ScanOther) {
+        return list.iter().any(|tag| probe(tag).is_eq());
+    }
+    list.binary_search_by(probe).is_ok()
+}
+
 /// Whether every tag of the first is in the second.
 pub(crate) fn is_subset(small: &TagList, large: &TagList) -> bool {
-    small.iter().all(|id| large.binary_search(id).is_ok())
+    small.iter().all(|&id| listed(found(large, id)))
 }
 
 /// Whether a tag is a phoneme tag `/p/`, exactly three code points, and if
@@ -253,8 +266,10 @@ pub(crate) fn is_tag(tag: &str, unicode: &Unicode) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{difference, intersection, union_all, TagList};
-    use crate::work::{assert_linear, assert_mutant_stops, assert_stops, Mutant, Work};
+    use super::{difference, intersection, is_subset, union_all, TagList};
+    use crate::work::{
+        assert_linear, assert_mutant_stops, assert_stops, budget, counted, reset, Mutant, Mutation, Work,
+    };
 
     /// A union, an intersection and a difference count each tag as they
     /// copy or read it, so a budget stops a long list at its first tag
@@ -287,5 +302,30 @@ mod tests {
         };
         assert_linear(Work::Listed, 1000, &mut run);
         assert_mutant_stops(Work::Listed, Mutant::FoldUnions, 1000, &mut run);
+    }
+
+    /// An intersection, a difference and a test of a subset search the
+    /// other list for each tag of the first. Each search costs at most one
+    /// comparison for each bit of the other list's length. A search that
+    /// scans the other list stops at the first count past that budget.
+    #[test]
+    fn searches_count_each_comparison() {
+        let n = 1000usize;
+        let all: TagList = (0..n as u32).collect();
+        let even: TagList = (0..n as u32).step_by(2).collect();
+        let most = (n * (1 + usize::BITS as usize - all.len().leading_zeros() as usize)) as u64;
+        let operations: [(&str, &dyn Fn()); 3] = [
+            ("intersection", &|| assert_eq!(intersection(&even, &all), even)),
+            ("difference", &|| assert!(difference(&even, &all).is_empty())),
+            ("subset", &|| assert!(is_subset(&even, &all))),
+        ];
+        for (name, operation) in operations {
+            reset();
+            budget(Work::Listed, most);
+            operation();
+            assert!(counted(Work::Listed) > n as u64 / 2, "{name}: {} counted", counted(Work::Listed));
+            let _mutation = Mutation::on(Mutant::ScanOther);
+            assert_stops(Work::Listed, most, operation);
+        }
     }
 }

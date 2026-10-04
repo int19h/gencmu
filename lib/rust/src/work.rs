@@ -116,6 +116,9 @@ pub(crate) enum Mutant {
     ScanImplications,
     /// A union of many lists is a fold of pairwise unions.
     FoldUnions,
+    /// An intersection, a difference or a test of a subset scans the other
+    /// list for each tag, not searching it.
+    ScanOther,
     /// The search of lowering for the rules that read tests every symbol
     /// of a production for a terminal at each of its symbols.
     TerminalAtEach,
