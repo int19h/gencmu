@@ -90,6 +90,12 @@ export type WorkCounts = {
      */
     conditions: number;
     /**
+     * the nodes of conditions and terms that an
+     * evaluation visits, each counted before it is evaluated, also where the
+     * evaluation halts for a nested parse
+     */
+    visits: number;
+    /**
      * the tokens that a sound test or phonemes()
      * visits
      */
@@ -143,7 +149,7 @@ export type WorkCounts = {
      */
     budget?: Partial<Record<WorkKind, number>>;
 };
-export type WorkKind = "items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "splice" | "text";
+export type WorkKind = "items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "splice" | "text";
 /**
  * What the check of engine §7 hands its test hook.
  * @typedef {object} ElisionCheckRun
@@ -186,6 +192,9 @@ export type WorkKind = "items" | "checks" | "scanned" | "candidates" | "captures
  *   recognizer compares with a new way, to find it already there
  * @property {number} conditions the conditions that an advance reads to
  *   find those ready at its dot
+ * @property {number} visits the nodes of conditions and terms that an
+ *   evaluation visits, each counted before it is evaluated, also where the
+ *   evaluation halts for a nested parse
  * @property {number} soundSteps the tokens that a sound test or phonemes()
  *   visits
  * @property {number} tags the tags that a union of tag sets or an entry of
@@ -210,7 +219,7 @@ export type WorkKind = "items" | "checks" | "scanned" | "candidates" | "captures
  * @property {Partial<Record<WorkKind, number>>} [budget] the most of each
  *   count that the work may reach
  */
-/** @typedef {"items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "splice" | "text"} WorkKind */
+/** @typedef {"items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "splice" | "text"} WorkKind */
 /** @type {readonly WorkKind[]} */
 export declare const WORK_KINDS: readonly WorkKind[];
 /**

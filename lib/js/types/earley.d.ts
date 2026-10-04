@@ -18,7 +18,7 @@ export type Chart = {
     context: ParseContext;
 };
 /**
- * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, Scope, Captured, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
+ * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, ReadyCondition, Scope, Captured, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
  * @import { Token } from "./tokens.js"
  * @import { UnicodeTable } from "./unicode.js"
  */
@@ -251,6 +251,82 @@ export declare class ChartSet {
     constructor(position: number);
 }
 /**
+ * A nested parse whose answer is not yet known, which the evaluation that
+ * needs it halts for (engine §4). The recognizer then parses that span on a
+ * stack of its own, so that a chain of nested parses costs heap and not the
+ * call stack. The evaluation returns HALT. Each part of it that has more
+ * to do adds a frame of what is left as HALT leaves it (pause). The answer
+ * then goes through the frames, the innermost first, and the evaluation
+ * goes on from where it halted. Starting it again would evaluate
+ * the parts before the halt once for each query, the square of their number.
+ */
+declare class Pending {
+    context: ParseContext;
+    kind: "begins" | "matches" | "tags";
+    rule: string;
+    start: number;
+    end: number;
+    at: [number, number] | null;
+    key: string;
+    unseen: boolean;
+    /**
+     * What the halted evaluation has left to do, the innermost part first.
+     * Each frame takes the value of the part inside it and gives its own,
+     * or HALT where it halts again.
+     * @type {((value: any) => any)[]}
+     */
+    frames: ((value: any) => any)[];
+    /**
+     * @param {ParseContext} context
+     * @param {"matches" | "begins" | "tags"} kind
+     * @param {string} rule
+     * @param {number} start
+     * @param {number} end
+     * @param {[number, number] | null} at the span in R that fault F21 keys
+     *   a query of the check by
+     * @param {string} key what the answer is remembered by
+     * @param {boolean} unseen whether fault F25 hides the parse from the
+     *   check for parses already running
+     */
+    constructor(context: ParseContext, kind: "matches" | "begins" | "tags", rule: string, start: number, end: number, at: [number, number] | null, key: string, unseen: boolean);
+}
+/**
+ * What an evaluation returns where it halts for a nested parse. It is a
+ * value, not a throw, since a long text halts hundreds of thousands of
+ * times. A throw through each part that saves a frame costs far more than
+ * a comparison in each.
+ */
+declare const HALT: unique symbol;
+export type Halt = typeof HALT;
+export type Run = {
+    context: ParseContext;
+    /**
+     * goes
+     * on, with the answer of the nested parse it halted for, if it did
+     */
+    resume: (answer?: boolean | TagSet) => Chart | Pending;
+    query: Pending | null;
+    /**
+     * the bounds of the context's input before
+     * the run, which it restores when it ends
+     */
+    outerStart: number;
+    outerEnd: number;
+};
+/**
+ * One recognition in progress, and the nested parse it answers, if it is
+ * one. `resume` goes on until the chart is done, or until it halts for a
+ * nested parse, which it returns.
+ * @typedef {object} Run
+ * @property {ParseContext} context
+ * @property {(answer?: boolean | TagSet) => Chart | Pending} resume goes
+ *   on, with the answer of the nested parse it halted for, if it did
+ * @property {Pending | null} query
+ * @property {number} outerStart the bounds of the context's input before
+ *   the run, which it restores when it ends
+ * @property {number} outerEnd
+ */
+/**
  * Runs the recognizer over tokens[start, end) with `rule` as the start rule.
  * @param {ParseContext} context
  * @param {string} rule
@@ -259,6 +335,25 @@ export declare class ChartSet {
  * @returns {Chart}
  */
 export declare function recognize(context: ParseContext, rule: string, start: number, end: number): Chart;
+/**
+ * Evaluates something outside any recognition, such as a tag term of an
+ * emission (engine §11). A nested parse it needs runs first, and the
+ * evaluation goes on from where it halted.
+ * @template T
+ * @param {() => T | Halt} evaluation
+ * @returns {T}
+ */
+export declare function settled<T>(evaluation: () => T | Halt): T;
+export type Advanced = {
+    dot: number;
+    slots: Captured;
+    tagId: number;
+};
+/**
+ * An item advanced: its new dot, its captured parts, and its tags if it is
+ * complete, or -1.
+ * @typedef {{dot: number, slots: Captured, tagId: number}} Advanced
+ */
 /**
  * A symbol as the diagnostics write it: its name, followed by its test if
  * it has one, such as LE="la" (docs/output.md).
@@ -326,10 +421,10 @@ declare class ChartScope implements Scope {
     constructor(context: ParseContext, production: Production, slots: Captured, origin: number, end: number);
     /**
      * The constituent's tags, from its production's tag term, evaluated at
-     * most once.
-     * @returns {TagSet}
+     * most once, or HALT where the term halts for a nested parse.
+     * @returns {TagSet | Halt}
      */
-    constituent(): TagSet;
+    constituent(): TagSet | Halt;
     /**
      * @param {string} name
      * @returns {SpanValue}
@@ -346,25 +441,32 @@ export declare function textOf(context: ParseContext, start: number, end: number
 /**
  * A term's value (engine §10): a string, or a set, of strings or of tags.
  * The reader has made sure that the types agree, so a set's kind needs no
- * mark here.
+ * mark here. HALT where the term halts for a nested parse, and each part
+ * that has more to do saves a frame that goes on after it (see Pending).
  * @param {ParseContext} context
  * @param {Argument} term
  * @param {Scope} scope
- * @returns {TermValue}
+ * @returns {TermValue | Halt}
  */
-export declare function evaluate(context: ParseContext, term: Argument, scope: Scope): TermValue;
+export declare function evaluate(context: ParseContext, term: Argument, scope: Scope): TermValue | Halt;
 /**
  * @param {TermValue} value
  * @returns {Set<string>}
  */
 export declare function asSet(value: TermValue): Set<string>;
 /**
+ * Whether a condition holds (engine §10). HALT where it halts for a
+ * nested parse, and each part that has more to do saves a frame that goes
+ * on after it (see Pending).
  * @param {ParseContext} context
  * @param {Condition} condition
  * @param {Scope} scope
- * @returns {boolean}
+ * @returns {boolean | Halt}
  */
-export declare function holds(context: ParseContext, condition: Condition, scope: Scope): boolean;
+export declare function holds(context: ParseContext, condition: Condition, scope: Scope): boolean | Halt;
+export type Comparison = Extract<Condition, {
+    op: unknown;
+}>;
 /**
  * @param {Chart} chart
  * @returns {{position: number, expected: Expectation[]}}

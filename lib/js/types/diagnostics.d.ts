@@ -72,6 +72,11 @@ export declare function formatTerm(term: Argument): string;
  * @returns {string}
  */
 export declare function formatCondition(condition: Condition): string;
+export type Notation = {
+    term: Argument;
+} | {
+    condition: Condition;
+};
 /**
  * A production with a dot, its captures shown, a helper as the rule it
  * belongs to.
