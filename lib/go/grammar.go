@@ -19,6 +19,8 @@ type stageGrammar struct {
 	// implications with their values (engine §2, §11).
 	classifierSet stageClassifiers
 	implications  []stageImplication
+	// impliedBy indexes the implications by each tag of their if side.
+	impliedBy map[string][]int
 	// guarded are the features that guard an alternative or an entry of a
 	// classifier, in code point order. Only these change a lowered grammar:
 	// a gate drops an alternative, and a production lists the warnings that

@@ -93,22 +93,24 @@ func TestManyLinksAddLinear(t *testing.T) {
 	}
 }
 
+// tagRun is a stage run over n tokens, the token i with the tags A and Ti.
+func tagRun(t *testing.T, n int) *stageRun {
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text {A}"))
+	toks := make([]Token, n)
+	for i := range toks {
+		toks[i] = Token{Text: "x", Tags: []string{"A", fmt.Sprintf("T%d", i)}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
+	}
+	ps := newParseState(d.uni, []rune(strings.TrimSpace(strings.Repeat("x ", n))))
+	return ps.newRun("main", d.stages[0], toks)
+}
+
 // TestUnionsLinear: tags() of a long span, a union of many parts and a
 // constant of many parts gather their members once, without copying and
 // interning a growing set at each part (engine §10).
 func TestUnionsLinear(t *testing.T) {
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text {A}"))
-	tagRun := func(n int) *stageRun {
-		toks := make([]Token, n)
-		for i := range toks {
-			toks[i] = Token{Text: "x", Tags: []string{"A", fmt.Sprintf("T%d", i)}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
-		}
-		ps := newParseState(d.uni, []rune(strings.TrimSpace(strings.Repeat("x ", n))))
-		return ps.newRun("main", d.stages[0], toks)
-	}
 	// Each union of n parts interns at most a few times n members.
 	for _, n := range []int{1000, 4000} {
-		run := tagRun(n)
+		run := tagRun(t, n)
 		internWork.names.Store(0)
 		if got := len(run.evaluator(nil, nil).spanTags(spanVal{a: 0, b: n}).names); got != n+1 {
 			t.Fatalf("%d tags, not %d", got, n+1)
@@ -292,4 +294,47 @@ func TestRuleSetsLinear(t *testing.T) {
 			t.Errorf("a production of %d nullable rules: %d steps", n, steps)
 		}
 	}
+}
+
+// TestClassesLinear: a key of a classifier given many classes, one entry
+// each, and a later entry removing them, costs the classes, not their
+// square (engine §2).
+func TestClassesLinear(t *testing.T) {
+	linearTime(t, "classes of a key", 5000, func(n int) {
+		c := &domClassifier{Name: "c"}
+		for i := range n {
+			c.Entries = append(c.Entries, &domEntry{Keys: []string{"a"}, Op: "∈", Class: fmt.Sprintf("C%d", n-i)})
+		}
+		for i := range n / 2 {
+			c.Entries = append(c.Entries, &domEntry{Keys: []string{"a"}, Op: "∉", Class: fmt.Sprintf("C%d", 2*i+1)})
+		}
+		for range 10 {
+			tables := resolveClassifiers([]classifierItem{{classifier: c}}, nil)
+			if tables.fault != "" || len(tables.tables["c"]["a"].names) != n/2 {
+				t.Fatalf("%d classes: %q", n, tables.fault)
+			}
+		}
+	})
+}
+
+// TestImpliedLinear: the implications that a chain of tags sets off fire
+// once each, found by the tags that set them off, so a token's work is the
+// implications that fire, not passes over all of them (engine §11).
+func TestImpliedLinear(t *testing.T) {
+	run := tagRun(t, 1)
+	linearTime(t, "a chain of implications", 2000, func(n int) {
+		g := &stageGrammar{}
+		// Listed last first, so that a pass over them in order would add
+		// one tag.
+		for i := n - 1; i >= 0; i-- {
+			g.implications = append(g.implications, stageImplication{ifNames: []string{fmt.Sprintf("T%d", i)}, thenNames: []string{fmt.Sprintf("T%d", i+1)}})
+		}
+		g.indexImplications()
+		run.grammar = g
+		for range 20 {
+			if got := len(run.implied(run.ps.in.single("T0")).names); got != n+1 {
+				t.Fatalf("%d tags, not %d", got, n+1)
+			}
+		}
+	})
 }
