@@ -770,6 +770,7 @@ mod tests {
                 source: (index * 2, index * 2 + 1),
                 label: "x".to_string(),
                 sound: Default::default(),
+                quiet: 0,
                 before: Vec::new(),
                 after: Vec::new(),
             })
@@ -902,6 +903,7 @@ mod tests {
                 source: (index * 2, index * 2 + 1),
                 label: "x".to_string(),
                 sound: Default::default(),
+                quiet: 0,
                 before: Vec::new(),
                 after: Vec::new(),
             })

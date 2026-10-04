@@ -102,6 +102,10 @@ pub(crate) struct Tok {
     /// Its phonemes in canonical form, for the sound tests of symbols and for
     /// `phonemes()`, computed when one first looks at the token (§4, §5).
     pub sound: std::cell::OnceCell<Box<str>>,
+    /// How many tokens from this one on, in its sequence, have no sound, so
+    /// that a sound test skips them at once. Zero where it is not known,
+    /// which only makes the test step through them.
+    pub quiet: u32,
     /// The tokens attached before it and after it (§11), which no grammar
     /// operation sees: only emission forwards them.
     pub before: Vec<Attachment>,
@@ -125,16 +129,35 @@ impl Tok {
     }
 }
 
+/// Marks each token of a sequence with the run of tokens without sound that
+/// it begins (`Tok::quiet`).
+pub(crate) fn mark_quiet(tokens: &mut [Tok], unicode: &Unicode) {
+    let mut run = 0u32;
+    for token in tokens.iter_mut().rev() {
+        run = if token.sound(unicode).is_empty() { run + 1 } else { 0 };
+        token.quiet = run;
+    }
+}
+
 /// Whether `tokens` sound like a string: their canonical sound is exactly
 /// it (§4, §5). A token with no phonemes adds nothing, so an empty span
-/// sounds like the empty string.
+/// sounds like the empty string. Runs of such tokens are skipped whole, so
+/// the test costs the length of the string, not of the span.
 fn sounds_like(tokens: &[Tok], unicode: &Unicode, sound: &str) -> bool {
     let mut rest = sound;
-    for token in tokens {
+    let mut at = 0;
+    while let Some(token) = tokens.get(at) {
+        #[cfg(test)]
+        tests::SOUND_STEPS.with(|steps| steps.set(steps.get() + 1));
+        if token.quiet > 0 {
+            at += token.quiet as usize;
+            continue;
+        }
         match rest.strip_prefix(token.sound(unicode)) {
             Some(after) => rest = after,
             None => return false,
         }
+        at += 1;
     }
     rest.is_empty()
 }
@@ -1404,8 +1427,45 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::earley::{matchers, Recognizer, Shared, Tok};
+    use crate::earley::{mark_quiet, matchers, sounds_like, Recognizer, Shared, Tok};
     use crate::lower::Sym;
+
+    thread_local! {
+        /// How many tokens the sound tests on this thread have stepped to.
+        pub(super) static SOUND_STEPS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+    }
+
+    /// A sound test of each suffix of a run of tokens without sound steps
+    /// through as many tokens as the sound is long, not the suffix.
+    #[test]
+    fn sound_tests_skip_tokens_without_sound() {
+        let unicode = crate::unicode::Unicode::parse(crate::loader::bundled("unicode.txt").expect("the table"))
+            .expect("the bundled table");
+        for n in [1000, 4000] {
+            let mut tokens: Vec<Tok> = (0..n)
+                .map(|index| Tok {
+                    text: "x".to_string(),
+                    tags: 0,
+                    phonemes: (index + 1 == n).then(|| "a".to_string()),
+                    source: (index, index + 1),
+                    label: "x".to_string(),
+                    sound: Default::default(),
+                    quiet: 0,
+                    before: Vec::new(),
+                    after: Vec::new(),
+                })
+                .collect();
+            mark_quiet(&mut tokens, &unicode);
+            SOUND_STEPS.with(|steps| steps.set(0));
+            for start in 0..n {
+                assert!(sounds_like(&tokens[start..], &unicode, "a"));
+                assert!(sounds_like(&tokens[start..n - 1], &unicode, ""));
+                assert!(!sounds_like(&tokens[start..], &unicode, ""));
+            }
+            let steps = SOUND_STEPS.with(|steps| steps.get());
+            assert!(steps <= 8 * n as u64, "{steps} steps for {n} tokens");
+        }
+    }
 
     /// The completed items of the production of `t` with two symbols, over
     /// the whole input of `n` tokens `A`, in the chart of a recognition of
@@ -1429,6 +1489,7 @@ mod tests {
                 source: (index * 2, index * 2 + 1),
                 label: "a".to_string(),
                 sound: Default::default(),
+                quiet: 0,
                 before: Vec::new(),
                 after: Vec::new(),
             })

@@ -357,6 +357,7 @@ impl Dialect {
                     phonemes: None,
                     source: (index, index + 1),
                     sound: Default::default(),
+                    quiet: 0,
                     before: Vec::new(),
                     after: Vec::new(),
                 });
@@ -398,6 +399,7 @@ impl Dialect {
                     source: (at, at + length),
                     label: token.text.clone(),
                     sound: Default::default(),
+                    quiet: 0,
                     before: Vec::new(),
                     after: Vec::new(),
                 });
@@ -430,7 +432,8 @@ impl Dialect {
                 .ok_or_else(|| Error::usage(format!("the dialect has no stage named {name}")))?,
         };
         let mut shared = Shared::new(&self.unicode, &chars);
-        let (input, public_input) = first(&mut shared.tags, &chars);
+        let (mut input, public_input) = first(&mut shared.tags, &chars);
+        crate::earley::mark_quiet(&mut input, &self.unicode);
         let fresh = Run { stages: Vec::new(), input, public_input, tree: None, error: None, warnings: Vec::new() };
         let words = self.stages.iter().position(|stage| stage.name == "words");
         // Auto features add `sa-su` only in a dialect where it is a gate,
@@ -661,10 +664,12 @@ impl Dialect {
                 source: token.source,
                 label: token.label,
                 sound: Default::default(),
+                quiet: 0,
                 before: token.before,
                 after: token.after,
             });
         }
+        crate::earley::mark_quiet(&mut next, &self.unicode);
         // The check of `elision-only` runs after the emission, and only for
         // a stage that chose one of several derivations (§7).
         let check = elision.unwrap_or(grammar.elision_only);
@@ -849,6 +854,7 @@ impl Dialect {
                     source: (record.source.start, record.source.end),
                     label: String::new(),
                     sound: Default::default(),
+                    quiet: 0,
                     before: Vec::new(),
                     after: Vec::new(),
                 });
@@ -869,6 +875,7 @@ impl Dialect {
         for (index, &flag) in synthetic.iter().enumerate() {
             project.push(project[index] + u32::from(!flag));
         }
+        crate::earley::mark_quiet(&mut tokens, &self.unicode);
         let recon = Recon { observed: input, project, synthetic };
         // The recognition of R is not a query, and its queries share the
         // memo and the active queries of the main parse (§7.6).
