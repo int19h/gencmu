@@ -14,7 +14,8 @@ pub(crate) enum Work {
     /// The items that the recognizer makes, in parses and nested parses.
     Items,
     /// The entries of the chart that the searches for a blocking path look
-    /// at: the index once, and then each completed item they read.
+    /// at: each completed item that their index is built from, and then
+    /// each that they read from it.
     Searched,
     /// The completed items that the checks of maximality look at: those
     /// that their tables are found from, as each table is found, and each
@@ -34,8 +35,9 @@ pub(crate) enum Work {
     Walked,
     /// The tokens that the sound tests step to (§5).
     Sounded,
-    /// The conditions that the items added to the chart look at, with one
-    /// more for each item.
+    /// The conditions that the selection for each item added to the chart
+    /// examines, each counted before its dot is checked, with one more for
+    /// each item.
     Conditions,
     /// The nodes of conditions and terms that evaluation visits, each
     /// counted before it is evaluated, also in an evaluation that halts.
