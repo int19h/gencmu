@@ -191,11 +191,14 @@
   function documentMentions(text) {
     const found = [];
     const isNameCharacter = (c) => (c >= "a" && c <= "z") || (c >= "0" && c <= "9") || c === "-";
+    // Each scan below counts each character before it reads it.
     const digitsAt = (i) => {
       let end = i;
-      while (end < text.length && text[end] >= "0" && text[end] <= "9") end++;
-      count("text", end - i + 1);
-      return end;
+      for (;;) {
+        count("text");
+        if (!(end < text.length && text[end] >= "0" && text[end] <= "9")) return end;
+        end++;
+      }
     };
     for (let i = 0; i < text.length;) {
       count("text");
@@ -211,6 +214,7 @@
       let lastSlash = -1;
       let afterDouble = i;
       while (end < text.length && (isNameCharacter(text[end]) || text[end] === "/")) {
+        count("text");
         if (text[end] === "/") {
           if (end > i && text[end - 1] === "/") afterDouble = end + 1;
           lastSlash = end;
@@ -218,8 +222,10 @@
         end++;
       }
       let start = afterDouble;
-      while (start < end && text[start] === "/") start++;
-      count("text", end - i + start - afterDouble);
+      while (start < end && text[start] === "/") {
+        count("text");
+        start++;
+      }
       if (!text.startsWith(".md", end) || text[end - 1] === "/" || lastSlash < start) {
         i = end;
         continue;
