@@ -83,10 +83,6 @@ type recognizer struct {
 	recon    *reconstruction
 	sets     []*eset
 	furthest int
-	// mx is the maximality of a nested query's chart, made when first
-	// asked for (eligible.go).
-	mx     *maximal
-	mxMade bool
 }
 
 func (r *recognizer) set(k int) *eset {

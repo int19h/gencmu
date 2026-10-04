@@ -189,9 +189,9 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 	n := len(e.order)
 	next := make([]int, n)
 	// mx is the maximality of the grammar's maximal terminators over the
-	// query's chart, made once per query, and maximalNext says whether the
-	// optional after an item is of a maximal terminator.
-	mx := r.queryMaximal()
+	// query's chart, nil where the grammar has none, and maximalNext says
+	// whether the optional after an item is of a maximal terminator.
+	mx := newMaximal(r, false)
 	maximalNext := make([]bool, n)
 	for i, it := range e.order {
 		next[i] = e.next(it)
@@ -265,14 +265,4 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 		}
 	}
 	return out
-}
-
-// queryMaximal is the maximality of a nested query's chart: of the maximal
-// terminators of the grammar alone, made once per query. It is nil where
-// the grammar has none.
-func (r *recognizer) queryMaximal() *maximal {
-	if !r.mxMade {
-		r.mx, r.mxMade = newMaximal(r, false), true
-	}
-	return r.mx
 }
