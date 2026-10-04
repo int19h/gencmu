@@ -36,6 +36,9 @@ type engineCase struct {
 	// noHook, which no case file sets either, ignores the witness hook's
 	// answer, so that only the result can fail the case (faults_test.go).
 	noHook bool
+	// hits, where set, records the sites of the fault that the parses
+	// enter (faults_test.go).
+	hits map[string]bool
 }
 
 // caseToken is a token that a case supplies (tests/README.md). Its before
@@ -154,7 +157,7 @@ func runCaseLogged(d *Dialect, c *engineCase, o *caseOptions, lose string) (*Par
 	opts := ParseOptions{Features: o.Features, WithoutFeatures: o.WithoutFeatures, ElisionOnly: o.ElisionOnly, Until: o.Until, NoAutoFeatures: true}
 	log := withChecks(&opts)
 	opts.private.loseWitness = lose
-	opts.private.fault = c.fault
+	opts.private.fault, opts.private.hits = c.fault, c.hits
 	if o.AutoFeatures != nil && *o.AutoFeatures {
 		opts.NoAutoFeatures = false
 	}

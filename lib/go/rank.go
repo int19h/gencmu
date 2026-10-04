@@ -255,8 +255,8 @@ type ranker struct {
 // skips says whether a fault of the check skips this alternative: the last
 // of two or more links of an item, or completed items of a constituent
 // (tests/README.md).
-func (rk *ranker) skips(fault string, i, n int) bool {
-	return rk.check && n > 1 && i == n-1 && rk.rec.run.ps.fault(fault)
+func (rk *ranker) skips(fault, site string, i, n int) bool {
+	return rk.check && n > 1 && i == n-1 && rk.rec.run.ps.faultAt(fault, site)
 }
 
 // newRanker ranks under the rule of a directive, greedy, lazy or
@@ -829,7 +829,7 @@ func (rk *ranker) itemVal(it *item, f forbidden) *entry {
 		w := marked[l] && (l.prev == nil || prev.w) && (l.sym == nil || child.w)
 		// Faults of the check skip the last of two or more links, in the
 		// count or in the candidates (tests/README.md).
-		if !rk.skips("lost:context", i, len(it.links)) {
+		if !rk.skips("lost:context", "links", i, len(it.links)) {
 			all.add(v.vec, v.least, count)
 			allW = allW || w
 			if v.permitted {
@@ -837,7 +837,7 @@ func (rk *ranker) itemVal(it *item, f forbidden) *entry {
 				allowedW = allowedW || w
 			}
 		}
-		if !rk.skips("lost:select", i, len(it.links)) {
+		if !rk.skips("lost:select", "links", i, len(it.links)) {
 			vals = append(vals, v)
 		}
 	}
@@ -917,11 +917,11 @@ func (rk *ranker) symVal(s *symNode, f forbidden) *entry {
 		}
 		// Faults of the check skip the last of two or more completed
 		// items, in the count or in the candidates (tests/README.md).
-		if !rk.skips("lost:context", i, len(s.items)) {
+		if !rk.skips("lost:context", "items", i, len(s.items)) {
 			sum.add(vec, e.least, e.count)
 			w = w || e.w
 		}
-		if !rk.skips("lost:select", i, len(s.items)) {
+		if !rk.skips("lost:select", "items", i, len(s.items)) {
 			vals = append(vals, itemVal{it: c, e: e, vec: vec})
 		}
 	}

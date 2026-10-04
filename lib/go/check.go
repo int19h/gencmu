@@ -139,11 +139,32 @@ type privateOptions struct {
 	//     "lost:select" makes its candidates skip it. Only the witness hook
 	//     sees lost:context where the readings stay.
 	fault string
+	// hits records each site of the fault that the parse entered while it
+	// was on, by its name, or its name and site after an @, for the fault
+	// test (tests/README.md).
+	hits map[string]bool
 }
 
-// fault says whether a test turned on this fault of the check.
+// fault says whether a test turned on this fault of the check, at its one
+// site.
 func (ps *parseState) fault(name string) bool {
-	return ps.private != nil && ps.private.fault == name
+	return ps.faultAt(name, "")
+}
+
+// faultAt says whether a test turned on this fault of the check, at one of
+// its sites, which a fault that is on records as entered.
+func (ps *parseState) faultAt(name, site string) bool {
+	if ps.private == nil || ps.private.fault != name {
+		return false
+	}
+	if ps.private.hits != nil {
+		key := name
+		if site != "" {
+			key += "@" + site
+		}
+		ps.private.hits[key] = true
+	}
+	return true
 }
 
 // checkElision is the check of §7 for the chosen derivation d, whose tree is

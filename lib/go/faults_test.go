@@ -17,8 +17,22 @@ const (
 	catchHook   = "hook"   // only the witness hook fails it
 )
 
-// faults lists every fault that privateOptions.fault takes.
+// faults lists every fault that privateOptions.fault takes, each with its
+// sites: the places in the code where it is checked, each of which the
+// named cases must enter while it is on.
 var faults = []string{"reprocess", "route3", "restore", "rank-restoration", "lost:context", "lost:select"}
+
+var faultSites = map[string][]string{
+	"lost:context": {"lost:context@links", "lost:context@items"},
+	"lost:select":  {"lost:select@links", "lost:select@items"},
+}
+
+func sitesOf(fault string) []string {
+	if sites, ok := faultSites[fault]; ok {
+		return sites
+	}
+	return []string{fault}
+}
 
 // faultCatches names, for each fault, shared cases that catch it, and how.
 var faultCatches = map[string]map[string]string{
@@ -27,16 +41,17 @@ var faultCatches = map[string]map[string]string{
 	"restore":   {"reparse-incompatible-optional-sound.json": catchResult},
 	"rank-restoration": {"reparse-witness-hook-only.json": catchResult, "elision-only-passes.json": catchResult,
 		"reparse-witness-sibling-last.json": catchHook},
-	"lost:context": {"reparse-witness-sibling-first.json": catchHook, "reparse-witness-sibling-last.json": catchHook},
-	"lost:select":  {"reparse-witness-sibling-first.json": catchResult},
+	"lost:context": {"reparse-witness-sibling-first.json": catchHook, "reparse-witness-sibling-last.json": catchHook,
+		"reparse-strict-later-reading-symbol.json": catchResult},
+	"lost:select": {"reparse-witness-sibling-first.json": catchResult, "reparse-strict-later-reading-symbol.json": catchResult},
 }
 
 // catchOf runs a case with a fault on, once with the hook off and once with
 // it on, and says how the case catches the fault, or "" where it does not.
-func catchOf(t *testing.T, fault, file string) string {
+func catchOf(t *testing.T, fault, file string, hits map[string]bool) string {
 	run := func(hook bool) error {
 		c := loadCase(t, filepath.Join("../../tests/engine", file))
-		c.fault, c.noHook = fault, !hook
+		c.fault, c.noHook, c.hits = fault, !hook, hits
 		return checkCase(c, true)
 	}
 	if run(false) != nil {
@@ -55,11 +70,22 @@ func TestFaultsAreCaught(t *testing.T) {
 		if len(files) == 0 {
 			t.Errorf("no case catches %s", fault)
 		}
+		hits := map[string]bool{}
 		for file, want := range files {
-			if got := catchOf(t, fault, file); got != want {
+			if got := catchOf(t, fault, file, hits); got != want {
 				t.Errorf("%s catches %s as %q, not %q", file, fault, got, want)
 			}
 			hookOnly = hookOnly || want == catchHook
+		}
+		// The named cases enter every site of the fault, and no other.
+		for _, site := range sitesOf(fault) {
+			if !hits[site] {
+				t.Errorf("no named case enters the site %s", site)
+			}
+			delete(hits, site)
+		}
+		for site := range hits {
+			t.Errorf("%s enters the site %s, which it does not declare", fault, site)
 		}
 	}
 	if len(faultCatches) != len(faults) {
@@ -79,7 +105,7 @@ func TestListFaultCatches(t *testing.T) {
 	files, _ := filepath.Glob("../../tests/engine/*.json")
 	for _, fault := range faults {
 		for _, f := range files {
-			if how := catchOf(t, fault, filepath.Base(f)); how != "" {
+			if how := catchOf(t, fault, filepath.Base(f), nil); how != "" {
 				t.Logf("%s %s %s", fault, filepath.Base(f), how)
 			}
 		}
