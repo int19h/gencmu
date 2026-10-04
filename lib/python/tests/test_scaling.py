@@ -10,11 +10,13 @@ import time
 import unittest
 from typing import Callable
 
+import gencmu
 from gencmu._clauses import definition_problem
 from gencmu._earley import EdgeSets, Evaluator, StageContext
 from gencmu._grammar import Lowered, _Constants, _Lowerer, _resolve_classifiers, stitch
 from gencmu._trampoline import run
 from gencmu._model import Token
+from gencmu._pipeline import splice_pipeline
 from gencmu._stage import implied
 
 from .shared import load_case_dialect
@@ -219,6 +221,48 @@ class Classifiers(Linear):
             entries = [{"guards": [], "op": "∈", "class": f"C{index}", "keys": ["k"], "at": [1, 1]} for index in range(n)]
             items = [("t.md", {"name": "c", "entries": entries})]
             return lambda: [_resolve_classifiers(items, frozenset()) for _ in range(30)]
+
+        self.assert_linear(make, 2000)
+
+
+
+def pipeline_dom(directives: list[dict], rules: int = 0) -> dict:
+    return {
+        "format": 18,
+        "rules": [{"name": "text", "op": "define", "alternatives": [], "conditions": [], "at": [line + 1, 9]} for line in range(len(directives), len(directives) + rules)],
+        "directives": [{**directive, "at": [line + 1, 1]} for line, directive in enumerate(directives)],
+        "constants": [],
+        "classifiers": [],
+        "implications": [],
+    }
+
+
+class Pipelines(Linear):
+    def test_a_deep_chain_of_includes_costs_its_depth(self) -> None:
+        # d0 includes d1, which includes d2, and so on; the last holds the
+        # stage.
+        def make(n: int) -> Callable[[], object]:
+            doms = {f"d{index}.md": pipeline_dom([{"name": "include", "args": [f"d{index + 1}.md"]}]) for index in range(n)}
+            doms[f"d{n}.md"] = pipeline_dom([{"name": "stage", "args": ["s"]}], rules=1)
+            return lambda: [splice_pipeline("d0.md", doms.get) for _ in range(100)]
+
+        self.assert_linear(make, 150)
+
+    def test_many_stages_cost_their_number(self) -> None:
+        def make(n: int) -> Callable[[], object]:
+            directives = [{"name": "stage", "args": [f"s{index}"]} for index in range(n)]
+            # One rule after the last stage; the earlier stages have none, so
+            # the splice ends in an error after every stage is checked.
+            dom = pipeline_dom(directives, rules=1)
+
+            def work() -> None:
+                for _ in range(20):
+                    try:
+                        splice_pipeline("p.md", {"p.md": dom}.get)
+                    except gencmu.GencmuError as error:
+                        assert "stage s0 has no rules" in str(error), error
+
+            return work
 
         self.assert_linear(make, 2000)
 

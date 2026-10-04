@@ -67,11 +67,18 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None]) -> Pipeline:
     """Splice the pipeline document at ``path``. ``dom_of`` gives a
     document's DOM, or ``None`` when the document does not exist."""
     stages: list[SplicedStage] = []
+    # The stages by name, for the check of a second stage of a name.
+    named: dict[str, SplicedStage] = {}
     features: set[str] = set()
     # The run being built: a path and its DOM.
     run: tuple[str, Dom] | None = None
+    # The documents that include the one being spliced, outermost first,
+    # and the same as a set. Each level pushes one and pops it, since a
+    # copy of the chain at each level costs a deep chain its square.
+    chain: list[str] = []
+    on_chain: set[str] = set()
 
-    def splice(document: str, dom: Dom, chain: list[str]) -> None:
+    def splice(document: str, dom: Dom) -> None:
         nonlocal run
         for kind, item in items_in_order(dom):
             line, column = int(item["at"][0]), int(item["at"][1])
@@ -82,26 +89,30 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None]) -> Pipeline:
             name = item["name"] if kind == "directive" else None
             if name == "include":
                 target = resolve(document, item["args"][0])
-                through = " → ".join([*chain, document, target])
-                if target in chain or target == document:
-                    raise fail(f"{target} includes itself ({through})")
+                if target in on_chain or target == document:
+                    raise fail(f"{target} includes itself ({' → '.join([*chain, document, target])})")
                 included = dom_of(target)
                 if included is None:
-                    raise fail(f"{target} was not found ({through})")
+                    raise fail(f"{target} was not found ({' → '.join([*chain, document, target])})")
                 run = None
-                splice(target, included, [*chain, document])
+                chain.append(document)
+                on_chain.add(document)
+                splice(target, included)
+                chain.pop()
+                on_chain.discard(document)
                 run = None
             elif name == "features":
                 features.update(item["args"])
             elif name == "stage":
                 stage_name = item["args"][0]
-                for earlier in stages:
-                    if earlier.name == stage_name:
-                        raise fail(
-                            f"a second stage named {stage_name}; the first is at "
-                            f"{earlier.document}:{earlier.at[0]}:{earlier.at[1]}"
-                        )
+                earlier = named.get(stage_name)
+                if earlier is not None:
+                    raise fail(
+                        f"a second stage named {stage_name}; the first is at "
+                        f"{earlier.document}:{earlier.at[0]}:{earlier.at[1]}"
+                    )
                 stages.append(SplicedStage(stage_name, document, (line, column)))
+                named[stage_name] = stages[-1]
                 run = None
             else:
                 if not stages:
@@ -124,7 +135,7 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None]) -> Pipeline:
     top = dom_of(path)
     if top is None:
         raise GencmuError(f"{path} was not found", document=path)
-    splice(path, top, [])
+    splice(path, top)
     if not stages:
         raise GencmuError("a pipeline needs at least one %stage", document=path)
     for stage in stages:
