@@ -548,19 +548,27 @@ mod tests {
         assert_eq!(normal("./a/./b/.."), "a");
         assert_eq!(normal("/../a"), "/a");
     }
-    /// The work of reading a document: the recognizer's items and the
-    /// steps of the reader, its walks and the ranker. Each has its own
-    /// budget, so that the count past either panics at once.
-    fn reading(text: &str, most: Option<(u64, u64)>) -> (u64, u64) {
+    /// The work of reading a document: the recognizer's items and its
+    /// lookups of items, and the steps of the reader, its walks and the
+    /// ranker. Each has its own budget, so that the count past any panics
+    /// at once.
+    fn reading(text: &str, most: Option<[u64; 3]>) -> [u64; 3] {
+        let kinds = [Work::Items, Work::Found, Work::Walked];
         reset();
-        if let Some((items, walked)) = most {
-            budget(Work::Items, items);
-            budget(Work::Walked, walked);
+        if let Some(most) = most {
+            for (work, most) in kinds.into_iter().zip(most) {
+                budget(work, most);
+            }
         }
         // An error is an outcome too. Its place is the notation cases'
         // concern.
         let _ = read_grammar_document(text);
-        (counted(Work::Items), counted(Work::Walked))
+        kinds.map(counted)
+    }
+
+    /// Five times each count, the budget of a run four times as long.
+    fn five_times(counts: [u64; 3]) -> [u64; 3] {
+        counts.map(|count| 5 * count)
     }
 
     /// The shared cases of tests/notation-growth.json: reading a document
@@ -580,7 +588,7 @@ mod tests {
             let name = field("name");
             let (prefix, open, middle, close, suffix) =
                 (field("prefix"), field("open"), field("middle"), field("close"), field("suffix"));
-            let work = |n: usize, most: Option<(u64, u64)>| {
+            let work = |n: usize, most: Option<[u64; 3]>| {
                 let text =
                     format!("```jbogenbau\n{prefix}{}{middle}{}{suffix}\n```\n", open.repeat(n), close.repeat(n));
                 // The counters belong to the thread that reads.
@@ -594,9 +602,9 @@ mod tests {
             // Once first, so that loading the notation counts in neither.
             work(250, None);
             let small = work(250, None);
-            let large = work(1000, Some((5 * small.0, 5 * small.1)));
+            let large = work(1000, Some(five_times(small)));
             assert!(
-                large.0 <= 5 * small.0 && large.1 <= 5 * small.1,
+                large.iter().zip(five_times(small)).all(|(&large, most)| large <= most),
                 "{name}: {small:?} for 250 levels, {large:?} for 1000"
             );
         }
@@ -613,8 +621,11 @@ mod tests {
         };
         assert!(read_grammar_document(&text(500)).is_err(), "tags() of 500 arguments");
         let small = reading(&text(500), None);
-        let large = reading(&text(2000), Some((5 * small.0, 5 * small.1)));
-        assert!(large.0 <= 5 * small.0 && large.1 <= 5 * small.1, "{small:?} for 500 arguments, {large:?} for 2000");
+        let large = reading(&text(2000), Some(five_times(small)));
+        assert!(
+            large.iter().zip(five_times(small)).all(|(&large, most)| large <= most),
+            "{small:?} for 500 arguments, {large:?} for 2000"
+        );
     }
 
     /// The search for the origins of a derivation, in a version that

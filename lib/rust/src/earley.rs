@@ -255,7 +255,9 @@ pub(crate) struct ESet {
 const AGAIN: u32 = 1 << 31;
 
 impl ESet {
+    /// The place of an item in the set, by one lookup of its index.
     pub(crate) fn find(&self, item: &Item) -> Option<u32> {
+        work::count(Work::Found, 1);
         self.index.get(item).copied()
     }
 
@@ -1270,6 +1272,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             chart.sets.resize_with(set + 1, ESet::default);
         }
         let target = &mut chart.sets[set];
+        work::count(Work::Found, 1);
         if let Some(&index) = target.index.get(&item) {
             // One ordinary step makes an item ordinary. It is then processed
             // again, for what strictness held back, if it was processed.
@@ -1493,6 +1496,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             chart.sets.resize_with(e + 2, ESet::default);
         }
         let target = &mut chart.sets[e + 1];
+        work::count(Work::Found, 1);
         if target.index.contains_key(&item) {
             return;
         }

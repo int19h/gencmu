@@ -13,6 +13,10 @@ use std::cell::RefCell;
 pub(crate) enum Work {
     /// The items that the recognizer makes, in parses and nested parses.
     Items,
+    /// The lookups of an item in the index of its set, which the recognizer
+    /// makes as it adds items and the searches of its chart make as they
+    /// read it. Each counts once, before it is made.
+    Found,
     /// The entries of the chart that the searches for a blocking path look
     /// at: each completed item that their index is built from, and then
     /// each that they read from it.
@@ -325,23 +329,24 @@ mod tests {
             let (name, template, link) = (string(case, "dialect"), string(case, "text"), string(case, "link"));
             let (small, large, most) = (number(case, "small"), number(case, "large"), number(case, "most"));
             let dialect = crate::load_dialect(&name).expect("the bundled dialect");
-            let items = |n: u64, most: Option<u64>| {
+            let work = |n: u64, most: Option<(u64, u64)>| {
                 let text = template.replace("{links}", &vec![link.as_str(); n as usize].join(" "));
                 reset();
-                if let Some(most) = most {
-                    budget(Work::Items, most);
+                if let Some((items, found)) = most {
+                    budget(Work::Items, items);
+                    budget(Work::Found, found);
                 }
                 let result = dialect.parse(&text, &ParseOptions::default()).expect("a result");
                 assert!(result.ok, "{text}");
-                counted(Work::Items)
+                (counted(Work::Items), counted(Work::Found))
             };
-            // The longer text's parse panics at the first item past its
-            // budget.
-            let few = items(small, None);
-            let many = items(large, Some(most * few));
-            if many > most * few {
+            // The longer text's parse panics at the first item or lookup
+            // past its budget.
+            let few = work(small, None);
+            let many = work(large, Some((most * few.0, most * few.1)));
+            if many.0 > most * few.0 || many.1 > most * few.1 {
                 failures.push(format!(
-                    "{name} with {link:?}: {few} items for {small} links, {many} for {large}, more than {most} times"
+                    "{name} with {link:?}: {few:?} items and lookups for {small} links, {many:?} for {large}, more than {most} times"
                 ));
             }
         }
