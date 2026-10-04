@@ -1,0 +1,10 @@
+{
+  "description": "`¬¬x?` cannot be read, so a later character that no token holds does not move the error. The lexical error stands at the second `¬` (engine §9).",
+  "document": "```jbogenbau\n%rule t ¬¬x? A @\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 10
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "description": "In `¬¬x!`, the first `¬` is a negation, since no guard begins with `¬x!`. The second `¬` is not one, since the warning `x!` begins after it, and no guard is `¬` and a warning. The lexical error stands at the `!` (engine §9).",
+  "document": "```jbogenbau\n%rule t ¬¬x! A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 12
+    }
+  }
+}

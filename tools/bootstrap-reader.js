@@ -70,6 +70,10 @@ function lex(text, positions) {
     while (j < n && chars[j] !== quote) j += chars[j] === "\\" ? 2 : 1;
     return Math.min(j + 1, n + 1);
   };
+  // Whether a guard begins at `j`: a name and `?` or `!`, or `¬`, a name
+  // and `?`.
+  const guardAt = (j) => (isLetter(chars[j]) && (chars[runEnd(j)] === "?" || chars[runEnd(j)] === "!")) ||
+    (chars[j] === "¬" && isLetter(chars[j + 1]) && chars[runEnd(j + 1)] === "?");
   // The pieces that can begin at `i`, each its end and its kind (null for
   // layout), longest first, and the furthest character that any of them,
   // complete or not, reaches.
@@ -101,12 +105,12 @@ function lex(text, positions) {
     }
     if (c === "¬") {
       // `¬`, a negation, unless a guard begins after it; or `¬`, a name
-      // and `?`, a guard.
+      // and `?`, a guard. The negation reads its `¬` before its condition
+      // fails.
       const end = isLetter(chars[i + 1]) ? runEnd(i + 1) : i + 1;
-      const guardAfter = end > i + 1 && (chars[end] === "?" || chars[end] === "!");
       if (end > i + 1 && chars[end] === "?") found.push([end + 1, "guard"]);
-      if (!guardAfter) found.push([i + 1, "¬"]);
-      reach = Math.max(reach, end);
+      if (!guardAt(i + 1)) found.push([i + 1, "¬"]);
+      reach = Math.max(reach, end, i + 1);
     }
     if (c === "$") {
       prefixed(i + 1, (word) => (isCapital(word.slice(1)) ? "constant" : "capture"));
