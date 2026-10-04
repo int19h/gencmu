@@ -574,55 +574,121 @@ func duplicateCaptures(e *domExpr) map[*domExpr]bool {
 // §3.5): a choice gives each branch's, an & each subsequence's, a plain
 // optional none or its content's, and braces and an elidable optional
 // none. Productions that read the same names in the same order are one
-// sequence. duplicates are the captures that some production reads after
-// one of the same name. Gates do not matter, since they drop whole
-// alternatives.
-func captureSequences(e *domExpr) (sequences [][]*domExpr, duplicates map[*domExpr]bool) {
-	duplicates = map[*domExpr]bool{}
-	// Each capture that the work below looks at, compares, copies or
-	// writes into a key counts before it does.
+// sequence. Gates do not matter, since they drop whole alternatives.
+// Repeated names are duplicateCaptures' concern.
+func captureSequences(e *domExpr) [][]*domExpr {
+	// Each capture or join that the work below makes, looks up, compares
+	// or writes out counts before it does.
 	w := work.Load()
 	step := func() {
 		if w != nil {
 			w.readerSteps.add("reader steps")
 		}
 	}
-	distinct := func(lists [][]*domExpr) [][]*domExpr {
-		seen := map[string]bool{}
-		var out [][]*domExpr
+	// A sequence is a tree of the sequences it joins, so a join shares its
+	// parts and costs one step. A copy at each join would cost nested
+	// sequences the square of their depth. Each sequence is written out
+	// once, at the end.
+	type capSeq struct {
+		c    *domExpr
+		l, r *capSeq
+		// h is a hash of the names in order, and pw the base to the power
+		// of their number, so that a join finds its hash in one step.
+		h, pw uint64
+	}
+	const base = 1099511628211
+	empty := (*capSeq)(nil)
+	powOf := func(s *capSeq) uint64 {
+		if s == nil {
+			return 1
+		}
+		return s.pw
+	}
+	hashOf := func(s *capSeq) uint64 {
+		if s == nil {
+			return 0
+		}
+		return s.h
+	}
+	join := func(a, b *capSeq) *capSeq {
+		step()
+		switch {
+		case a == nil:
+			return b
+		case b == nil:
+			return a
+		}
+		return &capSeq{l: a, r: b, h: hashOf(a)*powOf(b) + b.h, pw: a.pw * b.pw}
+	}
+	leaf := func(c *domExpr) *capSeq {
+		// The hash of a name reads each of its bytes once, as reading the
+		// name did.
+		h := uint64(14695981039346656037)
+		for i := 0; i < len(c.Name); i++ {
+			h = (h ^ uint64(c.Name[i])) * base
+		}
+		return &capSeq{c: c, h: h | 1, pw: base}
+	}
+	// flat writes a sequence out in order, each part of its tree counted
+	// before it is entered.
+	flat := func(s *capSeq) []*domExpr {
+		var out []*domExpr
+		stack := []*capSeq{s}
+		for len(stack) > 0 {
+			step()
+			top := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			switch {
+			case top == nil:
+			case top.c != nil:
+				out = append(out, top.c)
+			default:
+				stack = append(stack, top.r, top.l)
+			}
+		}
+		return out
+	}
+	same := func(a, b *capSeq) bool {
+		x, y := flat(a), flat(b)
+		if len(x) != len(y) {
+			return false
+		}
+		for i := range x {
+			step()
+			if x[i].Name != y[i].Name {
+				return false
+			}
+		}
+		return true
+	}
+	// distinct keeps the first of each list of names. Lists are found by
+	// their hash, and only lists of equal hash are written out and
+	// compared, so a list that is not repeated is never written out here.
+	distinct := func(lists []*capSeq) []*capSeq {
+		if len(lists) < 2 {
+			return lists
+		}
+		seen := map[uint64][]*capSeq{}
+		var out []*capSeq
+	next:
 		for _, list := range lists {
-			var key strings.Builder
-			for _, c := range list {
-				step()
-				key.WriteString(c.Name)
-				key.WriteByte(' ')
+			step()
+			h := hashOf(list)
+			for _, other := range seen[h] {
+				if same(list, other) {
+					continue next
+				}
 			}
-			if seen[key.String()] {
-				continue
-			}
-			seen[key.String()] = true
+			seen[h] = append(seen[h], list)
 			out = append(out, list)
 		}
 		return out
 	}
-	product := func(left, right [][]*domExpr) [][]*domExpr {
-		var out [][]*domExpr
+	product := func(left, right []*capSeq) []*capSeq {
+		var out []*capSeq
 		for _, a := range left {
 			for _, b := range right {
-				for _, c := range b {
-					for _, other := range a {
-						step()
-						if other.Name == c.Name {
-							duplicates[c] = true
-							break
-						}
-					}
-				}
-				for range len(a) + len(b) {
-					step()
-				}
-				joined := make([]*domExpr, 0, len(a)+len(b))
-				out = append(out, append(append(joined, a...), b...))
+				out = append(out, join(a, b))
 			}
 		}
 		return distinct(out)
@@ -645,7 +711,7 @@ func captureSequences(e *domExpr) (sequences [][]*domExpr, duplicates map[*domEx
 		combine bool
 	}
 	stack := []frame{{n: e}}
-	var done [][][]*domExpr
+	var done [][]*capSeq
 	for len(stack) > 0 {
 		step()
 		top := stack[len(stack)-1]
@@ -653,12 +719,12 @@ func captureSequences(e *domExpr) (sequences [][]*domExpr, duplicates map[*domEx
 		n := top.n
 		if !top.combine {
 			if n != nil && n.Kind == exCapture {
-				done = append(done, [][]*domExpr{{n}})
+				done = append(done, []*capSeq{leaf(n)})
 				continue
 			}
 			items := kids(n)
 			if len(items) == 0 {
-				done = append(done, [][]*domExpr{nil})
+				done = append(done, []*capSeq{empty})
 				continue
 			}
 			stack = append(stack, frame{n: n, combine: true})
@@ -670,66 +736,39 @@ func captureSequences(e *domExpr) (sequences [][]*domExpr, duplicates map[*domEx
 		count := len(kids(n))
 		parts := appendCounted(nil, done[len(done)-count:], readerCount(), "reader steps")
 		done = done[:len(done)-count]
-		var out [][]*domExpr
+		var out []*capSeq
 		switch n.Kind {
 		case exSeq:
-			// While the sequence has one way to read its captures, each
-			// part with one way extends it in place, and names holds the
-			// names read so far. A product would copy the prefix at each
-			// part, so C captures would cost C squared.
-			out = [][]*domExpr{nil}
-			var names map[string]bool
+			out = []*capSeq{empty}
 			for _, part := range parts {
-				if len(out) != 1 || len(part) != 1 {
-					names = nil
-					out = product(out, part)
-					continue
-				}
-				if names == nil {
-					names = map[string]bool{}
-					for _, c := range out[0] {
-						step()
-						names[c.Name] = true
-					}
-				}
-				// Each capture of the part counts once as it is looked up
-				// and recorded, and once more as it is copied.
-				for _, c := range part[0] {
-					step()
-					if names[c.Name] {
-						duplicates[c] = true
-					}
-				}
-				for _, c := range part[0] {
-					names[c.Name] = true
-				}
-				out[0] = appendCounted(out[0], part[0], readerCount(), "reader steps")
+				out = product(out, part)
 			}
 		case exChoice:
 			for _, part := range parts {
-				for range part {
-					step()
-				}
-				out = append(out, part...)
+				out = appendCounted(out, part, readerCount(), "reader steps")
 			}
 			out = distinct(out)
 		case exAnd:
 			for mask := 1; mask < 1<<len(parts); mask++ {
-				seqs := [][]*domExpr{nil}
+				seqs := []*capSeq{empty}
 				for i, part := range parts {
 					if mask&(1<<i) != 0 {
 						seqs = product(seqs, part)
 					}
 				}
-				out = append(out, seqs...)
+				out = appendCounted(out, seqs, readerCount(), "reader steps")
 			}
 			out = distinct(out)
 		default:
-			out = distinct(append([][]*domExpr{nil}, parts[0]...))
+			out = distinct(appendCounted([]*capSeq{empty}, parts[0], readerCount(), "reader steps"))
 		}
 		done = append(done, out)
 	}
-	return done[0], duplicates
+	sequences := make([][]*domExpr, len(done[0]))
+	for i, s := range done[0] {
+		sequences[i] = flat(s)
+	}
+	return sequences
 }
 
 // isCapturable says whether a capture can wrap an expression of a kind: a

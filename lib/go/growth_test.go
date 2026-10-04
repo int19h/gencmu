@@ -264,6 +264,47 @@ func TestNotationGrowth(t *testing.T) {
 	}
 }
 
+// TestNotationNestedCaptures reads captures in nested sequences, $c0(A)
+// ($c1(A) (… A …)), under a rule with a tag term, so that the checks of the
+// definition list the captures of its production. Each level joins the
+// sequence below it without copying it, so four times the levels cost at
+// most five times the steps. The checks run before the depth error of
+// engine §9, which the larger read ends in, so the budget holds before it.
+// The names differ at each level, so no capture is read twice. The
+// tests/notation-growth.json format repeats one text, so this case is the
+// Go library's own.
+func TestNotationNestedCaptures(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	read := func(n int, items, steps int64) (w *workCounts, err *Error, stop any) {
+		var b strings.Builder
+		b.WriteString("```jbogenbau\n%rule text ")
+		for i := range n {
+			fmt.Fprintf(&b, "$c%d(A) (", i)
+		}
+		b.WriteString("A" + strings.Repeat(")", n) + " %tags ~T\n```\n")
+		w = &workCounts{}
+		w.items.most, w.readerSteps.most = items, steps
+		defer func() { stop = recover() }()
+		countWorkIn(w, func() { _, err = bundled.reader.read(b.String(), "t.md") })
+		return w, err, nil
+	}
+	read(250, 0, 0)
+	small, err, _ := read(250, 0, 0)
+	if err != nil {
+		t.Fatalf("250 levels: %v", err)
+	}
+	large, err, stop := read(1000, 5*small.items.Load()+1, 5*small.readerSteps.Load()+1)
+	if stop != nil {
+		t.Fatalf("%v, after %d items and %d steps for 250 levels", stop, small.items.Load(), small.readerSteps.Load())
+	}
+	if err == nil || !strings.Contains(err.Message, "nested more than 256 deep") {
+		t.Fatalf("1000 levels: %v, not the depth error", err)
+	}
+	t.Logf("%d items and %d steps for 250 levels, %d and %d for 1000", small.items.Load(), small.readerSteps.Load(), large.items.Load(), large.readerSteps.Load())
+}
+
 // TestNotationDeep reads each construct of tests/notation-growth.json
 // nested 20,000 deep with the stack of a goroutine held to 1 MiB: no part
 // of reading recurses as deep as the document nests, so the depth ends in

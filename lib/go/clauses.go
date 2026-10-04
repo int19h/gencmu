@@ -251,7 +251,7 @@ func anyAltTags(r *domRule) bool {
 // it reads with its place in the order read; $ is at -1 (engine §3.5).
 // Productions that read the same captures in the same order are one.
 func altCaptures(a *domAlt) []map[string]int {
-	seqs, _ := captureSequences(a.Expr)
+	seqs := captureSequences(a.Expr)
 	out := make([]map[string]int, len(seqs))
 	for i, seq := range seqs {
 		caps := map[string]int{"": -1}
