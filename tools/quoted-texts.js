@@ -209,6 +209,8 @@ export function checkedDocuments(base = root, doms = repositoryDoms(base), check
  * @typedef {object} AllowEntry
  * @property {string} text
  * @property {string} document the document whose quotes the entry covers
+ * @property {number[]} [lines] the lines of the document that the entry
+ *   covers, when it names them; else every line that quotes the text
  * @property {number} line the entry's line in the allow-list
  * @property {string} [reason] why the text needs no case of its own
  * @property {{role: string, id: string}[]} [cases] the cases that show the
@@ -220,7 +222,8 @@ export function checkedDocuments(base = root, doms = repositoryDoms(base), check
 
 /**
  * The allow-list. Each line that is not empty and does not begin with `#`
- * is an entry for one document: a quoted text, ` # `, the document, and
+ * is an entry for one document: a quoted text, ` # `, the document, with
+ * `:` and its lines, separated by commas, where the entry names them, and
  * then either ` # ` and the reason why no case pins the text, or ` = ` and
  * the cases that show it. The cases are their ids, each after its role: a
  * rule name, `words` or `reject`. A role applies to the ids after it, up to the
@@ -236,23 +239,29 @@ export function readAllowList(list) {
   list.split(/\r\n|\r|\n/).forEach((line, index) => {
     if (!line.trim() || line.startsWith("#")) return;
     const at = `tests/quoted-allow.txt:${index + 1}`;
-    const match = /^(.*?)\s+#\s+(\S+)\s+(?:#\s+(\S.*)|=\s+(\S.*))$/.exec(line);
+    const match = /^(.*?)\s+#\s+([^\s:]+)(?::(\d+(?:,\d+)*))?\s+(?:#\s+(\S.*)|=\s+(\S.*))$/.exec(line);
     const text = match && quotedText(match[1]);
     if (!text) {
-      problems.push(`${at}: not a quoted text, " # ", a document, and " # " and a reason or " = " and roles and case ids`);
+      problems.push(`${at}: not a quoted text, " # ", a document with its lines or none, and " # " and a reason or " = " and roles and case ids`);
       return;
     }
-    const key = `${match[2]}\0${text}`;
-    if (keys.has(key)) problems.push(`${at}: \`${text}\` is listed twice for ${match[2]}`);
-    keys.add(key);
+    const document = match[2];
+    const lines = match[3] ? match[3].split(",").map(Number) : null;
+    // An entry with no lines stands for all of them, and is counted once.
+    for (const place of lines ? lines.map((number) => `${document}:${number}`) : [document]) {
+      const key = `${place}\0${text}`;
+      if (keys.has(key)) problems.push(`${at}: \`${text}\` is listed twice for ${place}`);
+      keys.add(key);
+    }
     /** @type {AllowEntry} */
-    const entry = { text, document: match[2], line: index + 1 };
-    if (match[3]) entry.reason = match[3];
+    const entry = { text, document, line: index + 1 };
+    if (lines) entry.lines = lines;
+    if (match[4]) entry.reason = match[4];
     else {
       entry.cases = [];
       let role = null;
       // An id has a full stop; a role, a rule name or `reject`, has none.
-      for (const word of match[4].trim().split(/\s+/)) {
+      for (const word of match[5].trim().split(/\s+/)) {
         if (!word.includes(".")) role = word;
         else if (!role) problems.push(`${at}: ${word} has no role before it`);
         else entry.cases.push({ role, id: word });
@@ -312,9 +321,41 @@ export function wordLabels(text) {
 }
 
 /**
+ * Where a quoted text may stop a rejection of a case: each place where the
+ * case's text holds its words, from the start of the first word to the end
+ * of the word after the last, or to the end of the text. Positions are in
+ * code points, as `at` is.
+ * @param {string} caseText
+ * @param {string} text
+ * @returns {[number, number][]}
+ */
+export function rejectionWindows(caseText, text) {
+  const points = Array.from(caseText);
+  /** @type {{start: number, end: number}[]} the words of the case's text */
+  const words = [];
+  points.forEach((point, index) => {
+    if (/\s/u.test(point)) return;
+    if (index && !/\s/u.test(points[index - 1])) words[words.length - 1].end = index + 1;
+    else words.push({ start: index, end: index + 1 });
+  });
+  const wanted = text.split(" ");
+  const windows = [];
+  for (let first = 0; first + wanted.length <= words.length; first++) {
+    const run = words.slice(first, first + wanted.length);
+    if (run.every((word, index) => points.slice(word.start, word.end).join("") === wanted[index])) {
+      const after = words[first + wanted.length];
+      windows.push([run[0].start, after ? after.end : points.length]);
+    }
+  }
+  return windows;
+}
+
+/**
  * Why a case does not show a quoted text in its role, or null when it does.
  *
- * - `reject`: the dialect rejects the case.
+ * - `reject`: the dialect rejects the case, and both the stored `at` and the
+ *   start of the parsed error's source fall where the case's text holds the
+ *   quoted text, or within the word after it (rejectionWindows).
  * - `words`: some stage gives the text's words as the labels of tokens in a
  *   row, one label for each word (wordLabels), and those tokens, with their
  *   attachments, stand together in the case's text: nothing between them
@@ -334,6 +375,11 @@ export function roleProblem(c, role, text, dialects, loader) {
   const result = dialects.get(c.dialect).parse(c.text, { features: c.features || [], withoutFeatures: c.withoutFeatures || [] });
   if (role === "reject") {
     if (result.ok) return `its dialect accepts it`;
+    const windows = rejectionWindows(c.text, text);
+    const within = (/** @type {number | undefined} */ at) => typeof at === "number" && windows.some(([start, end]) => start <= at && at <= end);
+    const source = result.error && result.error.source ? result.error.source[0] : undefined;
+    if (!within(c.at)) return `its \`at\` ${c.at === undefined ? "is missing" : `is ${c.at}`}, outside the text and the word after it`;
+    if (!within(source)) return `its rejection stops at ${source === undefined ? "no position" : source}, outside the text and the word after it`;
     return null;
   }
   if (role === "words") {
@@ -444,8 +490,12 @@ export function quotedTextProblems(base = root, { loader, doms, checked = CHECKE
   }
   const allowFile = path.join(base, "tests", "quoted-allow.txt");
   const { entries, problems } = readAllowList(fs.existsSync(allowFile) ? fs.readFileSync(allowFile, "utf8") : "");
-  const allowed = new Map(entries.map((entry) => [`${entry.document}\0${entry.text}`, entry]));
-  const used = new Set();
+  /** The entry that covers a text on a line: one that names the line, or else one that names no line. */
+  const entryAt = (/** @type {string} */ document, /** @type {string} */ text, /** @type {number} */ line) =>
+    entries.find((entry) => entry.document === document && entry.text === text && entry.lines && entry.lines.includes(line))
+    || entries.find((entry) => entry.document === document && entry.text === text && !entry.lines);
+  /** @type {Map<AllowEntry, Set<number>>} the lines on which each entry is needed */
+  const used = new Map();
   const documents = checkedDocuments(base, doms, checked);
   const names = dialectNames(base);
   const files = new Set(markdownFiles(base));
@@ -488,12 +538,14 @@ export function quotedTextProblems(base = root, { loader, doms, checked = CHECKE
       disagree(new Map(pins.map((c) => [c.dialect, reading(c)])));
       const missing = needed.filter((name) => !pins.some((c) => c.dialect === name));
       if (!missing.length) continue;
-      const entry = allowed.get(`${document}\0${text}`);
+      const entry = entryAt(document, text, line);
       if (!entry) {
         problems.push(`${at}: \`${text}\` is pinned by no case of ${missing.join(" or of ")}; add one to tests/corpus/adhoc.jsonl, or list it in tests/quoted-allow.txt`);
         continue;
       }
-      used.add(entry);
+      if (!used.has(entry)) used.set(entry, new Set());
+      if (used.get(entry).has(line)) continue;
+      used.get(entry).add(line);
       if (!entry.cases) continue;
       // The entry's cases hold the text and show it in their roles, in
       // every dialect that it needs.
@@ -517,7 +569,17 @@ export function quotedTextProblems(base = root, { loader, doms, checked = CHECKE
     }
   }
   for (const entry of entries) {
-    if (!used.has(entry)) problems.push(`tests/quoted-allow.txt:${entry.line}: \`${entry.text}\` is not needed: ${entry.document} does not quote it unpinned`);
+    const lines = [...(used.get(entry) || [])].sort((a, b) => a - b);
+    const place = `tests/quoted-allow.txt:${entry.line}`;
+    if (!lines.length) problems.push(`${place}: \`${entry.text}\` is not needed: ${entry.document} does not quote it unpinned${entry.lines ? ` on ${entry.lines.join(", ")}` : ""}`);
+    else if (entry.lines) {
+      const needless = entry.lines.filter((line) => !lines.includes(line));
+      if (needless.length) problems.push(`${place}: \`${entry.text}\` is not needed on ${entry.document}:${needless.join(",")}, which does not quote it unpinned`);
+    } else if (lines.length > 1) {
+      // A sentence on each line makes its own claim, so the entry says
+      // which lines it covers.
+      problems.push(`${place}: \`${entry.text}\` is quoted unpinned on lines ${lines.join(", ")} of ${entry.document}; name the lines that the entry covers, as ${entry.document}:${lines.join(",")}`);
+    }
   }
   return problems;
 }
@@ -560,7 +622,8 @@ export function quotingPlaces(base = root, doms = repositoryDoms(base)) {
   for (const c of corpusCases(base)) add(c.id, byText.get(normal(c.text)) || []);
   const allowFile = path.join(base, "tests", "quoted-allow.txt");
   for (const entry of readAllowList(fs.existsSync(allowFile) ? fs.readFileSync(allowFile, "utf8") : "").entries) {
-    for (const { id } of entry.cases || []) add(id, quoted.get(`${entry.document}\0${entry.text}`) || []);
+    const lines = (quoted.get(`${entry.document}\0${entry.text}`) || []).filter((place) => !entry.lines || entry.lines.includes(Number(place.slice(place.lastIndexOf(":") + 1))));
+    for (const { id } of entry.cases || []) add(id, lines);
   }
   return places;
 }

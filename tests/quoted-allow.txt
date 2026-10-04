@@ -1,14 +1,17 @@
 # Quoted texts that no corpus case pins as a whole text (tests/README.md,
 # "Quoted texts"). Each entry covers one document. It is the text, " # ",
-# the document, and then one of these:
+# the document, with ":" and the lines that the entry covers where the
+# document quotes the text unpinned on more than one line, and then one of
+# these:
 #
 # - " = ", and the cases that show the text in the role that the sentence
 #   gives it. Each case is its id after its role. A role is the rule whose
 #   node spans exactly the text in the case's tree, `words` for words that
 #   some stage gives as the labels of tokens in a row, one label for each
 #   word, where the tokens stand together in the case's text, or `reject`
-#   for a text that the dialect rejects. A role applies to the ids after it. The check parses each case
-#   and requires a case of each dialect that the text needs. Use this form
+#   for a text that the dialect rejects at the text or the word after it.
+#   A role applies to the ids after it. The check parses each case and
+#   requires a case of each dialect that the text needs. Use this form
 #   for a part of a text that the sentence makes a claim about: a special
 #   grouping, a rejection or a repair.
 # - " # " and why the text needs no case. It is notation, or a shape that a
@@ -19,11 +22,10 @@
 # node tools/quoted-texts.js checks it.
 
 # Parts of texts that the sentences make claims about.
-ke brode ke'e bo brodi # grammars/syntax/cll.md = selbri-5-not-ke-group adhoc.syntax.joik-ke-group-then-bo adhoc.syntax.joik-ke-group-then-bo.bpfk
+ke brode ke'e bo brodi # grammars/syntax/cll.md:139,461 = selbri-5-not-ke-group adhoc.syntax.joik-ke-group-then-bo adhoc.syntax.joik-ke-group-then-bo.bpfk
 se se broda # grammars/syntax/cll.md = tanru-unit-2 adhoc.syntax.se-se-unit adhoc.syntax.se-se-unit.bpfk
 na'e se broda # grammars/syntax/cll.md = tanru-unit-2 adhoc.syntax.nahe-se-unit adhoc.syntax.nahe-se-unit.bpfk
 pa xy. # grammars/syntax/cll.md = number adhoc.syntax.number-then-lerfu adhoc.syntax.number-then-lerfu.bpfk
-.i bo # grammars/syntax/cll.md = reject adhoc.syntax.i-bo-no-prenex adhoc.syntax.i-bo-no-prenex.bpfk
 pu va # grammars/syntax/cll.md = simple-tense-modal adhoc.syntax.time-before-space-jai adhoc.syntax.time-before-space-jai.bpfk
 pu ka'e # grammars/syntax/cll.md = simple-tense-modal adhoc.syntax.simple-tense-modal-time-caha adhoc.syntax.simple-tense-modal-time-caha.bpfk
 ba za ki # grammars/syntax/cll.md = simple-tense-modal adhoc.syntax.simple-tense-modal-time-space-ki adhoc.syntax.simple-tense-modal-time-space-ki.bpfk
@@ -65,8 +67,9 @@ a kru,a # grammars/words/cll.md # the reading that akru,a does not have; akru,a 
 terms zo'u # grammars/syntax/cll.md # notation: a rule name before the cmavo
 .i ja nai # grammars/syntax/cll.md # a connective between sentences
 .i joi # grammars/syntax/cll.md # a connective between sentences
-gi'e ke # grammars/syntax/cll.md # the words of one token of the official parser's lexer
-joi ke # grammars/syntax/cll.md # the words of one token of the official parser's lexer
+.i bo # grammars/syntax/cll.md:74,76 # a part of the pinned text quoted after it on its line
+gi'e ke # grammars/syntax/cll.md:133,685 # the words of one token of the official parser's lexer
+joi ke # grammars/syntax/cll.md:139,684 # the words of one token of the official parser's lexer
 ca lo nu broda # grammars/syntax/cll.md # the shape of a tense with its sumti
 fi mi # grammars/syntax/cll.md # the shape of a place marker with its sumti
 pu ku # grammars/syntax/cll.md # the shape of a tense with an elided sumti
@@ -78,7 +81,7 @@ mi .e do # grammars/syntax/cll.md # the shape of an afterthought sumti connectio
 mi joi do # grammars/syntax/cll.md # the shape of a joik sumti connection
 ge mi gi do # grammars/syntax/cll.md # the shape of a forethought sumti connection
 re lo gerku # grammars/syntax/cll.md # the shape of an outer quantifier
-na'e bo # grammars/syntax/cll.md # the shape of a NAhE sumti
+na'e bo # grammars/syntax/cll.md:225,386 # the shape of a NAhE sumti
 le mi zdani # grammars/syntax/cll.md # the shape of a possessive inner sumti
 lo re lo gerku # grammars/syntax/cll.md # the shape of a quantifier and a sumti after a descriptor
 mi goi ko'a # grammars/syntax/cll.md # the shape of a goi clause
@@ -97,7 +100,7 @@ pa mai # grammars/syntax/cll.md # the shape of an utterance ordinal
 li pa # grammars/dialects/bpfk.md # a part of the split reading that maximal forbids in a pinned text
 so nanca # grammars/dialects/bpfk.md # a part of the split reading that maximal forbids in a pinned text
 a e i o u # grammars/words/cll.md # notation: the vowel letters
-a e i o u # grammars/words/shapes.md # notation: the vowel letters
+a e i o u # grammars/words/shapes.md:343,406 # notation: the vowel letters
 c j s z # grammars/words/shapes.md # notation: a set of consonant letters
 b d g v j z # grammars/words/shapes.md # notation: the voiced consonant letters
 p t k f c s x # grammars/words/shapes.md # notation: the unvoiced consonant letters
@@ -105,8 +108,10 @@ l m n r # grammars/words/shapes.md # notation: the consonant letters that are ne
 ai ei oi au # grammars/words/shapes.md # notation: the falling diphthongs
 ia ie ii io iu ua ue ui uo uu # grammars/words/shapes.md # notation: the rising diphthongs
 sa lo'u # grammars/words/stream.md # a magic word pair whose reach the pinned texts of its line show
-sa le'u # grammars/words/stream.md # a magic word pair whose reach the pinned texts of its line show
-sa bu # grammars/words/stream.md # a magic word pair whose reach the pinned texts of its line show
+sa le'u # grammars/words/stream.md:283 # a magic word pair whose reach the pinned texts of its line show
+sa bu # grammars/words/stream.md:470 # a magic word pair whose reach the pinned texts of its line show
+sa le'u # grammars/words/stream.md:649 # notation: the pair names the reach of a rule
+sa bu # grammars/words/stream.md:649 # notation: the pair names the reach of a rule
 le brodi # grammars/words/stream.md # a part of the pinned text quoted before it on its line
 mi zei co # grammars/words/stream.md # a part of the pinned text quoted before it on its line
 mi brodi .i # grammars/words/stream.md # a part of the pinned text quoted before it on its line
