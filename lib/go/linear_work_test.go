@@ -208,3 +208,23 @@ func TestLoweringLinear(t *testing.T) {
 		}
 	}
 }
+
+// TestCaptureSequencesLinear: the checks of a definition list the captures
+// of a long sequence in one pass, without copying the sequence so far at
+// each capture (engine §3.5).
+func TestCaptureSequencesLinear(t *testing.T) {
+	for _, n := range []int{1000, 4000} {
+		seq := &domExpr{Kind: exSeq}
+		for i := range n {
+			seq.Items = append(seq.Items, &domExpr{Kind: exCapture, Name: fmt.Sprintf("c%d", i), Inner: &domExpr{Kind: exRef, Name: "A"}})
+		}
+		readerWork.steps.Store(0)
+		caps := altCaptures(&domAlt{Expr: seq})
+		if len(caps) != 1 || len(caps[0]) != n+1 {
+			t.Fatalf("%d captures: %d sequences", n, len(caps))
+		}
+		if steps := readerWork.steps.Load(); steps > 8*int64(n) {
+			t.Errorf("%d captures: %d steps", n, steps)
+		}
+	}
+}

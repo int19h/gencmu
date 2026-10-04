@@ -583,6 +583,7 @@ func captureSequences(e *domExpr) (sequences [][]*domExpr, duplicates map[*domEx
 				}
 				joined := make([]*domExpr, 0, len(a)+len(b))
 				out = append(out, append(append(joined, a...), b...))
+				readerWork.steps.Add(int64(len(a) + len(b)))
 			}
 		}
 		return distinct(out)
@@ -633,9 +634,35 @@ func captureSequences(e *domExpr) (sequences [][]*domExpr, duplicates map[*domEx
 		var out [][]*domExpr
 		switch n.Kind {
 		case exSeq:
+			// While the sequence has one way to read its captures, each
+			// part with one way extends it in place, and names holds the
+			// names read so far. A product would copy the prefix at each
+			// part, so C captures would cost C squared.
 			out = [][]*domExpr{nil}
+			var names map[string]bool
 			for _, part := range parts {
-				out = product(out, part)
+				if len(out) != 1 || len(part) != 1 {
+					names = nil
+					out = product(out, part)
+					continue
+				}
+				if names == nil {
+					names = map[string]bool{}
+					for _, c := range out[0] {
+						names[c.Name] = true
+					}
+					readerWork.steps.Add(int64(len(out[0])))
+				}
+				for _, c := range part[0] {
+					if names[c.Name] {
+						duplicates[c] = true
+					}
+				}
+				for _, c := range part[0] {
+					names[c.Name] = true
+				}
+				out[0] = append(out[0], part[0]...)
+				readerWork.steps.Add(int64(len(part[0])))
 			}
 		case exChoice:
 			for _, part := range parts {
