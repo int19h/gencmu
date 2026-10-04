@@ -402,7 +402,7 @@ Each level of the chain holds its first abstractor. So a single abstractor with 
 
 A number is a string of PA words, such as the digits `pa` and `re` and the decimal point `pi`. Lerfu words can be mixed into it after the first word (`pa re ci`, `pa xy.`). A lerfu string is the same thing, but it begins with a lerfu word (CLL 18.2, 17.9). A lerfu word is a member of BY, any word followed by `bu`, a `lau` shift before a lerfu word, or a `tei ... foi` compound. The word stage builds each letter word with `bu` and hands on one `BY`, so the `BU` alternative never matches. This grammar keeps that alternative as CLL prints it.
 
-A number or letter string cannot end before another unit of the same run. A written `boi` or another separator ends the run. CLL 17.9 requires this boundary for letter strings, and CLL 18.6 requires it for numbers and function names. CLL 17.10 explains letter references, while CLL 17.11 repeats the function example with `boi`.
+A number or letter string cannot end before another unit of the same run. A written `boi` or another separator ends the run. CLL 17.9 requires this boundary for letter strings, and CLL 18.6 requires it for numbers and function names. CLL 17.11 repeats the function example with `boi`.
 
 A continuation unit is `PA` or a complete `lerfu-word`. It includes a BY word, a word with `bu`, recursive LAU prefixes, and a balanced TEI/FOI compound. CLL 17.6 describes compounds, and CLL 17.14 lists the recursive equivalents after LAU. `FOI` closes the inner string and cannot continue it.
 
@@ -733,6 +733,14 @@ In both CLL dialects, this reading accepts some texts that CLL's prose says need
 - CLL 18.11, after example 18.93: `me'u` is required in `ta me li ny. su'i pa me'u moi le'i mi ratcu`, so that `pa` and `moi` stay apart. Here `ta me li ny. su'i pa moi le'i mi ratcu` parses.
 - CLL 18.17, after example 18.116: `lo'o` is required in `li re su'i re du li vo lo'o .onai lo nalseldjuno namcu`. Here `li re su'i re du li vo .onai lo nalseldjuno namcu` parses.
 - CLL 8.6, on example 8.48: `ku'o` must appear in `le poi blabi ku'o gerku cu klama`. Here `le poi blabi gerku cu klama` parses.
+
+The indivisible-number rule follows these CLL requirements in both dialects:
+
+- CLL 17.9, after example 17.25, requires `boi` between adjacent letter or numeral strings. Both dialects reject `pa xy. cu barda` and accept `pa boi xy. cu barda`.
+- CLL 18.6, after example 18.32, requires `boi` between adjacent numbers. Both dialects reject `li fu'a pa re su'i du li ci` and accept `li fu'a pa boi re su'i du li ci`.
+- CLL 18.6, after example 18.34, requires `boi` between the function name and its operand. Both dialects reject `li zy du li ma'o fy. xy.` and accept `li zy du li ma'o fy. boi xy.`.
+
+The shared elision policy accepts the earlier list against those CLL prose requirements. It does not override these number and letter boundaries. The maintainer approves this interpretation of CLL 21.2 note 10 for both dialects.
 
 ## Differences from the printed CLL grammar
 

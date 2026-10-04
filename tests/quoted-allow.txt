@@ -66,8 +66,8 @@ terms zo'u # grammars/syntax/cll.md # notation: a rule name before the cmavo
 .i ja nai # grammars/syntax/cll.md # a connective between sentences
 .i joi # grammars/syntax/cll.md # a connective between sentences
 .i bo # grammars/syntax/cll.md:77,81 # a part of the pinned text quoted after it on its line
-gi'e ke # grammars/syntax/cll.md:152,757 # the words of one token of the official parser's lexer
-joi ke # grammars/syntax/cll.md:158,750 # the words of one token of the official parser's lexer
+gi'e ke # grammars/syntax/cll.md:152,765 # the words of one token of the official parser's lexer
+joi ke # grammars/syntax/cll.md:158,758 # the words of one token of the official parser's lexer
 ca lo nu broda # grammars/syntax/cll.md # the shape of a tense with its sumti
 fi mi # grammars/syntax/cll.md # the shape of a place marker with its sumti
 pu ku # grammars/syntax/cll.md # the shape of a tense with an elided sumti

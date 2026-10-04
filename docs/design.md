@@ -714,4 +714,4 @@ Both CLL dialects now use `late-elision elision-only`. Their numbers and letter 
 
 The wrappers test each completed boundary. The bodies keep brace notation and all prefixes that their repetition needs. The experimental and Zantufa number rules stay the same. Stage-wide `maximal` remains available in the specification and libraries until their separate retirement.
 
-The Rust corpus comparison found a conflict with CLL 8.6. BPFK now accepts example 8.48 without its required `ku'o`. The expectation records the observed result, but the book does not support it. The implementation brief requires a stop before specification or library retirement when such a conflict appears.
+The Rust corpus comparison recovers BPFK readings that cll-ebnf already accepts under the shared elision policy. This includes CLL 8.48 without `ku'o`, despite the requirement in CLL 8.6. The maintainer approves that policy as an interpretation of CLL 21.2 note 10. The number and letter boundaries separately follow CLL 17.9 and 18.6.
