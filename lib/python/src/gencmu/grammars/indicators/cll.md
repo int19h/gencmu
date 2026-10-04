@@ -69,6 +69,8 @@ An item is a word with the `ba'e` run before it and the indicator run after it, 
 
 A `le'u` outside any quote is still a word. But the stage reads it as `LEhU` and not also as a plain word, so that it has one reading.
 
+A `bahe-run` is one or more `ba'e`, so `mi ba'e ba'e klama` is a text. Rule 1100 of CLL 21.2, `word = [BAhE] any-word [indicators]`, allows only one. This stage departs from it there and follows CLL 19.16, which says that "Multiple BAhE cmavo may be used in succession".
+
 ## Indicator runs
 
 An indicator run after a word attaches each of its indicators, `fu'e` included, to the word, each as a token of its own. Each of them carries the `ba'e` run before it as its attachment. A `nai` after an attitudinal attaches to the attitudinal. So `mi ui nai ia klama` hands on `mi` with `ui` and `ia` after it, and `ui` carries `nai` after it. In brackets, that is `([mi {ui nai} ia] klama)`.

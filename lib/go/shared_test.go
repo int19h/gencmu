@@ -392,30 +392,107 @@ func TestEngineRunnerLoadError(t *testing.T) {
 	}
 }
 
-// tieMutants are the changes to a tied result that the runners must refuse
-// (tests/README.md). Each changes the canonical result got, whose last stage
-// is the tied stage tied.
-var tieMutants = map[string]func(got, tied map[string]any){
-	"an error with a token":  func(got, tied map[string]any) { got["error"].(map[string]any)["token"] = 0.0 },
-	"an error with a source": func(got, tied map[string]any) { got["error"].(map[string]any)["source"] = []any{0.0, 0.0} },
-	"a tree":                 func(got, tied map[string]any) { got["tree"] = got["error"].(map[string]any)["readings"].([]any)[0] },
-	"one reading": func(got, tied map[string]any) {
-		e := got["error"].(map[string]any)
-		e["readings"] = e["readings"].([]any)[:1]
-	},
-	"ok":                        func(got, tied map[string]any) { got["ok"] = true },
-	"an error of another kind":  func(got, tied map[string]any) { got["error"].(map[string]any)["kind"] = ErrorRejected },
-	"an error of another stage": func(got, tied map[string]any) { got["error"].(map[string]any)["stage"] = "other" },
-	"another reason":            func(got, tied map[string]any) { got["error"].(map[string]any)["reason"] = ReasonElisionOnly },
-	"a tied stage with output":  func(got, tied map[string]any) { tied["output"] = []any{} },
-	"a stage with tied": func(got, tied map[string]any) {
-		tied["tied"] = got["error"].(map[string]any)["readings"].([]any)[1]
-	},
-	"a stage after the tie": func(got, tied map[string]any) {
-		got["stages"] = append(got["stages"].([]any), map[string]any{"name": "later", "verdict": VerdictUnique})
-	},
-	"no error":                func(got, tied map[string]any) { got["error"] = nil },
-	"an error without reason": func(got, tied map[string]any) { delete(got["error"].(map[string]any), "reason") },
+// resultMutant is a change to a canonical result that breaks an invariant
+// (tests/README.md, "Result mutants"): its name, its engine case and the
+// change itself, as tests/result-mutants.json writes it.
+type resultMutant struct {
+	Name   string
+	Case   string
+	change map[string]any
+}
+
+// loadResultMutants reads the shared mutants, which every runner applies.
+func loadResultMutants(t testing.TB) []resultMutant {
+	t.Helper()
+	data, err := os.ReadFile("../../tests/result-mutants.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var file struct {
+		Mutants []map[string]any `json:"mutants"`
+	}
+	if err := json.Unmarshal(data, &file); err != nil {
+		t.Fatal(err)
+	}
+	var mutants []resultMutant
+	for _, m := range file.Mutants {
+		mutants = append(mutants, resultMutant{Name: m["name"].(string), Case: m["case"].(string), change: m})
+	}
+	return mutants
+}
+
+// mutantStep is the member or element at one step of a path; -1 is the
+// last element of a list.
+func mutantStep(target any, step any) any {
+	if list, ok := target.([]any); ok {
+		return list[mutantIndex(list, step)]
+	}
+	return target.(map[string]any)[step.(string)]
+}
+
+func mutantIndex(list []any, step any) int {
+	if i := int(step.(float64)); i >= 0 {
+		return i
+	}
+	return len(list) - 1
+}
+
+// applyMutant changes the canonical result got, decoded from JSON, in place.
+func applyMutant(t testing.TB, got map[string]any, m resultMutant) {
+	t.Helper()
+	follow := func(path []any) any {
+		var value any = got
+		for _, step := range path {
+			value = mutantStep(value, step)
+		}
+		return value
+	}
+	fresh := func(value any) any {
+		data, _ := json.Marshal(value)
+		var copied any
+		json.Unmarshal(data, &copied)
+		return copied
+	}
+	path := m.change["path"].([]any)
+	parent := follow(path[:len(path)-1])
+	last := path[len(path)-1]
+	put := func(value any) {
+		if list, ok := parent.([]any); ok {
+			list[mutantIndex(list, last)] = value
+		} else {
+			parent.(map[string]any)[last.(string)] = value
+		}
+	}
+	if value, ok := m.change["set"]; ok {
+		put(fresh(value))
+	} else if from, ok := m.change["copy"]; ok {
+		put(follow(from.([]any)))
+	} else if keep, ok := m.change["keep"]; ok {
+		put(mutantStep(parent, last).([]any)[:int(keep.(float64))])
+	} else if _, ok := m.change["remove"]; ok {
+		delete(parent.(map[string]any), last.(string))
+	} else if value, ok := m.change["append"]; ok {
+		put(append(append([]any{}, mutantStep(parent, last).([]any)...), fresh(value)))
+	} else {
+		t.Fatalf("the mutant %s changes nothing", m.Name)
+	}
+}
+
+// mutantResult runs the engine case of a mutant: the result, and its
+// canonical JSON.
+func mutantResult(t testing.TB, m resultMutant) (*ParseResult, []byte) {
+	t.Helper()
+	c := loadCase(t, "../../tests/engine/"+m.Case)
+	d, err := caseDialect(c, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := runCase(d, c, &c.Options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, _ := MarshalResult(res)
+	return res, data
 }
 
 // The runner fails a case that does not finish in time.
@@ -428,36 +505,21 @@ func TestEngineRunnerTimeout(t *testing.T) {
 }
 
 // The runner refuses a result that breaks an invariant, whatever the case
-// expects (tests/README.md).
+// expects: each shared mutant (tests/README.md, "Result mutants").
 func TestEngineRunnerInvariants(t *testing.T) {
-	grammar := "%rule text x | y\n%rule x A\n%rule y A"
-	c := &engineCase{Grammar: &grammar, Tokens: []caseToken{{Text: "a", Tags: []string{"A"}}}, Expect: caseExpect{Error: ErrorAmbiguous}}
-	if err := checkCase(c, true); err != nil {
-		t.Fatal(err)
-	}
-	d, err := caseDialect(c, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	res, err := runCase(d, c, &c.Options)
-	if err != nil {
-		t.Fatal(err)
-	}
-	data, _ := MarshalResult(res)
-	fresh := func() (map[string]any, map[string]any) {
+	for _, m := range loadResultMutants(t) {
+		res, data := mutantResult(t, m)
 		var got map[string]any
 		json.Unmarshal(data, &got)
-		stages := got["stages"].([]any)
-		return got, stages[len(stages)-1].(map[string]any)
-	}
-	for name, mutate := range tieMutants {
-		got, tied := fresh()
-		mutate(got, tied)
-		if len(resultProblems(got)) == 0 {
-			t.Errorf("%s: no problem found", name)
+		if problems := resultProblems(got); len(problems) != 0 {
+			t.Fatalf("%s: %v", m.Case, problems)
 		}
-		if checkResult(res, got, data, &c.Expect) == nil {
-			t.Errorf("%s: the runner accepts it", name)
+		applyMutant(t, got, m)
+		if len(resultProblems(got)) == 0 {
+			t.Errorf("%s: no problem found", m.Name)
+		}
+		if checkResult(res, got, data, &caseExpect{Error: ErrorAmbiguous}) == nil {
+			t.Errorf("%s: the runner accepts it", m.Name)
 		}
 	}
 }

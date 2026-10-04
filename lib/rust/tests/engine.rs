@@ -154,47 +154,20 @@ fn emission_errors_come_in_order() {
     assert!(second.contains(r#"tag("?")"#), "{second}");
 }
 
-/// The runner checks the invariants of a tie on every result, whatever the
-/// case expects (tests/README.md), and refuses a result that breaks one.
+/// The runner checks the invariants on every result, whatever the case
+/// expects, and refuses each shared mutant (tests/README.md, "Result
+/// mutants").
 #[test]
 fn the_runner_refuses_a_result_that_breaks_an_invariant() {
-    use common::{check_json, result_problems, Value};
-    let case = parse_json(
-        r#"{"grammar": "%rule text x | y\n%rule x A\n%rule y A", "tokens": [{"text": "a", "tags": ["A"]}]}"#,
-    )
-    .unwrap();
-    let (documents, pipeline) = common::case_documents(&case);
-    let dialect = gencmu::load_dialect_sources(documents, &pipeline).expect("the dialect");
-    let tokens = common::case_tokens(&case).expect("tokens");
-    let result = dialect.parse_tokens(&tokens, &common::case_options(&case)).expect("a result");
-    let json = parse_json(&gencmu::to_json(&result)).expect("JSON");
+    use common::{apply_mutant, check_json, engine_case_result, result_mutants, result_problems, Value};
     let expect = parse_json(r#"{"result": {"ok": false, "error": {"kind": "ambiguous"}}}"#).unwrap();
-    assert_eq!(result_problems(&json), Vec::<String>::new());
-    assert_eq!(check_json(&expect, &json), Ok(String::new()));
-
-    // A copy of an object with one member set, or removed for `None`.
-    fn with(object: &Value, key: &str, value: Option<Value>) -> Value {
-        let mut members: Vec<(String, Value)> =
-            object.object().iter().filter(|(name, _)| name != key).cloned().collect();
-        members.extend(value.map(|value| (key.to_string(), value)));
-        Value::Object(members)
-    }
-    let stage = &json.get("stages").unwrap().array()[0];
-    let error = json.get("error").unwrap();
-    let reading = error.get("readings").unwrap().array()[1].clone();
-    let stages = |stages: Vec<Value>| with(&json, "stages", Some(Value::Array(stages)));
-    let later = parse_json(r#"{"name": "later", "verdict": "unique"}"#).unwrap();
-    let mutants = [
-        stages(vec![with(stage, "output", Some(Value::Array(Vec::new())))]),
-        stages(vec![with(stage, "tied", Some(reading))]),
-        stages(vec![stage.clone(), later]),
-        with(&json, "error", Some(with(error, "reason", None))),
-        // An ambiguous error has no position.
-        with(&json, "error", Some(with(error, "token", Some(Value::Number(0.0))))),
-        with(&json, "error", Some(with(error, "source", Some(parse_json("[0, 1]").unwrap())))),
-    ];
-    for mutant in &mutants {
-        assert!(!result_problems(mutant).is_empty(), "{mutant:?}");
-        assert!(check_json(&expect, mutant).is_err(), "{mutant:?}");
+    for (mutant, case) in result_mutants() {
+        let name = mutant.get("name").and_then(Value::str).unwrap_or("").to_string();
+        let json = engine_case_result(&case);
+        assert_eq!(result_problems(&json), Vec::<String>::new(), "{name}");
+        assert_eq!(check_json(&expect, &json), Ok(String::new()), "{name}");
+        let changed = apply_mutant(&json, &mutant);
+        assert!(!result_problems(&changed).is_empty(), "{name}");
+        assert!(check_json(&expect, &changed).is_err(), "{name}");
     }
 }

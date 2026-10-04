@@ -221,3 +221,39 @@ def run_case(
         return None, None, error, None
     value, result, error = parse_case(dialect, case)
     return value, result, error, case_features(dialect)
+
+
+def result_mutants() -> list[dict[str, Any]]:
+    """The changes to a canonical result that break an invariant
+    (tests/README.md, "Result mutants"), each with its engine case under
+    ``engine_case``."""
+    mutants = load_case(SHARED / "result-mutants.json")["mutants"]
+    return [{**mutant, "engine_case": load_case(SHARED / "engine" / mutant["case"])} for mutant in mutants]
+
+
+def apply_mutant(value: dict[str, Any], mutant: dict[str, Any]) -> dict[str, Any]:
+    """A copy of a canonical result with a mutant's change. A path step of
+    -1 is the last element of a list."""
+    value = json.loads(json.dumps(value))
+
+    def follow(path: list[Any]) -> Any:
+        target: Any = value
+        for step in path:
+            target = target[step]
+        return target
+
+    parent = follow(mutant["path"][:-1])
+    last = mutant["path"][-1]
+    if "set" in mutant:
+        parent[last] = json.loads(json.dumps(mutant["set"]))
+    elif "copy" in mutant:
+        parent[last] = follow(mutant["copy"])
+    elif "keep" in mutant:
+        parent[last] = parent[last][: mutant["keep"]]
+    elif "remove" in mutant:
+        del parent[last]
+    elif "append" in mutant:
+        parent[last] = [*parent[last], json.loads(json.dumps(mutant["append"]))]
+    else:
+        raise AssertionError(f"the mutant {mutant['name']} changes nothing")
+    return value
