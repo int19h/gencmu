@@ -239,24 +239,29 @@ func TestNotationGrowth(t *testing.T) {
 		t.Fatal("too few cases")
 	}
 	for _, c := range cases {
-		// A budget of 0 is none. Each count past its budget stops the read.
-		read := func(n int, most int64) int64 {
+		// A budget of 0 is none. Each count past its budget stops the read
+		// at once, with the panic that the test reports.
+		read := func(n int, items, steps int64) (w *workCounts, stop any) {
 			text := "```jbogenbau\n" + c.Prefix + strings.Repeat(c.Open, n) + c.Middle + strings.Repeat(c.Close, n) + c.Suffix + "\n```\n"
-			w := &workCounts{}
-			w.items.most, w.readerSteps.most = most, most
+			w = &workCounts{}
+			w.items.most, w.readerSteps.most = items, steps
+			defer func() { stop = recover() }()
 			// An error is an outcome too. Its place is the notation cases'
 			// concern.
 			countWorkIn(w, func() { bundled.reader.read(text, "t.md") })
-			return w.items.Load() + w.readerSteps.Load()
+			return w, nil
 		}
 		// Once first, so that loading the notation counts in neither.
-		read(250, 0)
-		small := read(250, 0)
-		large := read(1000, 5*small)
-		if large > 5*small {
-			t.Errorf("%s: %d for 250 levels, %d for 1000", c.Name, small, large)
+		read(250, 0, 0)
+		small, _ := read(250, 0, 0)
+		// Each count has its own budget, so that work which grows faster
+		// than its input in either stops at the first count past it.
+		large, stop := read(1000, 5*small.items.Load()+1, 5*small.readerSteps.Load()+1)
+		if stop != nil {
+			t.Errorf("%s: %v, after %d items and %d steps for 250 levels", c.Name, stop, small.items.Load(), small.readerSteps.Load())
+			continue
 		}
-		t.Logf("%s: %d for 250 levels, %d for 1000", c.Name, small, large)
+		t.Logf("%s: %d items and %d steps for 250 levels, %d and %d for 1000", c.Name, small.items.Load(), small.readerSteps.Load(), large.items.Load(), large.readerSteps.Load())
 	}
 }
 
