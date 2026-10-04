@@ -8,14 +8,26 @@ import (
 
 // guardedText is a rule of a choice of n captures, $c0(A) | … | $c(n−1)(A),
 // with clause(i) written for each capture and joined by sep after keyword.
-func guardedText(n int, keyword, sep string, clause func(i int) string) string {
+// With all, the rule has one more alternative, the sequence of all n
+// captures. With shared, each branch of the choice after the first reads
+// $c0(A) before its own capture.
+func guardedText(n int, keyword, sep string, clause func(i int) string, all, shared bool) string {
 	caps := make([]string, n)
+	branches := make([]string, n)
 	clauses := make([]string, n)
 	for i := range n {
 		caps[i] = fmt.Sprintf("$c%d(A)", i)
+		branches[i] = caps[i]
+		if shared && i > 0 {
+			branches[i] = "$c0(A) " + caps[i]
+		}
 		clauses[i] = clause(i)
 	}
-	return "```jbogenbau\n%ambiguity-resolution greedy\n%rule text (" + strings.Join(caps, " | ") + ")\n" + keyword + " " + strings.Join(clauses, sep) + "\n```\n"
+	body := "(" + strings.Join(branches, " | ") + ")"
+	if all {
+		body += " | " + strings.Join(caps, " ")
+	}
+	return "```jbogenbau\n%ambiguity-resolution greedy\n%rule text " + body + "\n" + keyword + " " + strings.Join(clauses, sep) + "\n```\n"
 }
 
 // loweredSize is the size of what lowering made of the clauses: each
@@ -70,12 +82,21 @@ func TestClausesByPresence(t *testing.T) {
 	cases := []struct {
 		name, keyword, sep string
 		clause             func(i int) string
+		all, shared        bool
 	}{
-		{"guarded tags", "%tags", " ∪ ", func(i int) string { return fmt.Sprintf("($c%d ⟹ ~t%d)", i, i) }},
-		{"fixed tags", "%tags", " ∪ ", func(i int) string { return fmt.Sprintf("~t%d", i) }},
-		{"guarded conditions", "%conditions", ", ", func(i int) string { return fmt.Sprintf(`$c%d ⟹ text($c%d) = "a"`, i, i) }},
-		{"conditions that use a capture", "%conditions", ", ", func(i int) string { return fmt.Sprintf(`text($c%d) = "a"`, i) }},
-		{"emitted captures", "%emits", ", ", func(i int) string { return fmt.Sprintf("$c%d <~t%d>", i, i) }},
+		{"guarded tags", "%tags", " ∪ ", func(i int) string { return fmt.Sprintf("($c%d ⟹ ~t%d)", i, i) }, false, false},
+		{"fixed tags", "%tags", " ∪ ", func(i int) string { return fmt.Sprintf("~t%d", i) }, false, false},
+		{"guarded conditions", "%conditions", ", ", func(i int) string { return fmt.Sprintf(`$c%d ⟹ text($c%d) = "a"`, i, i) }, false, false},
+		{"conditions that use a capture", "%conditions", ", ", func(i int) string { return fmt.Sprintf(`text($c%d) = "a"`, i) }, false, false},
+		{"emitted captures", "%emits", ", ", func(i int) string { return fmt.Sprintf("$c%d <~t%d>", i, i) }, false, false},
+		// One condition, an ∧ of guarded parts: each production keeps one.
+		{"a guarded ∧", "%conditions", " ∧ ", func(i int) string { return fmt.Sprintf(`($c%d ⟹ text($c%d) = "a")`, i, i) }, false, false},
+		// One condition, an ∨ of guarded parts: it is true where a
+		// production lacks a guard, so only the sequence of all keeps it.
+		{"a guarded ∨", "%conditions", " ∨ ", func(i int) string { return fmt.Sprintf(`($c%d ⟹ text($c%d) = "a")`, i, i) }, true, false},
+		// The same, with $c0, the guard it is found under, in every
+		// production, so that each looks at it and finds a guard missing.
+		{"a guarded ∨ under a shared guard", "%conditions", " ∨ ", func(i int) string { return fmt.Sprintf(`($c%d ⟹ text($c%d) = "a")`, i, i) }, true, true},
 	}
 	// The steps of each unit of n and of what lowering makes: reading
 	// takes some 60 for each alternative, and lowering a few for each part
@@ -83,7 +104,7 @@ func TestClausesByPresence(t *testing.T) {
 	const readEach, lowerEach = 60, 10
 	for _, c := range cases {
 		for _, n := range []int{100, 400} {
-			text := guardedText(n, c.keyword, c.sep, c.clause)
+			text := guardedText(n, c.keyword, c.sep, c.clause, c.all, c.shared)
 			// Once without counting, for the size of what lowering makes.
 			dom, err := bundled.reader.read(text, "g.md")
 			if err != nil {

@@ -83,11 +83,27 @@ func (g presenceGen) termPart() *domTerm {
 }
 
 func (g presenceGen) condPart() *domCond {
-	switch g.r.Intn(3) {
+	switch g.r.Intn(4) {
 	case 0:
 		return &domCond{Kind: cdIf, Items: []*domCond{{Kind: cdCaptured, Rule: g.name()}, g.cond(2, false)}}
 	case 1:
 		return g.cond(2, false)
+	case 2:
+		// An ∧ or an ∨ of parts of each shape, which is split again.
+		c := &domCond{Kind: []string{cdAll, cdAny}[g.r.Intn(2)]}
+		for range 1 + g.r.Intn(5) {
+			var item *domCond
+			switch g.r.Intn(4) {
+			case 0, 1:
+				item = &domCond{Kind: cdIf, Items: []*domCond{{Kind: cdCaptured, Rule: g.name()}, g.cond(2, false)}}
+			case 2:
+				item = g.cond(2, false)
+			default:
+				item = g.cond(2, true)
+			}
+			c.Items = append(c.Items, item)
+		}
+		return c
 	}
 	return g.cond(3, true)
 }
@@ -146,7 +162,7 @@ func TestTermSplitAsWritten(t *testing.T) {
 
 func TestCondSplitAsWritten(t *testing.T) {
 	g := presenceGen{rand.New(rand.NewSource(2))}
-	for range 3000 {
+	for range 20000 {
 		var conds []*domCond
 		for range 1 + g.r.Intn(6) {
 			conds = append(conds, g.condPart())
@@ -201,7 +217,7 @@ func TestCondSplitAsWritten(t *testing.T) {
 				left++
 			}
 		}
-		if (left > 0) != (cc.left > 0) {
+		if left != cc.left {
 			t.Fatalf("%d conditions apply to no production, not %d", cc.left, left)
 		}
 	}
