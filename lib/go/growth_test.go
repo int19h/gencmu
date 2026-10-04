@@ -251,6 +251,55 @@ func TestNotationDeep(t *testing.T) {
 	}
 }
 
+// TestQueryDepth parses each case of tests/query-depth.json with the stack
+// of a goroutine held to 1 MiB. Each nested parse starts the next, so the
+// queries nest as deep as the text is long. The recognizer keeps them on a
+// stack of its own, and a call stack that grew with them would end the
+// process.
+func TestQueryDepth(t *testing.T) {
+	data, err := os.ReadFile("../../tests/query-depth.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cases []struct {
+		Name, Grammar, Link, Suffix string
+		Count                       int
+	}
+	if err := json.Unmarshal(data, &cases); err != nil {
+		t.Fatal(err)
+	}
+	if len(cases) == 0 {
+		t.Fatal("no query depth cases")
+	}
+	defer debug.SetMaxStack(debug.SetMaxStack(1 << 20))
+	for _, c := range cases {
+		d := mustLoad(t, oneStage(c.Grammar))
+		res, err := d.Parse(strings.Repeat(c.Link, c.Count)+c.Suffix, ParseOptions{})
+		if err != nil || !res.OK {
+			t.Errorf("%s: %v %+v", c.Name, err, res.Error)
+		}
+	}
+}
+
+// TestNestedChainDeep makes a chain of nested parses as long as the text,
+// in recognition and in emission, with the stack of a goroutine held to
+// 1 MiB. Each nested parse asks another over a span one token shorter.
+func TestNestedChainDeep(t *testing.T) {
+	chain := "%rule c 'a' %conditions ¬matches(after($), c)"
+	text := strings.Repeat("a", 20000)
+	defer debug.SetMaxStack(debug.SetMaxStack(1 << 20))
+	for _, grammar := range []string{
+		"%ambiguity-resolution greedy\n%rule text c {'a'}\n" + chain,
+		"%ambiguity-resolution greedy\n%rule text $x(s) %emits $ <T ∪ tags($x, c)>\n%rule s {'a'}\n" + chain,
+	} {
+		d := mustLoad(t, oneStage(grammar))
+		res, err := d.Parse(text, ParseOptions{})
+		if err != nil || !res.OK {
+			t.Errorf("%s: %v %+v", grammar, err, res.Error)
+		}
+	}
+}
+
 // TestIncludeChainDeep loads a chain of 20,000 documents, each including
 // the next, with a valid stage at its end. The stack of a goroutine is held
 // to 1 MiB, so splicing the chain by recursion would end the process.
