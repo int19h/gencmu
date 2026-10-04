@@ -32,21 +32,59 @@ impl Item<'_> {
     }
 }
 
-/// A document's rules, directives, constants, classifiers and implications
-/// in the order they were written, which is the order of their positions
-/// (engine §9).
-pub(crate) fn items_in_order(dom: &Dom) -> Vec<Item<'_>> {
-    let mut items: Vec<Item> = dom
-        .rules
-        .iter()
-        .map(Item::Rule)
-        .chain(dom.directives.iter().map(Item::Directive))
-        .chain(dom.constants.iter().map(Item::Constant))
-        .chain(dom.classifiers.iter().map(Item::Classifier))
-        .chain(dom.implications.iter().map(Item::Implication))
+/// Where an item stands in its document's DOM: its list, and its index in
+/// that list. A frame of the splice holds these, since it cannot hold
+/// borrows of a DOM that it also owns.
+#[derive(Clone, Copy)]
+enum Place {
+    Rule(usize),
+    Directive(usize),
+    Constant(usize),
+    Classifier(usize),
+    Implication(usize),
+}
+
+impl Place {
+    fn item(self, dom: &Dom) -> Item<'_> {
+        match self {
+            Place::Rule(index) => Item::Rule(&dom.rules[index]),
+            Place::Directive(index) => Item::Directive(&dom.directives[index]),
+            Place::Constant(index) => Item::Constant(&dom.constants[index]),
+            Place::Classifier(index) => Item::Classifier(&dom.classifiers[index]),
+            Place::Implication(index) => Item::Implication(&dom.implications[index]),
+        }
+    }
+}
+
+/// The places of a document's rules, directives, constants, classifiers
+/// and implications in the order they were written, which is the order of
+/// their positions (engine §9).
+fn places_in_order(dom: &Dom) -> Vec<Place> {
+    let mut places: Vec<Place> = (0..dom.rules.len())
+        .map(Place::Rule)
+        .chain((0..dom.directives.len()).map(Place::Directive))
+        .chain((0..dom.constants.len()).map(Place::Constant))
+        .chain((0..dom.classifiers.len()).map(Place::Classifier))
+        .chain((0..dom.implications.len()).map(Place::Implication))
         .collect();
-    items.sort_by_key(Item::at);
-    items
+    places.sort_by_key(|place| place.item(dom).at());
+    places
+}
+
+/// A document that the splice is in: its path, its DOM, its items in
+/// order, and the next of them to place.
+struct Frame {
+    path: Arc<str>,
+    dom: Arc<Dom>,
+    order: Vec<Place>,
+    next: usize,
+}
+
+impl Frame {
+    fn new(path: Arc<str>, dom: Arc<Dom>) -> Frame {
+        let order = places_in_order(&dom);
+        Frame { path, dom, order, next: 0 }
+    }
 }
 
 /// One stage of a spliced pipeline: its name, where its `%stage` stands,
@@ -93,8 +131,28 @@ struct Splicer<'d> {
 }
 
 impl Splicer<'_> {
-    fn splice(&mut self, path: &Arc<str>, dom: &Dom, chain: &mut Vec<Arc<str>>) -> Result<(), Error> {
-        for item in items_in_order(dom) {
+    /// Splices the document `path` and the documents it includes. Each
+    /// include is a frame on a stack of the splice's own, not a call, so
+    /// that a long chain of includes costs heap and not the call stack.
+    fn splice(&mut self, path: Arc<str>, dom: Arc<Dom>) -> Result<(), Error> {
+        let mut frames = vec![Frame::new(path, dom)];
+        // The documents whose includes are being spliced, outermost first.
+        let mut chain: Vec<Arc<str>> = Vec::new();
+        while let Some(frame) = frames.last_mut() {
+            let Some(&place) = frame.order.get(frame.next) else {
+                // The document is done, and its includer goes on after
+                // the include, in a new run.
+                frames.pop();
+                if let Some(includer) = chain.pop() {
+                    self.on_chain.remove(&includer);
+                    self.open_run = false;
+                }
+                continue;
+            };
+            frame.next += 1;
+            let (path, dom) = (frame.path.clone(), frame.dom.clone());
+            let path = &path;
+            let item = place.item(&dom);
             let (line, column) = item.at();
             let here = |message: String| Error::grammar(message).in_document(path).at(line, column);
             // An error of a document read on the way belongs to the stage
@@ -127,10 +185,7 @@ impl Splicer<'_> {
                         return Err(in_stage(here(format!("{target} was not found ({})", through()))));
                     };
                     self.open_run = false;
-                    self.splice(&Arc::from(target.as_str()), &included, chain)?;
-                    chain.pop();
-                    self.on_chain.remove(path);
-                    self.open_run = false;
+                    frames.push(Frame::new(Arc::from(target.as_str()), included));
                 }
                 Item::Directive(directive) if directive.name == "features" => {
                     for name in &directive.args {
@@ -203,7 +258,7 @@ pub(crate) fn splice(path: &str, documents: &mut dyn Documents) -> Result<Splice
         feature_set: FxSet::default(),
         open_run: false,
     };
-    splicer.splice(&Arc::from(path), &top, &mut Vec::new())?;
+    splicer.splice(Arc::from(path), top)?;
     let Splicer { stages, mut features, .. } = splicer;
     if stages.is_empty() {
         return Err(Error::grammar("a pipeline needs at least one %stage").in_document(path));
@@ -272,19 +327,10 @@ mod tests {
             documents.insert(format!("d{}", n - 1), Arc::new(last));
             Held(documents)
         };
-        // Each include is a frame of the splice, so the chain needs room.
-        // The counters belong to the thread that splices.
-        std::thread::Builder::new()
-            .stack_size(256 << 20)
-            .spawn(move || {
-                let mut helds = [held(1500), held(6000)];
-                assert_linear(Work::Spliced, 1500, &mut |n| {
-                    let spliced = splice("d0", &mut helds[usize::from(n != 1500)]).expect("spliced");
-                    assert_eq!(spliced.features.len(), n);
-                });
-            })
-            .expect("a thread")
-            .join()
-            .expect("the test");
+        let mut helds = [held(1500), held(6000)];
+        assert_linear(Work::Spliced, 1500, &mut |n| {
+            let spliced = splice("d0", &mut helds[usize::from(n != 1500)]).expect("spliced");
+            assert_eq!(spliced.features.len(), n);
+        });
     }
 }

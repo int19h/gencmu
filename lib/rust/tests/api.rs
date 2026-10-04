@@ -426,6 +426,40 @@ fn results_outlive_the_dialect_and_cross_threads() {
     assert!(threads.into_iter().all(|thread| thread.join().unwrap()));
 }
 
+/// A chain of documents, each including the next, the last with the
+/// stage. The splice walks the chain with frames of its own, so a chain far
+/// longer than any call stack holds loads on the test's ordinary thread,
+/// from sources and from disk alike.
+#[test]
+fn a_deep_include_chain_loads_on_an_ordinary_stack() {
+    const DOCUMENTS: usize = 20_000;
+    let chain: Vec<(String, String)> = (0..DOCUMENTS)
+        .map(|index| {
+            let text = if index + 1 < DOCUMENTS {
+                format!("```jbogenbau\n%include \"d{}.md\"\n```\n", index + 1)
+            } else {
+                "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {'a'}\n```\n".to_string()
+            };
+            (format!("d{index}.md"), text)
+        })
+        .collect();
+    let check = |dialect: gencmu::Dialect| {
+        let result = dialect.parse("aaa", &no_auto()).unwrap();
+        assert!(result.ok);
+        assert_eq!(gencmu::to_brackets(&result, false), "(a a a)");
+    };
+    check(gencmu::load_dialect_sources(chain.iter().cloned(), "d0.md").expect("a dialect from sources"));
+
+    let directory = std::env::temp_dir().join(format!("gencmu-chain-{}", std::process::id()));
+    std::fs::create_dir_all(&directory).unwrap();
+    for (name, text) in &chain {
+        std::fs::write(directory.join(name), text).unwrap();
+    }
+    let from_disk = gencmu::load_dialect_file(directory.join("d0.md"));
+    std::fs::remove_dir_all(&directory).ok();
+    check(from_disk.expect("a dialect from disk"));
+}
+
 /// Runs `body` on a thread with a small stack, so that recursion over a
 /// long input would overflow.
 fn small_stack(body: impl FnOnce() + Send + 'static) {
