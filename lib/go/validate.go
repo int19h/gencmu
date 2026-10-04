@@ -518,14 +518,21 @@ func duplicateCaptures(e *domExpr) map[*domExpr]bool {
 				w.readerSteps.add("reader steps")
 			}
 		}
+		// A marked capture leaves its list but keeps its name present, so
+		// that it is marked once and not again at each level above it.
+		// The sizes stay as they were, which keeps the smaller side small.
 		for _, part := range partsDone[1:] {
 			if meets {
 				if joined.size <= part.size {
 					for name := range joined.names {
 						step()
-						for _, c := range part.names[name] {
+						cs, ok := part.names[name]
+						for _, c := range cs {
 							step()
 							duplicates[c] = true
+						}
+						if ok {
+							part.names[name] = nil
 						}
 					}
 				} else {
@@ -536,6 +543,7 @@ func duplicateCaptures(e *domExpr) map[*domExpr]bool {
 								step()
 								duplicates[c] = true
 							}
+							part.names[name] = nil
 						}
 					}
 				}
@@ -544,7 +552,10 @@ func duplicateCaptures(e *domExpr) map[*domExpr]bool {
 			if part.size > joined.size {
 				large, small = part, joined
 			}
+			// A name whose list a marking emptied still moves, so it counts
+			// as well as each capture with it.
 			for name, cs := range small.names {
+				step()
 				for range cs {
 					step()
 				}
