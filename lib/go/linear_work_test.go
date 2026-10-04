@@ -197,21 +197,30 @@ func TestLoweringLinear(t *testing.T) {
 
 // TestCaptureSequencesLinear: the checks of a definition list the captures
 // of a long sequence in one pass, without copying the sequence so far at
-// each capture (engine §3.5).
+// each capture (engine §3.5). A sequence of many groups costs its length
+// too, without copying the groups already read at each group.
 func TestCaptureSequencesLinear(t *testing.T) {
+	capture := func(i int) *domExpr {
+		return &domExpr{Kind: exCapture, Name: fmt.Sprintf("c%d", i), Inner: &domExpr{Kind: exRef, Name: "A"}}
+	}
 	for _, n := range []int{1000, 4000} {
-		seq := &domExpr{Kind: exSeq}
+		flat, grouped := &domExpr{Kind: exSeq}, &domExpr{Kind: exSeq}
 		for i := range n {
-			seq.Items = append(seq.Items, &domExpr{Kind: exCapture, Name: fmt.Sprintf("c%d", i), Inner: &domExpr{Kind: exRef, Name: "A"}})
+			flat.Items = append(flat.Items, capture(i))
+			grouped.Items = append(grouped.Items, &domExpr{Kind: exSeq, Items: []*domExpr{capture(i)}})
 		}
-		w := &workCounts{}
-		w.readerSteps.most = 8 * int64(n)
-		var caps []map[string]int
-		countWorkIn(w, func() { caps = altCaptures(&domAlt{Expr: seq}) })
-		if len(caps) != 1 || len(caps[0]) != n+1 {
-			t.Fatalf("%d captures: %d sequences", n, len(caps))
+		for _, seq := range []*domExpr{flat, grouped} {
+			// Each capture and each group is looked at, copied and joined
+			// a bounded number of times.
+			w := &workCounts{}
+			w.readerSteps.most = 12 * int64(n)
+			var caps []map[string]int
+			countWorkIn(w, func() { caps = altCaptures(&domAlt{Expr: seq}) })
+			if len(caps) != 1 || len(caps[0]) != n+1 {
+				t.Fatalf("%d captures: %d sequences", n, len(caps))
+			}
+			t.Logf("%d captures: %d steps", n, w.readerSteps.Load())
 		}
-		t.Logf("%d captures: %d steps", n, w.readerSteps.Load())
 	}
 }
 

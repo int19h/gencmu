@@ -111,7 +111,7 @@ func (in *interner) fromList(lists ...[]string) *tagset {
 		for _, n := range list {
 			if w != nil && w.copyGrowing {
 				// The mutation: the members so far copied again for each.
-				names = copyCounted(names, c)
+				names = appendCounted(make([]string, 0, total), names, c, "interned members")
 			}
 			if c != nil {
 				c.add("interned members")
@@ -130,19 +130,6 @@ func (in *interner) fromList(lists ...[]string) *tagset {
 		}
 	}
 	return in.make(out)
-}
-
-// copyCounted is a copy of names, each member counted in c, unless it is
-// nil, before it is copied.
-func copyCounted(names []string, c *workCount) []string {
-	out := make([]string, 0, len(names))
-	for _, n := range names {
-		if c != nil {
-			c.add("interned members")
-		}
-		out = append(out, n)
-	}
-	return out
 }
 
 func (in *interner) empty() *tagset { return in.make(nil) }

@@ -506,7 +506,7 @@ func duplicateCaptures(e *domExpr) map[*domExpr]bool {
 			continue
 		}
 		count := len(kids(n))
-		partsDone := append([]found(nil), done[len(done)-count:]...)
+		partsDone := appendCounted(nil, done[len(done)-count:], readerCount(), "reader steps")
 		done = done[:len(done)-count]
 		meets := n.Kind == exSeq || n.Kind == exAnd
 		joined := partsDone[0]
@@ -668,7 +668,7 @@ func captureSequences(e *domExpr) (sequences [][]*domExpr, duplicates map[*domEx
 			continue
 		}
 		count := len(kids(n))
-		parts := append([][][]*domExpr(nil), done[len(done)-count:]...)
+		parts := appendCounted(nil, done[len(done)-count:], readerCount(), "reader steps")
 		done = done[:len(done)-count]
 		var out [][]*domExpr
 		switch n.Kind {
@@ -692,8 +692,8 @@ func captureSequences(e *domExpr) (sequences [][]*domExpr, duplicates map[*domEx
 						names[c.Name] = true
 					}
 				}
-				// Each capture of the part is looked up, then recorded and
-				// copied, which counts once for each.
+				// Each capture of the part counts once as it is looked up
+				// and recorded, and once more as it is copied.
 				for _, c := range part[0] {
 					step()
 					if names[c.Name] {
@@ -703,7 +703,7 @@ func captureSequences(e *domExpr) (sequences [][]*domExpr, duplicates map[*domEx
 				for _, c := range part[0] {
 					names[c.Name] = true
 				}
-				out[0] = append(out[0], part[0]...)
+				out[0] = appendCounted(out[0], part[0], readerCount(), "reader steps")
 			}
 		case exChoice:
 			for _, part := range parts {

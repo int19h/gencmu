@@ -124,8 +124,14 @@ func splicePipeline(pipelinePath string, domOf func(p string) (*domDoc, *Error))
 			case item.dir != nil && item.dir.Name == "include":
 				target := resolvePath(docPath, item.dir.Args[0])
 				trail := func() string {
+					// Each path counts as it is joined, so that a trail joined
+					// at each include passes the budget.
+					w := work.Load()
 					paths := make([]string, 0, len(through)+1)
 					for _, g := range through {
+						if w != nil {
+							w.spliceSteps.add("splice steps")
+						}
 						paths = append(paths, g.path)
 					}
 					return strings.Join(append(paths, target), " → ")

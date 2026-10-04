@@ -348,7 +348,7 @@ func simplifiedOutcome(start clausePart, has func(string) bool) outcome {
 			continue
 		}
 		n := len(kids(p))
-		parts := append([]outcome(nil), done[len(done)-n:]...)
+		parts := appendCounted(nil, done[len(done)-n:], readerCount(), "reader steps")
 		done = done[:len(done)-n]
 		var o outcome
 		if p.t != nil {

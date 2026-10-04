@@ -427,8 +427,14 @@ func (r *resolver) condList(cs []*domCond) []*domCond {
 	if done, ok := r.condLists[key]; ok {
 		return done
 	}
+	// Each condition counts as it is looked at, also one already resolved,
+	// so that a list resolved again for each alternative passes the budget.
+	w := work.Load()
 	var out []*domCond
 	for i, c := range cs {
+		if w != nil {
+			w.clauseSteps.add("clause steps")
+		}
 		if resolved := r.cond(c); resolved != c && out == nil {
 			out = make([]*domCond, len(cs))
 			copy(out, cs[:i])

@@ -122,10 +122,16 @@ func (run *stageRun) sound(i int) string {
 // every test, though it adds nothing to the sound.
 func (run *stageRun) nextVoiced(i int) int {
 	if run.voiced == nil {
+		// Each token counts as the table is made, so that a table made
+		// again at each test passes the budget.
+		w := work.Load()
 		run.voiced = make([]int, len(run.toks)+1)
 		next := len(run.toks)
 		run.voiced[next] = next
 		for j := len(run.toks) - 1; j >= 0; j-- {
+			if w != nil {
+				w.soundSteps.add("sound steps")
+			}
 			if run.sound(j) != "" {
 				next = j
 			}

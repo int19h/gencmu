@@ -128,6 +128,28 @@ func sortStrings(names []string, c *workCount, name string) {
 	})
 }
 
+// appendCounted appends each element of xs to out, each counted in c,
+// unless it is nil, before it is copied. A copy is work that grows with
+// what it copies, so a copy on a counted path goes through here.
+func appendCounted[T any](out, xs []T, c *workCount, name string) []T {
+	for _, x := range xs {
+		if c != nil {
+			c.add(name)
+		}
+		out = append(out, x)
+	}
+	return out
+}
+
+// readerCount is the count of the reader's steps, or nil when work is not
+// counted.
+func readerCount() *workCount {
+	if w := work.Load(); w != nil {
+		return &w.readerSteps
+	}
+	return nil
+}
+
 // work is where a parse counts its work. It is nil outside the tests that
 // set it, so that a parse only loads a nil pointer and counts nothing.
 var work atomic.Pointer[workCounts]
