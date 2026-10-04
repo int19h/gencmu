@@ -401,3 +401,25 @@ func TestConditionsByDot(t *testing.T) {
 		}
 	}
 }
+
+// TestIncludeChainLinear: a chain of documents, each including the next,
+// is spliced without copying the chain at each include, and n stages are
+// told apart by name without a scan of those before (engine §2).
+func TestIncludeChainLinear(t *testing.T) {
+	linearTime(t, "a chain of includes", 2500, func(n int) {
+		doms := map[string]*domDoc{}
+		for i := range n {
+			doms[fmt.Sprintf("d%d.md", i)] = &domDoc{
+				Rules:      []*domRule{{Name: "text", At: [2]int{2, 1}}},
+				Directives: []*domDirective{{Name: "stage", Args: []string{fmt.Sprintf("s%d", i)}, At: [2]int{1, 1}}, {Name: "include", Args: []string{fmt.Sprintf("d%d.md", i+1)}, At: [2]int{3, 1}}},
+			}
+		}
+		doms[fmt.Sprintf("d%d.md", n)] = &domDoc{}
+		for range 5 {
+			p, err := splicePipeline("d0.md", func(path string) (*domDoc, *Error) { return doms[path], nil })
+			if err != nil || len(p.stages) != n {
+				t.Fatalf("%d documents: %v", n, err)
+			}
+		}
+	})
+}
