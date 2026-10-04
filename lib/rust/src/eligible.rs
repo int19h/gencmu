@@ -830,7 +830,7 @@ mod tests {
         let grammar = "%ambiguity-resolution greedy\n%elidable T\n%rule text body B\n%conditions matches($, r)\n\
                        %rule body A ...\n%rule r parts B\n%rule parts part ...\n%rule part A [T]\n";
         let operations = |n: usize| {
-            let (eligible, operations) = query_work(grammar, n, false);
+            let (eligible, operations, _) = query_work(grammar, n, false);
             assert!(eligible.iter().all(|&eligible| eligible));
             operations
         };
@@ -852,19 +852,27 @@ mod tests {
         let tested = "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text body B\n\
                       %conditions begins(from($), r)\n%rule body A ...\n%rule r y⊇~p [T]\n%rule y A ... <~p>\n";
         for grammar in [plain, tested] {
-            let (eligible, small) = query_work(grammar, 1000, true);
+            let (eligible, small, items) = query_work(grammar, 1000, true);
+            // The searches read the index once and each completed item
+            // once, and the checks find each table once, in a pass over the
+            // chart, and test each completion at most once: at most four
+            // times the chart's items. A table found again for each check
+            // would read the chart once per check, so this fails on the
+            // shorter text, before the longer one costs much.
+            assert!(small <= 4 * items, "{small} operations for 1000 tokens, over a chart of {items} items\n{grammar}");
             // Only the longest y permits the omission.
             assert_eq!(eligible.iter().filter(|&&eligible| eligible).count(), 1, "{grammar}");
-            let (_, large) = query_work(grammar, 4000, true);
+            let (_, large, _) = query_work(grammar, 4000, true);
             assert!(large < small * 6, "{small} operations for 1000 tokens, {large} for 4000\n{grammar}");
         }
     }
 
     /// Recognizes `n` tokens `A` and then a `B` as the rule `r` of the
     /// grammar, alone, as a query does. Gives which witnesses have an
-    /// eligible proof tree, those of `begins` or of `matches`, and how many
-    /// entries of the chart the searches and the checks looked at.
-    fn query_work(grammar: &str, n: usize, begins: bool) -> (Vec<bool>, u64) {
+    /// eligible proof tree, those of `begins` or of `matches`, how many
+    /// entries of the chart the searches and the checks looked at, and how
+    /// many items the chart holds.
+    fn query_work(grammar: &str, n: usize, begins: bool) -> (Vec<bool>, u64, u64) {
         let sources = [("main.md", format!("```jbogenbau\n{grammar}```\n")), ("p.md", PIPELINE.to_string())];
         let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
         let g = dialect.lowered_stage(0);
@@ -898,7 +906,12 @@ mod tests {
         let proofs = Proofs::new(&g, &chart, &input, &dialect.unicode, &shared.tags);
         crate::work::reset();
         let eligible = proofs.eligible(&witnesses);
-        (eligible, crate::work::counted(crate::work::Work::Searched) + crate::work::counted(crate::work::Work::Looked))
+        let items = chart.sets.iter().map(|set| set.items.len() as u64).sum();
+        (
+            eligible,
+            crate::work::counted(crate::work::Work::Searched) + crate::work::counted(crate::work::Work::Looked),
+            items,
+        )
     }
 
     #[test]

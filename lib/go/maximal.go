@@ -86,6 +86,9 @@ func (mx *maximal) forbids(rule, start, end int32, t *symTest) bool {
 			mx.completed = map[ruleOrigin][]*symNode{}
 			for _, s := range mx.rec.sets {
 				for key, c := range s.syms {
+					if w := work.Load(); w != nil {
+						w.scanned.Add(1)
+					}
 					ro := ruleOrigin{key.rule, key.origin}
 					mx.completed[ro] = append(mx.completed[ro], c)
 				}
@@ -121,6 +124,9 @@ func (mx *maximal) forbids(rule, start, end int32, t *symTest) bool {
 		mx.furthest = map[ruleOrigin]int32{}
 		for k, s := range mx.rec.sets {
 			for key := range s.syms {
+				if w := work.Load(); w != nil {
+					w.scanned.Add(1)
+				}
 				mx.furthest[ruleOrigin{key.rule, key.origin}] = int32(k)
 			}
 		}

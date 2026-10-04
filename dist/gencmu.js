@@ -1280,7 +1280,9 @@
   // `hooks.work`, when set, counts work for the tests that it grows with the
   // input as it should: the items that the recognizer makes, in parses and
   // nested parses alike (tests/growth.json), and the checks of maximality in
-  // nested queries and the completions that they read (engine §4). Unset, a
+  // nested queries, the items of the chart that they read to find their
+  // table, and the completions that they read for a tested symbol (engine
+  // §4). Each is counted where the work is done, as it is done. Unset, a
   // parse counts nothing.
 
   /** @type {Set<string>} */
@@ -1326,7 +1328,10 @@
    * @typedef {object} WorkCounts
    * @property {number} items the items that the recognizer made
    * @property {number} checks the checks of maximality in nested queries
-   * @property {number} candidates the completions that those checks read
+   * @property {number} scanned the items of the chart that those checks
+   *   read to find their table of completions
+   * @property {number} candidates the completions that those checks read for
+   *   a tested symbol
    */
 
   /** @type {{elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null}} */
@@ -1535,6 +1540,7 @@
         for (const set of chart.sets) {
           if (!set) continue;
           for (const item of set.items) {
+            if (hooks.work) hooks.work.scanned++;
             if (item.dot !== item.production.rhs.length) continue;
             const key = `${item.production.lhs}\u0000${item.origin}`;
             const entry = completed.get(key);

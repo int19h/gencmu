@@ -148,6 +148,7 @@ impl<'c> Maximal<'c> {
             let mut completed = Completed::default();
             for (set, eset) in self.chart.sets.iter().enumerate() {
                 for (&key, items) in &eset.completed {
+                    work::count(Work::Looked, items.len() as u64);
                     let list = completed.entry(key).or_default();
                     for &index in items {
                         list.push((set as u32, eset.tagset[index as usize]));

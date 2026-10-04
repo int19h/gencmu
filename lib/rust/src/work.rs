@@ -13,7 +13,9 @@ pub(crate) enum Work {
     /// The entries of the chart that the searches for a blocking path look
     /// at: the index once, and then each completed item they read.
     Searched,
-    /// The completed items that the checks of maximality look at.
+    /// The completed items that the checks of maximality look at: those
+    /// that their tables are found from, as each table is found, and each
+    /// completion that a tested symbol's test is evaluated on.
     Looked,
     /// The cycle contexts that the rankings make.
     Contexts,

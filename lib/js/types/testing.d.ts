@@ -56,7 +56,13 @@ export type WorkCounts = {
      */
     checks: number;
     /**
-     * the completions that those checks read
+     * the items of the chart that those checks
+     * read to find their table of completions
+     */
+    scanned: number;
+    /**
+     * the completions that those checks read for
+     * a tested symbol
      */
     candidates: number;
 };
@@ -89,7 +95,10 @@ export type WorkCounts = {
  * @typedef {object} WorkCounts
  * @property {number} items the items that the recognizer made
  * @property {number} checks the checks of maximality in nested queries
- * @property {number} candidates the completions that those checks read
+ * @property {number} scanned the items of the chart that those checks
+ *   read to find their table of completions
+ * @property {number} candidates the completions that those checks read for
+ *   a tested symbol
  */
 /** @type {{elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null}} */
 export declare const hooks: {
