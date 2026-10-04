@@ -25,7 +25,7 @@ from gencmu._rank import Summaries
 from gencmu._stage import implied
 from gencmu._trampoline import run
 
-from .shared import OverBudget, Watch, Work, calls, count_work, load_case_dialect, mutant, parse_case, reads, steps
+from .shared import OverBudget, Watch, Work, calls, code_of, count_work, load_case_dialect, mutant, parse_case, reads, steps
 
 MOST = 6
 """How many times the work at n the work at 4n may cost."""
@@ -189,7 +189,7 @@ class Closures(Linear):
 
             return work
 
-        self.assert_linear(lambda: [steps(implied)], make, 1000)
+        self.assert_linear(lambda: [steps(implied, weight=reads)], make, 1000)
 
     def test_which_productions_read_costs_a_long_chain_its_length(self) -> None:
         # r0 → r1, r1 → r2, and so on, listed first link first, and only the
@@ -205,15 +205,18 @@ class Closures(Linear):
 
             return work
 
-        self.assert_linear(lambda: [steps(reading_last)], make, 1000)
+        self.assert_linear(lambda: [steps(reading_last, weight=reads)], make, 1000)
 
 
 class Edge(tuple):  # type: ignore[type-arg]
-    """An edge whose comparisons the test counts: a search of a list by
-    ``in`` compares the edge with each entry, in C, which no step of the
-    library's own shows."""
+    """An edge whose comparisons and hashes the test counts: a search of a
+    list by ``in`` compares the edge with each entry, and a set hashes it,
+    in C, which no step of the library's own shows."""
 
-    __hash__ = tuple.__hash__
+    def __hash__(self) -> int:
+        # A set hashes an edge at each lookup and at each copy into it, so a
+        # set built again at each edge shows in the count of these calls.
+        return tuple.__hash__(self)
 
     def __eq__(self, other: object) -> bool:
         return tuple.__eq__(self, other)  # type: ignore[arg-type,no-any-return]
@@ -236,7 +239,7 @@ class Dedupes(Linear):
 
             return work
 
-        self.assert_linear(lambda: [calls(Edge.__eq__)], make, 5000)
+        self.assert_linear(lambda: [calls(Edge.__eq__), calls(Edge.__hash__)], make, 5000)
 
 
 def unit_chain(n: int) -> Forest:
@@ -251,6 +254,34 @@ def unit_chain(n: int) -> Forest:
     return Parser(context).parse(context.lowered.rule_ids["text"])
 
 
+class ItemAdds(Linear):
+    # The item that a step makes is found by its key in its set, and a
+    # step that reaches an item again adds one edge to it. The recognizer's
+    # own count is of items, so a search that scans a set, or a copy of
+    # an item's edges at each edge, shows only in the lines of add.
+
+    @staticmethod
+    def watches() -> list[Watch]:
+        return [steps(code_of(Parser.walk, "add"), weight=reads)]
+
+    @staticmethod
+    def make(n: int) -> Callable[[], object]:
+        # text reads u, which has n alternatives, each a rule of its own
+        # over A. So each set holds about n items, and the item of text
+        # after u has n edges, one for each completed alternative of u.
+        alternatives = " | ".join(f"v{index}" for index in range(n))
+        rules = "".join(f"\n%rule v{index} A" for index in range(n))
+        dialect, error = load_case_dialect({"grammar": f"%rule text u B\n%rule u {alternatives}{rules}"})
+        assert dialect is not None, error
+        tokens = [Token("a", frozenset({"A"}), (0, 1), (0, 1)), Token("b", frozenset({"B"}), (1, 2), (1, 2))]
+        context = StageContext(dialect.lowered(0, frozenset()), tokens, "ab", dialect.unicode)
+        number = context.lowered.rule_ids["text"]
+        return lambda: Parser(context).parse(number)
+
+    def test_making_items_and_edges_costs_their_number(self) -> None:
+        self.assert_linear(self.watches, self.make, 200)
+
+
 class UnitEdges(Linear):
     # The arcs between rules that complete one below the other over one
     # span, which the cycle rule's groups are found from (engine §6). Each
@@ -258,7 +289,7 @@ class UnitEdges(Linear):
 
     @staticmethod
     def watches() -> list[Watch]:
-        return [steps(Summaries.groups, "if kind == 2 and origin[child] == origin[item]")]
+        return [steps(Summaries.groups, weight=reads)]
 
     @staticmethod
     def make(n: int) -> Callable[[], object]:
@@ -304,7 +335,7 @@ class DefinitionChecks(Linear):
             rule = emitting_rule(n)
             return lambda: definition_problem(rule)
 
-        self.assert_linear(lambda: [steps(_clauses)], make, 1000)
+        self.assert_linear(lambda: [steps(_clauses, weight=reads)], make, 1000)
 
     def test_a_mutant_that_moves_the_larger_captures_fails_at_the_first_step_past_its_budget(self) -> None:
         # The check of repeated captures joins the captures of each item of
@@ -316,7 +347,7 @@ class DefinitionChecks(Linear):
             return lambda: _clauses.duplicate_captures(expr)
 
         def watches() -> list[Watch]:
-            return [steps(_clauses.duplicate_captures)]
+            return [steps(_clauses.duplicate_captures, weight=reads)]
 
         self.assert_linear(watches, make, 1000)
         swap = ("large, small = (joined, part) if joined[1] >= part[1] else (part, joined)", "large, small = (part, joined)")
@@ -328,12 +359,12 @@ class DefinitionChecks(Linear):
             captures = {f"c{index}": index for index in range(n)}
             return lambda: _Lowerer.lower_emit(None, emit, captures)  # type: ignore[arg-type]
 
-        self.assert_linear(lambda: [steps(_Lowerer.lower_emit)], make, 1000)
+        self.assert_linear(lambda: [steps(_Lowerer.lower_emit, weight=reads)], make, 1000)
 
 
 def loading_steps() -> list[Watch]:
     """Every line that stitching and its checks run."""
-    return [steps(_grammar), steps(_clauses), steps(_types)]
+    return [steps(_grammar, weight=reads), steps(_clauses, weight=reads), steps(_types, weight=reads)]
 
 
 class SharedClauses(Linear):
@@ -478,7 +509,7 @@ class Pipelines(Linear):
 
             return work
 
-        self.assert_linear(lambda: [steps(splice_pipeline), calls(Path.__eq__)], make, 150)
+        self.assert_linear(lambda: [steps(splice_pipeline, weight=reads), calls(Path.__eq__)], make, 150)
 
     def test_many_stages_cost_their_number(self) -> None:
         def make(n: int) -> Callable[[], object]:
@@ -495,7 +526,7 @@ class Pipelines(Linear):
 
             return work
 
-        self.assert_linear(lambda: [steps(splice_pipeline)], make, 2000)
+        self.assert_linear(lambda: [steps(splice_pipeline, weight=reads)], make, 2000)
 
 
 if __name__ == "__main__":

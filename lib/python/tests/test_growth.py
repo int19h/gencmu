@@ -6,15 +6,16 @@ parses alike."""
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import math
 import unittest
 from contextlib import contextmanager
-from typing import Any, Callable, Iterator
+from typing import Any, Callable, ContextManager, Iterator
 from unittest import mock
 
 import gencmu
-from gencmu import _clauses, _dom, _trampoline
+from gencmu import _dom, _trampoline
 from gencmu._dialect import read_document
 from gencmu._earley import Caps, Evaluator, Parser, StageContext
 
@@ -32,6 +33,7 @@ from .shared import (
     made_items,
     mutant,
     parse_case,
+    reads,
     steps,
 )
 
@@ -110,6 +112,11 @@ class CaptureStorage(unittest.TestCase):
             count_work(captures, budget=count) as works["captures"],
             count_work(made_items(), budget=2 * count + 4) as works["items"],
             count_work(*steps_, budget=2 * count + 4) as works["walked"],
+            # Every line of the walk of every part, with what it reads in C,
+            # so that a walk that moves the parts it has read counts. Three
+            # lines read each part, and the budget leaves the walks' own
+            # budget to stop first.
+            count_work(steps(Caps.parts, weight=reads), budget=4 * (2 * count + 4)) as works["lines"],
         ):
             value, _, _ = parse_case(dialect, case)
         self.assertIsNotNone(value)
@@ -278,18 +285,14 @@ class ConditionSelection(unittest.TestCase):
 
 
 def reader_steps() -> list[Watch]:
-    """The steps of the readers and the walks of a document: each pass of
-    the loop that runs a walk, each node that a walk with a list for a stack
-    meets, and each capture that the check of repeated captures moves or
-    marks as repeated."""
-    return [
-        steps(_trampoline.run, "top = stack[-1]"),
-        steps(_dom.flatten_groups, "current = stack.pop()"),
-        steps(_dom.flatten_groups, "item = pending.pop()"),
-        steps(_clauses.duplicate_captures, "node, index, parts = stack[-1]"),
-        steps(_clauses.duplicate_captures, "moved.append(capture)"),
-        steps(_clauses.duplicate_captures, "flagged[id(capture)] = capture"),
-    ]
+    """The steps of the readers and the walks of a document: every line of
+    the loop that runs a walk, of the walk of groups with a list for a
+    stack, and of the check of repeated captures, each with what it reads
+    in C. So a capture moved or marked as repeated counts, and so does a
+    copy of a stack or a list."""
+    # The check of repeated captures is named as the reader calls it, so
+    # that a mutant put in its place is the one watched.
+    return [steps(target, weight=reads) for target in (_trampoline.run, _dom.flatten_groups, _dom.duplicate_captures)]
 
 
 class NotationGrowth(unittest.TestCase):
@@ -298,14 +301,18 @@ class NotationGrowth(unittest.TestCase):
     # with its square. The work is the recognizer's items and the steps of
     # the readers and walks, counted, not timed.
 
-    def grows(self, case: dict[str, str], watches: list[Watch]) -> tuple[int, Work]:
+    def grows(
+        self, case: dict[str, str], watches: Callable[[], list[Watch]], mutation: Callable[[], ContextManager[Any]] = contextlib.nullcontext
+    ) -> tuple[int, Work]:
         """The work of a case at 250 levels, and the count of a read at 1000
         levels under a budget of five times that, which stops the read at
-        the first unit past it."""
+        the first unit past it. The larger read is made within
+        ``mutation``, with watches made there too, so that a regression
+        under test is held to the budget of the library's own work."""
 
         def work(n: int, budget: int | None = None, works: list[Work] | None = None) -> int:
             text = "```jbogenbau\n" + case["prefix"] + case["open"] * n + case["middle"] + case["close"] * n + case["suffix"] + "\n```\n"
-            with count_work(*watches, budget=budget) as counted:
+            with count_work(*watches(), budget=budget) as counted:
                 if works is not None:
                     works.append(counted)
                 try:
@@ -320,16 +327,19 @@ class NotationGrowth(unittest.TestCase):
         work(250)
         small = work(250)
         works: list[Work] = []
-        try:
-            work(1000, 5 * small, works)
-        except OverBudget:
-            pass
+        with mutation():
+            try:
+                work(1000, 5 * small, works)
+            except OverBudget:
+                pass
         return small, works[0]
 
     def test_cases(self) -> None:
         cases = load_json(SHARED / "notation-growth.json")
         self.assertGreater(len(cases), 5)
-        watches = [made_items(), *reader_steps()]
+        def watches() -> list[Watch]:
+            return [made_items(), *reader_steps()]
+
         for case in cases:
             with self.subTest(case=case["name"]):
                 small, large = self.grows(case, watches)
@@ -340,7 +350,6 @@ class NotationGrowth(unittest.TestCase):
         # turn, deepest first, walks a deep DOM once for each level. The
         # read at 1000 levels stops at the first step past its budget.
         case = next(case for case in load_json(SHARED / "notation-growth.json") if case["name"] == "negations")
-        watches = [made_items(), *reader_steps()]
         flatten = _dom.flatten_groups
 
         def flatten_each(root: Any) -> None:
@@ -354,8 +363,21 @@ class NotationGrowth(unittest.TestCase):
             for node in reversed(nodes):
                 flatten(node)
 
-        with mock.patch.object(_dom, "flatten_groups", flatten_each):
-            small, large = self.grows(case, watches)
+        # The watches name the library's own walk of groups, which the
+        # regression calls once for each node.
+        watches = [made_items(), *reader_steps()]
+        small, large = self.grows(case, lambda: watches, lambda: mock.patch.object(_dom, "flatten_groups", flatten_each))
+        self.assertEqual(large.count, 5 * small + 1)
+
+
+    def test_marking_a_repeated_capture_at_each_level_fails_at_the_first_step_past_its_budget(self) -> None:
+        # The regression keeps each capture marked as repeated in its list,
+        # so every meeting above marks it again, which costs one name at
+        # every level the square of the depth.
+        case = next(case for case in load_json(SHARED / "notation-growth.json") if case["name"] == "repeated-capture-name")
+        small, large = self.grows(
+            case, lambda: [made_items(), *reader_steps()], lambda: mutant(_dom, "duplicate_captures", ("part[0][name] = []", "pass"))
+        )
         self.assertEqual(large.count, 5 * small + 1)
 
 
