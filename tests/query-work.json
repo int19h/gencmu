@@ -1,0 +1,26 @@
+[
+  {
+    "name": "queries-in-one-step",
+    "description": "One advance holds many conditions, each a query whose answer is not yet known. Each query halts the step once, and the evaluation goes on from where it halted, not from the first condition again (engine §4).",
+    "head": "%ambiguity-resolution greedy\n%rule text 'a'\n%conditions ",
+    "item": "matches(after($), r{i})",
+    "joiner": ", ",
+    "tail": "",
+    "rule": "\n%rule r{i} ε",
+    "count": 400,
+    "text": "a",
+    "most": 8
+  },
+  {
+    "name": "queries-in-one-term",
+    "description": "One tag term is a union of many queries. Each query halts the evaluation once, and the union goes on from the part where it halted, keeping the parts it has (engine §4).",
+    "head": "%ambiguity-resolution greedy\n%rule text 'a' <",
+    "item": "tags(after($), r{i})",
+    "joiner": " ∪ ",
+    "tail": ">",
+    "rule": "\n%rule r{i} ε <~t{i}>",
+    "count": 400,
+    "text": "a",
+    "most": 8
+  }
+]

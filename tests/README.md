@@ -178,6 +178,18 @@ Each item says that nested queries nest as deep as the input makes them, with no
 
 The library loads `grammar` as the one stage of a dialect, which reads the text's characters. It parses `link` repeated `count` times, then `suffix`, and the parse must succeed. It runs the parse on an ordinary stack: the main thread in JavaScript and Python, a test thread of the default size in Rust, and a goroutine whose stack is held to 1 MiB in Go.
 
+## Query work cases: `query-work.json`
+
+```
+[{"name": "queries-in-one-step", "description": "...", "head": "%rule text 'a'\n%conditions ",
+  "item": "matches(after($), r{i})", "joiner": ", ", "tail": "", "rule": "\n%rule r{i} ε",
+  "count": 400, "text": "a", "most": 8}]
+```
+
+Each item says that a step or a term that starts many queries evaluates each part of its conditions and terms a bounded number of times. A query whose answer is not yet known halts the evaluation while its nested parse runs. The evaluation must then go on from where it halted. Starting the step again from its first condition would evaluate the earlier parts once for each query, the square of their number.
+
+The library builds the grammar from `head`, then `item` once for each i from 0 to `count` − 1, joined by `joiner`, then `tail`, then `rule` once for each i. In `item` and `rule`, `{i}` stands for i. It loads the grammar as the one stage of a dialect and parses `text`, and the parse must succeed. The library counts every visit of a node of a condition or a term, before it evaluates the node, also in an evaluation that halts. The count has a budget of `most` times `count`, and the parse stops at the first visit past it.
+
 ## Result mutants: `result-mutants.json`
 
 ```
