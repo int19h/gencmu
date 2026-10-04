@@ -1400,6 +1400,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let g = self.g;
         let helper = &g.rules[rule as usize];
         while let Some(&production) = helper.prods.get(*next) {
+            // Each production counts as the prediction looks at it, also one
+            // that it skips.
+            work::count(Work::Found, 1);
             self.predict_one(chart, evals, tokens, base, rule, production, e, strict, before)?;
             *next += 1;
         }

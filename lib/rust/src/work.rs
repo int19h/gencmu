@@ -15,7 +15,8 @@ pub(crate) enum Work {
     Items,
     /// The lookups of an item in the index of its set, which the recognizer
     /// makes as it adds items and the searches of its chart make as they
-    /// read it. Each counts once, before it is made.
+    /// read it, and the productions that the recognizer's predictions look
+    /// at. Each counts once, before it is made.
     Found,
     /// The entries of the chart that the searches for a blocking path look
     /// at: each completed item that their index is built from, and then
@@ -452,6 +453,38 @@ mod tests {
             let result = dialects[usize::from(n != 250)].parse_tokens(&tokens, &no_auto()).unwrap();
             assert!(result.ok, "{n} rules");
             assert_eq!(result.stages[0].verdict, Some(Verdict::Resolved));
+        });
+    }
+
+    /// A rule is predicted once in each set, however many items wait for
+    /// it there. Here n rules wait for one rule of n productions, so a
+    /// prediction for each waiting item would look at n² productions.
+    #[test]
+    fn predictions_look_at_each_production_once() {
+        let dialects: Vec<_> = [250usize, 1000]
+            .into_iter()
+            .map(|n| {
+                let names: Vec<String> = (0..n).map(|index| format!("r{index}")).collect();
+                let rules: Vec<String> = (0..n).map(|index| format!("%rule r{index} x B{index}")).collect();
+                let starts: Vec<String> = (0..n).map(|index| format!("A{index}")).collect();
+                let grammar = format!(
+                    "%ambiguity-resolution greedy\n%rule text {}\n{}\n%rule x {}",
+                    names.join(" | "),
+                    rules.join("\n"),
+                    starts.join(" | ")
+                );
+                crate::load_dialect_sources(single(&grammar), "p.md").unwrap()
+            })
+            .collect();
+        let token = |tag: &str| InputToken {
+            text: tag.to_lowercase(),
+            tags: [tag.to_string()].into_iter().collect(),
+            phonemes: None,
+        };
+        let tokens = [token("A0"), token("B0")];
+        assert_linear(Work::Found, 250, &mut |n| {
+            let result = dialects[usize::from(n != 250)].parse_tokens(&tokens, &no_auto()).unwrap();
+            assert!(result.ok, "{n} rules");
         });
     }
 }
