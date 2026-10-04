@@ -5,8 +5,9 @@
 # - " = ", and the cases that show the text in the role that the sentence
 #   gives it. Each case is its id after its role. A role is the rule whose
 #   node spans exactly the text in the case's tree, `words` for words that
-#   the word stage gives in a row, or `reject` for a text that the dialect
-#   rejects. A role applies to the ids after it. The check parses each case
+#   some stage gives as the labels of tokens in a row, one label for each
+#   word, where the tokens stand together in the case's text, or `reject`
+#   for a text that the dialect rejects. A role applies to the ids after it. The check parses each case
 #   and requires a case of each dialect that the text needs. Use this form
 #   for a part of a text that the sentence makes a claim about: a special
 #   grouping, a rejection or a repair.

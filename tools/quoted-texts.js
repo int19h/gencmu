@@ -213,8 +213,9 @@ export function checkedDocuments(base = root, doms = repositoryDoms(base), check
  * @property {string} [reason] why the text needs no case of its own
  * @property {{role: string, id: string}[]} [cases] the cases that show the
  *   text, each with its role: the rule of the node that spans the text in
- *   the case's tree, `words` for words that some stage gives in a row,
- *   or `reject` for a case that the dialect rejects
+ *   the case's tree, `words` for words that some stage gives as the
+ *   labels of tokens in a row (roleProblem), or `reject` for a case that the
+ *   dialect rejects
  */
 
 /**
@@ -298,30 +299,60 @@ function holds(c, text) {
 }
 
 /**
- * What a case shows of a quoted text in its role: whether its dialect
- * rejects it (`reject`), whether some stage gives the text's words in a row
- * (`words`), or whether the tree of some stage has a node of the rule whose
- * words are exactly the text's.
- * @param {{text: string, dialect: string, features?: string[], withoutFeatures?: string[]}} c
+ * The words of a quoted text as the labels of the tokens that show it, one
+ * label for each word: the word without the full stops and commas at its
+ * edges, with each full stop inside it as a space. So `la djim.bu` is the
+ * two labels `la` and `djim bu`, since a pause inside a word is a space in
+ * its label (tests/README.md).
+ * @param {string} text
+ * @returns {string[]}
+ */
+export function wordLabels(text) {
+  return text.split(" ").map((word) => word.replace(/^[.,]+|[.,]+$/g, "").replace(/\./g, " "));
+}
+
+/**
+ * Why a case does not show a quoted text in its role, or null when it does.
+ *
+ * - `reject`: the dialect rejects the case.
+ * - `words`: some stage gives the text's words as the labels of tokens in a
+ *   row, one label for each word (wordLabels), and those tokens, with their
+ *   attachments, stand together in the case's text: nothing between them
+ *   holds a letter. So the case holds the text, read as those tokens.
+ * - a rule: the tree of some stage has a node of the rule whose words are
+ *   exactly the text's.
+ * @param {{text: string, dialect: string, at?: number, features?: string[], withoutFeatures?: string[]}} c
  * @param {string} role
  * @param {string} text
  * @param {Map<string, any>} dialects the loaded dialects, by name
  * @param {any} loader the loader of the repository's source grammars
  *   (tools/grammar-sources.js), never the bundled copies
- * @returns {boolean}
+ * @returns {string | null}
  */
-export function showsRole(c, role, text, dialects, loader) {
+export function roleProblem(c, role, text, dialects, loader) {
   if (!dialects.has(c.dialect)) dialects.set(c.dialect, loader.dialect(`dialects/${c.dialect}.md`));
   const result = dialects.get(c.dialect).parse(c.text, { features: c.features || [], withoutFeatures: c.withoutFeatures || [] });
-  if (role === "reject") return !result.ok;
-  if (role === "words") {
-    // The words of the text, split at full stops and white space, in a row
-    // in the output of some stage, whatever a later stage does with them.
-    const split = (/** @type {string} */ words) => words.split(/[\s.,]+/).filter(Boolean).join(" ");
-    const wanted = split(text);
-    return result.stages.some((stage) => stage.output && ` ${split(stage.output.map((token) => token.label).join(" "))} `.includes(` ${wanted} `));
+  if (role === "reject") {
+    if (result.ok) return `its dialect accepts it`;
+    return null;
   }
-  if (!result.ok) return false;
+  if (role === "words") {
+    const wanted = wordLabels(text);
+    let apart = false;
+    for (const stage of result.stages) {
+      if (!stage.output) continue;
+      // A pause token has a label of white space, and stands for no word.
+      const tokens = stage.output.filter((/** @type {any} */ token) => token.label.trim());
+      for (let first = 0; first + wanted.length <= tokens.length; first++) {
+        const run = tokens.slice(first, first + wanted.length);
+        if (!run.every((token, index) => token.label === wanted[index])) continue;
+        if (together(c.text, run)) return null;
+        apart = true;
+      }
+    }
+    return apart ? "its stages give those words in a row only with other words of its text between them" : "no stage gives those words as tokens in a row, one label for each word";
+  }
+  if (!result.ok) return "its dialect rejects it";
   const wanted = bare(text);
   for (const stage of result.stages) {
     if (!stage.tree) continue;
@@ -330,11 +361,45 @@ export function showsRole(c, role, text, dialects, loader) {
     const stack = [stage.tree];
     while (stack.length) {
       const node = stack.pop();
-      if (node.kind === "rule" && node.rule === role && words(node).join(" ") === wanted) return true;
+      if (node.kind === "rule" && node.rule === role && words(node).join(" ") === wanted) return null;
       stack.push(...(node.children || []));
     }
   }
-  return false;
+  return `no tree has a node of ${role} whose words are exactly the text's`;
+}
+
+/**
+ * Whether tokens, with their attachments, stand together in a text: no
+ * letter lies between them that none of them covers.
+ * @param {string} caseText
+ * @param {any[]} tokens
+ * @returns {boolean}
+ */
+function together(caseText, tokens) {
+  const points = Array.from(caseText);
+  const covered = new Set();
+  const cover = (/** @type {any} */ token) => {
+    if (token.source) for (let index = token.source[0]; index < token.source[1]; index++) covered.add(index);
+    for (const attached of [...(token.before || []), ...(token.after || [])]) cover(attached);
+  };
+  tokens.forEach(cover);
+  const start = Math.min(...covered);
+  const end = Math.max(...covered);
+  for (let index = start; index <= end; index++) if (!covered.has(index) && /\p{L}/u.test(points[index])) return false;
+  return true;
+}
+
+/**
+ * Whether a case shows a quoted text in its role (roleProblem).
+ * @param {{text: string, dialect: string, at?: number, features?: string[], withoutFeatures?: string[]}} c
+ * @param {string} role
+ * @param {string} text
+ * @param {Map<string, any>} dialects
+ * @param {any} loader
+ * @returns {boolean}
+ */
+export function showsRole(c, role, text, dialects, loader) {
+  return roleProblem(c, role, text, dialects, loader) === null;
 }
 
 /** How a case reads its text, to compare dialects: its verdict and tree. */
@@ -436,10 +501,11 @@ export function quotedTextProblems(base = root, { loader, doms, checked = CHECKE
       const roles = new Map();
       for (const { role, id } of entry.cases) {
         const c = byId.get(id);
+        let why;
         const place = `tests/quoted-allow.txt:${entry.line}`;
         if (!c) problems.push(`${place}: no case has the id ${id}`);
         else if (role !== "words" && !holds(c, text)) problems.push(`${place}: neither the text nor the words of ${id} hold \`${text}\``);
-        else if (!showsRole(c, role, text, loaded, sourcesLoader())) problems.push(`${place}: ${id} does not show \`${text}\` as ${role === "reject" ? "a rejected text" : `one ${role}`}`);
+        else if ((why = roleProblem(c, role, text, loaded, sourcesLoader()))) problems.push(`${place}: ${id} does not show \`${text}\` as ${role === "reject" ? "a rejected text" : role === "words" ? "words" : `one ${role}`}: ${why}`);
         else {
           roles.set(c.dialect, role);
           inCore(id, place);
