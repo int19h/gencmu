@@ -19,6 +19,7 @@ from typing import Any, Callable, Iterator
 
 import gencmu
 from gencmu._model import Token
+from gencmu._trampoline import Walk, run
 from gencmu._tags import is_tag
 
 from .witness import checks
@@ -365,28 +366,152 @@ def load_case(path: Path) -> dict[str, Any]:
         return json.load(file)  # type: ignore[no-any-return]
 
 
+def read_json(text: str) -> Any:
+    """A JSON text's value, read with a list for a stack. A result nests as
+    deep as its attachments do, and before Python 3.12 json.loads counts
+    each level against the recursion limit."""
+    decoder = json.JSONDecoder()
+    # Each open container, and for an object the key that waits for its
+    # value.
+    stack: list[tuple[Any, str | None]] = []
+    index = 0
+    whitespace = " \t\n\r"
+
+    def skip() -> None:
+        nonlocal index
+        while index < len(text) and text[index] in whitespace:
+            index += 1
+
+    while True:
+        skip()
+        char = text[index] if index < len(text) else ""
+        value: Any
+        if char == "{" or char == "[":
+            index += 1
+            skip()
+            if text[index] == ("}" if char == "{" else "]"):
+                index += 1
+                value = {} if char == "{" else []
+            else:
+                container: Any = {} if char == "{" else []
+                key = None
+                if char == "{":
+                    key, index = json.decoder.scanstring(text, index + 1)
+                    skip()
+                    assert text[index] == ":", f"expected : at {index}"
+                    index += 1
+                stack.append((container, key))
+                continue
+        elif char == '"':
+            value, index = json.decoder.scanstring(text, index + 1)
+        else:
+            # A number, true, false or null, which nests nothing.
+            value, index = decoder.raw_decode(text, index)
+        # The value goes into its container, and each container that it
+        # closes goes into the one around it.
+        while True:
+            if not stack:
+                skip()
+                assert index == len(text), f"extra data at {index}"
+                return value
+            container, key = stack[-1]
+            if isinstance(container, dict):
+                container[key] = value
+            else:
+                container.append(value)
+            skip()
+            closer = "}" if isinstance(container, dict) else "]"
+            if text[index] == ",":
+                index += 1
+                if isinstance(container, dict):
+                    skip()
+                    key, index = json.decoder.scanstring(text, index + 1)
+                    skip()
+                    assert text[index] == ":", f"expected : at {index}"
+                    index += 1
+                    stack[-1] = (container, key)
+                break
+            assert text[index] == closer, f"expected {closer} at {index}"
+            index += 1
+            stack.pop()
+            value = container
+
+
+def write_json(value: Any) -> str:
+    """A value's compact JSON, written with a list for a stack, for the
+    messages of a failed case. A result nests as deep as its attachments
+    do, and before Python 3.12 json.dumps counts each level against the
+    recursion limit."""
+    out: list[str] = []
+    # Each entry is text to write, or a value to write.
+    stack: list[tuple[bool, Any]] = [(False, value)]
+    while stack:
+        literal, item = stack.pop()
+        if literal:
+            out.append(item)
+        elif isinstance(item, dict):
+            parts: list[tuple[bool, Any]] = [(True, "{")]
+            for position, (key, member) in enumerate(item.items()):
+                parts.append((True, ("," if position else "") + json.dumps(key, ensure_ascii=False) + ":"))
+                parts.append((False, member))
+            parts.append((True, "}"))
+            stack.extend(reversed(parts))
+        elif isinstance(item, list):
+            parts = [(True, "[")]
+            for position, member in enumerate(item):
+                if position:
+                    parts.append((True, ","))
+                parts.append((False, member))
+            parts.append((True, "]"))
+            stack.extend(reversed(parts))
+        else:
+            out.append(json.dumps(item, ensure_ascii=False))
+    return "".join(out)
+
+
+def same_json(left: Any, right: Any) -> bool:
+    """Whether two JSON values are equal, as == says of their lists, objects
+    and scalars, compared with a list for a stack."""
+    stack = [(left, right)]
+    while stack:
+        one, other = stack.pop()
+        if isinstance(one, dict):
+            if not isinstance(other, dict) or one.keys() != other.keys():
+                return False
+            stack.extend((one[key], other[key]) for key in one)
+        elif isinstance(one, list):
+            if not isinstance(other, list) or len(one) != len(other):
+                return False
+            stack.extend(zip(one, other))
+        elif isinstance(other, (dict, list)) or one != other:
+            return False
+    return True
+
+
 def mismatch(pattern: Any, value: Any, where: str = "$") -> str | None:
-    """Where a value fails to match a pattern (tests/README.md), or None."""
-    if isinstance(pattern, dict):
-        if not isinstance(value, dict):
-            return f"{where}: expected an object, found {json.dumps(value, ensure_ascii=False)[:200]}"
-        for key, expected in pattern.items():
+    """Where a value fails to match a pattern (tests/README.md), or None.
+    The first in document order, found with a list for a stack, since a
+    pattern can follow a result as deep as it nests."""
+    # Each entry is a pattern, its value and where it stands, and for a
+    # member of an object, its key, which is checked when the entry is
+    # reached, as a walk in order would.
+    stack: list[tuple[Any, Any, str, str | None]] = [(pattern, value, where, None)]
+    while stack:
+        pattern, value, where, key = stack.pop()
+        if key is not None:
             if key not in value:
                 return f"{where}.{key}: missing"
-            found = mismatch(expected, value[key], f"{where}.{key}")
-            if found:
-                return found
-        return None
-    if isinstance(pattern, list):
-        if not isinstance(value, list) or len(value) != len(pattern):
-            return f"{where}: expected {len(pattern)} elements, found {json.dumps(value, ensure_ascii=False)[:200]}"
-        for index, (expected, found_value) in enumerate(zip(pattern, value)):
-            found = mismatch(expected, found_value, f"{where}[{index}]")
-            if found:
-                return found
-        return None
-    if pattern != value or type(pattern) is not type(value):
-        return f"{where}: expected {json.dumps(pattern, ensure_ascii=False)}, found {json.dumps(value, ensure_ascii=False)}"
+            value, where = value[key], f"{where}.{key}"
+        if isinstance(pattern, dict):
+            if not isinstance(value, dict):
+                return f"{where}: expected an object, found {write_json(value)[:200]}"
+            stack.extend((expected, value, where, member) for member, expected in reversed(pattern.items()))
+        elif isinstance(pattern, list):
+            if not isinstance(value, list) or len(value) != len(pattern):
+                return f"{where}: expected {len(pattern)} elements, found {write_json(value)[:200]}"
+            stack.extend((expected, found, f"{where}[{index}]", None) for index, (expected, found) in reversed(list(enumerate(zip(pattern, value)))))
+        elif pattern != value or type(pattern) is not type(value):
+            return f"{where}: expected {write_json(pattern)}, found {write_json(value)}"
     return None
 
 
@@ -493,14 +618,19 @@ def case_sources(case: dict[str, Any]) -> tuple[dict[str, str], str]:
 
 
 def case_tokens(case: dict[str, Any]) -> tuple[list[Token], str]:
+    # A walk, since attachments nest as deep as a case writes them.
+    return run(_case_tokens(case["tokens"])), " ".join(spec["text"] for spec in case["tokens"])  # type: ignore[no-any-return]
+
+
+def _case_tokens(specs: list[dict[str, Any]]) -> Walk:
     tokens: list[Token] = []
     position = 0
-    for index, spec in enumerate(case["tokens"]):
+    for index, spec in enumerate(specs):
         # Attachments, which a caller cannot supply, go to the library as
         # they stand, so that it refuses them or drops empty ones
         # (tests/README.md).
-        before = [replace(token, span=None) for token in case_tokens({"tokens": spec["before"]})[0]] if "before" in spec else []
-        after = [replace(token, span=None) for token in case_tokens({"tokens": spec["after"]})[0]] if "after" in spec else []
+        before = [replace(token, span=None) for token in (yield _case_tokens(spec["before"]))] if "before" in spec else []
+        after = [replace(token, span=None) for token in (yield _case_tokens(spec["after"]))] if "after" in spec else []
         # Each tag in its canonical spelling, as the output writes it
         # (tests/README.md).
         for tag in spec["tags"]:
@@ -512,7 +642,7 @@ def case_tokens(case: dict[str, Any]) -> tuple[list[Token], str]:
             Token(text, tags, (index, index + 1), (position, position + len(text)), spec.get("phonemes"), before=before, after=after)
         )
         position += len(text) + 1
-    return tokens, " ".join(spec["text"] for spec in case["tokens"])
+    return tokens
 
 
 def load_case_dialect(case: dict[str, Any], use_cache: bool = True) -> tuple[gencmu.Dialect | None, gencmu.GencmuError | None]:
@@ -586,7 +716,7 @@ def result_mutants() -> list[dict[str, Any]]:
 def apply_mutant(value: dict[str, Any], mutant: dict[str, Any]) -> dict[str, Any]:
     """A copy of a canonical result with a mutant's change. A path step of
     -1 is the last element of a list."""
-    value = json.loads(json.dumps(value))
+    value = read_json(write_json(value))
 
     def follow(path: list[Any]) -> Any:
         target: Any = value
