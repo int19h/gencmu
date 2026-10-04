@@ -16,9 +16,24 @@ from unittest import mock
 import gencmu
 from gencmu import _clauses, _dom, _trampoline
 from gencmu._dialect import read_document
-from gencmu._earley import Caps, Evaluator, StageContext
+from gencmu._earley import Caps, Evaluator, Parser, StageContext
 
-from .shared import SHARED, OverBudget, Watch, Work, calls, case_sources, count_work, load_case_dialect, load_json, made_items, parse_case, steps
+from .shared import (
+    SHARED,
+    OverBudget,
+    Watch,
+    Work,
+    calls,
+    case_sources,
+    code_of,
+    count_work,
+    load_case_dialect,
+    load_json,
+    made_items,
+    mutant,
+    parse_case,
+    steps,
+)
 
 
 def capture_steps() -> list[Watch]:
@@ -214,6 +229,52 @@ class CaptureStorage(unittest.TestCase):
                 with mock.patch.object(Caps, "find", walking_find), self.assertRaises(OverBudget):
                     self.walked(100, far, budget, steps_, works)
                 self.assertEqual(works[0].count, budget + 1)
+
+
+class ConditionSelection(unittest.TestCase):
+    # An advance finds the conditions that its dot makes ready by its
+    # position, and examines no other condition of the production. The
+    # count is of the steps of the selection's line, where a scan of every
+    # condition steps once for each condition it examines.
+
+    SCAN = (
+        "conditions = production.conds_at.get(position)",
+        "conditions = production.conds_at and [condition for trigger, triggered in production.conds_at.items()"
+        " for condition in triggered if trigger == position]",
+    )
+
+    def select(self, count: int, works: list[Work]) -> None:
+        """Parse a production of ``count`` captures with a condition at each,
+        under a budget of one step of selection for each advance."""
+        names = " ".join(f"$c{index}(A)" for index in range(count))
+        conditions = ", ".join(f'text($c{index}) = "a"' for index in range(count))
+        case = {"grammar": f"%rule text {names}\n%conditions {conditions}", "tokens": [{"text": "a", "tags": ["A"]}] * count}
+        dialect, error = load_case_dialect(case)
+        assert dialect is not None, error
+        # The watch is made here, so that it names a mutant's line where
+        # one is in place.
+        selection = steps(code_of(Parser.walk, "advance"), "conditions = production.conds_at")
+        with count_work(selection, budget=count) as work:
+            works.append(work)
+            value, _, _ = parse_case(dialect, case)
+        assert value is not None
+        self.assertTrue(value["ok"], f"{count} captures")
+
+    def test_an_advance_examines_only_the_conditions_of_its_dot(self) -> None:
+        for count in (100, 200, 400):
+            works: list[Work] = []
+            try:
+                self.select(count, works)
+            except OverBudget:
+                self.fail(f"{count} captures: more than {count} steps of selection")
+            self.assertEqual(works[0].count, count)
+
+    def test_a_scan_of_every_condition_fails_at_the_first_step_past_its_budget(self) -> None:
+        with mutant(Parser, "walk", self.SCAN):
+            works: list[Work] = []
+            with self.assertRaises(OverBudget):
+                self.select(100, works)
+        self.assertEqual(works[0].count, 101)
 
 
 def reader_steps() -> list[Watch]:

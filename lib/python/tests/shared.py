@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import __future__
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
 import bisect
@@ -13,9 +14,11 @@ import os
 from pathlib import Path
 import signal
 import sys
+import textwrap
 import threading
 from types import CodeType, FrameType
 from typing import Any, Callable, Iterator
+from unittest import mock
 
 import gencmu
 from gencmu._model import Token
@@ -288,6 +291,33 @@ def count_work(*watches: Watch, budget: int | None = None) -> Iterator[Work]:
         yield work
     finally:
         sys.settrace(previous)
+
+
+@contextmanager
+def mutant(owner: Any, name: str, *changes: tuple[str, str]) -> Iterator[Any]:
+    """Put in place of the function ``name`` of ``owner`` a copy of its
+    source with each change made, each old text found exactly once. The
+    copy stands for a regression of the library's code, so that a test can
+    show its budget stops it.
+
+    The copy's lines are kept where :func:`steps` reads them, so a watch
+    made while the copy is in place names the copy's lines by their text.
+    A test makes its watches inside this context for that reason."""
+    function = inspect.unwrap(getattr(owner, name))
+    source = textwrap.dedent(inspect.getsource(function))
+    for old, new in changes:
+        assert source.count(old) == 1, f"{function.__qualname__} holds {old!r} {source.count(old)} times"
+        source = source.replace(old, new)
+    filename = f"<mutant of {function.__module__}.{function.__qualname__}>"
+    linecache.cache[filename] = (len(source), None, source.splitlines(True), filename)
+    code = compile(source, filename, "exec", flags=__future__.annotations.compiler_flag, dont_inherit=True)
+    defined: dict[str, Any] = {}
+    exec(code, function.__globals__, defined)
+    try:
+        with mock.patch.object(owner, name, defined[function.__name__]):
+            yield defined[function.__name__]
+    finally:
+        linecache.cache.pop(filename, None)
 
 
 class CaseTimeout(AssertionError):
