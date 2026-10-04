@@ -35,6 +35,45 @@
   }
 
   /**
+   * The union of many tag sets, built by adding each to one set that the
+   * union owns. A fold of tagUnion copies its growing left side at every
+   * step, so k sets would cost the square of k. Like tagUnion, the result can
+   * be one of the sets given, until a second set with tags arrives, so no
+   * caller may change it.
+   */
+  class TagUnion {
+    constructor() {
+      /** @type {TagSet} */
+      this.tags = EMPTY_TAGS;
+      this.owned = false;
+    }
+    /** @param {TagSet} tags */
+    add(tags) {
+      if (tags.size === 0) return;
+      if (this.tags.size === 0) {
+        this.tags = tags;
+        return;
+      }
+      if (!this.owned) {
+        this.tags = new Set(this.tags);
+        this.owned = true;
+      }
+      for (const tag of tags) this.tags.add(tag);
+    }
+    /**
+     * The union, a new empty set when nothing had tags, as the folds that
+     * this replaces gave.
+     * @returns {TagSet}
+     */
+    result() {
+      return this.tags === EMPTY_TAGS ? new Set() : this.tags;
+    }
+  }
+
+  /** @type {TagSet} */
+  const EMPTY_TAGS = new Set();
+
+  /**
    * The tags of both sets.
    * @param {TagSet} left
    * @param {TagSet} right
@@ -2525,77 +2564,93 @@
    * @returns {Map<string, number>[]}
    */
   function alternativeCaptures(alternative) {
-    return captureSequences(alternative.expr).sequences.map((sequence) => {
+    return captureSequences(alternative.expr).map((sequence) => {
       /** @type {Map<string, number>} */
       const captures = new Map([["", -1]]);
-      sequence.forEach((capture, index) => captures.set(capture.capture, index));
+      sequence.forEach((name, index) => captures.set(name, index));
       return captures;
     });
   }
+
+  /**
+   * A sequence of capture names, as a node of a trie of all the sequences
+   * of one expression: one node for each distinct sequence, which shares its
+   * prefix with the sequences it extends.
+   * @typedef {{parent: CaptureNode | null, name: string, length: number, children: Map<string, CaptureNode> | null}} CaptureNode
+   */
 
   /**
    * The distinct sequences of captures that the productions of an expression
    * read, each in the order read (engine §3.2, §3.5): a choice gives each
    * branch's, an `&` each subsequence's, a plain optional none or its
    * content's, and braces and an elidable optional none. Productions that
-   * read the same names in the same order are one sequence. `duplicates` are
-   * the captures that some production reads after one of the same name, in
-   * no particular order. Gates do not matter, since they drop whole
-   * alternatives.
+   * read the same names in the same order are one sequence. Gates do not
+   * matter, since they drop whole alternatives.
+   *
+   * The sequences are nodes of a trie, so that extending one by a capture
+   * costs one step and two equal sequences are one node. A copy of each
+   * growing prefix would cost the square of a sequence's length.
    * @param {any} expr
-   * @returns {{sequences: {capture: string}[][], duplicates: {capture: string}[]}}
+   * @returns {string[][]}
    */
   function captureSequences(expr) {
-    /** @type {Set<{capture: string}>} */
-    const duplicates = new Set();
-    /** @type {(lists: {capture: string}[][]) => {capture: string}[][]} */
-    const distinct = (lists) => {
-      const seen = new Set();
-      return lists.filter((list) => {
-        const key = list.map((capture) => capture.capture).join(" ");
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
+    /** @type {CaptureNode} */
+    const root = { parent: null, name: "", length: 0, children: null };
+    /** @type {(node: CaptureNode, name: string) => CaptureNode} */
+    const extended = (node, name) => {
+      const children = node.children ?? (node.children = new Map());
+      let child = children.get(name);
+      if (!child) children.set(name, (child = { parent: node, name, length: node.length + 1, children: null }));
+      return child;
     };
-    /** @type {(left: {capture: string}[][], right: {capture: string}[][]) => {capture: string}[][]} */
+    /** @type {(node: CaptureNode) => string[]} */
+    const names = (node) => {
+      const list = new Array(node.length);
+      for (let at = node; at.parent !== null; at = at.parent) list[at.length - 1] = at.name;
+      return list;
+    };
+    /** @type {(lists: CaptureNode[]) => CaptureNode[]} */
+    const distinct = (lists) => (lists.length < 2 ? lists : [...new Set(lists)]);
+    /** @type {(left: CaptureNode[], right: CaptureNode[]) => CaptureNode[]} */
     const product = (left, right) => {
-      /** @type {{capture: string}[][]} */
+      /** @type {CaptureNode[]} */
       const result = [];
+      const suffixes = right.map(names);
       for (const a of left) {
-        for (const b of right) {
-          for (const capture of b) if (a.some((other) => other.capture === capture.capture)) duplicates.add(capture);
-          result.push([...a, ...b]);
+        for (const suffix of suffixes) {
+          let node = a;
+          for (const name of suffix) node = extended(node, name);
+          result.push(node);
         }
       }
       return distinct(result);
     };
-    /** @type {(node: any) => Generator<Step, {capture: string}[][], any>} */
+    /** @type {(node: any) => Generator<Step, CaptureNode[], any>} */
     const visit = function* (node) {
-      if (!isDomObject(node)) return [[]];
-      if (typeof node.capture === "string") return [[/** @type {{capture: string}} */ (node)]];
+      if (!isDomObject(node)) return [root];
+      if (typeof node.capture === "string") return [extended(root, node.capture)];
       if (Array.isArray(node.seq)) {
-        /** @type {{capture: string}[][]} */
-        let sequences = [[]];
+        /** @type {CaptureNode[]} */
+        let sequences = [root];
         for (const item of node.seq) sequences = product(sequences, yield visit(item));
         return sequences;
       }
       if (Array.isArray(node.choice)) {
-        /** @type {{capture: string}[][]} */
+        /** @type {CaptureNode[]} */
         const all = [];
         for (const item of node.choice) for (const sequence of yield visit(item)) all.push(sequence);
         return distinct(all);
       }
       if (Array.isArray(node.and)) {
-        /** @type {{capture: string}[][][]} */
+        /** @type {CaptureNode[][]} */
         const parts = [];
         for (const item of node.and) parts.push(yield visit(item));
-        /** @type {{capture: string}[][]} */
+        /** @type {CaptureNode[]} */
         const result = [];
         for (let mask = 1; mask < 1 << parts.length; mask++) {
-          /** @type {{capture: string}[][]} */
-          let sequences = [[]];
-          parts.forEach((/** @type {{capture: string}[][]} */ part, /** @type {number} */ index) => {
+          /** @type {CaptureNode[]} */
+          let sequences = [root];
+          parts.forEach((part, index) => {
             if (mask & (1 << index)) sequences = product(sequences, part);
           });
           for (const sequence of sequences) result.push(sequence);
@@ -2603,16 +2658,15 @@
         return distinct(result);
       }
       if ("optional" in node) {
-        if (node.elidable === true) return [[]];
-        /** @type {{capture: string}[][]} */
-        const all = [[]];
+        if (node.elidable === true) return [root];
+        /** @type {CaptureNode[]} */
+        const all = [root];
         for (const sequence of yield visit(node.optional)) all.push(sequence);
         return distinct(all);
       }
-      return [[]];
+      return [root];
     };
-    const sequences = run(visit(expr));
-    return { sequences, duplicates: [...duplicates] };
+    return run(visit(expr)).map(names);
   }
 
   /**
@@ -2733,7 +2787,15 @@
     // order are one.
     const productions = rule.alternatives.flatMap((/** @type {any} */ alternative) => alternativeCaptures(alternative).map((captures) => ({ captures, alternative })));
     const alternatives = productions.map((/** @type {{captures: Map<string, number>}} */ production) => production.captures);
-    const anyHas = (/** @type {string} */ name) => alternatives.some((/** @type {Map<string, number>} */ captures) => captures.has(name));
+    // The names some production captures, and those every one does, found
+    // once rather than by a scan of the productions for each name.
+    /** @type {Set<string>} */
+    const somewhere = new Set();
+    for (const captures of alternatives) for (const name of captures.keys()) somewhere.add(name);
+    /** @type {Set<string>} */
+    const everywhere = new Set(alternatives.length ? alternatives[0].keys() : []);
+    for (const captures of alternatives) for (const name of everywhere) if (!captures.has(name)) everywhere.delete(name);
+    const anyHas = (/** @type {string} */ name) => somewhere.has(name);
     const items = rule.emit ? rule.emit.items : [];
     // A constituent that does not count is never an opaque part (engine §9).
     if (rule.opaque && rule.emit && items.length === 0) return `${rule.name} is opaque and emits ε`;
@@ -2782,10 +2844,20 @@
         if (missing !== undefined) return `a tag term of ${rule.name} uses $${missing}, which a production lacks; guard it with $${missing} ⟹`;
       }
     }
+    // Each inserted tag's anchor is the next capture item, found in one
+    // backward pass.
+    /** @type {any[]} */
+    const anchors = new Array(items.length);
+    for (let index = items.length - 1, next = undefined; index >= 0; index--) {
+      anchors[index] = next;
+      if (items[index].capture !== undefined) next = items[index];
+    }
+    /** @type {(name: string) => boolean} */
+    const allHave = (name) => alternatives.length === 0 || everywhere.has(name);
     for (let index = 0; index < items.length; index++) {
       if (items[index].insert === undefined) continue;
-      const next = items.slice(index + 1).find((/** @type {any} */ item) => item.capture !== undefined);
-      if (next && next.capture !== "" && !alternatives.every((/** @type {Map<string, number>} */ captures) => captures.has(next.capture))) {
+      const next = anchors[index];
+      if (next && next.capture !== "" && !allHave(next.capture)) {
         return `%emits of ${rule.name} inserts a tag before $${next.capture}, which a production lacks`;
       }
     }
@@ -3595,7 +3667,11 @@
       if ("range" in term) return { set: rangeTags(term.range, this.unicode) };
       if ("emptySet" in term) return { set: tagSet() };
       if ("const" in term) return /** @type {StageConstant} */ (this.constants.get(term.const)).value;
-      if ("union" in term) return { set: term.union.map(set).reduce(tagUnion, tagSet()) };
+      if ("union" in term) {
+        const result = new TagUnion();
+        for (const part of term.union) result.add(set(part));
+        return { set: result.result() };
+      }
       if ("intersection" in term) {
         const [first, ...rest] = term.intersection.map(set);
         return { set: rest.reduce(tagIntersection, first) };
@@ -3961,14 +4037,28 @@
     }
 
     /**
-     * Numbers a production and adds it.
-     * @param {Omit<Production, "id">} fields
+     * Numbers a production and adds it, with its captures indexed by
+     * position and by name: every advance and every read of a capture looks
+     * one up, so a scan of the list would cost its length each time.
+     * The conditions are grouped by when they are ready, so that an advance
+     * looks only at its own.
+     * @param {Omit<Production, "id" | "captureAt" | "captureSlot" | "conditionsAt">} fields
      * @returns {Production}
      */
     addProduction(fields) {
       if (fields.helper) this.structural.push({ lhs: fields.lhs, rhs: fields.rhs });
+      const captureAt = new Array(fields.rhs.length).fill(-1);
+      /** @type {Map<string, number>} */
+      const captureSlot = new Map();
+      fields.captures.forEach((capture, slot) => {
+        if (captureAt[capture.index] === -1) captureAt[capture.index] = slot;
+        if (!captureSlot.has(capture.name)) captureSlot.set(capture.name, slot);
+      });
+      /** @type {import("./types.js").ReadyCondition[][]} */
+      const conditionsAt = Array.from({ length: fields.rhs.length + 1 }, () => []);
+      for (const condition of fields.conditions) conditionsAt[condition.readyAt + 1].push(condition);
       /** @type {Production} */
-      const production = { ...fields, id: this.productions.length };
+      const production = { ...fields, captureAt, captureSlot, conditionsAt, id: this.productions.length };
       this.productions.push(production);
       let same = this.byLhs.get(production.lhs);
       if (!same) this.byLhs.set(production.lhs, (same = []));
@@ -4093,6 +4183,11 @@
         }
         tags = { call: "tags", args: [{ capture: captures[0].name }] };
       }
+      // Each capture's position, looked up once for every variable of every
+      // condition.
+      /** @type {Map<string, number>} */
+      const positionOf = new Map();
+      for (const capture of captures) if (!positionOf.has(capture.name)) positionOf.set(capture.name, capture.index);
       /** @type {import("./types.js").ReadyCondition[]} */
       const conditions = [];
       for (const written of clauses.conditions) {
@@ -4106,8 +4201,7 @@
         // reads `$` once the constituent is complete (engine §4).
         let readyAt = -1;
         for (const name of variables) {
-          readyAt = Math.max(readyAt, name === "" ? sequence.length - 1
-            : /** @type {import("./types.js").Capture} */ (captures.find((capture) => capture.name === name)).index);
+          readyAt = Math.max(readyAt, name === "" ? sequence.length - 1 : /** @type {number} */ (positionOf.get(name)));
         }
         conditions.push({ condition, readyAt });
       }
@@ -4164,7 +4258,7 @@
           /** @type {SequenceItem[][]} */
           let sequences = [[]];
           parts.forEach((part, index) => {
-            if (mask & (1 << index)) sequences = product(sequences, part);
+            if (mask & (1 << index)) sequences = extendAll(sequences, part);
           });
           for (const sequence of sequences) result.push(sequence);
         }
@@ -4236,7 +4330,7 @@
     expandSequence(items, where) {
       /** @type {SequenceItem[][]} */
       let sequences = [[]];
-      for (const item of items) sequences = product(sequences, this.expand(item, where));
+      for (const item of items) sequences = extendAll(sequences, this.expand(item, where));
       return sequences;
     }
 
@@ -4278,6 +4372,29 @@
     /** @type {SequenceItem[][]} */
     const result = [];
     for (const a of left) for (const b of right) result.push([...a, ...b]);
+    return result;
+  }
+
+  /**
+   * The product of sequences that the caller owns with others, made by
+   * extending each owned sequence in place where it continues one way. A
+   * copy of the growing prefix at each item would cost the square of a
+   * sequence's length. A sequence that continues several ways is copied for
+   * all but the last.
+   * @param {SequenceItem[][]} left owned, and changed
+   * @param {SequenceItem[][]} right only read
+   * @returns {SequenceItem[][]}
+   */
+  function extendAll(left, right) {
+    /** @type {SequenceItem[][]} */
+    const result = [];
+    for (const a of left) {
+      for (let index = 0; index < right.length; index++) {
+        const sequence = index === right.length - 1 ? a : a.slice();
+        for (const item of right[index]) sequence.push(item);
+        result.push(sequence);
+      }
+    }
     return result;
   }
 
@@ -4405,7 +4522,27 @@
 
   // How many items the recognizer has made, in parses and nested parses
   // alike: a measure of work that tests compare across input lengths.
-  const recognizerCounters = { items: 0, captures: 0, captureSteps: 0 };
+  // `edgeChecks` counts the comparisons that look for an edge already found.
+  const recognizerCounters = { items: 0, captures: 0, captureSteps: 0, edgeChecks: 0 };
+
+  // An item with more than a few further ways, built in an ambiguous grammar,
+  // gets an index of them by `previous` and then `child`. A scan of its list
+  // for each new way would cost the square of their number. Most items have
+  // one way, so the index is made only when the list grows past this.
+  const EDGE_SCAN_LIMIT = 8;
+  /** @type {WeakMap<Item, Map<Item, Set<Item | null>>>} */
+  const edgeIndexes = new WeakMap();
+
+  /**
+   * @param {Map<Item, Set<Item | null>>} index
+   * @param {Item} previous
+   * @param {Item | null} child
+   */
+  function indexEdge(index, previous, child) {
+    const children = index.get(previous);
+    if (children) children.add(child);
+    else index.set(previous, new Set([child]));
+  }
 
   // What a parse and every nested parse it starts share.
   class ParseContext {
@@ -4458,6 +4595,13 @@
        * @type {(string | undefined)[]}
        */
       this.sounds = new Array(tokens.length);
+      /**
+       * For each position, the first token at or after it whose sound is not
+       * empty, made on the first sound test. A test then skips a run of
+       * silent tokens in one step, rather than walking it each time.
+       * @type {Int32Array | null}
+       */
+      this.nextSounding = null;
       // The most places a dot can be in one production, for numbering the
       // items of a set (see itemKey).
       this.dots = lowered.productions.reduce((most, production) => Math.max(most, production.rhs.length + 1), 1);
@@ -4664,9 +4808,26 @@
         // has no other edge, since nothing else puts a dot at the start.
         if ((item.previous === previous && item.child === child) || previous === null) return;
         const more = item.more || (item.more = []);
-        for (const edge of more) {
-          if (edge.kind === "scan" && edge.previous === previous) return;
-          if (edge.kind === "complete" && edge.previous === previous && edge.child === child) return;
+        if (more.length < EDGE_SCAN_LIMIT) {
+          for (const edge of more) {
+            recognizerCounters.edgeChecks++;
+            if (edge.kind === "scan" && edge.previous === previous) return;
+            if (edge.kind === "complete" && edge.previous === previous && edge.child === child) return;
+          }
+        } else {
+          let index = edgeIndexes.get(item);
+          if (!index) {
+            index = new Map();
+            for (const edge of more) {
+              if (edge.kind === "scan") indexEdge(index, edge.previous, null);
+              else if (edge.kind === "complete") indexEdge(index, edge.previous, edge.child);
+            }
+            edgeIndexes.set(item, index);
+          }
+          recognizerCounters.edgeChecks++;
+          const children = index.get(previous);
+          if (children && children.has(child)) return;
+          indexEdge(index, previous, child);
         }
         if (child === null) more.push({ kind: "scan", previous, token: set.position - 1, terminal: production.rhs[dot - 1].name });
         else more.push({ kind: "complete", previous, child });
@@ -4798,7 +4959,7 @@
         return null;
       }
       let slots = item.slots;
-      const captureIndex = production.captures.findIndex((capture) => capture.index === item.dot);
+      const captureIndex = production.captureAt[item.dot];
       if (captureIndex >= 0) {
         // A terminal that reads a synthetic token captures no tags (engine
         // §7.5), unless a fault gives it the token's, to a capture and to a
@@ -5031,11 +5192,11 @@
    * @returns {TagSet}
    */
   function syntheticTags(context, from, to) {
-    let result = tagSet();
     const synthetic = context.synthetic;
-    if (synthetic === null) return result;
-    for (let index = from; index < to; index++) if (synthetic[index]) result = tagUnion(result, context.tokens[index].tags);
-    return result;
+    if (synthetic === null) return tagSet();
+    const result = new TagUnion();
+    for (let index = from; index < to; index++) if (synthetic[index]) result.add(context.tokens[index].tags);
+    return result.result();
   }
 
   /**
@@ -5091,12 +5252,30 @@
    */
   function soundIs(context, sound, from, to) {
     let offset = 0;
-    for (let index = from; index < to; index++) {
+    for (let index = nextSounding(context, from); index < to; index = nextSounding(context, index + 1)) {
       const part = canonicalSound(context, index);
       if (!sound.startsWith(part, offset)) return false;
       offset += part.length;
     }
     return offset === sound.length;
+  }
+
+  /**
+   * The first token at or after a position whose sound is not empty, or the
+   * number of tokens.
+   * @param {ParseContext} context
+   * @param {number} index
+   * @returns {number}
+   */
+  function nextSounding(context, index) {
+    let next = context.nextSounding;
+    if (next === null) {
+      const count = context.tokens.length;
+      next = context.nextSounding = new Int32Array(count + 1);
+      next[count] = count;
+      for (let at = count - 1; at >= 0; at--) next[at] = canonicalSound(context, at) === "" ? next[at + 1] : at;
+    }
+    return next[index];
   }
 
   /**
@@ -5249,9 +5428,11 @@
   function failedCondition(context, production, readyAt, slots, origin, end, step = { scope: null }) {
     // In written order (engine §4), unless a fault takes the conditions that
     // read only captures before those that read `$` (order:conditions).
+    // The conditions ready here, grouped once per production: a scan of all
+    // of them at each advance would cost their number at every dot.
     const conditions = fault("order:conditions")
       ? [...production.conditions].sort((a, b) => Number(conditionVariables(a.condition).includes("")) - Number(conditionVariables(b.condition).includes("")))
-      : production.conditions;
+      : production.conditionsAt[readyAt + 1];
     for (const { condition, readyAt: at } of conditions) {
       if (at !== readyAt) continue;
       const scope = step.scope ??= new ChartScope(context, production, slots, origin, end);
@@ -5680,9 +5861,9 @@
    * @returns {TagSet}
    */
   function tokensTags(tokens, start, end) {
-    let result = tagSet();
-    for (let index = start; index < end; index++) result = tagUnion(result, tokens[index].tags);
-    return result;
+    const result = new TagUnion();
+    for (let index = start; index < end; index++) result.add(tokens[index].tags);
+    return result.result();
   }
 
   /**
@@ -5709,7 +5890,11 @@
     }
     if ("if" in term) return holds(context, term.if, scope) ? evaluate(context, term.then, scope) : { set: tagSet() };
     if ("emptySet" in term) return { set: tagSet() };
-    if ("union" in term) return { set: term.union.reduce((acc, item) => tagUnion(acc, asSet(evaluate(context, item, scope))), tagSet()) };
+    if ("union" in term) {
+      const result = new TagUnion();
+      for (const item of term.union) result.add(asSet(evaluate(context, item, scope)));
+      return { set: result.result() };
+    }
     if ("intersection" in term) {
       const [first, ...rest] = term.intersection.map((item) => asSet(evaluate(context, item, scope)));
       return { set: rest.reduce((acc, item) => tagIntersection(acc, item), first) };
@@ -5725,7 +5910,9 @@
           // The canonical sound (engine §5).
           const where = observe(context, spanOf(context, args[0], scope), scope, "phonemes");
           let sound = "";
-          for (let index = where.start; index < where.end; index++) sound += canonicalSound(where.context, index);
+          for (let index = nextSounding(where.context, where.start); index < where.end; index = nextSounding(where.context, index + 1)) {
+            sound += canonicalSound(where.context, index);
+          }
           return { string: sound };
         }
         case "text": {
@@ -5980,8 +6167,11 @@
    * @returns {TagSet}
    */
   function nestedTags(context, rule, start, end, target = null) {
-    return nested(context, "tags", rule, start, end, (chart) =>
-      eligibleWitnesses(chart, rootItems(chart, rule), testHolds).reduce((acc, item) => tagUnion(acc, context.interner.get(item.tagId)), tagSet()), target);
+    return nested(context, "tags", rule, start, end, (chart) => {
+      const result = new TagUnion();
+      for (const item of eligibleWitnesses(chart, rootItems(chart, rule), testHolds)) result.add(context.interner.get(item.tagId));
+      return result.result();
+    }, target);
   }
 
   // The furthest position the parse reached, and what could have been read
@@ -6055,6 +6245,26 @@
   // ---- Where in the text --------------------------------------------------
 
   /**
+   * A text's code points and where its line breaks are, built once so that
+   * each excerpt of the text costs its line, not the text before it.
+   * @typedef {{characters: string[], breaks: number[]}} LineIndex
+   */
+
+  /**
+   * @param {string} text
+   * @returns {LineIndex}
+   */
+  function lineIndex(text) {
+    const characters = [...text];
+    const breaks = [];
+    for (let index = 0; index < characters.length; index++) {
+      const character = characters[index];
+      if (character === "\n" || (character === "\r" && characters[index + 1] !== "\n")) breaks.push(index);
+    }
+    return { characters, breaks };
+  }
+
+  /**
    * The line of the text holding a source range, and a caret line under the
    * range: at least one caret, at the end of the line for an empty range.
    * @param {string} text
@@ -6062,16 +6272,25 @@
    * @returns {{line: number, column: number, excerpt: string}}
    */
   function sourceExcerpt(text, source) {
-    const characters = [...text];
-    let line = 1;
-    let lineStart = 0;
-    for (let index = 0; index < source[0] && index < characters.length; index++) {
-      const character = characters[index];
-      if (character === "\n" || (character === "\r" && characters[index + 1] !== "\n")) {
-        line++;
-        lineStart = index + 1;
-      }
+    return excerptAt(lineIndex(text), source);
+  }
+
+  /**
+   * @param {LineIndex} lines
+   * @param {Span} source code point range
+   * @returns {{line: number, column: number, excerpt: string}}
+   */
+  function excerptAt({ characters, breaks }, source) {
+    // The number of breaks before the range's start, by binary search.
+    let low = 0;
+    let high = breaks.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (breaks[middle] < source[0]) low = middle + 1;
+      else high = middle;
     }
+    const line = low + 1;
+    const lineStart = low === 0 ? 0 : breaks[low - 1] + 1;
     let lineEnd = lineStart;
     while (lineEnd < characters.length && characters[lineEnd] !== "\n" && characters[lineEnd] !== "\r") lineEnd++;
     const shown = characters.slice(lineStart, lineEnd).join("").replace(/\t/g, " ");
@@ -6184,7 +6403,8 @@
       const line = a[index] || "";
       out.push(line + " ".repeat(width - [...line].length) + (b[index] || ""));
     }
-    return out.map((line) => line.replace(/\s+$/, "")).join("\n");
+    // trimEnd, since /\s+$/ tries each space of a long inner run in turn.
+    return out.map((line) => line.trimEnd()).join("\n");
   }
 
   /**
@@ -6234,9 +6454,11 @@
    * @returns {string}
    */
   function explainWarnings(result) {
-    return (result.warnings || []).map((warning) => [
+    const warnings = result.warnings || [];
+    const lines = warnings.length ? lineIndex(result.text) : null;
+    return warnings.map((warning) => [
       `Warning: the ${warning.stage} stage read this with the feature ${warning.feature}, in the rule ${warning.rule}:`,
-      sourceExcerpt(result.text, warning.source).excerpt,
+      excerptAt(/** @type {LineIndex} */ (lines), warning.source).excerpt,
     ].join("\n")).join("\n\n");
   }
 
@@ -6331,7 +6553,8 @@
   function formatItem(production, dot) {
     const symbols = production.rhs.map((symbol, index) => {
       const name = symbol.name.includes("·") ? `‹${symbol.name.split("·")[0]} part›` : writtenSymbol(symbol);
-      const capture = production.captures.find((entry) => entry.index === index && !entry.name.startsWith("\u0000"));
+      const slot = production.captureAt[index];
+      const capture = slot >= 0 && !production.captures[slot].name.startsWith("\u0000") ? production.captures[slot] : undefined;
       return capture ? `$${capture.name}(${name})` : name;
     });
     symbols.splice(dot, 0, "•");
@@ -7252,9 +7475,10 @@
         let all = [];
         /** @type {Candidate[]} */
         let allowed = [];
-        current.edges.forEach((edge, index) => {
+        // The getter builds the list on each read, so it is read once.
+        current.edges.forEach((edge, index, edges) => {
           // A fault skips the last of two or more edges in the check (lost:select).
-          if (this.check && index > 0 && index === current.edges.length - 1 && fault("lost:select")) return;
+          if (this.check && index > 0 && index === edges.length - 1 && fault("lost:select")) return;
           const inAll = summary === null || summary.all.kept.has(index);
           const inAllowed = summary === null || summary.allowed.kept.has(index);
           if (!inAll && !inAllowed) return;
@@ -8849,7 +9073,8 @@
     /** @param {string} name */
     capture(name) {
       if (name === "") return { start: this.node.start, end: this.node.end, tags: nodeTags(this.node, this.context) };
-      const capture = /** @type {import("./types.js").Capture} */ (this.node.production.captures.find((entry) => entry.name === name));
+      const production = this.node.production;
+      const capture = production.captures[/** @type {number} */ (production.captureSlot.get(name))];
       const child = this.node.children[capture.index];
       return { start: child.start, end: child.end, tags: nodeTags(child, this.context) };
     }
@@ -9130,31 +9355,50 @@
   }
 
   /**
+   * The implications of a stage indexed by each tag of their `if`, made once
+   * per list of implications.
+   * @type {WeakMap<{if: TagSet, then: TagSet}[], Map<string, number[]>>}
+   */
+  const implicationIndexes = new WeakMap();
+
+  /**
    * A token's explicit tags with the tags of the stage's implications, added
    * until no tag changes (engine §11). An implication only adds tags, so the
-   * loop ends, also over a cycle.
+   * closure ends, also over a cycle. A pass over every implication until none
+   * adds a tag would settle one link of a chain per pass, so a worklist of the
+   * tags added fires each implication at most once.
    * @param {TagSet} tags
    * @param {{if: TagSet, then: TagSet}[]} implications
    * @returns {TagSet}
    */
   function implied(tags, implications) {
-    let result = tags;
-    for (let changed = implications.length > 0; changed;) {
-      changed = false;
-      for (const implication of implications) {
-        let meets = false;
-        for (const tag of implication.if) {
-          if (result.has(tag)) {
-            meets = true;
-            break;
-          }
+    if (implications.length === 0) return tags;
+    let index = implicationIndexes.get(implications);
+    if (!index) {
+      index = new Map();
+      for (let number = 0; number < implications.length; number++) {
+        for (const tag of implications[number].if) {
+          const list = index.get(tag);
+          if (list) list.push(number);
+          else index.set(tag, [number]);
         }
-        if (!meets) continue;
-        for (const tag of implication.then) {
+      }
+      implicationIndexes.set(implications, index);
+    }
+    let result = tags;
+    /** @type {Set<number> | null} */
+    let fired = null;
+    const queue = [...tags];
+    for (let head = 0; head < queue.length; head++) {
+      for (const number of index.get(queue[head]) ?? []) {
+        if (fired === null) fired = new Set();
+        else if (fired.has(number)) continue;
+        fired.add(number);
+        for (const tag of implications[number].then) {
           if (result.has(tag)) continue;
           if (result === tags) result = new Set(tags);
           result.add(tag);
-          changed = true;
+          queue.push(tag);
         }
       }
     }
@@ -9232,19 +9476,27 @@
       // start of its anchor, the first written part of the capture item listed
       // next after it, or the constituent's end.
       /** @type {(name: string) => Derivation} */
-      const part = (name) => node.children[/** @type {import("./types.js").Capture} */ (production.captures.find((entry) => entry.name === name)).index];
+      const part = (name) => node.children[production.captures[/** @type {number} */ (production.captureSlot.get(name))].index];
       // An attachment: what its captured parts emit in their place, walked
       // into a list of their own (engine §11).
       /** @type {(names: string[] | undefined) => EmitTask[]} */
       const walks = (names) => (names ?? []).map((name) => ({ walk: part(name) }));
       // The attachments gathered last, each token without its span.
       const gathered = () => /** @type {Token[]} */ (lists.pop()).map(attached);
+      // Each item's anchor, the next capture item listed after it, found in
+      // one backward pass rather than by a search of the rest for each.
+      /** @type {(EmitItem | undefined)[]} */
+      const anchors = new Array(clause.items.length);
+      for (let index = clause.items.length - 1, next = undefined; index >= 0; index--) {
+        anchors[index] = next;
+        if (clause.items[index].capture !== undefined) next = clause.items[index];
+      }
       /** @type {EmitTask[]} */
       const ordered = [];
       clause.items.forEach((item, index) => {
         if (item.insert !== undefined) {
           const insert = item.insert;
-          const next = clause.items.slice(index + 1).find((later) => later.capture !== undefined);
+          const next = anchors[index];
           const at = next && next.capture !== undefined ? part(next.before?.[0] ?? next.capture).start : node.end;
           ordered.push({ run: () => put(insertedToken(insert, at, node, context, production.owner)) });
         } else if (item.capture !== undefined) {
@@ -10557,7 +10809,8 @@
           out.push(`(* ${commentLabel(documentPath)} *)`);
           last = documentPath;
         }
-        out.push(chars.slice(start, end).join("").replace(/\s+$/, ""));
+        // trimEnd, since /\s+$/ tries each space of a long inner run in turn.
+        out.push(chars.slice(start, end).join("").trimEnd());
       });
     };
     walk(dialect.path);
@@ -11626,7 +11879,13 @@
    * @property {SymbolTest | null} elidedTest the test of that terminator, an
    *   `=` test whose string a restored token sounds like, or null (engine §7)
    * @property {Capture[]} captures
+   * @property {number[]} captureAt for each position of `rhs`, the index in
+   *   `captures` of the capture there, or -1
+   * @property {Map<string, number>} captureSlot each capture's name, with its
+   *   index in `captures`
    * @property {ReadyCondition[]} conditions
+   * @property {ReadyCondition[][]} conditionsAt the conditions ready after
+   *   each position, at `readyAt + 1`, in written order
    * @property {Term | null} tags
    * @property {Emission | null} emit
    * @property {boolean} opaque whether its constituent is an opaque part,
