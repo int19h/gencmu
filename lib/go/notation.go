@@ -624,6 +624,11 @@ func (b *domBuilder) exprIn(n *Node, whole bool) *domExpr {
 		// Only the one conjunction of an alternative, and its one sequence
 		// of one primary, are its whole expression.
 		inWhole := whole && kind != exChoice && len(parts) == 1
+		// The bound of an & is its own form, so it comes before its items
+		// (engine §9).
+		if kind == exAnd && len(parts) > maxAnd {
+			b.fail(n, "an & joins at most %d items, since it expands to 2ⁿ−1 sequences", maxAnd)
+		}
 		for _, p := range parts {
 			if kind == exSeq {
 				items = append(items, b.exprIn(b.knownOf(p, primaryRules), inWhole))
@@ -633,9 +638,6 @@ func (b *domBuilder) exprIn(n *Node, whole bool) *domExpr {
 		}
 		if len(items) == 1 {
 			return items[0]
-		}
-		if kind == exAnd && len(items) > maxAnd {
-			b.fail(n, "an & joins at most %d items, since it expands to 2ⁿ−1 sequences", maxAnd)
 		}
 		return &domExpr{Kind: kind, Items: items}
 	case "repetition":

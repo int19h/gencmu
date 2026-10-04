@@ -9219,9 +9219,10 @@
         }
         case "conjunction": {
           const found = some(node, "sequence");
+          // A & of n items expands to 2ⁿ−1 sequences (engine §3.2). The
+          // bound is the &'s own form, so it comes before its items (§9).
+          if (found.length > 16) fail("an & joins at most 16 items", node);
           const items = found.map((item) => readExpression(item, whole && found.length === 1));
-          // A & of n items expands to 2ⁿ−1 sequences (engine §3.2).
-          if (items.length > 16) fail("an & joins at most 16 items", node);
           return items.length === 1 ? items[0] : { and: items };
         }
         case "sequence": {

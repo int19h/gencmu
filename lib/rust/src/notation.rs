@@ -431,6 +431,14 @@ impl<'a> Reader<'a> {
     fn conjunction(&self, node: &'a Node, depth: usize, whole: bool) -> R<Expr> {
         let depth = self.deeper(node, depth)?;
         let sequences = self.some(node, "sequence", 1)?;
+        // The bound of an & is its own form, so it comes before its items
+        // (§9).
+        if sequences.len() > crate::grammar::MAX_AND {
+            return Err(self.error(
+                node,
+                format!("an & of {} items; at most {} are allowed", sequences.len(), crate::grammar::MAX_AND),
+            ));
+        }
         let whole = whole && sequences.len() == 1;
         let mut parts = Vec::new();
         for sequence in sequences {
@@ -441,12 +449,6 @@ impl<'a> Reader<'a> {
                 items.push(self.primary(primary, depth, whole)?);
             }
             parts.push(single_or(items, Expr::Seq));
-        }
-        if parts.len() > crate::grammar::MAX_AND {
-            return Err(self.error(
-                node,
-                format!("an & of {} items; at most {} are allowed", parts.len(), crate::grammar::MAX_AND),
-            ));
         }
         Ok(single_or(parts, Expr::And))
     }

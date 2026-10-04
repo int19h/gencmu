@@ -1,0 +1,10 @@
+{
+  "description": "An & of more than 16 items is an error at the &, its first item, before an error that one of its items holds, here a range whose start is above its end: the bound is the &'s own form (engine §9).",
+  "document": "```jbogenbau\n%rule text A & A & A & A & A & A & A & A & A & A & A & A & A & A & A & A & 'z'..'a'\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 12
+    }
+  }
+}
