@@ -379,6 +379,26 @@ class MaximalQueryCost(unittest.TestCase):
                 except OverBudget as over:
                     self.fail(f"{over.length} tokens: {over.why}, at {over.counts} checks, tests and items looked at")
 
+    def test_a_rebuilt_table_fails_by_count(self) -> None:
+        """Without the return of the furthest ends found before, every check
+        finds them again from every item, which the cache left in place
+        would hide. The test fails by its count in the first parse, at the
+        Maximal's third pass, having looked at a few times its items, where
+        the whole parse would look at hundreds of thousands."""
+        longest = Maximal.longest
+
+        def uncached(self: Maximal) -> Any:
+            self.furthest = None
+            return longest(self)
+
+        with mock.patch.object(Maximal, "longest", uncached), self.assertRaises(OverBudget) as raised:
+            self.grows_linearly(self.PLAIN)
+        over = raised.exception
+        self.assertEqual(over.length, 250, over.why)
+        self.assertTrue(over.why.startswith(f"pass {self.PASSES + 1} "), over.why)
+        self.assertLess(over.counts[0], 10, over.counts)
+        self.assertLess(over.counts[2], 10_000, over.counts)
+
 
 if __name__ == "__main__":
     unittest.main()
