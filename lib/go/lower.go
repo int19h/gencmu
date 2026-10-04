@@ -149,6 +149,20 @@ type lowerer struct {
 	// with the alternative and the rule that wrote it, in the order
 	// lowering met them.
 	braceItems []braceItem
+	// The clauses of each rule, split by the presence of captures once
+	// for all its productions, by the term, list or emission split, and
+	// the warnings of each alternative, found once (§3.6).
+	terms    map[*domTerm]*termLowering
+	condsOf  map[condsKey]*condLowering
+	emits    map[*domEmit]*emitSplit
+	warnings map[*sAlt][]string
+}
+
+// condsKey is a list of conditions, known by its first element and its
+// length.
+type condsKey struct {
+	first **domCond
+	n     int
 }
 
 type structuralProduction struct {
@@ -186,7 +200,7 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 		return l
 	}
 	l.classifiers = tables.tables
-	lw := &lowerer{g: g, l: l, features: features}
+	lw := &lowerer{g: g, l: l, features: features, terms: map[*domTerm]*termLowering{}, condsOf: map[condsKey]*condLowering{}, emits: map[*domEmit]*emitSplit{}, warnings: map[*sAlt][]string{}}
 	for _, r := range g.rules {
 		l.byName[r.name] = int32(len(l.rules))
 		l.rules = append(l.rules, &lrule{name: r.name, owner: r.name, scc: -1})
@@ -452,34 +466,47 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 		_, ok := position[name]
 		return ok || name == ""
 	}
+	// The names of the captures the production has, by which the parts of
+	// its clauses are found.
+	names := []string{""}
+	for name := range position {
+		presenceStep()
+		names = append(names, name)
+	}
 	// The clauses are simplified for the production (§3.6). A condition
 	// that became true is dropped, and one that became false removes the
 	// production; one that uses a capture the production lacks does not
 	// apply to it.
 	var conds []*domCond
-	for _, c := range a.conds {
-		s, tv := simplifyCond(c, has)
-		switch tv {
-		case alwaysTrue:
-			continue
-		case alwaysFalse:
-			return
+	if len(a.conds) > 0 {
+		key := condsKey{&a.conds[0], len(a.conds)}
+		cl := lw.condsOf[key]
+		if cl == nil {
+			cl = newCondLowering(a.conds)
+			lw.condsOf[key] = cl
 		}
-		used := map[string]bool{}
-		condCaptures(s, used)
-		if _, ok := usesAll(used, has); ok {
-			conds = append(conds, s)
+		var ok bool
+		if conds, ok = cl.forProduction(names, has); !ok {
+			return
 		}
 	}
 	p := lw.newProduction(lhs, body)
 	p.opaque = a.opaque
 	p.ruleName = lw.l.rules[lhs].name
 	p.doc, p.at = a.doc, a.at
-	for _, gd := range a.alt.Guards {
-		if gd.Kind == FeatureWarning && lw.features[gd.Feature] {
-			p.warnings = append(p.warnings, gd.Feature)
-			lw.l.warns = true
+	warnings, ok := lw.warnings[a]
+	if !ok {
+		for _, gd := range a.alt.Guards {
+			presenceStep()
+			if gd.Kind == FeatureWarning && lw.features[gd.Feature] {
+				warnings = append(warnings, gd.Feature)
+			}
 		}
+		lw.warnings[a] = warnings
+	}
+	if len(warnings) > 0 {
+		p.warnings = appendCounted(nil, warnings, readerCount(), "reader steps")
+		lw.l.warns = true
 	}
 	p.transparent = len(body) == 1
 	p.implicit = false
@@ -502,7 +529,7 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 	var written []*domTerm
 	for _, t := range []*domTerm{a.alt.Tags, a.ruleTags} {
 		if t != nil {
-			written = append(written, simplifyTerm(t, has))
+			written = append(written, lw.simplifyTerm(t, names, has))
 		}
 	}
 	switch len(written) {
@@ -562,14 +589,17 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 			}
 			return out
 		}
-		for _, it := range a.emit.Items {
-			if !it.IsInsert && !has(it.Capture) {
-				continue
-			}
+		es := lw.emits[a.emit]
+		if es == nil {
+			es = newEmitSplit(a.emit.Items)
+			lw.emits[a.emit] = es
+		}
+		for _, i := range es.present(names) {
+			it := a.emit.Items[i]
 			if it.Tags != nil || len(it.Before)+len(it.After) > 0 {
 				kept := *it
 				if it.Tags != nil {
-					kept.Tags = simplifyTerm(it.Tags, has)
+					kept.Tags = lw.simplifyTerm(it.Tags, names, has)
 				}
 				kept.Before, kept.After = present(it.Before), present(it.After)
 				it = &kept
@@ -579,6 +609,18 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 		p.emit = e
 		p.nothing = a.emit.nothing()
 	}
+}
+
+// simplifyTerm simplifies a term for a production whose captures are
+// names, by has, as simplifyTerm does, the term split once for all the
+// productions that simplify it.
+func (lw *lowerer) simplifyTerm(t *domTerm, names []string, has func(string) bool) *domTerm {
+	tl := lw.terms[t]
+	if tl == nil {
+		tl = newTermLowering(t)
+		lw.terms[t] = tl
+	}
+	return tl.forProduction(names, has)
 }
 
 // elidableTerminal is the terminal of an elidable optional, the content or

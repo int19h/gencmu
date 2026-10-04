@@ -290,10 +290,19 @@ const (
 // simplifiedOutcome is the outcome of a clause for a production that has
 // the captures has says it has. It walks the clause once, with an explicit
 // stack, and builds no simplified clause, so a deep clause costs its size.
-func simplifiedOutcome(start clausePart, has func(string) bool) outcome {
+//
+// With req, the clause must hold no presence test, and has is not asked.
+// Its outcome is then the same for every production but for what it
+// lacks, so req gets, in order, each capture whose absence makes it lack
+// one: the captures its parts use, less those of parts it reduces away.
+func simplifiedOutcome(start clausePart, has func(string) bool, req *[]string) outcome {
 	type frame struct {
 		p       clausePart
 		combine bool
+		start   int
+	}
+	if req != nil {
+		has = func(string) bool { return true }
 	}
 	first := func(a, b outcome) outcome {
 		if a.lacks {
@@ -305,6 +314,15 @@ func simplifiedOutcome(start clausePart, has func(string) bool) outcome {
 	// production lacks.
 	asWritten := func(p clausePart) outcome {
 		used := outcome{kind: oUses}
+		if req != nil {
+			walkClause(p, func(q clausePart) bool {
+				if q.t != nil && q.t.Kind == tmCapture {
+					*req = append(*req, q.t.Str)
+				}
+				return true
+			})
+			return used
+		}
 		walkClause(p, func(q clausePart) bool {
 			if !used.lacks && q.t != nil && q.t.Kind == tmCapture && !has(q.t.Str) {
 				used = outcome{kind: oUses, lacks: true, missing: q.t.Str}
@@ -338,7 +356,11 @@ func simplifiedOutcome(start clausePart, has func(string) bool) outcome {
 		p := top.p
 		if !top.combine {
 			ks := kids(p)
-			stack = append(stack, frame{p: p, combine: true})
+			at := 0
+			if req != nil {
+				at = len(*req)
+			}
+			stack = append(stack, frame{p: p, combine: true, start: at})
 			for i := len(ks) - 1; i >= 0; i-- {
 				stack = append(stack, frame{p: ks[i]})
 			}
@@ -467,6 +489,11 @@ func simplifiedOutcome(start clausePart, has func(string) bool) outcome {
 				o = asWritten(p)
 			}
 		}
+		// A part whose outcome is a constant lacks nothing, whatever the
+		// parts below it use.
+		if req != nil && o.kind != oUses {
+			*req = (*req)[:top.start]
+		}
 		done = append(done, o)
 	}
 	return done[0]
@@ -559,41 +586,70 @@ func definitionProblem(r *domRule) string {
 			return fmt.Sprintf("$%s is captured by no production of %s", name, r.Name)
 		}
 	}
-	// A condition that applies to no alternative.
-	for _, c := range r.Conditions {
-		if waits(c) {
-			continue
+	// The clauses are split by the presence of captures once, so that the
+	// checks below cost each production its own captures and what applies
+	// to it, not every part of every clause (engine §3.6).
+	namesOf := func(caps map[string]int) []string {
+		out := make([]string, 0, len(caps))
+		for name := range caps {
+			step()
+			out = append(out, name)
 		}
-		applies := false
-		for _, caps := range alts {
-			o := simplifiedOutcome(clausePart{c: c}, hasIn(caps))
-			if o.kind == oTrue {
-				continue
-			}
-			if o.kind == oFalse || !o.lacks {
-				applies = true
-				break
-			}
+		return out
+	}
+	// A condition that applies to no alternative. Each production marks
+	// the conditions that apply to it.
+	conds := newCondCheck(r.Conditions, func(c *domCond) bool { return waits(c) })
+	for _, caps := range alts {
+		if conds.left == 0 {
+			break
 		}
-		if !applies {
-			return fmt.Sprintf("a condition of %s applies to no production", r.Name)
-		}
+		conds.see(namesOf(caps), hasIn(caps))
+	}
+	if conds.left > 0 {
+		return fmt.Sprintf("a condition of %s applies to no production", r.Name)
 	}
 	unguarded := func(t *domTerm, has func(string) bool) string {
 		if t == nil || waits(t) {
 			return ""
 		}
-		if o := simplifiedOutcome(clausePart{t: t}, has); o.kind == oUses && o.lacks {
+		if o := simplifiedOutcome(clausePart{t: t}, has, nil); o.kind == oUses && o.lacks {
 			return fmt.Sprintf("a tag term of %s uses $%s, which a production lacks; guard it with $%s ⟹", r.Name, o.missing, o.missing)
 		}
 		return ""
 	}
+	// Each tag term is split once, and found again by the term itself. A
+	// production found to lack a capture is checked as written, which
+	// gives the message.
+	// A term that waits for its constants is nil here.
+	checks := map[*domTerm]*termCheck{}
+	lacking := func(t *domTerm, ns []string, has func(string) bool) string {
+		if t == nil {
+			return ""
+		}
+		tc, ok := checks[t]
+		if !ok {
+			if !waits(t) {
+				tc = newTermCheck(t)
+			}
+			checks[t] = tc
+		}
+		if tc == nil || !tc.lacks(ns, has) {
+			return ""
+		}
+		return unguarded(t, has)
+	}
+	var emits *emitSplit
+	if r.Emit != nil {
+		emits = newEmitSplit(items)
+	}
 	for _, prod := range prods {
 		caps, a := prod.caps, prod.alt
 		has := hasIn(caps)
+		ns := namesOf(caps)
 		// The tags a production's constituent carries serve it.
 		for _, t := range []*domTerm{r.Tags, a.Tags} {
-			if msg := unguarded(t, has); msg != "" {
+			if msg := lacking(t, ns, has); msg != "" {
 				return msg
 			}
 		}
@@ -604,24 +660,25 @@ func definitionProblem(r *domRule) string {
 		// the order its captures stand, each item's tags using only what it
 		// has.
 		var present []*domEmitItem
-		for _, it := range items {
-			if it.IsInsert || has(it.Capture) {
-				present = append(present, it)
-			}
+		for _, i := range emits.present(ns) {
+			present = append(present, items[i])
 		}
 		// Only a rule that lists items can leave nothing; ε lists none.
 		if len(present) == 0 && len(items) > 0 {
 			return fmt.Sprintf("%%emits of %s leaves a production nothing to emit; a rule that emits nothing says %%emits ε", r.Name)
 		}
 		// A production without an item's carrier lacks its attachments too
-		// (engine §9).
-		for _, it := range items {
-			if it.IsInsert || has(it.Capture) {
-				continue
-			}
-			for _, name := range it.attachments() {
-				if has(name) {
-					return fmt.Sprintf("%%emits of %s attaches $%s in a production without its carrier $%s", r.Name, name, it.Capture)
+		// (engine §9). The first such item in the order written gives the
+		// message.
+		if emits.strandsAttachment(items, ns, has) {
+			for _, it := range items {
+				if it.IsInsert || has(it.Capture) {
+					continue
+				}
+				for _, name := range it.attachments() {
+					if has(name) {
+						return fmt.Sprintf("%%emits of %s attaches $%s in a production without its carrier $%s", r.Name, name, it.Capture)
+					}
 				}
 			}
 		}
@@ -633,6 +690,7 @@ func definitionProblem(r *domRule) string {
 				continue
 			}
 			for _, name := range it.captures() {
+				step()
 				at, ok := caps[name]
 				if !ok {
 					continue
@@ -644,7 +702,7 @@ func definitionProblem(r *domRule) string {
 			}
 		}
 		for _, it := range present {
-			if msg := unguarded(it.Tags, has); msg != "" {
+			if msg := lacking(it.Tags, ns, has); msg != "" {
 				return msg
 			}
 		}
