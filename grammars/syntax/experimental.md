@@ -99,7 +99,9 @@ The layer keeps the CLL grammar's connective before the first `.i` of a text (`j
 
 ## Statements and fragments
 
-The connective after `.i` can be an ek or a VUhU as well as a joik or jek. A statement connective can also precede `.i`, as in `mi klama joi .i do klama`. Both are `statement-connective`. Before `bo` after `.i`, the connective can also be an ek, and the tense is a `stag`, which is a `tag` here, as in camxes-exp. A connective with an optional stag and `bo` can also precede `.i` inside a sentence, with a subsentence after it, as camxes-exp's sentence allows: `mi klama .e pu bo .i do klama`. A prenex can have no terms (`zo'u mi klama`). `statement-1` keeps the left recursion of the CLL rule, with both forms of connection, so its connections group from the left as in CLL (CLL 14.7).
+The connective after `.i` can be an ek or a VUhU as well as a joik or jek. A statement connective can also precede `.i`, as in `mi klama joi .i do klama`. Both are `statement-connective`. Before `bo` after `.i`, the connective can also be an ek, and the tense is a `stag`, which is a `tag` here, as in camxes-exp.
+
+A connective with an optional stag and `bo` can also precede `.i` inside a sentence, with a subsentence after it. camxes-exp's sentence allows this: `mi klama .e pu bo .i do klama`. A prenex can have no terms (`zo'u mi klama`). `statement-1` keeps the left recursion of the CLL rule, with both forms of connection. So its connections group from the left as in CLL (CLL 14.7).
 
 The layer removes CLL's `na` fragment. A bare `na` is a term (see "Terms"), so `na` and `na na` are terms fragments. Only in this way do the two readings not compete.
 
@@ -217,7 +219,9 @@ A forethought termset needs no `nu'i`, and its two branches can hold different n
 
 The ranking does the same. The first branch of a termset, `termset-branch`, ends in `nu'u`, which the termset elides before `gi`. The sumti elides nothing there, so `late-elision` prefers it. So `ge mi gi do ce'e ti` is the sumti `ge mi gi do` followed by `ce'e ti`. But `broda be ge mi gi do ce'e ti be'o` has a termset, because the single argument of `be` cannot continue with `ce'e ti`.
 
-The layer reads a termset with `nu'i` as `nu'i` with a forethought form wherever it can, as camxes-exp tries that form first. So `nu'i ge mi gi do nu'u` is a termset of two branches, and not `nu'i` around the sumti `ge mi gi do`. The first term inside `nu'i ... nu'u` cannot itself be a bare forethought termset. A bare forethought termset there repeats the `nu'i gek` form. The `-not-starting-with-bare-gek` rules state that restriction: they repeat the term rules with only the first term restricted. A chain repeats one item, so it cannot restrict only its first item. These rules write the restricted first item apart. `terms-1-not-starting-with-bare-gek` is left recursion, which groups as the chain `terms-1` does. The other two are a first item and an optional list, flat as `terms` and `terms-2` are.
+The layer reads a termset with `nu'i` as `nu'i` with a forethought form wherever it can, as camxes-exp tries that form first. So `nu'i ge mi gi do nu'u` is a termset of two branches, and not `nu'i` around the sumti `ge mi gi do`. The first term inside `nu'i ... nu'u` cannot itself be a bare forethought termset. A bare forethought termset there repeats the `nu'i gek` form.
+
+The `-not-starting-with-bare-gek` rules state that restriction: they repeat the term rules with only the first term restricted. A chain repeats one item, so it cannot restrict only its first item. These rules write the restricted first item apart. `terms-1-not-starting-with-bare-gek` is left recursion, which groups as the chain `terms-1` does. The other two are a first item and an optional list, flat as `terms` and `terms-2` are.
 
 ```jbogenbau
 %redefine-rule terms-1
@@ -506,9 +510,13 @@ Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as
 
 Selbri and tanru-unit connectives are joik, jek, ek or VUhU (`selbri-connective`). A bare `fa`, which matches the rule `tag`, can come before a selbri. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`). `me'oi` with the word that it quotes is a tanru unit too (`le me'oi klama cu broda`).
 
-`selbri-4` keeps the left recursion of the CLL rule, and `selbri-5` is a right chain, as in CLL. In the plain form of `selbri-4`, the connective is `plain-selbri-connective`, the CLL rule `plain-joik-jek` with this layer's connectives. As in CLL, a joik directly before `ke` is `joik-before-ke`, and its unit cannot be only a `ke` group. So `mi broda joi ke brode ke'e` joins a `ke` group with `joi`, through `joik [stag] KE`, as the CLL grammar does. camxes-exp departs here. It tries the plain connective first, and reads `joi` before a tanru unit that begins with `ke`. In this text, both readings group the same words.
+`selbri-4` keeps the left recursion of the CLL rule, and `selbri-5` is a right chain, as in CLL. In the plain form of `selbri-4`, the connective is `plain-selbri-connective`, the CLL rule `plain-joik-jek` with this layer's connectives. As in CLL, a joik directly before `ke` is `joik-before-ke`, and its unit cannot be only a `ke` group. So `mi broda joi ke brode ke'e` joins a `ke` group with `joi`, through `joik [stag] KE`, as the CLL grammar does.
 
-Where only the plain reading parses, the layer keeps it, as camxes-exp does. So `mi broda joi ke brode ke'e bo brodi` joins `broda` to the unit `ke brode ke'e bo brodi`. The official parser of CLL rejects that text. The test reads the tag `~ke-group` of the parsed unit, as in the CLL grammar. This layer's `ke` alternatives of `tanru-unit-2` and `operator-2` carry it. So that the tag reaches `selbri-5`, this layer's `tanru-unit` writes its optional parts as alternatives, which read the same words in the same way. `selbri-5` is a right chain, and its level of one item keeps the tags of its `selbri-6`.
+camxes-exp departs here. It tries the plain connective first, and reads `joi` before a tanru unit that begins with `ke`. In this text, both readings group the same words.
+
+Where only the plain reading parses, the layer keeps it, as camxes-exp does. So `mi broda joi ke brode ke'e bo brodi` joins `broda` to the unit `ke brode ke'e bo brodi`. The official parser of CLL rejects that text.
+
+The test reads the tag `~ke-group` of the parsed unit, as in the CLL grammar. This layer's `ke` alternatives of `tanru-unit-2` and `operator-2` carry it. So that the tag reaches `selbri-5`, this layer's `tanru-unit` writes its optional parts as alternatives, which read the same words in the same way. `selbri-5` is a right chain, and its level of one item keeps the tags of its `selbri-6`.
 
 A group of preposed linked arguments comes before a whole `tanru-unit-1`, as in camxes-exp. A `be` group attaches to the tanru unit before it, where there is one. So a unit without a group of its own cannot be directly followed by `be` (`tanru-unit-1`). A preposed group stands only where no such unit comes before it, as at the start of a selbri or after a connective.
 

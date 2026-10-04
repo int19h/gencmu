@@ -18,7 +18,7 @@ A name is the longest run of name characters, and `...` is one symbol, not three
 
 ## The text
 
-A text is any number of pieces, each a token or layout. The rule is written as left recursion, not as a list in braces. Each shorter text is then a constituent of its own, so the greedy reading above sees where each piece ends. A list in braces is not a constituent, and with one the greedy reading could read `ab` as the two names `a` and `b`.
+A text is any number of pieces, each a token or layout. The rule is written as left recursion, not as a list in braces. Each shorter text is then a constituent of its own, so the greedy reading above sees where each piece ends. A list in braces is not a constituent, and with one, the greedy reading can read `ab` as the two names `a` and `b`.
 
 ```jbogenbau
 %rule text
@@ -217,7 +217,9 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
 
 ## Symbols
 
-Every other token is a symbol. A symbol of one character keeps the character tag of its one character, such as `'|'`. `⊇` and `⊉` stand only in a test in a body, such as `UI⊇~indicator`. Braces, `{` and `}`, hold a repetition, and a backslash, `\`, separates its item from its separator. A backslash inside a string, a character tag or a property belongs to that token, so it is a symbol only outside them. The rule for `...`, the marker of a chain, tags it `ellipsis`, and `..`, which joins the two ends of a range, is `double-dot`. A `+` after a bracket marks an elidable optional, and `++` one whose terminator is also maximal. The rule tags `++` `double-plus`, so `+++` is `++` and then `+`, never three markers.
+Every other token is a symbol. A symbol of one character keeps the character tag of its one character, such as `'|'`. `⊇` and `⊉` stand only in a test in a body, such as `UI⊇~indicator`. Braces, `{` and `}`, hold a repetition, and a backslash, `\`, separates its item from its separator. A backslash inside a string, a character tag or a property belongs to that token, so it is a symbol only outside them.
+
+The rule for `...`, the marker of a chain, tags it `ellipsis`, and `..`, which joins the two ends of a range, is `double-dot`. A `+` after a bracket marks an elidable optional, and `++` one whose terminator is also maximal. The rule tags `++` `double-plus`, so `+++` is `++` and then `+`, never three markers.
 
 ```jbogenbau
 %rule symbol

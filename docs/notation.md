@@ -95,7 +95,7 @@ The operators of a body are those of CLL, except for repetition and elidable ter
 - Juxtaposition is sequence.
 - `[x]` is optional.
 - `[+T x]` is an elidable optional, whose first item is the terminator `T`. `[++T x]` is one whose terminator is also maximal. "Elided terminators" below explains both.
-- `{x}` is one or more of `x`, and `[{x}]` is zero or more. `{x \ s}` is one or more of `x` with `s` between each two. "Repetition" below explains braces, and the chains `{... x \ s}` and `{x ... \ s}`, which can also leave out `\ s`, as `{... x}` and `{x ...}`.
+- `{x}` is one or more of `x`, and `[{x}]` is zero or more. `{x \ s}` is one or more of `x` with `s` between each two. "Repetition" below explains braces, and the chains `{... x \ s}` and `{x ... \ s}`. A chain can also leave out `\ s`, as `{... x}` and `{x ...}`.
 - `A & B` is and/or: `A`, `B` or `A B`, but not `B A`. `A & B & C` is any non-empty subsequence in that order.
 - `( )` groups.
 - `ε` is the empty sequence.
@@ -106,7 +106,9 @@ The operators of a body are those of CLL, except for repetition and elidable ter
 
 `#` is not an operator but a rule, whose name is `#` and not a word. The grammar defines it like any other rule. The syntax grammars define it as `[{free}]`, zero or more free modifiers, as CLL's own EBNF does with `[free ...]`. Its constituent is a node of the tree like that of any rule, so the free modifiers in one slot are grouped under it.
 
-A terminator is a word that closes a construct, such as `ku`. CLL writes a terminator that can be elided (left out) between slashes, `/KU/`. It writes `/KU#/` for such a terminator whose free-modifier slot goes with it. In this notation, both are elidable optionals: `[+KU]` and `[+KU #]`. The `+` after the bracket marks the optional as elidable, in its place (see "Elided terminators"). A plain optional, `[KU]`, is never elidable. Here, slashes are for phonemes.
+A terminator is a word that closes a construct, such as `ku`. CLL writes a terminator that can be elided (left out) between slashes, `/KU/`. It writes `/KU#/` for such a terminator whose free-modifier slot goes with it. In this notation, both are elidable optionals: `[+KU]` and `[+KU #]`.
+
+The `+` after the bracket marks the optional as elidable, in its place (see "Elided terminators"). A plain optional, `[KU]`, is never elidable. Here, slashes are for phonemes.
 
 ## Repetition
 
@@ -129,15 +131,23 @@ Inside one pair of braces, the item `x` and the separator `s` are each a full ch
 
 A pair of braces has at most one backslash, and each side of it holds an expression. So `{}`, `{x \}`, `{\ s}` and `{x \ s \ t}` are errors of the document. A separator can be `ε`, but an item cannot (below).
 
-The chain marker `...` stands right after `{` for a left chain. It stands after the whole item, before `\` or `}`, for a right chain. So `{a | b ... \ s}` is a right chain whose item is `a | b`. A pair of braces has at most one marker, and the separator has none. So `{... x ...}` and `{x \ ... s}` are errors of the document. `...` has no other use. CLL's postfix `x ...` is an error of the document, and so is `'a'...'z'`.
+The chain marker `...` stands right after `{` for a left chain. It stands after the whole item, before `\` or `}`, for a right chain. So `{a | b ... \ s}` is a right chain whose item is `a | b`.
+
+A pair of braces has at most one marker, and the separator has none. So `{... x ...}` and `{x \ ... s}` are errors of the document. `...` has no other use. CLL's postfix `x ...` is an error of the document, and so is `'a'...'z'`.
 
 The backslash has no other use in a body. Inside a string or a character tag, it is still an escape, as in `"\\"` and `'\''`. The braces of a property, such as `'\p{L}'`, are part of that one token.
 
-A chain is the whole of its rule. That means two things. First, the chain is the whole expression of its alternative. A chain inside parentheses, brackets, other braces, a capture, a sequence, a choice or `&` is an error of the document. Second, that alternative is the only alternative of its rule that the gates leave (see "Feature guards"). A warning does not remove an alternative. So a rule with another alternative beside its chain is an error of the grammar for the features that leave both. For those features, gencmu finds the error when it prepares the grammar, as it finds an error of a classifier. A `%extend-rule` of a chain's rule can cause this error.
+A chain is the whole of its rule. That means two things. First, the chain is the whole expression of its alternative. A chain inside parentheses, brackets, other braces, a capture, a sequence, a choice or `&` is an error of the document.
+
+Second, that alternative is the only alternative of its rule that the gates leave (see "Feature guards"). A warning does not remove an alternative. So a rule with another alternative beside its chain is an error of the grammar for the features that leave both. For those features, gencmu finds the error when it prepares the grammar, as it finds an error of a classifier. A `%extend-rule` of a chain's rule can cause this error.
 
 The chain's alternative can still have guards and tags of its own, and its rule can have clauses. A chain can be optional, or part of a sequence, through a rule. Name the chain as a rule, and write the rule's name there, as in `[tag]`.
 
-An item of braces must read at least one token. An item that can match no tokens is an error of the grammar, found as the error above. So `{[x]}`, `{ε}` and `{#}` are errors, and so is `{r}` where `r` can match no tokens for the features of the parse. gencmu decides this from the rules alone, as the gates and the stitching leave them, ignoring every test and condition. So a rule `r` whose only alternative is `ε` with a condition that never holds still makes `{r}` an error. An alternative that a gate drops does not count, and one that an `%extend-rule` adds does. A separator can match no tokens. So `{relative-clause \ [joik]}` reads relative clauses with or without `joik` between them. Since an item is never empty, `[{x}]` reads nothing in exactly one way.
+An item of braces must read at least one token. An item that can match no tokens is an error of the grammar, found as the error above. So `{[x]}`, `{ε}` and `{#}` are errors, and so is `{r}` where `r` can match no tokens for the features of the parse.
+
+gencmu decides this from the rules alone, as the gates and the stitching leave them, ignoring every test and condition. So a rule `r` whose only alternative is `ε` with a condition that never holds still makes `{r}` an error. An alternative that a gate drops does not count, and one that an `%extend-rule` adds does.
+
+A separator can match no tokens. So `{relative-clause \ [joik]}` reads relative clauses with or without `joik` between them. Since an item is never empty, `[{x}]` reads nothing in exactly one way.
 
 ### Lists in the tree
 
@@ -306,17 +316,23 @@ Implications apply only to the tokens that the stage emits. They do not change a
 
 Writing `$name(symbol)` around a symbol of a rule's body captures that symbol. A capture gives a part of the constituent a name that the clauses of the rule can use. A capture's name is all lower case.
 
-A capture wraps one symbol. That symbol can stand anywhere in an alternative, except inside braces and inside an elidable optional, `[+ ]` or `[++ ]`. So a capture can stand in a group, in a choice, in an item of `&` and in a plain optional, at any depth. A name can stand at most once in each production (below), so two branches of a choice can capture one name, as two alternatives can. `A ($x(B) | $x(C))` is valid, but `[$x(A)] $x(B)` and `$x(A) & $x(B)` are errors, because one of their productions reads `$x` twice. gencmu checks this when it reads the grammar, before the gates, so a guard does not excuse it. An alternative can have any number of captures, but each one has a cost (below). `$` alone is the whole constituent, a capture that every alternative has without writing it.
+A capture wraps one symbol. That symbol can stand anywhere in an alternative, except inside braces and inside an elidable optional, `[+ ]` or `[++ ]`. So a capture can stand in a group, in a choice, in an item of `&` and in a plain optional, at any depth.
+
+A name can stand at most once in each production (below), so two branches of a choice can capture one name, as two alternatives can. `A ($x(B) | $x(C))` is valid, but `[$x(A)] $x(B)` and `$x(A) & $x(B)` are errors, because one of their productions reads `$x` twice. gencmu checks this when it reads the grammar, before the gates, so a guard does not excuse it. An alternative can have any number of captures, but each one has a cost (below). `$` alone is the whole constituent, a capture that every alternative has without writing it.
 
 A capture cannot wrap anything but one symbol. So `$x((a | b))`, `$x((a b))` and `$x([a])` are errors. A capture names one constituent, with one span and one set of tags, and a group or an optional is no constituent. To capture a choice or a sequence, make it a rule of its own and capture the reference. To capture a part that can be absent, write the capture inside the optional, as in `[$x(a)]`. A presence test then says whether the part is there.
 
 A capture cannot wrap braces, and braces cannot hold a capture. A list is not a constituent, so no capture can name its span. A part of a list or of a chain repeats, so one name cannot stand for all its parts. To capture a list or a chain, make it a rule of its own and capture the reference, as in `$t(tag)`.
 
-An elidable optional cannot hold a capture, at any depth. gencmu restores an elided terminator as the terminator alone (see "Elided terminators"), and it keeps the optional as one unit for that. A part inside it would be there in some readings of one omission and not in others.
+An elidable optional cannot hold a capture, at any depth. gencmu restores an elided terminator as the terminator alone (see "Elided terminators"), and it keeps the optional as one unit for that. A part inside it is there in some readings of one omission and not in others.
 
-gencmu expands each alternative into productions, as engine §3 says. A production is one way to read the alternative, with one branch of each choice, one subsequence of each `&`, and each optional read or not. A plain optional that holds a capture is expanded in place, as if it were `(ε | x)`: first the production without it, then those with it. So `A [$b(B)] [$c(C)]` gives four productions, in this order: `A`, `A C`, `A B` and `A B C`. A plain optional without a capture stays one optional. It is not expanded into two productions. A production has a capture where it reads the captured symbol, and lacks it elsewhere.
+gencmu expands each alternative into productions, as engine §3 says. A production is one way to read the alternative. It reads one branch of each choice and one subsequence of each `&`, and reads each optional or not. A plain optional that holds a capture is expanded in place, as if it were `(ε | x)`. The production without it comes first, then those with it. So `A [$b(B)] [$c(C)]` gives four productions, in this order: `A`, `A C`, `A B` and `A B C`.
 
-Either way, a rule node holds the parts that its production reads as its children, and an optional makes no node. But the tags and the constituents can differ, in two ways. A production that reads one symbol has that symbol's tags where no tags are written (see "Tags"). So `%rule r A [$b(B)]` without tags has the tags of `A` where `B` is absent. And an elided terminator after the optional has the constituent that the production gives it (see "Elided terminators"). In `a [$b(b)] [+KU]`, where `a` and `b` are rules, the constituent of an elided `ku` is `b` where the production reads `b`, and `a` where it does not.
+A plain optional without a capture stays one optional. It is not expanded into two productions. A production has a capture where it reads the captured symbol, and lacks it elsewhere.
+
+Either way, a rule node holds the parts that its production reads as its children, and an optional makes no node. But the tags and the constituents can differ, in two ways. A production that reads one symbol has that symbol's tags where no tags are written (see "Tags"). So `%rule r A [$b(B)]` without tags has the tags of `A` where `B` is absent.
+
+And an elided terminator after the optional has the constituent that the production gives it (see "Elided terminators"). Take `a [$b(b)] [+KU]`, where `a` and `b` are rules. The constituent of an elided `ku` is `b` where the production reads `b`, and `a` where it does not.
 
 A plain optional that holds a capture, whose content has k expansions, contributes 1 + k: the empty one and those k. A sequence multiplies these counts. So `[$b(B)]` doubles the productions of its alternative, `[($a(A) | B | C)]` contributes four, and `[A [$b(B)]]` three, not four. Each capture can also multiply the work of the parser. The parser keeps a captured part's span with each partial reading, so readings that differ only in where a captured part ends are not merged. So a capture whose span can end in many places costs much more than one that reads a single token.
 
@@ -344,7 +360,9 @@ A constant counts in these rules as its value. So where `$E` is empty, `$E ∩ t
 
 ## Conditions
 
-`%conditions` lists what must hold of a rule's captured parts, separated by commas. A parse in which a condition fails does not exist. The parser evaluates each condition as soon as it reads the last capture that the condition mentions. It evaluates a condition that mentions `$` when the constituent is complete. Each condition of the list applies to the productions that capture everything it mentions, and to no other production. A production is one expanded sequence of an alternative (see "Captures"). So `A [$b(B)]` has two productions, and a condition that mentions `$b` applies only to the one that reads `B`. One rule can also state a condition for the productions that have a quote body, and none for those that do not:
+`%conditions` lists what must hold of a rule's captured parts, separated by commas. A parse in which a condition fails does not exist. The parser evaluates each condition as soon as it reads the last capture that the condition mentions. It evaluates a condition that mentions `$` when the constituent is complete.
+
+Each condition of the list applies to the productions that capture everything it mentions, and to no other production. A production is one expanded sequence of an alternative (see "Captures"). So `A [$b(B)]` has two productions, and a condition that mentions `$b` applies only to the one that reads `B`. One rule can also state a condition for the productions that have a quote body, and none for those that do not:
 
 ```jbogenbau
 %rule zoi-quote
@@ -445,7 +463,9 @@ Every token and every constituent carries a set of tags, and a terminal matches 
 
 Sometimes no tags are written at all, neither after the alternative nor after `%tags`. Then a constituent built from one symbol has that symbol's tags, and a constituent built from several symbols has none. So a rule `word` whose body is `cmavo | brivla | cmevla` needs no tags. A `mi` arrives at the next stage tagged by the chain of rules that built it.
 
-Brackets and flat braces count as one symbol here. Their tags are those of what they read, when that is one symbol, and none otherwise. So `%rule terms {terms-1}` over one `terms-1` has its tags, and over two has none. An empty optional has none. A chain's levels follow the same rule (see "Repetition"). A plain optional that holds a capture is the exception. It is expanded in place (see "Captures"), so each of its productions counts the symbols that it reads, as a choice does.
+Brackets and flat braces count as one symbol here. Their tags are those of what they read, when that is one symbol, and none otherwise. So `%rule terms {terms-1}` over one `terms-1` has its tags, and over two has none. An empty optional has none.
+
+A chain's levels follow the same rule (see "Repetition"). A plain optional that holds a capture is the exception. It is expanded in place (see "Captures"), so each of its productions counts the symbols that it reads, as a choice does.
 
 A tag term that defines a constituent's tags cannot be made of those tags. So `tags($)` and `classes($)` are errors in a tag term after an alternative or after `%tags`. `tags($, rule)` and `classify(phonemes($), lexicon)` are not errors there. The first parses the constituent's tokens again, and the second reads their sound. The tag term of an emitted item does not define the constituent's tags, so it can use `tags($)` and `classes($)`.
 
@@ -476,7 +496,9 @@ A capture item can carry attachments: other tokens that belong to its token, whi
 
 The carrier's token covers its own capture only. An attachment is the list of tokens that its captured part hands on, as if the stage walked that part. So `mi ui klama` hands on `mi` with `ui` attached after it, and the next stage reads `mi klama`. The carrier does not run the emission of its own part. So a structure inside the carrier's part stays only where the item captures it separately.
 
-An attachment capture stands in exactly one item, and never as an item of its own. A production without the carrier emits nothing for the item, and it must also lack the item's attachment captures. The captures of an emission, attachments included, must be written in the order in which each production reads them. A production reads each name at most once, so each name is one part of it and the order is clear. Two productions can read names in different orders, as in `($a(A) $b(B) | $b(B) $a(A))`. Then no order of `$a` and `$b` fits both, and an emission of both is an error. Where a production lacks an attachment capture, the item has one attachment fewer.
+An attachment capture stands in exactly one item, and never as an item of its own. A production without the carrier emits nothing for the item, and it must also lack the item's attachment captures. The captures of an emission, attachments included, must be written in the order in which each production reads them.
+
+A production reads each name at most once, so each name is one part of it and the order is clear. Two productions can read names in different orders, as in `($a(A) $b(B) | $b(B) $a(A))`. Then no order of `$a` and `$b` fits both, and an emission of both is an error. Where a production lacks an attachment capture, the item has one attachment fewer.
 
 The four alternatives of `item` above can also be one, with two optionals that hold captures: `[$b(bahe-run)] $w(unit) [$a(indicator-run)]`. That alternative expands to the same four productions, `$w`, `$w $a`, `$b $w` and `$b $w $a`, in that order (see "Captures"). Only the numbers of the productions differ.
 
@@ -592,7 +614,7 @@ The engine's canonical order (engine §6) orders the ambiguity diagnostics and s
 - If one reads and the other closes, the rule decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
 - If both close different constituents, they are tied.
 
-Constituents with a single symbol, and the helper constituents that the notation creates for `[ ]` without a capture and for flat `{ }`, are transparent to the comparison. So two parses that differ only in such a relabeling do not differ yet. The levels of a chain are constituents of its rule, so a level with more than one symbol is not transparent. Where `greedy` or `lazy` must see where each step of a list ends, the grammar writes a chain or explicit recursion, not flat braces.
+Some constituents are transparent to the comparison. They are the constituents with a single symbol. They are also the helpers that the notation creates for flat `{ }` and for `[ ]` without a capture. So two parses that differ only in such a relabeling do not differ yet. The levels of a chain are constituents of its rule, so a level with more than one symbol is not transparent. Where `greedy` or `lazy` must see where each step of a list ends, the grammar writes a chain or explicit recursion, not flat braces.
 
 Transparency does not merge parses, though. Two parses that differ only there are still two parses. `greedy` and `lazy` tie them. `late-elision` ties them exactly when their counts of elided terminators are equal at every position. For example, `[[X]]` matches the empty text in two ways, and `[A] & [B]` in three.
 
@@ -623,7 +645,7 @@ A grammar marks each terminator that can be elided where it writes it. An elidab
 - The terminator `T` stands directly after the marker, as written, with no parentheses around it. So `[+(KU) #]`, `[+((KU)) #]`, `[+(KU #)]` and `[+(KU #) A]` are errors, although parentheses make no node elsewhere. One spelling for each marked optional keeps every reader's check the same, and the check reads the written text, before parentheses are dropped.
 - `T` is an identifier tag: a bare name that begins with a capital, or `~name`. So `[+KU]` and `[+~KU]` mark the same terminator. A phoneme tag, a character tag, a range, a property, a rule and `#` cannot be the terminator.
 - `T` can have an `=` test, as in `[+KU="ku"]`. Any other test on `T` is an error, because `elision-only` restores `T` with the sound of its test (below). A test on a later item is no error.
-- The rest is a sequence of any primaries, or nothing. A choice or `&` in the rest stands in parentheses, as in `[+KU (A | B)]`. A `|` or `&` that joins `T` to something else is an error, because then some reading of the optional would not begin with `T`. So `[+KU | VAU]` is an error.
+- The rest is a sequence of any primaries, or nothing. A choice or `&` in the rest stands in parentheses, as in `[+KU (A | B)]`. A `|` or `&` that joins `T` to something else is an error, because some reading of the optional then does not begin with `T`. So `[+KU | VAU]` is an error.
 - No capture stands inside an elidable optional, at any depth (see "Captures").
 - `[++T rest]` is the same, but its terminator is also maximal (below).
 
@@ -631,9 +653,13 @@ An elidable optional is an optional in every other way. It can stand anywhere th
 
 A plain optional is never elidable, whatever it holds. So `[KU]`, `[KU | VAU]` and `[{KU}]` are ordinary optionals. Where one is absent, it counts for nothing and leaves no node, as an absent optional separator does. A grammar can read a terminator both ways: `[+KU]` in one rule and `[KU]` in another. Only the first one is elided.
 
-The marker decides everything that follows in this section, and in "Ambiguity": which absent optionals show as elided terminators, what `late-elision` counts, what maximality forbids and what `elision-only` writes back. The terminator of an elided node is `T`.
+The marker decides everything that follows in this section, and in "Ambiguity". It decides which absent optionals show as elided terminators and what `late-elision` counts. It also decides what maximality forbids and what `elision-only` writes back. The terminator of an elided node is `T`.
 
-An elided terminator ends the part of its alternative that is written just before it. That part is its *constituent*: a rule, an optional or braces, once parentheses are spelled out. In `le nanmu joi le ninmu`, the `ku` elided after `nanmu` ends the `sumti-tail` of `LE sumti-tail [+KU #]`, which is `nanmu`. Some elided terminators have no constituent. These are the terminators elided directly after a terminal or at the start of their alternative. The next paragraph gives one more case. Braces add no case of their own: these rules apply to the expanded productions that gencmu makes from the braces (engine §3, §4). So a terminator elided at the start of the first item of braces has no constituent, as at the start of an alternative. One at the start of each later item of `{x}`, or of each separator of `{x \ s}` or of a left chain, has none either, since what the braces read so far stands before it. At the start of a separator of a right chain, the end of the item stands before it. Its constituent is the last part of that item, unless that part is a terminal, or the item is a reference to the chain's own rule.
+An elided terminator ends the part of its alternative that is written just before it. That part is its *constituent*: a rule, an optional or braces, once parentheses are spelled out. In `le nanmu joi le ninmu`, the `ku` elided after `nanmu` ends the `sumti-tail` of `LE sumti-tail [+KU #]`, which is `nanmu`. Some elided terminators have no constituent. These are the terminators elided directly after a terminal or at the start of their alternative. The next paragraph gives one more case.
+
+Braces add no case of their own: these rules apply to the expanded productions that gencmu makes from the braces (engine §3, §4). So a terminator elided at the start of the first item of braces has no constituent, as at the start of an alternative. One at the start of each later item of `{x}` has none either, since what the braces read so far stands before it. The same holds at the start of each separator of `{x \ s}` or of a left chain.
+
+At the start of a separator of a right chain, the end of the item stands before it. Its constituent is the last part of that item. It has none where that part is a terminal, or where the item is a reference to the chain's own rule.
 
 A production is an alternative of the expanded grammar (engine §3). An elided terminator also has no constituent when it immediately follows the production's initial reference to its own rule. So a rule that an author writes with left recursion can have such terminators too.
 
@@ -661,7 +687,9 @@ This is for a construct that a reader closes as late as it can, such as a parent
 
 CLL's own rule is narrower: a terminator can be elided only if no ambiguity results. CLL says nothing of the other ambiguities of its EBNF. `elision-only` is one reading of that rule. It tests only the parse that the ranking chose, and CLL does not say how to choose that parse.
 
-With `elision-only`, after the stage chooses one of several parses, it writes the elided terminators of that parse back into the input. A terminator with an `=` test sounds like the test's string there. So an elidable terminator has no test or an `=` test. Any other test on it is an error of the document, which the reader reports. Then the stage parses that input again. Each elidable optional is now either restored or written. In the chosen parse's own reading, an optional that it left out is restored: it reads only its written-back terminator. Another reading can start an optional from a written-back terminator and read more after it, where the rest of the optional reads something.
+With `elision-only`, after the stage chooses one of several parses, it writes the elided terminators of that parse back into the input. A terminator with an `=` test sounds like the test's string there. So an elidable terminator has no test or an `=` test. Any other test on it is an error of the document, which the reader reports.
+
+Then the stage parses that input again. Each elidable optional is now either restored or written. In the chosen parse's own reading, an optional that it left out is restored: it reads only its written-back terminator. Another reading can start an optional from a written-back terminator and read more after it, where the rest of the optional reads something.
 
 In that parse, the grammar reads the text with its terminators written back, but every condition, tag and test of a rule sees the original input. A written-back terminator has no text, no sound and no tags there. So a condition answers as it did for the chosen parse, and the chosen parse is always one reading. A test on a terminal is the one exception: `KU="ku"` reads a written-back `KU` by its sound. A test on a rule, such as `t="ku"`, sees the original input like a condition.
 
