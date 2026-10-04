@@ -43,7 +43,8 @@ import (
 //     finding the reach of cycles examines, each before it is examined.
 //   - clauseSteps: the nodes of clauses that the checks of a definition
 //     and the resolver of constants walk.
-//   - emitSteps: the parts and anchors that an emission looks at.
+//   - emitSteps: the parts and anchors that an emission looks at, each
+//     before it does.
 //   - classSteps: the classes that resolving a classifier looks at,
 //     indexes and compares as it sorts them, each before it does.
 //   - implicationSteps: the implications that a token's tags set off.
