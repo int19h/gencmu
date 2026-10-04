@@ -9,7 +9,7 @@ import threading
 from dataclasses import dataclass, field
 from typing import Any, Union
 
-from ._clauses import WHOLE, Prepared, captures_in, definition_problem, prepare, prepare_conditions, simplify_term
+from ._clauses import WHOLE, Emission, Prepared, captures_in, definition_problem, prepare, prepare_conditions, simplify_term
 from ._errors import ErrorData, GencmuError
 from ._recent import Recent
 from ._tags import (
@@ -859,7 +859,17 @@ class _Lowerer:
         # Each clause prepared once for all the productions that share it,
         # by its identity, with the clause kept so that the identity stays
         # its own.
-        self.prepared: dict[int, tuple[Any, Prepared]] = {}
+        self.prepared: dict[int, tuple[Any, Any]] = {}
+
+    def emission(self, emit: Dom | None) -> Emission | None:
+        """An emission's items indexed once for all the productions that
+        share it."""
+        if emit is None:
+            return None
+        known = self.prepared.get(id(emit))
+        if known is None:
+            known = self.prepared[id(emit)] = (emit, Emission(emit.get("items", [])))
+        return known[1]  # type: ignore[return-value]
 
     def prepare(self, clause: Any, condition: bool) -> Prepared:
         known = self.prepared.get(id(clause))
@@ -1079,7 +1089,7 @@ class _Lowerer:
             terms = [self.prepare(term, False).simplified(present) for term in (alt.tags, alt.rule_tags) if term is not None]
             if terms:
                 production.tags_term = terms[0] if len(terms) == 1 else {"union": terms}
-            production.emit = self.lower_emit(alt.emit, captures)
+            production.emit = self.lower_emit(alt.emit, captures, self.emission(alt.emit))
             production.opaque = alt.opaque
             production.warnings = tuple(guard["feature"] for guard in alt.guards if guard.get("kind") == "warning")
         if production.tags_term is None and len(rhs) == 1 and 0 not in captures.values():
@@ -1112,7 +1122,7 @@ class _Lowerer:
                 self.add(number, expansion, None, elided=elided if not expansion else None)
             stack.extend(reversed(used(own)))
 
-    def lower_emit(self, emit: Dom | None, captures: dict[str, int]) -> list[tuple[Any, ...]] | None:
+    def lower_emit(self, emit: Dom | None, captures: dict[str, int], emission: Emission | None = None) -> list[tuple[Any, ...]] | None:
         """A production's emission, the items it emits in list order, less
         those whose carrier the production lacks, and each item less the
         attachment captures it lacks (engine §3.6, §11): ``("whole", term
@@ -1122,10 +1132,13 @@ class _Lowerer:
         being the position of the first written part of the capture item
         listed next after it, its first before-attachment or else its
         carrier, or ``None`` for the constituent's end. ``%emits ε`` is the
-        empty list."""
+        empty list. ``emission`` is the emission's items indexed, which
+        the productions that share it share."""
         if emit is None:
             return None
         present = captures.keys() | {WHOLE}
+        if emission is None:
+            emission = Emission(emit.get("items", []))
 
         def own(term: Any) -> Any:
             return simplify_term(term, present) if term is not None else None
@@ -1133,7 +1146,9 @@ class _Lowerer:
         def positions(names: Any) -> tuple[int, ...]:
             return tuple(captures[name] for name in names or () if name in captures)
 
-        items = [item for item in emit.get("items", []) if "insert" in item or item["capture"] in present]
+        # The items this production keeps, found by their carriers, not by
+        # a scan of every item.
+        items = [emission.items[index] for index in emission.kept(present)]
         # Built from the last item back, so that each inserted tag's anchor
         # comes from the capture item last passed, found once for all the
         # tags before it.

@@ -10,7 +10,7 @@ import unittest
 from typing import Any
 
 import gencmu
-from gencmu._clauses import WHOLE, applies, applies_prepared, prepare, prepare_conditions, simplify_condition, simplify_term
+from gencmu._clauses import WHOLE, applies, captures_in, applies_prepared, prepare, prepare_conditions, simplify_condition, simplify_term
 from gencmu._earley import Parser, StageContext
 from gencmu._model import Token
 from gencmu._rank import count_roots
@@ -156,8 +156,9 @@ class PreparedClauses(unittest.TestCase):
     def condition(self, rng: random.Random, depth: int, presence: bool = False) -> Any:
         choice = rng.randrange(8 if depth else 2)
         if choice == 7 and not presence:
-            # A conjunction of guarded parts, the shape that preparing indexes.
-            return {"all": [self.guarded(rng, self.condition(rng, 0)) for _ in range(rng.randrange(1, 7))]}
+            # A conjunction or a disjunction of guarded parts, the shapes
+            # that preparing indexes.
+            return {rng.choice(("all", "any")): [self.guarded(rng, self.condition(rng, 0)) for _ in range(rng.randrange(1, 7))]}
         if choice == 0 or presence and rng.random() < 0.5:
             return {"captured": rng.choice((*self.NAMES, ""))}
         if choice == 1:
@@ -167,6 +168,17 @@ class PreparedClauses(unittest.TestCase):
         if choice == 4:
             return {"not": self.condition(rng, depth - 1)}
         return {rng.choice(("all", "any")): [self.condition(rng, depth - 1) for _ in range(rng.randrange(1, 5))]}
+
+    @staticmethod
+    def applying(simplified: list[Any], present: Any) -> list[Any]:
+        found: list[Any] = []
+        for condition in simplified:
+            if condition is False:
+                found.append(False)
+                break
+            if condition is not True and captures_in(condition) <= present:
+                found.append(condition)
+        return found
 
     def test_a_prepared_clause_simplifies_as_the_clause_does_for_each_production(self) -> None:
         rng = random.Random(8)
@@ -181,17 +193,10 @@ class PreparedClauses(unittest.TestCase):
                 self.assertEqual(prepared_term.simplified(present), simplify_term(term, present), (term, present))
                 self.assertEqual(prepared_condition.simplified(present), simplify_condition(condition, present), (condition, present))
                 self.assertEqual(applies_prepared(prepared_condition, present), applies(condition, present), (condition, present))
-                # The conditions of a list that are not true, in order, up to
-                # the first false one, which removes the production.
-                expected: list[Any] = []
-                for written in conditions:
-                    simplified = simplify_condition(written, present)
-                    if simplified is not True:
-                        expected.append(simplified)
-                    if simplified is False:
-                        break
-                found = prepared_list.kept(present)
-                if False in expected:
-                    self.assertIn(False, found, (conditions, present))
-                    found = found[: found.index(False) + 1]
+                # The conditions of a list that apply, in order, up to the
+                # first false one, which removes the production. A condition
+                # that is true, or that uses a capture the production lacks,
+                # does not apply, as lowering reads them (engine §3.6).
+                expected = self.applying([simplify_condition(written, present) for written in conditions], present)
+                found = self.applying(prepared_list.kept(present), present)
                 self.assertEqual(found, expected, (conditions, present))

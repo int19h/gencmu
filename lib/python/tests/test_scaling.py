@@ -518,9 +518,24 @@ GUARDED: dict[str, Callable[[int], dict[str, Any]]] = {
     "guarded tags and a constant": lambda n: {
         "tags": {"union": [{"const": "K", "at": [1, 1]}, *({"if": {"captured": f"c{index}"}, "then": {"tag": f"t{index}"}} for index in range(n))]}
     },
+    # Conditions with no guard, each of which uses one capture, and so
+    # applies only to the production that has it.
+    "a list of conditions that use a capture": lambda n: {"conditions": [holds(index) for index in range(n)]},
+    # An item of %emits for each production, carried by its first capture
+    # and attaching its second, and an inserted tag that every one keeps.
+    "an emission of an item for each production": lambda n: {
+        "alternatives": [
+            {
+                "guards": [],
+                "expr": {"seq": [{"capture": f"c{index}", "expr": {"terminal": "A"}}, {"capture": f"d{index}", "expr": {"terminal": "A"}}]},
+            }
+            for index in range(n)
+        ],
+        "emit": {"items": [*({"capture": f"c{index}", "after": [f"d{index}"]} for index in range(n)), {"insert": "X"}]},
+    },
 }
 """The clauses of a choice of n captures, $c0(A) | … | $c(n−1)(A), whose
-parts are each guarded by one capture, so that each production keeps one."""
+parts each belong to one capture, so that each production keeps one."""
 
 GUARDED_MOST = 256
 """How many units of the counted lines each production and each node of
@@ -536,16 +551,16 @@ def nodes_of(value: Any) -> int:
         if isinstance(found, dict):
             count += 1
             stack.extend(found.values())
-        elif isinstance(found, list):
+        elif isinstance(found, (list, tuple)):
             count += 1
             stack.extend(found)
     return count
 
 
 class GuardedClauses(Linear):
-    """A choice of n captures with clauses whose parts are each guarded by
-    one capture. Each production keeps one part, so the output is linear
-    in n. The definition check and lowering simplify each clause for each
+    """A choice of n captures with clauses whose parts each belong to one
+    capture, by a guard, by the capture they use or by their carrier. Each
+    production keeps one part, so the output is linear in n. The definition check and lowering simplify each clause for each
     production, and a scan of every part for each would cost n². The work
     is held to a constant times n and the output, during the work."""
 
@@ -577,7 +592,7 @@ class GuardedClauses(Linear):
         assert dialect is not None, error
         _, dom = self.documents(n, clause)
         lowered = lower(stitch("s", [("t.md", dom)], dialect.unicode), frozenset())
-        output = sum(nodes_of(production.tags_term) + nodes_of(production.conds_predict) + nodes_of(production.conds_at) for production in lowered.productions)
+        output = sum(nodes_of(production.tags_term) + nodes_of(production.conds_predict) + nodes_of(production.conds_at) + nodes_of(production.emit) for production in lowered.productions)
         return GUARDED_MOST * (n + output)
 
     def make(self, n: int, clause: Callable[[int], dict[str, Any]]) -> Callable[[], object]:
