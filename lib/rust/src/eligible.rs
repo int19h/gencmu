@@ -814,22 +814,22 @@ mod tests {
     fn the_searches_for_blocking_paths_look_at_each_set_once() {
         let grammar = "%ambiguity-resolution greedy\n%rule text body B\n%conditions matches($, r)\n\
                        %rule body {A}\n%rule r parts B\n%rule parts {part}\n%rule part A [+T]\n";
-        let operations = |n: usize, budget: Option<u64>| {
-            let (eligible, operations, items) = query_work(grammar, n, 0, false, budget);
+        let operations = |n: usize, most: &dyn Fn(u64) -> u64| {
+            let (eligible, operations, items) = query_work(grammar, n, 0, false, most);
             assert!(eligible.iter().all(|&eligible| eligible));
             (operations, items)
         };
-        let (small, items) = operations(500, None);
+        let (small, items) = operations(500, &|items| 2 * items);
         assert!(small > 0, "the searches ran");
         // The index is one pass over the chart, and the searches read each
         // completed item of it at most once: at most twice the chart's
         // items. An index built again for each search would read the chart
-        // once per search, so this fails on the shorter text, before the
-        // longer one costs much.
+        // once per search, so this stops the shorter text at the first
+        // operation past that, before the longer one costs much.
         assert!(small <= 2 * items, "{small} operations for 500 tokens, over a chart of {items} items");
         // Four times the text costs about four times as much, not sixteen,
         // and the longer text's run stops at the first entry past that.
-        let (large, _) = operations(2000, Some(6 * small));
+        let (large, _) = operations(2000, &|_| 6 * small);
         assert!(large < small * 6, "{small} operations for 500 tokens, {large} for 2000");
     }
 
@@ -858,20 +858,20 @@ mod tests {
                    %conditions begins(from($), r)\n%rule body {A} {C}\n%rule r y⊇~p [++T]\n\
                    %rule y {A} <~p> | {A} {C}\n";
         for (grammar, begins, c) in [(plain, true, 0), (tested, true, 0), (many, false, 0), (far, true, 1)] {
-            let (eligible, small, items) = query_work(grammar, 1000, c * 1000, begins, None);
+            let (eligible, small, items) = query_work(grammar, 1000, c * 1000, begins, &|items| 4 * items);
             // The searches read the index once and each completed item
             // once, and the checks find each table once, in a pass over the
             // chart, and test each completion at most once: at most four
             // times the chart's items. A table found again for each check
-            // would read the chart once per check, so this fails on the
-            // shorter text, before the longer one costs much.
+            // would read the chart once per check, so this stops the
+            // shorter text at the first operation past that.
             assert!(small <= 4 * items, "{small} operations for 1000 tokens, over a chart of {items} items\n{grammar}");
             // Only the longest y permits the omission, or with the C's, the
             // longest where the test holds.
             assert_eq!(eligible.iter().filter(|&&eligible| eligible).count(), 1, "{grammar}");
             // The longer text's run stops at the first entry past its
             // budget.
-            let (_, large, _) = query_work(grammar, 4000, c * 4000, begins, Some(6 * small));
+            let (_, large, _) = query_work(grammar, 4000, c * 4000, begins, &|_| 6 * small);
             assert!(large < small * 6, "{small} operations for 1000 tokens, {large} for 4000\n{grammar}");
         }
     }
@@ -882,7 +882,7 @@ mod tests {
     /// entries of the chart the searches and the checks looked at, and how
     /// many items the chart holds. With a budget, the searches and the
     /// checks each panic at the first entry past it.
-    fn query_work(grammar: &str, n: usize, c: usize, begins: bool, budget: Option<u64>) -> (Vec<bool>, u64, u64) {
+    fn query_work(grammar: &str, n: usize, c: usize, begins: bool, most: &dyn Fn(u64) -> u64) -> (Vec<bool>, u64, u64) {
         let sources = [("main.md", format!("```jbogenbau\n{grammar}```\n")), ("p.md", PIPELINE.to_string())];
         let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
         let g = dialect.lowered_stage(0);
@@ -921,13 +921,13 @@ mod tests {
             .collect();
         assert!(!witnesses.is_empty(), "r completes");
         let proofs = Proofs::new(&g, &chart, &input, &dialect.unicode, &shared.tags);
-        crate::work::reset();
-        if let Some(most) = budget {
-            crate::work::budget(crate::work::Work::Searched, most);
-            crate::work::budget(crate::work::Work::Looked, most);
-        }
-        let eligible = proofs.eligible(&witnesses);
+        // The chart is made before the searches, so the budget of the
+        // searches can depend on its items.
         let items = chart.sets.iter().map(|set| set.items.len() as u64).sum();
+        crate::work::reset();
+        crate::work::budget(crate::work::Work::Searched, most(items));
+        crate::work::budget(crate::work::Work::Looked, most(items));
+        let eligible = proofs.eligible(&witnesses);
         (
             eligible,
             crate::work::counted(crate::work::Work::Searched) + crate::work::counted(crate::work::Work::Looked),
