@@ -4,7 +4,7 @@ This dialect is the CLL dialect with the word-form grammar that the definition e
 
 The approved grammar differs from chapter 4 in several ways. A rafsi is a shortened word form used inside compounds. A brivla is a predicate word. For example, the approved grammar has the extended rafsi, which let a brivla or a borrowing stand inside a compound before a y-hyphen. It also lets a `Cy` letter word stand before another word without a pause, so `fyno` is `fy no`. CLL 4.9 rule 6 asks for a pause there.
 
-The syntax of the dialect is the CLL grammar. The dialect reads elided terminators as the PEG grammars that the definition effort adopted read them. A PEG commits to the first matching alternative.
+The syntax of the dialect is the CLL grammar. Both CLL dialects use the same policy for elided terminators. Their numbers and letter strings are indivisible.
 
 A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../phonemes/latin.md`](../phonemes/latin.md). The approved grammar reads part of these conventions too. The phoneme stage also reads gencmu's Cyrillic and zbalermorna. The indicator stage is the indicator stage of the [cll-ebnf](cll-ebnf.md) dialect.
 
@@ -96,17 +96,15 @@ A feature is a named switch that the grammars test. The dialect turns on the fea
 The CLL grammar leaves the choice among parses to each dialect that uses it. This dialect makes the choice here:
 
 ```jbogenbau
-%ambiguity-resolution late-elision elision-only maximal
+%ambiguity-resolution late-elision elision-only
 ```
 
-The definition effort replaced the YACC grammar of the official parser with a PEG (parsing expression grammar). The bpfk dialect reads elided terminators as the PEG grammars do, camxes-std among them. A PEG never gives back what it read. So the part of a rule before an elided terminator runs as far as the words after it can extend it.
+The stage ranks with `late-elision` and applies `elision-only`, as in the cll-ebnf dialect. `late-elision` takes the parse that elides a terminator later. `elision-only` writes those terminators back and rejects a completion with multiple readings.
 
-The resolution `maximal` says that. A terminator cannot be elided where the part of its alternative just before it can be longer. So `le nanmu joi le ninmu cu klama` parses, since no `sumti-tail` longer than `nanmu` begins there. But `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` is an error, since `lojbo se farvi` is a longer `sumti-tail`.
+A constituent can end wherever a parse of the whole text needs it. Numbers and letter strings cannot split before a continuation unit. The CLL grammar states that rule separately, under "Numbers, lerfu strings and mekso".
 
-A PEG is greedy everywhere, and `maximal` only where a terminator is elided. So `maximal` can find a longer part that a PEG never reads, one that divides the words before the terminator differently.
+A PEG is a parsing expression grammar. It commits to choices before it knows whether the whole text parses. This dialect follows the whole text instead. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses with the description ending before `se farvi`.
 
-In `le nu da poi remna li paso nanca kei cu broda`, the tail terms of `remna` are `li paso`, and `vau` is elided before `nanca`. `maximal` forbids that, because the terms can also be `li pa` and `so nanca`. That reading splits the number `paso`, which a PEG reads whole. The design document records this, the one such text of the test corpus.
-
-The stage also ranks with `late-elision` and applies `elision-only`, as in the cll-ebnf dialect. `late-elision` takes the parse that elides a terminator later. Unlike a PEG, the stage does not order the alternatives of a rule. So a text that the grammar leaves ambiguous in anything but a terminator is an error that shows both readings. The CLL grammar removes two such ambiguities with conditions. `mi broda joi ke brode ke'e` is a `ke` group joined by `joi`, and `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails after `gi'e`.
+The stage does not order the alternatives of a rule. A text that remains ambiguous after terminator restoration is an error. The CLL grammar settles two connective ambiguities with conditions.
 
 camxes-std departs from this. It tries the plain connective first, so it reads `joi` before a tanru unit that begins with `ke`. Where only the plain reading parses, as in `mi broda joi ke brode ke'e bo brodi`, the dialect agrees with camxes-std.
