@@ -743,12 +743,19 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
     let unguarded = |name: &str| {
         format!("a tag term of {} uses ${name}, which a production lacks; guard it with ${name} ⟹", rule.name)
     };
+    // Whether each clause waits for the loader, found once for the rule,
+    // not again for each production.
+    let rule_tags = rule.tags.as_ref().filter(|term| !term_waits(term));
+    let alternative_tags: Vec<Option<&Term>> = rule
+        .alternatives
+        .iter()
+        .map(|alternative| alternative.tags.as_ref().filter(|term| !term_waits(term)))
+        .collect();
+    let item_waits: Vec<bool> =
+        items.iter().map(|item| matches!(item, EmitItem::Capture(_, Some(term), ..) if term_waits(term))).collect();
     for (index, (alternative, _)) in productions.iter().enumerate() {
-        let alternative = &rule.alternatives[*alternative];
         let has = captures_of(index);
-        for term in
-            [rule.tags.as_ref(), alternative.tags.as_ref()].into_iter().flatten().filter(|term| !term_waits(term))
-        {
+        for term in [rule_tags, alternative_tags[*alternative]].into_iter().flatten() {
             if let Outcome::Uses(Some(missing)) = simplified_outcome(Part::Term(term), &has) {
                 return Some(unguarded(missing));
             }
@@ -756,9 +763,10 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         if rule.emit.is_none() {
             continue;
         }
-        let present: Vec<&EmitItem> = items
+        let present: Vec<(&EmitItem, bool)> = items
             .iter()
-            .filter(|item| match item {
+            .zip(item_waits.iter().copied())
+            .filter(|(item, _)| match item {
                 EmitItem::Capture(name, ..) => has(name),
                 EmitItem::Insert(_) => true,
             })
@@ -785,9 +793,9 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         }
         // The written order of the captures, attachments included, is the
         // order they stand in (§9).
-        let positions: Vec<usize> = present
+        let order: Vec<usize> = present
             .iter()
-            .flat_map(|item| match item {
+            .flat_map(|(item, _)| match item {
                 EmitItem::Capture(name, _, attachments) if !name.is_empty() => attachments
                     .before
                     .iter()
@@ -799,12 +807,12 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
             })
             .filter_map(|name| positions[index].get(name).copied())
             .collect();
-        if positions.windows(2).any(|pair| pair[1] < pair[0]) {
+        if order.windows(2).any(|pair| pair[1] < pair[0]) {
             return Some(format!("%emits of {} lists captures out of the order they stand in", rule.name));
         }
-        for item in &present {
+        for &(item, waits) in &present {
             if let EmitItem::Capture(_, Some(term), ..) = item {
-                if term_waits(term) {
+                if waits {
                     continue;
                 }
                 if let Outcome::Uses(Some(missing)) = simplified_outcome(Part::Term(term), &has) {
