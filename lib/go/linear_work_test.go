@@ -224,6 +224,37 @@ func TestCaptureSequencesLinear(t *testing.T) {
 	}
 }
 
+// TestCaptureSequencesOutputBound: captures in nested optionals, $c0(A)
+// [$c1(A) [… $c(n−1)(A) …]], give n+1 sequences of up to n captures each.
+// Listing them costs a bounded number of steps for each capture of each
+// sequence. A list is written out once, so a check for repeated lists that
+// wrote out every list at each level would cost n cubed.
+func TestCaptureSequencesOutputBound(t *testing.T) {
+	for _, n := range []int{60, 240} {
+		var e *domExpr
+		for i := n - 1; i >= 0; i-- {
+			c := &domExpr{Kind: exCapture, Name: fmt.Sprintf("c%d", i), Inner: &domExpr{Kind: exRef, Name: "A"}}
+			if e == nil {
+				e = &domExpr{Kind: exOptional, Inner: c}
+				continue
+			}
+			e = &domExpr{Kind: exOptional, Inner: &domExpr{Kind: exSeq, Items: []*domExpr{c, e}}}
+		}
+		size := int64(n + 1)
+		for k := 1; k <= n; k++ {
+			size += int64(k)
+		}
+		w := &workCounts{}
+		w.readerSteps.most = 8 * size
+		var caps []map[string]int
+		countWorkIn(w, func() { caps = altCaptures(&domAlt{Expr: e}) })
+		if len(caps) != n+1 {
+			t.Fatalf("%d levels: %d sequences", n, len(caps))
+		}
+		t.Logf("%d levels, %d captures in all: %d steps", n, size, w.readerSteps.Load())
+	}
+}
+
 // TestSharedClausesOnce: a rule's clauses, which all its alternatives
 // share, are checked and given their constants' values once, not once for
 // each alternative (engine §2, §9).
