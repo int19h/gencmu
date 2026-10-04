@@ -6,17 +6,19 @@ parses alike."""
 
 from __future__ import annotations
 
+import functools
 import json
 import math
 import unittest
-from typing import Callable
+from typing import Any, Callable
+from unittest import mock
 
 import gencmu
 from gencmu import _clauses, _dom, _trampoline
 from gencmu._dialect import read_document
-from gencmu._earley import Caps
+from gencmu._earley import Caps, StageContext
 
-from .shared import SHARED, OverBudget, Watch, calls, count_work, load_case_dialect, made_items, parse_case, steps
+from .shared import SHARED, OverBudget, Watch, Work, calls, count_work, load_case_dialect, made_items, parse_case, steps
 
 
 def capture_steps() -> list[Watch]:
@@ -52,54 +54,142 @@ class Growth(unittest.TestCase):
 
 
 class CaptureStorage(unittest.TestCase):
+    def storage(self, count: int, works: dict[str, Work], captures: Watch, steps_: list[Watch]) -> None:
+        """Parse a production of ``count`` captures over as many tokens, under
+        the budgets of each count, which stop the parse at the first unit
+        past one. ``works`` receives each count, by name."""
+        names = " ".join(f"$c{index}(A)" for index in range(count))
+        # A tag term that reads every capture, the first last. The rule rest
+        # makes no captures, for a regression that parses it again.
+        tags = " ∪ ".join(f"tags($c{count - 1 - index})" for index in range(count))
+        grammar = f'%rule text {names}\n%tags ~x ∪ {tags}\n%conditions text($c0) = "a"\n%rule rest {{A}}'
+        case = {"grammar": grammar, "tokens": [{"text": "a", "tags": ["A"]}] * count}
+        dialect, error = load_case_dialect(case)
+        self.assertIsNone(error)
+        assert dialect is not None
+        with (
+            count_work(captures, budget=count) as works["captures"],
+            count_work(made_items(), budget=2 * count + 4) as works["items"],
+            count_work(*steps_, budget=2 * count + 4) as works["walked"],
+        ):
+            value, _, _ = parse_case(dialect, case)
+        self.assertIsNotNone(value)
+        assert value is not None
+        self.assertTrue(value["ok"], f"{count} captures")
+        self.assertEqual(works["captures"].count, count, f"{count} captures")
+
     def test_an_item_shares_the_parts_of_the_item_it_advanced(self) -> None:
         # One production of C captures over C tokens keeps C captured parts,
         # not C², since each item shares the parts of the item it advanced
         # (engine §4). The tags and the conditions read them in a bounded
-        # number of walks.
+        # number of walks: each part a bounded number of times, not once
+        # for each capture before it.
+        captures, steps_ = calls(Caps.__init__), capture_steps()
         for count in (100, 200, 400):
-            names = " ".join(f"$c{index}(A)" for index in range(count))
-            # A tag term that reads every capture, the first last.
-            tags = " ∪ ".join(f"tags($c{count - 1 - index})" for index in range(count))
-            case = {"grammar": f'%rule text {names}\n%tags ~x ∪ {tags}\n%conditions text($c0) = "a"', "tokens": [{"text": "a", "tags": ["A"]}] * count}
-            dialect, error = load_case_dialect(case)
-            self.assertIsNone(error)
-            assert dialect is not None
-            with count_work(calls(Caps.__init__)) as captures, count_work(made_items()) as items, count_work(*capture_steps()) as walked:
-                value, _, _ = parse_case(dialect, case)
-            self.assertIsNotNone(value)
-            assert value is not None
-            self.assertTrue(value["ok"], f"{count} captures")
-            self.assertEqual(captures.count, count, f"{count} captures")
-            self.assertLessEqual(items.count, 2 * count + 4, f"{count} captures")
-            # Reading the parts, for the conditions, the tags and the
-            # result, walks each a bounded number of times, not once for
-            # each capture before it.
-            self.assertLessEqual(walked.count, 2 * count + 4, f"{count} captures: {walked.count} steps")
+            works: dict[str, Work] = {}
+            try:
+                self.storage(count, works, captures, steps_)
+            except OverBudget:
+                self.fail(f"{count} captures: past a budget, at {({name: work.count for name, work in works.items()})}")
+
+    def test_regressions_fail_at_the_first_count_past_each_budget(self) -> None:
+        # Each regression passes one budget, and the parse stops at the
+        # first unit past it, with 100 captures.
+        captures, steps_ = calls(Caps.__init__), capture_steps()
+        init, span_text = Caps.__init__, StageContext.span_text
+
+        @functools.wraps(init)
+        def copying_init(self: Caps, parent: Caps | None, part: tuple[int, int, int] | None) -> None:
+            # Each new sequence copies the parts it extends, not shares them.
+            if parent is not None:
+                chain: list[Caps] = []
+                found: Caps | None = parent
+                while found is not None:
+                    chain.append(found)
+                    found = found.parent
+                copy: Caps | None = None
+                for old in reversed(chain):
+                    fresh = object.__new__(Caps)
+                    init(fresh, copy, old.part)
+                    copy = fresh
+                parent = copy
+            init(self, parent, part)
+
+        def parsing_text(self: StageContext, start: int, end: int) -> str:
+            # text() parses the rest of the input again, as a condition that
+            # reads a whole prefix anew would.
+            self.nested("rest", 1, len(self.tokens))
+            return span_text(self, start, end)
+
+        def walking_find(self: Caps, slot: int) -> tuple[tuple[int, int, int], int]:
+            # A search walks every part, not the jumps.
+            if not 0 <= slot < self.size:
+                raise IndexError(slot)
+            return self.parts()[slot], 0
+
+        count = 100
+        budgets = {"captures": count, "items": 2 * count + 4, "walked": 2 * count + 4}
+        for name, target, method, mutant in (
+            ("captures", Caps, "__init__", copying_init),
+            ("items", StageContext, "span_text", parsing_text),
+            ("walked", Caps, "find", walking_find),
+        ):
+            with self.subTest(budget=name):
+                works: dict[str, Work] = {}
+                with mock.patch.object(target, method, mutant), self.assertRaises(OverBudget):
+                    self.storage(count, works, captures, steps_)
+                self.assertEqual(works[name].count, budgets[name] + 1, {key: work.count for key, work in works.items()})
+
+    def walked(self, count: int, far: Callable[[int], str], budget: int, steps_: list[Watch], works: list[Work]) -> None:
+        """Parse a production of ``count`` captures with a condition at each
+        that reads the capture ``far`` names, under a budget of the steps
+        of the searches, which ``works`` receives."""
+        names = " ".join(f"$c{index}(A)" for index in range(count))
+        conditions = ", ".join(f"text($c{index}) = text({far(index)})" for index in range(count))
+        case = {"grammar": f"%rule text {names}\n%conditions {conditions}", "tokens": [{"text": "a", "tags": ["A"]}] * count}
+        dialect, error = load_case_dialect(case)
+        self.assertIsNone(error)
+        assert dialect is not None
+        with count_work(*steps_, budget=budget) as work:
+            works.append(work)
+            value, _, _ = parse_case(dialect, case)
+        assert value is not None
+        self.assertTrue(value["ok"], f"{count} captures")
+
+    @staticmethod
+    def searches(count: int) -> list[tuple[str, Callable[[int], str], int]]:
+        """The two searches at each capture: of the capture just made, the
+        last part, and of the first capture, by the jumps, whose steps grow
+        with the logarithm of the parts (engine §4). Each with its budget."""
+        return [
+            ("near", lambda index: f"$c{index}", 2 * count + 4),
+            ("first", lambda index: "$c0", int(count * (2 * math.log2(count) + 4))),
+        ]
 
     def test_a_condition_at_each_capture_reads_its_part_without_walking_the_parts_before_it(self) -> None:
-        # A condition at each capture of a long production reads the part
-        # it names: the capture just made is the last part, and the first
-        # capture is a search by the jumps, whose steps grow with the
-        # logarithm of the parts (engine §4).
-        def walked(count: int, far: Callable[[int], str]) -> int:
-            names = " ".join(f"$c{index}(A)" for index in range(count))
-            conditions = ", ".join(f"text($c{index}) = text({far(index)})" for index in range(count))
-            case = {"grammar": f"%rule text {names}\n%conditions {conditions}", "tokens": [{"text": "a", "tags": ["A"]}] * count}
-            dialect, error = load_case_dialect(case)
-            self.assertIsNone(error)
-            assert dialect is not None
-            with count_work(*capture_steps()) as work:
-                value, _, _ = parse_case(dialect, case)
-            assert value is not None
-            self.assertTrue(value["ok"], f"{count} captures")
-            return work.count
-
+        steps_ = capture_steps()
         for count in (100, 200, 400):
-            near = walked(count, lambda index: f"$c{index}")
-            first = walked(count, lambda index: "$c0")
-            self.assertLessEqual(near, 2 * count + 4, f"{count} captures read where they are made: {near} steps")
-            self.assertLessEqual(first, count * (2 * math.log2(count) + 4), f"{count} captures that each read the first: {first} steps")
+            for name, far, budget in self.searches(count):
+                works: list[Work] = []
+                try:
+                    self.walked(count, far, budget, steps_, works)
+                except OverBudget:
+                    self.fail(f"{count} captures that each read {name}: more than {budget} steps")
+
+    def test_a_search_that_walks_every_part_fails_at_the_first_step_past_its_budget(self) -> None:
+        steps_ = capture_steps()
+
+        def walking_find(self: Caps, slot: int) -> tuple[tuple[int, int, int], int]:
+            if not 0 <= slot < self.size:
+                raise IndexError(slot)
+            return self.parts()[slot], 0
+
+        for name, far, budget in self.searches(100):
+            with self.subTest(search=name):
+                works: list[Work] = []
+                with mock.patch.object(Caps, "find", walking_find), self.assertRaises(OverBudget):
+                    self.walked(100, far, budget, steps_, works)
+                self.assertEqual(works[0].count, budget + 1)
 
 
 def reader_steps() -> list[Watch]:
@@ -116,33 +206,72 @@ def reader_steps() -> list[Watch]:
 
 
 class NotationGrowth(unittest.TestCase):
+    # The shared cases of tests/notation-growth.json: reading a document
+    # whose constructs nest deep costs work that grows with its length, not
+    # with its square. The work is the recognizer's items and the steps of
+    # the readers and walks, counted, not timed.
+
+    def grows(self, case: dict[str, str], watches: list[Watch]) -> tuple[int, Work]:
+        """The work of a case at 250 levels, and the count of a read at 1000
+        levels under a budget of five times that, which stops the read at
+        the first unit past it."""
+
+        def work(n: int, budget: int | None = None, works: list[Work] | None = None) -> int:
+            text = "```jbogenbau\n" + case["prefix"] + case["open"] * n + case["middle"] + case["close"] * n + case["suffix"] + "\n```\n"
+            with count_work(*watches, budget=budget) as counted:
+                if works is not None:
+                    works.append(counted)
+                try:
+                    read_document(text, "t.md")
+                except gencmu.GencmuError:
+                    # An error is an outcome too. Its place is the
+                    # notation cases' concern.
+                    pass
+            return counted.count
+
+        # Once first, so that loading the notation counts in neither.
+        work(250)
+        small = work(250)
+        works: list[Work] = []
+        try:
+            work(1000, 5 * small, works)
+        except OverBudget:
+            pass
+        return small, works[0]
+
     def test_cases(self) -> None:
-        # The shared cases of tests/notation-growth.json: reading a document
-        # whose constructs nest deep costs work that grows with its length,
-        # not with its square. The work is the recognizer's items and the
-        # steps of the readers and walks, counted, not timed.
         with open(SHARED / "notation-growth.json", encoding="utf-8") as file:
             cases = json.load(file)
         self.assertGreater(len(cases), 5)
+        watches = [made_items(), *reader_steps()]
         for case in cases:
             with self.subTest(case=case["name"]):
+                small, large = self.grows(case, watches)
+                self.assertLessEqual(large.count, 5 * small, f"{case['name']}: {small} for 250 levels, more than 5 times as much for 1000")
 
-                def work(n: int) -> int:
-                    text = "```jbogenbau\n" + case["prefix"] + case["open"] * n + case["middle"] + case["close"] * n + case["suffix"] + "\n```\n"
-                    with count_work(made_items(), *reader_steps()) as counted:
-                        try:
-                            read_document(text, "t.md")
-                        except gencmu.GencmuError:
-                            # An error is an outcome too; its place is the
-                            # notation cases' concern.
-                            pass
-                    return counted.count
+    def test_a_walk_of_each_subtree_fails_at_the_first_step_past_its_budget(self) -> None:
+        # A regression that flattens the groups of each node's subtree in
+        # turn, deepest first, walks a deep DOM once for each level. The
+        # read at 1000 levels stops at the first step past its budget.
+        with open(SHARED / "notation-growth.json", encoding="utf-8") as file:
+            case = next(case for case in json.load(file) if case["name"] == "negations")
+        watches = [made_items(), *reader_steps()]
+        flatten = _dom.flatten_groups
 
-                # Once first, so that loading the notation counts in neither.
-                work(250)
-                small = work(250)
-                large = work(1000)
-                self.assertLessEqual(large, 5 * small, f"{case['name']}: {small} for 250 levels, {large} for 1000")
+        def flatten_each(root: Any) -> None:
+            nodes: list[Any] = []
+            stack = [root]
+            while stack:
+                current = stack.pop()
+                if isinstance(current, (dict, list)):
+                    nodes.append(current)
+                    stack.extend(current.values() if isinstance(current, dict) else current)
+            for node in reversed(nodes):
+                flatten(node)
+
+        with mock.patch.object(_dom, "flatten_groups", flatten_each):
+            small, large = self.grows(case, watches)
+        self.assertEqual(large.count, 5 * small + 1)
 
 
 if __name__ == "__main__":
