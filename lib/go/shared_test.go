@@ -1,11 +1,10 @@
 package gencmu
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"testing"
@@ -61,11 +60,13 @@ type caseOptions struct {
 	Until           string
 }
 
+// caseExpect is what a case expects. Result, Warnings and Features are
+// decoded JSON, nil where the case leaves them out.
 type caseExpect struct {
-	Result   json.RawMessage
+	Result   *any
 	Brackets *string
-	Warnings json.RawMessage
-	Features json.RawMessage
+	Warnings *any
+	Features *any
 	Error    string
 	// Where is where a load error stands (tests/README.md).
 	Where *struct {
@@ -74,43 +75,51 @@ type caseExpect struct {
 	}
 }
 
-// match matches a value against a pattern (tests/README.md).
+// match matches a value against a pattern (tests/README.md). It compares
+// pairs from a list of work, not by recursion, in the order of a recursive
+// walk: an object's members in the order of their names, depth first.
 func match(pattern, value any, path string) error {
-	switch p := pattern.(type) {
-	case map[string]any:
-		v, ok := value.(map[string]any)
-		if !ok {
-			return fmt.Errorf("%s: expected an object, got %v", path, value)
-		}
-		keys := make([]string, 0, len(p))
-		for k := range p {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			vv, ok := v[k]
-			if !ok {
-				return fmt.Errorf("%s.%s: missing", path, k)
-			}
-			if err := match(p[k], vv, path+"."+k); err != nil {
-				return err
-			}
-		}
-		return nil
-	case []any:
-		v, ok := value.([]any)
-		if !ok || len(v) != len(p) {
-			return fmt.Errorf("%s: expected an array of %d, got %v", path, len(p), value)
-		}
-		for i := range p {
-			if err := match(p[i], v[i], fmt.Sprintf("%s[%d]", path, i)); err != nil {
-				return err
-			}
-		}
-		return nil
+	type job struct {
+		pattern, value any
+		path           *jsonPath
+		missing        bool
 	}
-	if !reflect.DeepEqual(pattern, value) {
-		return fmt.Errorf("%s: expected %v, got %v", path, pattern, value)
+	work := []job{{pattern, value, &jsonPath{step: path}, false}}
+	for len(work) > 0 {
+		j := work[len(work)-1]
+		work = work[:len(work)-1]
+		if j.missing {
+			return fmt.Errorf("%s: missing", j.path)
+		}
+		switch p := j.pattern.(type) {
+		case map[string]any:
+			v, ok := j.value.(map[string]any)
+			if !ok {
+				return fmt.Errorf("%s: expected an object, got %s", j.path, shown(j.value))
+			}
+			keys := make([]string, 0, len(p))
+			for k := range p {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			for i := len(keys) - 1; i >= 0; i-- {
+				k := keys[i]
+				vv, ok := v[k]
+				work = append(work, job{p[k], vv, j.path.member(k), !ok})
+			}
+		case []any:
+			v, ok := j.value.([]any)
+			if !ok || len(v) != len(p) {
+				return fmt.Errorf("%s: expected an array of %d, got %s", j.path, len(p), shown(j.value))
+			}
+			for i := len(p) - 1; i >= 0; i-- {
+				work = append(work, job{p[i], v[i], j.path.index(i), false})
+			}
+		default:
+			if !equalJSON(j.pattern, j.value) {
+				return fmt.Errorf("%s: expected %s, got %s", j.path, shown(j.pattern), shown(j.value))
+			}
+		}
 	}
 	return nil
 }
@@ -121,7 +130,7 @@ func loadCase(t testing.TB, file string) *engineCase {
 		t.Fatal(err)
 	}
 	c := &engineCase{}
-	if err := json.Unmarshal(data, c); err != nil {
+	if err := unmarshalJSON(data, c); err != nil {
 		t.Fatalf("%s: %v", file, err)
 	}
 	return c
@@ -178,42 +187,52 @@ func runCaseLogged(d *Dialect, c *engineCase, o *caseOptions, lose string) (*Par
 
 // caseTokens makes a case's tokens and the text they index
 // (tests/README.md). An empty list of attachments stays an empty list, not
-// nil, as a caller could give it.
+// nil, as a caller could give it. The attachments nest as deep as the case
+// does, so each list is made from a list of work, not by recursion.
 func caseTokens(specs []caseToken) ([]Token, string, error) {
-	var texts []string
-	toks := make([]Token, 0, len(specs))
-	pos := 0
-	for i, tk := range specs {
-		// Each tag in its canonical spelling, as the output writes it
-		// (tests/README.md).
-		for _, tag := range tk.Tags {
-			if !isTag(tag, bundled.uni) {
-				return nil, "", fmt.Errorf("a case token's tag %s is not a tag", tag)
-			}
-		}
-		n := len([]rune(tk.Text))
-		tok := Token{Text: tk.Text, Tags: tk.Tags, Span: [2]int{i, i + 1}, Source: [2]int{pos, pos + n}}
-		if tk.Phonemes != nil {
-			tok.Phonemes = *tk.Phonemes
-		}
-		for _, side := range []struct {
-			specs []caseToken
-			into  *[]Token
-		}{{tk.Before, &tok.Before}, {tk.After, &tok.After}} {
-			if side.specs == nil {
-				continue
-			}
-			inner, _, err := caseTokens(side.specs)
-			if err != nil {
-				return nil, "", err
-			}
-			*side.into = attached(inner)
-		}
-		toks = append(toks, tok)
-		texts = append(texts, tk.Text)
-		pos += n + 1
+	type job struct {
+		specs []caseToken
+		into  *[]Token
 	}
-	return toks, strings.Join(texts, " "), nil
+	var out []Token
+	work := []job{{specs, &out}}
+	for len(work) > 0 {
+		j := work[len(work)-1]
+		work = work[:len(work)-1]
+		toks := make([]Token, len(j.specs))
+		pos := 0
+		for i, tk := range j.specs {
+			// Each tag in its canonical spelling, as the output writes it
+			// (tests/README.md).
+			for _, tag := range tk.Tags {
+				if !isTag(tag, bundled.uni) {
+					return nil, "", fmt.Errorf("a case token's tag %s is not a tag", tag)
+				}
+			}
+			n := len([]rune(tk.Text))
+			toks[i] = Token{Text: tk.Text, Tags: tk.Tags, Span: [2]int{i, i + 1}, Source: [2]int{pos, pos + n}}
+			if tk.Phonemes != nil {
+				toks[i].Phonemes = *tk.Phonemes
+			}
+			if tk.Before != nil {
+				work = append(work, job{tk.Before, &toks[i].Before})
+			}
+			if tk.After != nil {
+				work = append(work, job{tk.After, &toks[i].After})
+			}
+			pos += n + 1
+		}
+		// An attached list takes the library's own form of attachments.
+		if j.into != &out {
+			toks = attached(toks)
+		}
+		*j.into = toks
+	}
+	texts := make([]string, len(specs))
+	for i, tk := range specs {
+		texts[i] = tk.Text
+	}
+	return out, strings.Join(texts, " "), nil
 }
 
 func checkCase(c *engineCase, noCache bool) error {
@@ -269,14 +288,12 @@ func checkLoadError(expect *caseExpect, err error) error {
 func checkParse(d *Dialect, c *engineCase, options *caseOptions, expect *caseExpect) error {
 	// The dialect's features, compared whole.
 	if expect.Features != nil {
-		var want any
-		json.Unmarshal(expect.Features, &want)
 		have := []any{}
 		for _, f := range d.Features() {
 			have = append(have, map[string]any{"name": f.Name, "kind": f.Kind, "default": f.Default})
 		}
-		if !reflect.DeepEqual(have, want) {
-			return fmt.Errorf("features: expected %s, got %+v", expect.Features, d.Features())
+		if !equalJSON(have, *expect.Features) {
+			return fmt.Errorf("features: expected %s, got %+v", shown(*expect.Features), d.Features())
 		}
 	}
 	res, log, err := runCaseLogged(d, c, options, "")
@@ -295,8 +312,8 @@ func checkParse(d *Dialect, c *engineCase, options *caseOptions, expect *caseExp
 		return err
 	}
 	data, _ := MarshalResult(res)
-	var got any
-	if err := json.Unmarshal(data, &got); err != nil {
+	got, err := decodeJSON(data)
+	if err != nil {
 		return fmt.Errorf("the canonical JSON does not parse: %v\n%s", err, data)
 	}
 	// Every check of elision-only that ran keeps its witness
@@ -367,20 +384,16 @@ func checkResult(res *ParseResult, got any, data []byte, expect *caseExpect) err
 	// The warnings, compared whole, so [] says that there are none; the
 	// canonical JSON leaves them out then.
 	if expect.Warnings != nil {
-		var want any
-		json.Unmarshal(expect.Warnings, &want)
 		have, ok := got.(map[string]any)["warnings"]
 		if !ok {
 			have = []any{}
 		}
-		if !reflect.DeepEqual(have, want) {
-			return fmt.Errorf("warnings: expected %s\n%s", expect.Warnings, data)
+		if !equalJSON(have, *expect.Warnings) {
+			return fmt.Errorf("warnings: expected %s\n%s", shown(*expect.Warnings), data)
 		}
 	}
 	if expect.Result != nil {
-		var pattern any
-		json.Unmarshal(expect.Result, &pattern)
-		if err := match(pattern, got, "result"); err != nil {
+		if err := match(*expect.Result, got, "result"); err != nil {
 			return fmt.Errorf("%v\n%s", err, data)
 		}
 	}
@@ -406,6 +419,7 @@ func checkResult(res *ParseResult, got any, data []byte, expect *caseExpect) err
 func TestEngineRunnerLoadError(t *testing.T) {
 	grammar := "%rule text A\n%rule text A"
 	brackets := ""
+	decoded := func(v any) *any { return &v }
 	// "\xed\xa0\x80" encodes the surrogate U+D800, so this document held in
 	// memory is a usage error at load (engine §1).
 	unusable := "%rule text 'a\xed\xa0\x80'"
@@ -422,13 +436,13 @@ func TestEngineRunnerLoadError(t *testing.T) {
 		{"grammar", &grammar, caseExpect{Error: ErrorGrammar}, true},
 		{"usage", &grammar, caseExpect{Error: ErrorUsage}, false},
 		{"none", &grammar, caseExpect{}, false},
-		{"result", &grammar, caseExpect{Error: ErrorGrammar, Result: json.RawMessage("{}")}, false},
+		{"result", &grammar, caseExpect{Error: ErrorGrammar, Result: decoded(map[string]any{})}, false},
 		{"brackets", &grammar, caseExpect{Error: ErrorGrammar, Brackets: &brackets}, false},
-		{"warnings", &grammar, caseExpect{Error: ErrorGrammar, Warnings: json.RawMessage("[]")}, false},
-		{"features", &grammar, caseExpect{Error: ErrorGrammar, Features: json.RawMessage("[]")}, false},
+		{"warnings", &grammar, caseExpect{Error: ErrorGrammar, Warnings: decoded([]any{})}, false},
+		{"features", &grammar, caseExpect{Error: ErrorGrammar, Features: decoded([]any{})}, false},
 		{"usage at load", &unusable, caseExpect{Error: ErrorUsage}, true},
 		{"usage at load, grammar expected", &unusable, caseExpect{Error: ErrorGrammar}, false},
-		{"usage at load, result expected", &unusable, caseExpect{Error: ErrorUsage, Result: json.RawMessage("{}")}, false},
+		{"usage at load, result expected", &unusable, caseExpect{Error: ErrorUsage, Result: decoded(map[string]any{})}, false},
 		{"usage at load, where given", &unusable, caseExpect{Error: ErrorUsage, Where: where}, false},
 	} {
 		c := &engineCase{Grammar: tc.grammar, Expect: tc.expect}
@@ -457,7 +471,7 @@ func loadResultMutants(t testing.TB) []resultMutant {
 	var file struct {
 		Mutants []map[string]any `json:"mutants"`
 	}
-	if err := json.Unmarshal(data, &file); err != nil {
+	if err := unmarshalJSON(data, &file); err != nil {
 		t.Fatal(err)
 	}
 	// An empty list would pass every runner with nothing refused.
@@ -497,12 +511,7 @@ func applyMutant(t testing.TB, got map[string]any, m resultMutant) {
 		}
 		return value
 	}
-	fresh := func(value any) any {
-		data, _ := json.Marshal(value)
-		var copied any
-		json.Unmarshal(data, &copied)
-		return copied
-	}
+	fresh := copyJSON
 	path := m.change["path"].([]any)
 	parent := follow(path[:len(path)-1])
 	last := path[len(path)-1]
@@ -545,6 +554,16 @@ func mutantResult(t testing.TB, m resultMutant) (*ParseResult, []byte) {
 	return res, data
 }
 
+// decodedResult is a canonical result, decoded.
+func decodedResult(t testing.TB, data []byte) map[string]any {
+	t.Helper()
+	got, err := decodeJSON(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return got.(map[string]any)
+}
+
 // The runner fails a case that does not finish in time.
 func TestEngineRunnerTimeout(t *testing.T) {
 	grammar := doublingGrammar("late-elision", 25, false, "%rule text ε | rN")
@@ -559,8 +578,7 @@ func TestEngineRunnerTimeout(t *testing.T) {
 func TestEngineRunnerInvariants(t *testing.T) {
 	for _, m := range loadResultMutants(t) {
 		res, data := mutantResult(t, m)
-		var got map[string]any
-		json.Unmarshal(data, &got)
+		got := decodedResult(t, data)
 		if problems := resultProblems(got); len(problems) != 0 {
 			t.Fatalf("%s: %v", m.Case, problems)
 		}
@@ -643,4 +661,16 @@ func witnessLostProblems(e map[string]any, stages []any) []string {
 		problems = append(problems, "the stage of the elision-witness-lost error is not the last, resolved, with no output")
 	}
 	return problems
+}
+
+// TestEngineCaseDeep runs the deep engine case through the whole runner,
+// which reads, writes and compares its result 20,000 deep, with the stack
+// of a goroutine held to 1 MiB. A deeper stack is fatal, so a runner that
+// recursed as deep would end the process.
+func TestEngineCaseDeep(t *testing.T) {
+	c := loadCase(t, "../../tests/engine/deep-left-recursion.json")
+	defer debug.SetMaxStack(debug.SetMaxStack(1 << 20))
+	if err := checkCase(c, true); err != nil {
+		t.Fatalf("%.500v", err)
+	}
 }

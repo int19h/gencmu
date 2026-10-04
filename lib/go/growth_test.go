@@ -1,7 +1,6 @@
 package gencmu
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
 	"os"
@@ -29,7 +28,7 @@ func TestGrowth(t *testing.T) {
 		Large       int
 		Most        int64
 	}
-	if err := json.Unmarshal(data, &cases); err != nil {
+	if err := unmarshalJSON(data, &cases); err != nil {
 		t.Fatal(err)
 	}
 	if len(cases) == 0 {
@@ -192,7 +191,7 @@ func TestNotationGrowth(t *testing.T) {
 	var cases []struct {
 		Name, Prefix, Open, Middle, Close, Suffix string
 	}
-	if err := json.Unmarshal(data, &cases); err != nil {
+	if err := unmarshalJSON(data, &cases); err != nil {
 		t.Fatal(err)
 	}
 	if len(cases) <= 5 {
@@ -236,7 +235,7 @@ func TestNotationDeep(t *testing.T) {
 	var cases []struct {
 		Name, Prefix, Open, Middle, Close, Suffix string
 	}
-	if err := json.Unmarshal(data, &cases); err != nil {
+	if err := unmarshalJSON(data, &cases); err != nil {
 		t.Fatal(err)
 	}
 	defer debug.SetMaxStack(debug.SetMaxStack(1 << 20))
@@ -266,7 +265,7 @@ func TestQueryDepth(t *testing.T) {
 		Name, Grammar, Link, Suffix string
 		Count                       int
 	}
-	if err := json.Unmarshal(data, &cases); err != nil {
+	if err := unmarshalJSON(data, &cases); err != nil {
 		t.Fatal(err)
 	}
 	if len(cases) == 0 {
@@ -366,7 +365,7 @@ func TestQueryWork(t *testing.T) {
 		Count                                      int
 		Most                                       int64
 	}
-	if err := json.Unmarshal(data, &cases); err != nil {
+	if err := unmarshalJSON(data, &cases); err != nil {
 		t.Fatal(err)
 	}
 	if len(cases) == 0 {

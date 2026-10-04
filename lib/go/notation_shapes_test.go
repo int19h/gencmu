@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
 )
@@ -36,7 +35,7 @@ func TestNotationShapes(t *testing.T) {
 			}
 		}
 	}
-	if err := json.Unmarshal(raw, &shapes); err != nil {
+	if err := unmarshalJSON(raw, &shapes); err != nil {
 		t.Fatal(err)
 	}
 	bootstrapRaw, err := os.ReadFile("../../grammars/notation/bootstrap.json")
@@ -106,7 +105,7 @@ func TestNotationShapes(t *testing.T) {
 	withSyntax := func(change func(string) string) string {
 		return bootstrap[:syntaxAt] + change(bootstrap[syntaxAt:])
 	}
-	if got := outcome(bootstrap); !reflect.DeepEqual(got, shapes.Control) {
+	if got := outcome(bootstrap); !equalJSON(got, shapes.Control) {
 		t.Errorf("the bundled bootstrap: %v, not %v", got, shapes.Control)
 	}
 	// A wrapper around each rule of the notation changes nothing.
@@ -118,7 +117,7 @@ func TestNotationShapes(t *testing.T) {
 		}
 		return strings.Replace(syntax, `"rules":[`, `"rules":[`+wrappers.String(), 1)
 	})
-	if got := outcome(wrapped); !reflect.DeepEqual(got, shapes.Control) {
+	if got := outcome(wrapped); !equalJSON(got, shapes.Control) {
 		t.Errorf("a wrapper around each rule: %v, not %v", got, shapes.Control)
 	}
 	// Each renamed rule gives the outcome of every library.
@@ -133,7 +132,7 @@ func TestNotationShapes(t *testing.T) {
 		if loads, ok := shapes.Loads[name]; ok {
 			want = loads
 		}
-		if got := outcome(renamed); !reflect.DeepEqual(got, want) {
+		if got := outcome(renamed); !equalJSON(got, want) {
 			t.Errorf("%s renamed: %v, not %v", name, got, want)
 		}
 	}
@@ -152,7 +151,7 @@ func TestNotationShapes(t *testing.T) {
 		if w := item.Where; w != nil {
 			where = &[3]any{w.Document, w.Line, w.Column}
 		}
-		if got := outcomeAt(changed, item.Document, item.Inputs, where); !reflect.DeepEqual(got, item.Expect) {
+		if got := outcomeAt(changed, item.Document, item.Inputs, where); !equalJSON(got, item.Expect) {
 			t.Errorf("%s: %v, not %v", item.Description, got, item.Expect)
 		}
 	}

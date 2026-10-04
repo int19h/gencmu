@@ -11,8 +11,8 @@ import (
 )
 
 func domValue(t testing.TB, d *domDoc) any {
-	var v any
-	if err := json.Unmarshal(d.json(), &v); err != nil {
+	v, err := decodeJSON(d.json())
+	if err != nil {
 		t.Fatalf("the DOM's JSON does not parse: %v", err)
 	}
 	return v
@@ -35,11 +35,11 @@ func TestNotationCases(t *testing.T) {
 			Description string
 			Document    string
 			Expect      struct {
-				Dom   json.RawMessage
+				Dom   *any
 				Error *struct{ Line, Column int }
 			}
 		}
-		if err := json.Unmarshal(data, &c); err != nil {
+		if err := unmarshalJSON(data, &c); err != nil {
 			t.Fatal(err)
 		}
 		t.Run(strings.TrimSuffix(filepath.Base(f), ".json"), func(t *testing.T) {
@@ -57,7 +57,9 @@ func TestNotationCases(t *testing.T) {
 				t.Fatalf("%s\n%v", c.Description, rerr)
 			}
 			var pattern any
-			json.Unmarshal(c.Expect.Dom, &pattern)
+			if c.Expect.Dom != nil {
+				pattern = *c.Expect.Dom
+			}
 			if err := match(pattern, domValue(t, dom), "dom"); err != nil {
 				t.Fatalf("%s\n%v\n%s", c.Description, err, dom.json())
 			}

@@ -1,7 +1,6 @@
 package gencmu
 
 import (
-	"encoding/json"
 	"strings"
 	"sync"
 	"testing"
@@ -354,8 +353,7 @@ func TestWitnessLost(t *testing.T) {
 			t.Fatalf("%s: %d checks, %d lost", lose, log.checks, log.lost())
 		}
 		data, _ := MarshalResult(res)
-		var got map[string]any
-		json.Unmarshal(data, &got)
+		got := decodedResult(t, data)
 		// The runner fails it, whatever a case expects (tests/README.md),
 		// though it has the form that docs/output.md gives it.
 		problems := resultProblems(got)
