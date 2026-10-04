@@ -368,7 +368,50 @@ function holds(c, text) {
  * @returns {string[]}
  */
 export function wordLabels(text) {
-  return text.split(" ").map((word) => word.replace(/^[.,]+|[.,]+$/g, "").replace(/\./g, " "));
+  return text.split(" ").map((word) => {
+    // The stops and commas at either end trimmed by a loop: /[.,]+$/ tries
+    // each of a long inner run of them in turn.
+    const stop = (/** @type {string} */ c) => c === "." || c === ",";
+    let start = 0;
+    let end = word.length;
+    while (start < end && stop(word[start])) start++;
+    while (end > start && stop(word[end - 1])) end--;
+    return word.slice(start, end).replace(/\./g, " ");
+  });
+}
+
+/**
+ * Where a list of strings holds another as a run, each start in order, by
+ * Knuth, Morris and Pratt: a comparison of the run at every start would
+ * cost the two lengths multiplied.
+ * @param {string[]} haystack
+ * @param {string[]} needle
+ * @returns {number[]}
+ */
+export function runStarts(haystack, needle) {
+  /** @type {number[]} */
+  const starts = [];
+  if (needle.length === 0) {
+    for (let start = 0; start <= haystack.length; start++) starts.push(start);
+    return starts;
+  }
+  // For each prefix of the needle, the length of its longest proper prefix
+  // that is also its suffix.
+  const border = [0];
+  for (let index = 1, length = 0; index < needle.length; index++) {
+    while (length > 0 && needle[index] !== needle[length]) length = border[length - 1];
+    if (needle[index] === needle[length]) length++;
+    border.push(length);
+  }
+  for (let index = 0, matched = 0; index < haystack.length; index++) {
+    while (matched > 0 && haystack[index] !== needle[matched]) matched = border[matched - 1];
+    if (haystack[index] === needle[matched]) matched++;
+    if (matched === needle.length) {
+      starts.push(index + 1 - needle.length);
+      matched = border[matched - 1];
+    }
+  }
+  return starts;
 }
 
 /**
@@ -390,13 +433,12 @@ export function rejectionWindows(caseText, text) {
     else words.push({ start: index, end: index + 1 });
   });
   const wanted = text.split(" ");
+  /** @type {[number, number][]} */
   const windows = [];
-  for (let first = 0; first + wanted.length <= words.length; first++) {
-    const run = words.slice(first, first + wanted.length);
-    if (run.every((word, index) => points.slice(word.start, word.end).join("") === wanted[index])) {
-      const after = words[first + wanted.length];
-      windows.push([run[0].start, after ? after.end : points.length]);
-    }
+  const spelled = words.map((word) => points.slice(word.start, word.end).join(""));
+  for (const first of runStarts(spelled, wanted)) {
+    const after = words[first + wanted.length];
+    windows.push([words[first].start, after ? after.end : points.length]);
   }
   return windows;
 }
@@ -435,15 +477,14 @@ export function roleProblem(c, role, text, dialects, loader) {
   }
   if (role === "words") {
     const wanted = wordLabels(text);
+    const points = Array.from(c.text);
     let apart = false;
     for (const stage of result.stages) {
       if (!stage.output) continue;
       // A pause token has a label of white space, and stands for no word.
       const tokens = stage.output.filter((/** @type {any} */ token) => token.label.trim());
-      for (let first = 0; first + wanted.length <= tokens.length; first++) {
-        const run = tokens.slice(first, first + wanted.length);
-        if (!run.every((token, index) => token.label === wanted[index])) continue;
-        if (together(c.text, run)) return null;
+      for (const first of runStarts(tokens.map((/** @type {any} */ token) => token.label), wanted)) {
+        if (together(points, tokens.slice(first, first + wanted.length))) return null;
         apart = true;
       }
     }
@@ -452,28 +493,74 @@ export function roleProblem(c, role, text, dialects, loader) {
   if (!result.ok) return "its dialect rejects it";
   const wanted = bare(text);
   for (const stage of result.stages) {
-    if (!stage.tree) continue;
-    /** @returns {string[]} the labels of the tokens under a node */
-    const words = (node) => (node.kind === "token" ? [stage.input[node.token].label].filter((label) => label.trim()) : (node.children || []).flatMap(words));
-    const stack = [stage.tree];
-    while (stack.length) {
-      const node = stack.pop();
-      if (node.kind === "rule" && node.rule === role && words(node).join(" ") === wanted) return null;
-      for (const child of node.children || []) stack.push(child);
-    }
+    if (stage.tree && hasNodeWithWords(stage.tree, stage.input, role, wanted)) return null;
   }
   return `no tree has a node of ${role} whose words are exactly the text's`;
 }
 
 /**
+ * Whether a tree has a node of a rule whose words, the labels of the
+ * tokens under it that are not white space, joined by spaces, are a text.
+ * One walk gives each node its range of words. A node's words are compared
+ * only where their joined length is the text's, once for each range, since
+ * gathering them for each node would cost a chain of nodes the square of
+ * its length.
+ * @param {any} tree
+ * @param {{label: string}[]} input the stage's input tokens
+ * @param {string} role
+ * @param {string} wanted
+ * @returns {boolean}
+ */
+export function hasNodeWithWords(tree, input, role, wanted) {
+  /** @type {string[]} */
+  const labels = [];
+  // The joined length of the words before each word, spaces included.
+  const before = [0];
+  /** @type {any[]} the nodes of the rule, each with its range of words */
+  const found = [];
+  /** @type {{node: any, exit: boolean, start: number}[]} */
+  const stack = [{ node: tree, exit: false, start: 0 }];
+  for (let top = stack.pop(); top !== undefined; top = stack.pop()) {
+    const { node } = top;
+    if (top.exit) {
+      if (node.kind === "rule" && node.rule === role) found.push([top.start, labels.length]);
+      continue;
+    }
+    if (node.kind === "token") {
+      const label = input[node.token].label;
+      if (label.trim()) {
+        labels.push(label);
+        before.push(before[before.length - 1] + [...label].length + 1);
+      }
+      continue;
+    }
+    stack.push({ node, exit: true, start: labels.length });
+    const children = node.children || [];
+    for (let index = children.length - 1; index >= 0; index--) stack.push({ node: children[index], exit: false, start: 0 });
+  }
+  const length = [...wanted].length;
+  /** @type {Set<string>} */
+  const compared = new Set();
+  for (const [start, end] of found) {
+    const joined = end > start ? before[end] - before[start] - 1 : 0;
+    if (joined !== length) continue;
+    const key = `${start} ${end}`;
+    if (compared.has(key)) continue;
+    compared.add(key);
+    if (labels.slice(start, end).join(" ") === wanted) return true;
+  }
+  return false;
+}
+
+/**
  * Whether tokens, with their attachments, stand together in a text: no
  * letter lies between them that none of them covers.
- * @param {string} caseText
+ * @param {string[]} points the case's text, as code points, split once for
+ *   every run tested
  * @param {any[]} tokens
  * @returns {boolean}
  */
-function together(caseText, tokens) {
-  const points = Array.from(caseText);
+function together(points, tokens) {
   const covered = new Set();
   const cover = (/** @type {any} */ token) => {
     if (token.source) for (let index = token.source[0]; index < token.source[1]; index++) covered.add(index);
@@ -548,10 +635,21 @@ export function quotedTextProblems(base = root, { loader, doms, checked = CHECKE
   }
   const allowFile = path.join(base, "tests", "quoted-allow.txt");
   const { entries, problems } = readAllowList(fs.existsSync(allowFile) ? fs.readFileSync(allowFile, "utf8") : "");
+  // The entries by document and text, so that finding one does not scan
+  // the whole list for each quoted text.
+  /** @type {Map<string, AllowEntry[]>} */
+  const entriesOf = new Map();
+  for (const entry of entries) {
+    const key = `${entry.document}\0${entry.text}`;
+    const list = entriesOf.get(key);
+    if (list) list.push(entry);
+    else entriesOf.set(key, [entry]);
+  }
   /** The entry that covers a text on a line: one that names the line, or else one that names no line. */
-  const entryAt = (/** @type {string} */ document, /** @type {string} */ text, /** @type {number} */ line) =>
-    entries.find((entry) => entry.document === document && entry.text === text && entry.lines && entry.lines.includes(line))
-    || entries.find((entry) => entry.document === document && entry.text === text && !entry.lines);
+  const entryAt = (/** @type {string} */ document, /** @type {string} */ text, /** @type {number} */ line) => {
+    const candidates = entriesOf.get(`${document}\0${text}`) || [];
+    return candidates.find((entry) => entry.lines && entry.lines.includes(line)) || candidates.find((entry) => !entry.lines);
+  };
   /** @type {Map<AllowEntry, Set<number>>} the lines on which each entry is needed */
   const used = new Map();
   const documents = checkedDocuments(base, doms, checked);
@@ -687,16 +785,31 @@ export function quotingPlaces(base = root, doms = repositoryDoms(base)) {
   }
   /** @type {Map<string, string[]>} */
   const places = new Map();
+  // The places of each case as a set too, for a check that costs one
+  // lookup rather than a scan of the list.
+  /** @type {Map<string, Set<string>>} */
+  const placeSets = new Map();
   const add = (/** @type {string} */ id, /** @type {string[]} */ lines) => {
     if (!lines.length) return;
-    if (!places.has(id)) places.set(id, []);
-    for (const place of lines) if (!places.get(id).includes(place)) places.get(id).push(place);
+    if (!places.has(id)) {
+      places.set(id, []);
+      placeSets.set(id, new Set());
+    }
+    const list = /** @type {string[]} */ (places.get(id));
+    const set = /** @type {Set<string>} */ (placeSets.get(id));
+    for (const place of lines) {
+      if (set.has(place)) continue;
+      set.add(place);
+      list.push(place);
+    }
   };
   /** @type {Map<string, string[]>} the lines that quote each text, in any document */
   const byText = new Map();
   for (const [key, lines] of quoted) {
     const text = key.slice(key.indexOf("\0") + 1);
-    byText.set(text, [...(byText.get(text) || []), ...lines]);
+    const list = byText.get(text);
+    if (list) for (const place of lines) list.push(place);
+    else byText.set(text, [...lines]);
   }
   for (const c of corpusCases(base)) add(c.id, byText.get(normal(c.text)) || []);
   const allowFile = path.join(base, "tests", "quoted-allow.txt");
