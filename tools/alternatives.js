@@ -164,7 +164,7 @@ export function suggestLayout(symbols, indent, limit = LINE_LIMIT) {
     for (let k = i; k < j; k++) {
       const [first, ...rest] = parts[k];
       lines[lines.length - 1] += (k === i ? "" : " | ") + first;
-      lines.push(...rest);
+      for (const line of rest) lines.push(line);
     }
     return lines;
   };
@@ -179,7 +179,7 @@ export function suggestLayout(symbols, indent, limit = LINE_LIMIT) {
     for (let j = i + 1; j <= n; j++) {
       const widths = linesOf(i, j, `${indent}| `).map(width);
       const fitting = widths.filter((w) => w <= limit);
-      cost[i][j] = fitting.length === widths.length || j - i === 1 ? Math.max(0, ...fitting) : null;
+      cost[i][j] = fitting.length === widths.length || j - i === 1 ? fitting.reduce((most, w) => Math.max(most, w), 0) : null;
     }
   }
   // best[k][j]: the shortest longest line of symbols 0 to j - 1 on k lines

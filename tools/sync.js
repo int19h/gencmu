@@ -50,7 +50,7 @@ function grammarFiles(directory = grammars, prefix = "") {
   const entries = fs.readdirSync(directory, { withFileTypes: true }).filter((entry) => !entry.name.startsWith("."));
   for (const entry of entries.sort((a, b) => (a.name < b.name ? -1 : 1))) {
     const relative = prefix + entry.name;
-    if (entry.isDirectory()) files.push(...grammarFiles(path.join(directory, entry.name), relative + "/"));
+    if (entry.isDirectory()) for (const file of grammarFiles(path.join(directory, entry.name), relative + "/")) files.push(file);
     else if (relative !== "compiled.json") files.push(relative);
   }
   return files;
@@ -87,7 +87,7 @@ let bootstrapText = fs.readFileSync(bootstrapPath, "utf8");
 const loaderWith = (bootstrap) => new Loader((relative) => {
   if (relative === "notation/bootstrap.json") return bootstrap;
   if (relative === "compiled.json") return undefined;
-  const file = path.join(grammars, ...relative.split("/"));
+  const file = path.join(grammars, relative.split("/").join(path.sep));
   return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : undefined;
 });
 for (let round = 0; ; round++) {
@@ -118,7 +118,7 @@ const compiled = { format: DOM_FORMAT, bootstrap: loader.bootstrapHash, document
 // (docs/notation.md, "Rules"; tools/alternatives.js).
 const sprawling = [];
 for (const [file, { dom }] of Object.entries(documents)) {
-  sprawling.push(...layoutProblems(fs.readFileSync(path.join(grammars, file), "utf8"), dom, file));
+  for (const problem of layoutProblems(fs.readFileSync(path.join(grammars, file), "utf8"), dom, file)) sprawling.push(problem);
 }
 if (sprawling.length) {
   console.error(sprawling.join("\n"));

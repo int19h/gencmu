@@ -3887,8 +3887,11 @@
         if (!variables.every((name) => names.has(name))) continue;
         // A condition is ready once its last capture is read, and one that
         // reads `$` once the constituent is complete (engine §4).
-        const readyAt = Math.max(-1, ...variables.map((name) => (name === "" ? sequence.length - 1
-          : /** @type {import("./types.js").Capture} */ (captures.find((capture) => capture.name === name)).index)));
+        let readyAt = -1;
+        for (const name of variables) {
+          readyAt = Math.max(readyAt, name === "" ? sequence.length - 1
+            : /** @type {import("./types.js").Capture} */ (captures.find((capture) => capture.name === name)).index);
+        }
         conditions.push({ condition, readyAt });
       }
       let emit = clauses.emit || null;
@@ -4185,7 +4188,7 @@
 
   // How many items the recognizer has made, in parses and nested parses
   // alike: a measure of work that tests compare across input lengths.
-  const recognizerCounters = { items: 0, captures: 0 };
+  const recognizerCounters = { items: 0, captures: 0, captureSteps: 0 };
 
   // What a parse and every nested parse it starts share.
   class ParseContext {
@@ -5049,6 +5052,25 @@
     return production.tags ? asSet(evaluate(context, production.tags, scope)) : tagSet();
   }
 
+  /** @type {WeakMap<Production, Map<string, number>>} */
+  const captureIndexes = new WeakMap();
+
+  /**
+   * The index of a production's capture by its name.
+   * @param {Production} production
+   * @param {string} name
+   * @returns {number}
+   */
+  function captureIndex(production, name) {
+    let indexes = captureIndexes.get(production);
+    if (!indexes) {
+      indexes = new Map();
+      for (const [index, capture] of production.captures.entries()) if (!indexes.has(capture.name)) indexes.set(capture.name, index);
+      captureIndexes.set(production, indexes);
+    }
+    return /** @type {number} */ (indexes.get(name));
+  }
+
   /** @implements {Scope} */
   class ChartScope {
     /**
@@ -5073,6 +5095,8 @@
       this.space = context.recon ? (context.recon.raw ? "raw" : "R") : undefined;
       /** @type {TagSet | null} the constituent's tags, once evaluated */
       this.tagSet = null;
+      /** @type {NonNullable<Captured>[] | null} the captured parts by their index, once read */
+      this.parts = null;
     }
     /**
      * The constituent's tags, from its production's tag term, evaluated at
@@ -5098,10 +5122,16 @@
           space: this.space,
         };
       }
-      const index = this.production.captures.findIndex((capture) => capture.name === name);
-      let part = this.slots;
-      while (part !== null && part.index !== index) part = part.parent;
-      const found = /** @type {NonNullable<Captured>} */ (part);
+      // The parts in one walk, the first time a capture is read, not a walk
+      // for each capture.
+      if (this.parts === null) {
+        this.parts = [];
+        for (let part = this.slots; part !== null; part = part.parent) {
+          this.parts[part.index] = part;
+          recognizerCounters.captureSteps++;
+        }
+      }
+      const found = this.parts[captureIndex(this.production, name)];
       return { start: found.start, end: found.end, tags: this.context.interner.get(found.tags), space: this.space };
     }
   }
@@ -6061,7 +6091,10 @@
       else if ("choice" in current) for (const item of current.choice) stack.push(item);
       else if ("and" in current) for (const item of current.and) stack.push(item);
       else if ("optional" in current) stack.push(current.optional);
-      else if ("repeat" in current) stack.push(current.repeat, ...(current.separator === undefined ? [] : [current.separator]));
+      else if ("repeat" in current) {
+        stack.push(current.repeat);
+        if (current.separator !== undefined) stack.push(current.separator);
+      }
       else if ("capture" in current || "test" in current) stack.push(current.expr);
     }
   }
@@ -10363,7 +10396,7 @@
       // The guards of the stitched rules, and the gates of every classifier's
       // entries (engine §13).
       const guards = [...stage.grammar.rules.values()].flatMap((rule) => rule.alternatives.flatMap((alternative) => alternative.guards));
-      for (const { classifier } of stage.grammar.classifierItems) for (const entry of classifier.entries) guards.push(...entry.guards);
+      for (const { classifier } of stage.grammar.classifierItems) for (const entry of classifier.entries) for (const guard of entry.guards) guards.push(guard);
       for (const guard of guards) {
         const known = kinds.get(guard.feature);
         if (known !== undefined && known !== guard.kind) {

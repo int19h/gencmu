@@ -459,7 +459,7 @@ export function roleProblem(c, role, text, dialects, loader) {
     while (stack.length) {
       const node = stack.pop();
       if (node.kind === "rule" && node.rule === role && words(node).join(" ") === wanted) return null;
-      stack.push(...(node.children || []));
+      for (const child of node.children || []) stack.push(child);
     }
   }
   return `no tree has a node of ${role} whose words are exactly the text's`;
@@ -480,8 +480,12 @@ function together(caseText, tokens) {
     for (const attached of [...(token.before || []), ...(token.after || [])]) cover(attached);
   };
   tokens.forEach(cover);
-  const start = Math.min(...covered);
-  const end = Math.max(...covered);
+  let start = Infinity;
+  let end = -Infinity;
+  for (const index of covered) {
+    start = Math.min(start, index);
+    end = Math.max(end, index);
+  }
   for (let index = start; index <= end; index++) if (!covered.has(index) && /\p{L}/u.test(points[index])) return false;
   return true;
 }
@@ -581,7 +585,7 @@ export function quotedTextProblems(base = root, { loader, doms, checked = CHECKE
     const markdown = fs.readFileSync(path.join(base, document), "utf8");
     // The quoted texts are read by the line of their block, which holds
     // only for the layout that the one-line check accepts.
-    problems.push(...proseLineProblems(markdown, document));
+    for (const problem of proseLineProblems(markdown, document)) problems.push(problem);
     for (const { text, line, dialects } of quotedTexts(markdown, names)) {
       const at = `${document}:${line}`;
       const needed = [...new Set([...claimed, ...dialects])];

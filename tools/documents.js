@@ -56,7 +56,7 @@ function walk(root, prefix = "") {
   for (const entry of fs.readdirSync(path.join(root, prefix), { withFileTypes: true })) {
     if (entry.name.startsWith(".") || entry.name === "node_modules" || entry.name === "target") continue;
     const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
-    if (entry.isDirectory()) files.push(...walk(root, relative));
+    if (entry.isDirectory()) for (const file of walk(root, relative)) files.push(file);
     else files.push(relative);
   }
   return files;
