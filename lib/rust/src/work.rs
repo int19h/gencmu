@@ -97,6 +97,9 @@ pub(crate) enum Mutant {
     /// The checks of maximality find their tables of the chart again for
     /// each check.
     TablePerCheck,
+    /// The check of an optional that stands alone asks again at each edge
+    /// of an item whether the chart reads the optional as written there.
+    AskWrittenAgain,
     /// The search for duplicate captures looks up and moves the newer
     /// part of a sequence, not the one with fewer captures.
     JoinIntoFirst,

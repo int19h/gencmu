@@ -336,7 +336,13 @@ impl<'a> Proofs<'a> {
                     has_e = true;
                     match (next[x], *edge) {
                         (Next::Alone, _) if !has_p => {
-                            has_p = !*written.entry(place).or_insert_with(|| self.reads_written(place));
+                            has_p = !if work::mutated(Mutant::AskWrittenAgain) {
+                                // A mutation of the tests asks again at each
+                                // edge, with no memo.
+                                self.reads_written(place)
+                            } else {
+                                *written.entry(place).or_insert_with(|| self.reads_written(place))
+                            };
                         }
                         // The fixed prefix is the item before the advance
                         // over the constituent.
@@ -409,7 +415,7 @@ mod tests {
     use super::Proofs;
     use crate::earley::{matchers, Recognizer, Shared, Tok};
     use crate::lower::{Lowered, Sym};
-    use crate::work::{assert_stops, Mutant, Mutation, Work};
+    use crate::work::{assert_linear, assert_mutant_stops, assert_stops, Mutant, Mutation, Work};
 
     /// SplitMix64.
     struct Rng(u64);
@@ -900,6 +906,51 @@ mod tests {
                 });
             }
         }
+    }
+
+    /// A query over a text where one item before an optional that stands
+    /// alone has many completion edges, one for each way its first
+    /// constituent completes. Each edge asks whether the chart reads the
+    /// optional as written there. Asked once per item, the searches grow
+    /// with n. Asked again at each edge, they grow with n².
+    fn written_question_work(n: usize) {
+        let starts: Vec<String> = (0..n).map(|index| format!("A{index}")).collect();
+        let tagged: Vec<String> = (0..n).map(|index| format!("A{index} <~z>")).collect();
+        let bs = vec!["b"; n].join(" ");
+        let grammar = format!(
+            "%ambiguity-resolution greedy\n%rule text $q(body) C\n%conditions text($) ≠ \"\" ∧ matches($q,r)\n\
+             %rule body a KU tail\n%rule a {}\n%rule tail {{... B}}\n%rule r $prev(r) [+KU tail] | {}\n\
+             %conditions $prev ⟹ text($) = \"a ku {bs}\"\n",
+            starts.join(" | "),
+            tagged.join(" | ")
+        );
+        let sources = [("main.md", format!("```jbogenbau\n{grammar}```\n")), ("p.md", PIPELINE.to_string())];
+        let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
+        let token = |text: &str, tags: Vec<String>| crate::InputToken {
+            text: text.to_string(),
+            tags: tags.into_iter().collect(),
+            phonemes: None,
+        };
+        let tokens: Vec<_> = [token("a", starts.clone()), token("ku", vec!["KU".to_string()])]
+            .into_iter()
+            .chain((0..n).map(|_| token("b", vec!["B".to_string()])))
+            .chain([token("c", vec!["C".to_string()])])
+            .collect();
+        let options = crate::ParseOptions { auto_features: false, ..crate::ParseOptions::default() };
+        // The token a reads as any of the n starts, so the stage ends in a
+        // tie. The query runs before that, which is the work counted here.
+        let result = dialect.parse_tokens(&tokens, &options).expect("a result");
+        assert_eq!(result.stages[0].verdict, Some(crate::Verdict::Tie), "{n}");
+    }
+
+    /// The question whether an optional is read as written, asked once for
+    /// each item, keeps the searches linear in n: 266 entries at 20 and 986
+    /// at 80. Asked again at each edge, they take 1085 and 13865, so the
+    /// larger run stops at the first entry past five times 266.
+    #[test]
+    fn the_question_of_a_written_optional_is_asked_once_per_item() {
+        assert_linear(Work::Searched, 20, &mut written_question_work);
+        assert_mutant_stops(Work::Searched, Mutant::AskWrittenAgain, 20, &mut written_question_work);
     }
 
     /// The grammars of the tests of maximality's work, each with whether
