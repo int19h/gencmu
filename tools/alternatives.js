@@ -191,12 +191,15 @@ export function suggestLayout(symbols, indent, limit = LINE_LIMIT) {
     let fits = true;
     for (let j = i + 1; j <= n; j++) {
       if (hooks.work) countWork(hooks.work, "text");
-      const [first, ...rest] = partWidths[j - 1];
-      last += (j - 1 === i ? 0 : 3) + first;
-      for (const w of rest) {
+      const widths = partWidths[j - 1];
+      last += (j - 1 === i ? 0 : 3) + widths[0];
+      // Each of the symbol's other lines counts before it is read, so that
+      // a row that read them again for each start fails its budget.
+      for (let line = 1; line < widths.length; line++) {
+        if (hooks.work) countWork(hooks.work, "text");
         if (last <= limit) most = Math.max(most, last);
         else fits = false;
-        last = w;
+        last = widths[line];
       }
       const lastFits = last <= limit;
       // Kept from i + 1 on: an array with holes before i would cost i to walk.
