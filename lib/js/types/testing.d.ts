@@ -107,8 +107,8 @@ export type WorkCounts = {
      */
     tags: number;
     /**
-     * the implications that the closure of a
-     * token's tags reads
+     * the implications, and their tags and
+     * the token's, that the closure of a token's tags reads
      */
     implications: number;
     /**
@@ -208,8 +208,8 @@ export type WorkKind = "items" | "checks" | "scanned" | "candidates" | "captures
  *   visits
  * @property {number} tags the tags that a union of tag sets or an entry of
  *   a classifier adds to a set or copies
- * @property {number} implications the implications that the closure of a
- *   token's tags reads
+ * @property {number} implications the implications, and their tags and
+ *   the token's, that the closure of a token's tags reads
  * @property {number} walkSteps the steps of the readers and walks of a
  *   document, of its notation's tree and of its DOM, in the library and in
  *   the tools
