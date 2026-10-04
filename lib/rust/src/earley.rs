@@ -435,6 +435,10 @@ pub(crate) struct Shared<'a> {
     /// The nested parses running, by place, whatever the kind of query that
     /// started each.
     running: FxSet<Place>,
+    /// The nested parse that settled last: its place, whether `begins`
+    /// asked it, and its answer. The step that halted for it asks it again
+    /// at once, and finds it here without making its key again.
+    settled: Option<(Place, bool, (bool, SetId))>,
 }
 
 impl<'a> Shared<'a> {
@@ -447,6 +451,7 @@ impl<'a> Shared<'a> {
             memo: FxMap::default(),
             begins: FxMap::default(),
             running: FxSet::default(),
+            settled: None,
         }
     }
 
@@ -456,6 +461,7 @@ impl<'a> Shared<'a> {
         self.memo.clear();
         self.begins.clear();
         self.running.clear();
+        self.settled = None;
     }
 
     /// Whether a terminal matches a token whose tags are `set` (§4). A
@@ -802,6 +808,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 })
                 .collect();
             let answer = self.proofs(chart, tokens).eligible(&witnesses).contains(&true);
+            self.shared.settled = Some((request.place(), true, (answer, 0)));
             self.shared.begins.insert(request.key, answer);
             return;
         }
@@ -825,6 +832,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         );
         let accepted = eligible.contains(&true);
         let answer = (accepted, self.shared.tags.set(list));
+        self.shared.settled = Some((request.place(), false, answer));
         self.shared.memo.insert(request.key, answer);
     }
 
@@ -1369,6 +1377,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         end: usize,
         rule: u32,
     ) -> Result<(bool, SetId), Halt<'t>> {
+        if let Some(answer) = self.just_settled(base, start, end, rule, false) {
+            return Ok(answer);
+        }
         let key = self.nested_key(tokens, base, start, end, rule);
         match self.shared.memo.get(&key) {
             Some(&answer) => Ok(answer),
@@ -1387,10 +1398,23 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         end: usize,
         rule: u32,
     ) -> Result<bool, Halt<'t>> {
+        if let Some((answer, _)) = self.just_settled(base, start, end, rule, true) {
+            return Ok(answer);
+        }
         let key = self.nested_key(tokens, base, start, end, rule);
         match self.shared.begins.get(&key) {
             Some(&answer) => Ok(answer),
             None => Err(Halt::Pending(Request { tokens, base, start, end, rule, key, begins: true })),
+        }
+    }
+
+    /// The answer of the nested parse that settled last, if it is this one.
+    /// Within one stage, a place tells everything about its tokens, as
+    /// the memo's keys of long spans assume too.
+    fn just_settled(&self, base: usize, start: usize, end: usize, rule: u32, begins: bool) -> Option<(bool, SetId)> {
+        match self.shared.settled {
+            Some((place, kind, answer)) if place == (rule, base + start, base + end) && kind == begins => Some(answer),
+            _ => None,
         }
     }
 
