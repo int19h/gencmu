@@ -7,6 +7,9 @@ import ast
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
 import bisect
+from collections import deque
+from collections.abc import ItemsView, KeysView, ValuesView
+import dis
 import faulthandler
 import inspect
 import json
@@ -150,11 +153,50 @@ def steps(target: Any, line: str | None = None, weight: Weight | None = None) ->
     return Watch(False, codes, weight)
 
 
-COPIES = frozenset({"set", "frozenset", "list", "tuple", "dict", "sorted", "sum", "min", "max", "any", "all"})
+COPIES = frozenset(
+    {
+        "set",
+        "frozenset",
+        "list",
+        "tuple",
+        "dict",
+        "sorted",
+        "sum",
+        "min",
+        "max",
+        "any",
+        "all",
+        "str",
+        "repr",
+        "bytes",
+        "bytearray",
+        "hash",
+        "deque",
+        "deepcopy",
+    }
+)
 """The functions that read every element of their arguments."""
 
 READS_ARGUMENTS = frozenset(
-    {"update", "intersection_update", "difference_update", "symmetric_difference_update", "extend", "join"}
+    {
+        "update",
+        "intersection_update",
+        "difference_update",
+        "symmetric_difference_update",
+        "extend",
+        "extendleft",
+        "fromkeys",
+        "startswith",
+        "endswith",
+        "match",
+        "fullmatch",
+        "search",
+        "findall",
+        "finditer",
+        "sub",
+        "subn",
+        "deepcopy",
+    }
 )
 """The methods that read every element of their arguments, but not the
 container they change or are called on."""
@@ -162,16 +204,75 @@ container they change or are called on."""
 READS_BOTH = frozenset({"union", "intersection", "difference", "symmetric_difference", "issubset", "issuperset", "isdisjoint"})
 """The methods that read the set they are called on and their arguments."""
 
-READS_LIST = frozenset({"copy", "index", "count", "remove", "insert"})
+READS_SEQUENCE = frozenset({"index", "count", "find", "rfind", "rindex"})
+"""The methods that search a list, a tuple or a string they are called on."""
+
+READS_LIST = frozenset({"remove", "insert", "sort", "reverse", "rotate"})
 """The methods of a list that read or move every element."""
 
-SIZED = (set, frozenset, list, tuple, dict)
+READS_TEXT = frozenset(
+    {
+        "split",
+        "rsplit",
+        "splitlines",
+        "replace",
+        "strip",
+        "lstrip",
+        "rstrip",
+        "lower",
+        "upper",
+        "casefold",
+        "partition",
+        "rpartition",
+        "encode",
+        "decode",
+        "format",
+        "translate",
+        "title",
+        "capitalize",
+        "swapcase",
+        "expandtabs",
+        "zfill",
+        "center",
+        "ljust",
+        "rjust",
+        "isalpha",
+        "isalnum",
+        "isdigit",
+        "isdecimal",
+        "isnumeric",
+        "isspace",
+        "isidentifier",
+        "isupper",
+        "islower",
+        "isascii",
+        "isprintable",
+    }
+)
+"""The methods of a string that read every character of it."""
+
+LAZY = frozenset({"zip", "map", "filter", "reversed", "enumerate", "iter", "chain", "islice"})
+"""The functions that make an iterator over their arguments. A call that
+reads such an iterator through reads the containers under it."""
+
+VIEWS = frozenset({"keys", "values", "items"})
+
+SIZED = (set, frozenset, list, tuple, dict, str, bytes, bytearray, range, deque, KeysView, ValuesView, ItemsView)
+HASHED = (set, frozenset, dict, range, KeysView, ItemsView)
+"""What ``in`` searches without reading its elements."""
+SEQUENCES = (list, tuple, str, bytes, bytearray, deque)
+LISTS = (list, bytearray, deque)
+MUTABLE = (set, dict, list, bytearray, deque)
+"""What a copy reads in full. A copy of a frozenset, a tuple or a string
+is the same object."""
+IMMUTABLE = (frozenset, tuple, str, bytes)
+"""What an augmented assignment copies, since it makes a new object."""
 
 
 def _value(node: ast.AST, frame: FrameType) -> Any:
-    """What a name, an attribute or an index names in a frame, read
-    without running any code of the library's, or None where it is not
-    known so."""
+    """What a name, an attribute, an index or a view of a dict names in a
+    frame, read without running any code of the library's, or None where
+    it is not known so."""
     if isinstance(node, ast.Name):
         found = frame.f_locals
         if node.id in found:
@@ -195,49 +296,98 @@ def _value(node: ast.AST, frame: FrameType) -> Any:
             return owner.get(key)
         if isinstance(owner, (list, tuple)) and isinstance(key, int) and -len(owner) <= key < len(owner):
             return owner[key]
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in VIEWS and not node.args:
+        # A view of a dict is made by the dict's own C method, which runs
+        # none of the library's code.
+        owner = _value(node.func.value, frame)
+        if type(owner) is dict:
+            return getattr(owner, node.func.attr)()
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "len" and len(node.args) == 1:
+        # The length of a built-in container, which a repetition reads.
+        counted = _value(node.args[0], frame)
+        if isinstance(counted, SIZED):
+            return len(counted)
     return None
 
 
 def _size(node: ast.AST, frame: FrameType) -> int:
+    """The elements that reading a value through reads. An iterator over
+    containers, such as a zip, reads the containers under it."""
+    if isinstance(node, ast.Call) and node.args:
+        name = node.func.id if isinstance(node.func, ast.Name) else node.func.attr if isinstance(node.func, ast.Attribute) else None
+        if name in LAZY:
+            # A map or a filter reads its iterables after its function.
+            under = node.args[1:] if name in ("map", "filter") else node.args
+            return sum(_size(argument, frame) for argument in under)
     value = _value(node, frame)
     return len(value) if isinstance(value, SIZED) else 0
 
 
+def _text(node: ast.AST, frame: FrameType) -> int:
+    """The characters that a join reads: each part, and each character of
+    the parts that are strings, since the join copies them all."""
+    value = _value(node, frame)
+    if not isinstance(value, (list, tuple)):
+        return _size(node, frame)
+    return len(value) + sum(len(part) for part in value if isinstance(part, (str, bytes)))
+
+
 # Each file's charges, by line: the operands whose elements an operation
-# that starts on that line reads in C. Kept with the source they were
-# found in, since each mutant of a function puts its own source under one
-# file name.
-_CHARGES: dict[str, tuple[str, dict[int, list[tuple[str, ast.AST]]]]] = {}
+# that starts on that line reads in C, and apart from them, those that a
+# loop's iterable reads once as the loop starts. Kept with the source they
+# were found in, since each mutant of a function puts its own source under
+# one file name.
+Charges = list[tuple[str, ast.AST]]
+_CHARGES: dict[str, tuple[str, dict[int, tuple[Charges, Charges]]]] = {}
 
 
-def _charges(filename: str) -> dict[int, list[tuple[str, ast.AST]]]:
+def _charges(filename: str) -> dict[int, tuple[Charges, Charges]]:
     """What each line of a file reads in C, as nodes to size when the line
-    runs: "size" for a container read through, "search" for a container
-    searched by ``in``, which reads a set or a dict by its hash, and
-    "list" for a container that a method reads only when it is a list."""
+    runs. The first list charges at each step of the line. The second
+    charges only as a loop on the line starts, since a loop's line runs at
+    each pass but its iterable is made once.
+
+    The kinds are "size" for a container read through, "search" for a
+    container searched by ``in``, which reads a set or a dict by its hash,
+    "sequence", "list" and "text" for a receiver that a method reads only
+    when it is a sequence, a list or a string, "copy" for a receiver whose
+    copy reads it unless it is immutable, "new" for the target of an
+    augmented assignment, which is copied when immutable, "times" for a
+    repetition and "join" for the parts of a join."""
     source = "".join(linecache.getlines(filename))
     found = _CHARGES.get(filename)
     if found is not None and found[0] == source:
         return found[1]
     tree = ast.parse(source)
-    # What a loop or a comprehension iterates is not charged: each of its
-    # passes counts as a step of its own, and the header's line runs at
-    # each pass.
-    skipped = {id(node.iter) for node in ast.walk(tree) if isinstance(node, (ast.For, ast.comprehension))}
-    lines: dict[int, list[tuple[str, ast.AST]]] = {}
-    stack: list[ast.AST] = [tree]
+    # What a loop iterates is charged only as the loop starts. Each pass
+    # counts as a step of its own, and the header's line runs at each pass.
+    iterables = {id(node.iter) for node in ast.walk(tree) if isinstance(node, (ast.For, ast.comprehension))}
+    lines: dict[int, tuple[Charges, Charges]] = {}
+    stack: list[tuple[ast.AST, bool]] = [(tree, False)]
     while stack:
-        node = stack.pop()
-        if id(node) in skipped:
-            continue
-        stack.extend(ast.iter_child_nodes(node))
-        charges: list[tuple[str, ast.AST]] = []
+        node, starting = stack.pop()
+        starting = starting or id(node) in iterables
+        stack.extend((child, starting) for child in ast.iter_child_nodes(node))
+        charges: Charges = []
         if isinstance(node, ast.BinOp):
-            charges += [("size", node.left), ("size", node.right)]
+            if isinstance(node.op, ast.Mult):
+                charges.append(("times", node))
+            else:
+                charges += [("size", node.left), ("size", node.right)]
+        elif isinstance(node, ast.AugAssign):
+            charges += [("size", node.value), ("new", node.target)]
         elif isinstance(node, ast.Starred):
+            charges.append(("size", node.value))
+        elif isinstance(node, ast.Dict):
+            # A ** in a display copies a dict.
+            charges += [("size", value) for key, value in zip(node.keys, node.values) if key is None]
+        elif isinstance(node, ast.FormattedValue):
             charges.append(("size", node.value))
         elif isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Slice):
             charges.append(("size", node.value))
+        elif isinstance(node, ast.Delete):
+            # Deleting from a list moves every element after it.
+            charges += [("list", target.value) for target in node.targets if isinstance(target, ast.Subscript)]
         elif isinstance(node, ast.Compare):
             for operator, operand in zip(node.ops, node.comparators):
                 if isinstance(operator, (ast.In, ast.NotIn)):
@@ -249,43 +399,117 @@ def _charges(filename: str) -> dict[int, list[tuple[str, ast.AST]]]:
             if isinstance(function, ast.Name) and function.id in COPIES:
                 charges += [("size", argument) for argument in node.args]
             elif isinstance(function, ast.Attribute):
-                if function.attr in READS_ARGUMENTS or function.attr in READS_BOTH:
+                name = function.attr
+                if name == "join":
+                    charges += [("join", argument) for argument in node.args]
+                if name in READS_ARGUMENTS or name in READS_BOTH:
                     charges += [("size", argument) for argument in node.args]
-                if function.attr in READS_BOTH:
+                if name in READS_BOTH:
                     charges.append(("size", function.value))
-                if function.attr in READS_LIST or function.attr == "pop" and node.args:
+                if name == "copy":
+                    # A container's own copy, or copy.copy of one.
+                    charges += [("copy", argument) for argument in node.args] or [("copy", function.value)]
+                if name in READS_SEQUENCE:
+                    charges.append(("sequence", function.value))
+                if name in READS_LIST or name == "pop" and node.args:
                     charges.append(("list", function.value))
+                if name in READS_TEXT:
+                    charges.append(("text", function.value))
         if charges:
-            lines.setdefault(node.lineno, []).extend(charges)  # type: ignore[attr-defined]
+            both = lines.setdefault(node.lineno, ([], []))  # type: ignore[attr-defined]
+            both[1 if starting else 0].extend(charges)
     _CHARGES[filename] = (source, lines)
     return lines
 
 
+def _operand(node: ast.AST, frame: FrameType) -> Any:
+    """An operand of a repetition: a constant, a display of a list or a
+    tuple, which stands for its elements, or what :func:`_value` reads."""
+    if isinstance(node, ast.Constant):
+        return node.value
+    if isinstance(node, (ast.List, ast.Tuple)) and not any(isinstance(element, ast.Starred) for element in node.elts):
+        return tuple(range(len(node.elts)))
+    return _value(node, frame)
+
+
+def _weigh(kind: str, node: ast.AST, frame: FrameType) -> int:
+    """The elements that one charge reads in a frame."""
+    if kind == "size":
+        return _size(node, frame)
+    if kind == "join":
+        return _text(node, frame)
+    if kind == "times":
+        assert isinstance(node, ast.BinOp)
+        left, right = _operand(node.left, frame), _operand(node.right, frame)
+        # A repetition makes its sequence's elements the number of times.
+        if isinstance(right, int) and isinstance(left, SIZED):
+            return len(left) * max(right, 1)
+        if isinstance(left, int) and isinstance(right, SIZED):
+            return len(right) * max(left, 1)
+        return _size(node.left, frame) + _size(node.right, frame)
+    value = _value(node, frame)
+    if not isinstance(value, SIZED):
+        return 0
+    wanted = {"search": SIZED, "sequence": SEQUENCES, "list": LISTS, "text": (str, bytes, bytearray), "copy": MUTABLE, "new": IMMUTABLE}[kind]
+    if kind == "search" and isinstance(value, HASHED) or not isinstance(value, wanted):
+        return 0
+    return len(value)
+
+
+_COMPREHENSIONS = frozenset({"<listcomp>", "<setcomp>", "<dictcomp>", "<genexpr>"})
+
+# The offset of the first loop instruction of each line of each code
+# object, found once.
+_LOOPS: dict[CodeType, dict[int, int]] = {}
+
+
+def _starting(frame: FrameType) -> bool:
+    """Whether a frame's line starts its loops, and so makes their
+    iterables. A pass of a loop runs from its loop instruction or a jump
+    back after it. A comprehension's own code receives its iterable."""
+    code = frame.f_code
+    if code.co_name in _COMPREHENSIONS:
+        return False
+    loops = _LOOPS.get(code)
+    if loops is None:
+        loops = _LOOPS[code] = {}
+        lines = [(start, number) for start, _, number in code.co_lines()]
+        for instruction in dis.get_instructions(code):
+            if instruction.opname != "FOR_ITER":
+                continue
+            number = next((number for start, number in reversed(lines) if start <= instruction.offset), None)
+            if number is not None and number not in loops:
+                loops[number] = instruction.offset
+    first = loops.get(frame.f_lineno)
+    return first is None or frame.f_lasti < first
+
+
 # The charges of each line of each code object, found once.
-_CODE_CHARGES: dict[tuple[CodeType, int], list[tuple[str, ast.AST]]] = {}
+_CODE_CHARGES: dict[tuple[CodeType, int], tuple[Charges, Charges]] = {}
 
 
 def reads(frame: FrameType) -> int:
     """A weight for a step of a line, read before the line runs: one, and
     the elements that the operations starting on it read in C. A union, a
-    copy, a comparison of containers or a search of a sequence reads each
-    element of its operands. An update in place reads its arguments only,
-    and a search of a set or a dict reads none. Every operand of the line
+    copy, a comparison of containers, a join or a search of a sequence
+    reads each element of its operands. An update in place reads its
+    arguments only, and a search of a set or a dict reads none. A loop's
+    iterable is charged as the loop starts. Every operand of the line
     counts, whichever branch runs, so the weight does not fall short of
     the work."""
     key = (frame.f_code, frame.f_lineno)
     charges = _CODE_CHARGES.get(key)
     if charges is None:
-        charges = _CODE_CHARGES[key] = _charges(frame.f_code.co_filename).get(frame.f_lineno, [])
-    if not charges:
+        charges = _CODE_CHARGES[key] = _charges(frame.f_code.co_filename).get(frame.f_lineno, ([], []))
+    every, starts = charges
+    if not every and not starts:
         return 1
     read = 1
-    for kind, node in charges:
-        value = _value(node, frame)
-        if not isinstance(value, SIZED):
-            continue
-        if kind == "size" or kind == "list" and isinstance(value, list) or kind == "search" and not isinstance(value, (set, frozenset, dict)):
-            read += len(value)
+    for kind, node in every:
+        read += _weigh(kind, node, frame)
+    if starts and _starting(frame):
+        for kind, node in starts:
+            read += _weigh(kind, node, frame)
     return read
 
 

@@ -114,9 +114,9 @@ class CaptureStorage(unittest.TestCase):
             count_work(*steps_, budget=2 * count + 4) as works["walked"],
             # Every line of the walk of every part, with what it reads in C,
             # so that a walk that moves the parts it has read counts. Three
-            # lines read each part, and the budget leaves the walks' own
-            # budget to stop first.
-            count_work(steps(Caps.parts, weight=reads), budget=4 * (2 * count + 4)) as works["lines"],
+            # lines and the reversal read each part, and the budget leaves
+            # the walks' own budget to stop first.
+            count_work(steps(Caps.parts, weight=reads), budget=5 * (2 * count + 4)) as works["lines"],
         ):
             value, _, _ = parse_case(dialect, case)
         self.assertIsNotNone(value)

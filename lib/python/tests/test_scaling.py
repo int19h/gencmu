@@ -158,9 +158,10 @@ class UnionFolds(Linear):
         self.assert_mutant_stops(tag_copies, make, 2000, lambda: mutant(_tags.Gathered, "add", freeze))
 
     def test_a_union_that_copies_or_scans_its_gathered_tags_fails_at_the_first_unit_past_its_budget(self) -> None:
-        # One regression copies the growing set at each part, and the other
-        # scans it for each tag of the part. Both read the gathered tags in
-        # C, which only a count of each operand that a line reads sees.
+        # Two regressions copy the growing set at each part, by a union and
+        # by the set's own copy method, and one scans it for each tag of the
+        # part. Each reads the gathered tags in C, which only a count of
+        # each operand that a line reads sees.
         def make(n: int) -> Callable[[], object]:
             term = {"union": [{"tag": f"t{index}"} for index in range(n)]}
             evaluator = Evaluator(stage_context([]), 0, 0)
@@ -170,10 +171,65 @@ class UnionFolds(Linear):
         for name, change in (
             ("copy", "if self.grown is not None:\n        self.grown = self.grown | part"),
             ("scan", "if self.grown is not None:\n        self.grown.update(tag for tag in part if tag not in list(self.grown))"),
+            ("method copy", "if self.grown is not None:\n        self.grown = self.grown.copy()\n        self.grown.update(part)"),
         ):
             with self.subTest(mutant=name):
                 self.assert_mutant_stops(tag_copies, make, 2000, lambda: mutant(_tags.Gathered, "add", (grown, change)))
 
+
+    def test_each_operation_that_reads_the_gathered_tags_in_c_fails_at_the_first_unit_past_its_budget(self) -> None:
+        # Each regression reads the growing set in one opaque operation at
+        # each part. The weight of a line must see every such operation,
+        # or a quadratic regression written with it passes its budget.
+        def make(n: int) -> Callable[[], object]:
+            term = {"union": [{"tag": f"t{index}"} for index in range(n)]}
+            evaluator = Evaluator(stage_context([]), 0, 0)
+            return lambda: evaluator.value(term, None)  # type: ignore[arg-type]
+
+        grown = "if self.grown is not None:\n        self.grown.update(part)"
+        reads_grown = {
+            "the set's copy method": "self.grown = self.grown.copy()",
+            "copy.copy": "self.grown = __import__('copy').copy(self.grown)",
+            "a sort that a loop leaves at once": "for tag in sorted(self.grown):\n            break",
+            "a list that a comprehension iterates": "first = [tag for tag in list(self.grown)][:1]",
+            "a dict made from its keys": "self.grown = set(dict.fromkeys(self.grown))",
+            "a dict display that unpacks a dict": "self.grown = set({**dict.fromkeys(self.grown)})",
+            "a join": "''.join(self.grown)",
+            "a list of a zip": "list(zip(self.grown, self.grown))",
+            "a formatted string": "f'{self.grown}'",
+            "an augmented union of a frozenset": "frozen = frozenset()\n        frozen |= self.grown",
+            "a repetition": "[0] * len(self.grown)",
+        }
+        for name, reading in reads_grown.items():
+            change = f"if self.grown is not None:\n        {reading}\n        self.grown.update(part)"
+            with self.subTest(mutant=name):
+                self.assert_mutant_stops(tag_copies, make, 2000, lambda: mutant(_tags.Gathered, "add", (grown, change)))
+
+def reading(table: dict[str, int], items: list[str], text: str) -> None:
+    """Lines that each read one container in C, for the test of the weight."""
+    list(table.values())
+    items.sort()
+    del items[0]
+    text.split(",")
+    "x" in text
+    items.index("b")
+    for _ in sorted(table):
+        break
+
+
+class Weights(unittest.TestCase):
+    def test_a_step_weighs_what_its_c_operations_read(self) -> None:
+        # Each line of reading reads its container once, so it weighs one
+        # and the container's length. The loop's line starts once and then
+        # leaves at once, so its sort counts once.
+        table = {f"k{index}": index for index in range(10)}
+        items = [f"{chr(97 + index)}" for index in range(20)]
+        text = "," * 30
+        with count_work(steps(reading, weight=reads)) as work:
+            reading(table, items, text)
+        lines = 7 + 1
+        read = len(table) + 20 + 20 + len(text) + len(text) + 19 + len(table)
+        self.assertEqual(work.count, lines + read)
 
 class Closures(Linear):
     def test_a_chain_of_implications_in_reverse_order_costs_its_length(self) -> None:
@@ -352,6 +408,10 @@ class DefinitionChecks(Linear):
         self.assert_linear(watches, make, 1000)
         swap = ("large, small = (joined, part) if joined[1] >= part[1] else (part, joined)", "large, small = (part, joined)")
         self.assert_mutant_stops(watches, make, 1000, lambda: mutant(_clauses, "duplicate_captures", swap))
+        # The regression copies the larger side's dict of captures at each
+        # join, by the dict's own copy method, which reads it in C.
+        copy = ("joined = (large[0], large[1] + small[1])", "joined = (large[0].copy(), large[1] + small[1])")
+        self.assert_mutant_stops(watches, make, 1000, lambda: mutant(_clauses, "duplicate_captures", copy))
 
     def test_lowering_an_emission_costs_its_items(self) -> None:
         def make(n: int) -> Callable[[], object]:
