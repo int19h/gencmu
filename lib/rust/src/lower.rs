@@ -6,7 +6,7 @@ use std::collections::BTreeSet;
 use crate::fxhash::{FxMap, FxSet};
 use std::sync::Arc;
 
-use crate::clauses::{simplify_cond, simplify_value, Simple};
+use crate::clauses::{simplify_cond, simplify_value, CondListSplit, Simple, TermSplit};
 use crate::dom::{Arg, Chain, Cond, EmitItem, Expr, FeatureKind, Mark, Term};
 use crate::grammar::{is_terminal_name, ClassifierTables, Implication, StageGrammar, StitchedAlternative};
 use crate::tags::{code_of_character_tag, property_name, range_name};
@@ -895,6 +895,11 @@ pub(crate) fn lower(
     let terminals = std::mem::take(&mut lowerer.terminals);
     let characters = std::mem::take(&mut lowerer.characters);
     let mut prods = Vec::with_capacity(order.len());
+    // The splits of the clauses, each made when a production first needs
+    // it. They are found by the place of the clause, which every
+    // production of its alternatives shares.
+    let mut term_splits: FxMap<*const Term, TermSplit> = FxMap::default();
+    let mut cond_splits: FxMap<*const Vec<Cond>, CondListSplit> = FxMap::default();
     'productions: for pending in order {
         let syms: Vec<Sym> = pending.sequence.iter().map(|(sym, _, _)| *sym).collect();
         let tests: Vec<u32> = if pending.sequence.iter().any(|(_, _, test)| test.is_some()) {
@@ -945,14 +950,25 @@ pub(crate) fn lower(
                 .collect();
             let cap_pos = production.cap_pos.clone();
             let mut scope = Scope { names: &names, cap_pos: &cap_pos, rules: &grammar.index, last: None, whole: false };
-            // Every clause is simplified for this production first (§3.6).
+            // Every clause is simplified for this production first (§3.6),
+            // from its split, which is made once for each clause.
             let has = |name: &str| name.is_empty() || names.contains_key(name);
+            let own: Vec<&str> = names.keys().map(String::as_str).collect();
+            let each_part = work::mutated(Mutant::LowerEachPart);
             // The union of the alternative's own tags and its definition's
             // (§3.7); with neither written, the default below.
             let written: Vec<Term> = [alternative.alternative.tags.as_ref(), alternative.clauses.tags.as_ref()]
                 .into_iter()
                 .flatten()
-                .map(|term| simplify_value(term, &has))
+                .map(|term| {
+                    if each_part {
+                        // A mutation of the tests simplifies every part
+                        // of the term for each production.
+                        return simplify_value(term, &has);
+                    }
+                    let split = term_splits.entry(term as *const Term).or_insert_with(|| TermSplit::new(term));
+                    split.simplify(own.iter().copied(), &has).unwrap_or(Term::EmptySet)
+                })
                 .collect();
             let tags = match written.len() {
                 0 => None,
@@ -963,13 +979,25 @@ pub(crate) fn lower(
             // alternative has, and so every production of it has (§3.3).
             production.tags = tags
                 .map(|term| scope.term(&term).unwrap_or_else(|_| unreachable!("a tag term uses a missing capture")));
-            for cond in &alternative.clauses.conditions {
-                let simple = match simplify_cond(cond, &has) {
-                    Simple::True => continue,
-                    // A condition false for this production removes it.
-                    Simple::False => continue 'productions,
-                    Simple::Cond(simple) => simple,
-                };
+            let conditions = if each_part {
+                let mut left = Vec::new();
+                for cond in &alternative.clauses.conditions {
+                    match simplify_cond(cond, &has) {
+                        Simple::True => {}
+                        Simple::False => continue 'productions,
+                        Simple::Cond(simple) => left.push(simple),
+                    }
+                }
+                left
+            } else {
+                let conditions = &alternative.clauses.conditions;
+                let split =
+                    cond_splits.entry(conditions as *const Vec<Cond>).or_insert_with(|| CondListSplit::new(conditions));
+                // A condition false for this production removes it.
+                let Some(left) = split.simplify(&own, &has) else { continue 'productions };
+                left
+            };
+            for simple in conditions {
                 scope.last = None;
                 scope.whole = false;
                 if let Ok(lowered) = scope.cond(&simple) {
@@ -1387,10 +1415,11 @@ mod tests {
     use std::sync::Arc;
 
     use super::lower;
-    use crate::dom::{Alternative, Directive, Dom, Expr, Op, RuleDef, Term};
+    use crate::clauses::definition_problem;
+    use crate::dom::{Alternative, Cond, Directive, Dom, Expr, Op, RuleDef, Term};
     use crate::grammar::stitch;
     use crate::unicode::Unicode;
-    use crate::work::{assert_linear, assert_mutant_stops, Mutant, Work};
+    use crate::work::{assert_linear, assert_mutant_stops, assert_stops, Mutant, Work};
 
     /// A grammar of a chain of n rules, each nullable and reading only
     /// through the next, a chain of n rules nullable only through the
@@ -1474,5 +1503,205 @@ mod tests {
                 lower(&grammars[usize::from(n != 2000)], &BTreeSet::new(), Arc::default()).expect("lowered");
             });
         }
+    }
+
+    /// A choice of n captures, each its own production, as the reader
+    /// gives it. Its tag term is `($c0 ⟹ ~t0) ∪ … ∪ ($c(n−1) ⟹ ~t(n−1))`.
+    /// Each production simplifies the term to its one tag, so the output
+    /// of the check and of lowering grows with n.
+    fn guarded_choice_rule(n: usize) -> RuleDef {
+        let captures = (0..n).map(|index| Expr::Capture(format!("c{index}"), Box::new(Expr::Terminal("A".into()))));
+        let guards = (0..n).map(|index| {
+            Term::If(Box::new(Cond::Captured(format!("c{index}"))), Box::new(Term::Tag(format!("t{index}"))))
+        });
+        RuleDef {
+            name: "text".into(),
+            op: Op::Define,
+            tags: Some(Term::Union(guards.collect())),
+            alternatives: vec![Alternative { guards: Vec::new(), expr: Expr::Choice(captures.collect()), tags: None }],
+            emit: None,
+            conditions: Vec::new(),
+            opaque: false,
+            at: (0, 0),
+        }
+    }
+
+    /// Checks the definition of `guarded_choice_rule(n)` and lowers it,
+    /// and asserts that each production keeps its one tag.
+    fn check_and_lower_guarded_choice(rule: &RuleDef, unicode: &Unicode) {
+        assert_eq!(definition_problem(rule), None);
+        let directive = Directive { name: "ambiguity-resolution".into(), args: vec!["greedy".into()], at: (0, 0) };
+        let dom = Dom {
+            rules: vec![rule.clone()],
+            directives: vec![directive],
+            constants: Vec::new(),
+            classifiers: Vec::new(),
+            implications: Vec::new(),
+        };
+        let grammar = stitch("s", &[(Arc::<str>::from("d.md"), Arc::new(dom))], unicode).expect("a grammar");
+        let lowered = lower(&grammar, &BTreeSet::new(), Arc::default()).expect("lowered");
+        let tags: Vec<String> =
+            lowered.prods.iter().filter(|prod| prod.rule == 0).map(|prod| format!("{:?}", prod.tags)).collect();
+        let Expr::Choice(choice) = &rule.alternatives[0].expr else { unreachable!("a choice") };
+        assert_eq!(tags.len(), choice.len());
+        assert!(tags.iter().all(|tags| tags.starts_with("Some(Tag(")), "{tags:?}");
+    }
+
+    /// The budget of the walks of `guarded_choice_rule(n)`: twenty times
+    /// n and the size of the output. The output is one tag for each of
+    /// the n productions. The checks of captures have three times that.
+    fn guarded_choice_budget(n: usize) -> (u64, u64) {
+        let size = (n + n) as u64;
+        (20 * size, 3 * size)
+    }
+
+    /// The check of a definition and lowering simplify a choice of n
+    /// guarded tags in work that grows with n and the output. The runs at
+    /// n and at 4n each work under their budget. Today the walks
+    /// count 3308 at 100 and 13208 at 400.
+    #[test]
+    fn a_choice_of_guarded_tags_simplifies_in_its_output() {
+        let unicode = Unicode::parse(crate::loader::bundled("unicode.txt").expect("the table")).expect("the table");
+        for n in [100, 400] {
+            let rule = guarded_choice_rule(n);
+            let (walked, checked) = guarded_choice_budget(n);
+            crate::work::reset();
+            crate::work::budget(Work::Walked, walked);
+            crate::work::budget(Work::Checked, checked);
+            check_and_lower_guarded_choice(&rule, &unicode);
+            crate::work::reset();
+        }
+    }
+
+    /// Simplifying every part for each production stops at the first walk
+    /// past the budget of the larger run. This holds in the check of a
+    /// definition and in lowering. At 400 the check's version counts 1134008 walks
+    /// and lowering's 330408, against a budget of 16000.
+    #[test]
+    fn simplifying_every_part_for_each_production_stops_at_the_budget() {
+        let unicode = Unicode::parse(crate::loader::bundled("unicode.txt").expect("the table")).expect("the table");
+        let rule = guarded_choice_rule(400);
+        for mutant in [Mutant::CheckEachPart, Mutant::LowerEachPart] {
+            let _mutation = crate::work::Mutation::on(mutant);
+            assert_stops(Work::Walked, guarded_choice_budget(400).0, || {
+                check_and_lower_guarded_choice(&rule, &unicode);
+            });
+        }
+    }
+
+    /// A grammar of one rule with random tag terms and conditions over four
+    /// captures, which its alternatives have in some productions and not
+    /// in others. The parts take every shape that the splits know, and
+    /// shapes that they leave to each production.
+    fn random_clauses(seed: u64) -> String {
+        let mut state = seed;
+        let mut below = |n: usize| {
+            // SplitMix64.
+            state = state.wrapping_add(0x9e37_79b9_7f4a_7c15);
+            let mut z = state;
+            z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+            z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+            ((z ^ (z >> 31)) % n as u64) as usize
+        };
+        const TAGS: [&str; 14] = [
+            "($a ⟹ ~x)",
+            "~y",
+            "∅",
+            "tags($a)",
+            "($b ⟹ tags($b))",
+            "(($a ∧ $b) ⟹ ~z)",
+            "(¬$c ⟹ ~w)",
+            "($c ⟹ ($d ⟹ ~v))",
+            "($a ⟹ ∅)",
+            "(~u ∩ ∅)",
+            "($d ⟹ (tags($d) ∖ ∅))",
+            "($b ⟹ (~x ∩ tags($c)))",
+            "($c ⟹ ~y)",
+            "(text($) ≠ \"\" ⟹ ~s)",
+        ];
+        const CONDS: [&str; 14] = [
+            "$a",
+            "¬$b",
+            "($a ⟹ text($a) = \"a\")",
+            "text($b) = \"b\"",
+            "($c ⟹ $d)",
+            "($d ⟹ text($d) ≠ \"\")",
+            "text($) ≠ \"\"",
+            "($a ⟹ ¬$a)",
+            "($b ⟹ text($c) = \"c\")",
+            "($c ⟹ text($) ≠ \"\")",
+            "($a ⟹ ($b ⟹ text($b) = \"b\"))",
+            "(¬$d ⟹ text($) ≠ \"q\")",
+            "($d ⟹ ¬$d)",
+            "($b ⟹ text($b) ≠ \"\")",
+        ];
+        const ALTERNATIVES: [&str; 6] =
+            ["$a(A) [$b(B)]", "($c(C) | $d(D))", "$a(A) $c(C)", "[$d(D)] $b(B)", "$a(A) ($b(B) | $c(C)) [$d(D)]", "A"];
+        let union = |below: &mut dyn FnMut(usize) -> usize| {
+            let parts: Vec<&str> = (0..1 + below(5)).map(|_| TAGS[below(TAGS.len())]).collect();
+            parts.join(" ∪ ")
+        };
+        // The first alternative mostly has every capture, so that few
+        // grammars mention one that no alternative captures.
+        let alternatives: Vec<String> = (0..1 + below(3))
+            .map(|index| {
+                let alternative =
+                    if index == 0 && below(4) != 0 { ALTERNATIVES[4] } else { ALTERNATIVES[below(ALTERNATIVES.len())] };
+                if below(3) == 0 {
+                    format!("{alternative} <{}>", union(&mut below))
+                } else {
+                    alternative.to_string()
+                }
+            })
+            .collect();
+        let mut grammar = format!("%ambiguity-resolution greedy\n%rule text {}\n", alternatives.join(" | "));
+        if below(4) != 0 {
+            grammar.push_str(&format!("%tags {}\n", union(&mut below)));
+        }
+        let conditions: Vec<String> = (0..below(4))
+            .map(|_| {
+                let parts: Vec<&str> = (0..1 + below(4)).map(|_| CONDS[below(CONDS.len())]).collect();
+                parts.join(if below(2) == 0 { " ∧ " } else { " ∨ " })
+            })
+            .collect();
+        if !conditions.is_empty() {
+            grammar.push_str(&format!("%conditions {}\n", conditions.join(", ")));
+        }
+        grammar
+    }
+
+    /// What loading a grammar gives: its error, or the lowered productions.
+    fn loaded(grammar: &str) -> String {
+        let sources = [
+            ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+            ("g.md", format!("```jbogenbau\n{grammar}```\n")),
+        ];
+        match crate::load_dialect_sources(sources, "p.md") {
+            Err(error) => format!("error: {error:?}"),
+            Ok(dialect) => format!("{:?}", dialect.lowered_stage(0).prods),
+        }
+    }
+
+    /// The splits give what simplifying every part for each production
+    /// gives, in the check of a definition and in lowering. That is each
+    /// error, and each lowered production with its tags and conditions.
+    #[test]
+    fn splits_simplify_as_every_part_does() {
+        let (mut errors, mut lowered) = (0, 0);
+        for seed in 0..600 {
+            let grammar = random_clauses(seed);
+            let split = loaded(&grammar);
+            for mutant in [Mutant::CheckEachPart, Mutant::LowerEachPart] {
+                let _mutation = crate::work::Mutation::on(mutant);
+                assert_eq!(loaded(&grammar), split, "{mutant:?}\n{grammar}");
+            }
+            if split.starts_with("error") {
+                errors += 1;
+            } else {
+                lowered += 1;
+            }
+        }
+        eprintln!("{errors} errors, {lowered} lowered");
+        assert!(errors > 60 && lowered > 60, "{errors} errors, {lowered} lowered");
     }
 }

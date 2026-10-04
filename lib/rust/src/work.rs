@@ -36,7 +36,8 @@ pub(crate) enum Work {
     CaptureSteps,
     /// The steps of the notation's readers, of the walks of what they read,
     /// of the checks of a rule's clauses, and of the ranker's search for
-    /// the derivations of an item.
+    /// the derivations of an item. Also the steps of the simplification of
+    /// clauses for productions, and of the splits that it reads.
     Walked,
     /// The tokens that the sound tests step to (§5).
     Sounded,
@@ -142,6 +143,12 @@ pub(crate) enum Mutant {
     /// Unit-edge discovery tests every other symbol of a production at
     /// each symbol.
     CheckEveryOther,
+    /// The check of a definition simplifies every part of each rule-level
+    /// tag term and condition for each production, not from its split.
+    CheckEachPart,
+    /// Lowering simplifies every part of each tag term and condition for
+    /// each production, not from its split.
+    LowerEachPart,
 }
 
 /// Whether the tests have switched `mutant` on, on this thread. Outside the

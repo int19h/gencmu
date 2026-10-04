@@ -21,6 +21,7 @@ pub(crate) enum Simple {
 /// (engine §3.6): each presence test becomes true or false, and `⟹`, `¬`,
 /// `∧` and `∨` over a true or false part are reduced.
 pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
+    work::count(Work::Walked, 1);
     match cond {
         Cond::Captured(name) => {
             if has(name) {
@@ -89,6 +90,7 @@ pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
 /// difference whose first part it is empty and one whose second part it is
 /// its first part, and makes a guarded term empty.
 pub(crate) fn simplify_term(term: &Term, has: &dyn Fn(&str) -> bool) -> Option<Term> {
+    work::count(Work::Walked, 1);
     match term {
         Term::EmptySet => None,
         Term::If(cond, then) => match simplify_cond(cond, has) {
@@ -204,7 +206,7 @@ fn cond_presences<'a>(cond: &'a Cond, out: &mut Vec<&'a str>) {
 /// if any; a term empty, or else that first capture. It walks the clause
 /// once, with an explicit stack, and builds no simplified clause, so a
 /// deep clause costs its size.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 enum Outcome<'a> {
     True,
     False,
@@ -213,165 +215,589 @@ enum Outcome<'a> {
 }
 
 fn simplified_outcome<'a>(start: Part<'a>, has: &dyn Fn(&str) -> bool) -> Outcome<'a> {
-    let first = |a: Option<&'a str>, b: Option<&'a str>| a.or(b);
-    // Each part is met twice: first to push its parts, then to combine
-    // their outcomes, which stand on `done` in the order written.
-    let mut stack: Vec<(Part<'a>, bool)> = vec![(start, false)];
-    let mut done: Vec<Outcome<'a>> = Vec::new();
-    while let Some((part, combine)) = stack.pop() {
-        work::count(Work::Walked, 1);
-        if !combine {
-            let children: Vec<Part<'a>> = match part {
-                Part::Term(Term::If(cond, then)) => vec![Part::Cond(cond), Part::Term(then)],
-                Part::Term(Term::Union(items) | Term::Intersection(items)) => items.iter().map(Part::Term).collect(),
-                Part::Term(Term::Difference(left, right)) => vec![Part::Term(left), Part::Term(right)],
-                Part::Cond(Cond::Not(inner)) => vec![Part::Cond(inner)],
-                Part::Cond(Cond::Any(items) | Cond::All(items)) => items.iter().map(Part::Cond).collect(),
-                Part::Cond(Cond::If(antecedent, consequent)) => vec![Part::Cond(antecedent), Part::Cond(consequent)],
-                Part::Cond(Cond::Compare(_, left, right)) => vec![Part::Term(left), Part::Term(right)],
-                _ => Vec::new(),
+    Shaped::of(start, has).outcome(has)
+}
+
+/// What a clause gives once simplified, before the captures it uses are
+/// asked about. Its shape is its outcome, with `Uses(None)` for any use.
+/// Its uses are the captures of its simplified form, in the order written.
+struct Shaped<'a> {
+    shape: Outcome<'a>,
+    uses: Vec<&'a str>,
+}
+
+impl<'a> Shaped<'a> {
+    /// The shape of a clause for a production whose presence tests `has`
+    /// answers. A part that reads no presence never asks it.
+    fn of(start: Part<'a>, has: &dyn Fn(&str) -> bool) -> Shaped<'a> {
+        // Each part is met twice: first to push its parts, then to combine
+        // their outcomes, which stand on `done` in the order written. When
+        // a part is combined, the captures of its leaves stand last in
+        // `uses`. So a part that the simplified form drops removes them by
+        // a truncation to where it started.
+        let mut stack: Vec<(Part<'a>, Option<usize>)> = vec![(start, None)];
+        let mut done: Vec<Outcome<'a>> = Vec::new();
+        let mut uses: Vec<&'a str> = Vec::new();
+        let used = Outcome::Uses(None);
+        while let Some((part, combine)) = stack.pop() {
+            work::count(Work::Walked, 1);
+            let Some(from) = combine else {
+                let children: Vec<Part<'a>> = match part {
+                    Part::Term(Term::If(cond, then)) => vec![Part::Cond(cond), Part::Term(then)],
+                    Part::Term(Term::Union(items) | Term::Intersection(items)) => {
+                        items.iter().map(Part::Term).collect()
+                    }
+                    Part::Term(Term::Difference(left, right)) => vec![Part::Term(left), Part::Term(right)],
+                    Part::Cond(Cond::Not(inner)) => vec![Part::Cond(inner)],
+                    Part::Cond(Cond::Any(items) | Cond::All(items)) => items.iter().map(Part::Cond).collect(),
+                    Part::Cond(Cond::If(antecedent, consequent)) => {
+                        vec![Part::Cond(antecedent), Part::Cond(consequent)]
+                    }
+                    Part::Cond(Cond::Compare(_, left, right)) => vec![Part::Term(left), Part::Term(right)],
+                    _ => Vec::new(),
+                };
+                stack.push((part, Some(uses.len())));
+                stack.extend(children.into_iter().rev().map(|child| (child, None)));
+                continue;
             };
-            stack.push((part, true));
-            stack.extend(children.into_iter().rev().map(|child| (child, false)));
-            continue;
-        }
-        let missing = |part: Part<'a>| {
-            let mut out = Vec::new();
-            walk_captures(part, true, false, &mut out);
-            out.into_iter().find(|name| !has(name))
-        };
-        let outcome = match part {
-            Part::Term(term) => match term {
-                Term::EmptySet => Outcome::Empty,
-                Term::If(..) => {
-                    let then = done.pop().expect("the term");
-                    match done.pop().expect("the condition") {
-                        Outcome::False => Outcome::Empty,
-                        Outcome::True => then,
-                        Outcome::Uses(used) => match then {
-                            Outcome::Empty => Outcome::Empty,
-                            Outcome::Uses(then) => Outcome::Uses(first(used, then)),
-                            _ => unreachable!("a term is empty or uses captures"),
-                        },
-                        Outcome::Empty => unreachable!("a condition is not empty"),
-                    }
-                }
-                Term::Union(items) => {
-                    let parts = done.split_off(done.len() - items.len());
-                    let left: Vec<Option<&str>> = parts
-                        .into_iter()
-                        .filter_map(|outcome| match outcome {
-                            Outcome::Uses(used) => Some(used),
-                            _ => None,
-                        })
-                        .collect();
-                    if left.is_empty() {
-                        Outcome::Empty
-                    } else {
-                        Outcome::Uses(left.into_iter().flatten().next())
-                    }
-                }
-                Term::Intersection(items) => {
-                    let parts = done.split_off(done.len() - items.len());
-                    let mut used = None;
-                    let mut empty = false;
-                    for outcome in parts {
-                        match outcome {
-                            Outcome::Uses(part) => used = first(used, part),
-                            _ => empty = true,
-                        }
-                    }
-                    if empty {
-                        Outcome::Empty
-                    } else {
-                        Outcome::Uses(used)
-                    }
-                }
-                Term::Difference(..) => {
-                    let right = done.pop().expect("the second part");
-                    match (done.pop().expect("the first part"), right) {
-                        (Outcome::Uses(left), Outcome::Uses(right)) => Outcome::Uses(first(left, right)),
-                        (Outcome::Uses(left), _) => Outcome::Uses(left),
-                        _ => Outcome::Empty,
-                    }
-                }
-                // A capture, a literal or a call, as written.
-                _ => Outcome::Uses(missing(part)),
-            },
-            Part::Cond(cond) => match cond {
-                Cond::Captured(name) => {
-                    if has(name) {
-                        Outcome::True
-                    } else {
-                        Outcome::False
-                    }
-                }
-                Cond::Not(_) => match done.pop().expect("the condition") {
-                    Outcome::True => Outcome::False,
-                    Outcome::False => Outcome::True,
-                    other => other,
-                },
-                Cond::All(items) | Cond::Any(items) => {
-                    let all = matches!(cond, Cond::All(_));
-                    let parts = done.split_off(done.len() - items.len());
-                    let (stop, skip) = if all { (Outcome::False, true) } else { (Outcome::True, false) };
-                    let mut used = None;
-                    let mut left = 0;
-                    let mut stopped = false;
-                    for outcome in parts {
-                        match outcome {
-                            Outcome::True if !all => stopped = true,
-                            Outcome::False if all => stopped = true,
-                            Outcome::True | Outcome::False => {}
-                            Outcome::Uses(part) => {
-                                used = first(used, part);
-                                left += 1;
-                            }
+            let outcome = match part {
+                Part::Term(term) => match term {
+                    Term::EmptySet => Outcome::Empty,
+                    Term::If(..) => {
+                        let then = done.pop().expect("the term");
+                        match done.pop().expect("the condition") {
+                            Outcome::False => Outcome::Empty,
+                            Outcome::True => then,
+                            Outcome::Uses(_) => match then {
+                                Outcome::Empty => Outcome::Empty,
+                                Outcome::Uses(_) => used,
+                                _ => unreachable!("a term is empty or uses captures"),
+                            },
                             Outcome::Empty => unreachable!("a condition is not empty"),
                         }
                     }
-                    if stopped {
-                        stop
-                    } else if left == 0 {
-                        if skip {
+                    Term::Union(items) => {
+                        let parts = done.split_off(done.len() - items.len());
+                        if parts.iter().any(|outcome| matches!(outcome, Outcome::Uses(_))) {
+                            used
+                        } else {
+                            Outcome::Empty
+                        }
+                    }
+                    Term::Intersection(items) => {
+                        let parts = done.split_off(done.len() - items.len());
+                        if parts.iter().all(|outcome| matches!(outcome, Outcome::Uses(_))) {
+                            used
+                        } else {
+                            Outcome::Empty
+                        }
+                    }
+                    Term::Difference(..) => {
+                        done.pop().expect("the second part");
+                        match done.pop().expect("the first part") {
+                            Outcome::Uses(_) => used,
+                            _ => Outcome::Empty,
+                        }
+                    }
+                    // A capture, a literal or a call, as written.
+                    _ => {
+                        walk_captures(part, true, false, &mut uses);
+                        used
+                    }
+                },
+                Part::Cond(cond) => match cond {
+                    Cond::Captured(name) => {
+                        if has(name) {
                             Outcome::True
                         } else {
                             Outcome::False
                         }
-                    } else {
-                        Outcome::Uses(used)
                     }
-                }
-                Cond::If(..) => {
-                    let consequent = done.pop().expect("the consequent");
-                    match done.pop().expect("the antecedent") {
+                    Cond::Not(_) => match done.pop().expect("the condition") {
+                        Outcome::True => Outcome::False,
                         Outcome::False => Outcome::True,
-                        Outcome::True => consequent,
-                        Outcome::Uses(antecedent) => match consequent {
-                            Outcome::True => Outcome::True,
-                            Outcome::False => Outcome::Uses(antecedent),
-                            Outcome::Uses(consequent) => Outcome::Uses(first(antecedent, consequent)),
-                            Outcome::Empty => unreachable!("a condition is not empty"),
-                        },
-                        Outcome::Empty => unreachable!("a condition is not empty"),
+                        other => other,
+                    },
+                    Cond::All(items) | Cond::Any(items) => {
+                        let all = matches!(cond, Cond::All(_));
+                        let parts = done.split_off(done.len() - items.len());
+                        let (stop, skip) = if all { (Outcome::False, true) } else { (Outcome::True, false) };
+                        let mut left = 0;
+                        let mut stopped = false;
+                        for outcome in parts {
+                            match outcome {
+                                Outcome::True if !all => stopped = true,
+                                Outcome::False if all => stopped = true,
+                                Outcome::True | Outcome::False => {}
+                                Outcome::Uses(_) => left += 1,
+                                Outcome::Empty => unreachable!("a condition is not empty"),
+                            }
+                        }
+                        if stopped {
+                            stop
+                        } else if left == 0 {
+                            if skip {
+                                Outcome::True
+                            } else {
+                                Outcome::False
+                            }
+                        } else {
+                            used
+                        }
                     }
-                }
-                Cond::Compare(..) => {
+                    Cond::If(..) => {
+                        let consequent = done.pop().expect("the consequent");
+                        match done.pop().expect("the antecedent") {
+                            Outcome::False => Outcome::True,
+                            Outcome::True => consequent,
+                            Outcome::Uses(_) => match consequent {
+                                Outcome::True => Outcome::True,
+                                Outcome::False | Outcome::Uses(_) => used,
+                                Outcome::Empty => unreachable!("a condition is not empty"),
+                            },
+                            Outcome::Empty => unreachable!("a condition is not empty"),
+                        }
+                    }
                     // An empty side is written out as ∅, which uses nothing.
-                    let right = done.pop().expect("the right side");
-                    let left = done.pop().expect("the left side");
-                    let used = |outcome: Outcome<'a>| match outcome {
-                        Outcome::Uses(used) => used,
-                        _ => None,
-                    };
-                    Outcome::Uses(first(used(left), used(right)))
-                }
-                Cond::Matches(..) | Cond::Begins(..) | Cond::Initial(_) => Outcome::Uses(missing(part)),
-            },
-        };
-        done.push(outcome);
+                    Cond::Compare(..) => {
+                        done.truncate(done.len() - 2);
+                        used
+                    }
+                    Cond::Matches(..) | Cond::Begins(..) | Cond::Initial(_) => {
+                        walk_captures(part, true, false, &mut uses);
+                        used
+                    }
+                },
+            };
+            // A part that is decided or empty uses nothing in the
+            // simplified form, and neither do its parts.
+            if !matches!(outcome, Outcome::Uses(_)) {
+                uses.truncate(from);
+            }
+            done.push(outcome);
+        }
+        Shaped { shape: done.pop().expect("the outcome"), uses }
     }
-    done.pop().expect("the outcome")
+
+    /// The outcome for a production that has the captures `has`: the
+    /// first capture used that it lacks, or none.
+    fn outcome(&self, has: &dyn Fn(&str) -> bool) -> Outcome<'a> {
+        match self.shape {
+            Outcome::Uses(_) => Outcome::Uses(self.uses.iter().copied().find(|name| !has(name))),
+            shape => shape,
+        }
+    }
+}
+
+/// What simplification knows of one part of a clause before it meets a
+/// production (§3.6).
+enum Known<'a, T> {
+    /// The part reads no presence, so its result is the same for every
+    /// production.
+    Fixed(T),
+    /// The part is `$c ⟹ X`, and X reads no presence: the result of X
+    /// where the production has c.
+    Guarded(&'a str, T),
+    /// The part has another shape, and each production simplifies it.
+    Other,
+}
+
+/// The parts of a union, of a list of conditions, or of a `∧` or a `∨`,
+/// split once for a rule (§3.6). A choice of n captures with one guarded
+/// part each would otherwise cost n for each of its n productions. Here a
+/// production costs its own captures and the parts it keeps.
+struct Split<'a, P, T> {
+    /// Each part, with its result where that is known before the
+    /// productions.
+    parts: Vec<(P, Option<T>)>,
+    /// The fixed parts whose result counts, in the order written.
+    fixed: Vec<usize>,
+    /// The guarded parts whose result counts, under the name of their
+    /// guard. A name whose parts all have a neutral result stays, with no
+    /// parts, so that a `∨` can ask whether a production has every guard.
+    guarded: FxMap<&'a str, Vec<usize>>,
+    /// The parts of other shapes, in the order written.
+    other: Vec<usize>,
+    /// Whether a fixed part decides the whole for every production.
+    absorbed: bool,
+}
+
+impl<'a, P: Copy, T> Split<'a, P, T> {
+    /// Splits `parts`, finding what `know` can find of each before the
+    /// productions. A part whose known result is `neutral` drops out of
+    /// the whole, and one that is `absorbing` decides it.
+    fn new(
+        parts: impl IntoIterator<Item = P>,
+        know: impl Fn(P) -> Known<'a, T>,
+        neutral: impl Fn(&T) -> bool,
+        absorbing: impl Fn(&T) -> bool,
+    ) -> Split<'a, P, T> {
+        let mut split = Split {
+            parts: Vec::new(),
+            fixed: Vec::new(),
+            guarded: FxMap::default(),
+            other: Vec::new(),
+            absorbed: false,
+        };
+        for part in parts {
+            work::count(Work::Walked, 1);
+            let index = split.parts.len();
+            let result = match know(part) {
+                Known::Fixed(result) => {
+                    split.absorbed |= absorbing(&result);
+                    if !neutral(&result) {
+                        split.fixed.push(index);
+                    }
+                    Some(result)
+                }
+                Known::Guarded(name, result) => {
+                    let parts = split.guarded.entry(name).or_default();
+                    if !neutral(&result) {
+                        parts.push(index);
+                    }
+                    Some(result)
+                }
+                Known::Other => {
+                    split.other.push(index);
+                    None
+                }
+            };
+            split.parts.push((part, result));
+        }
+        split
+    }
+
+    /// The parts that count for a production whose distinct captures are
+    /// `own`, in the order written, and how many guard names it has. Each
+    /// capture asked about and each part kept counts as it is met.
+    fn select<'n>(&self, own: impl Iterator<Item = &'n str>) -> (Vec<usize>, usize) {
+        let mut chosen: Vec<usize> = Vec::new();
+        let mut present = 0;
+        for name in own {
+            work::count(Work::Walked, 1);
+            if let Some(parts) = self.guarded.get(name) {
+                present += 1;
+                for &index in parts {
+                    work::count(Work::Walked, 1);
+                    chosen.push(index);
+                }
+            }
+        }
+        for &index in self.fixed.iter().chain(&self.other) {
+            work::count(Work::Walked, 1);
+            chosen.push(index);
+        }
+        chosen.sort_unstable();
+        (chosen, present)
+    }
+}
+
+/// Whether a term or a condition tests the presence of a capture outside
+/// a call: those are the parts that simplification changes for each
+/// production.
+fn term_reads_presence(term: &Term) -> bool {
+    let mut out = Vec::new();
+    term_presences(term, &mut out);
+    !out.is_empty()
+}
+
+fn cond_reads_presence(cond: &Cond) -> bool {
+    let mut out = Vec::new();
+    cond_presences(cond, &mut out);
+    !out.is_empty()
+}
+
+/// The parts of a term as a union, or the term alone.
+fn union_parts(term: &Term) -> &[Term] {
+    match term {
+        Term::Union(items) => items,
+        term => std::slice::from_ref(term),
+    }
+}
+
+/// What is known of a part of a union before the productions, given how
+/// to find the result of a part that reads no presence.
+fn know_term<'a, T>(term: &'a Term, fixed: &dyn Fn(&'a Term) -> T) -> Known<'a, T> {
+    if !term_reads_presence(term) {
+        return Known::Fixed(fixed(term));
+    }
+    match term {
+        Term::If(cond, then) => match &**cond {
+            Cond::Captured(name) if !name.is_empty() && !term_reads_presence(then) => Known::Guarded(name, fixed(then)),
+            _ => Known::Other,
+        },
+        _ => Known::Other,
+    }
+}
+
+/// What is known of a condition before the productions, as for a term.
+fn know_cond<'a, T>(cond: &'a Cond, fixed: &dyn Fn(&'a Cond) -> T) -> Known<'a, T> {
+    if !cond_reads_presence(cond) {
+        return Known::Fixed(fixed(cond));
+    }
+    match cond {
+        Cond::If(antecedent, consequent) => match &**antecedent {
+            Cond::Captured(name) if !name.is_empty() && !cond_reads_presence(consequent) => {
+                Known::Guarded(name, fixed(consequent))
+            }
+            _ => Known::Other,
+        },
+        _ => Known::Other,
+    }
+}
+
+/// The presence tests of a part that reads none: never asked.
+fn no_presence(_: &str) -> bool {
+    unreachable!("a part that reads no presence asks about none")
+}
+
+/// A tag term split once for a rule, to simplify for each production in
+/// what the production keeps (§3.6). The result is `simplify_term`'s.
+pub(crate) struct TermSplit<'a>(Split<'a, &'a Term, Option<Term>>);
+
+impl<'a> TermSplit<'a> {
+    pub(crate) fn new(term: &'a Term) -> TermSplit<'a> {
+        let fixed = |part: &'a Term| simplify_term(part, &no_presence);
+        TermSplit(Split::new(union_parts(term), |part| know_term(part, &fixed), Option::is_none, |_| false))
+    }
+
+    /// The term simplified for a production whose distinct captures are
+    /// `own` and whose presence tests `has` answers.
+    pub(crate) fn simplify<'n>(&self, own: impl Iterator<Item = &'n str>, has: &dyn Fn(&str) -> bool) -> Option<Term> {
+        let (chosen, _) = self.0.select(own);
+        let mut left: Vec<Term> = Vec::with_capacity(chosen.len());
+        for index in chosen {
+            match &self.0.parts[index] {
+                (_, Some(known)) => left.extend(known.clone()),
+                (part, None) => left.extend(simplify_term(part, has)),
+            }
+        }
+        match left.len() {
+            0 => None,
+            1 => left.pop(),
+            _ => Some(Term::Union(left)),
+        }
+    }
+}
+
+/// How one condition of a list simplifies for each production: as a `∧`
+/// or a `∨` split into its parts, or whole.
+enum CondParts<'a> {
+    All(Split<'a, &'a Cond, Simple>),
+    Any(Split<'a, &'a Cond, Simple>),
+    Whole(&'a Cond),
+}
+
+impl<'a> CondParts<'a> {
+    fn new(cond: &'a Cond) -> CondParts<'a> {
+        let fixed = |part: &'a Cond| simplify_cond(part, &no_presence);
+        let know = |part| know_cond(part, &fixed);
+        match cond {
+            Cond::All(items) => CondParts::All(Split::new(
+                items,
+                know,
+                |simple| *simple == Simple::True,
+                |simple| *simple == Simple::False,
+            )),
+            Cond::Any(items) => CondParts::Any(Split::new(
+                items,
+                know,
+                |simple| *simple == Simple::False,
+                |simple| *simple == Simple::True,
+            )),
+            cond => CondParts::Whole(cond),
+        }
+    }
+
+    /// The condition simplified for a production, as `simplify_cond`
+    /// gives it.
+    fn simplify<'n>(&self, own: impl Iterator<Item = &'n str>, has: &dyn Fn(&str) -> bool) -> Simple {
+        let (split, all) = match self {
+            CondParts::Whole(cond) => return simplify_cond(cond, has),
+            CondParts::All(split) => (split, true),
+            CondParts::Any(split) => (split, false),
+        };
+        // A `∧` stops at a false part and a `∨` at a true one. A `∨` is
+        // also true where a guard of it is absent.
+        let (stop, rest) = if all { (Simple::False, Simple::True) } else { (Simple::True, Simple::False) };
+        if split.absorbed {
+            return stop;
+        }
+        let (chosen, present) = split.select(own);
+        if !all && present < split.guarded.len() {
+            return Simple::True;
+        }
+        let mut left = Vec::with_capacity(chosen.len());
+        for index in chosen {
+            let simple = match &split.parts[index] {
+                (_, Some(known)) => known.clone(),
+                (part, None) => simplify_cond(part, has),
+            };
+            match simple {
+                Simple::Cond(cond) => left.push(cond),
+                simple if simple == stop => return stop,
+                _ => {}
+            }
+        }
+        match left.len() {
+            0 => rest,
+            1 => Simple::Cond(left.pop().expect("one condition")),
+            _ if all => Simple::Cond(Cond::All(left)),
+            _ => Simple::Cond(Cond::Any(left)),
+        }
+    }
+}
+
+/// A list of conditions split once for a rule, to simplify for each
+/// production in what the production keeps (§3.6).
+pub(crate) struct CondListSplit<'a> {
+    split: Split<'a, &'a Cond, Simple>,
+    /// For each condition of another shape, its own split.
+    parts: FxMap<usize, CondParts<'a>>,
+}
+
+impl<'a> CondListSplit<'a> {
+    pub(crate) fn new(conds: &'a [Cond]) -> CondListSplit<'a> {
+        let fixed = |part: &'a Cond| simplify_cond(part, &no_presence);
+        let split = Split::new(
+            conds,
+            |part| know_cond(part, &fixed),
+            |simple| *simple == Simple::True,
+            |simple| *simple == Simple::False,
+        );
+        let parts = split.other.iter().map(|&index| (index, CondParts::new(split.parts[index].0))).collect();
+        CondListSplit { split, parts }
+    }
+
+    /// The conditions that remain for a production, simplified in the
+    /// order written, or `None` where one is false, which removes the
+    /// production. A condition true for it is left out.
+    pub(crate) fn simplify(&self, own: &[&str], has: &dyn Fn(&str) -> bool) -> Option<Vec<Cond>> {
+        if self.split.absorbed {
+            return None;
+        }
+        let (chosen, _) = self.split.select(own.iter().copied());
+        let mut left = Vec::with_capacity(chosen.len());
+        for index in chosen {
+            let simple = match &self.split.parts[index] {
+                (_, Some(known)) => known.clone(),
+                _ => self.parts[&index].simplify(own.iter().copied(), has),
+            };
+            match simple {
+                Simple::True => {}
+                Simple::False => return None,
+                Simple::Cond(cond) => left.push(cond),
+            }
+        }
+        Some(left)
+    }
+}
+
+/// A tag term split once for the check of a definition (§9). For each
+/// production it finds the first capture of the simplified form that the
+/// production lacks, as `simplified_outcome` finds it.
+struct TermCheck<'a>(Split<'a, &'a Term, Shaped<'a>>);
+
+impl<'a> TermCheck<'a> {
+    fn new(term: &'a Term) -> TermCheck<'a> {
+        let fixed = |part: &'a Term| Shaped::of(Part::Term(part), &no_presence);
+        TermCheck(Split::new(
+            union_parts(term),
+            |part| know_term(part, &fixed),
+            |shaped| shaped.shape == Outcome::Empty,
+            |_| false,
+        ))
+    }
+
+    fn missing<'n>(&self, own: impl Iterator<Item = &'n str>, has: &dyn Fn(&str) -> bool) -> Option<&'a str> {
+        let (chosen, _) = self.0.select(own);
+        for index in chosen {
+            let outcome = match &self.0.parts[index] {
+                (_, Some(shaped)) => shaped.outcome(has),
+                (part, None) => simplified_outcome(Part::Term(part), has),
+            };
+            if let Outcome::Uses(Some(missing)) = outcome {
+                return Some(missing);
+            }
+        }
+        None
+    }
+}
+
+/// A condition split once for the check of a definition (§9), to find
+/// its outcome for each production as `simplified_outcome` finds it.
+enum CondCheck<'a> {
+    Fixed(Shaped<'a>),
+    Guarded(&'a str, Shaped<'a>),
+    All(Split<'a, &'a Cond, Shaped<'a>>),
+    Any(Split<'a, &'a Cond, Shaped<'a>>),
+    Whole(&'a Cond),
+}
+
+impl<'a> CondCheck<'a> {
+    fn new(cond: &'a Cond) -> CondCheck<'a> {
+        let fixed = |part: &'a Cond| Shaped::of(Part::Cond(part), &no_presence);
+        let know = |part| know_cond(part, &fixed);
+        match know(cond) {
+            Known::Fixed(shaped) => CondCheck::Fixed(shaped),
+            Known::Guarded(name, shaped) => CondCheck::Guarded(name, shaped),
+            Known::Other => match cond {
+                Cond::All(items) => CondCheck::All(Split::new(
+                    items,
+                    know,
+                    |shaped| shaped.shape == Outcome::True,
+                    |shaped| shaped.shape == Outcome::False,
+                )),
+                Cond::Any(items) => CondCheck::Any(Split::new(
+                    items,
+                    know,
+                    |shaped| shaped.shape == Outcome::False,
+                    |shaped| shaped.shape == Outcome::True,
+                )),
+                cond => CondCheck::Whole(cond),
+            },
+        }
+    }
+
+    fn outcome<'n>(&self, own: impl Iterator<Item = &'n str>, has: &dyn Fn(&str) -> bool) -> Outcome<'a> {
+        let (split, all) = match self {
+            CondCheck::Fixed(shaped) => return shaped.outcome(has),
+            CondCheck::Guarded(name, shaped) => return if has(name) { shaped.outcome(has) } else { Outcome::True },
+            CondCheck::Whole(cond) => return simplified_outcome(Part::Cond(cond), has),
+            CondCheck::All(split) => (split, true),
+            CondCheck::Any(split) => (split, false),
+        };
+        // A `∧` stops at a false part and a `∨` at a true one. A `∨` is
+        // also true where a guard of it is absent.
+        let (stop, rest) = if all { (Outcome::False, Outcome::True) } else { (Outcome::True, Outcome::False) };
+        if split.absorbed {
+            return stop;
+        }
+        let (chosen, present) = split.select(own);
+        if !all && present < split.guarded.len() {
+            return Outcome::True;
+        }
+        let (mut used, mut left) = (None, 0);
+        for index in chosen {
+            let outcome = match &split.parts[index] {
+                (_, Some(shaped)) => shaped.outcome(has),
+                (part, None) => simplified_outcome(Part::Cond(part), has),
+            };
+            match outcome {
+                Outcome::Uses(part) => {
+                    used = used.or(part);
+                    left += 1;
+                }
+                outcome if outcome == stop => return stop,
+                _ => {}
+            }
+        }
+        if left == 0 {
+            rest
+        } else {
+            Outcome::Uses(used)
+        }
+    }
 }
 
 /// The captures that some production of an expression reads after a
@@ -804,10 +1230,19 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
     }
 
     // A condition that applies to no production.
+    let each_part = work::mutated(Mutant::CheckEachPart);
     for cond in rule.conditions.iter().filter(|cond| !cond_waits(cond)) {
+        let check = CondCheck::new(cond);
         let applies = (0..productions.len()).any(|index| {
             let has = captures_of(index);
-            match simplified_outcome(Part::Cond(cond), &has) {
+            let outcome = if each_part {
+                // A mutation of the tests simplifies every part of the
+                // condition for each production.
+                simplified_outcome(Part::Cond(cond), &has)
+            } else {
+                check.outcome(positions[index].keys().copied(), &has)
+            };
+            match outcome {
                 Outcome::True => false,
                 Outcome::False => true,
                 Outcome::Uses(missing) => missing.is_none(),
@@ -832,10 +1267,23 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         .collect();
     let item_waits: Vec<bool> =
         items.iter().map(|item| matches!(item, EmitItem::Capture(_, Some(term), ..) if term_waits(term))).collect();
+    // Each tag term split once, for the rule and for each alternative.
+    let rule_check = rule_tags.map(TermCheck::new);
+    let alternative_checks: Vec<Option<TermCheck>> =
+        alternative_tags.iter().map(|term| term.map(TermCheck::new)).collect();
     for (index, (alternative, _)) in productions.iter().enumerate() {
         let has = captures_of(index);
-        for term in [rule_tags, alternative_tags[*alternative]].into_iter().flatten() {
-            if let Outcome::Uses(Some(missing)) = simplified_outcome(Part::Term(term), &has) {
+        if each_part {
+            // A mutation of the tests simplifies every part of each tag
+            // term for each production.
+            for term in [rule_tags, alternative_tags[*alternative]].into_iter().flatten() {
+                if let Outcome::Uses(Some(missing)) = simplified_outcome(Part::Term(term), &has) {
+                    return Some(unguarded(missing));
+                }
+            }
+        }
+        for check in [&rule_check, &alternative_checks[*alternative]].into_iter().flatten() {
+            if let Some(missing) = check.missing(positions[index].keys().copied(), &has) {
                 return Some(unguarded(missing));
             }
         }
