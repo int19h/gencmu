@@ -75,6 +75,39 @@ fn captures_share_their_prefixes() {
     }
 }
 
+/// A condition at each capture of a long production reads the part it
+/// names without a walk of every part before it. The capture just made is
+/// the last part, and the first capture is a search by the jumps, whose
+/// steps grow with the logarithm of the parts (engine §4).
+#[test]
+fn conditions_at_each_capture_search_for_their_parts() {
+    let steps = |count: usize, far: &dyn Fn(usize) -> String| {
+        let names: Vec<String> = (0..count).map(|index| format!("$c{index}('a')")).collect();
+        let conditions: Vec<String> =
+            (0..count).map(|index| format!("text($c{index}) = text({})", far(index))).collect();
+        let grammar = format!(
+            "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {}\n%conditions {}\n```\n",
+            names.join(" "),
+            conditions.join(", ")
+        );
+        let mut documents = std::collections::BTreeMap::new();
+        documents.insert("g.md".to_string(), grammar);
+        documents.insert("p.md".to_string(), "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string());
+        let dialect = gencmu::load_dialect_sources(documents, "p.md").expect("the dialect");
+        reset_recognizer_items();
+        let result = dialect.parse(&"a".repeat(count), &ParseOptions::default()).expect("a result");
+        assert!(result.ok, "{count} captures");
+        capture_steps()
+    };
+    for count in [100usize, 200, 400] {
+        let near = steps(count, &|index| format!("$c{index}"));
+        let first = steps(count, &|_| "$c0".to_string());
+        assert!(near <= 4 * count as u64 + 8, "{near} steps for {count} captures read where they are made");
+        let bound = count as f64 * (2.0 * (count as f64).log2() + 4.0);
+        assert!((first as f64) <= bound, "{first} steps for {count} captures that each read the first");
+    }
+}
+
 /// The shared cases of tests/notation-growth.json: reading a document whose
 /// constructs nest deep costs work that grows with its length, not with its
 /// square. The work is the recognizer's items and the steps of the reader,

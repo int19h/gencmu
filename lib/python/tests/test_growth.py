@@ -7,7 +7,9 @@ parses alike."""
 from __future__ import annotations
 
 import json
+import math
 import unittest
+from typing import Callable
 
 import gencmu
 from gencmu._dialect import read_document
@@ -70,6 +72,30 @@ class CaptureStorage(unittest.TestCase):
             # result, walks each a bounded number of times, not once for
             # each capture before it.
             self.assertLessEqual(recognizer_counters.capture_steps, 2 * count + 4, f"{count} captures: {recognizer_counters.capture_steps} steps")
+
+    def test_a_condition_at_each_capture_reads_its_part_without_walking_the_parts_before_it(self) -> None:
+        # A condition at each capture of a long production reads the part
+        # it names: the capture just made is the last part, and the first
+        # capture is a search by the jumps, whose steps grow with the
+        # logarithm of the parts (engine §4).
+        def steps(count: int, far: Callable[[int], str]) -> int:
+            names = " ".join(f"$c{index}(A)" for index in range(count))
+            conditions = ", ".join(f"text($c{index}) = text({far(index)})" for index in range(count))
+            case = {"grammar": f"%rule text {names}\n%conditions {conditions}", "tokens": [{"text": "a", "tags": ["A"]}] * count}
+            dialect, error = load_case_dialect(case)
+            self.assertIsNone(error)
+            assert dialect is not None
+            recognizer_counters.capture_steps = 0
+            value, _, _ = parse_case(dialect, case)
+            assert value is not None
+            self.assertTrue(value["ok"], f"{count} captures")
+            return recognizer_counters.capture_steps
+
+        for count in (100, 200, 400):
+            near = steps(count, lambda index: f"$c{index}")
+            first = steps(count, lambda index: "$c0")
+            self.assertLessEqual(near, 2 * count + 4, f"{count} captures read where they are made: {near} steps")
+            self.assertLessEqual(first, count * (2 * math.log2(count) + 4), f"{count} captures that each read the first: {first} steps")
 
 
 class NotationGrowth(unittest.TestCase):

@@ -3,6 +3,7 @@ package gencmu
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"runtime/debug"
 	"strings"
@@ -129,6 +130,44 @@ func TestCaptureStorage(t *testing.T) {
 		}
 		if rec.capSteps > 2*n+4 {
 			t.Errorf("%d captures: %d steps to read them", n, rec.capSteps)
+		}
+	}
+}
+
+// TestCaptureSearch: a condition at each capture of a long production
+// reads the part it names without a walk of every part before it. The
+// capture just made is the last part, and the first capture is a search
+// by the jumps, whose steps grow with the logarithm of the parts (engine
+// §4).
+func TestCaptureSearch(t *testing.T) {
+	steps := func(n int, far func(int) string) int {
+		names := make([]string, n)
+		conditions := make([]string, n)
+		for i := range names {
+			names[i] = fmt.Sprintf("$c%d(A)", i)
+			conditions[i] = fmt.Sprintf("text($c%d) = text(%s)", i, far(i))
+		}
+		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+strings.Join(names, " ")+"\n%conditions "+strings.Join(conditions, ", ")))
+		lg := d.lower(0, map[string]bool{})
+		toks := make([]Token, n)
+		for i := range toks {
+			toks[i] = Token{Text: "a", Tags: []string{"A"}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
+		}
+		ps := newParseState(d.uni, []rune(strings.TrimSpace(strings.Repeat("a ", n))))
+		rec := ps.newRun("main", d.stages[0], toks).recognize(lg, lg.byName["text"], 0, n)
+		if len(rec.sets[n].items) == 0 {
+			t.Fatalf("%d captures: no item at the end", n)
+		}
+		return rec.capSteps
+	}
+	for _, n := range []int{100, 200, 400} {
+		near := steps(n, func(i int) string { return fmt.Sprintf("$c%d", i) })
+		first := steps(n, func(int) string { return "$c0" })
+		if near > 2*n+4 {
+			t.Errorf("%d captures read where they are made: %d steps", n, near)
+		}
+		if float64(first) > float64(n)*(2*math.Log2(float64(n))+4) {
+			t.Errorf("%d captures that each read the first: %d steps", n, first)
 		}
 	}
 }

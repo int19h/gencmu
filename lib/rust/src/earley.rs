@@ -163,6 +163,67 @@ pub(crate) struct Cap {
     pub tags: SetId,
 }
 
+/// One interned sequence of captured parts: the sequence it extends, how
+/// many parts it holds, its last part, and `jump`, an earlier sequence that
+/// a search for a part can skip to. That is the parent's jump's jump where
+/// the two jumps skip the same number of parts, and the parent otherwise.
+/// These are the jumps of a skew-binary list, so a search for any part
+/// takes a number of steps that grows with the logarithm of the parts.
+#[derive(Debug, Clone, Copy)]
+struct CapEntry {
+    parent: u32,
+    jump: u32,
+    depth: u32,
+    cap: Cap,
+}
+
+/// The captured parts that a frame reads: all of them, in slot order, or
+/// a sequence of a chart, whose parts are found when they are read.
+#[derive(Clone, Copy)]
+pub(crate) enum Caps<'c> {
+    All(&'c [Cap]),
+    Chart(&'c CapSearch<'c>),
+}
+
+impl Caps<'_> {
+    /// The part in a slot.
+    pub(crate) fn get(&self, slot: u32) -> Cap {
+        match self {
+            Caps::All(caps) => caps[slot as usize],
+            Caps::Chart(search) => search.get(slot),
+        }
+    }
+}
+
+/// A chart's sequence of captured parts, read part by part: the last at
+/// once, an earlier one by the jumps. Once the searches took half as many
+/// steps as there are parts, every part comes from one walk, so a term
+/// that reads them all walks them about twice at most.
+pub(crate) struct CapSearch<'c> {
+    chart: &'c Chart,
+    id: u32,
+    all: std::cell::OnceCell<Vec<Cap>>,
+    searched: Cell<u32>,
+}
+
+impl<'c> CapSearch<'c> {
+    pub(crate) fn new(chart: &'c Chart, id: u32) -> CapSearch<'c> {
+        CapSearch { chart, id, all: std::cell::OnceCell::new(), searched: Cell::new(0) }
+    }
+
+    fn get(&self, slot: u32) -> Cap {
+        if let Some(all) = self.all.get() {
+            return all[slot as usize];
+        }
+        if self.searched.get() * 2 >= self.chart.caps[self.id as usize].depth {
+            return self.all.get_or_init(|| self.chart.caps(self.id))[slot as usize];
+        }
+        let (cap, steps) = self.chart.cap_at(self.id, slot);
+        self.searched.set(self.searched.get() + steps + 1);
+        cap
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct Item {
     pub prod: u32,
@@ -243,7 +304,7 @@ pub(crate) struct Chart {
     /// sequence before its last part and that part, so a sequence shares
     /// the one it extends, and an item's sequence is the number of its
     /// entry. Entry 0 is the empty sequence.
-    caps: Vec<(u32, Cap)>,
+    caps: Vec<CapEntry>,
     caps_index: FxMap<(u32, Cap), u32>,
     /// The positions of the sets that hold each item, in order, made when a
     /// derivation is first rebuilt.
@@ -289,23 +350,36 @@ impl Chart {
     pub(crate) fn caps(&self, mut id: u32) -> Vec<Cap> {
         let mut out = Vec::new();
         while id != 0 {
-            let (parent, cap) = self.caps[id as usize];
-            out.push(cap);
-            id = parent;
+            let entry = self.caps[id as usize];
+            out.push(entry.cap);
+            id = entry.parent;
         }
         CAPTURE_STEPS.with(|steps| steps.set(steps.get() + out.len() as u64));
         out.reverse();
         out
     }
 
+    /// The part in one slot of a sequence, found from its last part by the
+    /// jumps, and the number of steps that took.
+    fn cap_at(&self, mut id: u32, slot: u32) -> (Cap, u32) {
+        let mut steps = 0;
+        while self.caps[id as usize].depth > slot + 1 {
+            let entry = self.caps[id as usize];
+            id = if self.caps[entry.jump as usize].depth > slot { entry.jump } else { entry.parent };
+            steps += 1;
+        }
+        CAPTURE_STEPS.with(|count| count.set(count.get() + u64::from(steps)));
+        (self.caps[id as usize].cap, steps)
+    }
+
     /// The last captured part of a sequence that is not empty.
     pub(crate) fn last_cap(&self, id: u32) -> Cap {
-        self.caps[id as usize].1
+        self.caps[id as usize].cap
     }
 
     /// The sequence before the last part of a sequence that is not empty.
     pub(crate) fn caps_parent(&self, id: u32) -> u32 {
-        self.caps[id as usize].0
+        self.caps[id as usize].parent
     }
 
     /// The sequence that extends a sequence by one part, made once.
@@ -314,7 +388,14 @@ impl Chart {
             return id;
         }
         let id = self.caps.len() as u32;
-        self.caps.push((parent, cap));
+        let before = self.caps[parent as usize];
+        let above = self.caps[before.jump as usize];
+        let jump = if before.depth - above.depth == above.depth - self.caps[above.jump as usize].depth {
+            above.jump
+        } else {
+            parent
+        };
+        self.caps.push(CapEntry { parent, jump, depth: before.depth + 1, cap });
         self.caps_index.insert((parent, cap), id);
         CAPTURES.with(|captures| captures.set(captures.get() + 1));
         id
@@ -478,7 +559,7 @@ pub(crate) struct Recognizer<'g, 's, 'a> {
 /// parts, and `$`, the whole constituent, from the item's origin to `end`.
 #[derive(Clone)]
 pub(crate) struct Frame<'c> {
-    pub caps: &'c [Cap],
+    pub caps: Caps<'c>,
     pub prod: u32,
     pub origin: u32,
     pub end: u32,
@@ -517,7 +598,7 @@ fn span_bounds(span: &Span, frame: &Frame, input: usize) -> Bounds {
     };
     match span {
         Span::Cap(slot) => {
-            let cap = frame.caps[*slot as usize];
+            let cap = frame.caps.get(*slot);
             let (start, end) = projected(cap.start, cap.end);
             (start, end, Whose::Cap(cap.tags))
         }
@@ -551,7 +632,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     pub(crate) fn recognize(&mut self, tokens: &[Tok], base: usize, start: u32) -> Result<Chart, EngineError> {
         let n = tokens.len();
         let mut chart = Chart::default();
-        chart.caps.push((0, Cap { start: 0, end: 0, tags: 0 }));
+        chart.caps.push(CapEntry { parent: 0, jump: 0, depth: 0, cap: Cap { start: 0, end: 0, tags: 0 } });
         chart.sets.push(ESet::default());
         self.predict(&mut chart, tokens, base, start, 0, false)?;
         let mut e = 0;
@@ -666,21 +747,26 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         // The constituent's tags, where a condition of this step read them.
         let mut known = u32::MAX;
         if production.conds.iter().any(|(_, trigger)| *trigger == item.dot as usize) {
-            let caps = chart.caps(item.caps);
+            let search = CapSearch::new(chart, item.caps);
             let (observed, project) = self.observed(tokens);
             let frame = Frame {
-                caps: &caps,
+                caps: Caps::Chart(&search),
                 prod: item.prod,
                 origin: item.origin,
                 end: set as u32,
                 tags: Cell::new(None),
                 project,
             };
+            let mut failed = false;
             for (cond, trigger) in &production.conds {
                 if *trigger == item.dot as usize && !self.condition(cond, &frame, observed, base)? {
-                    chart.sets[set].failed.insert(item);
-                    return Ok(());
+                    failed = true;
+                    break;
                 }
+            }
+            if failed {
+                chart.sets[set].failed.insert(item);
+                return Ok(());
             }
             known = frame.tags.get().unwrap_or(u32::MAX);
         }
@@ -876,9 +962,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let tags = if known != u32::MAX {
             known
         } else {
-            let caps = chart.caps(item.caps);
+            let search = CapSearch::new(chart, item.caps);
             let frame = Frame {
-                caps: &caps,
+                caps: Caps::Chart(&search),
                 prod: item.prod,
                 origin: item.origin,
                 end: e as u32,
@@ -933,7 +1019,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 self.shared.tags.set(list)
             }
             None if production.syms.len() == 1 => {
-                frame.caps[production.cap_at[0].expect("an implicit capture") as usize].tags
+                frame.caps.get(production.cap_at[0].expect("an implicit capture")).tags
             }
             None => 0,
         })

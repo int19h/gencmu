@@ -5,7 +5,7 @@
 use std::cell::Cell;
 use std::collections::BTreeSet;
 
-use crate::earley::{Cap, EngineError, Frame, Recognizer, Tok};
+use crate::earley::{Cap, Caps, EngineError, Frame, Recognizer, Tok};
 use crate::fxhash::{FxMap, FxSet};
 use crate::lower::{LEmit, LEmitItem, LTerm, Lowered};
 use crate::rank::{DNode, Ranker};
@@ -806,7 +806,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                             unreachable!("an emission's constituent")
                         };
                         let frame = Frame {
-                            caps,
+                            caps: Caps::All(caps),
                             prod: *prod,
                             origin: *start,
                             end: *end,

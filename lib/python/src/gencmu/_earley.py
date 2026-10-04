@@ -34,27 +34,39 @@ class Caps:
     constituent keeps. A parse interns them, each by the parts it extends
     and the part it adds, which it shares: one production of C captures
     keeps C parts, not C², and equal parts are one object, so an item's key
-    compares them by identity (engine §4)."""
+    compares them by identity (engine §4).
 
-    __slots__ = ("parent", "part", "size")
+    ``jump`` is an earlier sequence that a search for a part can skip to:
+    the parent's jump's jump where the two jumps skip the same number of
+    parts, and the parent otherwise. These are the jumps of a skew-binary
+    list, so a search for any part takes a number of steps that grows with
+    the logarithm of the parts."""
+
+    __slots__ = ("parent", "part", "size", "jump")
 
     def __init__(self, parent: Caps | None, part: tuple[int, int, int] | None) -> None:
         self.parent = parent
         self.part = part
         self.size = 0 if parent is None else parent.size + 1
+        jump = parent
+        if parent is not None and parent.jump is not None:
+            above = parent.jump
+            if parent.size - above.size == above.size - (0 if above.jump is None else above.jump.size):
+                jump = above.jump
+        self.jump = jump
 
     def __len__(self) -> int:
         return self.size
 
     def __getitem__(self, slot: int) -> tuple[int, int, int]:
         """One slot's part, the last in constant time and an earlier one by
-        a walk to it; ``parts`` reads them all in one walk."""
+        the jumps; ``parts`` reads them all in one walk."""
         if not 0 <= slot < self.size:
             raise IndexError(slot)
         found: Caps = self
         while found.size > slot + 1:
-            assert found.parent is not None
-            found = found.parent
+            jump = found.jump
+            found = jump if jump is not None and jump.size >= slot + 1 else found.parent  # type: ignore[assignment]
             recognizer_counters.capture_steps += 1
         assert found.part is not None
         return found.part
@@ -69,6 +81,66 @@ class Caps:
             recognizer_counters.capture_steps += 1
         out.reverse()
         return out
+
+
+class Bound:
+    """The captures of an item as an evaluation reads them, each found when
+    it is first read: the last part at once, an earlier one by the jumps.
+    Once the searches took half as many steps as there are parts, every
+    part comes from one walk, so a term that reads them all walks them
+    about twice at most. ``$`` is the whole constituent where it is known."""
+
+    __slots__ = ("production", "caps", "base", "project", "whole", "found", "all", "searched")
+
+    def __init__(
+        self,
+        production: Production,
+        caps: Caps,
+        base: int,
+        project: list[int] | None,
+        whole: tuple[int, int, int | Callable[[], int] | None] | None,
+    ) -> None:
+        self.production = production
+        self.caps = caps
+        self.base = base
+        self.project = project
+        self.whole = whole
+        self.found: dict[str, tuple[int, int, int] | None] = {}
+        self.all: list[tuple[int, int, int]] | None = None
+        self.searched = 0
+
+    def get(self, name: str) -> tuple[int, int, int] | None:
+        if name == WHOLE:
+            whole = self.whole
+            if whole is None:
+                return None
+            if self.project is None:
+                return (whole[0] + self.base, whole[1] + self.base, whole[2])  # type: ignore[return-value]
+            return (self.project[whole[0]], self.project[whole[1]], whole[2])  # type: ignore[return-value]
+        if name in self.found:
+            return self.found[name]
+        position = self.production.captures.get(name)
+        result: tuple[int, int, int] | None = None
+        if position is not None:
+            slot = self.production.slots[position]
+            caps = self.caps
+            if 0 <= slot < len(caps):
+                if self.all is None and self.searched * 2 >= len(caps):
+                    self.all = caps.parts()
+                if self.all is not None:
+                    start, end, tag = self.all[slot]
+                else:
+                    before = recognizer_counters.capture_steps
+                    start, end, tag = caps[slot]
+                    self.searched += recognizer_counters.capture_steps - before + 1
+                if self.project is None:
+                    result = (start + self.base, end + self.base, tag)
+                else:
+                    # A capture keeps its constituent's own tags, also where
+                    # its span projects to empty (engine §7.5).
+                    result = (self.project[start], self.project[end], tag)
+        self.found[name] = result
+        return result
 
 
 NO_CAPS = Caps(None, None)
@@ -405,35 +477,14 @@ class Evaluator:
         # §7.3, §7.5). None elsewhere.
         self.project = project
 
-    def bind(
-        self, production: Production, caps: Caps, whole: tuple[int, int, int | Callable[[], int] | None] | None = None
-    ) -> dict[str, tuple[int, int, int]]:
+    def bind(self, production: Production, caps: Caps, whole: tuple[int, int, int | Callable[[], int] | None] | None = None) -> Bound:
         """The captures of an item, and ``$`` when ``whole`` gives the
         constituent's span and tag set (``None`` while its tag set is being
-        computed, when no term may read it)."""
-        bound: dict[str, tuple[int, int, int]] = {}
-        base = self.base
-        project = self.project
-        # The parts in one walk, not a walk for each capture.
-        parts = caps.parts() if production.captures else []
-        for name, position in production.captures.items():
-            slot = production.slots[position]
-            if 0 <= slot < len(parts):
-                start, end, tag = parts[slot]
-                if project is None:
-                    bound[name] = (start + base, end + base, tag)
-                else:
-                    # A capture keeps its constituent's own tags, also where
-                    # its span projects to empty (engine §7.5).
-                    bound[name] = (project[start], project[end], tag)
-        if whole is not None:
-            if project is None:
-                bound[WHOLE] = (whole[0] + base, whole[1] + base, whole[2])  # type: ignore[assignment]
-            else:
-                bound[WHOLE] = (project[whole[0]], project[whole[1]], whole[2])  # type: ignore[assignment]
-        return bound
+        computed, when no term may read it). Each capture is found when it
+        is first read, not all of them at once."""
+        return Bound(production, caps, self.base, self.project, whole)
 
-    def _span(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> Walk:
+    def _span(self, dom: Any, bound: Bound) -> Walk:
         if isinstance(dom, dict):
             if "capture" in dom:
                 found = bound.get(dom["capture"])
@@ -477,7 +528,7 @@ class Evaluator:
         sound = self.context.sound
         return "".join(sound(index) for index in range(start, end))
 
-    def _value(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> Walk:
+    def _value(self, dom: Any, bound: Bound) -> Walk:
         """A term's value (engine §10): a string, or a set, of strings or of
         tags."""
         if "string" in dom:
@@ -552,16 +603,16 @@ class Evaluator:
             raise _GrammarFault(f"an unknown function {name}()")
         raise _GrammarFault("a span is used where a value is needed")
 
-    def value(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> Any:
+    def value(self, dom: Any, bound: Bound) -> Any:
         return run(self._value(dom, bound))
 
-    def tags(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> Tags:
+    def tags(self, dom: Any, bound: Bound) -> Tags:
         return _as_set(self.value(dom, bound))
 
-    def condition(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> bool:
+    def condition(self, dom: Any, bound: Bound) -> bool:
         return bool(run(self._condition(dom, bound)))
 
-    def _condition(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> Walk:
+    def _condition(self, dom: Any, bound: Bound) -> Walk:
         if "op" in dom:
             op = dom["op"]
             left = yield self._value(dom["left"], bound)

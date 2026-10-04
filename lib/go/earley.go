@@ -33,9 +33,15 @@ type capStep struct {
 
 // capNode is an interned sequence of the capture slots after the first:
 // the sequence it extends, which it shares, the capture it adds, and how
-// many slots it holds, so the slot it adds is its depth.
+// many slots it holds, so the slot it adds is its depth. jump is an
+// earlier sequence that a search for a slot can skip to: the parent's
+// jump's jump where the two jumps skip the same number of slots, and the
+// parent otherwise. These are the jumps of a skew-binary list, so a search
+// for any slot takes a number of steps that grows with the logarithm of
+// the slots.
 type capNode struct {
 	parent int32
+	jump   int32
 	cv     capVal
 	depth  int32
 }
@@ -48,14 +54,26 @@ type itemCaps struct {
 }
 
 func (c itemCaps) at(slot int32) capVal {
+	cv, _ := c.find(slot)
+	return cv
+}
+
+// find is one slot's capture, the last at once and an earlier one by the
+// jumps, and the number of steps the search took.
+func (c itemCaps) find(slot int32) (capVal, int) {
 	if slot == 0 {
-		return c.first
+		return c.first, 0
 	}
-	id := c.more
+	id, steps := c.more, 0
 	for c.nodes[id].depth > slot {
-		id = c.nodes[id].parent
+		if jump := c.nodes[id].jump; c.nodes[jump].depth >= slot {
+			id = jump
+		} else {
+			id = c.nodes[id].parent
+		}
+		steps++
 	}
-	return c.nodes[id].cv
+	return c.nodes[id].cv, steps
 }
 
 // all is every slot's capture, in slot order, read in one walk, and the
@@ -97,7 +115,12 @@ func (r *recognizer) setCap(key *itemKey, slot int32, cv capVal) {
 	id, ok := r.capIndex[step]
 	if !ok {
 		id = int32(len(r.capNodes))
-		r.capNodes = append(r.capNodes, capNode{parent: key.more, cv: cv, depth: slot})
+		parent := r.capNodes[key.more]
+		jump := key.more
+		if above := r.capNodes[parent.jump]; parent.depth-above.depth == above.depth-r.capNodes[above.jump].depth {
+			jump = above.jump
+		}
+		r.capNodes = append(r.capNodes, capNode{parent: key.more, jump: jump, cv: cv, depth: slot})
 		if r.capIndex == nil {
 			r.capIndex = map[capStep]int32{}
 		}
@@ -565,9 +588,12 @@ func (r *recognizer) tokenTest(t *symTest, k int) bool {
 func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32, whole func() *tagset) func(string) (spanVal, bool) {
 	// In the check of elision-only, every observation reads the projected
 	// span, and the projection comes before any function of it (§7.5).
-	// The captures are read in one walk, the first time one is read, not a
-	// walk for each.
+	// A capture is found when it is read: the last at once, an earlier one
+	// by the jumps. Once the searches took half as many steps as there are
+	// slots, every slot comes from one walk, so a term that reads them all
+	// walks them about twice at most.
 	var parts []capVal
+	searched := 0
 	return func(name string) (spanVal, bool) {
 		if name == "" {
 			a, b := r.observed(origin, end)
@@ -577,12 +603,20 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 		if !ok {
 			return spanVal{}, false
 		}
-		if parts == nil {
+		if parts == nil && searched*2 >= int(caps.nodes[caps.more].depth)+1 {
 			var steps int
 			parts, steps = caps.all()
 			r.capSteps += steps
 		}
-		cv := parts[slot]
+		var cv capVal
+		if parts != nil {
+			cv = parts[slot]
+		} else {
+			var steps int
+			cv, steps = caps.find(slot)
+			r.capSteps += steps
+			searched += steps + 1
+		}
 		a, b := r.observed(cv.start, cv.end)
 		return spanVal{a: a, b: b, whole: true, tags: r.run.ps.in.all[cv.tags]}, true
 	}

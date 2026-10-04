@@ -5177,11 +5177,37 @@
     const key = (parent === null ? "" : parent.id) + ":" + index + ":" + start + ":" + end + ":" + tags;
     let found = context.captured.get(key);
     if (!found) {
-      found = { parent, index, start, end, tags, id: context.captured.size };
+      // The jumps of a skew-binary list: a sequence jumps to its parent's
+      // jump's jump where the two jumps skip the same number of parts, and
+      // to its parent otherwise. So a search for any earlier part takes a
+      // number of steps that grows with the logarithm of the parts.
+      const depth = parent === null ? 1 : parent.depth + 1;
+      const skip = parent !== null && parent.jump !== null &&
+        parent.depth - parent.jump.depth === parent.jump.depth - (parent.jump.jump === null ? 0 : parent.jump.jump.depth);
+      const jump = skip ? /** @type {NonNullable<Captured>} */ (/** @type {NonNullable<Captured>} */ (parent).jump).jump : parent;
+      found = { parent, jump, depth, index, start, end, tags, id: context.captured.size };
       context.captured.set(key, found);
       recognizerCounters.captures++;
     }
     return found;
+  }
+
+  /**
+   * The captured part at `index` of a production's captures, found from the
+   * last part by its jumps (engine §4). Each step counts in
+   * `recognizerCounters.captureSteps`.
+   * @param {NonNullable<Captured>} last
+   * @param {number} index
+   * @returns {NonNullable<Captured>}
+   */
+  function capturedPart(last, index) {
+    let part = last;
+    while (part.index > index) {
+      recognizerCounters.captureSteps++;
+      const jump = part.jump;
+      part = /** @type {NonNullable<Captured>} */ (jump !== null && jump.index >= index ? jump : part.parent);
+    }
+    return part;
   }
 
   // An item's key in its set's index: `base`, a number unique to its
@@ -5312,8 +5338,10 @@
       this.space = context.recon ? (context.recon.raw ? "raw" : "R") : undefined;
       /** @type {TagSet | null} the constituent's tags, once evaluated */
       this.tagSet = null;
-      /** @type {NonNullable<Captured>[] | null} the captured parts by their index, once read */
+      /** @type {NonNullable<Captured>[] | null} every captured part by its index, once many are read */
       this.parts = null;
+      // The steps that searches for single parts took.
+      this.searched = 0;
     }
     /**
      * The constituent's tags, from its production's tag term, evaluated at
@@ -5339,16 +5367,27 @@
           space: this.space,
         };
       }
-      // The parts in one walk, the first time a capture is read, not a walk
-      // for each capture.
-      if (this.parts === null) {
+      // A part by the jumps from the last one, so that a condition at each
+      // capture of a long production does not walk every part before it.
+      // Once the searches took half as many steps as there are parts, every
+      // part in one walk, so that a term that reads them all walks them
+      // about twice at most.
+      const last = /** @type {NonNullable<Captured>} */ (this.slots);
+      const index = captureIndex(this.production, name);
+      if (this.parts === null && this.searched * 2 >= last.depth) {
         this.parts = [];
         for (let part = this.slots; part !== null; part = part.parent) {
           this.parts[part.index] = part;
           recognizerCounters.captureSteps++;
         }
       }
-      const found = this.parts[captureIndex(this.production, name)];
+      let found;
+      if (this.parts !== null) found = this.parts[index];
+      else {
+        const before = recognizerCounters.captureSteps;
+        found = capturedPart(last, index);
+        this.searched += recognizerCounters.captureSteps - before + 1;
+      }
       return { start: found.start, end: found.end, tags: this.context.interner.get(found.tags), space: this.space };
     }
   }
@@ -11631,8 +11670,9 @@
    * The captured parts of a chart item, the last one first: each part's
    * capture by its index in the production, its span and the number of its
    * tag set, after the parts before it. A context makes each sequence once,
-   * with its number (engine §4).
-   * @typedef {{parent: Captured, index: number, start: number, end: number, tags: number, id: number} | null} Captured
+   * with its number (engine §4). `depth` counts the parts, and `jump` is an
+   * earlier sequence that a search for a part can skip to.
+   * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, id: number} | null} Captured
    */
 
   /**
