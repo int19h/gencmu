@@ -388,7 +388,10 @@ func (run *stageRun) plan(rec *recognizer, n *dn, inside bool) []emitTask {
 			if it.Tags == nil {
 				return own
 			}
-			tags := ev.tagsOf(it.Tags)
+			// A nested parse that the term needs runs first, on a stack of
+			// its own, and the term is evaluated again.
+			var tags *tagset
+			run.settled(func() { tags = ev.tagsOf(it.Tags) })
 			if len(tags.names) == 0 {
 				panic(&parseFailure{message: p.ruleName + " emits a token with no tags"})
 			}

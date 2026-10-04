@@ -314,10 +314,13 @@ func (run *stageRun) spanText(s spanVal) string {
 // the input (engine §4).
 const contentKeyLimit = 64
 
-// nested parses tokens [s.a, s.b) alone as rule (engine §4, nested parses)
-// for a query of one kind: cdMatches, which also gives the tags of
-// tags(span, rule), or cdBegins, whether a prefix of the span, the empty one
-// included, parses as rule. The answer is remembered for the whole parse.
+// nested is the answer of a nested parse of tokens [s.a, s.b) alone as
+// rule (engine §4, nested parses), for a query of one kind: cdMatches,
+// which also gives the tags of tags(span, rule), or cdBegins, whether a
+// prefix of the span, the empty one included, parses as rule. The answer
+// is remembered for the whole parse. Where it is not yet known, nested
+// halts the evaluation with a panic of the query, which the recognition
+// that evaluates it, or emission, answers on a stack of its own.
 func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *tagset) {
 	ps := run.ps
 	start := g.byName[rule]
@@ -328,19 +331,113 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 	if r, ok := ps.nested[k]; ok {
 		return r.holds, r.tags
 	}
-	at := spanKey{g: g, rule: start, a: s.a, b: s.b}
-	// A query about the span as the rule from inside its own parse, of any
-	// kind, negated or not, defines the rule in terms of itself.
-	if ps.inProgress[at] {
-		panic(&parseFailure{message: "a condition asks whether its own span parses as " + rule + ", which defines " + rule + " in terms of itself over the same text"})
+	panic(&nestedQuery{g: g, name: rule, start: start, key: k, at: spanKey{g: g, rule: start, a: s.a, b: s.b}})
+}
+
+// nestedQuery is a nested parse that an evaluation needs: the span at as
+// the rule named name, for the query that key remembers.
+//
+// The Rust library returns such a query up the evaluation as a value. The
+// evaluator here reports an error of the grammar by a panic already, so a
+// query halts it by a panic too, and every term and condition stays as it
+// is. The panic unwinds no further than the step that evaluates.
+type nestedQuery struct {
+	g     *lowered
+	name  string
+	start int32
+	key   nestedKey
+	at    spanKey
+}
+
+// recognizer is the recognition that answers the query: its span alone,
+// with its rule as the start rule, in the ordinary mode (§7.6).
+func (q *nestedQuery) recognizer(run *stageRun) *recognizer {
+	a, b := q.at.a, q.at.b
+	r := &recognizer{run: run, g: q.g, base: a, n: b - a, lo: a, hi: b, query: q}
+	r.begin(q.start)
+	return r
+}
+
+// drive runs a recognition and the nested parses it needs, on a stack of
+// recognitions and not of calls, so that queries nest to any depth (§4). A
+// recognition that halts for a nested parse waits below the one that
+// answers it, and then makes its step again. Each sees its own input
+// while it runs.
+func (run *stageRun) drive(root *recognizer) {
+	outerStart, outerEnd := run.inputStart, run.inputEnd
+	frames := []*recognizer{root}
+	defer func() {
+		// A parse that failed frees its place, as one that finished does.
+		for _, r := range frames {
+			if r.query != nil {
+				delete(run.ps.inProgress, r.query.at)
+			}
+		}
+		run.inputStart, run.inputEnd = outerStart, outerEnd
+	}()
+	for len(frames) > 0 {
+		r := frames[len(frames)-1]
+		run.inputStart, run.inputEnd = r.lo, r.hi
+		if q := halted(r.resume); q != nil {
+			run.startQuery(q)
+			frames = append(frames, q.recognizer(run))
+			continue
+		}
+		frames = frames[:len(frames)-1]
+		if r.query != nil {
+			delete(run.ps.inProgress, r.query.at)
+			run.settle(r)
+		}
 	}
-	ps.inProgress[at] = true
-	defer delete(ps.inProgress, at)
-	rec := run.recognize(g, start, s.a, s.b-s.a)
+}
+
+// halted runs f, and gives the nested parse it halted for, or nil when it
+// ran to its end. Any other panic goes on.
+func halted(f func()) (q *nestedQuery) {
+	defer func() {
+		if x := recover(); x != nil {
+			var ok bool
+			if q, ok = x.(*nestedQuery); !ok {
+				panic(x)
+			}
+		}
+	}()
+	f()
+	return nil
+}
+
+// settled runs f outside any recognition, as emission does, and answers
+// each nested parse it halts for before it runs f again.
+func (run *stageRun) settled(f func()) {
+	for {
+		q := halted(f)
+		if q == nil {
+			return
+		}
+		run.startQuery(q)
+		run.drive(q.recognizer(run))
+	}
+}
+
+// startQuery marks the span of a nested parse as running. A query about
+// the span as the rule from inside its own parse, of any kind, negated or
+// not, defines the rule in terms of itself.
+func (run *stageRun) startQuery(q *nestedQuery) {
+	ps := run.ps
+	if ps.inProgress[q.at] {
+		panic(&parseFailure{message: "a condition asks whether its own span parses as " + q.name + ", which defines " + q.name + " in terms of itself over the same text"})
+	}
+	ps.inProgress[q.at] = true
+}
+
+// settle remembers the answer of the query that a finished recognition
+// answers. Each query reads only the completed items of the rule that
+// have an eligible proof tree (§4).
+func (run *stageRun) settle(rec *recognizer) {
+	q, ps := rec.query, run.ps
+	start := q.start
 	res := &nestedResult{}
-	// Each query reads only the completed items of the rule that have an
-	// eligible proof tree (§4).
-	if kind == cdBegins {
+	if q.key.kind == cdBegins {
 		res.holds = rec.begun(start)
 	} else {
 		// One search of eligibility over the items of every tag set, and
@@ -365,8 +462,7 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 		}
 		res.holds, res.tags = len(sets) > 0, ps.in.unionAll(sets)
 	}
-	ps.nested[k] = res
-	return res.holds, res.tags
+	ps.nested[q.key] = res
 }
 
 // spanContent is everything a nested parse of a span can observe: the

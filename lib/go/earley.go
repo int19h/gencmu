@@ -203,6 +203,61 @@ type recognizer struct {
 	// linkSets holds, in the check of elision-only, the links of each item
 	// that has many, so that a duplicate is found without a scan of them.
 	linkSets map[*item]map[link]struct{}
+	// lo and hi are the input that initial(), from() and after() see
+	// while this recognition runs (§10).
+	lo, hi int
+	// at is the set whose queue the recognition takes entries from, and
+	// entered says that it has begun that set. step is what it does next,
+	// which keeps its place when the step halts for a nested parse.
+	at      int
+	entered bool
+	step    step
+	// query is the nested parse that this recognition answers, or nil.
+	query *nestedQuery
+}
+
+// The kinds of a recognition's step. A step that halts for a nested parse
+// is made again from its start once the answer is known. What it did
+// before it halted, it does again to the same effect, since an evaluation
+// changes only caches before it halts.
+const (
+	// stepNext takes the next entry of the queue.
+	stepNext = iota
+	// stepTerminal advances it over a token, into set k, over cv and l.
+	stepTerminal
+	// stepPredict predicts rule in set k, from the production next on,
+	// and then, with empties, advances it over the empty constituents.
+	stepPredict
+	// stepEmpties advances it over the empty constituents in list, from
+	// the one at next on.
+	stepEmpties
+	// stepComplete completes it, an item of set k.
+	stepComplete
+	// stepWaiters advances the first count items that wait at origin for
+	// rule over the constituent c, with tags ts, from the one at next on.
+	stepWaiters
+)
+
+// step is a recognition's next step: its kind and what that kind uses.
+// Each kind sets the fields it reads, field by field, and leaves the rest.
+// A copy of the whole struct into the heap would cost a write barrier for
+// every pointer it holds, at every step.
+type step struct {
+	kind    int
+	it      *item
+	k       int
+	rule    int32
+	strict  bool
+	empties bool
+	next    int
+	cv      capVal
+	l       link
+	list    []*symNode
+	origin  int32
+	c       *symNode
+	ts      *tagset
+	empty   bool
+	count   int
 }
 
 func (r *recognizer) set(k int) *eset {
@@ -216,31 +271,94 @@ func (r *recognizer) set(k int) *eset {
 // start as the start rule. While it runs, the input that initial(), from()
 // and after() see is [base, base+n), and a nested recognition sets its own.
 func (run *stageRun) recognize(g *lowered, start int32, base, n int) *recognizer {
-	outerStart, outerEnd := run.inputStart, run.inputEnd
-	run.inputStart, run.inputEnd = base, base+n
-	defer func() { run.inputStart, run.inputEnd = outerStart, outerEnd }()
-	r := &recognizer{run: run, g: g, base: base, n: n}
+	r := &recognizer{run: run, g: g, base: base, n: n, lo: base, hi: base + n}
 	r.loop(start)
 	return r
 }
 
-// loop recognizes the recognizer's input from the start rule.
+// loop recognizes the recognizer's input from the start rule, and the
+// nested parses that it needs.
 func (r *recognizer) loop(start int32) {
-	s0 := r.set(0)
-	r.predict(s0, 0, start, false)
-	for k := 0; k <= r.n && k < len(r.sets); k++ {
-		s := r.sets[k]
-		if len(s.items) > 0 {
-			r.furthest = k
-		}
-		for s.head < len(s.queue) {
-			it := s.queue[s.head]
-			s.head++
-			it.queued = false
-			r.process(k, it)
-		}
-		s.queue, s.head = nil, 0
+	r.begin(start)
+	r.run.drive(r)
+}
+
+// begin readies a recognition to predict its start rule in set 0.
+func (r *recognizer) begin(start int32) {
+	if r.beginPredict(r.set(0), start, false) {
+		r.step = step{kind: stepPredict, rule: start}
 	}
+}
+
+// resume goes on with the recognition until it finishes or halts for a
+// nested parse. A step that halts keeps its place in r.step.
+func (r *recognizer) resume() {
+	for {
+		st := &r.step
+		switch st.kind {
+		case stepNext:
+			if !r.nextEntry() {
+				return
+			}
+		case stepTerminal:
+			r.advance(st.it, st.k, st.cv, st.l, st.strict)
+			r.step.kind = stepNext
+		case stepPredict:
+			r.predictFrom(st)
+			if st.empties {
+				st.kind, st.list, st.next = stepEmpties, r.sets[st.k].empties[st.rule], 0
+			} else {
+				r.step.kind = stepNext
+			}
+		case stepEmpties:
+			for ; st.next < len(st.list); st.next++ {
+				c := st.list[st.next]
+				r.advance(st.it, st.k, capVal{c.start, c.end, c.tags.id}, link{prev: st.it, sym: c}, st.it.strict)
+			}
+			r.step.kind = stepNext
+		case stepComplete:
+			r.complete(st.k, st.it)
+		case stepWaiters:
+			// The waiters are those there were at completion. An advance
+			// adds none, so the list keeps them while the step halts.
+			waiters := r.sets[st.origin].waiting[st.rule]
+			for ; st.next < st.count; st.next++ {
+				w := waiters[st.next]
+				if st.empty && r.heldBack(w) {
+					continue
+				}
+				r.advance(w, st.k, capVal{st.c.start, st.c.end, st.ts.id}, link{prev: w, sym: st.c}, st.empty && w.strict)
+			}
+			r.step.kind = stepNext
+		}
+	}
+}
+
+// nextEntry takes the next entry of the queue, from the next set once one
+// is done, and readies its step: false when the recognition is over.
+func (r *recognizer) nextEntry() bool {
+	for r.at <= r.n && r.at < len(r.sets) {
+		k := r.at
+		s := r.sets[k]
+		if !r.entered {
+			if len(s.items) > 0 {
+				r.furthest = k
+			}
+			r.entered = true
+		}
+		if s.head == len(s.queue) {
+			s.queue, s.head = nil, 0
+			r.at, r.entered = k+1, false
+			continue
+		}
+		it := s.queue[s.head]
+		s.head++
+		it.queued = false
+		if r.process(k, it) {
+			return true
+		}
+	}
+	return false
 }
 
 // tokenTags is the tags that recognition reads of token k: in the check of
@@ -262,8 +380,8 @@ func (r *recognizer) observed(a, b int32) (int, int) {
 	return r.base + int(a), r.base + int(b)
 }
 
-// predict adds the items of a rule's productions at k, except those whose
-// first symbol is a terminal the next token lacks, which could never
+// A prediction adds the items of a rule's productions at k, except those
+// whose first symbol is a terminal the next token lacks, which could never
 // advance; expected() accounts for them in a rejection.
 //
 // In the reconstruction mode (§7.4), the empty production of an elidable
@@ -271,11 +389,16 @@ func (r *recognizer) observed(a, b int32) (int, int) {
 // it never derives the empty sequence. A strict prediction predicts only
 // the productions that can read, and its items are strict. An ordinary
 // prediction after a strict one adds what the strict one left out, and
-// makes ordinary the items that they share.
-func (r *recognizer) predict(s *eset, k int, rule int32, strict bool) {
+// makes ordinary the items that they share. beginPredict and predictFrom
+// make it in two parts, so that a production that halts for a nested parse
+// is predicted again alone.
+//
+// beginPredict records the prediction of a rule in a set, and says whether
+// it adds anything there.
+func (r *recognizer) beginPredict(s *eset, rule int32, strict bool) bool {
 	before := s.predicted[rule]
 	if before == predOrdinary || (before == predStrict && strict) {
-		return
+		return false
 	}
 	if s.predicted == nil {
 		s.predicted = map[int32]uint8{}
@@ -284,11 +407,20 @@ func (r *recognizer) predict(s *eset, k int, rule int32, strict bool) {
 	if strict {
 		s.predicted[rule] = predStrict
 	}
+	return true
+}
+
+// predictFrom predicts the productions of st.rule at st.k from st.next on.
+// A production whose conditions halt for a nested parse keeps st.next.
+func (r *recognizer) predictFrom(st *step) {
+	k, strict := st.k, st.strict
 	var reading *readingSets
 	if r.recon != nil {
 		reading = r.recon.reading
 	}
-	for _, p := range r.g.rules[rule].prods {
+	prods := r.g.rules[st.rule].prods
+	for ; st.next < len(prods); st.next++ {
+		p := prods[st.next]
 		if reading != nil && p.restoration() {
 			r.restore(k, p)
 			continue
@@ -466,7 +598,10 @@ func (r *recognizer) heldBack(it *item) bool {
 	return r.recon != nil && it.strict && !r.readsLater(it)
 }
 
-func (r *recognizer) process(k int, it *item) {
+// process takes an item from the queue of set k, and readies the step that
+// it makes: false when it makes none. What it records here, it records
+// once, so a step that halts and is made again does not record it twice.
+func (r *recognizer) process(k int, it *item) bool {
 	p := it.prod
 	s := r.sets[k]
 	again := it.processed
@@ -488,10 +623,13 @@ func (r *recognizer) process(k int, it *item) {
 						tags = r.run.ps.in.empty().id
 						strict = it.dot == 0 && r.recon.reading.elidable[p.lhs] && !r.run.ps.fault("route3")
 					}
-					r.advance(it, k+1, capVal{int32(k), int32(k + 1), tags}, link{prev: it, tok: int32(k), term: sym.id}, strict)
+					st := &r.step
+					st.kind, st.it, st.k, st.strict = stepTerminal, it, k+1, strict
+					st.cv, st.l = capVal{int32(k), int32(k + 1), tags}, link{prev: it, tok: int32(k), term: sym.id}
+					return true
 				}
 			}
-			return
+			return false
 		}
 		if !again {
 			if s.waiting == nil {
@@ -502,16 +640,27 @@ func (r *recognizer) process(k int, it *item) {
 		// A strict item predicts its next symbol strictly where no symbol
 		// after it can read (§7.4).
 		held := r.heldBack(it)
-		r.predict(s, k, sym.id, held)
+		if r.beginPredict(s, sym.id, held) {
+			st := &r.step
+			st.kind, st.it, st.k, st.rule, st.strict, st.empties, st.next = stepPredict, it, k, sym.id, held, !held, 0
+			return true
+		}
 		if held {
-			return
+			return false
 		}
-		for _, c := range s.empties[sym.id] {
-			r.advance(it, k, capVal{c.start, c.end, c.tags.id}, link{prev: it, sym: c}, it.strict)
-		}
-		return
+		st := &r.step
+		st.kind, st.it, st.k, st.list, st.next = stepEmpties, it, k, s.empties[sym.id], 0
+		return true
 	}
-	// Complete.
+	r.step.kind, r.step.it, r.step.k = stepComplete, it, k
+	return true
+}
+
+// complete completes item it of set k. Its constituent's tags may halt for
+// a nested parse, before the step records anything.
+func (r *recognizer) complete(k int, it *item) {
+	p := it.prod
+	s := r.sets[k]
 	var ts *tagset
 	if it.restores {
 		// A restoration has the tags of the empty production, none (§7.4).
@@ -523,6 +672,7 @@ func (r *recognizer) process(k int, it *item) {
 	c := s.syms[key]
 	if c != nil {
 		c.items = append(c.items, it)
+		r.step.kind = stepNext
 		return
 	}
 	c = &symNode{rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
@@ -536,15 +686,10 @@ func (r *recognizer) process(k int, it *item) {
 		}
 		s.empties[p.lhs] = append(s.empties[p.lhs], c)
 	}
-	waiters := r.sets[it.origin].waiting[p.lhs]
-	empty := int(it.origin) == k
-	for i := 0; i < len(waiters); i++ {
-		w := waiters[i]
-		if empty && r.heldBack(w) {
-			continue
-		}
-		r.advance(w, k, capVal{c.start, c.end, ts.id}, link{prev: w, sym: c}, empty && w.strict)
-	}
+	count := len(r.sets[it.origin].waiting[p.lhs])
+	st := &r.step
+	st.kind, st.k, st.origin, st.rule, st.c, st.ts = stepWaiters, k, it.origin, p.lhs, c, ts
+	st.empty, st.count, st.next = int(it.origin) == k, count, 0
 }
 
 // advance moves an item over its next symbol, read over cv, into set k,
@@ -571,10 +716,9 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) {
 	}
 	key.dot++
 	var whole func() *tagset
+	evaluated, held := 0, true
 	for _, c := range p.condsAt(int(key.dot)) {
-		if w := work.Load(); w != nil {
-			w.conditions.add("conditions")
-		}
+		evaluated++
 		// A condition on $ is evaluated once the item is complete. Its
 		// production's tag term gives $ its tags, and runs only where a
 		// condition reads them (§4).
@@ -583,8 +727,17 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) {
 			whole = r.lazyTags(p, caps, key.origin, int32(k))
 		}
 		if !r.run.evaluator(r.g, r.captureFunc(p, caps, key.origin, int32(k), whole)).cond(c.cond) {
-			return
+			held = false
+			break
 		}
+	}
+	// A step that halts for a nested parse is made again, so the
+	// conditions count once the advance has its answer, and count once.
+	if w := work.Load(); w != nil && evaluated > 0 {
+		w.conditions.addN(int64(evaluated), "conditions")
+	}
+	if !held {
+		return
 	}
 	if l.prev != nil && l.prev.dot == 0 {
 		l.prev = nil // a predicted item has no derivation of its own

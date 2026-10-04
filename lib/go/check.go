@@ -202,7 +202,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	// The recognition of R is not a query, and the input that initial(),
 	// from() and after() see is O (§7.5, §7.6), the main parse's.
 	start := g.byName["text"]
-	r := &recognizer{run: run, g: g, n: len(toks), recon: rc}
+	r := &recognizer{run: run, g: g, n: len(toks), recon: rc, lo: run.inputStart, hi: run.inputEnd}
 	r.loop(start)
 	top := r.accepted(start)
 	private := run.ps.private
