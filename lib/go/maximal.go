@@ -37,18 +37,31 @@ type testOrigin struct {
 // stage-wide maximal, and of the grammar's maximal terminators anyway. It
 // is nil where it restricts nothing.
 func newMaximal(rec *recognizer, stageWide bool) *maximal {
-	mx := &maximal{rec: rec, elides: make([]string, len(rec.g.rules))}
-	restricts := false
-	for _, p := range rec.g.prods {
-		if p.helper && p.elided != "" && (stageWide || rec.g.maximalH[p.lhs]) {
-			mx.elides[p.lhs] = p.elided
-			restricts = true
-		}
+	elides := rec.g.maximalElides[0]
+	if stageWide {
+		elides = rec.g.maximalElides[1]
 	}
-	if !restricts {
+	if elides == nil {
 		return nil
 	}
-	return mx
+	return &maximal{rec: rec, elides: elides}
+}
+
+// maximalElides is, for the helper of each elidable optional that
+// maximality restricts, the terminal it elides, and "" for every other
+// rule; nil where it restricts none. Lowering makes it once, with and
+// without stage-wide maximal, since every nested query asks.
+func maximalElides(g *lowered, stageWide bool) []string {
+	var elides []string
+	for _, p := range g.prods {
+		if p.helper && p.elided != "" && (stageWide || g.maximalH[p.lhs]) {
+			if elides == nil {
+				elides = make([]string, len(g.rules))
+			}
+			elides[p.lhs] = p.elided
+		}
+	}
+	return elides
 }
 
 // elided says whether a constituent of a rule over [start, end) is an elided

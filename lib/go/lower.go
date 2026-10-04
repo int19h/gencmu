@@ -105,6 +105,8 @@ type lowered struct {
 	// nested query asks (§3.8).
 	elidable    []bool
 	anyElidable bool
+	// maximalElides is maximalElides without and with stage-wide maximal.
+	maximalElides [2][]string
 }
 
 type slot struct {
@@ -201,6 +203,7 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 	}
 	l.computeCycles()
 	l.elidable, l.anyElidable = elidableHelpers(l)
+	l.maximalElides = [2][]string{maximalElides(l, false), maximalElides(l, true)}
 	return l
 }
 

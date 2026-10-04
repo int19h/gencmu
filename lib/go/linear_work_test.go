@@ -354,8 +354,9 @@ func TestDeepDOMRefusedEarly(t *testing.T) {
 }
 
 // TestEligibilityQueryConstant: a query of eligibility finds the helpers of
-// elidable optionals made once for the lowered grammar, not by a walk of
-// its productions, so n queries of a grammar of n rules cost n (engine §4).
+// elidable optionals, and its maximality the terminators it restricts,
+// made once for the lowered grammar, not by a walk of its productions, so
+// n queries of a grammar of n rules cost n (engine §4).
 func TestEligibilityQueryConstant(t *testing.T) {
 	const n = 5000
 	elidable := `{"optional":{"ref":"A"},"elidable":true}`
@@ -370,6 +371,7 @@ func TestEligibilityQueryConstant(t *testing.T) {
 		r := &recognizer{g: lowered[n]}
 		for range 10 * n {
 			r.eligibleItems(nil)
+			newMaximal(r, false)
 		}
 	})
 }
