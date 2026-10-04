@@ -5,13 +5,18 @@ import (
 	"fmt"
 	"math"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
 )
 
-// bestOf is the shortest of three runs of f.
+// bestOf is the shortest of three runs of f. The collector is off while f
+// runs: it starts at a heap size set by what the test keeps alive, so it
+// would run during a large run and not during a small one, and make work
+// that is linear look superlinear.
 func bestOf(f func()) time.Duration {
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
 	best := time.Duration(math.MaxInt64)
 	for range 3 {
 		runtime.GC()
@@ -71,7 +76,7 @@ func TestSilentSoundWork(t *testing.T) {
 // many ways checks each new link against those it has without a scan of
 // them all (engine §7.4).
 func TestManyLinksAddLinear(t *testing.T) {
-	linearTime(t, "links", 30000, func(n int) {
+	for _, n := range []int{1000, 4000} {
 		r := &recognizer{recon: &reconstruction{}}
 		key := itemKey{prod: &production{rhs: make([]symbol, 1)}}
 		for range 2 {
@@ -82,12 +87,15 @@ func TestManyLinksAddLinear(t *testing.T) {
 		if got := len(r.sets[0].index[key].links); got != n {
 			t.Fatalf("%d links, not %d", got, n)
 		}
-	})
+		if r.linkSteps > 4*n+linkScanLimit*linkScanLimit {
+			t.Errorf("%d links added twice: %d steps", n, r.linkSteps)
+		}
+	}
 }
 
 // TestUnionsLinear: tags() of a long span, a union of many parts and a
-// constant of many parts gather their members once, without copying a
-// growing set at each part (engine §10).
+// constant of many parts gather their members once, without copying and
+// interning a growing set at each part (engine §10).
 func TestUnionsLinear(t *testing.T) {
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text {A}"))
 	tagRun := func(n int) *stageRun {
@@ -98,24 +106,24 @@ func TestUnionsLinear(t *testing.T) {
 		ps := newParseState(d.uni, []rune(strings.TrimSpace(strings.Repeat("x ", n))))
 		return ps.newRun("main", d.stages[0], toks)
 	}
-	linearTime(t, "tags of a span", 20000, func(n int) {
+	// Each union of n parts interns at most a few times n members.
+	for _, n := range []int{1000, 4000} {
 		run := tagRun(n)
+		internWork.names.Store(0)
 		if got := len(run.evaluator(nil, nil).spanTags(spanVal{a: 0, b: n}).names); got != n+1 {
 			t.Fatalf("%d tags, not %d", got, n+1)
 		}
-	})
-	linearTime(t, "a union of parts", 30000, func(n int) {
-		run := tagRun(1)
 		if got := len(run.evaluator(nil, nil).term(tagUnion(n)).set.names); got != n {
 			t.Fatalf("%d tags, not %d", got, n)
 		}
-	})
-	linearTime(t, "a constant union", 20000, func(n int) {
 		v, err := (&stageGrammar{}).evaluateClosed("", tagUnion(n), [2]int{})
 		if err != nil || len(v.names) != n {
 			t.Fatalf("%v, not %d tags", err, n)
 		}
-	})
+		if work := internWork.names.Load(); work > 8*int64(n) {
+			t.Errorf("unions of %d parts: %d members interned", n, work)
+		}
+	}
 }
 
 // tagUnion is the term ~T0 ∪ ~T1 ∪ … of n parts.
@@ -177,4 +185,26 @@ func TestEmissionLinear(t *testing.T) {
 	parse(n)
 	parse(4 * n)
 	linearTime(t, "emission", n, parse)
+}
+
+// seqDOM is the DOM of a grammar whose rule text is the sequence of items,
+// each given as the JSON of an expression, with more rules after it.
+func seqDOM(items []string, rules ...string) string {
+	all := append([]string{`{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"seq":[` + strings.Join(items, ",") + `]}}],"conditions":[],"at":[1,1]}`}, rules...)
+	return fmt.Sprintf(`{"format":%d,"rules":[%s],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`, domFormat, strings.Join(all, ","))
+}
+
+// TestLoweringLinear: lowering a long sequence copies each of its symbols
+// a bounded number of times, not once for each symbol after it (engine §3).
+func TestLoweringLinear(t *testing.T) {
+	for _, n := range []int{1000, 4000} {
+		d := domStage(t, seqDOM(strings.Split(strings.Repeat(`{"ref":"A"} `, n-1)+`{"ref":"A"}`, " ")))
+		lowerWork.slots.Store(0)
+		if l := lower(d.stages[0], map[string]bool{}); len(l.prods[0].rhs) != n {
+			t.Fatalf("%d symbols, not %d", len(l.prods[0].rhs), n)
+		}
+		if work := lowerWork.slots.Load(); work > 4*int64(n) {
+			t.Errorf("a sequence of %d: %d slots copied", n, work)
+		}
+	}
 }

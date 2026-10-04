@@ -207,6 +207,9 @@ type recognizer struct {
 	// linkSets holds, in the check of elision-only, the links of each item
 	// that has many, so that a duplicate is found without a scan of them.
 	linkSets map[*item]map[link]struct{}
+	// linkSteps counts the links compared and looked up in that check, for
+	// the test of its work.
+	linkSteps int
 }
 
 func (r *recognizer) set(k int) *eset {
@@ -426,6 +429,7 @@ const linkScanLimit = 8
 // keeps a duplicate check from costing the links an item already has.
 func (r *recognizer) hasLink(it *item, l link) bool {
 	if set := r.linkSets[it]; set != nil {
+		r.linkSteps++
 		if _, ok := set[l]; ok {
 			return true
 		}
@@ -433,6 +437,7 @@ func (r *recognizer) hasLink(it *item, l link) bool {
 		return false
 	}
 	for _, x := range it.links {
+		r.linkSteps++
 		if x == l {
 			return true
 		}

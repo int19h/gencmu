@@ -3,6 +3,7 @@ package gencmu
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 )
 
 // The lowered grammar (engine §3): context-free productions over terminals
@@ -379,7 +380,12 @@ func symbolsOf(body []slot) []symbol {
 	return out
 }
 
+// lowerWork counts the slots that the bodies of productions copy as they
+// are built, for the test that lowering grows linearly.
+var lowerWork struct{ slots atomic.Int64 }
+
 func concat(a, b []slot) []slot {
+	lowerWork.slots.Add(int64(len(a) + len(b)))
 	out := make([]slot, 0, len(a)+len(b))
 	return append(append(out, a...), b...)
 }
@@ -566,10 +572,21 @@ func isTagSymbol(e *domExpr) bool {
 	return e.Kind == exTerminal || e.Kind == exRef && isTerminalName(e.Name)
 }
 
+// expandSeq is the product of the expansions of a sequence's items. Each
+// body of out is its own, so an item with one expansion extends every body
+// in place. Copying each body at each item would cost a long sequence the
+// square of its length.
 func (lw *lowerer) expandSeq(items []*domExpr, a *sAlt, ruleName string) [][]slot {
 	out := [][]slot{{}}
 	for _, it := range items {
 		xs := lw.expand(it, a, ruleName)
+		if len(xs) == 1 {
+			for i := range out {
+				lowerWork.slots.Add(int64(len(xs[0])))
+				out[i] = append(out[i], xs[0]...)
+			}
+			continue
+		}
 		var next [][]slot
 		for _, o := range out {
 			for _, x := range xs {
@@ -577,6 +594,11 @@ func (lw *lowerer) expandSeq(items []*domExpr, a *sAlt, ruleName string) [][]slo
 			}
 		}
 		out = next
+	}
+	// The bodies are shared through the memo, so none may grow in place
+	// later.
+	for i := range out {
+		out[i] = out[i][:len(out[i]):len(out[i])]
 	}
 	return out
 }
