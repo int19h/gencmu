@@ -361,9 +361,7 @@ class StageContext:
         """Whether tokens start..end sound like a string: their canonical
         sound is exactly it (engine §4, §5). A token with no phonemes adds
         nothing."""
-        sounding = self.sounding
-        if sounding is None:
-            sounding = self.sounding = self.make_sounding()
+        sounding = self.sounding_tokens()
         # Each token read adds at least one code point, so the test costs
         # the length of the sound, however many silent tokens the span has.
         offset = 0
@@ -375,6 +373,14 @@ class StageContext:
             offset += len(part)
             index = sounding[index + 1]
         return offset == len(sound)
+
+    def sounding_tokens(self) -> list[int]:
+        """For each position, the first token from there on that sounds,
+        made on first use."""
+        sounding = self.sounding
+        if sounding is None:
+            sounding = self.sounding = self.make_sounding()
+        return sounding
 
     def make_sounding(self) -> list[int]:
         count = len(self.tokens)
@@ -564,8 +570,16 @@ class Evaluator:
 
     def phonemes(self, start: int, end: int) -> str:
         """The canonical sound of tokens start..end (engine §5)."""
-        sound = self.context.sound
-        return "".join(sound(index) for index in range(start, end))
+        # Only the tokens that sound are read, so that a long run of silent
+        # tokens costs nothing to each of many calls over it.
+        context = self.context
+        sounding = context.sounding_tokens()
+        parts: list[str] = []
+        index = sounding[start]
+        while index < end:
+            parts.append(context.sound(index))
+            index = sounding[index + 1]
+        return "".join(parts)
 
     def _value(self, dom: Any, bound: Bound) -> Walk:
         """A term's value (engine §10): a string, or a set, of strings or of

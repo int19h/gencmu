@@ -22,7 +22,7 @@ from gencmu._pipeline import splice_pipeline
 from gencmu._stage import implied
 from gencmu._trampoline import run
 
-from .shared import OverBudget, Watch, calls, count_work, load_case_dialect, steps
+from .shared import OverBudget, Watch, calls, count_work, load_case_dialect, parse_case, steps
 
 MOST = 6
 """How many times the work at n the work at 4n may cost."""
@@ -82,6 +82,28 @@ class SpanReads(Linear):
             return lambda: [context.sound_is("a", 0, end) for end in range(1, n + 1)]
 
         self.assert_linear(lambda: [calls(StageContext.sound)], make, 1000)
+
+    def test_phonemes_of_growing_prefixes_cost_the_tokens_that_sound(self) -> None:
+        # Each level of a left chain asks the phonemes of the prefix it
+        # spans. Only the first token sounds, so a call that read every
+        # token would cost the prefixes' lengths summed.
+        def case_of(n: int) -> dict[str, Any]:
+            tokens = [{"text": "a", "tags": ["A"], "phonemes": "" if index else "a"} for index in range(n)]
+            return {"grammar": '%rule text {... A}\n%conditions phonemes($) = "a"', "tokens": tokens}
+
+        dialect, error = load_case_dialect(case_of(1))
+        assert dialect is not None, error
+
+        def make(n: int) -> Callable[[], object]:
+            case = case_of(n)
+
+            def work() -> None:
+                value, _, _ = parse_case(dialect, case)
+                assert value is not None and value["ok"], value
+
+            return work
+
+        self.assert_linear(lambda: [calls(StageContext.sound)], make, 100)
 
 
 class UnionFolds(Linear):
