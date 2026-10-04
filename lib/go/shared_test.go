@@ -34,8 +34,9 @@ type engineCase struct {
 	// paths that the parses of the case turn on (faults_test.go).
 	fault string
 	// noHook, which no case file sets either, ignores the witness hook's
-	// answer, so that only the result can fail the case (faults_test.go).
-	noHook bool
+	// answer, so that only the result can fail the case, and onlyHook
+	// ignores everything but the hook's answer (faults_test.go).
+	noHook, onlyHook bool
 	// hits, where set, records the sites of the fault that the parses
 	// enter (faults_test.go).
 	hits map[string]bool
@@ -231,6 +232,9 @@ func checkCase(c *engineCase, noCache bool) error {
 		return nil
 	}
 	if err != nil {
+		if c.onlyHook {
+			return nil
+		}
 		return checkLoadError(&c.Expect, err)
 	}
 	return checkParse(d, c, &c.Options, &c.Expect)
@@ -276,6 +280,12 @@ func checkParse(d *Dialect, c *engineCase, options *caseOptions, expect *caseExp
 		}
 	}
 	res, log, err := runCaseLogged(d, c, options, "")
+	if c.onlyHook {
+		if err == nil && log.lost() > 0 {
+			return fmt.Errorf("%d checks of elision-only lost the witness of their chosen derivation", log.lost())
+		}
+		return nil
+	}
 	if err != nil {
 		// A mistake of the caller is an error, and there is no result
 		// (engine §13).

@@ -11,10 +11,11 @@ import (
 // engine cases that the table names fail, in the way that the table says,
 // through the result or through the witness hook alone.
 
-// A catch: how a case catches a fault.
+// A catch: how a case catches a fault, each check on its own.
 const (
-	catchResult = "result" // the result alone fails the case
-	catchHook   = "hook"   // only the witness hook fails it
+	catchResult = "result"      // the result fails the case, the hook does not
+	catchHook   = "hook"        // only the witness hook fails it
+	catchBoth   = "result+hook" // both fail it, each on its own
 )
 
 // faults lists every fault that privateOptions.fault takes, each with its
@@ -39,25 +40,28 @@ var faultCatches = map[string]map[string]string{
 	"reprocess": {"reparse-strict-reclose-late.json": catchResult},
 	"route3":    {"reparse-strict-nested-route.json": catchResult, "reparse-synthetic-suffix-empty.json": catchResult},
 	"restore":   {"reparse-incompatible-optional-sound.json": catchResult},
-	"rank-restoration": {"reparse-witness-hook-only.json": catchResult, "elision-only-passes.json": catchResult,
+	"rank-restoration": {"reparse-witness-hook-only.json": catchBoth, "elision-only-passes.json": catchBoth,
 		"reparse-witness-sibling-last.json": catchHook},
 	"lost:context": {"reparse-witness-sibling-first.json": catchHook, "reparse-witness-sibling-last.json": catchHook,
 		"reparse-strict-later-reading-symbol.json": catchResult},
-	"lost:select": {"reparse-witness-sibling-first.json": catchResult, "reparse-strict-later-reading-symbol.json": catchResult},
+	"lost:select": {"reparse-witness-sibling-first.json": catchBoth, "reparse-strict-later-reading-symbol.json": catchResult},
 }
 
-// catchOf runs a case with a fault on, once with the hook off and once with
-// it on, and says how the case catches the fault, or "" where it does not.
+// catchOf runs a case with a fault on, once checking only the result and
+// once checking only the hook, and says how the case catches the fault, or
+// "" where it does not.
 func catchOf(t *testing.T, fault, file string, hits map[string]bool) string {
-	run := func(hook bool) error {
+	run := func(result bool) bool {
 		c := loadCase(t, filepath.Join("../../tests/engine", file))
-		c.fault, c.noHook, c.hits = fault, !hook, hits
-		return checkCase(c, true)
+		c.fault, c.noHook, c.onlyHook, c.hits = fault, result, !result, hits
+		return checkCase(c, true) != nil
 	}
-	if run(false) != nil {
+	switch result, hook := run(true), run(false); {
+	case result && hook:
+		return catchBoth
+	case result:
 		return catchResult
-	}
-	if run(true) != nil {
+	case hook:
 		return catchHook
 	}
 	return ""
@@ -93,6 +97,15 @@ func TestFaultsAreCaught(t *testing.T) {
 	}
 	if !hookOnly {
 		t.Error("no fault that only the hook catches")
+	}
+	// The selection channel catches lost:select itself, whatever the result
+	// does.
+	selects := false
+	for _, how := range faultCatches["lost:select"] {
+		selects = selects || how != catchResult
+	}
+	if !selects {
+		t.Error("no case catches lost:select through the hook")
 	}
 }
 

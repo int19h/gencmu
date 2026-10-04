@@ -47,8 +47,10 @@ func (log *checkLog) lost() int { return log.bad }
 // keeps is the hook's two channels. The count channel: the check's own
 // count, in the same loop that counts, counted a derivation of W(D)'s
 // marked links only. The selection channel: where the check reports two
-// readings, neither comes after W(D) in the order T, unless the first is
-// W(D) itself.
+// readings, the first does not come after W(D) in the order T. Where the
+// first is not W(D), W(D) was a candidate for the second, so the second
+// does not come after W(D) by the criterion of engine §6 that picks it:
+// divergence from the first, then T.
 func keeps(res *rankResult, rk *ranker, w *dn) bool {
 	if res == nil || !res.witnessCounted {
 		return false
@@ -60,7 +62,28 @@ func keeps(res *rankResult, rk *ranker, w *dn) bool {
 	if !rk.aFirst(first) {
 		return false
 	}
-	return first.kind == cIdentical || rk.aFirst(rk.compare(res.second, w))
+	return first.kind == cIdentical || secondFirst(rk, res.first, res.second, w)
+}
+
+// secondFirst says whether a comes before b as the second reading after
+// first (engine §6): it diverges from first earlier, in visible actions, or
+// at the same point and before b in the order T, as contribute measures it.
+func secondFirst(rk *ranker, first, a, b *dn) bool {
+	div := func(d *dn) count {
+		r := rk.compare(first, d)
+		switch r.kind {
+		case cVisDiff, cAPrefix, cBPrefix:
+			return r.pos
+		}
+		return inf
+	}
+	switch c := div(a).cmp(div(b)); {
+	case c < 0:
+		return true
+	case c > 0:
+		return false
+	}
+	return rk.aFirst(rk.compare(a, b))
 }
 
 // walkWitness finds W(D) in a check's chart before the check ranks: for
