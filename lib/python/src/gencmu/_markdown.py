@@ -100,6 +100,8 @@ def resolve(base: str, target: str) -> str:
     """A path resolved against the path of the document it is in."""
     joined = posixpath.join(posixpath.dirname(base), target) if not target.startswith("/") else target
     normalized = posixpath.normpath(joined)
-    if normalized.startswith("/"):
+    # A path in memory is relative to the root of the documents; only the
+    # absolute path of a document on disk keeps its leading slash.
+    if normalized.startswith("/") and not base.startswith("/"):
         normalized = normalized.lstrip("/")
     return normalized

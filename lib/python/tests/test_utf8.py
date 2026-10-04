@@ -70,7 +70,7 @@ class StrictUtf8(unittest.TestCase):
                             gencmu.load_dialect_file(os.path.join(root, "p.md"), use_cache=use_cache)
                         error = caught.exception
                         self.assertEqual(error.kind, "grammar")
-                        self.assertEqual(error.document, bad)
+                        self.assertEqual(error.document, os.path.abspath(os.path.join(root, bad)).replace(os.sep, "/"))
                         self.assertIn("not valid UTF-8", str(error))
                         self.assertIsNone(error.line)
                         self.assertIsNone(error.column)

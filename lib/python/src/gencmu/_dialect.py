@@ -385,19 +385,20 @@ def load_dialect(name: str, *, use_cache: bool = True) -> Dialect:
 def load_dialect_file(path: str | os.PathLike[str], *, use_cache: bool = True) -> Dialect:
     """A dialect from a pipeline document on disk; its documents are found
     relative to it, and the Unicode table and the bootstrap come from the
-    bundled grammars."""
-    pipeline = os.fspath(path)
-    root = os.path.dirname(os.path.abspath(pipeline))
+    bundled grammars. Each document is known by its absolute path, with
+    ``/`` between the parts, so an error names the file wherever the
+    process runs."""
+    pipeline = os.path.abspath(os.fspath(path)).replace(os.sep, "/")
 
-    def lookup(relative: str) -> str | None:
+    def lookup(key: str) -> str | None:
         try:
-            with open(os.path.join(root, *relative.split("/")), "rb") as file:
+            with open(key.replace("/", os.sep), "rb") as file:
                 data = file.read()
         except OSError:
             return None
-        return _decode(data, relative)
+        return _decode(data, key)
 
-    return _Loader(lookup, _resources(), use_cache).load(os.path.basename(pipeline))
+    return _Loader(lookup, _resources(), use_cache).load(pipeline)
 
 
 def load_dialect_sources(sources: Mapping[str, str], pipeline: str, *, use_cache: bool = True) -> Dialect:

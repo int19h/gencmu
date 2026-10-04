@@ -10356,8 +10356,10 @@
     const parts = from.split("/").slice(0, -1);
     for (const part of relative.split("/")) {
       if (part === "" || part === ".") continue;
-      if (part === "..") parts.pop();
-      else parts.push(part);
+      // Above the root of an absolute path is the root.
+      if (part === "..") {
+        if (!(parts.length === 1 && parts[0] === "")) parts.pop();
+      } else parts.push(part);
     }
     return parts.join("/");
   }

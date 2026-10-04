@@ -410,11 +410,22 @@ pub fn load_dialect(name: &str) -> Result<Dialect, Error> {
 
 /// Loads a dialect from a pipeline document on disk. Each document it
 /// includes is found relative to the document that includes it; the
-/// character table and the notation's
-/// bootstrap come from the bundled grammars.
+/// character table and the notation's bootstrap come from the bundled
+/// grammars. Each document is known by its absolute path, so an error
+/// names the file wherever the process runs.
 pub fn load_dialect_file(path: impl AsRef<Path>) -> Result<Dialect, Error> {
     let context = Context::bundled()?;
-    load(&context, &DiskSources, &path.as_ref().to_string_lossy())
+    let path = path.as_ref();
+    let absolute = if path.is_absolute() {
+        normalize(path)
+    } else {
+        let directory = std::env::current_dir().map_err(|error| {
+            Error::new(ErrorKind::Io, format!("cannot find the working directory: {error}"))
+                .in_document(&path.to_string_lossy())
+        })?;
+        normalize(&directory.join(path))
+    };
+    load(&context, &DiskSources, &absolute.to_string_lossy())
 }
 
 /// Loads a dialect from documents held in memory: a map from
