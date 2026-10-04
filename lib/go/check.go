@@ -88,31 +88,37 @@ type reconstruction struct {
 	reading *readingSets
 }
 
-// elisionCheckRun is what a check of elision-only that met no error of the
-// grammar hands its test hook (tests/README.md): D, the chosen derivation,
-// the recognition of R and its completed items of text, the check's own
-// ranking of a part of its forest, and how R relates to O.
+// elisionCheckRun is what a check of elision-only that recognized R and met
+// no error of the grammar hands its test hook before it ranks
+// (tests/README.md): D, the chosen derivation, the recognition of R and its
+// completed items of text, and how R relates to O.
 type elisionCheckRun struct {
 	chosen *dn
 	rec    *recognizer
 	top    []*symNode
-	// counts says whether the check's ranker, with no lean and no
-	// maximality, counts a derivation of the part of the forest made of
-	// these items, each with these links.
-	counts func(only map[*item][]link) bool
 	recon  *reconstruction
 	// originalAt is each token of O's index in R, recordAt each record's.
 	originalAt, recordAt []int
+}
+
+// elisionWatch is what the witness test gives back to a check: the marks of
+// W(D)'s links, nil where the chart does not hold W(D), and a callback that
+// receives the check's ranking, nil where it has none, and its ranker.
+type elisionWatch struct {
+	marks  map[*item]map[link]bool
+	ranked func(*rankResult, *ranker)
 }
 
 // privateOptions are the switches and hooks of the library's own tests,
 // which a parse takes through an unexported field of ParseOptions, so that
 // no caller can set them and parses that run at once keep them apart.
 type privateOptions struct {
-	// elisionCheck, when set, receives each check of elision-only that ran
-	// and met no error of the grammar, for the witness test of
-	// tests/README.md.
-	elisionCheck func(*elisionCheckRun)
+	// elisionCheck, when set, receives each check of elision-only that
+	// recognized R and met no error of the grammar, before it ranks, for
+	// the witness test of tests/README.md. It gives back the marks of
+	// W(D)'s links, which the check's own ranker takes, and a callback
+	// that receives the ranking and the ranker.
+	elisionCheck func(*elisionCheckRun) elisionWatch
 	// loseWitness loses the witness of a check after recognition (§7.9):
 	// "roots" drops the completed items of text over R, and "count" drops
 	// their derivations.
@@ -128,6 +134,10 @@ type privateOptions struct {
 	//   - "rank-restoration" gives a restoration no derivation in the
 	//     ranking, so the ranking does not count W(D) though the chart
 	//     holds it.
+	//   - "lost:context" makes the check's count skip the last of two or
+	//     more links of an item, or completed items of a constituent, and
+	//     "lost:select" makes its candidates skip it. Only the witness hook
+	//     sees lost:context where the readings stay.
 	fault string
 }
 
@@ -196,22 +206,22 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	if private.loseWitness == "roots" {
 		top = nil
 	}
+	// A test that watches the check marks W(D)'s links before the check
+	// ranks (tests/README.md).
+	var watch elisionWatch
+	if private.elisionCheck != nil {
+		watch = private.elisionCheck(&elisionCheckRun{chosen: d, rec: r, top: top, recon: rc, originalAt: originalAt, recordAt: recordAt})
+	}
 	// Neither form of maximality applies to R, and the check ranks with no
 	// lean (§7.7).
 	var res *rankResult
+	rk := newRanker(r, "", nil)
+	rk.check, rk.marks = true, watch.marks
 	if len(top) > 0 && private.loseWitness != "count" {
-		res = newRanker(r, "", nil).rank(top)
+		res = rk.rank(top)
 	}
-	if private.elisionCheck != nil {
-		counts := func(only map[*item][]link) bool {
-			if len(top) == 0 || private.loseWitness == "count" {
-				return false
-			}
-			rk := newRanker(r, "", nil)
-			rk.only = only
-			return rk.rank(top) != nil
-		}
-		private.elisionCheck(&elisionCheckRun{chosen: d, rec: r, top: top, counts: counts, recon: rc, originalAt: originalAt, recordAt: recordAt})
+	if watch.ranked != nil {
+		watch.ranked(res, rk)
 	}
 	if res == nil {
 		// The witness of the chosen derivation is lost: a defect of the

@@ -10,12 +10,14 @@ import (
 // The witness hook of tests/README.md: whether a check of elision-only kept
 // W(D), the chosen derivation mapped to the reconstructed input, as a
 // counted derivation of its forest (engine §7.8). The runners read the
-// checks through the library's private hook, never through its API.
+// checks through the library's private hook, never through its API. The
+// hook ranks nothing itself: it marks W(D)'s links before the check ranks,
+// and reads what the check's own ranking did with them.
 
 // checkLog counts the checks of elision-only that ran in one parse, and
-// those that did not keep their witness. The hook asks about the witness
-// while the check's forest is at hand and keeps only the answer, so that no
-// forest outlives its check.
+// those that did not keep their witness. The hook answers while the
+// check's forest is at hand and keeps only the answer, so that no forest
+// outlives its check.
 type checkLog struct {
 	mu          sync.Mutex
 	checks, bad int
@@ -24,14 +26,17 @@ type checkLog struct {
 // withChecks sets the options' hook to count the checks of a parse.
 func withChecks(opts *ParseOptions) *checkLog {
 	log := &checkLog{}
-	opts.private = &privateOptions{elisionCheck: func(run *elisionCheckRun) {
-		kept := keepsWitness(run)
-		log.mu.Lock()
-		log.checks++
-		if !kept {
-			log.bad++
-		}
-		log.mu.Unlock()
+	opts.private = &privateOptions{elisionCheck: func(run *elisionCheckRun) elisionWatch {
+		marks, w := walkWitness(run)
+		return elisionWatch{marks: marks, ranked: func(res *rankResult, rk *ranker) {
+			kept := marks != nil && keeps(res, rk, w)
+			log.mu.Lock()
+			log.checks++
+			if !kept {
+				log.bad++
+			}
+			log.mu.Unlock()
+		}}
 	}}
 	return log
 }
@@ -39,18 +44,35 @@ func withChecks(opts *ParseOptions) *checkLog {
 // lost counts the checks that did not keep their witness.
 func (log *checkLog) lost() int { return log.bad }
 
-// keepsWitness says whether a check's forest holds W(D) as a counted
-// derivation. First, the chart must hold it: for each node of W(D), from
-// the leaves up, a completed item of the node's production over the node's
-// span of R with a link whose children are the items of the node's
-// children. A read is of the original token that D reads, found by its
-// provenance. An elided terminator of D is the restoration of its helper
-// over its own synthetic token. Then the check's own ranking must count it:
-// the part of the forest made of the items found, each with only the links
-// that the walk matched, must have a derivation that counts. A faulty
-// ranker can lose W(D) from a chart that holds it. The walk pins the shape
-// of W(D) and its count, not its tags, which the cases pin.
-func keepsWitness(run *elisionCheckRun) bool {
+// keeps is the hook's two channels. The count channel: the check's own
+// count, in the same loop that counts, counted a derivation of W(D)'s
+// marked links only. The selection channel: where the check reports two
+// readings, neither comes after W(D) in the order T, unless the first is
+// W(D) itself.
+func keeps(res *rankResult, rk *ranker, w *dn) bool {
+	if res == nil || !res.witnessCounted {
+		return false
+	}
+	if res.verdict != VerdictTie {
+		return true
+	}
+	first := rk.compare(res.first, w)
+	if !rk.aFirst(first) {
+		return false
+	}
+	return first.kind == cIdentical || rk.aFirst(rk.compare(res.second, w))
+}
+
+// walkWitness finds W(D) in a check's chart before the check ranks: for
+// each node of W(D), from the leaves up, a completed item of the node's
+// production over the node's span of R with a link whose children are the
+// items of the node's children. A read is of the original token that D
+// reads, found by its provenance. An elided terminator of D is the
+// restoration of its helper over its own synthetic token. It gives the
+// links that it matched, for each item, and W(D) as a derivation for the
+// order T, or nil where the chart does not hold W(D). The walk pins the
+// shape of W(D), not its tags, which the cases pin.
+func walkWitness(run *elisionCheckRun) (map[*item]map[link]bool, *dn) {
 	rc := run.recon
 	// The nodes of W(D) in post-order, each with its span in R. The ranking
 	// shares a derivation among the places where it occurs, so a node is
@@ -79,7 +101,7 @@ func keepsWitness(run *elisionCheckRun) bool {
 		case w.d.kind == dRead:
 			at := run.originalAt[w.d.tok]
 			if at != cursor || rc.synthetic[at] {
-				return false
+				return nil, nil
 			}
 			cursor++
 			w.end = cursor
@@ -88,12 +110,12 @@ func keepsWitness(run *elisionCheckRun) bool {
 			continue
 		case elided(w.d):
 			if records >= len(run.recordAt) {
-				return false
+				return nil, nil
 			}
 			at := run.recordAt[records]
 			records++
 			if at != cursor || !rc.synthetic[at] {
-				return false
+				return nil, nil
 			}
 			cursor++
 			w.end = cursor
@@ -114,7 +136,7 @@ func keepsWitness(run *elisionCheckRun) bool {
 		stack = stack[:len(stack)-1]
 	}
 	if records != len(run.recordAt) || cursor != len(rc.synthetic) {
-		return false
+		return nil, nil
 	}
 
 	// The items that W(D) can use, by set, production, dot and origin: only
@@ -160,14 +182,12 @@ func keepsWitness(run *elisionCheckRun) bool {
 	// For each close of W(D), the items that derive it exactly; and for
 	// each item found, the links that the walk matched.
 	found := map[*wnode]map[*item]bool{}
-	only := map[*item][]link{}
+	marks := map[*item]map[link]bool{}
 	keep := func(it *item, l link) {
-		for _, x := range only[it] {
-			if x == l {
-				return
-			}
+		if marks[it] == nil {
+			marks[it] = map[link]bool{}
 		}
-		only[it] = append(only[it], l)
+		marks[it][l] = true
 	}
 	for _, w := range order {
 		n := w.d
@@ -193,10 +213,10 @@ func keepsWitness(run *elisionCheckRun) bool {
 		for _, it := range itemsAt(w.start, n.prod, 0, w.start) {
 			if !it.restores {
 				current[it], predicted = true, true
-				// A predicted item has no links, and the part of the
-				// forest holds it all the same.
-				if _, ok := only[it]; !ok {
-					only[it] = nil
+				// A predicted item has no links, and W(D) holds it all
+				// the same.
+				if marks[it] == nil {
+					marks[it] = map[link]bool{}
 				}
 			}
 		}
@@ -240,7 +260,29 @@ func keepsWitness(run *elisionCheckRun) bool {
 			}
 		}
 	}
-	return held && run.counts(only)
+	if !held {
+		return nil, nil
+	}
+	// W(D) as a derivation of the ranking's own kind: reads and closes in
+	// post-order, over the tokens of R and the spans of the items found. A
+	// restoration reads its synthetic token, and then closes over it.
+	built := map[*wnode]*dn{}
+	for _, w := range order {
+		switch {
+		case w.d.kind == dRead:
+			built[w] = readNode(int32(w.end-1), w.d.term)
+		case elided(w.d):
+			read := readNode(int32(w.end-1), run.rec.g.termID[w.d.prod.elided])
+			built[w] = closeNode(w.d.prod, int32(w.end-1), int32(w.end), nil, partNode(nil, read))
+		default:
+			var kids *dn
+			for _, k := range w.kids {
+				kids = partNode(kids, built[k])
+			}
+			built[w] = closeNode(w.d.prod, int32(w.start), int32(w.end), nil, kids)
+		}
+	}
+	return marks, built[root]
 }
 
 // lostCase is a two-stage pipeline whose first stage runs the check of

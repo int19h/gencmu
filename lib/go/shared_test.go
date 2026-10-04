@@ -26,13 +26,16 @@ type engineCase struct {
 	// Parses, when present, parses the input several times with the one
 	// loaded dialect, each with its own options and expectation, in place
 	// of the case's (tests/README.md).
-	// fault, which no case file sets, is a fault of the library's own
-	// paths that the parses of the case turn on (faults_test.go).
-	fault  string
 	Parses []struct {
 		Options caseOptions
 		Expect  caseExpect
 	}
+	// fault, which no case file sets, is a fault of the library's own
+	// paths that the parses of the case turn on (faults_test.go).
+	fault string
+	// noHook, which no case file sets either, ignores the witness hook's
+	// answer, so that only the result can fail the case (faults_test.go).
+	noHook bool
 }
 
 // caseToken is a token that a case supplies (tests/README.md). Its before
@@ -285,7 +288,7 @@ func checkParse(d *Dialect, c *engineCase, options *caseOptions, expect *caseExp
 	}
 	// Every check of elision-only that ran keeps its witness
 	// (tests/README.md).
-	if n := log.lost(); n > 0 {
+	if n := log.lost(); n > 0 && !c.noHook {
 		return fmt.Errorf("%d checks of elision-only lost the witness of their chosen derivation\n%s", n, data)
 	}
 	return checkResult(res, got, data, expect)
