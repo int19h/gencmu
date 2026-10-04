@@ -69,6 +69,9 @@ const KINDS: usize = Work::Classified as usize + 1;
 thread_local! {
     static COUNTS: RefCell<[u64; KINDS]> = const { RefCell::new([0; KINDS]) };
     static BUDGETS: RefCell<[u64; KINDS]> = const { RefCell::new([u64::MAX; KINDS]) };
+    /// For each kind, another kind and a factor: the count may not pass
+    /// the factor times the other's count so far.
+    static BOUNDS: RefCell<[Option<(Work, u64)>; KINDS]> = const { RefCell::new([None; KINDS]) };
 }
 
 /// Adds `n` to the counter of `work`, in tests only, and panics if that
@@ -84,6 +87,10 @@ pub(crate) fn count(work: Work, n: u64) {
         });
         let most = BUDGETS.with(|budgets| budgets.borrow()[work as usize]);
         assert!(counted <= most, "{counted} {work:?}, past the budget of {most}");
+        if let Some((by, factor)) = BOUNDS.with(|bounds| bounds.borrow()[work as usize]) {
+            let most = factor * COUNTS.with(|counts| counts.borrow()[by as usize]);
+            assert!(counted <= most, "{counted} {work:?}, past {factor} times the {by:?} so far, {most}");
+        }
     }
     #[cfg(not(test))]
     let _ = (work, n);
@@ -94,6 +101,16 @@ pub(crate) fn count(work: Work, n: u64) {
 pub(crate) fn reset() {
     COUNTS.with(|counts| *counts.borrow_mut() = [0; KINDS]);
     BUDGETS.with(|budgets| *budgets.borrow_mut() = [u64::MAX; KINDS]);
+    BOUNDS.with(|bounds| *bounds.borrow_mut() = [None; KINDS]);
+}
+
+/// Holds the counter of `work` on this thread, until the next `reset`, to
+/// `factor` times the count of `by` so far: the count past that panics.
+/// A test can then bound one count by another while the work runs, where
+/// the other is not known before it.
+#[cfg(test)]
+pub(crate) fn bound(work: Work, by: Work, factor: u64) {
+    BOUNDS.with(|bounds| bounds.borrow_mut()[work as usize] = Some((by, factor)));
 }
 
 /// Gives the counter of `work` on this thread a budget until the next
@@ -130,7 +147,7 @@ pub(crate) fn assert_linear(work: Work, n: usize, run: &mut dyn FnMut(usize)) {
 
 #[cfg(test)]
 mod tests {
-    use super::{budget, counted, reset, Work};
+    use super::{bound, budget, counted, reset, Work};
     use crate::json::Json;
     use crate::{InputToken, ParseOptions, Verdict};
     use std::collections::BTreeMap;
@@ -234,6 +251,11 @@ mod tests {
             };
             let tokens: Vec<_> = (0..n).map(|_| token("A")).chain([token("B")]).collect();
             reset();
+            // The index is one pass over the chart, and the searches read
+            // each completed item of it at most once: at most twice the
+            // items made so far. An index built again for each search would
+            // read the chart once per search, and stops at once.
+            bound(Work::Searched, Work::Items, 2);
             if let Some((items, searched)) = most {
                 budget(Work::Items, items);
                 budget(Work::Searched, searched);
@@ -244,12 +266,6 @@ mod tests {
         };
         let short = work(2000, None);
         assert!(short.1 > 0, "the searches ran");
-        // The index is one pass over the chart, and the searches read each
-        // completed item of it at most once: at most twice the items that
-        // the parse made. An index built again for each search would read
-        // the chart once per search, so this fails on the shorter text,
-        // before the longer one costs much.
-        assert!(short.1 <= 2 * short.0, "2000 tokens: {short:?}");
         // The longer text's parse panics at the first count past its budget.
         let long = work(8000, Some((5 * short.0, 5 * short.1)));
         // Linear work gives about four times as much; quadratic, sixteen.
