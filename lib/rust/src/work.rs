@@ -95,6 +95,9 @@ pub(crate) enum Mutant {
     /// The search for duplicate captures looks up and moves the newer
     /// part of a sequence, not the one with fewer captures.
     JoinIntoFirst,
+    /// The search for duplicate captures keeps each capture it marks in
+    /// its list, so that each level above marks it again.
+    MarkAgain,
     /// The product of capture sequences copies each sequence with its
     /// suffix, not growing it in place.
     CopySequences,

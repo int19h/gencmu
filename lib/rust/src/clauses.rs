@@ -448,23 +448,24 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
         // its size, as a join without the rule of the smaller would.
         let larger_last = work::mutated(Mutant::JoinIntoFirst);
         for mut part in parts {
-            // Each name looked up and each capture moved counts before its
-            // work.
+            // Each name looked up, each capture marked and each capture
+            // moved counts before its work. A name met again keeps its
+            // place, but its later captures are taken from their list as
+            // they are marked. So a capture is marked once, not again at
+            // each level above it.
             if meets {
                 if joined.1 <= part.1 && !larger_last {
                     for name in joined.0.keys() {
                         work::count(Work::Walked, 1);
-                        for &index in part.0.get(name).into_iter().flatten() {
-                            duplicate[index] = true;
+                        if let Some(indices) = part.0.get_mut(name) {
+                            mark(&mut duplicate, indices);
                         }
                     }
                 } else {
-                    for (name, indices) in &part.0 {
+                    for (name, indices) in &mut part.0 {
                         work::count(Work::Walked, 1);
                         if joined.0.contains_key(name) {
-                            for &index in indices {
-                                duplicate[index] = true;
-                            }
+                            mark(&mut duplicate, indices);
                         }
                     }
                 }
@@ -484,6 +485,19 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
         done.push(joined);
     }
     (0..duplicate.len()).filter(|&index| duplicate[index]).collect()
+}
+
+/// Marks each capture of a list as repeated and empties the list, so that
+/// no later meeting marks them again. A test-only switch marks them and
+/// keeps them, as the search did before.
+fn mark(duplicate: &mut [bool], indices: &mut Vec<usize>) {
+    for &index in indices.iter() {
+        work::count(Work::Walked, 1);
+        duplicate[index] = true;
+    }
+    if !work::mutated(Mutant::MarkAgain) {
+        indices.clear();
+    }
 }
 
 /// The distinct sequences of captures that the productions of an
@@ -985,6 +999,26 @@ mod tests {
         let mut run = |n: usize| assert!(duplicate_captures(&exprs[usize::from(n != 2000)]).is_empty());
         assert_linear(Work::Walked, 2000, &mut run);
         assert_mutant_stops(Work::Walked, Mutant::JoinIntoFirst, 2000, &mut run);
+    }
+
+    /// A sequence of n captures of one name nested to the right, each level
+    /// a capture and the rest, as the notation growth case
+    /// "repeated-capture-name" has it.
+    fn nested_repeats(n: usize) -> Expr {
+        (0..n).fold(Expr::Terminal("A".into()), |rest, _| {
+            Expr::Seq(vec![Expr::Capture("x".into(), Box::new(Expr::Terminal("A".into()))), rest])
+        })
+    }
+
+    /// Each repeated capture of a deep sequence is marked once, so the work
+    /// grows about linearly. Marking it again at each level above it stops
+    /// at the first count past the budget.
+    #[test]
+    fn duplicate_captures_mark_each_once() {
+        let exprs = [nested_repeats(2000), nested_repeats(8000)];
+        let mut run = |n: usize| assert_eq!(duplicate_captures(&exprs[usize::from(n != 2000)]).len(), n - 1);
+        assert_linear(Work::Walked, 2000, &mut run);
+        assert_mutant_stops(Work::Walked, Mutant::MarkAgain, 2000, &mut run);
     }
 
     /// A rule of n captures, as `a_definition_of_many_captures_checks_in_linear_work`
