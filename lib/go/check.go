@@ -39,12 +39,19 @@ func makeReading(g *lowered) *readingSets {
 	rules := derivedRules(len(g.rules), len(g.prods), func(i int) (int32, []symbol) { return g.prods[i].lhs, g.prods[i].rhs }, func(i int) bool { return g.prods[i].restoration() }, false)
 	reads := func(s symbol) bool { return s.term || rules[s.id] }
 	rs := &readingSets{last: make(map[*production]int, len(g.prods)), elidable: make([]bool, len(g.rules))}
+	w := work.Load()
 	for _, p := range g.prods {
+		if w != nil {
+			w.ruleSetSteps.add("rule set steps")
+		}
 		if p.restoration() {
 			rs.elidable[p.lhs] = true
 		}
 		at := -1
 		for i, s := range p.rhs {
+			if w != nil {
+				w.ruleSetSteps.add("rule set steps")
+			}
 			if reads(s) {
 				at = i
 			}

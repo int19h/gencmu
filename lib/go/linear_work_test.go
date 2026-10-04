@@ -251,9 +251,10 @@ func TestRuleSetsLinear(t *testing.T) {
 	last := `{"choice":[{"ref":"A"},{"empty":true}]}`
 	for _, n := range []int{1000, 4000} {
 		d := domStage(t, chainDOM(n, last))
-		// Each of the three sets visits each production a few times.
+		// Each of the three sets examines each production and symbol a few
+		// times.
 		w := &workCounts{}
-		w.ruleSetSteps.most = 12 * int64(n)
+		w.ruleSetSteps.most = 20 * int64(n)
 		var l *lowered
 		var rs *readingSets
 		countWorkIn(w, func() {
@@ -272,13 +273,28 @@ func TestRuleSetsLinear(t *testing.T) {
 		e := `{"name":"e","op":"define","alternatives":[{"guards":[],"expr":{"empty":true}}],"conditions":[],"at":[3,1]}`
 		d = domStage(t, seqDOM(strings.Split(strings.Repeat(`{"ref":"e"} `, n-1)+`{"ref":"e"}`, " "), e))
 		w = &workCounts{}
-		w.ruleSetSteps.most = 12 * int64(n)
+		w.ruleSetSteps.most = 20 * int64(n)
 		countWorkIn(w, func() { l = lower(d.stages[0], map[string]bool{}) })
 		if !l.rules[l.byName["text"]].nullable {
 			t.Fatalf("text of %d is not nullable", n)
 		}
 		t.Logf("a production of %d nullable rules: %d steps", n, w.ruleSetSteps.Load())
 	}
+}
+
+// TestUnitEdgesMutation checks every other symbol of a production for
+// each of its symbols, to find the rules it reaches over the same span.
+// With the budget the fixed lowering takes, the first check past it stops.
+func TestUnitEdgesMutation(t *testing.T) {
+	const n = 1000
+	e := `{"name":"e","op":"define","alternatives":[{"guards":[],"expr":{"empty":true}}],"conditions":[],"at":[3,1]}`
+	d := domStage(t, seqDOM(strings.Split(strings.Repeat(`{"ref":"e"} `, n-1)+`{"ref":"e"}`, " "), e))
+	lowerIt := func() { lower(d.stages[0], map[string]bool{}) }
+	all := &workCounts{}
+	countWorkIn(all, lowerIt)
+	w := &workCounts{checkOthers: true}
+	w.ruleSetSteps.most = all.ruleSetSteps.Load()
+	stopsAtFirst(t, w, &w.ruleSetSteps, "rule set steps", lowerIt)
 }
 
 // TestClassesLinear: a key of a classifier given many classes, one entry

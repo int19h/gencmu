@@ -34,8 +34,9 @@ import (
 //   - interned: the members of the sets that make interned tag sets.
 //   - loweredSlots: the slots that lowering copies into the bodies of
 //     productions.
-//   - ruleSetSteps: the productions and symbols that the nullable and
-//     reading rule sets, and the reach of cycles, visit.
+//   - ruleSetSteps: the productions, symbols and uses that the nullable
+//     and reading rule sets visit, and the symbols, rules and edges that
+//     finding the reach of cycles examines, each before it is examined.
 //   - clauseSteps: the nodes of clauses that the checks of a definition
 //     and the resolver of constants walk.
 //   - emitSteps: the parts and anchors that an emission looks at.
@@ -63,6 +64,10 @@ type workCounts struct {
 	// examines every condition of its production, as a selection by scan
 	// would, and not only those its dot makes ready.
 	scanConds bool
+	// checkOthers is a mutation for the tests of the budgets: finding the
+	// unit edges of a production checks every other symbol for each, as
+	// the code did before it counted the symbols that are not nullable.
+	checkOthers bool
 }
 
 // workCount is one count of workCounts, with its budget, or 0 for none,

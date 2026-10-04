@@ -764,9 +764,6 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 // settle one rule per pass, and cost the rules times the grammar.
 func derivedRules(rules, prods int, prod func(i int) (int32, []symbol), seed func(i int) bool, all bool) []bool {
 	w := work.Load()
-	if w != nil {
-		w.ruleSetSteps.addN(int64(prods), "rule set steps")
-	}
 	in := make([]bool, rules)
 	// waiting[i] is the number of symbols of production i still to be
 	// settled: all of them for all, one for any.
@@ -780,6 +777,9 @@ func derivedRules(rules, prods int, prod func(i int) (int32, []symbol), seed fun
 		}
 	}
 	for i := 0; i < prods; i++ {
+		if w != nil {
+			w.ruleSetSteps.add("rule set steps")
+		}
 		lhs, rhs := prod(i)
 		if seed(i) {
 			settle(lhs)
@@ -787,6 +787,9 @@ func derivedRules(rules, prods int, prod func(i int) (int32, []symbol), seed fun
 		}
 		blocked := false
 		for _, s := range rhs {
+			if w != nil {
+				w.ruleSetSteps.add("rule set steps")
+			}
 			if s.term {
 				blocked = all
 				if !all {
@@ -807,16 +810,19 @@ func derivedRules(rules, prods int, prod func(i int) (int32, []symbol), seed fun
 			continue
 		}
 		for _, s := range rhs {
+			if w != nil {
+				w.ruleSetSteps.add("rule set steps")
+			}
 			uses[s.id] = append(uses[s.id], int32(i))
 		}
 	}
 	for len(queue) > 0 {
 		rule := queue[0]
 		queue = queue[1:]
-		if w != nil {
-			w.ruleSetSteps.addN(int64(len(uses[rule])), "rule set steps")
-		}
 		for _, i := range uses[rule] {
+			if w != nil {
+				w.ruleSetSteps.add("rule set steps")
+			}
 			if waiting[i] == 0 {
 				continue
 			}
@@ -835,6 +841,22 @@ func nullableRules(rules, prods int, prod func(i int) (int32, []symbol)) []bool 
 	return derivedRules(rules, prods, prod, func(int) bool { return false }, true)
 }
 
+// othersNullable is the quadratic check of unit edges that the test-only
+// switch checkOthers restores: whether every symbol of rhs but the one at
+// j is a nullable rule, each symbol counted before it is checked.
+func othersNullable(w *workCounts, rhs []symbol, j int, nullable []bool) bool {
+	for o, x := range rhs {
+		if o == j {
+			continue
+		}
+		w.ruleSetSteps.add("rule set steps")
+		if x.term || !nullable[x.id] {
+			return false
+		}
+	}
+	return true
+}
+
 // computeCycles finds the rules that can lie below themselves over the same
 // span: A reaches B when A → α B β with α and β nullable. A forbidden set of
 // ancestors (engine §4, derivations) matters only within such a class.
@@ -846,23 +868,36 @@ func (l *lowered) computeCycles() {
 	n := len(l.rules)
 	edges := make([][]int32, n)
 	self := make([]bool, n)
+	// Each symbol and edge counts before it is examined, so that a check of
+	// every other symbol for each passes the budget at once.
+	wc := work.Load()
 	for i, r := range l.rules {
 		for _, p := range r.prods {
-			if w := work.Load(); w != nil {
-				w.ruleSetSteps.addN(int64(len(p.rhs)), "rule set steps")
-			}
 			// B is reached through every other symbol nullable. One count of
 			// the symbols that are not finds each B, where a check of the
 			// others for each B would cost a long production its square.
 			blocking, at := 0, -1
 			for j, o := range p.rhs {
+				if wc != nil {
+					wc.ruleSetSteps.add("rule set steps")
+				}
 				if o.term || !nullable[o.id] {
 					blocking++
 					at = j
 				}
 			}
 			for j, s := range p.rhs {
-				if s.term || blocking > 1 || (blocking == 1 && at != j) {
+				if wc != nil {
+					wc.ruleSetSteps.add("rule set steps")
+				}
+				if s.term {
+					continue
+				}
+				if wc != nil && wc.checkOthers {
+					if !othersNullable(wc, p.rhs, j, nullable) {
+						continue
+					}
+				} else if blocking > 1 || (blocking == 1 && at != j) {
 					continue
 				}
 				edges[i] = append(edges[i], s.id)
@@ -886,6 +921,9 @@ func (l *lowered) computeCycles() {
 		e int
 	}
 	for root := 0; root < n; root++ {
+		if wc != nil {
+			wc.ruleSetSteps.add("rule set steps")
+		}
 		if index[root] >= 0 {
 			continue
 		}
@@ -898,6 +936,9 @@ func (l *lowered) computeCycles() {
 			f := &calls[len(calls)-1]
 			v := f.v
 			if f.e < len(edges[v]) {
+				if wc != nil {
+					wc.ruleSetSteps.add("rule set steps")
+				}
 				w := edges[v][f.e]
 				f.e++
 				if index[w] < 0 {
