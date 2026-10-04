@@ -571,10 +571,33 @@ export function hasNodeWithWords(tree, input, role, wanted) {
     const key = `${start} ${end}`;
     if (compared.has(key)) continue;
     compared.add(key);
-    if (hooks.work) countWork(hooks.work, "text", end - start);
-    if (labels.slice(start, end).join(" ") === wanted) return true;
+    if (joinsTo(labels, start, end, wanted)) return true;
   }
   return false;
+}
+
+/**
+ * Whether the labels from `start` to `end`, joined by spaces, are
+ * `wanted`. It compares them label by label, so that each label counts
+ * before it is read, and a mismatch stops the comparison.
+ * @param {string[]} labels
+ * @param {number} start
+ * @param {number} end
+ * @param {string} wanted
+ * @returns {boolean}
+ */
+function joinsTo(labels, start, end, wanted) {
+  let offset = 0;
+  for (let index = start; index < end; index++) {
+    if (hooks.work) countWork(hooks.work, "text");
+    if (index > start) {
+      if (wanted[offset] !== " ") return false;
+      offset++;
+    }
+    if (!wanted.startsWith(labels[index], offset)) return false;
+    offset += labels[index].length;
+  }
+  return offset === wanted.length;
 }
 
 /**
