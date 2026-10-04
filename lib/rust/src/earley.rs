@@ -3,6 +3,7 @@
 //! evaluation of terms and conditions (§10) and nested parses.
 
 use std::cell::Cell;
+use std::sync::Arc;
 
 use crate::eligible::Proofs;
 use crate::fxhash::{FxMap, FxSet};
@@ -479,7 +480,7 @@ pub(crate) struct Shared<'a> {
     pub tags: Tags,
     /// The tag list of each range that a term holds, by its first and last
     /// scalar values, made once (§10).
-    ranges: FxMap<(u32, u32), TagList>,
+    ranges: FxMap<(u32, u32), Arc<TagList>>,
     pub unicode: &'a Unicode,
     pub text: &'a [char],
     /// Whether a span parses as a rule, and its tags as it: what `matches`
@@ -534,7 +535,7 @@ impl<'a> Shared<'a> {
 
     /// The character tags of a range, from its first to its last scalar
     /// value, the surrogates skipped (§1).
-    fn range(&mut self, first: u32, last: u32) -> TagList {
+    fn range(&mut self, first: u32, last: u32) -> Arc<TagList> {
         if let Some(list) = self.ranges.get(&(first, last)) {
             return list.clone();
         }
@@ -542,6 +543,7 @@ impl<'a> Shared<'a> {
         let mut list: TagList =
             (first..=last).filter_map(char::from_u32).map(|c| self.tags.tag(&character_tag(c, unicode))).collect();
         list.sort_unstable();
+        let list = Arc::new(list);
         self.ranges.insert((first, last), list.clone());
         list
     }
@@ -566,7 +568,15 @@ pub(crate) struct Recon<'o> {
 #[derive(Debug, Clone)]
 enum Value {
     Str(String),
-    Set(TagList),
+    /// Shared, so that a cached range or an interned set is read without a
+    /// copy.
+    Set(Arc<TagList>),
+}
+
+impl Value {
+    fn set(list: TagList) -> Value {
+        Value::Set(Arc::new(list))
+    }
 }
 
 pub(crate) struct Recognizer<'g, 's, 'a> {
@@ -1042,7 +1052,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 // The term cannot read `$`'s tags, which it defines (§9).
                 let frame = Frame { tags: Cell::new(Some(0)), ..*frame };
                 let list = self.set_term(term, &frame, tokens, base)?;
-                self.shared.tags.set(list)
+                self.shared.tags.set_shared(list)
             }
             None if production.syms.len() == 1 => {
                 frame.caps.get(production.cap_at[0].expect("an implicit capture")).tags
@@ -1216,9 +1226,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         frame: &Frame,
         tokens: &[Tok],
         base: usize,
-    ) -> Result<TagList, EngineError> {
+    ) -> Result<Arc<TagList>, EngineError> {
         Ok(match bounds {
-            (_, _, Whose::Cap(set)) => self.shared.tags.list(set).clone(),
+            (_, _, Whose::Cap(set)) => self.shared.tags.shared(set),
             (_, _, Whose::Whole) => {
                 let set = match frame.tags.get() {
                     Some(set) => set,
@@ -1228,17 +1238,17 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         set
                     }
                 };
-                self.shared.tags.list(set).clone()
+                self.shared.tags.shared(set)
             }
             (start, end, Whose::Tokens) => {
-                union_all(tokens[start..end].iter().map(|token| self.shared.tags.list(token.tags)))
+                Arc::new(union_all(tokens[start..end].iter().map(|token| self.shared.tags.list(token.tags))))
             }
         })
     }
 
     /// A set's value. The reader has made sure that the types agree
     /// (§10), so a string never stands where a set is needed.
-    fn as_set(value: Value) -> Result<TagList, EngineError> {
+    fn as_set(value: Value) -> Result<Arc<TagList>, EngineError> {
         match value {
             Value::Set(list) => Ok(list),
             Value::Str(_) => Err(EngineError { message: "a string where a set is needed".to_string(), rule: None }),
@@ -1254,7 +1264,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
     }
 
-    fn set_term(&mut self, term: &LTerm, frame: &Frame, tokens: &[Tok], base: usize) -> Result<TagList, EngineError> {
+    fn set_term(
+        &mut self,
+        term: &LTerm,
+        frame: &Frame,
+        tokens: &[Tok],
+        base: usize,
+    ) -> Result<Arc<TagList>, EngineError> {
         let value = self.term(term, frame, tokens, base)?;
         Self::as_set(value)
     }
@@ -1262,31 +1278,31 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     fn term(&mut self, term: &LTerm, frame: &Frame, tokens: &[Tok], base: usize) -> Result<Value, EngineError> {
         Ok(match term {
             LTerm::Str(text) => Value::Str(text.clone()),
-            LTerm::Tag(tag) => Value::Set(vec![self.shared.tags.tag(tag)]),
+            LTerm::Tag(tag) => Value::set(vec![self.shared.tags.tag(tag)]),
             LTerm::Range(first, last) => Value::Set(self.shared.range(*first, *last)),
-            LTerm::Empty => Value::Set(TagList::new()),
+            LTerm::Empty => Value::set(TagList::new()),
             LTerm::Union(items) => {
                 let mut parts = Vec::with_capacity(items.len());
                 for item in items {
                     parts.push(self.set_term(item, frame, tokens, base)?);
                 }
-                Value::Set(union_all(&parts))
+                Value::set(union_all(parts.iter().map(|part| &**part)))
             }
             LTerm::Inter(items) => {
-                let mut list: Option<TagList> = None;
+                let mut list: Option<Arc<TagList>> = None;
                 for item in items {
                     let set = self.set_term(item, frame, tokens, base)?;
                     list = Some(match list {
                         None => set,
-                        Some(list) => intersection(&list, &set),
+                        Some(list) => Arc::new(intersection(&list, &set)),
                     });
                 }
-                Value::Set(list.unwrap_or_default())
+                list.map_or_else(|| Value::set(TagList::new()), Value::Set)
             }
             LTerm::Diff(left, right) => {
                 let left = self.set_term(left, frame, tokens, base)?;
                 let right = self.set_term(right, frame, tokens, base)?;
-                Value::Set(difference(&left, &right))
+                Value::set(difference(&left, &right))
             }
             LTerm::Phonemes(span) => {
                 let (start, end, _) = span_bounds(span, frame, tokens.len());
@@ -1311,7 +1327,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     .collect();
                 list.sort_unstable();
                 list.dedup();
-                Value::Set(list)
+                Value::set(list)
             }
             LTerm::TagOf(name) => {
                 let name = self.string_term(name, frame, tokens, base)?;
@@ -1321,7 +1337,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         rule: None,
                     });
                 }
-                Value::Set(vec![self.shared.tags.tag(&name)])
+                Value::set(vec![self.shared.tags.tag(&name)])
             }
             LTerm::Tags(span) => {
                 let bounds = span_bounds(span, frame, tokens.len());
@@ -1330,13 +1346,14 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             LTerm::TagsRule(span, rule) => {
                 let (start, end, _) = span_bounds(span, frame, tokens.len());
                 let (_, set) = self.nested(tokens, base, start, end, *rule)?;
-                Value::Set(self.shared.tags.list(set).clone())
+                Value::Set(self.shared.tags.shared(set))
             }
             LTerm::Classes(span) => {
                 let bounds = span_bounds(span, frame, tokens.len());
                 let list = self.span_tags(bounds, frame, tokens, base)?;
-                Value::Set(
-                    list.into_iter()
+                Value::set(
+                    list.iter()
+                        .copied()
                         .filter(|&id| self.shared.tags.name(id).starts_with(|c: char| c.is_ascii_uppercase()))
                         .collect(),
                 )
@@ -1350,14 +1367,14 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 let mut list: TagList =
                     classes.into_iter().flatten().map(|class| self.shared.tags.tag(class)).collect();
                 list.sort_unstable();
-                Value::Set(list)
+                Value::set(list)
             }
             // `t` is evaluated only where the guard holds (§10).
             LTerm::If(cond, then) => {
                 if self.condition(cond, frame, tokens, base)? {
                     Value::Set(self.set_term(then, frame, tokens, base)?)
                 } else {
-                    Value::Set(TagList::new())
+                    Value::set(TagList::new())
                 }
             }
         })
@@ -1423,7 +1440,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         inside == (*op == CmpOp::In)
                     }
                     CmpOp::Subset | CmpOp::NotSubset => {
-                        is_subset(&Self::as_set(left)?, &Self::as_set(right)?) == (*op == CmpOp::Subset)
+                        is_subset(&*Self::as_set(left)?, &*Self::as_set(right)?) == (*op == CmpOp::Subset)
                     }
                 }
             }
@@ -1439,7 +1456,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         base: usize,
     ) -> Result<SetId, EngineError> {
         let list = self.set_term(term, frame, tokens, base)?;
-        Ok(self.shared.tags.set(list))
+        Ok(self.shared.tags.set_shared(list))
     }
 }
 
@@ -1567,6 +1584,33 @@ mod tests {
             let steps = CONDITION_STEPS.with(|steps| steps.get());
             assert!(steps <= 4 * n as u64 + 8, "{steps} conditions looked at for {n} captures");
         }
+    }
+
+    /// A range term evaluated again shares the list it made the first
+    /// time, so n evaluations of a range of n characters cost about n.
+    #[test]
+    fn a_range_term_is_shared_not_copied() {
+        let sources = [
+            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'\n```\n".to_string()),
+            ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
+        ];
+        let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
+        let g = dialect.lowered_stage(0);
+        let chars: Vec<char> = Vec::new();
+        assert_linear("ranges", 20_000, &mut |n| {
+            let mut shared = Shared::new(&dialect.unicode, &chars);
+            let matchers = matchers(&g, &mut shared.tags);
+            let mut recognizer = Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None };
+            let frame =
+                Frame { caps: Caps::All(&[]), prod: 0, origin: 0, end: 0, tags: Cell::new(None), project: None };
+            let range = LTerm::Range(0x4E00, 0x4E00 + n as u32 - 1);
+            let first = recognizer.set_term(&range, &frame, &[], 0).expect("a set");
+            assert!(first.len() > n / 2, "{} tags in a range of {n}", first.len());
+            for _ in 1..n {
+                let list = recognizer.set_term(&range, &frame, &[], 0).expect("a set");
+                assert_eq!(list.len(), first.len());
+            }
+        });
     }
 
     /// The completed items of the production of `t` with two symbols, over

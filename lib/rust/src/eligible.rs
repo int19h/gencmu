@@ -234,7 +234,7 @@ impl<'a> Proofs<'a> {
     /// eligible proof tree (§4).
     pub(crate) fn eligible(&self, witnesses: &[Place]) -> Vec<bool> {
         let everything = vec![true; witnesses.len()];
-        if witnesses.is_empty() || !self.g.rules.iter().any(|rule| rule.elided.is_some()) {
+        if witnesses.is_empty() || !self.g.elides {
             return everything;
         }
         // The items that the witnesses rest on, children before the items

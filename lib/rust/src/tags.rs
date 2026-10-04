@@ -3,6 +3,7 @@
 //! is a string in its canonical spelling, and has no strength.
 
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 use crate::fxhash::FxMap;
 use crate::unicode::Unicode;
@@ -19,8 +20,9 @@ pub(crate) struct Tags {
     /// For each tag, the scalar value of a character tag, or `u32::MAX`.
     codes: Vec<u32>,
     index: FxMap<String, TagId>,
-    sets: Vec<TagList>,
-    set_index: FxMap<TagList, SetId>,
+    /// The sets, each shared, so that a term can read one without a copy.
+    sets: Vec<Arc<TagList>>,
+    set_index: FxMap<Arc<TagList>, SetId>,
 }
 
 impl Tags {
@@ -60,6 +62,18 @@ impl Tags {
         if let Some(&id) = self.set_index.get(&list) {
             return id;
         }
+        self.add_set(Arc::new(list))
+    }
+
+    /// Interns a shared set, as `set` does.
+    pub(crate) fn set_shared(&mut self, list: Arc<TagList>) -> SetId {
+        if let Some(&id) = self.set_index.get(&*list) {
+            return id;
+        }
+        self.add_set(list)
+    }
+
+    fn add_set(&mut self, list: Arc<TagList>) -> SetId {
         let id = self.sets.len() as SetId;
         self.sets.push(list.clone());
         self.set_index.insert(list, id);
@@ -68,6 +82,11 @@ impl Tags {
 
     pub(crate) fn list(&self, id: SetId) -> &TagList {
         &self.sets[id as usize]
+    }
+
+    /// The set's list, shared rather than copied.
+    pub(crate) fn shared(&self, id: SetId) -> Arc<TagList> {
+        self.sets[id as usize].clone()
     }
 
     pub(crate) fn contains(&self, set: SetId, tag: TagId) -> bool {

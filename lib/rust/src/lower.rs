@@ -307,6 +307,9 @@ pub(crate) struct Lowered {
     pub classifiers: Arc<ClassifierTables>,
     /// The stage's implications, which apply to each token it emits (§11).
     pub implications: Arc<[Implication]>,
+    /// Whether a rule has an elidable optional's terminator, found once so
+    /// that a nested query does not look at every rule.
+    pub elides: bool,
 }
 
 impl Lowered {
@@ -1053,8 +1056,10 @@ pub(crate) fn lower(
     let cycle = cycles(&rules, &prods);
     let reads_until = reads_until(&rules, &prods);
     let tests = std::mem::take(&mut lowerer.tests);
+    let elides = rules.iter().any(|rule| rule.elided.is_some());
     Ok(Lowered {
         start: grammar.index["text"] as u32,
+        elides,
         rules,
         prods,
         terminals,
