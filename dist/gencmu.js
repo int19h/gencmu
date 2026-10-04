@@ -2485,7 +2485,7 @@
           parts.forEach((/** @type {{capture: string}[][]} */ part, /** @type {number} */ index) => {
             if (mask & (1 << index)) sequences = product(sequences, part);
           });
-          result.push(...sequences);
+          for (const sequence of sequences) result.push(sequence);
         }
         return distinct(result);
       }
@@ -3778,7 +3778,7 @@
             warnings: [],
           });
         }
-        pending.unshift(...nested);
+        for (let index = nested.length - 1; index >= 0; index--) pending.unshift(nested[index]);
       }
     }
 
@@ -3885,7 +3885,7 @@
           parts.forEach((part, index) => {
             if (mask & (1 << index)) sequences = product(sequences, part);
           });
-          result.push(...sequences);
+          for (const sequence of sequences) result.push(sequence);
         }
         return result;
       }
@@ -5982,9 +5982,9 @@
     const stack = [expr];
     for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
       if ("ref" in current) into.add(current.ref);
-      else if ("seq" in current) stack.push(...current.seq);
-      else if ("choice" in current) stack.push(...current.choice);
-      else if ("and" in current) stack.push(...current.and);
+      else if ("seq" in current) for (const item of current.seq) stack.push(item);
+      else if ("choice" in current) for (const item of current.choice) stack.push(item);
+      else if ("and" in current) for (const item of current.and) stack.push(item);
       else if ("optional" in current) stack.push(current.optional);
       else if ("repeat" in current) stack.push(current.repeat, ...(current.separator === undefined ? [] : [current.separator]));
       else if ("capture" in current || "test" in current) stack.push(current.expr);
@@ -8955,7 +8955,7 @@
       const result = [];
       if (node.kind !== "rule") return result;
       for (const child of node.children) {
-        if (child.kind === "rule" && !NAMED.has(child.rule)) result.push(...parts(child));
+        if (child.kind === "rule" && !NAMED.has(child.rule)) for (const part of parts(child)) result.push(part);
         else result.push(child);
       }
       return result;
