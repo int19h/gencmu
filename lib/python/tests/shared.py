@@ -3,20 +3,23 @@
 from __future__ import annotations
 
 import __future__
+import ast
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
 import bisect
 import faulthandler
 import inspect
 import json
+import keyword
 import linecache
 import os
+import re
 from pathlib import Path
 import signal
 import sys
 import textwrap
 import threading
-from types import CodeType, FrameType
+from types import CodeType, FrameType, MemberDescriptorType
 from typing import Any, Callable, Iterator
 from unittest import mock
 
@@ -147,6 +150,151 @@ def steps(target: Any, line: str | None = None, weight: Weight | None = None) ->
                 codes[code] = numbers
     assert codes, f"no line of {target!r} holds {line!r}"
     return Watch(False, codes, weight)
+
+
+COPIES = frozenset({"set", "frozenset", "list", "tuple", "dict", "sorted", "sum", "min", "max", "any", "all"})
+"""The functions that read every element of their arguments."""
+
+READS_ARGUMENTS = frozenset(
+    {"update", "intersection_update", "difference_update", "symmetric_difference_update", "extend", "join"}
+)
+"""The methods that read every element of their arguments, but not the
+container they change or are called on."""
+
+READS_BOTH = frozenset({"union", "intersection", "difference", "symmetric_difference", "issubset", "issuperset", "isdisjoint"})
+"""The methods that read the set they are called on and their arguments."""
+
+READS_LIST = frozenset({"copy", "index", "count", "remove", "insert"})
+"""The methods of a list that read or move every element."""
+
+SIZED = (set, frozenset, list, tuple, dict)
+
+
+def _statement(line: str) -> ast.AST | None:
+    """The tree of one line of source, with a compound statement's header
+    reduced to its expression, or None where the line does not parse."""
+    text = line.strip()
+    header = re.match(r"(?:if|elif|while|return|with|for)\b(.*?):?$", text)
+    for candidate in (text, header.group(1) if header else None):
+        if candidate is None:
+            continue
+        try:
+            return ast.parse(candidate.strip() or "None")
+        except SyntaxError:
+            continue
+    return None
+
+
+def _value(node: ast.AST, frame: FrameType) -> Any:
+    """What a name, an attribute or an index names in a frame, read
+    without running any code of the library's, or None where it is not
+    known so."""
+    if isinstance(node, ast.Name):
+        found = frame.f_locals
+        if node.id in found:
+            return found[node.id]
+        return frame.f_globals.get(node.id)
+    if isinstance(node, ast.Attribute):
+        owner = _value(node.value, frame)
+        if owner is None:
+            return None
+        try:
+            static = inspect.getattr_static(owner, node.attr)
+        except AttributeError:
+            return None
+        if isinstance(static, MemberDescriptorType):
+            return getattr(owner, node.attr, None)
+        return None if callable(static) or isinstance(static, (property, staticmethod, classmethod)) else static
+    if isinstance(node, ast.Subscript) and not isinstance(node.slice, ast.Slice):
+        owner = _value(node.value, frame)
+        key = node.slice.value if isinstance(node.slice, ast.Constant) else _value(node.slice, frame)
+        if isinstance(owner, dict):
+            return owner.get(key)
+        if isinstance(owner, (list, tuple)) and isinstance(key, int) and -len(owner) <= key < len(owner):
+            return owner[key]
+    return None
+
+
+def _size(node: ast.AST, frame: FrameType) -> int:
+    value = _value(node, frame)
+    return len(value) if isinstance(value, SIZED) else 0
+
+
+# Each line's charges, by its file, its number and its text: the operands
+# whose elements its operations read in C.
+_CHARGES: dict[tuple[str, int, str], list[tuple[str, ast.AST]]] = {}
+
+
+def _charges(line: str) -> list[tuple[str, ast.AST]]:
+    """What one line of source reads in C, as nodes to size when the line
+    runs: "size" for a container read through, "search" for a container
+    searched by ``in``, which reads a set or a dict by its hash, and
+    "list" for a container that a method reads only when it is a list."""
+    tree = _statement(line)
+    if tree is None:
+        names = set(re.findall(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*", line))
+        return [("size", ast.parse(name, mode="eval").body) for name in names if not any(keyword.iskeyword(part) for part in name.split("."))]
+    charges: list[tuple[str, ast.AST]] = []
+    # What a loop or a comprehension iterates is not charged: each of its
+    # passes counts as a step of its own.
+    skipped = {id(node.iter) for node in ast.walk(tree) if isinstance(node, (ast.For, ast.comprehension))}
+    stack: list[ast.AST] = [tree]
+    while stack:
+        node = stack.pop()
+        if id(node) in skipped:
+            continue
+        stack.extend(ast.iter_child_nodes(node))
+        if isinstance(node, ast.BinOp):
+            charges += [("size", node.left), ("size", node.right)]
+        elif isinstance(node, ast.Starred):
+            charges.append(("size", node.value))
+        elif isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Slice):
+            charges.append(("size", node.value))
+        elif isinstance(node, ast.Compare):
+            for operator, operand in zip(node.ops, node.comparators):
+                if isinstance(operator, (ast.In, ast.NotIn)):
+                    charges.append(("search", operand))
+                elif isinstance(operator, (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE)):
+                    charges += [("size", node.left), ("size", operand)]
+        elif isinstance(node, ast.Call):
+            function = node.func
+            if isinstance(function, ast.Name) and function.id in COPIES:
+                charges += [("size", argument) for argument in node.args]
+            elif isinstance(function, ast.Attribute):
+                if function.attr in READS_ARGUMENTS or function.attr in READS_BOTH:
+                    charges += [("size", argument) for argument in node.args]
+                if function.attr in READS_BOTH:
+                    charges.append(("size", function.value))
+                if function.attr in READS_LIST or function.attr == "pop" and node.args:
+                    charges.append(("list", function.value))
+    return charges
+
+
+def reads(frame: FrameType) -> int:
+    """A weight for a step of a line, read before the line runs: one, and
+    the elements that its operations read in C. A union, a copy, a
+    comparison of containers or a search of a sequence reads each element
+    of its operands. An update in place reads its arguments only, and a
+    search of a set or a dict reads none. Every operand of the line
+    counts, whichever branch runs, so the weight does not fall short of
+    the work. A line that does not parse counts every container it
+    names."""
+    code = frame.f_code
+    # The text is in the key, since each mutant of a function puts its own
+    # text under one file name.
+    line = linecache.getline(code.co_filename, frame.f_lineno)
+    key = (code.co_filename, frame.f_lineno, line)
+    charges = _CHARGES.get(key)
+    if charges is None:
+        charges = _CHARGES[key] = _charges(line)
+    read = 1
+    for kind, node in charges:
+        value = _value(node, frame)
+        if not isinstance(value, SIZED):
+            continue
+        if kind == "size" or kind == "list" and isinstance(value, list) or kind == "search" and not isinstance(value, (set, frozenset, dict)):
+            read += len(value)
+    return read
 
 
 def made_items() -> Watch:

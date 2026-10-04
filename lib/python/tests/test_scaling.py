@@ -7,8 +7,6 @@ on. Nothing here is timed."""
 
 from __future__ import annotations
 
-import ast
-import keyword
 import linecache
 import re
 import unittest
@@ -27,7 +25,7 @@ from gencmu._rank import Summaries
 from gencmu._stage import implied
 from gencmu._trampoline import run
 
-from .shared import OverBudget, Watch, Work, calls, count_work, load_case_dialect, mutant, parse_case, steps
+from .shared import OverBudget, Watch, Work, calls, count_work, load_case_dialect, mutant, parse_case, reads, steps
 
 MOST = 6
 """How many times the work at n the work at 4n may cost."""
@@ -70,93 +68,12 @@ class Linear(unittest.TestCase):
         self.assertEqual(works[0].count, MOST * small + 1)
 
 
-SET_OPERATORS = (ast.BitOr, ast.BitAnd, ast.Sub, ast.BitXor)
-"""The operators that read both of their sets."""
-
-COPIES = frozenset({"set", "frozenset", "list", "tuple", "sorted"})
-"""The calls that read every element of their argument."""
-
-IN_PLACE = frozenset({"update", "intersection_update", "difference_update", "symmetric_difference_update"})
-"""The methods that read their arguments but not the set they change."""
-
-
-def _statement(line: str) -> ast.AST | None:
-    """The tree of one line of source, with a compound statement's header
-    reduced to its expression, or None where the line does not parse."""
-    text = line.strip()
-    header = re.match(r"(?:if|elif|while|return)\b(.*?):?$", text)
-    for candidate in (text, header.group(1) if header else None, "pass" if text == "else:" else None):
-        if candidate is None:
-            continue
-        try:
-            return ast.parse(candidate.strip() or "None")
-        except SyntaxError:
-            continue
-    return None
-
-
-def _value(node: ast.AST, frame: FrameType) -> Any:
-    """What a name or an attribute names in a frame, before the line runs,
-    or None where the node is neither."""
-    path: list[str] = []
-    while isinstance(node, ast.Attribute):
-        path.append(node.attr)
-        node = node.value
-    if not isinstance(node, ast.Name):
-        return None
-    value = frame.f_locals.get(node.id, frame.f_globals.get(node.id))
-    for attribute in reversed(path):
-        value = getattr(value, attribute, None)
-    return value
-
-
-def _size(node: ast.AST, frame: FrameType) -> int:
-    """The size of the set or the sequence that a node names, and 0 where
-    it names none."""
-    value = _value(node, frame)
-    return len(value) if isinstance(value, (set, frozenset, list, tuple, dict)) else 0
-
-
-def set_reads(frame: FrameType) -> int:
-    """A weight for a line of the tag set operations, read before the line
-    runs: one, and the size of every operand that an operation of the line
-    reads in C. A union, an intersection, a difference or a copy reads each
-    of its operands. An update in place reads its arguments only. Each
-    operand counts, whichever branch runs, so the weight never falls short
-    of the work. A line that does not parse counts every set it names."""
-    line = linecache.getline(frame.f_code.co_filename, frame.f_lineno)
-    tree = _statement(line)
-    if tree is None:
-        names = set(re.findall(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*", line))
-        nodes = [ast.parse(name, mode="eval").body for name in names if not any(keyword.iskeyword(part) for part in name.split("."))]
-        return 1 + sum(_size(node, frame) for node in nodes)
-    read = 0
-    for node in ast.walk(tree):
-        if isinstance(node, ast.BinOp) and isinstance(node.op, SET_OPERATORS):
-            read += _size(node.left, frame) + _size(node.right, frame)
-        elif isinstance(node, ast.Call):
-            function = node.func
-            if isinstance(function, ast.Name) and function.id in COPIES:
-                read += sum(_size(argument, frame) for argument in node.args)
-            elif isinstance(function, ast.Attribute):
-                read += sum(_size(argument, frame) for argument in node.args)
-                if function.attr not in IN_PLACE and function.attr not in ("add", "discard", "get"):
-                    read += _size(function.value, frame)
-        elif isinstance(node, ast.Compare):
-            # A search by ``in`` reads a sequence through, but finds a tag
-            # of a set or a key of a dict by its hash.
-            for operator, operand in zip(node.ops, node.comparators):
-                if isinstance(operator, (ast.In, ast.NotIn)) and not isinstance(_value(operand, frame), (set, frozenset, dict)):
-                    read += _size(operand, frame)
-    return 1 + read
-
-
 def tag_copies() -> list[Watch]:
     """The tags that the operations on tag sets read, each line counted
     before it runs, with what it reads: a union of two sets, a set added
     to a gathered union, the gathered union frozen, an intersection and a
     difference."""
-    return [steps(target, weight=set_reads) for target in (_tags.union, _tags.Gathered, _tags.intersection, _tags.difference)]
+    return [steps(target, weight=reads) for target in (_tags.union, _tags.Gathered, _tags.intersection, _tags.difference)]
 
 
 def stage_context(tokens: list[Token]) -> StageContext:
