@@ -301,6 +301,8 @@ The engine cases pin the definition with these cases:
 - A text with its terminators written back whose only reading is the chosen one, for which the check passes
 - Several terminators elided at one point
 
+The check's recognizer keeps the strictness of its items (engine §7.4), which a parse without the check never reads. The Rust library keeps it only in the mode of the check. A measurement after that change still found the Rust main parse, with the check off, about 5% slower than the merge base of the branch that added the check: 3.79 ms against 3.59 ms, on a quiet core. The new engine with the old grammars was as slow, so the difference is the engine's. It is near the noise of the machine. The difference is accepted for now. It is to be measured again on a quiet machine, and then chased or closed.
+
 ### Independent options
 
 `late-elision` makes neither `maximal` nor `elision-only` redundant, so both keep their order and their meaning. `maximal` (below) removes a parse because of a longer constituent. That constituent need not fit any parse of the whole text. A ranking sees only parses of the whole text, so it cannot reproduce this rejection.
