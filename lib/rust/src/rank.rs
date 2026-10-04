@@ -29,6 +29,23 @@ use crate::tags::{SetId, Tags};
 use crate::unicode::Unicode;
 use crate::witness::{self, Fault, Marks, WitnessAct};
 
+thread_local! {
+    /// How many cycle contexts the rankings have made on this thread (§6):
+    /// a measure of work that tests bound.
+    static CONTEXTS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// How many cycle contexts the rankings have made on this thread
+/// (`CONTEXTS`).
+pub fn cycle_contexts() -> u64 {
+    CONTEXTS.with(std::cell::Cell::get)
+}
+
+/// Sets the count of the cycle contexts on this thread back to zero.
+pub fn reset_cycle_contexts() {
+    CONTEXTS.with(|contexts| contexts.set(0));
+}
+
 pub(crate) const EMPTY: u32 = 0;
 const ANY: u32 = u32::MAX;
 
@@ -951,6 +968,7 @@ impl<'c> Ranker<'c> {
             return id;
         }
         let id = self.fsets.len() as u32;
+        CONTEXTS.with(|contexts| contexts.set(contexts.get() + 1));
         self.fsets.push(list.clone());
         self.fset_index.insert(list, id);
         id

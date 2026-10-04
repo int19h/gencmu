@@ -22,6 +22,24 @@ use crate::maximal::Maximal;
 use crate::tags::Tags;
 use crate::unicode::Unicode;
 
+thread_local! {
+    /// How many entries of the chart the searches for a blocking path have
+    /// looked at on this thread, in every query: a measure of work that
+    /// tests compare across input lengths.
+    static SEARCHED: Cell<u64> = const { Cell::new(0) };
+}
+
+/// How many entries of the chart the searches have looked at on this
+/// thread (`SEARCHED`).
+pub fn searched_entries() -> u64 {
+    SEARCHED.with(Cell::get)
+}
+
+/// Sets the count of the entries searched on this thread back to zero.
+pub fn reset_searched_entries() {
+    SEARCHED.with(|searched| searched.set(0));
+}
+
 /// A place in the chart: the set and the index of an item there.
 type Place = (u32, u32);
 
@@ -103,6 +121,7 @@ impl<'a> Proofs<'a> {
 
     fn count(&self, entries: usize) {
         self.operations.set(self.operations.get() + entries as u64);
+        SEARCHED.with(|searched| searched.set(searched.get() + entries as u64));
     }
 
     fn item(&self, (set, index): Place) -> Item {

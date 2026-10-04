@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import os
 import random
-import time
 import unittest
 from unittest import mock
 from typing import Any
@@ -257,9 +256,9 @@ class MaximalQueryCost(unittest.TestCase):
     PLAIN = "%elidable maximal T\n%rule text body B\n%conditions begins(from($), r)\n%rule body A ...\n%rule r y [T]\n%rule y A ..."
     TESTED = "%elidable maximal T\n%rule text body B\n%conditions begins(from($), r)\n%rule body A ...\n%rule r y⊇~p [T]\n%rule y A ... <~p>"
 
-    def work(self, grammar: str, length: int) -> tuple[int, int, float]:
-        """The maximality checks and the test evaluations of three parses
-        of ``length`` tokens A and then B, and the seconds of the fastest."""
+    def work(self, grammar: str, length: int) -> tuple[int, int]:
+        """The maximality checks and the test evaluations of a parse of
+        ``length`` tokens A and then B."""
         dialect, error = load_case_dialect({"grammar": grammar})
         assert dialect is not None, error
         tokens, text = case_tokens({"tokens": [{"text": "a", "tags": ["A"]}] * length + [{"text": "b", "tags": ["B"]}]})
@@ -275,14 +274,9 @@ class MaximalQueryCost(unittest.TestCase):
             return test_holds(self, *args)
 
         with mock.patch.object(Maximal, "forbids", counted_forbids), mock.patch.object(StageContext, "test_holds", counted_test):
-            # The best of three runs, against the noise of a shared machine.
-            seconds = float("inf")
-            for _ in range(3):
-                start = time.perf_counter()
-                result = dialect.parse_tokens(tokens, text, auto_features=False)
-                seconds = min(seconds, time.perf_counter() - start)
+            result = dialect.parse_tokens(tokens, text, auto_features=False)
         self.assertTrue(result.stages[0].verdict is not None or result.error is not None)
-        return counts["checks"], counts["tests"], seconds
+        return counts["checks"], counts["tests"]
 
     def test_work_grows_linearly(self) -> None:
         for name, grammar in (("plain", self.PLAIN), ("tested", self.TESTED)):
@@ -295,7 +289,8 @@ class MaximalQueryCost(unittest.TestCase):
                 # sixteen.
                 self.assertLessEqual(large[0], 5 * small[0], f"{small} {large}")
                 self.assertLessEqual(large[1], 5 * max(small[1], 1) + 4, f"{small} {large}")
-                self.assertLess(large[2], 10 * small[2], f"{small} {large}")
+                # Each completion read at most about twice in all.
+                self.assertLessEqual(large[1], 2 * 4001, f"{small} {large}")
 
 
 if __name__ == "__main__":

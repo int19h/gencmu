@@ -907,40 +907,44 @@ fn cycle_contexts_keep_only_the_rules_of_their_cycle() {
         grammar.push_str(&format!("%rule r{i} a{i} b{i}\n%rule a{i} r{below} | a{i}\n%rule b{i} r{below} | b{i}\n"));
     }
     let dialect = gencmu::load_dialect_sources(single(&grammar), "p.md").unwrap();
-    let started = std::time::Instant::now();
+    gencmu::tools::reset_cycle_contexts();
     let result = dialect.parse_tokens(&[], &no_auto()).unwrap();
+    let contexts = gencmu::tools::cycle_contexts();
     assert!(result.ok);
     assert_eq!(result.stages[0].verdict, Some(Verdict::Resolved));
-    assert!(started.elapsed() < std::time::Duration::from_secs(30), "{:?}", started.elapsed());
+    eprintln!("{contexts} cycle contexts for {depth} levels");
+    // A context of one wrapper each, not one of each set of wrappers.
+    assert!(contexts <= 4 * depth as u64, "{contexts} cycle contexts for {depth} levels");
 }
 
-/// A timing probe of written-terminator priority (engine §4): a nested
-/// query over a long text with many omissions and no written terminator
-/// takes time in proportion to the text. The searches for a blocking path
-/// once looked at every later set of the chart for each omission, which
-/// took quadratic time.
+/// Written-terminator priority (engine §4): a nested query over a long
+/// text with many omissions and no written terminator takes work in
+/// proportion to the text. The searches for a blocking path once looked at
+/// every later set of the chart for each omission, which took quadratic
+/// work.
 #[test]
-fn nested_queries_with_many_omissions_take_linear_time() {
+fn nested_queries_with_many_omissions_take_linear_work() {
     let grammar = "%ambiguity-resolution greedy\n%elidable T\n%rule text body B\n%conditions matches($, r)\n\
                    %rule body A ...\n%rule r parts B\n%rule parts part ...\n%rule part A [T]";
     let dialect = gencmu::load_dialect_sources(single(grammar), "p.md").unwrap();
-    let time = |n: usize| {
+    let work = |n: usize| {
         let token = |tag: &str| gencmu::InputToken {
             text: tag.to_lowercase(),
             tags: [tag.to_string()].into_iter().collect(),
             phonemes: None,
         };
         let tokens: Vec<_> = (0..n).map(|_| token("A")).chain([token("B")]).collect();
-        let started = std::time::Instant::now();
+        gencmu::tools::reset_recognizer_items();
+        gencmu::tools::reset_searched_entries();
         let result = dialect.parse_tokens(&tokens, &no_auto()).unwrap();
         assert!(result.ok, "{n}");
-        started.elapsed()
+        (gencmu::tools::recognizer_items(), gencmu::tools::searched_entries())
     };
-    let _ = time(500);
-    let (short, long) = (time(4000), time(16000));
-    eprintln!("4000 tokens in {short:?}, 16000 in {long:?}");
-    // Linear time gives about four times as long; quadratic, sixteen.
-    assert!(long < short * 10, "4000 tokens in {short:?}, 16000 in {long:?}");
+    let (short, long) = (work(4000), work(16000));
+    eprintln!("4000 tokens: {short:?} items and entries searched; 16000: {long:?}");
+    assert!(short.1 > 0, "the searches ran");
+    // Linear work gives about four times as much; quadratic, sixteen.
+    assert!(long.0 <= 5 * short.0 && long.1 <= 5 * short.1, "4000 tokens: {short:?}; 16000: {long:?}");
 }
 
 /// The members of the error elision-witness-lost, in the order of

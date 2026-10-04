@@ -86,6 +86,14 @@ pub mod tools {
     #[doc(hidden)]
     pub use crate::earley::{recognizer_items, reset_recognizer_items};
 
+    /// The work counters of the searches for a blocking path in nested
+    /// queries (§4) and of the rankings' cycle contexts (§6), for the
+    /// growth tests only: not part of the documented API.
+    #[doc(hidden)]
+    pub use crate::eligible::{reset_searched_entries, searched_entries};
+    #[doc(hidden)]
+    pub use crate::rank::{cycle_contexts, reset_cycle_contexts};
+
     /// The test hook of the check of `elision-only` (tests/README.md): the
     /// checks that ran in a parse, each with whether its forest kept the
     /// witness of the chosen derivation, and the ways to lose it on
