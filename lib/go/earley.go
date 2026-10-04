@@ -204,6 +204,9 @@ type recognizer struct {
 	// measure of work that the growth tests compare across numbers of
 	// captures.
 	capSteps int
+	// linkSets holds, in the check of elision-only, the links of each item
+	// that has many, so that a duplicate is found without a scan of them.
+	linkSets map[*item]map[link]struct{}
 }
 
 func (r *recognizer) set(k int) *eset {
@@ -406,16 +409,46 @@ func (r *recognizer) add(k int, key itemKey, l link, hasLink, strict bool) {
 		}
 	}
 	if hasLink {
-		if r.recon != nil {
-			// Processing an item again can make a link that it made before.
-			for _, x := range it.links {
-				if x == l {
-					return
-				}
-			}
+		// Processing an item again can make a link that it made before.
+		if r.recon != nil && r.hasLink(it, l) {
+			return
 		}
 		it.links = append(it.links, l)
 	}
+}
+
+// linkScanLimit is how many links an item keeps before a set of them is
+// made. A scan of a few is cheaper than a map, and most items have one.
+const linkScanLimit = 8
+
+// hasLink says whether an item already has a link, and otherwise records
+// it in the item's set where it has one. Past linkScanLimit links, the set
+// keeps a duplicate check from costing the links an item already has.
+func (r *recognizer) hasLink(it *item, l link) bool {
+	if set := r.linkSets[it]; set != nil {
+		if _, ok := set[l]; ok {
+			return true
+		}
+		set[l] = struct{}{}
+		return false
+	}
+	for _, x := range it.links {
+		if x == l {
+			return true
+		}
+	}
+	if len(it.links) >= linkScanLimit {
+		set := make(map[link]struct{}, 2*len(it.links))
+		for _, x := range it.links {
+			set[x] = struct{}{}
+		}
+		set[l] = struct{}{}
+		if r.linkSets == nil {
+			r.linkSets = map[*item]map[link]struct{}{}
+		}
+		r.linkSets[it] = set
+	}
+	return false
 }
 
 // readsLater says whether a symbol after an item's next symbol can read
