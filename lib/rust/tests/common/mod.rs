@@ -397,6 +397,7 @@ pub fn run_engine_case(case: &Value) -> Result<(), String> {
     let expect = case.get("expect").ok_or("a case without expect")?;
     let dialect = match gencmu::load_dialect_sources(documents, &pipeline) {
         Ok(dialect) => dialect,
+        Err(_) if CHECKS.with(std::cell::Cell::get) == Checks::Hook => return Ok(()),
         Err(error) => return check_load_error(expect, &error),
     };
     check_parse(&dialect, case, case, expect)
@@ -521,12 +522,15 @@ pub fn result_problems(json: &Value) -> Vec<String> {
 /// elision-witness-lost, which no grammar gives (engine §7.8), and every
 /// check that ran and met no error of the grammar kept W(D) in its forest.
 pub fn witness_problem(result: &gencmu::ParseResult, checks: &[gencmu::tools::ElisionCheckRun]) -> Option<String> {
-    if result.error.as_ref().is_some_and(|error| error.code == Some(gencmu::ErrorCode::ElisionWitnessLost)) {
+    let only_hook = CHECKS.with(std::cell::Cell::get) == Checks::Hook;
+    if !only_hook
+        && result.error.as_ref().is_some_and(|error| error.code == Some(gencmu::ErrorCode::ElisionWitnessLost))
+    {
         return Some("the result is the error elision-witness-lost, which no grammar gives".to_string());
     }
     // A fault test switches the hook off to see what the result alone
     // catches (tests/README.md).
-    if !HOOK.with(std::cell::Cell::get) {
+    if CHECKS.with(std::cell::Cell::get) == Checks::Result {
         return None;
     }
     checks.iter().find(|check| !check.keeps_witness).map(|check| {
@@ -580,6 +584,7 @@ fn check_parse(dialect: &gencmu::Dialect, case: &Value, run: &Value, expect: &Va
         Ok(result) => result,
         // A mistake of the caller is an error, not a result (engine §13),
         // and there is nothing more to compare.
+        Err(_) if CHECKS.with(std::cell::Cell::get) == Checks::Hook => return Ok(()),
         Err(error) => {
             if error.kind != gencmu::ErrorKind::Usage || expect.get("error").and_then(Value::str) != Some("usage") {
                 let _ = writeln!(problems, "the parse failed: {error}");
@@ -590,6 +595,11 @@ fn check_parse(dialect: &gencmu::Dialect, case: &Value, run: &Value, expect: &Va
     let json = gencmu::to_json(&result);
     if let Some(problem) = witness_problem(&result, &checks) {
         return Err(format!("{problem}\nresult: {json}"));
+    }
+    // A fault test checks the hook alone, to see what it catches by itself
+    // (tests/README.md).
+    if CHECKS.with(std::cell::Cell::get) == Checks::Hook {
+        return Ok(());
     }
     problems.push_str(&with_deep_stack(|| {
         let actual = parse_json(&json).map_err(|error| format!("the result is not JSON ({error}): {json}"))?;
@@ -725,22 +735,31 @@ pub fn apply_mutant(value: &Value, mutant: &Value) -> Value {
     new
 }
 
-thread_local! {
-    /// Whether the runner asks the witness hook, on this thread.
-    static HOOK: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
+/// What a runner checks of a case, on this thread: both the result and the
+/// witness hook, as every runner does, or one of them alone, for the fault
+/// tests.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Checks {
+    Both,
+    Result,
+    Hook,
 }
 
-/// Runs `work` on this thread with the witness hook's answer ignored, so
-/// that only the result can fail a case. For the fault tests only.
+thread_local! {
+    static CHECKS: std::cell::Cell<Checks> = const { std::cell::Cell::new(Checks::Both) };
+}
+
+/// Runs `work` on this thread checking only one side of each case. For the
+/// fault tests only.
 #[allow(dead_code)]
-pub fn without_hook<T>(work: impl FnOnce() -> T) -> T {
+pub fn checking<T>(checks: Checks, work: impl FnOnce() -> T) -> T {
     struct Restore;
     impl Drop for Restore {
         fn drop(&mut self) {
-            HOOK.with(|hook| hook.set(true));
+            CHECKS.with(|current| current.set(Checks::Both));
         }
     }
-    HOOK.with(|hook| hook.set(false));
+    CHECKS.with(|current| current.set(checks));
     let _restore = Restore;
     work()
 }

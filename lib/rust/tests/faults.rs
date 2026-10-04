@@ -5,35 +5,35 @@
 
 mod common;
 
-use common::{case_files, has_caller_attachments, parse_json, run_engine_case, without_hook};
+use common::{case_files, checking, has_caller_attachments, parse_json, run_engine_case, Checks};
 use gencmu::tools::{fault_hits, with_fault, Fault};
 
-/// How a case catches a fault.
+/// How a case catches a fault: through the result, through the witness
+/// hook, or through both, each checked on its own.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Catch {
-    /// The result alone fails the case.
+    /// The result fails the case, and the hook does not.
     Result,
-    /// Only the witness hook fails it: with the hook off, it passes.
+    /// Only the witness hook fails it.
     Hook,
+    /// Both fail it, each on its own.
+    Both,
 }
 
-/// How a case catches a fault, if it does: it runs once with the hook and
-/// once without.
+/// How a case catches a fault, if it does: it runs once checking only the
+/// result and once checking only the hook.
 fn catch(fault: Fault, file: &std::path::Path) -> Option<Catch> {
     let text = std::fs::read_to_string(file).expect("a case");
     let case = parse_json(&text).expect("a case is JSON");
-    let fails = |hook: bool| {
-        std::panic::catch_unwind(|| {
-            with_fault(fault, || if hook { run_engine_case(&case) } else { without_hook(|| run_engine_case(&case)) })
-        })
-        .map_or(true, |outcome| outcome.is_err())
+    let fails = |checks: Checks| {
+        std::panic::catch_unwind(|| with_fault(fault, || checking(checks, || run_engine_case(&case))))
+            .map_or(true, |outcome| outcome.is_err())
     };
-    if fails(false) {
-        Some(Catch::Result)
-    } else if fails(true) {
-        Some(Catch::Hook)
-    } else {
-        None
+    match (fails(Checks::Result), fails(Checks::Hook)) {
+        (true, true) => Some(Catch::Both),
+        (true, false) => Some(Catch::Result),
+        (false, true) => Some(Catch::Hook),
+        (false, false) => None,
     }
 }
 
@@ -61,7 +61,7 @@ fn list_catches() {
 /// For each fault, shared engine cases that catch it, and how.
 const CATCHES: [(Fault, &[(&str, Catch)]); 8] = [
     (Fault::RankerTests, &[("reparse-tested-rebuilt-derivations.json", Catch::Result)]),
-    (Fault::ReferenceSpan, &[("reparse-original-rule-test.json", Catch::Result)]),
+    (Fault::ReferenceSpan, &[("reparse-original-rule-test.json", Catch::Both)]),
     (Fault::Reprocess, &[("reparse-strict-reclose-late.json", Catch::Result)]),
     (
         Fault::Route3,
@@ -70,8 +70,8 @@ const CATCHES: [(Fault, &[(&str, Catch)]); 8] = [
     (
         Fault::RankRestoration,
         &[
-            ("reparse-witness-hook-only.json", Catch::Result),
-            ("elision-only-passes.json", Catch::Result),
+            ("reparse-witness-hook-only.json", Catch::Both),
+            ("elision-only-passes.json", Catch::Both),
             ("reparse-witness-sibling-last.json", Catch::Hook),
         ],
     ),
@@ -86,7 +86,7 @@ const CATCHES: [(Fault, &[(&str, Catch)]); 8] = [
     (
         Fault::LostSelect,
         &[
-            ("reparse-witness-sibling-first.json", Catch::Result),
+            ("reparse-witness-sibling-first.json", Catch::Both),
             ("reparse-strict-later-reading-symbol.json", Catch::Result),
         ],
     ),

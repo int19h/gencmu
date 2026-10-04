@@ -912,8 +912,12 @@ impl Dialect {
                     Some(walk) if ranking.witness_counted == Some(true) => match ranking.second {
                         Some(second) if ranking.verdict == RankVerdict::Tie => {
                             let w = ranker.derivation(&walk.sequence);
+                            // W(D) is not after the first in T; where the first
+                            // is not W(D), W(D) is not before the second by
+                            // the criterion that picks it (§6): divergence from
+                            // the first, then T.
                             !ranker.before(w, ranking.first)
-                                && (!ranker.before(ranking.first, w) || !ranker.before(w, second))
+                                && (!ranker.before(ranking.first, w) || !ranker.second_before(ranking.first, w, second))
                         }
                         _ => true,
                     },

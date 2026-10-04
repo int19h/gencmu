@@ -896,6 +896,22 @@ impl<'c> Ranker<'c> {
         self.dag.before(a, b)
     }
 
+    /// Whether `a` comes before `b` as the second reading after `first`
+    /// (§6): it diverges from `first` earlier, or at the same point and
+    /// before `b` in the order T. As `rank` measures it.
+    pub(crate) fn second_before(&self, first: u32, a: u32, b: u32) -> bool {
+        let div = |d: u32| match self.dag.first_difference(first, d, true) {
+            Diff::At { index, .. } => Div::At(index),
+            Diff::APrefix { len } | Diff::BPrefix { len } => Div::At(len),
+            Diff::Equal => Div::Last,
+        };
+        match div(a).cmp(&div(b)) {
+            Ordering::Less => true,
+            Ordering::Greater => false,
+            Ordering::Equal => self.dag.before(a, b),
+        }
+    }
+
     /// The tokens that a test of a reference over `start..end` reads: those
     /// of the projected span in the check, else the span's own (§7.5).
     fn reference_span(&self, start: u32, end: u32) -> &'c [Tok] {
