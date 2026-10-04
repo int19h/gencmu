@@ -896,10 +896,12 @@ fn exponentially_long_derivations_keep_exact_counts() {
 
 /// A cycle context keeps only the rules of the cycle that the item lies
 /// on (engine §6). Here each wrapper of each level is a cycle of its own,
-/// so keeping every cyclic rule above would make 2^N contexts.
+/// so keeping every cyclic rule above would make 2^N contexts. At 15
+/// levels that is some 65000, made in about a second, so the count fails
+/// where a deeper grammar would hang.
 #[test]
 fn cycle_contexts_keep_only_the_rules_of_their_cycle() {
-    let depth = 40;
+    let depth = 15;
     let mut grammar =
         format!("%ambiguity-resolution late-elision\n%elidable T\n%rule text ε | r{depth}\n%rule r0 [T]\n");
     for i in 1..=depth {
@@ -921,7 +923,8 @@ fn cycle_contexts_keep_only_the_rules_of_their_cycle() {
 /// text with many omissions and no written terminator takes work in
 /// proportion to the text. The searches for a blocking path once looked at
 /// every later set of the chart for each omission, which took quadratic
-/// work.
+/// work: some 100 million entries at 8000 tokens, under a second, where
+/// the count fails.
 #[test]
 fn nested_queries_with_many_omissions_take_linear_work() {
     let grammar = "%ambiguity-resolution greedy\n%elidable T\n%rule text body B\n%conditions matches($, r)\n\
@@ -940,11 +943,11 @@ fn nested_queries_with_many_omissions_take_linear_work() {
         assert!(result.ok, "{n}");
         (gencmu::tools::recognizer_items(), gencmu::tools::searched_entries())
     };
-    let (short, long) = (work(4000), work(16000));
-    eprintln!("4000 tokens: {short:?} items and entries searched; 16000: {long:?}");
+    let (short, long) = (work(2000), work(8000));
+    eprintln!("2000 tokens: {short:?} items and entries searched; 8000: {long:?}");
     assert!(short.1 > 0, "the searches ran");
     // Linear work gives about four times as much; quadratic, sixteen.
-    assert!(long.0 <= 5 * short.0 && long.1 <= 5 * short.1, "4000 tokens: {short:?}; 16000: {long:?}");
+    assert!(long.0 <= 5 * short.0 && long.1 <= 5 * short.1, "2000 tokens: {short:?}; 8000: {long:?}");
 }
 
 /// The members of the error elision-witness-lost, in the order of

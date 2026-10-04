@@ -9,6 +9,18 @@ from ._earley import Forest, StageContext
 from ._grammar import SymbolTest
 
 
+class MaximalCounters:
+    """How many items the checks of maximality have looked at: those that
+    finding the furthest ends reads, once for a parse, and each completion
+    that a tested symbol's test is evaluated on. A measure of work that
+    tests compare across input lengths."""
+
+    looked = 0
+
+
+maximal_counters = MaximalCounters()
+
+
 class Maximal:
     """What the ranking asks of maximal about one parse's items."""
 
@@ -63,10 +75,12 @@ class Maximal:
             if found is None:
                 origin = forest.origin[item]
                 base = self.base
+                candidates = self.all_completed().get(key, ())
+                maximal_counters.looked += len(candidates)
                 found = max(
                     (
                         forest.end[longer]
-                        for longer in self.all_completed().get(key, ())
+                        for longer in candidates
                         if self.context.test_holds(test, base + origin, base + forest.end[longer], forest.tag[longer])
                     ),
                     default=-1,
@@ -87,6 +101,7 @@ class Maximal:
         forest = self.forest
         productions = self.productions
         completed = self.completed = {}
+        maximal_counters.looked += len(forest.prod)
         for item, number in enumerate(forest.prod):
             production = productions[number]
             if forest.dot[item] != len(production.rhs):
@@ -105,6 +120,7 @@ class Maximal:
         forest = self.forest
         productions = self.productions
         furthest = self.furthest = {}
+        maximal_counters.looked += len(forest.prod)
         for item, number in enumerate(forest.prod):
             production = productions[number]
             if forest.dot[item] != len(production.rhs):

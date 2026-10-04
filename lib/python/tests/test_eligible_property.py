@@ -22,7 +22,7 @@ from typing import Any
 from gencmu._dialect import DOM_FORMAT, _resources, _unicode_table
 from gencmu._earley import Forest, Parser, StageContext
 from gencmu._eligible import eligible
-from gencmu._maximal import Maximal
+from gencmu._maximal import Maximal, maximal_counters
 from gencmu._grammar import lower, stitch
 from gencmu._model import Token
 from gencmu._rank import count_roots
@@ -249,6 +249,13 @@ class EligibleProperty(unittest.TestCase):
 
 
 
+class OverBudget(BaseException):
+    """A parse whose maximality checks went past the work a test allows
+    them, raised as soon as they do, so that a regression to quadratic work
+    fails by its count and does not run on. A BaseException, which no
+    handler of the library's catches."""
+
+
 class MaximalQueryCost(unittest.TestCase):
     """The maximality checks of a nested query read each completion once,
     so their work grows linearly with the input (engine §4)."""
@@ -256,41 +263,61 @@ class MaximalQueryCost(unittest.TestCase):
     PLAIN = "%elidable maximal T\n%rule text body B\n%conditions begins(from($), r)\n%rule body A ...\n%rule r y [T]\n%rule y A ..."
     TESTED = "%elidable maximal T\n%rule text body B\n%conditions begins(from($), r)\n%rule body A ...\n%rule r y⊇~p [T]\n%rule y A ... <~p>"
 
-    def work(self, grammar: str, length: int) -> tuple[int, int]:
-        """The maximality checks and the test evaluations of a parse of
-        ``length`` tokens A and then B."""
+    def work(self, grammar: str, length: int, budget: tuple[int, int, int] | None = None) -> tuple[int, int, int]:
+        """The maximality checks, the test evaluations and the items looked
+        at of a parse of ``length`` tokens A and then B; with a budget of
+        each, it stops the parse and fails as soon as one is passed."""
         dialect, error = load_case_dialect({"grammar": grammar})
         assert dialect is not None, error
         tokens, text = case_tokens({"tokens": [{"text": "a", "tags": ["A"]}] * length + [{"text": "b", "tags": ["B"]}]})
-        counts = {"checks": 0, "tests": 0}
+        counts = [0, 0, 0]
         forbids, test_holds = Maximal.forbids, StageContext.test_holds
 
+        def spend() -> None:
+            counts[2] = maximal_counters.looked
+            if budget is not None and any(count > most for count, most in zip(counts, budget)):
+                raise OverBudget(tuple(counts))
+
         def counted_forbids(self: Maximal, *args: Any) -> bool:
-            counts["checks"] += 1
-            return forbids(self, *args)
+            counts[0] += 1
+            found = forbids(self, *args)
+            spend()
+            return found
 
         def counted_test(self: StageContext, *args: Any) -> bool:
-            counts["tests"] += 1
+            counts[1] += 1
+            spend()
             return test_holds(self, *args)
 
+        maximal_counters.looked = 0
         with mock.patch.object(Maximal, "forbids", counted_forbids), mock.patch.object(StageContext, "test_holds", counted_test):
-            result = dialect.parse_tokens(tokens, text, auto_features=False)
+            try:
+                result = dialect.parse_tokens(tokens, text, auto_features=False)
+            except OverBudget as over:
+                self.fail(f"{length} tokens went past the budget {budget} of checks, tests and items looked at, at {over.args[0]}")
         self.assertTrue(result.stages[0].verdict is not None or result.error is not None)
-        return counts["checks"], counts["tests"]
+        counts[2] = maximal_counters.looked
+        return counts[0], counts[1], counts[2]
 
     def test_work_grows_linearly(self) -> None:
         for name, grammar in (("plain", self.PLAIN), ("tested", self.TESTED)):
             with self.subTest(grammar=name):
-                small = self.work(grammar, 1000)
-                large = self.work(grammar, 4000)
-                self.assertGreater(small[0], 0, "the query made no maximality check")
-                # Four times the input, at most about four times the work,
-                # where a scan of the completions per check would take
-                # sixteen.
-                self.assertLessEqual(large[0], 5 * small[0], f"{small} {large}")
-                self.assertLessEqual(large[1], 5 * max(small[1], 1) + 4, f"{small} {large}")
-                # Each completion read at most about twice in all.
-                self.assertLessEqual(large[1], 2 * 4001, f"{small} {large}")
+                # Each length four times the last, and each parse's budget
+                # from the last one's work, so that quadratic work fails at
+                # the first step that shows it, before it costs much.
+                last = self.work(grammar, 250)
+                self.assertGreater(last[0], 0, "the query made no maximality check")
+                self.assertGreater(last[2], 0, "the checks looked at no item")
+                for length in (1000, 4000):
+                    # Four times the input, at most about four times the
+                    # work, where a scan of the completions per check would
+                    # take sixteen; the test evaluations read each
+                    # completion at most about twice in all.
+                    budget = (5 * last[0], min(5 * max(last[1], 1) + 4, 2 * (length + 1)), 5 * last[2])
+                    work = self.work(grammar, length, budget)
+                    for count, most in zip(work, budget):
+                        self.assertLessEqual(count, most, f"{last} then {work} for {length} tokens")
+                    last = work
 
 
 if __name__ == "__main__":
