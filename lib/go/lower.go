@@ -45,12 +45,13 @@ type production struct {
 	warnings []string
 }
 
-// condsAt is the conditions that are ready once an item's dot reaches d.
-func (p *production) condsAt(d int) []lcond {
+// condRange is where the conditions that are ready once an item's dot
+// reaches d lie in conds: from lo up to hi, and none when the two are equal.
+func (p *production) condRange(d int) (lo, hi int) {
 	if p.condFrom == nil {
-		return nil
+		return 0, 0
 	}
-	return p.conds[p.condFrom[d]:p.condFrom[d+1]]
+	return int(p.condFrom[d]), int(p.condFrom[d+1])
 }
 
 // lcond is a condition, simplified for its production, with the dot

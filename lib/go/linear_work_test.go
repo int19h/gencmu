@@ -384,30 +384,37 @@ func TestEligibilityQueryConstant(t *testing.T) {
 	}
 }
 
+// conditionsRun is the recognition of a production of n captures over n
+// tokens, with a condition at each capture.
+func conditionsRun(t *testing.T, n int) func() *recognizer {
+	names := make([]string, n)
+	conditions := make([]string, n)
+	for i := range names {
+		names[i] = fmt.Sprintf("$c%d(A)", i)
+		conditions[i] = fmt.Sprintf("text($c%d) = \"a\"", i)
+	}
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+strings.Join(names, " ")+"\n%conditions "+strings.Join(conditions, ", ")))
+	lg := d.lower(0, map[string]bool{})
+	toks := make([]Token, n)
+	for i := range toks {
+		toks[i] = Token{Text: "a", Tags: []string{"A"}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
+	}
+	ps := newParseState(d.uni, []rune(strings.TrimSpace(strings.Repeat("a ", n))))
+	run := ps.newRun("main", d.stages[0], toks)
+	return func() *recognizer { return run.recognize(lg, lg.byName["text"], 0, n) }
+}
+
 // TestConditionsByDot: an advance looks only at the conditions that its
 // dot makes ready, so a production of n captures, each with a condition,
 // looks at n conditions over a parse, not n at each advance (engine §4).
 func TestConditionsByDot(t *testing.T) {
 	for _, n := range []int{100, 400} {
-		names := make([]string, n)
-		conditions := make([]string, n)
-		for i := range names {
-			names[i] = fmt.Sprintf("$c%d(A)", i)
-			conditions[i] = fmt.Sprintf("text($c%d) = \"a\"", i)
-		}
-		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+strings.Join(names, " ")+"\n%conditions "+strings.Join(conditions, ", ")))
-		lg := d.lower(0, map[string]bool{})
-		toks := make([]Token, n)
-		for i := range toks {
-			toks[i] = Token{Text: "a", Tags: []string{"A"}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
-		}
-		ps := newParseState(d.uni, []rune(strings.TrimSpace(strings.Repeat("a ", n))))
+		recognize := conditionsRun(t, n)
 		// A look at every condition at each advance would cost n squared.
-		run := ps.newRun("main", d.stages[0], toks)
 		w := &workCounts{}
 		w.conditions.most = int64(n)
 		var rec *recognizer
-		countWorkIn(w, func() { rec = run.recognize(lg, lg.byName["text"], 0, n) })
+		countWorkIn(w, func() { rec = recognize() })
 		if len(rec.sets[n].items) == 0 {
 			t.Fatalf("%d captures: no item at the end", n)
 		}
@@ -415,6 +422,17 @@ func TestConditionsByDot(t *testing.T) {
 			t.Errorf("%d captures: %d conditions looked at", n, got)
 		}
 	}
+}
+
+// TestConditionsByDotMutation selects each advance's conditions by a scan
+// of all of them. The first advance examines all n, so the second stops
+// at the first condition past the budget.
+func TestConditionsByDotMutation(t *testing.T) {
+	const n = 100
+	recognize := conditionsRun(t, n)
+	w := &workCounts{scanConds: true}
+	w.conditions.most = n
+	stopsAtFirst(t, w, &w.conditions, "conditions", func() { recognize() })
 }
 
 // TestIncludeChainLinear: a chain of documents, each including the next,

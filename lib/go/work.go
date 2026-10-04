@@ -24,7 +24,8 @@ import (
 //     stores, each as it is stored.
 //   - linkSteps: the links that the check of elision-only compares and
 //     looks up to find a repeated link.
-//   - conditions: the conditions that advances look at, each as it begins.
+//   - conditions: the conditions that advances examine, each before it is
+//     looked at, also one whose dot is not the advance's.
 //   - visits: the nodes of conditions and terms that an evaluation enters,
 //     each before it is evaluated, in an evaluation that halts as well.
 //   - soundSteps: the tokens that sound tests and phonemes() visit.
@@ -58,6 +59,10 @@ type workCounts struct {
 	// capture entry stored stores its prefix again, as the code did before
 	// entries shared their prefixes. A budget must stop it at once.
 	storePrefixes bool
+	// scanConds is a mutation for the tests of the budgets: an advance
+	// examines every condition of its production, as a selection by scan
+	// would, and not only those its dot makes ready.
+	scanConds bool
 }
 
 // workCount is one count of workCounts, with its budget, or 0 for none,

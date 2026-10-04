@@ -800,12 +800,24 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 		}
 		key.dot++
 	}
-	conds := p.condsAt(int(key.dot))
-	for ; i < len(conds); i++ {
+	// Each condition the walk examines counts before it is looked at, so
+	// a walk wider than the dot's own conditions passes the budget at once.
+	lo, hi := p.condRange(int(key.dot))
+	w := work.Load()
+	if w != nil && w.scanConds {
+		lo, hi = 0, len(p.conds)
+	}
+	if !resuming {
+		i = lo
+	}
+	for ; i < hi; i++ {
 		if !resuming {
-			c := conds[i]
-			if w := work.Load(); w != nil {
+			if w != nil {
 				w.conditions.add("conditions")
+			}
+			c := p.conds[i]
+			if c.trigger != int(key.dot) {
+				continue
 			}
 			// A condition on $ is evaluated once the item is complete. Its
 			// production's tag term gives $ its tags, and runs only where a
