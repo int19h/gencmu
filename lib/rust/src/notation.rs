@@ -1255,6 +1255,8 @@ impl<'a> Reader<'a> {
         let mut out = String::new();
         let mut index = 0;
         while index < body.len() {
+            // Each character or escape counts as it is read.
+            work::count(Work::Walked, 1);
             let c = body[index];
             if c != '\\' {
                 out.push(c);
