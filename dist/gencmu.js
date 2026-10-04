@@ -4135,7 +4135,7 @@
 
 
   /**
-   * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, Scope, Slot, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
+   * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, Scope, Captured, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
    * @import { Token } from "./tokens.js"
    * @import { UnicodeTable } from "./unicode.js"
    */
@@ -4183,6 +4183,10 @@
     }
   }
 
+  // How many items the recognizer has made, in parses and nested parses
+  // alike: a measure of work that tests compare across input lengths.
+  const recognizerCounters = { items: 0, captures: 0 };
+
   // What a parse and every nested parse it starts share.
   class ParseContext {
     /**
@@ -4202,6 +4206,10 @@
       this.sourceText = sourceText;
       this.unicode = unicode;
       this.interner = interner || new TagInterner();
+      // Each sequence of captured parts that an item of this context has,
+      // made once (captureAfter).
+      /** @type {Map<string, NonNullable<Captured>>} */
+      this.captured = new Map();
       /**
        * How the recognizer reads elidable optionals: null as engine §4 says,
        * "reconstruction" in the mode of engine §7.4, or "mandatory", the old
@@ -4290,7 +4298,7 @@
      * @param {Production} production
      * @param {number} dot
      * @param {number} origin
-     * @param {Slot[]} slots
+     * @param {Captured} slots
      * @param {Item | null} previous
      * @param {Item | null} child
      */
@@ -4412,7 +4420,7 @@
     // Adds the item `previous` makes advanced over `child`, or over the token
     // before the set when `child` is null; a prediction when both are null.
     // `strict` says whether the step that makes it is strict (engine §7.4).
-    /** @type {(set: ChartSet, production: Production, dot: number, origin: number, slots: Slot[], previous: Item | null, child: Item | null, tagId: number, strict?: boolean) => void} */
+    /** @type {(set: ChartSet, production: Production, dot: number, origin: number, slots: Captured, previous: Item | null, child: Item | null, tagId: number, strict?: boolean) => void} */
     const add = (set, production, dot, origin, slots, previous, child, tagId, strict = false) => {
       // A strict item never completes (engine §7.4).
       if (strict && dot === production.rhs.length) return;
@@ -4488,9 +4496,9 @@
       const test = production.elidedTest;
       if (test && !fault("F11", "restore") && !testHolds(context, test, position, position + 1, token.tags)) return;
       const target = setAt(position + 1);
-      const key = itemKey((production.id * dots) * width + position - start, emptySlots(production));
+      const key = itemKey((production.id * dots) * width + position - start, null);
       if (target.index.has(key)) return;
-      const item = new Item(production, 0, position, emptySlots(production), null, null);
+      const item = new Item(production, 0, position, null, null, null);
       item.restores = true;
       if (hooks.work) countWork(hooks.work, "items");
       item.end = position + 1;
@@ -4526,7 +4534,7 @@
         }
         // A strict prediction predicts only the productions that can read.
         if (strict && !fault("F16", "predict") && /** @type {Reading} */ (reading).last.get(production) === -1) continue;
-        const slots = emptySlots(production);
+        const slots = null;
         // One scope for the step, which evaluates the tag term at most once
         // (engine §4).
         /** @type {StepScope} */
@@ -4556,7 +4564,7 @@
 
     // The item advanced over its next symbol, which spans [from, to) and was
     // built by `child`, or read as a token; null when a condition fails.
-    /** @type {(item: Item, from: number, to: number, child: Item | null) => {dot: number, slots: Slot[], tagId: number} | null} */
+    /** @type {(item: Item, from: number, to: number, child: Item | null) => {dot: number, slots: Captured, tagId: number} | null} */
     const advance = (item, from, to, child) => {
       const production = item.production;
       // A tested symbol's test must hold of its own span and tags, which is
@@ -4572,13 +4580,12 @@
       let slots = item.slots;
       const captureIndex = production.captures.findIndex((capture) => capture.index === item.dot);
       if (captureIndex >= 0) {
-        slots = slots.slice();
         // A terminal that reads a synthetic token captures no tags (engine
         // §7.5), unless a fault gives it the token's, to a capture and to a
         // production that inherits from the terminal (F7:capture).
         const tags = child ? child.tagId
           : context.interner.intern(synthetic !== null && synthetic[from] && !rawObservations(context) && !fault("F7:capture") ? tagSet() : tokens[from].tags);
-        slots[captureIndex] = [from, to, tags];
+        slots = captureAfter(context, slots, captureIndex, from, to, tags);
       }
       /** @type {StepScope} */
       const step = { scope: null };
@@ -4931,38 +4938,43 @@
   /** @type {WeakMap<object, TagSet>} */
   const rangeSets = new WeakMap();
 
-  // The slots of a predicted item, one list per production that all its
-  // predictions share: advancing over a capture copies the list first.
-  /** @type {WeakMap<Production, Slot[]>} */
-  const noSlots = new WeakMap();
-
   /**
-   * @param {Production} production
-   * @returns {Slot[]}
+   * The captured parts of an item after it reads one more: the parts before
+   * it, extended by the capture at `index` of its production, with its span
+   * and tags. Each sequence of parts is made once per context and shared by
+   * every item that has it and by every longer sequence, so an item adds one
+   * part to the one it advanced, and equal sequences are one object, whose
+   * number is in the item's identity (engine §4).
+   * @param {ParseContext} context
+   * @param {Captured} parent
+   * @param {number} index
+   * @param {number} start
+   * @param {number} end
+   * @param {number} tags
+   * @returns {Captured}
    */
-  function emptySlots(production) {
-    let slots = noSlots.get(production);
-    if (!slots) noSlots.set(production, (slots = /** @type {Slot[]} */ (Object.freeze(production.captures.map(() => null)))));
-    return slots;
+  function captureAfter(context, parent, index, start, end, tags) {
+    const key = (parent === null ? "" : parent.id) + ":" + index + ":" + start + ":" + end + ":" + tags;
+    let found = context.captured.get(key);
+    if (!found) {
+      found = { parent, index, start, end, tags, id: context.captured.size };
+      context.captured.set(key, found);
+      recognizerCounters.captures++;
+    }
+    return found;
   }
 
   // An item's key in its set's index: `base`, a number unique to its
   // production, dot and origin, and for an item that has captured something,
-  // a string adding its slots. Almost no item has, and a number is no
-  // allocation.
+  // a string adding the number of its captured parts. Almost no item has,
+  // and a number is no allocation.
   /**
    * @param {number} base
-   * @param {Slot[]} slots
+   * @param {Captured} captured
    * @returns {number | string}
    */
-  function itemKey(base, slots) {
-    /** @type {string | null} */
-    let key = null;
-    for (let index = 0; index < slots.length; index++) {
-      const slot = slots[index];
-      if (slot) key = (key === null ? String(base) : key) + "," + index + ":" + slot[0] + ":" + slot[1] + ":" + slot[2];
-    }
-    return key === null ? base : key;
+  function itemKey(base, captured) {
+    return captured === null ? base : base + "," + captured.id;
   }
 
   /**
@@ -4982,7 +4994,7 @@
    * @param {ParseContext} context
    * @param {Production} production
    * @param {number} readyAt
-   * @param {Slot[]} slots
+   * @param {Captured} slots
    * @param {number} origin where the item began
    * @param {number} end where it ends once it has read the symbol at `readyAt`
    * @param {StepScope} [step] the scope of the step, shared with its tag term
@@ -5005,7 +5017,7 @@
   /**
    * @param {ParseContext} context
    * @param {Production} production
-   * @param {Slot[]} slots
+   * @param {Captured} slots
    * @param {number} origin
    * @param {number} end
    * @param {StepScope} step the scope of the step, which holds the tag set
@@ -5042,7 +5054,7 @@
     /**
      * @param {ParseContext} context
      * @param {Production} production
-     * @param {Slot[]} slots
+     * @param {Captured} slots
      * @param {number} origin
      * @param {number} end
      */
@@ -5087,8 +5099,10 @@
         };
       }
       const index = this.production.captures.findIndex((capture) => capture.name === name);
-      const slot = /** @type {[number, number, number]} */ (this.slots[index]);
-      return { start: slot[0], end: slot[1], tags: this.context.interner.get(slot[2]), space: this.space };
+      let part = this.slots;
+      while (part !== null && part.index !== index) part = part.parent;
+      const found = /** @type {NonNullable<Captured>} */ (part);
+      return { start: found.start, end: found.end, tags: this.context.interner.get(found.tags), space: this.space };
     }
   }
 
@@ -5723,7 +5737,7 @@
     const next = position < chart.end ? context.tokens[position] : null;
     for (const rule of set.skipped) {
       for (const production of context.lowered.byLhs.get(rule) || []) {
-        if (!lookaheadSkips(context, production, next) || failedCondition(context, production, -1, emptySlots(production), position, position)) continue;
+        if (!lookaheadSkips(context, production, next) || failedCondition(context, production, -1, null, position, position)) continue;
         note(writtenSymbol(production.rhs[0]), production.owner);
       }
     }
@@ -11246,9 +11260,11 @@
    */
 
   /**
-   * A captured part as a chart item records it: its span and the number of
-   * its tag set.
-   * @typedef {[number, number, number] | null} Slot
+   * The captured parts of a chart item, the last one first: each part's
+   * capture by its index in the production, its span and the number of its
+   * tag set, after the parts before it. A context makes each sequence once,
+   * with its number (engine §4).
+   * @typedef {{parent: Captured, index: number, start: number, end: number, tags: number, id: number} | null} Captured
    */
 
   /**
