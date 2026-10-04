@@ -983,17 +983,18 @@ mod tests {
     use std::sync::Arc;
 
     use super::{stitch, Lean, StageGrammar};
-    use crate::dom::{Alternative, ClassifierDef, Cond, Directive, Dom, Entry, Expr, Op, RuleDef, Term};
+    use crate::dom::{Alternative, ClassifierDef, Cond, ConstDef, Directive, Dom, Entry, Expr, Op, RuleDef, Term};
     use crate::unicode::Unicode;
     use crate::work::{assert_linear, assert_mutant_stops, Mutant, Work};
 
-    /// A rule of n alternatives with n conditions stitches in about n:
-    /// its alternatives share its clauses, and they are checked once.
+    /// A rule of n alternatives with n conditions, each of which reads a
+    /// constant, stitches in about n: its alternatives share its clauses,
+    /// they are checked once, and the constants are found in one walk.
     #[test]
     fn alternatives_share_their_rules_clauses() {
         let unicode = Unicode::parse(crate::loader::bundled("unicode.txt").expect("the table")).expect("the table");
         let dom = |n: usize| {
-            let same = || Cond::Compare("=".into(), Term::Str("a".into()), Term::Str("a".into()));
+            let same = || Cond::Compare("=".into(), Term::Const("k".into(), (1, 1)), Term::Str("a".into()));
             let rule = RuleDef {
                 name: "text".into(),
                 op: Op::Define,
@@ -1010,7 +1011,12 @@ mod tests {
             let dom = Dom {
                 rules: vec![rule],
                 directives: vec![directive],
-                constants: Vec::new(),
+                constants: vec![ConstDef {
+                    name: "k".into(),
+                    redefine: false,
+                    value: Term::Str("a".into()),
+                    at: (1, 1),
+                }],
                 classifiers: Vec::new(),
                 implications: Vec::new(),
             };
@@ -1022,6 +1028,7 @@ mod tests {
             assert_eq!(grammar.rules[0].alternatives.len(), n);
         };
         assert_linear(Work::Stitched, 1000, &mut run);
+        assert_linear(Work::Walked, 1000, &mut run);
         // A copy of the clauses for each alternative stops at the first
         // count past the budget.
         assert_mutant_stops(Work::Stitched, Mutant::ClausesPerAlternative, 1000, &mut run);
