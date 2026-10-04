@@ -7,6 +7,8 @@ on. Nothing here is timed."""
 
 from __future__ import annotations
 
+import ast
+import keyword
 import linecache
 import re
 import unittest
@@ -68,39 +70,93 @@ class Linear(unittest.TestCase):
         self.assertEqual(works[0].count, MOST * small + 1)
 
 
-def union_reads(frame: FrameType) -> int:
-    """The tags that a union of two sets reads before it returns: both
-    sets where it copies them, and none where one is empty."""
-    left, right = frame.f_locals["left"], frame.f_locals["right"]
-    return len(left) + len(right) if left and right else 1
+SET_OPERATORS = (ast.BitOr, ast.BitAnd, ast.Sub, ast.BitXor)
+"""The operators that read both of their sets."""
+
+COPIES = frozenset({"set", "frozenset", "list", "tuple", "sorted"})
+"""The calls that read every element of their argument."""
+
+IN_PLACE = frozenset({"update", "intersection_update", "difference_update", "symmetric_difference_update"})
+"""The methods that read their arguments but not the set they change."""
 
 
-def gathered_reads(frame: FrameType) -> int:
-    """The tags that adding a set to a gathered union reads: the set's own,
-    and the first set's too where the first growth copies it."""
-    gathered, part = frame.f_locals["self"], frame.f_locals["part"]
-    if not part:
-        return 1
-    if gathered.grown is None and gathered.first:
-        return len(gathered.first) + len(part)
-    return len(part)
+def _statement(line: str) -> ast.AST | None:
+    """The tree of one line of source, with a compound statement's header
+    reduced to its expression, or None where the line does not parse."""
+    text = line.strip()
+    header = re.match(r"(?:if|elif|while|return)\b(.*?):?$", text)
+    for candidate in (text, header.group(1) if header else None, "pass" if text == "else:" else None):
+        if candidate is None:
+            continue
+        try:
+            return ast.parse(candidate.strip() or "None")
+        except SyntaxError:
+            continue
+    return None
 
 
-def frozen_reads(frame: FrameType) -> int:
-    """The tags that freezing a gathered union copies."""
-    grown = frame.f_locals["self"].grown
-    return 1 if grown is None else 1 + len(grown)
+def _value(node: ast.AST, frame: FrameType) -> Any:
+    """What a name or an attribute names in a frame, before the line runs,
+    or None where the node is neither."""
+    path: list[str] = []
+    while isinstance(node, ast.Attribute):
+        path.append(node.attr)
+        node = node.value
+    if not isinstance(node, ast.Name):
+        return None
+    value = frame.f_locals.get(node.id, frame.f_globals.get(node.id))
+    for attribute in reversed(path):
+        value = getattr(value, attribute, None)
+    return value
+
+
+def _size(node: ast.AST, frame: FrameType) -> int:
+    """The size of the set or the sequence that a node names, and 0 where
+    it names none."""
+    value = _value(node, frame)
+    return len(value) if isinstance(value, (set, frozenset, list, tuple, dict)) else 0
+
+
+def set_reads(frame: FrameType) -> int:
+    """A weight for a line of the tag set operations, read before the line
+    runs: one, and the size of every operand that an operation of the line
+    reads in C. A union, an intersection, a difference or a copy reads each
+    of its operands. An update in place reads its arguments only. Each
+    operand counts, whichever branch runs, so the weight never falls short
+    of the work. A line that does not parse counts every set it names."""
+    line = linecache.getline(frame.f_code.co_filename, frame.f_lineno)
+    tree = _statement(line)
+    if tree is None:
+        names = set(re.findall(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*", line))
+        nodes = [ast.parse(name, mode="eval").body for name in names if not any(keyword.iskeyword(part) for part in name.split("."))]
+        return 1 + sum(_size(node, frame) for node in nodes)
+    read = 0
+    for node in ast.walk(tree):
+        if isinstance(node, ast.BinOp) and isinstance(node.op, SET_OPERATORS):
+            read += _size(node.left, frame) + _size(node.right, frame)
+        elif isinstance(node, ast.Call):
+            function = node.func
+            if isinstance(function, ast.Name) and function.id in COPIES:
+                read += sum(_size(argument, frame) for argument in node.args)
+            elif isinstance(function, ast.Attribute):
+                read += sum(_size(argument, frame) for argument in node.args)
+                if function.attr not in IN_PLACE and function.attr not in ("add", "discard", "get"):
+                    read += _size(function.value, frame)
+        elif isinstance(node, ast.Compare):
+            # A search by ``in`` reads a sequence through, but finds a tag
+            # of a set or a key of a dict by its hash.
+            for operator, operand in zip(node.ops, node.comparators):
+                if isinstance(operator, (ast.In, ast.NotIn)) and not isinstance(_value(operand, frame), (set, frozenset, dict)):
+                    read += _size(operand, frame)
+    return 1 + read
 
 
 def tag_copies() -> list[Watch]:
-    """The tags that unions of tag sets read, each counted before the
-    union reads it: a union of two sets, a set added to a gathered union,
-    and the gathered union frozen."""
-    return [
-        calls(_tags.union, union_reads),
-        calls(_tags.Gathered.add, gathered_reads),
-        calls(_tags.Gathered.value, frozen_reads),
-    ]
+    """The tags that the operations on tag sets read, each line counted
+    before it runs, with what it reads: a union of two sets, a set added
+    to a gathered union, the gathered union frozen, an intersection and a
+    difference."""
+    return [steps(target, weight=set_reads) for target in (_tags.union, _tags.Gathered, _tags.intersection, _tags.difference)]
 
 
 def stage_context(tokens: list[Token]) -> StageContext:
@@ -183,6 +239,23 @@ class UnionFolds(Linear):
             "if self.grown is not None:\n        self.grown = set(self.value())\n        self.grown.update(part)",
         )
         self.assert_mutant_stops(tag_copies, make, 2000, lambda: mutant(_tags.Gathered, "add", freeze))
+
+    def test_a_union_that_copies_or_scans_its_gathered_tags_fails_at_the_first_unit_past_its_budget(self) -> None:
+        # One regression copies the growing set at each part, and the other
+        # scans it for each tag of the part. Both read the gathered tags in
+        # C, which only a count of each operand that a line reads sees.
+        def make(n: int) -> Callable[[], object]:
+            term = {"union": [{"tag": f"t{index}"} for index in range(n)]}
+            evaluator = Evaluator(stage_context([]), 0, 0)
+            return lambda: evaluator.value(term, None)  # type: ignore[arg-type]
+
+        grown = "if self.grown is not None:\n        self.grown.update(part)"
+        for name, change in (
+            ("copy", "if self.grown is not None:\n        self.grown = self.grown | part"),
+            ("scan", "if self.grown is not None:\n        self.grown.update(tag for tag in part if tag not in list(self.grown))"),
+        ):
+            with self.subTest(mutant=name):
+                self.assert_mutant_stops(tag_copies, make, 2000, lambda: mutant(_tags.Gathered, "add", (grown, change)))
 
 
 class Closures(Linear):
