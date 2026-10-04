@@ -1,5 +1,5 @@
 import { Sources } from "./tokens.js";
-import type { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Slot, SymbolTest, TagSet, TermValue } from "./types.js";
+import type { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Slot, SpanValue, SymbolTest, TagSet, TermValue } from "./types.js";
 import type { Token } from "./tokens.js";
 import type { UnicodeTable } from "./unicode.js";
 export type Chart = {
@@ -290,6 +290,43 @@ export declare function testHolds(context: ParseContext, test: SymbolTest, from:
  * @returns {Item[]}
  */
 export declare function rootItems(chart: Chart, rule: string): Item[];
+export type StepScope = {
+    scope: ChartScope | null;
+};
+/** @implements {Scope} */
+declare class ChartScope implements Scope {
+    context: ParseContext;
+    production: Production;
+    slots: Slot[];
+    origin: number;
+    end: number;
+    /** @type {ParseContext | null} */
+    reconstructed: ParseContext | null;
+    observing: ParseContext;
+    /** @type {SpanValue["space"]} */
+    space: SpanValue["space"];
+    /** @type {TagSet | null} the constituent's tags, once evaluated */
+    tagSet: TagSet | null;
+    /**
+     * @param {ParseContext} context
+     * @param {Production} production
+     * @param {Slot[]} slots
+     * @param {number} origin
+     * @param {number} end
+     */
+    constructor(context: ParseContext, production: Production, slots: Slot[], origin: number, end: number);
+    /**
+     * The constituent's tags, from its production's tag term, evaluated at
+     * most once.
+     * @returns {TagSet}
+     */
+    constituent(): TagSet;
+    /**
+     * @param {string} name
+     * @returns {SpanValue}
+     */
+    capture(name: string): SpanValue;
+}
 /**
  * @param {ParseContext} context
  * @param {number} start
@@ -336,3 +373,4 @@ export declare function rejectionOf(chart: Chart): {
  * @returns {Expectation[]}
  */
 export declare function expectedAt(chart: Chart, position: number): Expectation[];
+export {};

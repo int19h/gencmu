@@ -4279,10 +4279,14 @@
         // A strict prediction predicts only the productions that can read.
         if (strict && !fault("F16") && /** @type {Reading} */ (reading).last.get(production) === -1) continue;
         const slots = emptySlots(production);
+        // One scope for the step, which evaluates the tag term at most once
+        // (engine §4).
+        /** @type {StepScope} */
+        const step = { scope: null };
         // The tag term comes after the conditions (engine §4), unless a fault
         // evaluates it first (order:tags).
-        if (production.rhs.length === 0 && fault("order:tags")) completeTags(context, production, slots, set.position, set.position);
-        const failed = failedCondition(context, production, -1, slots, set.position, set.position);
+        if (production.rhs.length === 0 && fault("order:tags")) completeTags(context, production, slots, set.position, set.position, step);
+        const failed = failedCondition(context, production, -1, slots, set.position, set.position, step);
         if (failed) {
           const trace = context.trace;
           if (trace && trace.depth === 0 && set.position === trace.position) {
@@ -4296,7 +4300,7 @@
           skipped = true;
           continue;
         }
-        const tagId = production.rhs.length === 0 ? completeTags(context, production, slots, set.position, set.position) : -1;
+        const tagId = production.rhs.length === 0 ? completeTags(context, production, slots, set.position, set.position, step) : -1;
         add(set, production, 0, set.position, slots, null, null, tagId, strict && !fault("F16"));
       }
       if (skipped && before === undefined) set.skipped.push(name);
@@ -4328,8 +4332,10 @@
           : context.interner.intern(synthetic !== null && synthetic[from] && !rawObservations(context) && !fault("F7:capture") ? tagSet() : tokens[from].tags);
         slots[captureIndex] = [from, to, tags];
       }
-      if (item.dot + 1 === production.rhs.length && fault("order:tags")) completeTags(context, production, slots, item.origin, to);
-      const failed = failedCondition(context, production, item.dot, slots, item.origin, to);
+      /** @type {StepScope} */
+      const step = { scope: null };
+      if (item.dot + 1 === production.rhs.length && fault("order:tags")) completeTags(context, production, slots, item.origin, to, step);
+      const failed = failedCondition(context, production, item.dot, slots, item.origin, to, step);
       if (failed) {
         const trace = context.trace;
         if (trace && trace.depth === 0 && to === trace.position) {
@@ -4338,7 +4344,7 @@
         return null;
       }
       const dot = item.dot + 1;
-      const tagId = dot === production.rhs.length ? completeTags(context, production, slots, item.origin, to) : -1;
+      const tagId = dot === production.rhs.length ? completeTags(context, production, slots, item.origin, to, step) : -1;
       return { dot, slots, tagId };
     };
 
@@ -4731,9 +4737,10 @@
    * @param {Slot[]} slots
    * @param {number} origin where the item began
    * @param {number} end where it ends once it has read the symbol at `readyAt`
+   * @param {StepScope} [step] the scope of the step, shared with its tag term
    * @returns {Condition | null}
    */
-  function failedCondition(context, production, readyAt, slots, origin, end) {
+  function failedCondition(context, production, readyAt, slots, origin, end, step = { scope: null }) {
     // In written order (engine §4), unless a fault takes the conditions that
     // read only captures before those that read `$` (order:conditions).
     const conditions = fault("order:conditions")
@@ -4741,7 +4748,7 @@
       : production.conditions;
     for (const { condition, readyAt: at } of conditions) {
       if (at !== readyAt) continue;
-      const scope = new ChartScope(context, production, slots, origin, end);
+      const scope = step.scope ??= new ChartScope(context, production, slots, origin, end);
       if (!holds(scope.observing, condition, scope)) return condition;
     }
     return null;
@@ -4753,12 +4760,22 @@
    * @param {Slot[]} slots
    * @param {number} origin
    * @param {number} end
+   * @param {StepScope} step the scope of the step, which holds the tag set
+   *   once a condition has read it
    * @returns {number}
    */
-  function completeTags(context, production, slots, origin, end) {
-    const scope = new ChartScope(context, production, slots, origin, end);
-    return context.interner.intern(constituentTags(scope.observing, production, scope));
+  function completeTags(context, production, slots, origin, end, step) {
+    const scope = step.scope ??= new ChartScope(context, production, slots, origin, end);
+    return context.interner.intern(scope.constituent());
   }
+
+  /**
+   * The scope that one step of the recognizer makes on demand, and shares
+   * between its conditions and its tag term, so that the tag term runs at
+   * most once in the step. This saves time only: how many times a step
+   * evaluates its tag term is not observable (engine §4).
+   * @typedef {{scope: ChartScope | null}} StepScope
+   */
 
   /**
    * A completed constituent's tags: its production's tag term, which cannot
@@ -4794,6 +4811,16 @@
       this.observing = context.recon ? context.recon.observed : context;
       /** @type {SpanValue["space"]} */
       this.space = context.recon ? (context.recon.raw ? "raw" : "R") : undefined;
+      /** @type {TagSet | null} the constituent's tags, once evaluated */
+      this.tagSet = null;
+    }
+    /**
+     * The constituent's tags, from its production's tag term, evaluated at
+     * most once.
+     * @returns {TagSet}
+     */
+    constituent() {
+      return this.tagSet ??= constituentTags(this.observing, this.production, this);
     }
     /**
      * @param {string} name
@@ -4807,7 +4834,7 @@
         return {
           start: this.origin,
           end: this.end,
-          get tags() { return constituentTags(scope.observing, scope.production, scope); },
+          get tags() { return scope.constituent(); },
           space: this.space,
         };
       }
