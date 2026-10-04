@@ -390,12 +390,24 @@ func symbolsOf(body []slot) []symbol {
 	return out
 }
 
+// concat is a new body of a's slots then b's. Each slot counts before it
+// is copied, so that a budget stops a copy at its first slot past it.
 func concat(a, b []slot) []slot {
-	if w := work.Load(); w != nil {
-		w.loweredSlots.addN(int64(len(a)+len(b)), "lowered slots")
-	}
 	out := make([]slot, 0, len(a)+len(b))
-	return append(append(out, a...), b...)
+	return appendSlots(appendSlots(out, a), b)
+}
+
+// appendSlots appends each slot of xs to out, each counted before it is
+// copied.
+func appendSlots(out, xs []slot) []slot {
+	w := work.Load()
+	for _, x := range xs {
+		if w != nil {
+			w.loweredSlots.add("lowered slots")
+		}
+		out = append(out, x)
+	}
+	return out
 }
 
 func (lw *lowerer) newProduction(lhs int32, body []slot) *production {
@@ -602,10 +614,7 @@ func (lw *lowerer) expandSeq(items []*domExpr, a *sAlt, ruleName string) [][]slo
 		xs := lw.expand(it, a, ruleName)
 		if len(xs) == 1 {
 			for i := range out {
-				if w := work.Load(); w != nil {
-					w.loweredSlots.addN(int64(len(xs[0])), "lowered slots")
-				}
-				out[i] = append(out[i], xs[0]...)
+				out[i] = appendSlots(out[i], xs[0])
 			}
 			continue
 		}

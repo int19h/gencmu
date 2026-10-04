@@ -33,7 +33,7 @@ import (
 //     makes of what it reads.
 //   - interned: the members of the sets that make interned tag sets.
 //   - loweredSlots: the slots that lowering copies into the bodies of
-//     productions.
+//     productions, each before it is copied.
 //   - ruleSetSteps: the productions, symbols and uses that the nullable
 //     and reading rule sets visit, and the symbols, rules and edges that
 //     finding the reach of cycles examines, each before it is examined.
