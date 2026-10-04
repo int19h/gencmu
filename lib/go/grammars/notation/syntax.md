@@ -10,7 +10,9 @@ The tokens arrive with tags. A tag marks a token by name, phoneme or character. 
 
 Every rule and directive begins with a keyword, and a keyword begins nothing else. So where one ends is never in doubt.
 
-Inside one, no list can end in two places either. A separated list has a separator that begins no item. A list without one is a text's statements, a directive's operands, a classifier's entries, a sequence's primaries or an item's attachments. In each of these, no token that can continue an item can also begin the next one. So the greedy reading has nothing to settle, and every list can be flat braces.
+Inside one, no list can end in two places either. A separated list has a separator that begins no item. Some lists have no separator. They are a text's statements, a directive's operands, a classifier's entries and its keys, the guards of an entry or an alternative, a sequence's primaries and an item's attachments. In each of these, no token that can continue an item can also begin the next one. Guards end before a key or an expression, and keys before `∈` or `∉`.
+
+The guards of a guarded term need one more step. Each item is an any-of and `⟹`, and the union after the last one can begin as another item does. But only another guard reads a `⟹` outside parentheses. So in `$a ⟹ $b ⟹ ~x`, the list cannot end after `$a ⟹`, since the union cannot read the second `⟹`. So the greedy reading has nothing to settle anywhere, and every list can be flat braces.
 
 ```jbogenbau
 %ambiguity-resolution greedy
