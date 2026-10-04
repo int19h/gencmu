@@ -553,3 +553,63 @@ func TestCaptureSetsStopAtFirst(t *testing.T) {
 		}
 	}
 }
+
+// setOperations is an intersection, a difference and a subset test of two
+// sets of n members each, every other member of one in the other.
+func setOperations(t *testing.T, n int) func() {
+	in := newInterner()
+	evens, all := make([]string, 0, n), make([]string, 0, n)
+	for i := range n {
+		evens = append(evens, fmt.Sprintf("T%06d", 2*i))
+		all = append(all, fmt.Sprintf("T%06d", i))
+	}
+	a, b := in.fromList(evens), in.fromList(all)
+	return func() {
+		if got := len(in.intersection(a, b).names); got != n/2 {
+			t.Fatalf("%d members in common, not %d", got, n/2)
+		}
+		if got := len(in.difference(a, b).names); got != n-n/2 {
+			t.Fatalf("%d members left, not %d", got, n-n/2)
+		}
+		if subset(a, b) {
+			t.Fatalf("the evens of %d are a subset", n)
+		}
+	}
+}
+
+// TestSetOperationsLinear: an intersection, a difference and a subset test
+// look each member up in the other set by a binary search. Each probe
+// counts, so a scan of the other set would pass the budget.
+func TestSetOperationsLinear(t *testing.T) {
+	for _, n := range []int{1000, 4000} {
+		ops := setOperations(t, n)
+		w := &workCounts{}
+		w.interned.most = int64(n) * (6 + 3*int64(bits.Len(uint(n))))
+		countWorkIn(w, ops)
+		t.Logf("set operations of %d members: %d steps", n, w.interned.Load())
+	}
+}
+
+// TestSetOperationsMutation looks each member up in the other set by a
+// scan. The budget of the binary searches stops it at the first probe
+// past it.
+func TestSetOperationsMutation(t *testing.T) {
+	const n = 1000
+	ops := setOperations(t, n)
+	w := &workCounts{scanOther: true}
+	w.interned.most = int64(n) * (6 + 3*int64(bits.Len(uint(n))))
+	stopsAtFirst(t, w, &w.interned, "interned members", ops)
+}
+
+// TestUnionsMutation copies the members gathered so far again for each
+// member of a union. The budget of the linear union stops it at the first
+// copy past it.
+func TestUnionsMutation(t *testing.T) {
+	const n = 1000
+	run := tagRun(t, n)
+	w := &workCounts{copyGrowing: true}
+	w.interned.most = int64(n) * (8 + 5*int64(bits.Len(uint(n))))
+	stopsAtFirst(t, w, &w.interned, "interned members", func() {
+		run.evaluate(run.evaluator(nil, nil), tagUnion(n))
+	})
+}

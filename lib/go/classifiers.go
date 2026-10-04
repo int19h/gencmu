@@ -287,5 +287,5 @@ func (run *stageRun) implied(tags *tagset) *tagset {
 	if len(added) == 0 {
 		return tags
 	}
-	return run.ps.in.fromList(append(append([]string{}, tags.names...), added...))
+	return run.ps.in.fromList(tags.names, added)
 }

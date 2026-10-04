@@ -21,7 +21,29 @@ type tagset struct {
 }
 
 func (t *tagset) has(name string) bool {
-	i := sort.SearchStrings(t.names, name)
+	return t.find(name, nil)
+}
+
+// find says whether the set holds a member, by a binary search whose
+// probes each count in c, unless it is nil, before they are made. The set
+// operations below count their searches so that a slower search shows.
+func (t *tagset) find(name string, c *workCount) bool {
+	if c != nil && work.Load().scanOther {
+		// The mutation: a scan of every member before the one sought.
+		for _, n := range t.names {
+			c.add("interned members")
+			if n >= name {
+				return n == name
+			}
+		}
+		return false
+	}
+	i := sort.Search(len(t.names), func(k int) bool {
+		if c != nil {
+			c.add("interned members")
+		}
+		return t.names[k] >= name
+	})
 	return i < len(t.names) && t.names[i] == name
 }
 
@@ -74,11 +96,29 @@ func (in *interner) make(names []string) *tagset {
 	return t
 }
 
-// fromList interns the set of a list of members in any order, repeats
-// allowed.
-func (in *interner) fromList(list []string) *tagset {
+// fromList interns the set of the members of some lists, in any order,
+// repeats allowed. Each member counts as it is copied, so that a copy
+// which grows faster than the lists shows.
+func (in *interner) fromList(lists ...[]string) *tagset {
 	c := internedCount()
-	names := append([]string{}, list...)
+	total := 0
+	for _, list := range lists {
+		total += len(list)
+	}
+	names := make([]string, 0, total)
+	w := work.Load()
+	for _, list := range lists {
+		for _, n := range list {
+			if w != nil && w.copyGrowing {
+				// The mutation: the members so far copied again for each.
+				names = copyCounted(names, c)
+			}
+			if c != nil {
+				c.add("interned members")
+			}
+			names = append(names, n)
+		}
+	}
 	sortStrings(names, c, "interned members")
 	out := names[:0]
 	for i, n := range names {
@@ -90,6 +130,19 @@ func (in *interner) fromList(list []string) *tagset {
 		}
 	}
 	return in.make(out)
+}
+
+// copyCounted is a copy of names, each member counted in c, unless it is
+// nil, before it is copied.
+func copyCounted(names []string, c *workCount) []string {
+	out := make([]string, 0, len(names))
+	for _, n := range names {
+		if c != nil {
+			c.add("interned members")
+		}
+		out = append(out, n)
+	}
+	return out
 }
 
 func (in *interner) empty() *tagset { return in.make(nil) }
@@ -150,17 +203,11 @@ func (in *interner) unionAll(sets []*tagset) *tagset {
 	if total == len(only.names) {
 		return only
 	}
-	c := internedCount()
-	names := make([]string, 0, total)
-	for _, s := range sets {
-		for _, n := range s.names {
-			if c != nil {
-				c.add("interned members")
-			}
-			names = append(names, n)
-		}
+	lists := make([][]string, len(sets))
+	for i, s := range sets {
+		lists[i] = s.names
 	}
-	return in.fromList(names)
+	return in.fromList(lists...)
 }
 
 // intersection holds the members of both.
@@ -171,7 +218,7 @@ func (in *interner) intersection(a, b *tagset) *tagset {
 		if c != nil {
 			c.add("interned members")
 		}
-		if b.has(n) {
+		if b.find(n, c) {
 			names = append(names, n)
 		}
 	}
@@ -189,17 +236,22 @@ func (in *interner) difference(a, b *tagset) *tagset {
 		if c != nil {
 			c.add("interned members")
 		}
-		if !b.has(n) {
+		if !b.find(n, c) {
 			names = append(names, n)
 		}
 	}
 	return in.make(names)
 }
 
-// subset says whether every member of a is in b.
+// subset says whether every member of a is in b. Each member of a and
+// each probe of b counts before it is looked at.
 func subset(a, b *tagset) bool {
+	c := internedCount()
 	for _, n := range a.names {
-		if !b.has(n) {
+		if c != nil {
+			c.add("interned members")
+		}
+		if !b.find(n, c) {
 			return false
 		}
 	}

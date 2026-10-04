@@ -74,6 +74,13 @@ type workCounts struct {
 	// unit edges of a production checks every other symbol for each, as
 	// the code did before it counted the symbols that are not nullable.
 	checkOthers bool
+	// copyGrowing is a mutation for the tests of the budgets: gathering
+	// the members of a set copies those gathered so far again for each.
+	copyGrowing bool
+	// scanOther is a mutation for the tests of the budgets: an
+	// intersection, difference or subset looks a member up in the other
+	// set by a scan, not by a binary search.
+	scanOther bool
 }
 
 // workCount is one count of workCounts, with its budget, or 0 for none,
