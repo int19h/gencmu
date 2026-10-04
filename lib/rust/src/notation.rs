@@ -6,12 +6,12 @@ use crate::dom::{
     test_type_problem, Alternative, Arg, Attachments, Chain, ClassifierDef, Cond, ConstDef, Directive, Dom, EmitItem,
     Entry, Expr, FeatureKind, Guard, ImplicationDef, Mark, Op, RuleDef, Term, Type,
 };
-use crate::earley::count_steps;
 use crate::error::Error;
 use crate::fxhash::FxSet;
 use crate::result::{Node, NodeKind, Token};
 use crate::tags::character_tag;
 use crate::unicode::Unicode;
+use crate::work::{self, Work};
 
 pub(crate) struct Reader<'a> {
     pub tokens: &'a [Token],
@@ -73,7 +73,7 @@ impl<'a> Reader<'a> {
         let mut parts = Vec::new();
         let mut stack: Vec<&Node> = node.children.iter().rev().collect();
         while let Some(child) = stack.pop() {
-            count_steps(1);
+            work::count(Work::Walked, 1);
             if child.kind == NodeKind::Rule && !KNOWN.contains(&rule_name(child)) {
                 stack.extend(child.children.iter().rev());
             } else {
@@ -453,7 +453,7 @@ impl<'a> Reader<'a> {
         let mut stack = vec![first];
         let mut input: Option<Val> = None;
         loop {
-            count_steps(1);
+            work::count(Work::Walked, 1);
             let top = stack.last_mut().expect("a frame");
             match self.resume(top, input.take())? {
                 Step::Call(frame) => stack.push(frame),
@@ -1665,7 +1665,7 @@ fn first_of_rule<'n>(node: &'n Node, name: &str) -> Option<&'n Node> {
     // In the order written, with an explicit stack.
     let mut stack = vec![node];
     while let Some(node) = stack.pop() {
-        count_steps(1);
+        work::count(Work::Walked, 1);
         if node.kind == NodeKind::Rule && rule_name(node) == name {
             return Some(node);
         }
@@ -1812,7 +1812,7 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
     // its document nests until the check of its depth (§9).
     let mut stack = vec![Part::Term(term)];
     while let Some(part) = stack.pop() {
-        count_steps(1);
+        work::count(Work::Walked, 1);
         match part {
             Part::Term(term) => match term {
                 Term::Capture(name) => {
@@ -1871,7 +1871,7 @@ fn flatten_groups(rule: &mut RuleDef) {
         }
     }
     while let Some(part) = stack.pop() {
-        count_steps(1);
+        work::count(Work::Walked, 1);
         match part {
             PartMut::Term(term) => match term {
                 Term::Union(items) | Term::Intersection(items) => stack.extend(items.iter_mut().map(PartMut::Term)),
@@ -1911,7 +1911,7 @@ fn fold(items: &mut Vec<Cond>, inner: impl Fn(&mut Cond) -> Option<Vec<Cond>>) {
     let mut pending: Vec<Cond> = std::mem::take(items);
     pending.reverse();
     while let Some(mut item) = pending.pop() {
-        count_steps(1);
+        work::count(Work::Walked, 1);
         match inner(&mut item) {
             Some(mut parts) => {
                 parts.reverse();

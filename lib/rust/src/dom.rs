@@ -1874,7 +1874,7 @@ pub(crate) fn constants_in_cond<'t>(cond: &'t Cond, out: &mut Vec<(&'t str, (usi
 fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>) {
     let mut stack = vec![start];
     while let Some(part) = stack.pop() {
-        crate::earley::count_steps(1);
+        crate::work::count(crate::work::Work::Walked, 1);
         match part {
             Nested::Term(term) => match term {
                 Term::Const(name, at) => out.push((name, *at)),
@@ -1920,7 +1920,7 @@ enum Nested<'d> {
 fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
     let mut stack: Vec<(Nested<'d>, usize)> = roots.into_iter().map(|root| (root, 0)).collect();
     while let Some((node, depth)) = stack.pop() {
-        crate::earley::count_steps(1);
+        crate::work::count(crate::work::Work::Walked, 1);
         if depth > MAX_NESTING {
             return true;
         }

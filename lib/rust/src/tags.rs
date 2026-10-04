@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use crate::fxhash::FxMap;
 use crate::unicode::Unicode;
+use crate::work::{self, Work};
 
 pub(crate) type TagId = u32;
 pub(crate) type SetId = u32;
@@ -115,6 +116,9 @@ pub(crate) fn union_all<'l>(lists: impl IntoIterator<Item = &'l TagList>) -> Tag
     for list in lists {
         out.extend_from_slice(list);
     }
+    // Each part is copied once, where a fold of pairs copied the growing
+    // union again for each part.
+    work::count(Work::Listed, out.len() as u64);
     out.sort_unstable();
     out.dedup();
     out

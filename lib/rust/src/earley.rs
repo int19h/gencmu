@@ -37,62 +37,6 @@ pub(crate) fn matchers(g: &Lowered, tags: &mut Tags) -> Vec<Matcher> {
         .collect()
 }
 
-thread_local! {
-    /// How many items the recognizer has made on this thread, in parses and
-    /// nested parses alike: a measure of work that tests compare across
-    /// input lengths.
-    static ITEMS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
-    /// How many sequences of captured parts the recognizer has made on this
-    /// thread, each one part added to a sequence it shares: a measure of
-    /// storage that tests compare across numbers of captures.
-    static CAPTURES: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
-    /// How many steps the engine has taken on this thread through those
-    /// sequences, from a part to the one before it, to read them: a measure
-    /// of work that tests compare across numbers of captures.
-    static CAPTURE_STEPS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
-    /// How many steps the readers, the walks of what they read and the
-    /// ranker's search for the derivations of an item have taken on this
-    /// thread: a measure of work that the tests of growth compare across
-    /// depths of nesting.
-    static WALK_STEPS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
-}
-
-/// Counts `steps` steps of a reader or a walk (`WALK_STEPS`).
-pub(crate) fn count_steps(steps: u64) {
-    WALK_STEPS.with(|count| count.set(count.get() + steps));
-}
-
-/// How many steps of readers and walks this thread has taken
-/// (`WALK_STEPS`).
-pub fn walk_steps() -> u64 {
-    WALK_STEPS.with(|count| count.get())
-}
-
-/// How many steps the engine has taken through sequences of captured parts
-/// on this thread (`CAPTURE_STEPS`).
-pub fn capture_steps() -> u64 {
-    CAPTURE_STEPS.with(|steps| steps.get())
-}
-
-/// How many sequences of captured parts the recognizer has made on this
-/// thread (`CAPTURES`).
-pub fn recognizer_captures() -> u64 {
-    CAPTURES.with(|captures| captures.get())
-}
-
-/// How many items the recognizer has made on this thread (`ITEMS`).
-pub fn recognizer_items() -> u64 {
-    ITEMS.with(|items| items.get())
-}
-
-/// Sets the count of the recognizer's items on this thread back to zero.
-pub fn reset_recognizer_items() {
-    ITEMS.with(|items| items.set(0));
-    CAPTURES.with(|captures| captures.set(0));
-    CAPTURE_STEPS.with(|steps| steps.set(0));
-    WALK_STEPS.with(|steps| steps.set(0));
-}
-
 /// A token of a stage's input.
 #[derive(Debug, Clone)]
 pub(crate) struct Tok {
@@ -150,8 +94,7 @@ fn sounds_like(tokens: &[Tok], unicode: &Unicode, sound: &str) -> bool {
     let mut rest = sound;
     let mut at = 0;
     while let Some(token) = tokens.get(at) {
-        #[cfg(test)]
-        tests::SOUND_STEPS.with(|steps| steps.set(steps.get() + 1));
+        work::count(Work::Sounded, 1);
         if token.quiet > 0 {
             at += token.quiet as usize;
             continue;
@@ -349,7 +292,7 @@ impl Chart {
         let positions = self.positions.get_or_init(|| {
             let mut positions: FxMap<Item, Vec<u32>> = FxMap::default();
             for (at, eset) in self.sets.iter().enumerate() {
-                count_steps(eset.items.len() as u64);
+                work::count(Work::Walked, eset.items.len() as u64);
                 for item in &eset.items {
                     positions.entry(*item).or_default().push(at as u32);
                 }
@@ -360,7 +303,7 @@ impl Chart {
         let held = &held[held.partition_point(|&m| m < from)..held.partition_point(|&m| m <= set)];
         let eset = &self.sets[set as usize];
         let ending = eset.origins.get(&rule).map_or(&[][..], Vec::as_slice);
-        count_steps(held.len().min(ending.len()) as u64 + 1);
+        work::count(Work::Walked, held.len().min(ending.len()) as u64 + 1);
         let mut found: Vec<u32> = if held.len() <= ending.len() {
             held.iter().copied().filter(|&m| eset.completed.contains_key(&(rule, m))).collect()
         } else {
@@ -380,7 +323,7 @@ impl Chart {
             out.push(entry.cap);
             id = entry.parent;
         }
-        CAPTURE_STEPS.with(|steps| steps.set(steps.get() + out.len() as u64));
+        work::count(Work::CaptureSteps, out.len() as u64);
         out.reverse();
         out
     }
@@ -394,7 +337,7 @@ impl Chart {
             id = if self.caps[entry.jump as usize].depth > slot { entry.jump } else { entry.parent };
             steps += 1;
         }
-        CAPTURE_STEPS.with(|count| count.set(count.get() + u64::from(steps)));
+        work::count(Work::CaptureSteps, u64::from(steps));
         (self.caps[id as usize].cap, steps)
     }
 
@@ -423,7 +366,7 @@ impl Chart {
         };
         self.caps.push(CapEntry { parent, jump, depth: before.depth + 1, cap });
         self.caps_index.insert((parent, cap), id);
-        CAPTURES.with(|captures| captures.set(captures.get() + 1));
+        work::count(Work::Captures, 1);
         id
     }
 
@@ -543,6 +486,8 @@ impl<'a> Shared<'a> {
         let mut list: TagList =
             (first..=last).filter_map(char::from_u32).map(|c| self.tags.tag(&character_tag(c, unicode))).collect();
         list.sort_unstable();
+        // The list is made once, and each later evaluation shares it.
+        work::count(Work::Listed, list.len() as u64);
         let list = Arc::new(list);
         self.ranges.insert((first, last), list.clone());
         list
@@ -782,8 +727,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         // The constituent's tags, where a condition of this step read them.
         let mut known = u32::MAX;
         let conds = production.conds_at(item.dot as usize);
-        #[cfg(test)]
-        tests::CONDITION_STEPS.with(|steps| steps.set(steps.get() + 1 + conds.len() as u64));
+        work::count(Work::Conditions, 1 + conds.len() as u64);
         if !conds.is_empty() {
             let search = CapSearch::new(chart, item.caps);
             let (observed, project) = self.observed(tokens);
@@ -1465,16 +1409,8 @@ mod tests {
     use std::cell::Cell;
 
     use crate::earley::{mark_quiet, matchers, sounds_like, Caps, Frame, Recognizer, Shared, Tok};
-    use crate::growth::assert_linear;
     use crate::lower::{LTerm, Span, Sym};
-
-    thread_local! {
-        /// How many tokens the sound tests on this thread have stepped to.
-        pub(super) static SOUND_STEPS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
-        /// How many conditions the items added on this thread have looked
-        /// at, with one more for each item.
-        pub(super) static CONDITION_STEPS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
-    }
+    use crate::work::{assert_linear, budget, counted, reset, Work};
 
     /// A sound test of each suffix of a run of tokens without sound steps
     /// through as many tokens as the sound is long, not the suffix.
@@ -1497,13 +1433,14 @@ mod tests {
                 })
                 .collect();
             mark_quiet(&mut tokens, &unicode);
-            SOUND_STEPS.with(|steps| steps.set(0));
+            reset();
+            budget(Work::Sounded, 8 * n as u64);
             for start in 0..n {
                 assert!(sounds_like(&tokens[start..], &unicode, "a"));
                 assert!(sounds_like(&tokens[start..n - 1], &unicode, ""));
                 assert!(!sounds_like(&tokens[start..], &unicode, ""));
             }
-            let steps = SOUND_STEPS.with(|steps| steps.get());
+            let steps = counted(Work::Sounded);
             assert!(steps <= 8 * n as u64, "{steps} steps for {n} tokens");
         }
     }
@@ -1520,7 +1457,7 @@ mod tests {
         let g = dialect.lowered_stage(0);
         let chars: Vec<char> = Vec::new();
         // The tokens and the terms are made apart, so that only their
-        // evaluation is timed.
+        // evaluation is counted.
         let mut made: Vec<_> = [10_000usize, 40_000]
             .into_iter()
             .map(|n| {
@@ -1547,7 +1484,7 @@ mod tests {
                 (n, shared, tokens, [tail, union])
             })
             .collect();
-        assert_linear("unions", 10_000, &mut |n| {
+        assert_linear(Work::Listed, 10_000, &mut |n| {
             let (_, shared, tokens, terms) = made.iter_mut().find(|made| made.0 == n).expect("made");
             let matchers = matchers(&g, &mut shared.tags);
             let mut recognizer = Recognizer { g: &g, matchers: &matchers, shared, recon: None };
@@ -1578,10 +1515,13 @@ mod tests {
             let sources =
                 [("g.md", grammar), ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string())];
             let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
-            CONDITION_STEPS.with(|steps| steps.set(0));
+            reset();
+            budget(Work::Conditions, 4 * n as u64 + 8);
             let result = dialect.parse(&"a".repeat(n), &crate::ParseOptions::default()).expect("a result");
             assert!(result.ok, "{n} captures");
-            let steps = CONDITION_STEPS.with(|steps| steps.get());
+            let steps = counted(Work::Conditions);
+            // The next dialect's grammar is read with no budget.
+            reset();
             assert!(steps <= 4 * n as u64 + 8, "{steps} conditions looked at for {n} captures");
         }
     }
@@ -1597,7 +1537,7 @@ mod tests {
         let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
         let g = dialect.lowered_stage(0);
         let chars: Vec<char> = Vec::new();
-        assert_linear("ranges", 20_000, &mut |n| {
+        assert_linear(Work::Listed, 20_000, &mut |n| {
             let mut shared = Shared::new(&dialect.unicode, &chars);
             let matchers = matchers(&g, &mut shared.tags);
             let mut recognizer = Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None };
@@ -1657,6 +1597,77 @@ mod tests {
         for n in 2..=6 {
             assert_eq!(whole_items("%rule text t\n%rule t t t | A", n), 1, "t t over {n}");
             assert_eq!(whole_items("%rule text t\n%rule t $l(t) $r(t) | A", n), n - 1, "$l(t) $r(t) over {n}");
+        }
+    }
+
+    /// A dialect of one grammar document `g.md`, written in a single block.
+    fn single(rules: &str) -> crate::Dialect {
+        let sources = [
+            ("g.md", format!("```jbogenbau\n%ambiguity-resolution greedy\n{rules}\n```\n")),
+            ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+        ];
+        crate::load_dialect_sources(sources, "p.md").expect("the dialect")
+    }
+
+    /// One production of C captures over C tokens: each item shares the
+    /// captured parts of the item it advanced, so the recognizer makes C
+    /// sequences of captured parts, not C² entries (engine §4). The tags,
+    /// the condition and the derivation read them in a bounded number of
+    /// walks, not one walk for each part.
+    #[test]
+    fn captures_share_their_prefixes() {
+        for count in [100usize, 200, 400] {
+            let names: Vec<String> = (0..count).map(|index| format!("$c{index}('a')")).collect();
+            // A tag term that reads every capture, the first last.
+            let tags: Vec<String> = (0..count).map(|index| format!("tags($c{})", count - 1 - index)).collect();
+            let dialect = single(&format!(
+                "%rule text {}\n%tags ~x ∪ {}\n%conditions text($c0) = \"a\"",
+                names.join(" "),
+                tags.join(" ∪ ")
+            ));
+            let (items, steps) = (2 * count as u64 + 4, 4 * count as u64 + 8);
+            reset();
+            budget(Work::Items, items);
+            budget(Work::CaptureSteps, steps);
+            let result = dialect.parse(&"a".repeat(count), &crate::ParseOptions::default()).expect("a result");
+            assert!(result.ok, "{count} captures");
+            assert_eq!(counted(Work::Captures), count as u64, "{count} captures");
+            assert!(counted(Work::Items) <= items, "{} items for {count} captures", counted(Work::Items));
+            assert!(counted(Work::CaptureSteps) <= steps, "{} steps for {count} captures", counted(Work::CaptureSteps));
+            // The next dialect's grammar is read with no budget.
+            reset();
+        }
+    }
+
+    /// A condition at each capture of a long production reads the part it
+    /// names without a walk of every part before it. The capture just made
+    /// is the last part, and the first capture is a search by the jumps,
+    /// whose steps grow with the logarithm of the parts (engine §4).
+    #[test]
+    fn conditions_at_each_capture_search_for_their_parts() {
+        let steps = |count: usize, far: &dyn Fn(usize) -> String, most: u64| {
+            let names: Vec<String> = (0..count).map(|index| format!("$c{index}('a')")).collect();
+            let conditions: Vec<String> =
+                (0..count).map(|index| format!("text($c{index}) = text({})", far(index))).collect();
+            let dialect = single(&format!("%rule text {}\n%conditions {}", names.join(" "), conditions.join(", ")));
+            reset();
+            budget(Work::CaptureSteps, most);
+            let result = dialect.parse(&"a".repeat(count), &crate::ParseOptions::default()).expect("a result");
+            assert!(result.ok, "{count} captures");
+            let steps = counted(Work::CaptureSteps);
+            // The next dialect's grammar is read with no budget.
+            reset();
+            steps
+        };
+        for count in [100usize, 200, 400] {
+            // A walk of every part before each would take some C²/2 steps,
+            // past either budget.
+            let near = 4 * count as u64 + 8;
+            let first = (count as f64 * (2.0 * (count as f64).log2() + 4.0)) as u64;
+            let read = steps(count, &|index| format!("$c{index}"), near);
+            assert!(read <= near, "{read} steps for {count} captures read where they are made");
+            let read = steps(count, &|_| "$c0".to_string(), first);
+            assert!(read <= first, "{read} steps for {count} captures that each read the first");
         }
     }
 }

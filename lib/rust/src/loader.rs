@@ -532,7 +532,9 @@ pub fn bootstrap_hash() -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::normalize;
+    use super::{normalize, read_grammar_document};
+    use crate::json::Json;
+    use crate::work::{budget, counted, reset, Work};
     use std::path::Path;
 
     #[test]
@@ -545,5 +547,70 @@ mod tests {
         assert_eq!(normal("a/../../b"), "../b");
         assert_eq!(normal("./a/./b/.."), "a");
         assert_eq!(normal("/../a"), "/a");
+    }
+    /// The work of reading a document: the recognizer's items and the
+    /// steps of the reader, its walks and the ranker, with a budget for
+    /// both that panics past it.
+    fn reading(text: &str, most: Option<u64>) -> u64 {
+        reset();
+        if let Some(most) = most {
+            budget(Work::Items, most);
+            budget(Work::Walked, most);
+        }
+        // An error is an outcome too. Its place is the notation cases'
+        // concern.
+        let _ = read_grammar_document(text);
+        counted(Work::Items) + counted(Work::Walked)
+    }
+
+    /// The shared cases of tests/notation-growth.json: reading a document
+    /// whose constructs nest deep costs work that grows with its length,
+    /// not with its square. The reading runs on a thread with a fixed
+    /// stack of 2 MiB, whatever the depth: no part of it recurses deeper
+    /// than the bound of 256 that the DOM is checked against.
+    #[test]
+    fn reading_deep_nesting_grows_linearly() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/notation-growth.json");
+        let text = std::fs::read_to_string(path).expect("the cases");
+        let cases = crate::json::parse(&text).expect("the cases are JSON");
+        let cases = cases.as_array().expect("an array");
+        assert!(cases.len() > 5);
+        for case in cases {
+            let field = |name: &str| case.get(name).and_then(Json::as_str).expect("a field of the case").to_string();
+            let name = field("name");
+            let (prefix, open, middle, close, suffix) =
+                (field("prefix"), field("open"), field("middle"), field("close"), field("suffix"));
+            let work = |n: usize, most: Option<u64>| {
+                let text =
+                    format!("```jbogenbau\n{prefix}{}{middle}{}{suffix}\n```\n", open.repeat(n), close.repeat(n));
+                // The counters belong to the thread that reads.
+                std::thread::Builder::new()
+                    .stack_size(2 << 20)
+                    .spawn(move || reading(&text, most))
+                    .expect("a thread")
+                    .join()
+                    .expect("no overflow, and no count past the budget")
+            };
+            // Once first, so that loading the notation counts in neither.
+            work(250, None);
+            let small = work(250, None);
+            let large = work(1000, Some(5 * small));
+            assert!(large <= 5 * small, "{name}: {small} for 250 levels, {large} for 1000");
+        }
+    }
+
+    /// A call of many arguments reads in work that grows with its
+    /// arguments, not with their square: the reader finds the call's parts
+    /// once, not at each argument, before the arity error.
+    #[test]
+    fn a_call_of_many_arguments_reads_in_linear_work() {
+        let text = |n: usize| {
+            let arguments = vec!["$"; n].join(", ");
+            format!("```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'\n%tags tags({arguments})\n```\n")
+        };
+        assert!(read_grammar_document(&text(500)).is_err(), "tags() of 500 arguments");
+        let small = reading(&text(500), None);
+        let large = reading(&text(2000), Some(5 * small));
+        assert!(large <= 5 * small, "{small} for 500 arguments, {large} for 2000");
     }
 }

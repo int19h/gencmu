@@ -1,11 +1,12 @@
 //! Counters of work, for the tests that the work grows with the input as it
-//! should: the items that the recognizer makes, the entries of the chart
-//! that the searches for a blocking path and the checks of maximality look
-//! at (§4), and the cycle contexts that the rankings make (§6), on this
-//! thread. They exist only in the crate's own tests: elsewhere `count`
-//! compiles to nothing. A test can give a counter a budget, which the count
-//! past it panics at, so that a regression to quadratic work stops at once
-//! and does not run on.
+//! should, on this thread. Each kind below says what it counts and where.
+//! They exist only in the crate's own tests: elsewhere `count` compiles to
+//! nothing. A test can give a counter a budget, which the count past it
+//! panics at, so that a regression to quadratic work stops at once and does
+//! not run on.
+
+#[cfg(test)]
+use std::cell::RefCell;
 
 /// What a counter counts.
 #[derive(Debug, Clone, Copy)]
@@ -21,16 +22,37 @@ pub(crate) enum Work {
     Looked,
     /// The cycle contexts that the rankings make.
     Contexts,
+    /// The sequences of captured parts that the recognizer makes, each one
+    /// part added to a sequence it shares (§4).
+    Captures,
+    /// The steps through sequences of captured parts, from a part to the
+    /// one before it or along a jump, that reading them takes.
+    CaptureSteps,
+    /// The steps of the notation's readers, of the walks of what they read,
+    /// of the checks of a rule's clauses, and of the ranker's search for
+    /// the derivations of an item.
+    Walked,
+    /// The tokens that the sound tests step to (§5).
+    Sounded,
+    /// The conditions that the items added to the chart look at, with one
+    /// more for each item.
+    Conditions,
+    /// The tags that the evaluation of tag terms writes into the lists it
+    /// makes: unions, the tags of spans, and ranges.
+    Listed,
+    /// The captures and emitted items that the check of a definition looks
+    /// at (§9).
+    Checked,
 }
+
+/// How many kinds of work there are.
+#[cfg(test)]
+const KINDS: usize = Work::Checked as usize + 1;
 
 #[cfg(test)]
 thread_local! {
-    static COUNTS: [std::cell::Cell<u64>; 4] = const {
-        [std::cell::Cell::new(0), std::cell::Cell::new(0), std::cell::Cell::new(0), std::cell::Cell::new(0)]
-    };
-    static BUDGETS: [std::cell::Cell<u64>; 4] = const {
-        [std::cell::Cell::new(u64::MAX), std::cell::Cell::new(u64::MAX), std::cell::Cell::new(u64::MAX), std::cell::Cell::new(u64::MAX)]
-    };
+    static COUNTS: RefCell<[u64; KINDS]> = const { RefCell::new([0; KINDS]) };
+    static BUDGETS: RefCell<[u64; KINDS]> = const { RefCell::new([u64::MAX; KINDS]) };
 }
 
 /// Adds `n` to the counter of `work`, in tests only, and panics if that
@@ -40,11 +62,11 @@ pub(crate) fn count(work: Work, n: u64) {
     #[cfg(test)]
     {
         let counted = COUNTS.with(|counts| {
-            let counter = &counts[work as usize];
-            counter.set(counter.get() + n);
-            counter.get()
+            let counter = &mut counts.borrow_mut()[work as usize];
+            *counter += n;
+            *counter
         });
-        let most = BUDGETS.with(|budgets| budgets[work as usize].get());
+        let most = BUDGETS.with(|budgets| budgets.borrow()[work as usize]);
         assert!(counted <= most, "{counted} {work:?}, past the budget of {most}");
     }
     #[cfg(not(test))]
@@ -54,21 +76,40 @@ pub(crate) fn count(work: Work, n: u64) {
 /// Sets every counter on this thread back to zero, with no budget.
 #[cfg(test)]
 pub(crate) fn reset() {
-    COUNTS.with(|counts| counts.iter().for_each(|counter| counter.set(0)));
-    BUDGETS.with(|budgets| budgets.iter().for_each(|budget| budget.set(u64::MAX)));
+    COUNTS.with(|counts| *counts.borrow_mut() = [0; KINDS]);
+    BUDGETS.with(|budgets| *budgets.borrow_mut() = [u64::MAX; KINDS]);
 }
 
 /// Gives the counter of `work` on this thread a budget until the next
 /// `reset`: the count past it panics.
 #[cfg(test)]
 pub(crate) fn budget(work: Work, most: u64) {
-    BUDGETS.with(|budgets| budgets[work as usize].set(most));
+    BUDGETS.with(|budgets| budgets.borrow_mut()[work as usize] = most);
 }
 
 /// The count of `work` on this thread since the last `reset`.
 #[cfg(test)]
 pub(crate) fn counted(work: Work) -> u64 {
-    COUNTS.with(|counts| counts[work as usize].get())
+    COUNTS.with(|counts| counts.borrow()[work as usize])
+}
+
+/// Asserts that `run` at 4n counts at most five times the `work` that it
+/// counts at n. Linear work counts four times as much, and quadratic work
+/// sixteen, so the larger run has a budget and panics as soon as it passes
+/// it. The smaller run must count some work, or the test would prove
+/// nothing.
+#[cfg(test)]
+pub(crate) fn assert_linear(work: Work, n: usize, run: &mut dyn FnMut(usize)) {
+    reset();
+    run(n);
+    let small = counted(work);
+    assert!(small > 0, "no {work:?} counted at {n}");
+    reset();
+    budget(work, 5 * small);
+    run(4 * n);
+    let large = counted(work);
+    reset();
+    assert!(large <= 5 * small, "{work:?}: {small} at {n}, {large} at {}", 4 * n);
 }
 
 #[cfg(test)]
@@ -140,8 +181,7 @@ mod tests {
     #[test]
     fn cycle_contexts_keep_only_the_rules_of_their_cycle() {
         let depth = 15;
-        let mut grammar =
-            format!("%ambiguity-resolution late-elision\n%rule text ε | r{depth}\n%rule r0 [+T]\n");
+        let mut grammar = format!("%ambiguity-resolution late-elision\n%rule text ε | r{depth}\n%rule r0 [+T]\n");
         for i in 1..=depth {
             let below = i - 1;
             grammar
