@@ -3,41 +3,9 @@ package gencmu
 import (
 	"encoding/json"
 	"fmt"
-	"math"
-	"runtime"
-	"runtime/debug"
 	"strings"
 	"testing"
-	"time"
 )
-
-// bestOf is the shortest of three runs of f. The collector is off while f
-// runs: it starts at a heap size set by what the test keeps alive, so it
-// would run during a large run and not during a small one, and make work
-// that is linear look superlinear.
-func bestOf(f func()) time.Duration {
-	defer debug.SetGCPercent(debug.SetGCPercent(-1))
-	best := time.Duration(math.MaxInt64)
-	for range 3 {
-		runtime.GC()
-		start := time.Now()
-		f()
-		best = min(best, time.Since(start))
-	}
-	return best
-}
-
-// linearTime checks that work(4n) takes at most eight times as long as
-// work(n), the best of three runs each, with a millisecond to spare.
-func linearTime(t *testing.T, what string, n int, work func(n int)) {
-	t.Helper()
-	small := bestOf(func() { work(n) })
-	large := bestOf(func() { work(4 * n) })
-	if large > 8*small+time.Millisecond {
-		t.Errorf("%s: %v for %d, %v for %d", what, small, n, large, 4*n)
-	}
-	t.Logf("%s: %v for %d, %v for %d", what, small, n, large, 4*n)
-}
 
 // silentRun is a stage run over n tokens without phonemes, but for the last,
 // which sounds like "a".
@@ -178,22 +146,28 @@ func TestEmissionLinear(t *testing.T) {
 		}
 		return domStage(t, fmt.Sprintf(`{"format":%d,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"seq":[%s]}}],"emit":{"items":[%s]},"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`, domFormat, strings.Join(seq, ","), strings.Join(items, ",")))
 	}
-	const n = 10000
-	dialects := map[int]*Dialect{n: dialect(n), 4 * n: dialect(4 * n)}
-	parse := func(n int) {
+	for _, n := range []int{1000, 4000} {
+		d := dialect(n)
 		toks := make([]Token, n)
 		for i := range toks {
 			toks[i] = Token{Text: "a", Tags: []string{"A"}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
 		}
-		res, err := dialects[n].ParseTokens(strings.TrimSpace(strings.Repeat("a ", n)), toks, ParseOptions{})
-		if err != nil || !res.OK || len(res.Stages[0].Output) != 4*n {
-			t.Fatalf("%d captures: %v", n, err)
+		text := strings.TrimSpace(strings.Repeat("a ", n))
+		parse := func() {
+			res, err := d.ParseTokens(text, toks, ParseOptions{})
+			if err != nil || !res.OK || len(res.Stages[0].Output) != 4*n {
+				t.Fatalf("%d captures: %v", n, err)
+			}
 		}
+		// Once first, so that lowering counts in no budget.
+		parse()
+		// The 4n items and the n parts, each looked at a bounded number of
+		// times. A scan from each insert would cost the inserts their square.
+		w := &workCounts{}
+		w.emitSteps.most = 12 * int64(n)
+		countWorkIn(w, parse)
+		t.Logf("%d captures and %d inserts: %d steps", n, 3*n, w.emitSteps.Load())
 	}
-	// Once each first, so that lowering counts in neither.
-	parse(n)
-	parse(4 * n)
-	linearTime(t, "emission", n, parse)
 }
 
 // seqDOM is the DOM of a grammar whose rule text is the sequence of items,
@@ -311,7 +285,7 @@ func TestRuleSetsLinear(t *testing.T) {
 // each, and a later entry removing them, costs the classes, not their
 // square (engine §2).
 func TestClassesLinear(t *testing.T) {
-	linearTime(t, "classes of a key", 5000, func(n int) {
+	for _, n := range []int{1000, 4000} {
 		c := &domClassifier{Name: "c"}
 		for i := range n {
 			c.Entries = append(c.Entries, &domEntry{Keys: []string{"a"}, Op: "∈", Class: fmt.Sprintf("C%d", n-i)})
@@ -319,13 +293,17 @@ func TestClassesLinear(t *testing.T) {
 		for i := range n / 2 {
 			c.Entries = append(c.Entries, &domEntry{Keys: []string{"a"}, Op: "∉", Class: fmt.Sprintf("C%d", 2*i+1)})
 		}
-		for range 10 {
-			tables := resolveClassifiers([]classifierItem{{classifier: c}}, nil)
-			if tables.fault != "" || len(tables.tables["c"]["a"].names) != n/2 {
-				t.Fatalf("%d classes: %q", n, tables.fault)
-			}
+		// Each entry looks at a bounded number of classes. A copy of the
+		// key's classes at each entry would cost them their square.
+		w := &workCounts{}
+		w.classSteps.most = 4 * int64(n)
+		var tables *classifierTables
+		countWorkIn(w, func() { tables = resolveClassifiers([]classifierItem{{classifier: c}}, nil) })
+		if tables.fault != "" || len(tables.tables["c"]["a"].names) != n/2 {
+			t.Fatalf("%d classes: %q", n, tables.fault)
 		}
-	})
+		t.Logf("%d classes, half removed: %d steps", n, w.classSteps.Load())
+	}
 }
 
 // TestImpliedLinear: the implications that a chain of tags sets off fire
@@ -333,7 +311,7 @@ func TestClassesLinear(t *testing.T) {
 // implications that fire, not passes over all of them (engine §11).
 func TestImpliedLinear(t *testing.T) {
 	run := tagRun(t, 1)
-	linearTime(t, "a chain of implications", 2000, func(n int) {
+	for _, n := range []int{1000, 4000} {
 		g := &stageGrammar{}
 		// Listed last first, so that a pass over them in order would add
 		// one tag.
@@ -342,12 +320,18 @@ func TestImpliedLinear(t *testing.T) {
 		}
 		g.indexImplications()
 		run.grammar = g
-		for range 20 {
-			if got := len(run.implied(run.ps.in.single("T0")).names); got != n+1 {
-				t.Fatalf("%d tags, not %d", got, n+1)
-			}
+		tags := run.ps.in.single("T0")
+		// Each implication is looked at once. Passes over all of them until
+		// none adds a tag would cost the chain its square.
+		w := &workCounts{}
+		w.implicationSteps.most = 2 * int64(n)
+		var got *tagset
+		countWorkIn(w, func() { got = run.implied(tags) })
+		if len(got.names) != n+1 {
+			t.Fatalf("%d tags, not %d", len(got.names), n+1)
 		}
-	})
+		t.Logf("a chain of %d implications: %d steps", n, w.implicationSteps.Load())
+	}
 }
 
 // TestDeepDOMRefusedEarly: a precompiled DOM nested far deeper than its
@@ -356,12 +340,21 @@ func TestImpliedLinear(t *testing.T) {
 func TestDeepDOMRefusedEarly(t *testing.T) {
 	// Each capture is one level of JSON, and encoding/json refuses more
 	// than 10,000.
-	linearTime(t, "a deep DOM", 2000, func(n int) {
+	for _, n := range []int{1000, 4000} {
 		expr := strings.Repeat(`{"capture":"x","expr":`, n) + `{"ref":"A"}` + strings.Repeat(`}`, n)
-		if _, err := decodeDOM(json.RawMessage(seqDOM([]string{expr})), nil); err == nil {
+		dom := json.RawMessage(seqDOM([]string{expr}))
+		// Each level down to the limit reads what lies below it, and a few
+		// levels above the expression read it all too. Decoding every level
+		// would read the DOM as many times as it is deep.
+		w := &workCounts{}
+		w.decodeSteps.most = int64(maxDOMDepth+32) * int64(len(dom))
+		var err error
+		countWorkIn(w, func() { _, err = decodeDOM(dom, nil) })
+		if err == nil {
 			t.Fatalf("a DOM %d deep is not refused", n)
 		}
-	})
+		t.Logf("a DOM %d deep, %d bytes: %d bytes decoded", n, len(dom), w.decodeSteps.Load())
+	}
 }
 
 // TestEligibilityQueryConstant: a query of eligibility finds the helpers of
@@ -369,22 +362,26 @@ func TestDeepDOMRefusedEarly(t *testing.T) {
 // made once for the lowered grammar, not by a walk of its productions, so
 // n queries of a grammar of n rules cost n (engine §4).
 func TestEligibilityQueryConstant(t *testing.T) {
-	const n = 5000
+	const n = 1000
 	elidable := `{"optional":{"ref":"A"},"elidable":true}`
-	lowered := map[int]*lowered{}
-	for _, size := range []int{n, 4 * n} {
-		lowered[size] = lower(domStage(t, chainDOM(size, elidable)).stages[0], map[string]bool{})
+	l := lower(domStage(t, chainDOM(n, elidable)).stages[0], map[string]bool{})
+	if !l.anyElidable {
+		t.Fatalf("no elidable optional in %d rules", n)
 	}
-	linearTime(t, "queries", n, func(n int) {
-		if !lowered[n].anyElidable {
-			t.Fatalf("no elidable optional in %d rules", n)
-		}
-		r := &recognizer{g: lowered[n]}
-		for range 10 * n {
+	// The queries walk no production. A walk for each query would pass
+	// this budget at the second.
+	w := &workCounts{}
+	w.elidableSteps.most = int64(n)
+	r := &recognizer{g: l}
+	countWorkIn(w, func() {
+		for range 100 {
 			r.eligibleItems(nil)
 			newMaximal(r, false)
 		}
 	})
+	if steps := w.elidableSteps.Load(); steps != 0 {
+		t.Errorf("100 queries of %d rules: %d productions walked", n, steps)
+	}
 }
 
 // TestConditionsByDot: an advance looks only at the conditions that its
@@ -424,7 +421,7 @@ func TestConditionsByDot(t *testing.T) {
 // is spliced without copying the chain at each include, and n stages are
 // told apart by name without a scan of those before (engine §2).
 func TestIncludeChainLinear(t *testing.T) {
-	linearTime(t, "a chain of includes", 2500, func(n int) {
+	for _, n := range []int{1000, 4000} {
 		doms := map[string]*domDoc{}
 		for i := range n {
 			doms[fmt.Sprintf("d%d.md", i)] = &domDoc{
@@ -433,11 +430,18 @@ func TestIncludeChainLinear(t *testing.T) {
 			}
 		}
 		doms[fmt.Sprintf("d%d.md", n)] = &domDoc{}
-		for range 5 {
-			p, err := splicePipeline("d0.md", func(path string) (*domDoc, *Error) { return doms[path], nil })
-			if err != nil || len(p.stages) != n {
-				t.Fatalf("%d documents: %v", n, err)
-			}
+		// One step for each include and each stage. A copy or scan of the
+		// chain at each would cost it its square.
+		w := &workCounts{}
+		w.spliceSteps.most = 4 * int64(n)
+		var p *splicedPipeline
+		var err *Error
+		countWorkIn(w, func() {
+			p, err = splicePipeline("d0.md", func(path string) (*domDoc, *Error) { return doms[path], nil })
+		})
+		if err != nil || len(p.stages) != n {
+			t.Fatalf("%d documents: %v", n, err)
 		}
-	})
+		t.Logf("a chain of %d includes: %d steps", n, w.spliceSteps.Load())
+	}
 }

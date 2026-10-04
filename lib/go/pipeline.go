@@ -112,6 +112,9 @@ func splicePipeline(pipelinePath string, domOf func(p string) (*domDoc, *Error))
 				trail := func() string {
 					return strings.Join(append(append([]string{}, through...), target), " → ")
 				}
+				if w := work.Load(); w != nil {
+					w.spliceSteps.add("splice steps")
+				}
 				if inChain[target] {
 					return grammarError(docPath, at, "%s includes itself (%s)", target, trail())
 				}
@@ -139,6 +142,9 @@ func splicePipeline(pipelinePath string, domOf func(p string) (*domDoc, *Error))
 				}
 			case item.dir != nil && item.dir.Name == "stage":
 				name := item.dir.Args[0]
+				if w := work.Load(); w != nil {
+					w.spliceSteps.add("splice steps")
+				}
 				if s := stageNamed[name]; s != nil {
 					return grammarError(docPath, at, "a second stage named %s; the first is at %s:%d:%d", name, s.doc, s.at[0], s.at[1])
 				}

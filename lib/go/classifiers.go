@@ -169,6 +169,9 @@ func resolveClassifiers(items []classifierItem, features map[string]bool) *class
 		values := make(map[string]*constValue, len(table))
 		for word, held := range table {
 			names := held.names
+			if w := work.Load(); w != nil {
+				w.classSteps.addN(int64(len(names)), "class steps")
+			}
 			sort.Strings(names)
 			if len(names) == 0 {
 				names = []string{}
@@ -191,13 +194,20 @@ const keyScanLimit = 8
 
 // find is where a class stands among the key's classes, or -1.
 func (k *keyClasses) find(class string) int {
+	w := work.Load()
 	if k.index != nil {
+		if w != nil {
+			w.classSteps.add("class steps")
+		}
 		if i, ok := k.index[class]; ok {
 			return i
 		}
 		return -1
 	}
 	for i, name := range k.names {
+		if w != nil {
+			w.classSteps.add("class steps")
+		}
 		if name == class {
 			return i
 		}
@@ -210,6 +220,9 @@ func (k *keyClasses) add(class string) {
 	if k.index != nil {
 		k.index[class] = len(k.names) - 1
 	} else if len(k.names) > keyScanLimit {
+		if w := work.Load(); w != nil {
+			w.classSteps.addN(int64(len(k.names)), "class steps")
+		}
 		k.index = make(map[string]int, 2*len(k.names))
 		for i, name := range k.names {
 			k.index[name] = i
@@ -243,6 +256,7 @@ func (run *stageRun) implied(tags *tagset) *tagset {
 	var fired map[int]bool
 	var added []string
 	var have map[string]bool
+	w := work.Load()
 	for i := 0; i < len(tags.names)+len(added); i++ {
 		var tag string
 		if i < len(tags.names) {
@@ -251,6 +265,9 @@ func (run *stageRun) implied(tags *tagset) *tagset {
 			tag = added[i-len(tags.names)]
 		}
 		for _, m := range g.impliedBy[tag] {
+			if w != nil {
+				w.implicationSteps.add("implication steps")
+			}
 			if fired[m] {
 				continue
 			}

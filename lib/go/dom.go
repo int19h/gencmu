@@ -633,6 +633,9 @@ var errTooDeep = fmt.Errorf("an expression, term or condition is nested more tha
 type jobj map[string]json.RawMessage
 
 func decodeObj(raw json.RawMessage) (jobj, error) {
+	if w := work.Load(); w != nil {
+		w.decodeSteps.addN(int64(len(raw)), "decoded bytes")
+	}
 	var o jobj
 	if err := json.Unmarshal(raw, &o); err != nil {
 		return nil, err

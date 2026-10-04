@@ -661,6 +661,9 @@ func definitionProblem(r *domRule) string {
 // every anchor, where a scan from each insert would cost a run of inserts
 // its square.
 func nextCaptureItems(items []*domEmitItem) []int {
+	if w := work.Load(); w != nil {
+		w.emitSteps.addN(int64(len(items)), "emit steps")
+	}
 	out := make([]int, len(items))
 	next := -1
 	for i := len(items) - 1; i >= 0; i-- {

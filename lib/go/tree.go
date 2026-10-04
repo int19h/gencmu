@@ -331,6 +331,9 @@ func (run *stageRun) plan(rec *recognizer, n *dn, inside bool) []emitTask {
 		if name == "" {
 			return spanVal{a: start, b: end, whole: true, tags: n.tags}, true
 		}
+		if w := work.Load(); w != nil {
+			w.emitSteps.add("emit steps")
+		}
 		if i, ok := p.posOf[name]; ok {
 			a, b, tags := run.kidSpan(rec, kids[i])
 			return spanVal{a: a, b: b, whole: true, tags: tags}, true
@@ -354,6 +357,9 @@ func (run *stageRun) plan(rec *recognizer, n *dn, inside bool) []emitTask {
 	// The items as listed, and nothing else of the constituent but their
 	// attachments (§11).
 	part := func(name string) *dn {
+		if w := work.Load(); w != nil {
+			w.emitSteps.add("emit steps")
+		}
 		if i, ok := p.posOf[name]; ok {
 			return kids[i]
 		}
