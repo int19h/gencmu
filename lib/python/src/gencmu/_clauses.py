@@ -430,20 +430,31 @@ def definition_problem(rule: Dom) -> str | None:
     unknown = sorted(set().union(attached, *(mentioned_in(clause) for clause in clauses)) - known)
     if unknown:
         return f"${unknown[0]} is captured by no alternative of {rule['name']}"
+    # The rule-level clauses depend only on a production's captures, which
+    # many alternatives share, so each is checked once for each sequence of
+    # captures and not once for each production.
+    distinct: dict[tuple[str, ...], tuple[list[str], set[str]]] = {}
+    for names, present in zip(captured, presents):
+        distinct.setdefault(tuple(names), (names, present))
     for condition in rule["conditions"]:
         if waits(condition):
             continue
-        if all(applies(condition, present) is None for present in presents):
+        if all(applies(condition, present) is None for _, present in distinct.values()):
             return f"a condition of {rule['name']} applies to none of its productions"
 
     def lacks(term: Dom, present: set[str]) -> bool:
         return not waits(term) and not captures_in(simplify_term(term, present)) <= present
 
-    for (alternative, _), present in zip(productions, presents):
+    rule_lacks: dict[tuple[str, ...], bool] = {}
+    for (alternative, _), names, present in zip(productions, captured, presents):
         if "tags" in alternative and lacks(alternative["tags"], present):
             return "an alternative's tags use a capture that one of its productions lacks; guard the use with ⟹"
-        if "tags" in rule and lacks(rule["tags"], present):
-            return f"the %tags of {rule['name']} use a capture a production lacks; guard the use with ⟹"
+        if "tags" in rule:
+            key = tuple(names)
+            if key not in rule_lacks:
+                rule_lacks[key] = lacks(rule["tags"], present)
+            if rule_lacks[key]:
+                return f"the %tags of {rule['name']} use a capture a production lacks; guard the use with ⟹"
     # The anchor of each inserted tag, the capture of the next capture
     # item, found for every item in one backward pass.
     anchors: list[str | None] = [None] * len(items)
@@ -452,7 +463,7 @@ def definition_problem(rule: Dom) -> str | None:
         anchors[index] = following
         if "capture" in items[index]:
             following = items[index]["capture"]
-    for names, present in zip(captured, presents):
+    for names, present in distinct.values():
         kept = [item for item in items if "insert" in item or item["capture"] in present]
         if items and not kept:
             return f"%emits of {rule['name']} leaves a production nothing to emit"

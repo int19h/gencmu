@@ -12,7 +12,7 @@ from typing import Callable
 
 from gencmu._clauses import definition_problem
 from gencmu._earley import EdgeSets, Evaluator, StageContext
-from gencmu._grammar import Lowered, _Constants, _Lowerer
+from gencmu._grammar import Lowered, _Constants, _Lowerer, stitch
 from gencmu._trampoline import run
 from gencmu._model import Token
 from gencmu._stage import implied
@@ -176,6 +176,39 @@ class DefinitionChecks(Linear):
             return lambda: [_Lowerer.lower_emit(None, emit, captures) for _ in range(20)]  # type: ignore[arg-type]
 
         self.assert_linear(make, 1000)
+
+
+
+class SharedClauses(Linear):
+    def test_stitching_walks_the_clauses_that_alternatives_share_once(self) -> None:
+        # n alternatives that share a %tags term of n parts, one of them a
+        # constant, and n conditions: the loader checks and resolves each
+        # rule-level clause once, not once for each alternative.
+        dialect, error = load_case_dialect({"grammar": "%rule text A"})
+        assert dialect is not None, error
+
+        def make(n: int) -> Callable[[], object]:
+            rule = {
+                "name": "text",
+                "op": "define",
+                "tags": {"union": [*({"tag": f"y{index}"} for index in range(n)), {"const": "K", "at": [2, 1]}]},
+                "alternatives": [{"guards": [], "expr": {"ref": "A"}} for _ in range(n)],
+                "conditions": [
+                    {"op": "=", "left": {"call": "text", "args": [{"capture": ""}]}, "right": {"string": f"a{index}"}} for index in range(n)
+                ],
+                "at": [3, 1],
+            }
+            dom = {
+                "format": 18,
+                "rules": [rule],
+                "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
+                "constants": [{"name": "K", "op": "define", "value": {"tag": "K"}, "at": [2, 1]}],
+                "classifiers": [],
+                "implications": [],
+            }
+            return lambda: stitch("s", [("t.md", dom)], dialect.unicode)
+
+        self.assert_linear(make, 500)
 
 
 if __name__ == "__main__":

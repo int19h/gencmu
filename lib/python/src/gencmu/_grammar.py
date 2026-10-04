@@ -427,21 +427,26 @@ class _Constants:
         alternatives share stay shared."""
         if not self.users:
             return
+        # Each node's copy, or the node itself where it holds no constant,
+        # by identity: the rule-level clauses that alternatives share are
+        # walked once, not once for each alternative.
         copies: dict[int, Any] = {}
 
         def resolve(node: Any) -> Any:
-            if not isinstance(node, (dict, list)) or not constants_in(node):
+            if not isinstance(node, (dict, list)):
                 return node
             done = copies.get(id(node))
             if done is not None:
                 return done
             copy: Any
             if isinstance(node, list):
-                copy = [resolve(item) for item in node]
+                items = [resolve(item) for item in node]
+                copy = node if all(item is old for item, old in zip(items, node)) else items
             elif isinstance(node.get("const"), str):
                 copy = {"const": node["const"], "at": node["at"], "value": self.values[node["const"]].value}
             else:
-                copy = {key: resolve(value) for key, value in node.items()}
+                values = {key: resolve(value) for key, value in node.items()}
+                copy = node if all(values[key] is value for key, value in node.items()) else values
             copies[id(node)] = copy
             return copy
 
@@ -492,6 +497,9 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
                 constants.users.append((path, rule))
             name = rule["name"]
             at: tuple[int, int] = (int(rule.get("at", (0, 0))[0]), int(rule.get("at", (0, 0))[1]))
+            # One list that the alternatives share, as they share the other
+            # rule-level clauses, so that walks of it can skip it once seen.
+            conditions = list(rule.get("conditions", []))
             alternatives = [
                 Alternative(
                     guards=list(alt.get("guards", [])),
@@ -499,7 +507,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
                     tags=alt.get("tags"),
                     rule_tags=rule.get("tags"),
                     emit=rule.get("emit"),
-                    conditions=list(rule.get("conditions", [])),
+                    conditions=conditions,
                     opaque=rule.get("opaque") is True,
                     document=path,
                     at=at,
@@ -569,9 +577,20 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
     if "text" not in rules:
         raise GencmuError(f"stage {stage} has no rule text, its start rule", stage=stage)
     classifier_names = {classifier["name"] for _, classifier in classifier_items}
+    # The clauses of a rule that its alternatives share, by identity, once
+    # checked: an error in one would have stopped the first check, at the
+    # same document and place.
+    checked: set[int] = set()
+
+    def unchecked(clause: Any) -> Any:
+        if clause is None or id(clause) in checked:
+            return None
+        checked.add(id(clause))
+        return clause
+
     for rule in rules.values():
         for alt in rule.alternatives:
-            stack: list[Any] = [alt.expr, alt.tags, alt.rule_tags, alt.emit, alt.conditions]
+            stack: list[Any] = [alt.expr, alt.tags, unchecked(alt.rule_tags), unchecked(alt.emit), unchecked(alt.conditions)]
             while stack:
                 value = stack.pop()
                 if isinstance(value, dict):
