@@ -157,7 +157,8 @@ if (parserMissing && check) {
     console.error(broken.join("\n"));
     process.exit(1);
   }
-  const unpinned = quotedTextProblems(root, { doms: new Map(Object.entries(documents).map(([file, { dom }]) => [file, dom])) });
+  // The DOMs and the dialects of the sources, as this run reads them.
+  const unpinned = quotedTextProblems(root, { loader: loaderWith(bootstrapText), doms: new Map(Object.entries(documents).map(([file, { dom }]) => [file, dom])) });
   if (unpinned.length) {
     console.error(unpinned.join("\n"));
     process.exit(1);

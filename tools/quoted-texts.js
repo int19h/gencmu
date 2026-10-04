@@ -9,8 +9,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { loadDialect } from "../lib/js/src/node.js";
 import { markdownFiles } from "./documents.js";
+import { sourceDoms, sourceLoader } from "./grammar-sources.js";
 import { parseMarkdown, walk } from "./markdown.js";
 import { PROSE, proseLineProblems } from "./prose-lines.js";
 
@@ -150,26 +150,26 @@ function dialectDocuments(base) {
 }
 
 /**
- * The DOM of each grammar document, keyed by its path under grammars/:
- * those of grammars/compiled.json, which tools/sync.js writes.
+ * The DOMs of the grammar documents of a repository, read from its source
+ * documents (tools/grammar-sources.js), never from the generated
+ * grammars/compiled.json or a bundled copy.
  * @param {string} base
- * @returns {Map<string, {directives: {name: string, args: string[]}[]}>}
+ * @returns {{get: (file: string) => any}}
  */
-function compiledDoms(base) {
-  const compiled = JSON.parse(fs.readFileSync(path.join(base, "grammars", "compiled.json"), "utf8"));
-  return new Map(Object.entries(compiled.documents).map(([file, { dom }]) => [file, dom]));
+function repositoryDoms(base) {
+  return sourceDoms(base, sourceLoader(base));
 }
 
 /**
  * The dialects that include each grammar document, at any depth, as their
- * pipelines' %include directives say, read from the documents' DOMs. A
- * dialect document belongs to its own dialect.
+ * pipelines' %include directives say, read from the DOMs of the source
+ * documents. A dialect document belongs to its own dialect.
  * @param {string} [base] the repository
- * @param {Map<string, {directives: {name: string, args: string[]}[]}>} [doms]
+ * @param {{get: (file: string) => any}} [doms]
  *   the DOMs by path under grammars/; grammars/compiled.json unless given
  * @returns {Map<string, string[]>} keyed by the path in the repository
  */
-export function documentDialects(base = root, doms = compiledDoms(base)) {
+export function documentDialects(base = root, doms = repositoryDoms(base)) {
   /** @type {Map<string, string[]>} */
   const dialects = new Map();
   for (const document of dialectDocuments(base)) {
@@ -192,11 +192,11 @@ export function documentDialects(base = root, doms = compiledDoms(base)) {
 /**
  * The checked documents, each with the checked dialects that include it.
  * @param {string} [base] the repository
- * @param {Map<string, {directives: {name: string, args: string[]}[]}>} [doms]
+ * @param {{get: (file: string) => any}} [doms]
  * @param {string[]} [checked] the checked dialects
  * @returns {Map<string, string[]>}
  */
-export function checkedDocuments(base = root, doms = compiledDoms(base), checked = CHECKED_DIALECTS) {
+export function checkedDocuments(base = root, doms = repositoryDoms(base), checked = CHECKED_DIALECTS) {
   const documents = new Map();
   for (const [document, dialects] of documentDialects(base, doms)) {
     const claimed = dialects.filter((dialect) => checked.includes(dialect));
@@ -306,10 +306,12 @@ function holds(c, text) {
  * @param {string} role
  * @param {string} text
  * @param {Map<string, any>} dialects the loaded dialects, by name
+ * @param {any} loader the loader of the repository's source grammars
+ *   (tools/grammar-sources.js), never the bundled copies
  * @returns {boolean}
  */
-function showsRole(c, role, text, dialects) {
-  if (!dialects.has(c.dialect)) dialects.set(c.dialect, loadDialect(c.dialect));
+export function showsRole(c, role, text, dialects, loader) {
+  if (!dialects.has(c.dialect)) dialects.set(c.dialect, loader.dialect(`dialects/${c.dialect}.md`));
   const result = dialects.get(c.dialect).parse(c.text, { features: c.features || [], withoutFeatures: c.withoutFeatures || [] });
   if (role === "reject") return !result.ok;
   if (role === "words") {
@@ -353,11 +355,17 @@ const reading = (c) => JSON.stringify([c.expect, c.brackets]);
  *   in UNCHECKED that is checked;
  * - a case that pins a quoted text and is not in tests/core.txt.
  * @param {string} [base] the repository
- * @param {{doms?: Map<string, any>, checked?: string[], unchecked?: Record<string, string>}} [scope]
- *   the DOMs of the grammar documents, the checked dialects and UNCHECKED
+ * @param {{loader?: any, doms?: {get: (file: string) => any}, checked?: string[], unchecked?: Record<string, string>}} [scope]
+ *   the loader of the repository's source grammars, which parses the cases
+ *   of `=` entries, the DOMs of its grammar documents, the checked dialects
+ *   and UNCHECKED
  * @returns {string[]}
  */
-export function quotedTextProblems(base = root, { doms = compiledDoms(base), checked = CHECKED_DIALECTS, unchecked = UNCHECKED } = {}) {
+export function quotedTextProblems(base = root, { loader, doms, checked = CHECKED_DIALECTS, unchecked = UNCHECKED } = {}) {
+  // The loader of the sources, made when first needed.
+  const sources = { readDocument: (/** @type {string} */ markdown, /** @type {string} */ file) => sourcesLoader().readDocument(markdown, file) };
+  const sourcesLoader = () => (loader ??= sourceLoader(base));
+  doms ??= sourceDoms(base, /** @type {any} */ (sources));
   const all = corpusCases(base);
   /** @type {Map<string, typeof all>} the cases of each text */
   const casesOf = new Map();
@@ -431,7 +439,7 @@ export function quotedTextProblems(base = root, { doms = compiledDoms(base), che
         const place = `tests/quoted-allow.txt:${entry.line}`;
         if (!c) problems.push(`${place}: no case has the id ${id}`);
         else if (role !== "words" && !holds(c, text)) problems.push(`${place}: neither the text nor the words of ${id} hold \`${text}\``);
-        else if (!showsRole(c, role, text, loaded)) problems.push(`${place}: ${id} does not show \`${text}\` as ${role === "reject" ? "a rejected text" : `one ${role}`}`);
+        else if (!showsRole(c, role, text, loaded, sourcesLoader())) problems.push(`${place}: ${id} does not show \`${text}\` as ${role === "reject" ? "a rejected text" : `one ${role}`}`);
         else {
           roles.set(c.dialect, role);
           inCore(id, place);
@@ -455,10 +463,10 @@ export function quotedTextProblems(base = root, { doms = compiledDoms(base), che
  * names the case. The corpus runner names them when the case fails, since
  * the prose there may be false.
  * @param {string} [base] the repository
- * @param {Map<string, any>} [doms] the DOMs of the grammar documents
+ * @param {{get: (file: string) => any}} [doms] the DOMs of the grammar documents
  * @returns {Map<string, string[]>}
  */
-export function quotingPlaces(base = root, doms = compiledDoms(base)) {
+export function quotingPlaces(base = root, doms = repositoryDoms(base)) {
   /** @type {Map<string, string[]>} the lines that quote each text, by document */
   const quoted = new Map();
   const names = dialectNames(base);
