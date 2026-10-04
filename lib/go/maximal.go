@@ -49,7 +49,7 @@ func newMaximal(rec *recognizer, stageWide bool) *maximal {
 
 // maximalElides is, for the helper of each elidable optional that
 // maximality restricts, the terminal it elides, and "" for every other
-// rule; nil where it restricts none. Lowering makes it once, with and
+// rule, or nil where it restricts none. Lowering makes it once, with and
 // without stage-wide maximal, since every nested query asks.
 func maximalElides(g *lowered, stageWide bool) []string {
 	var elides []string

@@ -28,7 +28,7 @@ type production struct {
 	tags         *domTerm         // nil: default tags (§4)
 	implicit     bool             // one symbol and no tags: the constituent has its symbol's tags (§3.7)
 	conds        []lcond
-	condFrom     []int32    // conds[condFrom[d]:condFrom[d+1]] are those triggered at dot d; nil for none
+	condFrom     []int32    // conds[condFrom[d]:condFrom[d+1]] are those triggered at dot d, or nil for none
 	predictConds []*domCond // conditions using no capture but $ of an empty production, checked at prediction
 	emit         *domEmit   // as dropped and simplified for the production (§3.6)
 	nothing      bool       // %emits ε: the constituent emits nothing and does not count (§11)
@@ -101,8 +101,8 @@ type lowered struct {
 	readingOnce sync.Once
 	reading     *readingSets
 	// elidable says, for each rule, whether it is the helper of an elidable
-	// optional, and anyElidable whether one is; made once, since every
-	// nested query asks (§3.8).
+	// optional, and anyElidable whether one is. Both are made once, since
+	// every nested query asks (§3.8).
 	elidable    []bool
 	anyElidable bool
 	// maximalElides is maximalElides without and with stage-wide maximal.

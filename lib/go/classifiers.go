@@ -124,8 +124,8 @@ func (g *stageGrammar) classifiers(features map[string]bool) *classifierTables {
 // resolveClassifiers applies the entries of the items in order, for a set
 // of features.
 func resolveClassifiers(items []classifierItem, features map[string]bool) *classifierTables {
-	// The classes of each key, each once, in the order added; sorted at the
-	// end. Inserting into a sorted list would copy or shift it at each
+	// The classes of each key, each once, in the order added. They are
+	// sorted at the end. Inserting into a sorted list would copy or shift it at each
 	// entry, so a key of K classes would cost K squared.
 	classes := map[string]map[string]*keyClasses{}
 	for _, it := range items {
