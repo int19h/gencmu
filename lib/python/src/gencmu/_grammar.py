@@ -193,16 +193,20 @@ each key's classes."""
 
 
 def _resolve_classifiers(items: list[tuple[str, Dom]], features: frozenset[str]) -> Classifiers:
-    tables: Classifiers = {}
+    # Each key's classes grow in one mutable set, frozen at the end, since
+    # a frozen set copied at each entry costs a key of C classes C².
+    building: dict[str, dict[str, set[str]]] = {}
     for path, classifier in items:
-        table = tables.setdefault(classifier["name"], {})
+        table = building.setdefault(classifier["name"], {})
         for entry in classifier["entries"]:
             if not all((guard["feature"] in features) != guard["negated"] for guard in entry["guards"]):
                 continue
             adds = entry["op"] == "∈"
             name = entry["class"]
             for key in entry["keys"]:
-                classes = table.get(key, EMPTY)
+                classes = table.get(key)
+                if classes is None:
+                    classes = table[key] = set()
                 if adds == (name in classes):
                     line, column = int(entry["at"][0]), int(entry["at"][1])
                     word = json.dumps(key, ensure_ascii=False)
@@ -210,8 +214,11 @@ def _resolve_classifiers(items: list[tuple[str, Dom]], features: frozenset[str])
                     # A lowering error is a result's, whose message alone
                     # names the entry (engine §2).
                     raise GencmuError(f"{path}:{line}:{column}: the classifier {classifier['name']}: {message}")
-                table[key] = classes | {name} if adds else classes - {name}
-    return tables
+                if adds:
+                    classes.add(name)
+                else:
+                    classes.discard(name)
+    return {name: {key: frozenset(classes) for key, classes in table.items()} for name, table in building.items()}
 
 
 def _error(message: str, document: str, at: Any = None, stage: str | None = None) -> GencmuError:

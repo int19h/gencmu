@@ -12,7 +12,7 @@ from typing import Callable
 
 from gencmu._clauses import definition_problem
 from gencmu._earley import EdgeSets, Evaluator, StageContext
-from gencmu._grammar import Lowered, _Constants, _Lowerer, stitch
+from gencmu._grammar import Lowered, _Constants, _Lowerer, _resolve_classifiers, stitch
 from gencmu._trampoline import run
 from gencmu._model import Token
 from gencmu._stage import implied
@@ -209,6 +209,18 @@ class SharedClauses(Linear):
             return lambda: stitch("s", [("t.md", dom)], dialect.unicode)
 
         self.assert_linear(make, 500)
+
+
+
+class Classifiers(Linear):
+    def test_a_key_of_many_classes_costs_its_classes(self) -> None:
+        # n entries, each giving the one key a class of its own.
+        def make(n: int) -> Callable[[], object]:
+            entries = [{"guards": [], "op": "∈", "class": f"C{index}", "keys": ["k"], "at": [1, 1]} for index in range(n)]
+            items = [("t.md", {"name": "c", "entries": entries})]
+            return lambda: [_resolve_classifiers(items, frozenset()) for _ in range(30)]
+
+        self.assert_linear(make, 2000)
 
 
 if __name__ == "__main__":
