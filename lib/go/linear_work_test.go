@@ -368,8 +368,8 @@ func TestEligibilityQueryConstant(t *testing.T) {
 	if !l.anyElidable {
 		t.Fatalf("no elidable optional in %d rules", n)
 	}
-	// The queries walk no production. A walk for each query would pass
-	// this budget at the second.
+	// The queries walk no production. A walk of the grammar for any query
+	// would pass this budget.
 	w := &workCounts{}
 	w.elidableSteps.most = int64(n)
 	r := &recognizer{g: l}
