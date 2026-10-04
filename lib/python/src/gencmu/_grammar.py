@@ -642,9 +642,29 @@ def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
     DOMs are shared by every stage and dialect that includes them, so the
     tests go into copies of the expressions that hold them."""
     copies: dict[int, Any] = {}
+    # Whether each node holds a test, by identity, found once: a walk of a
+    # node's whole subtree at each level of its nesting would cost a deep
+    # expression its depth times its size.
+    tested: dict[int, bool] = {}
+
+    def holds_test(node: Any) -> bool:
+        if not isinstance(node, dict):
+            return False
+        found = tested.get(id(node))
+        if found is None:
+            found = isinstance(node.get("test"), str)
+            for key in ("choice", "and", "seq"):
+                items = node.get(key)
+                if isinstance(items, list):
+                    found = any([holds_test(item) for item in items]) or found
+            for key in ("expr", "separator", "repeat", "optional"):
+                if key in node:
+                    found = holds_test(node[key]) or found
+            tested[id(node)] = found
+        return found
 
     def resolve(node: Any, alt: Alternative) -> Any:
-        if not isinstance(node, dict) or not tests_in(node):
+        if not isinstance(node, dict) or not holds_test(node):
             return node
         done = copies.get(id(node))
         if done is not None:

@@ -230,6 +230,29 @@ class SharedClauses(Linear):
         self.assert_linear(make, 500)
 
 
+    def test_resolving_the_tests_of_a_deep_expression_walks_it_once(self) -> None:
+        # n tested symbols inside n nested optionals, within the depth limit
+        # of 256: whether a node holds a test is found once for each node.
+        dialect, error = load_case_dialect({"grammar": "%rule text A"})
+        assert dialect is not None, error
+
+        def make(n: int) -> Callable[[], object]:
+            expr: dict = {"seq": [{"test": "=", "value": {"string": "a"}, "expr": {"ref": "A"}} for _ in range(n)]}
+            for _ in range(n):
+                expr = {"optional": expr}
+            rule = {"name": "text", "op": "define", "alternatives": [{"guards": [], "expr": expr}], "conditions": [], "at": [2, 1]}
+            dom = {
+                "format": 18,
+                "rules": [rule],
+                "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
+                "constants": [],
+                "classifiers": [],
+                "implications": [],
+            }
+            return lambda: [stitch("s", [("t.md", dom)], dialect.unicode) for _ in range(30)]
+
+        self.assert_linear(make, 60)
+
 
 class Classifiers(Linear):
     def test_a_key_of_many_classes_costs_its_classes(self) -> None:
