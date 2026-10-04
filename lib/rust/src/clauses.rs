@@ -938,15 +938,17 @@ mod tests {
     use crate::work::{assert_linear, assert_mutant_stops, Mutant, Work};
 
     /// A rule of n captures whose tag term reads each and whose emission
-    /// lists n inserted tags and then each capture: its checks cost about
-    /// n, not n².
+    /// lists n inserted tags and then each capture: its checks and the
+    /// walks of its clauses cost about n, not n².
     #[test]
     fn a_definition_of_many_captures_checks_in_linear_work() {
         let rules = [many_captures(8000), many_captures(32000)];
-        assert_linear(Work::Checked, 8000, &mut |n| {
+        let mut run = |n: usize| {
             let rule = &rules[usize::from(n != 8000)];
             assert_eq!(definition_problem(rule), None);
-        });
+        };
+        assert_linear(Work::Checked, 8000, &mut run);
+        assert_linear(Work::Walked, 8000, &mut run);
     }
 
     /// A copy of each sequence with its suffix, and a scan for the first
@@ -999,6 +1001,25 @@ mod tests {
         let mut run = |n: usize| assert!(duplicate_captures(&exprs[usize::from(n != 2000)]).is_empty());
         assert_linear(Work::Walked, 2000, &mut run);
         assert_mutant_stops(Work::Walked, Mutant::JoinIntoFirst, 2000, &mut run);
+    }
+
+    /// Braces around a sequence of n captures, whose captures no
+    /// production reads but whose indices count.
+    fn captures_in_braces(n: usize) -> Expr {
+        let items = (0..n).map(|index| Expr::Capture(format!("c{index}"), Box::new(Expr::Terminal("A".into()))));
+        Expr::Repeat(Box::new(Expr::Seq(items.collect())), None, None)
+    }
+
+    /// The captures inside braces are counted for their indices in one
+    /// walk, by the search for duplicates and by the capture sequences.
+    #[test]
+    fn captures_in_braces_are_counted_in_linear_work() {
+        let exprs = [captures_in_braces(2000), captures_in_braces(8000)];
+        assert_linear(Work::Walked, 2000, &mut |n| {
+            let expr = &exprs[usize::from(n != 2000)];
+            assert!(duplicate_captures(expr).is_empty());
+            assert_eq!(CaptureSequences::of(expr).names.len(), n);
+        });
     }
 
     /// A sequence of n captures of one name nested to the right, each level
