@@ -70,3 +70,17 @@ elision_check: Callable[[CheckRun], CheckWatch] | None = None
 FAULTS = ("reprocess", "again", "route3", "restore", "rank-restoration", "lost:context", "lost:select")
 
 faults: set[str] = set()
+
+# The sites of faults that a run entered while they were on, by name, or by
+# name and site after an @ for a fault with several. The fault test asserts
+# that its named cases enter every site that a fault declares.
+hits: set[str] = set()
+
+
+def fault(name: str, site: str = "") -> bool:
+    """Whether a fault is on, at one of its sites, which a fault that is on
+    records as entered."""
+    if not faults or name not in faults:
+        return False
+    hits.add(f"{name}@{site}" if site else name)
+    return True

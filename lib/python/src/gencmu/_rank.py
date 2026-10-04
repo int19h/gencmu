@@ -427,7 +427,7 @@ class Summaries:
         start, end = forest.origin[item], forest.end[item]
         found = []
         for index, (pred, kind, a, b) in enumerate(forest.edges[item]):
-            if kind == RESTORE and "rank-restoration" in _testing.faults:
+            if kind == RESTORE and _testing.fault("rank-restoration"):
                 # A fault gives a restoration no derivation (tests/README.md).
                 continue
             if kind == 0 or kind == RESTORE:
@@ -618,8 +618,8 @@ class Ranker(Summaries):
             # count or in the candidates (tests/README.md). Python's agenda
             # completes the restoring sibling first.
             sibling = self.check and edges > 1 and index == 0
-            counted = not (sibling and "lost:context" in _testing.faults)
-            selected = not (sibling and "lost:select" in _testing.faults)
+            counted = not (sibling and _testing.fault("lost:context"))
+            selected = not (sibling and _testing.fault("lost:select"))
             produced: list[Entry] = []
             if edge_kind == 0:
                 ways = 1

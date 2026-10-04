@@ -76,9 +76,13 @@ class Faults(unittest.TestCase):
         self.assertEqual(sorted(CATCHES), sorted(_testing.FAULTS), "the table names every fault, and only those")
         for fault, names in CATCHES.items():
             self.assertTrue(names, f"no case catches {fault}")
+            _testing.hits.clear()
             for name, how in names.items():
                 case = load_case(REPOSITORY / "tests" / "engine" / name)
                 self.assertEqual(catch(fault, case), how, f"{name} catches {fault}")
+            # The named cases enter every site of the fault, and no other.
+            # Each fault of this library has one site.
+            self.assertEqual(_testing.hits, {fault}, f"the sites that {fault} enters")
         self.assertIn(HOOK, [how for names in CATCHES.values() for how in names.values()], "no fault that only the hook catches")
 
     @unittest.skipUnless(os.environ.get("GENCMU_FAULTS_LIST"), "set GENCMU_FAULTS_LIST to list every catch")
