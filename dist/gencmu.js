@@ -3488,7 +3488,9 @@
             throw new GencmuError("grammar", `${path}:${at.line}: %extend-rule ${rule.name} extends a rule that is not defined before it`, at);
           }
           this.changes.push({ kind: "extended", rule: rule.name, document: path, previous: base.document });
-          base.alternatives = base.alternatives.concat(alternatives);
+          // Added in place: a copy of the list for each %extend-rule would
+          // cost the square of their number.
+          for (const alternative of alternatives) base.alternatives.push(alternative);
         }
       }
       for (const directive of dom.directives) {
@@ -3564,16 +3566,17 @@
         for (const entry of classifier.entries) {
           if (!entry.guards.every((guard) => features.has(guard.feature) !== guard.negated)) continue;
           for (const word of entry.keys) {
-            const classes = table.get(word) || tagSet();
+            let classes = table.get(word);
+            if (!classes) table.set(word, (classes = tagSet()));
             if ((entry.op === "∈") === classes.has(entry.class)) {
               const [line, column] = entry.at;
               const message = entry.op === "∈" ? `${JSON.stringify(word)} is already in ${entry.class}` : `${JSON.stringify(word)} is not in ${entry.class}, so ∉ has nothing to remove`;
               throw new GencmuError("grammar", `${path}:${line}:${column}: the classifier ${classifier.name}: ${message}`, { document: path, line, column });
             }
-            const changed = new Set(classes);
-            if (entry.op === "∈") changed.add(entry.class);
-            else changed.delete(entry.class);
-            table.set(word, changed);
+            // Each table's sets are its own, so an entry changes one in place:
+            // a copy for each entry would cost the square of a key's entries.
+            if (entry.op === "∈") classes.add(entry.class);
+            else classes.delete(entry.class);
           }
         }
       }
@@ -3790,6 +3793,9 @@
         if ("ref" in expr && !isTerminalName(expr.ref)) check(expr.ref, rule, alternative);
         for (const child of childExpressions(expr)) visit(child, rule, alternative);
       };
+      // The stage's classifiers by name, rather than a scan of them for each
+      // classifier a clause names.
+      const classifierNames = new Set(this.classifierItems.map((item) => item.classifier.name));
       for (const rule of this.rules.values()) {
         for (const alternative of rule.alternatives) {
           visit(alternative.expr, rule, alternative);
@@ -3798,7 +3804,7 @@
           for (const name of clauseRules(clauses)) check(name, rule, alternative);
           // A classifier that classify names belongs to the stage (engine §2).
           for (const name of clauseClassifiers(clauses)) {
-            if (!this.classifierItems.some((item) => item.classifier.name === name)) {
+            if (!classifierNames.has(name)) {
               throw new GencmuError("grammar", `${alternative.document}: ${rule.name} classifies with ${name}, which no %classifier of stage ${this.stageName} names`, alternative.at);
             }
           }
@@ -10063,7 +10069,7 @@
       }
       // A capture stands once in an emission, as an item or as an attachment.
       const named = items.flatMap((item) => (item.capture !== undefined && item.capture !== "" ? [item.capture, ...(item.before || []), ...(item.after || [])] : []));
-      if (named.some((name, index) => named.indexOf(name) !== index)) fail("%emits lists a capture twice", node);
+      if (new Set(named).size !== named.length) fail("%emits lists a capture twice", node);
       return { items };
     }
 
