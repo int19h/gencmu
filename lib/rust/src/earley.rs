@@ -704,8 +704,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     ) -> Result<(), EngineError> {
         let g = self.g;
         let production = &g.prods[item.prod as usize];
-        // A strict item never completes: the step drops it before its test,
-        // and evaluates nothing (§4, §7.4).
+        // A strict step that completes, route 3's read of T with nothing
+        // after it, makes a strict item at the end of its production. The
+        // step drops it before it evaluates anything (§4, §7.4; JS
+        // earley.js, the written routes).
         if strict && item.dot as usize + 1 == production.syms.len() {
             return Ok(());
         }

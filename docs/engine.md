@@ -212,15 +212,21 @@ The recognizer evaluates a condition, as simplified for its production (§3.6), 
 
 The recognizer evaluates a condition that uses no capture when it predicts the item. It does the same with a condition that uses only `$` in a production with no symbols, over the empty span there. So a rule whose only production has no symbols and the condition `initial($)` completes only at the start of the input. Anywhere else, the recognizer never advances an alternative that begins with that rule, and that alternative predicts nothing after the rule.
 
-A step of the recognizer is an advance of one item, or the prediction of one production at one position. Each step evaluates its parts in one order, and it stops at the first part that drops the item:
+A step of the recognizer is an advance of one item, or the prediction of one production at one position. Each step evaluates its parts in this order, and it stops at the first part that drops the item:
 
-1. In the check of §7, a strict item whose dot would reach the end of its production. The step drops it here (§7.4), before it evaluates anything.
+1. In the check of §7, a step whose new item is strict and stands at the end of its production. §7.4 drops that item before the step evaluates any condition or tag term.
 2. The test of the symbol that the step advances over, where that symbol has one.
 3. The conditions that the step makes ready, in their written order. A condition on captures and a condition on `$` that become ready at one advance keep that order. Each one stops early as §10 says. The first that fails drops the item.
-4. Where the step completes the item, its production's tag term. The recognizer evaluates it where a condition of step 3 first reads `tags($)` or `classes($)`. Otherwise it evaluates it once every ready condition holds. So a failing condition that does not read them stops the tag term. This holds also for a production with no symbols at its prediction.
-5. Within the tag term, where the alternative's own term and its definition's `%tags` join (§3.7), the alternative's own term comes first.
+4. Where the step completes the item, its production's tag term. The recognizer evaluates it where a condition of step 3 first reads `tags($)` or `classes($)`. Otherwise it evaluates it once every ready condition holds. So a failing condition that does not read them stops the tag term. This holds also for a production with no symbols at its prediction. How many times the step evaluates the tag term is not observable.
 
-The order is observable, because a test, a condition or a tag term can end the parse with an error of the grammar. Where another part drops the item first, that error never happens. The order between steps, between items and between sets is not observable. Every step that the rules of this section reach runs in the end, so the same errors happen. Two such errors differ only in their message.
+A condition or a tag term can end the parse with an error of the grammar. Where an earlier part drops the item, that error never happens. So the order of steps 3 and 4 after steps 1 and 2 is observable, and so is the written order within step 3.
+
+Two orders are free:
+
+- The drop of step 1 and the test of step 2. A test is an ordinary predicate and raises no error, and either one only removes the item. So both orders give the same items and the same errors.
+- The parts of one tag term. The alternative's own tag term and its definition's `%tags` join as a union (§3.7). Where both fail, the two orders differ only in which error's message the result has, and the message is free.
+
+The order between steps, between items and between sets is not observable either. Every step that the rules of this section reach runs in the end, so the same errors happen. §7.4 removes steps, and their errors with them. Two such errors differ only in their message.
 
 `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` each run a nested parse. A nested parse is one recognition over the span's tokens alone, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does.
 
@@ -526,7 +532,7 @@ An elidable optional (§3.8) has a helper `h`. Its productions are the empty pro
 
 Every production of the helper belongs to that elidable helper for the purpose of the routes, its content productions as well as its empty one. So a synthetic token followed by nothing else of the optional is always the restoration, and never a second derivation of the same omission. A synthetic token followed by more of the optional is the written route, which can read original tokens, later synthetic tokens, or both. An optional that is not elidable keeps its empty production as in §4. §3.8 alone decides which optionals are elidable, and this section does not change that.
 
-A strict item must read at least one token before it completes. In fact it never completes. A strict item whose dot would stand at the end of its production is dropped (§4). So route 3 never applies where the rest is empty. The recognizer decides once per grammar which productions and which symbols can read, with the routes of this mode:
+A strict item never completes. A step whose new item is strict and stands at the end of its production drops that item (§4). So route 3 never applies where the rest is empty. The recognizer decides once per grammar which productions and which symbols can read, with the routes of this mode:
 
 - A terminal can read.
 - A production can read where it holds a symbol that can read.
@@ -535,12 +541,13 @@ A strict item must read at least one token before it completes. In fact it never
 
 The sets of productions and symbols that can read are the least sets that these rules give. An implementation starts with nothing that can read and adds until nothing changes. So a rule that can read only through itself, such as `z → z`, cannot read. This ignores tests, conditions and the input. Every rule below that asks whether something can read uses this one definition.
 
-A production's last reading symbol is the last of its symbols that can read, where it has one. "A later symbol can read" means that the production's last reading symbol stands after the item's next symbol. Some symbol after the next one must read, not the one right after it. A strict item follows these rules:
+A production's last reading symbol is the last of its symbols that can read, where it has one. "A later symbol can read" means that the production's last reading symbol stands after the item's next symbol. It is enough that some symbol after the next one can read. It need not be the one right after it. A strict item follows these rules:
 
 - The new item is not strict where it reads a token other than the `T` of route 3. It is not strict either where it advances over a completed item whose span is not empty.
 - It can advance over a completed item with an empty span only where a later symbol can read. The new item is strict.
-- So a strict item never reaches the end of its production.
 - Where a later symbol can read, it predicts its next symbol in the ordinary way. Otherwise it predicts that symbol strictly. A strict prediction predicts only the productions that can read, restorations included. Its predicted items are strict, other than restorations, which are complete.
+
+So a strict item never reaches the end of its production.
 
 Strictness is not part of an item's identity. An item is strict where every step that makes it is strict. An item that an ordinary step reaches is ordinary from then on. The recognizer then applies to it every step that its strictness held back: the ordinary prediction of its next symbol, and its advances over empty constituents. This holds also where the recognizer has already processed the item as strict. So the order of the steps does not change the items.
 

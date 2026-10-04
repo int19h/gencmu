@@ -405,8 +405,10 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) {
 	p := it.prod
 	key := it.itemKey
 	pos := int(key.dot)
-	// A strict item never completes: the step drops it before its test, and
-	// evaluates nothing (§4, §7.4).
+	// A strict step that completes, route 3's read of T with nothing after
+	// it, makes a strict item at the end of its production. The step drops
+	// it before it evaluates anything (§4, §7.4; JS earley.js, the written
+	// routes).
 	if strict && pos+1 == len(p.rhs) {
 		return
 	}

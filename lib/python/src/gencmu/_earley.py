@@ -697,8 +697,11 @@ class Parser:
             production = productions[prod[item]]
             position = dot[item]
             if strict_step and position + 1 == len(production.rhs):
-                # A strict item never completes, so the path evaluates
-                # nothing more (engine §7.4).
+                # A strict step that completes, route 3's read of T with
+                # nothing after it, makes a strict item at the end of its
+                # production. The step drops it before it evaluates
+                # anything (engine §4, §7.4; JS earley.js, the written
+                # routes).
                 return
             # A tested symbol's test must hold of its own span and tags, which
             # is checked before any condition the advance makes ready (engine
