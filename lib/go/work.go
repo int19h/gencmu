@@ -44,8 +44,8 @@ import (
 //   - clauseSteps: the nodes of clauses that the checks of a definition
 //     and the resolver of constants walk.
 //   - emitSteps: the parts and anchors that an emission looks at.
-//   - classSteps: the entries and classes that resolving a classifier
-//     looks at.
+//   - classSteps: the classes that resolving a classifier looks at,
+//     indexes and compares as it sorts them, each before it does.
 //   - implicationSteps: the implications that a token's tags set off.
 //   - decodeSteps: the values that decoding a precompiled DOM reads.
 //   - elidableSteps: the productions that finding elidable helpers and

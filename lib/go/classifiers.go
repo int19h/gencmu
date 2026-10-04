@@ -2,7 +2,6 @@ package gencmu
 
 import (
 	"fmt"
-	"sort"
 	"strconv"
 	"sync"
 )
@@ -169,10 +168,11 @@ func resolveClassifiers(items []classifierItem, features map[string]bool) *class
 		values := make(map[string]*constValue, len(table))
 		for word, held := range table {
 			names := held.names
+			var c *workCount
 			if w := work.Load(); w != nil {
-				w.classSteps.addN(int64(len(names)), "class steps")
+				c = &w.classSteps
 			}
-			sort.Strings(names)
+			sortStrings(names, c, "class steps")
 			if len(names) == 0 {
 				names = []string{}
 			}
@@ -220,11 +220,12 @@ func (k *keyClasses) add(class string) {
 	if k.index != nil {
 		k.index[class] = len(k.names) - 1
 	} else if len(k.names) > keyScanLimit {
-		if w := work.Load(); w != nil {
-			w.classSteps.addN(int64(len(k.names)), "class steps")
-		}
+		w := work.Load()
 		k.index = make(map[string]int, 2*len(k.names))
 		for i, name := range k.names {
+			if w != nil {
+				w.classSteps.add("class steps")
+			}
 			k.index[name] = i
 		}
 	}

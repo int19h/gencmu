@@ -311,10 +311,11 @@ func TestClassesLinear(t *testing.T) {
 		for i := range n / 2 {
 			c.Entries = append(c.Entries, &domEntry{Keys: []string{"a"}, Op: "∉", Class: fmt.Sprintf("C%d", 2*i+1)})
 		}
-		// Each entry looks at a bounded number of classes. A copy of the
-		// key's classes at each entry would cost them their square.
+		// Each entry looks at a bounded number of classes, and the sort at
+		// the end makes n log n comparisons. A copy of the key's classes at
+		// each entry would cost them their square.
 		w := &workCounts{}
-		w.classSteps.most = 4 * int64(n)
+		w.classSteps.most = int64(n) * (4 + int64(bits.Len(uint(n))))
 		var tables *classifierTables
 		countWorkIn(w, func() { tables = resolveClassifiers([]classifierItem{{classifier: c}}, nil) })
 		if tables.fault != "" || len(tables.tables["c"]["a"].names) != n/2 {
