@@ -15,7 +15,7 @@ from ._eligible import eligible
 from ._errors import _GrammarFault
 from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._model import Range, Tags, Token
-from ._tags import EMPTY, TagTable, code_of_character_tag, difference, intersection, is_class, is_name, range_tags, split_string, union
+from ._tags import EMPTY, Gathered, TagTable, code_of_character_tag, difference, intersection, is_class, is_name, range_tags, split_string
 from ._trampoline import Walk, run
 from ._unicode import UnicodeTable
 
@@ -412,10 +412,10 @@ class StageContext:
         # that have an eligible proof tree, under written-terminator
         # priority (engine §4).
         found_items = eligible(forest, forest.roots, self, start)
-        tags: Tags = EMPTY
+        gathered = Gathered()
         for root in found_items:
-            tags = union(tags, self.tagtab.get(forest.tag[root]))
-        answer = NestedAnswer(bool(found_items), tags)
+            gathered.add(self.tagtab.get(forest.tag[root]))
+        answer = NestedAnswer(bool(found_items), gathered.value())
         self.memo[key] = answer
         return answer
 
@@ -539,12 +539,10 @@ class Evaluator:
         # One set grows over the span, since a union per token would copy
         # the tags gathered so far at every token.
         tokens = self.context.tokens
-        if end - start == 1:
-            return tokens[start].tags
-        result: set[str] = set()
+        gathered = Gathered()
         for index in range(start, end):
-            result.update(tokens[index].tags)
-        return frozenset(result) if result else EMPTY
+            gathered.add(tokens[index].tags)
+        return gathered.value()
 
     def phonemes(self, start: int, end: int) -> str:
         """The canonical sound of tokens start..end (engine §5)."""
@@ -575,10 +573,10 @@ class Evaluator:
                 return _as_set((yield self._value(dom["then"], bound)))
             return EMPTY
         if "union" in dom:
-            result: frozenset[str] = EMPTY
+            gathered = Gathered()
             for item in dom["union"]:
-                result = union(result, _as_set((yield self._value(item, bound))))
-            return result
+                gathered.add(_as_set((yield self._value(item, bound))))
+            return gathered.value()
         if "intersection" in dom:
             parts = dom["intersection"]
             result = _as_set((yield self._value(parts[0], bound)))

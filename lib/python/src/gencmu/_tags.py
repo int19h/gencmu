@@ -28,6 +28,32 @@ def union(left: Tags, right: Tags) -> Tags:
     return left | right
 
 
+class Gathered:
+    """The union of many tag sets, added one at a time. A fold of
+    ``union`` copies the tags gathered so far at each set, so this grows
+    one mutable set, made only once a second set adds a tag."""
+
+    __slots__ = ("first", "grown")
+
+    def __init__(self) -> None:
+        self.first: Tags = EMPTY
+        self.grown: set[str] | None = None
+
+    def add(self, part: Tags) -> None:
+        if not part:
+            return
+        if self.grown is not None:
+            self.grown.update(part)
+        elif not self.first:
+            self.first = part
+        else:
+            self.grown = set(self.first)
+            self.grown.update(part)
+
+    def value(self) -> Tags:
+        return self.first if self.grown is None else frozenset(self.grown)
+
+
 def intersection(left: Tags, right: Tags) -> Tags:
     """The tags of both."""
     return left & right

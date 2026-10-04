@@ -14,6 +14,7 @@ from ._errors import ErrorData, GencmuError
 from ._recent import Recent
 from ._tags import (
     EMPTY,
+    Gathered,
     code_of_character_tag,
     difference,
     intersection,
@@ -22,7 +23,6 @@ from ._tags import (
     range_name,
     range_tags,
     split_string,
-    union,
     written_test,
 )
 from ._trampoline import Walk, run
@@ -307,10 +307,10 @@ class _Constants:
         if "const" in term:
             return self.values[term["const"]].value
         if "union" in term:
-            result: Any = EMPTY
+            gathered = Gathered()
             for part in term["union"]:
-                result = union(result, _set((yield self._closed(path, part, item))))
-            return result
+                gathered.add(_set((yield self._closed(path, part, item))))
+            return gathered.value()
         if "intersection" in term:
             parts = term["intersection"]
             result = _set((yield self._closed(path, parts[0], item)))

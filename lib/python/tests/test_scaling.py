@@ -10,6 +10,8 @@ import unittest
 from typing import Callable
 
 from gencmu._earley import Evaluator, StageContext
+from gencmu._grammar import _Constants
+from gencmu._trampoline import run
 from gencmu._model import Token
 
 from .shared import load_case_dialect
@@ -64,9 +66,29 @@ class SpanReads(Linear):
             tokens = [Token("a", frozenset({"A"}), (index, index + 1), (index, index + 1), "" if index else "a") for index in range(n)]
             context = stage_context(tokens)
             context.sound_is("a", 0, 1)
-            return lambda: [context.sound_is("a", 0, end) for _ in range(50) for end in range(1, n + 1)]
+            return lambda: [context.sound_is("a", 0, end) for _ in range(100) for end in range(1, n + 1)]
 
         self.assert_linear(make, 1000)
+
+
+
+class UnionFolds(Linear):
+    def test_a_union_of_many_parts_costs_its_parts(self) -> None:
+        # Each part adds a tag of its own, so the union grows at each part,
+        # in a parse's term and in a constant's alike.
+        def make(n: int) -> Callable[[], object]:
+            term = {"union": [{"tag": f"t{index}"} for index in range(n)]}
+            evaluator = Evaluator(stage_context([]), 0, 0)
+            constants = _Constants("s", None)  # type: ignore[arg-type]
+
+            def work() -> None:
+                for _ in range(10):
+                    assert len(evaluator.value(term, None)) == n  # type: ignore[arg-type]
+                    assert len(run(constants._closed("a.md", term, None))) == n
+
+            return work
+
+        self.assert_linear(make, 2000)
 
 
 if __name__ == "__main__":
