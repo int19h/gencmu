@@ -122,13 +122,15 @@ export function quotedTexts(markdown, dialects = dialectNames()) {
  */
 export function proseOf(block, { lists = true } = {}) {
   let prose = "";
-  /** @param {any} node */
-  const visit = (node) => {
+  // An explicit stack, since Markdown can nest deeper than the call stack.
+  /** @type {any[]} */
+  const stack = [block];
+  for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
     if (node.type === "text") prose += node.value;
     else if (node.type === "inlineCode" || PROSE.has(node.type)) prose += " ";
-    for (const child of node.children || []) if (lists || child.type !== "list") visit(child);
-  };
-  visit(block);
+    const children = node.children || [];
+    for (let index = children.length - 1; index >= 0; index--) if (lists || children[index].type !== "list") stack.push(children[index]);
+  }
   return prose;
 }
 
@@ -183,19 +185,22 @@ export function documentDialects(base = root, doms = repositoryDoms(base)) {
   const dialects = new Map();
   for (const document of dialectDocuments(base)) {
     const dialect = path.posix.basename(document, ".md");
-    /** @param {string} file the path under grammars/ */
-    const visit = (file) => {
+    // The documents to visit, each path under grammars/, in the order of a
+    // walk down the includes. An explicit stack, since a chain of includes
+    // can be longer than the call stack is deep.
+    const stack = [document.slice("grammars/".length)];
+    for (let file = stack.pop(); file !== undefined; file = stack.pop()) {
       const key = `grammars/${file}`;
       if (!dialects.has(key)) dialects.set(key, []);
-      if (dialects.get(key).includes(dialect)) return;
+      if (dialects.get(key).includes(dialect)) continue;
       dialects.get(key).push(dialect);
-      for (const directive of (doms.get(file) || { directives: [] }).directives) {
+      const directives = (doms.get(file) || { directives: [] }).directives;
+      for (let index = directives.length - 1; index >= 0; index--) {
         // The path as the pipeline resolves it (lib/js/src/pipeline.js), so
         // a `..` above the grammars drops out there as here.
-        if (directive.name === "include") visit(resolvePath(file, directive.args[0]));
+        if (directives[index].name === "include") stack.push(resolvePath(file, directives[index].args[0]));
       }
-    };
-    visit(document.slice("grammars/".length));
+    }
   }
   return dialects;
 }
@@ -572,11 +577,14 @@ export function hasNodeWithWords(tree, input, role, wanted) {
  */
 function together(points, tokens) {
   const covered = new Set();
-  const cover = (/** @type {any} */ token) => {
+  // An explicit stack, since attachments can nest as deep as a text is long.
+  /** @type {any[]} */
+  const stack = [...tokens];
+  for (let token = stack.pop(); token !== undefined; token = stack.pop()) {
     if (token.source) for (let index = token.source[0]; index < token.source[1]; index++) covered.add(index);
-    for (const attached of [...(token.before || []), ...(token.after || [])]) cover(attached);
-  };
-  tokens.forEach(cover);
+    for (const attached of token.before || []) stack.push(attached);
+    for (const attached of token.after || []) stack.push(attached);
+  }
   let start = Infinity;
   let end = -Infinity;
   for (const index of covered) {
