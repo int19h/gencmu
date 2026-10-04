@@ -1,10 +1,10 @@
 {
-  "description": "`%ab?` is the unknown keyword `%a` and the guard `b?`, since `%ab` would leave `?`. The syntax error stands at the keyword, which begins no item (engine §9).",
+  "description": "`%ab?` cannot be read as tokens. A keyword's name is a whole run of name characters, so `%ab` leaves `?`, and `%` alone is no token. The error stands at the `?` (engine §9).",
   "document": "```jbogenbau\n%ab? %rule t A\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 1
+      "column": 4
     }
   }
 }

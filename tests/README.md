@@ -159,9 +159,11 @@ Each item says that a bundled dialect's work on a long text grows in proportion 
 
 Each item says that reading a document whose constructs nest deep costs work in proportion to its length. A reader that types or copies a whole subtree at each level of nesting makes a deep document cost the square of its depth. No other case shows that.
 
+Some items repeat no nesting but one long token, such as a name, a comment or a string. Each says that the lexical stage reads a long token in work in proportion to its length. A lexer that tries every prefix of a name, or scans to a token's end again from each character inside it, makes the token cost the square of its length.
+
 The library builds the document `prefix`, `open` n times, `middle`, `close` n times and `suffix`, in a fence. It builds it for n = 250 and for n = 1000. It reads each once with its reader, after one read that loads the notation. The read can end in an error. The library counts the items that its recognizer makes and the steps of its reader and of the walks of what the reader reads. The count for 1000 must be at most five times the count for 250.
 
-The JavaScript library also reads each document with the hand-written bootstrap reader. The Rust library reads each on a thread with a stack of 2 MiB, which no depth changes. The Go library also reads each nested 20,000 deep, with the stack of a goroutine held to 1 MiB. A reader or a walk that recursed as deep as the document nests ends the process there.
+The JavaScript library also reads each document with the hand-written bootstrap reader, whose lexer counts its steps too. The Rust library reads each on a thread with a stack of 2 MiB, which no depth changes. The Go library also reads each nested 20,000 deep, with the stack of a goroutine held to 1 MiB. A reader or a walk that recursed as deep as the document nests ends the process there.
 
 A library compares only its own two counts. Counts from different libraries are not compared, since each library makes its items in its own way.
 

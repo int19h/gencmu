@@ -13,7 +13,7 @@ import fs from "node:fs";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
 import { domOfTree } from "../lib/js/src/dialect.js";
 import { GencmuError } from "../lib/js/src/errors.js";
-import { run } from "../lib/js/src/trampoline.js";
+import { run, walkCounter } from "../lib/js/src/trampoline.js";
 import { UnicodeTable } from "../lib/js/src/unicode.js";
 
 // The lowercase mapping that the string of a sound test is checked against,
@@ -51,63 +51,74 @@ const isCapital = (text) => /^[A-Z]/.test(text);
 // still be read: `$a?` is `$` and the guard `a?`, since `$a` leaves `?`.
 // A text that cannot be read is an error at the furthest character that
 // any reading reached, where the lexical stage reports it.
+//
+// A name in a token is a whole run of name characters, so each place has a
+// few pieces at most. The ends of runs, comments and quoted tokens are
+// found once for the whole text, so the lexer's work grows with the
+// text's length; each step of it counts in `walkCounter` (tests/README.md).
 function lex(text, positions) {
   const chars = [...text];
   const n = chars.length;
   const at = (index) => positions[index] || positions[positions.length - 1] || [1, 1];
   const isLetter = (c) => c !== undefined && /^[A-Za-z]$/.test(c);
   const isNameChar = (c) => c !== undefined && /^[A-Za-z0-9-]$/.test(c);
-  // The end of the run of name characters from `from`.
-  const runEnd = (from) => {
-    let j = from;
-    while (isNameChar(chars[j])) j++;
-    return j;
-  };
-  // The end of a quoted token whose body begins at `from`, where a
-  // backslash escapes any character, or the end of the text.
-  const quotedEnd = (from, quote) => {
-    let j = from;
-    while (j < n && chars[j] !== quote) j += chars[j] === "\\" ? 2 : 1;
-    return Math.min(j + 1, n + 1);
-  };
+  // For each place: the end of the run of name characters from it; the
+  // first `*)` at or after it; and, for each quote, the end of a quoted
+  // body that begins there, where a backslash escapes any character.
+  const runEnds = new Array(n + 2).fill(n);
+  const closes = new Array(n + 2).fill(n);
+  /** @type {Record<string, number[]>} */
+  const bodyEnds = { '"': new Array(n + 3).fill(n), "'": new Array(n + 3).fill(n) };
+  for (let i = n - 1; i >= 0; i--) {
+    walkCounter.steps++;
+    runEnds[i] = isNameChar(chars[i]) ? runEnds[i + 1] : i;
+    closes[i] = chars[i] === "*" && chars[i + 1] === ")" ? i : closes[i + 1];
+    for (const quote of ['"', "'"]) {
+      const ends = bodyEnds[quote];
+      ends[i] = chars[i] === quote ? i : chars[i] === "\\" ? ends[i + 2] : ends[i + 1];
+    }
+  }
+  // The end of a quoted token whose body begins at `from`, or one past the
+  // end of the text.
+  const quotedEnd = (from, quote) => Math.min(bodyEnds[quote][from] + 1, n + 1);
   // Whether a guard begins at `j`: a name and `?` or `!`, or `¬`, a name
   // and `?`.
-  const guardAt = (j) => (isLetter(chars[j]) && (chars[runEnd(j)] === "?" || chars[runEnd(j)] === "!")) ||
-    (chars[j] === "¬" && isLetter(chars[j + 1]) && chars[runEnd(j + 1)] === "?");
+  const guardAt = (j) => (isLetter(chars[j]) && (chars[runEnds[j]] === "?" || chars[runEnds[j]] === "!")) ||
+    (chars[j] === "¬" && isLetter(chars[j + 1]) && chars[runEnds[j + 1]] === "?");
   // The pieces that can begin at `i`, each its end and its kind (null for
   // layout), longest first, and the furthest character that any of them,
   // complete or not, reaches.
   const pieces = (i) => {
+    walkCounter.steps++;
     const c = chars[i];
     /** @type {[number, string | null][]} */
     const found = [];
     let reach = i;
-    // A name with a prefix (`$`, `%`, `~`), at every length.
+    // A whole name with a prefix (`$`, `%`, `~`).
     const prefixed = (from, kindOf) => {
       if (!isLetter(chars[from])) return;
-      const end = runEnd(from);
-      for (let j = end; j > from; j--) found.push([j, kindOf(chars.slice(i, j).join(""))]);
+      const end = runEnds[from];
+      found.push([end, kindOf(chars.slice(i, end).join(""))]);
       reach = Math.max(reach, end);
     };
     if (/^\p{White_Space}$/u.test(c)) found.push([i + 1, null]);
     if (c === "(" && chars[i + 1] === "*") {
-      let j = i + 2;
-      while (j < n && !(chars[j] === "*" && chars[j + 1] === ")")) j++;
+      const j = closes[i + 2];
       if (j < n) found.push([j + 2, null]);
       reach = Math.max(reach, Math.min(j + 2, n));
     }
     if (isLetter(c)) {
-      // A name at every length, or the whole run and `?` or `!`, a guard.
-      const end = runEnd(i);
+      // A whole name, or the whole run and `?` or `!`, a guard.
+      const end = runEnds[i];
       if (chars[end] === "?" || chars[end] === "!") found.push([end + 1, "guard"]);
-      for (let j = end; j > i; j--) found.push([j, "identifier"]);
+      found.push([end, "identifier"]);
       reach = Math.max(reach, end);
     }
     if (c === "¬") {
       // `¬`, a negation, unless a guard begins after it; or `¬`, a name
       // and `?`, a guard. The negation reads its `¬` before its condition
       // fails.
-      const end = isLetter(chars[i + 1]) ? runEnd(i + 1) : i + 1;
+      const end = isLetter(chars[i + 1]) ? runEnds[i + 1] : i + 1;
       if (end > i + 1 && chars[end] === "?") found.push([end + 1, "guard"]);
       if (!guardAt(i + 1)) found.push([i + 1, "¬"]);
       reach = Math.max(reach, end, i + 1);
@@ -154,6 +165,7 @@ function lex(text, positions) {
     reached[0] = true;
     let furthest = 0;
     for (let i = 0; i < n; i++) {
+      walkCounter.steps++;
       if (!reached[i]) continue;
       furthest = Math.max(furthest, starting[i].reach);
       for (const [end] of starting[i].found) reached[end] = true;
@@ -163,6 +175,7 @@ function lex(text, positions) {
   const tokens = [];
   let i = 0;
   while (i < n) {
+    walkCounter.steps++;
     const [end, kind] = /** @type {[number, string | null]} */ (starting[i].found.find(([e]) => readable[e]));
     if (kind !== null) tokens.push({ kind, text: chars.slice(i, end).join(""), at: at(i), end: at(end) });
     i = end;

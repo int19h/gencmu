@@ -1,10 +1,10 @@
 {
-  "description": "`~ab?` is the tag literal `~a` and the guard `b?`, since `~ab` would leave `?`. The syntax error stands at the guard, which cannot follow a symbol (engine §9).",
+  "description": "`~ab?` cannot be read as tokens. A tag literal's name is a whole run of name characters, so `~ab` leaves `?`, and `~` alone is no token. The error stands at the `?` (engine §9).",
   "document": "```jbogenbau\n%rule t A ~ab?\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 13
+      "column": 14
     }
   }
 }

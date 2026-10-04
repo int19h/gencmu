@@ -1,10 +1,10 @@
 {
-  "description": "`$Ab?` is the constant `$A` and the guard `b?`: `$Ab` would leave `?`, and the longest first token that leaves a readable rest is `$A`. The syntax error stands at the guard (engine §9).",
+  "description": "`$Ab?` is `$` and the guard `Ab?`, since a name in a token is a whole run of name characters and `$Ab` would leave `?`. The syntax error stands at the guard, where the capture needs `(` (engine §9).",
   "document": "```jbogenbau\n%rule t A $Ab?\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 13
+      "column": 12
     }
   }
 }

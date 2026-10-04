@@ -97,5 +97,77 @@
     "middle": "$x",
     "close": ")",
     "suffix": ""
+  },
+  {
+    "name": "long-name",
+    "description": "A rule name of many characters, which the lexical stage reads as one token.",
+    "prefix": "%rule a b",
+    "open": "c",
+    "middle": "",
+    "close": "",
+    "suffix": " B"
+  },
+  {
+    "name": "long-capture",
+    "description": "A capture name of many characters.",
+    "prefix": "%rule a $b",
+    "open": "c",
+    "middle": "",
+    "close": "",
+    "suffix": "(B)"
+  },
+  {
+    "name": "long-guard",
+    "description": "A guard name of many characters.",
+    "prefix": "%rule a f",
+    "open": "x",
+    "middle": "",
+    "close": "",
+    "suffix": "? B"
+  },
+  {
+    "name": "long-tag",
+    "description": "A tag literal of many characters in a tag term.",
+    "prefix": "%rule a B %tags ~t",
+    "open": "x",
+    "middle": "",
+    "close": "",
+    "suffix": ""
+  },
+  {
+    "name": "long-comment",
+    "description": "A comment of many characters.",
+    "prefix": "%rule a (*",
+    "open": "x",
+    "middle": "",
+    "close": "",
+    "suffix": "*) B"
+  },
+  {
+    "name": "comment-of-openers",
+    "description": "A comment that holds many quotes, comment openers and prefixes, each of which could begin a token.",
+    "prefix": "%rule a (*",
+    "open": "'\"(*$a%b~c¬d",
+    "middle": "",
+    "close": "",
+    "suffix": "*) B"
+  },
+  {
+    "name": "long-string",
+    "description": "A string of many characters in a test.",
+    "prefix": "%rule a B=\"",
+    "open": "x",
+    "middle": "",
+    "close": "",
+    "suffix": "\""
+  },
+  {
+    "name": "string-of-escapes",
+    "description": "A string of many escaped quotes and backslashes in a test.",
+    "prefix": "%rule a B=\"",
+    "open": "\\\"\\\\",
+    "middle": "",
+    "close": "",
+    "suffix": "\""
   }
 ]

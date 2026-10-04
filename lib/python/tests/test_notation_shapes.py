@@ -65,7 +65,7 @@ class NotationShapes(unittest.TestCase):
         """Each notation stage runs the check of elision-only where its own
         directive declares it (engine §8). With greedy and elision-only on
         the lexical stage, the check finds the ambiguity that greedy settled
-        in the pipeline document itself, and the document does not load."""
+        in `++`, which is also two `+`, and the document does not load."""
         directive = '"name":"ambiguity-resolution","args":["greedy"]'
         lexical = BOOTSTRAP.index('"path":"notation/lexical.md"')
         at = BOOTSTRAP.index(directive)
@@ -75,7 +75,7 @@ class NotationShapes(unittest.TestCase):
         def sources(bootstrap: str) -> dict[str, str]:
             return {
                 "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
-                "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A B\n```\n",
+                "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A [++B]\n```\n",
                 "notation/bootstrap.json": bootstrap,
             }
 
