@@ -61,15 +61,21 @@ class Caps:
     def __getitem__(self, slot: int) -> tuple[int, int, int]:
         """One slot's part, the last in constant time and an earlier one by
         the jumps; ``parts`` reads them all in one walk."""
+        return self.find(slot)[0]
+
+    def find(self, slot: int) -> tuple[tuple[int, int, int], int]:
+        """One slot's part, with the steps the search took, which tell
+        :class:`Bound` when one walk of every part would cost less."""
         if not 0 <= slot < self.size:
             raise IndexError(slot)
         found: Caps = self
+        steps = 0
         while found.size > slot + 1:
             jump = found.jump
             found = jump if jump is not None and jump.size >= slot + 1 else found.parent  # type: ignore[assignment]
-            recognizer_counters.capture_steps += 1
+            steps += 1
         assert found.part is not None
-        return found.part
+        return found.part, steps
 
     def parts(self) -> list[tuple[int, int, int]]:
         """Every slot's part, in slot order, read in one walk."""
@@ -78,7 +84,6 @@ class Caps:
         while found is not None and found.part is not None:
             out.append(found.part)
             found = found.parent
-            recognizer_counters.capture_steps += 1
         out.reverse()
         return out
 
@@ -130,9 +135,8 @@ class Bound:
                 if self.all is not None:
                     start, end, tag = self.all[slot]
                 else:
-                    before = recognizer_counters.capture_steps
-                    start, end, tag = caps[slot]
-                    self.searched += recognizer_counters.capture_steps - before + 1
+                    (start, end, tag), steps = caps.find(slot)
+                    self.searched += steps + 1
                 if self.project is None:
                     result = (start + self.base, end + self.base, tag)
                 else:
@@ -150,20 +154,6 @@ CONTENT_KEY_LIMIT = 64
 """The most tokens a span may have for a nested parse's answer to be kept
 under its content, which equal spans at other positions share; a longer span
 is kept under its position (engine §4)."""
-
-
-class RecognizerCounters:
-    """How many items and captured parts the recognizer has made, in parses
-    and nested parses alike: measures of work and storage that tests compare
-    across input lengths."""
-
-    items = 0
-    captures = 0
-    # The steps taken through the shared captured parts, to read them.
-    capture_steps = 0
-
-
-recognizer_counters = RecognizerCounters()
 
 
 class EdgeSets:
@@ -882,7 +872,6 @@ class Parser:
                 found = extended.get(step)
                 if found is None:
                     found = extended[step] = Caps(captured, part)
-                    recognizer_counters.captures += 1
                 captured = found
             conditions = production.conds_at.get(position)
             if conditions:

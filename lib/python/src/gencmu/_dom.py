@@ -10,7 +10,7 @@ from ._errors import GencmuError
 from ._markdown import GrammarText
 from ._model import Node, Token
 from ._tags import character_tag
-from ._trampoline import Walk, run, walk_counter
+from ._trampoline import Walk, run
 from ._types import (
     comparison_problem,
     Memo as TypeMemo,
@@ -1023,7 +1023,6 @@ def flatten_groups(root: Any) -> None:
     once."""
     stack: list[Any] = [root]
     while stack:
-        walk_counter.steps += 1
         current = stack.pop()
         if isinstance(current, list):
             stack.extend(current)
@@ -1037,7 +1036,6 @@ def flatten_groups(root: Any) -> None:
             joined: list[Any] = []
             pending = list(reversed(items))
             while pending:
-                walk_counter.steps += 1
                 item = pending.pop()
                 inner = item.get(key) if isinstance(item, dict) else None
                 if isinstance(inner, list):

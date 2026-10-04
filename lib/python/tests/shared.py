@@ -3,15 +3,19 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from dataclasses import replace
+from dataclasses import dataclass, replace
+import bisect
 import faulthandler
+import inspect
 import json
+import linecache
 import os
 from pathlib import Path
 import signal
 import sys
 import threading
-from typing import Any, Iterator
+from types import CodeType, FrameType
+from typing import Any, Callable, Iterator
 
 import gencmu
 from gencmu._model import Token
@@ -27,79 +31,281 @@ CASE_SECONDS = float(os.environ.get("GENCMU_CASE_TIMEOUT", "60"))
 failure. GENCMU_CASE_TIMEOUT sets it."""
 
 
-class RecognizerWork:
-    """The items that the recognizer made while :func:`count_items` was
-    counting."""
+class Work:
+    """The work that :func:`count_work` has counted so far."""
 
-    items = 0
+    def __init__(self) -> None:
+        self.count = 0
 
 
-class OverItems(BaseException):
-    """A parse that made more items than :func:`count_items` allowed it,
-    raised at the first item past the budget, so that a regression to
-    quadratic work fails by its count and does not run on. A
-    BaseException, which no handler of the library's catches."""
+class OverBudget(BaseException):
+    """Work past the budget that :func:`count_work` allowed, raised at the
+    first unit past it, so that a regression to quadratic work fails by its
+    count and does not run on. A BaseException, which no handler of the
+    library's catches."""
+
+
+Weight = Callable[[FrameType], "int | Callable[[], int]"]
+"""What one call or step adds to the count, read from the running frame.
+For a call, it can instead give a function that gives the count once the
+call returns."""
+
+
+@dataclass
+class Watch:
+    """What :func:`count_work` counts: the calls of some code, or the steps
+    of some code, which are the lines it runs, each loop pass included.
+    Make one with :func:`calls`, :func:`steps` or :func:`made_items`."""
+
+    calls: bool
+    # Each code object watched, with the lines of it that count, or None
+    # where every line counts.
+    codes: dict[CodeType, frozenset[int] | None]
+    weight: Weight | None = None
+
+
+def code_of(target: Any, *nested: str) -> CodeType:
+    """The code of a function or method, or of the function by the names
+    ``nested`` defined within it, one inside the other."""
+    code: CodeType = target if isinstance(target, CodeType) else inspect.unwrap(target).__code__
+    for name in nested:
+        found = next((const for const in code.co_consts if isinstance(const, CodeType) and const.co_name == name), None)
+        assert found is not None, f"{code.co_name} defines no {name}"
+        code = found
+    return code
+
+
+def _codes(target: Any) -> list[CodeType]:
+    """The code objects of a function, a code object, or every function of
+    a class or a module that it defines itself."""
+    if isinstance(target, CodeType):
+        return [target]
+    if isinstance(target, (property, staticmethod, classmethod)):
+        target = target.fget if isinstance(target, property) else target.__func__
+    if inspect.isfunction(target) or inspect.ismethod(target):
+        return [code_of(target)]
+    if inspect.isclass(target) or inspect.ismodule(target):
+        owner = target.__name__ if inspect.ismodule(target) else target.__module__
+        found: list[CodeType] = []
+        for value in vars(target).values():
+            if inspect.isclass(value) and value.__module__ == owner and not inspect.isclass(target):
+                found.extend(_codes(value))
+            elif isinstance(value, (property, staticmethod, classmethod)) or inspect.isfunction(value):
+                function = value.fget if isinstance(value, property) else getattr(value, "__func__", value)
+                if function is not None and function.__module__ == owner:
+                    found.append(code_of(function))
+        return found
+    raise TypeError(f"cannot watch {target!r}")
+
+
+def _within(code: CodeType) -> Iterator[CodeType]:
+    """A code object and every code object defined inside it, such as its
+    comprehensions before Python 3.12 inlined them."""
+    yield code
+    for const in code.co_consts:
+        if isinstance(const, CodeType):
+            yield from _within(const)
+
+
+def calls(target: Any, weight: Weight | None = None) -> Watch:
+    """Count each call of a function, of the functions of a class or a
+    module, or of a code object (see :func:`code_of`), as one, or as
+    ``weight`` says. The code must not be a generator's, since the fallback
+    before Python 3.12 would count each of its resumptions as a call."""
+    codes = _codes(target)
+    for code in codes:
+        assert not code.co_flags & inspect.CO_GENERATOR, f"{code.co_name} is a generator"
+    return Watch(True, {code: None for code in codes}, weight)
+
+
+def steps(target: Any, line: str | None = None, weight: Weight | None = None) -> Watch:
+    """Count each line that a function runs, with the functions defined
+    inside it, or those of a class or a module, as one, or as ``weight``
+    says. A loop's line counts at each pass. With ``line``, only the lines
+    whose source holds that text count, such as the first line of a loop's
+    body.
+
+    Only Python's own steps count: a step of C, such as a copy of a list or
+    a search by ``in``, is one step, however long. A test that guards
+    against such work gives the line a weight, or counts the calls of its
+    own data's methods, which the C code calls."""
+    codes: dict[CodeType, frozenset[int] | None] = {}
+    for top in _codes(target):
+        for code in _within(top):
+            if line is None:
+                codes[code] = None
+                continue
+            numbers = frozenset(
+                number
+                for _, _, number in code.co_lines()
+                if number is not None and line in linecache.getline(code.co_filename, number)
+            )
+            if numbers:
+                codes[code] = numbers
+    assert codes, f"no line of {target!r} holds {line!r}"
+    return Watch(False, codes, weight)
+
+
+def made_items() -> Watch:
+    """Count the items that the recognizer makes, in parses and nested
+    parses alike: a call of the recognizer's ``add`` that grows its list of
+    items makes one."""
+    from gencmu._earley import Parser
+
+    def made(frame: FrameType) -> Callable[[], int]:
+        items = frame.f_locals["prod"]
+        before = len(items)
+        return lambda: int(len(items) > before)
+
+    return calls(code_of(Parser.parse, "add"), made)
 
 
 @contextmanager
-def count_items(budget: int | None = None) -> Iterator[RecognizerWork]:
-    """Count the items that the recognizer makes, in parses and nested
-    parses alike, from the test's side, as it makes each one: a call of the
-    recognizer's ``add`` that grows its list of items makes one. With a
-    budget, the item past it stops the parse with :class:`OverItems`.
+def count_work(*watches: Watch, budget: int | None = None) -> Iterator[Work]:
+    """Count the work that ``watches`` describe, all in one count, from
+    the test's side, so that the library itself counts nothing. With a
+    budget, the unit of work past it stops the work with
+    :class:`OverBudget`.
 
-    The count watches the calls of ``add`` alone through sys.monitoring
-    where there is one, from Python 3.12; before that, it traces every
-    call of the thread, in place of any other trace function, which it puts
-    back after."""
-    import types
+    The count watches the code it names alone through sys.monitoring where
+    there is one, from Python 3.12. Before that, it traces every call of
+    the thread, and passes each event on to the trace function that was
+    there before, so that counts nest."""
+    work = Work()
+    starts: dict[CodeType, list[Watch]] = {}
+    lines: dict[CodeType, list[Watch]] = {}
+    for watch in watches:
+        for code in watch.codes:
+            (starts if watch.calls else lines).setdefault(code, []).append(watch)
+    # The counts that wait for the return of each running call, innermost
+    # last.
+    waiting: list[list[Callable[[], int]]] = []
 
-    from gencmu._earley import Parser
+    def add(count: int) -> None:
+        work.count += count
+        if budget is not None and work.count > budget:
+            raise OverBudget(f"more than {budget} units of work")
 
-    add = next((c for c in Parser.parse.__code__.co_consts if isinstance(c, types.CodeType) and c.co_name == "add"), None)
-    assert add is not None, "the recognizer has no add"
-    work = RecognizerWork()
-    calls: list[tuple[list[int], int]] = []
-
-    def begin(frame: Any) -> None:
-        items = frame.f_locals["prod"]
-        calls.append((items, len(items)))
+    def begin(code: CodeType, frame: FrameType) -> None:
+        # Pushed first, so that a budget passed here leaves the stack as
+        # the unwinding of this call expects it.
+        later: list[Callable[[], int]] = []
+        waiting.append(later)
+        for watch in starts[code]:
+            count = 1 if watch.weight is None else watch.weight(frame)
+            if callable(count):
+                later.append(count)
+            else:
+                add(count)
 
     def end() -> None:
-        items, before = calls.pop()
-        if len(items) > before:
-            work.items += 1
-            if budget is not None and work.items > budget:
-                raise OverItems(f"more than {budget} items")
+        for count in waiting.pop():
+            add(count())
+
+    def step(code: CodeType, number: int, frame: FrameType) -> bool:
+        """Counts a step of a line, and tells whether any watch counts it."""
+        counted = False
+        for watch in lines[code]:
+            numbers = watch.codes[code]
+            if numbers is None or number in numbers:
+                counted = True
+                count = 1 if watch.weight is None else watch.weight(frame)
+                assert isinstance(count, int), "a step's weight is a number"
+                add(count)
+        return counted
+
+    places: dict[CodeType, tuple[list[int], list[int | None]]] = {}
+
+    def line_at(code: CodeType, offset: int) -> int | None:
+        if code not in places:
+            spans = [(start, number) for start, _, number in code.co_lines()]
+            places[code] = ([start for start, _ in spans], [number for _, number in spans])
+        starts_of, numbers = places[code]
+        return numbers[bisect.bisect_right(starts_of, offset) - 1]
+
+    def looped(code: CodeType, source: int, target: int, frame: FrameType) -> bool:
+        """Counts a jump back within one line as a step of that line, and
+        tells whether it counted."""
+        if target < source:
+            number = line_at(code, target)
+            if number is not None and number == line_at(code, source):
+                return step(code, number, frame)
+        return False
 
     monitoring = getattr(sys, "monitoring", None)
     if monitoring is not None:
         tool = next((tool for tool in range(6) if monitoring.get_tool(tool) is None), None)
         assert tool is not None, "no tool of sys.monitoring is free"
-        events = monitoring.events.PY_START | monitoring.events.PY_RETURN
-        monitoring.use_tool_id(tool, "gencmu tests: count_items")
+        events = monitoring.events
+        monitoring.use_tool_id(tool, "gencmu tests: count_work")
         try:
-            monitoring.register_callback(tool, monitoring.events.PY_START, lambda code, offset: begin(sys._getframe(1)))
-            monitoring.register_callback(tool, monitoring.events.PY_RETURN, lambda code, offset, value: end())
-            monitoring.set_local_events(tool, add, events)
+            monitoring.register_callback(tool, events.PY_START, lambda code, offset: begin(code, sys._getframe(1)))
+            monitoring.register_callback(tool, events.PY_RETURN, lambda code, offset, value: end())
+            # A call that raises returns nothing, and an unwinding is a
+            # global event only, which the callback narrows to the calls.
+            monitoring.register_callback(tool, events.PY_UNWIND, lambda code, offset, error: end() if code in starts else None)
+            # A line or a jump that no watch counts is turned off where it
+            # stands, so that the code runs at its own speed between the
+            # steps that count.
+            skip = monitoring.DISABLE
+            monitoring.register_callback(tool, events.LINE, lambda code, number: None if step(code, number, sys._getframe(1)) else skip)
+            # A line event comes only where the line changes, so a loop
+            # that jumps back within one line counts at its jump, as a
+            # trace function's line event would.
+            monitoring.register_callback(
+                tool, events.JUMP, lambda code, source, target: None if looped(code, source, target, sys._getframe(1)) else skip
+            )
+            for code in set(starts) | set(lines):
+                wanted = events.NO_EVENTS
+                if code in starts:
+                    wanted |= events.PY_START | events.PY_RETURN
+                if code in lines:
+                    wanted |= events.LINE | events.JUMP
+                monitoring.set_local_events(tool, code, wanted)
+            if starts:
+                monitoring.set_events(tool, events.PY_UNWIND)
+            # The places that an earlier count turned off count again.
+            monitoring.restart_events()
             yield work
         finally:
-            monitoring.set_local_events(tool, add, 0)
+            monitoring.set_events(tool, events.NO_EVENTS)
+            for code in set(starts) | set(lines):
+                monitoring.set_local_events(tool, code, events.NO_EVENTS)
             monitoring.free_tool_id(tool)
         return
 
-    def trace(frame: Any, event: str, arg: Any) -> Any:
-        if frame.f_code is not add:
+    def own(frame: FrameType) -> Any:
+        """This count's tracer of a frame, or None where it counts nothing."""
+        code = frame.f_code
+        if code not in starts and code not in lines:
             return None
-        begin(frame)
-        frame.f_trace_lines = False
+        if code in starts:
+            begin(code, frame)
 
-        def returned(frame: Any, event: str, arg: Any) -> Any:
-            if event == "return":
+        def local(frame: FrameType, event: str, arg: Any) -> Any:
+            if event == "line" and code in lines:
+                step(code, frame.f_lineno, frame)
+            elif event == "return" and code in starts:
                 end()
-            return returned
+            return local
 
-        return returned
+        return local
+
+    def trace(frame: FrameType, event: str, arg: Any) -> Any:
+        # The trace function that was there first, such as an enclosing
+        # count's, still traces, so that counts can nest.
+        mine = own(frame)
+        other = previous(frame, event, arg) if previous is not None else None
+        if other is None or mine is None:
+            return mine or other
+
+        def both(frame: FrameType, event: str, arg: Any) -> Any:
+            nonlocal mine, other
+            mine = mine(frame, event, arg) if mine is not None else None
+            other = other(frame, event, arg) if other is not None else None
+            return both if mine is not None or other is not None else None
+
+        return both
 
     previous = sys.gettrace()
     sys.settrace(trace)

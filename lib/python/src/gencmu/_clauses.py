@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import AbstractSet, Any, Union
 
-from ._trampoline import Walk, run, walk_counter
+from ._trampoline import Walk, run
 
 Dom = dict[str, Any]
 
@@ -91,7 +91,6 @@ def duplicate_captures(expr: Any) -> list[Dom]:
     Found = tuple[dict[str, list[Dom]], int]
     stack: list[tuple[Any, list[int], list[Found]]] = [(expr, [0], [])]
     while True:
-        walk_counter.steps += 1
         node, index, parts = stack[-1]
         kids = children(node)
         if index[0] < len(kids):
@@ -120,7 +119,6 @@ def duplicate_captures(expr: Any) -> list[Dom]:
                 large, small = (joined, part) if joined[1] >= part[1] else (part, joined)
                 for name, captures in small[0].items():
                     large[0].setdefault(name, []).extend(captures)
-                    walk_counter.steps += len(captures)
                 joined = (large[0], large[1] + small[1])
         stack.pop()
         if not stack:
