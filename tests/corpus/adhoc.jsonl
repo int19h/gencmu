@@ -3367,3 +3367,5 @@
 {"id":"adhoc.prose.words-stream.zoi-mi-x-mi-klama.bpfk","text":"zoi mi. x mi. klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","mi","x","mi","klama"],"brackets":"([zoi mi x mi] klama)"}
 {"id":"adhoc.prose.words-stream.zoi-mi-x-mibroda-klama","text":"zoi mi. x mibroda klama","dialect":"cll-ebnf","expect":"reject","stage":"words","at":23}
 {"id":"adhoc.prose.words-stream.zoi-mi-x-mibroda-klama.bpfk","text":"zoi mi. x mibroda klama","dialect":"bpfk","expect":"reject","stage":"words","at":23}
+{"id":"adhoc.prose.cll.tanru-bo-run","text":"cmalu bo nixli bo ckule","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["cmalu","bo","nixli","bo","ckule"],"brackets":"(cmalu bo [nixli bo ckule])"}
+{"id":"adhoc.prose.cll.tanru-bo-run.bpfk","text":"cmalu bo nixli bo ckule","dialect":"bpfk","expect":"accept","verdict":"unique","words":["cmalu","bo","nixli","bo","ckule"],"brackets":"(cmalu bo [nixli bo ckule])"}
