@@ -10,7 +10,7 @@ A character reaches this grammar with one tag, its character tag, such as `'a'`.
 
 ## Choosing among readings
 
-A name is the longest run of name characters, and `...` is one symbol, not three periods or `..` and a period. That is the greedy reading: where one reading ends a token and another reads on, the one that reads on wins.
+A name is the longest run of name characters, and `...` is one symbol, not three periods or `..` and a period. In the same way, `++` is one symbol, not two `+`. That is the greedy reading: where one reading ends a token and another reads on, the one that reads on wins.
 
 ```jbogenbau
 %ambiguity-resolution greedy

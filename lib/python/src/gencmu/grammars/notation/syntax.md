@@ -4,11 +4,11 @@ This is the second stage of the notation dialect, `../dialects/notation.md`. A s
 
 The stage builds the tree from which a library reads the grammar's rules and directives. Its rule names matter to that reader: the table in `../../docs/engine.md`, §9, says what each named constituent becomes. `../../docs/notation.md` explains the notation for authors.
 
-The tokens arrive with tags. A tag marks a token by name, phoneme or character. The lexical stage tags a token `~identifier`, `~string`, `~tag`, `~phoneme`, `~character`, `~property`, `~capture`, `~constant` or `~guard`. It tags a keyword that the notation knows with its own identifier, such as `~keyword-rule` for `%rule`, `...` with `~ellipsis`, and `..` with `~double-dot`, and `++` with `~double-plus`. Any other symbol is one character, which keeps its character tag, such as `'|'`, `'{'` or `'\\'`.
+The tokens arrive with tags. A tag marks a token by name, phoneme or character. The lexical stage tags a token `~identifier`, `~string`, `~tag`, `~phoneme`, `~character`, `~property`, `~capture`, `~constant` or `~guard`. It tags a keyword that the notation knows with its own identifier, such as `~keyword-rule` for `%rule`. It tags `...` with `~ellipsis`, `..` with `~double-dot`, and `++` with `~double-plus`. Any other symbol is one character, which keeps its character tag, such as `'|'`, `'{'` or `'\\'`.
 
 ## Choosing among parses
 
-Every rule and directive begins with a keyword, and a keyword begins nothing else. So where one ends is never in doubt. The grammar is unambiguous except where a list can end earlier or later. There, the greedy reading takes the longer list: it ends each constituent as late as the grammar allows.
+Every rule and directive begins with a keyword, and a keyword begins nothing else. So where one ends is never in doubt. Inside one, no list can end in two places either. A separated list has a separator that begins no item. A list without one is a text's statements, a directive's operands, a classifier's entries, a sequence's primaries or an item's attachments. In each of these, no token that can continue an item can also begin the next one. So the greedy reading has nothing to settle, and every list can be flat braces.
 
 ```jbogenbau
 %ambiguity-resolution greedy
@@ -108,7 +108,7 @@ A rule is a keyword, its name, its alternatives and its clauses, in this order. 
 
 `&` joins sequences, and a sequence is one or more primaries. Parentheses group a choice, whose alternatives carry neither guards nor tags. Brackets hold an optional choice, and braces a repetition. A `+` or `++` right after `[` marks an elidable optional (`../../docs/notation.md`, "Elided terminators"). The reader makes sure that its terminator stands first, as written, with no group around it, and that no capture stands inside it. It reads this from the tree, before it drops the groups.
 
-Inside braces, the item is a choice, and so is the separator after a backslash, if there is one. So `{a | b \ c | d}` separates items `a` or `b` with `c` or `d`. The marker `...` of a chain stands right after `{` for a left chain, or after the item for a right chain. The reader reads which of the two it is from where the marker stands among the parts (`../../docs/engine.md`, §9). It refuses a chain that is not the whole expression of its alternative, and a capture inside braces.
+Inside braces, the item is a choice, and so is the separator after a backslash, if there is one. So `{a | b \ c | d}` separates items `a` or `b` with `c` or `d`. The marker `...` of a chain stands right after `{` for a left chain, or after the item for a right chain. A chain, like a list, can leave out the backslash and the separator, as in `{... x}` and `{x ...}`. The reader reads which of the two it is from where the marker stands among the parts (`../../docs/engine.md`, §9). It refuses a chain that is not the whole expression of its alternative, and a capture inside braces.
 
 A terminal is a name that begins with a capital, a tag literal, a character tag, a phoneme tag, a range or a property. A string is not a terminal. A range is two character tags joined by `..`, such as `'a'..'z'`.
 
@@ -225,7 +225,7 @@ An item can have attachments: captures in parentheses, any number before its tar
 
 A condition joins others with `∧`, `∨` and `⟹`. These operators bind in that order, and `⟹` groups to the right. Parentheses group, and `¬` negates the condition after it. A capture alone is a condition, true where the alternative has it.
 
-The grammar reads a run of conditions joined by `⟹` as one list, and the reader groups it to the right. A rule that reads the run by right recursion would complete again at each `⟹`, so the work of a parse would grow with the square of the run's length.
+The grammar reads a run of conditions joined by `⟹` as one list, and the reader groups it to the right. Right recursion completes every level again at each `⟹`. So the work of a parse grows with the square of the run's length. A list does not.
 
 ```jbogenbau
 %rule implication
