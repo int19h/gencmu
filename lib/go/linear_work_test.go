@@ -1,6 +1,7 @@
 package gencmu
 
 import (
+	"fmt"
 	"math"
 	"runtime"
 	"strings"
@@ -81,4 +82,46 @@ func TestManyLinksAddLinear(t *testing.T) {
 			t.Fatalf("%d links, not %d", got, n)
 		}
 	})
+}
+
+// TestUnionsLinear: tags() of a long span, a union of many parts and a
+// constant of many parts gather their members once, without copying a
+// growing set at each part (engine §10).
+func TestUnionsLinear(t *testing.T) {
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text {A}"))
+	tagRun := func(n int) *stageRun {
+		toks := make([]Token, n)
+		for i := range toks {
+			toks[i] = Token{Text: "x", Tags: []string{"A", fmt.Sprintf("T%d", i)}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
+		}
+		ps := newParseState(d.uni, []rune(strings.TrimSpace(strings.Repeat("x ", n))))
+		return ps.newRun("main", d.stages[0], toks)
+	}
+	linearTime(t, "tags of a span", 20000, func(n int) {
+		run := tagRun(n)
+		if got := len(run.evaluator(nil, nil).spanTags(spanVal{a: 0, b: n}).names); got != n+1 {
+			t.Fatalf("%d tags, not %d", got, n+1)
+		}
+	})
+	linearTime(t, "a union of parts", 30000, func(n int) {
+		run := tagRun(1)
+		if got := len(run.evaluator(nil, nil).term(tagUnion(n)).set.names); got != n {
+			t.Fatalf("%d tags, not %d", got, n)
+		}
+	})
+	linearTime(t, "a constant union", 20000, func(n int) {
+		v, err := (&stageGrammar{}).evaluateClosed("", tagUnion(n), [2]int{})
+		if err != nil || len(v.names) != n {
+			t.Fatalf("%v, not %d tags", err, n)
+		}
+	})
+}
+
+// tagUnion is the term ~T0 ∪ ~T1 ∪ … of n parts.
+func tagUnion(n int) *domTerm {
+	union := &domTerm{Kind: tmUnion}
+	for i := range n {
+		union.Items = append(union.Items, &domTerm{Kind: tmTag, Str: fmt.Sprintf("T%d", i)})
+	}
+	return union
 }

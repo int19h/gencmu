@@ -106,6 +106,34 @@ func (in *interner) union(a, b *tagset) *tagset {
 	return in.make(names)
 }
 
+// unionAll holds every member of any of the sets. A union folded pair by
+// pair copies and interns each growing partial result, so k sets cost k
+// times the result. This gathers the members once and interns the result
+// alone.
+func (in *interner) unionAll(sets []*tagset) *tagset {
+	var only *tagset
+	total := 0
+	for _, s := range sets {
+		if len(s.names) > 0 {
+			if only == nil {
+				only = s
+			}
+			total += len(s.names)
+		}
+	}
+	if only == nil {
+		return in.empty()
+	}
+	if total == len(only.names) {
+		return only
+	}
+	names := make([]string, 0, total)
+	for _, s := range sets {
+		names = append(names, s.names...)
+	}
+	return in.fromList(names)
+}
+
 // intersection holds the members of both.
 func (in *interner) intersection(a, b *tagset) *tagset {
 	var names []string

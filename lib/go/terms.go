@@ -111,12 +111,10 @@ func (ev *evaluator) spanTags(s spanVal) *tagset {
 	if s.whole && s.tags != nil {
 		return s.tags
 	}
-	in := ev.in()
-	out := in.empty()
-	for i := s.a; i < s.b; i++ {
-		out = in.union(out, ev.run.tagsets[i])
+	if s.b <= s.a {
+		return ev.in().empty()
 	}
-	return out
+	return ev.in().unionAll(ev.run.tagsets[s.a:s.b])
 }
 
 func (ev *evaluator) term(t *domTerm) value {
@@ -153,11 +151,11 @@ func (ev *evaluator) term(t *domTerm) value {
 		}
 		return value{kind: vSet, set: set}
 	case tmUnion:
-		out := in.empty()
-		for _, it := range t.Items {
-			out = in.union(out, ev.tagsOf(it))
+		sets := make([]*tagset, len(t.Items))
+		for i, it := range t.Items {
+			sets[i] = ev.tagsOf(it)
 		}
-		return value{kind: vSet, set: out}
+		return value{kind: vSet, set: in.unionAll(sets)}
 	case tmIntersection:
 		out := ev.tagsOf(t.Items[0])
 		for _, it := range t.Items[1:] {
@@ -354,15 +352,16 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 		for _, it := range rec.eligibleItems(items) {
 			kept[it] = true
 		}
-		res.holds, res.tags = false, ps.in.empty()
+		var sets []*tagset
 		for _, c := range acc {
 			for _, it := range c.items {
 				if kept[it] {
-					res.holds, res.tags = true, ps.in.union(res.tags, c.tags)
+					sets = append(sets, c.tags)
 					break
 				}
 			}
 		}
+		res.holds, res.tags = len(sets) > 0, ps.in.unionAll(sets)
 	}
 	ps.nested[k] = res
 	return res.holds, res.tags

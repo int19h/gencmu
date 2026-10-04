@@ -116,7 +116,18 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int) (*con
 	case tmConst:
 		v := *g.constants[t.Str].value
 		return &v, nil
-	case tmUnion, tmIntersection, tmDifference:
+	case tmUnion:
+		// Gathered at once, since a pairwise fold copies the growing union.
+		sets := make([]*tagset, len(t.Items))
+		for i, it := range t.Items {
+			s, err := set(it)
+			if err != nil {
+				return nil, err
+			}
+			sets[i] = in.make(s.names)
+		}
+		return &constValue{ty: tySet, names: in.unionAll(sets).names}, nil
+	case tmIntersection, tmDifference:
 		var out *tagset
 		for i, it := range t.Items {
 			s, err := set(it)
@@ -126,8 +137,6 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int) (*con
 			switch {
 			case i == 0:
 				out = in.make(s.names)
-			case t.Kind == tmUnion:
-				out = in.union(out, in.make(s.names))
 			case t.Kind == tmIntersection:
 				out = in.intersection(out, in.make(s.names))
 			default:
