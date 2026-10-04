@@ -148,7 +148,8 @@
    * @property {number} captureLookups the entries of a production's captures
    *   that an advance or a formatter reads to find the capture at a position
    * @property {number} edgeChecks the ways of building an item that the
-   *   recognizer compares with a new way, to find it already there
+   *   recognizer compares with a new way, to find it already there, or that
+   *   it indexes for that
    * @property {number} conditions the conditions that an advance reads to
    *   find those ready at its dot
    * @property {number} visits the nodes of conditions and terms that an
@@ -158,19 +159,23 @@
    *   visits
    * @property {number} tags the tags that a union of tag sets or an entry of
    *   a classifier adds to a set or copies
-   * @property {number} implications the implications that the closure of a
-   *   token's tags reads
+   * @property {number} implications the implications, and their tags and
+   *   the token's, that the closure of a token's tags reads
    * @property {number} walkSteps the steps of the readers and walks of a
    *   document, of its notation's tree and of its DOM, in the library and in
    *   the tools
    * @property {number} lowering the symbols and captures that lowering and
-   *   the checks of a definition add to a sequence or copy, and the helpers
-   *   that lowering moves on its list of those waiting
-   * @property {number} closures the productions and alternatives that the
-   *   closures over a grammar's rules read: the nullable rules, the rules
-   *   that can read, and those that can emit
+   *   the checks of a definition add to a sequence or copy, the helpers
+   *   that lowering moves on its list of those waiting, and the positions,
+   *   captures and conditions of a production that it indexes
+   * @property {number} closures the productions, alternatives and symbols
+   *   that the closures over a grammar's rules read: the nullable rules, the
+   *   rules that can read, and those that can emit
    * @property {number} clauses the items of an emission and the alternatives
-   *   of a rule that the checks of a definition and the audit read
+   *   of a rule that the checks of a definition and the audit read, and the
+   *   nodes of the expressions that the audit walks
+   * @property {number} groups the items, edges, rules and arcs that the
+   *   grouping of rules for the cycle context of a ranking reads
    * @property {number} splice the names, stages and documents that a splice
    *   of a pipeline checks or copies
    * @property {number} text the characters, words, lines and cells that the
@@ -179,10 +184,10 @@
    *   count that the work may reach
    */
 
-  /** @typedef {"items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "splice" | "text"} WorkKind */
+  /** @typedef {"items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "splice" | "text"} WorkKind */
 
   /** @type {readonly WorkKind[]} */
-  const WORK_KINDS = ["items", "checks", "scanned", "candidates", "captures", "captureSteps", "captureLookups", "edgeChecks", "conditions", "visits", "soundSteps", "tags", "implications", "walkSteps", "lowering", "closures", "clauses", "splice", "text"];
+  const WORK_KINDS = ["items", "checks", "scanned", "candidates", "captures", "captureSteps", "captureLookups", "edgeChecks", "conditions", "visits", "soundSteps", "tags", "implications", "walkSteps", "lowering", "closures", "clauses", "groups", "splice", "text"];
 
   /**
    * Counts of every kind at zero, for a test to set as `hooks.work`.
@@ -4250,16 +4255,29 @@
      */
     addProduction(fields) {
       if (fields.helper) this.structural.push({ lhs: fields.lhs, rhs: fields.rhs });
-      const captureAt = new Array(fields.rhs.length).fill(-1);
+      // Each position, capture and condition counts before it is indexed, so
+      // that an index built by a scan of the list for each position fails
+      // its budget.
+      /** @type {number[]} */
+      const captureAt = [];
+      /** @type {import("./types.js").ReadyCondition[][]} */
+      const conditionsAt = [[]];
+      for (let index = 0; index < fields.rhs.length; index++) {
+        if (hooks.work) countWork(hooks.work, "lowering");
+        captureAt.push(-1);
+        conditionsAt.push([]);
+      }
       /** @type {Map<string, number>} */
       const captureSlot = new Map();
       fields.captures.forEach((capture, slot) => {
+        if (hooks.work) countWork(hooks.work, "lowering");
         if (captureAt[capture.index] === -1) captureAt[capture.index] = slot;
         if (!captureSlot.has(capture.name)) captureSlot.set(capture.name, slot);
       });
-      /** @type {import("./types.js").ReadyCondition[][]} */
-      const conditionsAt = Array.from({ length: fields.rhs.length + 1 }, () => []);
-      for (const condition of fields.conditions) conditionsAt[condition.readyAt + 1].push(condition);
+      for (const condition of fields.conditions) {
+        if (hooks.work) countWork(hooks.work, "lowering");
+        conditionsAt[condition.readyAt + 1].push(condition);
+      }
       /** @type {Production} */
       const production = { ...fields, captureAt, captureSlot, conditionsAt, id: this.productions.length };
       this.productions.push(production);
@@ -4304,8 +4322,14 @@
     checkBraceItems() {
       /** @type {Set<string>} */
       const nullable = new Set();
-      /** @type {(rhs: import("./types.js").GrammarSymbol[]) => boolean} */
-      const empty = (rhs) => rhs.every((symbol) => !symbol.terminal && nullable.has(symbol.name));
+      /** @type {(sequence: SequenceItem[]) => boolean} */
+      const empty = (sequence) => {
+        for (const { symbol } of sequence) {
+          if (hooks.work) countWork(hooks.work, "closures");
+          if (symbol.terminal || !nullable.has(symbol.name)) return false;
+        }
+        return true;
+      };
       // A worklist: each production counts its symbols not yet known to be
       // nullable, and a rule found nullable counts down the productions that
       // name it. Passes over every production until none changes would settle
@@ -4321,11 +4345,17 @@
         nullable.add(name);
         found.push(name);
       };
+      // Each production and each symbol it reads counts, so that a test of
+      // every other symbol at each one fails its budget.
       this.structural.forEach((production, index) => {
         if (hooks.work) countWork(hooks.work, "closures");
-        if (production.rhs.some((symbol) => symbol.terminal)) return;
+        for (const symbol of production.rhs) {
+          if (hooks.work) countWork(hooks.work, "closures");
+          if (symbol.terminal) return;
+        }
         if (production.rhs.length === 0) add(production.lhs);
         for (const symbol of production.rhs) {
+          if (hooks.work) countWork(hooks.work, "closures");
           const list = users.get(symbol.name);
           if (list) list.push(index);
           else users.set(symbol.name, [index]);
@@ -4338,8 +4368,8 @@
         }
       }
       for (const { items, rule, alternative } of this.braceItems) {
-        if (items.some((sequence) => empty(sequence.map((item) => item.symbol)))) {
-          throw loweringError(alternative.at, `an item of braces in ${rule.name} can match no tokens`);
+        for (const sequence of items) {
+          if (empty(sequence)) throw loweringError(alternative.at, `an item of braces in ${rule.name} can match no tokens`);
         }
       }
     }
@@ -5338,7 +5368,10 @@
           let index = edgeIndexes.get(item);
           if (!index) {
             index = new Map();
+            // Each way counts as it is indexed, so that an index built again
+            // for each new way fails its budget.
             for (const edge of more) {
+              if (hooks.work) countWork(hooks.work, "edgeChecks");
               if (edge.kind === "scan") indexEdge(index, edge.previous, null);
               else if (edge.kind === "complete") indexEdge(index, edge.previous, edge.child);
             }
@@ -5844,10 +5877,17 @@
     const rules = new Set();
     /** @type {(symbol: GrammarSymbol) => boolean} */
     const reads = (symbol) => symbol.terminal || rules.has(symbol.name);
+    // Each symbol that the closures read counts, so that a test of every
+    // other symbol at each one fails its budget.
     /** @type {(production: Production) => boolean} */
     const productionReads = (production) => {
       const restoration = production.rhs.length === 0 && production.helper && production.elided !== null;
-      return (restoration && !withoutRestorations) || production.rhs.some(reads);
+      if (restoration && !withoutRestorations) return true;
+      for (const symbol of production.rhs) {
+        if (hooks.work) countWork(hooks.work, "closures");
+        if (reads(symbol)) return true;
+      }
+      return false;
     };
     if (greatest) {
       // Everything can read, until nothing more is removed.
@@ -5881,6 +5921,7 @@
         if (hooks.work) countWork(hooks.work, "closures");
         if (productionReads(production)) add(production.lhs);
         for (const symbol of production.rhs) {
+          if (hooks.work) countWork(hooks.work, "closures");
           if (symbol.terminal) continue;
           const list = users.get(symbol.name);
           if (list) list.push(production);
@@ -5897,8 +5938,10 @@
     /** @type {Map<Production, number>} */
     const last = new Map();
     for (const production of lowered.productions) {
+      if (hooks.work) countWork(hooks.work, "closures");
       let at = -1;
       production.rhs.forEach((symbol, index) => {
+        if (hooks.work) countWork(hooks.work, "closures");
         if (reads(symbol)) at = index;
       });
       last.set(production, at);
@@ -7656,13 +7699,15 @@
   // ---- Audit ---------------------------------------------------------------
 
   /**
-   * The rules an expression refers to.
+   * The rules an expression refers to. Each node counts before it is read,
+   * so that a walk of an expression for each of its parts fails its budget.
    * @param {Expr} expr
    * @param {Set<string>} into
    */
   function referencedRules(expr, into) {
     const stack = [expr];
     for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+      if (hooks.work) countWork(hooks.work, "clauses");
       if ("ref" in current) into.add(current.ref);
       else if ("seq" in current) for (const item of current.seq) stack.push(item);
       else if ("choice" in current) for (const item of current.choice) stack.push(item);
@@ -7760,6 +7805,26 @@
   }
 
   /**
+   * Whether an alternative's emission lists an item, less those naming
+   * captures it lacks, as effectiveItems would. Each part of the alternative
+   * and each item counts before it is read, and the first item stops it.
+   * @param {StitchedAlternative} alternative
+   * @returns {boolean}
+   */
+  function emitsAny(alternative) {
+    const captured = new Set([""]);
+    for (const item of topItems(alternative.expr)) {
+      if (hooks.work) countWork(hooks.work, "closures");
+      if ("capture" in item) captured.add(item.capture);
+    }
+    for (const item of alternative.clauses.emit ? alternative.clauses.emit.items : []) {
+      if (hooks.work) countWork(hooks.work, "closures");
+      if (item.capture === undefined || captured.has(item.capture)) return true;
+    }
+    return false;
+  }
+
+  /**
    * Which rules of a stage could emit a token (engine §11): one with an
    * alternative whose emission lists anything, or that
    * has no emission and walks a part that could.
@@ -7786,7 +7851,7 @@
       for (const alternative of alternatives) {
         if (hooks.work) countWork(hooks.work, "closures");
         if (alternative.clauses.emit) {
-          if (effectiveItems(alternative).length > 0) add(name);
+          if (emitsAny(alternative)) add(name);
           continue;
         }
         /** @type {Set<string>} */
@@ -9043,7 +9108,9 @@
     // item over its span can complete again below it only if the two rules
     // reach each other in this graph, that is, are in one strongly connected
     // group. So a context needs only the rules of its item's group, and an
-    // item whose rule cannot reach itself has none.
+    // item whose rule cannot reach itself has none. Each item, edge, rule
+    // and arc counts before it is read, so that a search of the arcs found
+    // so far for each new one fails its budget.
     /**
      * @param {Item[]} roots
      */
@@ -9054,9 +9121,11 @@
       const seen = new Set();
       const pending = [...roots];
       for (let item = pending.pop(); item !== undefined; item = pending.pop()) {
+        if (hooks.work) countWork(hooks.work, "groups");
         if (seen.has(item)) continue;
         seen.add(item);
         for (const edge of item.edges) {
+          if (hooks.work) countWork(hooks.work, "groups");
           if (edge.kind === "seed" || edge.kind === "restore") continue;
           pending.push(edge.previous);
           if (edge.kind !== "complete") continue;
@@ -9081,6 +9150,7 @@
       let next = 0;
       let found = 0;
       for (const start of arcs.keys()) {
+        if (hooks.work) countWork(hooks.work, "groups");
         if (index.has(start)) continue;
         /** @type {{rule: string, targets: Iterator<string>}[]} */
         const frames = [];
@@ -9095,6 +9165,7 @@
         };
         enter(start);
         while (frames.length > 0) {
+          if (hooks.work) countWork(hooks.work, "groups");
           const frame = frames[frames.length - 1];
           const step = frame.targets.next();
           if (!step.done) {
@@ -9112,6 +9183,7 @@
             /** @type {string[]} */
             const members = [];
             for (;;) {
+              if (hooks.work) countWork(hooks.work, "groups");
               const member = /** @type {string} */ (open.pop());
               onOpen.delete(member);
               members.push(member);
@@ -10494,6 +10566,7 @@
       for (let number = 0; number < implications.length; number++) {
         if (hooks.work) countWork(hooks.work, "implications");
         for (const tag of implications[number].if) {
+          if (hooks.work) countWork(hooks.work, "implications");
           const list = index.get(tag);
           if (list) list.push(number);
           else index.set(tag, [number]);
@@ -10504,7 +10577,14 @@
     let result = tags;
     /** @type {Set<number> | null} */
     let fired = null;
-    const queue = [...tags];
+    // Each tag and implication counts before it is read, and each tag of
+    // the token's as the closure copies it.
+    /** @type {string[]} */
+    const queue = [];
+    for (const tag of tags) {
+      if (hooks.work) countWork(hooks.work, "implications");
+      queue.push(tag);
+    }
     for (let head = 0; head < queue.length; head++) {
       for (const number of index.get(queue[head]) ?? []) {
         if (hooks.work) countWork(hooks.work, "implications");
@@ -10512,8 +10592,15 @@
         else if (fired.has(number)) continue;
         fired.add(number);
         for (const tag of implications[number].then) {
+          if (hooks.work) countWork(hooks.work, "implications");
           if (result.has(tag)) continue;
-          if (result === tags) result = new Set(tags);
+          if (result === tags) {
+            result = new Set();
+            for (const own of tags) {
+              if (hooks.work) countWork(hooks.work, "tags");
+              result.add(own);
+            }
+          }
           result.add(tag);
           queue.push(tag);
         }
