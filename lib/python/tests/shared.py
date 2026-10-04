@@ -178,11 +178,14 @@ def count_work(*watches: Watch, budget: int | None = None) -> Iterator[Work]:
             (starts if watch.calls else lines).setdefault(code, []).append(watch)
 
     # Every unit counts before its work, so the budget stops the work at
-    # the first unit past it and none of that unit's work is done.
+    # the first unit past it and none of that unit's work is done. A
+    # weighted step counts the elements that its C code will read, one at a
+    # time, so it too stops at the first element past the budget.
     def add(count: int) -> None:
-        work.count += count
-        if budget is not None and work.count > budget:
+        if budget is not None and work.count + count > budget:
+            work.count = budget + 1
             raise OverBudget(f"more than {budget} units of work")
+        work.count += count
 
     def begin(code: CodeType, frame: FrameType) -> None:
         for watch in starts[code]:

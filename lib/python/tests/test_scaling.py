@@ -7,6 +7,8 @@ on. Nothing here is timed."""
 
 from __future__ import annotations
 
+import linecache
+import re
 import unittest
 from types import FrameType
 from typing import Any, Callable, ContextManager
@@ -16,7 +18,7 @@ import gencmu
 from gencmu import _clauses, _grammar, _pipeline, _tags, _types
 from gencmu._clauses import definition_problem
 from gencmu._earley import EdgeSets, Evaluator, Forest, Parser, StageContext, reading_last
-from gencmu._grammar import Lowered, Production, _Constants, _Lowerer, _resolve_classifiers, stitch
+from gencmu._grammar import Lowered, Production, _Constants, _Lowerer, stitch
 from gencmu._model import Token
 from gencmu._pipeline import splice_pipeline
 from gencmu._rank import Summaries
@@ -359,32 +361,53 @@ class SharedClauses(Linear):
         self.assert_linear(loading_steps, make, 60)
 
 
-def new_sets_of(key: str) -> Callable[[FrameType], int]:
-    """A weight for the steps of the classifier resolution: one for each
-    step, and the size of the key's set of classes wherever the step finds
-    a new set there, which a copy of the set made."""
-    last: list[object] = [None]
+ONE_CLASS = frozenset(
+    {
+        "classes = table.get(key)",
+        "if classes is None:",
+        "classes = table[key] = set()",
+        "if adds == (name in classes):",
+        "classes.add(name)",
+        "classes.discard(name)",
+    }
+)
+"""The lines of the classifier resolution that touch one class of a key's
+set, or none, and so cost one step."""
 
-    def weight(frame: FrameType) -> int:
-        table = frame.f_locals.get("table")
-        classes = table.get(key) if isinstance(table, dict) else None
-        if classes is None or classes is last[0]:
-            return 1
-        last[0] = classes
-        return 1 + len(classes)
 
-    return weight
+def whole_reads(frame: FrameType) -> int:
+    """A weight for the steps of the classifier resolution, read before
+    each step runs: one, and the size of the set of classes for a line
+    that names it but is not known to touch one class. Such a line can
+    copy or walk the set in C, which no step of Python's shows."""
+    line = linecache.getline(frame.f_code.co_filename, frame.f_lineno).strip()
+    if not re.search(r"\bclasses\b", line) or line in ONE_CLASS:
+        return 1
+    classes = frame.f_locals.get("classes")
+    return 1 + (len(classes) if isinstance(classes, (set, frozenset)) else 0)
 
 
 class Classifiers(Linear):
-    def test_a_key_of_many_classes_costs_its_classes(self) -> None:
+    @staticmethod
+    def make(n: int) -> Callable[[], object]:
         # n entries, each giving the one key a class of its own.
-        def make(n: int) -> Callable[[], object]:
-            entries = [{"guards": [], "op": "∈", "class": f"C{index}", "keys": ["k"], "at": [1, 1]} for index in range(n)]
-            items = [("t.md", {"name": "c", "entries": entries})]
-            return lambda: _resolve_classifiers(items, frozenset())
+        entries = [{"guards": [], "op": "∈", "class": f"C{index}", "keys": ["k"], "at": [1, 1]} for index in range(n)]
+        items = [("t.md", {"name": "c", "entries": entries})]
+        return lambda: _grammar._resolve_classifiers(items, frozenset())
 
-        self.assert_linear(lambda: [steps(_resolve_classifiers, weight=new_sets_of("k"))], make, 2000)
+    @staticmethod
+    def watches() -> list[Watch]:
+        return [steps(_grammar._resolve_classifiers, weight=whole_reads)]
+
+    def test_a_key_of_many_classes_costs_its_classes(self) -> None:
+        self.assert_linear(self.watches, self.make, 2000)
+
+    def test_a_test_that_copies_the_classes_fails_at_the_first_unit_past_its_budget(self) -> None:
+        # The regression tests a class against a list copied from the set,
+        # which makes no new set, so only a count of what each line reads
+        # sees it.
+        copy = ("if adds == (name in classes):", "if adds == (name in list(classes)):")
+        self.assert_mutant_stops(self.watches, self.make, 2000, lambda: mutant(_grammar, "_resolve_classifiers", copy))
 
 
 def pipeline_dom(directives: list[dict[str, Any]], rules: int = 0) -> dict[str, Any]:
