@@ -1,0 +1,10 @@
+{
+  "description": "`%ab?` is the unknown keyword `%a` and the guard `b?`, since `%ab` would leave `?`. The syntax error stands at the keyword, which begins no item (engine §9).",
+  "document": "```jbogenbau\n%ab? %rule t A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

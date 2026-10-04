@@ -1,0 +1,10 @@
+{
+  "description": "`¬ab!` cannot be read: a negated guard ends with `?`, and `¬` is no negation where a guard follows it. The lexical error stands at the `!` (engine §9).",
+  "document": "```jbogenbau\n%rule t A ¬ab!\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 14
+    }
+  }
+}

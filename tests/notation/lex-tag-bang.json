@@ -1,0 +1,10 @@
+{
+  "description": "`~a!` cannot be read: `~` needs a name, and a name followed by `!` is a guard, so no reading leaves `~` a name. The lexical error stands at the `!`, the furthest character that a reading reached (engine §9).",
+  "document": "```jbogenbau\n%rule t A ~a!\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 13
+    }
+  }
+}

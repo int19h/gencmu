@@ -1,0 +1,10 @@
+{
+  "description": "`$Ab?` is the constant `$A` and the guard `b?`: `$Ab` would leave `?`, and the longest first token that leaves a readable rest is `$A`. The syntax error stands at the guard (engine §9).",
+  "document": "```jbogenbau\n%rule t A $Ab?\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 13
+    }
+  }
+}

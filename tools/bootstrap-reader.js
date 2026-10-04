@@ -19,8 +19,10 @@ import { UnicodeTable } from "../lib/js/src/unicode.js";
 // and the marks that a character tag escapes (engine §1, §9).
 const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.txt", import.meta.url), "utf8"));
 
-const SYMBOLS = ["...", "..", "++", "+", "|", "&", "(", ")", "[", "]", "{", "}", "\\", "<", ">", "#", "ε", ",", "∧", "∨", "¬", "⟹", "=", "≠",
-  "∈", "∉", "⊆", "⊈", "⊇", "⊉", "∪", "∩", "∖", "∅"];
+// The symbols of one character; `..`, `...`, `++` and `¬` have rules of
+// their own in the lexer.
+const SYMBOLS = new Set(["+", "|", "&", "(", ")", "[", "]", "{", "}", "\\", "<", ">", "#", "ε", ",", "∧", "∨", "⟹", "=", "≠",
+  "∈", "∉", "⊆", "⊈", "⊇", "⊉", "∪", "∩", "∖", "∅"]);
 
 const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%tags", "%conditions", "%emits", "%opaque",
   "%ambiguity-resolution", "%stage", "%include", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
@@ -41,93 +43,124 @@ function syntaxError(message, at) {
 const isCapital = (text) => /^[A-Z]/.test(text);
 
 // The tokens of grammars/notation/lexical.md, each with its kind: the tag
-// that the lexical stage gives it, or the symbol itself. A text that no
-// token reads is an error at the furthest character that a token reached,
-// where the lexical stage reports it.
+// that the lexical stage gives it, or the symbol itself. The lexical stage
+// reads the whole text as pieces, and under `greedy` the first piece where
+// two readings differ is the longer one (engine §6). So the lexer takes,
+// at each place, the longest piece after which the rest of the text can
+// still be read: `$a?` is `$` and the guard `a?`, since `$a` leaves `?`.
+// A text that cannot be read is an error at the furthest character that
+// any reading reached, where the lexical stage reports it.
 function lex(text, positions) {
   const chars = [...text];
-  const tokens = [];
-  let i = 0;
+  const n = chars.length;
   const at = (index) => positions[index] || positions[positions.length - 1] || [1, 1];
   const isLetter = (c) => c !== undefined && /^[A-Za-z]$/.test(c);
   const isNameChar = (c) => c !== undefined && /^[A-Za-z0-9-]$/.test(c);
-  // The end of a name that begins at `from`.
-  const nameEnd = (from) => {
+  // The end of the run of name characters from `from`.
+  const runEnd = (from) => {
     let j = from;
     while (isNameChar(chars[j])) j++;
     return j;
   };
-  // The end of a quoted token whose body begins at `from`: a backslash
-  // escapes any character.
+  // The end of a quoted token whose body begins at `from`, where a
+  // backslash escapes any character, or the end of the text.
   const quotedEnd = (from, quote) => {
     let j = from;
-    while (j < chars.length && chars[j] !== quote) j += chars[j] === "\\" ? 2 : 1;
-    if (j >= chars.length) syntaxError(`an unclosed ${quote === '"' ? "string" : "character tag or property"}`, at(chars.length));
-    return j + 1;
+    while (j < n && chars[j] !== quote) j += chars[j] === "\\" ? 2 : 1;
+    return Math.min(j + 1, n + 1);
   };
-  const push = (kind, end) => {
-    tokens.push({ kind, text: chars.slice(i, end).join(""), at: at(i), end: at(end) });
-    i = end;
-  };
-  while (i < chars.length) {
+  // The pieces that can begin at `i`, each its end and its kind (null for
+  // layout), longest first, and the furthest character that any of them,
+  // complete or not, reaches.
+  const pieces = (i) => {
     const c = chars[i];
-    if (/^\p{White_Space}$/u.test(c)) { i++; continue; }
+    /** @type {[number, string | null][]} */
+    const found = [];
+    let reach = i;
+    // A name with a prefix (`$`, `%`, `~`), at every length.
+    const prefixed = (from, kindOf) => {
+      if (!isLetter(chars[from])) return;
+      const end = runEnd(from);
+      for (let j = end; j > from; j--) found.push([j, kindOf(chars.slice(i, j).join(""))]);
+      reach = Math.max(reach, end);
+    };
+    if (/^\p{White_Space}$/u.test(c)) found.push([i + 1, null]);
     if (c === "(" && chars[i + 1] === "*") {
       let j = i + 2;
-      while (j < chars.length && !(chars[j] === "*" && chars[j + 1] === ")")) j++;
-      if (j >= chars.length) syntaxError("an unclosed comment", at(chars.length));
-      i = j + 2;
-      continue;
+      while (j < n && !(chars[j] === "*" && chars[j + 1] === ")")) j++;
+      if (j < n) found.push([j + 2, null]);
+      reach = Math.max(reach, Math.min(j + 2, n));
     }
-    // A name, or a guard: a name and `?` or `!`, with `¬` before a gate.
     if (isLetter(c)) {
-      const j = nameEnd(i);
-      if (chars[j] === "?" || chars[j] === "!") push("guard", j + 1);
-      else push("identifier", j);
-      continue;
+      // A name at every length, or the whole run and `?` or `!`, a guard.
+      const end = runEnd(i);
+      if (chars[end] === "?" || chars[end] === "!") found.push([end + 1, "guard"]);
+      for (let j = end; j > i; j--) found.push([j, "identifier"]);
+      reach = Math.max(reach, end);
     }
-    if (c === "¬" && isLetter(chars[i + 1])) {
-      const j = nameEnd(i + 1);
-      if (chars[j] === "!") syntaxError("a warning has no negated form", at(j));
-      if (chars[j] === "?") {
-        push("guard", j + 1);
-        continue;
-      }
+    if (c === "¬") {
+      // `¬`, a negation, unless a guard begins after it; or `¬`, a name
+      // and `?`, a guard.
+      const end = isLetter(chars[i + 1]) ? runEnd(i + 1) : i + 1;
+      const guardAfter = end > i + 1 && (chars[end] === "?" || chars[end] === "!");
+      if (end > i + 1 && chars[end] === "?") found.push([end + 1, "guard"]);
+      if (!guardAfter) found.push([i + 1, "¬"]);
+      reach = Math.max(reach, end);
     }
-    if (c === "~" || c === "%") {
-      if (!isLetter(chars[i + 1])) syntaxError(`a name after ${c}`, at(i + 1));
-      const j = nameEnd(i + 1);
-      // An unknown keyword is a token too, which no rule reads.
-      const word = chars.slice(i, j).join("");
-      push(c === "~" ? "tag" : KEYWORDS.has(word) ? word : "keyword", j);
-      continue;
-    }
-    // `$`, `$` and a name in lower case, a capture, and `$` and a name with
-    // a capital, a constant (engine §2).
     if (c === "$") {
-      if (!isLetter(chars[i + 1])) push("capture", i + 1);
-      else push(isCapital(chars[i + 1]) ? "constant" : "capture", nameEnd(i + 1));
-      continue;
+      prefixed(i + 1, (word) => (isCapital(word.slice(1)) ? "constant" : "capture"));
+      found.push([i + 1, "capture"]);
     }
-    // A property is a quote and \p, and a character tag any other quote.
-    if (c === "'") {
-      push(chars[i + 1] === "\\" && chars[i + 2] === "p" ? "property" : "character", quotedEnd(i + 1, "'"));
-      continue;
-    }
-    if (c === '"') {
-      push("string", quotedEnd(i + 1, '"'));
-      continue;
+    if (c === "%") prefixed(i + 1, (word) => (KEYWORDS.has(word) ? word : "keyword"));
+    if (c === "~") prefixed(i + 1, () => "tag");
+    if (c === "%" || c === "~") reach = Math.max(reach, i + 1);
+    if (c === "'" || c === '"') {
+      const end = quotedEnd(i + 1, c);
+      const kind = c === '"' ? "string" : chars[i + 1] === "\\" && chars[i + 2] === "p" ? "property" : "character";
+      if (end <= n) found.push([end, kind]);
+      reach = Math.max(reach, Math.min(end, n));
     }
     if (c === "/") {
-      if (i + 1 >= chars.length) syntaxError("an unclosed phoneme", at(i + 1));
-      if (chars[i + 2] !== "/") syntaxError("a phoneme is one character between slashes", at(i + 2));
-      push("phoneme", i + 3);
-      continue;
+      if (i + 2 < n && chars[i + 2] === "/") found.push([i + 3, "phoneme"]);
+      reach = Math.max(reach, Math.min(i + 2, n));
     }
-    if (c === "." && chars[i + 1] !== ".") syntaxError("expected .. or ...", at(i + 1));
-    const symbol = SYMBOLS.find((s) => chars.slice(i, i + [...s].length).join("") === s);
-    if (!symbol) syntaxError(`unexpected character ${c}`, at(i));
-    push(symbol, i + [...symbol].length);
+    if (c === ".") {
+      if (chars[i + 1] === "." && chars[i + 2] === ".") found.push([i + 3, "..."]);
+      if (chars[i + 1] === ".") found.push([i + 2, ".."]);
+      reach = Math.max(reach, chars[i + 1] === "." ? Math.min(i + 3, n) : i + 1);
+    }
+    if (c === "+" && chars[i + 1] === "+") found.push([i + 2, "++"]);
+    if (SYMBOLS.has(c)) found.push([i + 1, c]);
+    for (const [end] of found) reach = Math.max(reach, end);
+    found.sort((x, y) => y[0] - x[0]);
+    return { found, reach };
+  };
+  // Whether the text from each place can be read to its end.
+  const readable = new Array(n + 1).fill(false);
+  readable[n] = true;
+  const starting = new Array(n);
+  for (let i = n - 1; i >= 0; i--) {
+    starting[i] = pieces(i);
+    readable[i] = starting[i].found.some(([end]) => readable[end]);
+  }
+  if (!readable[0]) {
+    // The furthest character that a reading from a reachable place gets to.
+    const reached = new Array(n + 1).fill(false);
+    reached[0] = true;
+    let furthest = 0;
+    for (let i = 0; i < n; i++) {
+      if (!reached[i]) continue;
+      furthest = Math.max(furthest, starting[i].reach);
+      for (const [end] of starting[i].found) reached[end] = true;
+    }
+    syntaxError(furthest >= n ? "the text ends inside a token" : `the text cannot be read as tokens at ${chars[furthest]}`, at(furthest));
+  }
+  const tokens = [];
+  let i = 0;
+  while (i < n) {
+    const [end, kind] = /** @type {[number, string | null]} */ (starting[i].found.find(([e]) => readable[e]));
+    if (kind !== null) tokens.push({ kind, text: chars.slice(i, end).join(""), at: at(i), end: at(end) });
+    i = end;
   }
   return tokens;
 }

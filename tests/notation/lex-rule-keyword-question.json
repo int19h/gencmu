@@ -1,0 +1,10 @@
+{
+  "description": "`%rule?` is the unknown keyword `%rul` and the guard `e?`, so the document begins with no item. The syntax error stands at the keyword (engine §9).",
+  "document": "```jbogenbau\n%rule? t A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}
