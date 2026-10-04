@@ -255,6 +255,49 @@ class OverBudget(BaseException):
     fails by its count and does not run on. A BaseException, which no
     handler of the library's catches."""
 
+    def __init__(self, length: int, counts: tuple[int, int, int], why: str) -> None:
+        super().__init__(length, counts, why)
+        self.length = length
+        self.counts = counts
+        self.why = why
+
+
+class LookedAt:
+    """The items of a forest as one Maximal sees them: every item that it
+    reads, by index or by iterating, is counted as it is read, and each
+    pass over them all is counted as it begins. ``read`` is called with
+    each, so that a budget stops the parse at the first item past it."""
+
+    def __init__(self, items: Any, read: Any) -> None:
+        self.items = items
+        self.read = read
+        self.passes = 0
+
+    def __len__(self) -> int:
+        return len(self.items)
+
+    def __getitem__(self, index: int) -> Any:
+        self.read(self)
+        return self.items[index]
+
+    def __iter__(self) -> Any:
+        self.passes += 1
+        for value in self.items:
+            self.read(self)
+            yield value
+
+
+class SeenForest:
+    """A forest whose items a Maximal reads through :class:`LookedAt`, and
+    whose other fields it reads as they are."""
+
+    def __init__(self, forest: Forest, prod: LookedAt) -> None:
+        self.forest = forest
+        self.prod = prod
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self.forest, name)
+
 
 class MaximalQueryCost(unittest.TestCase):
     """The maximality checks of a nested query read each completion once,
@@ -263,79 +306,78 @@ class MaximalQueryCost(unittest.TestCase):
     PLAIN = "%elidable maximal T\n%rule text body B\n%conditions begins(from($), r)\n%rule body A ...\n%rule r y [T]\n%rule y A ..."
     TESTED = "%elidable maximal T\n%rule text body B\n%conditions begins(from($), r)\n%rule body A ...\n%rule r y⊇~p [T]\n%rule y A ... <~p>"
 
+    # A Maximal finds its two tables, the furthest ends and every
+    # completion, once each, in one pass over its forest's items apiece.
+    PASSES = 2
+
     def work(self, grammar: str, length: int, budget: tuple[int, int, int] | None = None) -> tuple[int, int, int]:
         """The maximality checks, the test evaluations and the items looked
-        at of a parse of ``length`` tokens A and then B; with a budget of
-        each, it stops the parse and fails as soon as one is passed. The
-        items looked at are those of each forest that finding the furthest
-        ends, or every completion for a tested symbol, reads, counted from
-        here as each is found."""
+        at of a parse of ``length`` tokens A and then B. The items looked at
+        are every item of a forest that a Maximal reads, counted as it reads
+        each one, whatever it keeps from earlier reads. A Maximal that
+        begins a third pass over its items, or with a budget, a count that
+        passes its part of it, stops the parse at once with
+        :class:`OverBudget`."""
         dialect, error = load_case_dialect({"grammar": grammar})
         assert dialect is not None, error
         tokens, text = case_tokens({"tokens": [{"text": "a", "tags": ["A"]}] * length + [{"text": "b", "tags": ["B"]}]})
         counts = [0, 0, 0]
-        forbids, test_holds = Maximal.forbids, StageContext.test_holds
-        longest, all_completed = Maximal.longest, Maximal.all_completed
+        init, forbids, test_holds = Maximal.__init__, Maximal.forbids, StageContext.test_holds
 
         def spend() -> None:
             if budget is not None and any(count > most for count, most in zip(counts, budget)):
-                raise OverBudget(tuple(counts))
+                raise OverBudget(length, (counts[0], counts[1], counts[2]), f"past the budget {budget}")
+
+        def read(items: LookedAt) -> None:
+            counts[2] += 1
+            if items.passes > self.PASSES:
+                raise OverBudget(length, (counts[0], counts[1], counts[2]), f"pass {items.passes} over {len(items)} items")
+            spend()
+
+        def counted_init(self: Maximal, forest: Forest, *args: Any, **kwargs: Any) -> None:
+            init(self, SeenForest(forest, LookedAt(forest.prod, read)), *args, **kwargs)  # type: ignore[arg-type]
 
         def counted_forbids(self: Maximal, *args: Any) -> bool:
             counts[0] += 1
-            found = forbids(self, *args)
             spend()
-            return found
+            return forbids(self, *args)
 
         def counted_test(self: StageContext, *args: Any) -> bool:
             counts[1] += 1
             spend()
             return test_holds(self, *args)
 
-        def counted_longest(self: Maximal) -> Any:
-            if self.furthest is None:
-                counts[2] += len(self.forest.prod)
-                spend()
-            return longest(self)
-
-        def counted_completed(self: Maximal) -> Any:
-            if self.completed is None:
-                counts[2] += len(self.forest.prod)
-                spend()
-            return all_completed(self)
-
         with (
+            mock.patch.object(Maximal, "__init__", counted_init),
             mock.patch.object(Maximal, "forbids", counted_forbids),
             mock.patch.object(StageContext, "test_holds", counted_test),
-            mock.patch.object(Maximal, "longest", counted_longest),
-            mock.patch.object(Maximal, "all_completed", counted_completed),
         ):
-            try:
-                result = dialect.parse_tokens(tokens, text, auto_features=False)
-            except OverBudget as over:
-                self.fail(f"{length} tokens went past the budget {budget} of checks, tests and items looked at, at {over.args[0]}")
+            result = dialect.parse_tokens(tokens, text, auto_features=False)
         self.assertTrue(result.stages[0].verdict is not None or result.error is not None)
         return counts[0], counts[1], counts[2]
+
+    def grows_linearly(self, grammar: str) -> None:
+        """Parses of 250, 1000 and 4000 tokens, each with a budget from the
+        last one's work, so that quadratic work stops at the first step
+        that shows it, before it costs much."""
+        last = self.work(grammar, 250)
+        self.assertGreater(last[0], 0, "the query made no maximality check")
+        self.assertGreater(last[2], 0, "the checks looked at no item")
+        for length in (1000, 4000):
+            # Four times the input, at most about four times the work, where
+            # a scan of the completions per check would take sixteen; the
+            # test evaluations read each completion at most about twice in
+            # all.
+            budget = (5 * last[0], min(5 * max(last[1], 1) + 4, 2 * (length + 1)), 5 * last[2])
+            last = self.work(grammar, length, budget)
 
     def test_work_grows_linearly(self) -> None:
         for name, grammar in (("plain", self.PLAIN), ("tested", self.TESTED)):
             with self.subTest(grammar=name):
-                # Each length four times the last, and each parse's budget
-                # from the last one's work, so that quadratic work fails at
-                # the first step that shows it, before it costs much.
-                last = self.work(grammar, 250)
-                self.assertGreater(last[0], 0, "the query made no maximality check")
-                self.assertGreater(last[2], 0, "the checks looked at no item")
-                for length in (1000, 4000):
-                    # Four times the input, at most about four times the
-                    # work, where a scan of the completions per check would
-                    # take sixteen; the test evaluations read each
-                    # completion at most about twice in all.
-                    budget = (5 * last[0], min(5 * max(last[1], 1) + 4, 2 * (length + 1)), 5 * last[2])
-                    work = self.work(grammar, length, budget)
-                    for count, most in zip(work, budget):
-                        self.assertLessEqual(count, most, f"{last} then {work} for {length} tokens")
-                    last = work
+                try:
+                    self.grows_linearly(grammar)
+                except OverBudget as over:
+                    self.fail(f"{over.length} tokens: {over.why}, at {over.counts} checks, tests and items looked at")
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ import unittest
 
 import gencmu
 
-from .shared import SHARED, count_items
+from .shared import SHARED, OverItems, count_items
 
 
 class Growth(unittest.TestCase):
@@ -23,16 +23,21 @@ class Growth(unittest.TestCase):
             with self.subTest(dialect=case["dialect"], link=case["link"]):
                 dialect = gencmu.load_dialect(case["dialect"])
 
-                def items(n: int) -> int:
+                def items(n: int, budget: int | None = None) -> int:
                     text = case["text"].replace("{links}", " ".join([case["link"]] * n))
-                    with count_items() as work:
+                    with count_items(budget) as work:
                         result = dialect.parse(text)
                     self.assertTrue(result.ok, text)
                     return work.items
 
                 small = items(case["small"])
-                large = items(case["large"])
-                self.assertLessEqual(large, case["most"] * small, f"{case['link']}: {small} items for {case['small']} links, {large} for {case['large']}")
+                # The longer text's parse stops at the first item past its
+                # budget, so that a regression fails by its count before it
+                # costs much.
+                try:
+                    items(case["large"], case["most"] * small)
+                except OverItems:
+                    self.fail(f"{case['link']}: {small} items for {case['small']} links, more than {case['most']} times as many for {case['large']}")
 
 
 if __name__ == "__main__":
