@@ -67,7 +67,7 @@ export type ErrorJson = {
     column?: number;
     expected?: import("./types.js").Expectation[];
     readings?: NodeJson[];
-    witness?: (ActionJson | null)[];
+    witness?: ActionJson[];
     document?: string;
     message: string;
     chosen?: NodeJson;
@@ -76,7 +76,7 @@ export type ErrorJson = {
 export type StageJson = {
     name: string;
     verdict: import("./types.js").Verdict | null;
-    witness?: (ActionJson | null)[];
+    witness?: ActionJson[];
     output?: TokenJson[];
 };
 export type ResultJson = {
@@ -140,7 +140,7 @@ export type DisplayValue = {
  * @property {number} [column]
  * @property {import("./types.js").Expectation[]} [expected]
  * @property {NodeJson[]} [readings]
- * @property {(ActionJson | null)[]} [witness]
+ * @property {ActionJson[]} [witness]
  * @property {string} [document]
  * @property {string} message
  * @property {NodeJson} [chosen]
@@ -151,7 +151,7 @@ export type DisplayValue = {
  * @typedef {object} StageJson
  * @property {string} name
  * @property {import("./types.js").Verdict | null} verdict
- * @property {(ActionJson | null)[]} [witness]
+ * @property {ActionJson[]} [witness]
  * @property {TokenJson[]} [output]
  */
 /**

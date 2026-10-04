@@ -726,7 +726,9 @@ class StageRunner:
         and no warnings. The error holds the first and the second reading
         (engine §6)."""
         lowered = self.lowered
-        assert ranking.witness is not None and ranking.witness[0] is not None and ranking.witness[1] is not None
+        # Neither action of a witness is ever missing (engine §6, §7.10).
+        if ranking.witness is None or ranking.witness[0] is None or ranking.witness[1] is None:
+            raise RuntimeError("the witness of a ranking lacks an action")
         readings = [Tree(derivation(forest, rope), context.sources, context.tagtab).root for rope in (ranking.first, ranking.second)]
         error = ParseError(
             "ambiguous",
@@ -820,7 +822,9 @@ class StageRunner:
         # read of a synthetic token is an elided action at its record's
         # position, and a close has the projection of its span (engine
         # §7.10).
-        assert ranking.witness is not None and ranking.witness[0] is not None and ranking.witness[1] is not None
+        # Neither action of a witness is ever missing (engine §6, §7.10).
+        if ranking.witness is None or ranking.witness[0] is None or ranking.witness[1] is None:
+            raise RuntimeError("the witness of a ranking lacks an action")
 
         def mapped(act: Act) -> Action:
             if act.read and synthetic[act.token]:

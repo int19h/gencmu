@@ -171,6 +171,9 @@ func (run *stageRun) actions(rec *recognizer, w [2]action) []Action {
 			out[i] = Action{Read: &ReadAction{Token: rec.base + int(a.tok), Terminal: rec.g.terminals[a.term]}}
 		} else if a.prod != nil {
 			out[i] = Action{Close: &CloseAction{Rule: a.prod.ruleName, Production: a.prod.num, Span: [2]int{rec.base + int(a.start), rec.base + int(a.end)}}}
+		} else {
+			// Neither action of a witness is ever missing (engine §6).
+			panic("gencmu: the witness of a tie lacks an action")
 		}
 	}
 	return out

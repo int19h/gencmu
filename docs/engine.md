@@ -445,6 +445,8 @@ If it beats `t` before `t` diverges from `m`, it beats `m`, which nothing does. 
 
 So the verdict is `tie` exactly when some distinct derivation is tied with `m`, and then `m` and `t` are two best derivations. Otherwise `m` beats every other derivation, and it is the chosen derivation. In the example, `t` is the derivation through `q`, and the verdict is `tie`. It shows the first point at which the text can be read another way. The witness is the pair of actions at the first difference between `m` and `t`, visible if there is one. It compares the actions themselves, under every rule, and not their projections.
 
+Neither action of a witness is ever missing. Two distinct derivations of one span both end with the close of their root. So neither sequence of actions is a proper prefix of the other, unless a derivation is cyclic, and a cyclic derivation does not count. A library that finds a missing action has a defect, and it fails rather than report one.
+
 A tie is not a success. The result is an error of kind `ambiguous`, with the reason `tie`, and `ok` is false. The error carries two readings, `m` and then `t`, each as a tree (§12). The result's `tree` is null. The stage keeps its verdict and its witness. It has no chosen tree, no output (§11) and no warnings (§12), and no later stage runs (§13).
 
 A stage takes its steps in this order. It recognizes its input (§4), and it ranks the derivations. If the verdict is `unique` or `resolved`, it emits its tokens (§11), and then it runs the check of §7 if that applies. A tie ends the stage at the ranking, so neither emission nor that check runs. An error of the grammar found while emitting ends the stage before that check. The check can end the stage with an error of kind `ambiguous` (§7.10) or `grammar` (§7.7, §7.9).
@@ -677,7 +679,9 @@ The two readings are two derivations of R, but they can be equal as trees over O
 - A read of a synthetic token is an `elided` action of its record's terminal at the record's position in O.
 - A close has the projection of its span.
 
-Mapped to O, the two actions can still be equal, where they differ only in synthetic tokens. Two records of one terminal at one position are an example.
+Neither action is ever missing, as §6 says of a tie.
+
+Mapped to O, the two actions can still be equal. Two reads at one index read the same token of R, and a synthetic token reads only as its terminal. So equal mapped actions are two closes of one production whose spans of R differ only in synthetic tokens.
 
 The message of the error is free. Only the message of §7.9 is the same in every library.
 

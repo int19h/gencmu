@@ -396,7 +396,7 @@
    * @property {number} [column]
    * @property {import("./types.js").Expectation[]} [expected]
    * @property {NodeJson[]} [readings]
-   * @property {(ActionJson | null)[]} [witness]
+   * @property {ActionJson[]} [witness]
    * @property {string} [document]
    * @property {string} message
    * @property {NodeJson} [chosen]
@@ -408,7 +408,7 @@
    * @typedef {object} StageJson
    * @property {string} name
    * @property {import("./types.js").Verdict | null} verdict
-   * @property {(ActionJson | null)[]} [witness]
+   * @property {ActionJson[]} [witness]
    * @property {TokenJson[]} [output]
    */
 
@@ -478,11 +478,10 @@
   }
 
   /**
-   * @param {WitnessAction | null} action
-   * @returns {ActionJson | null}
+   * @param {WitnessAction} action
+   * @returns {ActionJson}
    */
   function actionJson(action) {
-    if (action === null) return null;
     if (action.kind === "read") return { read: { token: action.token, terminal: action.terminal } };
     if (action.kind === "elided") return { elided: { at: action.at, terminal: action.terminal } };
     return { close: { rule: action.rule, production: action.production, span: [action.span[0], action.span[1]] } };
@@ -5642,14 +5641,13 @@
   // ---- Ties ----------------------------------------------------------------
 
   /**
-   * @param {WitnessAction | null} action
+   * @param {WitnessAction} action
    * @param {Token[]} tokens
    * @returns {string}
    */
   function describeAction(action, tokens) {
-    if (!action) return "ends there";
     if (action.kind === "read") return `reads ${quoted(tokens[action.token] ? tokens[action.token].text : "")} as ${action.terminal}`;
-    if (action.kind === "elided") return `reads the ${action.terminal} written back before token ${action.at}`;
+    if (action.kind === "elided") return `reads the ${action.terminal} written back at position ${action.at}`;
     const rule = action.helper ? `part of ${action.rule}` : action.rule;
     return `closes ${rule} over tokens ${action.span[0]} to ${action.span[1]}`;
   }
@@ -5687,8 +5685,9 @@
       if (stage.verdict !== "tie") continue;
       const tokens = stage.input || [];
       const [first, second] = stage.witness;
-      const action = first || second;
-      const at = action ? (action.kind === "read" ? action.token : action.kind === "elided" ? action.at : action.span[1]) : 0;
+      // A tie in a stage has no written-back terminator, so its actions are
+      // reads and closes.
+      const at = first.kind === "read" ? first.token : first.kind === "close" ? first.span[1] : 0;
       const lines = [`The ${stage.name} stage is ambiguous: its grammar reads the text in two ways, and no rule ranks one above the other.`,
         "They first differ here:"];
       if (tokens.length) {
@@ -8000,9 +7999,10 @@
       const ropes = [ranking.first, /** @type {import("./types.js").Rope} */ (ranking.second)];
       // The witness, mapped to the stage's input as the readings are
       // (engine §7.10).
-      /** @type {(action: Action | null) => import("./types.js").WitnessAction | null} */
+      /** @type {(action: Action | null) => import("./types.js").WitnessAction} */
       const mapAction = (action) => {
-        if (action === null) return null;
+        // Neither action is ever missing (engine §6, §7.10).
+        if (action === null) throw new Error("the witness of the check of elision-only lacks an action");
         // A fault leaves the witness over R: a read keeps its index in R, and
         // a close its span there (witness:project).
         if (fault("witness:project")) {
@@ -8281,9 +8281,10 @@
    * @returns {import("./types.js").Witness}
    */
   function witnessOf(actions) {
-    /** @type {(action: Action | null) => import("./types.js").WitnessAction | null} */
+    /** @type {(action: Action | null) => import("./types.js").WitnessAction} */
     const plain = (action) => {
-      if (action === null) return null;
+      // Neither action is ever missing (engine §6).
+      if (action === null) throw new Error("the witness of a tie lacks an action");
       if (action.kind === "read") return { kind: "read", token: action.token, terminal: action.terminal };
       const { production, origin, end } = action.item;
       return { kind: "close", rule: production.owner, production: production.id, helper: production.helper, span: [origin, end] };
@@ -10584,10 +10585,10 @@
    */
 
   /**
-   * Where the two readings of a tie first differ: their actions
-   * there, null on the side of one that ended. The witness is plain data of
-   * the result's own, and shares nothing with the grammar.
-   * @typedef {[WitnessAction | null, WitnessAction | null]} Witness
+   * Where the two readings of a tie first differ: their actions there.
+   * Neither is ever missing (engine §6). The witness is plain data of the
+   * result's own, and shares nothing with the grammar.
+   * @typedef {[WitnessAction, WitnessAction]} Witness
    */
 
   /**

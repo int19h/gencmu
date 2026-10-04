@@ -109,7 +109,7 @@ export type SettledStageReport = StageReportBase & {
     verdict: "unique" | "resolved" | null;
     witness: null;
 };
-export type Witness = [WitnessAction | null, WitnessAction | null];
+export type Witness = [WitnessAction, WitnessAction];
 export type WitnessAction = WitnessRead | WitnessClose | WitnessElided;
 export type WitnessElided = {
     kind: "elided";
@@ -751,10 +751,10 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {StageReportBase & {verdict: "unique" | "resolved" | null, witness: null}} SettledStageReport
  */
 /**
- * Where the two readings of a tie first differ: their actions
- * there, null on the side of one that ended. The witness is plain data of
- * the result's own, and shares nothing with the grammar.
- * @typedef {[WitnessAction | null, WitnessAction | null]} Witness
+ * Where the two readings of a tie first differ: their actions there.
+ * Neither is ever missing (engine §6). The witness is plain data of the
+ * result's own, and shares nothing with the grammar.
+ * @typedef {[WitnessAction, WitnessAction]} Witness
  */
 /**
  * An action of a witness: a token read, a production closed, or, in the
