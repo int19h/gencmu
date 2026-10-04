@@ -5,7 +5,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::fxhash::{FxMap, FxSet};
-use crate::work::{self, Work};
+use crate::work::{self, Mutant, Work};
 
 use crate::dom::{constants_in_cond, constants_in_term, Arg, Cond, EmitItem, Expr, Mark, RuleDef, Term};
 
@@ -444,16 +444,23 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
         let meets = matches!(expr, Expr::Seq(_) | Expr::And(_));
         let mut parts = parts.into_iter();
         let mut joined = parts.next().unwrap_or_else(empty);
+        // A test-only switch looks up and moves the newer part, whatever
+        // its size, as a join without the rule of the smaller would.
+        let larger_last = work::mutated(Mutant::JoinIntoFirst);
         for mut part in parts {
+            // Each name looked up and each capture moved counts before its
+            // work.
             if meets {
-                if joined.1 <= part.1 {
+                if joined.1 <= part.1 && !larger_last {
                     for name in joined.0.keys() {
+                        work::count(Work::Walked, 1);
                         for &index in part.0.get(name).into_iter().flatten() {
                             duplicate[index] = true;
                         }
                     }
                 } else {
                     for (name, indices) in &part.0 {
+                        work::count(Work::Walked, 1);
                         if joined.0.contains_key(name) {
                             for &index in indices {
                                 duplicate[index] = true;
@@ -462,13 +469,16 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
                     }
                 }
             }
-            if joined.1 < part.1 {
+            if joined.1 < part.1 && !larger_last {
                 std::mem::swap(&mut joined, &mut part);
             }
             joined.1 += part.1;
-            for (name, mut indices) in part.0 {
-                work::count(Work::Walked, indices.len() as u64);
-                joined.0.entry(name).or_default().append(&mut indices);
+            for (name, indices) in part.0 {
+                let list = joined.0.entry(name).or_default();
+                for index in indices {
+                    work::count(Work::Walked, 1);
+                    list.push(index);
+                }
             }
         }
         done.push(joined);
@@ -520,18 +530,25 @@ impl<'e> CaptureSequences<'e> {
         // With one right sequence, the usual case, each left sequence grows
         // in place, so that a long sequence costs its length. Distinct
         // sequences with one suffix added stay distinct.
+        // Each capture counts as it is copied.
+        let copied = |&index: &usize| {
+            work::count(Work::Checked, 1);
+            index
+        };
         if let [only] = right {
             for sequence in &mut left {
-                work::count(Work::Checked, only.len() as u64);
-                sequence.extend_from_slice(only);
+                if work::mutated(Mutant::CopySequences) {
+                    *sequence = sequence.iter().chain(only).map(copied).collect();
+                } else {
+                    sequence.extend(only.iter().map(copied));
+                }
             }
             return left;
         }
         let mut out = Vec::with_capacity(left.len() * right.len());
         for first in left {
             for second in right {
-                work::count(Work::Checked, (first.len() + second.len()) as u64);
-                out.push(first.iter().chain(second).copied().collect());
+                out.push(first.iter().chain(second).map(copied).collect());
             }
         }
         self.distinct(out)
@@ -679,8 +696,18 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         .iter()
         .map(|(_, captures)| {
             let mut at = FxMap::default();
-            work::count(Work::Checked, captures.len() as u64);
             for (position, &name) in captures.iter().enumerate() {
+                work::count(Work::Checked, 1);
+                if work::mutated(Mutant::FirstByScan) {
+                    // The first position of the name, by a scan from the
+                    // start, each capture counted as it is compared.
+                    let first = captures.iter().position(|&other| {
+                        work::count(Work::Checked, 1);
+                        other == name
+                    });
+                    at.insert(name, first.unwrap_or(position));
+                    continue;
+                }
                 at.entry(name).or_insert(position);
             }
             at
@@ -865,16 +892,59 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::definition_problem;
+    use super::{definition_problem, duplicate_captures};
     use crate::dom::{Alternative, Arg, Attachments, EmitItem, Expr, Op, RuleDef, Term};
-    use crate::work::{assert_linear, Work};
+    use crate::work::{assert_linear, assert_mutant_stops, Mutant, Work};
 
     /// A rule of n captures whose tag term reads each and whose emission
     /// lists n inserted tags and then each capture: its checks cost about
     /// n, not n².
     #[test]
     fn a_definition_of_many_captures_checks_in_linear_work() {
-        let rule = |n: usize| {
+        let rules = [many_captures(8000), many_captures(32000)];
+        assert_linear(Work::Checked, 8000, &mut |n| {
+            let rule = &rules[usize::from(n != 8000)];
+            assert_eq!(definition_problem(rule), None);
+        });
+    }
+
+    /// A copy of each sequence with its suffix, and a scan for the first
+    /// position of each capture, stop at the first count past the budget
+    /// of `a_definition_of_many_captures_checks_in_linear_work`.
+    #[test]
+    fn quadratic_checks_of_a_definition_stop_at_the_budget() {
+        let rules = [many_captures(8000), many_captures(32000)];
+        for mutant in [Mutant::CopySequences, Mutant::FirstByScan] {
+            assert_mutant_stops(Work::Checked, mutant, 8000, &mut |n| {
+                definition_problem(&rules[usize::from(n != 8000)]);
+            });
+        }
+    }
+
+    /// A sequence of n captures nested to the right, each level a capture
+    /// and the rest, in which every name is distinct.
+    fn nested_captures(n: usize) -> Expr {
+        (0..n).rev().fold(Expr::Empty, |rest, index| {
+            Expr::Seq(vec![Expr::Capture(format!("c{index}"), Box::new(Expr::Terminal("A".into()))), rest])
+        })
+    }
+
+    /// The search for duplicate captures in a deep sequence looks up and
+    /// moves the part with fewer captures at each level, so its work grows
+    /// about linearly. Looking up and moving the newer part, which here
+    /// holds every capture below, stops at the first count past the budget.
+    #[test]
+    fn duplicate_captures_join_the_smaller_part() {
+        let exprs = [nested_captures(2000), nested_captures(8000)];
+        let mut run = |n: usize| assert!(duplicate_captures(&exprs[usize::from(n != 2000)]).is_empty());
+        assert_linear(Work::Walked, 2000, &mut run);
+        assert_mutant_stops(Work::Walked, Mutant::JoinIntoFirst, 2000, &mut run);
+    }
+
+    /// A rule of n captures, as `a_definition_of_many_captures_checks_in_linear_work`
+    /// describes it.
+    fn many_captures(n: usize) -> RuleDef {
+        {
             let names: Vec<String> = (0..n).map(|index| format!("c{index}")).collect();
             let expr = Expr::Seq(
                 names.iter().map(|name| Expr::Capture(name.clone(), Box::new(Expr::Terminal("A".into())))).collect(),
@@ -899,11 +969,6 @@ mod tests {
                 opaque: false,
                 at: (0, 0),
             }
-        };
-        let rules = [rule(8000), rule(32000)];
-        assert_linear(Work::Checked, 8000, &mut |n| {
-            let rule = &rules[usize::from(n != 8000)];
-            assert_eq!(definition_problem(rule), None);
-        });
+        }
     }
 }

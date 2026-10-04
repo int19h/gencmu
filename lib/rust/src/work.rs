@@ -90,6 +90,15 @@ pub(crate) enum Mutant {
     /// The checks of maximality find their tables of the chart again for
     /// each check.
     TablePerCheck,
+    /// The search for duplicate captures looks up and moves the newer
+    /// part of a sequence, not the one with fewer captures.
+    JoinIntoFirst,
+    /// The product of capture sequences copies each sequence with its
+    /// suffix, not growing it in place.
+    CopySequences,
+    /// The check of a definition finds the first position of each capture
+    /// by a scan from the start of its production.
+    FirstByScan,
     /// The search of lowering for the rules that read tests every symbol
     /// of a production for a terminal at each of its symbols.
     TerminalAtEach,
