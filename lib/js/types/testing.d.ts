@@ -81,7 +81,8 @@ export type WorkCounts = {
     captureLookups: number;
     /**
      * the ways of building an item that the
-     * recognizer compares with a new way, to find it already there
+     * recognizer compares with a new way, to find it already there, or that
+     * it indexes for that
      */
     edgeChecks: number;
     /**
@@ -196,7 +197,8 @@ export type WorkKind = "items" | "checks" | "scanned" | "candidates" | "captures
  * @property {number} captureLookups the entries of a production's captures
  *   that an advance or a formatter reads to find the capture at a position
  * @property {number} edgeChecks the ways of building an item that the
- *   recognizer compares with a new way, to find it already there
+ *   recognizer compares with a new way, to find it already there, or that
+ *   it indexes for that
  * @property {number} conditions the conditions that an advance reads to
  *   find those ready at its dot
  * @property {number} visits the nodes of conditions and terms that an
