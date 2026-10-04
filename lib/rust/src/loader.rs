@@ -563,7 +563,10 @@ mod tests {
         // An error is an outcome too. Its place is the notation cases'
         // concern.
         let _ = read_grammar_document(text);
-        kinds.map(counted)
+        let counts = kinds.map(counted);
+        // What reads next does so with no budget.
+        reset();
+        counts
     }
 
     /// Five times each count, the budget of a run four times as long.
@@ -626,6 +629,36 @@ mod tests {
             large.iter().zip(five_times(small)).all(|(&large, most)| large <= most),
             "{small:?} for 500 arguments, {large:?} for 2000"
         );
+    }
+
+    /// Constructs of many items side by side read in work that grows with
+    /// their items, not with their square: a sequence, alternatives, a
+    /// choice, a union, an intersection, a list of conditions and a
+    /// disjunction.
+    /// The shared cases nest their constructs, so each holds few items.
+    #[test]
+    fn wide_constructs_read_in_linear_work() {
+        let wide = |n: usize, item: &str, joiner: &str| vec![item; n].join(joiner);
+        let cases: [(&str, &dyn Fn(usize) -> String); 7] = [
+            ("sequence", &|n| format!("%rule text {}", wide(n, "A", " "))),
+            ("alternatives", &|n| format!("%rule text {}", wide(n, "A", " | "))),
+            ("choice", &|n| format!("%rule text ({})", wide(n, "A", " | "))),
+            ("union", &|n| format!("%rule text A <{}>", wide(n, "~a", " ∪ "))),
+            ("intersection", &|n| format!("%rule text A <{}>", wide(n, "~a", " ∩ "))),
+            ("conditions", &|n| format!("%rule text $x(A) %conditions {}", wide(n, "text($x) = \"a\"", ", "))),
+            ("disjunction", &|n| format!("%rule text $x(A) %conditions {}", wide(n, "text($x) = \"a\"", " ∨ "))),
+        ];
+        for (name, text) in cases {
+            let text = move |n: usize| format!("```jbogenbau\n%ambiguity-resolution greedy\n{}\n```\n", text(n));
+            // Once first, so that loading the notation counts in neither.
+            assert!(read_grammar_document(&text(250)).is_ok(), "{name}");
+            let small = reading(&text(250), None);
+            let large = reading(&text(1000), Some(five_times(small)));
+            assert!(
+                large.iter().zip(five_times(small)).all(|(&large, most)| large <= most),
+                "{name}: {small:?} for 250 items, {large:?} for 1000"
+            );
+        }
     }
 
     /// The search for the origins of a derivation, in a version that
