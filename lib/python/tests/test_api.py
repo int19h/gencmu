@@ -678,6 +678,38 @@ class Robustness(unittest.TestCase):
                     gencmu.load_dialect_sources(self.grammar(rules), "p.md")
                 self.assertEqual((caught.exception.document, caught.exception.line, caught.exception.column), ("g.md", 4, 1))
 
+    def test_deep_include_chain(self) -> None:
+        """A chain of includes far deeper than the call stack loads, and its
+        errors name the whole chain. The DOMs come precompiled, since the
+        notation reader would spend most of the run reading them."""
+        from gencmu._dialect import read_document
+        from gencmu._hash import fnv1a64
+
+        depth = 20_000
+        last = f"d{depth}.md"
+        include = {"format": DOM_FORMAT, "rules": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
+
+        def sources(end: str | None) -> dict[str, str]:
+            texts = {f"d{index}.md": f'```jbogenbau\n%include "d{index + 1}.md"\n```\n' for index in range(depth)}
+            doms = {path: {**include, "directives": [{"name": "include", "args": [f"d{index + 1}.md"], "at": [2, 1]}]} for index, path in enumerate(texts)}
+            if end is not None:
+                texts[last] = end
+                doms[last] = read_document(end, last)
+            entries = {path: {"hash": fnv1a64(text), "dom": doms[path]} for path, text in texts.items()}
+            bootstrap = fnv1a64(bundled_text("notation/bootstrap.json") or "")
+            texts["compiled.json"] = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap, "documents": entries})
+            return texts
+
+        dialect = gencmu.load_dialect_sources(sources("```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text 'a'\n```\n"), "d0.md")
+        self.assertTrue(dialect.parse("a", auto_features=False).ok)
+        chain = " → ".join(f"d{index}.md" for index in range(depth + 1))
+        with self.assertRaises(gencmu.GencmuError) as caught:
+            gencmu.load_dialect_sources(sources(None), "d0.md")
+        self.assertEqual(caught.exception.message, f"{last} was not found ({chain})")
+        with self.assertRaises(gencmu.GencmuError) as caught:
+            gencmu.load_dialect_sources(sources('```jbogenbau\n%include "d0.md"\n```\n'), "d0.md")
+        self.assertEqual(caught.exception.message, f"d0.md includes itself ({chain} → d0.md)")
+
     def test_deep_tree(self) -> None:
         dialect = gencmu.load_dialect_sources(self.grammar("%rule text text 'a' | 'a'"), "p.md")
         result = dialect.parse("a" * 10000, auto_features=False)

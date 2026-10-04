@@ -72,15 +72,33 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None]) -> Pipeline:
     features: set[str] = set()
     # The run being built: a path and its DOM.
     run: tuple[str, Dom] | None = None
-    # The documents that include the one being spliced, outermost first,
-    # and the same as a set. Each level pushes one and pops it, since a
-    # copy of the chain at each level costs a deep chain its square.
-    chain: list[str] = []
+    # The documents being spliced, outermost first, each with its items and
+    # the index of the next. A chain of includes is as long as its input
+    # makes it, so the walk keeps its own stack, not Python's.
+    frames: list[tuple[str, Dom, list[tuple[str, Dom]], list[int]]] = []
+    # The documents of the frames, for the check of an include of itself.
     on_chain: set[str] = set()
 
-    def splice(document: str, dom: Dom) -> None:
+    def enter(document: str, dom: Dom) -> None:
+        frames.append((document, dom, items_in_order(dom), [0]))
+        on_chain.add(document)
+
+    def chain_to(target: str) -> str:
+        # Built only for an error, since a copy at each include would cost
+        # a deep chain its square.
+        return " → ".join([*(frame[0] for frame in frames), target])
+
+    def splice() -> None:
         nonlocal run
-        for kind, item in items_in_order(dom):
+        while frames:
+            document, dom, items, next_at = frames[-1]
+            if next_at[0] == len(items):
+                frames.pop()
+                on_chain.discard(document)
+                run = None
+                continue
+            kind, item = items[next_at[0]]
+            next_at[0] += 1
             line, column = int(item["at"][0]), int(item["at"][1])
 
             def fail(message: str) -> GencmuError:
@@ -89,18 +107,13 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None]) -> Pipeline:
             name = item["name"] if kind == "directive" else None
             if name == "include":
                 target = resolve(document, item["args"][0])
-                if target in on_chain or target == document:
-                    raise fail(f"{target} includes itself ({' → '.join([*chain, document, target])})")
+                if target in on_chain:
+                    raise fail(f"{target} includes itself ({chain_to(target)})")
                 included = dom_of(target)
                 if included is None:
-                    raise fail(f"{target} was not found ({' → '.join([*chain, document, target])})")
+                    raise fail(f"{target} was not found ({chain_to(target)})")
                 run = None
-                chain.append(document)
-                on_chain.add(document)
-                splice(target, included)
-                chain.pop()
-                on_chain.discard(document)
-                run = None
+                enter(target, included)
             elif name == "features":
                 features.update(item["args"])
             elif name == "stage":
@@ -135,7 +148,8 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None]) -> Pipeline:
     top = dom_of(path)
     if top is None:
         raise GencmuError(f"{path} was not found", document=path)
-    splice(path, top)
+    enter(path, top)
+    splice()
     if not stages:
         raise GencmuError("a pipeline needs at least one %stage", document=path)
     for stage in stages:
