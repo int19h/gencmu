@@ -46,10 +46,9 @@ class OverBudget(BaseException):
     library's catches."""
 
 
-Weight = Callable[[FrameType], "int | Callable[[], int]"]
-"""What one call or step adds to the count, read from the running frame.
-For a call, it can instead give a function that gives the count once the
-call returns."""
+Weight = Callable[[FrameType], int]
+"""What one call or step adds to the count, read from the running frame
+before the call or the step does its work."""
 
 
 @dataclass
@@ -149,16 +148,12 @@ def steps(target: Any, line: str | None = None, weight: Weight | None = None) ->
 
 def made_items() -> Watch:
     """Count the items that the recognizer makes, in parses and nested
-    parses alike: a call of the recognizer's ``add`` that grows its list of
-    items makes one."""
+    parses alike, each at the line of ``add`` that numbers a new item,
+    before the item is stored. So a budget stops the parse before the
+    item past it exists."""
     from gencmu._earley import Parser
 
-    def made(frame: FrameType) -> Callable[[], int]:
-        items = frame.f_locals["prod"]
-        before = len(items)
-        return lambda: int(len(items) > before)
-
-    return calls(code_of(Parser.walk, "add"), made)
+    return steps(code_of(Parser.walk, "add"), "found = len(prod)")
 
 
 @contextmanager
@@ -178,39 +173,17 @@ def count_work(*watches: Watch, budget: int | None = None) -> Iterator[Work]:
     for watch in watches:
         for code in watch.codes:
             (starts if watch.calls else lines).setdefault(code, []).append(watch)
-    # The counts that wait for the return of each running call, innermost
-    # last.
-    waiting: list[list[Callable[[], int]]] = []
 
-    # Set once the budget is passed. The unwinding that follows reports
-    # the calls it leaves, and the call whose return passed the budget has
-    # already been taken off ``waiting``, so nothing more is counted.
-    stopped = False
-
+    # Every unit counts before its work, so the budget stops the work at
+    # the first unit past it and none of that unit's work is done.
     def add(count: int) -> None:
-        nonlocal stopped
         work.count += count
         if budget is not None and work.count > budget:
-            stopped = True
             raise OverBudget(f"more than {budget} units of work")
 
     def begin(code: CodeType, frame: FrameType) -> None:
-        # Pushed first, so that a budget passed here leaves the stack as
-        # the unwinding of this call expects it.
-        later: list[Callable[[], int]] = []
-        waiting.append(later)
         for watch in starts[code]:
-            count = 1 if watch.weight is None else watch.weight(frame)
-            if callable(count):
-                later.append(count)
-            else:
-                add(count)
-
-    def end() -> None:
-        if stopped:
-            return
-        for count in waiting.pop():
-            add(count())
+            add(1 if watch.weight is None else watch.weight(frame))
 
     def step(code: CodeType, number: int, frame: FrameType) -> bool:
         """Counts a step of a line, and tells whether any watch counts it."""
@@ -219,9 +192,7 @@ def count_work(*watches: Watch, budget: int | None = None) -> Iterator[Work]:
             numbers = watch.codes[code]
             if numbers is None or number in numbers:
                 counted = True
-                count = 1 if watch.weight is None else watch.weight(frame)
-                assert isinstance(count, int), "a step's weight is a number"
-                add(count)
+                add(1 if watch.weight is None else watch.weight(frame))
         return counted
 
     places: dict[CodeType, tuple[list[int], list[int | None]]] = {}
@@ -250,10 +221,6 @@ def count_work(*watches: Watch, budget: int | None = None) -> Iterator[Work]:
         monitoring.use_tool_id(tool, "gencmu tests: count_work")
         try:
             monitoring.register_callback(tool, events.PY_START, lambda code, offset: begin(code, sys._getframe(1)))
-            monitoring.register_callback(tool, events.PY_RETURN, lambda code, offset, value: end())
-            # A call that raises returns nothing, and an unwinding is a
-            # global event only, which the callback narrows to the calls.
-            monitoring.register_callback(tool, events.PY_UNWIND, lambda code, offset, error: end() if code in starts else None)
             # A line or a jump that no watch counts is turned off where it
             # stands, so that the code runs at its own speed between the
             # steps that count.
@@ -268,12 +235,10 @@ def count_work(*watches: Watch, budget: int | None = None) -> Iterator[Work]:
             for code in set(starts) | set(lines):
                 wanted = events.NO_EVENTS
                 if code in starts:
-                    wanted |= events.PY_START | events.PY_RETURN
+                    wanted |= events.PY_START
                 if code in lines:
                     wanted |= events.LINE | events.JUMP
                 monitoring.set_local_events(tool, code, wanted)
-            if starts:
-                monitoring.set_events(tool, events.PY_UNWIND)
             # The places that an earlier count turned off count again.
             monitoring.restart_events()
             yield work
@@ -291,12 +256,12 @@ def count_work(*watches: Watch, budget: int | None = None) -> Iterator[Work]:
             return None
         if code in starts:
             begin(code, frame)
+        if code not in lines:
+            return None
 
         def local(frame: FrameType, event: str, arg: Any) -> Any:
-            if event == "line" and code in lines:
+            if event == "line":
                 step(code, frame.f_lineno, frame)
-            elif event == "return" and code in starts:
-                end()
             return local
 
         return local

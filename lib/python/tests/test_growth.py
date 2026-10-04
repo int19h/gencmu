@@ -52,6 +52,31 @@ class Growth(unittest.TestCase):
                     self.fail(f"{case['link']}: {small} items for {case['small']} links, more than {case['most']} times as many for {case['large']}")
 
 
+class ItemCount(unittest.TestCase):
+    def test_the_budget_stops_the_parse_before_the_item_past_it_is_stored(self) -> None:
+        # The count of items comes before each new item is stored, so the
+        # parse that passes its budget stores exactly the budget's items.
+        dialect, error = load_case_dialect({"grammar": "%rule text {A}"})
+        assert dialect is not None, error
+        tokens = [{"text": "a", "tags": ["A"]}] * 50
+        budget = 40
+        # The parse's items, read from its frame as the budget stops it,
+        # since assertRaises clears the frames of what it catches.
+        stored: list[int] = []
+        try:
+            with count_work(made_items(), budget=budget):
+                parse_case(dialect, {"tokens": tokens})
+        except OverBudget as error:
+            trace = error.__traceback__
+            while trace is not None:
+                if trace.tb_frame.f_code.co_name == "walk" and "prod" in trace.tb_frame.f_locals:
+                    stored.append(len(trace.tb_frame.f_locals["prod"]))
+                trace = trace.tb_next
+        else:
+            self.fail("the parse stayed within its budget")
+        self.assertEqual(stored, [budget])
+
+
 class CaptureStorage(unittest.TestCase):
     def storage(self, count: int, works: dict[str, Work], captures: Watch, steps_: list[Watch]) -> None:
         """Parse a production of ``count`` captures over as many tokens, under
