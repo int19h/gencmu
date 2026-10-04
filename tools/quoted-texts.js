@@ -413,7 +413,10 @@ export function runStarts(haystack, needle) {
   const border = [0];
   for (let index = 1, length = 0; index < needle.length; index++) {
     if (hooks.work) countWork(hooks.work, "text");
-    while (length > 0 && needle[index] !== needle[length]) length = border[length - 1];
+    while (length > 0 && needle[index] !== needle[length]) {
+      if (hooks.work) countWork(hooks.work, "text");
+      length = border[length - 1];
+    }
     if (needle[index] === needle[length]) length++;
     border.push(length);
   }

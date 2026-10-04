@@ -213,7 +213,10 @@ export function suggestLayout(symbols, indent, limit = LINE_LIMIT) {
   /** @type {number[][]} */
   const starts = Array.from({ length: n + 1 }, () => []);
   for (let i = n - 1; i >= 0; i--) {
-    cost[i].forEach((_, index) => starts[i + 1 + index].push(i));
+    cost[i].forEach((_, index) => {
+      if (hooks.work) countWork(hooks.work, "text");
+      starts[i + 1 + index].push(i);
+    });
   }
   // The fewest lines of the layout for the symbols before each j, and for
   // those from each i to the end. Every symbol can stand alone, so both are
@@ -221,13 +224,17 @@ export function suggestLayout(symbols, indent, limit = LINE_LIMIT) {
   const before = [0];
   for (let j = 1; j <= n; j++) {
     let fewest = Infinity;
-    for (const i of starts[j]) fewest = Math.min(fewest, 1 + before[i]);
+    for (const i of starts[j]) {
+      if (hooks.work) countWork(hooks.work, "text");
+      fewest = Math.min(fewest, 1 + before[i]);
+    }
     before.push(fewest);
   }
   const after = Array(n + 1).fill(0);
   for (let i = n - 1; i >= 0; i--) {
     let fewest = Infinity;
     cost[i].forEach((_, index) => {
+      if (hooks.work) countWork(hooks.work, "text");
       fewest = Math.min(fewest, 1 + after[i + 1 + index]);
     });
     after[i] = fewest;
