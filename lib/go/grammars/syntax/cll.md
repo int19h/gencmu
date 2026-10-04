@@ -22,7 +22,9 @@ The stages before it make the word stream that it reads. The forms stage ([forms
 
 [The notation document](../../docs/notation.md) explains the notation. Two of its points matter here. First, an elided terminator takes its `#` with it, so an elided `[X #]` leaves no free-modifier slot (see `#` below) at that point. Second, when omitted terminators leave a text with more than one parse, the stage chooses the parse as "Choosing among parses" after the grammar says.
 
-The notation reads `...` as CLL does. `x ...` means one `x`, optionally followed by more. `[x] ...` allows none. Point 7 of CLL 21.2's notation calls `...` "optional repetition of the construct to the left". This grammar reads it so: the first `x` is required, and its repetition is optional. Where CLL means none, it writes `[x] ...` or `[x ...]`. This clarifies point 7. It is not a departure from it. Juxtaposition binds tighter than `&`, which CLL does not say (item 1 of "Differences from the printed CLL grammar").
+CLL writes repetition as `x ...`, and the notation writes it with braces. Point 7 of CLL 21.2's notation calls `...` "optional repetition of the construct to the left". So CLL's `x ...` is `{x}` here, one `x` and optionally more, and CLL's `[x] ...` or `[x ...]` is `[{x}]`, which allows none. Where CLL writes `x [s x] ...`, this grammar writes `{x \ s}`, a list of `x` separated by `s`. These read the same words as the printed rules.
+
+Point 7 also says that `...` implies left grouping. A list in flat braces shows no grouping in the tree: its items are children of the rule that writes it. Where the grouping matters, as for connectives, this grammar says so in the rule. A left chain, `{... x \ s}`, groups from the left, and each level of it is a node of its rule. Where the repeated part is irregular, the rule is written with left recursion instead, which groups in the same way. Each such rule cites the section of CLL that gives its grouping. A right chain, `{x ... \ s}`, groups from the right, as the `bo` forms do. Juxtaposition binds tighter than `&`, which CLL does not say (item 1 of "Differences from the printed CLL grammar").
 
 This document writes the grammar literately: each block of rules follows the prose that explains it, and the blocks together are the grammar. The prose says what each construct is for and how the rules do it. The chapter numbers are those of CLL.
 
@@ -37,7 +39,7 @@ A directive and a rule set the grammar up. This document does not say how the st
   VEhO
 
 %rule #
-  [free ...]
+  [{free}]
 ```
 
 ## The text and its paragraphs
@@ -51,25 +53,25 @@ A text is what one speaker or writer produces, from the first word to the last (
 
 After that come the paragraphs. `text-1` lets the text begin with `.i` sentence separators, then with `ni'o` topic markers, or with either alone. Each `.i` can carry its own afterthought connective and a `bo`-grouped tense. A text takes these forms when it continues the text of another speaker or starts a fresh topic (CLL 19.3). One or more `ni'o` separate the paragraphs, and each `ni'o` beyond the first marks a larger break. A paragraph is a sequence of statements or fragments, separated by `.i`.
 
-This grammar writes most unbounded sequences with a trailing `...`, which the parser reads left-recursively. So a paragraph of a thousand sentences costs a thousand steps, not a thousand squared. A few rules, such as `paragraphs` and `links`, recurse on the right instead.
+This grammar writes most unbounded sequences with braces, which the parser reads left-recursively. So a paragraph of a thousand sentences costs a thousand steps, not a thousand squared. A few rules, such as `paragraphs` and `links`, recurse on the right instead.
 
 ```jbogenbau
 %rule text
-  [NAI ...] [CMEVLA ... # | (indicators & free ...)] [joik-jek] text-1
+  [{NAI}] [{CMEVLA} # | (indicators & {free})] [joik-jek] text-1
 
 %rule text-1
-  [(I [jek | joik] [[stag] BO] #) ...] [NIhO ... #] [paragraphs]
+  [{I [jek | joik] [[stag] BO] #}] [{NIhO} #] [paragraphs]
 
 %rule paragraphs
-  paragraph [NIhO ... # paragraphs]
+  paragraph [{NIhO} # paragraphs]
 
 %rule paragraph
-  (statement | fragment) [I # [statement | fragment]] ...
+  (statement | fragment) [{I # [statement | fragment]}]
 ```
 
 ## Statements and fragments
 
-A statement is a sentence, or a sentence with a prenex before it, or several sentences joined by afterthought connectives (CLL 14.4). The four levels state the grouping of those connectives. `statement` takes any number of prenexes, each `terms zo'u`, which bind variables or set topics for the sentence that follows (CLL 16.2). `statement-1` is a sequence of `statement-2` joined by `.i` followed by a jek or joik: `.i je`, `.i ja nai`, `.i joi`. These group to the left, as the trailing `...` says. So `A .i je B .i ja C` is `(A and B) or C`.
+A statement is a sentence, or a sentence with a prenex before it, or several sentences joined by afterthought connectives (CLL 14.4). The four levels state the grouping of those connectives. `statement` takes any number of prenexes, each `terms zo'u`, which bind variables or set topics for the sentence that follows (CLL 16.2). `statement-1` is a sequence of `statement-2` joined by `.i` followed by a jek or joik: `.i je`, `.i ja nai`, `.i joi`. These group to the left, by the left-grouping rule of logical connectives (CLL 14.7, 14.8). So `A .i je B .i ja C` is `(A and B) or C`, and the tree shows that grouping. The rule is written with left recursion, not as a chain, since the `statement-2` after the last connective is optional.
 
 `statement-2` is the right-grouping form. `.i` with an optional connective and an optional tense, then `bo`, binds the sentence after it more tightly than a plain `.i je` does. The rule refers to `statement-2` on its right, so a chain of `.i bo` groups to the right (CLL 14.8). So `mi klama .i bo do klama .i bo la djan cadzu` is `([mi klama] i bo [{do klama} i bo {(la djan) cadzu}])`. `statement-3` is either a sentence or a `tu'e ... tu'u` block. The block makes a whole text-1 act as one sentence, for connection and for a tense before it (CLL 14.8). The block's `tu'u` is elidable and carries its own free-modifier slot.
 
@@ -92,7 +94,7 @@ A fragment is what a speaker utters when the utterance is not a sentence (CLL 19
   statement-1 | prenex statement
 
 %rule statement-1
-  statement-2 [I joik-jek [statement-2]] ...
+  statement-2 | statement-1 I joik-jek [statement-2]
 
 %rule statement-2
   statement-3 [I [jek | joik] [stag] BO # [statement-2]]
@@ -113,7 +115,7 @@ A sentence is a bridi: some terms, then optionally `cu`, then the bridi-tail, wh
 
 A subsentence is a sentence, or a prenex followed by a subsentence. Abstractions and relative clauses contain subsentences, and the prenex of a subsentence is local to it (CLL 16.7).
 
-The bridi-tail levels state how sentences share a head under a gihek, the connective family `gi'e`, `gi'a` and the rest of GIhA (CLL 14.9). `bridi-tail-3` is one selbri with its tail terms, or a forethought `gek-sentence`. `bridi-tail-2` binds two tails with `gihek [stag] bo`, right-grouping, and `bridi-tail-1` joins tails with a plain gihek, left-grouping. `bridi-tail` at the top lets a gihek be followed by `ke ... ke'e`, which groups the tails inside the brackets against the tail to the left. The tail terms after each selbri belong to that selbri. `vau` closes them and is almost always elided.
+The bridi-tail levels state how sentences share a head under a gihek, the connective family `gi'e`, `gi'a` and the rest of GIhA (CLL 14.9). `bridi-tail-3` is one selbri with its tail terms, or a forethought `gek-sentence`. `bridi-tail-2` binds two tails with `gihek [stag] bo`, right-grouping, and `bridi-tail-1` joins tails with a plain gihek, left-grouping (CLL 14.10). `bridi-tail-1` is written with left recursion, so the tree shows that grouping. It is not a chain, since each tail after a gihek has its own tail terms. `bridi-tail` at the top lets a gihek be followed by `ke ... ke'e`, which groups the tails inside the brackets against the tail to the left. The tail terms after each selbri belong to that selbri. `vau` closes them and is almost always elided.
 
 The printed grammar lets the tail after a plain gihek begin with `ke`, or with a tense and `ke`. So `mi broda gi'e ke brode ke'e` has two parses. In one, `ke ... ke'e` groups the tails after `gi'e`, through the `ke` form of `bridi-tail` (rule 50 of the printed grammar). In the other, `gi'e` is a plain gihek (rule 51), and `ke ... ke'e` groups a tanru that begins the second tail. With a tense, the two parses also differ in what the tense applies to. In `mi klama gi'e pu ke cadzu ke'e`, `pu` is part of the connective in the first parse, and a tense of the selbri `ke cadzu ke'e` in the second. CLL 14.10 groups tails with `ke` after a gihek, and CLL 14.18 puts a tense between a gihek and `ke` (example 14.164). The official parser reads only the group, through a token of its lexer (the part that divides the input into tokens), `GIhEK_KE`.
 
@@ -152,7 +154,7 @@ A `gek-sentence` is the forethought form. It joins two subsentences before eithe
   | bridi-tail-1 gihek [stag] KE # bridi-tail [KEhE #] tail-terms
 
 %rule bridi-tail-1
-  bridi-tail-2 [gihek # bridi-tail-2 tail-terms] ...
+  bridi-tail-2 | bridi-tail-1 gihek # bridi-tail-2 tail-terms
 
 %rule bridi-tail-1-final
   | bridi-tail-2
@@ -162,7 +164,7 @@ A `gek-sentence` is the forethought form. It joins two subsentences before eithe
   ~ke-group ⊈ tags($t) ∨ (~vau-written ⊆ tags($t) ∧ text($v) ≠ "")
 
 %rule free-modifiers
-  free ...
+  {free}
 
 %rule bridi-tail-2
   | bridi-tail-3
@@ -195,17 +197,17 @@ A term is one argument of a bridi, or one tense or modal standing on its own (CL
 
 A tense or modal with nothing after it takes `ku`, so that it does not swallow the next sumti. The `ku` can be elided when what follows cannot be a sumti. When what follows can be a sumti, "Choosing among parses" says which reading wins.
 
-The three levels of `terms` state the termset connectives (CLL 14.11 and 16.7). `terms-2` joins terms with `ce'e` into a termset, `mi ce'e do`. `terms-1` joins termsets with `pe'e` followed by a jek or joik, the afterthought form that connects two sets of arguments at once. `terms` is a sequence of those, and it is left-recursive so that the parser builds the terms of a long sentence one at a time. A termset in forethought is `nu'i gek terms nu'u gik terms nu'u`. `nu'i terms nu'u` alone brackets several terms into one so that a connective or a tense applies to all of them.
+The three levels of `terms` state the termset connectives (CLL 14.11 and 16.7). `terms-2` joins terms with `ce'e` into a termset, `mi ce'e do`. `terms-1` joins termsets with `pe'e` followed by a jek or joik, the afterthought form that connects two sets of arguments at once (CLL 14.11). It is a left chain, since afterthought logical connectives group from the left (CLL 14.7). `terms` is a list of those, and the parser reads it left-recursively, so that it builds the terms of a long sentence one at a time. A termset in forethought is `nu'i gek terms nu'u gik terms nu'u`. `nu'i terms nu'u` alone brackets several terms into one so that a connective or a tense applies to all of them.
 
 ```jbogenbau
 %rule terms
-  terms-1 ...
+  {terms-1}
 
 %rule terms-1
-  terms-2 [PEhE # joik-jek terms-2] ...
+  {... terms-2 \ PEhE # joik-jek}
 
 %rule terms-2
-  term [CEhE # term] ...
+  {term \ CEhE #}
 
 %rule term
   sumti | (tag | FA #) (sumti | [KU #]) | termset | NA KU #
@@ -218,7 +220,7 @@ The three levels of `terms` state the termset connectives (CLL 14.11 and 16.7). 
 
 A sumti is an argument: a description, a name, a pronoun, a quotation, a number, or a connection of these (CLL 6). The levels from `sumti` down to `sumti-4` state the connectives and the grouping, in the same shape as for statements and bridi-tails.
 
-`sumti-1` is a sumti with a `ke ... ke'e` grouped connection after it. `sumti-2` is a sequence joined by ek or joik in afterthought, `mi .e do`, `mi joi do`, left-grouping. `sumti-3` is the right-grouping `bo` form. `sumti-4` is a simple sumti or a forethought connection, `ge mi gi do`. The top rule `sumti` adds `vu'o` followed by relative clauses. `vu'o` attaches the clauses to a whole connected sumti rather than to its last member (CLL 8.8).
+`sumti-1` is a sumti with a `ke ... ke'e` grouped connection after it. `sumti-2` is a sequence joined by ek or joik in afterthought, `mi .e do`, `mi joi do`. It is a left chain, since afterthought connectives group from the left (CLL 14.7). `sumti-3` is the `bo` form, a right chain, since a run of `bo` connectives groups from the right (CLL 14.8). `sumti-4` is a simple sumti or a forethought connection, `ge mi gi do`. The top rule `sumti` adds `vu'o` followed by relative clauses. `vu'o` attaches the clauses to a whole connected sumti rather than to its last member (CLL 8.8).
 
 `sumti-5` places the outer quantifier. A number before a sumti-6 counts its referents: `re lo gerku`. A quantifier directly before a selbri makes a sumti with an implicit `lo`, `re gerku`, whose `ku` is elidable (CLL 6.7). Relative clauses can follow either.
 
@@ -243,10 +245,10 @@ This grammar states the quote rules over `any-word` and `anything`. The word sta
   sumti-2 [(ek | joik) [stag] KE # sumti [KEhE #]]
 
 %rule sumti-2
-  sumti-3 [joik-ek sumti-3] ...
+  {... sumti-3 \ joik-ek}
 
 %rule sumti-3
-  sumti-4 [(ek | joik) [stag] BO # sumti-3]
+  {sumti-4 ... \ (ek | joik) [stag] BO #}
 
 %rule sumti-4
   sumti-5 | gek sumti gik sumti-4
@@ -258,12 +260,12 @@ This grammar states the quote rules over `any-word` and `anything`. The word sta
   | (LAhE # | NAhE BO #) [relative-clauses] sumti [LUhU #]
   | KOhA #
   | lerfu-string [BOI #]
-  | LA # [relative-clauses] CMEVLA ... #
+  | LA # [relative-clauses] {CMEVLA} #
   | (LA | LE) # sumti-tail [KU #]
   | LI # mex [LOhO #]
   | ZO any-word #
   | LU text [LIhU] #
-  | LOhU [any-word ...] LEhU #
+  | LOhU [{any-word}] LEhU #
   | ZOI any-word anything any-word #
 
 %rule sumti-tail
@@ -279,7 +281,7 @@ A relative clause attaches to a sumti and restricts or comments on it (CLL 8). `
 
 ```jbogenbau
 %rule relative-clauses
-  relative-clause [ZIhE # relative-clause] ...
+  {relative-clause \ ZIhE #}
 
 %rule relative-clause
   GOI # term [GEhU #] | NOI # subsentence [KUhO #]
@@ -291,9 +293,9 @@ A selbri is the predicate of a bridi (CLL 5). A tense or modal can come before i
 
 `selbri-2` is the `co` inversion, `sutra co tavla`. It swaps the order of modifier and modified, so the part after `co` is the modifier (CLL 5.8). The whole selbri keeps the place structure of the part before `co`. Sumti after the selbri fill the places of the modifier, from its x2 on. `co` groups to the right.
 
-`selbri-3` is a plain tanru: a sequence of `selbri-4` with no connective between them. It groups to the left, so `barda gerku zdani` is `(barda gerku) zdani`.
+`selbri-3` is a plain tanru: a sequence of `selbri-4` with no connective between them. It groups to the left, by the left-grouping rule of tanru (CLL 5.3), so `barda gerku zdani` is `(barda gerku) zdani`. It is a left chain, so the tree shows that grouping.
 
-`selbri-4` joins units by a jek or joik in afterthought, `barda je melbi`, or by a joik followed by `ke ... ke'e`. Where the unit after a plain joik is only a `ke` group, the second form reads the same words. The grammar then takes the second form. `selbri-5` joins units by a jek or joik with `bo`, which binds more tightly than plain juxtaposition, as in `melbi je bo cmalu nixli`. `selbri-6` is a tanru unit, optionally followed by `bo` and a further `selbri-6`, as in `melbi cmalu bo nixli`. It can also be a forethought connection with a guhek, `gu'e barda gi melbi`, optionally negated by `na'e` (CLL 5.6, 14.12).
+`selbri-4` joins units by a jek or joik in afterthought, `barda je melbi`, or by a joik followed by `ke ... ke'e`. These connections group from the left (CLL 14.12). The rule is written with left recursion, so the tree shows that grouping. It is not a chain, since its three forms of connection read different units after the connective. Where the unit after a plain joik is only a `ke` group, the second form reads the same words. The grammar then takes the second form. `selbri-5` joins units by a jek or joik with `bo`, which binds more tightly than plain juxtaposition, as in `melbi je bo cmalu nixli`. It is a right chain, since a run of `bo` groups from the right (CLL 5.3, 14.8, 14.12). `selbri-6` is a tanru unit, optionally followed by `bo` and a further `selbri-6`, as in `melbi cmalu bo nixli`. It can also be a forethought connection with a guhek, `gu'e barda gi melbi`, optionally negated by `na'e` (CLL 5.6, 14.12).
 
 
 A tanru unit is one brick of the selbri. `tanru-unit` allows `cei` to assign the unit to a pro-bridi (`klama cei broda`). `tanru-unit-1` attaches linked arguments, `be ... bei ... be'o`, which fill the places of that one unit rather than of the whole bridi (CLL 5.7). `tanru-unit-2` lists the simple units:
@@ -310,7 +312,7 @@ A tanru unit is one brick of the selbri. `tanru-unit` allows `cei` to assign the
 - A scalar negation `na'e`
 - An abstraction: `nu`, `ka`, `du'u` or another word of NU before a subsentence, closed by `kei`
 
-The `SE`, `JAI` and `NAhE` forms refer back to `tanru-unit-2`, so `se se broda` and `na'e se broda` are single units. A jek or joik can connect several abstraction words (`nu je ka`). The word stage builds each `zei` compound and hands on one `BRIVLA`, so the `ZEI` alternative never matches. This grammar keeps that alternative as CLL prints it.
+The `SE`, `JAI` and `NAhE` forms refer back to `tanru-unit-2`, so `se se broda` and `na'e se broda` are single units. A jek or joik can connect several abstraction words (`nu je ka`). `abstractor-chain` reads them as a left chain, since such a connection cannot override the left-grouping rule (CLL 14.19). Each level of the chain holds its first abstractor, so a single abstractor with `nai` or with free modifiers is a node of its own, `[nu nai]`. The word stage builds each `zei` compound and hands on one `BRIVLA`, so the `ZEI` alternative never matches. This grammar keeps that alternative as CLL prints it.
 
 ```jbogenbau
 %rule selbri
@@ -324,19 +326,22 @@ The `SE`, `JAI` and `NAhE` forms refer back to `tanru-unit-2`, so `se se broda` 
   selbri-3 | selbri-3 CO # selbri-2
 
 %rule selbri-3
-  selbri-4 ...
+  {... selbri-4}
 
 %rule selbri-4
-  selbri-5 [plain-joik-jek selbri-5 | joik-before-ke selbri-5-not-ke-group | joik [stag] KE # selbri-3 [KEhE #]] ...
+  | selbri-5
+  | selbri-4 plain-joik-jek selbri-5
+  | selbri-4 joik-before-ke selbri-5-not-ke-group
+  | selbri-4 joik [stag] KE # selbri-3 [KEhE #]
 
 %rule selbri-5
-  selbri-6 | selbri-6 (jek | joik) [stag] BO # selbri-5
+  {selbri-6 ... \ (jek | joik) [stag] BO #}
 
 %rule selbri-6
   tanru-unit | tanru-unit BO # selbri-6 | [NAhE #] guhek selbri gik selbri-6
 
 %rule tanru-unit
-  tanru-unit-1 [CEI # tanru-unit-1] ...
+  {tanru-unit-1 \ CEI #}
 
 %rule tanru-unit-1
   tanru-unit-2 | tanru-unit-2 linkargs
@@ -350,9 +355,12 @@ The `SE`, `JAI` and `NAhE` forms refer back to `tanru-unit-2`, so `se se broda` 
   | NUhA # mex-operator
   | SE # tanru-unit-2
   | JAI # [tag] tanru-unit-2
-  | any-word (ZEI any-word) ...
+  | any-word {ZEI any-word}
   | NAhE # tanru-unit-2
-  | NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI #]
+  | abstractor-chain subsentence [KEI #]
+
+%rule abstractor-chain
+  {... NU [NAI] # \ joik-jek}
 
 %rule linkargs
   BE # term [links] [BEhO #]
@@ -365,17 +373,17 @@ The `SE`, `JAI` and `NAhE` forms refer back to `tanru-unit-2`, so `se se broda` 
 
 A number is a string of PA words, such as the digits `pa` and `re` and the decimal point `pi`. Lerfu words can be mixed into it after the first word (`pa re ci`, `pa xy.`). A lerfu string is the same thing, but it begins with a lerfu word (CLL 18.2, 17.9). A lerfu word is a member of BY, any word followed by `bu`, a `lau` shift before a lerfu word, or a `tei ... foi` compound. The word stage builds each letter word with `bu` and hands on one `BY`, so the `BU` alternative never matches. This grammar keeps that alternative as CLL prints it.
 
-A quantifier is a number closed by `boi` or a mekso in `vei ... ve'o` brackets (CLL 18.6). A mekso is a mathematical expression, and the rules follow CLL 18 closely. `mex` is a sequence of `mex-1` joined by operators in afterthought infix form, `li pa su'i re`, or a reverse Polish expression introduced by `fu'a`. `mex-1` is the `bi'e` form, which binds an operator more tightly than its neighbors (CLL 18.5). `mex-2` is an operand, or a forethought operator followed by its operands. An optional `pe'o` comes before the operator, and an optional `ku'e` closes the form.
+A quantifier is a number closed by `boi` or a mekso in `vei ... ve'o` brackets (CLL 18.6). A mekso is a mathematical expression, and the rules follow CLL 18 closely. `mex` is a sequence of `mex-1` joined by operators in afterthought infix form, `li pa su'i re`, or a reverse Polish expression introduced by `fu'a`. The infix form is `mex-chain`, a left chain, since operators are applied from left to right (CLL 18.5). So `ci su'i vo pi'i mu` is `(ci su'i vo) pi'i mu`, and each level of the chain holds an operator with both its operands. `mex-1` is the `bi'e` form, which binds an operator more tightly than its neighbors (CLL 18.5). `mex-2` is an operand, or a forethought operator followed by its operands. An optional `pe'o` comes before the operator, and an optional `ku'e` closes the form.
 
 In reverse Polish notation, an expression is two operands followed by an operator, and each operand can itself be such an expression.
 
-Operators have their own connectives and grouping, in the same shape as selbri. `operator` joins operators by jek or joik or a `ke` group. As in `selbri-4`, its plain connective is `plain-joik-jek`. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the group `ke pi'i ke'e` through `joik [stag] KE`. `operator-1` gives the guhek forethought and the `bo` forms. `operator-2` is a simple operator or a `ke ... ke'e` group.
+Operators have their own connectives and grouping, in the same shape as selbri. `operator` joins operators by jek or joik or a `ke` group. These connections group from the left (CLL 14.7, 14.17), and `operator`, like `selbri-4`, is written with left recursion, so the tree shows that grouping. As in `selbri-4`, its plain connective is `plain-joik-jek`. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the group `ke pi'i ke'e` through `joik [stag] KE`. `operator-1` gives the guhek forethought and the `bo` forms. `operator-2` is a simple operator or a `ke ... ke'e` group.
 
 The `bo` form joins two operators by a jek or joik with `bo`, as in `li pa su'i je bo pi'i re` (rule 371 of the printed grammar). CLL 14.17 says that jeks and joiks with `bo` are not allowed for operators. But chapter 21 prints the form, and CLL 14.18 says that operators can have a tense in their logical connectives, as tanru units can. A jek takes a tense only in the `bo` form, as in `li pa su'i je pu bo pi'i re`. This grammar follows chapter 21 and keeps the form. The official parser accepts it too.
 
 A simple `mex-operator` is a VUhU word, possibly converted by `se` or negated by `na'e`. It can also be an operator made from a mekso through `ma'o`, or a selbri used as an operator through `na'u`. `te'u` closes these last two.
 
-Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the afterthought connectives, and `operand-2` the `bo` form. `operand-3` lists the simple operands:
+Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the afterthought connectives, and `operand-2` the `bo` form. `operand-1` is a left chain and `operand-2` a right chain, as for sumti (CLL 14.7, 14.8, 14.17). `operand-3` lists the simple operands:
 
 - A quantifier
 - A lerfu string
@@ -390,13 +398,16 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
   number [BOI #] | VEI # mex [VEhO #]
 
 %rule mex
-  mex-1 [operator mex-1] ... | FUhA # rp-expression
+  mex-chain | FUhA # rp-expression
+
+%rule mex-chain
+  {... mex-1 \ operator}
 
 %rule mex-1
   mex-2 [BIhE # operator mex-1]
 
 %rule mex-2
-  operand | [PEhO #] operator mex-2 ... [KUhE #]
+  operand | [PEhO #] operator {mex-2} [KUhE #]
 
 %rule rp-expression
   rp-operand rp-operand operator
@@ -405,7 +416,10 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
   operand | rp-expression
 
 %rule operator
-  operator-1 [plain-joik-jek operator-1 | joik-before-ke operator-1-not-ke-group | joik [stag] KE # operator [KEhE #]] ...
+  | operator-1
+  | operator plain-joik-jek operator-1
+  | operator joik-before-ke operator-1-not-ke-group
+  | operator joik [stag] KE # operator [KEhE #]
 
 %rule operator-1
   operator-2 | guhek operator-1 gik operator-2 | operator-2 (jek | joik) [stag] BO # operator-1
@@ -421,25 +435,25 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
   operand-1 [(ek | joik) [stag] KE # operand [KEhE #]]
 
 %rule operand-1
-  operand-2 [joik-ek operand-2] ...
+  {... operand-2 \ joik-ek}
 
 %rule operand-2
-  operand-3 [(ek | joik) [stag] BO # operand-2]
+  {operand-3 ... \ (ek | joik) [stag] BO #}
 
 %rule operand-3
   | quantifier
   | lerfu-string [BOI #]
   | NIhE # selbri [TEhU #]
   | MOhE # sumti [TEhU #]
-  | JOhI # mex-2 ... [TEhU #]
+  | JOhI # {mex-2} [TEhU #]
   | gek operand gik operand-3
   | (LAhE # | NAhE BO #) operand [LUhU #]
 
 %rule number
-  PA [PA | lerfu-word] ...
+  PA [{PA | lerfu-word}]
 
 %rule lerfu-string
-  lerfu-word [PA | lerfu-word] ...
+  lerfu-word [{PA | lerfu-word}]
 
 %rule lerfu-word
   BY | any-word BU | LAU lerfu-word | TEI lerfu-string FOI
@@ -519,7 +533,7 @@ A gek is a forethought logical connective, a joik used in forethought with `gi`,
 
 ## Tenses and modals
 
-A tense or modal (the rule `tag`) turns a sumti into a modal or tense term (CLL 9 and 10). It also marks a selbri or a whole sentence with a tense. `tag` is one or more tense-modals joined by jek or joik, `pu je ca`. `stag` is the restricted form that is allowed inside connectives before `bo` and `ke`, and in a gek. If `stag` includes a free-modifier slot there, the grammar becomes ambiguous.
+A tense or modal (the rule `tag`) turns a sumti into a modal or tense term (CLL 9 and 10). It also marks a selbri or a whole sentence with a tense. `tag` is one or more tense-modals joined by jek or joik, `pu je ca`. Both `tag` and `stag` are left chains, since these connections group from the left and nothing overrides that (CLL 10.20, 14.18). `stag` is the restricted form that is allowed inside connectives before `bo` and `ke`, and in a gek. If `stag` includes a free-modifier slot there, the grammar becomes ambiguous.
 
 A `tense-modal` is a simple tense-modal with a free-modifier slot, or `fi'o selbri fe'u`, which makes a modal from any selbri (CLL 9.5). A `simple-tense-modal` is one of these:
 
@@ -547,10 +561,10 @@ These rules allow more than some of CLL's prose and more than the lexer of the o
 
 ```jbogenbau
 %rule tag
-  tense-modal [joik-jek tense-modal] ...
+  {... tense-modal \ joik-jek}
 
 %rule stag
-  simple-tense-modal [(jek | joik) simple-tense-modal] ...
+  {... simple-tense-modal \ jek | joik}
 
 %rule tense-modal
   simple-tense-modal # | FIhO # selbri [FEhU #]
@@ -559,13 +573,13 @@ These rules allow more than some of CLL's prose and more than the lexer of the o
   [NAhE] [SE] BAI [NAI] [KI] | [NAhE] ((time [space] | space) & CAhA) [KI] | KI | CUhE
 
 %rule time
-  ZI & time-offset ... & (ZEhA [PU [NAI]]) & interval-property ...
+  ZI & {time-offset} & (ZEhA [PU [NAI]]) & {interval-property}
 
 %rule time-offset
   PU [NAI] [ZI]
 
 %rule space
-  VA & space-offset ... & space-interval & (MOhI space-offset)
+  VA & {space-offset} & space-interval & (MOhI space-offset)
 
 %rule space-offset
   FAhA [NAI] [VA]
@@ -574,7 +588,7 @@ These rules allow more than some of CLL's prose and more than the lexer of the o
   ((VEhA & VIhA) [FAhA [NAI]]) & space-int-props
 
 %rule space-int-props
-  (FEhE interval-property) ...
+  {FEhE interval-property}
 
 %rule interval-property
   number ROI [NAI] | TAhE [NAI] | ZAhO [NAI]
@@ -609,7 +623,7 @@ A run of indicators attaches to the word before it, as CLL's non-formal rule bel
   | SEI # [terms [CU #]] selbri [SEhU]
   | SOI # sumti [sumti] [SEhU]
   | vocative [relative-clauses] selbri [relative-clauses] [DOhU]
-  | vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
+  | vocative [relative-clauses] {CMEVLA} # [relative-clauses] [DOhU]
   | vocative [sumti] [DOhU]
   | (number | lerfu-string) MAI
   | TO text [TOI]
@@ -617,10 +631,10 @@ A run of indicators attaches to the word before it, as CLL's non-formal rule bel
   | XI # VEI # mex [VEhO]
 
 %rule vocative
-  (COI [NAI]) ... & DOI
+  {COI [NAI]} & DOI
 
 %rule indicators
-  ([FUhE] indicator) ...
+  {[FUhE] indicator}
 
 %rule indicator
   (UI | CAI) [NAI] | Y | DAhO | FUhO

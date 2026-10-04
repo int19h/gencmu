@@ -1778,7 +1778,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 17;
+  const DOM_FORMAT = 18;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
@@ -1923,7 +1923,7 @@
    * The forms of an expression, a term and a condition, each as its members
    * (docs/output.md). The first member names the form.
    */
-  const EXPRESSION_FORMS = [["seq"], ["choice"], ["and"], ["optional"], ["repeat", "min"], ["ref"], ["terminal"], ["capture", "expr"],
+  const EXPRESSION_FORMS = [["seq"], ["choice"], ["and"], ["optional"], ["repeat", "separator?", "chain?"], ["ref"], ["terminal"], ["capture", "expr"],
     ["range"], ["property"], ["test", "value", "expr"], ["empty"]];
   const TERM_FORMS = [["union"], ["intersection"], ["difference"], ["if", "then"], ["call", "args"], ["string"], ["tag"], ["range"], ["emptySet"], ["capture"], ["const", "at"]];
   const CONDITION_FORMS = [["op", "left", "right"], ["matches", "rule"], ["begins", "rule"], ["initial"], ["not"], ["any"], ["all"], ["captured"], ["if", "then"]];
@@ -1932,14 +1932,16 @@
    * Whether a node has exactly the members of one of its forms, and no
    * other. So a node that joins two forms, such as {"tag":…,"string":…}, is
    * refused before it is read, and no library reads it one way where
-   * another reads it another way.
+   * another reads it another way. A member that ends in `?` may be absent.
    * @param {Record<string, unknown>} value
    * @param {string[][]} forms
    * @returns {boolean}
    */
   function hasOneForm(value, forms) {
     const form = forms.find((members) => members[0] in value);
-    return form !== undefined && Object.keys(value).length === form.length && form.every((member) => member in value);
+    if (form === undefined) return false;
+    const names = form.map((member) => member.replace(/\?$/, ""));
+    return form.every((member) => member.endsWith("?") || member in value) && Object.keys(value).every((key) => names.includes(key));
   }
 
   /**
@@ -1966,7 +1968,9 @@
           (directive.name === "features" && !(args.length > 0 && args.every((arg) => DOM_NAME.test(arg)))) ||
           (directive.name === "elidable" && !args.every((arg) => DOM_NAME.test(arg)))) return "a malformed directive";
     }
-    /** @type {{kind: string, value: unknown, depth: number}[]} */
+    // `whole` marks an alternative's whole expression, where a chain may
+    // stand.
+    /** @type {{kind: string, value: unknown, depth: number, whole?: boolean}[]} */
     const pending = [];
     // The tested symbols, whose values are checked once the nesting is
     // bounded.
@@ -2029,7 +2033,7 @@
         const top = isSeq ? /** @type {unknown[]} */ (expr.seq) : [expr];
         for (const item of top) {
           if (isDomObject(item) && "capture" in item) pending.push({ kind: "top-capture", value: item, depth: isSeq ? 1 : 0 });
-          else pending.push({ kind: "expr", value: item, depth: isSeq ? 1 : 0 });
+          else pending.push({ kind: "expr", value: item, depth: isSeq ? 1 : 0, whole: !isSeq });
         }
         if (isDomObject(expr) && Array.isArray(expr.seq) && expr.seq.length < 2) return "a malformed expression";
         const names = top.flatMap((item) => (isDomObject(item) && typeof item.capture === "string" ? [item.capture] : []));
@@ -2064,8 +2068,12 @@
           if (!list(value.and, 2, 16)) return "a malformed expression";
           for (const item of /** @type {unknown[]} */ (value.and)) push("expr", item);
         } else if ("repeat" in value) {
-          if (value.min !== 0 && value.min !== 1) return "a malformed expression";
+          // A chain is the whole expression of its alternative (engine §9),
+          // and its direction is left or right. A separator counts on from
+          // the depth of its repeat, as the item does.
+          if ("chain" in value && (!task.whole || (value.chain !== "left" && value.chain !== "right"))) return "a malformed expression";
           push("expr", value.repeat);
+          if ("separator" in value) push("expr", value.separator);
         } else if ("optional" in value) {
           push("expr", value.optional);
         } else if ("capture" in value) {
@@ -2756,7 +2764,8 @@
         const items = current[key];
         if (Array.isArray(items)) for (let index = items.length - 1; index >= 0; index--) stack.push(items[index]);
       }
-      for (const key of ["optional", "repeat", "expr"]) if (key in current) stack.push(current[key]);
+      // In reverse, so that a repeat's item comes before its separator.
+      for (const key of ["expr", "separator", "repeat", "optional"]) if (key in current) stack.push(current[key]);
     }
     return found;
   }
@@ -2920,8 +2929,9 @@
    */
 
   /**
-   * Where an expansion happens: the rule, and the helpers still to lower.
-   * @typedef {{rule: StitchedRule, pending: PendingHelper[]}} Where
+   * Where an expansion happens: the rule and the alternative, and the
+   * helpers still to lower.
+   * @typedef {{rule: StitchedRule, alternative: StitchedAlternative, pending: PendingHelper[]}} Where
    */
 
   /**
@@ -3576,7 +3586,7 @@
     if ("choice" in expr) return expr.choice;
     if ("and" in expr) return expr.and;
     if ("optional" in expr) return [expr.optional];
-    if ("repeat" in expr) return [expr.repeat];
+    if ("repeat" in expr) return expr.separator === undefined ? [expr.repeat] : [expr.repeat, expr.separator];
     if ("capture" in expr || "test" in expr) return [expr.expr];
     return [];
   }
@@ -3595,6 +3605,15 @@
       /** @type {Map<string, Production[]>} */
       this.byLhs = new Map();
       this.helperCount = 0;
+      // The structural grammar (engine §3.3): every production that the gates
+      // and the expansion make, before a false condition removes any, with
+      // its symbols' tests ignored.
+      /** @type {{lhs: string, rhs: import("./types.js").GrammarSymbol[]}[]} */
+      this.structural = [];
+      // The item of each pair of braces, as its expansions, with the
+      // definition that wrote it.
+      /** @type {{items: SequenceItem[][], rule: StitchedRule, alternative: StitchedAlternative}[]} */
+      this.braceItems = [];
     }
 
     /** @returns {Omit<LoweredGrammar, "classifiers" | "implications">} */
@@ -3603,8 +3622,15 @@
         // Only gates drop an alternative; a warning keeps it (engine §3.1).
         const enabled = rule.alternatives.filter((alternative) => alternative.guards.every(
           (guard) => guard.kind === "warning" || this.features.has(guard.feature) !== guard.negated));
-        for (const alternative of enabled) this.lowerAlternative(rule, alternative, enabled.length === 1);
+        // A chain is the only alternative of its rule that the gates leave
+        // (engine §3.3); a %extend-rule can add another.
+        const chain = enabled.find((alternative) => isChain(alternative.expr));
+        if (chain && enabled.length > 1) {
+          throw new GencmuError("grammar", `${chain.document}: ${rule.name} is a chain, which is the whole of its rule, but another alternative stands beside it`, chain.at);
+        }
+        for (const alternative of enabled) this.lowerAlternative(rule, alternative);
       }
+      this.checkBraceItems();
       return {
         productions: this.productions,
         byLhs: this.byLhs,
@@ -3620,6 +3646,7 @@
      * @returns {Production}
      */
     addProduction(fields) {
+      if (fields.helper) this.structural.push({ lhs: fields.lhs, rhs: fields.rhs });
       /** @type {Production} */
       const production = { ...fields, id: this.productions.length };
       this.productions.push(production);
@@ -3632,45 +3659,65 @@
     /**
      * @param {StitchedRule} rule
      * @param {StitchedAlternative} alternative
-     * @param {boolean} only whether it is the rule's only enabled alternative
      */
-    lowerAlternative(rule, alternative, only) {
+    lowerAlternative(rule, alternative) {
       /** @type {PendingHelper[]} */
       const pending = [];
-      const trailing = only ? trailingRepetition(alternative.expr) : null;
-      // A trailing repetition's recursive productions could not have its
-      // captures, whose parts lie inside the inner constituent (engine §3.3).
-      if (trailing && ("seq" in alternative.expr ? alternative.expr.seq : [alternative.expr]).some((item) => "capture" in item)) {
-        throw new GencmuError("grammar", `${alternative.document}: an alternative of ${rule.name} captures a part, and is lowered as a trailing repetition`, alternative.at);
-      }
       /** @type {Where} */
-      const where = { rule, pending };
-      /** @type {SequenceItem[][]} */
-      let sequences;
-      /** @type {SequenceItem[][] | null} */
-      let recursive = null;
-      if (trailing) {
-        const prefixes = this.expandSequence(trailing.prefix, where);
-        const items = this.expand(trailing.item, where);
-        sequences = trailing.min === 1 ? product(prefixes, items) : prefixes;
-        recursive = items.map((sequence) => [{ symbol: { name: rule.name, terminal: false } }, ...sequence]);
+      const where = { rule, alternative, pending };
+      const expr = alternative.expr;
+      if (isChain(expr)) {
+        // A chain is recursion on the rule itself, with no helper: its base
+        // productions first, one for each expansion of the item, then its
+        // recursive ones (engine §3.3).
+        const items = this.expand(expr.repeat, where);
+        this.braceItems.push({ items, rule, alternative });
+        const separators = expr.separator === undefined ? [[]] : this.expand(expr.separator, where);
+        /** @type {SequenceItem[][]} */
+        const self = [[{ symbol: { name: rule.name, terminal: false } }]];
+        const recursive = expr.chain === "left" ? product(self, product(separators, items)) : product(product(items, separators), self);
+        for (const sequence of [...items, ...recursive]) this.addRuleProduction(rule, alternative, sequence);
       } else {
-        sequences = this.expand(alternative.expr, where);
+        for (const sequence of this.expand(expr, where)) this.addRuleProduction(rule, alternative, sequence);
       }
-      for (const sequence of sequences) this.addRuleProduction(rule, alternative, sequence, false);
-      for (const sequence of recursive || []) this.addRuleProduction(rule, alternative, sequence, true);
-      this.flushHelpers(pending, rule);
+      this.flushHelpers(pending, rule, alternative);
+    }
+
+    /**
+     * An item of braces that can derive the empty sequence is an error of
+     * the grammar (engine §3.3). Nullability is decided over the structural
+     * grammar, every production that the gates leave, reachable or not.
+     */
+    checkBraceItems() {
+      /** @type {Set<string>} */
+      const nullable = new Set();
+      /** @type {(rhs: import("./types.js").GrammarSymbol[]) => boolean} */
+      const empty = (rhs) => rhs.every((symbol) => !symbol.terminal && nullable.has(symbol.name));
+      for (let changed = true; changed;) {
+        changed = false;
+        for (const production of this.structural) {
+          if (nullable.has(production.lhs) || !empty(production.rhs)) continue;
+          nullable.add(production.lhs);
+          changed = true;
+        }
+      }
+      for (const { items, rule, alternative } of this.braceItems) {
+        if (items.some((sequence) => empty(sequence.map((item) => item.symbol)))) {
+          throw new GencmuError("grammar", `${alternative.document}: an item of braces in ${rule.name} can match no tokens`, alternative.at);
+        }
+      }
     }
 
     /**
      * @param {PendingHelper[]} pending
      * @param {StitchedRule} rule
+     * @param {StitchedAlternative} alternative
      */
-    flushHelpers(pending, rule) {
+    flushHelpers(pending, rule, alternative) {
       for (let helper = pending.shift(); helper !== undefined; helper = pending.shift()) {
         /** @type {PendingHelper[]} */
         const nested = [];
-        for (const sequence of helper.build({ rule, pending: nested })) {
+        for (const sequence of helper.build({ rule, alternative, pending: nested })) {
           // A helper with one symbol has that symbol's tags, like any
           // production (engine §3.7).
           const single = sequence.length === 1;
@@ -3686,7 +3733,6 @@
             tags: single ? { call: "tags", args: [{ capture: "\u0000child" }] } : null,
             emit: null,
             opaque: false,
-            recursivePrefix: false,
             warnings: [],
           });
         }
@@ -3698,9 +3744,9 @@
      * @param {StitchedRule} rule
      * @param {StitchedAlternative} alternative
      * @param {SequenceItem[]} sequence
-     * @param {boolean} recursivePrefix
      */
-    addRuleProduction(rule, alternative, sequence, recursivePrefix) {
+    addRuleProduction(rule, alternative, sequence) {
+      this.structural.push({ lhs: rule.name, rhs: sequence.map((item) => item.symbol) });
       /** @type {import("./types.js").Capture[]} */
       const captures = [];
       sequence.forEach((item, index) => {
@@ -3777,7 +3823,6 @@
         tags,
         emit,
         opaque: clauses.opaque,
-        recursivePrefix,
         warnings: alternative.guards.filter((guard) => guard.kind === "warning").map((guard) => guard.feature),
       });
     }
@@ -3812,14 +3857,19 @@
         return [[{ symbol: { name, terminal: false } }]];
       }
       if ("repeat" in expr) {
-        const inner = expr.repeat;
-        const min = expr.min;
+        // Flat braces are a helper, `h → x | h s x`, its base productions
+        // first; the places inside the item come before those inside the
+        // separator (engine §3.2).
+        if (isChain(expr)) throw new GencmuError("grammar", `${where.alternative.document}: a chain in ${where.rule.name} is not the whole of its rule`, where.alternative.at);
+        const item = expr.repeat;
+        const separator = expr.separator;
         const name = this.helper(where, (context) => {
-          const expansions = this.expand(inner, context);
-          /** @type {SequenceItem} */
-          const self = { symbol: { name, terminal: false } };
-          const recursive = expansions.map((sequence) => [self, ...sequence]);
-          return min === 1 ? [...expansions, ...recursive] : [/** @type {SequenceItem[]} */ ([]), ...recursive];
+          const items = this.expand(item, context);
+          this.braceItems.push({ items, rule: context.rule, alternative: context.alternative });
+          const separators = separator === undefined ? [[]] : this.expand(separator, context);
+          /** @type {SequenceItem[]} */
+          const self = [{ symbol: { name, terminal: false } }];
+          return [...items, ...product(product([self], separators), items)];
         }, null);
         return [[{ symbol: { name, terminal: false } }]];
       }
@@ -3906,18 +3956,12 @@
   }
 
   /**
-   * A body ending in a repetition, split into what comes before it and what
-   * repeats.
+   * Whether an expression is a chain, `{... x \ s}` or `{x ... \ s}`.
    * @param {Expr} expr
-   * @returns {{prefix: Expr[], item: Expr, min: number} | null}
+   * @returns {expr is {repeat: Expr, separator?: Expr, chain: "left" | "right"}}
    */
-  function trailingRepetition(expr) {
-    if ("repeat" in expr) return { prefix: [], item: expr.repeat, min: expr.min };
-    if ("seq" in expr) {
-      const last = expr.seq[expr.seq.length - 1];
-      if ("repeat" in last) return { prefix: expr.seq.slice(0, -1), item: last.repeat, min: last.min };
-    }
-    return null;
+  function isChain(expr) {
+    return "repeat" in expr && expr.chain !== undefined;
   }
 
   /**
@@ -5874,7 +5918,7 @@
       else if ("choice" in current) stack.push(...current.choice);
       else if ("and" in current) stack.push(...current.and);
       else if ("optional" in current) stack.push(current.optional);
-      else if ("repeat" in current) stack.push(current.repeat);
+      else if ("repeat" in current) stack.push(current.repeat, ...(current.separator === undefined ? [] : [current.separator]));
       else if ("capture" in current || "test" in current) stack.push(current.expr);
     }
   }
@@ -8155,9 +8199,9 @@
     return context.interner.get(node.item.tagId);
   }
 
-  // The nodes of a left-recursive chain, from the top down: a node whose first
+  // The nodes of a left-recursive spine, from the top down: a node whose first
   // child is a node of the same production's left side, as `r ≔ r x` and the
-  // helper of `x ...` make. Walking them in a loop keeps the walks of a long
+  // helper of `{x}` make. Walking them in a loop keeps the walks of a long
   // text from nesting as deep as the text is long.
   /**
    * @param {DerivationRule} node
@@ -8179,16 +8223,15 @@
   // yields its children.
   /**
    * The children a node's result is built from, in order: a node's own, or,
-   * for a repetition's helper and a rule's left-recursive prefix, those of
-   * the whole chain, the bottom node's first.
+   * for a helper, those of its whole left-recursive spine, the bottom node's
+   * first. A chain's levels are rule nodes, and stay (engine §12).
    * @param {DerivationRule} node
    * @returns {Derivation[]}
    */
   function orderedChildren(node) {
     const production = node.production;
-    if (!production.helper && !production.recursivePrefix) return node.children;
-    let chain = spine(node);
-    if (!production.helper) chain = chain.filter((member, index, all) => index === 0 || all[index - 1].production.recursivePrefix);
+    if (!production.helper) return node.children;
+    const chain = spine(node);
     /** @type {Derivation[]} */
     const result = [];
     for (let index = chain.length - 1; index >= 0; index--) {
@@ -8202,8 +8245,8 @@
    * The warnings of a chosen derivation (engine §12): each rule node of its
    * tree gives one for each warning of its alternative whose feature is on, in
    * the order a walk meets the nodes, parent before children and children left
-   * to right. The walk splices helpers and the prefixes of a trailing
-   * repetition as the tree does, with its own stack for the same reason.
+   * to right. The walk splices helpers as the tree does, with its own stack
+   * for the same reason.
    * @param {Derivation} root
    * @param {ParseContext} context
    * @param {Set<string>} features
@@ -8916,6 +8959,8 @@
     // The captures of the alternative being read, in order.
     /** @type {string[]} */
     let captures = [];
+    // How many braces the reader is inside, where no capture stands.
+    let braces = 0;
     for (const item of parts(tree)) {
       if (item.kind === "rule" && !ITEMS.has(item.rule)) fail(`the notation gives a ${item.rule} where an item stands`, item);
       if (ruleOf(item) === "directive") {
@@ -9072,7 +9117,7 @@
       });
       captures = [];
       /** @type {DomAlternative} */
-      const alternative = { guards, expr: readExpression(only(node, "conjunction"), true) };
+      const alternative = { guards, expr: readExpression(only(node, "conjunction"), true, true) };
       const tags = one(node, "alternative-tags");
       if (tags) alternative.tags = readConstituentTags(tags);
       return alternative;
@@ -9082,9 +9127,11 @@
      * @param {ResultNode} node
      * @param {boolean} [top] whether the expression is an alternative's top
      *   level, where a capture may stand (engine §3.5)
+     * @param {boolean} [whole] whether it is the alternative's whole
+     *   expression, where a chain may stand (engine §9)
      * @returns {Expr}
      */
-    function readExpression(node, top = false) {
+    function readExpression(node, top = false, whole = false) {
       switch (ruleOf(node)) {
         case "choice": {
           const found = some(node, "conjunction");
@@ -9093,21 +9140,15 @@
         }
         case "conjunction": {
           const found = some(node, "sequence");
-          const items = found.map((item) => readExpression(item, top && found.length === 1));
+          const items = found.map((item) => readExpression(item, top && found.length === 1, whole && found.length === 1));
           // A & of n items expands to 2ⁿ−1 sequences (engine §3.2).
           if (items.length > 16) fail("an & joins at most 16 items", node);
           return items.length === 1 ? items[0] : { and: items };
         }
         case "sequence": {
-          const items = some(node, "element").map((item) => readExpression(item, top));
+          const found = some(node, "primary");
+          const items = found.map((item) => readPrimary(knownOf(item, PRIMARIES), top, whole && found.length === 1));
           return items.length === 1 ? items[0] : { seq: items };
-        }
-        case "element": {
-          const repeated = parts(node).some((child) => tokenText(child) === "...");
-          const primary = readPrimary(knownOf(only(node, "primary"), PRIMARIES), top && !repeated);
-          if (!repeated) return primary;
-          if ("optional" in primary) return { repeat: primary.optional, min: 0 };
-          return { repeat: primary, min: 1 };
         }
         default:
           return fail(`unexpected ${ruleOf(node)}`, node);
@@ -9115,11 +9156,42 @@
     }
 
     /**
-     * @param {ResultNode} node
-     * @param {boolean} [top] whether a capture may stand here
+     * Braces: the item, its separator if a backslash has one, and a chain's
+     * direction from its marker, a `...` among the parts (engine §9).
+     * @param {RuleNode} node
+     * @param {boolean} whole whether the braces are their alternative's whole
+     *   expression
      * @returns {Expr}
      */
-    function readPrimary(node, top = false) {
+    function readRepetition(node, whole) {
+      const found = parts(node);
+      const choices = some(node, "choice");
+      const markers = found.flatMap((child, index) => (tokenText(child) === "..." ? [index] : []));
+      // Two markers are an error at the second, and a marker after the
+      // separator is an error at that marker, whichever a reader meets first.
+      if (markers.length >= 2) fail("braces have one chain marker ... at most", found[markers[1]]);
+      const second = choices.length >= 2 ? found.indexOf(choices[1]) : found.length;
+      if (markers.length === 1 && markers[0] > second) fail("a separator has no chain marker: ... stands after { or after the item", found[markers[0]]);
+      const chain = markers.length === 0 ? null : markers[0] < found.indexOf(choices[0]) ? "left" : "right";
+      // A chain is the whole expression of its alternative, as the lowering
+      // of its levels needs (engine §3.3, §9).
+      if (chain && !whole) fail("a chain is the whole expression of its alternative: name it as a rule to use it here", node);
+      braces++;
+      /** @type {Expr} */
+      const result = { repeat: readExpression(choices[0]) };
+      if (choices.length >= 2) result.separator = readExpression(choices[1]);
+      braces--;
+      if (chain) result.chain = chain;
+      return result;
+    }
+
+    /**
+     * @param {ResultNode} node
+     * @param {boolean} [top] whether a capture may stand here
+     * @param {boolean} [whole] whether a chain may stand here
+     * @returns {Expr}
+     */
+    function readPrimary(node, top = false, whole = false) {
       switch (ruleOf(node)) {
         case "reference": return { ref: text(token(node)) };
         case "tag": case "character": case "phoneme": return { terminal: tagOf(token(node)) };
@@ -9135,7 +9207,7 @@
           if (kind === "constant-reference") fail(CONSTANT_IN_BODY, symbol);
           if (!["reference", "tag", "character", "phoneme", "range", "property"].includes(/** @type {string} */ (kind)) ||
               (kind === "reference" && text(token(symbol)) === "#")) {
-            fail("a test follows only a reference other than # or a terminal, not a group, an optional, a capture, ε, # or another test", testNode);
+            fail("a test follows only a reference other than # or a terminal, not a group, an optional, braces, a capture, ε, # or another test", testNode);
           }
           const expr = /** @type {import("./types.js").TestedSymbol} */ (readPrimary(symbol));
           // The comparator is the test's tokens: `=`, `≠`, `⊇` or `⊉`, or
@@ -9155,7 +9227,8 @@
           return { test, value, expr };
         }
         case "capture": {
-          if (!top) fail("a capture stands at the top level of an alternative, not inside [ ], ( ), ..., & or a choice", node);
+          if (braces > 0) fail("a capture cannot stand inside braces, whose parts repeat: name the list as a rule, and capture that", node);
+          if (!top) fail("a capture stands at the top level of an alternative, not inside [ ], { }, ( ), & or a choice", node);
           const captureToken = token(node);
           const inner = only(node, "primary");
           if (text(captureToken) === "$") fail("$ is the whole constituent and wraps nothing", node);
@@ -9176,6 +9249,7 @@
         case "constant-reference": return fail(CONSTANT_IN_BODY, node);
         case "group": return readExpression(only(node, "choice"));
         case "optional": return { optional: readExpression(only(node, "choice")) };
+        case "repetition": return readRepetition(/** @type {RuleNode} */ (node), whole);
         case "empty": return { empty: true };
         default: return fail(`unexpected ${ruleOf(node)}`, node);
       }
@@ -9616,7 +9690,7 @@
 
   // What a primary, a condition, a term and a term atom hold: the one rule
   // among their parts is one of these (engine §9).
-  const PRIMARIES = new Set(["reference", "tag", "character", "phoneme", "range", "property", "tested", "capture", "group", "optional", "empty", "constant-reference"]);
+  const PRIMARIES = new Set(["reference", "tag", "character", "phoneme", "range", "property", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference"]);
   const CONDITIONS = new Set(["comparison", "call", "negation", "presence", "implication"]);
   const TERMS = new Set(["union", "guarded-term"]);
   const ATOMS = new Set(["string", "tag", "character", "phoneme", "range", "property", "name", "empty-set", "term", "call", "capture-reference", "constant-reference"]);
@@ -9628,7 +9702,7 @@
   // place.
   const NAMED = new Set([
     "directive", "argument-word", "argument-string", "rule", "definer", "rule-name", "body", "alternative", "guard", "alternative-tags",
-    "conjunction", "sequence", "element", "primary", "reference", "string", "phoneme", "tested", "test", "test-operand", "capture", "group", "optional",
+    "conjunction", "sequence", "primary", "repetition", "reference", "string", "phoneme", "tested", "test", "test-operand", "capture", "group", "optional",
     "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "opaque-clause", "emit-item", "emit-target", "emit-tags", "emit-before", "emit-after",
     "implication", "any-of", "all-of", "condition", "comparison", "comparator", "negation", "presence",
     "term", "guarded-term", "union", "intersection", "term-atom", "tag", "character", "name", "empty-set", "call", "argument",
@@ -10835,7 +10909,8 @@
 
   /**
    * A rule body expression.
-   * @typedef {{choice: Expr[]} | {and: Expr[]} | {seq: Expr[]} | {repeat: Expr, min: number}
+   * @typedef {{choice: Expr[]} | {and: Expr[]} | {seq: Expr[]}
+   *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
    *   | {optional: Expr} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
    *   | {range: [string, string]} | {property: string}
    *   | {test: TestOp, value: Term, expr: TestedSymbol} | {empty: true}} Expr
@@ -10960,7 +11035,6 @@
    * @property {Emission | null} emit
    * @property {boolean} opaque whether its constituent is an opaque part,
    *   which sounds `?` and shows its text (engine §11)
-   * @property {boolean} recursivePrefix
    * @property {string[]} warnings the features of the alternative's warnings,
    *   in the order they are written; none for a helper
    */

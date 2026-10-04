@@ -59,7 +59,7 @@ Each of these conditions is a restriction of the grammar, not a preference among
 %elidable maximal TOI SEhU
 
 %rule #
-  [free ...]
+  [{free}]
 
 %rule any-word
   ~word
@@ -81,24 +81,24 @@ A text after a word of LU, TO or LUhEI, such as `lu`, is a `text` too. It begins
 
 %rule paragraphs
   (* paragraphs <- (NIhO_clause+ paragraphs_1?)+ / paragraphs_1 (NIhO_clause+ paragraphs_1?)* *)
-  (NIhO #) ... [paragraphs-tail] | paragraphs-tail
+  {NIhO #} [paragraphs-tail] | paragraphs-tail
 
 %rule paragraphs-tail
-  paragraphs-1 [(NIhO #) ... [paragraphs-tail]]
+  paragraphs-1 [{NIhO #} [paragraphs-tail]]
 
 %rule paragraphs-1
   (* paragraphs_1 <- paragraphs_2 (NIhO_clause+ joik paragraphs_2)* *)
-  paragraphs-2 [(NIhO #) ... joik paragraphs-2] ...
+  {paragraphs-2 \ {NIhO #} joik}
 
 %rule paragraphs-2
   (* paragraphs_2 <- paragraph (NIhO_clause+ joik? tag? BO_clause paragraph)* *)
-  paragraph [(NIhO #) ... [joik] [tag] BO # paragraph] ...
+  {paragraph \ {NIhO #} [joik] [tag] BO #}
 
 %rule paragraph
   (* paragraph <- (I_clause (statement_terms / fragment)?)+
                 / (statement_terms / fragment) (I_clause (statement_terms / fragment)?)* *)
-  | (I # [statement-terms | fragment]) ...
-  | (statement-terms | fragment) [I # [statement-terms | fragment]] ...
+  | {I # [statement-terms | fragment]}
+  | (statement-terms | fragment) [{I # [statement-terms | fragment]}]
 ```
 
 ## Statements and fragments
@@ -118,11 +118,11 @@ The lookaheads of the reference's fragments are conditions here. A `gek` or `joi
 
 %rule statement-1
   (* statement_1 <- statement_2 (I_clause joik statement_2)* *)
-  statement-2 [I # joik statement-2] ...
+  {statement-2 \ I # joik}
 
 %rule statement-2
   (* statement_2 <- statement_3 (I_clause joik? tag? BO_clause statement_3)* *)
-  statement-3 [I # [joik] [tag] BO # statement-3] ...
+  {statement-3 \ I # [joik] [tag] BO #}
 
 %rule statement-3
   (* statement_3 <- sentence / tag? TUhE_clause paragraphs TUhU_elidible / gek_statement *)
@@ -138,13 +138,13 @@ The lookaheads of the reference's fragments are conditions here. A `gek` or `joi
   (* statement (gik statement)*: every branch but the last. Zantufa's sentence comes first in statement_3, and it
      succeeds where each of these is a sentence and the last branch is a sentence, perhaps with the .i links of
      statement_1 and statement_2 after it, which then continue the statement outside the forethought *)
-  statement [gik statement] ...
+  {statement \ gik}
 
 %rule sentence-branches
-  sentence [gik sentence] ...
+  {sentence \ gik}
 
 %rule sentence-continued
-  sentence [statement-link] ...
+  sentence [{statement-link}]
 
 %rule statement-link
   I # joik statement-2 | I # [joik] [tag] BO # statement-3
@@ -204,7 +204,7 @@ The tenses and modals before `ke` and a forethought bridi-tail are one tag. The 
 %rule sentence
   (* sentence <- terms? CU_elidible bridi_tail / terms? gek sentence (gik sentence)+ GIhI_elidible tail_terms *)
   | [terms] [CU #] bridi-tail
-  | [terms] $g(gek) sentence (gik sentence) ... [GIhI #] tail-terms
+  | [terms] $g(gek) sentence {gik sentence} [GIhI #] tail-terms
 %conditions
   ¬begins(from($g), bridi-tail-before-no-gik)
 
@@ -215,7 +215,7 @@ The tenses and modals before `ke` and a forethought bridi-tail are one tag. The 
 
 %rule bridi-tail
   (* bridi_tail <- bridi_tail_1 (joik_gihek tag? CU_elidible bridi_tail_1)* *)
-  bridi-tail-1 [bridi-tail-link] ...
+  bridi-tail-1 [{bridi-tail-link}]
 
 %rule bridi-tail-link
   | $j(joik-gihek) tag [CU #] bridi-tail-1
@@ -229,7 +229,7 @@ The tenses and modals before `ke` and a forethought bridi-tail are one tag. The 
 
 %rule bridi-tail-1
   (* bridi_tail_1 <- bridi_tail_2 (joik_gihek !(tag? BO_clause) !(tag? KE_clause) CU_elidible bridi_tail_2 tail_terms)* *)
-  bridi-tail-2 [bridi-tail-1-link] ...
+  bridi-tail-2 [{bridi-tail-1-link}]
 
 %rule bridi-tail-1-link
   $j(joik-gihek) [CU #] bridi-tail-2 tail-terms
@@ -245,7 +245,7 @@ The tenses and modals before `ke` and a forethought bridi-tail are one tag. The 
 
 %rule bridi-tail-2
   (* bridi_tail_2 <- bridi_tail_3 ((tag / joik_gihek tag?) BO_clause CU_elidible bridi_tail_3 tail_terms)* *)
-  bridi-tail-3 [(tag | joik-gihek [tag]) BO # [CU #] bridi-tail-3 tail-terms] ...
+  bridi-tail-3 [{(tag | joik-gihek [tag]) BO # [CU #] bridi-tail-3 tail-terms}]
 
 %rule bridi-tail-3
   (* bridi_tail_3 <- KE_clause !(selbri_2 KEhE) bridi_tail KEhE_elidible tail_terms / selbri tail_terms / gek_bridi_tail *)
@@ -275,14 +275,14 @@ The tenses and modals before `ke` and a forethought bridi-tail are one tag. The 
   ¬begins(after($g), gik-term)
 
 %rule gik-bridi-tails
-  (gik bridi-tail) ...
+  {gik bridi-tail}
 
 %rule gik-term
   gik (term | CU)
 
 %rule tail-terms
   (* tail_terms <- term* VAU_elidible *)
-  [term ...] [VAU #]
+  [{term}] [VAU #]
 ```
 
 ## Terms
@@ -298,11 +298,11 @@ A `ke` group of terms comes before a sumti that begins with `ke`, as in the refe
 ```jbogenbau
 %rule terms
   (* terms <- term+ *)
-  term ...
+  {term}
 
 %rule term
   (* term <- term_1 (!(joik tag BO_clause? CU) joik_ek term_1)* *)
-  term-1 [term-link] ...
+  term-1 [{term-link}]
 
 %rule term-link
   $j(joik-ek) term-1
@@ -314,13 +314,13 @@ A `ke` group of terms comes before a sumti that begins with `ke`, as in the refe
 
 %rule term-1
   (* term_1 <- term_2 (joik_ek? BO_clause term_2)* *)
-  term-2 [[joik-ek] BO # term-2] ...
+  {term-2 \ [joik-ek] BO #}
 
 %rule term-2
   (* term_2 <- XOI_clause statement SEhU_elidible / KE_clause !(sumti KEhE) term+ KEhE_elidible
               / tag_term / !tag sumti / brigahi / gek_term *)
   | XOI # statement [SEhU #]
-  | $k(ke-clause) term ... [KEhE #]
+  | $k(ke-clause) {term} [KEhE #]
   | tag-term
   | $s(sumti)
   | brigahi
@@ -365,14 +365,14 @@ A `ke` group of terms comes before a sumti that begins with `ke`, as in the refe
   sumti | [KU #]
 
 %rule fa-jai
-  FA # [joik FA #] ... | JAI # [tag]
+  {FA # \ joik} | JAI # [tag]
 
 %rule bo-word
   BO
 
 %rule gek-term
   (* gek_term <- gek term+ (gik term+)+ GIhI_elidible *)
-  gek term ... (gik term ...) ... [GIhI #]
+  gek {term} {gik {term}} [GIhI #]
 ```
 
 ## Sumti
@@ -381,7 +381,7 @@ A sumti can be a `ra'oi`, `zo`, `zoi` or `lo'u` quote, a lerfu string, a `lu` qu
 
 A connective after a sumti joins that sumti to the next one, not the term to the next term. So `ba mi .e do klama` has one term, the tense `ba` with the sumti `mi .e do`. The term rule sees a connective only where the sumti cannot take it. The reference reads so because a term reads its sumti first, and the repetitions of `sumti_1` and `sumti_2` read as far as they can. No comment of the reference discusses this choice. But it is also the reading of CLL, which has no connection of terms, and of camxes.
 
-The conditions on `sumti-1` and `sumti-2` state this. Each says that no further link follows the whole run of sumti. The run is a rule of its own, because a condition on a rule with a repetition applies at each step of the repetition. On `sumti-1` itself, the condition applies to `mi` alone in `mi ce do`, and so it rejects the text. The rules `sumti-1-link` and `sumti-2-link` are only for the conditions, and the trees do not contain them.
+The conditions on `sumti-1` and `sumti-2` state this. Each says that no further link follows the whole run of sumti. The run is a rule of its own, which the condition captures, since a list in braces is never captured. The rules `sumti-1-link` and `sumti-2-link` are only for the conditions, and the trees do not contain them.
 
 ```jbogenbau
 %rule sumti
@@ -395,7 +395,7 @@ The conditions on `sumti-1` and `sumti-2` state this. Each says that no further 
   ¬begins(after($r), sumti-1-link)
 
 %rule sumti-1-run
-  sumti-2 [joik-ek sumti-2] ...
+  {sumti-2 \ joik-ek}
 
 %rule sumti-1-link
   joik-ek sumti-2
@@ -407,14 +407,14 @@ The conditions on `sumti-1` and `sumti-2` state this. Each says that no further 
   ¬begins(after($r), sumti-2-link)
 
 %rule sumti-2-run
-  sumti-3 [[joik-ek] [tag] BO # sumti-3] ...
+  {sumti-3 \ [joik-ek] [tag] BO #}
 
 %rule sumti-2-link
   [joik-ek] [tag] BO # sumti-3
 
 %rule sumti-3
   (* sumti_3 <- (KE_clause sumti KEhE_elidible / sumti_4 / gek sumti (gik sumti)+ GIhI_elidible) relative_clauses? *)
-  (KE # sumti [KEhE #] | sumti-4 | gek sumti (gik sumti) ... [GIhI #]) [relative-clauses]
+  (KE # sumti [KEhE #] | sumti-4 | gek sumti {gik sumti} [GIhI #]) [relative-clauses]
 
 %rule sumti-4
   (* sumti_4 <- quantifier? sumti_5 / quantifier selbri KU_elidible *)
@@ -429,12 +429,12 @@ The conditions on `sumti-1` and `sumti-2` state this. Each says that no further 
   | RAhOI anything #
   | ZO any-word #
   | ZOI any-word anything any-word #
-  | LOhU [any-word ...] LEhU #
+  | LOhU [{any-word}] LEhU #
   | $l(lerfu-boi)
   | LU text [LIhU #]
   | (LAhE # | NAhE # BO #) [relative-clauses] sumti [LUhU #]
   | KOhA #
-  | LOhOI # [joik LOhOI #] ... statement [KUhAU #]
+  | {LOhOI # \ joik} statement [KUhAU #]
   | LE # sumti-tail [KU #]
   | LI # mex [LOhO #]
   | NAhE # sumti-3
@@ -446,7 +446,7 @@ The conditions on `sumti-1` and `sumti-2` state this. Each says that no further 
   lerfu-string [BOI #]
 
 %rule lerfu-operator
-  [(BO #) ...] [operand ...] $o(operator)
+  [{BO #}] [{operand}] $o(operator)
 %conditions
   ¬begins(from($o), joik-ek-sumti)
 
@@ -482,7 +482,7 @@ Relative clauses can stand side by side, joined by a joik or by nothing. They fo
 ```jbogenbau
 %rule relative-clauses
   (* relative_clauses <- relative_clause (joik? relative_clause)* *)
-  relative-clause [[joik] relative-clause] ...
+  {relative-clause \ [joik]}
 
 %rule relative-clause
   (* relative_clause <- GOI_clause term GEhU_elidible / NOI_clause statement KUhO_elidible *)
@@ -520,11 +520,11 @@ A run of `cei` nests to the right. The reference repeats `(CEI_clause selbri)*`,
 
 %rule selbri-2
   (* selbri_2 <- selbri_3 (CO_clause selbri_3)* *)
-  selbri-3 [CO # selbri-3] ...
+  {selbri-3 \ CO #}
 
 %rule selbri-3
   (* selbri_3 <- selbri_4+ *)
-  selbri-4 [later-selbri-4] ...
+  selbri-4 [{later-selbri-4}]
 
 %rule later-selbri-4
   (* selbri_4's (joik selbri_5)* reads a joik and a selbri_5 before the next selbri_4 can begin with them *)
@@ -537,15 +537,15 @@ A run of `cei` nests to the right. The reference repeats `(CEI_clause selbri)*`,
 
 %rule selbri-4
   (* selbri_4 <- selbri_5 (joik selbri_5)* *)
-  selbri-5 [joik selbri-5] ...
+  {selbri-5 \ joik}
 
 %rule selbri-5
   (* selbri_5 <- selbri_6 (joik tag? BO_clause selbri_6)* *)
-  selbri-6 [joik [tag] BO # selbri-6] ...
+  {selbri-6 \ joik [tag] BO #}
 
 %rule selbri-6
   (* selbri_6 <- tanru_unit (BO_clause tanru_unit)* *)
-  tanru-unit [BO # tanru-unit] ...
+  {tanru-unit \ BO #}
 
 %rule tanru-unit
   (* tanru_unit <- tanru_unit_1 linkargs? *)
@@ -568,14 +568,14 @@ A run of `cei` nests to the right. The reference repeats `(CEI_clause selbri)*`,
   | GOhOI any-word #
   | LUhEI text [LIhAU #]
   | ME # sumti [MEhU #] [MOI #]
-  | ME # operator ... [MEhU #] [MOI #]
+  | ME # {operator} [MEhU #] [MOI #]
   | ME # $m(mex) [MEhU #] [MOI #]
   | ME # $t(tag) [MEhU #] [MOI #]
   | mex MOI #
-  | (FA # [joik FA #] ... | SE #) $w(tanru-unit-1)
+  | ({FA # \ joik} | SE #) $w(tanru-unit-1)
   | JAI # [tag] tanru-unit-1
   | NAhE # $n(tanru-unit-1)
-  | NU # [joik NU #] ... statement [KEI #]
+  | {NU # \ joik} statement [KEI #]
 %conditions
   ¬begins(after($g), gik-term-or-cu),
   ¬matches($m, sumti),
@@ -602,7 +602,7 @@ A run of `cei` nests to the right. The reference repeats `(CEI_clause selbri)*`,
   mex MOI #
 
 %rule gik-selbris
-  (gik selbri-2) ...
+  {gik selbri-2}
 
 %rule gik-term-or-cu
   [gik] (term | CU)
@@ -636,7 +636,7 @@ The operand after a run of operators is greedy too. The reference's `mex_1?` aft
 
 %rule mex
   (* mex <- mex_1 (operator+ mex_1?)* *)
-  mex-1 [mex-link] ...
+  mex-1 [{mex-link}]
 
 %rule mex-link
   $o(operators) | operators $x(mex-1)
@@ -647,7 +647,7 @@ The operand after a run of operators is greedy too. The reference's `mex_1?` aft
 %rule mex-1
   (* mex_1 <- (KE_clause mex_2+ KEhE_elidible / mex_2 (BO_clause mex_2)* )
               (BIhE_clause operator+ (KE_clause mex_2+ KEhE_elidible / mex_2 (BO_clause mex_2)* )?)* *)
-  mex-group [bihe-link] ...
+  mex-group [{bihe-link}]
 
 %rule bihe-link
   BIhE # $o(operators) | BIhE # operators $x(mex-group)
@@ -656,7 +656,7 @@ The operand after a run of operators is greedy too. The reference's `mex_1?` aft
   ¬begins(after($o), mex-group)
 
 %rule mex-group
-  KE # mex-2 ... [KEhE #] | mex-2 [BO # mex-2] ...
+  KE # {mex-2} [KEhE #] | {mex-2 \ BO #}
 
 %rule mex-2
   (* mex_2 <- operand / mex_rp / mex_forethought *)
@@ -664,12 +664,12 @@ The operand after a run of operators is greedy too. The reference's `mex_1?` aft
 
 %rule mex-rp
   (* mex_rp <- FUhA_clause mex_2+ operator (mex_2* operator)* KUhE_elidible *)
-  FUhA # mex-2 ... operator [[mex-2 ...] operator] ... [KUhE #]
+  FUhA # {mex-2} operator [{[{mex-2}] operator}] [KUhE #]
 
 %rule mex-forethought
   (* mex_forethought <- !(lerfu_string BOI_elidible) operator mex_2+ mex_forethought? KUhE_elidible
                       / PEhO_clause operator mex_2+ mex_forethought? KUhE_elidible *)
-  [PEhO #] operator mex-2 ... [KUhE #]
+  [PEhO #] operator {mex-2} [KUhE #]
 
 %rule operator
   (* operator <- SE_clause operator / NAhE_clause operator / MAhO_clause (mex / selbri / sumti) TEhU_elidible
@@ -695,7 +695,7 @@ The operand after a run of operators is greedy too. The reference's `mex_1?` aft
   ¬begins(after($r), operator)
 
 %rule operator-run
-  operator ...
+  {operator}
 
 %rule cu-word
   CU
@@ -719,11 +719,11 @@ The operand after a run of operators is greedy too. The reference's `mex_1?` aft
 
 %rule number
   (* number <- PA_clause+;  PA_post <- number_post_clause *)
-  (PA number-post) ...
+  {PA number-post}
 
 %rule lerfu-string
   (* lerfu_string <- lerfu_word+ *)
-  lerfu-word ...
+  {lerfu-word}
 
 %rule lerfu-word
   (* lerfu_word <- BY_clause / LAU_clause lerfu_word / TEI_clause lerfu_string FOI_clause;  BY_post <- lerfu_post_clause *)
@@ -771,7 +771,7 @@ A tense or modal (the rule `tag`) is a run of `tcita-selci` joined by joiks. Eac
 ```jbogenbau
 %rule tag
   (* tag <- tcita_selci+ (joik tcita_selci+)* *)
-  tcita-selci ... [tag-link] ...
+  {tcita-selci} [{tag-link}]
 
 %rule tag-link
   $j(joik) tcita-selcis
@@ -779,7 +779,7 @@ A tense or modal (the rule `tag`) is a run of `tcita-selci` joined by joiks. Eac
   ¬begins(from($j), tcita-selci)
 
 %rule tcita-selcis
-  tcita-selci ...
+  {tcita-selci}
 
 %rule tcita-selci
   (* tcita_selci <- (NAhE_clause / SE_clause) tcita_selci / BAI_clause / mex? ROI_clause / FIhO_clause selbri FEhU_elidible *)
@@ -820,18 +820,18 @@ The dialect keeps one odd reading of Zantufa. In `pe'usai doi xod ko jmina`, the
   | mex-2 MAI #
   | TO text [TOI #]
   | XI # mex-2
-  | [LOhAI [lohai-word ...] [LOhAI [lohai-word ...]]] LEhAI #
+  | [LOhAI [{lohai-word}] [LOhAI [{lohai-word}]]] LEhAI #
   | UI #
 %conditions
   ¬begins(after($), free)
 
 %rule vocative
   (* vocative <- COI_clause+;  COI_post <- vocative_post_clause *)
-  (COI vocative-post) ...
+  {COI vocative-post}
 
 %rule number-post
   (* number_post_clause <- spaces? !BU_clause (!number free)* *)
-  [free-not-number ...]
+  [{free-not-number}]
 
 %rule lohai-word
   ~word∩(LOhAI ∪ LEhAI)=∅
@@ -843,7 +843,7 @@ The dialect keeps one odd reading of Zantufa. In `pe'usai doi xod ko jmina`, the
 
 %rule lerfu-post
   (* lerfu_post_clause <- spaces? !BU_clause (!lerfu_string free)* *)
-  [free-not-lerfu ...]
+  [{free-not-lerfu}]
 
 %rule free-not-lerfu
   $f(free)
@@ -852,7 +852,7 @@ The dialect keeps one odd reading of Zantufa. In `pe'usai doi xod ko jmina`, the
 
 %rule vocative-post
   (* vocative_post_clause <- spaces? !BU_clause (!vocative free)* *)
-  [free-not-vocative ...]
+  [{free-not-vocative}]
 
 %rule free-not-vocative
   $f(free)

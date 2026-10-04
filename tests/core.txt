@@ -1516,6 +1516,10 @@ adhoc.syntax.at-end-after-attached-indicator
 adhoc.syntax.at-end-after-attached-indicator.bpfk
 adhoc.syntax.number-then-lerfu
 adhoc.syntax.number-then-lerfu.bpfk
+adhoc.syntax.tanru-left-grouping
+adhoc.syntax.tanru-left-grouping.bpfk
+adhoc.syntax.mex-chain-left-grouping
+adhoc.syntax.mex-chain-left-grouping.bpfk
 adhoc.syntax.simple-tense-modal-time-caha
 adhoc.syntax.simple-tense-modal-time-caha.bpfk
 adhoc.prose.words-stream.lohu-lehu

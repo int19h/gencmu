@@ -4,7 +4,7 @@ This is the second stage of the notation dialect, `../dialects/notation.md`. A s
 
 The stage builds the tree from which a library reads the grammar's rules and directives. Its rule names matter to that reader: the table in `../../docs/engine.md`, §9, says what each named constituent becomes. `../../docs/notation.md` explains the notation for authors.
 
-The tokens arrive with tags. A tag marks a token by name, phoneme or character. The lexical stage tags a token `~identifier`, `~string`, `~tag`, `~phoneme`, `~character`, `~property`, `~capture`, `~constant` or `~guard`. It tags a keyword that the notation knows with its own identifier, such as `~keyword-rule` for `%rule`, `...` with `~ellipsis`, and `..` with `~double-dot`. Any other symbol is one character, which keeps its character tag, such as `'|'`.
+The tokens arrive with tags. A tag marks a token by name, phoneme or character. The lexical stage tags a token `~identifier`, `~string`, `~tag`, `~phoneme`, `~character`, `~property`, `~capture`, `~constant` or `~guard`. It tags a keyword that the notation knows with its own identifier, such as `~keyword-rule` for `%rule`, `...` with `~ellipsis`, and `..` with `~double-dot`. Any other symbol is one character, which keeps its character tag, such as `'|'`, `'{'` or `'\\'`.
 
 ## Choosing among parses
 
@@ -20,7 +20,7 @@ A grammar text is a sequence of rules, directives, constant definitions, classif
 
 ```jbogenbau
 %rule text
-  [statement] ...
+  [{statement}]
 
 %rule statement
   rule | directive | constant-definition | classifier | implication-declaration
@@ -32,7 +32,7 @@ A grammar text is a sequence of rules, directives, constant definitions, classif
   ~keyword-const | ~keyword-redefine-const
 
 %rule directive
-  directive-name [argument-word | argument-string | argument-tag] ...
+  directive-name [{argument-word | argument-string | argument-tag}]
 
 %rule directive-name
   | ~keyword-ambiguity-resolution | ~keyword-elidable | ~keyword-stage
@@ -56,13 +56,13 @@ An implication is `%implies` and two terms joined by `⟹`. Each term is a union
 
 ```jbogenbau
 %rule classifier
-  ~keyword-classifier classifier-name [classifier-entry] ...
+  ~keyword-classifier classifier-name [{classifier-entry}]
 
 %rule classifier-name
   ~identifier
 
 %rule classifier-entry
-  [guard] ... classifier-key ... classifier-operator classifier-class
+  [{guard}] {classifier-key} classifier-operator classifier-class
 
 %rule classifier-key
   ~string
@@ -92,10 +92,10 @@ A rule is a keyword, its name, its alternatives and its clauses, in this order. 
   ~identifier | '#'
 
 %rule body
-  ['|'] alternative ['|' alternative] ...
+  ['|'] {alternative \ '|'}
 
 %rule alternative
-  [guard] ... conjunction [alternative-tags]
+  [{guard}] conjunction [alternative-tags]
 
 %rule guard
   ~guard
@@ -106,27 +106,26 @@ A rule is a keyword, its name, its alternatives and its clauses, in this order. 
 
 ## Expressions
 
-`&` joins sequences, and a sequence is one or more elements. An element is a primary, followed by `...` for one or more of it. An optional followed by `...` is zero or more. Parentheses group a choice, whose alternatives carry neither guards nor tags.
+`&` joins sequences, and a sequence is one or more primaries. Parentheses group a choice, whose alternatives carry neither guards nor tags. Brackets hold an optional choice, and braces a repetition.
+
+Inside braces, the item is a choice, and so is the separator after a backslash, if there is one. So `{a | b \ c | d}` separates items `a` or `b` with `c` or `d`. The marker `...` of a chain stands right after `{` for a left chain, or after the item for a right chain. The reader reads which of the two it is from where the marker stands among the parts (`../../docs/engine.md`, §9). It refuses a chain that is not the whole expression of its alternative, and a capture inside braces.
 
 A terminal is a name that begins with a capital, a tag literal, a character tag, a phoneme tag, a range or a property. A string is not a terminal. A range is two character tags joined by `..`, such as `'a'..'z'`.
 
-A reference or a terminal can carry a test on its own span, such as `LE="la"` or `cmavo∩UI=∅`. A test is `=`, `≠`, `⊇` or `⊉` and an operand, or `∩`, an operand, and `=∅` or `≠∅`. The operand is one term: a string, a tag, a range, `∅`, a constant, or a term in parentheses. So `UI⊇(A ∪ B)` needs its parentheses. The test binds tighter than `...`.
+A reference or a terminal can carry a test on its own span, such as `LE="la"` or `cmavo∩UI=∅`. A test is `=`, `≠`, `⊇` or `⊉` and an operand, or `∩`, an operand, and `=∅` or `≠∅`. The operand is one term: a string, a tag, a range, `∅`, a constant, or a term in parentheses. So `UI⊇(A ∪ B)` needs its parentheses. A test belongs to the one symbol before it, so every item of `{UI="ui"}` is tested.
 
-The grammar reads a test after any primary, and a constant as a primary. The reader refuses a test after a group, an optional, a capture, `ε`, `#` or another test. It also refuses a constant in a body, and an operand that is not a closed term of the right type. It names the reason for each.
+The grammar reads a test after any primary, and a constant as a primary. The reader refuses a test after a group, an optional, braces, a capture, `ε`, `#` or another test. It also refuses a constant in a body, and an operand that is not a closed term of the right type. It names the reason for each.
 
 ```jbogenbau
 %rule conjunction
-  ['&'] sequence ['&' sequence] ...
+  ['&'] {sequence \ '&'}
 
 %rule sequence
-  element ...
-
-%rule element
-  primary [~ellipsis]
+  {primary}
 
 %rule primary
   | reference | tag | character | phoneme | range | property
-  | tested | capture | group | optional | empty
+  | tested | capture | group | optional | repetition | empty
   | constant-reference
 
 %rule tested
@@ -173,8 +172,13 @@ The grammar reads a test after any primary, and a constant as a primary. The rea
 %rule optional
   '[' choice ']'
 
+%rule repetition
+  | '{' choice ['\\' choice] '}'
+  | '{' ~ellipsis choice ['\\' choice] '}'
+  | '{' choice ~ellipsis ['\\' choice] '}'
+
 %rule choice
-  ['|'] conjunction ['|' conjunction] ...
+  ['|'] {conjunction \ '|'}
 
 %rule empty
   'ε'
@@ -195,16 +199,16 @@ An item can have attachments: captures in parentheses, any number before its tar
   ~keyword-tags term
 
 %rule conditions-clause
-  ~keyword-conditions [','] implication [',' implication] ...
+  ~keyword-conditions [','] {implication \ ','}
 
 %rule emits-clause
-  ~keyword-emits ([','] emit-item [',' emit-item] ... | 'ε')
+  ~keyword-emits ([','] {emit-item \ ','} | 'ε')
 
 %rule opaque-clause
   ~keyword-opaque
 
 %rule emit-item
-  [emit-before] ... emit-target [emit-tags] [emit-after] ...
+  [{emit-before}] emit-target [emit-tags] [{emit-after}]
 
 %rule emit-before
   '(' ~capture ')'
@@ -226,10 +230,10 @@ A condition joins others with `∧`, `∨` and `⟹`. These operators bind in th
   any-of ['⟹' implication]
 
 %rule any-of
-  ['∨'] all-of ['∨' all-of] ...
+  ['∨'] {all-of \ '∨'}
 
 %rule all-of
-  ['∧'] condition ['∧' condition] ...
+  ['∧'] {condition \ '∧'}
 
 %rule condition
   comparison | call | negation | presence | '(' implication ')'
@@ -261,10 +265,10 @@ A property is not a tag set, but the grammar reads one in a term, so that the re
   any-of '⟹' term
 
 %rule union
-  ['∪'] intersection [('∪' | '∖') intersection] ...
+  ['∪'] {intersection \ '∪' | '∖'}
 
 %rule intersection
-  ['∩'] term-atom ['∩' term-atom] ...
+  ['∩'] {term-atom \ '∩'}
 
 %rule term-atom
   | string | tag | character | phoneme | range | property | name | empty-set
@@ -280,7 +284,7 @@ A property is not a tag set, but the grammar reads one in a term, so that the re
   '∅'
 
 %rule call
-  ~identifier '(' argument [',' argument] ... ')'
+  ~identifier '(' {argument \ ','} ')'
 
 %rule argument
   union
