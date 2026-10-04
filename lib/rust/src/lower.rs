@@ -1108,56 +1108,105 @@ fn reads_until(rules: &[LRule], prods: &[Prod]) -> Vec<u32> {
     // production that holds a rule found to read.
     let mut holding: Vec<Vec<u32>> = vec![Vec::new(); rules.len()];
     let mut queue = Vec::new();
+    // Each symbol counts as it is examined, so a search that examines more
+    // counts more.
+    let is_terminal = |symbol: &Sym| {
+        work::count(Work::Lowered, 1);
+        matches!(symbol, Sym::T(_))
+    };
     for production in prods {
         let rule = &rules[production.rule as usize];
         let restoration = production.syms.is_empty() && rule.helper && rule.elided.is_some();
-        let terminal = production.syms.iter().any(|symbol| matches!(symbol, Sym::T(_)));
-        work::count(Work::Lowered, production.syms.len() as u64);
-        if (restoration || terminal) && !reads[production.rule as usize] {
-            reads[production.rule as usize] = true;
-            queue.push(production.rule);
-        }
+        let mut terminal = false;
         for symbol in &production.syms {
+            terminal = if work::mutated(Mutant::TerminalAtEach) {
+                production.syms.iter().any(is_terminal)
+            } else {
+                is_terminal(symbol) || terminal
+            };
             if let Sym::N(inner) = *symbol {
                 holding[inner as usize].push(production.rule);
             }
         }
+        if (restoration || terminal) && !reads[production.rule as usize] {
+            reads[production.rule as usize] = true;
+            queue.push(production.rule);
+        }
+    }
+    if work::mutated(Mutant::ReadsByPasses) {
+        reads_by_passes(prods, &mut reads);
     }
     while let Some(inner) = queue.pop() {
-        work::count(Work::Lowered, holding[inner as usize].len() as u64);
         for &outer in &holding[inner as usize] {
+            work::count(Work::Lowered, 1);
             if !reads[outer as usize] {
                 reads[outer as usize] = true;
                 queue.push(outer);
             }
         }
     }
+    let reads_at = |symbol: &Sym| {
+        work::count(Work::Lowered, 1);
+        symbol_reads(&reads, symbol)
+    };
     prods
         .iter()
         .map(|production| {
-            work::count(Work::Lowered, production.syms.len() as u64);
-            production.syms.iter().rposition(|symbol| symbol_reads(&reads, symbol)).map_or(0, |at| at as u32 + 1)
+            let syms = &production.syms;
+            if work::mutated(Mutant::LastReadByScans) {
+                // The first end after which no symbol reads.
+                return (0..=syms.len()).find(|&end| !syms[end..].iter().any(reads_at)).unwrap_or(0) as u32;
+            }
+            syms.iter().rposition(reads_at).map_or(0, |at| at as u32 + 1)
         })
         .collect()
+}
+
+/// A mutation for the tests of work: the rules that read, found by passes
+/// over every production until one settles nothing more. Each pass settles
+/// at least one rule, so a chain of n rules takes n passes.
+fn reads_by_passes(prods: &[Prod], reads: &mut [bool]) {
+    loop {
+        let mut settled = false;
+        for production in prods {
+            if reads[production.rule as usize] {
+                continue;
+            }
+            let found = production.syms.iter().any(|symbol| {
+                work::count(Work::Lowered, 1);
+                match *symbol {
+                    Sym::T(_) => true,
+                    Sym::N(rule) => reads[rule as usize],
+                }
+            });
+            if found {
+                reads[production.rule as usize] = true;
+                settled = true;
+            }
+        }
+        if !settled {
+            return;
+        }
+    }
 }
 
 /// Which rules derive the empty sequence, from productions given as their
 /// rule and symbols. A worklist counts each production's symbols not yet
 /// known to be nullable, so each symbol is looked at once or twice, not
 /// once in each pass that settles one more rule.
-fn nullable_rules<'s>(count: usize, prods: impl Iterator<Item = (u32, &'s [Sym])>) -> Vec<bool> {
+fn nullable_rules<'s>(count: usize, prods: impl Iterator<Item = (u32, &'s [Sym])> + Clone) -> Vec<bool> {
     let mut nullable = vec![false; count];
     let mut owner = Vec::new();
     let mut waiting = Vec::new();
     let mut occurs: Vec<Vec<u32>> = vec![Vec::new(); count];
     let mut queue = Vec::new();
-    for (index, (rule, syms)) in prods.enumerate() {
+    for (index, (rule, syms)) in prods.clone().enumerate() {
         owner.push(rule);
         // Each occurrence of a rule is paid off once that rule is found
         // nullable. A terminal never is.
         let left = syms.len() as u32;
-        work::count(Work::Lowered, syms.len() as u64);
         for sym in syms {
+            work::count(Work::Lowered, 1);
             if let Sym::N(inner) = *sym {
                 occurs[inner as usize].push(index as u32);
             }
@@ -1168,9 +1217,12 @@ fn nullable_rules<'s>(count: usize, prods: impl Iterator<Item = (u32, &'s [Sym])
             queue.push(rule);
         }
     }
+    if work::mutated(Mutant::NullableByPasses) {
+        nullable_by_passes(prods, &mut nullable);
+    }
     while let Some(inner) = queue.pop() {
-        work::count(Work::Lowered, occurs[inner as usize].len() as u64);
         for &index in &occurs[inner as usize] {
+            work::count(Work::Lowered, 1);
             waiting[index as usize] -= 1;
             let rule = owner[index as usize];
             if waiting[index as usize] == 0 && !nullable[rule as usize] {
@@ -1182,6 +1234,30 @@ fn nullable_rules<'s>(count: usize, prods: impl Iterator<Item = (u32, &'s [Sym])
     nullable
 }
 
+/// A mutation for the tests of work: the nullable rules, found by passes
+/// over every production until one settles nothing more.
+fn nullable_by_passes<'s>(prods: impl Iterator<Item = (u32, &'s [Sym])> + Clone, nullable: &mut [bool]) {
+    loop {
+        let mut settled = false;
+        for (rule, syms) in prods.clone() {
+            if nullable[rule as usize] {
+                continue;
+            }
+            let found = syms.iter().all(|symbol| {
+                work::count(Work::Lowered, 1);
+                matches!(symbol, Sym::N(inner) if nullable[*inner as usize])
+            });
+            if found {
+                nullable[rule as usize] = true;
+                settled = true;
+            }
+        }
+        if !settled {
+            return;
+        }
+    }
+}
+
 /// For each nonterminal, the cycle of the unit graph that it lies on, if
 /// any: the number of its strongly connected component.
 fn cycles(rules: &[LRule], prods: &[Prod]) -> Vec<Option<u32>> {
@@ -1190,24 +1266,30 @@ fn cycles(rules: &[LRule], prods: &[Prod]) -> Vec<Option<u32>> {
     let mut edges: Vec<Vec<u32>> = vec![Vec::new(); count];
     let mut seen: FxSet<(u32, u32)> = FxSet::default();
     for production in prods {
+        // Each test of a symbol counts before it is made, so a search that
+        // tests more symbols counts more.
+        let syms = &production.syms;
+        let stubborn_at = |position: usize| {
+            work::count(Work::Lowered, 1);
+            !matches!(syms[position], Sym::N(n) if nullable[n as usize])
+        };
         // A symbol has an edge when every other symbol is nullable: every
         // symbol where none is not nullable, the one where one is not, and
-        // none where two or more are not.
-        let mut stubborn = production
-            .syms
-            .iter()
-            .enumerate()
-            .filter(|(_, sym)| !matches!(sym, Sym::N(n) if nullable[*n as usize]))
-            .map(|(position, _)| position);
-        let positions: Vec<usize> = match (stubborn.next(), stubborn.next()) {
-            (None, _) => (0..production.syms.len()).collect(),
-            (Some(only), None) => vec![only],
-            (Some(_), Some(_)) => Vec::new(),
+        // none where two or more are not. One pass finds the first two
+        // that are not, where a test of every other symbol at each was n².
+        let positions: Vec<usize> = if work::mutated(Mutant::CheckEveryOther) {
+            (0..syms.len()).filter(|&at| (0..syms.len()).all(|other| other == at || !stubborn_at(other))).collect()
+        } else {
+            let mut stubborn = (0..syms.len()).filter(|&at| stubborn_at(at));
+            match (stubborn.next(), stubborn.next()) {
+                (None, _) => (0..syms.len()).collect(),
+                (Some(only), None) => vec![only],
+                (Some(_), Some(_)) => Vec::new(),
+            }
         };
-        // One pass to find the symbols that are not nullable, and one step
-        // for each edge, where a test of every other symbol at each was n².
-        work::count(Work::Lowered, (production.syms.len() + positions.len()) as u64);
         for position in positions {
+            // Each edge counts as it is added.
+            work::count(Work::Lowered, 1);
             if let Sym::N(target) = production.syms[position] {
                 if seen.insert((production.rule, target)) {
                     edges[production.rule as usize].push(target);
@@ -1285,17 +1367,27 @@ mod tests {
     use crate::dom::{Alternative, Directive, Dom, Expr, Op, RuleDef, Term};
     use crate::grammar::stitch;
     use crate::unicode::Unicode;
-    use crate::work::{assert_linear, Work};
+    use crate::work::{assert_linear, assert_mutant_stops, Mutant, Work};
 
     /// A grammar of a chain of n rules, each nullable and reading only
     /// through the next, a chain of n rules nullable only through the
-    /// next, a production of n nullable symbols, and n tested alternatives
+    /// next, a production of n nullable symbols, one of n symbols that
+    /// cannot read and then one that can, and n tested alternatives
     /// lowers in about n. Its nullable rules, the rules that read and the
     /// unit edges are found by worklists, and tests by a map.
     #[test]
     fn lowering_a_long_chain_takes_linear_work() {
+        let grammars = [long_chain(2000), long_chain(8000)];
+        assert_linear(Work::Lowered, 2000, &mut |n| {
+            let lowered = lower(&grammars[usize::from(n != 2000)], &BTreeSet::new(), Arc::default()).expect("lowered");
+            assert_eq!(lowered.tests.len(), n);
+        });
+    }
+
+    /// The grammar of `lowering_a_long_chain_takes_linear_work` for n.
+    fn long_chain(n: usize) -> crate::grammar::StageGrammar {
         let unicode = Unicode::parse(crate::loader::bundled("unicode.txt").expect("the table")).expect("the table");
-        let grammar = |n: usize| {
+        {
             let rule = |name: String, alternatives: Vec<Expr>| RuleDef {
                 name,
                 op: Op::Define,
@@ -1313,7 +1405,11 @@ mod tests {
                 Expr::Tested("=".into(), Term::Str(format!("s{index}")), Box::new(Expr::Terminal("A".into())))
             });
             let wide = Expr::Seq((1..n).map(|index| Expr::Ref(format!("r{index}"))).collect());
-            let mut rules = vec![rule("text".into(), tested.chain([wide, Expr::Ref("e1".into())]).collect())];
+            // A reading symbol after n that cannot read.
+            let late = Expr::Seq(
+                (1..n).map(|index| Expr::Ref(format!("e{index}"))).chain([Expr::Terminal("A".into())]).collect(),
+            );
+            let mut rules = vec![rule("text".into(), tested.chain([wide, late, Expr::Ref("e1".into())]).collect())];
             rules.extend((1..n).map(|index| {
                 let next =
                     if index + 1 < n { Expr::Ref(format!("r{}", index + 1)) } else { Expr::Terminal("A".into()) };
@@ -1334,11 +1430,25 @@ mod tests {
                 implications: Vec::new(),
             };
             stitch("s", &[(Arc::<str>::from("d.md"), Arc::new(dom))], &unicode).expect("a grammar")
-        };
-        let grammars = [grammar(2000), grammar(8000)];
-        assert_linear(Work::Lowered, 2000, &mut |n| {
-            let lowered = lower(&grammars[usize::from(n != 2000)], &BTreeSet::new(), Arc::default()).expect("lowered");
-            assert_eq!(lowered.tests.len(), n);
-        });
+        }
+    }
+
+    /// Each quadratic version of a step of lowering stops at the first
+    /// count past the budget that `lowering_a_long_chain_takes_linear_work`
+    /// gives its larger grammar.
+    #[test]
+    fn quadratic_lowering_stops_at_the_budget() {
+        let grammars = [long_chain(2000), long_chain(8000)];
+        for mutant in [
+            Mutant::TerminalAtEach,
+            Mutant::ReadsByPasses,
+            Mutant::LastReadByScans,
+            Mutant::NullableByPasses,
+            Mutant::CheckEveryOther,
+        ] {
+            assert_mutant_stops(Work::Lowered, mutant, 2000, &mut |n| {
+                lower(&grammars[usize::from(n != 2000)], &BTreeSet::new(), Arc::default()).expect("lowered");
+            });
+        }
     }
 }

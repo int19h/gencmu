@@ -77,6 +77,21 @@ pub(crate) enum Mutant {
     /// Condition selection scans every condition of the production for
     /// those of the dot.
     ScanConditions,
+    /// The search of lowering for the rules that read tests every symbol
+    /// of a production for a terminal at each of its symbols.
+    TerminalAtEach,
+    /// Lowering finds the rules that read by passes over every production,
+    /// not by a worklist.
+    ReadsByPasses,
+    /// Lowering finds the last symbol of a production that reads by a scan
+    /// of the rest from each position, not one walk back from the end.
+    LastReadByScans,
+    /// Lowering finds the nullable rules by passes over every production,
+    /// not by a worklist.
+    NullableByPasses,
+    /// Unit-edge discovery tests every other symbol of a production at
+    /// each symbol.
+    CheckEveryOther,
 }
 
 /// Whether the tests have switched `mutant` on, on this thread. Outside the
@@ -192,6 +207,7 @@ pub(crate) fn assert_stops(work: Work, most: u64, run: impl FnOnce()) {
     let total = counted(work);
     reset();
     let Err(payload) = caught else { panic!("{work:?}: {total} counted, and the budget of {most} never stopped it") };
+    eprintln!("{work:?} stopped at {}", most + 1);
     let message = payload.downcast_ref::<String>().cloned().unwrap_or_default();
     assert_eq!(message, format!("{} {work:?}, past the budget of {most}", most + 1));
 }
