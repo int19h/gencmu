@@ -180,7 +180,7 @@ An implication is `{"if":TERM,"then":TERM,"at":[line,column]}`, for `%implies A 
 
 A classifier and an implication have no member but those shown.
 
-A directive is `{"name":"features","args":["cbm"],"at":[line,column]}`. The name is the keyword without `%`: `ambiguity-resolution`, `stage`, `include` or `features`. A directive of any other name is malformed, `elidable` included (engine §9). An argument is a name, or, for `include`, the decoded string: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
+A directive is `{"name":"features","args":["cbm"],"at":[line,column]}`. `ambiguity-resolution` takes a ranking name and optionally `elision-only`. The retired operand `maximal` is an error. The name is the keyword without `%`: `ambiguity-resolution`, `stage`, `include` or `features`. A directive of any other name is malformed, `elidable` included (engine §9). An argument is a name, or, for `include`, the decoded string: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
 
 A directive has no `maximal` member, and one with that member is malformed (engine §9). A library ignores any other member of a directive. The members that it knows, `name`, `args`, `maximal` and `at`, keep their rules, so an unknown member does not excuse a malformed known one.
 

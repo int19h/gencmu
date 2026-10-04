@@ -183,7 +183,7 @@ A tag term is an error unless it is guarded, as in `($c ⟹ classify(phonemes($c
 
 Directives are keywords too, and can stand in any block.
 
-`%ambiguity-resolution` says how the stage chooses among parses (see "Ambiguity"). Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` and then `maximal` can follow it. Every stage must have exactly one, in any of its documents. A stage with none or two is a load error that names the stage.
+`%ambiguity-resolution` says how the stage chooses among parses (see "Ambiguity"). Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` can follow it. Stage-wide `maximal` is retired. Every stage must have exactly one, in any of its documents. A stage with none or two is a load error that names the stage.
 
 No directive lists the elidable terminators. An absent elidable optional, `[+KU]`, appears in the tree as its terminator, elided at that point. `elision-only` restores these terminators. `[++TOI]` also makes its terminator maximal (see "Maximal terminators").
 
@@ -371,9 +371,9 @@ The check's recognizer keeps the strictness of its items (engine §7.4), which a
 
 ### Independent options
 
-`late-elision` makes neither `maximal` nor `elision-only` redundant, so both keep their order and their meaning. `maximal` (below) removes a parse because of a longer constituent. That constituent need not fit any parse of the whole text. A ranking sees only parses of the whole text, so it cannot reproduce this rejection.
+`late-elision` does not replace maximal terminators or `elision-only`. A maximal terminator removes a parse because of a longer constituent. That constituent need not fit any parse of the whole text. A ranking sees only parses of the whole text, so it cannot reproduce this rejection.
 
-For example, take `text → A body [+T] B` and `body → X | X B`. On `A X B`, the one complete parse uses `body → X` and elides `T`. `maximal` forbids that elision, because `body → X B` is longer, so the text is an error. Without `maximal`, every ranking rule accepts the one parse.
+For example, take `text → A body [++T] B` and `body → X | X B`. On `A X B`, the one complete parse uses `body → X` and elides `T`. The maximal terminator forbids that elision, because `body → X B` is longer, so the text is an error. With `[+T]`, every ranking rule accepts the one parse.
 
 `elision-only` parses again with the terminators written back. That can let another alternative match, or a test on a terminal read a written-back terminator. A ranking of the original parses sees neither. For example, take `text → a | b | c`, `a → A [+T]`, `b → A [+T] [+T]` and `c → A T`. On `A`, `late-elision` prefers `a`, with one elided `T`, to `b`, with two. Written back, `A T` parses through both `a` and `c`, so `elision-only` reports the text.
 
@@ -403,17 +403,17 @@ Written-terminator priority does not settle these texts, because no `toi` or `se
 
 Stage-wide `maximal` inside nested parses was measured in two variants ("Nested queries and elided terminators" above). V1 searched the whole stage input and changed 39 jobs, with 31 false ties. V2 searched the query's chart and changed 24 jobs, with 17 false ties. That policy applied to every elidable terminator. This feature lets a grammar select single terminators instead. For those selected constructs, a change to a query with no written terminator is the intent.
 
-So a grammar can make single terminators maximal (engine §4). Maximality is the restriction to the longest constituent. `[++T]` selects an optional's terminator for it in the main parse and in nested queries. `%ambiguity-resolution … maximal` also restricts every elidable optional, but in the main parse only, and it selects nothing for nested queries.
+So a grammar can make single terminators maximal (engine §4). Maximality is the restriction to the longest constituent. `[++T]` selects an optional's terminator for it in the main parse and in nested queries. The retired stage-wide option restricted every elidable optional in the main parse only.
 
 The notation first said this with a word on a directive, `%elidable maximal TOI SEhU`, in DOM format 17. Since format 18, it is a second `+` on the optional, `[++TOI #]`. The DOM writes it as `"maximal":true` on the `optional` (see "Elidable optionals and captures"). A maximal terminator is always elidable, so one marker says both.
 
 Inside a query, the longer constituent comes from the query's own chart. A `begins` with `from` or `after` already sees the rest of the input. A bounded `matches` sees only its span, and a constituent that goes on past the span does not count there.
 
-A maximal terminator applies whether or not `%ambiguity-resolution` includes `maximal`. Both forms remove derivations before any ranking rule ranks them. In a query, written-terminator priority and a maximal terminator can each forbid an omission. `elision-only` writes back a maximal terminator as any other.
+Maximal terminators remove derivations before any ranking rule ranks them. In a query, written-terminator priority and a maximal terminator can each forbid an omission. `elision-only` writes back a maximal terminator as any other.
 
-A rejection names a forbidden terminator only when maximality removes every main derivation. The stage then reads the same chart, with both forms off, to find that terminator. A nested query that maximality changes only changes the value of its condition. If no main derivation remains, the rejection is ordinary, and it lists the terminals expected at the furthest position.
+A rejection names a forbidden terminator only when maximality removes every main derivation. The stage then reads the same chart, with maximal terminators unrestricted, to find that terminator. A nested query that maximality changes only changes the value of its condition. If no main derivation remains, the rejection is ordinary, and it lists the terminals expected at the furthest position.
 
-The four libraries already find the furthest completion of each symbol from each origin for `maximal`. Lowering keeps the set of maximal terminals with the lowered grammar, so a cache of lowered grammars tells them apart. The main parse builds the table whenever either form needs it. A nested query builds the same table from its own chart, which costs one pass over that chart.
+The four libraries find the furthest completion of each symbol from each origin for maximal terminators. Lowering keeps the set of maximal terminals with the lowered grammar, so a cache of lowered grammars tells them apart. The main parse builds the table whenever a maximal terminator needs it. A nested query builds the same table from its own chart, which costs one pass over that chart.
 
 The engine feature and the choice of terminators are separate decisions. The engine defines what a maximal terminator does. The Zantufa grammar chooses which of its terminators are maximal, and that choice has a cost.
 
@@ -437,7 +437,7 @@ A bounded query stays within its span. A `matches` over a captured span asks whe
 - CLL's official parser reads one lexeme ahead and never goes back. A lexeme is one unit that the parser reads. It is a word, or a run of words that the parser joins. The parser elides a terminator only through the error recovery of its grammar, where the next lexeme cannot continue what it is reading. CLL's own explanations of elision describe this. That is why CLL 14.14 says that `le nanmu ku joi le ninmu` needs its `ku`.
 - The PEG grammars that replaced the YACC grammar (the grammar of the official parser) commit too, but in another way. What a PEG read before an elided terminator runs as far as it can be read. So `le nanmu joi le ninmu` parses, and the `le lojbo` text does not.
 
-The notation offers the third reading as `maximal` (engine §4). It is a condition on which parses count, stated over the recognizer's items. It does not order the alternatives of a rule, so a grammar stays a description of its language. BPFK formerly read elided terminators this way because the definition effort also adopted the PEG. The atomic-number change below replaces that policy.
+The notation formerly offered the third reading as stage-wide `maximal`. It is a condition on which parses count, stated over the recognizer's items. It does not order the alternatives of a rule, so a grammar stays a description of its language. BPFK formerly read elided terminators this way because the definition effort also adopted the PEG. The atomic-number change below replaces that policy.
 
 The cll-ebnf and bpfk dialects take the printed grammar as normative and keep the whole-text reading. So do the experimental and Zantufa dialects, which accept the most. Zantufa has explicit exceptions for `TOI` and `SEhU`, which are maximal terminators and commit as the PEG does. Its grammar document lists the three texts that it rejects for this reason. The cll-ebnf and bpfk dialects each name their reading in their pipeline documents, after they include the CLL grammar. A stage states its `%ambiguity-resolution` exactly once, so the experimental layer over the CLL grammar states its own.
 
@@ -712,6 +712,6 @@ Nothing else came from the prototype: no code, no scripts, no notes. The maintai
 
 Both CLL dialects now use `late-elision elision-only`. Their numbers and letter strings cannot end before another continuation unit. The continuation is `PA | lerfu-word`, with complete recursive LAU atoms and balanced TEI/FOI compounds. CLL 17.9 and 18.6 require a separator between adjacent runs. CLL 17.14 states which forms count as letter atoms.
 
-The wrappers test each completed boundary. The bodies keep brace notation and all prefixes that their repetition needs. The experimental and Zantufa number rules stay the same. Stage-wide `maximal` remains available in the specification and libraries until their separate retirement.
+The wrappers test each completed boundary. The bodies keep brace notation and all prefixes that their repetition needs. The experimental and Zantufa number rules stay the same. Stage-wide `maximal` is retired. `[++T]` keeps its per-optional meaning.
 
 The Rust corpus comparison recovers BPFK readings that cll-ebnf already accepts under the shared elision policy. This includes CLL 8.48 without `ku'o`, despite the requirement in CLL 8.6. The maintainer approves that policy as an interpretation of CLL 21.2 note 10. The number and letter boundaries separately follow CLL 17.9 and 18.6.
