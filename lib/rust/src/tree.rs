@@ -7,10 +7,11 @@ use std::collections::BTreeSet;
 
 use crate::earley::{Cap, Caps, EngineError, Frame, Recognizer, Tok};
 use crate::fxhash::{FxMap, FxSet};
+use crate::grammar::Implication;
 use crate::lower::{LEmit, LEmitItem, LTerm, Lowered};
 use crate::rank::{DNode, Ranker};
 use crate::result::{Attachment, Node, NodeKind, Restoration, Warning};
-use crate::tags::{phoneme_of, union, SetId, TagList, Tags};
+use crate::tags::{phoneme_of, SetId, TagId, TagList, Tags};
 
 #[derive(Debug, Clone)]
 pub(crate) enum IKind {
@@ -674,35 +675,74 @@ fn item_tags(recognizer: &mut Recognizer, term: &LTerm, frame: &Frame, tokens: &
     Ok(set)
 }
 
-/// A token's explicit tags with the tags of the stage's implications, added
-/// until no tag changes (§11). An implication only adds tags, so the loop
-/// ends, also over a cycle.
-fn implied(tags: &mut Tags, set: SetId, implications: &[(TagList, TagList)]) -> SetId {
-    if implications.is_empty() {
-        return set;
+/// A stage's implications, as tag sets of one parse (§11), indexed by
+/// each tag of their antecedents, with the closures already found.
+struct Implications {
+    /// Each implication's consequent.
+    consequents: Vec<TagList>,
+    /// The implications whose antecedent holds a tag.
+    by_tag: FxMap<TagId, Vec<u32>>,
+    /// The closure of each set asked about so far.
+    closures: FxMap<SetId, SetId>,
+}
+
+impl Implications {
+    fn new(tags: &mut Tags, implications: &[Implication]) -> Implications {
+        let mut side = |names: &BTreeSet<String>| {
+            let mut list: TagList = names.iter().map(|name| tags.tag(name)).collect();
+            list.sort_unstable();
+            list
+        };
+        let mut consequents = Vec::with_capacity(implications.len());
+        let mut by_tag: FxMap<TagId, Vec<u32>> = FxMap::default();
+        for (index, implication) in (0..).zip(implications) {
+            for tag in side(&implication.antecedent) {
+                by_tag.entry(tag).or_default().push(index);
+            }
+            consequents.push(side(&implication.consequent));
+        }
+        Implications { consequents, by_tag, closures: FxMap::default() }
     }
-    let mut list = tags.list(set).clone();
-    let mut grown = false;
-    loop {
-        let mut changed = false;
-        for (antecedent, consequent) in implications {
-            if antecedent.iter().any(|tag| list.binary_search(tag).is_ok()) {
-                let more = union(&list, consequent);
-                if more.len() != list.len() {
-                    list = more;
-                    changed = true;
+
+    /// A token's explicit tags with the tags of the implications, added
+    /// until no tag changes (§11). Each implication fires at most once,
+    /// when a tag of its antecedent first arrives, so a chain of them
+    /// costs its length, not one pass of every implication for each link.
+    fn implied(&mut self, tags: &mut Tags, set: SetId) -> SetId {
+        if self.by_tag.is_empty() {
+            return set;
+        }
+        if let Some(&closure) = self.closures.get(&set) {
+            return closure;
+        }
+        let start = tags.list(set);
+        let mut have: FxSet<TagId> = start.iter().copied().collect();
+        let mut queue: Vec<TagId> = start.clone();
+        let mut fired: FxSet<u32> = FxSet::default();
+        let mut added: TagList = Vec::new();
+        while let Some(tag) = queue.pop() {
+            for &index in self.by_tag.get(&tag).map_or(&[][..], Vec::as_slice) {
+                if !fired.insert(index) {
+                    continue;
+                }
+                for &consequent in &self.consequents[index as usize] {
+                    if have.insert(consequent) {
+                        queue.push(consequent);
+                        added.push(consequent);
+                    }
                 }
             }
         }
-        if !changed {
-            break;
-        }
-        grown = true;
-    }
-    if grown {
-        tags.set(list)
-    } else {
-        set
+        let closure = if added.is_empty() {
+            set
+        } else {
+            let mut list = start.clone();
+            list.append(&mut added);
+            list.sort_unstable();
+            tags.set(list)
+        };
+        self.closures.insert(set, closure);
+        closure
     }
 }
 
@@ -712,19 +752,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
     let g = recognizer.g;
     let sources = Sources::new(tokens);
     // The stage's implications, as tag sets of this parse (§11).
-    let tags = &mut recognizer.shared.tags;
-    let implications: Vec<(TagList, TagList)> = g
-        .implications
-        .iter()
-        .map(|implication| {
-            let mut side = |names: &BTreeSet<String>| {
-                let mut list: TagList = names.iter().map(|name| tags.tag(name)).collect();
-                list.sort_unstable();
-                list
-            };
-            (side(&implication.antecedent), side(&implication.consequent))
-        })
-        .collect();
+    let mut implications = Implications::new(&mut recognizer.shared.tags, &g.implications);
     let mut out: Vec<Emitted> = Vec::new();
     // The opaque parts and their texts, fixed before any token (§11).
     let opaque = opaque_parts(g, tree, tokens, &sources, recognizer.shared.text);
@@ -817,7 +845,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                     }
                     None => tags,
                 };
-                let tags = implied(&mut recognizer.shared.tags, tags, &implications);
+                let tags = implications.implied(&mut recognizer.shared.tags, tags);
                 out.push(cover(recognizer, tree, tokens, &sources, &opaque, &mut forwarding, node, tags)?);
             }
             Work::Mark => marks.push(out.len()),
@@ -851,7 +879,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                 let IKind::Close { prod, .. } = &tree.nodes[node as usize].kind else { unreachable!("a close") };
                 let owner = g.prods[*prod as usize].owner;
                 let set = recognizer.shared.tags.set_of([tag.as_str()]);
-                let set = implied(&mut recognizer.shared.tags, set, &implications);
+                let set = implications.implied(&mut recognizer.shared.tags, set);
                 // Two phoneme tags are an error here too, where an
                 // implication added one (§5). An inserted token has no
                 // parts: a phoneme tag gives its phonemes and its label, or
@@ -871,4 +899,36 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
         }
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use super::Implications;
+    use crate::grammar::Implication;
+    use crate::growth::assert_linear;
+    use crate::tags::Tags;
+
+    /// A chain of implications, written last link first, closes a token's
+    /// tags in work that grows with its length, where a pass over every
+    /// implication would settle only one link each time.
+    #[test]
+    fn a_chain_of_implications_closes_in_one_sweep() {
+        let names = |index: usize| BTreeSet::from([format!("{index}a")]);
+        assert_linear("implications", 100, &mut |n| {
+            let chain: Vec<Implication> = (0..n)
+                .rev()
+                .map(|index| Implication { antecedent: names(index), consequent: names(index + 1) })
+                .collect();
+            // Fresh tables each time, since a closure once found is kept.
+            for _ in 0..200 {
+                let mut tags = Tags::new();
+                let mut implications = Implications::new(&mut tags, &chain);
+                let start = tags.set_of(["0a"]);
+                let closure = implications.implied(&mut tags, start);
+                assert_eq!(tags.list(closure).len(), n + 1);
+            }
+        });
+    }
 }

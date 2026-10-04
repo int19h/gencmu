@@ -101,32 +101,6 @@ pub(crate) fn union_all<'l>(lists: impl IntoIterator<Item = &'l TagList>) -> Tag
     out
 }
 
-/// The union of two sorted lists: every tag of either.
-pub(crate) fn union(left: &TagList, right: &TagList) -> TagList {
-    let mut out = Vec::with_capacity(left.len() + right.len());
-    let (mut i, mut j) = (0, 0);
-    while i < left.len() && j < right.len() {
-        match left[i].cmp(&right[j]) {
-            std::cmp::Ordering::Less => {
-                out.push(left[i]);
-                i += 1;
-            }
-            std::cmp::Ordering::Greater => {
-                out.push(right[j]);
-                j += 1;
-            }
-            std::cmp::Ordering::Equal => {
-                out.push(left[i]);
-                i += 1;
-                j += 1;
-            }
-        }
-    }
-    out.extend_from_slice(&left[i..]);
-    out.extend_from_slice(&right[j..]);
-    out
-}
-
 /// The intersection: the tags of both.
 pub(crate) fn intersection(left: &TagList, right: &TagList) -> TagList {
     left.iter().filter(|id| right.binary_search(id).is_ok()).copied().collect()
