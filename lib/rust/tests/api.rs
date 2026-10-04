@@ -466,6 +466,27 @@ fn small_stack(body: impl FnOnce() + Send + 'static) {
     std::thread::Builder::new().stack_size(256 * 1024).spawn(body).unwrap().join().expect("no overflow");
 }
 
+/// A condition that asks a nested parse, whose own condition asks another
+/// over a span one token shorter, makes a chain of nested parses as long as
+/// the text. The recognizer keeps the chain on a stack of its own, in
+/// recognition and in emission alike.
+#[test]
+fn a_deep_chain_of_nested_parses_does_not_overflow() {
+    small_stack(|| {
+        let chain = "%rule c 'a' %conditions ¬matches(after($), c)";
+        let recognized = format!("%ambiguity-resolution greedy\n%rule text c {{'a'}}\n{chain}");
+        let emitted = format!(
+            "%ambiguity-resolution greedy\n%rule text $x(s) %emits $ <T ∪ tags($x, c)>\n%rule s {{'a'}}\n{chain}"
+        );
+        let text = "a".repeat(20_000);
+        for rules in [recognized, emitted] {
+            let dialect = gencmu::load_dialect_sources(single(&rules), "p.md").unwrap();
+            let result = dialect.parse(&text, &no_auto()).unwrap();
+            assert!(result.ok, "{rules}: {:?}", result.error);
+        }
+    });
+}
+
 #[test]
 fn deep_left_recursion_does_not_overflow() {
     small_stack(|| {

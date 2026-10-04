@@ -405,7 +405,7 @@ const CONTENT_KEY_LIMIT: usize = 64;
 type ObservedToken = (SetId, String, Option<String>, usize, usize);
 
 /// What a nested parse's answer is remembered by (§4).
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum NestedKey {
     /// A short span: its rule, the original text that holds its tokens'
     /// sources, and each token's tags, text, phonemes, and where its
@@ -603,6 +603,110 @@ fn span_bounds(span: &Span, frame: &Frame, input: usize) -> Bounds {
     }
 }
 
+/// Why an evaluation stopped short: an error of the grammar, or a nested
+/// parse whose answer is not yet known. The recognizer then parses that
+/// span on a stack of its own and evaluates again, so that a chain of
+/// nested parses costs heap and not the call stack. An evaluation changes
+/// only caches before it halts, so evaluating again gives what one
+/// uninterrupted evaluation would.
+#[derive(Debug)]
+pub(crate) enum Halt<'t> {
+    Error(EngineError),
+    Pending(Request<'t>),
+}
+
+impl From<EngineError> for Halt<'_> {
+    fn from(error: EngineError) -> Self {
+        Halt::Error(error)
+    }
+}
+
+/// A nested parse that an evaluation needs: `tokens[start..end]` as `rule`,
+/// for `matches` and `tags` or for `begins`, with the key its answer is
+/// remembered by.
+#[derive(Debug)]
+pub(crate) struct Request<'t> {
+    tokens: &'t [Tok],
+    base: usize,
+    start: usize,
+    end: usize,
+    rule: u32,
+    key: NestedKey,
+    begins: bool,
+}
+
+impl Request<'_> {
+    fn place(&self) -> Place {
+        (self.rule, self.base + self.start, self.base + self.end)
+    }
+}
+
+/// What a recognition does next. A step that halts for a nested parse
+/// keeps its place here. When the answer is known, the run makes that step
+/// again from its start. What the step did before it halted, it does again
+/// to the same effect.
+enum Step {
+    /// Take the next entry of the queue.
+    Next,
+    /// Predict `rule` in set `e`, from the production `next` on.
+    Predict { rule: u32, e: usize, strict: bool, before: Option<bool>, next: usize, then: Then },
+    /// Advance `item` over the empty constituents found in set `e`, from
+    /// the one at `next` on.
+    Empties { item: Item, e: usize, strict: bool, empties: Vec<SetId>, next: usize },
+    /// Advance `item` over a token.
+    Terminal { item: Item, cap: Cap, into: usize, strict: bool },
+    /// Complete the item `k` of set `e`.
+    Complete { e: usize, k: usize },
+    /// Advance the items that wait at `origin` for a constituent of `rule`
+    /// that ends at `e`, from the waiter at `next` on.
+    Waiters { e: usize, origin: usize, rule: u32, tags: SetId, empty: bool, count: usize, next: usize },
+}
+
+/// What follows a prediction: the queue, or for an item before a rule,
+/// its advance over the rule's empty constituents unless `skip`.
+#[derive(Clone, Copy)]
+enum Then {
+    Queue,
+    Empties { item: Item, rule: u32, strict: bool, skip: bool },
+}
+
+/// One recognition in progress: its tokens, its chart so far, where its
+/// queue stands, and the nested parse it answers, if it is one.
+struct Run<'t, 'g> {
+    tokens: &'t [Tok],
+    base: usize,
+    recon: Option<&'g Recon<'g>>,
+    chart: Chart,
+    e: usize,
+    head: usize,
+    /// Whether the set `e` has been entered, and the chart reaches it.
+    entered: bool,
+    step: Step,
+    request: Option<Request<'t>>,
+}
+
+impl<'t, 'g> Run<'t, 'g> {
+    fn new(tokens: &'t [Tok], base: usize, start: u32, recon: Option<&'g Recon<'g>>) -> Run<'t, 'g> {
+        let mut chart = Chart::default();
+        chart.caps.push(CapEntry { parent: 0, jump: 0, depth: 0, cap: Cap { start: 0, end: 0, tags: 0 } });
+        chart.sets.push(ESet::default());
+        // The first step predicts the start rule in a set that holds
+        // nothing yet, as `begin_predict` would begin it.
+        chart.sets[0].predicted.insert(start, false);
+        let step = Step::Predict { rule: start, e: 0, strict: false, before: None, next: 0, then: Then::Queue };
+        Run { tokens, base, recon, chart, e: 0, head: 0, entered: false, step, request: None }
+    }
+
+    /// The recognition that answers `request`: its span alone, with its
+    /// rule as the start rule, in the ordinary mode (§7.6).
+    fn answering(request: Request<'t>) -> Run<'t, 'g> {
+        let tokens = &request.tokens[request.start..request.end];
+        let mut run = Run::new(tokens, request.base + request.start, request.rule, None);
+        run.request = Some(request);
+        run
+    }
+}
+
 impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// Recognizes `tokens` (which start at `base` in the stage's input) with
     /// `start` as the start rule. A set is made when an item first reaches
@@ -610,75 +714,260 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// so a nested parse over the rest of a long text makes only the sets it
     /// reaches.
     pub(crate) fn recognize(&mut self, tokens: &[Tok], base: usize, start: u32) -> Result<Chart, EngineError> {
-        let n = tokens.len();
-        let mut chart = Chart::default();
-        chart.caps.push(CapEntry { parent: 0, jump: 0, depth: 0, cap: Cap { start: 0, end: 0, tags: 0 } });
-        chart.sets.push(ESet::default());
-        self.predict(&mut chart, tokens, base, start, 0, false)?;
-        let mut e = 0;
-        while e < chart.sets.len() && (e == 0 || !chart.sets[e].items.is_empty()) {
-            chart.reached = e;
-            let mut head = 0;
-            while head < chart.sets[e].queue.len() {
-                let entry = chart.sets[e].queue[head];
-                head += 1;
-                let (k, again) = ((entry & !AGAIN) as usize, entry & AGAIN != 0);
-                if let Some(processed) = chart.sets[e].processed.get_mut(k) {
-                    *processed = true;
-                }
-                let item = chart.sets[e].items[k];
-                let g = self.g;
-                let production = &g.prods[item.prod as usize];
-                if item.dot as usize == production.syms.len() {
-                    self.complete(&mut chart, tokens, base, e, k)?;
-                    continue;
-                }
-                match production.syms[item.dot as usize] {
-                    Sym::T(terminal) => {
-                        if e < n && self.shared.reads(self.matchers[terminal as usize], tokens[e].tags) {
-                            // A terminal that reads a synthetic token
-                            // captures no tags (§7.5).
-                            let synthetic = self.recon.is_some_and(|recon| recon.synthetic[e]);
-                            let tags = if synthetic { self.shared.tags.set(TagList::new()) } else { tokens[e].tags };
-                            // The written route of an elidable optional from
-                            // a synthetic token: the rest of the optional
-                            // must read, so the item after it is strict
-                            // (§7.4).
-                            let rule = &g.rules[production.rule as usize];
-                            let strict = synthetic
-                                && item.dot == 0
-                                && rule.helper
-                                && rule.elided.is_some()
-                                && !witness::fault(Fault::Route3);
-                            let cap = Cap { start: e as u32, end: e as u32 + 1, tags };
-                            self.advance(&mut chart, tokens, base, item, cap, e + 1, strict)?;
-                        }
+        self.drive(Run::new(tokens, base, start, self.recon))
+    }
+
+    /// Runs a recognition and the nested parses it needs, each on a stack
+    /// of runs, not of calls. A run that halts for a nested parse waits
+    /// below the run that answers it, and then goes on.
+    fn drive<'t>(&mut self, root: Run<'t, 'g>) -> Result<Chart, EngineError>
+    where
+        'g: 't,
+    {
+        let recon = self.recon;
+        let mut runs = vec![root];
+        let outcome = loop {
+            let run = runs.last_mut().expect("a run");
+            self.recon = run.recon;
+            match self.resume(run) {
+                Ok(()) => {
+                    let Run { request, chart, .. } = runs.pop().expect("a run");
+                    if let Some(request) = request {
+                        self.shared.running.remove(&request.place());
+                        self.settle(request, &chart);
                     }
-                    Sym::N(rule) => {
-                        if !again {
-                            chart.sets[e].waiting.entry(rule).or_default().push(k as u32);
-                        }
-                        let strict = chart.sets[e].is_strict(k);
-                        // A strict item predicts its next symbol strictly
-                        // where no symbol after it can read, and it advances
-                        // over an empty constituent only where one can
-                        // (§7.4).
-                        let later = self.reads_later(item);
-                        self.predict(&mut chart, tokens, base, rule, e, strict && !later)?;
-                        if strict && !later {
-                            continue;
-                        }
-                        let empties = chart.sets[e].empty.get(&rule).cloned().unwrap_or_default();
-                        for tags in empties {
-                            let cap = Cap { start: e as u32, end: e as u32, tags };
-                            self.advance(&mut chart, tokens, base, item, cap, e, strict)?;
-                        }
+                    if runs.is_empty() {
+                        break Ok(chart);
                     }
+                }
+                Err(Halt::Error(error)) => break Err(error),
+                Err(Halt::Pending(request)) => match self.start_query(&request) {
+                    Ok(()) => runs.push(Run::answering(request)),
+                    Err(error) => break Err(error),
+                },
+            }
+        };
+        // A parse that failed frees its place, as one that finished does.
+        for run in &runs {
+            if let Some(request) = &run.request {
+                self.shared.running.remove(&request.place());
+            }
+        }
+        self.recon = recon;
+        outcome
+    }
+
+    /// Marks the place of a nested parse as running. A parse that is
+    /// running is known by its place, whatever the kind of query that
+    /// started it, so that alternating `matches`, `begins` and `tags`
+    /// cannot hide a query about a span from inside its own parse (§4).
+    fn start_query(&mut self, request: &Request) -> Result<(), EngineError> {
+        if self.shared.running.insert(request.place()) {
+            return Ok(());
+        }
+        let text = self.text(request.tokens, request.start, request.end);
+        let name = &self.g.rules[request.rule as usize].name;
+        Err(EngineError {
+            message: format!(
+                "a condition asks whether {text:?} parses as {name} from inside the parse of that span as {name}: \
+                 the grammar defines {name} in terms of itself over the same text"
+            ),
+            rule: Some(request.rule),
+        })
+    }
+
+    /// Answers a nested parse outside any recognition, as emission needs.
+    fn answer(&mut self, request: Request) -> Result<(), EngineError> {
+        self.start_query(&request)?;
+        self.drive(Run::answering(request)).map(drop)
+    }
+
+    /// Remembers the answer of a nested parse from its chart. The chart
+    /// stops at its first empty set, which may lie before the span's end.
+    /// Only the items with an eligible proof tree count.
+    fn settle(&mut self, request: Request, chart: &Chart) {
+        let rule = request.rule;
+        let tokens = &request.tokens[request.start..request.end];
+        if request.begins {
+            // A completed item from the span's start, in any set, with an
+            // eligible proof tree (§4).
+            let witnesses: Vec<(u32, u32)> = (0..chart.sets.len())
+                .flat_map(|set| {
+                    chart.sets[set]
+                        .completed
+                        .get(&(rule, 0))
+                        .into_iter()
+                        .flatten()
+                        .map(move |&index| (set as u32, index))
+                })
+                .collect();
+            let answer = self.proofs(chart, tokens).eligible(&witnesses).contains(&true);
+            self.shared.begins.insert(request.key, answer);
+            return;
+        }
+        let set = tokens.len() as u32;
+        let witnesses: Vec<(u32, u32)> = chart
+            .sets
+            .get(set as usize)
+            .and_then(|last| last.completed.get(&(rule, 0)))
+            .into_iter()
+            .flatten()
+            .map(|&index| (set, index))
+            .collect();
+        let eligible = self.proofs(chart, tokens).eligible(&witnesses);
+        let tags = &self.shared.tags;
+        let list = union_all(
+            witnesses
+                .iter()
+                .zip(&eligible)
+                .filter(|(_, &eligible)| eligible)
+                .map(|(&(set, index), _)| tags.list(chart.sets[set as usize].tagset[index as usize])),
+        );
+        let accepted = eligible.contains(&true);
+        let answer = (accepted, self.shared.tags.set(list));
+        self.shared.memo.insert(request.key, answer);
+    }
+
+    /// Goes on with a run until it finishes or halts. A step that halts
+    /// keeps its place in `run.step`.
+    fn resume<'t>(&mut self, run: &mut Run<'t, 'g>) -> Result<(), Halt<'t>>
+    where
+        'g: 't,
+    {
+        let (tokens, base) = (run.tokens, run.base);
+        loop {
+            match &mut run.step {
+                Step::Next => {
+                    if !self.next_entry(run) {
+                        return Ok(());
+                    }
+                }
+                Step::Predict { rule, e, strict, before, next, then } => {
+                    let (rule, e, then) = (*rule, *e, *then);
+                    self.predict_from(&mut run.chart, tokens, base, rule, e, *strict, *before, next)?;
+                    run.step = match then {
+                        Then::Queue | Then::Empties { skip: true, .. } => Step::Next,
+                        Then::Empties { item, rule, strict, skip: false } => {
+                            let empties = run.chart.sets[e].empty.get(&rule).cloned().unwrap_or_default();
+                            Step::Empties { item, e, strict, empties, next: 0 }
+                        }
+                    };
+                }
+                Step::Empties { item, e, strict, empties, next } => {
+                    while let Some(&tags) = empties.get(*next) {
+                        let cap = Cap { start: *e as u32, end: *e as u32, tags };
+                        self.advance(&mut run.chart, tokens, base, *item, cap, *e, *strict)?;
+                        *next += 1;
+                    }
+                    run.step = Step::Next;
+                }
+                Step::Terminal { item, cap, into, strict } => {
+                    self.advance(&mut run.chart, tokens, base, *item, *cap, *into, *strict)?;
+                    run.step = Step::Next;
+                }
+                Step::Complete { e, k } => {
+                    let (e, k) = (*e, *k);
+                    let tags = self.complete_tags(&run.chart, tokens, base, e, k)?;
+                    run.step = self.complete(&mut run.chart, e, k, tags);
+                }
+                Step::Waiters { e, origin, rule, tags, empty, count, next } => {
+                    while *next < *count {
+                        let chart = &run.chart;
+                        let waiter = chart.sets[*origin].waiting[&*rule][*next];
+                        let waiting = chart.sets[*origin].items[waiter as usize];
+                        // A strict item advances over an empty constituent
+                        // only where a later symbol can read, and stays
+                        // strict (§7.4).
+                        let strict = *empty && chart.sets[*origin].is_strict(waiter as usize);
+                        if !strict || self.reads_later(waiting) {
+                            let cap = Cap { start: *origin as u32, end: *e as u32, tags: *tags };
+                            self.advance(&mut run.chart, tokens, base, waiting, cap, *e, strict)?;
+                        }
+                        *next += 1;
+                    }
+                    run.step = Step::Next;
                 }
             }
-            e += 1;
         }
-        Ok(chart)
+    }
+
+    /// Takes the next entry of the queue, from the next set once one is
+    /// done, and makes its step: false when the recognition is over.
+    fn next_entry(&mut self, run: &mut Run) -> bool {
+        let chart = &mut run.chart;
+        loop {
+            let e = run.e;
+            if !run.entered {
+                if e >= chart.sets.len() || (e != 0 && chart.sets[e].items.is_empty()) {
+                    return false;
+                }
+                chart.reached = e;
+                run.entered = true;
+            }
+            if run.head == chart.sets[e].queue.len() {
+                run.e += 1;
+                run.head = 0;
+                run.entered = false;
+                continue;
+            }
+            let entry = chart.sets[e].queue[run.head];
+            run.head += 1;
+            let (k, again) = ((entry & !AGAIN) as usize, entry & AGAIN != 0);
+            if let Some(processed) = chart.sets[e].processed.get_mut(k) {
+                *processed = true;
+            }
+            let item = chart.sets[e].items[k];
+            let g = self.g;
+            let production = &g.prods[item.prod as usize];
+            if item.dot as usize == production.syms.len() {
+                run.step = Step::Complete { e, k };
+                return true;
+            }
+            match production.syms[item.dot as usize] {
+                Sym::T(terminal) => {
+                    let tokens = run.tokens;
+                    if e < tokens.len() && self.shared.reads(self.matchers[terminal as usize], tokens[e].tags) {
+                        // A terminal that reads a synthetic token captures
+                        // no tags (§7.5).
+                        let synthetic = self.recon.is_some_and(|recon| recon.synthetic[e]);
+                        let tags = if synthetic { self.shared.tags.set(TagList::new()) } else { tokens[e].tags };
+                        // The written route of an elidable optional from a
+                        // synthetic token: the rest of the optional must
+                        // read, so the item after it is strict (§7.4).
+                        let rule = &g.rules[production.rule as usize];
+                        let strict = synthetic
+                            && item.dot == 0
+                            && rule.helper
+                            && rule.elided.is_some()
+                            && !witness::fault(Fault::Route3);
+                        let cap = Cap { start: e as u32, end: e as u32 + 1, tags };
+                        run.step = Step::Terminal { item, cap, into: e + 1, strict };
+                        return true;
+                    }
+                }
+                Sym::N(rule) => {
+                    if !again {
+                        chart.sets[e].waiting.entry(rule).or_default().push(k as u32);
+                    }
+                    let strict = chart.sets[e].is_strict(k);
+                    // A strict item predicts its next symbol strictly where
+                    // no symbol after it can read, and it advances over an
+                    // empty constituent only where one can (§7.4).
+                    let later = self.reads_later(item);
+                    let only = strict && !later;
+                    let then = Then::Empties { item, rule, strict, skip: only };
+                    run.step = match Self::begin_predict(chart, rule, e, only) {
+                        Some(before) => Step::Predict { rule, e, strict: only, before, next: 0, then },
+                        None if only => Step::Next,
+                        None => {
+                            let empties = chart.sets[e].empty.get(&rule).cloned().unwrap_or_default();
+                            Step::Empties { item, e, strict, empties, next: 0 }
+                        }
+                    };
+                    return true;
+                }
+            }
+        }
     }
 
     /// Whether a symbol after an item's next symbol can read in the
@@ -689,15 +978,18 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
 
     /// Adds an item to a set, made by a step that is strict or not (§7.4).
     #[allow(clippy::too_many_arguments)]
-    fn add(
+    fn add<'t>(
         &mut self,
         chart: &mut Chart,
-        tokens: &[Tok],
+        tokens: &'t [Tok],
         base: usize,
         item: Item,
         set: usize,
         strict: bool,
-    ) -> Result<(), EngineError> {
+    ) -> Result<(), Halt<'t>>
+    where
+        'g: 't,
+    {
         let g = self.g;
         let production = &g.prods[item.prod as usize];
         // A strict item never completes.
@@ -727,7 +1019,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         // The constituent's tags, where a condition of this step read them.
         let mut known = u32::MAX;
         let conds = production.conds_at(item.dot as usize);
-        work::count(Work::Conditions, 1 + conds.len() as u64);
         if !conds.is_empty() {
             let search = CapSearch::new(chart, item.caps);
             let (observed, project) = self.observed(tokens);
@@ -739,18 +1030,25 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 tags: Cell::new(None),
                 project,
             };
-            let mut failed = false;
+            let mut held = Ok(true);
             for (cond, _) in conds {
-                if !self.condition(cond, &frame, observed, base)? {
-                    failed = true;
+                held = self.condition(cond, &frame, observed, base);
+                if !matches!(held, Ok(true)) {
                     break;
                 }
             }
-            if failed {
+            // A step that halts for a nested parse is made again, and
+            // counts once.
+            if !matches!(held, Err(Halt::Pending(_))) {
+                work::count(Work::Conditions, 1 + conds.len() as u64);
+            }
+            if !held? {
                 chart.sets[set].failed.insert(item);
                 return Ok(());
             }
             known = frame.tags.get().unwrap_or(u32::MAX);
+        } else {
+            work::count(Work::Conditions, 1);
         }
         let target = &mut chart.sets[set];
         work::count(Work::Items, 1);
@@ -775,57 +1073,91 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
     }
 
-    fn predict(
+    /// Begins the prediction of `rule` in set `e`: what the set held of it
+    /// before, or `None` when the prediction adds nothing. A rule's
+    /// productions are the same at every prediction in one set. A strict
+    /// prediction leaves some out, so an ordinary one after it adds them
+    /// (§7.4).
+    fn begin_predict(chart: &mut Chart, rule: u32, e: usize, strict: bool) -> Option<Option<bool>> {
+        let before = chart.sets[e].predicted.get(&rule).copied();
+        if before == Some(false) || (before == Some(true) && strict) {
+            return None;
+        }
+        chart.sets[e].predicted.insert(rule, strict);
+        Some(before)
+    }
+
+    /// Predicts the productions of `rule` from the one at `next` on, which
+    /// stays at the production whose item halted.
+    #[allow(clippy::too_many_arguments)]
+    fn predict_from<'t>(
         &mut self,
         chart: &mut Chart,
-        tokens: &[Tok],
+        tokens: &'t [Tok],
         base: usize,
         rule: u32,
         e: usize,
         strict: bool,
-    ) -> Result<(), EngineError> {
-        // A rule's productions are the same at every prediction in one set.
-        // A strict prediction leaves some out, so an ordinary one after it
-        // adds them (§7.4).
-        let before = chart.sets[e].predicted.get(&rule).copied();
-        if before == Some(false) || (before == Some(true) && strict) {
-            return Ok(());
-        }
-        chart.sets[e].predicted.insert(rule, strict);
+        before: Option<bool>,
+        next: &mut usize,
+    ) -> Result<(), Halt<'t>>
+    where
+        'g: 't,
+    {
         let g = self.g;
         let helper = &g.rules[rule as usize];
-        for &production in &helper.prods {
-            let lowered = &g.prods[production as usize];
-            // In the reconstruction mode, the empty production of an
-            // elidable optional is its restoration, and it never derives
-            // the empty sequence (§7.4).
-            if let (Some(recon), true, true, Some(terminal)) =
-                (self.recon, lowered.syms.is_empty(), helper.helper, &helper.elided)
-            {
-                self.restore(chart, tokens, recon, production, terminal, helper.elided_test, e);
-                continue;
-            }
-            // A strict prediction predicts only the productions that can
-            // read.
-            if strict && g.reads_until[production as usize] == 0 {
-                continue;
-            }
-            // A production that must first read a terminal the next token
-            // lacks gives a dead item, so prediction skips it. The set
-            // records it, and the rejection report adds back the terminal
-            // it expected.
-            if let (Some(Sym::T(terminal)), false) = (lowered.syms.first(), !lowered.conds_at(0).is_empty()) {
-                let matcher = self.matchers[*terminal as usize];
-                if e >= tokens.len() || !self.shared.reads(matcher, tokens[e].tags) {
-                    if before.is_none() {
-                        chart.sets[e].skipped.push(production);
-                    }
-                    continue;
-                }
-            }
-            self.add(chart, tokens, base, Item { prod: production, dot: 0, origin: e as u32, caps: 0 }, e, strict)?;
+        while let Some(&production) = helper.prods.get(*next) {
+            self.predict_one(chart, tokens, base, rule, production, e, strict, before)?;
+            *next += 1;
         }
         Ok(())
+    }
+
+    /// Predicts one production of `rule` in set `e`.
+    #[allow(clippy::too_many_arguments)]
+    fn predict_one<'t>(
+        &mut self,
+        chart: &mut Chart,
+        tokens: &'t [Tok],
+        base: usize,
+        rule: u32,
+        production: u32,
+        e: usize,
+        strict: bool,
+        before: Option<bool>,
+    ) -> Result<(), Halt<'t>>
+    where
+        'g: 't,
+    {
+        let g = self.g;
+        let helper = &g.rules[rule as usize];
+        let lowered = &g.prods[production as usize];
+        // In the reconstruction mode, the empty production of an elidable
+        // optional is its restoration, and it never derives the empty
+        // sequence (§7.4).
+        if let (Some(recon), true, true, Some(terminal)) =
+            (self.recon, lowered.syms.is_empty(), helper.helper, &helper.elided)
+        {
+            self.restore(chart, tokens, recon, production, terminal, helper.elided_test, e);
+            return Ok(());
+        }
+        // A strict prediction predicts only the productions that can read.
+        if strict && g.reads_until[production as usize] == 0 {
+            return Ok(());
+        }
+        // A production that must first read a terminal the next token lacks
+        // gives a dead item, so prediction skips it. The set records it, and
+        // the rejection report adds back the terminal it expected.
+        if let (Some(Sym::T(terminal)), false) = (lowered.syms.first(), !lowered.conds_at(0).is_empty()) {
+            let matcher = self.matchers[*terminal as usize];
+            if e >= tokens.len() || !self.shared.reads(matcher, tokens[e].tags) {
+                if before.is_none() {
+                    chart.sets[e].skipped.push(production);
+                }
+                return Ok(());
+            }
+        }
+        self.add(chart, tokens, base, Item { prod: production, dot: 0, origin: e as u32, caps: 0 }, e, strict)
     }
 
     /// The restoration of an elidable optional at `e` (§7.4): its empty
@@ -878,16 +1210,19 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn advance(
+    fn advance<'t>(
         &mut self,
         chart: &mut Chart,
-        tokens: &[Tok],
+        tokens: &'t [Tok],
         base: usize,
         item: Item,
         cap: Cap,
         into: usize,
         strict: bool,
-    ) -> Result<(), EngineError> {
+    ) -> Result<(), Halt<'t>>
+    where
+        'g: 't,
+    {
         let g = self.g;
         let production = &g.prods[item.prod as usize];
         // A strict step that completes, route 3's read of T with nothing
@@ -926,34 +1261,43 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         self.add(chart, tokens, base, next, into, strict)
     }
 
-    fn complete(
+    /// The tags of the completed item `k` of set `e`: those its conditions
+    /// read, or its constituent's (§4).
+    fn complete_tags<'t>(
         &mut self,
-        chart: &mut Chart,
-        tokens: &[Tok],
+        chart: &Chart,
+        tokens: &'t [Tok],
         base: usize,
         e: usize,
         k: usize,
-    ) -> Result<(), EngineError> {
-        let item = chart.sets[e].items[k];
-        let g = self.g;
-        let production = &g.prods[item.prod as usize];
-        let (observed, project) = self.observed(tokens);
+    ) -> Result<SetId, Halt<'t>>
+    where
+        'g: 't,
+    {
         let known = chart.sets[e].tagset[k];
-        let tags = if known != u32::MAX {
-            known
-        } else {
-            let search = CapSearch::new(chart, item.caps);
-            let frame = Frame {
-                caps: Caps::Chart(&search),
-                prod: item.prod,
-                origin: item.origin,
-                end: e as u32,
-                tags: Cell::new(None),
-                project,
-            };
-            self.constituent_tags(&frame, observed, base)?
+        if known != u32::MAX {
+            return Ok(known);
+        }
+        let item = chart.sets[e].items[k];
+        let (observed, project) = self.observed(tokens);
+        let search = CapSearch::new(chart, item.caps);
+        let frame = Frame {
+            caps: Caps::Chart(&search),
+            prod: item.prod,
+            origin: item.origin,
+            end: e as u32,
+            tags: Cell::new(None),
+            project,
         };
-        let rule = production.rule;
+        self.constituent_tags(&frame, observed, base)
+    }
+
+    /// Records the completed item `k` of set `e`, whose constituent has
+    /// `tags`, and gives the step that advances the items waiting for it,
+    /// if a constituent of its rule, origin and tags is new here.
+    fn complete(&self, chart: &mut Chart, e: usize, k: usize, tags: SetId) -> Step {
+        let item = chart.sets[e].items[k];
+        let rule = self.g.prods[item.prod as usize].rule;
         chart.sets[e].tagset[k] = tags;
         let completed = chart.sets[e].completed.entry((rule, item.origin)).or_default();
         if completed.is_empty() {
@@ -963,7 +1307,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             completed.push(k as u32);
         }
         if !chart.sets[e].done.insert((rule, item.origin, tags)) {
-            return Ok(());
+            return Step::Next;
         }
         let origin = item.origin as usize;
         let empty = origin == e;
@@ -971,24 +1315,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             chart.sets[e].empty.entry(rule).or_default().push(tags);
         }
         let count = chart.sets[origin].waiting.get(&rule).map_or(0, Vec::len);
-        for index in 0..count {
-            let waiter = chart.sets[origin].waiting[&rule][index];
-            let waiting = chart.sets[origin].items[waiter as usize];
-            // A strict item advances over an empty constituent only where a
-            // later symbol can read, and stays strict (§7.4).
-            let strict = empty && chart.sets[origin].is_strict(waiter as usize);
-            if strict && !self.reads_later(waiting) {
-                continue;
-            }
-            let cap = Cap { start: item.origin, end: e as u32, tags };
-            self.advance(chart, tokens, base, waiting, cap, e, strict)?;
-        }
-        Ok(())
+        Step::Waiters { e, origin, rule, tags, empty, count, next: 0 }
     }
 
     /// A constituent's tags (§4): its production's tag term, or, with none,
     /// its one symbol's tags or none (§3.7).
-    fn constituent_tags(&mut self, frame: &Frame, tokens: &[Tok], base: usize) -> Result<SetId, EngineError> {
+    fn constituent_tags<'t>(&mut self, frame: &Frame, tokens: &'t [Tok], base: usize) -> Result<SetId, Halt<'t>> {
         let g = self.g;
         let production = &g.prods[frame.prod as usize];
         Ok(match &production.tags {
@@ -1027,112 +1359,44 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         NestedKey::Content(rule, self.shared.source_text(low, high), observed)
     }
 
-    /// Parses `tokens[start..end]` alone as `rule`: whether it is accepted,
-    /// and the union of the tags of its derivations.
-    fn nested(
+    /// Whether `tokens[start..end]` alone parses as `rule`, and the union
+    /// of the tags of its derivations, once its nested parse has run.
+    fn nested<'t>(
         &mut self,
-        tokens: &[Tok],
+        tokens: &'t [Tok],
         base: usize,
         start: usize,
         end: usize,
         rule: u32,
-    ) -> Result<(bool, SetId), EngineError> {
+    ) -> Result<(bool, SetId), Halt<'t>> {
         let key = self.nested_key(tokens, base, start, end, rule);
-        if let Some(&answer) = self.shared.memo.get(&key) {
-            return Ok(answer);
+        match self.shared.memo.get(&key) {
+            Some(&answer) => Ok(answer),
+            None => Err(Halt::Pending(Request { tokens, base, start, end, rule, key, begins: false })),
         }
-        let chart = self.parse_span(tokens, base, start, end, rule)?;
-        // The chart stops at its first empty set, which may lie before the
-        // span's end. Only the items with an eligible proof tree count.
-        let set = (end - start) as u32;
-        let witnesses: Vec<(u32, u32)> = chart
-            .sets
-            .get(set as usize)
-            .and_then(|last| last.completed.get(&(rule, 0)))
-            .into_iter()
-            .flatten()
-            .map(|&index| (set, index))
-            .collect();
-        let eligible = self.proofs(&chart, &tokens[start..end]).eligible(&witnesses);
-        let tags = &self.shared.tags;
-        let list = union_all(
-            witnesses
-                .iter()
-                .zip(&eligible)
-                .filter(|(_, &eligible)| eligible)
-                .map(|(&(set, index), _)| tags.list(chart.sets[set as usize].tagset[index as usize])),
-        );
-        let accepted = eligible.contains(&true);
-        let answer = (accepted, self.shared.tags.set(list));
-        self.shared.memo.insert(key, answer);
-        Ok(answer)
     }
 
     /// Whether a prefix of `tokens[start..end]`, possibly empty, parses as
     /// `rule`: whether a completed item of it begins at the span's start, in
-    /// any set (§4).
-    fn begins(
+    /// any set (§4), once its nested parse has run.
+    fn begins<'t>(
         &mut self,
-        tokens: &[Tok],
+        tokens: &'t [Tok],
         base: usize,
         start: usize,
         end: usize,
         rule: u32,
-    ) -> Result<bool, EngineError> {
+    ) -> Result<bool, Halt<'t>> {
         let key = self.nested_key(tokens, base, start, end, rule);
-        if let Some(&answer) = self.shared.begins.get(&key) {
-            return Ok(answer);
+        match self.shared.begins.get(&key) {
+            Some(&answer) => Ok(answer),
+            None => Err(Halt::Pending(Request { tokens, base, start, end, rule, key, begins: true })),
         }
-        let chart = self.parse_span(tokens, base, start, end, rule)?;
-        // A completed item from the span's start, in any set, with an
-        // eligible proof tree.
-        let witnesses: Vec<(u32, u32)> = (0..chart.sets.len())
-            .flat_map(|set| {
-                chart.sets[set].completed.get(&(rule, 0)).into_iter().flatten().map(move |&index| (set as u32, index))
-            })
-            .collect();
-        let answer = self.proofs(&chart, &tokens[start..end]).eligible(&witnesses).contains(&true);
-        self.shared.begins.insert(key, answer);
-        Ok(answer)
     }
 
     /// The proof trees of a nested parse's chart over `tokens`, its span.
     fn proofs<'c>(&'c self, chart: &'c Chart, tokens: &'c [Tok]) -> Proofs<'c> {
         Proofs::new(self.g, chart, tokens, self.shared.unicode, &self.shared.tags)
-    }
-
-    /// Runs the recognizer over `tokens[start..end]` alone, with `rule` as
-    /// the start rule. A parse that is running is known by its place,
-    /// whatever the kind of query that started it, so that alternating
-    /// `matches`, `begins` and `tags` cannot hide a query about a span from
-    /// inside its own parse (§4).
-    fn parse_span(
-        &mut self,
-        tokens: &[Tok],
-        base: usize,
-        start: usize,
-        end: usize,
-        rule: u32,
-    ) -> Result<Chart, EngineError> {
-        let place = (rule, base + start, base + end);
-        if !self.shared.running.insert(place) {
-            let text = self.text(tokens, start, end);
-            let name = &self.g.rules[rule as usize].name;
-            return Err(EngineError {
-                message: format!(
-                    "a condition asks whether {text:?} parses as {name} from inside the parse of that span as {name}: \
-                     the grammar defines {name} in terms of itself over the same text"
-                ),
-                rule: Some(rule),
-            });
-        }
-        // A nested query reads O in the ordinary mode (§7.6).
-        let recon = self.recon.take();
-        let chart = self.recognize(&tokens[start..end], base + start, rule);
-        self.recon = recon;
-        // Also when the parse failed, so that the place is free again.
-        self.shared.running.remove(&place);
-        chart
     }
 
     // ---- terms and conditions
@@ -1164,13 +1428,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
     }
 
-    fn span_tags(
+    fn span_tags<'t>(
         &mut self,
         bounds: Bounds,
         frame: &Frame,
-        tokens: &[Tok],
+        tokens: &'t [Tok],
         base: usize,
-    ) -> Result<Arc<TagList>, EngineError> {
+    ) -> Result<Arc<TagList>, Halt<'t>> {
         Ok(match bounds {
             (_, _, Whose::Cap(set)) => self.shared.tags.shared(set),
             (_, _, Whose::Whole) => {
@@ -1201,25 +1465,33 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
 
     /// A string's value. The reader has made sure that the types agree
     /// (§10), so a set never stands where a string is needed.
-    fn string_term(&mut self, term: &LTerm, frame: &Frame, tokens: &[Tok], base: usize) -> Result<String, EngineError> {
-        match self.term(term, frame, tokens, base)? {
-            Value::Str(text) => Ok(text),
-            Value::Set(_) => Err(EngineError { message: "a set where a string is needed".to_string(), rule: None }),
-        }
-    }
-
-    fn set_term(
+    fn string_term<'t>(
         &mut self,
         term: &LTerm,
         frame: &Frame,
-        tokens: &[Tok],
+        tokens: &'t [Tok],
         base: usize,
-    ) -> Result<Arc<TagList>, EngineError> {
-        let value = self.term(term, frame, tokens, base)?;
-        Self::as_set(value)
+    ) -> Result<String, Halt<'t>> {
+        match self.term(term, frame, tokens, base)? {
+            Value::Str(text) => Ok(text),
+            Value::Set(_) => {
+                Err(EngineError { message: "a set where a string is needed".to_string(), rule: None }.into())
+            }
+        }
     }
 
-    fn term(&mut self, term: &LTerm, frame: &Frame, tokens: &[Tok], base: usize) -> Result<Value, EngineError> {
+    fn set_term<'t>(
+        &mut self,
+        term: &LTerm,
+        frame: &Frame,
+        tokens: &'t [Tok],
+        base: usize,
+    ) -> Result<Arc<TagList>, Halt<'t>> {
+        let value = self.term(term, frame, tokens, base)?;
+        Ok(Self::as_set(value)?)
+    }
+
+    fn term<'t>(&mut self, term: &LTerm, frame: &Frame, tokens: &'t [Tok], base: usize) -> Result<Value, Halt<'t>> {
         Ok(match term {
             LTerm::Str(text) => Value::Str(text.clone()),
             LTerm::Tag(tag) => Value::set(vec![self.shared.tags.tag(tag)]),
@@ -1262,7 +1534,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 let string = self.string_term(string, frame, tokens, base)?;
                 let delimiter = self.string_term(delimiter, frame, tokens, base)?;
                 if delimiter.is_empty() {
-                    return Err(EngineError { message: "split has an empty delimiter".to_string(), rule: None });
+                    return Err(EngineError { message: "split has an empty delimiter".to_string(), rule: None }.into());
                 }
                 let mut list: TagList = string
                     .split(delimiter.as_str())
@@ -1279,7 +1551,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     return Err(EngineError {
                         message: format!("tag({name:?}): the string is not a name"),
                         rule: None,
-                    });
+                    }
+                    .into());
                 }
                 Value::set(vec![self.shared.tags.tag(&name)])
             }
@@ -1324,7 +1597,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         })
     }
 
-    fn condition(&mut self, cond: &LCond, frame: &Frame, tokens: &[Tok], base: usize) -> Result<bool, EngineError> {
+    fn condition<'t>(&mut self, cond: &LCond, frame: &Frame, tokens: &'t [Tok], base: usize) -> Result<bool, Halt<'t>> {
         Ok(match cond {
             LCond::Not(inner) => !self.condition(inner, frame, tokens, base)?,
             LCond::Any(items) => {
@@ -1377,7 +1650,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             return Err(EngineError {
                                 message: "the left side of ∈ or ∉ is a string".to_string(),
                                 rule: None,
-                            });
+                            }
+                            .into());
                         };
                         let set = Self::as_set(right)?;
                         let inside = self.shared.tags.lookup(&needle).is_some_and(|id| set.binary_search(&id).is_ok());
@@ -1391,7 +1665,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         })
     }
 
-    /// Evaluates a tag term over a constituent, for emission (§11).
+    /// Evaluates a tag term over a constituent, for emission (§11). A
+    /// nested parse it needs runs first, and the term is evaluated again.
     pub(crate) fn tag_term(
         &mut self,
         term: &LTerm,
@@ -1399,8 +1674,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         tokens: &[Tok],
         base: usize,
     ) -> Result<SetId, EngineError> {
-        let list = self.set_term(term, frame, tokens, base)?;
-        Ok(self.shared.tags.set_shared(list))
+        loop {
+            match self.set_term(term, frame, tokens, base) {
+                Ok(list) => return Ok(self.shared.tags.set_shared(list)),
+                Err(Halt::Error(error)) => return Err(error),
+                Err(Halt::Pending(request)) => self.answer(request)?,
+            }
+        }
     }
 }
 
@@ -1602,8 +1882,14 @@ mod tests {
 
     /// A dialect of one grammar document `g.md`, written in a single block.
     fn single(rules: &str) -> crate::Dialect {
+        single_document(&format!("%ambiguity-resolution greedy\n{rules}"))
+    }
+
+    /// A dialect of one grammar document `g.md` whose block holds `rules`
+    /// as they are, its directives included.
+    fn single_document(rules: &str) -> crate::Dialect {
         let sources = [
-            ("g.md", format!("```jbogenbau\n%ambiguity-resolution greedy\n{rules}\n```\n")),
+            ("g.md", format!("```jbogenbau\n{rules}\n```\n")),
             ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
         ];
         crate::load_dialect_sources(sources, "p.md").expect("the dialect")
