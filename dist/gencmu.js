@@ -4130,7 +4130,14 @@
      * @param {StitchedAlternative} alternative
      */
     flushHelpers(pending, rule, alternative) {
-      for (let helper = pending.shift(); helper !== undefined; helper = pending.shift()) {
+      // A stack whose top is the next helper, so that a helper's nested ones
+      // come next, as a queue with each put at its front would give. A shift
+      // or an unshift moves every helper still waiting.
+      /** @type {PendingHelper[]} */
+      const stack = [];
+      for (let index = pending.length - 1; index >= 0; index--) stack.push(pending[index]);
+      pending.length = 0;
+      for (let helper = stack.pop(); helper !== undefined; helper = stack.pop()) {
         /** @type {PendingHelper[]} */
         const nested = [];
         for (const sequence of helper.build({ rule, alternative, pending: nested })) {
@@ -4152,7 +4159,7 @@
             warnings: [],
           });
         }
-        for (let index = nested.length - 1; index >= 0; index--) pending.unshift(nested[index]);
+        for (let index = nested.length - 1; index >= 0; index--) stack.push(nested[index]);
       }
     }
 
