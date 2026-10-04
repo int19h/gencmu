@@ -40,14 +40,30 @@ pub(crate) enum Work {
     /// The tags that the evaluation of tag terms writes into the lists it
     /// makes: unions, the tags of spans, and ranges.
     Listed,
+    /// The implications, and their consequents, that the closure of a
+    /// token's tags looks at (§11).
+    Implied,
+    /// The kept edges of a ranking node that the question whether an edge
+    /// is kept compares with.
+    Kept,
     /// The captures and emitted items that the check of a definition looks
     /// at (§9).
     Checked,
+    /// The symbols, rules and tests that lowering's fixpoints and its table
+    /// of tests look at.
+    Lowered,
+    /// The documents of the chain, the stages and the features that a
+    /// splice compares with as it checks each new one.
+    Spliced,
+    /// The clauses that stitching substitutes constants in and checks.
+    Stitched,
+    /// The classes of a key that resolving a classifier compares with.
+    Classified,
 }
 
 /// How many kinds of work there are.
 #[cfg(test)]
-const KINDS: usize = Work::Checked as usize + 1;
+const KINDS: usize = Work::Classified as usize + 1;
 
 #[cfg(test)]
 thread_local! {

@@ -15,6 +15,7 @@ use crate::error::Error;
 use crate::fxhash::{FxMap, FxSet};
 use crate::tags::{character_tag, code_of_character_tag, is_name};
 use crate::unicode::Unicode;
+use crate::work::{self, Work};
 
 /// The rule by which a stage ranks its derivations (engine §6): the lean
 /// of rule 2, the counts of elided terminators, or, for the `elision-only`
@@ -130,6 +131,9 @@ impl StageGrammar {
                 }
                 for key in &entry.keys {
                     let classes = table.entry(key.clone()).or_default();
+                    // One lookup, where a scan of the key's classes was one
+                    // step for each.
+                    work::count(Work::Classified, 1);
                     let held = classes.at.get(&entry.class).copied();
                     match (entry.adds, held) {
                         (true, None) => {
@@ -212,6 +216,9 @@ pub(crate) fn stitch(
             if !constants_in_rule(rule).is_empty() {
                 users.push((document, rule));
             }
+            // The clauses are copied once for the rule, not for each
+            // alternative.
+            work::count(Work::Stitched, rule.conditions.len() as u64);
             let clauses = Arc::new(RuleClauses {
                 tags: rule.tags.clone(),
                 emit: rule.emit.clone(),
@@ -726,6 +733,7 @@ impl Constants<'_> {
     }
 
     fn substitute_cond(&self, cond: &mut Cond) {
+        work::count(Work::Stitched, 1);
         match cond {
             Cond::Compare(_, left, right) => {
                 self.substitute_term(left);
@@ -934,6 +942,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
 }
 
 fn check_cond(grammar: &StageGrammar, cond: &Cond) -> Result<(), String> {
+    work::count(Work::Stitched, 1);
     match cond {
         Cond::Compare(op, left, right) => {
             if !matches!(op.as_str(), "=" | "≠" | "∈" | "∉" | "⊆" | "⊈") {
@@ -969,8 +978,8 @@ mod tests {
 
     use super::{stitch, Lean, StageGrammar};
     use crate::dom::{Alternative, ClassifierDef, Cond, Directive, Dom, Entry, Expr, Op, RuleDef, Term};
-    use crate::growth::assert_linear;
     use crate::unicode::Unicode;
+    use crate::work::{assert_linear, Work};
 
     /// A rule of n alternatives with n conditions stitches in about n:
     /// its alternatives share its clauses, and they are checked once.
@@ -1002,7 +1011,7 @@ mod tests {
             vec![(Arc::<str>::from("d.md"), Arc::new(dom))]
         };
         let doms = [dom(1000), dom(4000)];
-        assert_linear("stitching", 1000, &mut |n| {
+        assert_linear(Work::Stitched, 1000, &mut |n| {
             let grammar = stitch("s", &doms[usize::from(n != 1000)], &unicode).expect("a grammar");
             assert_eq!(grammar.rules[0].alternatives.len(), n);
         });
@@ -1011,7 +1020,7 @@ mod tests {
     /// A key that a classifier puts in n classes and then takes out of
     /// them, first first, resolves in about n.
     #[test]
-    fn a_key_of_many_classes_resolves_in_linear_time() {
+    fn a_key_of_many_classes_resolves_in_linear_work() {
         let grammar = |n: usize| {
             let entry = |index: usize, adds: bool| Entry {
                 guards: Vec::new(),
@@ -1035,7 +1044,7 @@ mod tests {
             }
         };
         let grammars = [grammar(20_000), grammar(80_000)];
-        assert_linear("classifiers", 20_000, &mut |n| {
+        assert_linear(Work::Classified, 20_000, &mut |n| {
             let tables = grammars[usize::from(n != 20_000)].resolve_classifiers(&BTreeSet::new()).expect("tables");
             assert!(tables["c"]["k"].is_empty());
         });

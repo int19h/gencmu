@@ -7,6 +7,7 @@ use std::sync::Arc;
 use crate::dom::{ClassifierDef, ConstDef, Directive, Dom, ImplicationDef, RuleDef};
 use crate::error::Error;
 use crate::fxhash::{FxMap, FxSet};
+use crate::work::{self, Work};
 
 /// An item of a document: a rule, a directive, a constant's definition, a
 /// classifier or an implication.
@@ -116,6 +117,9 @@ impl Splicer<'_> {
                         names.push(&target);
                         names.join(" → ")
                     };
+                    // Each check of the chain, the features and the stages
+                    // is one lookup, where a scan was one step for each.
+                    work::count(Work::Spliced, 1);
                     if self.on_chain.contains(target.as_str()) {
                         return Err(in_stage(here(format!("{target} includes itself ({})", through()))));
                     }
@@ -130,6 +134,7 @@ impl Splicer<'_> {
                 }
                 Item::Directive(directive) if directive.name == "features" => {
                     for name in &directive.args {
+                        work::count(Work::Spliced, 1);
                         if self.feature_set.insert(name.clone()) {
                             self.features.push(name.clone());
                         }
@@ -137,6 +142,7 @@ impl Splicer<'_> {
                 }
                 Item::Directive(directive) if directive.name == "stage" => {
                     let name = directive.args.first().cloned().unwrap_or_default();
+                    work::count(Work::Spliced, 1);
                     if let Some(earlier) = self.stage_index.get(&name).map(|&index| &self.stages[index]) {
                         return Err(here(format!(
                             "a second stage named {name}; the first is at {}:{}:{}",
@@ -222,7 +228,7 @@ mod tests {
     use super::{splice, Documents};
     use crate::dom::{Alternative, Directive, Dom, Expr, Op, RuleDef};
     use crate::error::Error;
-    use crate::growth::assert_linear;
+    use crate::work::{assert_linear, Work};
 
     /// Documents held in memory, each path its own name.
     struct Held(HashMap<String, Arc<Dom>>);
@@ -241,7 +247,7 @@ mod tests {
     /// stage that lists n features, splices in about n: the chain, the
     /// stages and the features are checked by sets, not scans.
     #[test]
-    fn a_long_include_chain_splices_in_linear_time() {
+    fn a_long_include_chain_splices_in_linear_work() {
         let directive = |name: &str, args: Vec<String>| Directive { name: name.into(), args, at: (1, 1) };
         let held = move |n: usize| {
             let mut documents: HashMap<String, Arc<Dom>> = (0..n - 1)
@@ -267,11 +273,12 @@ mod tests {
             Held(documents)
         };
         // Each include is a frame of the splice, so the chain needs room.
+        // The counters belong to the thread that splices.
         std::thread::Builder::new()
             .stack_size(256 << 20)
             .spawn(move || {
                 let mut helds = [held(1500), held(6000)];
-                assert_linear("splicing", 1500, &mut |n| {
+                assert_linear(Work::Spliced, 1500, &mut |n| {
                     let spliced = splice("d0", &mut helds[usize::from(n != 1500)]).expect("spliced");
                     assert_eq!(spliced.features.len(), n);
                 });
