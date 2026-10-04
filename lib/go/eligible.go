@@ -1,7 +1,5 @@
 package gencmu
 
-import "sync/atomic"
-
 // Written-terminator priority for nested queries (engine §4): which
 // completed items of a queried rule have an eligible proof tree.
 //
@@ -98,10 +96,6 @@ func (e *eligibility) next(it *item) int {
 	return nextConstituent
 }
 
-// eligibilityRuns counts the searches of eligibility, for a test that a
-// query makes one.
-var eligibilityRuns atomic.Int64
-
 // eligibleItems keeps of the completed items those that have an eligible
 // proof tree (§4).
 func (r *recognizer) eligibleItems(items []*item) []*item {
@@ -109,7 +103,9 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 	if !any || len(items) == 0 {
 		return items
 	}
-	eligibilityRuns.Add(1)
+	if w := work.Load(); w != nil {
+		w.eligibilityRuns.Add(1)
+	}
 	e := &eligibility{r: r, helpers: helpers, index: map[*item]int{}}
 	// The items that the queried ones rest on, each after those below it
 	// where the links allow, so that one sweep settles most of them.

@@ -1,7 +1,5 @@
 package gencmu
 
-import "sync/atomic"
-
 // Maximality (engine §4): an elided terminator is forbidden where its
 // constituent, the node before it, could have been longer. Stage-wide
 // maximal, of %ambiguity-resolution, restricts every elidable terminator in
@@ -28,10 +26,6 @@ type maximal struct {
 }
 
 type ruleOrigin struct{ rule, origin int32 }
-
-// maximalWork counts the checks of maximality and the completions that
-// they read, for a test that the work stays linear.
-var maximalWork struct{ checks, candidates atomic.Int64 }
 
 type testOrigin struct {
 	ro ruleOrigin
@@ -84,7 +78,9 @@ func (mx *maximal) guards(it *item) bool {
 // test, if there is one, holds of that longer constituent too, with its own
 // span and tags (§4).
 func (mx *maximal) forbids(rule, start, end int32, t *symTest) bool {
-	maximalWork.checks.Add(1)
+	if w := work.Load(); w != nil {
+		w.checks.Add(1)
+	}
 	if t != nil {
 		if mx.completed == nil {
 			mx.completed = map[ruleOrigin][]*symNode{}
@@ -107,7 +103,9 @@ func (mx *maximal) forbids(rule, start, end int32, t *symTest) bool {
 			far = -1
 			base := mx.rec.base
 			for _, c := range mx.completed[ro] {
-				maximalWork.candidates.Add(1)
+				if w := work.Load(); w != nil {
+					w.candidates.Add(1)
+				}
 				if c.end > far && mx.rec.run.testHolds(t, base+int(start), base+int(c.end), c.tags) {
 					far = c.end
 				}

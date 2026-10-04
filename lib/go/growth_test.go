@@ -40,7 +40,7 @@ func TestGrowth(t *testing.T) {
 			items := func(n int) int64 {
 				links := strings.TrimSuffix(strings.Repeat(c.Link+" ", n), " ")
 				text := strings.Replace(c.Text, "{links}", links, 1)
-				recognizerWork.items.Store(0)
+				w := countWork(t)
 				res, err := d.Parse(text, ParseOptions{})
 				if err != nil {
 					t.Fatal(err)
@@ -48,7 +48,7 @@ func TestGrowth(t *testing.T) {
 				if !res.OK {
 					t.Fatalf("%s: does not parse", text)
 				}
-				return recognizerWork.items.Load()
+				return w.items.Load()
 			}
 			small := items(c.Small)
 			large := items(c.Large)

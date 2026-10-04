@@ -23,12 +23,11 @@ func TestMaximalWorkLinear(t *testing.T) {
 				}
 				toks[i] = Token{Text: "x", Tags: []string{tag}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
 			}
-			maximalWork.checks.Store(0)
-			maximalWork.candidates.Store(0)
+			w := countWork(t)
 			if _, err := d.ParseTokens(strings.TrimSpace(strings.Repeat("x ", n+1)), toks, ParseOptions{}); err != nil {
 				t.Fatal(err)
 			}
-			return maximalWork.checks.Load(), maximalWork.candidates.Load()
+			return w.checks.Load(), w.candidates.Load()
 		}
 		smallChecks, smallCandidates := work(1000)
 		largeChecks, largeCandidates := work(4000)
