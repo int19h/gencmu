@@ -61,9 +61,10 @@ def outcome(
         got["verdict"] = result.stages[-1].verdict
     else:
         got["stage"] = result.error.stage if result.error else None
-        # A rejection pins where its stage stopped (tests/README.md).
-        if result.error is not None and result.error.token is not None:
-            got["at"] = result.error.token
+        # A rejection pins where its stage stopped, as a position in the
+        # text (tests/README.md).
+        if result.error is not None and result.error.source is not None:
+            got["at"] = result.error.source[0]
     if result.error is not None and result.error.kind == "ambiguous":
         # An ambiguous error pins its kind and its reason (tests/README.md).
         got["error"] = {"kind": result.error.kind, "reason": result.error.reason}
@@ -149,6 +150,8 @@ class Corpus(unittest.TestCase):
             return {**value, "error": {**value["error"], **changes}}
 
         mutants: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
+            "an error with a token": lambda value: error(value, token=0),
+            "an error with a source": lambda value: error(value, source=[0, 0]),
             "a tree": lambda value: {**value, "tree": value["error"]["readings"][0]},
             "one reading": lambda value: error(value, readings=value["error"]["readings"][:1]),
             "an ok result": lambda value: {**value, "ok": True},

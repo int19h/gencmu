@@ -69,9 +69,10 @@ fn outcome(dialect: &gencmu::Dialect, case: &Value) -> Result<BTreeMap<&'static 
         got.insert("brackets", string(&gencmu::to_brackets(&result, false)));
     } else {
         got.insert("stage", result.error.as_ref().and_then(|error| error.stage.as_deref()).map_or(Value::Null, string));
-        // A rejection pins where its stage stopped (tests/README.md).
-        if let Some(token) = result.error.as_ref().and_then(|error| error.token) {
-            got.insert("at", Value::Number(token as f64));
+        // A rejection pins where its stage stopped, as a position in the
+        // text (tests/README.md).
+        if let Some(source) = result.error.as_ref().and_then(|error| error.source.as_ref()) {
+            got.insert("at", Value::Number(source.start as f64));
         }
     }
     // An ambiguous error pins its kind and reason, and no other error has
@@ -251,6 +252,8 @@ fn the_corpus_runner_refuses_a_result_that_breaks_an_invariant() {
         staged(with(last, "output", Some(Value::Array(Vec::new()))), None),
         staged(with(last, "tied", Some(readings[1].clone())), None),
         staged(last.clone(), Some(parse_json(r#"{"name": "later", "verdict": "unique"}"#).unwrap())),
+        erred("token", Some(Value::Number(0.0))),
+        erred("source", Some(Value::Array(vec![Value::Number(0.0), Value::Number(0.0)]))),
         erred("reason", None),
         erred("reason", Some(string("elision-only"))),
         erred("kind", Some(string("rejected"))),

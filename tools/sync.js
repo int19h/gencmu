@@ -25,6 +25,7 @@ import { layoutProblems } from "./alternatives.js";
 import { quotedTextProblems } from "./quoted-texts.js";
 import { proseLineProblems } from "./prose-lines.js";
 import { markdownFiles, repositoryFiles } from "./documents.js";
+import { corpusShapeProblems } from "./corpus-shape.js";
 import { missing as parserMissing } from "./markdown.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -62,6 +63,15 @@ const listed = new Set(repositoryFiles(root));
 const unlisted = grammarFiles().map((file) => `grammars/${file}`).filter((file) => !listed.has(file));
 if (unlisted.length) {
   console.error(unlisted.map((file) => `${file}: git does not track this file, and sync.js would bundle it; add it to git, or remove it`).join("\n"));
+  process.exit(1);
+}
+
+// Every corpus case has the shape of tests/README.md ("Corpus cases"), so
+// the runners of the four libraries never see a field that they would
+// compare in different ways (tools/corpus-shape.js).
+const misshapen = corpusShapeProblems(root);
+if (misshapen.length) {
+  console.error(misshapen.join("\n"));
   process.exit(1);
 }
 

@@ -106,10 +106,10 @@ func corpusOutcomeOf(res *ParseResult, canonical any) (map[string]any, error) {
 		} else {
 			got["stage"] = nil
 		}
-		// A rejection pins where its stage stopped (tests/README.md). A
-		// case's numbers decode as float64.
-		if res.Error != nil && res.Error.Token != nil {
-			got["at"] = float64(*res.Error.Token)
+		// A rejection pins where its stage stopped, as a position in the
+		// text (tests/README.md). A case's numbers decode as float64.
+		if res.Error != nil && res.Error.Source != nil {
+			got["at"] = float64(res.Error.Source[0])
 		}
 	}
 	// An ambiguous error pins its kind and its reason (tests/README.md).
