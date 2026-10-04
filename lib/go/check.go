@@ -34,25 +34,10 @@ func readingOf(g *lowered) *readingSets {
 }
 
 func makeReading(g *lowered) *readingSets {
-	rules := make([]bool, len(g.rules))
+	// From nothing up, so that a rule that can read only through itself,
+	// such as z → z, cannot read.
+	rules := derivedRules(len(g.rules), len(g.prods), func(i int) (int32, []symbol) { return g.prods[i].lhs, g.prods[i].rhs }, func(i int) bool { return g.prods[i].restoration() }, false)
 	reads := func(s symbol) bool { return s.term || rules[s.id] }
-	// From nothing up, until nothing changes, so that a rule that can read
-	// only through itself, such as z → z, cannot read.
-	for changed := true; changed; {
-		changed = false
-		for _, p := range g.prods {
-			if rules[p.lhs] {
-				continue
-			}
-			ok := p.restoration()
-			for _, s := range p.rhs {
-				ok = ok || reads(s)
-			}
-			if ok {
-				rules[p.lhs], changed = true, true
-			}
-		}
-	}
 	rs := &readingSets{last: make(map[*production]int, len(g.prods)), elidable: make([]bool, len(g.rules))}
 	for _, p := range g.prods {
 		if p.restoration() {

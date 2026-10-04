@@ -204,7 +204,7 @@ func (lw *lowerer) loweringFault(a *sAlt, format string, args ...any) {
 // the expansion make, helpers included, before a false condition removes
 // any, with tests ignored, reachable or not.
 func (lw *lowerer) checkBraceItems() {
-	nullable := make([]bool, len(lw.l.rules))
+	nullable := nullableRules(len(lw.l.rules), len(lw.structural), func(i int) (int32, []symbol) { return lw.structural[i].lhs, lw.structural[i].rhs })
 	empty := func(rhs []symbol) bool {
 		for _, s := range rhs {
 			if s.term || !nullable[s.id] {
@@ -212,15 +212,6 @@ func (lw *lowerer) checkBraceItems() {
 			}
 		}
 		return true
-	}
-	for changed := true; changed; {
-		changed = false
-		for _, p := range lw.structural {
-			if !nullable[p.lhs] && empty(p.rhs) {
-				nullable[p.lhs] = true
-				changed = true
-			}
-		}
 	}
 	for _, b := range lw.braceItems {
 		for _, x := range b.items {
@@ -734,53 +725,116 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 	panic("unknown expression " + e.Kind)
 }
 
+// derivedRules is the least set of rules closed under the productions:
+// a production's rule is in it when seed says so, or when one of its
+// symbols is a rule in it (any), or when all of its symbols are (all, and
+// none is a terminal). A worklist indexed by each rule's uses settles each
+// rule once. A pass over every production until nothing changes would
+// settle one rule per pass, and cost the rules times the grammar.
+func derivedRules(rules, prods int, prod func(i int) (int32, []symbol), seed func(i int) bool, all bool) []bool {
+	steps := int64(prods)
+	defer func() { ruleSetWork.steps.Add(steps) }()
+	in := make([]bool, rules)
+	// waiting[i] is the number of symbols of production i still to be
+	// settled: all of them for all, one for any.
+	waiting := make([]int, prods)
+	uses := make([][]int32, rules)
+	var queue []int32
+	settle := func(rule int32) {
+		if !in[rule] {
+			in[rule] = true
+			queue = append(queue, rule)
+		}
+	}
+	for i := 0; i < prods; i++ {
+		lhs, rhs := prod(i)
+		if seed(i) {
+			settle(lhs)
+			continue
+		}
+		blocked := false
+		for _, s := range rhs {
+			if s.term {
+				blocked = all
+				if !all {
+					settle(lhs)
+				}
+				break
+			}
+		}
+		if blocked || in[lhs] {
+			continue
+		}
+		waiting[i] = 1
+		if all {
+			waiting[i] = len(rhs)
+		}
+		if all && len(rhs) == 0 {
+			settle(lhs)
+			continue
+		}
+		for _, s := range rhs {
+			uses[s.id] = append(uses[s.id], int32(i))
+		}
+	}
+	for len(queue) > 0 {
+		rule := queue[0]
+		queue = queue[1:]
+		steps += int64(len(uses[rule]))
+		for _, i := range uses[rule] {
+			if waiting[i] == 0 {
+				continue
+			}
+			waiting[i]--
+			if waiting[i] == 0 {
+				lhs, _ := prod(int(i))
+				settle(lhs)
+			}
+		}
+	}
+	return in
+}
+
+// ruleSetWork counts the productions that derivedRules visits, for the
+// test that it settles each rule once.
+var ruleSetWork struct{ steps atomic.Int64 }
+
+// nullableRules is the rules that can derive the empty sequence.
+func nullableRules(rules, prods int, prod func(i int) (int32, []symbol)) []bool {
+	return derivedRules(rules, prods, prod, func(int) bool { return false }, true)
+}
+
 // computeCycles finds the rules that can lie below themselves over the same
 // span: A reaches B when A → α B β with α and β nullable. A forbidden set of
 // ancestors (engine §4, derivations) matters only within such a class.
 func (l *lowered) computeCycles() {
-	for changed := true; changed; {
-		changed = false
-		for _, r := range l.rules {
-			if r.nullable {
-				continue
-			}
-			for _, p := range r.prods {
-				all := true
-				for _, s := range p.rhs {
-					if s.term || !l.rules[s.id].nullable {
-						all = false
-						break
-					}
-				}
-				if all {
-					r.nullable = true
-					changed = true
-					break
-				}
-			}
-		}
+	nullable := nullableRules(len(l.rules), len(l.prods), func(i int) (int32, []symbol) { return l.prods[i].lhs, l.prods[i].rhs })
+	for i, r := range l.rules {
+		r.nullable = nullable[i]
 	}
 	n := len(l.rules)
 	edges := make([][]int32, n)
 	self := make([]bool, n)
 	for i, r := range l.rules {
 		for _, p := range r.prods {
+			ruleSetWork.steps.Add(int64(len(p.rhs)))
+			// B is reached through every other symbol nullable. One count of
+			// the symbols that are not finds each B, where a check of the
+			// others for each B would cost a long production its square.
+			blocking, at := 0, -1
+			for j, o := range p.rhs {
+				if o.term || !nullable[o.id] {
+					blocking++
+					at = j
+				}
+			}
 			for j, s := range p.rhs {
-				if s.term {
+				if s.term || blocking > 1 || (blocking == 1 && at != j) {
 					continue
 				}
-				ok := true
-				for k, o := range p.rhs {
-					if k != j && (o.term || !l.rules[o.id].nullable) {
-						ok = false
-						break
-					}
-				}
-				if ok {
-					edges[i] = append(edges[i], s.id)
-					if s.id == int32(i) {
-						self[i] = true
-					}
+				edges[i] = append(edges[i], s.id)
+				if s.id == int32(i) {
+					self[i] = true
 				}
 			}
 		}

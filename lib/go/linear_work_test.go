@@ -244,3 +244,52 @@ func TestSharedClausesOnce(t *testing.T) {
 		}
 	}
 }
+
+// chainDOM is the DOM of a chain of rules, text → r0 A, r0 → r1, …, each
+// rule's one production the next rule, the last's last.
+func chainDOM(n int, last string) string {
+	rules := make([]string, n)
+	for i := range rules {
+		expr := fmt.Sprintf(`{"ref":"r%d"}`, i+1)
+		if i == n-1 {
+			expr = last
+		}
+		rules[i] = fmt.Sprintf(`{"name":"r%d","op":"define","alternatives":[{"guards":[],"expr":%s}],"conditions":[],"at":[%d,1]}`, i, expr, i+3)
+	}
+	return seqDOM([]string{`{"ref":"r0"}`, `{"ref":"A"}`}, rules...)
+}
+
+// TestRuleSetsLinear: the rules that can derive the empty sequence and the
+// rules that can read are found by a worklist, each rule settled once, so
+// a long chain of rules costs its length, not its square. The rules a long
+// production reaches over the same span cost its length too (engine §3,
+// §4, §7.4).
+func TestRuleSetsLinear(t *testing.T) {
+	last := `{"choice":[{"ref":"A"},{"empty":true}]}`
+	for _, n := range []int{1000, 4000} {
+		d := domStage(t, chainDOM(n, last))
+		ruleSetWork.steps.Store(0)
+		l := lower(d.stages[0], map[string]bool{})
+		if !l.rules[l.byName["r0"]].nullable {
+			t.Fatalf("r0 of %d is not nullable", n)
+		}
+		if rs := makeReading(l); rs.last[l.rules[l.byName["r0"]].prods[0]] != 0 {
+			t.Fatalf("r0 of %d cannot read", n)
+		}
+		// Each of the three sets visits each production a few times.
+		if steps := ruleSetWork.steps.Load(); steps > 12*int64(n) {
+			t.Errorf("a chain of %d rules: %d steps", n, steps)
+		}
+		// The rules that text reaches over the same span, through a long
+		// production of nullable rules, cost the production's length.
+		e := `{"name":"e","op":"define","alternatives":[{"guards":[],"expr":{"empty":true}}],"conditions":[],"at":[3,1]}`
+		d = domStage(t, seqDOM(strings.Split(strings.Repeat(`{"ref":"e"} `, n-1)+`{"ref":"e"}`, " "), e))
+		ruleSetWork.steps.Store(0)
+		if l := lower(d.stages[0], map[string]bool{}); !l.rules[l.byName["text"]].nullable {
+			t.Fatalf("text of %d is not nullable", n)
+		}
+		if steps := ruleSetWork.steps.Load(); steps > 12*int64(n) {
+			t.Errorf("a production of %d nullable rules: %d steps", n, steps)
+		}
+	}
+}
