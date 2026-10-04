@@ -739,8 +739,59 @@ func memoSlotFor(m *itemRank, f forbidden) *memoSlot {
 	return slot
 }
 
+// itemVal and symVal call each other down a chain of items and
+// constituents. Within one set and origin, the chain is as long as the
+// grammar's unit and empty rules make it, so it runs as frames on an
+// explicit stack and not as recursion. Each frame does the same reads in
+// the same order as the recursion would.
+
+// rankFrame is an item or a constituent being ranked. resume takes the
+// value it asked for and either asks for another frame's value or gives
+// its own.
+type rankFrame interface {
+	resume(rk *ranker, in *entry) (call rankFrame, out *entry)
+}
+
+// runRank runs a frame to its value.
+func (rk *ranker) runRank(first rankFrame) *entry {
+	stack := []rankFrame{first}
+	var in *entry
+	for {
+		call, out := stack[len(stack)-1].resume(rk, in)
+		if call != nil {
+			stack = append(stack, call)
+			in = nil
+			continue
+		}
+		stack = stack[:len(stack)-1]
+		if len(stack) == 0 {
+			return out
+		}
+		in = out
+	}
+}
+
 // itemVal ranks the derivations of an item's children; f applies to its
 // children over the item's whole span.
+func (rk *ranker) itemVal(it *item, f forbidden) *entry {
+	if call, e := rk.startItem(it, f); call != nil {
+		return rk.runRank(call)
+	} else {
+		return e
+	}
+}
+
+// symVal ranks the derivations of a constituent under ancestors f.
+func (rk *ranker) symVal(s *symNode, f forbidden) *entry {
+	if call, e := rk.startSym(s, f); call != nil {
+		return rk.runRank(call)
+	} else {
+		return e
+	}
+}
+
+// startItem gives an item's value where it is known without its links,
+// and otherwise a frame that ranks them.
 //
 // Under maximal (engine §4, §6), an item whose next symbol is an elidable
 // optional ranks twice: over all its derivations, and over only those of
@@ -750,162 +801,258 @@ func memoSlotFor(m *itemRank, f forbidden) *memoSlot {
 //
 // A restoration (engine §7.4) has one link, a read of its synthetic token,
 // and its close follows (§7.7).
-func (rk *ranker) itemVal(it *item, f forbidden) *entry {
+func (rk *ranker) startItem(it *item, f forbidden) (rankFrame, *entry) {
 	if it.dot == 0 && !it.restores {
 		// A predicted item of W(D), such as an empty production's, is
 		// W(D)'s (tests/README.md).
 		if _, ok := rk.marks[it]; ok {
-			return markedUnitEntry
+			return nil, markedUnitEntry
 		}
-		return unitEntry
+		return nil, unitEntry
 	}
 	if it.restores && rk.rec.run.ps.fault("rank-restoration") {
-		return nil
+		return nil, nil
 	}
 	f = rk.restrict(f, it.prod.lhs)
 	slot := memoSlotFor(rk.itemMemo(it), f)
 	switch slot.state {
 	case 1:
-		return nil
+		return nil, nil
 	case 2:
-		return slot.e
+		return nil, slot.e
 	}
 	slot.state = 1
 	mx := rk.maximal
-	guarded := mx != nil && mx.guards(it)
-	// First the summary of every link: its derivations, and under
-	// late-elision their least vector and how many attain it.
-	type linkVal struct {
-		prev, child *entry
-		permitted   bool
-		vec         *elSeq
-		least       int
-	}
-	var vals []linkVal
-	all, allowed := summary{}, summary{}
-	allW, allowedW := false, false
-	forbade := false
-	marked := rk.marks[it]
-	for i, l := range it.links {
-		prev := unitEntry
-		if l.prev != nil {
+	return &itemFrame{it: it, f: f, slot: slot, guarded: mx != nil && mx.guards(it), marked: rk.marks[it]}, nil
+}
+
+// linkVal is the summary of one link: its derivations, and under
+// late-elision their least vector and how many attain it.
+type linkVal struct {
+	prev, child *entry
+	permitted   bool
+	vec         *elSeq
+	least       int
+}
+
+// itemFrame ranks an item's links in turn, each first its predecessor and
+// then its child.
+type itemFrame struct {
+	it      *item
+	f       forbidden
+	slot    *memoSlot
+	guarded bool
+	marked  map[link]bool
+	// The link being ranked, what of it is ranked so far, and the values
+	// and summaries of the links before it.
+	i              int
+	phase          int
+	prev, child    *entry
+	vals           []linkVal
+	all, allowed   summary
+	allW, allowedW bool
+	forbade        bool
+}
+
+// The phases of a link: ask for its predecessor, take it, ask for its
+// child, take it, and summarize the link.
+const (
+	linkAskPrev = iota
+	linkTakePrev
+	linkAskChild
+	linkTakeChild
+	linkSummarize
+)
+
+func (fr *itemFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
+	it, mx := fr.it, rk.maximal
+	for fr.i < len(it.links) {
+		l := it.links[fr.i]
+		switch fr.phase {
+		case linkAskPrev:
+			if l.prev == nil {
+				fr.prev, fr.phase = unitEntry, linkAskChild
+				continue
+			}
 			var pf forbidden
 			if l.prev.set == it.set {
-				pf = f
+				pf = fr.f
 			}
-			prev = rk.itemVal(l.prev, pf)
+			call, e := rk.startItem(l.prev, pf)
+			fr.phase = linkTakePrev
+			if call != nil {
+				return call, nil
+			}
+			in = e
+			fallthrough
+		case linkTakePrev:
+			prev := in
 			if prev != nil && prev.allowed != nil && l.sym != nil && mx.elided(l.sym.rule, l.sym.start, l.sym.end) {
 				prev = prev.allowed
 			}
-		}
-		if prev == nil || prev.count == 0 {
-			continue
-		}
-		var child *entry
-		if l.sym == nil {
-			child = &entry{cands: []*cand{{d: readNode(l.tok, l.term)}}, count: 1, least: 1}
-		} else {
+			fr.prev, fr.phase = prev, linkAskChild
+			fallthrough
+		case linkAskChild:
+			if fr.prev == nil || fr.prev.count == 0 {
+				fr.i, fr.phase = fr.i+1, linkAskPrev
+				continue
+			}
+			if l.sym == nil {
+				fr.child, fr.phase = &entry{cands: []*cand{{d: readNode(l.tok, l.term)}}, count: 1, least: 1}, linkSummarize
+				continue
+			}
 			var cf forbidden
 			if l.sym.start == it.origin && l.sym.end == it.set {
-				cf = f
+				cf = fr.f
 			}
-			child = rk.symVal(l.sym, cf)
-		}
-		if child == nil || child.count == 0 {
-			continue
-		}
-		v := linkVal{prev: prev, child: child, permitted: true}
-		if guarded && l.sym != nil && mx.forbids(l.sym.rule, l.sym.start, l.sym.end, it.prod.testAt(int(it.dot)-1)) {
-			v.permitted, forbade = false, true
-		}
-		count := prev.count * child.count
-		if rk.elisions {
-			// An edge's vector is the sum of its children's, and its least
-			// count their product (engine §6).
-			v.vec, v.least = concatElisions(prev.vec, child.vec), min(prev.least*child.least, 2)
-		}
-		// The link is W(D)'s where it is marked, and its predecessor and
-		// child are W(D)'s. A predicted predecessor and a read are.
-		w := marked[l] && (l.prev == nil || prev.w) && (l.sym == nil || child.w)
-		// Faults of the check skip the last of two or more links, in the
-		// count or in the candidates (tests/README.md).
-		if !rk.skips("lost:context", "links", i, len(it.links)) {
-			all.add(v.vec, v.least, count)
-			allW = allW || w
-			if v.permitted {
-				allowed.add(v.vec, v.least, count)
-				allowedW = allowedW || w
+			call, e := rk.startSym(l.sym, cf)
+			fr.phase = linkTakeChild
+			if call != nil {
+				return call, nil
 			}
-		}
-		if !rk.skips("lost:select", "links", i, len(it.links)) {
-			vals = append(vals, v)
+			in = e
+			fallthrough
+		case linkTakeChild:
+			fr.child, fr.phase = in, linkSummarize
+			fallthrough
+		case linkSummarize:
+			fr.summarize(rk, l)
+			fr.i, fr.phase = fr.i+1, linkAskPrev
 		}
 	}
-	// Then the candidates. Under late-elision, only the links that attain
-	// the least vector of the summary give them.
+	return nil, fr.finish(rk)
+}
+
+// summarize adds a link whose predecessor and child are ranked.
+func (fr *itemFrame) summarize(rk *ranker, l link) {
+	it, mx := fr.it, rk.maximal
+	prev, child, i := fr.prev, fr.child, fr.i
+	if child == nil || child.count == 0 {
+		return
+	}
+	v := linkVal{prev: prev, child: child, permitted: true}
+	if fr.guarded && l.sym != nil && mx.forbids(l.sym.rule, l.sym.start, l.sym.end, it.prod.testAt(int(it.dot)-1)) {
+		v.permitted, fr.forbade = false, true
+	}
+	count := prev.count * child.count
+	if rk.elisions {
+		// An edge's vector is the sum of its children's, and its least
+		// count their product (engine §6).
+		v.vec, v.least = concatElisions(prev.vec, child.vec), min(prev.least*child.least, 2)
+	}
+	// The link is W(D)'s where it is marked, and its predecessor and
+	// child are W(D)'s. A predicted predecessor and a read are.
+	w := fr.marked[l] && (l.prev == nil || prev.w) && (l.sym == nil || child.w)
+	// Faults of the check skip the last of two or more links, in the
+	// count or in the candidates (tests/README.md).
+	if !rk.skips("lost:context", "links", i, len(it.links)) {
+		fr.all.add(v.vec, v.least, count)
+		fr.allW = fr.allW || w
+		if v.permitted {
+			fr.allowed.add(v.vec, v.least, count)
+			fr.allowedW = fr.allowedW || w
+		}
+	}
+	if !rk.skips("lost:select", "links", i, len(it.links)) {
+		fr.vals = append(fr.vals, v)
+	}
+}
+
+// finish gives the item's value from its links' and remembers it.
+func (fr *itemFrame) finish(rk *ranker) *entry {
+	// The candidates. Under late-elision, only the links that attain the
+	// least vector of the summary give them.
 	var cands, permitted []*cand
-	for _, v := range vals {
-		inAll := !rk.elisions || compareElisions(v.vec, all.vec) == 0
-		inAllowed := v.permitted && (!rk.elisions || compareElisions(v.vec, allowed.vec) == 0)
-		if !inAll && !(forbade && inAllowed) {
+	for _, v := range fr.vals {
+		inAll := !rk.elisions || compareElisions(v.vec, fr.all.vec) == 0
+		inAllowed := v.permitted && (!rk.elisions || compareElisions(v.vec, fr.allowed.vec) == 0)
+		if !inAll && !(fr.forbade && inAllowed) {
 			continue
 		}
 		produced := rk.extend(v.prev.cands, v.child.cands, nil)
 		if inAll {
 			cands = append(cands, produced...)
 		}
-		if forbade && inAllowed {
+		if fr.forbade && inAllowed {
 			permitted = append(permitted, produced...)
 		}
 	}
 	var e *entry
-	if all.total > 0 {
-		e = &entry{count: all.total, vec: all.vec, least: all.least, w: allW}
+	if fr.all.total > 0 {
+		e = &entry{count: fr.all.total, vec: fr.all.vec, least: fr.all.least, w: fr.allW}
 		// Where maximal forbids none of the links, an elided terminator may
 		// follow every derivation. Otherwise it may follow the candidates of
 		// the links maximal permits, copied before merging changes them.
-		if forbade {
+		if fr.forbade {
 			forks := make([]*cand, len(permitted))
 			for i, c := range permitted {
 				forks[i] = c.fork()
 			}
-			e.allowed = &entry{cands: rk.merge(forks), count: allowed.total, vec: allowed.vec, least: allowed.least, w: allowedW}
+			e.allowed = &entry{cands: rk.merge(forks), count: fr.allowed.total, vec: fr.allowed.vec, least: fr.allowed.least, w: fr.allowedW}
 		}
 		e.cands = rk.merge(cands)
 	}
-	slot.state, slot.e = 2, e
+	fr.slot.state, fr.slot.e = 2, e
 	return e
 }
 
-// symVal ranks the derivations of a constituent under ancestors f.
-func (rk *ranker) symVal(s *symNode, f forbidden) *entry {
+// startSym gives a constituent's value where it is known without its
+// items, and otherwise a frame that ranks them.
+func (rk *ranker) startSym(s *symNode, f forbidden) (rankFrame, *entry) {
 	if f.has(s.rule) {
-		return nil
+		return nil, nil
 	}
 	f = rk.restrict(f, s.rule)
 	slot := memoSlotFor(rk.symMemo(s), f)
 	switch slot.state {
 	case 1:
-		return nil
+		return nil, nil
 	case 2:
-		return slot.e
+		return nil, slot.e
 	}
 	slot.state = 1
 	inner := f
 	if rk.rec.g.rules[s.rule].scc >= 0 {
 		inner = f.with(s.rule)
 	}
-	// Each completed item is an edge of the constituent.
-	type itemVal struct {
-		it  *item
-		e   *entry
-		vec *elSeq
-	}
-	var vals []itemVal
-	var sum summary
-	w := false
-	for i, c := range s.items {
-		e := rk.itemVal(c, inner)
+	return &symFrame{s: s, inner: inner, slot: slot}, nil
+}
+
+// edgeVal is the value of one completed item, an edge of a constituent.
+type edgeVal struct {
+	it  *item
+	e   *entry
+	vec *elSeq
+}
+
+// symFrame ranks a constituent's completed items in turn.
+type symFrame struct {
+	s     *symNode
+	inner forbidden
+	slot  *memoSlot
+	// The item being ranked, whether its value is asked for, and the
+	// values and summary of the items before it.
+	i     int
+	asked bool
+	vals  []edgeVal
+	sum   summary
+	w     bool
+}
+
+func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
+	s := fr.s
+	for ; fr.i < len(s.items); fr.i++ {
+		c := s.items[fr.i]
+		e := in
+		if !fr.asked {
+			call, v := rk.startItem(c, fr.inner)
+			if call != nil {
+				fr.asked = true
+				return call, nil
+			}
+			e = v
+		}
+		fr.asked, in = false, nil
 		if e == nil || e.count == 0 {
 			continue
 		}
@@ -917,17 +1064,17 @@ func (rk *ranker) symVal(s *symNode, f forbidden) *entry {
 		}
 		// Faults of the check skip the last of two or more completed
 		// items, in the count or in the candidates (tests/README.md).
-		if !rk.skips("lost:context", "items", i, len(s.items)) {
-			sum.add(vec, e.least, e.count)
-			w = w || e.w
+		if !rk.skips("lost:context", "items", fr.i, len(s.items)) {
+			fr.sum.add(vec, e.least, e.count)
+			fr.w = fr.w || e.w
 		}
-		if !rk.skips("lost:select", "items", i, len(s.items)) {
-			vals = append(vals, itemVal{it: c, e: e, vec: vec})
+		if !rk.skips("lost:select", "items", fr.i, len(s.items)) {
+			fr.vals = append(fr.vals, edgeVal{it: c, e: e, vec: vec})
 		}
 	}
 	var cands []*cand
-	for _, v := range vals {
-		if rk.elisions && compareElisions(v.vec, sum.vec) != 0 {
+	for _, v := range fr.vals {
+		if rk.elisions && compareElisions(v.vec, fr.sum.vec) != 0 {
 			continue
 		}
 		c := v.it
@@ -938,11 +1085,11 @@ func (rk *ranker) symVal(s *symNode, f forbidden) *entry {
 		}
 	}
 	var e *entry
-	if sum.total > 0 {
-		e = &entry{cands: rk.merge(cands), count: sum.total, vec: sum.vec, least: sum.least, w: w}
+	if fr.sum.total > 0 {
+		e = &entry{cands: rk.merge(cands), count: fr.sum.total, vec: fr.sum.vec, least: fr.sum.least, w: fr.w}
 	}
-	slot.state, slot.e = 2, e
-	return e
+	fr.slot.state, fr.slot.e = 2, e
+	return nil, e
 }
 
 // prepare ranks, without forbidden ancestors, every item the accepted

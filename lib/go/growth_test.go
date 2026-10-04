@@ -267,3 +267,34 @@ func TestIncludeChainDeep(t *testing.T) {
 		t.Fatalf("stages %q", got)
 	}
 }
+
+// TestDeepGrammar ranks and emits along chains 20,000 deep with the stack
+// of a goroutine held to 1 MiB. A chain of rules, each a unit of the next,
+// makes the items of one set and origin depend on one another as deep as
+// the grammar nests. Ranking keeps its own stack for these.
+func TestDeepGrammar(t *testing.T) {
+	const n = 20000
+	chain := func(body func(i int) string) string {
+		var b strings.Builder
+		for i := range n {
+			fmt.Fprintf(&b, "%%rule r%d %s\n", i, body(i))
+		}
+		return b.String()
+	}
+	for _, c := range []struct{ name, grammar, text string }{
+		{"units", "%rule text r0\n" + chain(func(i int) string { return fmt.Sprintf("r%d", i+1) }) + fmt.Sprintf("%%rule r%d 'a'", n), "a"},
+	} {
+		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n"+c.grammar))
+		func() {
+			defer debug.SetMaxStack(debug.SetMaxStack(1 << 20))
+			res, err := d.Parse(c.text, ParseOptions{})
+			if err != nil || !res.OK {
+				t.Fatalf("%s: %v %+v", c.name, err, res.Error)
+			}
+			data, err := MarshalResult(res)
+			if err != nil || len(data) < len(c.text) || Brackets(res, BracketOptions{}) == "" {
+				t.Fatalf("%s: no output: %v", c.name, err)
+			}
+		}()
+	}
+}
