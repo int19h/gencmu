@@ -29,12 +29,53 @@ RESTORE = 3
 (-1, RESTORE, token, terminal): the read of the synthetic token as the
 terminal, after which the empty production closes over that token."""
 
-Caps = tuple[tuple[int, int, int], ...]
+class Caps:
+    """An item's captured parts, slot by slot: each a span and the tags its
+    constituent keeps. A parse interns them, each by the parts it extends
+    and the part it adds, which it shares: one production of C captures
+    keeps C parts, not C², and equal parts are one object, so an item's key
+    compares them by identity (engine §4)."""
+
+    __slots__ = ("parent", "part", "size")
+
+    def __init__(self, parent: Caps | None, part: tuple[int, int, int] | None) -> None:
+        self.parent = parent
+        self.part = part
+        self.size = 0 if parent is None else parent.size + 1
+
+    def __len__(self) -> int:
+        return self.size
+
+    def __getitem__(self, slot: int) -> tuple[int, int, int]:
+        if not 0 <= slot < self.size:
+            raise IndexError(slot)
+        found: Caps = self
+        while found.size > slot + 1:
+            assert found.parent is not None
+            found = found.parent
+        assert found.part is not None
+        return found.part
+
+
+NO_CAPS = Caps(None, None)
+"""The captured parts of an item that has none, which every parse shares."""
 
 CONTENT_KEY_LIMIT = 64
 """The most tokens a span may have for a nested parse's answer to be kept
 under its content, which equal spans at other positions share; a longer span
 is kept under its position (engine §4)."""
+
+
+class RecognizerCounters:
+    """How many items and captured parts the recognizer has made, in parses
+    and nested parses alike: measures of work and storage that tests compare
+    across input lengths."""
+
+    items = 0
+    captures = 0
+
+
+recognizer_counters = RecognizerCounters()
 
 
 @dataclass
@@ -605,6 +646,9 @@ class Parser:
         origin: list[int] = []
         end: list[int] = []
         caps: list[Caps] = []
+        # The interned captured parts, each by the parts it extends and the
+        # part it adds.
+        extended: dict[tuple[Caps, tuple[int, int, int]], Caps] = {}
         edges: list[list[tuple[Any, ...]]] = []
         tag: dict[int, int] = {}
         # In the reconstruction mode: whether every step that made an item is
@@ -717,7 +761,12 @@ class Parser:
                         return
             captured = caps[item]
             if production.slots[position] >= 0:
-                captured = captured + (part,)
+                step = (captured, part)
+                found = extended.get(step)
+                if found is None:
+                    found = extended[step] = Caps(captured, part)
+                    recognizer_counters.captures += 1
+                captured = found
             conditions = production.conds_at.get(position)
             if conditions:
                 # The conditions that the advance makes ready, in written
@@ -748,8 +797,8 @@ class Parser:
             # $ is bound for an empty production, whose span is empty at j.
             # Its tag term runs only where a condition reads $'s tags (engine
             # §4).
-            whole = (j, j, lazy_tag(production, (), j, j)) if not production.rhs else None
-            bound = evaluator.bind(production, (), whole)
+            whole = (j, j, lazy_tag(production, NO_CAPS, j, j)) if not production.rhs else None
+            bound = evaluator.bind(production, NO_CAPS, whole)
             return all(evaluator.condition(c, bound) for c in production.conds_predict)
 
         def restore(number: int, j: int) -> None:
@@ -790,14 +839,14 @@ class Parser:
                     if strict_prediction and last_reading[number] < 0:
                         continue
                 if allowed(production, j):
-                    add(number, 0, j, (), j, SEED, strict_prediction)
+                    add(number, 0, j, NO_CAPS, j, SEED, strict_prediction)
             if j < n:
                 table = by_first[rule]
                 if table:
                     for tag in tokens[base + j].tags:
                         for number in table.get(tag, ()):
                             if allowed(productions[number], j):
-                                add(number, 0, j, (), j, SEED, strict_prediction)
+                                add(number, 0, j, NO_CAPS, j, SEED, strict_prediction)
                 # A range or a property matches by the token's characters.
                 table = by_first_characters[rule]
                 if table:
@@ -806,7 +855,7 @@ class Parser:
                         if carries(terminal, token_tag):
                             for number in numbers:
                                 if allowed(productions[number], j):
-                                    add(number, 0, j, (), j, SEED, strict_prediction)
+                                    add(number, 0, j, NO_CAPS, j, SEED, strict_prediction)
 
         current = [0]
         following: list[int] = []
@@ -899,7 +948,7 @@ class Parser:
                                 advance(waiter, (j, j + 1, token_tag), j + 1, (waiter, 1, j, terminal))
                     continue
                 for number in restorations:
-                    add(number, 0, j, (), j + 1, (-1, RESTORE, j, productions[number].elided))
+                    add(number, 0, j, NO_CAPS, j + 1, (-1, RESTORE, j, productions[number].elided))
                 restorations.clear()
                 # A terminal that reads a synthetic token captures no tags,
                 # and a production that inherits from it inherits none

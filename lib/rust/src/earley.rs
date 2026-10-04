@@ -34,6 +34,34 @@ pub(crate) fn matchers(g: &Lowered, tags: &mut Tags) -> Vec<Matcher> {
         .collect()
 }
 
+thread_local! {
+    /// How many items the recognizer has made on this thread, in parses and
+    /// nested parses alike: a measure of work that tests compare across
+    /// input lengths.
+    static ITEMS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+    /// How many sequences of captured parts the recognizer has made on this
+    /// thread, each one part added to a sequence it shares: a measure of
+    /// storage that tests compare across numbers of captures.
+    static CAPTURES: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// How many sequences of captured parts the recognizer has made on this
+/// thread (`CAPTURES`).
+pub fn recognizer_captures() -> u64 {
+    CAPTURES.with(|captures| captures.get())
+}
+
+/// How many items the recognizer has made on this thread (`ITEMS`).
+pub fn recognizer_items() -> u64 {
+    ITEMS.with(|items| items.get())
+}
+
+/// Sets the count of the recognizer's items on this thread back to zero.
+pub fn reset_recognizer_items() {
+    ITEMS.with(|items| items.set(0));
+    CAPTURES.with(|captures| captures.set(0));
+}
+
 /// A token of a stage's input.
 #[derive(Debug, Clone)]
 pub(crate) struct Tok {
@@ -183,27 +211,47 @@ pub(crate) struct Chart {
     /// The last position whose set holds an item, or 0: how far the parse
     /// reached.
     pub reached: usize,
-    caps: Vec<Vec<Cap>>,
-    caps_index: FxMap<Vec<Cap>, u32>,
+    /// The captured parts of the items, each sequence once: an entry is the
+    /// sequence before its last part and that part, so a sequence shares
+    /// the one it extends, and an item's sequence is the number of its
+    /// entry. Entry 0 is the empty sequence.
+    caps: Vec<(u32, Cap)>,
+    caps_index: FxMap<(u32, Cap), u32>,
 }
 
 impl Chart {
-    pub(crate) fn caps(&self, id: u32) -> &[Cap] {
-        &self.caps[id as usize]
+    /// The captured parts of a sequence, in the order read.
+    pub(crate) fn caps(&self, mut id: u32) -> Vec<Cap> {
+        let mut out = Vec::new();
+        while id != 0 {
+            let (parent, cap) = self.caps[id as usize];
+            out.push(cap);
+            id = parent;
+        }
+        out.reverse();
+        out
     }
 
-    fn intern_caps(&mut self, caps: Vec<Cap>) -> u32 {
-        if let Some(&id) = self.caps_index.get(&caps) {
+    /// The sequence before the last part of a sequence that is not empty.
+    pub(crate) fn caps_parent(&self, id: u32) -> u32 {
+        self.caps[id as usize].0
+    }
+
+    /// The sequence that extends a sequence by one part, made once.
+    fn extend_caps(&mut self, parent: u32, cap: Cap) -> u32 {
+        if let Some(&id) = self.caps_index.get(&(parent, cap)) {
             return id;
         }
         let id = self.caps.len() as u32;
-        self.caps.push(caps.clone());
-        self.caps_index.insert(caps, id);
+        self.caps.push((parent, cap));
+        self.caps_index.insert((parent, cap), id);
+        CAPTURES.with(|captures| captures.set(captures.get() + 1));
         id
     }
 
-    pub(crate) fn lookup_caps(&self, caps: &[Cap]) -> Option<u32> {
-        self.caps_index.get(caps).copied()
+    /// The sequence that extends a sequence by one part, if an item has it.
+    pub(crate) fn lookup_caps(&self, parent: u32, cap: Cap) -> Option<u32> {
+        self.caps_index.get(&(parent, cap)).copied()
     }
 
     /// Whether a completed item of `rule` spans the tokens to `end`. The
@@ -432,7 +480,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     pub(crate) fn recognize(&mut self, tokens: &[Tok], base: usize, start: u32) -> Result<Chart, EngineError> {
         let n = tokens.len();
         let mut chart = Chart::default();
-        chart.intern_caps(Vec::new());
+        chart.caps.push((0, Cap { start: 0, end: 0, tags: 0 }));
         chart.sets.push(ESet::default());
         self.predict(&mut chart, tokens, base, start, 0, false)?;
         let mut e = 0;
@@ -547,7 +595,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         // The constituent's tags, where a condition of this step read them.
         let mut known = u32::MAX;
         if production.conds.iter().any(|(_, trigger)| *trigger == item.dot as usize) {
-            let caps = chart.caps(item.caps).to_vec();
+            let caps = chart.caps(item.caps);
             let (observed, project) = self.observed(tokens);
             let frame = Frame {
                 caps: &caps,
@@ -735,13 +783,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 return Ok(());
             }
         }
-        let caps = if production.cap_at[item.dot as usize].is_some() {
-            let mut caps = chart.caps(item.caps).to_vec();
-            caps.push(cap);
-            chart.intern_caps(caps)
-        } else {
-            item.caps
-        };
+        let caps =
+            if production.cap_at[item.dot as usize].is_some() { chart.extend_caps(item.caps, cap) } else { item.caps };
         let next = Item { prod: item.prod, dot: item.dot + 1, origin: item.origin, caps };
         self.add(chart, tokens, base, next, into, strict)
     }
@@ -757,7 +800,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let item = chart.sets[e].items[k];
         let g = self.g;
         let production = &g.prods[item.prod as usize];
-        let caps = chart.caps(item.caps).to_vec();
+        let caps = chart.caps(item.caps);
         let (observed, project) = self.observed(tokens);
         let known = chart.sets[e].tagset[k];
         let tags = if known != u32::MAX {

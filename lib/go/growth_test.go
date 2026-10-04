@@ -2,6 +2,7 @@ package gencmu
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -91,6 +92,33 @@ func TestCaptureGrowth(t *testing.T) {
 		}
 		if got := wholeItems("%rule text t\n%rule t $l(t) $r(t) | A", n); got != n-1 {
 			t.Errorf("$l(t) $r(t) over %d: %d completed items, not %d", n, got, n-1)
+		}
+	}
+}
+
+// TestCaptureStorage: one production of C captures over C tokens keeps C
+// interned capture entries, each sharing the one it extends, not C² (engine
+// §4).
+func TestCaptureStorage(t *testing.T) {
+	for _, n := range []int{100, 200, 400} {
+		names := make([]string, n)
+		for i := range names {
+			names[i] = fmt.Sprintf("$c%d(A)", i)
+		}
+		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+strings.Join(names, " ")+"\n%conditions text($c0) = \"a\""))
+		lg := d.lower(0, map[string]bool{})
+		toks := make([]Token, n)
+		for i := range toks {
+			toks[i] = Token{Text: "a", Tags: []string{"A"}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
+		}
+		ps := newParseState(d.uni, []rune(strings.TrimSpace(strings.Repeat("a ", n))))
+		rec := ps.newRun("main", d.stages[0], toks).recognize(lg, lg.byName["text"], 0, n)
+		if len(rec.sets[n].items) == 0 {
+			t.Fatalf("%d captures: no item at the end", n)
+		}
+		// The empty sequence, and one entry for each capture after the first.
+		if len(rec.capNodes) != n {
+			t.Errorf("%d captures: %d interned capture entries", n, len(rec.capNodes))
 		}
 	}
 }

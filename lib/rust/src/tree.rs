@@ -49,7 +49,7 @@ pub(crate) fn build(ranker: &Ranker, root: u32) -> ITree {
                         start: it.origin,
                         end: set,
                         tags,
-                        caps: ranker.chart().caps(it.caps).to_vec(),
+                        caps: ranker.chart().caps(it.caps),
                     },
                     children: Vec::new(),
                 });

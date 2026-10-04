@@ -969,12 +969,12 @@ impl<'c> Ranker<'c> {
                 let production = &self.dag.g.prods[item.prod as usize];
                 let position = item.dot as usize - 1;
                 let captured = production.cap_at[position].is_some();
-                let caps = self.dag.chart.caps(item.caps).to_vec();
+                let caps = self.dag.chart.caps(item.caps);
                 let previous = if captured {
-                    match self.dag.chart.lookup_caps(&caps[..caps.len() - 1]) {
-                        Some(id) => id,
-                        None => return Deps::Links(Vec::new()),
+                    if item.caps == 0 {
+                        return Deps::Links(Vec::new());
                     }
+                    self.dag.chart.caps_parent(item.caps)
                 } else {
                     item.caps
                 };

@@ -11,7 +11,7 @@ import unittest
 
 import gencmu
 
-from .shared import SHARED, OverItems, count_items
+from .shared import SHARED, OverItems, count_items, load_case_dialect, parse_case
 
 
 class Growth(unittest.TestCase):
@@ -38,6 +38,27 @@ class Growth(unittest.TestCase):
                     items(case["large"], case["most"] * small)
                 except OverItems:
                     self.fail(f"{case['link']}: {small} items for {case['small']} links, more than {case['most']} times as many for {case['large']}")
+
+
+class CaptureStorage(unittest.TestCase):
+    def test_an_item_shares_the_parts_of_the_item_it_advanced(self) -> None:
+        # One production of C captures over C tokens keeps C captured parts,
+        # not C², since each item shares the parts of the item it advanced
+        # (engine §4).
+        for count in (100, 200, 400):
+            names = " ".join(f"$c{index}(A)" for index in range(count))
+            case = {"grammar": f'%rule text {names}\n%conditions text($c0) = "a"', "tokens": [{"text": "a", "tags": ["A"]}] * count}
+            dialect, error = load_case_dialect(case)
+            self.assertIsNone(error)
+            assert dialect is not None
+            recognizer_counters.captures = 0
+            recognizer_counters.items = 0
+            value, _, _ = parse_case(dialect, case)
+            self.assertIsNotNone(value)
+            assert value is not None
+            self.assertTrue(value["ok"], f"{count} captures")
+            self.assertEqual(recognizer_counters.captures, count, f"{count} captures")
+            self.assertLessEqual(recognizer_counters.items, 2 * count + 4, f"{count} captures")
 
 
 if __name__ == "__main__":

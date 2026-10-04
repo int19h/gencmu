@@ -13,7 +13,7 @@ type capVal struct {
 
 // itemKey is an item's identity. A captured part's span and tags are part
 // of it (engine §4), and a production can have any number of captures:
-// cap0 holds the first capture slot, and more the rest, a vector interned
+// cap0 holds the first capture slot, and more the rest, a sequence interned
 // by the recognizer, 0 for none. The common case of one slot, the implicit
 // capture of a production with one symbol, needs no interning.
 type itemKey struct {
@@ -24,32 +24,43 @@ type itemKey struct {
 	more   int32
 }
 
-// capStep is the vector of the capture slots after the first, extended by
-// one capture: the key of the interned vector it makes.
+// capStep is the sequence of the capture slots after the first, extended
+// by one capture: the key of the interned sequence it makes.
 type capStep struct {
 	parent int32
 	cv     capVal
 }
 
+// capNode is an interned sequence of the capture slots after the first:
+// the sequence it extends, which it shares, the capture it adds, and how
+// many slots it holds, so the slot it adds is its depth.
+type capNode struct {
+	parent int32
+	cv     capVal
+	depth  int32
+}
+
 // itemCaps is an item's captures, slot by slot.
 type itemCaps struct {
 	first capVal
-	rest  []capVal
+	nodes []capNode
+	more  int32
 }
 
 func (c itemCaps) at(slot int32) capVal {
 	if slot == 0 {
 		return c.first
 	}
-	return c.rest[slot-1]
+	id := c.more
+	for c.nodes[id].depth > slot {
+		id = c.nodes[id].parent
+	}
+	return c.nodes[id].cv
 }
 
 // caps is the captures of an item.
 func (r *recognizer) caps(key *itemKey) itemCaps {
-	if key.more == 0 {
-		return itemCaps{first: key.cap0}
-	}
-	return itemCaps{first: key.cap0, rest: r.capVecs[key.more]}
+	return itemCaps{first: key.cap0, nodes: r.capNodes, more: key.more}
 }
 
 // setCap captures cv in a slot of an item's key. A production's slots are
@@ -60,21 +71,17 @@ func (r *recognizer) setCap(key *itemKey, slot int32, cv capVal) {
 		key.cap0 = cv
 		return
 	}
-	if len(r.capVecs) == 0 {
-		r.capVecs = [][]capVal{nil}
+	if len(r.capNodes) == 0 {
+		r.capNodes = []capNode{{}}
 	}
-	parent := r.capVecs[key.more]
-	if int(slot-1) != len(parent) {
+	if slot-1 != r.capNodes[key.more].depth {
 		panic("a capture slot filled out of order")
 	}
 	step := capStep{key.more, cv}
 	id, ok := r.capIndex[step]
 	if !ok {
-		vec := make([]capVal, len(parent)+1)
-		copy(vec, parent)
-		vec[len(parent)] = cv
-		id = int32(len(r.capVecs))
-		r.capVecs = append(r.capVecs, vec)
+		id = int32(len(r.capNodes))
+		r.capNodes = append(r.capNodes, capNode{parent: key.more, cv: cv, depth: slot})
 		if r.capIndex == nil {
 			r.capIndex = map[capStep]int32{}
 		}
@@ -148,10 +155,11 @@ type recognizer struct {
 	recon    *reconstruction
 	sets     []*eset
 	furthest int
-	// capVecs holds the interned vectors of the capture slots after an
-	// item's first, the empty one at 0, and capIndex each by the vector it
-	// extends and the capture it adds.
-	capVecs  [][]capVal
+	// capNodes holds the interned sequences of the capture slots after an
+	// item's first, the empty one at 0, each sharing the one it extends, so
+	// a production of C captures keeps C entries, not C²; capIndex finds
+	// each by the sequence it extends and the capture it adds.
+	capNodes []capNode
 	capIndex map[capStep]int32
 }
 

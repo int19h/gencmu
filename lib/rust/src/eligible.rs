@@ -104,13 +104,7 @@ impl<'a> Proofs<'a> {
                 return None;
             }
         }
-        let caps = if production.cap_at[dot].is_some() {
-            let mut caps = self.chart.caps(item.caps).to_vec();
-            caps.push(cap);
-            self.chart.lookup_caps(&caps)?
-        } else {
-            item.caps
-        };
+        let caps = if production.cap_at[dot].is_some() { self.chart.lookup_caps(item.caps, cap)? } else { item.caps };
         let next = Item { prod: item.prod, dot: item.dot + 1, origin: item.origin, caps };
         let set = cap.end;
         self.chart.sets.get(set as usize)?.find(&next).map(|index| (set, index))
@@ -203,10 +197,10 @@ impl<'a> Proofs<'a> {
         let caps = self.chart.caps(item.caps);
         let captured = production.cap_at[position].is_some();
         let before_caps = if captured {
-            match self.chart.lookup_caps(&caps[..caps.len() - 1]) {
-                Some(id) => id,
-                None => return Vec::new(),
+            if item.caps == 0 {
+                return Vec::new();
             }
+            self.chart.caps_parent(item.caps)
         } else {
             item.caps
         };

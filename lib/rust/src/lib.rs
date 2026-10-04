@@ -82,6 +82,11 @@ pub mod tools {
     pub use crate::json::fnv1a64;
     pub use crate::loader::{bootstrap_hash, check_dom, read_grammar_document, splice_bundled_pipeline};
 
+    /// The recognizer's work counter, for the growth tests only: not part
+    /// of the documented API.
+    #[doc(hidden)]
+    pub use crate::earley::{recognizer_captures, recognizer_items, reset_recognizer_items};
+
     /// The test hook of the check of `elision-only` (tests/README.md): the
     /// checks that ran in a parse, each with whether its forest kept the
     /// witness of the chosen derivation, and the ways to lose it on
