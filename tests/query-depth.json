@@ -1,0 +1,10 @@
+[
+  {
+    "name": "begins-chain",
+    "description": "Each x is an 'a' that a further x follows, which a nested begins() over the rest of the text decides. So the queries nest as deep as the text is long, and the last x is a 'b' (engine §4).",
+    "grammar": "%ambiguity-resolution greedy\n%rule text {x}\n%rule x 'a'\n%conditions begins(after($), x)\n%extend-rule x 'b'",
+    "link": "a",
+    "count": 20000,
+    "suffix": "b"
+  }
+]

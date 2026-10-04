@@ -167,6 +167,17 @@ The JavaScript library also reads each document with the hand-written bootstrap 
 
 A library compares only its own two counts. Counts from different libraries are not compared, since each library makes its items in its own way.
 
+## Query depth cases: `query-depth.json`
+
+```
+[{"name": "begins-chain", "description": "...", "grammar": "%rule text {x} ...", "link": "a",
+  "count": 20000, "suffix": "b"}]
+```
+
+Each item says that nested queries nest as deep as the input makes them, with no bound (engine §4). A grammar whose conditions start a query inside each nested parse makes a chain of active queries as long as the text. A library that runs each nested parse on its call stack runs out of stack on such a chain.
+
+The library loads `grammar` as the one stage of a dialect, which reads the text's characters. It parses `link` repeated `count` times, then `suffix`, and the parse must succeed. It runs the parse on an ordinary stack: the main thread in JavaScript and Python, a test thread of the default size in Rust, and a goroutine whose stack is held to 1 MiB in Go.
+
 ## Result mutants: `result-mutants.json`
 
 ```
