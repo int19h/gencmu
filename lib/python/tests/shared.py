@@ -158,7 +158,7 @@ def made_items() -> Watch:
         before = len(items)
         return lambda: int(len(items) > before)
 
-    return calls(code_of(Parser.parse, "add"), made)
+    return calls(code_of(Parser.walk, "add"), made)
 
 
 @contextmanager

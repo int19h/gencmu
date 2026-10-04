@@ -103,7 +103,7 @@ class Bound:
         caps: Caps,
         base: int,
         project: list[int] | None,
-        whole: tuple[int, int, int | Callable[[], int] | None] | None,
+        whole: tuple[int, int, int | Callable[[], Walk] | None] | None,
     ) -> None:
         self.production = production
         self.caps = caps
@@ -424,52 +424,37 @@ class StageContext:
             ),
         )
 
-    def nested(self, rule: str, start: int, end: int) -> NestedAnswer:
-        """Parse tokens start..end alone as rule (engine §4, nested parses):
-        what matches and tags read."""
+    def nested(self, rule: str, start: int, end: int) -> Walk:
+        """Whether tokens start..end alone parse as rule, and the tags of
+        their derivations (engine §4, nested parses): what matches and tags
+        read. A walk, which runs the nested parse where its answer is not
+        yet known."""
         key = self.nested_key(rule, start, end)
         found = self.memo.get(key)
-        if found is not None:
-            return found
-        forest = self.parse_alone(rule, start, end)
-        # The answer reads the completed items of the rule over the span
-        # that have an eligible proof tree, under written-terminator
-        # priority (engine §4).
-        found_items = eligible(forest, forest.roots, self, start)
-        gathered = Gathered()
-        for root in found_items:
-            gathered.add(self.tagtab.get(forest.tag[root]))
-        answer = NestedAnswer(bool(found_items), gathered.value())
-        self.memo[key] = answer
-        return answer
+        if found is None:
+            yield self.answer(rule, start, end, key, False)
+            found = self.memo[key]
+        return found
 
-    def begins(self, rule: str, start: int, end: int) -> bool:
+    def begins(self, rule: str, start: int, end: int) -> Walk:
         """Whether a prefix of tokens start..end, the empty one included,
         parses as rule: whether a completed item of the rule with an
         eligible proof tree begins at the span's start, in any set (engine
-        §4)."""
+        §4). A walk, as for :meth:`nested`."""
         key = self.nested_key(rule, start, end)
         found = self.begins_memo.get(key)
-        if found is not None:
-            return found
-        forest = self.parse_alone(rule, start, end)
-        number = self.lowered.rule_ids[rule]
-        productions = self.lowered.productions
-        witnesses = [
-            item
-            for item, (prod, dot, origin) in enumerate(zip(forest.prod, forest.dot, forest.origin))
-            if origin == 0 and productions[prod].lhs == number and dot == len(productions[prod].rhs)
-        ]
-        # Only an item with an eligible proof tree counts (engine §4).
-        answer = bool(eligible(forest, witnesses, self, start))
-        self.begins_memo[key] = answer
-        return answer
+        if found is None:
+            yield self.answer(rule, start, end, key, True)
+            found = self.begins_memo[key]
+        return found
 
-    def parse_alone(self, rule: str, start: int, end: int) -> Forest:
-        """The forest of tokens start..end parsed alone as rule. A parse in
-        progress is known by its rule and span, whatever a condition asks of
-        it, so that alternating matches, begins and tags cannot hide a
-        question about a span from inside its own parse (engine §4)."""
+    def answer(self, rule: str, start: int, end: int, key: tuple[Any, ...], begins: bool) -> Walk:
+        """Parses tokens start..end alone as rule, and remembers the answer
+        under key. The parse is a walk on the stack of the parse that asked,
+        so a chain of nested parses costs heap and not the call stack. A
+        parse in progress is known by its rule and span, whatever a
+        condition asks of it. So alternating matches, begins and tags cannot
+        hide a question about a span from inside its own parse (engine §4)."""
         running = (rule, start, end)
         if running in self.running:
             raise _GrammarFault(
@@ -481,9 +466,29 @@ class StageContext:
             raise _GrammarFault(f"{rule} is not a rule of this stage")
         self.running.add(running)
         try:
-            return Parser(self, start, end).parse(number)
+            forest: Forest = yield Parser(self, start, end).walk(number)
         finally:
+            # Also when the parse failed, so that the place is free again.
             self.running.discard(running)
+        if not begins:
+            # The answer reads the completed items of the rule over the span
+            # that have an eligible proof tree, under written-terminator
+            # priority (engine §4).
+            found_items = eligible(forest, forest.roots, self, start)
+            gathered = Gathered()
+            for root in found_items:
+                gathered.add(self.tagtab.get(forest.tag[root]))
+            self.memo[key] = NestedAnswer(bool(found_items), gathered.value())
+            return
+        # A completed item of the rule from the span's start, in any set.
+        productions = self.lowered.productions
+        witnesses = [
+            item
+            for item, (prod, dot, origin) in enumerate(zip(forest.prod, forest.dot, forest.origin))
+            if origin == 0 and productions[prod].lhs == number and dot == len(productions[prod].rhs)
+        ]
+        # Only an item with an eligible proof tree counts (engine §4).
+        self.begins_memo[key] = bool(eligible(forest, witnesses, self, start))
 
 
 def _as_set(value: Any) -> Tags:
@@ -519,7 +524,7 @@ class Evaluator:
         # §7.3, §7.5). None elsewhere.
         self.project = project
 
-    def bind(self, production: Production, caps: Caps, whole: tuple[int, int, int | Callable[[], int] | None] | None = None) -> Bound:
+    def bind(self, production: Production, caps: Caps, whole: tuple[int, int, int | Callable[[], Walk] | None] | None = None) -> Bound:
         """The captures of an item, and ``$`` when ``whole`` gives the
         constituent's span and tag set (``None`` while its tag set is being
         computed, when no term may read it). Each capture is found when it
@@ -555,11 +560,10 @@ class Evaluator:
                 return (end - 1, end, None)
         raise _GrammarFault("a span is needed here")
 
-    def span_tags(self, span: tuple[int, int, int | Callable[[], int] | None]) -> Tags:
+    def span_tags(self, span: tuple[int, int, int | None]) -> Tags:
         start, end, whole = span
         if whole is not None:
-            # $ of a completing item gives its tags on first use (engine §4).
-            return self.context.tagtab.get(whole() if callable(whole) else whole)
+            return self.context.tagtab.get(whole)
         # One set grows over the span, since a union per token would copy
         # the tags gathered so far at every token.
         tokens = self.context.tokens
@@ -581,7 +585,7 @@ class Evaluator:
             index = sounding[index + 1]
         return "".join(parts)
 
-    def _value(self, dom: Any, bound: Bound) -> Walk:
+    def walk_value(self, dom: Any, bound: Bound) -> Walk:
         """A term's value (engine §10): a string, or a set, of strings or of
         tags."""
         if "string" in dom:
@@ -601,36 +605,36 @@ class Evaluator:
         if "if" in dom:
             # A guarded term: its term is evaluated only where its condition
             # holds (engine §10).
-            if (yield self._condition(dom["if"], bound)):
-                return _as_set((yield self._value(dom["then"], bound)))
+            if (yield self.walk_condition(dom["if"], bound)):
+                return _as_set((yield self.walk_value(dom["then"], bound)))
             return EMPTY
         if "union" in dom:
             gathered = Gathered()
             for item in dom["union"]:
-                gathered.add(_as_set((yield self._value(item, bound))))
+                gathered.add(_as_set((yield self.walk_value(item, bound))))
             return gathered.value()
         if "intersection" in dom:
             parts = dom["intersection"]
-            result = _as_set((yield self._value(parts[0], bound)))
+            result = _as_set((yield self.walk_value(parts[0], bound)))
             for item in parts[1:]:
-                result = intersection(result, _as_set((yield self._value(item, bound))))
+                result = intersection(result, _as_set((yield self.walk_value(item, bound))))
             return result
         if "difference" in dom:
-            left = _as_set((yield self._value(dom["difference"][0], bound)))
-            return difference(left, _as_set((yield self._value(dom["difference"][1], bound))))
+            left = _as_set((yield self.walk_value(dom["difference"][0], bound)))
+            return difference(left, _as_set((yield self.walk_value(dom["difference"][1], bound))))
         name = dom.get("call")
         if name is not None:
             args = dom.get("args", [])
             if name == "split":
                 # A set of strings (engine §10); an empty delimiter that only
                 # a parse sees is an error of the grammar.
-                text = _as_string((yield self._value(args[0], bound)))
-                delimiter = _as_string((yield self._value(args[1], bound)))
+                text = _as_string((yield self.walk_value(args[0], bound)))
+                delimiter = _as_string((yield self.walk_value(args[1], bound)))
                 if delimiter == "":
                     raise _GrammarFault("split has an empty delimiter")
                 return split_string(text, delimiter)
             if name == "tag":
-                text = _as_string((yield self._value(args[0], bound)))
+                text = _as_string((yield self.walk_value(args[0], bound)))
                 if not is_name(text):
                     raise _GrammarFault(f"tag({json.dumps(text, ensure_ascii=False)}): the string is not a name")
                 return frozenset((text,))
@@ -638,38 +642,42 @@ class Evaluator:
                 # The classes that the classifier gives the string, for the
                 # features of the parse, or none for an unknown key (engine
                 # §10).
-                key = _as_string((yield self._value(args[0], bound)))
+                key = _as_string((yield self.walk_value(args[0], bound)))
                 table = self.context.lowered.classifiers.get(args[1]["classifier"])
                 return table.get(key, EMPTY) if table is not None else EMPTY
             if name == "tags" and len(args) == 2:
                 start, end, _ = yield self._span(args[0], bound)
-                return self.context.nested(args[1]["rule"], start, end).tags
+                return (yield self.context.nested(args[1]["rule"], start, end)).tags
             span = yield self._span(args[0], bound)
             if name == "phonemes":
                 return self.phonemes(span[0], span[1])
             if name == "text":
                 return self.context.span_text(span[0], span[1])
-            if name == "tags":
-                return self.span_tags(span)
-            if name == "classes":
-                return frozenset(tag for tag in self.span_tags(span) if is_class(tag))
+            if name in ("tags", "classes"):
+                whole = span[2]
+                if callable(whole):
+                    # $ of a completing item gives its tags on first use, by a
+                    # walk, since its tag term can ask nested parses (engine
+                    # §4).
+                    span = (span[0], span[1], (yield whole()))
+                tags = self.span_tags(span)
+                return tags if name == "tags" else frozenset(tag for tag in tags if is_class(tag))
             raise _GrammarFault(f"an unknown function {name}()")
         raise _GrammarFault("a span is used where a value is needed")
 
     def value(self, dom: Any, bound: Bound) -> Any:
-        return run(self._value(dom, bound))
+        """A term's value outside any parse, as emission needs. The nested
+        parses it asks run on the stack of this walk."""
+        return run(self.walk_value(dom, bound))
 
     def tags(self, dom: Any, bound: Bound) -> Tags:
         return _as_set(self.value(dom, bound))
 
-    def condition(self, dom: Any, bound: Bound) -> bool:
-        return bool(run(self._condition(dom, bound)))
-
-    def _condition(self, dom: Any, bound: Bound) -> Walk:
+    def walk_condition(self, dom: Any, bound: Bound) -> Walk:
         if "op" in dom:
             op = dom["op"]
-            left = yield self._value(dom["left"], bound)
-            right = yield self._value(dom["right"], bound)
+            left = yield self.walk_value(dom["left"], bound)
+            right = yield self.walk_value(dom["right"], bound)
             if op in ("=", "≠"):
                 # Two strings, or two sets of one kind (engine §10).
                 equal = left == right
@@ -685,34 +693,34 @@ class Evaluator:
             raise _GrammarFault(f"an unknown comparison {op}")
         if "matches" in dom:
             start, end, _ = yield self._span(dom["matches"], bound)
-            return self.context.nested(dom["rule"], start, end).accepted
+            return (yield self.context.nested(dom["rule"], start, end)).accepted
         if "begins" in dom:
             start, end, _ = yield self._span(dom["begins"], bound)
-            return self.context.begins(dom["rule"], start, end)
+            return (yield self.context.begins(dom["rule"], start, end))
         if "initial" in dom:
             # Where the input of the parse that reads the condition begins:
             # the stage's, or a nested parse's span (engine §10).
             start, _, _ = yield self._span(dom["initial"], bound)
             return start == self.base
         if "not" in dom:
-            return not (yield self._condition(dom["not"], bound))
+            return not (yield self.walk_condition(dom["not"], bound))
         if "if" in dom:
             # The consequent is evaluated only where the premise holds
             # (engine §10, "Order of evaluation").
-            if not (yield self._condition(dom["if"], bound)):
+            if not (yield self.walk_condition(dom["if"], bound)):
                 return True
-            return bool((yield self._condition(dom["then"], bound)))
+            return bool((yield self.walk_condition(dom["then"], bound)))
         if "captured" in dom:
             # Decided for each production when it is lowered (engine §3.6).
             raise _GrammarFault("a presence test outlived lowering")
         if "any" in dom:
             for item in dom["any"]:
-                if (yield self._condition(item, bound)):
+                if (yield self.walk_condition(item, bound)):
                     return True
             return False
         if "all" in dom:
             for item in dom["all"]:
-                if not (yield self._condition(item, bound)):
+                if not (yield self.walk_condition(item, bound)):
                     return False
             return True
         raise _GrammarFault("an unknown condition")
@@ -741,6 +749,26 @@ class Parser:
             self.evaluator = Evaluator(observed, 0, len(observed.tokens), context.project)
 
     def parse(self, start_rule: int) -> Forest:
+        """The forest of the parse, with the nested parses its conditions
+        and tag terms ask for, each run on one stack of walks."""
+        return run(self.walk(start_rule))  # type: ignore[no-any-return]
+
+    def walk(self, start_rule: int) -> Walk:
+        """The parse as a walk (see :mod:`._trampoline`). A nested parse
+        that a condition or a tag term asks for is a walk pushed on the same
+        stack, and its answer resumes the evaluation that asked (engine §4).
+        So a chain of nested parses costs heap and not the call stack.
+
+        This is the design of the Rust recognizer, with the same frames and
+        order of work. There a run keeps its chart, its queue's place and
+        its step by hand, and a step that needs an answer is made again once
+        it is known. Here the generator's frame keeps the parse's state, and
+        the evaluation's own walks keep their place. So nothing is evaluated
+        twice, which matters more in Python, where each repeat is costly.
+
+        Only the work that can ask a nested parse is a walk: a prediction,
+        the conditions of an advance, and a tag term. A plain call costs
+        less, and most advances evaluate nothing."""
         context = self.context
         lowered = context.lowered
         productions = lowered.productions
@@ -827,28 +855,41 @@ class Parser:
             else:
                 edges[found].append(edge)
 
-        def constituent_tag(production: Production, captured: Caps, start: int, at: int) -> int:
-            """The tag set of a completed item (engine §4)."""
-            if production.tags_term is not None:
-                bound = evaluator.bind(production, captured, (start, at, None))
-                return tagtab.intern(evaluator.tags(production.tags_term, bound))
+        def constituent_tag(production: Production, captured: Caps) -> int:
+            """The tag set of a completed item whose production has no tag
+            term (engine §4)."""
             if len(production.rhs) == 1:
                 return captured[production.slots[0]][2]
             return tagtab.empty
 
-        def lazy_tag(production: Production, captured: Caps, start: int, at: int) -> Callable[[], int]:
-            """The tag set of a completing item, computed on first use (engine
-            §4)."""
+        def term_tag(production: Production, captured: Caps, start: int, at: int) -> Walk:
+            """The tag set of a completed item from its production's tag
+            term, which can ask nested parses (engine §4)."""
+            bound = evaluator.bind(production, captured, (start, at, None))
+            return tagtab.intern(_as_set((yield evaluator.walk_value(production.tags_term, bound))))
+
+        def lazy_tag(production: Production, captured: Caps, start: int, at: int) -> Callable[[], Walk]:
+            """The walk of the tag set of a completing item, computed on
+            first use (engine §4)."""
             memo: list[int] = []
 
-            def tag() -> int:
+            def tag() -> Walk:
                 if not memo:
-                    memo.append(constituent_tag(production, captured, start, at))
+                    if production.tags_term is None:
+                        memo.append(constituent_tag(production, captured))
+                    else:
+                        memo.append((yield term_tag(production, captured, start, at)))
                 return memo[0]
 
             return tag
 
-        def advance(item: int, part: tuple[int, int, int], at: int, edge: tuple[Any, ...], strict_step: bool = False, read_tag: int = -1) -> None:
+        def advance(
+            item: int, part: tuple[int, int, int], at: int, edge: tuple[Any, ...], strict_step: bool = False, read_tag: int = -1
+        ) -> Walk | None:
+            """Advances an item over a part. Where the advance makes
+            conditions ready, it gives the walk that evaluates them and then
+            adds the item, which the caller yields. A plain call costs less
+            than a walk, so an advance without conditions makes none."""
             production = productions[prod[item]]
             position = dot[item]
             if strict_step and position + 1 == len(production.rhs):
@@ -857,7 +898,7 @@ class Parser:
                 # production. The step drops it before it evaluates
                 # anything (engine §4, §7.4; JS earley.js, the written
                 # routes).
-                return
+                return None
             # A tested symbol's test must hold of its own span and tags, which
             # is checked before any condition the advance makes ready (engine
             # §4).
@@ -879,7 +920,7 @@ class Parser:
                     else:
                         holds = context.test_holds(test, base + part[0], base + part[1], part[2])
                     if not holds:
-                        return
+                        return None
             captured = caps[item]
             if production.slots[position] >= 0:
                 step = (captured, part)
@@ -889,18 +930,32 @@ class Parser:
                 captured = found
             conditions = production.conds_at.get(position)
             if conditions:
-                # The conditions that the advance makes ready, in written
-                # order. Once the constituent is complete, $ has its tags,
-                # and the tag term runs only where a condition reads them
-                # (engine §4).
-                if production.whole_ready and position + 1 == len(production.rhs):
-                    bound = evaluator.bind(production, captured, (origin[item], at, lazy_tag(production, captured, origin[item], at)))
-                else:
-                    bound = evaluator.bind(production, captured)
-                for condition in conditions:
-                    if not evaluator.condition(condition, bound):
-                        return
+                return checked(production, position, origin[item], captured, at, edge, strict_step, conditions)
             add(production.id, position + 1, origin[item], captured, at, edge, strict_step)
+            return None
+
+        def checked(
+            production: Production,
+            position: int,
+            start: int,
+            captured: Caps,
+            at: int,
+            edge: tuple[Any, ...],
+            strict_step: bool,
+            conditions: list[Any],
+        ) -> Walk:
+            """The conditions that an advance makes ready, in written order,
+            and then the item, if they all hold. Once the constituent is
+            complete, $ has its tags, and the tag term runs only where a
+            condition reads them (engine §4)."""
+            if production.whole_ready and position + 1 == len(production.rhs):
+                bound = evaluator.bind(production, captured, (start, at, lazy_tag(production, captured, start, at)))
+            else:
+                bound = evaluator.bind(production, captured)
+            for condition in conditions:
+                if not (yield evaluator.walk_condition(condition, bound)):
+                    return
+            add(production.id, position + 1, start, captured, at, edge, strict_step)
 
         # A production whose first symbol is a terminal the next token lacks
         # is not predicted, since its item could never advance; a rejection
@@ -911,15 +966,18 @@ class Parser:
         characters = lowered.characters
         carries = context.carries
 
-        def allowed(production: Production, j: int) -> bool:
-            if not production.conds_predict:
-                return True
+        def allowed(production: Production, j: int) -> Walk:
+            """Whether the prediction conditions of a production that has
+            some hold at j."""
             # $ is bound for an empty production, whose span is empty at j.
             # Its tag term runs only where a condition reads $'s tags (engine
             # §4).
             whole = (j, j, lazy_tag(production, NO_CAPS, j, j)) if not production.rhs else None
             bound = evaluator.bind(production, NO_CAPS, whole)
-            return all(evaluator.condition(c, bound) for c in production.conds_predict)
+            for condition in production.conds_predict:
+                if not (yield evaluator.walk_condition(condition, bound)):
+                    return False
+            return True
 
         def restore(number: int, j: int) -> None:
             """The restoration of an elidable optional at j (engine §7.4):
@@ -938,14 +996,20 @@ class Parser:
                 return
             restorations.append(number)
 
-        def predict(rule: int, j: int, strict_prediction: bool = False) -> None:
-            # A rule's productions are the same at every prediction in one
-            # set. A strict prediction (engine §7.4) leaves some out, so an
-            # ordinary one after it adds them.
+        def begin(rule: int, j: int, strict_prediction: bool = False) -> bool:
+            """Whether a prediction of rule in set j adds anything, which
+            then begins. A rule's productions are the same at every
+            prediction in one set. A strict prediction (engine §7.4) leaves
+            some out, so an ordinary one after it adds them."""
             before = predicted[j].get(rule)
             if before is not None and (before is False or strict_prediction):
-                return
+                return False
             predicted[j][rule] = strict_prediction
+            return True
+
+        def predict(rule: int, j: int, strict_prediction: bool = False) -> Walk:
+            """The prediction that :func:`begin` began, a walk since its
+            conditions can ask nested parses."""
             for number in not_terminal_first[rule]:
                 production = productions[number]
                 if recon:
@@ -958,14 +1022,14 @@ class Parser:
                     # can read.
                     if strict_prediction and last_reading[number] < 0:
                         continue
-                if allowed(production, j):
+                if not production.conds_predict or (yield allowed(production, j)):
                     add(number, 0, j, NO_CAPS, j, SEED, strict_prediction)
             if j < n:
                 table = by_first[rule]
                 if table:
                     for tag in tokens[base + j].tags:
                         for number in table.get(tag, ()):
-                            if allowed(productions[number], j):
+                            if not productions[number].conds_predict or (yield allowed(productions[number], j)):
                                 add(number, 0, j, NO_CAPS, j, SEED, strict_prediction)
                 # A range or a property matches by the token's characters.
                 table = by_first_characters[rule]
@@ -974,12 +1038,13 @@ class Parser:
                     for terminal, numbers in table.items():
                         if carries(terminal, token_tag):
                             for number in numbers:
-                                if allowed(productions[number], j):
+                                if not productions[number].conds_predict or (yield allowed(productions[number], j)):
                                     add(number, 0, j, NO_CAPS, j, SEED, strict_prediction)
 
         current = [0]
         following: list[int] = []
-        predict(start_rule, 0)
+        if begin(start_rule, 0):
+            yield from predict(start_rule, 0)
         furthest = 0
         for j in range(n + 1):
             current[0] = j
@@ -1004,9 +1069,12 @@ class Parser:
                             continue
                         if position < len(production.rhs) and not production.terminal[position]:
                             rule = production.rhs[position]
-                            predict(rule, j)  # type: ignore[arg-type]
+                            if begin(rule, j):  # type: ignore[arg-type]
+                                yield from predict(rule, j)  # type: ignore[arg-type]
                             for child in empty_done[j].get(rule, ()):  # type: ignore[arg-type]
-                                advance(item, (j, j, tag[child]), j, (item, 2, child, 0))
+                                walk = advance(item, (j, j, tag[child]), j, (item, 2, child, 0))
+                                if walk is not None:
+                                    yield walk
                         continue
                     processed[item] = True
                 if position < len(production.rhs):
@@ -1022,19 +1090,29 @@ class Parser:
                             # strict item predicts its next symbol strictly,
                             # and does not advance over an empty constituent
                             # (engine §7.4).
-                            predict(rule, j, True)  # type: ignore[arg-type]
+                            if begin(rule, j, True):  # type: ignore[arg-type]
+                                yield from predict(rule, j, True)  # type: ignore[arg-type]
                             continue
-                        predict(rule, j)  # type: ignore[arg-type]
+                        if begin(rule, j):  # type: ignore[arg-type]
+                            yield from predict(rule, j)  # type: ignore[arg-type]
                         for child in empty_done[j].get(rule, ()):  # type: ignore[arg-type]
-                            advance(item, (j, j, tag[child]), j, (item, 2, child, 0), True)
+                            walk = advance(item, (j, j, tag[child]), j, (item, 2, child, 0), True)
+                            if walk is not None:
+                                yield walk
                         continue
-                    predict(rule, j)  # type: ignore[arg-type]
+                    if begin(rule, j):  # type: ignore[arg-type]
+                        yield from predict(rule, j)  # type: ignore[arg-type]
                     for child in empty_done[j].get(rule, ()):  # type: ignore[arg-type]
-                        advance(item, (j, j, tag[child]), j, (item, 2, child, 0))
+                        walk = advance(item, (j, j, tag[child]), j, (item, 2, child, 0))
+                        if walk is not None:
+                            yield walk
                     continue
                 # A completed item: its tag set, then the items waiting for it.
                 start = origin[item]
-                tag[item] = constituent_tag(production, caps[item], start, j)
+                if production.tags_term is None:
+                    tag[item] = constituent_tag(production, caps[item])
+                else:
+                    tag[item] = yield term_tag(production, caps[item], start, j)
                 lhs = production.lhs
                 part = (start, j, tag[item])
                 if start == j:
@@ -1042,15 +1120,21 @@ class Parser:
                     if recon:
                         for waiter in list(waiting[start].get(lhs, ())):
                             if not strict[waiter]:
-                                advance(waiter, part, j, (waiter, 2, item, 0))
+                                walk = advance(waiter, part, j, (waiter, 2, item, 0))
+                                if walk is not None:
+                                    yield walk
                             elif last_reading[prod[waiter]] > dot[waiter]:
                                 # A strict item advances over an empty
                                 # constituent only where a later symbol can
                                 # read, and stays strict (engine §7.4).
-                                advance(waiter, part, j, (waiter, 2, item, 0), True)
+                                walk = advance(waiter, part, j, (waiter, 2, item, 0), True)
+                                if walk is not None:
+                                    yield walk
                         continue
                 for waiter in list(waiting[start].get(lhs, ())):
-                    advance(waiter, part, j, (waiter, 2, item, 0))
+                    walk = advance(waiter, part, j, (waiter, 2, item, 0))
+                    if walk is not None:
+                        yield walk
             if j < n:
                 sets.append({})
                 waiting.append({})
@@ -1065,7 +1149,9 @@ class Parser:
                         # characters, and never by a tag (engine §4).
                         if carries(terminal, token_tag) if characters and terminal in characters else terminal in token.tags:
                             for waiter in waiters:
-                                advance(waiter, (j, j + 1, token_tag), j + 1, (waiter, 1, j, terminal))
+                                walk = advance(waiter, (j, j + 1, token_tag), j + 1, (waiter, 1, j, terminal))
+                                if walk is not None:
+                                    yield walk
                     continue
                 for number in restorations:
                     add(number, 0, j, NO_CAPS, j + 1, (-1, RESTORE, j, productions[number].elided))
@@ -1084,7 +1170,9 @@ class Parser:
                             # (engine §7.4).
                             route = from_synthetic and dot[waiter] == 0 and productions[prod[waiter]].lhs in elidable_helpers
                             route = route and not _testing.fault("route3")
-                            advance(waiter, (j, j + 1, captured_tag), j + 1, (waiter, 1, j, terminal), route, token_tag)
+                            walk = advance(waiter, (j, j + 1, captured_tag), j + 1, (waiter, 1, j, terminal), route, token_tag)
+                            if walk is not None:
+                                yield walk
         # The last set, if the parse reached it.
         final = sets[n] if n < len(sets) else {}
         roots = [
@@ -1101,7 +1189,7 @@ class Parser:
                     continue
                 for number in numbers:
                     production = productions[number]
-                    if allowed(production, furthest):
+                    if not production.conds_predict or (yield allowed(production, furthest)):
                         written = written_symbol(terminal, production.tests[0] if production.tests else None)
                         expected.setdefault(written, set()).add(production.rule_name)
         for terminal, waiters in scanning[furthest].items():

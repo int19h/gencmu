@@ -693,6 +693,21 @@ class Robustness(unittest.TestCase):
         assert result.tree is not None
         self.assertEqual(result.tree.tags, frozenset({"a"}))
 
+    def test_a_deep_chain_of_nested_parses(self) -> None:
+        """A condition that asks a nested parse, whose own condition asks
+        another over a span one token shorter, makes a chain of nested
+        parses as long as the text. The recognizer keeps the chain on a
+        stack of its own, in recognition and in emission alike."""
+        chain = "%rule c 'a' %conditions ¬matches(after($), c)"
+        for rules in (
+            "%rule text c {'a'}\n" + chain,
+            "%rule text $x(s) %emits $ <T ∪ tags($x, c)>\n%rule s {'a'}\n" + chain,
+        ):
+            with self.subTest(rules=rules[:30]):
+                dialect = gencmu.load_dialect_sources(self.grammar(rules), "p.md", use_cache=False)
+                result = dialect.parse("a" * 3000, auto_features=False)
+                self.assertTrue(result.ok, result.error)
+
     def test_too_deeply_nested_grammar(self) -> None:
         """Nesting more than 256 deep is an error at the rule that holds it."""
         for rules in (

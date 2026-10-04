@@ -118,7 +118,7 @@ class CaptureStorage(unittest.TestCase):
         def parsing_text(self: StageContext, start: int, end: int) -> str:
             # text() parses the rest of the input again, as a condition that
             # reads a whole prefix anew would.
-            self.nested("rest", 1, len(self.tokens))
+            _trampoline.run(self.nested("rest", 1, len(self.tokens)))
             return span_text(self, start, end)
 
         def walking_find(self: Caps, slot: int) -> tuple[tuple[int, int, int], int]:
