@@ -82,12 +82,20 @@ pub(crate) mod growth {
 
     /// Asserts that `work` at 4n takes at most eight times as long as at n,
     /// with a small allowance for noise. Work that grows with the square
-    /// takes sixteen times as long.
+    /// takes sixteen times as long. Tests run side by side, so a failed
+    /// measurement is taken again twice before it counts.
     pub(crate) fn assert_linear(what: &str, n: usize, work: &mut dyn FnMut(usize)) {
         work(n);
-        let small = best(&mut || work(n));
-        let large = best(&mut || work(4 * n));
-        assert!(large <= small * 8 + Duration::from_millis(5), "{what}: {small:?} at {n}, {large:?} at {}", 4 * n);
+        let mut times = Vec::new();
+        for _ in 0..3 {
+            let small = best(&mut || work(n));
+            let large = best(&mut || work(4 * n));
+            if large <= small * 8 + Duration::from_millis(2) {
+                return;
+            }
+            times.push(format!("{small:?} at {n}, {large:?} at {}", 4 * n));
+        }
+        panic!("{what}: {}", times.join("; "));
     }
 }
 

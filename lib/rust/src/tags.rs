@@ -88,6 +88,19 @@ impl Tags {
     }
 }
 
+/// The union of many lists, gathered into one: every tag of any. Sorting
+/// once costs what the lists hold, where a fold of pairwise unions copies
+/// the growing union at each list.
+pub(crate) fn union_all<'l>(lists: impl IntoIterator<Item = &'l TagList>) -> TagList {
+    let mut out = TagList::new();
+    for list in lists {
+        out.extend_from_slice(list);
+    }
+    out.sort_unstable();
+    out.dedup();
+    out
+}
+
 /// The union of two sorted lists: every tag of either.
 pub(crate) fn union(left: &TagList, right: &TagList) -> TagList {
     let mut out = Vec::with_capacity(left.len() + right.len());

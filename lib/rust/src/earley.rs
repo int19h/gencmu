@@ -9,7 +9,9 @@ use crate::fxhash::{FxMap, FxSet};
 
 use crate::lower::{Characters, CmpOp, LCond, LTerm, Lowered, Span, Sym, SymbolTest, TestOp};
 use crate::result::Attachment;
-use crate::tags::{character_tag, difference, intersection, is_name, is_subset, union, SetId, TagId, TagList, Tags};
+use crate::tags::{
+    character_tag, difference, intersection, is_name, is_subset, union_all, SetId, TagId, TagList, Tags,
+};
 use crate::unicode::Unicode;
 use crate::witness::{self, Fault};
 use crate::work::{self, Work};
@@ -1085,8 +1087,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             return Ok(answer);
         }
         let chart = self.parse_span(tokens, base, start, end, rule)?;
-        let mut accepted = false;
-        let mut list = TagList::new();
         // The chart stops at its first empty set, which may lie before the
         // span's end. Only the items with an eligible proof tree count.
         let set = (end - start) as u32;
@@ -1099,10 +1099,15 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             .map(|&index| (set, index))
             .collect();
         let eligible = self.proofs(&chart, &tokens[start..end]).eligible(&witnesses);
-        for (&(set, index), _) in witnesses.iter().zip(&eligible).filter(|(_, &eligible)| eligible) {
-            accepted = true;
-            list = union(&list, self.shared.tags.list(chart.sets[set as usize].tagset[index as usize]));
-        }
+        let tags = &self.shared.tags;
+        let list = union_all(
+            witnesses
+                .iter()
+                .zip(&eligible)
+                .filter(|(_, &eligible)| eligible)
+                .map(|(&(set, index), _)| tags.list(chart.sets[set as usize].tagset[index as usize])),
+        );
+        let accepted = eligible.contains(&true);
         let answer = (accepted, self.shared.tags.set(list));
         self.shared.memo.insert(key, answer);
         Ok(answer)
@@ -1177,9 +1182,21 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
 
     // ---- terms and conditions
 
-    /// The canonical sound of the span (§5).
+    /// The canonical sound of the span (§5). Runs of tokens without sound
+    /// are skipped whole, as in a sound test.
     fn phonemes(&self, tokens: &[Tok], start: usize, end: usize) -> String {
-        tokens[start..end].iter().map(|token| token.sound(self.shared.unicode)).collect()
+        let mut sound = String::new();
+        let mut at = start;
+        while at < end {
+            let token = &tokens[at];
+            if token.quiet > 0 {
+                at += token.quiet as usize;
+                continue;
+            }
+            sound.push_str(token.sound(self.shared.unicode));
+            at += 1;
+        }
+        sound
     }
 
     /// The text over the source of the span's tokens (§1). The scan costs
@@ -1212,9 +1229,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 };
                 self.shared.tags.list(set).clone()
             }
-            (start, end, Whose::Tokens) => tokens[start..end]
-                .iter()
-                .fold(TagList::new(), |list, token| union(&list, self.shared.tags.list(token.tags))),
+            (start, end, Whose::Tokens) => {
+                union_all(tokens[start..end].iter().map(|token| self.shared.tags.list(token.tags)))
+            }
         })
     }
 
@@ -1248,11 +1265,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             LTerm::Range(first, last) => Value::Set(self.shared.range(*first, *last)),
             LTerm::Empty => Value::Set(TagList::new()),
             LTerm::Union(items) => {
-                let mut list = TagList::new();
+                let mut parts = Vec::with_capacity(items.len());
                 for item in items {
-                    list = union(&list, &self.set_term(item, frame, tokens, base)?);
+                    parts.push(self.set_term(item, frame, tokens, base)?);
                 }
-                Value::Set(list)
+                Value::Set(union_all(&parts))
             }
             LTerm::Inter(items) => {
                 let mut list: Option<TagList> = None;
@@ -1427,8 +1444,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::earley::{mark_quiet, matchers, sounds_like, Recognizer, Shared, Tok};
-    use crate::lower::Sym;
+    use std::cell::Cell;
+
+    use crate::earley::{mark_quiet, matchers, sounds_like, Caps, Frame, Recognizer, Shared, Tok};
+    use crate::growth::assert_linear;
+    use crate::lower::{LTerm, Span, Sym};
 
     thread_local! {
         /// How many tokens the sound tests on this thread have stepped to.
@@ -1465,6 +1485,60 @@ mod tests {
             let steps = SOUND_STEPS.with(|steps| steps.get());
             assert!(steps <= 8 * n as u64, "{steps} steps for {n} tokens");
         }
+    }
+
+    /// A union of many tags, and the tags of a span of many tokens, each
+    /// with a tag of its own, cost about what they hold, not the square.
+    #[test]
+    fn unions_of_many_parts_cost_their_size() {
+        let sources = [
+            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'\n```\n".to_string()),
+            ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
+        ];
+        let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
+        let g = dialect.lowered_stage(0);
+        let chars: Vec<char> = Vec::new();
+        // The tokens and the terms are made apart, so that only their
+        // evaluation is timed.
+        let mut made: Vec<_> = [10_000usize, 40_000]
+            .into_iter()
+            .map(|n| {
+                let mut shared = Shared::new(&dialect.unicode, &chars);
+                // Names that differ in their first bytes, which the table's
+                // hash spreads best.
+                let names: Vec<String> = (0..n).map(|index| format!("{index}t")).collect();
+                let tokens: Vec<Tok> = names
+                    .iter()
+                    .map(|name| Tok {
+                        text: "x".to_string(),
+                        tags: shared.tags.set_of([name.as_str()]),
+                        phonemes: None,
+                        source: (0, 0),
+                        label: "x".to_string(),
+                        sound: Default::default(),
+                        quiet: 0,
+                        before: Vec::new(),
+                        after: Vec::new(),
+                    })
+                    .collect();
+                let tail = LTerm::Tags(Span::Tail(Box::new(Span::Whole)));
+                let union = LTerm::Union(names.iter().map(|name| LTerm::Tag(name.clone())).collect());
+                (n, shared, tokens, [tail, union])
+            })
+            .collect();
+        assert_linear("unions", 10_000, &mut |n| {
+            let (_, shared, tokens, terms) = made.iter_mut().find(|made| made.0 == n).expect("made");
+            let matchers = matchers(&g, &mut shared.tags);
+            let mut recognizer = Recognizer { g: &g, matchers: &matchers, shared, recon: None };
+            let frame =
+                Frame { caps: Caps::All(&[]), prod: 0, origin: 0, end: n as u32, tags: Cell::new(None), project: None };
+            for _ in 0..20 {
+                for term in terms.iter() {
+                    let list = recognizer.set_term(term, &frame, tokens, 0).expect("a set");
+                    assert!(list.len() + 1 >= n, "{} tags of {n}", list.len());
+                }
+            }
+        });
     }
 
     /// The completed items of the production of `t` with two symbols, over
