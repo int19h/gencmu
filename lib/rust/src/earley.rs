@@ -1762,9 +1762,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// A query's answer from the memo. One not yet known halts the
     /// evaluation, which waits for it in `Task::Await`.
     #[allow(clippy::too_many_arguments)]
-    fn query<'n, 't>(
+    fn query<'t>(
         &mut self,
-        eval: &mut Eval<'n>,
+        eval: &mut Eval<'_>,
         span: &Span,
         rule: u32,
         query: Query,

@@ -115,6 +115,126 @@ export declare const DOM_FALSE: Readonly<{
  * @returns {any}
  */
 export declare function simplify(node: any, has: (name: string) => boolean): any;
+export type PreparedClause = {
+    /**
+     * how the parts join, or
+     * null for a clause alone
+     */
+    join: "union" | "all" | "any" | null;
+    parts: any[];
+    /**
+     * whether the parts are the conditions of a list,
+     * each of which is prepared in turn
+     */
+    list: boolean;
+    /**
+     * the parts that every production keeps, in
+     * order: those that test no presence and do not vanish, and the others
+     */
+    fixed: number[];
+    /**
+     * each part's simplified value,
+     * where it is the same for every production that keeps it
+     */
+    values: (any | undefined)[];
+    /**
+     * the parts that a production
+     * keeps only if it has a capture, by that capture, each list in order
+     */
+    guards: Map<string, number[]>;
+    /**
+     * for a guarded clause alone, its value for a
+     * production without the capture
+     */
+    absent: any;
+    /**
+     * for a ∨, whether a part true for every
+     * production makes it true
+     */
+    decided: boolean;
+    /**
+     * for a ∨, whether a guarded part is true
+     * where its capture is present
+     */
+    guardedTrue: boolean;
+};
+export type CaptureNames = {
+    size: number;
+    keys(): Iterable<string>;
+};
+/**
+ * A clause prepared for the productions of its definition, once for each
+ * clause.
+ * @param {any} node a condition or a term
+ * @returns {PreparedClause}
+ */
+export declare function prepareClause(node: any): PreparedClause;
+/**
+ * A list of conditions prepared for the productions of its definition,
+ * once for each list. A condition false for a production removes it, and
+ * one true is dropped, as the items of an ∧ are. A condition that uses a
+ * capture the production lacks is left out, which the caller would drop.
+ * @param {any[]} conditions
+ * @returns {PreparedClause}
+ */
+export declare function prepareConditions(conditions: any[]): PreparedClause;
+/**
+ * The indexes of the parts kept for a production, in order: those every
+ * production keeps, and those under the captures it has.
+ * @param {number[]} fixed
+ * @param {Map<string, number[]>} guards
+ * @param {(name: string) => boolean} has
+ * @param {CaptureNames} names
+ * @returns {number[]}
+ */
+export declare function keptIndexes(fixed: number[], guards: Map<string, number[]>, has: (name: string) => boolean, names: CaptureNames): number[];
+/**
+ * The values of a prepared clause's parts that a production keeps, in
+ * order: each simplified, without those its join drops.
+ * @param {PreparedClause} prepared
+ * @param {(name: string) => boolean} has
+ * @param {CaptureNames} names
+ * @returns {any[]}
+ */
+export declare function partsFor(prepared: PreparedClause, has: (name: string) => boolean, names: CaptureNames): any[];
+/**
+ * A prepared clause simplified for a production, the same as simplify
+ * gives (engine §3.6).
+ * @param {PreparedClause} prepared
+ * @param {(name: string) => boolean} has
+ * @param {CaptureNames} names
+ * @returns {any}
+ */
+export declare function simplifyFor(prepared: PreparedClause, has: (name: string) => boolean, names: CaptureNames): any;
+export type EmissionIndex = {
+    fixed: number[];
+    carriers: Map<string, number[]>;
+    attached: Map<string, number[]>;
+};
+/**
+ * The index of an emission's items, once for each list of items.
+ * @param {any[]} items
+ * @returns {EmissionIndex}
+ */
+export declare function emissionIndex(items: any[]): EmissionIndex;
+/**
+ * The indexes of the emission items that a production keeps, in order:
+ * those whose carrier it has, and those with none (engine §3.6).
+ * @param {any[]} items
+ * @param {(name: string) => boolean} has
+ * @param {CaptureNames} names
+ * @returns {number[]}
+ */
+export declare function presentItems(items: any[], has: (name: string) => boolean, names: CaptureNames): number[];
+/**
+ * The first emission item, in order, whose carrier a production lacks but
+ * one of whose attachments it has (engine §9), or -1.
+ * @param {any[]} items
+ * @param {(name: string) => boolean} has
+ * @param {CaptureNames} names
+ * @returns {number}
+ */
+export declare function strayAttachment(items: any[], has: (name: string) => boolean, names: CaptureNames): number;
 /**
  * The captures a clause uses as values or spans, presence tests aside.
  * @param {unknown} node

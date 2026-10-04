@@ -1827,7 +1827,8 @@ mod tests {
             // lowering cannot change an error of the check.
             let lowering = [Mutant::LowerEachPart, Mutant::FixedUnindexed, Mutant::LowerItemsByScan];
             let checking = [Mutant::CheckEachPart, Mutant::AppliesByScan, Mutant::CheckItemsByScan];
-            let mutants = if split.starts_with("error") { &checking[..] } else { &[checking, lowering].concat()[..] };
+            let both = [checking, lowering].concat();
+            let mutants = if split.starts_with("error") { &checking[..] } else { &both[..] };
             for &mutant in mutants {
                 let _mutation = crate::work::Mutation::on(mutant);
                 assert_eq!(loaded(&grammar), split, "{mutant:?}\n{grammar}");
