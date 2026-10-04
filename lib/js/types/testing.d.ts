@@ -142,6 +142,11 @@ export type WorkCounts = {
      */
     groups: number;
     /**
+     * the steps, edges, dependencies and rules
+     * of a context that a traversal of a forest for a ranking reads
+     */
+    traversal: number;
+    /**
      * the names, stages and documents that a splice
      * of a pipeline checks or copies
      */
@@ -157,7 +162,7 @@ export type WorkCounts = {
      */
     budget?: Partial<Record<WorkKind, number>>;
 };
-export type WorkKind = "items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "splice" | "text";
+export type WorkKind = "items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text";
 /**
  * What the check of engine §7 hands its test hook.
  * @typedef {object} ElisionCheckRun
@@ -225,6 +230,8 @@ export type WorkKind = "items" | "checks" | "scanned" | "candidates" | "captures
  *   nodes of the expressions that the audit walks
  * @property {number} groups the items, edges, rules and arcs that the
  *   grouping of rules for the cycle context of a ranking reads
+ * @property {number} traversal the steps, edges, dependencies and rules
+ *   of a context that a traversal of a forest for a ranking reads
  * @property {number} splice the names, stages and documents that a splice
  *   of a pipeline checks or copies
  * @property {number} text the characters, words, lines and cells that the
@@ -232,7 +239,7 @@ export type WorkKind = "items" | "checks" | "scanned" | "candidates" | "captures
  * @property {Partial<Record<WorkKind, number>>} [budget] the most of each
  *   count that the work may reach
  */
-/** @typedef {"items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "splice" | "text"} WorkKind */
+/** @typedef {"items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
 /** @type {readonly WorkKind[]} */
 export declare const WORK_KINDS: readonly WorkKind[];
 /**

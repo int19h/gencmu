@@ -176,6 +176,8 @@
    *   nodes of the expressions that the audit walks
    * @property {number} groups the items, edges, rules and arcs that the
    *   grouping of rules for the cycle context of a ranking reads
+   * @property {number} traversal the steps, edges, dependencies and rules
+   *   of a context that a traversal of a forest for a ranking reads
    * @property {number} splice the names, stages and documents that a splice
    *   of a pipeline checks or copies
    * @property {number} text the characters, words, lines and cells that the
@@ -184,10 +186,10 @@
    *   count that the work may reach
    */
 
-  /** @typedef {"items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "splice" | "text"} WorkKind */
+  /** @typedef {"items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
 
   /** @type {readonly WorkKind[]} */
-  const WORK_KINDS = ["items", "checks", "scanned", "candidates", "captures", "captureSteps", "captureLookups", "edgeChecks", "conditions", "visits", "soundSteps", "tags", "implications", "walkSteps", "lowering", "closures", "clauses", "groups", "splice", "text"];
+  const WORK_KINDS = ["items", "checks", "scanned", "candidates", "captures", "captureSteps", "captureLookups", "edgeChecks", "conditions", "visits", "soundSteps", "tags", "implications", "walkSteps", "lowering", "closures", "clauses", "groups", "traversal", "splice", "text"];
 
   /**
    * Counts of every kind at zero, for a test to set as `hooks.work`.
@@ -8998,6 +9000,7 @@
         /** @type {Item[]} */
         const result = [];
         for (const edge of edgesOf ? edgesOf(item, key) : item.edges) {
+          if (hooks.work) countWork(hooks.work, "traversal");
           if (edge.kind === "scan") result.push(edge.previous);
           else if (edge.kind === "complete") result.push(edge.previous, edge.child);
         }
@@ -9042,14 +9045,23 @@
         if (own === undefined) return EMPTY_CONTEXT;
         /** @type {TraversalContext} */
         const context = new Set();
-        for (const key of frame.context) if (group(key.slice(1)) === own) context.add(key);
+        for (const key of frame.context) {
+          if (hooks.work) countWork(hooks.work, "traversal");
+          if (group(key.slice(1)) === own) context.add(key);
+        }
         if (complete(frame.item) && group(frame.item.production.lhs) === own) context.add(ruleKey(frame.item));
         return context.size === 0 ? EMPTY_CONTEXT : context;
       };
       /** @type {(context: TraversalContext) => string} */
       const contextKey = (context) => {
         if (context.size === 0) return "";
-        return [...context].sort().join("\u0001");
+        /** @type {string[]} */
+        const keys = [];
+        for (const key of context) {
+          if (hooks.work) countWork(hooks.work, "traversal");
+          keys.push(key);
+        }
+        return keys.sort().join("\u0001");
       };
       /**
        * @typedef {object} Frame
@@ -9070,7 +9082,11 @@
         if (stack.length === 0) answer = value;
         else stack[stack.length - 1].results.set(done.item, value);
       };
+      // Each step of a frame, edge, dependency and rule of a context counts
+      // before it is read, so that a walk of what was already done for each
+      // new item fails its budget.
       while (stack.length > 0) {
+        if (hooks.work) countWork(hooks.work, "traversal");
         const frame = stack[stack.length - 1];
         if (!frame.started) {
           if (complete(frame.item) && frame.context.has(ruleKey(frame.item))) {
@@ -9089,6 +9105,7 @@
         let pushed = false;
         const pending = /** @type {Item[]} */ (frame.pending);
         for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+          if (hooks.work) countWork(hooks.work, "traversal");
           if (frame.results.has(next)) continue;
           stack.push({ item: next, context: contextBelow(frame, next), results: new Map(), started: false });
           pushed = true;
