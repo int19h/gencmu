@@ -1,6 +1,6 @@
 {
   "description": "In a right chain, r → x s r, a terminator elided at the start of the separator follows the item, whose node is its constituent. Here a could be longer, so maximal forbids the elided T, and the text is rejected (engine §3.3, §4).",
-  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T\n%rule text c\n%rule c {a ... \\ [T] s}\n%rule a A | A B\n%rule s B S",
+  "grammar": "%ambiguity-resolution greedy maximal\n%rule text c\n%rule c {a ... \\ [+T] s}\n%rule a A | A B\n%rule s B S",
   "tokens": [
     {
       "text": "a",

@@ -1,0 +1,89 @@
+{
+  "description": "Twin of capture-in-choice.json: on b c, the production B C has no $a, so it emits $c alone (engine §3.5, §11).",
+  "grammar": "%rule text ($a(A) | B) $c(C)\n%emits $a, $c",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "c",
+              "phonemes": "",
+              "label": "c",
+              "tags": [
+                "C"
+              ],
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                2,
+                3
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          2
+        ],
+        "source": [
+          0,
+          3
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "B",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "C",
+            "token": 1,
+            "span": [
+              1,
+              2
+            ],
+            "source": [
+              2,
+              3
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "(b c)"
+  }
+}

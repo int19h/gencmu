@@ -1,0 +1,114 @@
+{
+  "description": "Nested plain optionals that hold a capture expand in place: [A [$c(B)]] gives ε, A and A B, productions 0 to 2, so the tie on a names the production A, number 1, and text → A, number 3 (engine §3.2, Numbering).",
+  "grammar": "%rule text [A [$c(B)]] | A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie",
+          "witness": [
+            {
+              "close": {
+                "rule": "text",
+                "production": 1,
+                "span": [
+                  0,
+                  1
+                ]
+              }
+            },
+            {
+              "close": {
+                "rule": "text",
+                "production": 3,
+                "span": [
+                  0,
+                  1
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [
+              "A"
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [
+              "A"
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              }
+            ]
+          }
+        ],
+        "message": "the main stage's text has two best readings, a tie"
+      }
+    },
+    "error": "ambiguous"
+  }
+}

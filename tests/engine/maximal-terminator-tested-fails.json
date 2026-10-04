@@ -1,6 +1,6 @@
 {
   "description": "A longer candidate counts only if the constituent's test holds of it. y⊇~p before [T] reads y → A with the tag p. The longer y → A B has the tag q, so the test fails of it, the omission is permitted, and begins of r holds (engine §4).",
-  "grammar": "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text A B\n%conditions begins(from($), r)\n%rule r y⊇~p [T] B\n%rule y A <~p> | A B <~q>",
+  "grammar": "%ambiguity-resolution greedy\n%rule text A B\n%conditions begins(from($), r)\n%rule r y⊇~p [++T] B\n%rule y A <~p> | A B <~q>",
   "tokens": [
     {
       "text": "a",

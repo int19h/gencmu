@@ -1,6 +1,6 @@
 {
   "description": "With KU elidable, text → [[KU]] derives the empty input in two ways: the outer helper is empty, or the inner one is and elides KU. Greedy sees no visible difference, so they tie (engine §6).",
-  "grammar": "%elidable KU\n%rule text [[KU]]",
+  "grammar": "%rule text [[+KU]]",
   "tokens": [],
   "expect": {
     "result": {

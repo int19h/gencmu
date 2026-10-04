@@ -1,0 +1,1836 @@
+{
+  "description": "Twin of captures-256.json with 257 captures, where only the last fails its condition, so the text is rejected (engine §3.5).",
+  "grammar": "%rule text $c0(A) $c1(A) $c2(A) $c3(A) $c4(A) $c5(A) $c6(A) $c7(A) $c8(A) $c9(A) $c10(A) $c11(A) $c12(A) $c13(A) $c14(A) $c15(A) $c16(A) $c17(A) $c18(A) $c19(A) $c20(A) $c21(A) $c22(A) $c23(A) $c24(A) $c25(A) $c26(A) $c27(A) $c28(A) $c29(A) $c30(A) $c31(A) $c32(A) $c33(A) $c34(A) $c35(A) $c36(A) $c37(A) $c38(A) $c39(A) $c40(A) $c41(A) $c42(A) $c43(A) $c44(A) $c45(A) $c46(A) $c47(A) $c48(A) $c49(A) $c50(A) $c51(A) $c52(A) $c53(A) $c54(A) $c55(A) $c56(A) $c57(A) $c58(A) $c59(A) $c60(A) $c61(A) $c62(A) $c63(A) $c64(A) $c65(A) $c66(A) $c67(A) $c68(A) $c69(A) $c70(A) $c71(A) $c72(A) $c73(A) $c74(A) $c75(A) $c76(A) $c77(A) $c78(A) $c79(A) $c80(A) $c81(A) $c82(A) $c83(A) $c84(A) $c85(A) $c86(A) $c87(A) $c88(A) $c89(A) $c90(A) $c91(A) $c92(A) $c93(A) $c94(A) $c95(A) $c96(A) $c97(A) $c98(A) $c99(A) $c100(A) $c101(A) $c102(A) $c103(A) $c104(A) $c105(A) $c106(A) $c107(A) $c108(A) $c109(A) $c110(A) $c111(A) $c112(A) $c113(A) $c114(A) $c115(A) $c116(A) $c117(A) $c118(A) $c119(A) $c120(A) $c121(A) $c122(A) $c123(A) $c124(A) $c125(A) $c126(A) $c127(A) $c128(A) $c129(A) $c130(A) $c131(A) $c132(A) $c133(A) $c134(A) $c135(A) $c136(A) $c137(A) $c138(A) $c139(A) $c140(A) $c141(A) $c142(A) $c143(A) $c144(A) $c145(A) $c146(A) $c147(A) $c148(A) $c149(A) $c150(A) $c151(A) $c152(A) $c153(A) $c154(A) $c155(A) $c156(A) $c157(A) $c158(A) $c159(A) $c160(A) $c161(A) $c162(A) $c163(A) $c164(A) $c165(A) $c166(A) $c167(A) $c168(A) $c169(A) $c170(A) $c171(A) $c172(A) $c173(A) $c174(A) $c175(A) $c176(A) $c177(A) $c178(A) $c179(A) $c180(A) $c181(A) $c182(A) $c183(A) $c184(A) $c185(A) $c186(A) $c187(A) $c188(A) $c189(A) $c190(A) $c191(A) $c192(A) $c193(A) $c194(A) $c195(A) $c196(A) $c197(A) $c198(A) $c199(A) $c200(A) $c201(A) $c202(A) $c203(A) $c204(A) $c205(A) $c206(A) $c207(A) $c208(A) $c209(A) $c210(A) $c211(A) $c212(A) $c213(A) $c214(A) $c215(A) $c216(A) $c217(A) $c218(A) $c219(A) $c220(A) $c221(A) $c222(A) $c223(A) $c224(A) $c225(A) $c226(A) $c227(A) $c228(A) $c229(A) $c230(A) $c231(A) $c232(A) $c233(A) $c234(A) $c235(A) $c236(A) $c237(A) $c238(A) $c239(A) $c240(A) $c241(A) $c242(A) $c243(A) $c244(A) $c245(A) $c246(A) $c247(A) $c248(A) $c249(A) $c250(A) $c251(A) $c252(A) $c253(A) $c254(A) $c255(e) $c256(A)\n%tags tags($c256)\n%conditions text($c256) = \"a\"\n%emits ($c255) $c256 <~L>\n%rule e A\n%emits $ <~M>",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 256,
+        "source": [
+          512,
+          513
+        ],
+        "line": 1,
+        "column": 513,
+        "expected": [
+          {
+            "terminal": "A",
+            "rules": [
+              "text"
+            ]
+          }
+        ],
+        "message": "the main stage could not continue at token 256; expected A"
+      }
+    },
+    "error": "rejected"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "description": "A name in two choices is an error at the second, since the production A C reads both (engine §9).",
+  "document": "```jbogenbau\n%rule a ($x(A) | B) ($x(C) | D)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 22
+    }
+  }
+}

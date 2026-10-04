@@ -1,6 +1,6 @@
 {
   "description": "maximal forbids an elided terminator whose constituent could have been longer, though the longer one does not fit into a parse of text (engine §4): y could have been a b. The rejection is at the forbidden terminator, which is the one terminal expected there.",
-  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T\n%rule text x B C\n%rule x y [T]\n%rule y A | A B",
+  "grammar": "%ambiguity-resolution greedy maximal\n%rule text x B C\n%rule x y [+T]\n%rule y A | A B",
   "tokens": [
     {
       "text": "a",

@@ -1,6 +1,6 @@
 {
   "description": "A written T is an original token. The written route of [T B] reads it and its suffix as in the main parse, so the chosen a survives, and the check passes (engine §7.4).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a A [T B]\n%rule b A [T B] [T B]\n%rule c A T",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a A [+T B]\n%rule b A [+T B] [+T B]\n%rule c A T",
   "tokens": [
     {
       "text": "a",

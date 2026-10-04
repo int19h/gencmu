@@ -1,6 +1,6 @@
 {
   "description": "The observer in `text(last($)) = \"b\"` reads the original input through the span projection. The chosen a elides T at 0 and at 2, so the reconstructed input is T A B T, and c reads both synthetic T as bare terminals. a survives only if last($) is the original B token; then a and c are two readings. Read over the reconstructed tokens, last($) is the trailing synthetic, whose text is empty, a is lost, and c alone would pass (engine §7.5).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a [T=\"ta\"] $x(pair) [T=\"ta\"]\n%conditions text(last($)) = \"b\"\n%rule b [T=\"ta\"] [T=\"ta\"] pair [T=\"ta\"]\n%rule c T=\"ta\" pair T=\"ta\"\n%rule pair A B\n%rule term T",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a [+T=\"ta\"] $x(pair) [+T=\"ta\"]\n%conditions text(last($)) = \"b\"\n%rule b [+T=\"ta\"] [+T=\"ta\"] pair [+T=\"ta\"]\n%rule c T=\"ta\" pair T=\"ta\"\n%rule pair A B\n%rule term T",
   "tokens": [
     {
       "text": "a",

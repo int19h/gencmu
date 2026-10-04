@@ -1,0 +1,10 @@
+{
+  "description": "A | that joins the terminator of a marked optional to something else is an error at the [ (engine §9).",
+  "document": "```jbogenbau\n%rule a [+KU | VAU]\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

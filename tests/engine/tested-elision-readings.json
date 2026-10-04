@@ -1,6 +1,6 @@
 {
   "description": "The ambiguity that restored terminators leave is still found when the terminator has an = test: the synthetic token of a restored KU=\"ku\" sounds ku, so it matches its own terminator (engine §3.8, §7). The readings show the elided nodes as for a terminator without a test.",
-  "grammar": "%ambiguity-resolution greedy elision-only\n%elidable KU\n%rule text s [KU=\"ku\"] | s B [KU=\"ku\"]\n%rule s A [B]",
+  "grammar": "%ambiguity-resolution greedy elision-only\n%rule text s [+KU=\"ku\"] | s B [+KU=\"ku\"]\n%rule s A [B]",
   "tokens": [
     {
       "text": "a",

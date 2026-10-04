@@ -1,6 +1,6 @@
 {
   "description": "Only the constituent matters, not what follows the elided terminator in its production: the empty [D] after T changes nothing (engine §4).",
-  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T\n%rule text x B C\n%rule x y [T] [D]\n%rule y A | A B",
+  "grammar": "%ambiguity-resolution greedy maximal\n%rule text x B C\n%rule x y [+T] [D]\n%rule y A | A B",
   "tokens": [
     {
       "text": "a",

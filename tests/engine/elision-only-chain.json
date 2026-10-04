@@ -1,6 +1,6 @@
 {
   "description": "The check of elision-only over a chain whose levels each elide a terminator keeps the witness of its chosen derivation (engine §3.3, §7.8).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable KU\n%rule text c [N]\n%rule c {... d \\ J}\n%rule d L {N} [KU]",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text c [N]\n%rule c {... d \\ J}\n%rule d L {N} [+KU]",
   "tokens": [
     {
       "text": "l",

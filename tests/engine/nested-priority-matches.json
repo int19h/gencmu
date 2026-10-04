@@ -1,6 +1,6 @@
 {
   "description": "matches follows written-terminator priority as begins does. On A B T, r could leave out [T] and read the token as its last T, but the prefix before c can read c and then T as the optional. So the omission is forbidden, and matches of r over the whole text is false (engine §4).",
-  "grammar": "%elidable T\n%rule text A B T\n%conditions matches($, r)\n%rule r A c [T] T\n%rule c B",
+  "grammar": "%rule text A B T\n%conditions matches($, r)\n%rule r A c [+T] T\n%rule c B",
   "tokens": [
     {
       "text": "a",

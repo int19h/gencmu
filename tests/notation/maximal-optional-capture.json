@@ -1,0 +1,10 @@
+{
+  "description": "A capture inside an optional marked ++ is an error at the capture (engine §9).",
+  "document": "```jbogenbau\n%rule a [++TOI ($c(A))]\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 17
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "description": "A tag term that uses a capture that one production lacks is an error of the document: A [$b(B)] with %tags tags($b), unguarded, since the production A lacks $b (engine §3.6, §9).",
+  "grammar": "%rule text A [$b(B)]\n%tags tags($b)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

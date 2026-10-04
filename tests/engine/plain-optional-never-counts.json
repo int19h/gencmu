@@ -1,0 +1,144 @@
+{
+  "description": "An absent plain optional counts nothing under late-elision, also where another optional marks its terminal: x with [KU] and y with nothing tie, while z with [+KU] loses (engine §3.8, §6).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text x | y | z\n%rule x A [KU]\n%rule y A\n%rule z A [+KU] B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie",
+          "witness": [
+            {
+              "close": {
+                "rule": "y",
+                "production": 6,
+                "span": [
+                  0,
+                  1
+                ]
+              }
+            },
+            {
+              "close": {
+                "rule": "x",
+                "production": 4,
+                "span": [
+                  1,
+                  1
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [
+              "A"
+            ],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "y",
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": [
+                  "A"
+                ],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "x",
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "message": "the main stage's text has two best readings, a tie"
+      }
+    },
+    "error": "ambiguous"
+  }
+}

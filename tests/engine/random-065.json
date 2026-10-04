@@ -1,6 +1,6 @@
 {
   "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 2 derivations.",
-  "grammar": "%ambiguity-resolution lazy\n%elidable T\n%rule text ε | T B | [T u]\n%rule t ε | v\n%rule u T T | t [T] A\n%rule v {v ... \\ B}",
+  "grammar": "%ambiguity-resolution lazy\n%rule text ε | T B | [+T u]\n%rule t ε | v\n%rule u T T | t [+T] A\n%rule v {v ... \\ B}",
   "tokens": [],
   "expect": {
     "result": {

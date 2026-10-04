@@ -1,6 +1,6 @@
 {
-  "description": "An = test on a rule reference makes it no elidable terminal, even where %elidable names an identifier tag that shares the rule's name. An absent [x=\"\"] is no elided node, while an absent [~x] is one (engine §2, §3.8).",
-  "grammar": "%elidable ~x\n%rule text [x=\"\"] [~x] B\n%rule x A",
+  "description": "An = test on a rule reference makes a plain optional, never an elidable one, whatever a marker on a terminal of the same name says. An absent [x=\"\"] is no elided node, while an absent [+~x] is one (engine §2, §3.8).",
+  "grammar": "%rule text [x=\"\"] [+~x] B\n%rule x A",
   "tokens": [
     {
       "text": "b",

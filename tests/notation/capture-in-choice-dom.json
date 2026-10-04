@@ -1,0 +1,102 @@
+{
+  "description": "A capture can stand in a choice, and two branches can capture one name, since no production reads both (engine §3.5, §9).",
+  "document": "```jbogenbau\n%rule a ($a(A) | B)\n%rule b A ($x(B) | $x(C))\n%rule c ($x(A) | $x(B) [C]) D\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "a",
+          "alternatives": [
+            {
+              "expr": {
+                "choice": [
+                  {
+                    "capture": "a",
+                    "expr": {
+                      "ref": "A"
+                    }
+                  },
+                  {
+                    "ref": "B"
+                  }
+                ]
+              }
+            }
+          ],
+          "conditions": []
+        },
+        {
+          "name": "b",
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "ref": "A"
+                  },
+                  {
+                    "choice": [
+                      {
+                        "capture": "x",
+                        "expr": {
+                          "ref": "B"
+                        }
+                      },
+                      {
+                        "capture": "x",
+                        "expr": {
+                          "ref": "C"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "conditions": []
+        },
+        {
+          "name": "c",
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "choice": [
+                      {
+                        "capture": "x",
+                        "expr": {
+                          "ref": "A"
+                        }
+                      },
+                      {
+                        "seq": [
+                          {
+                            "capture": "x",
+                            "expr": {
+                              "ref": "B"
+                            }
+                          },
+                          {
+                            "optional": {
+                              "ref": "C"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "ref": "D"
+                  }
+                ]
+              }
+            }
+          ],
+          "conditions": []
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,193 @@
+{
+  "description": "The check reads the restored text a KU c. w → [$y(KU)] C reads the synthetic KU as a bare terminal, through a capturing plain optional, so the condition $y holds there, and the text is ambiguous for elision-only. In that reading the synthetic token is an elided node, and $y has empty text and no tags (engine §7.4, §7.5).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text s [+KU] C | y | s w\n%rule y [+VAU] A C\n%rule s A\n%rule w [$y(KU)] C\n%tags $y ⟹ tags($y)\n%conditions $y",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "elision-only",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              2
+            ],
+            "source": [
+              0,
+              3
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "s",
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": [
+                  "A"
+                ],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "elided",
+                "terminal": "KU",
+                "span": [
+                  1,
+                  1
+                ],
+                "source": [
+                  1,
+                  1
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "C",
+                "token": 1,
+                "span": [
+                  1,
+                  2
+                ],
+                "source": [
+                  2,
+                  3
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              2
+            ],
+            "source": [
+              0,
+              3
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "s",
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": [
+                  "A"
+                ],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "rule",
+                "rule": "w",
+                "span": [
+                  1,
+                  2
+                ],
+                "source": [
+                  2,
+                  3
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "elided",
+                    "terminal": "KU",
+                    "span": [
+                      1,
+                      1
+                    ],
+                    "source": [
+                      1,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "C",
+                    "token": 1,
+                    "span": [
+                      1,
+                      2
+                    ],
+                    "source": [
+                      2,
+                      3
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "message": "the main stage's text is ambiguous with every elided terminator written out"
+      }
+    },
+    "error": "ambiguous"
+  }
+}

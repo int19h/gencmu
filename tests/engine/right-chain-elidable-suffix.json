@@ -1,6 +1,6 @@
 {
   "description": "A right chain has no optional, so it elides nothing: text → r | A with r → {A ... \\ S} reads a in two ways that elide nothing, a tie under late-elision (engine §3.3, §6).",
-  "grammar": "%ambiguity-resolution late-elision\n%elidable S\n%rule text r | A\n%rule r {A ... \\ S}",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text r | A\n%rule r {A ... \\ S}",
   "tokens": [
     {
       "text": "a",

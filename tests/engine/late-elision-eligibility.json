@@ -1,6 +1,6 @@
 {
   "description": "Under maximal, a summary is kept per eligibility. The least prefix before [T] over all edges uses y → A A and elides nothing, but maximal forbids T after it, since y → A A B ends later. The only derivation that counts reads [A] and then y → A [U]. A forest of the least edges over all derivations would lose it (engine §4, §6).",
-  "grammar": "%ambiguity-resolution late-elision maximal\n%elidable T U\n%rule text [A] y [T] B\n%rule y A A | A A B | A [U]",
+  "grammar": "%ambiguity-resolution late-elision maximal\n%rule text [A] y [+T] B\n%rule y A A | A A B | A [+U]",
   "tokens": [
     {
       "text": "a",

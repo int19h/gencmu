@@ -1,6 +1,6 @@
 {
   "description": "The check of elision-only writes back the S that the optional suffix [S r] elides, and y then reads the restored text as well as r, so the text is ambiguous (engine §3.8, §7).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable S K\n%rule text r | x | y\n%rule x [K] A\n%rule y A S\n%rule r A [S r]",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text r | x | y\n%rule x [+K] A\n%rule y A S\n%rule r A [+S r]",
   "tokens": [
     {
       "text": "a",

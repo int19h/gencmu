@@ -1,6 +1,6 @@
 {
   "description": "The two readings of an error of elision-only can be equal trees, and the witness tells them apart. Under late-elision, a with one elided T beats b with two, so R is A T B. a restores its [T]. Its second alternative, A T B, reads the synthetic T as a bare terminal. Both readings map to the same tree over the stage's input, with T as an elided node. The witness names their first visible difference: they close a with two different productions (engine §7.10, docs/output.md).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b\n%rule a A [T] B | A T B\n%rule b A [T] [T] B",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b\n%rule a A [+T] B | A T B\n%rule b A [+T] [+T] B",
   "tokens": [
     {
       "text": "a",

@@ -1,6 +1,6 @@
 {
   "description": "A maximal terminator elided after the first symbol of a left-recursive production, the rule itself, has no constituent, so maximality forbids nothing there, though the longer x exists (engine §4).",
-  "grammar": "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text x\n%rule x A | x [T] B",
+  "grammar": "%ambiguity-resolution greedy\n%rule text x\n%rule x A | x [++T] B",
   "tokens": [
     {
       "text": "a",

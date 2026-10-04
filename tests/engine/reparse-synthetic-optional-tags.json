@@ -1,6 +1,6 @@
 {
   "description": "A restoration has the tags of the empty production that it stands for, which are none. So helper, a unary rule over the restored optional, has no tags, and zero survives. A synthetic token gives a constituent no tag (engine §3.7, §7.4).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text A zero | A b | A c\n%rule zero $x(helper)\n%conditions tags($x) = ∅\n%rule helper [T]\n%rule b [T] [T]\n%rule c T",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text A zero | A b | A c\n%rule zero $x(helper)\n%conditions tags($x) = ∅\n%rule helper [+T]\n%rule b [+T] [+T]\n%rule c T",
   "tokens": [
     {
       "text": "a",

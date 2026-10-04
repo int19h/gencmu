@@ -1,6 +1,6 @@
 {
   "description": "Twin of optional-suffix-elision-only.json with the right chain {A ... \\ S}: the chosen r elides nothing, so the check has nothing to write back, and the text stays resolved (engine §3.3, §7).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable S K\n%rule text r | x | y\n%rule x [K] A\n%rule y A S\n%rule r {A ... \\ S}",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text r | x | y\n%rule x [+K] A\n%rule y A S\n%rule r {A ... \\ S}",
   "tokens": [
     {
       "text": "a",

@@ -1,0 +1,20 @@
+{
+  "description": "Twin of capture-name-gated-duplicate.json with f on: the same error of the document (engine §3.5, §9).",
+  "grammar": "%rule text f? [$x(A)] $x(B) | C",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "f"
+    ]
+  },
+  "expect": {
+    "error": "grammar"
+  }
+}

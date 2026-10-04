@@ -1,6 +1,6 @@
 {
   "description": "Two complete items of text span the input, since their captured parts have different tag sets. The one tagged P elides T at 1, and the one tagged Q elides nothing. The root combines both, so the input is resolved, through Q (engine §4, §6).",
-  "grammar": "%ambiguity-resolution late-elision\n%elidable T\n%rule text $x(a)\n%rule a A [T] <P> | A <Q>",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text $x(a)\n%rule a A [+T] <P> | A <Q>",
   "tokens": [
     {
       "text": "a",

@@ -1,0 +1,10 @@
+{
+  "description": "Nested groups at the head of a marked optional are an error at the [ (engine §9).",
+  "document": "```jbogenbau\n%rule a [+((KU)) #]\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

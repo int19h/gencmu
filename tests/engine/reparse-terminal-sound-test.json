@@ -1,6 +1,6 @@
 {
   "description": "A terminal test reads the token that the terminal reads. T=\"ta\" holds of the synthetic, whose saved sound is ta, so c is a second reading. Compare reparse-reference-sound-test (engine §7.5).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T U\n%rule text a | b | c\n%rule a A [T=\"ta\"]\n%rule b A [T=\"ta\"] [U]\n%rule c A T=\"ta\"",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a A [+T=\"ta\"]\n%rule b A [+T=\"ta\"] [+U]\n%rule c A T=\"ta\"",
   "tokens": [
     {
       "text": "a",

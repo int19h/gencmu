@@ -1,6 +1,6 @@
 {
   "description": "c's written [T U] reads the synthetic T and then the synthetic U. A suffix that reads only synthetic tokens still reads, so the route is open, and c is a second reading (engine §7.4).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T U V W\n%rule text a | b | c\n%rule a A [T] [U] [V]\n%rule b A [T] [U] [V] [W]\n%rule c A [T U] V",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a A [+T] [+U] [+V]\n%rule b A [+T] [+U] [+V] [+W]\n%rule c A [+T U] V",
   "tokens": [
     {
       "text": "a",

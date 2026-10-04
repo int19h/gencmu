@@ -1,6 +1,6 @@
 {
   "description": "Under lazy, a closes before B is read, so a B beats A B. In the reconstruction, the KU that a elided is a synthetic token after A. after($x) is the original B, which k does not begin, so the chosen reading survives. A B cannot read the synthetic, so the chosen reading is the only one, and the check passes (engine §7.8).",
-  "grammar": "%ambiguity-resolution lazy elision-only\n%elidable KU\n%rule text a B | A B\n%rule a $x(A) [KU]\n%conditions ¬begins(after($x), k)\n%rule k KU",
+  "grammar": "%ambiguity-resolution lazy elision-only\n%rule text a B | A B\n%rule a $x(A) [+KU]\n%conditions ¬begins(after($x), k)\n%rule k KU",
   "tokens": [
     {
       "text": "a",

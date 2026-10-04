@@ -1,6 +1,6 @@
 {
   "description": "An elision-only witness whose actions are a read of an original token and a close. The chosen a restores T, so R is A T. c closes the empty e before it reads A, and reads the synthetic T as a bare terminal (engine §7.10).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a A [T]\n%rule b A [T] [T]\n%rule c e A T\n%rule e ε",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a A [+T]\n%rule b A [+T] [+T]\n%rule c e A T\n%rule e ε",
   "tokens": [
     {
       "text": "a",

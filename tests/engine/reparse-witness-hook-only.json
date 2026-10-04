@@ -1,6 +1,6 @@
 {
   "description": "An engine that loses the chosen derivation's witness can still give an ambiguous result, and the witness hook tells it from a correct one. Under late-elision, a, with one elided T, beats b, with two. In the check, a restores T, and c and d each read the synthetic T as a bare terminal, so R has three readings and the check fails. An engine that loses a's restoration, from its chart or from its ranking, still finds c and d, and so still fails the check. The runner's witness hook fails it, since the check's ranking no longer counts W(D) (engine §7.8, tests/README.md). The case also pins the two readings, a and then c, so such an engine changes the result as well.",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c | d\n%rule a A [T]\n%rule b A [T] [T]\n%rule c A T\n%rule d A T",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c | d\n%rule a A [+T]\n%rule b A [+T] [+T]\n%rule c A T\n%rule d A T",
   "tokens": [
     {
       "text": "a",

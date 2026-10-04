@@ -1,6 +1,6 @@
 {
   "description": "A right chain of one item leaves no elided node, where the optional suffix A [S r] leaves one for its absent S (engine §3.3, §12).",
-  "grammar": "%ambiguity-resolution late-elision\n%elidable S\n%rule text r Z q\n%rule r {A ... \\ S}\n%rule q A [S q]",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text r Z q\n%rule r {A ... \\ S}\n%rule q A [+S q]",
   "tokens": [
     {
       "text": "a",

@@ -1,0 +1,10 @@
+{
+  "description": "A tag test on the terminator of a marked optional is an error at the test (engine §9).",
+  "document": "```jbogenbau\n%rule a [+KU⊇~x]\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 13
+    }
+  }
+}

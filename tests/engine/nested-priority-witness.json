@@ -1,6 +1,6 @@
 {
   "description": "Eligibility belongs to a whole witness. Two witnesses of r reach the omission of [T] after y. In the first, [A] is empty and y → A B, but the same prefix reads A B C as y and then the written T, so the omission is forbidden. In the second, [A] reads A and y → B z [U], so the omission of [T] is permitted, but its omission of [U] is forbidden, since z can read C T before the written U. So begins of r is false (engine §4).",
-  "grammar": "%elidable T U\n%rule text A B C T U\n%conditions begins(from($), r)\n%rule r [A] y [T] C T U\n%rule y A B | A B C | B z [U]\n%rule z ε | C T",
+  "grammar": "%rule text A B C T U\n%conditions begins(from($), r)\n%rule r [A] y [+T] C T U\n%rule y A B | A B C | B z [+U]\n%rule z ε | C T",
   "tokens": [
     {
       "text": "a",

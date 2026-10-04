@@ -1,6 +1,6 @@
 {
   "description": "A strict item advances over an empty constituent where some later symbol can read, not only the one right after it. The chosen a elides [T r], so R is A T B V. a restores T, and y reads B. a also writes [T r] from the synthetic T: in r → p q z, q cannot read but z can, so the strict item advances over the empty p and the empty q, z reads B, and y is empty. So the check fails with those two readings. A library that asked only whether the symbol right after p can read would hold back the advance over p, lose the second reading and pass (engine §7.4).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b\n%rule a A [T r] y V\n%rule r p q z\n%rule p ε | B\n%rule q ε\n%rule z B\n%rule y ε | B\n%rule b [T] A y V",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b\n%rule a A [+T r] y V\n%rule r p q z\n%rule p ε | B\n%rule q ε\n%rule z B\n%rule y ε | B\n%rule b [+T] A y V",
   "tokens": [
     {
       "text": "a",

@@ -1,6 +1,6 @@
 {
   "description": "A nested parse reads the recognizer's items, not derivations, so maximal does not apply to it: x spans a b c, though its only derivation elides T where y could have been longer (engine §4).",
-  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T\n%rule text $a(w) %conditions matches($a, x)\n%rule w A B C\n%rule x y [T] B C\n%rule y A | A B",
+  "grammar": "%ambiguity-resolution greedy maximal\n%rule text $a(w) %conditions matches($a, x)\n%rule w A B C\n%rule x y [+T] B C\n%rule y A | A B",
   "tokens": [
     {
       "text": "a",

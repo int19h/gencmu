@@ -1,0 +1,21 @@
+{
+  "description": "The productions of ($a(A) $b(B) | $b(B) $a(A)) read $a and $b in different orders, so %emits $a, $b fits neither order in both, an error of the document (engine §9).",
+  "grammar": "%rule text ($a(A) $b(B) | $b(B) $a(A))\n%emits $a, $b",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

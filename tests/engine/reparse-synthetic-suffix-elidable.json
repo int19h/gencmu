@@ -1,6 +1,6 @@
 {
   "description": "The restoration of [T [U]] reads the synthetic T alone. It needs no U, which the chosen a never elided. c reads the synthetic as a bare T (engine §7.4).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T U\n%rule text a | b | c\n%rule a A [T [U]]\n%rule b A [T [U]] [T [U]]\n%rule c A T",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a A [+T [+U]]\n%rule b A [+T [+U]] [+T [+U]]\n%rule c A T",
   "tokens": [
     {
       "text": "a",

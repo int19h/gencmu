@@ -1,6 +1,6 @@
 {
   "description": "A terminator elided inside brackets has as its constituent the symbol before it there, and its optional is written in the rule around the brackets (engine §4).",
-  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T\n%rule text x B C\n%rule x A [y [T]]\n%rule y D | D B",
+  "grammar": "%ambiguity-resolution greedy maximal\n%rule text x B C\n%rule x A [y [+T]]\n%rule y D | D B",
   "tokens": [
     {
       "text": "a",

@@ -1,0 +1,10 @@
+{
+  "description": "A name read twice in a nested branch is an error at the second capture of that branch (engine §9).",
+  "document": "```jbogenbau\n%rule a A ($x(B) | ($y(C) $x(D) [$x(E)]))\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 34
+    }
+  }
+}

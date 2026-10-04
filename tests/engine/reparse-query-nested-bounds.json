@@ -1,6 +1,6 @@
 {
   "description": "A query from the reconstruction reads the original span [1, 3). Inside it, initial, from and after use that span's own bounds in original positions: $f starts the span, from($f) is \"b c\", and after($f) is C (engine §7.6).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a A [T] $x(pair)\n%conditions matches($x, q)\n%rule b A [T] [T] pair\n%rule c A T pair\n%rule pair B C\n%rule q $f(B) C\n%conditions initial($f), text(from($f)) = \"b c\", matches(after($f), cc)\n%rule cc C",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a A [+T] $x(pair)\n%conditions matches($x, q)\n%rule b A [+T] [+T] pair\n%rule c A T pair\n%rule pair B C\n%rule q $f(B) C\n%conditions initial($f), text(from($f)) = \"b c\", matches(after($f), cc)\n%rule cc C",
   "tokens": [
     {
       "text": "a",

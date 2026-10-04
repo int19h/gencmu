@@ -1,6 +1,6 @@
 {
   "description": "matches in the reconstruction parses the original span with the main grammar, where [T] of probe is optional. So the chosen a survives beside c (engine §7.6).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a $x(A) [T]\n%conditions matches($x, probe)\n%rule b A [T] [T]\n%rule c A T\n%rule probe A [T]",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a $x(A) [+T]\n%conditions matches($x, probe)\n%rule b A [+T] [+T]\n%rule c A T\n%rule probe A [+T]",
   "tokens": [
     {
       "text": "a",

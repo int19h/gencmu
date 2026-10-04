@@ -1,6 +1,6 @@
 {
-  "description": "[{T}] is not an elidable optional, even with T elidable: its absence leaves no elided node and counts nothing under late-elision, so x and y tie (engine §3.8, §6).",
-  "grammar": "%ambiguity-resolution late-elision\n%elidable T\n%rule text x | y\n%rule x A [{T}]\n%rule y A",
+  "description": "[{T}] is a plain optional, so its absence leaves no elided node and counts nothing under late-elision, and x and y tie. A marker cannot stand before braces, as the notation case marked-optional-braces.json shows (engine §3.8, §6).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text x | y\n%rule x A [{T}]\n%rule y A",
   "tokens": [
     {
       "text": "a",

@@ -1,6 +1,6 @@
 {
   "description": "tags(span, rule) in the reconstruction parses the original span with the main grammar, in a condition and in a tag term. So the chosen a survives beside c (engine §7.6).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a $x(A) [T] <tags($x, probe)>\n%conditions ~yes ⊆ tags($x, probe)\n%rule b A [T] [T]\n%rule c A T\n%rule probe A [T] <~yes>",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a $x(A) [+T] <tags($x, probe)>\n%conditions ~yes ⊆ tags($x, probe)\n%rule b A [+T] [+T]\n%rule c A T\n%rule probe A [+T] <~yes>",
   "tokens": [
     {
       "text": "a",

@@ -1,6 +1,6 @@
 {
   "description": "In a left chain, r → r s x, a terminator elided at the start of the separator follows the production's initial reference to its own rule, so it has no constituent, and maximal forbids nothing (engine §3.3, §4).",
-  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T\n%rule text c\n%rule c {... a \\ [T] s}\n%rule a A | A B\n%rule s B S",
+  "grammar": "%ambiguity-resolution greedy maximal\n%rule text c\n%rule c {... a \\ [+T] s}\n%rule a A | A B\n%rule s B S",
   "tokens": [
     {
       "text": "a",

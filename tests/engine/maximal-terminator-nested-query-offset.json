@@ -1,6 +1,6 @@
 {
   "description": "A query inside a query, both after token zero. The outer query reads V A B as q, and q asks begins of r over A B. There the longer y → A B sounds \"ab\", so y≠\"xv\" holds of it, and the omission of [T] after y → A is forbidden. A library that tests the inner query's positions as the stage's would test the sound \"xv\" of W V (engine §4).",
-  "grammar": "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text W $s(rest)\n%conditions begins($s, q)\n%rule rest V A B\n%rule q V $t(suffix)\n%conditions begins($t, r)\n%rule suffix A B\n%rule r y≠\"xv\" [T] B\n%rule y A | A B",
+  "grammar": "%ambiguity-resolution greedy\n%rule text W $s(rest)\n%conditions begins($s, q)\n%rule rest V A B\n%rule q V $t(suffix)\n%conditions begins($t, r)\n%rule suffix A B\n%rule r y≠\"xv\" [++T] B\n%rule y A | A B",
   "tokens": [
     {
       "text": "x",

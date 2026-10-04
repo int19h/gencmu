@@ -1,6 +1,6 @@
 {
   "description": "Under late-elision, the reading that reads on beats the one that elides a terminator earlier. Through x, KU is elided at 1; through y, B is read there and KU is elided at 2. Lazy would close x first and choose it (engine §6).",
-  "grammar": "%ambiguity-resolution late-elision\n%elidable KU\n%rule text x B | y\n%rule x A [KU]\n%rule y A B [KU]",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text x B | y\n%rule x A [+KU]\n%rule y A B [+KU]",
   "tokens": [
     {
       "text": "a",

@@ -1,0 +1,120 @@
+{
+  "description": "Each production holds the carrier and the attachment on its own side: ($b(B) $w(W) | $w(W) $a(A)) with %emits ($b) $w ($a), where the rules a and b emit their tokens. On b w, w carries b before it (engine §3.5, §11).",
+  "grammar": "%rule text ($b(b) $w(W) | $w(W) $a(a))\n%emits ($b) $w ($a)\n%rule a A\n%emits $\n%rule b B\n%emits $",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "w",
+      "tags": [
+        "W"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "w",
+              "phonemes": "",
+              "label": "w",
+              "tags": [
+                "W"
+              ],
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                2,
+                3
+              ],
+              "before": [
+                {
+                  "text": "b",
+                  "phonemes": "",
+                  "label": "b",
+                  "tags": [
+                    "B"
+                  ],
+                  "source": [
+                    0,
+                    1
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          2
+        ],
+        "source": [
+          0,
+          3
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "b",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [
+              "B"
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "B",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "W",
+            "token": 1,
+            "span": [
+              1,
+              2
+            ],
+            "source": [
+              2,
+              3
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "(b w)"
+  }
+}

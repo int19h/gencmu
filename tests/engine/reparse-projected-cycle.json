@@ -1,6 +1,6 @@
 {
   "description": "Cycles are found over reconstructed spans. In c, the inner r covers A and the outer r covers A and a synthetic T. Both project to [0, 1), but their reconstructed spans differ, so c is no cycle, and it is a second reading (engine §7.7).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a A [T] [T]\n%rule b A [T] [T] [T]\n%rule c r T\n%rule r r T | A",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a A [+T] [+T]\n%rule b A [+T] [+T] [+T]\n%rule c r T\n%rule r r T | A",
   "tokens": [
     {
       "text": "a",

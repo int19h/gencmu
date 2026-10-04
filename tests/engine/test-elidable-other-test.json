@@ -1,6 +1,6 @@
 {
-  "description": "The terminal of an elidable optional has no test or an = test, since elision-only restores it with a sound. Any other test on it is an error of the grammar, reported at the definition that wrote the alternative (engine §3.8).",
-  "grammar": "%elidable KU\n%rule text A [KU≠\"ku\"]",
+  "description": "The terminal of an elidable optional has no test or an = test, since elision-only restores it with a sound. Any other test on it is an error of the document, which the reader reports at the test (engine §3.8, §9).",
+  "grammar": "%rule text A [+KU≠\"ku\"]",
   "tokens": [
     {
       "text": "a",
@@ -13,8 +13,8 @@
     "error": "grammar",
     "where": {
       "document": "main.md",
-      "line": 4,
-      "column": 1
+      "line": 3,
+      "column": 18
     }
   }
 }

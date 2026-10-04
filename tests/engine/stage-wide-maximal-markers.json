@@ -1,6 +1,6 @@
 {
-  "description": "A terminator is maximal when any %elidable maximal names it, whatever a plain %elidable says, in any order. Here a plain %elidable T follows %elidable maximal T, and T stays maximal, so the text of maximal-terminator-main is rejected at T (engine §2, §4).",
-  "grammar": "%ambiguity-resolution greedy\n%elidable maximal T\n%elidable T\n%rule text A body [T] B\n%rule body X | X B",
+  "description": "Stage-wide maximal restricts every marked optional: on A X B, the [+T] after the short body is forbidden, and the text is rejected at the T (engine §4).",
+  "grammar": "%ambiguity-resolution late-elision maximal\n%rule text x | y\n%rule x A body [+T] B\n%rule y C body [T] B\n%rule body X | X B",
   "tokens": [
     {
       "text": "a",
@@ -26,6 +26,7 @@
       "ok": false,
       "stages": [
         {
+          "name": "main",
           "verdict": null
         }
       ],
@@ -33,14 +34,21 @@
         "kind": "rejected",
         "stage": "main",
         "token": 2,
+        "source": [
+          4,
+          5
+        ],
+        "line": 1,
+        "column": 5,
         "expected": [
           {
             "terminal": "T",
             "rules": [
-              "text"
+              "x"
             ]
           }
-        ]
+        ],
+        "message": "the main stage could not continue at token 2; expected T"
       }
     },
     "error": "rejected"

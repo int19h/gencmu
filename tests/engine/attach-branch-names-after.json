@@ -1,0 +1,120 @@
+{
+  "description": "Twin of attach-branch-names.json: on w a, w carries a after it (engine §3.5, §11).",
+  "grammar": "%rule text ($b(b) $w(W) | $w(W) $a(a))\n%emits ($b) $w ($a)\n%rule a A\n%emits $\n%rule b B\n%emits $",
+  "tokens": [
+    {
+      "text": "w",
+      "tags": [
+        "W"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "w",
+              "phonemes": "",
+              "label": "w",
+              "tags": [
+                "W"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ],
+              "after": [
+                {
+                  "text": "a",
+                  "phonemes": "",
+                  "label": "a",
+                  "tags": [
+                    "A"
+                  ],
+                  "source": [
+                    2,
+                    3
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          2
+        ],
+        "source": [
+          0,
+          3
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "W",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "a",
+            "span": [
+              1,
+              2
+            ],
+            "source": [
+              2,
+              3
+            ],
+            "tags": [
+              "A"
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 1,
+                "span": [
+                  1,
+                  2
+                ],
+                "source": [
+                  2,
+                  3
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "(w a)"
+  }
+}

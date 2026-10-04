@@ -1,18 +1,10 @@
 {
-  "description": "%elidable takes identifier tags: bare names with a capital, or ~name, which is its name in the DOM (design §15, engine §9).",
+  "description": "%elidable is no directive: the notation's lexical stage reads it as an unknown keyword, so it is a syntax error at the keyword, whatever its operands (engine §9). Each optional marks itself, as [+KU].",
   "document": "```jbogenbau\n%rule a A\n%elidable KU ~KEI ~ku\n```\n",
   "expect": {
-    "dom": {
-      "directives": [
-        {
-          "name": "elidable",
-          "args": [
-            "KU",
-            "KEI",
-            "ku"
-          ]
-        }
-      ]
+    "error": {
+      "line": 3,
+      "column": 1
     }
   }
 }

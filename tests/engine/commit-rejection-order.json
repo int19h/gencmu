@@ -1,6 +1,6 @@
 {
   "description": "Of several forbidden terminators at one position, the rejection reports the first in the order of the tree's leaves: T, inside x, before U (engine §4).",
-  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T U\n%rule text x [U] B C\n%rule x y [T]\n%rule y A | A B",
+  "grammar": "%ambiguity-resolution greedy maximal\n%rule text x [+U] B C\n%rule x y [+T]\n%rule y A | A B",
   "tokens": [
     {
       "text": "a",

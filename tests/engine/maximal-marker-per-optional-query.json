@@ -1,0 +1,71 @@
+{
+  "description": "In a nested query, maximality belongs to the optional too: r → y [+T] B reads y as A and leaves out [+T], which no maximality forbids, so begins of r holds, where maximal-terminator-nested.json, with [++T], rejects (engine §3.8, §4).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text A B\n%conditions begins(from($), r)\n%rule r y [+T] B\n%rule y A | A B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          2
+        ],
+        "source": [
+          0,
+          3
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "B",
+            "token": 1,
+            "span": [
+              1,
+              2
+            ],
+            "source": [
+              2,
+              3
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "(a b)"
+  }
+}

@@ -1,0 +1,271 @@
+{
+  "description": "An optional expanded in place is no symbol: r → A [$b(B)] over a is the one-symbol production A, which inherits A's tags, and over a b has none; q → A [B] has two symbols, A and a helper, and none either way (engine §3.2, §3.7).",
+  "grammar": "%rule text r Z r Z q Z q\n%rule r A [$b(B)]\n%rule q A [B]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "X"
+      ]
+    },
+    {
+      "text": "z",
+      "tags": [
+        "Z"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "X"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "z",
+      "tags": [
+        "Z"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "X"
+      ]
+    },
+    {
+      "text": "z",
+      "tags": [
+        "Z"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "X"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          9
+        ],
+        "source": [
+          0,
+          17
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "r",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [
+              "A",
+              "X"
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "Z",
+            "token": 1,
+            "span": [
+              1,
+              2
+            ],
+            "source": [
+              2,
+              3
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "r",
+            "span": [
+              2,
+              4
+            ],
+            "source": [
+              4,
+              7
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 2,
+                "span": [
+                  2,
+                  3
+                ],
+                "source": [
+                  4,
+                  5
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "B",
+                "token": 3,
+                "span": [
+                  3,
+                  4
+                ],
+                "source": [
+                  6,
+                  7
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "Z",
+            "token": 4,
+            "span": [
+              4,
+              5
+            ],
+            "source": [
+              8,
+              9
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "q",
+            "span": [
+              5,
+              6
+            ],
+            "source": [
+              10,
+              11
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 5,
+                "span": [
+                  5,
+                  6
+                ],
+                "source": [
+                  10,
+                  11
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "Z",
+            "token": 6,
+            "span": [
+              6,
+              7
+            ],
+            "source": [
+              12,
+              13
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "q",
+            "span": [
+              7,
+              9
+            ],
+            "source": [
+              14,
+              17
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 7,
+                "span": [
+                  7,
+                  8
+                ],
+                "source": [
+                  14,
+                  15
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "B",
+                "token": 8,
+                "span": [
+                  8,
+                  9
+                ],
+                "source": [
+                  16,
+                  17
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "(a z [a b] z a z [a b])"
+  }
+}

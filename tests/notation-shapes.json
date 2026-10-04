@@ -1,6 +1,6 @@
 {
   "description": "A bootstrap of another notation (engine §9). Each rule of the syntax document of the notation, except text, has a new name in turn. A renamed rule is a wrapper, and the reader reads through it. A rename in loads gives a dialect, which parses each of the inputs as loads says. Any other rename is a grammar error of loading. control is what the bundled bootstrap gives. It is also what the bundled bootstrap gives when a wrapper of its own stands around each of these rules.",
-  "document": "```jbogenbau\n%ambiguity-resolution greedy\n%elidable KU ~KEI\n%features f g\n%const $K ~A ∪ ~B\n%redefine-const $K ~A ∪ ~B ∪ ∅\n%classifier lex\n  f? \"mi\" ∈ KOhA\n  ¬g? \"do\" ∉ ~KOhA\n%implies ~A ∩ ~B ⟹ ~C ∖ ~D\n%rule text\n  | f? h! $x(word) $y('l'=\"l\") ['c' | 'd'] {'e'} ('f' & 'g') 'h'..'k' '\\p{Lu}' /a/ ~H 'm'∩(~B)=∅ <~T ∪ $K>\n  | ¬f? $z('b') ['c'] <~U>\n  | 'q' text-tail\n  %tags ~V ∪ ($x ∧ classify(text($x), lex) ⊆ ~W ⟹ ~X)\n  %conditions , (text($x) = \"ok\" ∨ initial($y)) ⟹ ¬matches(head($x), word) ∧ $y, begins(tail($x), word), text($y) ∈ split(\"a.b\", \".\")\n  %emits $x <tags($x) ∩ tag(text($x))> ($y), ~Y\n  %opaque\n%rule word\n  {'w'}\n%rule text-tail\n  ε\n%redefine-rule text-tail\n  # 'r'\n%extend-rule text-tail\n  's'\n%rule #\n  't'\n```\n",
+  "document": "```jbogenbau\n%ambiguity-resolution greedy\n%features f g\n%const $K ~A ∪ ~B\n%redefine-const $K ~A ∪ ~B ∪ ∅\n%classifier lex\n  f? \"mi\" ∈ KOhA\n  ¬g? \"do\" ∉ ~KOhA\n%implies ~A ∩ ~B ⟹ ~C ∖ ~D\n%rule text\n  | f? h! $x(word) $y('l'=\"l\") ['c' | 'd'] [+~KU 'z'] {'e'} ('f' & 'g') 'h'..'k' '\\p{Lu}' /a/ ~H 'm'∩(~B)=∅ <~T ∪ $K>\n  | ¬f? $z('b') ['c' [$w('n')]] <~U>\n  | 'q' text-tail\n  %tags ~V ∪ ($x ∧ classify(text($x), lex) ⊆ ~W ⟹ ~X)\n  %conditions , (text($x) = \"ok\" ∨ initial($y)) ⟹ ¬matches(head($x), word) ∧ $y, begins(tail($x), word), text($y) ∈ split(\"a.b\", \".\")\n  %emits $x <tags($x) ∩ tag(text($x))> ($y), ~Y\n  %opaque\n%rule word\n  {'w'}\n%rule text-tail\n  ε\n%redefine-rule text-tail\n  # 'r'\n%extend-rule text-tail\n  's'\n%rule #\n  't'\n```\n",
   "inputs": [
     "b",
     "bc",
@@ -273,6 +273,48 @@
         "(a b a)",
         "rejected"
       ]
+    },
+    {
+      "description": "An optional with two markers, in a shape of its own, is an error of the document at the second marker (engine §9).",
+      "find": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"optional\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}},{\"ref\":\"choice\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[172,1]}",
+      "replace": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"optional\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}},{\"optional\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}},{\"ref\":\"choice\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[172,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a' [+ +KU]\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 19
+      }
+    },
+    {
+      "description": "A marker inside a wrapper rule is read through the wrapper: [++KU 'b'] is elidable, so x elides KU on a and y wins under late-elision. Read as a plain optional, it would tie (engine §9).",
+      "find": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"optional\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}},{\"ref\":\"choice\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[172,1]}",
+      "replace": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"optional\":{\"ref\":\"marker-wrapper\"}},{\"ref\":\"choice\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[172,1]},{\"name\":\"marker-wrapper\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}}],\"conditions\":[],\"at\":[100001,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution late-elision\n%rule text x | y\n%rule x 'a' [++KU 'b']\n%rule y 'a'\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": [
+        "a"
+      ]
+    },
+    {
+      "description": "A group at the head of a marked optional is an error at the [, also where the optional reads its choice through a wrapper rule: the reader looks through wrappers but not through a group (engine §9).",
+      "find": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"optional\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}},{\"ref\":\"choice\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[172,1]}",
+      "replace": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"optional\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}},{\"ref\":\"optional-body\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[172,1]},{\"name\":\"optional-body\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"choice\"}}],\"conditions\":[],\"at\":[100001,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a' [+('b') 'c']\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 16
+      }
     }
   ]
 }

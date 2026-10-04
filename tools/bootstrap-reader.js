@@ -473,6 +473,9 @@ class Parser {
         if (this.marked > 0) fail("a capture cannot stand inside an elidable optional", token);
         if (token.name === "") fail("$ is the whole constituent and wraps nothing", token);
         this.take("(");
+        // A capture wraps one symbol, never a group, an optional or braces,
+        // even of one symbol (engine §9).
+        if (["(", "[", "{"].includes((this.peek() || {}).kind)) fail("a capture wraps one symbol", token);
         const inner = this.primary();
         this.take(")");
         if (inner.ref === undefined && inner.terminal === undefined && inner.test === undefined && inner.range === undefined && inner.property === undefined) fail("a capture wraps one symbol", token);

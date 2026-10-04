@@ -1,6 +1,6 @@
 {
   "description": "Queries over more than 64 tokens through after and from. The synthetic T follows the first A. after($x) projects to the 65 A after it, and from($x) to all 66, so both begins hold and the chosen a survives beside c. Over the reconstructed tokens, both spans would hold the synthetic (engine §4, §7.5).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a $x(A) [T] run\n%conditions begins(after($x), probe), begins(from($x), whole)\n%rule b A [T] [T] run\n%rule c A T run\n%rule run {A}\n%rule probe A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A\n%rule whole A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a $x(A) [+T] run\n%conditions begins(after($x), probe), begins(from($x), whole)\n%rule b A [+T] [+T] run\n%rule c A T run\n%rule run {A}\n%rule probe A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A\n%rule whole A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A",
   "tokens": [
     {
       "text": "a",

@@ -1,5 +1,5 @@
 {
-  "description": "Only %elidable takes a tag literal: ~cbm after %features is an error at the directive (engine §9).",
+  "description": "%features takes names: a tag literal ~cbm after it is an error at the directive (engine §9).",
   "document": "```jbogenbau\n%features ~cbm\n```\n",
   "expect": {
     "error": {

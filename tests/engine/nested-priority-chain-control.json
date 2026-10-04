@@ -1,6 +1,6 @@
 {
   "description": "The control of nested-priority-chain, with y → B alone. y cannot read C, so leaving out [K] after it is permitted, and so is leaving out [V] after the empty [K]. z reads C K, and begins of r holds (engine §4).",
-  "grammar": "%elidable K V\n%rule text B C K\n%conditions begins(from($), r)\n%rule r y [K] [V] z\n%rule y B\n%rule z C K",
+  "grammar": "%rule text B C K\n%conditions begins(from($), r)\n%rule r y [+K] [+V] z\n%rule y B\n%rule z C K",
   "tokens": [
     {
       "text": "b",

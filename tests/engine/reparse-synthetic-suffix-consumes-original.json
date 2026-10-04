@@ -1,6 +1,6 @@
 {
   "description": "c's written [T B] reads the synthetic T and then the original B. Its suffix reads a token, so the written route is open to it, and c is a second reading beside the chosen a. In the reading, the synthetic is an elided node and B keeps its own index (engine §7.4, §7.10).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a A [T] B\n%rule b A [T] [T] B\n%rule c A [T B]",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a A [+T] B\n%rule b A [+T] [+T] B\n%rule c A [+T B]",
   "tokens": [
     {
       "text": "a",

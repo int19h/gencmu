@@ -1,6 +1,6 @@
 {
   "description": "Written-terminator priority is a local commitment. On A B T, r could leave out [T] and read the token as its last T. But the prefix of r before c can read c and then T as the optional, so the omission is forbidden, and begins of r is false (engine §4).",
-  "grammar": "%elidable T\n%rule text A B T\n%conditions begins(from($), r)\n%rule r A c [T] T\n%rule c B",
+  "grammar": "%rule text A B T\n%conditions begins(from($), r)\n%rule r A c [+T] T\n%rule c B",
   "tokens": [
     {
       "text": "a",

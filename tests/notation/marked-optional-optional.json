@@ -1,0 +1,10 @@
+{
+  "description": "An optional cannot stand first in a marked optional: an error at the [ (engine §9).",
+  "document": "```jbogenbau\n%rule a [+[KU] A]\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

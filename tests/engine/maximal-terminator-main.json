@@ -1,6 +1,6 @@
 {
-  "description": "%elidable maximal T makes T maximal without maximal in %ambiguity-resolution. On A X B, the one derivation elides T after body → X, but body → X B is longer, so the main parse does not count it. The text is rejected at the forbidden T (engine §2, §4).",
-  "grammar": "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text A body [T] B\n%rule body X | X B",
+  "description": "[++T] makes its terminator maximal without maximal in %ambiguity-resolution. On A X B, the one derivation elides T after body → X, but body → X B is longer, so the main parse does not count it. The text is rejected at the forbidden T (engine §3.8, §4).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text A body [++T] B\n%rule body X | X B",
   "tokens": [
     {
       "text": "a",

@@ -1,6 +1,6 @@
 {
   "description": "classes(span) of a span that is not a whole capture reads the tokens of the projected span. The chosen a restores T before A, B and C, so R is T A T B T C. tail($) projects to B C, so its classes are B and C, and a survives beside c, which reads each T as a bare terminal. A library that takes the union over the tokens of R behind tail($), from the original B to the original C, takes in the synthetic T between them, loses a, and passes (engine §7.5).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a [T] A [T] B [T] C\n%conditions classes(tail($)) = B ∪ C\n%rule b [T] [T] A [T] [T] B [T] [T] C\n%rule c T A T B T C",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a [+T] A [+T] B [+T] C\n%conditions classes(tail($)) = B ∪ C\n%rule b [+T] [+T] A [+T] [+T] B [+T] [+T] C\n%rule c T A T B T C",
   "tokens": [
     {
       "text": "a",

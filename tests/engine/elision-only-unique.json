@@ -1,6 +1,6 @@
 {
   "description": "The check of elision-only does not run for the verdict unique. On A, text → A [T] is the one derivation. Written back, A T would parse through both alternatives, and the check would fail. But the verdict is unique, so the text parses (engine §6, §7).",
-  "grammar": "%ambiguity-resolution greedy elision-only\n%elidable T\n%rule text A [T] | A z\n%rule z T",
+  "grammar": "%ambiguity-resolution greedy elision-only\n%rule text A [+T] | A z\n%rule z T",
   "tokens": [
     {
       "text": "a",

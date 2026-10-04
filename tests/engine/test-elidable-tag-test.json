@@ -1,6 +1,6 @@
 {
-  "description": "A tag test on the terminal of an elidable optional is an error of the grammar too (engine §3.8).",
-  "grammar": "%elidable KU\n%rule text A\n%rule other B [KU⊇~ku]",
+  "description": "A tag test on the terminal of an elidable optional is an error of the document too, at the test (engine §3.8, §9).",
+  "grammar": "%rule text A\n%rule other B [+KU⊇~ku]",
   "tokens": [
     {
       "text": "a",
@@ -13,8 +13,8 @@
     "error": "grammar",
     "where": {
       "document": "main.md",
-      "line": 5,
-      "column": 1
+      "line": 4,
+      "column": 19
     }
   }
 }

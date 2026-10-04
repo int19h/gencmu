@@ -1,6 +1,6 @@
 {
   "description": "One loaded dialect parses with the check off, on and off again. The reconstruction leaves the main grammar and its answers as they were, so the third parse equals the first (engine §7.4, §7.11).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a $x(A) [T]\n%conditions ¬begins(after($x), t)\n%rule b A [T] [T]\n%rule c A T\n%rule t T",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a $x(A) [+T]\n%conditions ¬begins(after($x), t)\n%rule b A [+T] [+T]\n%rule c A T\n%rule t T",
   "tokens": [
     {
       "text": "a",

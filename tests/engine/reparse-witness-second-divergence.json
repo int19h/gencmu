@@ -1,6 +1,6 @@
 {
   "description": "The second reading of an elision-only error is the derivation that diverges earliest from the first, with the order T only between two that diverge at one point (engine §6). The chosen w elides T, so R is A T B. The first reading is a, which reads the synthetic T as a bare terminal. b closes the empty e before it reads T, so it diverges from a at once, and it is the second reading, though W(D), w with T restored, comes before it in T. So the witness hook must compare the second reading with W(D) by divergence from the first, then T, and not by T alone (tests/README.md).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | w | z\n%rule a A T B\n%rule b r T B\n%rule r A e\n%rule e ε\n%rule w A [T] B\n%rule z A [T] [T] B",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | w | z\n%rule a A T B\n%rule b r T B\n%rule r A e\n%rule e ε\n%rule w A [+T] B\n%rule z A [+T] [+T] B",
   "tokens": [
     {
       "text": "a",
