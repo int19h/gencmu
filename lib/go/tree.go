@@ -331,11 +331,9 @@ func (run *stageRun) plan(rec *recognizer, n *dn, inside bool) []emitTask {
 		if name == "" {
 			return spanVal{a: start, b: end, whole: true, tags: n.tags}, true
 		}
-		for i, c := range p.capName {
-			if c == name {
-				a, b, tags := run.kidSpan(rec, kids[i])
-				return spanVal{a: a, b: b, whole: true, tags: tags}, true
-			}
+		if i, ok := p.posOf[name]; ok {
+			a, b, tags := run.kidSpan(rec, kids[i])
+			return spanVal{a: a, b: b, whole: true, tags: tags}, true
 		}
 		return spanVal{}, false
 	})
@@ -356,10 +354,8 @@ func (run *stageRun) plan(rec *recognizer, n *dn, inside bool) []emitTask {
 	// The items as listed, and nothing else of the constituent but their
 	// attachments (§11).
 	part := func(name string) *dn {
-		for i, c := range p.capName {
-			if c == name {
-				return kids[i]
-			}
+		if i, ok := p.posOf[name]; ok {
+			return kids[i]
 		}
 		return nil
 	}
@@ -371,6 +367,7 @@ func (run *stageRun) plan(rec *recognizer, n *dn, inside bool) []emitTask {
 		return out
 	}
 	var plan []emitTask
+	following := nextCaptureItems(p.emit.Items)
 	for i, it := range p.emit.Items {
 		switch {
 		case it.IsInsert:
@@ -378,16 +375,14 @@ func (run *stageRun) plan(rec *recognizer, n *dn, inside bool) []emitTask {
 			// written part of the capture item listed next after it, or at
 			// the constituent's end.
 			at := end
-			for _, next := range p.emit.Items[i+1:] {
-				if !next.IsInsert {
-					anchor := next.Capture
-					if len(next.Before) > 0 {
-						anchor = next.Before[0]
-					}
-					if k := part(anchor); k != nil {
-						at, _, _ = run.kidSpan(rec, k)
-					}
-					break
+			if j := following[i]; j >= 0 {
+				next := p.emit.Items[j]
+				anchor := next.Capture
+				if len(next.Before) > 0 {
+					anchor = next.Before[0]
+				}
+				if k := part(anchor); k != nil {
+					at, _, _ = run.kidSpan(rec, k)
 				}
 			}
 			plan = append(plan, run.inserted(it.Insert, at, start, end, p.ruleName))

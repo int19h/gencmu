@@ -22,6 +22,7 @@ type production struct {
 	capSlot      []int32    // per position: the item's capture slot, or -1
 	nslots       int
 	slotOf       map[string]int32 // capture name → slot
+	posOf        map[string]int   // capture name → its first position
 	tags         *domTerm         // nil: default tags (§4)
 	implicit     bool             // one symbol and no tags: the constituent has its symbol's tags (§3.7)
 	conds        []lcond
@@ -457,9 +458,13 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 	p.transparent = len(body) == 1
 	p.implicit = false
 	p.nslots = 0
+	p.posOf = make(map[string]int, len(position))
 	for i, s := range body {
 		p.capName[i] = s.capture
 		p.capSlot[i] = -1
+		if _, ok := p.posOf[s.capture]; !ok && s.capture != "" {
+			p.posOf[s.capture] = i
+		}
 		if s.capture != "" {
 			p.capSlot[i] = int32(p.nslots)
 			p.slotOf[s.capture] = int32(p.nslots)

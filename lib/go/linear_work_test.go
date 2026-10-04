@@ -1,6 +1,7 @@
 package gencmu
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"runtime"
@@ -124,4 +125,56 @@ func tagUnion(n int) *domTerm {
 		union.Items = append(union.Items, &domTerm{Kind: tmTag, Str: fmt.Sprintf("T%d", i)})
 	}
 	return union
+}
+
+// domStage loads a one-stage dialect whose grammar is a DOM, given as
+// JSON, so that a large grammar costs no reading of its notation.
+func domStage(t *testing.T, dom string) *Dialect {
+	t.Helper()
+	l, err := bundledLoader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := oneStage("")
+	l.read = func(p string) (string, bool) { s, ok := src[p]; return s, ok }
+	l.compiled = map[string]json.RawMessage{fnv1a64(src["g.md"]): json.RawMessage(dom)}
+	d, err := l.dialect("p.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return d
+}
+
+// TestEmissionLinear: a constituent of many captures that emits them with
+// a run of inserted tags before them finds each part and each anchor
+// without a scan of the production or of the items (engine §11).
+func TestEmissionLinear(t *testing.T) {
+	dialect := func(n int) *Dialect {
+		seq := make([]string, n)
+		items := make([]string, 0, 4*n)
+		for i := range seq {
+			seq[i] = fmt.Sprintf(`{"capture":"c%d","expr":{"ref":"A"}}`, i)
+			items = append(items, `{"insert":"X"}`, `{"insert":"X"}`, `{"insert":"X"}`)
+		}
+		for i := range seq {
+			items = append(items, fmt.Sprintf(`{"capture":"c%d"}`, i))
+		}
+		return domStage(t, fmt.Sprintf(`{"format":%d,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"seq":[%s]}}],"emit":{"items":[%s]},"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`, domFormat, strings.Join(seq, ","), strings.Join(items, ",")))
+	}
+	const n = 4000
+	dialects := map[int]*Dialect{n: dialect(n), 4 * n: dialect(4 * n)}
+	parse := func(n int) {
+		toks := make([]Token, n)
+		for i := range toks {
+			toks[i] = Token{Text: "a", Tags: []string{"A"}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
+		}
+		res, err := dialects[n].ParseTokens(strings.TrimSpace(strings.Repeat("a ", n)), toks, ParseOptions{})
+		if err != nil || !res.OK || len(res.Stages[0].Output) != 4*n {
+			t.Fatalf("%d captures: %v", n, err)
+		}
+	}
+	// Once each first, so that lowering counts in neither.
+	parse(n)
+	parse(4 * n)
+	linearTime(t, "emission", n, parse)
 }

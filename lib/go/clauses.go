@@ -635,23 +635,35 @@ func definitionProblem(r *domRule) string {
 	}
 	// An inserted tag's anchor, the capture listed next after it, is one
 	// every production has.
+	following := nextCaptureItems(items)
 	for i, it := range items {
-		if !it.IsInsert {
+		if !it.IsInsert || following[i] < 0 {
 			continue
 		}
-		for _, next := range items[i+1:] {
-			if next.IsInsert {
-				continue
+		next := items[following[i]]
+		for _, caps := range alts {
+			if _, ok := caps[next.Capture]; !ok {
+				return fmt.Sprintf("%%emits of %s inserts a tag before $%s, which a production lacks", r.Name, next.Capture)
 			}
-			for _, caps := range alts {
-				if _, ok := caps[next.Capture]; !ok {
-					return fmt.Sprintf("%%emits of %s inserts a tag before $%s, which a production lacks", r.Name, next.Capture)
-				}
-			}
-			break
 		}
 	}
 	return ""
+}
+
+// nextCaptureItems gives, for each emitted item, the index of the first
+// item after it that is not an inserted tag, or -1. One backward pass finds
+// every anchor, where a scan from each insert would cost a run of inserts
+// its square.
+func nextCaptureItems(items []*domEmitItem) []int {
+	out := make([]int, len(items))
+	next := -1
+	for i := len(items) - 1; i >= 0; i-- {
+		out[i] = next
+		if !items[i].IsInsert {
+			next = i
+		}
+	}
+	return out
 }
 
 func sortedKeys(m map[string]bool) []string {
