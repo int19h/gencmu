@@ -1124,17 +1124,26 @@ def reading_last(lowered: Lowered) -> list[int]:
     if found is not None:
         return found
     productions = lowered.productions
+    # A worklist, with the productions that use each rule: a pass over all
+    # productions until nothing changes would find one rule of a long chain
+    # at each pass.
+    users: dict[int, list[Production]] = {}
     rules: set[int] = set()
-    changed = True
-    while changed:
-        changed = False
-        for production in productions:
-            if production.lhs in rules:
-                continue
-            restoration = not production.rhs and production.helper and production.elided is not None
-            if restoration or any(terminal or symbol in rules for symbol, terminal in zip(production.rhs, production.terminal)):
+    queue: list[int] = []
+    for production in productions:
+        restoration = not production.rhs and production.helper and production.elided is not None
+        if restoration or any(production.terminal):
+            if production.lhs not in rules:
                 rules.add(production.lhs)
-                changed = True
+                queue.append(production.lhs)
+        for symbol, terminal in zip(production.rhs, production.terminal):
+            if not terminal:
+                users.setdefault(symbol, []).append(production)  # type: ignore[arg-type]
+    while queue:
+        for production in users.get(queue.pop(), ()):
+            if production.lhs not in rules:
+                rules.add(production.lhs)
+                queue.append(production.lhs)
     found = []
     for production in productions:
         at = -1

@@ -757,10 +757,13 @@ class Lowered:
     def implication_index(self) -> dict[str, list[int]]:
         index = self.implications_by_tag
         if index is None:
-            index = self.implications_by_tag = {}
+            # Built whole before it is kept, since a lowered grammar can be
+            # shared by parses on other threads.
+            index = {}
             for number, (premise, _) in enumerate(self.implications):
                 for tag in premise:
                     index.setdefault(tag, []).append(number)
+            self.implications_by_tag = index
         return index
 
     def __post_init__(self) -> None:

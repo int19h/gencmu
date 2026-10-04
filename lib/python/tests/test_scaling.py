@@ -12,8 +12,8 @@ from typing import Callable
 
 import gencmu
 from gencmu._clauses import definition_problem
-from gencmu._earley import EdgeSets, Evaluator, StageContext
-from gencmu._grammar import Lowered, _Constants, _Lowerer, _resolve_classifiers, stitch
+from gencmu._earley import EdgeSets, Evaluator, StageContext, reading_last
+from gencmu._grammar import Lowered, Production, _Constants, _Lowerer, _resolve_classifiers, stitch
 from gencmu._trampoline import run
 from gencmu._model import Token
 from gencmu._pipeline import splice_pipeline
@@ -121,6 +121,23 @@ class Closures(Linear):
 
         self.assert_linear(make, 1000)
 
+
+    def test_which_productions_read_costs_a_long_chain_its_length(self) -> None:
+        # r0 → r1, r1 → r2, and so on, listed first link first, and only the
+        # last rule reads a terminal: a pass in list order finds one rule.
+        def make(n: int) -> Callable[[], object]:
+            productions = [Production(index, index, (index + 1,), (False,), f"r{index}", False) for index in range(n)]
+            productions.append(Production(n, n, ("A",), (True,), f"r{n}", False))
+            names = [f"r{index}" for index in range(n + 1)]
+
+            def work() -> None:
+                for _ in range(30):
+                    lowered = Lowered(None, productions, names, {}, [], [], "")  # type: ignore[arg-type]
+                    assert reading_last(lowered)[0] == 0
+
+            return work
+
+        self.assert_linear(make, 1000)
 
 
 class Dedupes(Linear):
