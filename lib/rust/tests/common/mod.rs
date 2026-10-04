@@ -577,9 +577,10 @@ pub fn result_mutants() -> Vec<(Value, Value)> {
     let text =
         std::fs::read_to_string(repository().join("tests/result-mutants.json")).expect("tests/result-mutants.json");
     let file = parse_json(&text).expect("JSON");
-    file.get("mutants")
-        .expect("mutants")
-        .array()
+    let mutants = file.get("mutants").expect("mutants").array();
+    // An empty list would pass every runner with nothing refused.
+    assert!(!mutants.is_empty(), "tests/result-mutants.json has no mutant");
+    mutants
         .iter()
         .map(|mutant| {
             let name = mutant.get("case").and_then(Value::str).expect("the mutant's case");

@@ -25,7 +25,7 @@ import { layoutProblems } from "./alternatives.js";
 import { quotedTextProblems } from "./quoted-texts.js";
 import { proseLineProblems } from "./prose-lines.js";
 import { markdownFiles, repositoryFiles } from "./documents.js";
-import { corpusShapeProblems } from "./corpus-shape.js";
+import { corpusShapeProblems, mutantShapeProblems } from "./corpus-shape.js";
 import { missing as parserMissing } from "./markdown.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -66,10 +66,11 @@ if (unlisted.length) {
   process.exit(1);
 }
 
-// Every corpus case has the shape of tests/README.md ("Corpus cases"), so
-// the runners of the four libraries never see a field that they would
-// compare in different ways (tools/corpus-shape.js).
-const misshapen = corpusShapeProblems(root);
+// Every corpus case and result mutant has the shape of tests/README.md
+// ("Corpus cases", "Result mutants"), so the runners of the four libraries
+// never see a field that they would read in different ways
+// (tools/corpus-shape.js).
+const misshapen = [...corpusShapeProblems(root), ...mutantShapeProblems(root)];
 if (misshapen.length) {
   console.error(misshapen.join("\n"));
   process.exit(1);

@@ -27,27 +27,18 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const CHECKED_DIALECTS = ["cll-ebnf", "bpfk"];
 
 /**
- * The grammar documents that no checked dialect includes, each with the
- * reason that the check leaves it out. A grammar document that is neither
- * checked nor listed here is an error, so that a new document is not left
- * out in silence.
+ * The reasons that the check leaves out the dialect documents of the
+ * dialects that it does not check, and any grammar document that no
+ * dialect includes. A document that only unchecked dialects include needs
+ * no entry: its reason is derived (uncheckedReasons). A grammar document
+ * that is neither checked nor left out with a reason is an error, so that a
+ * new document is not left out in silence.
  * @type {Record<string, string>}
  */
 export const UNCHECKED = {
   "grammars/dialects/experimental.md": "the experimental dialect: its texts are not pinned yet",
   "grammars/dialects/zantufa.md": "the Zantufa dialect: its texts are not pinned yet",
   "grammars/dialects/notation.md": "the notation dialect reads jbogenbau, not Lojban",
-  "grammars/indicators/experimental.md": "only the experimental dialect includes it",
-  "grammars/notation/lexical.md": "the notation dialect reads jbogenbau, not Lojban",
-  "grammars/notation/syntax.md": "the notation dialect reads jbogenbau, not Lojban",
-  "grammars/syntax/experimental.md": "only the experimental dialect includes it",
-  "grammars/syntax/zantufa.md": "only the Zantufa dialect includes it",
-  "grammars/words/experimental.md": "only the experimental dialect includes it",
-  "grammars/words/lexicon-experimental.md": "only the experimental dialect includes it",
-  "grammars/words/lexicon-zantufa.md": "only the Zantufa dialect includes it",
-  "grammars/words/lohai.md": "only the experimental and Zantufa dialects include it",
-  "grammars/words/zantufa-stream.md": "only the Zantufa dialect includes it",
-  "grammars/words/zantufa.md": "only the Zantufa dialect includes it",
 };
 
 /** The least number of words that makes a code span a quoted text. */
@@ -215,6 +206,36 @@ export function checkedDocuments(base = root, doms = repositoryDoms(base), check
     if (claimed.length) documents.set(document, claimed);
   }
   return new Map([...documents].sort(([a], [b]) => (a < b ? -1 : 1)));
+}
+
+/**
+ * Why the check leaves out each grammar document of a repository that no
+ * checked dialect includes. A dialect document, or a document that no
+ * dialect includes, has the reason that `unchecked` gives it, if any. Any
+ * other has the dialects that include it, read from the pipelines, so the
+ * reason cannot go stale.
+ * @param {string} [base] the repository
+ * @param {{get: (file: string) => any}} [doms]
+ * @param {string[]} [checked] the checked dialects
+ * @param {Record<string, string>} [unchecked] the reasons given by hand
+ * @returns {Map<string, string>} keyed by the path in the repository
+ */
+export function uncheckedReasons(base = root, doms = repositoryDoms(base), checked = CHECKED_DIALECTS, unchecked = UNCHECKED) {
+  const including = documentDialects(base, doms);
+  const dialectFiles = new Set(dialectDocuments(base));
+  const reasons = new Map();
+  for (const file of markdownFiles(base)) {
+    if (!file.startsWith("grammars/")) continue;
+    const dialects = including.get(file) || [];
+    if (dialects.some((dialect) => checked.includes(dialect))) continue;
+    if (dialectFiles.has(file) || !dialects.length) {
+      if (file in unchecked) reasons.set(file, unchecked[file]);
+    } else {
+      const names = [...dialects].sort();
+      reasons.set(file, `included only by the ${names.join(" and ")} dialect${names.length > 1 ? "s" : ""}`);
+    }
+  }
+  return reasons;
 }
 
 /**
@@ -487,8 +508,9 @@ const reading = (c) => JSON.stringify([c.expect, c.brackets]);
  *   that names no lines and covers several, or names a line that does not
  *   need it; and an entry whose cases are missing, do not hold the text, do
  *   not show it in their role, or leave out a dialect that the text needs;
- * - a grammar document that is neither checked nor in UNCHECKED, and one
- *   in UNCHECKED that is checked;
+ * - a grammar document that is neither checked nor left out with a reason
+ *   (uncheckedReasons), and one in UNCHECKED that is checked or whose
+ *   reason is derived;
  * - a case that pins a quoted text and is not in tests/core.txt.
  * @param {string} [base] the repository
  * @param {{loader?: any, doms?: {get: (file: string) => any}, checked?: string[], unchecked?: Record<string, string>}} [scope]
@@ -524,11 +546,13 @@ export function quotedTextProblems(base = root, { loader, doms, checked = CHECKE
   const documents = checkedDocuments(base, doms, checked);
   const names = dialectNames(base);
   const files = new Set(markdownFiles(base));
+  const reasons = uncheckedReasons(base, doms, checked, unchecked);
   // Every grammar document is checked, or left out with a reason.
   for (const file of files) {
     if (!file.startsWith("grammars/")) continue;
-    if (!documents.has(file) && !(file in unchecked)) problems.push(`${file}: no checked dialect includes this grammar document, and UNCHECKED in tools/quoted-texts.js gives no reason to leave it out`);
+    if (!documents.has(file) && !reasons.has(file)) problems.push(`${file}: no checked dialect includes this grammar document, and UNCHECKED in tools/quoted-texts.js gives no reason to leave it out`);
     if (documents.has(file) && file in unchecked) problems.push(`${file}: a checked dialect includes this document, so UNCHECKED in tools/quoted-texts.js does not need it`);
+    else if (file in unchecked && reasons.get(file) !== unchecked[file]) problems.push(`${file}: ${reasons.get(file)}, which is its reason, so UNCHECKED in tools/quoted-texts.js does not need it`);
   }
   for (const file of Object.keys(unchecked)) if (!files.has(file)) problems.push(`${file}: UNCHECKED in tools/quoted-texts.js lists a document that the repository does not have`);
   // Every case that pins a quoted text is in the core sample, which every

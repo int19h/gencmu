@@ -116,14 +116,14 @@ A library compares only its own two counts. Counts from different libraries are 
 {"mutants": [{"name": "...", "case": "attach-tie.json", "path": ["error", "token"], "set": 0}, ...]}
 ```
 
-Each mutant is a change to a canonical result that breaks an invariant (above). Every library runs the engine case `case` under `engine/`, and checks that its result keeps the invariants. Then it applies the change, and requires two refusals. The engine runner refuses the changed result, and so does the corpus runner. So the four runners hold the same invariants, and no library keeps a list of its own.
+Each mutant is a change to a canonical result that breaks an invariant (above). Every library runs the engine case `case` under `engine/`, and checks that its result keeps the invariants. Then it applies the change, and requires two refusals. The engine runner refuses the changed result, and so does the corpus runner. So the four runners hold the same invariants, and no library keeps a list of its own. Each runner requires at least one mutant, so an emptied file does not pass in silence. `node tools/sync.js --check` checks the shape of the file, as it does that of the corpus (`tools/corpus-shape.js`).
 
-`path` leads from the result to the member or element that changes. A step is a member name or an index into a list, and the index -1 is the last element. The change is one of these:
+`path` leads from the result to the member or element that changes. A step is a member name or an index into a list, and the index -1 is the last element. No other negative index is defined. The change is one of these:
 
 - `set`: the value there becomes the given value, `null` included.
 - `copy`: the value there becomes a copy of the value at another path of the same result.
 - `keep`: the list there keeps only its first `keep` elements.
-- `remove`: the member there is removed.
+- `remove`, with the value `true`: the member there is removed. The last step of its path is a member name, since the runners would remove an element of a list in different ways.
 - `append`: the given value is added at the end of the list there.
 
 ## Corpus cases: `corpus/*.jsonl` and `core.txt`
@@ -163,7 +163,7 @@ A quoted text is a code span in the prose of a document, outside code blocks, wi
 
 The check finds the code spans with the CommonMark and GFM parser of `tools/markdown.js`, so a code block holds none. Every prose block is one line, with its code spans ("Documents" in `docs/design.md`). So the line of a text's code span is the paragraph, heading or table row that quotes it.
 
-The check covers every document that the pipelines of the cll-ebnf and bpfk dialects include, at any depth, and the two dialect documents themselves. `CHECKED_DIALECTS` in `tools/quoted-texts.js` names these dialects. The includes come from the DOMs of the source documents, and each path resolves as the pipeline resolves it. A checked document has the dialects that its claims are about: those of the two that include it. The experimental and Zantufa dialects layer their own documents over these. So a claim about one of them is checked only where the prose names it. Every other grammar document is in `UNCHECKED`, with the reason that the check leaves it out. A grammar document in neither list is an error, so a new document is not left out in silence.
+The check covers every document that the pipelines of the cll-ebnf and bpfk dialects include, at any depth, and the two dialect documents themselves. `CHECKED_DIALECTS` in `tools/quoted-texts.js` names these dialects. The includes come from the DOMs of the source documents, and each path resolves as the pipeline resolves it. A checked document has the dialects that its claims are about: those of the two that include it. The experimental and Zantufa dialects include some of these documents and layer their own over them. So a claim about one of them is checked only where the prose names it. Every other grammar document is left out with a reason. A document that only other dialects include has the reason that names them, read from their pipelines. The dialect documents of those dialects, and any document that no dialect includes, have a reason in `UNCHECKED`. A grammar document with no reason is an error, so a new document is not left out in silence.
 
 The words of a quoted text, joined by single spaces, are compared with the text of each corpus case, written the same way. A quoted text needs a case of each dialect of its document. Its scope can name more dialects, as in "the bpfk dialect rejects it" or "In cll-ebnf and bpfk". The text then needs a case of each of those too. The scope is the list item that holds the text, without the lists nested in it, together with each item that encloses it, again without their nested lists. Outside a list item, the scope is the paragraph, heading or table row. So a blank line inside a list item changes nothing, a name in a nested item does not scope the item above it, and a name in an item scopes the items nested in it. A name counts in any case, when it stands as a word in the prose or in the text of a link. A name in a code span or a link target does not count. The names are those of the dialect documents, less `notation`. In this prose, "experimental" always names the dialect.
 

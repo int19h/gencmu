@@ -151,3 +151,60 @@ export function corpusShapeProblems(base) {
   }
   return problems;
 }
+
+/** The changes that a result mutant can make (tests/README.md, "Result mutants"). */
+export const CHANGES = ["set", "copy", "keep", "remove", "append"];
+
+/**
+ * Whether a value is a path of tests/result-mutants.json: a list of steps,
+ * each a member name or an index into a list, where -1 is the last element
+ * and no other negative index is defined.
+ * @param {unknown} path
+ */
+const isPath = (path) => Array.isArray(path) && path.length > 0 && path.every((step) => typeof step === "string" || (Number.isInteger(step) && step >= -1));
+
+/**
+ * The problems of the shape of the result mutants of a repository
+ * (tests/result-mutants.json), as messages. The four runners apply each
+ * mutant with their own code, and they differ on a path that the README
+ * does not define, such as an index below -1, or a `remove` of a list's
+ * element. So, as with the corpus, the shape is checked once, here.
+ * @param {string} base the repository
+ * @returns {string[]}
+ */
+export function mutantShapeProblems(base) {
+  const file = "tests/result-mutants.json";
+  const text = fs.readFileSync(path.join(base, file), "utf8");
+  let value;
+  try {
+    value = JSON.parse(text);
+  } catch (error) {
+    return [`${file}: not JSON: ${error.message}`];
+  }
+  const problems = [];
+  for (const name of duplicateMembers(text)) problems.push(`${file}: the member name ${name} stands twice in its object`);
+  for (const string of illFormedStrings(value)) problems.push(`${file}: the string ${string} is not a sequence of Unicode scalar values`);
+  const mutants = value && typeof value === "object" ? value.mutants : undefined;
+  // An empty list would let every runner pass with nothing to refuse.
+  if (!Array.isArray(mutants) || !mutants.length) return [...problems, `${file}: mutants is not a list with at least one mutant`];
+  mutants.forEach((mutant, index) => {
+    const at = `${file}: mutant ${index}`;
+    if (typeof mutant !== "object" || mutant === null || Array.isArray(mutant)) {
+      problems.push(`${at}: not a JSON object`);
+      return;
+    }
+    for (const key of Object.keys(mutant)) if (!["name", "case", "path", ...CHANGES].includes(key)) problems.push(`${at}: an unknown field ${key}`);
+    if (typeof mutant.name !== "string") problems.push(`${at}: name is not a string`);
+    if (typeof mutant.case !== "string" || !fs.existsSync(path.join(base, "tests", "engine", mutant.case))) problems.push(`${at}: case names no file under tests/engine`);
+    if (!isPath(mutant.path)) problems.push(`${at}: path is not a list of member names and indices of -1 or more`);
+    const changes = CHANGES.filter((change) => change in mutant);
+    if (changes.length !== 1) {
+      problems.push(`${at}: it has ${changes.length} changes, not one of ${CHANGES.join(", ")}`);
+      return;
+    }
+    if ("copy" in mutant && !isPath(mutant.copy)) problems.push(`${at}: copy is not a path`);
+    if ("keep" in mutant && !(Number.isInteger(mutant.keep) && mutant.keep >= 0)) problems.push(`${at}: keep is not a length`);
+    if ("remove" in mutant && (mutant.remove !== true || !isPath(mutant.path) || typeof mutant.path[mutant.path.length - 1] !== "string")) problems.push(`${at}: remove is not true at a member name`);
+  });
+  return problems;
+}
