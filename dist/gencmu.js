@@ -6135,7 +6135,11 @@
   function sideBySide(left, right, leftTitle, rightTitle) {
     const a = [leftTitle, ...left.split("\n")];
     const b = [rightTitle, ...right.split("\n")];
-    const width = Math.max(...a.map((line) => [...line].length)) + 3;
+    // The widest line, in a loop: a long tree has more lines than a call
+    // takes arguments.
+    let width = 0;
+    for (const line of a) width = Math.max(width, [...line].length);
+    width += 3;
     const out = [];
     for (let index = 0; index < Math.max(a.length, b.length); index++) {
       const line = a[index] || "";
@@ -6225,7 +6229,10 @@
         `${token.span[0]}-${token.span[1]}`, `${token.source[0]}-${token.source[1]}`, tagList(token.tags) + (token.insertedBy ? `  (inserted by ${token.insertedBy})` : "") +
           (attachmentText(token) ? `  (attached: ${attachmentText(token)})` : "")]);
       const header = ["#", "text", "phonemes", "label", "span", "source", "tags"];
-      const widths = header.map((title, column) => Math.max([...title].length, ...rows.map((row) => [...row[column]].length)));
+      // The widest cell of each column, in a loop: a stage can hand on more
+      // tokens than a call takes arguments.
+      const widths = header.map((title) => [...title].length);
+      for (const row of rows) row.forEach((cell, column) => { widths[column] = Math.max(widths[column], [...cell].length); });
       /** @type {(row: string[]) => string} */
       const format = (row) => row.map((cell, column) => (column === row.length - 1 ? cell : cell + " ".repeat(widths[column] - [...cell].length))).join("  ");
       blocks.push([`${stage.name}: ${stage.output.length} tokens, ${stage.verdict}`, format(header), ...rows.map(format)].join("\n"));
@@ -9210,15 +9217,18 @@
           let before = [];
           /** @type {Token | undefined} */
           let token;
+          // One push for each step: an item can have any number of
+          // attachments, more than a call takes arguments.
+          ordered.push({ run: () => lists.push([]) });
+          for (const step of walks(item.before)) ordered.push(step);
           ordered.push(
-            { run: () => lists.push([]) },
-            ...walks(item.before),
             { run: () => {
               before = gathered();
               token = makeToken(child, valueTags(item, nodeTags(child, context)), emitter);
               lists.push([]);
-            } },
-            ...walks(item.after),
+            } });
+          for (const step of walks(item.after)) ordered.push(step);
+          ordered.push(
             { run: () => {
               const after = gathered();
               const carrier = /** @type {Token} */ (token);
