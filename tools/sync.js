@@ -147,7 +147,7 @@ if (parserMissing && check) {
     console.error(broken.join("\n"));
     process.exit(1);
   }
-  const unpinned = quotedTextProblems(root);
+  const unpinned = quotedTextProblems(root, { doms: new Map(Object.entries(documents).map(([file, { dom }]) => [file, dom])) });
   if (unpinned.length) {
     console.error(unpinned.join("\n"));
     process.exit(1);

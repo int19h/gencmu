@@ -206,9 +206,9 @@ The reason is the indicator stage, which takes single tokens. It reads a marker 
   y-base [PAUSE] bu-word
 ```
 
-A word of ZOhOI or MEhOI, such as `zo'oi` or `me'oi`, quotes the next run of characters up to a pause. A quote attached to its marker, with no pause between them, takes the rest of the marker's run. The forms stage must divide that whole run into source words. Otherwise it makes the run one `UNREAD` token, with no marker in it. So `zo'oiklama` quotes `klama`, but the word stage rejects `zo'oixxx`. After a pause, the quote can take an unread run, as in `zo'oi xxx`.
+In the experimental dialect, a word of ZOhOI or MEhOI, such as `zo'oi` or `me'oi`, quotes the next run of characters up to a pause. A quote attached to its marker, with no pause between them, takes the rest of the marker's run. The forms stage must divide that whole run into source words. Otherwise it makes the run one `UNREAD` token, with no marker in it. So `zo'oiklama` quotes `klama`, but the word stage rejects `zo'oixxx`. After a pause, the quote can take an unread run, as in `zo'oi xxx`.
 
-After a pause, the quote skips hesitation, as camxes-exp skips it in its `spaces`. Then the quote takes the next token and the rest of that token's run. So `zo'oiyymibroda` quotes `yymibroda`, `zo'oi yy mibroda` and `zo'oi yymibroda` quote `mibroda`, and `zo'oi yy` has nothing to quote. The quote ends where its run ends, `run-final` on its last token. Otherwise the lazy choice of the stage quotes only `mi` of `zo'oi mibroda`.
+In the experimental dialect, after a pause, the quote skips hesitation, as camxes-exp skips it in its `spaces`. Then the quote takes the next token and the rest of that token's run. So `zo'oiyymibroda` quotes `yymibroda`, `zo'oi yy mibroda` and `zo'oi yymibroda` quote `mibroda`, and `zo'oi yy` has nothing to quote. The quote ends where its run ends, `run-final` on its last token. Otherwise the lazy choice of the stage quotes only `mi` of `zo'oi mibroda`.
 
 `zoi` and `la'o` quote a body between two delimiter words, and so does `mu'oi` in the Zantufa dialect ([zantufa-stream.md](zantufa-stream.md)). The two delimiters must be the same word. That word must not be a whole run of the body, so the quote ends at the first run that is that word. The delimiter can occur inside a longer run of the body. This is the sixth of the departures from CLL 19.
 
@@ -477,7 +477,7 @@ CLL 19.13: `si` erases the word before it. As in the Magic Words proposal, a com
 
 Hesitation is not a word, so it can stand between the word and its `si`: `co .y. si` erases `co`. An erased stretch emits nothing. What a `sa` or `su` leaves standing is a unit, so a following `si` erases it.
 
-An eraser acts when the stage reads it, as the Magic Words proposal has it. So a `si` never erases a `sa` or `su` as though it were a word. For example, under the feature `su-boundary`, `mi ni'o do su si` erases back to the `ni'o` first, and the `si` then erases that.
+An eraser acts when the stage reads it, as the Magic Words proposal has it. So a `si` never erases a `sa` or `su` as though it were a word. For example, under the feature `su-boundary`, which the bpfk dialect turns on, `mi ni'o do su si` erases back to the `ni'o` first, and the `si` then erases that.
 
 ```jbogenbau
 %rule erasure
@@ -512,7 +512,9 @@ CLL 19.13: `sa` erases back to the most recent word of the same selma'o as the w
 
 In CLL 19.13, `su` "erases the entire text". The Magic Words proposal and camxes-std stop `su` sooner, at the most recent `ni'o`, `no'i`, `lu`, `tu'e`, `to` or `to'i`, which survives. CLL 1.0 prints a YACC grammar (a grammar for the parser generator YACC) in its chapter 21. That grammar opens with the steps that a parser takes before the grammar. Its step 2g also stops `su` at a word of NIhO, LU, TUhE or TO, but it erases that word too.
 
-The feature `su-boundary` gives the reading of the proposal. The approved word forms and experimental dialects turn it on. The CLL and Zantufa dialects leave it off, so there `su` erases the whole text before it. The stage resolves both erasers here, in the same left-to-right pass as the quotes, the compounds and `si`, because they act in that order. For example, in `mi le brodi sa le si la brodo` the `sa` takes `le brodi` before the `si` erases the `le` that follows it. And `mi brodi .i sa mi zei co mi` compounds `mi zei co` only after the `sa` took `mi brodi .i`.
+The feature `su-boundary` gives the reading of the proposal. The approved word forms and experimental dialects turn it on. The CLL and Zantufa dialects leave it off, so there `su` erases the whole text before it.
+
+In the cll-ebnf, bpfk and experimental dialects, the stage resolves both erasers here. It does so in the same left-to-right pass as the quotes, the compounds and `si`, because they act in that order. For example, in `mi le brodi sa le si la brodo` the `sa` takes `le brodi` before the `si` erases the `le` that follows it. And `mi brodi .i sa mi zei co mi` compounds `mi zei co` only after the `sa` took `mi brodi .i`.
 
 The grammar states the reach of a `sa` from its far end. `sa-open` is an element, which has some selma'o, and the elements after it. None of those elements has a class of the first one's, so the `sa` that follows finds the nearest match. It is left-recursive and evaluates the class condition at every step, so that a reach dies at the first element that matches.
 
@@ -710,7 +712,7 @@ A stretch that an unmatched `sa` or a `su` wipes can contain a `bu` that has no 
 
 This grammar reads the magic words as the Magic Words proposal of the definition effort defines them, not as CLL 19 describes them. The rules of CLL 19 for these words are incomplete, and some of them contradict each other. For example, 19.16 says that `si` erases the preceding word "unless it is a zo", but in Example 19.77 a `si` erases a `zo`. The proposal gives one order for all of these words: they act from left to right, each when a parser reads it. Where the proposal says nothing, CLL 19 applies.
 
-camxes-std, the PEG grammar (parsing expression grammar) of the definition effort, implements most of the proposal. It rejects some of the rarer cases, such as `bu si`, `.abu sa bu` and `mi ni'o do su si`. Its `sa` follows the grammatical reading of CLL 19.13. In that reading, a `sa` erases back to the start of a sentence, a term or another construct that the words after the `sa` continue. So camxes-std rejects a `sa` with no such construct before it, as in `mi do sa brodi` or a `sa` at the start of the text. The proposal accepts both: a `sa` with no match erases back to the start of the text, and `mi do sa brodi` is `brodi`.
+camxes-std, the PEG grammar (parsing expression grammar) of the definition effort, implements most of the proposal. It rejects some of the rarer cases, such as `bu si`, `.abu sa bu` and `mi ni'o do su si`, which the cll-ebnf and bpfk dialects accept. Its `sa` follows the grammatical reading of CLL 19.13. In that reading, a `sa` erases back to the start of a sentence, a term or another construct that the words after the `sa` continue. So camxes-std rejects a `sa` with no such construct before it, as in `mi do sa brodi` or a `sa` at the start of the text. The proposal accepts both: a `sa` with no match erases back to the start of the text, and `mi do sa brodi` is `brodi`.
 
 camxes-std also applies its rule unevenly. It accepts `broda sa broda`, but it rejects `lo broda sa broda`, where the description is the construct that the words after the `sa` continue. The proposal reads the two alike: `broda` and `lo broda`.
 
