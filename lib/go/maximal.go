@@ -79,7 +79,7 @@ func (mx *maximal) guards(it *item) bool {
 // span and tags (§4).
 func (mx *maximal) forbids(rule, start, end int32, t *symTest) bool {
 	if w := work.Load(); w != nil {
-		w.checks.Add(1)
+		w.checks.add("checks")
 	}
 	if t != nil {
 		if mx.completed == nil {
@@ -87,7 +87,7 @@ func (mx *maximal) forbids(rule, start, end int32, t *symTest) bool {
 			for _, s := range mx.rec.sets {
 				for key, c := range s.syms {
 					if w := work.Load(); w != nil {
-						w.scanned.Add(1)
+						w.scanned.add("scanned")
 					}
 					ro := ruleOrigin{key.rule, key.origin}
 					mx.completed[ro] = append(mx.completed[ro], c)
@@ -107,7 +107,7 @@ func (mx *maximal) forbids(rule, start, end int32, t *symTest) bool {
 			base := mx.rec.base
 			for _, c := range mx.completed[ro] {
 				if w := work.Load(); w != nil {
-					w.candidates.Add(1)
+					w.candidates.add("candidates")
 				}
 				if c.end > far && mx.rec.run.testHolds(t, base+int(start), base+int(c.end), c.tags) {
 					far = c.end
@@ -125,7 +125,7 @@ func (mx *maximal) forbids(rule, start, end int32, t *symTest) bool {
 		for k, s := range mx.rec.sets {
 			for key := range s.syms {
 				if w := work.Load(); w != nil {
-					w.scanned.Add(1)
+					w.scanned.add("scanned")
 				}
 				mx.furthest[ruleOrigin{key.rule, key.origin}] = int32(k)
 			}

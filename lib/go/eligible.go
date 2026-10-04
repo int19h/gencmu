@@ -104,7 +104,7 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 		return items
 	}
 	if w := work.Load(); w != nil {
-		w.eligibilityRuns.Add(1)
+		w.eligibilityRuns.add("eligibilityRuns")
 	}
 	e := &eligibility{r: r, helpers: helpers, index: map[*item]int{}}
 	// The items that the queried ones rest on, each after those below it

@@ -37,10 +37,12 @@ func TestGrowth(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			items := func(n int) int64 {
+			// A budget of 0 is none; the item past a budget stops the parse.
+			items := func(n int, most int64) int64 {
 				links := strings.TrimSuffix(strings.Repeat(c.Link+" ", n), " ")
 				text := strings.Replace(c.Text, "{links}", links, 1)
 				w := countWork(t)
+				w.items.most = most
 				res, err := d.Parse(text, ParseOptions{})
 				if err != nil {
 					t.Fatal(err)
@@ -50,8 +52,8 @@ func TestGrowth(t *testing.T) {
 				}
 				return w.items.Load()
 			}
-			small := items(c.Small)
-			large := items(c.Large)
+			small := items(c.Small, 0)
+			large := items(c.Large, c.Most*small)
 			if large > c.Most*small {
 				t.Errorf("%s\n%q: %d items for %d links, %d for %d", c.Description, c.Link, small, c.Small, large, c.Large)
 			}

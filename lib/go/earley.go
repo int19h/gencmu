@@ -214,7 +214,7 @@ func (r *recognizer) restore(k int, p *production) {
 	it := &item{itemKey: key, set: int32(k + 1), restores: true, queued: true}
 	it.links = []link{{tok: int32(k), term: term}}
 	if w := work.Load(); w != nil {
-		w.items.Add(1)
+		w.items.add("items")
 	}
 	s.index[key] = it
 	s.items = append(s.items, it)
@@ -276,7 +276,7 @@ func (r *recognizer) add(k int, key itemKey, l link, hasLink, strict bool) {
 	if it == nil {
 		it = &item{itemKey: key, set: int32(k), strict: strict, queued: true}
 		if w := work.Load(); w != nil {
-			w.items.Add(1)
+			w.items.add("items")
 		}
 		s.index[key] = it
 		s.items = append(s.items, it)
