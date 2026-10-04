@@ -9,20 +9,21 @@ from __future__ import annotations
 
 import unittest
 from types import FrameType
-from typing import Any, Callable
+from typing import Any, Callable, ContextManager
 from unittest import mock
 
 import gencmu
 from gencmu import _clauses, _grammar, _pipeline, _tags, _types
 from gencmu._clauses import definition_problem
-from gencmu._earley import EdgeSets, Evaluator, StageContext, reading_last
+from gencmu._earley import EdgeSets, Evaluator, Forest, Parser, StageContext, reading_last
 from gencmu._grammar import Lowered, Production, _Constants, _Lowerer, _resolve_classifiers, stitch
 from gencmu._model import Token
 from gencmu._pipeline import splice_pipeline
+from gencmu._rank import Summaries
 from gencmu._stage import implied
 from gencmu._trampoline import run
 
-from .shared import OverBudget, Watch, calls, count_work, load_case_dialect, parse_case, steps
+from .shared import OverBudget, Watch, Work, calls, count_work, load_case_dialect, mutant, parse_case, steps
 
 MOST = 6
 """How many times the work at n the work at 4n may cost."""
@@ -32,19 +33,37 @@ class Linear(unittest.TestCase):
     def assert_linear(self, watches: Callable[[], list[Watch]], make: Callable[[int], Callable[[], object]], n: int) -> None:
         """Count the work that ``make`` builds for size n and 4n, the
         building not counted, through the watches that ``watches`` gives."""
-
-        def count(size: int, budget: int | None = None) -> int:
-            work = make(size)
-            with count_work(*watches(), budget=budget) as counted:
-                work()
-            return counted.count
-
-        small = count(n)
+        small = self.count(watches, make(n))
         self.assertGreater(small, 0, "the watches count nothing")
         try:
-            count(4 * n, MOST * small)
+            self.count(watches, make(4 * n), MOST * small)
         except OverBudget:
             self.fail(f"{small} for {n}, more than {MOST} times as much for {4 * n}")
+
+    @staticmethod
+    def count(watches: Callable[[], list[Watch]], work: Callable[[], object], budget: int | None = None, works: list[Work] | None = None) -> int:
+        """The count of some work under a budget. ``works`` receives the
+        count, which a test reads where the budget stops the work."""
+        with count_work(*watches(), budget=budget) as counted:
+            if works is not None:
+                works.append(counted)
+            work()
+        return counted.count
+
+    def assert_mutant_stops(
+        self, watches: Callable[[], list[Watch]], make: Callable[[int], Callable[[], object]], n: int, mutation: Callable[[], ContextManager[Any]]
+    ) -> None:
+        """A regression, put in place by ``mutation``, stops at the first
+        unit past the budget that the library's own work at n sets for 4n.
+        The work is built before the mutation, since building it can run
+        the code that the mutation changes. The watches are made within the
+        mutation, so that they name its lines."""
+        small = self.count(watches, make(n))
+        large = make(4 * n)
+        works: list[Work] = []
+        with mutation(), self.assertRaises(OverBudget):
+            self.count(watches, large, MOST * small, works)
+        self.assertEqual(works[0].count, MOST * small + 1)
 
 
 def tag_copies() -> list[Watch]:
@@ -186,6 +205,46 @@ class Dedupes(Linear):
             return work
 
         self.assert_linear(lambda: [calls(Edge.__eq__)], make, 5000)
+
+
+def unit_chain(n: int) -> Forest:
+    """The forest of one token read through a chain of n rules, text to r1
+    and so on, each a unit production of the next. Each completion of one
+    rule over the token is the child of the next over the same span."""
+    rules = "".join(f"\n%rule r{index} {f'r{index + 1}' if index + 1 < n else 'A'}" for index in range(1, n))
+    dialect, error = load_case_dialect({"grammar": "%rule text r1" + rules})
+    assert dialect is not None, error
+    tokens = [Token("a", frozenset({"A"}), (0, 1), (0, 1))]
+    context = StageContext(dialect.lowered(0, frozenset()), tokens, "a", dialect.unicode)
+    return Parser(context).parse(context.lowered.rule_ids["text"])
+
+
+class UnitEdges(Linear):
+    # The arcs between rules that complete one below the other over one
+    # span, which the cycle rule's groups are found from (engine §6). Each
+    # completed child is examined once, at its edge, and no other item.
+
+    @staticmethod
+    def watches() -> list[Watch]:
+        return [steps(Summaries.groups, "if kind == 2 and origin[child] == origin[item]")]
+
+    @staticmethod
+    def make(n: int) -> Callable[[], object]:
+        forest = unit_chain(n)
+        return lambda: Summaries(forest, None).groups()
+
+    def test_finding_the_arcs_examines_each_edge_once(self) -> None:
+        self.assert_linear(self.watches, self.make, 200)
+
+    def test_a_check_of_every_item_as_a_child_fails_at_the_first_step_past_its_budget(self) -> None:
+        # The regression looks for the children of each item among all the
+        # items of the forest, not among its edges.
+        scan = (
+            "        for _, kind, child, _ in edges:\n",
+            "        for child in range(len(origin)):\n"
+            "            kind = 2 if any(edge[1] == 2 and edge[2] == child for edge in edges) else 0\n",
+        )
+        self.assert_mutant_stops(self.watches, self.make, 200, lambda: mutant(Summaries, "groups", scan))
 
 
 def emitting_rule(n: int) -> dict[str, Any]:
