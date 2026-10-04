@@ -1,9 +1,6 @@
 package gencmu
 
-import (
-	"fmt"
-	"sort"
-)
+import "fmt"
 
 // A rule's clauses against the captures of its alternatives (engine §3.6,
 // §9): simplifying a clause for one production, the captures a clause uses
@@ -503,10 +500,23 @@ func definitionProblem(r *domRule) string {
 	}
 	var prods []prodCaptures
 	var alts []map[string]int
+	// How many productions capture each name, made once, so that a
+	// mentioned name or an anchor is one lookup and not a search of every
+	// production. Each name entered and each lookup counts before it is.
+	step := func() {
+		if w := work.Load(); w != nil {
+			w.readerSteps.add("reader steps")
+		}
+	}
+	capturedBy := map[string]int{}
 	for _, a := range r.Alternatives {
 		for _, caps := range altCaptures(a) {
 			prods = append(prods, prodCaptures{caps, a})
 			alts = append(alts, caps)
+			for name := range caps {
+				step()
+				capturedBy[name]++
+			}
 		}
 	}
 	var items []*domEmitItem
@@ -537,15 +547,15 @@ func definitionProblem(r *domRule) string {
 		}
 		termMentions(it.Tags, mentioned)
 	}
-	for _, name := range sortedKeys(mentioned) {
-		found := false
-		for _, caps := range alts {
-			if _, ok := caps[name]; ok {
-				found = true
-				break
-			}
-		}
-		if !found {
+	names := make([]string, 0, len(mentioned))
+	for name := range mentioned {
+		step()
+		names = append(names, name)
+	}
+	sortStrings(names, readerCount(), "reader steps")
+	for _, name := range names {
+		step()
+		if capturedBy[name] == 0 {
 			return fmt.Sprintf("$%s is captured by no production of %s", name, r.Name)
 		}
 	}
@@ -647,10 +657,9 @@ func definitionProblem(r *domRule) string {
 			continue
 		}
 		next := items[following[i]]
-		for _, caps := range alts {
-			if _, ok := caps[next.Capture]; !ok {
-				return fmt.Sprintf("%%emits of %s inserts a tag before $%s, which a production lacks", r.Name, next.Capture)
-			}
+		step()
+		if capturedBy[next.Capture] < len(alts) {
+			return fmt.Sprintf("%%emits of %s inserts a tag before $%s, which a production lacks", r.Name, next.Capture)
 		}
 	}
 	return ""
@@ -673,15 +682,6 @@ func nextCaptureItems(items []*domEmitItem) []int {
 			next = i
 		}
 	}
-	return out
-}
-
-func sortedKeys(m map[string]bool) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
-	}
-	sort.Strings(out)
 	return out
 }
 

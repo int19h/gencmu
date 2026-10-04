@@ -610,16 +610,6 @@ func captureSequences(e *domExpr) [][]*domExpr {
 		}
 		return s.h
 	}
-	join := func(a, b *capSeq) *capSeq {
-		step()
-		switch {
-		case a == nil:
-			return b
-		case b == nil:
-			return a
-		}
-		return &capSeq{l: a, r: b, h: hashOf(a)*powOf(b) + b.h, pw: a.pw * b.pw}
-	}
 	leaf := func(c *domExpr) *capSeq {
 		// The hash of a name reads each of its bytes once, as reading the
 		// name did.
@@ -647,6 +637,16 @@ func captureSequences(e *domExpr) [][]*domExpr {
 			}
 		}
 		return out
+	}
+	join := func(a, b *capSeq) *capSeq {
+		step()
+		switch {
+		case a == nil:
+			return b
+		case b == nil:
+			return a
+		}
+		return &capSeq{l: a, r: b, h: hashOf(a)*powOf(b) + b.h, pw: a.pw * b.pw}
 	}
 	same := func(a, b *capSeq) bool {
 		x, y := flat(a), flat(b)

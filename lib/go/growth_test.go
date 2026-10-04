@@ -305,6 +305,43 @@ func TestNotationNestedCaptures(t *testing.T) {
 	t.Logf("%d items and %d steps for 250 levels, %d and %d for 1000", small.items.Load(), small.readerSteps.Load(), large.items.Load(), large.readerSteps.Load())
 }
 
+// TestNotationManyCaptures reads a rule of many alternatives, each with a
+// capture of its own name that its tags use, $ci(A) <tags($ci)>. The
+// checks of the definition find each mentioned name among the productions
+// by one lookup, so four times the alternatives cost at most five times
+// the steps. A search of every production for each name would cost their
+// square.
+func TestNotationManyCaptures(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	read := func(n int, steps int64) (w *workCounts, err *Error, stop any) {
+		alts := make([]string, n)
+		for i := range alts {
+			alts[i] = fmt.Sprintf("$c%d(A) <tags($c%d)>", i, i)
+		}
+		text := "```jbogenbau\n%rule text " + strings.Join(alts, " | ") + "\n```\n"
+		w = &workCounts{}
+		w.readerSteps.most = steps
+		defer func() { stop = recover() }()
+		countWorkIn(w, func() { _, err = bundled.reader.read(text, "t.md") })
+		return w, err, nil
+	}
+	read(250, 0)
+	small, err, _ := read(250, 0)
+	if err != nil {
+		t.Fatalf("250 alternatives: %v", err)
+	}
+	large, err, stop := read(1000, 5*small.readerSteps.Load()+1)
+	if stop != nil {
+		t.Fatalf("%v, after %d steps for 250 alternatives", stop, small.readerSteps.Load())
+	}
+	if err != nil {
+		t.Fatalf("1000 alternatives: %v", err)
+	}
+	t.Logf("%d steps for 250 alternatives, %d for 1000", small.readerSteps.Load(), large.readerSteps.Load())
+}
+
 // TestNotationDeep reads each construct of tests/notation-growth.json
 // nested 20,000 deep with the stack of a goroutine held to 1 MiB: no part
 // of reading recurses as deep as the document nests, so the depth ends in
