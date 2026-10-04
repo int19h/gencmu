@@ -295,7 +295,29 @@ class Dedupes(Linear):
 
             return work
 
-        self.assert_linear(lambda: [calls(Edge.__eq__), calls(Edge.__hash__)], make, 5000)
+        self.assert_linear(self.watches, make, 5000)
+
+    @staticmethod
+    def watches() -> list[Watch]:
+        # The comparisons and hashes of edges, and every line of add with
+        # what it reads in C, since a copy of a set of edges reuses their
+        # hashes and calls neither.
+        return [calls(Edge.__eq__), calls(Edge.__hash__), steps(EdgeSets.add, weight=reads)]
+
+    def test_an_item_that_copies_its_set_of_edges_fails_at_the_first_unit_past_its_budget(self) -> None:
+        def make(n: int) -> Callable[[], object]:
+            offered = [Edge((index, 2, index, 0)) for index in range(n)]
+
+            def work() -> None:
+                edge_sets = EdgeSets()
+                edges: list[tuple[int, ...]] = []
+                for edge in offered:
+                    edge_sets.add(0, edges, edge)
+
+            return work
+
+        copy = ("        if edge in seen:\n", "        seen = self.sets[item] = seen.copy()\n        if edge in seen:\n")
+        self.assert_mutant_stops(self.watches, make, 5000, lambda: mutant(EdgeSets, "add", copy))
 
 
 def unit_chain(n: int) -> Forest:
