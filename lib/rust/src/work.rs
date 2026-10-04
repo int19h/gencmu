@@ -141,7 +141,7 @@ mod tests {
     fn cycle_contexts_keep_only_the_rules_of_their_cycle() {
         let depth = 15;
         let mut grammar =
-            format!("%ambiguity-resolution late-elision\n%elidable T\n%rule text ε | r{depth}\n%rule r0 [T]\n");
+            format!("%ambiguity-resolution late-elision\n%rule text ε | r{depth}\n%rule r0 [+T]\n");
         for i in 1..=depth {
             let below = i - 1;
             grammar
@@ -167,8 +167,8 @@ mod tests {
     /// 8000 tokens, under a second, where the count fails.
     #[test]
     fn nested_queries_with_many_omissions_take_linear_work() {
-        let grammar = "%ambiguity-resolution greedy\n%elidable T\n%rule text body B\n%conditions matches($, r)\n\
-                       %rule body A ...\n%rule r parts B\n%rule parts part ...\n%rule part A [T]";
+        let grammar = "%ambiguity-resolution greedy\n%rule text body B\n%conditions matches($, r)\n\
+                       %rule body {A}\n%rule r parts B\n%rule parts {part}\n%rule part A [+T]";
         let dialect = crate::load_dialect_sources(single(grammar), "p.md").unwrap();
         let work = |n: usize, most: Option<(u64, u64)>| {
             let token = |tag: &str| InputToken {
