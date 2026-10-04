@@ -13,7 +13,8 @@ import fs from "node:fs";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
 import { domOfTree } from "../lib/js/src/dialect.js";
 import { GencmuError } from "../lib/js/src/errors.js";
-import { run, walkCounter } from "../lib/js/src/trampoline.js";
+import { run } from "../lib/js/src/trampoline.js";
+import { countWork, hooks } from "../lib/js/src/testing.js";
 import { UnicodeTable } from "../lib/js/src/unicode.js";
 
 // The lowercase mapping that the string of a sound test is checked against,
@@ -55,7 +56,8 @@ const isCapital = (text) => /^[A-Z]/.test(text);
 // A name in a token is a whole run of name characters, so each place has a
 // few pieces at most. The ends of runs, comments and quoted tokens are
 // found once for the whole text, so the lexer's work grows with the
-// text's length; each step of it counts in `walkCounter` (tests/README.md).
+// text's length. Each step of it counts as walkSteps of `hooks.work`
+// (tests/README.md).
 function lex(text, positions) {
   const chars = [...text];
   const n = chars.length;
@@ -70,7 +72,7 @@ function lex(text, positions) {
   /** @type {Record<string, number[]>} */
   const bodyEnds = { '"': new Array(n + 3).fill(n), "'": new Array(n + 3).fill(n) };
   for (let i = n - 1; i >= 0; i--) {
-    walkCounter.steps++;
+    if (hooks.work) countWork(hooks.work, "walkSteps");
     runEnds[i] = isNameChar(chars[i]) ? runEnds[i + 1] : i;
     closes[i] = chars[i] === "*" && chars[i + 1] === ")" ? i : closes[i + 1];
     for (const quote of ['"', "'"]) {
@@ -89,7 +91,7 @@ function lex(text, positions) {
   // layout), longest first, and the furthest character that any of them,
   // complete or not, reaches.
   const pieces = (i) => {
-    walkCounter.steps++;
+    if (hooks.work) countWork(hooks.work, "walkSteps");
     const c = chars[i];
     /** @type {[number, string | null][]} */
     const found = [];
@@ -165,7 +167,7 @@ function lex(text, positions) {
     reached[0] = true;
     let furthest = 0;
     for (let i = 0; i < n; i++) {
-      walkCounter.steps++;
+      if (hooks.work) countWork(hooks.work, "walkSteps");
       if (!reached[i]) continue;
       furthest = Math.max(furthest, starting[i].reach);
       for (const [end] of starting[i].found) reached[end] = true;
@@ -175,7 +177,7 @@ function lex(text, positions) {
   const tokens = [];
   let i = 0;
   while (i < n) {
-    walkCounter.steps++;
+    if (hooks.work) countWork(hooks.work, "walkSteps");
     const [end, kind] = /** @type {[number, string | null]} */ (starting[i].found.find(([e]) => readable[e]));
     if (kind !== null) tokens.push({ kind, text: chars.slice(i, end).join(""), at: at(i), end: at(end) });
     i = end;
