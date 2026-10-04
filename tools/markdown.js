@@ -8,6 +8,7 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { countWork, hooks } from "../lib/js/src/testing.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(path.join(root, "lib", "js", "package.json"));
@@ -124,6 +125,7 @@ export function* walk(root) {
   const stack = [{ node: root, depth: 0 }];
   for (let top = stack.pop(); top !== undefined; top = stack.pop()) {
     const { node, depth } = top;
+    if (hooks.work) countWork(hooks.work, "walkSteps");
     ancestors.length = depth;
     yield { node, ancestors };
     ancestors.length = depth;

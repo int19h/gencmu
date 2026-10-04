@@ -14,6 +14,7 @@ import { sourceDoms, sourceLoader } from "./grammar-sources.js";
 import { parseMarkdown, walk } from "./markdown.js";
 import { PROSE, proseLineProblems } from "./prose-lines.js";
 import { resolvePath } from "../lib/js/src/markdown.js";
+import { countWork, hooks } from "../lib/js/src/testing.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -376,6 +377,7 @@ export function wordLabels(text) {
     let end = word.length;
     while (start < end && stop(word[start])) start++;
     while (end > start && stop(word[end - 1])) end--;
+    if (hooks.work) countWork(hooks.work, "text", 1 + start + word.length - end);
     return word.slice(start, end).replace(/\./g, " ");
   });
 }
@@ -399,12 +401,17 @@ export function runStarts(haystack, needle) {
   // that is also its suffix.
   const border = [0];
   for (let index = 1, length = 0; index < needle.length; index++) {
+    if (hooks.work) countWork(hooks.work, "text");
     while (length > 0 && needle[index] !== needle[length]) length = border[length - 1];
     if (needle[index] === needle[length]) length++;
     border.push(length);
   }
   for (let index = 0, matched = 0; index < haystack.length; index++) {
-    while (matched > 0 && haystack[index] !== needle[matched]) matched = border[matched - 1];
+    if (hooks.work) countWork(hooks.work, "text");
+    while (matched > 0 && haystack[index] !== needle[matched]) {
+      if (hooks.work) countWork(hooks.work, "text");
+      matched = border[matched - 1];
+    }
     if (haystack[index] === needle[matched]) matched++;
     if (matched === needle.length) {
       starts.push(index + 1 - needle.length);
@@ -425,6 +432,7 @@ export function runStarts(haystack, needle) {
  */
 export function rejectionWindows(caseText, text) {
   const points = Array.from(caseText);
+  if (hooks.work) countWork(hooks.work, "text", points.length);
   /** @type {{start: number, end: number}[]} the words of the case's text */
   const words = [];
   points.forEach((point, index) => {
@@ -521,6 +529,7 @@ export function hasNodeWithWords(tree, input, role, wanted) {
   /** @type {{node: any, exit: boolean, start: number}[]} */
   const stack = [{ node: tree, exit: false, start: 0 }];
   for (let top = stack.pop(); top !== undefined; top = stack.pop()) {
+    if (hooks.work) countWork(hooks.work, "walkSteps");
     const { node } = top;
     if (top.exit) {
       if (node.kind === "rule" && node.rule === role) found.push([top.start, labels.length]);
@@ -547,6 +556,7 @@ export function hasNodeWithWords(tree, input, role, wanted) {
     const key = `${start} ${end}`;
     if (compared.has(key)) continue;
     compared.add(key);
+    if (hooks.work) countWork(hooks.work, "text", end - start);
     if (labels.slice(start, end).join(" ") === wanted) return true;
   }
   return false;

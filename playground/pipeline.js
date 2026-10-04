@@ -7,6 +7,22 @@
 (function (root) {
   "use strict";
 
+  // While a test sets `hooks.work`, the scans below count their steps in
+  // it, as the library's hook does (lib/js/src/testing.js), and stop at the
+  // first count past `hooks.work.budget`. Unset, they count nothing.
+  const hooks = { work: null };
+  const count = (kind, steps = 1) => {
+    const work = hooks.work;
+    if (!work) return;
+    work[kind] = (work[kind] || 0) + steps;
+    const most = work.budget && work.budget[kind];
+    if (most !== undefined && work[kind] > most) {
+      const error = new Error(`${work[kind]} ${kind}, past the budget of ${most}`);
+      error.name = "WorkBudget";
+      throw error;
+    }
+  };
+
   // A path relative to a document, resolved and normalized, as the library
   // resolves an %include.
   function resolvePath(from, relative) {
@@ -143,6 +159,7 @@
     const including = new Set([path]);
     const expand = (documentPath) => {
       for (const directive of scan(documentPath)) {
+        count("splice");
         if (directive.stage !== undefined) {
           stages.push({ name: directive.stage, documents: [] });
           continue;
@@ -172,9 +189,11 @@
     const digitsAt = (i) => {
       let end = i;
       while (end < text.length && text[end] >= "0" && text[end] <= "9") end++;
+      count("text", end - i + 1);
       return end;
     };
     for (let i = 0; i < text.length;) {
+      count("text");
       if (!isNameCharacter(text[i]) && text[i] !== "/") {
         i++;
         continue;
@@ -195,6 +214,7 @@
       }
       let start = afterDouble;
       while (start < end && text[start] === "/") start++;
+      count("text", end - i + start - afterDouble);
       if (!text.startsWith(".md", end) || text[end - 1] === "/" || lastSlash < start) {
         i = end;
         continue;
@@ -218,5 +238,5 @@
     return found;
   }
 
-  root.gencmuPipeline = { pipelineStages, resolvePath, documentMentions };
+  root.gencmuPipeline = { pipelineStages, resolvePath, documentMentions, hooks };
 })(typeof self !== "undefined" ? self : this);

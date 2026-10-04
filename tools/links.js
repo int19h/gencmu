@@ -6,6 +6,7 @@
 // same documents. The list items, blocks and links are those of the
 // CommonMark and GFM parser of tools/markdown.js.
 import { parseMarkdown, walk } from "./markdown.js";
+import { countWork, hooks } from "../lib/js/src/testing.js";
 
 /**
  * The targets of the inline links in a piece of Markdown, as the parser
@@ -63,6 +64,7 @@ export function includeLinks(markdown) {
     let low = 0;
     let high = blocks.length;
     while (low < high) {
+      if (hooks.work) countWork(hooks.work, "text");
       const middle = (low + high) >> 1;
       if (blocks[middle].node.position.start.line < line) low = middle + 1;
       else high = middle;

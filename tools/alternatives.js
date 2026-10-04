@@ -14,6 +14,7 @@
 // and the DOM's positions. From a rule's position, a small scanner finds
 // where each alternative begins, and stops at the next keyword.
 import { extractGrammarText, splitLines } from "../lib/js/src/markdown.js";
+import { countWork, hooks } from "../lib/js/src/testing.js";
 
 export const LINE_LIMIT = 100;
 
@@ -189,6 +190,7 @@ export function suggestLayout(symbols, indent, limit = LINE_LIMIT) {
     let most = 0;
     let fits = true;
     for (let j = i + 1; j <= n; j++) {
+      if (hooks.work) countWork(hooks.work, "text");
       const [first, ...rest] = partWidths[j - 1];
       last += (j - 1 === i ? 0 : 3) + first;
       for (const w of rest) {
@@ -237,7 +239,12 @@ export function suggestLayout(symbols, indent, limit = LINE_LIMIT) {
   // for each number of lines would cost that number times the square of n.
   /** @type {number[][]} */
   const active = Array.from({ length: lines + 1 }, () => []);
-  for (let j = 1; j <= n; j++) for (let k = before[j]; k <= lines - after[j]; k++) active[k].push(j);
+  for (let j = 1; j <= n; j++) {
+    for (let k = before[j]; k <= lines - after[j]; k++) {
+      if (hooks.work) countWork(hooks.work, "text");
+      active[k].push(j);
+    }
+  }
   /** @type {Map<number, number>[]} */
   const best = [new Map([[0, 0]])];
   /** @type {Map<number, number>[]} */
@@ -252,6 +259,7 @@ export function suggestLayout(symbols, indent, limit = LINE_LIMIT) {
     for (const j of active[k]) {
       let shortest = Infinity;
       for (const i of starts[j]) {
+        if (hooks.work) countWork(hooks.work, "text");
         const previous = best[k - 1].get(i);
         if (previous === undefined) continue;
         const value = Math.max(previous, cost[i][j - i - 1]);
