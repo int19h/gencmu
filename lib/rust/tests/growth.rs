@@ -7,7 +7,7 @@
 mod common;
 
 use common::{parse_json, repository, Value};
-use gencmu::tools::{recognizer_captures, recognizer_items, reset_recognizer_items};
+use gencmu::tools::{capture_steps, recognizer_captures, recognizer_items, reset_recognizer_items};
 use gencmu::ParseOptions;
 
 /// A whole number field of a case.
@@ -46,14 +46,19 @@ fn growth_cases() {
 
 /// One production of C captures over C tokens: each item shares the
 /// captured parts of the item it advanced, so the recognizer makes C
-/// sequences of captured parts, not C² entries (engine §4).
+/// sequences of captured parts, not C² entries (engine §4). The tags, the
+/// condition and the derivation read them in a bounded number of walks, not
+/// one walk for each part.
 #[test]
 fn captures_share_their_prefixes() {
     for count in [100usize, 200, 400] {
         let names: Vec<String> = (0..count).map(|index| format!("$c{index}('a')")).collect();
+        // A tag term that reads every capture, the first last.
+        let tags: Vec<String> = (0..count).map(|index| format!("tags($c{})", count - 1 - index)).collect();
         let grammar = format!(
-            "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {}\n%conditions text($c0) = \"a\"\n```\n",
-            names.join(" ")
+            "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {}\n%tags ~x ∪ {}\n%conditions text($c0) = \"a\"\n```\n",
+            names.join(" "),
+            tags.join(" ∪ ")
         );
         let mut documents = std::collections::BTreeMap::new();
         documents.insert("g.md".to_string(), grammar);
@@ -64,5 +69,6 @@ fn captures_share_their_prefixes() {
         assert!(result.ok, "{count} captures");
         assert_eq!(recognizer_captures(), count as u64, "{count} captures");
         assert!(recognizer_items() <= 2 * count as u64 + 4, "{} items for {count} captures", recognizer_items());
+        assert!(capture_steps() <= 4 * count as u64 + 8, "{} steps for {count} captures", capture_steps());
     }
 }

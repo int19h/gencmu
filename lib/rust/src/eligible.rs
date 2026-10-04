@@ -194,7 +194,6 @@ impl<'a> Proofs<'a> {
         }
         let production = &self.g.prods[item.prod as usize];
         let position = item.dot as usize - 1;
-        let caps = self.chart.caps(item.caps);
         let captured = production.cap_at[position].is_some();
         let before_caps = if captured {
             if item.caps == 0 {
@@ -210,7 +209,7 @@ impl<'a> Proofs<'a> {
             Sym::T(_) => find(set - 1).map(|before| (Some(before), None)).into_iter().collect(),
             Sym::N(rule) => {
                 let origins: Vec<u32> = if captured {
-                    vec![caps[caps.len() - 1].start]
+                    vec![self.chart.last_cap(item.caps).start]
                 } else {
                     self.chart.sets[set as usize]
                         .origins

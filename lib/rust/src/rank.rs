@@ -969,7 +969,6 @@ impl<'c> Ranker<'c> {
                 let production = &self.dag.g.prods[item.prod as usize];
                 let position = item.dot as usize - 1;
                 let captured = production.cap_at[position].is_some();
-                let caps = self.dag.chart.caps(item.caps);
                 let previous = if captured {
                     if item.caps == 0 {
                         return Deps::Links(Vec::new());
@@ -1021,7 +1020,7 @@ impl<'c> Ranker<'c> {
                     }
                     Sym::N(rule) => {
                         if captured {
-                            let cap = caps[caps.len() - 1];
+                            let cap = self.dag.chart.last_cap(item.caps);
                             let m = cap.start;
                             if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| holds(m, cap.tags))
                             {

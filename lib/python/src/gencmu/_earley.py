@@ -47,14 +47,28 @@ class Caps:
         return self.size
 
     def __getitem__(self, slot: int) -> tuple[int, int, int]:
+        """One slot's part, the last in constant time and an earlier one by
+        a walk to it; ``parts`` reads them all in one walk."""
         if not 0 <= slot < self.size:
             raise IndexError(slot)
         found: Caps = self
         while found.size > slot + 1:
             assert found.parent is not None
             found = found.parent
+            recognizer_counters.capture_steps += 1
         assert found.part is not None
         return found.part
+
+    def parts(self) -> list[tuple[int, int, int]]:
+        """Every slot's part, in slot order, read in one walk."""
+        out: list[tuple[int, int, int]] = []
+        found: Caps | None = self
+        while found is not None and found.part is not None:
+            out.append(found.part)
+            found = found.parent
+            recognizer_counters.capture_steps += 1
+        out.reverse()
+        return out
 
 
 NO_CAPS = Caps(None, None)
@@ -73,6 +87,8 @@ class RecognizerCounters:
 
     items = 0
     captures = 0
+    # The steps taken through the shared captured parts, to read them.
+    capture_steps = 0
 
 
 recognizer_counters = RecognizerCounters()
@@ -398,10 +414,12 @@ class Evaluator:
         bound: dict[str, tuple[int, int, int]] = {}
         base = self.base
         project = self.project
+        # The parts in one walk, not a walk for each capture.
+        parts = caps.parts() if production.captures else []
         for name, position in production.captures.items():
             slot = production.slots[position]
-            if 0 <= slot < len(caps):
-                start, end, tag = caps[slot]
+            if 0 <= slot < len(parts):
+                start, end, tag = parts[slot]
                 if project is None:
                     bound[name] = (start + base, end + base, tag)
                 else:

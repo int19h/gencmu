@@ -44,21 +44,29 @@ class CaptureStorage(unittest.TestCase):
     def test_an_item_shares_the_parts_of_the_item_it_advanced(self) -> None:
         # One production of C captures over C tokens keeps C captured parts,
         # not C², since each item shares the parts of the item it advanced
-        # (engine §4).
+        # (engine §4). The tags and the conditions read them in a bounded
+        # number of walks.
         for count in (100, 200, 400):
             names = " ".join(f"$c{index}(A)" for index in range(count))
-            case = {"grammar": f'%rule text {names}\n%conditions text($c0) = "a"', "tokens": [{"text": "a", "tags": ["A"]}] * count}
+            # A tag term that reads every capture, the first last.
+            tags = " ∪ ".join(f"tags($c{count - 1 - index})" for index in range(count))
+            case = {"grammar": f'%rule text {names}\n%tags ~x ∪ {tags}\n%conditions text($c0) = "a"', "tokens": [{"text": "a", "tags": ["A"]}] * count}
             dialect, error = load_case_dialect(case)
             self.assertIsNone(error)
             assert dialect is not None
             recognizer_counters.captures = 0
             recognizer_counters.items = 0
+            recognizer_counters.capture_steps = 0
             value, _, _ = parse_case(dialect, case)
             self.assertIsNotNone(value)
             assert value is not None
             self.assertTrue(value["ok"], f"{count} captures")
             self.assertEqual(recognizer_counters.captures, count, f"{count} captures")
             self.assertLessEqual(recognizer_counters.items, 2 * count + 4, f"{count} captures")
+            # Reading the parts, for the conditions, the tags and the
+            # result, walks each a bounded number of times, not once for
+            # each capture before it.
+            self.assertLessEqual(recognizer_counters.capture_steps, 2 * count + 4, f"{count} captures: {recognizer_counters.capture_steps} steps")
 
 
 if __name__ == "__main__":

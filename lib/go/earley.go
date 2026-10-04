@@ -58,8 +58,24 @@ func (c itemCaps) at(slot int32) capVal {
 	return c.nodes[id].cv
 }
 
+// all is every slot's capture, in slot order, read in one walk, and the
+// number of steps that walk took.
+func (c itemCaps) all() ([]capVal, int) {
+	out := make([]capVal, c.nodes[c.more].depth+1)
+	out[0] = c.first
+	steps := 0
+	for id := c.more; id != 0; id = c.nodes[id].parent {
+		out[c.nodes[id].depth] = c.nodes[id].cv
+		steps++
+	}
+	return out, steps
+}
+
 // caps is the captures of an item.
 func (r *recognizer) caps(key *itemKey) itemCaps {
+	if len(r.capNodes) == 0 {
+		r.capNodes = []capNode{{}}
+	}
 	return itemCaps{first: key.cap0, nodes: r.capNodes, more: key.more}
 }
 
@@ -161,6 +177,10 @@ type recognizer struct {
 	// each by the sequence it extends and the capture it adds.
 	capNodes []capNode
 	capIndex map[capStep]int32
+	// capSteps counts the steps taken through capNodes to read captures, a
+	// measure of work that the growth tests compare across numbers of
+	// captures.
+	capSteps int
 }
 
 func (r *recognizer) set(k int) *eset {
@@ -545,6 +565,9 @@ func (r *recognizer) tokenTest(t *symTest, k int) bool {
 func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32, whole func() *tagset) func(string) (spanVal, bool) {
 	// In the check of elision-only, every observation reads the projected
 	// span, and the projection comes before any function of it (§7.5).
+	// The captures are read in one walk, the first time one is read, not a
+	// walk for each.
+	var parts []capVal
 	return func(name string) (spanVal, bool) {
 		if name == "" {
 			a, b := r.observed(origin, end)
@@ -554,7 +577,12 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 		if !ok {
 			return spanVal{}, false
 		}
-		cv := caps.at(slot)
+		if parts == nil {
+			var steps int
+			parts, steps = caps.all()
+			r.capSteps += steps
+		}
+		cv := parts[slot]
 		a, b := r.observed(cv.start, cv.end)
 		return spanVal{a: a, b: b, whole: true, tags: r.run.ps.in.all[cv.tags]}, true
 	}

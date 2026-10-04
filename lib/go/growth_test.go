@@ -98,14 +98,20 @@ func TestCaptureGrowth(t *testing.T) {
 
 // TestCaptureStorage: one production of C captures over C tokens keeps C
 // interned capture entries, each sharing the one it extends, not C² (engine
-// §4).
+// §4). Its tag term and its condition read them in a bounded number of
+// walks, not one walk for each capture.
 func TestCaptureStorage(t *testing.T) {
 	for _, n := range []int{100, 200, 400} {
 		names := make([]string, n)
 		for i := range names {
 			names[i] = fmt.Sprintf("$c%d(A)", i)
 		}
-		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+strings.Join(names, " ")+"\n%conditions text($c0) = \"a\""))
+		// A tag term that reads every capture, the first last.
+		tags := make([]string, n)
+		for i := range tags {
+			tags[i] = fmt.Sprintf("tags($c%d)", n-1-i)
+		}
+		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+strings.Join(names, " ")+"\n%tags ~x ∪ "+strings.Join(tags, " ∪ ")+"\n%conditions text($c0) = \"a\""))
 		lg := d.lower(0, map[string]bool{})
 		toks := make([]Token, n)
 		for i := range toks {
@@ -119,6 +125,9 @@ func TestCaptureStorage(t *testing.T) {
 		// The empty sequence, and one entry for each capture after the first.
 		if len(rec.capNodes) != n {
 			t.Errorf("%d captures: %d interned capture entries", n, len(rec.capNodes))
+		}
+		if rec.capSteps > 2*n+4 {
+			t.Errorf("%d captures: %d steps to read them", n, rec.capSteps)
 		}
 	}
 }

@@ -43,6 +43,16 @@ thread_local! {
     /// thread, each one part added to a sequence it shares: a measure of
     /// storage that tests compare across numbers of captures.
     static CAPTURES: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+    /// How many steps the engine has taken on this thread through those
+    /// sequences, from a part to the one before it, to read them: a measure
+    /// of work that tests compare across numbers of captures.
+    static CAPTURE_STEPS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// How many steps the engine has taken through sequences of captured parts
+/// on this thread (`CAPTURE_STEPS`).
+pub fn capture_steps() -> u64 {
+    CAPTURE_STEPS.with(|steps| steps.get())
 }
 
 /// How many sequences of captured parts the recognizer has made on this
@@ -60,6 +70,7 @@ pub fn recognizer_items() -> u64 {
 pub fn reset_recognizer_items() {
     ITEMS.with(|items| items.set(0));
     CAPTURES.with(|captures| captures.set(0));
+    CAPTURE_STEPS.with(|steps| steps.set(0));
 }
 
 /// A token of a stage's input.
@@ -220,7 +231,8 @@ pub(crate) struct Chart {
 }
 
 impl Chart {
-    /// The captured parts of a sequence, in the order read.
+    /// The captured parts of a sequence, in the order read, in one walk.
+    /// Only a step that reads the parts by their slots needs them all.
     pub(crate) fn caps(&self, mut id: u32) -> Vec<Cap> {
         let mut out = Vec::new();
         while id != 0 {
@@ -228,8 +240,14 @@ impl Chart {
             out.push(cap);
             id = parent;
         }
+        CAPTURE_STEPS.with(|steps| steps.set(steps.get() + out.len() as u64));
         out.reverse();
         out
+    }
+
+    /// The last captured part of a sequence that is not empty.
+    pub(crate) fn last_cap(&self, id: u32) -> Cap {
+        self.caps[id as usize].1
     }
 
     /// The sequence before the last part of a sequence that is not empty.
@@ -800,12 +818,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let item = chart.sets[e].items[k];
         let g = self.g;
         let production = &g.prods[item.prod as usize];
-        let caps = chart.caps(item.caps);
         let (observed, project) = self.observed(tokens);
         let known = chart.sets[e].tagset[k];
         let tags = if known != u32::MAX {
             known
         } else {
+            let caps = chart.caps(item.caps);
             let frame = Frame {
                 caps: &caps,
                 prod: item.prod,
