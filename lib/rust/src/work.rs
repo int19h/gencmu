@@ -398,11 +398,12 @@ mod tests {
             };
             let tokens: Vec<_> = (0..n).map(|_| token("A")).chain([token("B")]).collect();
             reset();
-            // The index is one pass over the chart, and the searches read
-            // each completed item of it at most once: at most twice the
-            // items made so far. An index built again for each search would
-            // read the chart once per search, and stops at once.
-            bound(Work::Searched, Work::Items, 2);
+            // The index is one pass over the chart, the searches read each
+            // completed item of it at most once, and two sweeps settle the
+            // items they rest on: at most four times the items made so
+            // far. An index built again for each search would read the
+            // chart once per search, and stops at once.
+            bound(Work::Searched, Work::Items, 4);
             if let Some((items, searched)) = most {
                 budget(Work::Items, items);
                 budget(Work::Searched, searched);

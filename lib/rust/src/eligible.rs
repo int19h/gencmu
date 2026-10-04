@@ -314,6 +314,9 @@ impl<'a> Proofs<'a> {
         while changed {
             changed = false;
             for x in 0..order.len() {
+                // Each item of each sweep counts, so that sweeps that each
+                // settle only a few items show their cost.
+                self.count();
                 if e[x] && (p[x] || next[x] == Next::Other) {
                     continue;
                 }
@@ -835,14 +838,15 @@ mod tests {
             assert!(eligible.iter().all(|&eligible| eligible));
             (operations, items)
         };
-        let (small, items) = operations(500, &|items| 2 * items);
+        let (small, items) = operations(500, &|items| 4 * items);
         assert!(small > 0, "the searches ran");
-        // The index is one pass over the chart, and the searches read each
-        // completed item of it at most once: at most twice the chart's
-        // items. An index built again for each search would read the chart
-        // once per search, so this stops the shorter text at the first
-        // operation past that, before the longer one costs much.
-        assert!(small <= 2 * items, "{small} operations for 500 tokens, over a chart of {items} items");
+        // The index is one pass over the chart, the searches read each
+        // completed item of it at most once, and two sweeps settle the
+        // items they rest on: at most four times the chart's items. An
+        // index built again for each search would read the chart once per
+        // search, so this stops the shorter text at the first operation
+        // past that, before the longer one costs much.
+        assert!(small <= 4 * items, "{small} operations for 500 tokens, over a chart of {items} items");
         // Four times the text costs about four times as much, not sixteen,
         // and the longer text's run stops at the first entry past that.
         let (large, _) = operations(2000, &|_| 6 * small);
@@ -860,14 +864,15 @@ mod tests {
     #[test]
     fn the_checks_of_maximal_terminators_grow_linearly() {
         for (grammar, begins, c) in maximal_grammars() {
-            let (eligible, small, items) = query_work(grammar, 1000, c * 1000, begins, &|items| 4 * items);
+            let (eligible, small, items) = query_work(grammar, 1000, c * 1000, begins, &|items| 6 * items);
             // The searches read the index once and each completed item
-            // once, and the checks find each table once, in a pass over the
-            // chart, and test each completion at most once: at most four
-            // times the chart's items. A table found again for each check
+            // once, two sweeps settle the items they rest on, and the
+            // checks find each table once, in a pass over the chart, and
+            // test each completion at most once: at most six times the
+            // chart's items. A table found again for each check
             // would read the chart once per check, so this stops the
             // shorter text at the first operation past that.
-            assert!(small <= 4 * items, "{small} operations for 1000 tokens, over a chart of {items} items\n{grammar}");
+            assert!(small <= 6 * items, "{small} operations for 1000 tokens, over a chart of {items} items\n{grammar}");
             // Only the longest y permits the omission, or with the C's, the
             // longest where the test holds.
             assert_eq!(eligible.iter().filter(|&&eligible| eligible).count(), 1, "{grammar}");
