@@ -84,6 +84,12 @@ pub(crate) enum Mutant {
     /// rule's constituents that end at the set, even when the other list
     /// is shorter.
     WalkEnding,
+    /// The searches for a blocking path build their index of the chart
+    /// again for each search.
+    IndexPerSearch,
+    /// The checks of maximality find their tables of the chart again for
+    /// each check.
+    TablePerCheck,
     /// The search of lowering for the rules that read tests every symbol
     /// of a production for a terminal at each of its symbols.
     TerminalAtEach,

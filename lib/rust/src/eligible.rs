@@ -21,7 +21,7 @@ use crate::lower::{Lowered, Sym};
 use crate::maximal::Maximal;
 use crate::tags::Tags;
 use crate::unicode::Unicode;
-use crate::work::{self, Work};
+use crate::work::{self, Mutant, Work};
 
 /// A place in the chart: the set and the index of an item there.
 type Place = (u32, u32);
@@ -84,8 +84,10 @@ impl<'a> Proofs<'a> {
         Proofs { g, chart, tokens, unicode, tags, index: OnceCell::new(), maximal: OnceCell::new() }
     }
 
-    fn count(&self, entries: usize) {
-        work::count(Work::Searched, entries as u64);
+    /// Counts one entry of the chart or the index that a search examines,
+    /// before it is read.
+    fn count(&self) {
+        work::count(Work::Searched, 1);
     }
 
     fn item(&self, (set, index): Place) -> Item {
@@ -114,19 +116,32 @@ impl<'a> Proofs<'a> {
     /// from an index of the whole chart, which one pass over the chart
     /// builds for the whole query.
     fn completed(&self, rule: u32, origin: u32) -> impl Iterator<Item = Place> + '_ {
-        let index = self.index.get_or_init(|| {
-            let mut index = CompletedIndex::default();
-            for (set, entries) in self.chart.sets.iter().enumerate() {
-                self.count(entries.completed.len());
-                for (&key, list) in &entries.completed {
-                    index.entry(key).or_default().extend(list.iter().map(|&at| (set as u32, at)));
+        let index: &CompletedIndex = if work::mutated(Mutant::IndexPerSearch) {
+            // A mutation of the tests builds the index again for each
+            // search, and keeps each one until the test ends.
+            Box::leak(Box::new(self.completed_index()))
+        } else {
+            self.index.get_or_init(|| self.completed_index())
+        };
+        let found = index.get(&(rule, origin)).map_or(&[][..], Vec::as_slice);
+        // Each completed item counts as the search reads it.
+        found.iter().copied().inspect(|_| work::count(Work::Searched, 1))
+    }
+
+    /// The index of the completed items of the whole chart, in one pass
+    /// that counts each item as it is examined.
+    fn completed_index(&self) -> CompletedIndex {
+        let mut index = CompletedIndex::default();
+        for (set, entries) in self.chart.sets.iter().enumerate() {
+            for (&key, list) in &entries.completed {
+                let places = index.entry(key).or_default();
+                for &at in list {
+                    self.count();
+                    places.push((set as u32, at));
                 }
             }
-            index
-        });
-        let found = index.get(&(rule, origin)).map_or(&[][..], Vec::as_slice);
-        self.count(found.len());
-        found.iter().copied()
+        }
+        index
     }
 
     /// The constituent of a completed item at `place`.
@@ -391,6 +406,7 @@ mod tests {
     use super::Proofs;
     use crate::earley::{matchers, Recognizer, Shared, Tok};
     use crate::lower::{Lowered, Sym};
+    use crate::work::{assert_stops, Mutant, Mutation, Work};
 
     /// SplitMix64.
     struct Rng(u64);
@@ -843,21 +859,7 @@ mod tests {
     /// tested `y` from every position, the completions from many origins.
     #[test]
     fn the_checks_of_maximal_terminators_grow_linearly() {
-        let plain = "%ambiguity-resolution greedy\n%rule text body B\n\
-                     %conditions begins(from($), r)\n%rule body {A}\n%rule r y [++T]\n%rule y {A}\n";
-        let tested = "%ambiguity-resolution greedy\n%rule text body B\n\
-                      %conditions begins(from($), r)\n%rule body {A}\n%rule r y⊇~p [++T]\n%rule y {A} <~p>\n";
-        let many = "%ambiguity-resolution greedy\n%rule text body B\n\
-                    %conditions matches($, r)\n%rule body {A}\n%rule r parts B\n%rule parts {part}\n\
-                    %rule part y⊇~p [++T]\n%rule y A <~p>\n";
-        // After the A's come as many C's, so y completes from the start at
-        // every end, and the test holds only of those that end before the
-        // C's: the furthest end where it holds lies far before the furthest
-        // completion.
-        let far = "%ambiguity-resolution greedy\n%rule text body B\n\
-                   %conditions begins(from($), r)\n%rule body {A} {C}\n%rule r y⊇~p [++T]\n\
-                   %rule y {A} <~p> | {A} {C}\n";
-        for (grammar, begins, c) in [(plain, true, 0), (tested, true, 0), (many, false, 0), (far, true, 1)] {
+        for (grammar, begins, c) in maximal_grammars() {
             let (eligible, small, items) = query_work(grammar, 1000, c * 1000, begins, &|items| 4 * items);
             // The searches read the index once and each completed item
             // once, and the checks find each table once, in a pass over the
@@ -874,6 +876,45 @@ mod tests {
             let (_, large, _) = query_work(grammar, 4000, c * 4000, begins, &|_| 6 * small);
             assert!(large < small * 6, "{small} operations for 1000 tokens, {large} for 4000\n{grammar}");
         }
+    }
+
+    /// An index of the chart built again for each search, or a table of
+    /// maximality found again for each check, stops at the first count past
+    /// the budget that `the_checks_of_maximal_terminators_grow_linearly`
+    /// gives the longer text. The second and fourth grammars find their
+    /// one table of passing ends once, so only the others repeat a table.
+    #[test]
+    fn indexes_found_again_stop_at_the_budget() {
+        for (at, (grammar, begins, c)) in maximal_grammars().into_iter().enumerate() {
+            let (_, small, _) = query_work(grammar, 1000, c * 1000, begins, &|_| u64::MAX);
+            let mutants = [(Mutant::IndexPerSearch, Work::Searched), (Mutant::TablePerCheck, Work::Looked)];
+            for (mutant, work) in mutants.into_iter().take(if at % 2 == 0 { 2 } else { 1 }) {
+                let _mutation = Mutation::on(mutant);
+                assert_stops(work, 6 * small, || {
+                    query_work(grammar, 4000, c * 4000, begins, &|_| 6 * small);
+                });
+            }
+        }
+    }
+
+    /// The grammars of the tests of maximality's work, each with whether
+    /// its query is `begins`, and how many C's follow each A.
+    fn maximal_grammars() -> [(&'static str, bool, usize); 4] {
+        let plain = "%ambiguity-resolution greedy\n%rule text body B\n\
+                     %conditions begins(from($), r)\n%rule body {A}\n%rule r y [++T]\n%rule y {A}\n";
+        let tested = "%ambiguity-resolution greedy\n%rule text body B\n\
+                      %conditions begins(from($), r)\n%rule body {A}\n%rule r y⊇~p [++T]\n%rule y {A} <~p>\n";
+        let many = "%ambiguity-resolution greedy\n%rule text body B\n\
+                    %conditions matches($, r)\n%rule body {A}\n%rule r parts B\n%rule parts {part}\n\
+                    %rule part y⊇~p [++T]\n%rule y A <~p>\n";
+        // After the A's come as many C's, so y completes from the start at
+        // every end, and the test holds only of those that end before the
+        // C's: the furthest end where it holds lies far before the furthest
+        // completion.
+        let far = "%ambiguity-resolution greedy\n%rule text body B\n\
+                   %conditions begins(from($), r)\n%rule body {A} {C}\n%rule r y⊇~p [++T]\n\
+                   %rule y {A} <~p> | {A} {C}\n";
+        [(plain, true, 0), (tested, true, 0), (many, false, 0), (far, true, 1)]
     }
 
     /// Recognizes `n` tokens `A`, `c` tokens `C` and then a `B` as the rule `r` of the
