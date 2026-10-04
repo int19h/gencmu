@@ -445,3 +445,45 @@ func TestIncludeChainLinear(t *testing.T) {
 		t.Logf("a chain of %d includes: %d steps", n, w.spliceSteps.Load())
 	}
 }
+
+// TestCaptureSetsStopAtFirst: the checks of a definition count each
+// capture they look at, compare or copy before they do, so a budget
+// stops them at the first step past it. The expression is a sequence of
+// groups of captures whose names repeat, with a choice that makes the
+// sequences multiply.
+func TestCaptureSetsStopAtFirst(t *testing.T) {
+	capture := func(name string) *domExpr {
+		return &domExpr{Kind: exCapture, Name: name, Inner: &domExpr{Kind: exRef, Name: "A"}}
+	}
+	seq := &domExpr{Kind: exSeq}
+	for g := range 12 {
+		group := &domExpr{Kind: exSeq}
+		for i := range 10 {
+			group.Items = append(group.Items, capture(fmt.Sprintf("c%d", (g+i)%5)))
+		}
+		seq.Items = append(seq.Items, group)
+		if g == 6 {
+			seq.Items = append(seq.Items, &domExpr{Kind: exChoice, Items: []*domExpr{capture("x"), capture("y")}})
+		}
+	}
+	for _, c := range []struct {
+		name string
+		f    func()
+	}{
+		{"captureSequences", func() { captureSequences(seq) }},
+		{"duplicateCaptures", func() { duplicateCaptures(seq) }},
+	} {
+		name, f := c.name, c.f
+		all := &workCounts{}
+		countWorkIn(all, f)
+		total := all.readerSteps.Load()
+		for most := int64(1); most < total; most++ {
+			w := &workCounts{}
+			w.readerSteps.most = most
+			if !stopsAtFirst(t, w, &w.readerSteps, "reader steps", f) {
+				t.Errorf("%s, %d steps in all", name, total)
+				break
+			}
+		}
+	}
+}

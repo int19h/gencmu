@@ -510,18 +510,30 @@ func duplicateCaptures(e *domExpr) map[*domExpr]bool {
 		done = done[:len(done)-count]
 		meets := n.Kind == exSeq || n.Kind == exAnd
 		joined := partsDone[0]
+		// Each name looked up and each capture marked or moved counts
+		// before it is.
+		w := work.Load()
+		step := func() {
+			if w != nil {
+				w.readerSteps.add("reader steps")
+			}
+		}
 		for _, part := range partsDone[1:] {
 			if meets {
 				if joined.size <= part.size {
 					for name := range joined.names {
+						step()
 						for _, c := range part.names[name] {
+							step()
 							duplicates[c] = true
 						}
 					}
 				} else {
 					for name, cs := range part.names {
+						step()
 						if _, ok := joined.names[name]; ok {
 							for _, c := range cs {
+								step()
 								duplicates[c] = true
 							}
 						}
@@ -533,10 +545,10 @@ func duplicateCaptures(e *domExpr) map[*domExpr]bool {
 				large, small = part, joined
 			}
 			for name, cs := range small.names {
-				large.names[name] = append(large.names[name], cs...)
-				if w := work.Load(); w != nil {
-					w.readerSteps.addN(int64(len(cs)), "reader steps")
+				for range cs {
+					step()
 				}
+				large.names[name] = append(large.names[name], cs...)
 			}
 			large.size += small.size
 			joined = large
@@ -556,12 +568,21 @@ func duplicateCaptures(e *domExpr) map[*domExpr]bool {
 // alternatives.
 func captureSequences(e *domExpr) (sequences [][]*domExpr, duplicates map[*domExpr]bool) {
 	duplicates = map[*domExpr]bool{}
+	// Each capture that the work below looks at, compares, copies or
+	// writes into a key counts before it does.
+	w := work.Load()
+	step := func() {
+		if w != nil {
+			w.readerSteps.add("reader steps")
+		}
+	}
 	distinct := func(lists [][]*domExpr) [][]*domExpr {
 		seen := map[string]bool{}
 		var out [][]*domExpr
 		for _, list := range lists {
 			var key strings.Builder
 			for _, c := range list {
+				step()
 				key.WriteString(c.Name)
 				key.WriteByte(' ')
 			}
@@ -579,17 +600,18 @@ func captureSequences(e *domExpr) (sequences [][]*domExpr, duplicates map[*domEx
 			for _, b := range right {
 				for _, c := range b {
 					for _, other := range a {
+						step()
 						if other.Name == c.Name {
 							duplicates[c] = true
 							break
 						}
 					}
 				}
+				for range len(a) + len(b) {
+					step()
+				}
 				joined := make([]*domExpr, 0, len(a)+len(b))
 				out = append(out, append(append(joined, a...), b...))
-				if w := work.Load(); w != nil {
-					w.readerSteps.addN(int64(len(a)+len(b)), "reader steps")
-				}
 			}
 		}
 		return distinct(out)
@@ -614,9 +636,7 @@ func captureSequences(e *domExpr) (sequences [][]*domExpr, duplicates map[*domEx
 	stack := []frame{{n: e}}
 	var done [][][]*domExpr
 	for len(stack) > 0 {
-		if w := work.Load(); w != nil {
-			w.readerSteps.add("reader steps")
-		}
+		step()
 		top := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		n := top.n
@@ -657,13 +677,14 @@ func captureSequences(e *domExpr) (sequences [][]*domExpr, duplicates map[*domEx
 				if names == nil {
 					names = map[string]bool{}
 					for _, c := range out[0] {
+						step()
 						names[c.Name] = true
 					}
-					if w := work.Load(); w != nil {
-						w.readerSteps.addN(int64(len(out[0])), "reader steps")
-					}
 				}
+				// Each capture of the part is looked up, then recorded and
+				// copied, which counts once for each.
 				for _, c := range part[0] {
+					step()
 					if names[c.Name] {
 						duplicates[c] = true
 					}
@@ -672,12 +693,12 @@ func captureSequences(e *domExpr) (sequences [][]*domExpr, duplicates map[*domEx
 					names[c.Name] = true
 				}
 				out[0] = append(out[0], part[0]...)
-				if w := work.Load(); w != nil {
-					w.readerSteps.addN(int64(len(part[0])), "reader steps")
-				}
 			}
 		case exChoice:
 			for _, part := range parts {
+				for range part {
+					step()
+				}
 				out = append(out, part...)
 			}
 			out = distinct(out)

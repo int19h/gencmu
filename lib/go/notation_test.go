@@ -115,9 +115,8 @@ func TestFixpoint(t *testing.T) {
 				t.Errorf("stage %s, run %d: %s, the bootstrap's %s", s.name, j, d.path, want.Documents[j].Path)
 				continue
 			}
-			var wantDOM any
-			json.Unmarshal(want.Documents[j].Dom, &wantDOM)
-			if got := domValue(t, d.dom); !reflect.DeepEqual(got, wantDOM) {
+			wantDOM, _ := decodeJSON(want.Documents[j].Dom)
+			if got := domValue(t, d.dom); !equalJSON(got, wantDOM) {
 				t.Errorf("%s: reading it with the bootstrap does not reproduce the bootstrap\n got %s", d.path, d.dom.json())
 			}
 			// The DOM also writes byte for byte as the bootstrap holds it.
@@ -164,9 +163,8 @@ func TestCompiled(t *testing.T) {
 		if rerr != nil {
 			t.Fatalf("%s: %v", p, rerr)
 		}
-		var want any
-		json.Unmarshal(d.Dom, &want)
-		if !reflect.DeepEqual(domValue(t, dom), want) {
+		want, _ := decodeJSON(d.Dom)
+		if !equalJSON(domValue(t, dom), want) {
 			t.Errorf("%s: compiled.json's DOM differs from a fresh reading", p)
 		}
 	}

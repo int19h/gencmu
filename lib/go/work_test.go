@@ -26,7 +26,8 @@ func countWorkIn(w *workCounts, f func()) {
 // stopsAtFirst runs f with w counting, and checks that it stops at the
 // first count of c past its budget, not at a later one: a count added
 // after its work, or many at once, passes the budget by more than one.
-func stopsAtFirst(t *testing.T, w *workCounts, c *workCount, name string, f func()) {
+// It says whether it did.
+func stopsAtFirst(t *testing.T, w *workCounts, c *workCount, name string, f func()) bool {
 	t.Helper()
 	want := fmt.Sprintf("%d %s, past the budget of %d", c.most+1, name, c.most)
 	var stop any
@@ -36,7 +37,11 @@ func stopsAtFirst(t *testing.T, w *workCounts, c *workCount, name string, f func
 	}()
 	if stop == nil {
 		t.Errorf("no stop, %d %s, where %q was expected", c.Load(), name, want)
-	} else if got := fmt.Sprint(stop); got != want {
-		t.Errorf("stopped with %q, not %q", got, want)
+		return false
 	}
+	if got := fmt.Sprint(stop); got != want {
+		t.Errorf("stopped with %q, not %q", got, want)
+		return false
+	}
+	return true
 }
