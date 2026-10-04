@@ -1462,9 +1462,9 @@ mod tests {
             .into_iter()
             .map(|n| {
                 let mut shared = Shared::new(&dialect.unicode, &chars);
-                // Names that differ in their first bytes, which the table's
-                // hash spreads best.
-                let names: Vec<String> = (0..n).map(|index| format!("{index}t")).collect();
+                // Names that share their first byte, which the table's hash
+                // must still spread (fxhash.rs).
+                let names: Vec<String> = (0..n).map(|index| format!("t{index}")).collect();
                 let tokens: Vec<Tok> = names
                     .iter()
                     .map(|name| Tok {
