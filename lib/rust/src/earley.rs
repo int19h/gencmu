@@ -180,6 +180,20 @@ impl<'c> CapSearch<'c> {
         CapSearch { chart, id, all: std::cell::OnceCell::new(), searched: Cell::new(0) }
     }
 
+    /// A search that goes on from what an earlier one had found.
+    fn resume(chart: &'c Chart, id: u32, found: Option<Vec<Cap>>, searched: u32) -> CapSearch<'c> {
+        let all = std::cell::OnceCell::new();
+        if let Some(found) = found {
+            let _ = all.set(found);
+        }
+        CapSearch { chart, id, all, searched: Cell::new(searched) }
+    }
+
+    /// What the search had found, which `resume` takes.
+    fn into_parts(self) -> (Option<Vec<Cap>>, u32) {
+        (self.all.into_inner(), self.searched.get())
+    }
+
     fn get(&self, slot: u32) -> Cap {
         if let Some(all) = self.all.get() {
             return all[slot as usize];
@@ -435,10 +449,6 @@ pub(crate) struct Shared<'a> {
     /// The nested parses running, by place, whatever the kind of query that
     /// started each.
     running: FxSet<Place>,
-    /// The nested parse that settled last: its place, whether `begins`
-    /// asked it, and its answer. The step that halted for it asks it again
-    /// at once, and finds it here without making its key again.
-    settled: Option<(Place, bool, (bool, SetId))>,
 }
 
 impl<'a> Shared<'a> {
@@ -451,7 +461,6 @@ impl<'a> Shared<'a> {
             memo: FxMap::default(),
             begins: FxMap::default(),
             running: FxSet::default(),
-            settled: None,
         }
     }
 
@@ -461,7 +470,6 @@ impl<'a> Shared<'a> {
         self.memo.clear();
         self.begins.clear();
         self.running.clear();
-        self.settled = None;
     }
 
     /// Whether a terminal matches a token whose tags are `set` (§4). A
@@ -611,10 +619,9 @@ fn span_bounds(span: &Span, frame: &Frame, input: usize) -> Bounds {
 
 /// Why an evaluation stopped short: an error of the grammar, or a nested
 /// parse whose answer is not yet known. The recognizer then parses that
-/// span on a stack of its own and evaluates again, so that a chain of
-/// nested parses costs heap and not the call stack. An evaluation changes
-/// only caches before it halts, so evaluating again gives what one
-/// uninterrupted evaluation would.
+/// span on a stack of its own, so that a chain of nested parses costs heap
+/// and not the call stack. The evaluation keeps its frames, and goes on
+/// from where it halted once the answer is known (`Eval`).
 #[derive(Debug)]
 pub(crate) enum Halt<'t> {
     Error(EngineError),
@@ -647,10 +654,207 @@ impl Request<'_> {
     }
 }
 
+/// A nested query's answer: whether its span parses as its rule, and the
+/// union of the tags of its derivations.
+type Answer = (bool, SetId);
+
+/// What a node of a condition or a term gives, or a whole evaluation of a
+/// production's tag term for its constituent.
+enum Out {
+    Bool(bool),
+    Value(Value),
+    Tags(SetId),
+}
+
+impl Out {
+    fn holds(self) -> bool {
+        match self {
+            Out::Bool(holds) => holds,
+            _ => unreachable!("a condition gives a truth value"),
+        }
+    }
+
+    fn value(self) -> Value {
+        match self {
+            Out::Value(value) => value,
+            _ => unreachable!("a term gives a value"),
+        }
+    }
+
+    fn constituent(self) -> SetId {
+        match self {
+            Out::Tags(set) => set,
+            _ => unreachable!("a tag term gives a constituent's tags"),
+        }
+    }
+}
+
+/// Takes the value of the part that was evaluated last.
+fn took(last: &mut Option<Out>) -> Out {
+    last.take().expect("the value of a part")
+}
+
+/// The kind of a nested query, which says what its answer gives.
+#[derive(Debug, Clone, Copy)]
+enum Query {
+    Matches,
+    Begins,
+    TagsRule,
+}
+
+impl Query {
+    fn out(self, (holds, set): Answer, tags: &Tags) -> Out {
+        match self {
+            Query::Matches | Query::Begins => Out::Bool(holds),
+            Query::TagsRule => Out::Value(Value::Set(tags.shared(set))),
+        }
+    }
+}
+
+/// What the tags of `$` are found for: a `tags` term, a `classes` term,
+/// or the step that completes the constituent.
+#[derive(Debug, Clone, Copy)]
+enum Wanted {
+    Tags,
+    Classes,
+    Step,
+}
+
+/// One frame of an evaluation: a node to visit, or a compound node that
+/// waits for the value of its part, with what it has so far.
+enum Task<'n> {
+    Cond(&'n LCond),
+    Term(&'n LTerm),
+    /// The conditions of a step, which all must hold, from `next` on.
+    Conds(&'n [(LCond, usize)], usize),
+    Not,
+    /// The parts of `∨` from `next` on.
+    Any(&'n [LCond], usize),
+    /// The parts of `∧` from `next` on.
+    All(&'n [LCond], usize),
+    /// The consequent of `⟹`, which its antecedent's value decides on.
+    Implies(&'n LCond),
+    /// A comparison that has its left side to evaluate next.
+    Left(CmpOp, &'n LTerm),
+    /// A comparison with its left side's value.
+    Right(CmpOp, Value),
+    /// A union with the sets of its parts so far.
+    Union(&'n [LTerm], Vec<Arc<TagList>>),
+    /// An intersection from `next` on, with the intersection so far.
+    Inter(&'n [LTerm], usize, Option<Arc<TagList>>),
+    DiffLeft(&'n LTerm),
+    DiffRight(Arc<TagList>),
+    /// `split` with its delimiter to evaluate next.
+    Split(&'n LTerm),
+    /// `split` with the string's value.
+    SplitBy(String),
+    TagOf,
+    Classify(&'n str),
+    /// The term of `⟹` in a term, which its guard's value decides on.
+    Guarded(&'n LTerm),
+    /// A term whose value must be a set.
+    AsSet,
+    /// The tag term of `$`'s production, evaluated for `$`'s tags.
+    Whole(Wanted),
+    /// A query that halted the evaluation, which its answer resumes.
+    Await(Query),
+}
+
+/// An evaluation of a step's conditions or of a tag term, as a stack of
+/// frames, so that a query whose answer is not yet known can halt it and
+/// its answer can resume it where it halted (§4). Nothing it evaluated is
+/// evaluated again.
+struct Eval<'n> {
+    tasks: Vec<Task<'n>>,
+    /// Whether the tag term of `$`'s own production is being evaluated,
+    /// which reads `$`'s tags as empty (§9).
+    hidden: bool,
+    /// The answer to the query that halted the evaluation.
+    answer: Option<Answer>,
+}
+
+impl<'n> Eval<'n> {
+    /// The evaluation of a step's conditions, which are not empty, on
+    /// `tasks`, an empty stack whose room it reuses.
+    fn conditions(conds: &'n [(LCond, usize)], mut tasks: Vec<Task<'n>>) -> Eval<'n> {
+        tasks.push(Task::Conds(conds, 1));
+        tasks.push(Task::Cond(&conds[0].0));
+        Eval { tasks, hidden: false, answer: None }
+    }
+
+    /// The evaluation of a production's tag term, for its constituent's
+    /// tags, on `tasks`, an empty stack whose room it reuses.
+    fn constituent(term: &'n LTerm, mut tasks: Vec<Task<'n>>) -> Eval<'n> {
+        tasks.push(Task::Whole(Wanted::Step));
+        tasks.push(Task::Term(term));
+        Eval { tasks, hidden: true, answer: None }
+    }
+
+    /// The evaluation of a term whose value must be a set.
+    fn term(term: &'n LTerm) -> Eval<'n> {
+        Eval { tasks: vec![Task::AsSet, Task::Term(term)], hidden: false, answer: None }
+    }
+
+    /// Pushes a frame that waits for a part, then the part's.
+    fn push(&mut self, then: Task<'n>, part: Task<'n>) {
+        self.tasks.push(then);
+        self.tasks.push(part);
+    }
+}
+
+/// The evaluations of a run's steps: the one that halted, if one did, and
+/// an empty stack of frames whose room the next evaluation reuses.
+#[derive(Default)]
+struct Evals<'g> {
+    held: Option<Held<'g>>,
+    spare: Vec<Task<'g>>,
+}
+
+/// A step's evaluation that halted, kept by the run while the query's
+/// parse runs: the item the evaluation is of, the set it is evaluated in,
+/// whether the step is strict, and what its frame had found. The frame
+/// reads the chart, which the run owns, so it is made again from these.
+struct Held<'g> {
+    eval: Eval<'g>,
+    item: Item,
+    end: u32,
+    strict: bool,
+    /// The constituent's tags, if the evaluation found them.
+    tags: Option<SetId>,
+    /// The parts that the frame's search of the captured parts read in
+    /// one walk, and the steps its searches took (`CapSearch`).
+    found: Option<Vec<Cap>>,
+    searched: u32,
+}
+
+impl<'g> Held<'g> {
+    /// An evaluation over `item` in the set `end`, which has found nothing yet.
+    fn new(eval: Eval<'g>, item: Item, end: usize, strict: bool) -> Held<'g> {
+        Held { eval, item, end: end as u32, strict, tags: None, found: None, searched: 0 }
+    }
+
+    /// The frame of the evaluation, over the captured parts of `search`.
+    fn frame<'c>(&self, search: &'c CapSearch<'c>, project: Option<&'c [u32]>) -> Frame<'c> {
+        Frame {
+            caps: Caps::Chart(search),
+            prod: self.item.prod,
+            origin: self.item.origin,
+            end: self.end,
+            tags: Cell::new(self.tags),
+            project,
+        }
+    }
+
+    /// Keeps what the frame had found when the evaluation halted.
+    fn keep(&mut self, tags: Option<SetId>, search: CapSearch) {
+        self.tags = tags;
+        (self.found, self.searched) = search.into_parts();
+    }
+}
+
 /// What a recognition does next. A step that halts for a nested parse
-/// keeps its place here. When the answer is known, the run makes that step
-/// again from its start. What the step did before it halted, it does again
-/// to the same effect.
+/// keeps its place here, and its evaluation in the run's `evals`. When the
+/// answer is known, the step goes on with that evaluation, where it halted.
 enum Step {
     /// Take the next entry of the queue.
     Next,
@@ -688,6 +892,9 @@ struct Run<'t, 'g> {
     /// Whether the set `e` has been entered, and the chart reaches it.
     entered: bool,
     step: Step,
+    /// The evaluation of the step that halted, which the answer resumes,
+    /// and the room that evaluations reuse.
+    evals: Evals<'g>,
     request: Option<Request<'t>>,
 }
 
@@ -700,7 +907,7 @@ impl<'t, 'g> Run<'t, 'g> {
         // nothing yet, as `begin_predict` would begin it.
         chart.sets[0].predicted.insert(start, false);
         let step = Step::Predict { rule: start, e: 0, strict: false, before: None, next: 0, then: Then::Queue };
-        Run { tokens, base, recon, chart, e: 0, head: 0, entered: false, step, request: None }
+        Run { tokens, base, recon, chart, e: 0, head: 0, entered: false, step, evals: Evals::default(), request: None }
     }
 
     /// The recognition that answers `request`: its span alone, with its
@@ -720,13 +927,14 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// so a nested parse over the rest of a long text makes only the sets it
     /// reaches.
     pub(crate) fn recognize(&mut self, tokens: &[Tok], base: usize, start: u32) -> Result<Chart, EngineError> {
-        self.drive(Run::new(tokens, base, start, self.recon))
+        Ok(self.drive(Run::new(tokens, base, start, self.recon))?.0)
     }
 
     /// Runs a recognition and the nested parses it needs, each on a stack
     /// of runs, not of calls. A run that halts for a nested parse waits
-    /// below the run that answers it, and then goes on.
-    fn drive<'t>(&mut self, root: Run<'t, 'g>) -> Result<Chart, EngineError>
+    /// below the run that answers it, and then goes on with the answer.
+    /// The root's chart comes back, with its answer if it answers a query.
+    fn drive<'t>(&mut self, root: Run<'t, 'g>) -> Result<(Chart, Option<Answer>), EngineError>
     where
         'g: 't,
     {
@@ -738,12 +946,16 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             match self.resume(run) {
                 Ok(()) => {
                     let Run { request, chart, .. } = runs.pop().expect("a run");
-                    if let Some(request) = request {
+                    let answer = request.map(|request| {
                         self.shared.running.remove(&request.place());
-                        self.settle(request, &chart);
-                    }
-                    if runs.is_empty() {
-                        break Ok(chart);
+                        self.settle(request, &chart)
+                    });
+                    match runs.last_mut() {
+                        None => break Ok((chart, answer)),
+                        Some(waiting) => {
+                            let held = waiting.evals.held.as_mut().expect("the evaluation that asked");
+                            held.eval.answer = answer;
+                        }
                     }
                 }
                 Err(Halt::Error(error)) => break Err(error),
@@ -783,15 +995,15 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     }
 
     /// Answers a nested parse outside any recognition, as emission needs.
-    fn answer(&mut self, request: Request) -> Result<(), EngineError> {
+    fn answer(&mut self, request: Request) -> Result<Answer, EngineError> {
         self.start_query(&request)?;
-        self.drive(Run::answering(request)).map(drop)
+        Ok(self.drive(Run::answering(request))?.1.expect("an answer"))
     }
 
     /// Remembers the answer of a nested parse from its chart. The chart
     /// stops at its first empty set, which may lie before the span's end.
     /// Only the items with an eligible proof tree count.
-    fn settle(&mut self, request: Request, chart: &Chart) {
+    fn settle(&mut self, request: Request, chart: &Chart) -> Answer {
         let rule = request.rule;
         let tokens = &request.tokens[request.start..request.end];
         if request.begins {
@@ -808,9 +1020,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 })
                 .collect();
             let answer = self.proofs(chart, tokens).eligible(&witnesses).contains(&true);
-            self.shared.settled = Some((request.place(), true, (answer, 0)));
             self.shared.begins.insert(request.key, answer);
-            return;
+            return (answer, 0);
         }
         let set = tokens.len() as u32;
         let witnesses: Vec<(u32, u32)> = chart
@@ -832,12 +1043,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         );
         let accepted = eligible.contains(&true);
         let answer = (accepted, self.shared.tags.set(list));
-        self.shared.settled = Some((request.place(), false, answer));
         self.shared.memo.insert(request.key, answer);
+        answer
     }
 
     /// Goes on with a run until it finishes or halts. A step that halts
-    /// keeps its place in `run.step`.
+    /// keeps its place in `run.step`, and its evaluation in `run.evals`.
     fn resume<'t>(&mut self, run: &mut Run<'t, 'g>) -> Result<(), Halt<'t>>
     where
         'g: 't,
@@ -852,7 +1063,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 }
                 Step::Predict { rule, e, strict, before, next, then } => {
                     let (rule, e, then) = (*rule, *e, *then);
-                    self.predict_from(&mut run.chart, tokens, base, rule, e, *strict, *before, next)?;
+                    self.predict_from(&mut run.chart, &mut run.evals, tokens, base, rule, e, *strict, *before, next)?;
                     run.step = match then {
                         Then::Queue | Then::Empties { skip: true, .. } => Step::Next,
                         Then::Empties { item, rule, strict, skip: false } => {
@@ -864,18 +1075,18 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 Step::Empties { item, e, strict, empties, next } => {
                     while let Some(&tags) = empties.get(*next) {
                         let cap = Cap { start: *e as u32, end: *e as u32, tags };
-                        self.advance(&mut run.chart, tokens, base, *item, cap, *e, *strict)?;
+                        self.advance(&mut run.chart, &mut run.evals, tokens, base, *item, cap, *e, *strict)?;
                         *next += 1;
                     }
                     run.step = Step::Next;
                 }
                 Step::Terminal { item, cap, into, strict } => {
-                    self.advance(&mut run.chart, tokens, base, *item, *cap, *into, *strict)?;
+                    self.advance(&mut run.chart, &mut run.evals, tokens, base, *item, *cap, *into, *strict)?;
                     run.step = Step::Next;
                 }
                 Step::Complete { e, k } => {
                     let (e, k) = (*e, *k);
-                    let tags = self.complete_tags(&run.chart, tokens, base, e, k)?;
+                    let tags = self.complete_tags(&run.chart, &mut run.evals, tokens, base, e, k)?;
                     run.step = self.complete(&mut run.chart, e, k, tags);
                 }
                 Step::Waiters { e, origin, rule, tags, empty, count, next } => {
@@ -889,7 +1100,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         let strict = *empty && chart.sets[*origin].is_strict(waiter as usize);
                         if !strict || self.reads_later(waiting) {
                             let cap = Cap { start: *origin as u32, end: *e as u32, tags: *tags };
-                            self.advance(&mut run.chart, tokens, base, waiting, cap, *e, strict)?;
+                            self.advance(&mut run.chart, &mut run.evals, tokens, base, waiting, cap, *e, strict)?;
                         }
                         *next += 1;
                     }
@@ -989,6 +1200,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     fn add<'t>(
         &mut self,
         chart: &mut Chart,
+        evals: &mut Evals<'g>,
         tokens: &'t [Tok],
         base: usize,
         item: Item,
@@ -1024,49 +1236,68 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         if target.failed.contains(&item) {
             return Ok(());
         }
-        // The constituent's tags, where a condition of this step read them.
-        let mut known = u32::MAX;
         let conds = production.conds_at(item.dot as usize);
-        if !conds.is_empty() {
-            let search = CapSearch::new(chart, item.caps);
-            let (observed, project) = self.observed(tokens);
-            let frame = Frame {
-                caps: Caps::Chart(&search),
-                prod: item.prod,
-                origin: item.origin,
-                end: set as u32,
-                tags: Cell::new(None),
-                project,
-            };
-            let mut held = Ok(true);
-            for (cond, _) in conds {
-                held = self.condition(cond, &frame, observed, base);
-                if !matches!(held, Ok(true)) {
-                    break;
-                }
-            }
-            // A step that halts for a nested parse is made again, and
-            // counts once.
-            if !matches!(held, Err(Halt::Pending(_))) {
-                work::count(Work::Conditions, 1 + conds.len() as u64);
-            }
-            if !held? {
-                chart.sets[set].failed.insert(item);
-                return Ok(());
-            }
-            known = frame.tags.get().unwrap_or(u32::MAX);
-        } else {
-            work::count(Work::Conditions, 1);
+        // Every condition that the item could look at counts, once, as
+        // its evaluation begins.
+        work::count(Work::Conditions, 1 + conds.len() as u64);
+        if conds.is_empty() {
+            Self::insert(chart, item, set, strict, u32::MAX, self.recon.is_some());
+            return Ok(());
         }
+        let state = Held::new(Eval::conditions(conds, std::mem::take(&mut evals.spare)), item, set, strict);
+        self.conditions(chart, evals, tokens, base, state)
+    }
+
+    /// Evaluates the conditions of an item, from where `state` halted, and
+    /// adds the item if they hold. A query whose answer is not yet known
+    /// halts them again, and `held` keeps them.
+    fn conditions<'t>(
+        &mut self,
+        chart: &mut Chart,
+        evals: &mut Evals<'g>,
+        tokens: &'t [Tok],
+        base: usize,
+        mut state: Held<'g>,
+    ) -> Result<(), Halt<'t>>
+    where
+        'g: 't,
+    {
+        let (observed, project) = self.observed(tokens);
+        let search = CapSearch::resume(chart, state.item.caps, state.found.take(), state.searched);
+        let frame = state.frame(&search, project);
+        let outcome = self.evaluate(&mut state.eval, &frame, observed, base);
+        let (item, set) = (state.item, state.end as usize);
+        let holds = match outcome {
+            Ok(out) => out.holds(),
+            Err(halt) => {
+                if matches!(halt, Halt::Pending(_)) {
+                    state.keep(frame.tags.get(), search);
+                    evals.held = Some(state);
+                }
+                return Err(halt);
+            }
+        };
+        evals.spare = state.eval.tasks;
+        if !holds {
+            chart.sets[set].failed.insert(item);
+            return Ok(());
+        }
+        // The constituent's tags, where a condition of this step read them.
+        let known = frame.tags.get().unwrap_or(u32::MAX);
+        Self::insert(chart, item, set, state.strict, known, self.recon.is_some());
+        Ok(())
+    }
+
+    /// Puts a new item into a set, with the tags of its constituent if the
+    /// conditions read them, which completion reuses.
+    fn insert(chart: &mut Chart, item: Item, set: usize, strict: bool, known: SetId, recon: bool) {
         let target = &mut chart.sets[set];
         work::count(Work::Items, 1);
         let index = target.items.len() as u32;
         target.index.insert(item, index);
         target.items.push(item);
-        // The tags that the conditions read, which completion reuses.
         target.tagset.push(known);
-        target.enqueue(index, self.recon.is_some(), strict);
-        Ok(())
+        target.enqueue(index, recon, strict);
     }
 
     /// The tokens that observations read, and the projection to them: O and
@@ -1101,6 +1332,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     fn predict_from<'t>(
         &mut self,
         chart: &mut Chart,
+        evals: &mut Evals<'g>,
         tokens: &'t [Tok],
         base: usize,
         rule: u32,
@@ -1115,17 +1347,19 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let g = self.g;
         let helper = &g.rules[rule as usize];
         while let Some(&production) = helper.prods.get(*next) {
-            self.predict_one(chart, tokens, base, rule, production, e, strict, before)?;
+            self.predict_one(chart, evals, tokens, base, rule, production, e, strict, before)?;
             *next += 1;
         }
         Ok(())
     }
 
-    /// Predicts one production of `rule` in set `e`.
+    /// Predicts one production of `rule` in set `e`, or goes on with the
+    /// conditions of its item where they halted.
     #[allow(clippy::too_many_arguments)]
     fn predict_one<'t>(
         &mut self,
         chart: &mut Chart,
+        evals: &mut Evals<'g>,
         tokens: &'t [Tok],
         base: usize,
         rule: u32,
@@ -1137,6 +1371,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     where
         'g: 't,
     {
+        if let Some(state) = evals.held.take() {
+            return self.conditions(chart, evals, tokens, base, state);
+        }
         let g = self.g;
         let helper = &g.rules[rule as usize];
         let lowered = &g.prods[production as usize];
@@ -1165,7 +1402,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 return Ok(());
             }
         }
-        self.add(chart, tokens, base, Item { prod: production, dot: 0, origin: e as u32, caps: 0 }, e, strict)
+        self.add(chart, evals, tokens, base, Item { prod: production, dot: 0, origin: e as u32, caps: 0 }, e, strict)
     }
 
     /// The restoration of an elidable optional at `e` (§7.4): its empty
@@ -1217,10 +1454,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         target.enqueue(index, true, false);
     }
 
+    /// Advances an item over a constituent or a token, or goes on with the
+    /// conditions of the advanced item where they halted.
     #[allow(clippy::too_many_arguments)]
     fn advance<'t>(
         &mut self,
         chart: &mut Chart,
+        evals: &mut Evals<'g>,
         tokens: &'t [Tok],
         base: usize,
         item: Item,
@@ -1231,6 +1471,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     where
         'g: 't,
     {
+        if let Some(state) = evals.held.take() {
+            return self.conditions(chart, evals, tokens, base, state);
+        }
         let g = self.g;
         let production = &g.prods[item.prod as usize];
         // A strict step that completes, route 3's read of T with nothing
@@ -1266,14 +1509,16 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let caps =
             if production.cap_at[item.dot as usize].is_some() { chart.extend_caps(item.caps, cap) } else { item.caps };
         let next = Item { prod: item.prod, dot: item.dot + 1, origin: item.origin, caps };
-        self.add(chart, tokens, base, next, into, strict)
+        self.add(chart, evals, tokens, base, next, into, strict)
     }
 
     /// The tags of the completed item `k` of set `e`: those its conditions
-    /// read, or its constituent's (§4).
+    /// read, or its constituent's (§4), from where their evaluation halted
+    /// if it did.
     fn complete_tags<'t>(
         &mut self,
         chart: &Chart,
+        evals: &mut Evals<'g>,
         tokens: &'t [Tok],
         base: usize,
         e: usize,
@@ -1282,22 +1527,38 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     where
         'g: 't,
     {
-        let known = chart.sets[e].tagset[k];
-        if known != u32::MAX {
-            return Ok(known);
-        }
-        let item = chart.sets[e].items[k];
-        let (observed, project) = self.observed(tokens);
-        let search = CapSearch::new(chart, item.caps);
-        let frame = Frame {
-            caps: Caps::Chart(&search),
-            prod: item.prod,
-            origin: item.origin,
-            end: e as u32,
-            tags: Cell::new(None),
-            project,
+        let mut state = match evals.held.take() {
+            Some(state) => state,
+            None => {
+                let known = chart.sets[e].tagset[k];
+                if known != u32::MAX {
+                    return Ok(known);
+                }
+                let item = chart.sets[e].items[k];
+                let g = self.g;
+                let Some(term) = &g.prods[item.prod as usize].tags else {
+                    let search = CapSearch::new(chart, item.caps);
+                    return Ok(self.plain_tags(&Caps::Chart(&search), item.prod));
+                };
+                Held::new(Eval::constituent(term, std::mem::take(&mut evals.spare)), item, e, false)
+            }
         };
-        self.constituent_tags(&frame, observed, base)
+        let (observed, project) = self.observed(tokens);
+        let search = CapSearch::resume(chart, state.item.caps, state.found.take(), state.searched);
+        let frame = state.frame(&search, project);
+        match self.evaluate(&mut state.eval, &frame, observed, base) {
+            Ok(out) => {
+                evals.spare = state.eval.tasks;
+                Ok(out.constituent())
+            }
+            Err(halt) => {
+                if matches!(halt, Halt::Pending(_)) {
+                    state.keep(frame.tags.get(), search);
+                    evals.held = Some(state);
+                }
+                Err(halt)
+            }
+        }
     }
 
     /// Records the completed item `k` of set `e`, whose constituent has
@@ -1326,23 +1587,15 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         Step::Waiters { e, origin, rule, tags, empty, count, next: 0 }
     }
 
-    /// A constituent's tags (§4): its production's tag term, or, with none,
-    /// its one symbol's tags or none (§3.7).
-    fn constituent_tags<'t>(&mut self, frame: &Frame, tokens: &'t [Tok], base: usize) -> Result<SetId, Halt<'t>> {
-        let g = self.g;
-        let production = &g.prods[frame.prod as usize];
-        Ok(match &production.tags {
-            Some(term) => {
-                // The term cannot read `$`'s tags, which it defines (§9).
-                let frame = Frame { tags: Cell::new(Some(0)), ..*frame };
-                let list = self.set_term(term, &frame, tokens, base)?;
-                self.shared.tags.set_shared(list)
-            }
-            None if production.syms.len() == 1 => {
-                frame.caps.get(production.cap_at[0].expect("an implicit capture")).tags
-            }
-            None => 0,
-        })
+    /// A constituent's tags where its production has no tag term (§3.7):
+    /// its one symbol's tags, or none.
+    fn plain_tags(&self, caps: &Caps, prod: u32) -> SetId {
+        let production = &self.g.prods[prod as usize];
+        if production.syms.len() == 1 {
+            caps.get(production.cap_at[0].expect("an implicit capture")).tags
+        } else {
+            0
+        }
     }
 
     // ---- nested parses
@@ -1365,57 +1618,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             })
             .collect();
         NestedKey::Content(rule, self.shared.source_text(low, high), observed)
-    }
-
-    /// Whether `tokens[start..end]` alone parses as `rule`, and the union
-    /// of the tags of its derivations, once its nested parse has run.
-    fn nested<'t>(
-        &mut self,
-        tokens: &'t [Tok],
-        base: usize,
-        start: usize,
-        end: usize,
-        rule: u32,
-    ) -> Result<(bool, SetId), Halt<'t>> {
-        if let Some(answer) = self.just_settled(base, start, end, rule, false) {
-            return Ok(answer);
-        }
-        let key = self.nested_key(tokens, base, start, end, rule);
-        match self.shared.memo.get(&key) {
-            Some(&answer) => Ok(answer),
-            None => Err(Halt::Pending(Request { tokens, base, start, end, rule, key, begins: false })),
-        }
-    }
-
-    /// Whether a prefix of `tokens[start..end]`, possibly empty, parses as
-    /// `rule`: whether a completed item of it begins at the span's start, in
-    /// any set (§4), once its nested parse has run.
-    fn begins<'t>(
-        &mut self,
-        tokens: &'t [Tok],
-        base: usize,
-        start: usize,
-        end: usize,
-        rule: u32,
-    ) -> Result<bool, Halt<'t>> {
-        if let Some((answer, _)) = self.just_settled(base, start, end, rule, true) {
-            return Ok(answer);
-        }
-        let key = self.nested_key(tokens, base, start, end, rule);
-        match self.shared.begins.get(&key) {
-            Some(&answer) => Ok(answer),
-            None => Err(Halt::Pending(Request { tokens, base, start, end, rule, key, begins: true })),
-        }
-    }
-
-    /// The answer of the nested parse that settled last, if it is this one.
-    /// Within one stage, a place tells everything about its tokens, as
-    /// the memo's keys of long spans assume too.
-    fn just_settled(&self, base: usize, start: usize, end: usize, rule: u32, begins: bool) -> Option<(bool, SetId)> {
-        match self.shared.settled {
-            Some((place, kind, answer)) if place == (rule, base + start, base + end) && kind == begins => Some(answer),
-            _ => None,
-        }
     }
 
     /// The proof trees of a nested parse's chart over `tokens`, its span.
@@ -1452,30 +1654,76 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
     }
 
-    fn span_tags<'t>(
+    /// The tags of the tokens of a span, unioned.
+    fn token_tags(&self, tokens: &[Tok], start: usize, end: usize) -> Arc<TagList> {
+        Arc::new(union_all(tokens[start..end].iter().map(|token| self.shared.tags.list(token.tags))))
+    }
+
+    /// The tags of `$`'s constituent, if they are known or need no term
+    /// (§4). Otherwise the evaluation goes on with its production's tag
+    /// term, and `Task::Whole` gives them for `wanted`.
+    fn whole<'n>(&self, eval: &mut Eval<'n>, frame: &Frame, wanted: Wanted) -> Option<SetId>
+    where
+        'g: 'n,
+    {
+        // The term of `$`'s own tags cannot read them, which it defines (§9).
+        if eval.hidden {
+            return Some(0);
+        }
+        if let Some(set) = frame.tags.get() {
+            return Some(set);
+        }
+        let g = self.g;
+        match &g.prods[frame.prod as usize].tags {
+            Some(term) => {
+                eval.hidden = true;
+                eval.push(Task::Whole(wanted), Task::Term(term));
+                None
+            }
+            None => {
+                let set = self.plain_tags(&frame.caps, frame.prod);
+                frame.tags.set(Some(set));
+                Some(set)
+            }
+        }
+    }
+
+    /// The class tags of a list, those whose names begin with a capital.
+    fn classes(&self, list: &TagList) -> Value {
+        let tags = &self.shared.tags;
+        Value::set(
+            list.iter().copied().filter(|&id| tags.name(id).starts_with(|c: char| c.is_ascii_uppercase())).collect(),
+        )
+    }
+
+    /// A query's answer from the memo. One not yet known halts the
+    /// evaluation, which waits for it in `Task::Await`.
+    #[allow(clippy::too_many_arguments)]
+    fn query<'n, 't>(
         &mut self,
-        bounds: Bounds,
+        eval: &mut Eval<'n>,
+        span: &Span,
+        rule: u32,
+        query: Query,
         frame: &Frame,
         tokens: &'t [Tok],
         base: usize,
-    ) -> Result<Arc<TagList>, Halt<'t>> {
-        Ok(match bounds {
-            (_, _, Whose::Cap(set)) => self.shared.tags.shared(set),
-            (_, _, Whose::Whole) => {
-                let set = match frame.tags.get() {
-                    Some(set) => set,
-                    None => {
-                        let set = self.constituent_tags(frame, tokens, base)?;
-                        frame.tags.set(Some(set));
-                        set
-                    }
-                };
-                self.shared.tags.shared(set)
+    ) -> Result<Out, Halt<'t>> {
+        let (start, end, _) = span_bounds(span, frame, tokens.len());
+        let key = self.nested_key(tokens, base, start, end, rule);
+        let begins = matches!(query, Query::Begins);
+        let known = if begins {
+            self.shared.begins.get(&key).map(|&holds| (holds, 0))
+        } else {
+            self.shared.memo.get(&key).copied()
+        };
+        match known {
+            Some(answer) => Ok(query.out(answer, &self.shared.tags)),
+            None => {
+                eval.tasks.push(Task::Await(query));
+                Err(Halt::Pending(Request { tokens, base, start, end, rule, key, begins }))
             }
-            (start, end, Whose::Tokens) => {
-                Arc::new(union_all(tokens[start..end].iter().map(|token| self.shared.tags.list(token.tags))))
-            }
-        })
+        }
     }
 
     /// A set's value. The reader has made sure that the types agree
@@ -1489,208 +1737,335 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
 
     /// A string's value. The reader has made sure that the types agree
     /// (§10), so a set never stands where a string is needed.
-    fn string_term<'t>(
-        &mut self,
-        term: &LTerm,
-        frame: &Frame,
-        tokens: &'t [Tok],
-        base: usize,
-    ) -> Result<String, Halt<'t>> {
-        match self.term(term, frame, tokens, base)? {
+    fn as_string(value: Value) -> Result<String, EngineError> {
+        match value {
             Value::Str(text) => Ok(text),
-            Value::Set(_) => {
-                Err(EngineError { message: "a set where a string is needed".to_string(), rule: None }.into())
-            }
+            Value::Set(_) => Err(EngineError { message: "a set where a string is needed".to_string(), rule: None }),
         }
     }
 
-    fn set_term<'t>(
+    /// A comparison of two values (§10).
+    fn compare(&self, op: CmpOp, left: Value, right: Value) -> Result<bool, EngineError> {
+        Ok(match op {
+            // Two strings, or two sets of one kind (§10).
+            CmpOp::Eq | CmpOp::Ne => {
+                let equal = match (left, right) {
+                    (Value::Str(a), Value::Str(b)) => a == b,
+                    (a, b) => Self::as_set(a)? == Self::as_set(b)?,
+                };
+                equal == (op == CmpOp::Eq)
+            }
+            // A string in a set of strings.
+            CmpOp::In | CmpOp::NotIn => {
+                let Value::Str(needle) = left else {
+                    return Err(EngineError {
+                        message: "the left side of ∈ or ∉ is a string".to_string(), rule: None
+                    });
+                };
+                let set = Self::as_set(right)?;
+                let inside = self.shared.tags.lookup(&needle).is_some_and(|id| set.binary_search(&id).is_ok());
+                inside == (op == CmpOp::In)
+            }
+            CmpOp::Subset | CmpOp::NotSubset => {
+                is_subset(&*Self::as_set(left)?, &*Self::as_set(right)?) == (op == CmpOp::Subset)
+            }
+        })
+    }
+
+    /// Goes on with an evaluation until it gives its value or halts for a
+    /// query. Each node is visited once. A compound node keeps its frame on
+    /// `eval` while its parts are evaluated, with the values of the parts
+    /// done, so a halt loses nothing and the answer resumes it in place.
+    fn evaluate<'n, 't>(
         &mut self,
-        term: &LTerm,
+        eval: &mut Eval<'n>,
         frame: &Frame,
         tokens: &'t [Tok],
         base: usize,
-    ) -> Result<Arc<TagList>, Halt<'t>> {
-        let value = self.term(term, frame, tokens, base)?;
-        Ok(Self::as_set(value)?)
-    }
-
-    fn term<'t>(&mut self, term: &LTerm, frame: &Frame, tokens: &'t [Tok], base: usize) -> Result<Value, Halt<'t>> {
-        Ok(match term {
-            LTerm::Str(text) => Value::Str(text.clone()),
-            LTerm::Tag(tag) => Value::set(vec![self.shared.tags.tag(tag)]),
-            LTerm::Range(first, last) => Value::Set(self.shared.range(*first, *last)),
-            LTerm::Empty => Value::set(TagList::new()),
-            LTerm::Union(items) => {
-                let mut parts = Vec::with_capacity(items.len());
-                for item in items {
-                    parts.push(self.set_term(item, frame, tokens, base)?);
+    ) -> Result<Out, Halt<'t>>
+    where
+        'g: 'n,
+    {
+        // The value of the node evaluated last, which the frame below it
+        // takes.
+        let mut last: Option<Out> = None;
+        while let Some(task) = eval.tasks.pop() {
+            let out = match task {
+                Task::Cond(cond) => {
+                    work::count(Work::Visits, 1);
+                    match cond {
+                        LCond::Not(inner) => {
+                            eval.push(Task::Not, Task::Cond(inner));
+                            continue;
+                        }
+                        LCond::Any(items) => match items.first() {
+                            Some(first) => {
+                                eval.push(Task::Any(items, 1), Task::Cond(first));
+                                continue;
+                            }
+                            None => Out::Bool(false),
+                        },
+                        LCond::All(items) => match items.first() {
+                            Some(first) => {
+                                eval.push(Task::All(items, 1), Task::Cond(first));
+                                continue;
+                            }
+                            None => Out::Bool(true),
+                        },
+                        // The consequent is evaluated only where the
+                        // antecedent holds.
+                        LCond::If(antecedent, consequent) => {
+                            eval.push(Task::Implies(consequent), Task::Cond(antecedent));
+                            continue;
+                        }
+                        LCond::Matches(span, rule) => {
+                            self.query(eval, span, *rule, Query::Matches, frame, tokens, base)?
+                        }
+                        LCond::Begins(span, rule) => {
+                            self.query(eval, span, *rule, Query::Begins, frame, tokens, base)?
+                        }
+                        // Where the input of the parse that reads the
+                        // condition begins (§10). Positions count from the
+                        // start of the tokens that parse reads, a nested
+                        // parse's own span included, so that is 0.
+                        LCond::Initial(span) => Out::Bool(span_bounds(span, frame, tokens.len()).0 == 0),
+                        LCond::Cmp(op, left, right) => {
+                            eval.push(Task::Left(*op, right), Task::Term(left));
+                            continue;
+                        }
+                    }
                 }
-                Value::set(union_all(parts.iter().map(|part| &**part)))
-            }
-            LTerm::Inter(items) => {
-                let mut list: Option<Arc<TagList>> = None;
-                for item in items {
-                    let set = self.set_term(item, frame, tokens, base)?;
-                    list = Some(match list {
+                Task::Term(term) => {
+                    work::count(Work::Visits, 1);
+                    Out::Value(match term {
+                        LTerm::Str(text) => Value::Str(text.clone()),
+                        LTerm::Tag(tag) => Value::set(vec![self.shared.tags.tag(tag)]),
+                        LTerm::Range(first, last) => Value::Set(self.shared.range(*first, *last)),
+                        LTerm::Empty => Value::set(TagList::new()),
+                        LTerm::Union(items) => match items.first() {
+                            Some(first) => {
+                                eval.push(Task::Union(items, Vec::with_capacity(items.len())), Task::Term(first));
+                                continue;
+                            }
+                            None => Value::set(TagList::new()),
+                        },
+                        LTerm::Inter(items) => match items.first() {
+                            Some(first) => {
+                                eval.push(Task::Inter(items, 1, None), Task::Term(first));
+                                continue;
+                            }
+                            None => Value::set(TagList::new()),
+                        },
+                        LTerm::Diff(left, right) => {
+                            eval.push(Task::DiffLeft(right), Task::Term(left));
+                            continue;
+                        }
+                        LTerm::Phonemes(span) => {
+                            let (start, end, _) = span_bounds(span, frame, tokens.len());
+                            Value::Str(self.phonemes(tokens, start, end))
+                        }
+                        LTerm::Text(span) => {
+                            let (start, end, _) = span_bounds(span, frame, tokens.len());
+                            Value::Str(self.text(tokens, start, end))
+                        }
+                        LTerm::Split(string, delimiter) => {
+                            eval.push(Task::Split(delimiter), Task::Term(string));
+                            continue;
+                        }
+                        LTerm::TagOf(name) => {
+                            eval.push(Task::TagOf, Task::Term(name));
+                            continue;
+                        }
+                        LTerm::Tags(span) => match span_bounds(span, frame, tokens.len()) {
+                            (_, _, Whose::Cap(set)) => Value::Set(self.shared.tags.shared(set)),
+                            (_, _, Whose::Whole) => match self.whole(eval, frame, Wanted::Tags) {
+                                Some(set) => Value::Set(self.shared.tags.shared(set)),
+                                None => continue,
+                            },
+                            (start, end, Whose::Tokens) => Value::Set(self.token_tags(tokens, start, end)),
+                        },
+                        LTerm::TagsRule(span, rule) => {
+                            match self.query(eval, span, *rule, Query::TagsRule, frame, tokens, base)? {
+                                Out::Value(value) => value,
+                                _ => unreachable!("a set of tags"),
+                            }
+                        }
+                        LTerm::Classes(span) => match span_bounds(span, frame, tokens.len()) {
+                            (_, _, Whose::Cap(set)) => self.classes(&self.shared.tags.shared(set)),
+                            (_, _, Whose::Whole) => match self.whole(eval, frame, Wanted::Classes) {
+                                Some(set) => self.classes(&self.shared.tags.shared(set)),
+                                None => continue,
+                            },
+                            (start, end, Whose::Tokens) => self.classes(&self.token_tags(tokens, start, end)),
+                        },
+                        LTerm::Classify(string, classifier) => {
+                            eval.push(Task::Classify(classifier), Task::Term(string));
+                            continue;
+                        }
+                        // `t` is evaluated only where the guard holds (§10).
+                        LTerm::If(cond, then) => {
+                            eval.push(Task::Guarded(then), Task::Cond(cond));
+                            continue;
+                        }
+                    })
+                }
+                Task::Await(query) => query.out(eval.answer.take().expect("the answer"), &self.shared.tags),
+                Task::Conds(conds, next) => {
+                    if !took(&mut last).holds() {
+                        Out::Bool(false)
+                    } else if let Some((cond, _)) = conds.get(next) {
+                        eval.push(Task::Conds(conds, next + 1), Task::Cond(cond));
+                        continue;
+                    } else {
+                        Out::Bool(true)
+                    }
+                }
+                Task::Not => Out::Bool(!took(&mut last).holds()),
+                Task::Any(items, next) => {
+                    if took(&mut last).holds() {
+                        Out::Bool(true)
+                    } else if let Some(item) = items.get(next) {
+                        eval.push(Task::Any(items, next + 1), Task::Cond(item));
+                        continue;
+                    } else {
+                        Out::Bool(false)
+                    }
+                }
+                Task::All(items, next) => {
+                    if !took(&mut last).holds() {
+                        Out::Bool(false)
+                    } else if let Some(item) = items.get(next) {
+                        eval.push(Task::All(items, next + 1), Task::Cond(item));
+                        continue;
+                    } else {
+                        Out::Bool(true)
+                    }
+                }
+                Task::Implies(consequent) => {
+                    if !took(&mut last).holds() {
+                        Out::Bool(true)
+                    } else {
+                        eval.tasks.push(Task::Cond(consequent));
+                        continue;
+                    }
+                }
+                Task::Left(op, right) => {
+                    let left = took(&mut last).value();
+                    eval.push(Task::Right(op, left), Task::Term(right));
+                    continue;
+                }
+                Task::Right(op, left) => Out::Bool(self.compare(op, left, took(&mut last).value())?),
+                Task::Union(items, mut parts) => {
+                    parts.push(Self::as_set(took(&mut last).value())?);
+                    match items.get(parts.len()) {
+                        Some(item) => {
+                            eval.push(Task::Union(items, parts), Task::Term(item));
+                            continue;
+                        }
+                        None => Out::Value(Value::set(union_all(parts.iter().map(|part| &**part)))),
+                    }
+                }
+                Task::Inter(items, next, list) => {
+                    let set = Self::as_set(took(&mut last).value())?;
+                    let list = match list {
                         None => set,
                         Some(list) => Arc::new(intersection(&list, &set)),
-                    });
-                }
-                list.map_or_else(|| Value::set(TagList::new()), Value::Set)
-            }
-            LTerm::Diff(left, right) => {
-                let left = self.set_term(left, frame, tokens, base)?;
-                let right = self.set_term(right, frame, tokens, base)?;
-                Value::set(difference(&left, &right))
-            }
-            LTerm::Phonemes(span) => {
-                let (start, end, _) = span_bounds(span, frame, tokens.len());
-                Value::Str(self.phonemes(tokens, start, end))
-            }
-            LTerm::Text(span) => {
-                let (start, end, _) = span_bounds(span, frame, tokens.len());
-                Value::Str(self.text(tokens, start, end))
-            }
-            // A set of strings (§10); an empty delimiter that only a parse
-            // sees is an error of the grammar.
-            LTerm::Split(string, delimiter) => {
-                let string = self.string_term(string, frame, tokens, base)?;
-                let delimiter = self.string_term(delimiter, frame, tokens, base)?;
-                if delimiter.is_empty() {
-                    return Err(EngineError { message: "split has an empty delimiter".to_string(), rule: None }.into());
-                }
-                let mut list: TagList = string
-                    .split(delimiter.as_str())
-                    .filter(|piece| !piece.is_empty())
-                    .map(|piece| self.shared.tags.tag(piece))
-                    .collect();
-                list.sort_unstable();
-                list.dedup();
-                Value::set(list)
-            }
-            LTerm::TagOf(name) => {
-                let name = self.string_term(name, frame, tokens, base)?;
-                if !is_name(&name) {
-                    return Err(EngineError {
-                        message: format!("tag({name:?}): the string is not a name"),
-                        rule: None,
-                    }
-                    .into());
-                }
-                Value::set(vec![self.shared.tags.tag(&name)])
-            }
-            LTerm::Tags(span) => {
-                let bounds = span_bounds(span, frame, tokens.len());
-                Value::Set(self.span_tags(bounds, frame, tokens, base)?)
-            }
-            LTerm::TagsRule(span, rule) => {
-                let (start, end, _) = span_bounds(span, frame, tokens.len());
-                let (_, set) = self.nested(tokens, base, start, end, *rule)?;
-                Value::Set(self.shared.tags.shared(set))
-            }
-            LTerm::Classes(span) => {
-                let bounds = span_bounds(span, frame, tokens.len());
-                let list = self.span_tags(bounds, frame, tokens, base)?;
-                Value::set(
-                    list.iter()
-                        .copied()
-                        .filter(|&id| self.shared.tags.name(id).starts_with(|c: char| c.is_ascii_uppercase()))
-                        .collect(),
-                )
-            }
-            // The classes that the classifier gives the string, for the
-            // features of the parse, or none for an unknown key (§10).
-            LTerm::Classify(string, classifier) => {
-                let key = self.string_term(string, frame, tokens, base)?;
-                let g = self.g;
-                let classes = g.classifiers.get(classifier).and_then(|table| table.get(&key));
-                let mut list: TagList =
-                    classes.into_iter().flatten().map(|class| self.shared.tags.tag(class)).collect();
-                list.sort_unstable();
-                Value::set(list)
-            }
-            // `t` is evaluated only where the guard holds (§10).
-            LTerm::If(cond, then) => {
-                if self.condition(cond, frame, tokens, base)? {
-                    Value::Set(self.set_term(then, frame, tokens, base)?)
-                } else {
-                    Value::set(TagList::new())
-                }
-            }
-        })
-    }
-
-    fn condition<'t>(&mut self, cond: &LCond, frame: &Frame, tokens: &'t [Tok], base: usize) -> Result<bool, Halt<'t>> {
-        Ok(match cond {
-            LCond::Not(inner) => !self.condition(inner, frame, tokens, base)?,
-            LCond::Any(items) => {
-                for item in items {
-                    if self.condition(item, frame, tokens, base)? {
-                        return Ok(true);
+                    };
+                    match items.get(next) {
+                        Some(item) => {
+                            eval.push(Task::Inter(items, next + 1, Some(list)), Task::Term(item));
+                            continue;
+                        }
+                        None => Out::Value(Value::Set(list)),
                     }
                 }
-                false
-            }
-            LCond::All(items) => {
-                for item in items {
-                    if !self.condition(item, frame, tokens, base)? {
-                        return Ok(false);
+                Task::DiffLeft(right) => {
+                    let left = Self::as_set(took(&mut last).value())?;
+                    eval.push(Task::DiffRight(left), Task::Term(right));
+                    continue;
+                }
+                Task::DiffRight(left) => {
+                    let right = Self::as_set(took(&mut last).value())?;
+                    Out::Value(Value::set(difference(&left, &right)))
+                }
+                Task::Split(delimiter) => {
+                    let string = Self::as_string(took(&mut last).value())?;
+                    eval.push(Task::SplitBy(string), Task::Term(delimiter));
+                    continue;
+                }
+                // A set of strings (§10); an empty delimiter that only a
+                // parse sees is an error of the grammar.
+                Task::SplitBy(string) => {
+                    let delimiter = Self::as_string(took(&mut last).value())?;
+                    if delimiter.is_empty() {
+                        return Err(
+                            EngineError { message: "split has an empty delimiter".to_string(), rule: None }.into()
+                        );
+                    }
+                    let mut list: TagList = string
+                        .split(delimiter.as_str())
+                        .filter(|piece| !piece.is_empty())
+                        .map(|piece| self.shared.tags.tag(piece))
+                        .collect();
+                    list.sort_unstable();
+                    list.dedup();
+                    Out::Value(Value::set(list))
+                }
+                Task::TagOf => {
+                    let name = Self::as_string(took(&mut last).value())?;
+                    if !is_name(&name) {
+                        return Err(EngineError {
+                            message: format!("tag({name:?}): the string is not a name"),
+                            rule: None,
+                        }
+                        .into());
+                    }
+                    Out::Value(Value::set(vec![self.shared.tags.tag(&name)]))
+                }
+                // The classes that the classifier gives the string, for the
+                // features of the parse, or none for an unknown key (§10).
+                Task::Classify(classifier) => {
+                    let key = Self::as_string(took(&mut last).value())?;
+                    let g = self.g;
+                    let classes = g.classifiers.get(classifier).and_then(|table| table.get(&key));
+                    let mut list: TagList =
+                        classes.into_iter().flatten().map(|class| self.shared.tags.tag(class)).collect();
+                    list.sort_unstable();
+                    Out::Value(Value::set(list))
+                }
+                Task::Guarded(then) => {
+                    if took(&mut last).holds() {
+                        eval.push(Task::AsSet, Task::Term(then));
+                        continue;
+                    }
+                    Out::Value(Value::set(TagList::new()))
+                }
+                Task::AsSet => Out::Value(Value::Set(Self::as_set(took(&mut last).value())?)),
+                Task::Whole(wanted) => {
+                    let list = Self::as_set(took(&mut last).value())?;
+                    eval.hidden = false;
+                    let set = self.shared.tags.set_shared(list);
+                    match wanted {
+                        Wanted::Step => Out::Tags(set),
+                        Wanted::Tags => {
+                            frame.tags.set(Some(set));
+                            Out::Value(Value::Set(self.shared.tags.shared(set)))
+                        }
+                        Wanted::Classes => {
+                            frame.tags.set(Some(set));
+                            Out::Value(self.classes(&self.shared.tags.shared(set)))
+                        }
                     }
                 }
-                true
-            }
-            // The consequent is evaluated only where the antecedent holds.
-            LCond::If(antecedent, consequent) => {
-                !self.condition(antecedent, frame, tokens, base)? || self.condition(consequent, frame, tokens, base)?
-            }
-            LCond::Matches(span, rule) => {
-                let (start, end, _) = span_bounds(span, frame, tokens.len());
-                self.nested(tokens, base, start, end, *rule)?.0
-            }
-            LCond::Begins(span, rule) => {
-                let (start, end, _) = span_bounds(span, frame, tokens.len());
-                self.begins(tokens, base, start, end, *rule)?
-            }
-            // Where the input of the parse that reads the condition begins
-            // (§10). Positions count from the start of the tokens that parse
-            // reads, a nested parse's own span included, so that is 0.
-            LCond::Initial(span) => span_bounds(span, frame, tokens.len()).0 == 0,
-            LCond::Cmp(op, left, right) => {
-                let left = self.term(left, frame, tokens, base)?;
-                let right = self.term(right, frame, tokens, base)?;
-                match op {
-                    // Two strings, or two sets of one kind (§10).
-                    CmpOp::Eq | CmpOp::Ne => {
-                        let equal = match (left, right) {
-                            (Value::Str(a), Value::Str(b)) => a == b,
-                            (a, b) => Self::as_set(a)? == Self::as_set(b)?,
-                        };
-                        equal == (*op == CmpOp::Eq)
-                    }
-                    // A string in a set of strings.
-                    CmpOp::In | CmpOp::NotIn => {
-                        let Value::Str(needle) = left else {
-                            return Err(EngineError {
-                                message: "the left side of ∈ or ∉ is a string".to_string(),
-                                rule: None,
-                            }
-                            .into());
-                        };
-                        let set = Self::as_set(right)?;
-                        let inside = self.shared.tags.lookup(&needle).is_some_and(|id| set.binary_search(&id).is_ok());
-                        inside == (*op == CmpOp::In)
-                    }
-                    CmpOp::Subset | CmpOp::NotSubset => {
-                        is_subset(&*Self::as_set(left)?, &*Self::as_set(right)?) == (*op == CmpOp::Subset)
-                    }
-                }
-            }
-        })
+            };
+            last = Some(out);
+        }
+        Ok(last.expect("a value"))
     }
 
     /// Evaluates a tag term over a constituent, for emission (§11). A
-    /// nested parse it needs runs first, and the term is evaluated again.
+    /// nested parse it needs runs at once, and the evaluation goes on from
+    /// where it halted.
     pub(crate) fn tag_term(
         &mut self,
         term: &LTerm,
@@ -1698,11 +2073,24 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         tokens: &[Tok],
         base: usize,
     ) -> Result<SetId, EngineError> {
+        let list = self.tag_list(term, frame, tokens, base)?;
+        Ok(self.shared.tags.set_shared(list))
+    }
+
+    /// The list of tags of a tag term over a constituent.
+    fn tag_list(
+        &mut self,
+        term: &LTerm,
+        frame: &Frame,
+        tokens: &[Tok],
+        base: usize,
+    ) -> Result<Arc<TagList>, EngineError> {
+        let mut eval = Eval::term(term);
         loop {
-            match self.set_term(term, frame, tokens, base) {
-                Ok(list) => return Ok(self.shared.tags.set_shared(list)),
+            match self.evaluate(&mut eval, frame, tokens, base) {
+                Ok(out) => return Self::as_set(out.value()),
                 Err(Halt::Error(error)) => return Err(error),
-                Err(Halt::Pending(request)) => self.answer(request)?,
+                Err(Halt::Pending(request)) => eval.answer = Some(self.answer(request)?),
             }
         }
     }
@@ -1796,7 +2184,7 @@ mod tests {
                 Frame { caps: Caps::All(&[]), prod: 0, origin: 0, end: n as u32, tags: Cell::new(None), project: None };
             for _ in 0..20 {
                 for term in terms.iter() {
-                    let list = recognizer.set_term(term, &frame, tokens, 0).expect("a set");
+                    let list = recognizer.tag_list(term, &frame, tokens, 0).expect("a set");
                     assert!(list.len() + 1 >= n, "{} tags of {n}", list.len());
                 }
             }
@@ -1848,10 +2236,10 @@ mod tests {
             let frame =
                 Frame { caps: Caps::All(&[]), prod: 0, origin: 0, end: 0, tags: Cell::new(None), project: None };
             let range = LTerm::Range(0x4E00, 0x4E00 + n as u32 - 1);
-            let first = recognizer.set_term(&range, &frame, &[], 0).expect("a set");
+            let first = recognizer.tag_list(&range, &frame, &[], 0).expect("a set");
             assert!(first.len() > n / 2, "{} tags in a range of {n}", first.len());
             for _ in 1..n {
-                let list = recognizer.set_term(&range, &frame, &[], 0).expect("a set");
+                let list = recognizer.tag_list(&range, &frame, &[], 0).expect("a set");
                 assert_eq!(list.len(), first.len());
             }
         });
@@ -1929,6 +2317,43 @@ mod tests {
             let options = crate::ParseOptions { auto_features: false, ..crate::ParseOptions::default() };
             let result = dialect.parse(&text, &options).expect("a result");
             assert!(result.ok, "{name}: {:?}", result.error);
+        }
+    }
+
+    /// The shared cases of `tests/query-work.json` (tests/README.md): a
+    /// step or a term that starts many queries visits each node of its
+    /// conditions and terms a bounded number of times. The budget holds
+    /// while the parse runs, so an evaluation that starts again from its
+    /// first condition after each query stops at the first visit past it.
+    #[test]
+    fn query_work_cases() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/query-work.json");
+        let text = std::fs::read_to_string(path).expect("the cases");
+        let cases = crate::json::parse(&text).expect("the cases are JSON");
+        let cases = cases.as_array().expect("an array");
+        assert!(!cases.is_empty(), "no cases");
+        for case in cases {
+            let string = |name: &str| case.get(name).and_then(crate::json::Json::as_str).expect(name).to_string();
+            let number = |name: &str| case.get(name).and_then(crate::json::Json::as_int).expect(name) as u64;
+            let (count, most) = (number("count"), number("most"));
+            let each = |name: &str| (0..count).map(|i| string(name).replace("{i}", &i.to_string())).collect::<Vec<_>>();
+            let grammar = format!(
+                "{}{}{}{}",
+                string("head"),
+                each("item").join(&string("joiner")),
+                string("tail"),
+                each("rule").concat()
+            );
+            let dialect = single_document(&grammar);
+            let options = crate::ParseOptions { auto_features: false, ..crate::ParseOptions::default() };
+            reset();
+            budget(Work::Visits, most * count);
+            let result = dialect.parse(&string("text"), &options).expect("a result");
+            let visits = counted(Work::Visits);
+            // The next dialect's grammar is read with no budget.
+            reset();
+            assert!(result.ok, "{}: {:?}", string("name"), result.error);
+            assert!(visits > 0, "{}: no visits counted", string("name"));
         }
     }
 

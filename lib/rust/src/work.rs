@@ -37,6 +37,9 @@ pub(crate) enum Work {
     /// The conditions that the items added to the chart look at, with one
     /// more for each item.
     Conditions,
+    /// The nodes of conditions and terms that evaluation visits, each
+    /// counted before it is evaluated, also in an evaluation that halts.
+    Visits,
     /// The tags that the evaluation of tag terms writes into the lists it
     /// makes: unions, the tags of spans, and ranges.
     Listed,
