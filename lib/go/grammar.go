@@ -1,7 +1,5 @@
 package gencmu
 
-import "sync/atomic"
-
 // A stage's grammar: its documents stitched into one set of rules,
 // directives, constants, classifiers and implications (engine §2).
 type stageGrammar struct {
@@ -245,10 +243,6 @@ func (g *stageGrammar) makeTests() *Error {
 	return nil
 }
 
-// clauseWork counts the nodes of clauses that checkAlt and the resolver of
-// constants walk, for the test that a shared clause is walked once.
-var clauseWork struct{ steps atomic.Int64 }
-
 // checkedClauses are the clauses that checkAlt has found sound, by
 // identity. The clauses of a rule statement are shared by its
 // alternatives, so each is walked once, not once for each alternative.
@@ -293,7 +287,9 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 		if t == nil {
 			return nil
 		}
-		clauseWork.steps.Add(1)
+		if w := work.Load(); w != nil {
+			w.clauseSteps.add("clause steps")
+		}
 		if t.Kind == tmRule && g.byName[t.Str] == nil {
 			return fail("%s is not a rule of stage %s", t.Str, g.name)
 		}
@@ -314,7 +310,9 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 		return nil
 	}
 	checkCond = func(c *domCond) *Error {
-		clauseWork.steps.Add(1)
+		if w := work.Load(); w != nil {
+			w.clauseSteps.add("clause steps")
+		}
 		switch c.Kind {
 		case cdCompare:
 			if err := checkTerm(c.Left); err != nil {

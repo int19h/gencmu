@@ -51,7 +51,9 @@ func walkClause(start clausePart, enter func(clausePart) bool) {
 	}
 	stack := []clausePart{start}
 	for len(stack) > 0 {
-		readerWork.steps.Add(1)
+		if w := work.Load(); w != nil {
+			w.readerSteps.add("reader steps")
+		}
 		p := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		if !enter(p) {

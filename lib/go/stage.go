@@ -86,9 +86,6 @@ type stageRun struct {
 	// voiced[i] is the first token at or after i whose sound is not empty,
 	// or len(toks), so that a sound test skips silent tokens in one step.
 	voiced []int
-	// soundSteps counts the tokens that sound tests and phonemes() visit,
-	// for the tests of their work.
-	soundSteps int
 }
 
 // sound is a token's phonemes in canonical form (§5). The lowercase mapping
@@ -132,7 +129,9 @@ func (run *stageRun) nextVoiced(i int) int {
 func (run *stageRun) soundIs(sound string, a, b int) bool {
 	offset := 0
 	for i := run.nextVoiced(a); i < b; i = run.nextVoiced(i + 1) {
-		run.soundSteps++
+		if w := work.Load(); w != nil {
+			w.soundSteps.add("sound steps")
+		}
 		s := run.sound(i)
 		if !strings.HasPrefix(sound[offset:], s) {
 			return false

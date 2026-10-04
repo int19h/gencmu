@@ -289,7 +289,9 @@ func (ev *evaluator) cond(c *domCond) bool {
 func (run *stageRun) phonemes(s spanVal) string {
 	var b strings.Builder
 	for i := run.nextVoiced(s.a); i < s.b; i = run.nextVoiced(i + 1) {
-		run.soundSteps++
+		if w := work.Load(); w != nil {
+			w.soundSteps.add("sound steps")
+		}
 		b.WriteString(run.sound(i))
 	}
 	return b.String()

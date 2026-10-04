@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync/atomic"
 )
 
 // notationReader reads grammar documents with the notation dialect, whose
@@ -638,7 +637,9 @@ var capturedRules = map[string]bool{
 func firstOfRule(n *Node, name string) *Node {
 	stack := []*Node{n}
 	for len(stack) > 0 {
-		readerWork.steps.Add(1)
+		if w := work.Load(); w != nil {
+			w.readerSteps.add("reader steps")
+		}
 		n := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		if n.Kind == KindRule && n.Rule == name {
@@ -947,7 +948,9 @@ func flattenGroups(r *domRule) {
 		}
 	}
 	for len(conds) > 0 || len(terms) > 0 {
-		readerWork.steps.Add(1)
+		if w := work.Load(); w != nil {
+			w.readerSteps.add("reader steps")
+		}
 		if len(terms) > 0 {
 			t := terms[len(terms)-1]
 			terms = terms[:len(terms)-1]
@@ -966,7 +969,9 @@ func flattenGroups(r *domRule) {
 				pending = append(pending, c.Items[i])
 			}
 			for len(pending) > 0 {
-				readerWork.steps.Add(1)
+				if w := work.Load(); w != nil {
+					w.readerSteps.add("reader steps")
+				}
 				it := pending[len(pending)-1]
 				pending = pending[:len(pending)-1]
 				if it.Kind == c.Kind {
@@ -988,8 +993,3 @@ func flattenGroups(r *domRule) {
 		}
 	}
 }
-
-// readerWork counts the steps of the reader and of the walks it makes of
-// what it reads: a measure of work that the tests of growth compare across
-// depths of nesting (tests/README.md).
-var readerWork struct{ steps atomic.Int64 }

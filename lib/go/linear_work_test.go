@@ -58,17 +58,20 @@ func silentRun(t *testing.T, n int) *stageRun {
 func TestSilentSoundWork(t *testing.T) {
 	for _, n := range []int{1000, 4000} {
 		run := silentRun(t, n)
-		for i := 0; i < n; i++ {
-			if !run.soundIs("a", i, n) || run.soundIs("", i, n) || !run.soundIs("", i, n-1) {
-				t.Fatalf("%d tokens: the wrong sound from %d", n, i)
+		// A walk of the silent tokens would cost n at each of n starts.
+		w := &workCounts{}
+		w.soundSteps.most = int64(4 * n)
+		countWorkIn(w, func() {
+			for i := 0; i < n; i++ {
+				if !run.soundIs("a", i, n) || run.soundIs("", i, n) || !run.soundIs("", i, n-1) {
+					t.Fatalf("%d tokens: the wrong sound from %d", n, i)
+				}
+				if got := run.phonemes(spanVal{a: i, b: n}); got != "a" {
+					t.Fatalf("%d tokens: phonemes from %d are %q", n, i, got)
+				}
 			}
-			if got := run.phonemes(spanVal{a: i, b: n}); got != "a" {
-				t.Fatalf("%d tokens: phonemes from %d are %q", n, i, got)
-			}
-		}
-		if run.soundSteps > 4*n {
-			t.Errorf("%d tokens: %d steps for %d tests", n, run.soundSteps, 4*n)
-		}
+		})
+		t.Logf("%d tokens: %d steps for %d tests", n, w.soundSteps.Load(), 4*n)
 	}
 }
 
@@ -79,17 +82,20 @@ func TestManyLinksAddLinear(t *testing.T) {
 	for _, n := range []int{1000, 4000} {
 		r := &recognizer{recon: &reconstruction{}}
 		key := itemKey{prod: &production{rhs: make([]symbol, 1)}}
-		for range 2 {
-			for i := range n {
-				r.add(0, key, link{tok: int32(i)}, true, false)
+		// A scan of every link at each add would cost n squared.
+		w := &workCounts{}
+		w.linkSteps.most = int64(4*n + linkScanLimit*linkScanLimit)
+		countWorkIn(w, func() {
+			for range 2 {
+				for i := range n {
+					r.add(0, key, link{tok: int32(i)}, true, false)
+				}
 			}
-		}
+		})
 		if got := len(r.sets[0].index[key].links); got != n {
 			t.Fatalf("%d links, not %d", got, n)
 		}
-		if r.linkSteps > 4*n+linkScanLimit*linkScanLimit {
-			t.Errorf("%d links added twice: %d steps", n, r.linkSteps)
-		}
+		t.Logf("%d links added twice: %d steps", n, w.linkSteps.Load())
 	}
 }
 
@@ -111,20 +117,21 @@ func TestUnionsLinear(t *testing.T) {
 	// Each union of n parts interns at most a few times n members.
 	for _, n := range []int{1000, 4000} {
 		run := tagRun(t, n)
-		internWork.names.Store(0)
-		if got := len(run.evaluator(nil, nil).spanTags(spanVal{a: 0, b: n}).names); got != n+1 {
-			t.Fatalf("%d tags, not %d", got, n+1)
-		}
-		if got := len(run.evaluator(nil, nil).term(tagUnion(n)).set.names); got != n {
-			t.Fatalf("%d tags, not %d", got, n)
-		}
-		v, err := (&stageGrammar{}).evaluateClosed("", tagUnion(n), [2]int{})
-		if err != nil || len(v.names) != n {
-			t.Fatalf("%v, not %d tags", err, n)
-		}
-		if work := internWork.names.Load(); work > 8*int64(n) {
-			t.Errorf("unions of %d parts: %d members interned", n, work)
-		}
+		w := &workCounts{}
+		w.interned.most = 8 * int64(n)
+		countWorkIn(w, func() {
+			if got := len(run.evaluator(nil, nil).spanTags(spanVal{a: 0, b: n}).names); got != n+1 {
+				t.Fatalf("%d tags, not %d", got, n+1)
+			}
+			if got := len(run.evaluator(nil, nil).term(tagUnion(n)).set.names); got != n {
+				t.Fatalf("%d tags, not %d", got, n)
+			}
+			v, err := (&stageGrammar{}).evaluateClosed("", tagUnion(n), [2]int{})
+			if err != nil || len(v.names) != n {
+				t.Fatalf("%v, not %d tags", err, n)
+			}
+		})
+		t.Logf("unions of %d parts: %d members interned", n, w.interned.Load())
 	}
 }
 
@@ -201,13 +208,14 @@ func seqDOM(items []string, rules ...string) string {
 func TestLoweringLinear(t *testing.T) {
 	for _, n := range []int{1000, 4000} {
 		d := domStage(t, seqDOM(strings.Split(strings.Repeat(`{"ref":"A"} `, n-1)+`{"ref":"A"}`, " ")))
-		lowerWork.slots.Store(0)
-		if l := lower(d.stages[0], map[string]bool{}); len(l.prods[0].rhs) != n {
+		w := &workCounts{}
+		w.loweredSlots.most = 4 * int64(n)
+		var l *lowered
+		countWorkIn(w, func() { l = lower(d.stages[0], map[string]bool{}) })
+		if len(l.prods[0].rhs) != n {
 			t.Fatalf("%d symbols, not %d", len(l.prods[0].rhs), n)
 		}
-		if work := lowerWork.slots.Load(); work > 4*int64(n) {
-			t.Errorf("a sequence of %d: %d slots copied", n, work)
-		}
+		t.Logf("a sequence of %d: %d slots copied", n, w.loweredSlots.Load())
 	}
 }
 
@@ -220,14 +228,14 @@ func TestCaptureSequencesLinear(t *testing.T) {
 		for i := range n {
 			seq.Items = append(seq.Items, &domExpr{Kind: exCapture, Name: fmt.Sprintf("c%d", i), Inner: &domExpr{Kind: exRef, Name: "A"}})
 		}
-		readerWork.steps.Store(0)
-		caps := altCaptures(&domAlt{Expr: seq})
+		w := &workCounts{}
+		w.readerSteps.most = 8 * int64(n)
+		var caps []map[string]int
+		countWorkIn(w, func() { caps = altCaptures(&domAlt{Expr: seq}) })
 		if len(caps) != 1 || len(caps[0]) != n+1 {
 			t.Fatalf("%d captures: %d sequences", n, len(caps))
 		}
-		if steps := readerWork.steps.Load(); steps > 8*int64(n) {
-			t.Errorf("%d captures: %d steps", n, steps)
-		}
+		t.Logf("%d captures: %d steps", n, w.readerSteps.Load())
 	}
 }
 
@@ -239,11 +247,10 @@ func TestSharedClausesOnce(t *testing.T) {
 		alts := strings.TrimSuffix(strings.Repeat(`{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}},`, n), ",")
 		conds := strings.TrimSuffix(strings.Repeat(`{"op":"=","left":{"call":"text","args":[{"capture":"x"}]},"right":{"const":"K","at":[3,1]}},`, n), ",")
 		dom := fmt.Sprintf(`{"format":%d,"rules":[{"name":"text","op":"define","tags":{"union":[{"tag":"T"},{"tag":"U"}]},"alternatives":[%s],"conditions":[%s],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}],"constants":[{"name":"K","op":"define","value":{"string":"a"},"at":[2,1]}],"classifiers":[],"implications":[]}`, domFormat, alts, conds)
-		clauseWork.steps.Store(0)
-		domStage(t, dom)
-		if steps := clauseWork.steps.Load(); steps > 20*int64(n) {
-			t.Errorf("%d alternatives sharing %d conditions: %d steps", n, n, steps)
-		}
+		w := &workCounts{}
+		w.clauseSteps.most = 20 * int64(n)
+		countWorkIn(w, func() { domStage(t, dom) })
+		t.Logf("%d alternatives sharing %d conditions: %d steps", n, n, w.clauseSteps.Load())
 	}
 }
 
@@ -270,29 +277,33 @@ func TestRuleSetsLinear(t *testing.T) {
 	last := `{"choice":[{"ref":"A"},{"empty":true}]}`
 	for _, n := range []int{1000, 4000} {
 		d := domStage(t, chainDOM(n, last))
-		ruleSetWork.steps.Store(0)
-		l := lower(d.stages[0], map[string]bool{})
+		// Each of the three sets visits each production a few times.
+		w := &workCounts{}
+		w.ruleSetSteps.most = 12 * int64(n)
+		var l *lowered
+		var rs *readingSets
+		countWorkIn(w, func() {
+			l = lower(d.stages[0], map[string]bool{})
+			rs = makeReading(l)
+		})
 		if !l.rules[l.byName["r0"]].nullable {
 			t.Fatalf("r0 of %d is not nullable", n)
 		}
-		if rs := makeReading(l); rs.last[l.rules[l.byName["r0"]].prods[0]] != 0 {
+		if rs.last[l.rules[l.byName["r0"]].prods[0]] != 0 {
 			t.Fatalf("r0 of %d cannot read", n)
 		}
-		// Each of the three sets visits each production a few times.
-		if steps := ruleSetWork.steps.Load(); steps > 12*int64(n) {
-			t.Errorf("a chain of %d rules: %d steps", n, steps)
-		}
+		t.Logf("a chain of %d rules: %d steps", n, w.ruleSetSteps.Load())
 		// The rules that text reaches over the same span, through a long
 		// production of nullable rules, cost the production's length.
 		e := `{"name":"e","op":"define","alternatives":[{"guards":[],"expr":{"empty":true}}],"conditions":[],"at":[3,1]}`
 		d = domStage(t, seqDOM(strings.Split(strings.Repeat(`{"ref":"e"} `, n-1)+`{"ref":"e"}`, " "), e))
-		ruleSetWork.steps.Store(0)
-		if l := lower(d.stages[0], map[string]bool{}); !l.rules[l.byName["text"]].nullable {
+		w = &workCounts{}
+		w.ruleSetSteps.most = 12 * int64(n)
+		countWorkIn(w, func() { l = lower(d.stages[0], map[string]bool{}) })
+		if !l.rules[l.byName["text"]].nullable {
 			t.Fatalf("text of %d is not nullable", n)
 		}
-		if steps := ruleSetWork.steps.Load(); steps > 12*int64(n) {
-			t.Errorf("a production of %d nullable rules: %d steps", n, steps)
-		}
+		t.Logf("a production of %d nullable rules: %d steps", n, w.ruleSetSteps.Load())
 	}
 }
 
@@ -394,12 +405,17 @@ func TestConditionsByDot(t *testing.T) {
 			toks[i] = Token{Text: "a", Tags: []string{"A"}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
 		}
 		ps := newParseState(d.uni, []rune(strings.TrimSpace(strings.Repeat("a ", n))))
-		rec := ps.newRun("main", d.stages[0], toks).recognize(lg, lg.byName["text"], 0, n)
+		// A look at every condition at each advance would cost n squared.
+		run := ps.newRun("main", d.stages[0], toks)
+		w := &workCounts{}
+		w.conditions.most = int64(n)
+		var rec *recognizer
+		countWorkIn(w, func() { rec = run.recognize(lg, lg.byName["text"], 0, n) })
 		if len(rec.sets[n].items) == 0 {
 			t.Fatalf("%d captures: no item at the end", n)
 		}
-		if rec.condSteps != n {
-			t.Errorf("%d captures: %d conditions looked at", n, rec.condSteps)
+		if got := w.conditions.Load(); got != int64(n) {
+			t.Errorf("%d captures: %d conditions looked at", n, got)
 		}
 	}
 }

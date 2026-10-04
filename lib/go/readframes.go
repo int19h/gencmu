@@ -27,7 +27,9 @@ func (b *domBuilder) run(f readFrame) any {
 	stack := []readFrame{f}
 	var in any
 	for {
-		readerWork.steps.Add(1)
+		if w := work.Load(); w != nil {
+			w.readerSteps.add("reader steps")
+		}
 		s := stack[len(stack)-1].resume(b, in)
 		in = nil
 		if s.call != nil {

@@ -11,3 +11,11 @@ func countWork(t *testing.T) *workCounts {
 	t.Cleanup(func() { work.Store(nil) })
 	return w
 }
+
+// countWorkIn counts the work of f alone in w, whose budgets the test has
+// set, so that the work of setting up a run counts in no budget.
+func countWorkIn(w *workCounts, f func()) {
+	work.Store(w)
+	defer work.Store(nil)
+	f()
+}

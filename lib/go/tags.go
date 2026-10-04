@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"unicode/utf8"
 )
 
@@ -40,13 +39,11 @@ func newInterner() *interner {
 	return &interner{byKey: map[string]*tagset{}}
 }
 
-// internWork counts the members of the sets that make interns, the work of
-// building their keys, for the tests that unions grow linearly.
-var internWork struct{ names atomic.Int64 }
-
 // make interns a set from its members, sorted and each once.
 func (in *interner) make(names []string) *tagset {
-	internWork.names.Add(int64(len(names)))
+	if w := work.Load(); w != nil {
+		w.interned.addN(int64(len(names)), "interned members")
+	}
 	// Each name is written with its length before it, so that no two sets
 	// share a key, whatever characters their names hold.
 	var b strings.Builder

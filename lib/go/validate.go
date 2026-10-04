@@ -483,7 +483,9 @@ func duplicateCaptures(e *domExpr) map[*domExpr]bool {
 	stack := []frame{{n: e}}
 	var done []found
 	for len(stack) > 0 {
-		readerWork.steps.Add(1)
+		if w := work.Load(); w != nil {
+			w.readerSteps.add("reader steps")
+		}
 		top := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		n := top.n
@@ -532,7 +534,9 @@ func duplicateCaptures(e *domExpr) map[*domExpr]bool {
 			}
 			for name, cs := range small.names {
 				large.names[name] = append(large.names[name], cs...)
-				readerWork.steps.Add(int64(len(cs)))
+				if w := work.Load(); w != nil {
+					w.readerSteps.addN(int64(len(cs)), "reader steps")
+				}
 			}
 			large.size += small.size
 			joined = large
@@ -583,7 +587,9 @@ func captureSequences(e *domExpr) (sequences [][]*domExpr, duplicates map[*domEx
 				}
 				joined := make([]*domExpr, 0, len(a)+len(b))
 				out = append(out, append(append(joined, a...), b...))
-				readerWork.steps.Add(int64(len(a) + len(b)))
+				if w := work.Load(); w != nil {
+					w.readerSteps.addN(int64(len(a)+len(b)), "reader steps")
+				}
 			}
 		}
 		return distinct(out)
@@ -608,7 +614,9 @@ func captureSequences(e *domExpr) (sequences [][]*domExpr, duplicates map[*domEx
 	stack := []frame{{n: e}}
 	var done [][][]*domExpr
 	for len(stack) > 0 {
-		readerWork.steps.Add(1)
+		if w := work.Load(); w != nil {
+			w.readerSteps.add("reader steps")
+		}
 		top := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		n := top.n
@@ -651,7 +659,9 @@ func captureSequences(e *domExpr) (sequences [][]*domExpr, duplicates map[*domEx
 					for _, c := range out[0] {
 						names[c.Name] = true
 					}
-					readerWork.steps.Add(int64(len(out[0])))
+					if w := work.Load(); w != nil {
+						w.readerSteps.addN(int64(len(out[0])), "reader steps")
+					}
 				}
 				for _, c := range part[0] {
 					if names[c.Name] {
@@ -662,7 +672,9 @@ func captureSequences(e *domExpr) (sequences [][]*domExpr, duplicates map[*domEx
 					names[c.Name] = true
 				}
 				out[0] = append(out[0], part[0]...)
-				readerWork.steps.Add(int64(len(part[0])))
+				if w := work.Load(); w != nil {
+					w.readerSteps.addN(int64(len(part[0])), "reader steps")
+				}
 			}
 		case exChoice:
 			for _, part := range parts {
@@ -1005,7 +1017,9 @@ func readsOwnTags(t *domTerm) bool {
 	// its document nests until the check of its depth (§9).
 	stack := []clausePart{{t: t}}
 	for len(stack) > 0 {
-		readerWork.steps.Add(1)
+		if w := work.Load(); w != nil {
+			w.readerSteps.add("reader steps")
+		}
 		p := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		if p.c != nil {
@@ -1314,7 +1328,9 @@ func (memo *typeMemo) fill(start clausePart, ct constTypes) {
 	}
 	stack := []frame{{p: start}}
 	for len(stack) > 0 {
-		readerWork.steps.Add(1)
+		if w := work.Load(); w != nil {
+			w.readerSteps.add("reader steps")
+		}
 		top := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		if known(top.p) {
@@ -1339,7 +1355,9 @@ func (memo *typeMemo) fill(start clausePart, ct constTypes) {
 }
 
 func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFault) {
-	readerWork.steps.Add(1)
+	if w := work.Load(); w != nil {
+		w.readerSteps.add("reader steps")
+	}
 	switch t.Kind {
 	case tmString:
 		return tyString, nil
@@ -1426,7 +1444,9 @@ func condTypeMemo(c *domCond, ct constTypes, memo *typeMemo) *typeFault {
 }
 
 func condTypeOnce(c *domCond, ct constTypes, memo *typeMemo) *typeFault {
-	readerWork.steps.Add(1)
+	if w := work.Load(); w != nil {
+		w.readerSteps.add("reader steps")
+	}
 	switch c.Kind {
 	case cdAny, cdAll, cdIf:
 		for _, it := range c.Items {

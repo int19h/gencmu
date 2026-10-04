@@ -200,19 +200,9 @@ type recognizer struct {
 	// each by the sequence it extends and the capture it adds.
 	capNodes []capNode
 	capIndex map[capStep]int32
-	// capSteps counts the steps taken through capNodes to read captures, a
-	// measure of work that the growth tests compare across numbers of
-	// captures.
-	capSteps int
 	// linkSets holds, in the check of elision-only, the links of each item
 	// that has many, so that a duplicate is found without a scan of them.
 	linkSets map[*item]map[link]struct{}
-	// linkSteps counts the links compared and looked up in that check, for
-	// the test of its work.
-	linkSteps int
-	// condSteps counts the conditions that advances look at, for the test
-	// that an advance looks only at those ready at its dot.
-	condSteps int
 }
 
 func (r *recognizer) set(k int) *eset {
@@ -432,7 +422,9 @@ const linkScanLimit = 8
 // keeps a duplicate check from costing the links an item already has.
 func (r *recognizer) hasLink(it *item, l link) bool {
 	if set := r.linkSets[it]; set != nil {
-		r.linkSteps++
+		if w := work.Load(); w != nil {
+			w.linkSteps.add("link steps")
+		}
 		if _, ok := set[l]; ok {
 			return true
 		}
@@ -440,7 +432,9 @@ func (r *recognizer) hasLink(it *item, l link) bool {
 		return false
 	}
 	for _, x := range it.links {
-		r.linkSteps++
+		if w := work.Load(); w != nil {
+			w.linkSteps.add("link steps")
+		}
 		if x == l {
 			return true
 		}
@@ -578,7 +572,9 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) {
 	key.dot++
 	var whole func() *tagset
 	for _, c := range p.condsAt(int(key.dot)) {
-		r.condSteps++
+		if w := work.Load(); w != nil {
+			w.conditions.add("conditions")
+		}
 		// A condition on $ is evaluated once the item is complete. Its
 		// production's tag term gives $ its tags, and runs only where a
 		// condition reads them (§4).
@@ -646,7 +642,9 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 		if parts == nil && searched*2 >= int(caps.nodes[caps.more].depth)+1 {
 			var steps int
 			parts, steps = caps.all()
-			r.capSteps += steps
+			if w := work.Load(); w != nil {
+				w.captureSteps.addN(int64(steps), "capture steps")
+			}
 		}
 		var cv capVal
 		if parts != nil {
@@ -654,7 +652,9 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 		} else {
 			var steps int
 			cv, steps = caps.find(slot)
-			r.capSteps += steps
+			if w := work.Load(); w != nil {
+				w.captureSteps.addN(int64(steps), "capture steps")
+			}
 			searched += steps + 1
 		}
 		a, b := r.observed(cv.start, cv.end)

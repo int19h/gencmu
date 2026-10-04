@@ -120,7 +120,12 @@ func TestCaptureStorage(t *testing.T) {
 			toks[i] = Token{Text: "a", Tags: []string{"A"}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
 		}
 		ps := newParseState(d.uni, []rune(strings.TrimSpace(strings.Repeat("a ", n))))
-		rec := ps.newRun("main", d.stages[0], toks).recognize(lg, lg.byName["text"], 0, n)
+		run := ps.newRun("main", d.stages[0], toks)
+		// A walk of every capture for each would pass this budget at once.
+		w := &workCounts{}
+		w.captureSteps.most = int64(2*n + 4)
+		var rec *recognizer
+		countWorkIn(w, func() { rec = run.recognize(lg, lg.byName["text"], 0, n) })
 		if len(rec.sets[n].items) == 0 {
 			t.Fatalf("%d captures: no item at the end", n)
 		}
@@ -128,19 +133,17 @@ func TestCaptureStorage(t *testing.T) {
 		if len(rec.capNodes) != n {
 			t.Errorf("%d captures: %d interned capture entries", n, len(rec.capNodes))
 		}
-		if rec.capSteps > 2*n+4 {
-			t.Errorf("%d captures: %d steps to read them", n, rec.capSteps)
-		}
+		t.Logf("%d captures: %d steps to read them", n, w.captureSteps.Load())
 	}
 }
 
 // TestCaptureSearch: a condition at each capture of a long production
 // reads the part it names without a walk of every part before it. The
-// capture just made is the last part, and the first capture is a search
-// by the jumps, whose steps grow with the logarithm of the parts (engine
-// §4).
+// capture just made is the last part. The second capture is a search by
+// the jumps, whose steps grow with the logarithm of the parts (engine §4).
+// The first is kept apart and costs no search.
 func TestCaptureSearch(t *testing.T) {
-	steps := func(n int, far func(int) string) int {
+	steps := func(n int, most int64, far func(int) string) int64 {
 		names := make([]string, n)
 		conditions := make([]string, n)
 		for i := range names {
@@ -154,21 +157,22 @@ func TestCaptureSearch(t *testing.T) {
 			toks[i] = Token{Text: "a", Tags: []string{"A"}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
 		}
 		ps := newParseState(d.uni, []rune(strings.TrimSpace(strings.Repeat("a ", n))))
-		rec := ps.newRun("main", d.stages[0], toks).recognize(lg, lg.byName["text"], 0, n)
+		run := ps.newRun("main", d.stages[0], toks)
+		w := &workCounts{}
+		w.captureSteps.most = most
+		var rec *recognizer
+		countWorkIn(w, func() { rec = run.recognize(lg, lg.byName["text"], 0, n) })
 		if len(rec.sets[n].items) == 0 {
 			t.Fatalf("%d captures: no item at the end", n)
 		}
-		return rec.capSteps
+		return w.captureSteps.Load()
 	}
+	// A walk of every part before the one read would pass these budgets,
+	// which grow with n and with n log n.
 	for _, n := range []int{100, 200, 400} {
-		near := steps(n, func(i int) string { return fmt.Sprintf("$c%d", i) })
-		first := steps(n, func(int) string { return "$c0" })
-		if near > 2*n+4 {
-			t.Errorf("%d captures read where they are made: %d steps", n, near)
-		}
-		if float64(first) > float64(n)*(2*math.Log2(float64(n))+4) {
-			t.Errorf("%d captures that each read the first: %d steps", n, first)
-		}
+		near := steps(n, int64(2*n+4), func(i int) string { return fmt.Sprintf("$c%d", i) })
+		second := steps(n, int64(float64(n)*(2*math.Log2(float64(n))+4)), func(int) string { return "$c1" })
+		t.Logf("%d captures: %d steps read where made, %d reading the second", n, near, second)
 	}
 }
 
@@ -194,18 +198,20 @@ func TestNotationGrowth(t *testing.T) {
 		t.Fatal("too few cases")
 	}
 	for _, c := range cases {
-		work := func(n int) int64 {
+		// A budget of 0 is none. Each count past its budget stops the read.
+		read := func(n int, most int64) int64 {
 			text := "```jbogenbau\n" + c.Prefix + strings.Repeat(c.Open, n) + c.Middle + strings.Repeat(c.Close, n) + c.Suffix + "\n```\n"
-			recognizerWork.items.Store(0)
-			readerWork.steps.Store(0)
-			// An error is an outcome too; its place is the notation cases'
+			w := &workCounts{}
+			w.items.most, w.readerSteps.most = most, most
+			// An error is an outcome too. Its place is the notation cases'
 			// concern.
-			bundled.reader.read(text, "t.md")
-			return recognizerWork.items.Load() + readerWork.steps.Load()
+			countWorkIn(w, func() { bundled.reader.read(text, "t.md") })
+			return w.items.Load() + w.readerSteps.Load()
 		}
 		// Once first, so that loading the notation counts in neither.
-		work(250)
-		small, large := work(250), work(1000)
+		read(250, 0)
+		small := read(250, 0)
+		large := read(1000, 5*small)
 		if large > 5*small {
 			t.Errorf("%s: %d for 250 levels, %d for 1000", c.Name, small, large)
 		}

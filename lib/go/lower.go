@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"sync"
-	"sync/atomic"
 )
 
 // The lowered grammar (engine §3): context-free productions over terminals
@@ -390,12 +389,10 @@ func symbolsOf(body []slot) []symbol {
 	return out
 }
 
-// lowerWork counts the slots that the bodies of productions copy as they
-// are built, for the test that lowering grows linearly.
-var lowerWork struct{ slots atomic.Int64 }
-
 func concat(a, b []slot) []slot {
-	lowerWork.slots.Add(int64(len(a) + len(b)))
+	if w := work.Load(); w != nil {
+		w.loweredSlots.addN(int64(len(a)+len(b)), "lowered slots")
+	}
 	out := make([]slot, 0, len(a)+len(b))
 	return append(append(out, a...), b...)
 }
@@ -604,7 +601,9 @@ func (lw *lowerer) expandSeq(items []*domExpr, a *sAlt, ruleName string) [][]slo
 		xs := lw.expand(it, a, ruleName)
 		if len(xs) == 1 {
 			for i := range out {
-				lowerWork.slots.Add(int64(len(xs[0])))
+				if w := work.Load(); w != nil {
+					w.loweredSlots.addN(int64(len(xs[0])), "lowered slots")
+				}
 				out[i] = append(out[i], xs[0]...)
 			}
 			continue
@@ -763,8 +762,10 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 // rule once. A pass over every production until nothing changes would
 // settle one rule per pass, and cost the rules times the grammar.
 func derivedRules(rules, prods int, prod func(i int) (int32, []symbol), seed func(i int) bool, all bool) []bool {
-	steps := int64(prods)
-	defer func() { ruleSetWork.steps.Add(steps) }()
+	w := work.Load()
+	if w != nil {
+		w.ruleSetSteps.addN(int64(prods), "rule set steps")
+	}
 	in := make([]bool, rules)
 	// waiting[i] is the number of symbols of production i still to be
 	// settled: all of them for all, one for any.
@@ -811,7 +812,9 @@ func derivedRules(rules, prods int, prod func(i int) (int32, []symbol), seed fun
 	for len(queue) > 0 {
 		rule := queue[0]
 		queue = queue[1:]
-		steps += int64(len(uses[rule]))
+		if w != nil {
+			w.ruleSetSteps.addN(int64(len(uses[rule])), "rule set steps")
+		}
 		for _, i := range uses[rule] {
 			if waiting[i] == 0 {
 				continue
@@ -825,10 +828,6 @@ func derivedRules(rules, prods int, prod func(i int) (int32, []symbol), seed fun
 	}
 	return in
 }
-
-// ruleSetWork counts the productions that derivedRules visits, for the
-// test that it settles each rule once.
-var ruleSetWork struct{ steps atomic.Int64 }
 
 // nullableRules is the rules that can derive the empty sequence.
 func nullableRules(rules, prods int, prod func(i int) (int32, []symbol)) []bool {
@@ -848,7 +847,9 @@ func (l *lowered) computeCycles() {
 	self := make([]bool, n)
 	for i, r := range l.rules {
 		for _, p := range r.prods {
-			ruleSetWork.steps.Add(int64(len(p.rhs)))
+			if w := work.Load(); w != nil {
+				w.ruleSetSteps.addN(int64(len(p.rhs)), "rule set steps")
+			}
 			// B is reached through every other symbol nullable. One count of
 			// the symbols that are not finds each B, where a check of the
 			// others for each B would cost a long production its square.

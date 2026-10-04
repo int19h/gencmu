@@ -37,7 +37,9 @@ func isEmptySet(t *domTerm) bool {
 // left to evaluate; the one given is returned where nothing changed. A
 // reduced part is never evaluated (§10).
 func simplifyCond(c *domCond, has func(string) bool) (*domCond, truth) {
-	readerWork.steps.Add(1)
+	if w := work.Load(); w != nil {
+		w.readerSteps.add("reader steps")
+	}
 	switch c.Kind {
 	case cdCaptured:
 		if has(c.Rule) {
@@ -122,7 +124,9 @@ func simplifyCond(c *domCond, has func(string) bool) (*domCond, truth) {
 // intersection with one. A difference whose first part is empty is empty,
 // and one whose second part is empty is its first part.
 func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
-	readerWork.steps.Add(1)
+	if w := work.Load(); w != nil {
+		w.readerSteps.add("reader steps")
+	}
 	if t == nil {
 		return nil
 	}
@@ -329,7 +333,9 @@ func simplifiedOutcome(start clausePart, has func(string) bool) outcome {
 	stack := []frame{{p: start}}
 	var done []outcome
 	for len(stack) > 0 {
-		readerWork.steps.Add(1)
+		if w := work.Load(); w != nil {
+			w.readerSteps.add("reader steps")
+		}
 		top := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		p := top.p

@@ -357,7 +357,9 @@ func (r *resolver) term(t *domTerm) *domTerm {
 	if done, ok := r.terms[t]; ok {
 		return done
 	}
-	clauseWork.steps.Add(1)
+	if w := work.Load(); w != nil {
+		w.clauseSteps.add("clause steps")
+	}
 	changed := t.Kind == tmConst
 	var items []*domTerm
 	if t.Items != nil {
@@ -391,7 +393,9 @@ func (r *resolver) cond(c *domCond) *domCond {
 	if done, ok := r.conds[c]; ok {
 		return done
 	}
-	clauseWork.steps.Add(1)
+	if w := work.Load(); w != nil {
+		w.clauseSteps.add("clause steps")
+	}
 	left, right, span := r.term(c.Left), r.term(c.Right), r.term(c.Span)
 	inner := r.cond(c.Inner)
 	items := c.Items
