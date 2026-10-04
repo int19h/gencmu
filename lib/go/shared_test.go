@@ -414,6 +414,10 @@ func loadResultMutants(t testing.TB) []resultMutant {
 	if err := json.Unmarshal(data, &file); err != nil {
 		t.Fatal(err)
 	}
+	// An empty list would pass every runner with nothing refused.
+	if len(file.Mutants) == 0 {
+		t.Fatal("tests/result-mutants.json has no mutant")
+	}
 	var mutants []resultMutant
 	for _, m := range file.Mutants {
 		mutants = append(mutants, resultMutant{Name: m["name"].(string), Case: m["case"].(string), change: m})

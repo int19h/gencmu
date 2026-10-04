@@ -228,6 +228,8 @@ def result_mutants() -> list[dict[str, Any]]:
     (tests/README.md, "Result mutants"), each with its engine case under
     ``engine_case``."""
     mutants = load_case(SHARED / "result-mutants.json")["mutants"]
+    # An empty list would pass every runner with nothing refused.
+    assert mutants, "tests/result-mutants.json has no mutant"
     return [{**mutant, "engine_case": load_case(SHARED / "engine" / mutant["case"])} for mutant in mutants]
 
 

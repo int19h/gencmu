@@ -549,7 +549,7 @@ The editor lists a dialect's documents stage by stage. A forgiving scan of the `
 
 Every paragraph, heading and table row of a Markdown document in the repository stands on one line. A list item can hold several paragraphs, each on its own line. Some renderers show a line break inside a paragraph as a break. A code span closes on the line where it opens. A paragraph can follow a heading directly. The content of a fenced block is not prose.
 
-The tools list the repository's documents in one way (`tools/documents.js`). In a git checkout whose top level is the repository, the documents are those that git tracks. Anywhere else, such as in an exported tree, they are every Markdown file under the repository. `tools/sync.js` fails when git does not track a grammar file that it would bundle.
+The tools list the repository's documents in one way (`tools/documents.js`). In a git checkout whose top level is the repository, the documents are those that git tracks. Anywhere else, such as in an exported tree, they are every Markdown file under the repository, less those in hidden directories and in the `node_modules` and `target` directories of tools and builds. `tools/sync.js` fails when git does not track a grammar file that it would bundle.
 
 `tools/sync.js --check` reads each document with a CommonMark and GFM parser (`tools/markdown.js`). So it sees each block where GitHub sees it. It reports these layouts (`tools/prose-lines.js`):
 
