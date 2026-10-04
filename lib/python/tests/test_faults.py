@@ -1,6 +1,7 @@
 """The faults of this library's own paths in the check of elision-only
 (tests/README.md, ``gencmu._testing.faults``): with each one on, the shared
-engine cases that the table names fail."""
+engine cases that the table names fail, in the way that the table says,
+through the result or through the witness hook alone."""
 
 from __future__ import annotations
 
@@ -11,23 +12,35 @@ from typing import Any
 from gencmu import _testing
 
 from .shared import REPOSITORY, case_features, cases, load_case, load_case_dialect, parse_case, run_case
-from . import test_engine_cases
+from . import shared, test_engine_cases
 
-# For each fault, shared engine cases that catch it.
-CATCHES: dict[str, list[str]] = {
-    "reprocess": ["reparse-strict-reclose-swapped.json"],
-    "again": ["reparse-strict-reclose-swapped.json"],
-    "route3": ["reparse-strict-nested-route.json", "reparse-synthetic-suffix-empty.json"],
-    "restore": ["reparse-incompatible-optional-sound.json"],
-    "rank-restoration": ["reparse-witness-hook-only.json", "elision-only-passes.json"],
+RESULT = "result"
+"""The result alone fails the case."""
+HOOK = "hook"
+"""Only the witness hook fails it: with the hook off, it passes."""
+
+# For each fault, shared engine cases that catch it, and how.
+CATCHES: dict[str, dict[str, str]] = {
+    "reprocess": {"reparse-strict-reclose-swapped.json": RESULT},
+    "again": {"reparse-strict-reclose-swapped.json": RESULT},
+    "route3": {"reparse-strict-nested-route.json": RESULT, "reparse-synthetic-suffix-empty.json": RESULT},
+    "restore": {"reparse-incompatible-optional-sound.json": RESULT},
+    "rank-restoration": {
+        "reparse-witness-hook-only.json": RESULT,
+        "elision-only-passes.json": RESULT,
+        "reparse-witness-sibling-last.json": HOOK,
+    },
+    "lost:context": {"reparse-witness-sibling-first.json": HOOK, "reparse-witness-sibling-last.json": HOOK},
+    "lost:select": {"reparse-witness-sibling-first.json": RESULT},
 }
 
 
-def fails(fault: str, case: dict[str, Any]) -> bool:
+def fails(fault: str, case: dict[str, Any], hook: bool = True) -> bool:
     """Whether an engine case fails with a fault on, as the runner of
-    test_engine_cases checks it."""
+    test_engine_cases checks it, with the witness hook or without it."""
     checker = test_engine_cases.EngineCases()
     _testing.faults.add(fault)
+    shared.HOOK[0] = hook
     try:
         if "parses" in case:
             dialect, error = load_case_dialect(case, False)
@@ -44,24 +57,37 @@ def fails(fault: str, case: dict[str, Any]) -> bool:
         return True
     finally:
         _testing.faults.discard(fault)
+        shared.HOOK[0] = True
     return False
+
+
+def catch(fault: str, case: dict[str, Any]) -> str | None:
+    """How a case catches a fault, if it does: it runs once without the
+    hook and once with it."""
+    if fails(fault, case, hook=False):
+        return RESULT
+    if fails(fault, case):
+        return HOOK
+    return None
 
 
 class Faults(unittest.TestCase):
     def test_the_shared_cases_catch_each_fault(self) -> None:
+        self.assertEqual(sorted(CATCHES), sorted(_testing.FAULTS), "the table names every fault, and only those")
         for fault, names in CATCHES.items():
             self.assertTrue(names, f"no case catches {fault}")
-            for name in names:
+            for name, how in names.items():
                 case = load_case(REPOSITORY / "tests" / "engine" / name)
-                self.assertTrue(fails(fault, case), f"{name} does not catch {fault}")
+                self.assertEqual(catch(fault, case), how, f"{name} catches {fault}")
+        self.assertIn(HOOK, [how for names in CATCHES.values() for how in names.values()], "no fault that only the hook catches")
 
     @unittest.skipUnless(os.environ.get("GENCMU_FAULTS_LIST"), "set GENCMU_FAULTS_LIST to list every catch")
     def test_list_catches(self) -> None:
-        """Lists, for each fault, every engine case that catches it, to
-        choose the cases of the table."""
-        for fault in CATCHES:
-            caught = [path.name for path in cases("engine") if fails(fault, load_case(path))]
-            print(fault, caught)
+        """Lists, for each fault, every engine case that catches it, and
+        how, to choose the cases of the table."""
+        for fault in _testing.FAULTS:
+            caught = [(path.name, catch(fault, load_case(path))) for path in cases("engine")]
+            print(fault, [entry for entry in caught if entry[1] is not None])
 
 
 if __name__ == "__main__":

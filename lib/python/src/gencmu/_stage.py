@@ -789,12 +789,15 @@ class StageRunner:
         context.observed = main
         # The recognition of R is not a query (engine §4, §7.6).
         forest = _reconstruct(context)
+        # A test that watches the check marks W(D)'s edges before the check
+        # ranks (tests/README.md).
+        hook = _testing.elision_check
+        watch = hook(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at)) if hook is not None else None
         # Neither form of maximality applies to the derivations of R, and
         # they rank with no lean (engine §7.7).
-        ranking = _rank_check(forest)
-        hook = _testing.elision_check
-        if hook is not None:
-            hook(_testing.CheckRun(chosen, forest, lambda part: _rank_check(part, forest), synthetic, original_at, record_at))
+        ranking = _rank_check(forest, watch.marks if watch is not None else None)
+        if watch is not None:
+            watch.ranked(ranking)
         if ranking is None:
             # The witness of the chosen derivation is lost: a defect of the
             # engine (engine §7.9).
@@ -843,17 +846,16 @@ def _reconstruct(context: StageContext) -> Forest:
     return Parser(context).parse(context.lowered.rule_ids["text"])
 
 
-def _rank_check(forest: Forest, groups_of: Forest | None = None) -> Ranking | None:
+def _rank_check(forest: Forest, marks: dict[int, set[int]] | None = None) -> Ranking | None:
     """The ranking of the check's derivations with no lean and no
     maximality (engine §7.7); ``None`` where R has no derivation that
-    counts. ``groups_of``, when given, is the whole forest of the check,
-    whose groups of rules give the contexts of cycles where ``forest`` is
-    only a part of it, as the witness hook ranks it (tests/README.md)."""
+    counts. ``marks``, where a test watches the check, are the witness
+    hook's marks of W(D) (tests/README.md)."""
     if not forest.roots:
         return None
     ranker = Ranker(forest, "none")
-    if groups_of is not None:
-        ranker.groups_memo = Ranker(groups_of, "none").groups()
+    ranker.check = True
+    ranker.marks = marks
     return ranker.rank(forest.roots)
 
 

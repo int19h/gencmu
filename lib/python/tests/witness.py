@@ -1,17 +1,27 @@
 """The witness hook of tests/README.md: whether the check of elision-only
 kept W(D), the chosen derivation mapped to the reconstructed input, as a
 counted derivation of its forest (engine §7.8). It reads the check through
-the library's private test hook, never through its API."""
+the library's private test hook, never through its API, and it ranks
+nothing itself: it marks W(D)'s edges before the check ranks, and reads
+what the check's own ranking did with them."""
 
 from __future__ import annotations
 
 from contextlib import contextmanager
-from dataclasses import replace
-from typing import Any, Iterator
+from typing import Any, Iterator, NamedTuple
 
 from gencmu import _testing
 from gencmu._earley import RESTORE, SEED
+from gencmu._rank import Act, Ranking, Rope, compare, concat, leaf
 from gencmu._stage import DNode, DRead
+
+
+class Walk(NamedTuple):
+    """W(D) as the walk finds it: for each item of W(D), the indices of the
+    edges that W(D) uses, and W(D)'s actions in order."""
+
+    marks: dict[int, set[int]]
+    sequence: list[Act]
 
 
 @contextmanager
@@ -21,11 +31,40 @@ def checks() -> Iterator[list[bool]]:
     as the check runs, so that no check's forest outlives it."""
     answers: list[bool] = []
     before = _testing.elision_check
-    _testing.elision_check = lambda run: answers.append(keeps_witness(run))
+
+    def watch(run: _testing.CheckRun) -> _testing.CheckWatch:
+        walk = walk_witness(run)
+        index = len(answers)
+        answers.append(False)
+
+        def ranked(ranking: Ranking | None) -> None:
+            answers[index] = walk is not None and keeps(walk, ranking)
+
+        return _testing.CheckWatch(walk.marks if walk is not None else None, ranked)
+
+    _testing.elision_check = watch
     try:
         yield answers
     finally:
         _testing.elision_check = before
+
+
+def keeps(walk: Walk, ranking: Ranking | None) -> bool:
+    """The hook's two channels. The count channel: the check's own count, in
+    the same loop that counts, counted a derivation of W(D)'s marked edges
+    only. The selection channel: where the check reports two readings,
+    neither comes after W(D) in the order T, unless the first is W(D)."""
+    if ranking is None or not ranking.witness_counted:
+        return False
+    if ranking.verdict != "tie":
+        return True
+    w: Rope | None = None
+    for act in walk.sequence:
+        w = concat(w, leaf(act))
+    first = compare(ranking.first, w, "none").order
+    if first > 0:
+        return False
+    return first == 0 or compare(ranking.second, w, "none").order <= 0
 
 
 def is_elided(node: DNode | DRead) -> bool:
@@ -37,18 +76,17 @@ def is_elided(node: DNode | DRead) -> bool:
     return production.helper and production.elided is not None and not production.rhs and not node.children
 
 
-def keeps_witness(run: _testing.CheckRun) -> bool:
-    """Whether a check's forest holds W(D) as a counted derivation. First,
-    the chart must hold it: for each node of W(D), from the leaves up, a
-    completed item of the node's production over the node's span of R that
-    has an edge whose children are the items of the node's children. A read
-    is of the original token that D reads, found by its provenance. An
-    elided terminator of D is the restoration of its helper over its own
-    synthetic token. Then the check's own ranking must count it: the part
-    of the forest made of the items found, each with only the edges that
-    the walk matched, must have a derivation that counts. A faulty ranker
-    can lose W(D) from a chart that holds it. The walk pins the shape of
-    W(D) and its count, not its tags, which the cases pin."""
+def walk_witness(run: _testing.CheckRun) -> Walk | None:
+    """The walk: W(D) in the chart of the check, before the check ranks.
+    For each node of W(D), from the leaves up, a completed item of the
+    node's production over the node's span of R that has an edge whose
+    children are the items of the node's children. A read is of the
+    original token that D reads, found by its provenance. An elided
+    terminator of D is the restoration of its helper over its own synthetic
+    token. The walk marks the edges that it matched, by their index, and
+    builds W(D)'s actions in order. It pins the shape of W(D), not its
+    tags, which the cases pin. ``None`` where the chart does not hold
+    W(D)."""
     forest = run.forest
     synthetic = run.synthetic
     # The nodes of D in post-order, each with its span in R. A cursor walks
@@ -67,7 +105,7 @@ def keeps_witness(run: _testing.CheckRun) -> bool:
         if isinstance(node, DRead):
             at = run.original_at[node.token]
             if at != cursor or synthetic[at]:
-                return False
+                return None
             cursor += 1
             spans[id(node)] = (at, at + 1)
             order.append(node)
@@ -75,11 +113,11 @@ def keeps_witness(run: _testing.CheckRun) -> bool:
             continue
         if is_elided(node):
             if records >= len(run.record_at):
-                return False
+                return None
             at = run.record_at[records]
             records += 1
             if at != cursor or not synthetic[at]:
-                return False
+                return None
             cursor += 1
             spans[id(node)] = (at, at + 1)
             order.append(node)
@@ -94,7 +132,7 @@ def keeps_witness(run: _testing.CheckRun) -> bool:
         order.append(node)
         stack.pop()
     if records != len(run.record_at) or cursor != len(synthetic):
-        return False
+        return None
 
     # The items of the forest by their end, production, dot and origin, for
     # the keys that W(D) asks for alone.
@@ -117,14 +155,12 @@ def keeps_witness(run: _testing.CheckRun) -> bool:
     edges = forest.edges
 
     # For each rule node of W(D), the items that derive it exactly; and for
-    # each item found, the edges that the walk matched.
+    # each item found, the indices of the edges that the walk matched.
     found: dict[int, set[int]] = {}
-    matched_edges: dict[int, list[tuple[Any, ...]]] = {}
+    marks: dict[int, set[int]] = {}
 
-    def keep(item: int, edge: tuple[Any, ...]) -> None:
-        kept = matched_edges.setdefault(item, [])
-        if edge not in kept:
-            kept.append(edge)
+    def mark(item: int, index: int) -> None:
+        marks.setdefault(item, set()).add(index)
 
     for node in order:
         if isinstance(node, DRead):
@@ -134,16 +170,16 @@ def keeps_witness(run: _testing.CheckRun) -> bool:
         if is_elided(node):
             found[id(node)] = {item for item in index.get((end, production, 0, start), ()) if edges[item][0][1] == RESTORE}
             for item in found[id(node)]:
-                keep(item, edges[item][0])
+                mark(item, 0)
             continue
         current = {item for item in index.get((start, production, 0, start), ()) if SEED in edges[item]}
         for item in current:
-            keep(item, SEED)
+            mark(item, edges[item].index(SEED))
         for position, child in enumerate(node.children):
             child_start, child_end = spans[id(child)]
             following: set[int] = set()
             for item in index.get((child_end, production, position + 1, start), ()):
-                for edge in edges[item]:
+                for number, edge in enumerate(edges[item]):
                     pred, kind, a, b = edge
                     if pred not in current:
                         continue
@@ -153,14 +189,25 @@ def keeps_witness(run: _testing.CheckRun) -> bool:
                         matched = kind == 2 and a in found[id(child)]
                     if matched:
                         following.add(item)
-                        keep(item, edge)
+                        mark(item, number)
             current = following
         found[id(node)] = current
     top = found[id(run.chosen)]
-    roots = [root for root in forest.roots if root in top]
-    if not roots:
-        return False
-    # The part of the forest that holds W(D): every other item keeps no
-    # edge. The check's own ranker must count a derivation of it.
-    part = replace(forest, edges=[matched_edges.get(item, []) for item in range(len(edges))], roots=roots)
-    return run.rank(part) is not None
+    if not any(root in top for root in forest.roots):
+        return None
+    # W(D)'s actions, in the order in which the ranking builds a sequence:
+    # reads and closes in post-order, over the tokens of R and the spans of
+    # the items found. A restoration reads its synthetic token, and then
+    # closes over it. Nothing is ranked to build it.
+    sequence: list[Act] = []
+    for node in order:
+        start, end = spans[id(node)]
+        if isinstance(node, DRead):
+            sequence.append(Act(True, token=start, terminal=node.terminal))
+            continue
+        production = node.production
+        if is_elided(node):
+            sequence.append(Act(True, token=start, terminal=production.elided or ""))
+        item = min(found[id(node)])
+        sequence.append(Act(False, item=item, production=production.id, start=start, end=end, visible=not production.transparent))
+    return Walk(marks, sequence)

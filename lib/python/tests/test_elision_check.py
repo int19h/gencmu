@@ -16,7 +16,7 @@ import gencmu
 from gencmu import _stage, _testing
 
 from .shared import SHARED, WitnessLost, case_tokens, load_case, load_case_dialect, parse_checked, result_problems, run_case, witness_lost
-from .witness import checks, keeps_witness
+from .witness import checks, walk_witness
 
 CASE: dict[str, Any] = {
     "documents": {
@@ -42,7 +42,7 @@ def lose_roots() -> Any:
 
 def lose_count() -> Any:
     # The roots stay, and the ranking finds no counted derivation.
-    return mock.patch.object(_stage, "_rank_check", lambda forest, groups_of=None: None)
+    return mock.patch.object(_stage, "_rank_check", lambda forest, marks=None: None)
 
 
 LOSSES: dict[str, Callable[[], Any]] = {"no root item": lose_roots, "no counted derivation": lose_count}
@@ -132,12 +132,17 @@ class WitnessHook(unittest.TestCase):
         # however many derivations it counts: here, the item of the chosen
         # derivation's root is taken away from the roots.
         runs: list[_testing.CheckRun] = []
-        with mock.patch.object(_testing, "elision_check", runs.append):
+
+        def watch(run: _testing.CheckRun) -> _testing.CheckWatch:
+            runs.append(run)
+            return _testing.CheckWatch(None, lambda ranking: None)
+
+        with mock.patch.object(_testing, "elision_check", watch):
             parse()
         run = runs[0]
-        self.assertTrue(keeps_witness(run))
+        self.assertIsNotNone(walk_witness(run))
         run.forest.roots = []
-        self.assertFalse(keeps_witness(run))
+        self.assertIsNone(walk_witness(run))
 
 
 if __name__ == "__main__":

@@ -532,6 +532,16 @@ class Ranker(Summaries):
         self.best = best
         self.read_leaves: dict[tuple[int, str], Rope] = {}
         self.close_leaves: dict[int, Rope] = {}
+        # Whether this ranks the check of elision-only, which only its
+        # faults read.
+        self.check = False
+        # The witness hook's marks (tests/README.md): for each item of W(D),
+        # the indices of its edges that W(D) uses. With them, the same loop
+        # that counts also says, for each key, whether its count includes a
+        # derivation of marked edges only: over all derivations and over the
+        # eligible ones. A parse that no test watches has none.
+        self.marks: dict[int, set[int]] | None = None
+        self.witnessed: dict[Key, tuple[bool, bool]] = {}
 
     def steps(self, key: Key) -> list[Step]:
         best = self.best
@@ -573,7 +583,11 @@ class Ranker(Summaries):
         pair: over all its item's derivations, and over its eligible ones."""
         kind, item, _ = key
         memo = self.memo
+        marks = self.marks
         if kind == 0:
+            if marks is not None:
+                inner_w = self.witnessed[self.inner_key(key)][0]
+                self.witnessed[key] = (inner_w, inner_w)
             inner = memo[self.inner_key(key)][0]
             if not self.entries:
                 return inner
@@ -590,12 +604,22 @@ class Ranker(Summaries):
         total = allowed_total = 0
         kept = []
         allowed: list[Entry] = []
+        marked = marks.get(item) if marks is not None else None
+        witnessed = self.witnessed
+        w_all = w_allowed = False
+        edges = len(self.forest.edges[item])
         for index, edge_kind, pred_key, child_key, a, b in self.steps(key):
             to_all = True
             to_allowed = guarded and self.permits(item, edge_kind, a)
             if best is not None:
                 to_all = index in best_all
                 to_allowed = to_allowed and index in best_eligible
+            # Faults of the check skip the first of two or more edges, in the
+            # count or in the candidates (tests/README.md). Python's agenda
+            # completes the restoring sibling first.
+            sibling = self.check and edges > 1 and index == 0
+            counted = not (sibling and "lost:context" in _testing.faults)
+            selected = not (sibling and "lost:select" in _testing.faults)
             produced: list[Entry] = []
             if edge_kind == 0:
                 ways = 1
@@ -624,10 +648,24 @@ class Ranker(Summaries):
                     for before in pred_entries:
                         for after in child_entries:
                             produced.append(self.combine(before, after))
+            if marked is not None and ways > 0 and index in marked and counted:
+                # The edge is W(D)'s where it is marked, and its predecessor
+                # and child are W(D)'s.
+                edge_w = True
+                if pred_key is not None:
+                    edge_w = witnessed[pred_key][1 if self.eligible_before(edge_kind, a) else 0]
+                if edge_w and child_key is not None and edge_kind == 2:
+                    edge_w = witnessed[child_key][0]
+                w_all = w_all or (to_all and edge_w)
+                w_allowed = w_allowed or (to_allowed and edge_w)
+            if not counted:
+                ways = 0
             if to_all:
                 total += ways
             if to_allowed:
                 allowed_total += ways
+            if not selected:
+                produced = []
             for entry in produced:
                 if to_allowed:
                     # Candidates are settled in place, so the second list
@@ -637,6 +675,8 @@ class Ranker(Summaries):
                     self.keep(kept, entry)
         total = min(total, 2)
         value = (kept, total) if self.entries else total
+        if marks is not None:
+            witnessed[key] = (w_all, w_allowed if guarded else w_all)
         if not guarded:
             return (value, value)
         allowed_total = min(allowed_total, 2)
@@ -740,12 +780,15 @@ class Ranker(Summaries):
         the derivations of every root item (engine §6)."""
         total = 0
         kept: list[Entry] = []
+        counted = False
         for root in roots:
             key = self.full_key(root, self.empty)
             if key is None:
                 continue
             entries, count = self.solve(key)
             total += count
+            if self.marks is not None:
+                counted = counted or (count > 0 and self.witnessed[key][0])
             for entry in entries:
                 self.keep(kept, Entry(entry.seq, list(entry.alts), entry.at))
         if total == 0 or not kept:
@@ -754,8 +797,9 @@ class Ranker(Summaries):
         for entry in kept[1:]:
             if compare(entry.seq, first.seq, self.lean).order < 0:
                 first = entry
+        counted_w = counted if self.marks is not None else None
         if total == 1:
-            return Ranking("unique", first.seq, None, None)
+            return Ranking("unique", first.seq, None, None, counted_w)
         # Every other candidate's visible sequence extends the first one's,
         # so it first differs from it visibly where the first one ends, and
         # so do its tied derivations that diverge from it no earlier.
@@ -767,7 +811,7 @@ class Ranker(Summaries):
             candidates.append((length, entry.seq))
             candidates.extend((entry.at if entry.at < length else length, alt) for alt in entry.alts)
         if not candidates:
-            return Ranking("resolved", first.seq, None, None)
+            return Ranking("resolved", first.seq, None, None, counted_w)
         best_at, second = candidates[0]
         for at, rope in candidates[1:]:
             if at < best_at or (at == best_at and compare(rope, second, self.lean).order < 0):
@@ -777,7 +821,7 @@ class Ranker(Summaries):
             difference = first_difference(first.seq, second, False)
         assert difference is not None
         witness = (difference[1], difference[2])
-        return Ranking("tie", first.seq, second, witness)
+        return Ranking("tie", first.seq, second, witness, counted_w)
 
 
 class Elided:
@@ -1028,15 +1072,25 @@ class Elisions(Summaries):
 class Ranking:
     """The outcome of a ranking (engine §6): its verdict, its first reading
     ``m``, and for a tie its second reading ``t`` and the witness, the pair
-    of actions where the two first differ."""
+    of actions where the two first differ. ``witness_counted``, with the
+    witness hook's marks, says whether the count counted W(D)
+    (tests/README.md); ``None`` without marks."""
 
-    __slots__ = ("verdict", "first", "second", "witness")
+    __slots__ = ("verdict", "first", "second", "witness", "witness_counted")
 
-    def __init__(self, verdict: str, first: Rope | None, second: Rope | None, witness: tuple[Act | None, Act | None] | None) -> None:
+    def __init__(
+        self,
+        verdict: str,
+        first: Rope | None,
+        second: Rope | None,
+        witness: tuple[Act | None, Act | None] | None,
+        witness_counted: bool | None = None,
+    ) -> None:
         self.verdict = verdict
         self.first = first
         self.second = second
         self.witness = witness
+        self.witness_counted = witness_counted
 
 
 def rank(forest: Forest, lean: str, maximal: Maximal | None = None) -> Ranking | None:

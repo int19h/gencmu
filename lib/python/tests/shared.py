@@ -157,6 +157,10 @@ def witness_lost(value: dict[str, Any]) -> bool:
     return isinstance(error, dict) and error.get("code") == "elision-witness-lost"
 
 
+# Whether the runner asks the witness hook; a fault test switches it off.
+HOOK = [True]
+
+
 class WitnessLost(AssertionError):
     """A check of elision-only that lost the witness of its chosen
     derivation (tests/README.md)."""
@@ -169,7 +173,9 @@ def parse_checked(parse: Any) -> Any:
     with checks() as answers:
         value = parse()
     lost = answers.count(False)
-    if lost:
+    # A fault test switches the hook off to see what the result alone
+    # catches (tests/README.md).
+    if lost and HOOK[0]:
         raise WitnessLost(f"{lost} check(s) of elision-only lost the witness of the chosen derivation")
     return value
 
