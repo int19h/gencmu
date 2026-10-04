@@ -214,6 +214,22 @@ type emitTask struct {
 	insert        func() Token
 	inside        bool
 	before, after []*dn
+	// The steps of a carrier's emission: open starts the list that an
+	// attachment's walk gives, collect ends it as an attachment of the
+	// carrier, carrier emits the carrier's own token, and done hands it on.
+	open         bool
+	collect      *carrierWork
+	collectAfter bool
+	carrier      *carrierWork
+	done         *carrierWork
+}
+
+// carrierWork is a carrier's emission in progress: its task, its token
+// once emitted, and its attachments so far.
+type carrierWork struct {
+	t             emitTask
+	tok           Token
+	before, after []Token
 }
 
 // emitter is what one derivation's emission shares: its opaque parts,
@@ -254,33 +270,58 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 // part.
 func (run *stageRun) emitWalk(em *emitter, d *dn, inside bool) []Token {
 	rec := em.rec
-	out := []Token{}
+	// The lists being built: the walk's own, and one for each attachment
+	// whose walk has started and not ended. Attachments nest as deeply as
+	// the derivation does, so their walks share this stack and do not
+	// recurse.
+	outs := [][]Token{{}}
 	stack := []emitTask{{walk: d, inside: inside}}
+	// walks adds an attachment's walks in the order they run: start its
+	// list, walk it, and end the list as an attachment.
+	walks := func(cw *carrierWork, ks []*dn, after bool) {
+		for i := len(ks) - 1; i >= 0; i-- {
+			stack = append(stack, emitTask{collect: cw, collectAfter: after}, emitTask{walk: ks[i], inside: cw.t.inside}, emitTask{open: true})
+		}
+	}
 	for len(stack) > 0 {
 		t := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
+		out := &outs[len(outs)-1]
 		switch {
 		case t.insert != nil:
-			out = append(out, t.insert())
+			*out = append(*out, t.insert())
 		case t.emit != nil:
 			// Before-attachments, then the carrier with its tag term, then
 			// after-attachments; the first error ends the emission. New
 			// attachments are outer to inherited ones (§11).
-			var before, after []Token
-			for _, k := range t.before {
-				before = append(before, attached(run.emitWalk(em, k, t.inside))...)
+			cw := &carrierWork{t: t}
+			stack = append(stack, emitTask{done: cw})
+			walks(cw, t.after, true)
+			stack = append(stack, emitTask{carrier: cw})
+			walks(cw, t.before, false)
+		case t.open:
+			outs = append(outs, []Token{})
+		case t.collect != nil:
+			toks := attached(*out)
+			outs = outs[:len(outs)-1]
+			if t.collectAfter {
+				t.collect.after = append(t.collect.after, toks...)
+			} else {
+				t.collect.before = append(t.collect.before, toks...)
 			}
-			tok := run.emitted(em, t.emit, t.tags(), t.inside)
-			for _, k := range t.after {
-				after = append(after, attached(run.emitWalk(em, k, t.inside))...)
+		case t.carrier != nil:
+			c := t.carrier
+			c.tok = run.emitted(em, c.t.emit, c.t.tags(), c.t.inside)
+		case t.done != nil:
+			c := t.done
+			tok := c.tok
+			if len(c.before) > 0 {
+				tok.Before = append(c.before, tok.Before...)
 			}
-			if len(before) > 0 {
-				tok.Before = append(before, tok.Before...)
+			if len(c.after) > 0 {
+				tok.After = append(tok.After[:len(tok.After):len(tok.After)], c.after...)
 			}
-			if len(after) > 0 {
-				tok.After = append(tok.After[:len(tok.After):len(tok.After)], after...)
-			}
-			out = append(out, tok)
+			*out = append(*out, tok)
 		case t.walk != nil:
 			n := t.walk
 			if n.kind == dRead {
@@ -292,7 +333,7 @@ func (run *stageRun) emitWalk(em *emitter, d *dn, inside bool) []Token {
 			}
 		}
 	}
-	return out
+	return outs[0]
 }
 
 // hasAttachments says whether a token has attachments (§11).

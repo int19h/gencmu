@@ -112,41 +112,66 @@ func writeToken(w *jsonWriter, t *Token) {
 }
 
 func writeTokenAs(w *jsonWriter, t *Token, isAttached bool) {
-	w.raw(`{"text":`)
-	w.str(t.Text)
-	w.raw(`,"phonemes":`)
-	w.str(t.Phonemes)
-	w.raw(`,"label":`)
-	w.str(t.Label)
-	w.raw(`,"tags":`)
-	writeTags(w, t.Tags)
-	if !isAttached {
-		w.raw(`,"span":`)
-		w.pair(t.Span)
+	// Attachments nest as deeply as the derivation that made them, so the
+	// tokens being written are frames on a stack and not recursion. A
+	// frame's side is 0 for its before-attachments and 1 for its
+	// after-attachments, and next is the next one to write.
+	type frame struct {
+		t          *Token
+		side, next int
 	}
-	w.raw(`,"source":`)
-	w.pair(t.Source)
-	if t.InsertedBy != "" {
-		w.raw(`,"insertedBy":`)
-		w.str(t.InsertedBy)
+	open := func(t *Token, isAttached bool) {
+		w.raw(`{"text":`)
+		w.str(t.Text)
+		w.raw(`,"phonemes":`)
+		w.str(t.Phonemes)
+		w.raw(`,"label":`)
+		w.str(t.Label)
+		w.raw(`,"tags":`)
+		writeTags(w, t.Tags)
+		if !isAttached {
+			w.raw(`,"span":`)
+			w.pair(t.Span)
+		}
+		w.raw(`,"source":`)
+		w.pair(t.Source)
+		if t.InsertedBy != "" {
+			w.raw(`,"insertedBy":`)
+			w.str(t.InsertedBy)
+		}
 	}
-	for _, side := range [...]struct {
-		key  string
-		list []Token
-	}{{"before", t.Before}, {"after", t.After}} {
-		if len(side.list) == 0 {
+	keys := [2]string{"before", "after"}
+	open(t, isAttached)
+	stack := []*frame{{t: t}}
+	for len(stack) > 0 {
+		f := stack[len(stack)-1]
+		if f.side == 2 {
+			w.raw("}")
+			stack = stack[:len(stack)-1]
 			continue
 		}
-		w.raw(`,"` + side.key + `":[`)
-		for i := range side.list {
-			if i > 0 {
-				w.raw(",")
-			}
-			writeTokenAs(w, &side.list[i], true)
+		list := f.t.Before
+		if f.side == 1 {
+			list = f.t.After
 		}
-		w.raw("]")
+		if f.next == len(list) {
+			// The list is written only when it is not empty.
+			if len(list) > 0 {
+				w.raw("]")
+			}
+			f.side, f.next = f.side+1, 0
+			continue
+		}
+		if f.next == 0 {
+			w.raw(`,"` + keys[f.side] + `":[`)
+		} else {
+			w.raw(",")
+		}
+		k := &list[f.next]
+		f.next++
+		open(k, true)
+		stack = append(stack, &frame{t: k})
 	}
-	w.raw("}")
 }
 
 func writeAction(w *jsonWriter, a Action) {
@@ -366,20 +391,50 @@ func Brackets(result *ParseResult, options BracketOptions) string {
 		n    *Node
 		kids []*rendered
 	}
-	var tokenRendered func(t *Token) *rendered
-	tokenRendered = func(t *Token) *rendered {
-		if !hasAttachments(t) {
-			return &rendered{leaf: t.Label}
+	// A token with attachments is a group of its before-attachments, its
+	// label and its after-attachments. Attachments nest as deeply as the
+	// derivation that made them, so the groups are built with a stack of
+	// their own and not by recursion.
+	tokenRendered := func(t *Token) *rendered {
+		type tokFrame struct {
+			t     *Token
+			group []*rendered
+			next  int // the attachment to render next, the label at len(t.Before)
 		}
-		group := make([]*rendered, 0, len(t.Before)+1+len(t.After))
-		for i := range t.Before {
-			group = append(group, tokenRendered(&t.Before[i]))
+		var done *rendered
+		stack := []*tokFrame{{t: t}}
+		for len(stack) > 0 {
+			f := stack[len(stack)-1]
+			if done != nil {
+				f.group = append(f.group, done)
+				done = nil
+			}
+			var k *Token
+			switch {
+			case !hasAttachments(f.t):
+				done = &rendered{leaf: f.t.Label}
+			case f.next < len(f.t.Before):
+				k = &f.t.Before[f.next]
+			case f.next == len(f.t.Before):
+				f.group = append(f.group, &rendered{leaf: f.t.Label})
+				f.next++
+				continue
+			case f.next <= len(f.t.Before)+len(f.t.After):
+				k = &f.t.After[f.next-len(f.t.Before)-1]
+			default:
+				done = &rendered{group: f.group}
+			}
+			if k != nil {
+				f.next++
+				if f.group == nil {
+					f.group = make([]*rendered, 0, len(f.t.Before)+1+len(f.t.After))
+				}
+				stack = append(stack, &tokFrame{t: k})
+				continue
+			}
+			stack = stack[:len(stack)-1]
 		}
-		group = append(group, &rendered{leaf: t.Label})
-		for i := range t.After {
-			group = append(group, tokenRendered(&t.After[i]))
-		}
-		return &rendered{group: group}
+		return done
 	}
 	var result2 *rendered
 	stack := []*frame{{n: result.Tree}}

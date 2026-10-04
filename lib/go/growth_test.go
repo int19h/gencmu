@@ -271,7 +271,9 @@ func TestIncludeChainDeep(t *testing.T) {
 // TestDeepGrammar ranks and emits along chains 20,000 deep with the stack
 // of a goroutine held to 1 MiB. A chain of rules, each a unit of the next,
 // makes the items of one set and origin depend on one another as deep as
-// the grammar nests. Ranking keeps its own stack for these.
+// the grammar nests. A capture that attaches the one before it makes
+// attachments as deep as the text is long. Ranking, emission and both
+// renderings keep their own stacks for these.
 func TestDeepGrammar(t *testing.T) {
 	const n = 20000
 	chain := func(body func(i int) string) string {
@@ -283,6 +285,7 @@ func TestDeepGrammar(t *testing.T) {
 	}
 	for _, c := range []struct{ name, grammar, text string }{
 		{"units", "%rule text r0\n" + chain(func(i int) string { return fmt.Sprintf("r%d", i+1) }) + fmt.Sprintf("%%rule r%d 'a'", n), "a"},
+		{"attachments", "%rule text w\n%rule w $y(w) $x('a') | $x('a')\n%emits\n  ($y) $x", strings.Repeat("a", n)},
 	} {
 		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n"+c.grammar))
 		func() {
