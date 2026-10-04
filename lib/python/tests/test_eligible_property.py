@@ -303,29 +303,44 @@ class MaximalQueryCost(unittest.TestCase):
     """The maximality checks of a nested query read each completion once,
     so their work grows linearly with the input (engine §4)."""
 
+    # Each grammar asks for one of a Maximal's tables again and again. In
+    # PLAIN, every omission of the maximal T meets a longer y from the
+    # start, and asks for the furthest ends. In TESTED, y has a test, so
+    # each such check asks for the furthest end where it holds, from the
+    # start. In MANY, matches() makes a y from every position, each with a
+    # test, so the checks ask for the completions of y from many origins.
     PLAIN = "%elidable maximal T\n%rule text body B\n%conditions begins(from($), r)\n%rule body A ...\n%rule r y [T]\n%rule y A ..."
     TESTED = "%elidable maximal T\n%rule text body B\n%conditions begins(from($), r)\n%rule body A ...\n%rule r y⊇~p [T]\n%rule y A ... <~p>"
+    MANY = (
+        "%elidable maximal T\n%rule text body B\n%conditions matches($, r)\n%rule body A ...\n"
+        "%rule r parts B\n%rule parts part ...\n%rule part y⊇~p [T]\n%rule y A <~p>"
+    )
+    GRAMMARS = (("plain", PLAIN), ("tested", TESTED), ("many origins", MANY))
 
-    # A Maximal finds its two tables, the furthest ends and every
-    # completion, once each, in one pass over its forest's items apiece.
+    # A forest's Maximal, made once for it, finds its two tables, the
+    # furthest ends and every completion, once each, in one pass over the
+    # forest's items apiece.
     PASSES = 2
 
-    def work(self, grammar: str, length: int, budget: tuple[int, int, int] | None = None) -> tuple[int, int, int]:
+    def work(self, grammar: str, length: int, budget: tuple[int | None, int | None, int | None]) -> tuple[int, int, int]:
         """The maximality checks, the test evaluations and the items looked
         at of a parse of ``length`` tokens A and then B. The items looked at
         are every item of a forest that a Maximal reads, counted as it reads
-        each one, whatever it keeps from earlier reads. A Maximal that
-        begins a third pass over its items, or with a budget, a count that
-        passes its part of it, stops the parse at once with
+        each one, whatever it keeps from earlier reads. A third pass over a
+        forest's items, by any of its Maximals, or a count that passes its part
+        of the budget, where it has one, stops the parse at once with
         :class:`OverBudget`."""
         dialect, error = load_case_dialect({"grammar": grammar})
         assert dialect is not None, error
         tokens, text = case_tokens({"tokens": [{"text": "a", "tags": ["A"]}] * length + [{"text": "b", "tags": ["B"]}]})
         counts = [0, 0, 0]
+        # The items of each forest as its Maximals see them, by the forest,
+        # which is kept alive with them.
+        seen: dict[int, tuple[Forest, LookedAt]] = {}
         init, forbids, test_holds = Maximal.__init__, Maximal.forbids, StageContext.test_holds
 
         def spend() -> None:
-            if budget is not None and any(count > most for count, most in zip(counts, budget)):
+            if any(most is not None and count > most for count, most in zip(counts, budget)):
                 raise OverBudget(length, (counts[0], counts[1], counts[2]), f"past the budget {budget}")
 
         def read(items: LookedAt) -> None:
@@ -335,7 +350,9 @@ class MaximalQueryCost(unittest.TestCase):
             spend()
 
         def counted_init(self: Maximal, forest: Forest, *args: Any, **kwargs: Any) -> None:
-            init(self, SeenForest(forest, LookedAt(forest.prod, read)), *args, **kwargs)  # type: ignore[arg-type]
+            if id(forest) not in seen:
+                seen[id(forest)] = (forest, LookedAt(forest.prod, read))
+            init(self, SeenForest(forest, seen[id(forest)][1]), *args, **kwargs)  # type: ignore[arg-type]
 
         def counted_forbids(self: Maximal, *args: Any) -> bool:
             counts[0] += 1
@@ -359,45 +376,73 @@ class MaximalQueryCost(unittest.TestCase):
     def grows_linearly(self, grammar: str) -> None:
         """Parses of 250, 1000 and 4000 tokens, each with a budget from the
         last one's work, so that quadratic work stops at the first step
-        that shows it, before it costs much."""
-        last = self.work(grammar, 250)
+        that shows it, before it costs much. The test evaluations read each
+        completion at most about twice in all, in every parse."""
+        last = self.work(grammar, 250, (None, 2 * 251, None))
         self.assertGreater(last[0], 0, "the query made no maximality check")
         self.assertGreater(last[2], 0, "the checks looked at no item")
         for length in (1000, 4000):
             # Four times the input, at most about four times the work, where
-            # a scan of the completions per check would take sixteen; the
-            # test evaluations read each completion at most about twice in
-            # all.
+            # a scan of the completions per check would take sixteen.
             budget = (5 * last[0], min(5 * max(last[1], 1) + 4, 2 * (length + 1)), 5 * last[2])
             last = self.work(grammar, length, budget)
 
     def test_work_grows_linearly(self) -> None:
-        for name, grammar in (("plain", self.PLAIN), ("tested", self.TESTED)):
+        for name, grammar in self.GRAMMARS:
             with self.subTest(grammar=name):
                 try:
                     self.grows_linearly(grammar)
                 except OverBudget as over:
                     self.fail(f"{over.length} tokens: {over.why}, at {over.counts} checks, tests and items looked at")
 
-    def test_a_rebuilt_table_fails_by_count(self) -> None:
-        """Without the return of the furthest ends found before, every check
-        finds them again from every item, which the cache left in place
-        would hide. The test fails by its count in the first parse, at the
-        Maximal's third pass, having looked at a few times its items, where
-        the whole parse would look at hundreds of thousands."""
-        longest = Maximal.longest
+    def test_a_table_found_again_fails_by_count(self) -> None:
+        """Each of a Maximal's tables, found again on every request where
+        its cache would have returned it, fails the test by its count in
+        the first parse, of 250 tokens, long before the work that the
+        regression would cost: a table of every item at the Maximal's third
+        pass over its items, having looked at a few times its items, and
+        the table of furthest ends where a test holds at the first test
+        evaluation past twice the input. So does a Maximal made again for
+        each check, where a query makes one when it first needs it."""
+        longest, all_completed, forbids = Maximal.longest, Maximal.all_completed, Maximal.forbids
 
-        def uncached(self: Maximal) -> Any:
+        def furthest_again(self: Maximal) -> Any:
             self.furthest = None
             return longest(self)
 
-        with mock.patch.object(Maximal, "longest", uncached), self.assertRaises(OverBudget) as raised:
-            self.grows_linearly(self.PLAIN)
-        over = raised.exception
-        self.assertEqual(over.length, 250, over.why)
-        self.assertTrue(over.why.startswith(f"pass {self.PASSES + 1} "), over.why)
-        self.assertLess(over.counts[0], 10, over.counts)
-        self.assertLess(over.counts[2], 10_000, over.counts)
+        def completed_again(self: Maximal) -> Any:
+            self.completed = None
+            return all_completed(self)
+
+        def passing_again(self: Maximal, *args: Any) -> bool:
+            self.passing.clear()
+            return forbids(self, *args)
+
+        def maximal_again(self: Maximal, *args: Any) -> bool:
+            # A Maximal made afresh for each check, over the same forest.
+            forest = self.forest.forest  # type: ignore[attr-defined]
+            stage_wide = self.elidable is forest.lowered.elidable_helpers
+            return forbids(Maximal(forest, self.context, stage_wide, self.base), *args)
+
+        mutations = (
+            ("furthest ends", "longest", furthest_again, self.PLAIN, "pass"),
+            ("every completion", "all_completed", completed_again, self.MANY, "pass"),
+            ("furthest ends where a test holds", "forbids", passing_again, self.TESTED, "past"),
+            ("a forest's Maximal", "forbids", maximal_again, self.PLAIN, "pass"),
+        )
+        for name, method, again, grammar, why in mutations:
+            with self.subTest(table=name):
+                with mock.patch.object(Maximal, method, again), self.assertRaises(OverBudget) as raised:
+                    self.grows_linearly(grammar)
+                over = raised.exception
+                self.assertEqual(over.length, 250, over.why)
+                if why == "pass":
+                    self.assertTrue(over.why.startswith(f"pass {self.PASSES + 1} "), over.why)
+                    self.assertLess(over.counts[0], 10, over.counts)
+                    self.assertLess(over.counts[2], 10_000, over.counts)
+                else:
+                    self.assertTrue(over.why.startswith("past "), over.why)
+                    self.assertEqual(over.counts[1], 2 * 251 + 1, over.counts)
 
 
 if __name__ == "__main__":
