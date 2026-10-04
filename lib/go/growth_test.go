@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"runtime/debug"
 	"strings"
 	"testing"
 )
@@ -170,5 +171,37 @@ func TestNotationGrowth(t *testing.T) {
 			t.Errorf("%s: %d for 250 levels, %d for 1000", c.Name, small, large)
 		}
 		t.Logf("%s: %d for 250 levels, %d for 1000", c.Name, small, large)
+	}
+}
+
+// TestNotationDeep reads each construct of tests/notation-growth.json
+// nested 20,000 deep with the stack of a goroutine held to 1 MiB: no part
+// of reading recurses as deep as the document nests, so the depth ends in
+// the error of engine §9 or in a DOM, never in a stack overflow. A deeper
+// stack than the limit is fatal, so the test fails by ending the process.
+func TestNotationDeep(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile("../../tests/notation-growth.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cases []struct {
+		Name, Prefix, Open, Middle, Close, Suffix string
+	}
+	if err := json.Unmarshal(data, &cases); err != nil {
+		t.Fatal(err)
+	}
+	defer debug.SetMaxStack(debug.SetMaxStack(1 << 20))
+	for _, c := range cases {
+		text := "```jbogenbau\n" + c.Prefix + strings.Repeat(c.Open, 20000) + c.Middle + strings.Repeat(c.Close, 20000) + c.Suffix + "\n```\n"
+		dom, rerr := bundled.reader.read(text, "t.md")
+		if dom == nil && rerr == nil {
+			t.Errorf("%s: neither a DOM nor an error", c.Name)
+		}
+		if rerr != nil && rerr.Line == 0 {
+			t.Errorf("%s: an error with no place: %v", c.Name, rerr)
+		}
 	}
 }

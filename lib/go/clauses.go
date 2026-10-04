@@ -191,70 +191,46 @@ func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
 // termCaptures adds the captures a term uses, as values or spans, "" for $;
 // a presence test is not a use.
 func termCaptures(t *domTerm, into map[string]bool) {
-	readerWork.steps.Add(1)
-	if t == nil {
-		return
-	}
-	if t.Kind == tmCapture {
-		into[t.Str] = true
-	}
-	if t.Cond != nil {
-		condCaptures(t.Cond, into)
-	}
-	for _, it := range t.Items {
-		termCaptures(it, into)
-	}
+	walkClause(clausePart{t: t}, func(p clausePart) bool {
+		if p.t != nil && p.t.Kind == tmCapture {
+			into[p.t.Str] = true
+		}
+		return true
+	})
 }
 
 func condCaptures(c *domCond, into map[string]bool) {
-	readerWork.steps.Add(1)
-	switch c.Kind {
-	case cdCompare:
-		termCaptures(c.Left, into)
-		termCaptures(c.Right, into)
-	case cdMatches, cdBegins, cdInitial:
-		termCaptures(c.Span, into)
-	case cdNot:
-		condCaptures(c.Inner, into)
-	case cdAny, cdAll, cdIf:
-		for _, it := range c.Items {
-			condCaptures(it, into)
+	walkClause(clausePart{c: c}, func(p clausePart) bool {
+		if p.t != nil && p.t.Kind == tmCapture {
+			into[p.t.Str] = true
 		}
-	}
+		return true
+	})
 }
 
 // termMentions adds every capture a term mentions, presence tests included.
 func termMentions(t *domTerm, into map[string]bool) {
-	if t == nil {
-		return
-	}
-	if t.Kind == tmCapture {
-		into[t.Str] = true
-	}
-	if t.Cond != nil {
-		condMentions(t.Cond, into)
-	}
-	for _, it := range t.Items {
-		termMentions(it, into)
-	}
+	walkClause(clausePart{t: t}, func(p clausePart) bool {
+		switch {
+		case p.t != nil && p.t.Kind == tmCapture:
+			into[p.t.Str] = true
+		case p.c != nil && p.c.Kind == cdCaptured:
+			into[p.c.Rule] = true
+		}
+		return true
+	})
 }
 
 func condMentions(c *domCond, into map[string]bool) {
-	switch c.Kind {
-	case cdCaptured:
-		into[c.Rule] = true
-	case cdCompare:
-		termMentions(c.Left, into)
-		termMentions(c.Right, into)
-	case cdMatches, cdBegins, cdInitial:
-		termMentions(c.Span, into)
-	case cdNot:
-		condMentions(c.Inner, into)
-	case cdAny, cdAll, cdIf:
-		for _, it := range c.Items {
-			condMentions(it, into)
+	walkClause(clausePart{c: c}, func(p clausePart) bool {
+		switch {
+		case p.t != nil && p.t.Kind == tmCapture:
+			into[p.t.Str] = true
+		case p.c != nil && p.c.Kind == cdCaptured:
+			into[p.c.Rule] = true
 		}
-	}
+		return true
+	})
 }
 
 // anyAltTags says whether an alternative of a rule has tags of its own.
@@ -291,6 +267,206 @@ func usesAll(names map[string]bool, has func(string) bool) (string, bool) {
 		}
 	}
 	return "", true
+}
+
+// outcome is what a clause gives for a production once simplified (§3.6),
+// as far as the checks of a definition need it: a condition true or false,
+// or else whether its simplified form uses a capture the production lacks,
+// the first such in the order written; a term empty, or else that capture.
+type outcome struct {
+	kind    int8
+	lacks   bool
+	missing string
+}
+
+const (
+	oUses int8 = iota
+	oTrue
+	oFalse
+	oEmpty
+)
+
+// simplifiedOutcome is the outcome of a clause for a production that has
+// the captures has says it has. It walks the clause once, with an explicit
+// stack, and builds no simplified clause, so a deep clause costs its size.
+func simplifiedOutcome(start clausePart, has func(string) bool) outcome {
+	type frame struct {
+		p       clausePart
+		combine bool
+	}
+	first := func(a, b outcome) outcome {
+		if a.lacks {
+			return outcome{kind: oUses, lacks: true, missing: a.missing}
+		}
+		return outcome{kind: oUses, lacks: b.lacks, missing: b.missing}
+	}
+	// What a part gives as written: the first capture it uses that the
+	// production lacks.
+	asWritten := func(p clausePart) outcome {
+		used := outcome{kind: oUses}
+		walkClause(p, func(q clausePart) bool {
+			if !used.lacks && q.t != nil && q.t.Kind == tmCapture && !has(q.t.Str) {
+				used = outcome{kind: oUses, lacks: true, missing: q.t.Str}
+			}
+			return !used.lacks
+		})
+		return used
+	}
+	kids := func(p clausePart) []clausePart {
+		if p.t != nil {
+			switch p.t.Kind {
+			case tmIf, tmUnion, tmIntersection, tmDifference:
+				return p.children()
+			}
+			return nil
+		}
+		switch p.c.Kind {
+		case cdNot, cdAny, cdAll, cdIf, cdCompare:
+			return p.children()
+		}
+		return nil
+	}
+	stack := []frame{{p: start}}
+	var done []outcome
+	for len(stack) > 0 {
+		readerWork.steps.Add(1)
+		top := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		p := top.p
+		if !top.combine {
+			ks := kids(p)
+			stack = append(stack, frame{p: p, combine: true})
+			for i := len(ks) - 1; i >= 0; i-- {
+				stack = append(stack, frame{p: ks[i]})
+			}
+			continue
+		}
+		n := len(kids(p))
+		parts := append([]outcome(nil), done[len(done)-n:]...)
+		done = done[:len(done)-n]
+		var o outcome
+		if p.t != nil {
+			switch p.t.Kind {
+			case tmEmptySet:
+				o = outcome{kind: oEmpty}
+			case tmConst:
+				// A constant is its value here; an empty one is ∅.
+				if isEmptySet(p.t) {
+					o = outcome{kind: oEmpty}
+				} else {
+					o = outcome{kind: oUses}
+				}
+			case tmIf:
+				cond, then := parts[0], parts[1]
+				switch {
+				case cond.kind == oFalse || then.kind == oEmpty:
+					o = outcome{kind: oEmpty}
+				case cond.kind == oTrue:
+					o = then
+				default:
+					o = first(cond, then)
+				}
+			case tmUnion:
+				o = outcome{kind: oEmpty}
+				for _, part := range parts {
+					if part.kind == oEmpty {
+						continue
+					}
+					if o.kind == oEmpty {
+						o = part
+					} else {
+						o = first(o, part)
+					}
+				}
+			case tmIntersection:
+				o = outcome{kind: oUses}
+				for _, part := range parts {
+					if part.kind == oEmpty {
+						o = outcome{kind: oEmpty}
+						break
+					}
+					o = first(o, part)
+				}
+			case tmDifference:
+				switch {
+				case parts[0].kind == oEmpty:
+					o = outcome{kind: oEmpty}
+				case parts[1].kind == oEmpty:
+					o = parts[0]
+				default:
+					o = first(parts[0], parts[1])
+				}
+			default:
+				// A capture, a literal or a call, as written.
+				o = asWritten(p)
+			}
+		} else {
+			switch p.c.Kind {
+			case cdCaptured:
+				o = outcome{kind: oFalse}
+				if has(p.c.Rule) {
+					o = outcome{kind: oTrue}
+				}
+			case cdNot:
+				o = parts[0]
+				switch o.kind {
+				case oTrue:
+					o = outcome{kind: oFalse}
+				case oFalse:
+					o = outcome{kind: oTrue}
+				}
+			case cdAll, cdAny:
+				decides, drops := oFalse, oTrue
+				if p.c.Kind == cdAny {
+					decides, drops = oTrue, oFalse
+				}
+				o = outcome{kind: drops}
+				for _, part := range parts {
+					if part.kind == decides {
+						o = outcome{kind: decides}
+						break
+					}
+					if part.kind == drops {
+						continue
+					}
+					if o.kind == drops {
+						o = part
+					} else {
+						o = first(o, part)
+					}
+				}
+			case cdIf:
+				premise, then := parts[0], parts[1]
+				switch {
+				case premise.kind == oFalse:
+					o = outcome{kind: oTrue}
+				case premise.kind == oTrue:
+					o = then
+				case then.kind == oTrue:
+					o = outcome{kind: oTrue}
+				case then.kind == oFalse:
+					o = premise
+				default:
+					o = first(premise, then)
+				}
+			case cdCompare:
+				// An empty side is ∅, which uses nothing.
+				left, right := parts[0], parts[1]
+				if left.kind == oEmpty {
+					left = outcome{kind: oUses}
+				}
+				if right.kind == oEmpty {
+					right = outcome{kind: oUses}
+				}
+				o = first(left, right)
+			default:
+				// matches(), begins() and initial(), as written.
+				o = asWritten(p)
+			}
+		}
+		done = append(done, o)
+	}
+	return done[0]
 }
 
 // definitionProblem is why a definition, a rule's alternatives with the
@@ -374,18 +550,11 @@ func definitionProblem(r *domRule) string {
 		}
 		applies := false
 		for _, caps := range alts {
-			has := hasIn(caps)
-			s, tv := simplifyCond(c, has)
-			if tv == alwaysTrue {
+			o := simplifiedOutcome(clausePart{c: c}, hasIn(caps))
+			if o.kind == oTrue {
 				continue
 			}
-			if tv == alwaysFalse {
-				applies = true
-				break
-			}
-			used := map[string]bool{}
-			condCaptures(s, used)
-			if _, ok := usesAll(used, has); ok {
+			if o.kind == oFalse || !o.lacks {
 				applies = true
 				break
 			}
@@ -398,10 +567,8 @@ func definitionProblem(r *domRule) string {
 		if t == nil || waits(t) {
 			return ""
 		}
-		used := map[string]bool{}
-		termCaptures(simplifyTerm(t, has), used)
-		if name, ok := usesAll(used, has); !ok {
-			return fmt.Sprintf("a tag term of %s uses $%s, which a production lacks; guard it with $%s ⟹", r.Name, name, name)
+		if o := simplifiedOutcome(clausePart{t: t}, has); o.kind == oUses && o.lacks {
+			return fmt.Sprintf("a tag term of %s uses $%s, which a production lacks; guard it with $%s ⟹", r.Name, o.missing, o.missing)
 		}
 		return ""
 	}

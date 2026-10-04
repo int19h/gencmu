@@ -463,34 +463,52 @@ func duplicateCaptures(e *domExpr) map[*domExpr]bool {
 		names map[string][]*domExpr
 		size  int
 	}
-	var visit func(n *domExpr) found
-	visit = func(n *domExpr) found {
+	kids := func(n *domExpr) []*domExpr {
+		switch {
+		case n == nil:
+			return nil
+		case n.Kind == exSeq || n.Kind == exAnd || n.Kind == exChoice:
+			return n.Items
+		case n.Kind == exOptional && !n.Elidable:
+			return []*domExpr{n.Inner}
+		}
+		return nil
+	}
+	// Each node is met twice, with an explicit stack: first to push its
+	// parts, and then to join what they give, which stands on done.
+	type frame struct {
+		n    *domExpr
+		join bool
+	}
+	stack := []frame{{n: e}}
+	var done []found
+	for len(stack) > 0 {
 		readerWork.steps.Add(1)
-		if n == nil {
-			return found{map[string][]*domExpr{}, 0}
-		}
-		var items []*domExpr
-		switch n.Kind {
-		case exCapture:
-			return found{map[string][]*domExpr{n.Name: {n}}, 1}
-		case exSeq, exAnd, exChoice:
-			items = n.Items
-		case exOptional:
-			if n.Elidable {
-				return found{map[string][]*domExpr{}, 0}
-			}
-			items = []*domExpr{n.Inner}
-		default:
-			return found{map[string][]*domExpr{}, 0}
-		}
-		meets := n.Kind == exSeq || n.Kind == exAnd
-		joined := found{map[string][]*domExpr{}, 0}
-		for i, it := range items {
-			part := visit(it)
-			if i == 0 {
-				joined = part
+		top := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		n := top.n
+		if !top.join {
+			if n != nil && n.Kind == exCapture {
+				done = append(done, found{map[string][]*domExpr{n.Name: {n}}, 1})
 				continue
 			}
+			items := kids(n)
+			if len(items) == 0 {
+				done = append(done, found{map[string][]*domExpr{}, 0})
+				continue
+			}
+			stack = append(stack, frame{n: n, join: true})
+			for i := len(items) - 1; i >= 0; i-- {
+				stack = append(stack, frame{n: items[i]})
+			}
+			continue
+		}
+		count := len(kids(n))
+		partsDone := append([]found(nil), done[len(done)-count:]...)
+		done = done[:len(done)-count]
+		meets := n.Kind == exSeq || n.Kind == exAnd
+		joined := partsDone[0]
+		for _, part := range partsDone[1:] {
 			if meets {
 				if joined.size <= part.size {
 					for name := range joined.names {
@@ -519,9 +537,8 @@ func duplicateCaptures(e *domExpr) map[*domExpr]bool {
 			large.size += small.size
 			joined = large
 		}
-		return joined
+		done = append(done, joined)
 	}
-	visit(e)
 	return duplicates
 }
 
@@ -570,32 +587,62 @@ func captureSequences(e *domExpr) (sequences [][]*domExpr, duplicates map[*domEx
 		}
 		return distinct(out)
 	}
-	var visit func(n *domExpr) [][]*domExpr
-	visit = func(n *domExpr) [][]*domExpr {
-		if n == nil {
-			return [][]*domExpr{nil}
+	// Each node is met twice, with an explicit stack: first to push its
+	// parts, and then to combine their sequences, which stand on done.
+	kids := func(n *domExpr) []*domExpr {
+		switch {
+		case n == nil:
+			return nil
+		case n.Kind == exSeq || n.Kind == exAnd || n.Kind == exChoice:
+			return n.Items
+		case n.Kind == exOptional && !n.Elidable:
+			return []*domExpr{n.Inner}
 		}
+		return nil
+	}
+	type frame struct {
+		n       *domExpr
+		combine bool
+	}
+	stack := []frame{{n: e}}
+	var done [][][]*domExpr
+	for len(stack) > 0 {
+		readerWork.steps.Add(1)
+		top := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		n := top.n
+		if !top.combine {
+			if n != nil && n.Kind == exCapture {
+				done = append(done, [][]*domExpr{{n}})
+				continue
+			}
+			items := kids(n)
+			if len(items) == 0 {
+				done = append(done, [][]*domExpr{nil})
+				continue
+			}
+			stack = append(stack, frame{n: n, combine: true})
+			for i := len(items) - 1; i >= 0; i-- {
+				stack = append(stack, frame{n: items[i]})
+			}
+			continue
+		}
+		count := len(kids(n))
+		parts := append([][][]*domExpr(nil), done[len(done)-count:]...)
+		done = done[:len(done)-count]
+		var out [][]*domExpr
 		switch n.Kind {
-		case exCapture:
-			return [][]*domExpr{{n}}
 		case exSeq:
-			out := [][]*domExpr{nil}
-			for _, it := range n.Items {
-				out = product(out, visit(it))
+			out = [][]*domExpr{nil}
+			for _, part := range parts {
+				out = product(out, part)
 			}
-			return out
 		case exChoice:
-			var out [][]*domExpr
-			for _, it := range n.Items {
-				out = append(out, visit(it)...)
+			for _, part := range parts {
+				out = append(out, part...)
 			}
-			return distinct(out)
+			out = distinct(out)
 		case exAnd:
-			parts := make([][][]*domExpr, len(n.Items))
-			for i, it := range n.Items {
-				parts[i] = visit(it)
-			}
-			var out [][]*domExpr
 			for mask := 1; mask < 1<<len(parts); mask++ {
 				seqs := [][]*domExpr{nil}
 				for i, part := range parts {
@@ -605,16 +652,13 @@ func captureSequences(e *domExpr) (sequences [][]*domExpr, duplicates map[*domEx
 				}
 				out = append(out, seqs...)
 			}
-			return distinct(out)
-		case exOptional:
-			if n.Elidable {
-				return [][]*domExpr{nil}
-			}
-			return distinct(append([][]*domExpr{nil}, visit(n.Inner)...))
+			out = distinct(out)
+		default:
+			out = distinct(append([][]*domExpr{nil}, parts[0]...))
 		}
-		return [][]*domExpr{nil}
+		done = append(done, out)
 	}
-	return visit(e), duplicates
+	return done[0], duplicates
 }
 
 // isCapturable says whether a capture can wrap an expression of a kind: a
@@ -724,22 +768,23 @@ func testTypeProblem(op string, ty termType) string {
 // testsIn lists the tested symbols of an expression, in the order written.
 func testsIn(e *domExpr) []*domExpr {
 	var found []*domExpr
-	var walk func(e *domExpr)
-	walk = func(e *domExpr) {
+	// In the order written, with an explicit stack; a repeat's item comes
+	// before its separator.
+	stack := []*domExpr{e}
+	for len(stack) > 0 {
+		e := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
 		if e == nil {
-			return
+			continue
 		}
 		if e.Kind == exTest {
 			found = append(found, e)
 		}
-		for _, it := range e.Items {
-			walk(it)
+		stack = append(stack, e.Sep, e.Inner)
+		for i := len(e.Items) - 1; i >= 0; i-- {
+			stack = append(stack, e.Items[i])
 		}
-		// A repeat's item comes before its separator.
-		walk(e.Inner)
-		walk(e.Sep)
 	}
-	walk(e)
 	return found
 }
 
@@ -929,51 +974,45 @@ func (c *domChecker) constituentTags(t *domTerm) {
 // whose tags it may be defining: $ itself as a value, tags($) or
 // classes($), anywhere in it, the conditions of its guards included.
 func readsOwnTags(t *domTerm) bool {
-	if t == nil {
-		return false
-	}
-	switch t.Kind {
-	case tmCapture:
-		return t.Str == ""
-	case tmIf:
-		return condReadsOwnTags(t.Cond) || readsOwnTags(t.Items[0])
-	case tmUnion, tmIntersection, tmDifference:
-		for _, it := range t.Items {
-			if readsOwnTags(it) {
+	// The parts to look at, with an explicit stack: a term is as deep as
+	// its document nests until the check of its depth (§9).
+	stack := []clausePart{{t: t}}
+	for len(stack) > 0 {
+		readerWork.steps.Add(1)
+		p := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if p.c != nil {
+			// matches() and begins() parse the tokens again, initial()
+			// reads where they begin, and a presence test reads no tags.
+			switch p.c.Kind {
+			case cdCompare, cdNot, cdAny, cdAll, cdIf:
+				stack = append(stack, p.children()...)
+			}
+			continue
+		}
+		if p.t == nil {
+			continue
+		}
+		switch p.t.Kind {
+		case tmCapture:
+			if p.t.Str == "" {
 				return true
 			}
-		}
-	case tmCall:
-		if (t.Str == "tags" || t.Str == "classes") && len(t.Items) == 1 {
-			a := t.Items[0]
-			return a != nil && a.Kind == tmCapture && a.Str == ""
-		}
-		// A span argument is not a value; a term argument may be one.
-		for _, a := range t.Items {
-			if a != nil && a.Kind != tmCapture && readsOwnTags(a) {
-				return true
+		case tmIf, tmUnion, tmIntersection, tmDifference:
+			stack = append(stack, p.children()...)
+		case tmCall:
+			if (p.t.Str == "tags" || p.t.Str == "classes") && len(p.t.Items) == 1 {
+				a := p.t.Items[0]
+				if a != nil && a.Kind == tmCapture && a.Str == "" {
+					return true
+				}
+				continue
 			}
-		}
-	}
-	return false
-}
-
-// condReadsOwnTags is readsOwnTags of a guard's condition: matches() and
-// begins() parse the tokens again, initial() reads where they begin, and a
-// presence test reads no tags.
-func condReadsOwnTags(c *domCond) bool {
-	if c == nil {
-		return false
-	}
-	switch c.Kind {
-	case cdCompare:
-		return readsOwnTags(c.Left) || readsOwnTags(c.Right)
-	case cdNot:
-		return condReadsOwnTags(c.Inner)
-	case cdAny, cdAll, cdIf:
-		for _, it := range c.Items {
-			if condReadsOwnTags(it) {
-				return true
+			// A span argument is not a value; a term argument may be one.
+			for _, a := range p.t.Items {
+				if a != nil && a.Kind != tmCapture {
+					stack = append(stack, clausePart{t: a})
+				}
 			}
 		}
 	}
@@ -1216,18 +1255,60 @@ func newTypeMemo() *typeMemo {
 	return &typeMemo{terms: map[*domTerm]typeFound{}, conds: map[*domCond]*typeFault{}}
 }
 
-// termTypeMemo is termTypeIn through a memo, which may be nil.
+// termTypeMemo is termTypeIn through a memo, which may be nil. The parts
+// of the term are typed first, below it to above, with an explicit stack,
+// so each step looks one level down, into the memo.
 func termTypeMemo(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFault) {
-	if memo != nil {
-		if found, ok := memo.terms[t]; ok {
-			return found.ty, found.f
+	if memo == nil {
+		memo = newTypeMemo()
+	}
+	if found, ok := memo.terms[t]; ok {
+		return found.ty, found.f
+	}
+	memo.fill(clausePart{t: t}, ct)
+	found := memo.terms[t]
+	return found.ty, found.f
+}
+
+// fill types each term and condition at or below a part that the memo does
+// not hold, the parts of each before it.
+func (memo *typeMemo) fill(start clausePart, ct constTypes) {
+	type frame struct {
+		p    clausePart
+		done bool
+	}
+	known := func(p clausePart) bool {
+		if p.t != nil {
+			_, ok := memo.terms[p.t]
+			return ok || p.t.Kind == tmRule || p.t.Kind == tmClassifier
+		}
+		_, ok := memo.conds[p.c]
+		return ok
+	}
+	stack := []frame{{p: start}}
+	for len(stack) > 0 {
+		readerWork.steps.Add(1)
+		top := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if known(top.p) {
+			continue
+		}
+		if top.done {
+			if top.p.t != nil {
+				ty, f := termTypeOnce(top.p.t, ct, memo)
+				memo.terms[top.p.t] = typeFound{ty, f}
+			} else {
+				memo.conds[top.p.c] = condTypeOnce(top.p.c, ct, memo)
+			}
+			continue
+		}
+		stack = append(stack, frame{p: top.p, done: true})
+		for _, kid := range top.p.children() {
+			if !known(kid) {
+				stack = append(stack, frame{p: kid})
+			}
 		}
 	}
-	ty, f := termTypeOnce(t, ct, memo)
-	if memo != nil {
-		memo.terms[t] = typeFound{ty, f}
-	}
-	return ty, f
 }
 
 func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFault) {
@@ -1304,18 +1385,17 @@ func condTypeFault(c *domCond, ct constTypes) *typeFault {
 	return condTypeMemo(c, ct, nil)
 }
 
-// condTypeMemo is condTypeFault through a memo, which may be nil.
+// condTypeMemo is condTypeFault through a memo, which may be nil, typing
+// its parts first, as termTypeMemo does.
 func condTypeMemo(c *domCond, ct constTypes, memo *typeMemo) *typeFault {
-	if memo != nil {
-		if f, ok := memo.conds[c]; ok {
-			return f
-		}
+	if memo == nil {
+		memo = newTypeMemo()
 	}
-	f := condTypeOnce(c, ct, memo)
-	if memo != nil {
-		memo.conds[c] = f
+	if f, ok := memo.conds[c]; ok {
+		return f
 	}
-	return f
+	memo.fill(clausePart{c: c}, ct)
+	return memo.conds[c]
 }
 
 func condTypeOnce(c *domCond, ct constTypes, memo *typeMemo) *typeFault {
@@ -1477,33 +1557,23 @@ func openPart(t *domTerm) *domTerm {
 // and lists of them, in the order written.
 func constRefs(nodes ...any) []*domTerm {
 	var found []*domTerm
-	var term func(t *domTerm)
-	var cond func(c *domCond)
-	term = func(t *domTerm) {
-		if t == nil {
-			return
-		}
-		if t.Kind == tmConst {
-			found = append(found, t)
-			return
-		}
-		if t.Cond != nil {
-			cond(t.Cond)
-		}
-		for _, it := range t.Items {
-			term(it)
+	collect := func(start clausePart) {
+		walkClause(start, func(p clausePart) bool {
+			if p.t != nil && p.t.Kind == tmConst {
+				found = append(found, p.t)
+				return false
+			}
+			return true
+		})
+	}
+	term := func(t *domTerm) {
+		if t != nil {
+			collect(clausePart{t: t})
 		}
 	}
-	cond = func(c *domCond) {
-		if c == nil {
-			return
-		}
-		term(c.Left)
-		term(c.Right)
-		term(c.Span)
-		cond(c.Inner)
-		for _, it := range c.Items {
-			cond(it)
+	cond := func(c *domCond) {
+		if c != nil {
+			collect(clausePart{c: c})
 		}
 	}
 	for _, n := range nodes {
