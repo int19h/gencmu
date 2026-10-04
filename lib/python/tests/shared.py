@@ -181,9 +181,16 @@ def count_work(*watches: Watch, budget: int | None = None) -> Iterator[Work]:
     # last.
     waiting: list[list[Callable[[], int]]] = []
 
+    # Set once the budget is passed. The unwinding that follows reports
+    # the calls it leaves, and the call whose return passed the budget has
+    # already been taken off ``waiting``, so nothing more is counted.
+    stopped = False
+
     def add(count: int) -> None:
+        nonlocal stopped
         work.count += count
         if budget is not None and work.count > budget:
+            stopped = True
             raise OverBudget(f"more than {budget} units of work")
 
     def begin(code: CodeType, frame: FrameType) -> None:
@@ -199,6 +206,8 @@ def count_work(*watches: Watch, budget: int | None = None) -> Iterator[Work]:
                 add(count)
 
     def end() -> None:
+        if stopped:
+            return
         for count in waiting.pop():
             add(count())
 
