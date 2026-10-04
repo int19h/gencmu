@@ -68,12 +68,38 @@ class Linear(unittest.TestCase):
         self.assertEqual(works[0].count, MOST * small + 1)
 
 
+def union_reads(frame: FrameType) -> int:
+    """The tags that a union of two sets reads before it returns: both
+    sets where it copies them, and none where one is empty."""
+    left, right = frame.f_locals["left"], frame.f_locals["right"]
+    return len(left) + len(right) if left and right else 1
+
+
+def gathered_reads(frame: FrameType) -> int:
+    """The tags that adding a set to a gathered union reads: the set's own,
+    and the first set's too where the first growth copies it."""
+    gathered, part = frame.f_locals["self"], frame.f_locals["part"]
+    if not part:
+        return 1
+    if gathered.grown is None and gathered.first:
+        return len(gathered.first) + len(part)
+    return len(part)
+
+
+def frozen_reads(frame: FrameType) -> int:
+    """The tags that freezing a gathered union copies."""
+    grown = frame.f_locals["self"].grown
+    return 1 if grown is None else 1 + len(grown)
+
+
 def tag_copies() -> list[Watch]:
-    """The tags that unions of tag sets copy: a union of two sets copies
-    both, and a set added to a gathered union copies its own tags."""
+    """The tags that unions of tag sets read, each counted before the
+    union reads it: a union of two sets, a set added to a gathered union,
+    and the gathered union frozen."""
     return [
-        calls(_tags.union, lambda frame: len(frame.f_locals["left"]) + len(frame.f_locals["right"])),
-        calls(_tags.Gathered.add, lambda frame: len(frame.f_locals["part"])),
+        calls(_tags.union, union_reads),
+        calls(_tags.Gathered.add, gathered_reads),
+        calls(_tags.Gathered.value, frozen_reads),
     ]
 
 
@@ -143,6 +169,20 @@ class UnionFolds(Linear):
             return work
 
         self.assert_linear(tag_copies, make, 2000)
+
+    def test_a_union_that_freezes_its_tags_at_each_part_fails_at_the_first_unit_past_its_budget(self) -> None:
+        # The regression copies the tags gathered so far from a frozen
+        # union at each part, which only a count of the freezing sees.
+        def make(n: int) -> Callable[[], object]:
+            term = {"union": [{"tag": f"t{index}"} for index in range(n)]}
+            evaluator = Evaluator(stage_context([]), 0, 0)
+            return lambda: evaluator.value(term, None)  # type: ignore[arg-type]
+
+        freeze = (
+            "if self.grown is not None:\n        self.grown.update(part)",
+            "if self.grown is not None:\n        self.grown = set(self.value())\n        self.grown.update(part)",
+        )
+        self.assert_mutant_stops(tag_copies, make, 2000, lambda: mutant(_tags.Gathered, "add", freeze))
 
 
 class Closures(Linear):
