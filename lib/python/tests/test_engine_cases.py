@@ -6,6 +6,7 @@ from pathlib import Path
 import signal
 import subprocess
 import sys
+import tempfile
 import unittest
 from typing import Any
 
@@ -170,6 +171,14 @@ class EngineCases(unittest.TestCase):
         for _ in range(depth):
             token = token.before[0]
         self.assertEqual(token.text, "y")
+        # A case file can nest as deep, in what it expects, and so can a
+        # mutant's value.
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "deep.json"
+            path.write_text('{"expect":{"result":' + text + "}}", encoding="utf-8")
+            self.assertTrue(same_json(load_case(path)["expect"]["result"], value))
+        changed = apply_mutant({"error": None}, {"path": ["error"], "set": value})
+        self.assertTrue(same_json(changed["error"], value))
 
     def test_a_load_error_meets_only_an_expectation_of_the_error(self) -> None:
         # The runner fails a case whose dialect does not load, when the case

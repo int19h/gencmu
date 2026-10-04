@@ -16,7 +16,7 @@ import unittest
 from concurrent.futures import ProcessPoolExecutor
 from typing import Any, Callable
 
-from .shared import SHARED, apply_mutant, load_case, load_case_dialect, parse_case, parse_checked, result_mutants, result_problems, witness_lost
+from .shared import SHARED, apply_mutant, load_case, load_case_dialect, parse_case, parse_checked, read_json, result_mutants, result_problems, witness_lost, write_json
 
 FIELDS = ("expect", "verdict", "stage", "at", "error", "ties", "words", "brackets")
 
@@ -28,7 +28,7 @@ def all_cases() -> list[dict[str, Any]]:
     found: list[dict[str, Any]] = []
     for path in sorted((SHARED / "corpus").glob("*.jsonl")):
         with open(path, encoding="utf-8") as file:
-            found.extend(json.loads(line) for line in file if line.strip())
+            found.extend(read_json(line) for line in file if line.strip())
     return found
 
 
@@ -103,7 +103,7 @@ def mismatch(case: dict[str, Any], got: dict[str, Any] | str) -> str | None:
         if key not in case and key not in got:
             continue
         if case.get(key) != got.get(key):
-            return f"{case['id']} ({case['dialect']}): {key} expected {json.dumps(case.get(key), ensure_ascii=False)}, got {json.dumps(got.get(key), ensure_ascii=False)}"
+            return f"{case['id']} ({case['dialect']}): {key} expected {write_json(case.get(key))}, got {write_json(got.get(key))}"
     return None
 
 

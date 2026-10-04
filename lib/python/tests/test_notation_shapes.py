@@ -5,22 +5,20 @@ outcome that every library gives."""
 
 from __future__ import annotations
 
-import json
 import unittest
 from typing import Any, Callable
 
 import gencmu
 
-from .shared import SHARED, REPOSITORY
+from .shared import SHARED, REPOSITORY, load_json, read_json
 
-with open(SHARED / "notation-shapes.json", encoding="utf-8") as _file:
-    SHAPES: dict[str, Any] = json.load(_file)
+SHAPES: dict[str, Any] = load_json(SHARED / "notation-shapes.json")
 with open(REPOSITORY / "grammars" / "notation" / "bootstrap.json", encoding="utf-8") as _file:
     BOOTSTRAP = _file.read()
 SYNTAX_AT = BOOTSTRAP.index('"path":"notation/syntax.md"')
 NAMES = [
     rule["name"]
-    for stage in json.loads(BOOTSTRAP)["stages"]
+    for stage in read_json(BOOTSTRAP)["stages"]
     for document in stage["documents"]
     if document["path"] == "notation/syntax.md"
     for rule in document["dom"]["rules"]

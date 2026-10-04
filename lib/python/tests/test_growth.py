@@ -7,7 +7,6 @@ parses alike."""
 from __future__ import annotations
 
 import functools
-import json
 import math
 import unittest
 from contextlib import contextmanager
@@ -19,7 +18,7 @@ from gencmu import _clauses, _dom, _trampoline
 from gencmu._dialect import read_document
 from gencmu._earley import Caps, Evaluator, StageContext
 
-from .shared import SHARED, OverBudget, Watch, Work, calls, case_sources, count_work, load_case_dialect, made_items, parse_case, steps
+from .shared import SHARED, OverBudget, Watch, Work, calls, case_sources, count_work, load_case_dialect, load_json, made_items, parse_case, steps
 
 
 def capture_steps() -> list[Watch]:
@@ -30,8 +29,7 @@ def capture_steps() -> list[Watch]:
 
 class Growth(unittest.TestCase):
     def test_cases(self) -> None:
-        with open(SHARED / "growth.json", encoding="utf-8") as file:
-            cases = json.load(file)
+        cases = load_json(SHARED / "growth.json")
         self.assertTrue(cases, "no cases found")
         for case in cases:
             with self.subTest(dialect=case["dialect"], link=case["link"]):
@@ -241,8 +239,7 @@ class NotationGrowth(unittest.TestCase):
         return small, works[0]
 
     def test_cases(self) -> None:
-        with open(SHARED / "notation-growth.json", encoding="utf-8") as file:
-            cases = json.load(file)
+        cases = load_json(SHARED / "notation-growth.json")
         self.assertGreater(len(cases), 5)
         watches = [made_items(), *reader_steps()]
         for case in cases:
@@ -254,8 +251,7 @@ class NotationGrowth(unittest.TestCase):
         # A regression that flattens the groups of each node's subtree in
         # turn, deepest first, walks a deep DOM once for each level. The
         # read at 1000 levels stops at the first step past its budget.
-        with open(SHARED / "notation-growth.json", encoding="utf-8") as file:
-            case = next(case for case in json.load(file) if case["name"] == "negations")
+        case = next(case for case in load_json(SHARED / "notation-growth.json") if case["name"] == "negations")
         watches = [made_items(), *reader_steps()]
         flatten = _dom.flatten_groups
 
@@ -282,8 +278,7 @@ class QueryDepth(unittest.TestCase):
     # that ran each nested parse on the call stack would fail here.
 
     def test_cases(self) -> None:
-        with open(SHARED / "query-depth.json", encoding="utf-8") as file:
-            cases = json.load(file)
+        cases = load_json(SHARED / "query-depth.json")
         self.assertTrue(cases, "no cases found")
         for case in cases:
             with self.subTest(case=case["name"]):
@@ -369,8 +364,7 @@ class QueryWork(unittest.TestCase):
 
     @staticmethod
     def cases() -> list[dict[str, Any]]:
-        with open(SHARED / "query-work.json", encoding="utf-8") as file:
-            cases: list[dict[str, Any]] = json.load(file)
+        cases: list[dict[str, Any]] = load_json(SHARED / "query-work.json")
         return cases
 
     def parse(self, case: dict[str, Any], work: list[Work], watches: list[Watch]) -> None:

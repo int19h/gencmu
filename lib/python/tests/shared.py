@@ -361,9 +361,14 @@ def cases(kind: str) -> list[Path]:
     return sorted((SHARED / kind).glob("*.json"))
 
 
+def load_json(path: Path) -> Any:
+    """A shared file's JSON value, read with a list for a stack, since a
+    case can nest as deep as the results it expects."""
+    return read_json(path.read_text(encoding="utf-8"))
+
+
 def load_case(path: Path) -> dict[str, Any]:
-    with open(path, encoding="utf-8") as file:
-        return json.load(file)  # type: ignore[no-any-return]
+    return load_json(path)  # type: ignore[no-any-return]
 
 
 def read_json(text: str) -> Any:
@@ -727,7 +732,7 @@ def apply_mutant(value: dict[str, Any], mutant: dict[str, Any]) -> dict[str, Any
     parent = follow(mutant["path"][:-1])
     last = mutant["path"][-1]
     if "set" in mutant:
-        parent[last] = json.loads(json.dumps(mutant["set"]))
+        parent[last] = read_json(write_json(mutant["set"]))
     elif "copy" in mutant:
         parent[last] = follow(mutant["copy"])
     elif "keep" in mutant:
@@ -735,7 +740,7 @@ def apply_mutant(value: dict[str, Any], mutant: dict[str, Any]) -> dict[str, Any
     elif "remove" in mutant:
         del parent[last]
     elif "append" in mutant:
-        parent[last] = [*parent[last], json.loads(json.dumps(mutant["append"]))]
+        parent[last] = [*parent[last], read_json(write_json(mutant["append"]))]
     else:
         raise AssertionError(f"the mutant {mutant['name']} changes nothing")
     return value
