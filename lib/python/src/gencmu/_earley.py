@@ -265,6 +265,10 @@ class StageContext:
     # symbols and for phonemes(), computed when one first looks at the token
     # (engine §4, §5).
     sounds: list[str | None] = field(init=False)
+    # For each position, the first token from there on whose sound is not
+    # empty, so that a sound test skips tokens without phonemes at once.
+    # Made when a sound test first needs it.
+    sounding: list[int] | None = field(init=False, default=None)
     # Whether a range or a property matches a tag set, by the terminal's
     # name and the set's number in the tag table (engine §4).
     carried: dict[tuple[str, int], bool] = field(default_factory=dict)
@@ -339,13 +343,27 @@ class StageContext:
         """Whether tokens start..end sound like a string: their canonical
         sound is exactly it (engine §4, §5). A token with no phonemes adds
         nothing."""
+        sounding = self.sounding
+        if sounding is None:
+            sounding = self.sounding = self.make_sounding()
+        # Each token read adds at least one code point, so the test costs
+        # the length of the sound, however many silent tokens the span has.
         offset = 0
-        for index in range(start, end):
+        index = sounding[start]
+        while index < end:
             part = self.sound(index)
             if not sound.startswith(part, offset):
                 return False
             offset += len(part)
+            index = sounding[index + 1]
         return offset == len(sound)
+
+    def make_sounding(self) -> list[int]:
+        count = len(self.tokens)
+        sounding = [count] * (count + 1)
+        for index in range(count - 1, -1, -1):
+            sounding[index] = index if self.sound(index) else sounding[index + 1]
+        return sounding
 
     def span_text(self, start: int, end: int) -> str:
         if start >= end:

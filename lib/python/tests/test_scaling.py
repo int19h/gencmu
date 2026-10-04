@@ -20,12 +20,15 @@ EPSILON = 0.002
 
 def best_time(work: Callable[[], object]) -> float:
     """The least of three timings, which is the least disturbed by other work
-    on the machine."""
+    on the machine. A run of over a second is decisive alone, so that a
+    quadratic fault fails without waiting for two more."""
     best = float("inf")
     for _ in range(3):
         start = time.perf_counter()
         work()
         best = min(best, time.perf_counter() - start)
+        if best > 1:
+            break
     return best
 
 
@@ -50,9 +53,20 @@ class SpanReads(Linear):
         def make(n: int) -> Callable[[], object]:
             tokens = [Token("a", frozenset({f"T{index}", "A"}), (index, index + 1), (index, index + 1)) for index in range(n)]
             evaluator = Evaluator(stage_context(tokens), 0, n)
-            return lambda: [evaluator.span_tags((0, n, None)) for _ in range(20)]
+            return lambda: [evaluator.span_tags((0, n, None)) for _ in range(25)]
 
-        self.assert_linear(make, 2000)
+        self.assert_linear(make, 4000)
+
+    def test_a_sound_test_costs_the_sound_not_the_silent_tokens_of_its_span(self) -> None:
+        # One token with phonemes and then n without, tested over every
+        # prefix, as a parse tests a growing span at each advance.
+        def make(n: int) -> Callable[[], object]:
+            tokens = [Token("a", frozenset({"A"}), (index, index + 1), (index, index + 1), "" if index else "a") for index in range(n)]
+            context = stage_context(tokens)
+            context.sound_is("a", 0, 1)
+            return lambda: [context.sound_is("a", 0, end) for _ in range(50) for end in range(1, n + 1)]
+
+        self.assert_linear(make, 1000)
 
 
 if __name__ == "__main__":
