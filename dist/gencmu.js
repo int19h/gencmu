@@ -4109,13 +4109,32 @@
       const nullable = new Set();
       /** @type {(rhs: import("./types.js").GrammarSymbol[]) => boolean} */
       const empty = (rhs) => rhs.every((symbol) => !symbol.terminal && nullable.has(symbol.name));
-      for (let changed = true; changed;) {
-        changed = false;
-        for (const production of this.structural) {
-          if (nullable.has(production.lhs) || !empty(production.rhs)) continue;
-          nullable.add(production.lhs);
-          changed = true;
+      // A worklist: each production counts its symbols not yet known to be
+      // nullable, and a rule found nullable counts down the productions that
+      // name it. Passes over every production until none changes would settle
+      // one rule per pass.
+      /** @type {Map<string, number[]>} */
+      const users = new Map();
+      const unknown = this.structural.map((production) => production.rhs.length);
+      /** @type {string[]} */
+      const found = [];
+      /** @type {(name: string) => void} */
+      const add = (name) => {
+        if (nullable.has(name)) return;
+        nullable.add(name);
+        found.push(name);
+      };
+      this.structural.forEach((production, index) => {
+        if (production.rhs.some((symbol) => symbol.terminal)) return;
+        if (production.rhs.length === 0) add(production.lhs);
+        for (const symbol of production.rhs) {
+          const list = users.get(symbol.name);
+          if (list) list.push(index);
+          else users.set(symbol.name, [index]);
         }
+      });
+      for (let name = found.pop(); name !== undefined; name = found.pop()) {
+        for (const index of users.get(name) ?? []) if (--unknown[index] === 0) add(this.structural[index].lhs);
       }
       for (const { items, rule, alternative } of this.braceItems) {
         if (items.some((sequence) => empty(sequence.map((item) => item.symbol)))) {
@@ -5139,15 +5158,32 @@
         }
       }
     }
-    // Nothing can read, until nothing more is added (engine §7.4).
-    for (let changed = !greatest; changed;) {
-      changed = false;
+    // Nothing can read, until nothing more is added (engine §7.4). A
+    // worklist: a rule found to read makes each production that names it
+    // read, so the closure costs the size of the grammar, not a pass over it
+    // for each rule found.
+    if (!greatest) {
+      /** @type {Map<string, Production[]>} */
+      const users = new Map();
+      /** @type {string[]} */
+      const found = [];
+      /** @type {(name: string) => void} */
+      const add = (name) => {
+        if (rules.has(name)) return;
+        rules.add(name);
+        found.push(name);
+      };
       for (const production of lowered.productions) {
-        if (rules.has(production.lhs)) continue;
-        if (productionReads(production)) {
-          rules.add(production.lhs);
-          changed = true;
+        if (productionReads(production)) add(production.lhs);
+        for (const symbol of production.rhs) {
+          if (symbol.terminal) continue;
+          const list = users.get(symbol.name);
+          if (list) list.push(production);
+          else users.set(symbol.name, [production]);
         }
+      }
+      for (let name = found.pop(); name !== undefined; name = found.pop()) {
+        for (const production of users.get(name) ?? []) add(production.lhs);
       }
     }
     /** @type {Map<Production, number>} */
@@ -6689,32 +6725,41 @@
    * @returns {Set<string>}
    */
   function emittingRules(alternativesByRule) {
+    /** @type {Set<string>} */
     const emitting = new Set();
-    for (let changed = true; changed;) {
-      changed = false;
-      for (const [name, alternatives] of alternativesByRule) {
-        if (emitting.has(name)) continue;
-        if (alternatives.some((alternative) => alternativeEmits(alternative, emitting))) {
-          emitting.add(name);
-          changed = true;
+    // A worklist: a rule found to emit makes each rule with an alternative
+    // that walks it emit, so the closure costs the size of the grammar, not
+    // a pass over it for each rule found.
+    /** @type {Map<string, string[]>} */
+    const walkers = new Map();
+    /** @type {string[]} */
+    const found = [];
+    /** @type {(name: string) => void} */
+    const add = (name) => {
+      if (emitting.has(name)) return;
+      emitting.add(name);
+      found.push(name);
+    };
+    for (const [name, alternatives] of alternativesByRule) {
+      for (const alternative of alternatives) {
+        if (alternative.clauses.emit) {
+          if (effectiveItems(alternative).length > 0) add(name);
+          continue;
+        }
+        /** @type {Set<string>} */
+        const walked = new Set();
+        for (const part of topItems(alternative.expr)) referencedRules(part, walked);
+        for (const part of walked) {
+          const list = walkers.get(part);
+          if (list) list.push(name);
+          else walkers.set(part, [name]);
         }
       }
     }
+    for (let name = found.pop(); name !== undefined; name = found.pop()) {
+      for (const walker of walkers.get(name) ?? []) add(walker);
+    }
     return emitting;
-  }
-
-  /**
-   * Whether an alternative could emit a token, given the rules that could.
-   * @param {StitchedAlternative} alternative
-   * @param {Set<string>} emitting
-   * @returns {boolean}
-   */
-  function alternativeEmits(alternative, emitting) {
-    if (alternative.clauses.emit) return effectiveItems(alternative).length > 0;
-    /** @type {Set<string>} */
-    const walked = new Set();
-    for (const part of topItems(alternative.expr)) referencedRules(part, walked);
-    return [...walked].some((name) => emitting.has(name));
   }
 
   /**
@@ -6825,13 +6870,22 @@
       /** @type {Set<object>} */
       const seen = new Set();
       for (const rule of grammar.rules.values()) {
+        // The alternatives of each clauses, grouped once rather than found by
+        // a scan of the rule for each.
+        /** @type {Map<object, StitchedAlternative[]>} */
+        const siblings = new Map();
+        for (const alternative of rule.alternatives) {
+          const group = siblings.get(alternative.clauses);
+          if (group) group.push(alternative);
+          else siblings.set(alternative.clauses, [alternative]);
+        }
         for (const alternative of rule.alternatives) {
           const emit = alternative.clauses.emit;
           if (!emit || emit.items.length > 0 || seen.has(alternative.clauses)) continue;
           seen.add(alternative.clauses);
           /** @type {Set<string>} */
           const reached = new Set();
-          for (const sibling of rule.alternatives.filter((other) => other.clauses === alternative.clauses)) {
+          for (const sibling of /** @type {StitchedAlternative[]} */ (siblings.get(alternative.clauses))) {
             for (const part of topItems(sibling.expr)) referencedRules(part, reached);
           }
           if (!sounding.has(rule.name) && ![...reached].some((name) => emitting.has(name))) {
