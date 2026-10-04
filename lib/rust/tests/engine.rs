@@ -59,6 +59,10 @@ fn deep_json_needs_no_deep_stack() {
     assert!(other != value);
     let problem = common::matches(&value, &other, "value").expect_err("a difference at the bottom");
     assert!(problem.ends_with(".a is 2, not 1"), "{}", &problem[problem.len().saturating_sub(40)..]);
+    // A mutant's change at the end of a path as deep as the value.
+    let path = format!("[{}]", vec!["0, \"a\""; DEPTH].join(", "));
+    let mutant = parse_json(&format!(r#"{{"path": {path}, "set": 2}}"#)).expect("a mutant");
+    assert!(common::apply_mutant(&value, &mutant) == other, "the mutant changes the bottom value");
 }
 
 /// A whole engine case whose canonical result nests 20,000 deep runs on

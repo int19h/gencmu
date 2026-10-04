@@ -572,7 +572,7 @@ mod tests {
     fn reading_deep_nesting_grows_linearly() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/notation-growth.json");
         let text = std::fs::read_to_string(path).expect("the cases");
-        let cases = crate::json::parse(&text).expect("the cases are JSON");
+        let cases = crate::json::parse_cases(&text).expect("the cases are JSON");
         let cases = cases.as_array().expect("an array");
         assert!(cases.len() > 5);
         for case in cases {

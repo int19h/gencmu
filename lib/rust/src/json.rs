@@ -90,7 +90,19 @@ pub(crate) const MAX_DEPTH: usize = 1024;
 /// Parses a JSON text. Numbers must be integers, which is all the shipped
 /// files hold. The error is a message with the byte offset.
 pub(crate) fn parse(text: &str) -> Result<Json, String> {
-    let mut reader = Reader { bytes: text.as_bytes(), text, at: 0 };
+    parse_within(text, MAX_DEPTH)
+}
+
+/// Parses the shared test cases, which nest as deep as a case makes them:
+/// the reader's stack is on the heap, so it needs no limit there.
+#[cfg(test)]
+pub(crate) fn parse_cases(text: &str) -> Result<Json, String> {
+    parse_within(text, usize::MAX)
+}
+
+/// Parses a JSON text whose arrays and objects nest at most `depth` deep.
+fn parse_within(text: &str, depth: usize) -> Result<Json, String> {
+    let mut reader = Reader { bytes: text.as_bytes(), text, at: 0, depth };
     reader.space();
     let value = reader.value()?;
     reader.space();
@@ -104,6 +116,8 @@ struct Reader<'a> {
     bytes: &'a [u8],
     text: &'a str,
     at: usize,
+    /// How deeply arrays and objects may nest.
+    depth: usize,
 }
 
 enum Frame {
@@ -153,7 +167,7 @@ impl<'a> Reader<'a> {
                         let key = self.string()?;
                         self.space();
                         self.expect(b':')?;
-                        if stack.len() >= MAX_DEPTH {
+                        if stack.len() >= self.depth {
                             return Err(self.error("JSON nested too deeply"));
                         }
                         stack.push(Frame::Obj(Vec::new(), key));
@@ -167,7 +181,7 @@ impl<'a> Reader<'a> {
                         self.at += 1;
                         Json::Arr(Vec::new())
                     } else {
-                        if stack.len() >= MAX_DEPTH {
+                        if stack.len() >= self.depth {
                             return Err(self.error("JSON nested too deeply"));
                         }
                         stack.push(Frame::Arr(Vec::new()));
@@ -362,6 +376,18 @@ mod tests {
         assert!(parse(&deep).is_err());
         let fine = format!("{}{}", "[".repeat(MAX_DEPTH), "]".repeat(MAX_DEPTH));
         assert!(parse(&fine).is_ok());
+    }
+
+    /// The shared test cases are read with no limit of depth, on the
+    /// test's ordinary stack.
+    #[test]
+    fn cases_nest_without_a_limit() {
+        let deep = format!("{}1{}", "[{\"a\":".repeat(100_000), "}]".repeat(100_000));
+        let mut value = &parse_cases(&deep).expect("deep cases");
+        for _ in 0..100_000 {
+            value = value.as_array().expect("an array")[0].get("a").expect("a member");
+        }
+        assert_eq!(value.as_int(), Some(1));
     }
 
     #[test]

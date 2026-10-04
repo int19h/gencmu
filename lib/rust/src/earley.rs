@@ -2372,7 +2372,7 @@ mod tests {
     fn query_depth_cases() {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/query-depth.json");
         let text = std::fs::read_to_string(path).expect("the cases");
-        let cases = crate::json::parse(&text).expect("the cases are JSON");
+        let cases = crate::json::parse_cases(&text).expect("the cases are JSON");
         let cases = cases.as_array().expect("an array");
         assert!(!cases.is_empty(), "no cases");
         for case in cases {
@@ -2396,7 +2396,7 @@ mod tests {
     fn query_work_cases() {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/query-work.json");
         let text = std::fs::read_to_string(path).expect("the cases");
-        let cases = crate::json::parse(&text).expect("the cases are JSON");
+        let cases = crate::json::parse_cases(&text).expect("the cases are JSON");
         let cases = cases.as_array().expect("an array");
         assert!(!cases.is_empty(), "no cases");
         for case in cases {

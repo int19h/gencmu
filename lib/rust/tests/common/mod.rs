@@ -892,34 +892,57 @@ pub fn apply_mutant(value: &Value, mutant: &Value) -> Value {
             _ => &target.array()[index(target.array(), step)],
         })
     }
-    // The value with `change` applied at the end of `path`.
-    fn change(value: &Value, path: &[Value], apply: &dyn Fn(Option<&Value>) -> Option<Value>) -> Value {
-        let (step, rest) = path.split_first().expect("a path");
-        match (value, step) {
+    // A copy of a container with its part at `step` replaced by `new`, or
+    // removed where `new` is nothing. A member that is replaced moves to
+    // the end of its object.
+    fn put(container: &Value, step: &Value, new: Option<Value>) -> Value {
+        match (container, step) {
             (Value::Object(members), Value::String(key)) => {
-                let current = value.get(key);
-                let next = if rest.is_empty() {
-                    apply(current)
-                } else {
-                    Some(change(current.expect("a member"), rest, apply))
-                };
                 let mut members: Vec<(String, Value)> =
                     members.iter().filter(|(name, _)| name != key).cloned().collect();
-                members.extend(next.map(|next| (key.clone(), next)));
+                members.extend(new.map(|new| (key.clone(), new)));
                 Value::Object(members)
             }
             (Value::Array(items), _) => {
+                // The part that is replaced is not copied, so a deep path
+                // costs its length and not its square.
                 let at = index(items, step);
-                let mut items = items.clone();
-                items[at] = if rest.is_empty() {
-                    apply(Some(&items[at])).expect("a value")
-                } else {
-                    change(&items[at], rest, apply)
-                };
+                let mut new = Some(new.expect("a value"));
+                let items = items
+                    .iter()
+                    .enumerate()
+                    .map(|(index, item)| if index == at { new.take().expect("one part") } else { item.clone() })
+                    .collect();
                 Value::Array(items)
             }
             _ => panic!("a path step that does not fit"),
         }
+    }
+    // The value with `change` applied at the end of `path`. The path is
+    // as long as the mutant makes it, so the containers along it are kept
+    // on a list and rebuilt from the bottom up, not by recursion.
+    fn change(value: &Value, path: &[Value], apply: &dyn Fn(Option<&Value>) -> Option<Value>) -> Value {
+        let (last, steps) = path.split_last().expect("a path");
+        let mut along: Vec<(&Value, &Value)> = Vec::new();
+        let mut target = value;
+        for step in steps {
+            along.push((target, step));
+            target = match (target, step) {
+                (Value::Object(_), Value::String(key)) => target.get(key).expect("a member"),
+                (Value::Array(items), _) => &items[index(items, step)],
+                _ => panic!("a path step that does not fit"),
+            };
+        }
+        let current = match (target, last) {
+            (Value::Object(_), Value::String(key)) => target.get(key),
+            (Value::Array(items), _) => Some(&items[index(items, last)]),
+            _ => panic!("a path step that does not fit"),
+        };
+        let mut new = put(target, last, apply(current));
+        while let Some((container, step)) = along.pop() {
+            new = put(container, step, Some(new));
+        }
+        new
     }
     let path = mutant.get("path").expect("a path").array();
     let new = if let Some(set) = mutant.get("set") {
