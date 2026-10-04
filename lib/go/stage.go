@@ -86,6 +86,20 @@ type stageRun struct {
 	// voiced[i] is the first token at or after i whose sound is not empty,
 	// or len(toks), so that a sound test skips silent tokens in one step.
 	voiced []int
+	// walks holds the walks of recognitions that have finished, for the
+	// next to reuse, since most nested parses are short and many.
+	walks []walk
+}
+
+// walk is a walk for a new recognition: one that a finished recognition
+// left, or a new one.
+func (run *stageRun) walk() walk {
+	if n := len(run.walks); n > 0 {
+		w := run.walks[n-1]
+		run.walks = run.walks[:n-1]
+		return w
+	}
+	return walk{}
 }
 
 // sound is a token's phonemes in canonical form (§5). The lowercase mapping

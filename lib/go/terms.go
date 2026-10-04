@@ -119,23 +119,37 @@ type frame struct {
 // cond begins the walk of a condition.
 func (w *walk) cond(ev *evaluator, c *domCond) {
 	w.frames = w.frames[:0]
-	w.push(frame{ev: ev, c: c})
+	w.push(ev, c, nil)
 }
 
 // term begins the walk of a term.
 func (w *walk) term(ev *evaluator, t *domTerm) {
 	w.frames = w.frames[:0]
-	w.push(frame{ev: ev, t: t})
+	w.push(ev, nil, t)
 }
 
-// push enters a node, which counts as one visit before it is evaluated.
-func (w *walk) push(f frame) {
-	if f.lazy == nil {
-		if wc := work.Load(); wc != nil {
-			wc.visits.add("visits")
-		}
+// push enters a node, a condition or a term, which counts as one visit
+// before it is evaluated.
+func (w *walk) push(ev *evaluator, c *domCond, t *domTerm) {
+	if wc := work.Load(); wc != nil {
+		wc.visits.add("visits")
 	}
-	w.frames = append(w.frames, f)
+	f := w.top()
+	f.ev, f.c, f.t, f.at = ev, c, t, 0
+}
+
+// top adds a frame on top and gives it. Its fields are set one by one,
+// since a copy of a whole frame into the heap costs a write barrier for
+// every pointer it holds. A frame reads its other fields only once it has
+// set them, so those left from an earlier frame do no harm.
+func (w *walk) top() *frame {
+	n := len(w.frames)
+	if n < cap(w.frames) {
+		w.frames = w.frames[:n+1]
+	} else {
+		w.frames = append(w.frames, frame{})
+	}
+	return &w.frames[n]
 }
 
 func (w *walk) endCond(b bool) {
@@ -236,8 +250,9 @@ func (w *walk) fillLazy(s spanVal) bool {
 	r, p := lz.r, lz.p
 	switch {
 	case p.tags != nil:
-		w.frames = append(w.frames, frame{lazy: lz})
-		w.push(frame{ev: r.run.evaluator(r.g, r.captureFunc(p, lz.caps, lz.origin, lz.end, nil)), t: p.tags})
+		f := w.top()
+		f.c, f.t, f.lazy = nil, nil, lz
+		w.push(r.run.evaluator(r.g, r.captureFunc(p, lz.caps, lz.origin, lz.end, nil)), nil, p.tags)
 		return true
 	case p.implicit:
 		lz.tags = r.run.ps.in.all[lz.caps.at(p.capSlot[0]).tags]
@@ -299,7 +314,7 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 			return nil
 		}
 		f.at++
-		w.push(frame{ev: ev, t: t.Items[f.at-1]})
+		w.push(ev, nil, t.Items[f.at-1])
 		return nil
 	case tmIntersection:
 		switch {
@@ -313,16 +328,16 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 			return nil
 		}
 		f.at++
-		w.push(frame{ev: ev, t: t.Items[f.at-1]})
+		w.push(ev, nil, t.Items[f.at-1])
 		return nil
 	case tmDifference:
 		switch f.at {
 		case 0:
 			f.at = 1
-			w.push(frame{ev: ev, t: t.Items[0]})
+			w.push(ev, nil, t.Items[0])
 		case 1:
 			f.v, f.at = value{kind: vSet, set: toSet(w.v)}, 2
-			w.push(frame{ev: ev, t: t.Items[1]})
+			w.push(ev, nil, t.Items[1])
 		default:
 			w.endSet(in.difference(f.v.set, toSet(w.v)))
 		}
@@ -341,10 +356,10 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 			switch f.at {
 			case 0:
 				f.at = 1
-				w.push(frame{ev: ev, t: t.Items[0]})
+				w.push(ev, nil, t.Items[0])
 			case 1:
 				f.v, f.at = value{kind: vString, s: toStr(w.v)}, 2
-				w.push(frame{ev: ev, t: t.Items[1]})
+				w.push(ev, nil, t.Items[1])
 			default:
 				delimiter := toStr(w.v)
 				if delimiter == "" {
@@ -356,7 +371,7 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 		case "tag":
 			if f.at == 0 {
 				f.at = 1
-				w.push(frame{ev: ev, t: t.Items[0]})
+				w.push(ev, nil, t.Items[0])
 				return nil
 			}
 			name := toStr(w.v)
@@ -388,7 +403,7 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 			// features of the parse, or none for an unknown key (§10).
 			if f.at == 0 {
 				f.at = 1
-				w.push(frame{ev: ev, t: t.Items[0]})
+				w.push(ev, nil, t.Items[0])
 				return nil
 			}
 			classes := ev.g.classifiers[t.Items[1].Str][toStr(w.v)]
@@ -426,14 +441,14 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 		switch f.at {
 		case 0:
 			f.at = 1
-			w.push(frame{ev: ev, c: t.Cond})
+			w.push(ev, t.Cond, nil)
 		case 1:
 			if !w.b {
 				w.endSet(in.empty())
 				return nil
 			}
 			f.at = 2
-			w.push(frame{ev: ev, t: t.Items[0]})
+			w.push(ev, nil, t.Items[0])
 		default:
 			w.endSet(toSet(w.v))
 		}
@@ -449,11 +464,11 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 		switch f.at {
 		case 0:
 			f.at = 1
-			w.push(frame{ev: ev, t: c.Left})
+			w.push(ev, nil, c.Left)
 			return nil
 		case 1:
 			f.v, f.at = w.v, 2
-			w.push(frame{ev: ev, t: c.Right})
+			w.push(ev, nil, c.Right)
 			return nil
 		}
 		l, r := f.v, w.v
@@ -498,7 +513,7 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 	case cdNot:
 		if f.at == 0 {
 			f.at = 1
-			w.push(frame{ev: ev, c: c.Inner})
+			w.push(ev, c.Inner, nil)
 			return nil
 		}
 		w.endCond(!w.b)
@@ -514,14 +529,14 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 		switch f.at {
 		case 0:
 			f.at = 1
-			w.push(frame{ev: ev, c: c.Items[0]})
+			w.push(ev, c.Items[0], nil)
 		case 1:
 			if !w.b {
 				w.endCond(true)
 				return nil
 			}
 			f.at = 2
-			w.push(frame{ev: ev, c: c.Items[1]})
+			w.push(ev, c.Items[1], nil)
 		default:
 			w.endCond(w.b)
 		}
@@ -539,7 +554,7 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 			return nil
 		}
 		f.at++
-		w.push(frame{ev: ev, c: c.Items[f.at-1]})
+		w.push(ev, c.Items[f.at-1], nil)
 		return nil
 	}
 	panic(&parseFailure{message: "cannot evaluate condition " + c.Kind})
@@ -625,7 +640,7 @@ type nestedQuery struct {
 // with its rule as the start rule, in the ordinary mode (§7.6).
 func (q *nestedQuery) recognizer(run *stageRun) *recognizer {
 	a, b := q.at.a, q.at.b
-	r := &recognizer{run: run, g: q.g, base: a, n: b - a, lo: a, hi: b, query: q}
+	r := &recognizer{run: run, g: q.g, base: a, n: b - a, lo: a, hi: b, query: q, w: run.walk()}
 	r.begin(q.start)
 	return r
 }
@@ -659,6 +674,10 @@ func (run *stageRun) drive(root *recognizer) {
 		if r.query != nil {
 			delete(run.ps.inProgress, r.query.at)
 			run.settle(r)
+			// A nested recognition is done with its walk, which the next
+			// can reuse.
+			run.walks = append(run.walks, r.w)
+			r.w = walk{}
 		}
 	}
 }
