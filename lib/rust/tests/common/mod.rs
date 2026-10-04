@@ -524,6 +524,11 @@ pub fn witness_problem(result: &gencmu::ParseResult, checks: &[gencmu::tools::El
     if result.error.as_ref().is_some_and(|error| error.code == Some(gencmu::ErrorCode::ElisionWitnessLost)) {
         return Some("the result is the error elision-witness-lost, which no grammar gives".to_string());
     }
+    // A fault test switches the hook off to see what the result alone
+    // catches (tests/README.md).
+    if !HOOK.with(std::cell::Cell::get) {
+        return None;
+    }
     checks.iter().find(|check| !check.keeps_witness).map(|check| {
         format!("the check of elision-only in stage {} lost the witness of its chosen derivation", check.stage)
     })
@@ -718,4 +723,24 @@ pub fn apply_mutant(value: &Value, mutant: &Value) -> Value {
         panic!("a mutant that changes nothing: {mutant:?}")
     };
     new
+}
+
+thread_local! {
+    /// Whether the runner asks the witness hook, on this thread.
+    static HOOK: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
+}
+
+/// Runs `work` on this thread with the witness hook's answer ignored, so
+/// that only the result can fail a case. For the fault tests only.
+#[allow(dead_code)]
+pub fn without_hook<T>(work: impl FnOnce() -> T) -> T {
+    struct Restore;
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            HOOK.with(|hook| hook.set(true));
+        }
+    }
+    HOOK.with(|hook| hook.set(false));
+    let _restore = Restore;
+    work()
 }

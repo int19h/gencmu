@@ -685,7 +685,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
         if let Some(test) = test {
             let test = &self.g.tests[test as usize];
-            if !test_holds(test, std::slice::from_ref(token), self.shared.unicode, tags, token.tags) {
+            // A fault restores without the test (tests/README.md).
+            if !test_holds(test, std::slice::from_ref(token), self.shared.unicode, tags, token.tags)
+                && !witness::fault(Fault::Restore)
+            {
                 return;
             }
         }

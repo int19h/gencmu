@@ -10,6 +10,7 @@ use std::cell::RefCell;
 use crate::earley::{test_holds, Cap, Chart, Item, Tok};
 use crate::fxhash::FxSet;
 use crate::lower::{Lowered, Sym};
+use crate::rank::restored_terminal;
 use crate::tags::{SetId, Tags};
 use crate::tree::{IKind, ITree};
 use crate::unicode::Unicode;
@@ -53,6 +54,28 @@ pub enum Fault {
     /// The ranker gives a restoration no derivation, so the ranking does not
     /// count W(D) though the chart holds it.
     RankRestoration,
+    /// The check's count skips the last of two or more alternatives of a
+    /// node, a link of an item or a member of a group. Only the witness
+    /// hook sees it where the readings stay.
+    LostContext,
+    /// The check's entries, which give its readings, skip that alternative.
+    LostSelect,
+    /// A restoration is made without the test of its terminal (§7.4).
+    Restore,
+}
+
+impl Fault {
+    /// Every fault, for the tests that run each one.
+    pub const ALL: [Fault; 8] = [
+        Fault::RankerTests,
+        Fault::ReferenceSpan,
+        Fault::Reprocess,
+        Fault::Route3,
+        Fault::RankRestoration,
+        Fault::LostContext,
+        Fault::LostSelect,
+        Fault::Restore,
+    ];
 }
 
 thread_local! {
@@ -155,18 +178,42 @@ pub(crate) struct CheckForest<'a> {
     pub empty: SetId,
 }
 
-/// The items of a check's chart that hold W(D) (engine §7.8), each by its
-/// set and its index there, or `None` where the chart does not hold it: for
-/// each node of W(D), from the leaves up, a completed item of the node's
-/// production over the node's span of R, reached from the item of its
-/// production at its origin through items that read exactly the node's
-/// children, as the ranking links them, tests included. A read is of the
-/// original token that D reads, found by its provenance. An elided
-/// terminator of D is the restoration of its helper over its own synthetic
-/// token. The check's own ranking of the chart restricted to these items
-/// must then count a derivation, since a faulty ranker can lose W(D) from a
-/// chart that holds it. The walk pins the shape of W(D), not its tags.
-pub(crate) fn witness_items(forest: &CheckForest, chosen: &ITree) -> Option<FxSet<(u32, u32)>> {
+/// The marks of W(D) that the check's ranker takes (tests/README.md): the
+/// items of W(D), each by its set and its index there, and the links that
+/// W(D) uses, each as the ranker rebuilds it, by its item and the set where
+/// its predecessor stands, which is where its child begins.
+#[derive(Debug, Default)]
+pub(crate) struct Marks {
+    pub items: FxSet<(u32, u32)>,
+    pub links: FxSet<(u32, u32, u32)>,
+}
+
+/// One action of W(D), as the ranking writes a derivation: a read of a
+/// token of R as a terminal, or the close of an item by its set and index.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum WitnessAct {
+    Read { tok: u32, terminal: u32 },
+    Close { set: u32, index: u32 },
+}
+
+/// W(D) as the walk finds it: its marks, and its actions in order.
+#[derive(Debug)]
+pub(crate) struct Walk {
+    pub marks: Marks,
+    pub sequence: Vec<WitnessAct>,
+}
+
+/// The walk: W(D) in the chart of a check, before the check ranks (engine
+/// §7.8), or `None` where the chart does not hold it. For each node of W(D),
+/// from the leaves up, a completed item of the node's production over the
+/// node's span of R, reached from the item of its production at its origin
+/// through items that read exactly the node's children, as the ranking links
+/// them, tests included. A read is of the original token that D reads, found
+/// by its provenance. An elided terminator of D is the restoration of its
+/// helper over its own synthetic token. The walk marks the items and links
+/// that it uses, and writes W(D)'s actions in post-order, so that the hook
+/// ranks nothing itself. It pins the shape of W(D), not its tags.
+pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
     if !forest.rooted {
         return None;
     }
@@ -233,7 +280,7 @@ pub(crate) fn witness_items(forest: &CheckForest, chosen: &ITree) -> Option<FxSe
     // derive it exactly, in the set at its end; and every item that the walk
     // reaches, by set and index.
     let mut found: Vec<Vec<u32>> = vec![Vec::new(); count];
-    let mut items: FxSet<(u32, u32)> = FxSet::default();
+    let mut marks = Marks::default();
     for &index in &order {
         let node = &chosen.nodes[index as usize];
         let IKind::Close { prod, .. } = node.kind else {
@@ -245,7 +292,7 @@ pub(crate) fn witness_items(forest: &CheckForest, chosen: &ITree) -> Option<FxSe
             // The restoration: the empty production's item from `start`,
             // in the set after it.
             found[index as usize] = at(end, Item { prod, dot: 0, origin: start, caps: 0 }).into_iter().collect();
-            items.extend(found[index as usize].iter().map(|&item| (end, item)));
+            marks.items.extend(found[index as usize].iter().map(|&item| (end, item)));
             continue;
         }
         let production = &g.prods[prod as usize];
@@ -253,7 +300,7 @@ pub(crate) fn witness_items(forest: &CheckForest, chosen: &ITree) -> Option<FxSe
             .map(|_| Item { prod, dot: 0, origin: start, caps: 0 })
             .into_iter()
             .collect();
-        items.extend(at(start, Item { prod, dot: 0, origin: start, caps: 0 }).map(|item| (start, item)));
+        marks.items.extend(at(start, Item { prod, dot: 0, origin: start, caps: 0 }).map(|item| (start, item)));
         for (position, &child) in node.children.iter().enumerate() {
             let (from, to) = spans[child as usize];
             let test = g.test(prod, position);
@@ -314,7 +361,12 @@ pub(crate) fn witness_items(forest: &CheckForest, chosen: &ITree) -> Option<FxSe
                     }
                 }
             }
-            items.extend(next.iter().filter_map(|&item| at(to, item)).map(|item| (to, item)));
+            for &item in &next {
+                if let Some(index) = at(to, item) {
+                    marks.items.insert((to, index));
+                    marks.links.insert((to, index, from));
+                }
+            }
             current = next;
         }
         found[index as usize] = current.into_iter().filter_map(|item| at(end, item)).collect();
@@ -324,5 +376,25 @@ pub(crate) fn witness_items(forest: &CheckForest, chosen: &ITree) -> Option<FxSe
         return None;
     };
     let whole = start == 0 && end as usize == forest.tokens.len() && g.prods[prod as usize].rule == g.start;
-    (whole && !found[0].is_empty()).then_some(items)
+    if !whole || found[0].is_empty() {
+        return None;
+    }
+    // W(D)'s actions, in post-order, over the tokens of R and the items
+    // found. A restoration reads its synthetic token, and then closes.
+    let mut sequence = Vec::with_capacity(order.len() * 2);
+    for &index in &order {
+        let node = &chosen.nodes[index as usize];
+        let (start, end) = spans[index as usize];
+        match node.kind {
+            IKind::Read { terminal, .. } => sequence.push(WitnessAct::Read { tok: start, terminal }),
+            IKind::Close { prod, .. } => {
+                if elided(&node.kind) {
+                    sequence.push(WitnessAct::Read { tok: start, terminal: restored_terminal(g, prod) });
+                }
+                let &item = found[index as usize].first()?;
+                sequence.push(WitnessAct::Close { set: end, index: item });
+            }
+        }
+    }
+    Some(Walk { marks, sequence })
 }

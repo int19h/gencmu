@@ -17,7 +17,7 @@
 //! follows them. Derivations are kept as a shared DAG, so comparing two of
 //! them walks only where they differ.
 
-use crate::fxhash::{FxMap, FxSet};
+use crate::fxhash::FxMap;
 use std::cmp::Ordering;
 
 use crate::earley::{test_holds, Chart, Item, Shared, Tok};
@@ -27,7 +27,7 @@ use crate::maximal::Maximal;
 use crate::nat::Nat;
 use crate::tags::{SetId, Tags};
 use crate::unicode::Unicode;
-use crate::witness::{self, Fault};
+use crate::witness::{self, Fault, Marks, WitnessAct};
 
 pub(crate) const EMPTY: u32 = 0;
 const ANY: u32 = u32::MAX;
@@ -120,6 +120,10 @@ struct Entry {
 struct NodeResult {
     entries: Vec<Entry>,
     count: u8,
+    /// With the witness hook's marks, whether `count` includes a derivation
+    /// made of marked links only (tests/README.md). The same loop decides
+    /// both, so any choice that drops W(D) from the count drops it here.
+    w: bool,
     /// Under `maximal` (§4, §6), for an item whose next symbol is an
     /// elidable optional: the entries and count of only its derivations an
     /// elided terminator may follow; `None` where those are all of them.
@@ -172,6 +176,9 @@ pub(crate) struct Ranking {
     pub first: u32,
     pub second: Option<u32>,
     pub witness: Option<(Act, Act)>,
+    /// With the witness hook's marks, whether the count counted W(D): the
+    /// root has the bit (tests/README.md).
+    pub witness_counted: Option<bool>,
 }
 
 /// Elision vectors (§6), each kept as the positions of its elided
@@ -461,9 +468,13 @@ pub(crate) struct Ranker<'c> {
     maximal: Option<&'c Maximal<'c>>,
     /// Under `late-elision`, the vectors and the summaries.
     elisions: Option<Elisions>,
-    /// The items, by set and index, that the ranking may use, where only a
-    /// part of the forest is ranked: the witness hook's W(D) (tests/README.md).
-    within: Option<&'c FxSet<(u32, u32)>>,
+    /// The witness hook's marks of W(D) (tests/README.md). With them, each
+    /// count also says whether it includes a derivation made of marked links
+    /// only. A parse that no test watches has none.
+    marks: Option<&'c Marks>,
+    /// Whether this is the ranker of the check of `elision-only`, which only
+    /// its faults read.
+    check: bool,
 }
 
 impl<'c> Dag<'c> {
@@ -835,7 +846,8 @@ impl<'c> Ranker<'c> {
             fset_index: FxMap::default(),
             maximal,
             elisions: late.then(|| Elisions { vectors: Vectors::new(), summaries: FxMap::default() }),
-            within: None,
+            marks: None,
+            check: false,
         };
         ranker.fset_index.insert(Vec::new(), 0);
         ranker
@@ -848,11 +860,40 @@ impl<'c> Ranker<'c> {
         self
     }
 
-    /// Ranks only the part of the forest made of these items, each given by
-    /// its set and its index there, with the links between them.
-    pub(crate) fn within(mut self, items: &'c FxSet<(u32, u32)>) -> Ranker<'c> {
-        self.within = Some(items);
+    /// Ranks for the check of `elision-only`, with the witness hook's marks
+    /// of W(D) where a test watches it (tests/README.md).
+    pub(crate) fn checking(mut self, marks: Option<&'c Marks>) -> Ranker<'c> {
+        self.check = true;
+        self.marks = marks;
         self
+    }
+
+    /// Whether a fault skips this alternative of a node of the check: the
+    /// last of two or more links of an item, or members of a group
+    /// (tests/README.md).
+    fn skips(&self, fault: Fault, number: u32, count: usize) -> bool {
+        self.check && count > 1 && number as usize == count - 1 && witness::fault(fault)
+    }
+
+    /// W(D)'s actions as a derivation of the ranking's own, to compare with
+    /// its readings in the order T.
+    pub(crate) fn derivation(&mut self, sequence: &[WitnessAct]) -> u32 {
+        let mut x = EMPTY;
+        for act in sequence {
+            x = match *act {
+                WitnessAct::Read { tok, terminal } => {
+                    let read = self.dag.push(DNode::Read { tok, terminal }, Nat::ONE, Nat::ONE);
+                    self.dag.seq(x, read)
+                }
+                WitnessAct::Close { set, index } => self.dag.close(x, set, index),
+            };
+        }
+        x
+    }
+
+    /// Whether `a` comes before `b` in the order T.
+    pub(crate) fn before(&self, a: u32, b: u32) -> bool {
+        self.dag.before(a, b)
     }
 
     /// The tokens that a test of a reference over `start..end` reads: those
@@ -920,8 +961,6 @@ impl<'c> Ranker<'c> {
                 let pred = Item { prod: item.prod, dot: item.dot - 1, origin: item.origin, caps: previous };
                 let mut links = Vec::new();
                 let same = |m: u32, fset: u32| if m == set { fset } else { 0 };
-                let within = self.within;
-                let allows = |m: u32, p: &u32| within.map_or(true, |items| items.contains(&(m, *p)));
                 // The predecessors are rebuilt from completed spans, so a
                 // tested symbol's test is applied again, to the candidate
                 // constituent itself, with its own span and its own tags: a
@@ -956,9 +995,7 @@ impl<'c> Ranker<'c> {
                     Sym::T(terminal) => {
                         let m = set - 1;
                         let own = tokens[m as usize].tags;
-                        if let Some(p) =
-                            self.dag.chart.sets[m as usize].find(&pred).filter(|p| allows(m, p) && holds(m, own))
-                        {
+                        if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| holds(m, own)) {
                             links.push(((Node::Item { set: m, index: p }, 0), (Node::Read { tok: m, terminal }, 0)));
                         }
                     }
@@ -966,9 +1003,7 @@ impl<'c> Ranker<'c> {
                         if captured {
                             let cap = caps[caps.len() - 1];
                             let m = cap.start;
-                            if let Some(p) = self.dag.chart.sets[m as usize]
-                                .find(&pred)
-                                .filter(|p| allows(m, p) && holds(m, cap.tags))
+                            if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| holds(m, cap.tags))
                             {
                                 let child = Node::Group { rule, origin: m, set, tags: cap.tags, test: NO_TEST };
                                 let child_fset = if m == item.origin { fset } else { 0 };
@@ -990,9 +1025,7 @@ impl<'c> Ranker<'c> {
                                     || eset.completed.get(&(rule, m)).is_some_and(|items| {
                                         items.iter().any(|&index| holds(m, eset.tagset[index as usize]))
                                     });
-                                if let Some(p) =
-                                    self.dag.chart.sets[m as usize].find(&pred).filter(|p| passes && allows(m, p))
-                                {
+                                if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| passes) {
                                     let child = Node::Group { rule, origin: m, set, tags: ANY, test: test_id };
                                     let child_fset = if m == item.origin { fset } else { 0 };
                                     links.push(((Node::Item { set: m, index: p }, same(m, fset)), (child, child_fset)));
@@ -1019,7 +1052,6 @@ impl<'c> Ranker<'c> {
                 let test = (test != NO_TEST && !no_tests).then(|| &self.dag.g.tests[test as usize]);
                 let span = self.reference_span(origin, set);
                 let (unicode, tag_table) = (self.dag.unicode, self.dag.tags);
-                let within = self.within;
                 let members = eset
                     .completed
                     .get(&(rule, origin))
@@ -1027,7 +1059,6 @@ impl<'c> Ranker<'c> {
                         items
                             .iter()
                             .filter(|&&index| tags == ANY || eset.tagset[index as usize] == tags)
-                            .filter(|&&index| within.map_or(true, |items| items.contains(&(set, index))))
                             .filter(|&&index| {
                                 test.map_or(true, |test| {
                                     test_holds(test, span, unicode, tag_table, eset.tagset[index as usize])
@@ -1215,6 +1246,10 @@ impl<'c> Ranker<'c> {
     fn compute(&mut self, key: Key, deps: Deps) -> NodeResult {
         let (node, _) = key;
         let kept = self.kept(&key);
+        // Whether an item is marked, as a leaf or as the end of a marked
+        // link (tests/README.md).
+        let marks = self.marks;
+        let marked = |set: u32, index: u32| marks.is_some_and(|marks| marks.items.contains(&(set, index)));
         let in_all = |index: u32| kept.as_ref().map_or(true, |(all, _)| all.contains(&index));
         let in_allowed =
             |index: u32| kept.as_ref().map_or(true, |(all, allowed)| allowed.as_ref().unwrap_or(all).contains(&index));
@@ -1222,7 +1257,7 @@ impl<'c> Ranker<'c> {
             Deps::Leaf => match node {
                 Node::Read { tok, terminal } => {
                     let x = self.dag.push(DNode::Read { tok, terminal }, Nat::ONE, Nat::ONE);
-                    NodeResult { entries: vec![Entry { x, comps: Vec::new() }], count: 1, allowed: None }
+                    NodeResult { entries: vec![Entry { x, comps: Vec::new() }], count: 1, allowed: None, w: true }
                 }
                 // A restoration of the check of `elision-only` reads its
                 // synthetic token, and its own close follows (§7.4, §7.7).
@@ -1230,14 +1265,22 @@ impl<'c> Ranker<'c> {
                 Node::Item { set, index } if self.item(set, index).origin != set => {
                     // A fault gives it no derivation (tests/README.md).
                     if witness::fault(Fault::RankRestoration) {
-                        return NodeResult { entries: Vec::new(), count: 0, allowed: None };
+                        return NodeResult::default();
                     }
                     let item = self.item(set, index);
                     let terminal = restored_terminal(self.dag.g, item.prod);
                     let x = self.dag.push(DNode::Read { tok: item.origin, terminal }, Nat::ONE, Nat::ONE);
-                    NodeResult { entries: vec![Entry { x, comps: Vec::new() }], count: 1, allowed: None }
+                    NodeResult {
+                        entries: vec![Entry { x, comps: Vec::new() }],
+                        count: 1,
+                        allowed: None,
+                        w: marked(set, index),
+                    }
                 }
-                _ => NodeResult { entries: vec![Entry { x: EMPTY, comps: Vec::new() }], count: 1, allowed: None },
+                _ => {
+                    let w = matches!(node, Node::Item { set, index } if marked(set, index));
+                    NodeResult { entries: vec![Entry { x: EMPTY, comps: Vec::new() }], count: 1, allowed: None, w }
+                }
             },
             Deps::Links(links) => {
                 // Under `maximal` (§4, §6), an item whose next symbol is an
@@ -1250,6 +1293,7 @@ impl<'c> Ranker<'c> {
                 let (guarded, test) = self.guard(set, index);
                 let mut all = NodeResult::default();
                 let mut allowed = NodeResult::default();
+                let alternatives = links.len();
                 for (number, (pred, child)) in (0..).zip(links) {
                     let (to_all, to_allowed) = (in_all(number), in_allowed(number));
                     if !to_all && !to_allowed {
@@ -1261,11 +1305,27 @@ impl<'c> Ranker<'c> {
                     let right = &self.results[self.memo[&child] as usize];
                     let ways = left.count.saturating_mul(right.count);
                     let kept = guarded && permitted && to_allowed;
-                    if to_all {
+                    // The link is W(D)'s where it is marked, and its
+                    // predecessor and child are W(D)'s.
+                    let Node::Item { set: m, .. } = pred.0 else { unreachable!("a predecessor item") };
+                    let w = ways > 0
+                        && left.w
+                        && right.w
+                        && marks.is_some_and(|marks| marks.links.contains(&(set, index, m)));
+                    // Faults of the check skip the last of two or more links,
+                    // in the count or in the entries (tests/README.md).
+                    let counted = !self.skips(Fault::LostContext, number, alternatives);
+                    let selected = !self.skips(Fault::LostSelect, number, alternatives);
+                    if to_all && counted {
                         all.count = all.count.saturating_add(ways).min(2);
+                        all.w |= w;
                     }
-                    if kept {
+                    if kept && counted {
                         allowed.count = allowed.count.saturating_add(ways).min(2);
+                        allowed.w |= w;
+                    }
+                    if !selected {
+                        continue;
                     }
                     for first in &left.entries {
                         for second in &right.entries {
@@ -1298,22 +1358,32 @@ impl<'c> Ranker<'c> {
                         .collect();
                     self.dag.add_entry(&mut list, Entry { x, comps });
                 }
-                NodeResult { entries: list, count: body.count, allowed: None }
+                NodeResult { entries: list, count: body.count, allowed: None, w: body.w }
             }
             Deps::Group(members) => {
                 let mut list = Vec::new();
                 let mut count = 0u8;
+                let mut w = false;
+                let alternatives = members.len();
                 for (number, member) in (0..).zip(members) {
                     if !in_all(number) {
                         continue;
                     }
                     let result = &self.results[self.memo[&member] as usize];
-                    count = count.saturating_add(result.count).min(2);
+                    // Faults of the check skip the last of two or more
+                    // members, in the count or in the entries.
+                    if !self.skips(Fault::LostContext, number, alternatives) {
+                        count = count.saturating_add(result.count).min(2);
+                        w |= result.count > 0 && result.w;
+                    }
+                    if self.skips(Fault::LostSelect, number, alternatives) {
+                        continue;
+                    }
                     for entry in &result.entries {
                         self.dag.add_entry(&mut list, entry.clone());
                     }
                 }
-                NodeResult { entries: list, count, allowed: None }
+                NodeResult { entries: list, count, allowed: None, w }
             }
         }
     }
@@ -1341,6 +1411,7 @@ impl<'c> Ranker<'c> {
             return None;
         }
         let result = result.clone();
+        let witness_counted = self.marks.map(|_| result.w);
         let mut chosen = result.entries[0].x;
         for entry in &result.entries[1..] {
             if self.dag.before(entry.x, chosen) {
@@ -1410,7 +1481,7 @@ impl<'c> Ranker<'c> {
                 _ => unreachable!("two different derivations differ"),
             },
         });
-        Some(Ranking { verdict, first: chosen, second, witness })
+        Some(Ranking { verdict, first: chosen, second, witness, witness_counted })
     }
 }
 

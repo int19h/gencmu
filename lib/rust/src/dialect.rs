@@ -875,24 +875,9 @@ impl Dialect {
         let chart = Recognizer { g, matchers, shared, recon: Some(&recon) }.recognize(&tokens, 0, g.start)?;
         let loss = witness::loss();
         let rooted = chart.accepts(g.start, tokens.len()) && loss != Some(witness::Loss::Roots);
-        // Neither form of maximality applies to the derivations of R, and
-        // the ranking has no lean (§7.7).
-        let ranking = if rooted {
-            let mut ranker =
-                Ranker::new(g, &chart, &tokens, shared, Lean::Neither, None).observing(input, &recon.project);
-            ranker.rank().filter(|_| loss != Some(witness::Loss::Count)).map(|ranking| {
-                let readings = match (ranking.verdict, ranking.second) {
-                    (RankVerdict::Tie, Some(second)) => {
-                        Some((build(&ranker, ranking.first), build(&ranker, second), ranking.witness))
-                    }
-                    _ => None,
-                };
-                (ranking, readings)
-            })
-        } else {
-            None
-        };
-        if witness::watched() {
+        // A test that watches the check marks W(D)'s links before the check
+        // ranks (tests/README.md).
+        let walk = if witness::watched() {
             let empty = shared.tags.set(Vec::new());
             let forest = CheckForest {
                 g,
@@ -908,19 +893,47 @@ impl Dialect {
                 tags: &shared.tags,
                 empty,
             };
-            // The chart must hold W(D), and the check's own ranking of the
-            // part of it that holds W(D) must count a derivation.
-            let keeps = witness::witness_items(&forest, chosen).is_some_and(|items| {
-                loss != Some(witness::Loss::Count)
-                    && Ranker::new(g, &chart, &tokens, shared, Lean::Neither, None)
-                        .observing(input, &recon.project)
-                        .within(&items)
-                        .rank()
-                        .is_some()
-            });
-            witness::record(&self.stages[index].name, keeps);
+            Some(witness::walk(&forest, chosen))
+        } else {
+            None
+        };
+        // Neither form of maximality applies to the derivations of R, and
+        // the ranking has no lean (§7.7).
+        let ranking = if rooted {
+            let marks = walk.as_ref().and_then(|walk| walk.as_ref()).map(|walk| &walk.marks);
+            let mut ranker = Ranker::new(g, &chart, &tokens, shared, Lean::Neither, None)
+                .observing(input, &recon.project)
+                .checking(marks);
+            ranker.rank().filter(|_| loss != Some(witness::Loss::Count)).map(|ranking| {
+                // The witness hook's two channels (tests/README.md): the count
+                // counted W(D), and on a tie neither reading comes after W(D)
+                // in the order T, unless the first is W(D).
+                let keeps = match walk.as_ref().and_then(|walk| walk.as_ref()) {
+                    Some(walk) if ranking.witness_counted == Some(true) => match ranking.second {
+                        Some(second) if ranking.verdict == RankVerdict::Tie => {
+                            let w = ranker.derivation(&walk.sequence);
+                            !ranker.before(w, ranking.first)
+                                && (!ranker.before(ranking.first, w) || !ranker.before(w, second))
+                        }
+                        _ => true,
+                    },
+                    _ => false,
+                };
+                let readings = match (ranking.verdict, ranking.second) {
+                    (RankVerdict::Tie, Some(second)) => {
+                        Some((build(&ranker, ranking.first), build(&ranker, second), ranking.witness))
+                    }
+                    _ => None,
+                };
+                (ranking, readings, keeps)
+            })
+        } else {
+            None
+        };
+        if walk.is_some() {
+            witness::record(&self.stages[index].name, ranking.as_ref().is_some_and(|(_, _, keeps)| *keeps));
         }
-        let Some((_, readings)) = ranking else {
+        let Some((_, readings, _)) = ranking else {
             return Ok(Check::Lost(records));
         };
         let Some((first, second, difference)) = readings else {
