@@ -934,7 +934,7 @@ pub(crate) fn lower(
             let has = |name: &str| name.is_empty() || names.contains_key(name);
             // The union of the alternative's own tags and its definition's
             // (§3.7); with neither written, the default below.
-            let written: Vec<Term> = [alternative.alternative.tags.as_ref(), alternative.rule_tags.as_ref()]
+            let written: Vec<Term> = [alternative.alternative.tags.as_ref(), alternative.clauses.tags.as_ref()]
                 .into_iter()
                 .flatten()
                 .map(|term| simplify_value(term, &has))
@@ -948,7 +948,7 @@ pub(crate) fn lower(
             // alternative has, and so every production of it has (§3.3).
             production.tags = tags
                 .map(|term| scope.term(&term).unwrap_or_else(|_| unreachable!("a tag term uses a missing capture")));
-            for cond in &alternative.conditions {
+            for cond in &alternative.clauses.conditions {
                 let simple = match simplify_cond(cond, &has) {
                     Simple::True => continue,
                     // A condition false for this production removes it.
@@ -965,7 +965,7 @@ pub(crate) fn lower(
                     production.conds.push((lowered, trigger));
                 }
             }
-            production.emit = match &alternative.emit {
+            production.emit = match &alternative.clauses.emit {
                 None => LEmit::None,
                 Some(items) => {
                     // An item whose carrier the production lacks is
