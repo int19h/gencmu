@@ -747,7 +747,13 @@ func (run *stageRun) spanContent(s spanVal) string {
 		low, high = src[0], src[1]
 	}
 	field(string(run.ps.text[low:high]))
+	// Each token counts as it is written into the key, so that a key of
+	// a span longer than contentKeyLimit passes the budget.
+	w := work.Load()
 	for i := s.a; i < s.b; i++ {
+		if w != nil {
+			w.keySteps.add("key steps")
+		}
 		t := &run.toks[i]
 		field(t.Text)
 		field(t.Phonemes)

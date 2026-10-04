@@ -40,12 +40,14 @@ func TestGrowth(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			// A budget of 0 is none; the item past a budget stops the parse.
-			items := func(n int, most int64) int64 {
+			// A budget of 0 is none; the count past a budget stops the
+			// parse. The keys of nested parses by content are counted too,
+			// since a key costs as much as its span is long.
+			work := func(n int, items, keys int64) (int64, int64) {
 				links := strings.TrimSuffix(strings.Repeat(c.Link+" ", n), " ")
 				text := strings.Replace(c.Text, "{links}", links, 1)
 				w := countWork(t)
-				w.items.most = most
+				w.items.most, w.keySteps.most = items, keys
 				res, err := d.Parse(text, ParseOptions{})
 				if err != nil {
 					t.Fatal(err)
@@ -53,14 +55,11 @@ func TestGrowth(t *testing.T) {
 				if !res.OK {
 					t.Fatalf("%s: does not parse", text)
 				}
-				return w.items.Load()
+				return w.items.Load(), w.keySteps.Load()
 			}
-			small := items(c.Small, 0)
-			large := items(c.Large, c.Most*small)
-			if large > c.Most*small {
-				t.Errorf("%s\n%q: %d items for %d links, %d for %d", c.Description, c.Link, small, c.Small, large, c.Large)
-			}
-			t.Logf("%d items for %d links, %d for %d", small, c.Small, large, c.Large)
+			small, smallKeys := work(c.Small, 0, 0)
+			large, largeKeys := work(c.Large, c.Most*small, c.Most*smallKeys+1)
+			t.Logf("%d items and %d key steps for %d links, %d and %d for %d", small, smallKeys, c.Small, large, largeKeys, c.Large)
 		})
 	}
 }

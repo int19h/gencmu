@@ -54,13 +54,15 @@ import (
 //     maximal terminators walks, each before it is looked at.
 //   - spliceSteps: the documents and stages that splicing a pipeline
 //     looks at.
+//   - keySteps: the tokens that keys of nested parses by content are
+//     written from, each before it is written.
 type workCounts struct {
 	items, checks, scanned, candidates, eligibilityRuns workCount
 
 	captureSteps, linkSteps, conditions, soundSteps, readerSteps workCount
 	interned, loweredSlots, ruleSetSteps, clauseSteps, emitSteps workCount
 	classSteps, implicationSteps, decodeSteps, elidableSteps     workCount
-	spliceSteps, visits, capEntries                              workCount
+	spliceSteps, visits, capEntries, keySteps                    workCount
 
 	// storePrefixes is a mutation for the tests of the budgets: each
 	// capture entry stored stores its prefix again, as the code did before
