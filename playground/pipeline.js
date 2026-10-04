@@ -137,8 +137,11 @@
     const stages = [];
     const reached = new Set([path]);
     // Only the documents being included stop the recursion, so that a
-    // document included twice is listed twice, with what it includes.
-    const expand = (documentPath, including) => {
+    // document included twice is listed twice, with what it includes. They
+    // are a set, added to and removed from as the recursion goes, since a
+    // list copied for each include costs the square of the depth.
+    const including = new Set([path]);
+    const expand = (documentPath) => {
       for (const directive of scan(documentPath)) {
         if (directive.stage !== undefined) {
           stages.push({ name: directive.stage, documents: [] });
@@ -147,12 +150,73 @@
         const target = resolvePath(documentPath, directive.include);
         (stages.length ? stages[stages.length - 1].documents : before).push(target);
         reached.add(target);
-        if (!including.includes(target)) expand(target, [...including, target]);
+        if (including.has(target)) continue;
+        including.add(target);
+        expand(target);
+        including.delete(target);
       }
     };
-    expand(path, [path]);
+    expand(path);
     return { before, stages, documents: [...reached] };
   }
 
-  root.gencmuPipeline = { pipelineStages, resolvePath };
+  // The mentions of grammar documents in a text, as the expression
+  // /((?:[a-z0-9-]+\/)+[a-z0-9-]+\.md)(?::(\d+)(?::(\d+))?)?/g finds them,
+  // each with its index, its whole text, its path, and its line and column
+  // when given. The expression would try every start inside a long run of
+  // names and slashes, and walk the run from each, so a scan finds each
+  // run's one possible start instead.
+  function documentMentions(text) {
+    const found = [];
+    const isNameCharacter = (c) => (c >= "a" && c <= "z") || (c >= "0" && c <= "9") || c === "-";
+    const digitsAt = (i) => {
+      let end = i;
+      while (end < text.length && text[end] >= "0" && text[end] <= "9") end++;
+      return end;
+    };
+    for (let i = 0; i < text.length;) {
+      if (!isNameCharacter(text[i]) && text[i] !== "/") {
+        i++;
+        continue;
+      }
+      // A run of name characters and slashes, [i, end). A path within it
+      // ends at its end, before ".md", and is a name, then names each after
+      // one slash, with at least one slash. So it starts at the first name
+      // character after any double slash and before the last slash.
+      let end = i;
+      let lastSlash = -1;
+      let afterDouble = i;
+      while (end < text.length && (isNameCharacter(text[end]) || text[end] === "/")) {
+        if (text[end] === "/") {
+          if (end > i && text[end - 1] === "/") afterDouble = end + 1;
+          lastSlash = end;
+        }
+        end++;
+      }
+      let start = afterDouble;
+      while (start < end && text[start] === "/") start++;
+      if (!text.startsWith(".md", end) || text[end - 1] === "/" || lastSlash < start) {
+        i = end;
+        continue;
+      }
+      let stop = end + 3;
+      let line;
+      let column;
+      if (text[stop] === ":" && digitsAt(stop + 1) > stop + 1) {
+        const lineEnd = digitsAt(stop + 1);
+        line = text.slice(stop + 1, lineEnd);
+        stop = lineEnd;
+        if (text[stop] === ":" && digitsAt(stop + 1) > stop + 1) {
+          const columnEnd = digitsAt(stop + 1);
+          column = text.slice(stop + 1, columnEnd);
+          stop = columnEnd;
+        }
+      }
+      found.push({ index: start, text: text.slice(start, stop), path: text.slice(start, end + 3), line, column });
+      i = stop;
+    }
+    return found;
+  }
+
+  root.gencmuPipeline = { pipelineStages, resolvePath, documentMentions };
 })(typeof self !== "undefined" ? self : this);

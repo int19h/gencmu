@@ -356,18 +356,17 @@
   // column when given, is a button that opens it in the editor there.
   function linkified(text) {
     const fragment = document.createDocumentFragment();
-    const pattern = /((?:[a-z0-9-]+\/)+[a-z0-9-]+\.md)(?::(\d+)(?::(\d+))?)?/g;
     let at = 0;
-    for (let match = pattern.exec(text); match; match = pattern.exec(text)) {
-      if (!(match[1] in bundled) && !client.edits.has(match[1])) continue;
-      fragment.append(text.slice(at, match.index));
-      const [, path, line, column] = match;
+    for (const mention of self.gencmuPipeline.documentMentions(text)) {
+      const { path, line, column } = mention;
+      if (!(path in bundled) && !client.edits.has(path)) continue;
+      fragment.append(text.slice(at, mention.index));
       fragment.append(element("button", {
-        type: "button", class: "link", text: match[0],
+        type: "button", class: "link", text: mention.text,
         title: `Open ${path}${line ? ` at line ${line}` : ""} in the editor`,
         onclick: () => openDocument(path, line ? Number(line) : 0, column ? Number(column) : 1),
       }));
-      at = match.index + match[0].length;
+      at = mention.index + mention.text.length;
     }
     fragment.append(text.slice(at));
     return fragment;
