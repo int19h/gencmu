@@ -380,9 +380,15 @@ export function wordLabels(text) {
     const stop = (/** @type {string} */ c) => c === "." || c === ",";
     let start = 0;
     let end = word.length;
-    while (start < end && stop(word[start])) start++;
-    while (end > start && stop(word[end - 1])) end--;
-    if (hooks.work) countWork(hooks.work, "text", 1 + start + word.length - end);
+    if (hooks.work) countWork(hooks.work, "text");
+    while (start < end && stop(word[start])) {
+      if (hooks.work) countWork(hooks.work, "text");
+      start++;
+    }
+    while (end > start && stop(word[end - 1])) {
+      if (hooks.work) countWork(hooks.work, "text");
+      end--;
+    }
     return word.slice(start, end).replace(/\./g, " ");
   });
 }
@@ -436,8 +442,12 @@ export function runStarts(haystack, needle) {
  * @returns {[number, number][]}
  */
 export function rejectionWindows(caseText, text) {
-  const points = Array.from(caseText);
-  if (hooks.work) countWork(hooks.work, "text", points.length);
+  /** @type {string[]} */
+  const points = [];
+  for (const point of caseText) {
+    if (hooks.work) countWork(hooks.work, "text");
+    points.push(point);
+  }
   /** @type {{start: number, end: number}[]} the words of the case's text */
   const words = [];
   points.forEach((point, index) => {

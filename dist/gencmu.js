@@ -2753,9 +2753,11 @@
     };
     /** @type {(node: CaptureNode) => string[]} */
     const names = (node) => {
-      if (hooks.work) countWork(hooks.work, "lowering", node.length);
       const list = new Array(node.length);
-      for (let at = node; at.parent !== null; at = at.parent) list[at.length - 1] = at.name;
+      for (let at = node; at.parent !== null; at = at.parent) {
+        if (hooks.work) countWork(hooks.work, "lowering");
+        list[at.length - 1] = at.name;
+      }
       return list;
     };
     /** @type {(lists: CaptureNode[]) => CaptureNode[]} */
@@ -2872,17 +2874,36 @@
           }
           if (meets) {
             if (joined.size <= part.size) {
-              for (const name of joined.names.keys()) for (const capture of part.names.get(name) ?? []) duplicates.add(capture);
+              for (const name of joined.names.keys()) {
+                if (hooks.work) countWork(hooks.work, "walkSteps");
+                for (const capture of part.names.get(name) ?? []) {
+                  if (hooks.work) countWork(hooks.work, "walkSteps");
+                  duplicates.add(capture);
+                }
+              }
             } else {
-              for (const [name, captures] of part.names) if (joined.names.has(name)) for (const capture of captures) duplicates.add(capture);
+              for (const [name, captures] of part.names) {
+                if (hooks.work) countWork(hooks.work, "walkSteps");
+                if (!joined.names.has(name)) continue;
+                for (const capture of captures) {
+                  if (hooks.work) countWork(hooks.work, "walkSteps");
+                  duplicates.add(capture);
+                }
+              }
             }
           }
           let [large, small] = joined.size >= part.size ? [joined, part] : [part, joined];
           for (const [name, captures] of small.names) {
+            if (hooks.work) countWork(hooks.work, "walkSteps");
             const found = large.names.get(name);
-            if (found) for (const capture of captures) found.push(capture);
-            else large.names.set(name, captures);
-            if (hooks.work) countWork(hooks.work, "walkSteps", captures.length);
+            if (!found) {
+              large.names.set(name, captures);
+              continue;
+            }
+            for (const capture of captures) {
+              if (hooks.work) countWork(hooks.work, "walkSteps");
+              found.push(capture);
+            }
           }
           large.size += small.size;
           joined = large;
@@ -2941,8 +2962,10 @@
     /** @type {Set<string>} */
     const somewhere = new Set();
     for (const captures of alternatives) {
-      if (hooks.work) countWork(hooks.work, "clauses", captures.size);
-      for (const name of captures.keys()) somewhere.add(name);
+      for (const name of captures.keys()) {
+        if (hooks.work) countWork(hooks.work, "clauses");
+        somewhere.add(name);
+      }
     }
     /** @type {Set<string>} */
     const everywhere = new Set(alternatives.length ? alternatives[0].keys() : []);
@@ -3644,8 +3667,10 @@
           this.changes.push({ kind: "extended", rule: rule.name, document: path, previous: base.document });
           // Added in place: a copy of the list for each %extend-rule would
           // cost the square of their number.
-          for (const alternative of alternatives) base.alternatives.push(alternative);
-          if (hooks.work) countWork(hooks.work, "clauses", alternatives.length);
+          for (const alternative of alternatives) {
+            if (hooks.work) countWork(hooks.work, "clauses");
+            base.alternatives.push(alternative);
+          }
         }
       }
       for (const directive of dom.directives) {
@@ -4315,8 +4340,10 @@
       // or an unshift moves every helper still waiting.
       /** @type {PendingHelper[]} */
       const stack = [];
-      for (let index = pending.length - 1; index >= 0; index--) stack.push(pending[index]);
-      if (hooks.work) countWork(hooks.work, "lowering", pending.length);
+      for (let index = pending.length - 1; index >= 0; index--) {
+        if (hooks.work) countWork(hooks.work, "lowering");
+        stack.push(pending[index]);
+      }
       pending.length = 0;
       for (let helper = stack.pop(); helper !== undefined; helper = stack.pop()) {
         /** @type {PendingHelper[]} */
@@ -4340,8 +4367,10 @@
             warnings: [],
           });
         }
-        for (let index = nested.length - 1; index >= 0; index--) stack.push(nested[index]);
-        if (hooks.work) countWork(hooks.work, "lowering", nested.length);
+        for (let index = nested.length - 1; index >= 0; index--) {
+          if (hooks.work) countWork(hooks.work, "lowering");
+          stack.push(nested[index]);
+        }
       }
     }
 
@@ -4568,8 +4597,16 @@
     const result = [];
     for (const a of left) {
       for (const b of right) {
-        if (hooks.work) countWork(hooks.work, "lowering", a.length + b.length);
-        result.push([...a, ...b]);
+        // Each symbol copied counts before it is copied.
+        /** @type {SequenceItem[]} */
+        const sequence = [];
+        for (const part of [a, b]) {
+          for (const item of part) {
+            if (hooks.work) countWork(hooks.work, "lowering");
+            sequence.push(item);
+          }
+        }
+        result.push(sequence);
       }
     }
     return result;
@@ -4590,9 +4627,19 @@
     const result = [];
     for (const a of left) {
       for (let index = 0; index < right.length; index++) {
-        const sequence = index === right.length - 1 ? a : a.slice();
-        if (hooks.work) countWork(hooks.work, "lowering", (sequence === a ? 0 : a.length) + right[index].length);
-        for (const item of right[index]) sequence.push(item);
+        /** @type {SequenceItem[]} */
+        let sequence = a;
+        if (index < right.length - 1) {
+          sequence = [];
+          for (const item of a) {
+            if (hooks.work) countWork(hooks.work, "lowering");
+            sequence.push(item);
+          }
+        }
+        for (const item of right[index]) {
+          if (hooks.work) countWork(hooks.work, "lowering");
+          sequence.push(item);
+        }
         result.push(sequence);
       }
     }
@@ -5966,10 +6013,13 @@
     let next = context.nextSounding;
     if (next === null) {
       const count = context.tokens.length;
-      next = context.nextSounding = new Int32Array(count + 1);
+      next = new Int32Array(count + 1);
       next[count] = count;
-      for (let at = count - 1; at >= 0; at--) next[at] = canonicalSound(context, at) === "" ? next[at + 1] : at;
-      if (hooks.work) countWork(hooks.work, "soundSteps", count);
+      for (let at = count - 1; at >= 0; at--) {
+        if (hooks.work) countWork(hooks.work, "soundSteps");
+        next[at] = canonicalSound(context, at) === "" ? next[at + 1] : at;
+      }
+      context.nextSounding = next;
     }
     if (hooks.work) countWork(hooks.work, "soundSteps");
     return next[index];
@@ -6081,11 +6131,11 @@
     let part = last;
     let steps = 0;
     while (part.index > index) {
+      if (hooks.work) countWork(hooks.work, "captureSteps");
       steps++;
       const jump = part.jump;
       part = /** @type {NonNullable<Captured>} */ (jump !== null && jump.index >= index ? jump : part.parent);
     }
-    if (hooks.work) countWork(hooks.work, "captureSteps", steps);
     searcher.searched += steps + 1;
     return part;
   }
@@ -7163,10 +7213,15 @@
    * @returns {LineIndex}
    */
   function lineIndex(text) {
-    const characters = [...text];
-    if (hooks.work) countWork(hooks.work, "text", characters.length);
+    /** @type {string[]} */
+    const characters = [];
+    for (const character of text) {
+      if (hooks.work) countWork(hooks.work, "text");
+      characters.push(character);
+    }
     const breaks = [];
     for (let index = 0; index < characters.length; index++) {
+      if (hooks.work) countWork(hooks.work, "text");
       const character = characters[index];
       if (character === "\n" || (character === "\r" && characters[index + 1] !== "\n")) breaks.push(index);
     }
@@ -7202,8 +7257,10 @@
     const line = low + 1;
     const lineStart = low === 0 ? 0 : breaks[low - 1] + 1;
     let lineEnd = lineStart;
-    while (lineEnd < characters.length && characters[lineEnd] !== "\n" && characters[lineEnd] !== "\r") lineEnd++;
-    if (hooks.work) countWork(hooks.work, "text", lineEnd - lineStart);
+    while (lineEnd < characters.length && characters[lineEnd] !== "\n" && characters[lineEnd] !== "\r") {
+      if (hooks.work) countWork(hooks.work, "text");
+      lineEnd++;
+    }
     const shown = characters.slice(lineStart, lineEnd).join("").replace(/\t/g, " ");
     const column = source[0] - lineStart + 1;
     const width = Math.max(1, Math.min(source[1], lineEnd) - source[0]);
@@ -7307,12 +7364,17 @@
     // The widest line, in a loop: a long tree has more lines than a call
     // takes arguments.
     let width = 0;
-    for (const line of a) width = Math.max(width, [...line].length);
+    for (const line of a) {
+      if (hooks.work) countWork(hooks.work, "text", line.length);
+      width = Math.max(width, [...line].length);
+    }
     width += 3;
     const out = [];
     for (let index = 0; index < Math.max(a.length, b.length); index++) {
       const line = a[index] || "";
-      out.push(line + " ".repeat(width - [...line].length) + (b[index] || ""));
+      const other = b[index] || "";
+      if (hooks.work) countWork(hooks.work, "text", line.length + width + other.length);
+      out.push(line + " ".repeat(width - [...line].length) + other);
     }
     // trimEnd, since /\s+$/ tries each space of a long inner run in turn.
     // A trim reads at most its line.
