@@ -2,6 +2,8 @@ package gencmu
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 	"sync/atomic"
 )
 
@@ -31,7 +33,9 @@ import (
 //   - soundSteps: the tokens that sound tests and phonemes() visit.
 //   - readerSteps: the steps of the notation's reader and of the walks it
 //     makes of what it reads.
-//   - interned: the members of the sets that make interned tag sets.
+//   - interned: the members that making interned tag sets examines, in
+//     the unions, intersections and differences that gather them, in the
+//     comparisons that sort them, and in the keys that intern them.
 //   - loweredSlots: the slots that lowering copies into the bodies of
 //     productions, each before it is copied.
 //   - ruleSetSteps: the productions, symbols and uses that the nullable
@@ -101,6 +105,18 @@ func (c *workCount) addN(k int64, name string) {
 // Load is the count so far.
 func (c *workCount) Load() int64 {
 	return c.n.Load()
+}
+
+// sortStrings sorts names in code point order, as sort.Strings does. Each
+// comparison counts in c, unless it is nil, before it is made, since a
+// sort examines its elements only through its comparisons.
+func sortStrings(names []string, c *workCount, name string) {
+	slices.SortFunc(names, func(a, b string) int {
+		if c != nil {
+			c.add(name)
+		}
+		return strings.Compare(a, b)
+	})
 }
 
 // work is where a parse counts its work. It is nil outside the tests that

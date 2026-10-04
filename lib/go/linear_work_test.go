@@ -3,6 +3,7 @@ package gencmu
 import (
 	"encoding/json"
 	"fmt"
+	"math/bits"
 	"strings"
 	"testing"
 )
@@ -82,11 +83,12 @@ func tagRun(t *testing.T, n int) *stageRun {
 // constant of many parts gather their members once, without copying and
 // interning a growing set at each part (engine §10).
 func TestUnionsLinear(t *testing.T) {
-	// Each union of n parts interns at most a few times n members.
+	// Each union of n parts examines a few times n members, and sorts
+	// them in a few times n log n comparisons.
 	for _, n := range []int{1000, 4000} {
 		run := tagRun(t, n)
 		w := &workCounts{}
-		w.interned.most = 8 * int64(n)
+		w.interned.most = int64(n) * (8 + 5*int64(bits.Len(uint(n))))
 		countWorkIn(w, func() {
 			if got := len(run.evaluator(nil, nil).spanTags(spanVal{a: 0, b: n}).names); got != n+1 {
 				t.Fatalf("%d tags, not %d", got, n+1)
