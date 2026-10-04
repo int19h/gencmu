@@ -316,19 +316,28 @@ def phoneme_tag(tags: Tags) -> str | None:
     return phoneme_of(found[0]) if found else None
 
 
-def implied(tags: Tags, implications: list[tuple[Tags, Tags]]) -> Tags:
+def implied(tags: Tags, lowered: Lowered) -> Tags:
     """A token's explicit tags with the tags of the stage's implications,
-    added until no tag changes (engine §11). An implication only adds tags,
-    so the loop ends, also over a cycle."""
-    result = tags
-    changed = bool(implications)
-    while changed:
-        changed = False
-        for premise, consequence in implications:
-            if not result.isdisjoint(premise) and not consequence <= result:
-                result = result | consequence
-                changed = True
-    return result
+    added until no tag changes (engine §11). Each tag gained is looked up
+    once in an index of the premises, and each implication fires at most
+    once, so a long chain costs its length, not its square."""
+    implications = lowered.implications
+    if not implications:
+        return tags
+    index = lowered.implication_index()
+    result = set(tags)
+    queue = list(tags)
+    fired: set[int] = set()
+    while queue:
+        for number in index.get(queue.pop(), ()):
+            if number in fired:
+                continue
+            fired.add(number)
+            for tag in implications[number][1]:
+                if tag not in result:
+                    result.add(tag)
+                    queue.append(tag)
+    return tags if len(result) == len(tags) else frozenset(result)
 
 
 class Emitter:
@@ -379,7 +388,7 @@ class Emitter:
         the tags that the emission gives it (engine §11)."""
         # The stage's implications apply before the phonemes and the label
         # (engine §11).
-        tags = implied(explicit, self.context.lowered.implications)
+        tags = implied(explicit, self.context.lowered)
         # Two phoneme tags are an error on any token (engine §5).
         phoneme = phoneme_tag(tags)
         # A token over an opaque part has the part's source and text (engine
@@ -553,7 +562,7 @@ class Emitter:
                 at = self.tokens[boundary - 1].source[1]
             else:
                 at = self.tree.source_of(node)[0]
-            tags = implied(frozenset((tag,)), self.context.lowered.implications)
+            tags = implied(frozenset((tag,)), self.context.lowered)
             # An inserted token has no parts: a phoneme tag gives its phonemes
             # and its label, or both are empty (engine §5).
             phoneme = phoneme_tag(tags)

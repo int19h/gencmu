@@ -724,6 +724,18 @@ class Lowered:
     # the reconstruction mode of engine §7.4, or -1; found when the check
     # first needs it.
     reading_last: list[int] | None = None
+    # For each tag, the implications whose premise holds it, by their
+    # place in ``implications``; made when emission first needs it.
+    implications_by_tag: dict[str, list[int]] | None = None
+
+    def implication_index(self) -> dict[str, list[int]]:
+        index = self.implications_by_tag
+        if index is None:
+            index = self.implications_by_tag = {}
+            for number, (premise, _) in enumerate(self.implications):
+                for tag in premise:
+                    index.setdefault(tag, []).append(number)
+        return index
 
     def __post_init__(self) -> None:
         self.elidable_helpers = frozenset(

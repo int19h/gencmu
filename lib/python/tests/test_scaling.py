@@ -5,14 +5,16 @@ as long at 4n, and a linear one about 4 times, so the tests allow 8."""
 
 from __future__ import annotations
 
+import gc
 import time
 import unittest
 from typing import Callable
 
 from gencmu._earley import Evaluator, StageContext
-from gencmu._grammar import _Constants
+from gencmu._grammar import Lowered, _Constants
 from gencmu._trampoline import run
 from gencmu._model import Token
+from gencmu._stage import implied
 
 from .shared import load_case_dialect
 
@@ -24,14 +26,21 @@ def best_time(work: Callable[[], object]) -> float:
     """The least of three timings, which is the least disturbed by other work
     on the machine. A run of over a second is decisive alone, so that a
     quadratic fault fails without waiting for two more."""
-    best = float("inf")
-    for _ in range(3):
-        start = time.perf_counter()
-        work()
-        best = min(best, time.perf_counter() - start)
-        if best > 1:
-            break
-    return best
+    # The cycle collector's passes cost more as more objects live, which
+    # is no work of the function timed.
+    gc.collect()
+    gc.disable()
+    try:
+        best = float("inf")
+        for _ in range(3):
+            start = time.perf_counter()
+            work()
+            best = min(best, time.perf_counter() - start)
+            if best > 1:
+                break
+        return best
+    finally:
+        gc.enable()
 
 
 class Linear(unittest.TestCase):
@@ -89,6 +98,25 @@ class UnionFolds(Linear):
             return work
 
         self.assert_linear(make, 2000)
+
+
+
+class Closures(Linear):
+    def test_a_chain_of_implications_in_reverse_order_costs_its_length(self) -> None:
+        # t0 implies t1, t1 implies t2, and so on, listed last link first:
+        # a pass over the list in order finds one new link at a time.
+        def make(n: int) -> Callable[[], object]:
+            chain = [(frozenset({f"t{index}"}), frozenset({f"t{index + 1}"})) for index in reversed(range(n))]
+            lowered = Lowered(None, [], [], {}, [], [], "", implications=chain)  # type: ignore[arg-type]
+            start = frozenset({"t0"})
+
+            def work() -> None:
+                for _ in range(20):
+                    assert len(implied(start, lowered)) == n + 1
+
+            return work
+
+        self.assert_linear(make, 1000)
 
 
 if __name__ == "__main__":
