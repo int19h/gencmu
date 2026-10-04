@@ -19,7 +19,9 @@ import (
 // input, each counted where the fixed code does it, so that the old code
 // would count its square:
 //   - captureSteps: the steps through an item's interned captures that
-//     reading a captured part takes.
+//     reading a captured part takes, each as it is taken.
+//   - capEntries: the interned capture entries that the recognizer
+//     stores, each as it is stored.
 //   - linkSteps: the links that the check of elision-only compares and
 //     looks up to find a repeated link.
 //   - conditions: the conditions that advances look at, each as it begins.
@@ -50,7 +52,12 @@ type workCounts struct {
 	captureSteps, linkSteps, conditions, soundSteps, readerSteps workCount
 	interned, loweredSlots, ruleSetSteps, clauseSteps, emitSteps workCount
 	classSteps, implicationSteps, decodeSteps, elidableSteps     workCount
-	spliceSteps, visits                                          workCount
+	spliceSteps, visits, capEntries                              workCount
+
+	// storePrefixes is a mutation for the tests of the budgets: each
+	// capture entry stored stores its prefix again, as the code did before
+	// entries shared their prefixes. A budget must stop it at once.
+	storePrefixes bool
 }
 
 // workCount is one count of workCounts, with its budget, or 0 for none,

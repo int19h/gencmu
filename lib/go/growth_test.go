@@ -98,34 +98,44 @@ func TestCaptureGrowth(t *testing.T) {
 	}
 }
 
+// captureStorageRun is a run of one production of n captures over n
+// tokens, whose tag term and condition read every capture, and the
+// recognition of it.
+func captureStorageRun(t *testing.T, n int) func() *recognizer {
+	names := make([]string, n)
+	for i := range names {
+		names[i] = fmt.Sprintf("$c%d(A)", i)
+	}
+	// A tag term that reads every capture, the first last.
+	tags := make([]string, n)
+	for i := range tags {
+		tags[i] = fmt.Sprintf("tags($c%d)", n-1-i)
+	}
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+strings.Join(names, " ")+"\n%tags ~x ∪ "+strings.Join(tags, " ∪ ")+"\n%conditions text($c0) = \"a\""))
+	lg := d.lower(0, map[string]bool{})
+	toks := make([]Token, n)
+	for i := range toks {
+		toks[i] = Token{Text: "a", Tags: []string{"A"}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
+	}
+	ps := newParseState(d.uni, []rune(strings.TrimSpace(strings.Repeat("a ", n))))
+	run := ps.newRun("main", d.stages[0], toks)
+	return func() *recognizer { return run.recognize(lg, lg.byName["text"], 0, n) }
+}
+
 // TestCaptureStorage: one production of C captures over C tokens keeps C
 // interned capture entries, each sharing the one it extends, not C² (engine
-// §4). Its tag term and its condition read them in a bounded number of
-// walks, not one walk for each capture.
+// §4). Each entry counts as it is stored, against a budget of the C − 1
+// after the empty one. Its tag term and its condition read them in a
+// bounded number of walks, not one walk for each capture.
 func TestCaptureStorage(t *testing.T) {
 	for _, n := range []int{100, 200, 400} {
-		names := make([]string, n)
-		for i := range names {
-			names[i] = fmt.Sprintf("$c%d(A)", i)
-		}
-		// A tag term that reads every capture, the first last.
-		tags := make([]string, n)
-		for i := range tags {
-			tags[i] = fmt.Sprintf("tags($c%d)", n-1-i)
-		}
-		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+strings.Join(names, " ")+"\n%tags ~x ∪ "+strings.Join(tags, " ∪ ")+"\n%conditions text($c0) = \"a\""))
-		lg := d.lower(0, map[string]bool{})
-		toks := make([]Token, n)
-		for i := range toks {
-			toks[i] = Token{Text: "a", Tags: []string{"A"}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
-		}
-		ps := newParseState(d.uni, []rune(strings.TrimSpace(strings.Repeat("a ", n))))
-		run := ps.newRun("main", d.stages[0], toks)
+		recognize := captureStorageRun(t, n)
 		// A walk of every capture for each would pass this budget at once.
 		w := &workCounts{}
 		w.captureSteps.most = int64(2*n + 4)
+		w.capEntries.most = int64(n - 1)
 		var rec *recognizer
-		countWorkIn(w, func() { rec = run.recognize(lg, lg.byName["text"], 0, n) })
+		countWorkIn(w, func() { rec = recognize() })
 		if len(rec.sets[n].items) == 0 {
 			t.Fatalf("%d captures: no item at the end", n)
 		}
@@ -137,6 +147,38 @@ func TestCaptureStorage(t *testing.T) {
 	}
 }
 
+// TestCaptureStorageMutation stores each entry's prefix again, as the
+// entries did before they shared their prefixes. The budget of entries
+// stops the recognition at the first entry past it, not after the parse.
+func TestCaptureStorageMutation(t *testing.T) {
+	const n = 100
+	recognize := captureStorageRun(t, n)
+	w := &workCounts{storePrefixes: true}
+	w.capEntries.most = n - 1
+	stopsAtFirst(t, w, &w.capEntries, "capture entries", func() { recognize() })
+}
+
+// captureSearchRun is the recognition of a production of n captures over
+// n tokens, with a condition at each capture that reads the part that far
+// names.
+func captureSearchRun(t *testing.T, n int, far func(int) string) func() *recognizer {
+	names := make([]string, n)
+	conditions := make([]string, n)
+	for i := range names {
+		names[i] = fmt.Sprintf("$c%d(A)", i)
+		conditions[i] = fmt.Sprintf("text($c%d) = text(%s)", i, far(i))
+	}
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+strings.Join(names, " ")+"\n%conditions "+strings.Join(conditions, ", ")))
+	lg := d.lower(0, map[string]bool{})
+	toks := make([]Token, n)
+	for i := range toks {
+		toks[i] = Token{Text: "a", Tags: []string{"A"}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
+	}
+	ps := newParseState(d.uni, []rune(strings.TrimSpace(strings.Repeat("a ", n))))
+	run := ps.newRun("main", d.stages[0], toks)
+	return func() *recognizer { return run.recognize(lg, lg.byName["text"], 0, n) }
+}
+
 // TestCaptureSearch: a condition at each capture of a long production
 // reads the part it names without a walk of every part before it. The
 // capture just made is the last part. The second capture is a search by
@@ -144,24 +186,11 @@ func TestCaptureStorage(t *testing.T) {
 // The first is kept apart and costs no search.
 func TestCaptureSearch(t *testing.T) {
 	steps := func(n int, most int64, far func(int) string) int64 {
-		names := make([]string, n)
-		conditions := make([]string, n)
-		for i := range names {
-			names[i] = fmt.Sprintf("$c%d(A)", i)
-			conditions[i] = fmt.Sprintf("text($c%d) = text(%s)", i, far(i))
-		}
-		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+strings.Join(names, " ")+"\n%conditions "+strings.Join(conditions, ", ")))
-		lg := d.lower(0, map[string]bool{})
-		toks := make([]Token, n)
-		for i := range toks {
-			toks[i] = Token{Text: "a", Tags: []string{"A"}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
-		}
-		ps := newParseState(d.uni, []rune(strings.TrimSpace(strings.Repeat("a ", n))))
-		run := ps.newRun("main", d.stages[0], toks)
+		recognize := captureSearchRun(t, n, far)
 		w := &workCounts{}
 		w.captureSteps.most = most
 		var rec *recognizer
-		countWorkIn(w, func() { rec = run.recognize(lg, lg.byName["text"], 0, n) })
+		countWorkIn(w, func() { rec = recognize() })
 		if len(rec.sets[n].items) == 0 {
 			t.Fatalf("%d captures: no item at the end", n)
 		}
@@ -173,6 +202,18 @@ func TestCaptureSearch(t *testing.T) {
 		near := steps(n, int64(2*n+4), func(i int) string { return fmt.Sprintf("$c%d", i) })
 		second := steps(n, int64(float64(n)*(2*math.Log2(float64(n))+4)), func(int) string { return "$c1" })
 		t.Logf("%d captures: %d steps read where made, %d reading the second", n, near, second)
+	}
+}
+
+// TestCaptureSearchSteps: each step of a search counts as it is taken, so
+// any budget stops the search at the first step past it, within a search
+// and not after it. The conditions read the second part.
+func TestCaptureSearchSteps(t *testing.T) {
+	recognize := captureSearchRun(t, 100, func(int) string { return "$c1" })
+	for most := int64(1); most <= 40; most++ {
+		w := &workCounts{}
+		w.captureSteps.most = most
+		stopsAtFirst(t, w, &w.captureSteps, "capture steps", func() { recognize() })
 	}
 }
 

@@ -59,13 +59,18 @@ func (c itemCaps) at(slot int32) capVal {
 }
 
 // find is one slot's capture, the last at once and an earlier one by the
-// jumps, and the number of steps the search took.
+// jumps, and the number of steps the search took. Each step counts as it
+// is taken.
 func (c itemCaps) find(slot int32) (capVal, int) {
 	if slot == 0 {
 		return c.first, 0
 	}
+	w := work.Load()
 	id, steps := c.more, 0
 	for c.nodes[id].depth > slot {
+		if w != nil {
+			w.captureSteps.add("capture steps")
+		}
 		if jump := c.nodes[id].jump; c.nodes[jump].depth >= slot {
 			id = jump
 		} else {
@@ -76,17 +81,19 @@ func (c itemCaps) find(slot int32) (capVal, int) {
 	return c.nodes[id].cv, steps
 }
 
-// all is every slot's capture, in slot order, read in one walk, and the
-// number of steps that walk took.
-func (c itemCaps) all() ([]capVal, int) {
+// all is every slot's capture, in slot order, read in one walk. Each step
+// of the walk counts as it is taken.
+func (c itemCaps) all() []capVal {
+	w := work.Load()
 	out := make([]capVal, c.nodes[c.more].depth+1)
 	out[0] = c.first
-	steps := 0
 	for id := c.more; id != 0; id = c.nodes[id].parent {
+		if w != nil {
+			w.captureSteps.add("capture steps")
+		}
 		out[c.nodes[id].depth] = c.nodes[id].cv
-		steps++
 	}
-	return out, steps
+	return out
 }
 
 // caps is the captures of an item.
@@ -121,6 +128,15 @@ func (r *recognizer) setCap(key *itemKey, slot int32, cv capVal) {
 			jump = above.jump
 		}
 		r.capNodes = append(r.capNodes, capNode{parent: key.more, jump: jump, cv: cv, depth: slot})
+		if w := work.Load(); w != nil {
+			w.capEntries.add("capture entries")
+			if w.storePrefixes {
+				for at := key.more; at != 0; at = r.capNodes[at].parent {
+					r.capNodes = append(r.capNodes, r.capNodes[at])
+					w.capEntries.add("capture entries")
+				}
+			}
+		}
 		if r.capIndex == nil {
 			r.capIndex = map[capStep]int32{}
 		}
@@ -864,11 +880,7 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 			return spanVal{}, false
 		}
 		if parts == nil && searched*2 >= int(caps.nodes[caps.more].depth)+1 {
-			var steps int
-			parts, steps = caps.all()
-			if w := work.Load(); w != nil {
-				w.captureSteps.addN(int64(steps), "capture steps")
-			}
+			parts = caps.all()
 		}
 		var cv capVal
 		if parts != nil {
@@ -876,9 +888,6 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 		} else {
 			var steps int
 			cv, steps = caps.find(slot)
-			if w := work.Load(); w != nil {
-				w.captureSteps.addN(int64(steps), "capture steps")
-			}
 			searched += steps + 1
 		}
 		a, b := r.observed(cv.start, cv.end)
