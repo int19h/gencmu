@@ -1282,8 +1282,10 @@
   // nested parses alike (tests/growth.json), and the checks of maximality in
   // nested queries, the items of the chart that they read to find their
   // table, and the completions that they read for a tested symbol (engine
-  // §4). Each is counted where the work is done, as it is done. Unset, a
-  // parse counts nothing.
+  // §4). Each is counted where the work is done, as it is done, by
+  // countWork, which throws a WorkBudget at the first count past the budget
+  // that `hooks.work.budget` gives it, if any, so that a regression to
+  // quadratic work stops at once. Unset, a parse counts nothing.
 
   /** @type {Set<string>} */
   const faults = new Set();
@@ -1332,7 +1334,28 @@
    *   read to find their table of completions
    * @property {number} candidates the completions that those checks read for
    *   a tested symbol
+   * @property {Partial<Record<WorkKind, number>>} [budget] the most of each
+   *   count that the work may reach
    */
+
+  /** @typedef {"items" | "checks" | "scanned" | "candidates"} WorkKind */
+
+  /**
+   * A count of `hooks.work` past its budget. It is no GencmuError, so no
+   * handler of the library's catches it.
+   */
+  class WorkBudget extends Error {}
+
+  /**
+   * Counts one of `work`, and throws a WorkBudget if that passes its budget.
+   * @param {WorkCounts} work
+   * @param {WorkKind} kind
+   */
+  function countWork(work, kind) {
+    const counted = ++work[kind];
+    const most = work.budget?.[kind];
+    if (most !== undefined && counted > most) throw new WorkBudget(`${counted} ${kind}, past the budget of ${most}`);
+  }
 
   /** @type {{elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null}} */
   const hooks = { elisionCheck: null, work: null };
@@ -1534,13 +1557,13 @@
     let completed = null;
     /** @type {(constituent: Item, x: number) => boolean} */
     const longer = (constituent, x) => {
-      if (hooks.work) hooks.work.checks++;
+      if (hooks.work) countWork(hooks.work, "checks");
       if (completed === null) {
         completed = new Map();
         for (const set of chart.sets) {
           if (!set) continue;
           for (const item of set.items) {
-            if (hooks.work) hooks.work.scanned++;
+            if (hooks.work) countWork(hooks.work, "scanned");
             if (item.dot !== item.production.rhs.length) continue;
             const key = `${item.production.lhs}\u0000${item.origin}`;
             const entry = completed.get(key);
@@ -1559,7 +1582,7 @@
       if (furthest === undefined) {
         furthest = -1;
         for (const candidate of entry.items) {
-          if (hooks.work) hooks.work.candidates++;
+          if (hooks.work) countWork(hooks.work, "candidates");
           if (candidate.end > furthest && testHolds(chart.context, test, candidate.origin, candidate.end, chart.context.interner.get(candidate.tagId))) furthest = candidate.end;
         }
         entry.tested.set(test, furthest);
@@ -4250,7 +4273,7 @@
       }
       item = new Item(production, dot, origin, slots, previous, child);
       item.strict = strict;
-      if (hooks.work) hooks.work.items++;
+      if (hooks.work) countWork(hooks.work, "items");
       item.end = set.position;
       const trace = context.trace;
       if (trace && trace.depth === 0 && set.position === trace.position) {
@@ -4296,7 +4319,7 @@
       if (target.index.has(key)) return;
       const item = new Item(production, 0, position, emptySlots(production), null, null);
       item.restores = true;
-      if (hooks.work) hooks.work.items++;
+      if (hooks.work) countWork(hooks.work, "items");
       item.end = position + 1;
       // It has the tags of the empty production, none, unless a fault gives
       // it the synthetic token's (F7:restoration).

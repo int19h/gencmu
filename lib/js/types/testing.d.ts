@@ -65,7 +65,13 @@ export type WorkCounts = {
      * a tested symbol
      */
     candidates: number;
+    /**
+     * the most of each
+     * count that the work may reach
+     */
+    budget?: Partial<Record<WorkKind, number>>;
 };
+export type WorkKind = "items" | "checks" | "scanned" | "candidates";
 /**
  * What the check of engine §7 hands its test hook.
  * @typedef {object} ElisionCheckRun
@@ -99,7 +105,22 @@ export type WorkCounts = {
  *   read to find their table of completions
  * @property {number} candidates the completions that those checks read for
  *   a tested symbol
+ * @property {Partial<Record<WorkKind, number>>} [budget] the most of each
+ *   count that the work may reach
  */
+/** @typedef {"items" | "checks" | "scanned" | "candidates"} WorkKind */
+/**
+ * A count of `hooks.work` past its budget. It is no GencmuError, so no
+ * handler of the library's catches it.
+ */
+export declare class WorkBudget extends Error {
+}
+/**
+ * Counts one of `work`, and throws a WorkBudget if that passes its budget.
+ * @param {WorkCounts} work
+ * @param {WorkKind} kind
+ */
+export declare function countWork(work: WorkCounts, kind: WorkKind): void;
 /** @type {{elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null}} */
 export declare const hooks: {
     elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null;
