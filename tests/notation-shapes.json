@@ -276,8 +276,8 @@
     },
     {
       "description": "An optional with two markers, in a shape of its own, is an error of the document at the second marker (engine §9).",
-      "find": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"optional\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}},{\"ref\":\"choice\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[172,1]}",
-      "replace": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"optional\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}},{\"optional\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}},{\"ref\":\"choice\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[172,1]}",
+      "find": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"optional\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}},{\"ref\":\"choice\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[174,1]}",
+      "replace": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"optional\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}},{\"optional\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}},{\"ref\":\"choice\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[174,1]}",
       "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a' [+ +KU]\n```\n",
       "inputs": [
         "a"
@@ -291,8 +291,8 @@
     },
     {
       "description": "A marker inside a wrapper rule is read through the wrapper: [++KU 'b'] is elidable, so x elides KU on a and y wins under late-elision. Read as a plain optional, it would tie (engine §9).",
-      "find": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"optional\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}},{\"ref\":\"choice\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[172,1]}",
-      "replace": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"optional\":{\"ref\":\"marker-wrapper\"}},{\"ref\":\"choice\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[172,1]},{\"name\":\"marker-wrapper\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}}],\"conditions\":[],\"at\":[100001,1]}",
+      "find": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"optional\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}},{\"ref\":\"choice\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[174,1]}",
+      "replace": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"optional\":{\"ref\":\"marker-wrapper\"}},{\"ref\":\"choice\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[174,1]},{\"name\":\"marker-wrapper\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}}],\"conditions\":[],\"at\":[100001,1]}",
       "document": "```jbogenbau\n%ambiguity-resolution late-elision\n%rule text x | y\n%rule x 'a' [++KU 'b']\n%rule y 'a'\n```\n",
       "inputs": [
         "a"
@@ -303,8 +303,8 @@
     },
     {
       "description": "A group at the head of a marked optional is an error at the [, also where the optional reads its choice through a wrapper rule: the reader looks through wrappers but not through a group (engine §9).",
-      "find": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"optional\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}},{\"ref\":\"choice\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[172,1]}",
-      "replace": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"optional\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}},{\"ref\":\"optional-body\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[172,1]},{\"name\":\"optional-body\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"choice\"}}],\"conditions\":[],\"at\":[100001,1]}",
+      "find": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"optional\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}},{\"ref\":\"choice\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[174,1]}",
+      "replace": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"optional\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}},{\"ref\":\"optional-body\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[174,1]},{\"name\":\"optional-body\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"choice\"}}],\"conditions\":[],\"at\":[100001,1]}",
       "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a' [+('b') 'c']\n```\n",
       "inputs": [
         "a"
@@ -318,8 +318,8 @@
     },
     {
       "description": "A tested that lacks its test is an error at the tested, before its primary, here a constant, is read (engine §9).",
-      "find": "{\"name\":\"tested\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"primary\"},{\"ref\":\"test\"}]}}],\"conditions\":[],\"at\":[131,1]}",
-      "replace": "{\"name\":\"tested\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'='\"},{\"terminal\":\"'='\"},{\"ref\":\"primary\"}]}}],\"conditions\":[],\"at\":[131,1]}",
+      "find": "{\"name\":\"tested\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"primary\"},{\"ref\":\"test\"}]}}],\"conditions\":[],\"at\":[133,1]}",
+      "replace": "{\"name\":\"tested\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'='\"},{\"terminal\":\"'='\"},{\"ref\":\"primary\"}]}}],\"conditions\":[],\"at\":[133,1]}",
       "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text == $C\n```\n",
       "inputs": [
         "a"
@@ -333,8 +333,8 @@
     },
     {
       "description": "An optional looks up its choice before its markers: one with two markers and no choice is an error at the optional, not at the second marker (engine §9).",
-      "find": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"optional\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}},{\"ref\":\"choice\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[172,1]}",
-      "replace": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"terminal\":\"'+'\"},{\"terminal\":\"'+'\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[172,1]}",
+      "find": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"optional\":{\"choice\":[{\"terminal\":\"'+'\"},{\"terminal\":\"double-plus\"}]}},{\"ref\":\"choice\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[174,1]}",
+      "replace": "{\"name\":\"optional\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'['\"},{\"terminal\":\"'+'\"},{\"terminal\":\"'+'\"},{\"terminal\":\"']'\"}]}}],\"conditions\":[],\"at\":[174,1]}",
       "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a' [+ +]\n```\n",
       "inputs": [
         "a"
@@ -348,8 +348,8 @@
     },
     {
       "description": "A repetition looks up its choices before its markers: one with two markers and no choice is an error at the repetition, not at the second marker (engine §9).",
-      "find": "{\"name\":\"repetition\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"terminal\":\"ellipsis\"},{\"ref\":\"choice\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"terminal\":\"ellipsis\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}}],\"conditions\":[],\"at\":[175,1]}",
-      "replace": "{\"name\":\"repetition\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"terminal\":\"ellipsis\"},{\"terminal\":\"ellipsis\"},{\"terminal\":\"'}'\"}]}}],\"conditions\":[],\"at\":[175,1]}",
+      "find": "{\"name\":\"repetition\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"terminal\":\"ellipsis\"},{\"ref\":\"choice\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"ref\":\"choice\"},{\"terminal\":\"ellipsis\"},{\"optional\":{\"seq\":[{\"terminal\":\"'\\\\u{5C}'\"},{\"ref\":\"choice\"}]}},{\"terminal\":\"'}'\"}]}}],\"conditions\":[],\"at\":[177,1]}",
+      "replace": "{\"name\":\"repetition\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'{'\"},{\"terminal\":\"ellipsis\"},{\"terminal\":\"ellipsis\"},{\"terminal\":\"'}'\"}]}}],\"conditions\":[],\"at\":[177,1]}",
       "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {... ...}\n```\n",
       "inputs": [
         "a"
@@ -363,8 +363,8 @@
     },
     {
       "description": "A tested looks up its test before its primary: one that lacks its test, and whose primary holds no known part, is an error at the tested, not at its primary (engine §9).",
-      "find": "{\"name\":\"primary\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"reference\"}},{\"guards\":[],\"expr\":{\"ref\":\"tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"character\"}},{\"guards\":[],\"expr\":{\"ref\":\"phoneme\"}},{\"guards\":[],\"expr\":{\"ref\":\"range\"}},{\"guards\":[],\"expr\":{\"ref\":\"property\"}},{\"guards\":[],\"expr\":{\"ref\":\"tested\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture\"}},{\"guards\":[],\"expr\":{\"ref\":\"group\"}},{\"guards\":[],\"expr\":{\"ref\":\"optional\"}},{\"guards\":[],\"expr\":{\"ref\":\"repetition\"}},{\"guards\":[],\"expr\":{\"ref\":\"empty\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-reference\"}}],\"conditions\":[],\"at\":[126,1]},{\"name\":\"tested\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"primary\"},{\"ref\":\"test\"}]}}],\"conditions\":[],\"at\":[131,1]}",
-      "replace": "{\"name\":\"primary\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"reference\"}},{\"guards\":[],\"expr\":{\"ref\":\"tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"character\"}},{\"guards\":[],\"expr\":{\"ref\":\"phoneme\"}},{\"guards\":[],\"expr\":{\"ref\":\"range\"}},{\"guards\":[],\"expr\":{\"ref\":\"property\"}},{\"guards\":[],\"expr\":{\"ref\":\"tested\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture\"}},{\"guards\":[],\"expr\":{\"ref\":\"group\"}},{\"guards\":[],\"expr\":{\"ref\":\"optional\"}},{\"guards\":[],\"expr\":{\"ref\":\"repetition\"}},{\"guards\":[],\"expr\":{\"ref\":\"empty\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-reference\"}},{\"guards\":[],\"expr\":{\"terminal\":\"'+'\"}}],\"conditions\":[],\"at\":[126,1]},{\"name\":\"tested\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'='\"},{\"terminal\":\"'='\"},{\"ref\":\"primary\"}]}}],\"conditions\":[],\"at\":[131,1]}",
+      "find": "{\"name\":\"primary\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"reference\"}},{\"guards\":[],\"expr\":{\"ref\":\"tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"character\"}},{\"guards\":[],\"expr\":{\"ref\":\"phoneme\"}},{\"guards\":[],\"expr\":{\"ref\":\"range\"}},{\"guards\":[],\"expr\":{\"ref\":\"property\"}},{\"guards\":[],\"expr\":{\"ref\":\"tested\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture\"}},{\"guards\":[],\"expr\":{\"ref\":\"group\"}},{\"guards\":[],\"expr\":{\"ref\":\"optional\"}},{\"guards\":[],\"expr\":{\"ref\":\"repetition\"}},{\"guards\":[],\"expr\":{\"ref\":\"empty\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-reference\"}}],\"conditions\":[],\"at\":[128,1]},{\"name\":\"tested\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"primary\"},{\"ref\":\"test\"}]}}],\"conditions\":[],\"at\":[133,1]}",
+      "replace": "{\"name\":\"primary\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"reference\"}},{\"guards\":[],\"expr\":{\"ref\":\"tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"character\"}},{\"guards\":[],\"expr\":{\"ref\":\"phoneme\"}},{\"guards\":[],\"expr\":{\"ref\":\"range\"}},{\"guards\":[],\"expr\":{\"ref\":\"property\"}},{\"guards\":[],\"expr\":{\"ref\":\"tested\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture\"}},{\"guards\":[],\"expr\":{\"ref\":\"group\"}},{\"guards\":[],\"expr\":{\"ref\":\"optional\"}},{\"guards\":[],\"expr\":{\"ref\":\"repetition\"}},{\"guards\":[],\"expr\":{\"ref\":\"empty\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-reference\"}},{\"guards\":[],\"expr\":{\"terminal\":\"'+'\"}}],\"conditions\":[],\"at\":[128,1]},{\"name\":\"tested\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'='\"},{\"terminal\":\"'='\"},{\"ref\":\"primary\"}]}}],\"conditions\":[],\"at\":[133,1]}",
       "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text == +\n```\n",
       "inputs": [
         "a"
