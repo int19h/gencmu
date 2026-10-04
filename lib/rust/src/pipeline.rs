@@ -298,9 +298,9 @@ mod tests {
         }
     }
 
-    /// A chain of n documents, each including the next, the last with a
-    /// stage that lists n features, splices in about n: the chain, the
-    /// stages and the features are checked by sets, not scans.
+    /// A chain of n documents, each including the next, the last with n
+    /// features and n stages, splices in about n: the chain, the stages
+    /// and the features are checked by sets, not scans.
     #[test]
     fn a_long_include_chain_splices_in_linear_work() {
         let directive = |name: &str, args: Vec<String>| Directive { name: name.into(), args, at: (1, 1) };
@@ -311,7 +311,8 @@ mod tests {
                     (format!("d{index}"), Arc::new(Dom { directives: vec![include], ..Dom::default() }))
                 })
                 .collect();
-            let rule = RuleDef {
+            // Each stage at line 2k + 2, with its rule on the next line.
+            let rule = |index: usize| RuleDef {
                 name: "text".into(),
                 op: Op::Define,
                 tags: None,
@@ -319,11 +320,13 @@ mod tests {
                 emit: None,
                 conditions: Vec::new(),
                 opaque: false,
-                at: (3, 1),
+                at: (2 * index + 3, 1),
             };
             let features = directive("features", (0..n).map(|index| format!("f{index}")).collect());
-            let stage = Directive { at: (2, 1), ..directive("stage", vec!["main".into()]) };
-            let last = Dom { rules: vec![rule], directives: vec![features, stage], ..Dom::default() };
+            let stages = (0..n)
+                .map(|index| Directive { at: (2 * index + 2, 1), ..directive("stage", vec![format!("s{index}")]) });
+            let directives = [features].into_iter().chain(stages).collect();
+            let last = Dom { rules: (0..n).map(rule).collect(), directives, ..Dom::default() };
             documents.insert(format!("d{}", n - 1), Arc::new(last));
             Held(documents)
         };
@@ -331,6 +334,7 @@ mod tests {
         assert_linear(Work::Spliced, 1500, &mut |n| {
             let spliced = splice("d0", &mut helds[usize::from(n != 1500)]).expect("spliced");
             assert_eq!(spliced.features.len(), n);
+            assert_eq!(spliced.stages.len(), n);
         });
     }
 }
