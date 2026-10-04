@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -570,8 +571,11 @@ func TestConcurrentClassifiers(t *testing.T) {
 
 // TestDeepDerivations parses long inputs whose derivations nest as deep as
 // the input is long, to the left and, shorter since right recursion costs
-// an Earley recognizer quadratic time, to the right.
+// an Earley recognizer quadratic time, to the right. The stack of a
+// goroutine is held to 1 MiB, so a walk that recursed down a derivation
+// would end the process.
 func TestDeepDerivations(t *testing.T) {
+	defer debug.SetMaxStack(debug.SetMaxStack(1 << 20))
 	for _, c := range []struct {
 		grammar string
 		n       int
