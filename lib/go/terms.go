@@ -290,7 +290,8 @@ func (ev *evaluator) cond(c *domCond) bool {
 // joined, in lower case and without commas (§5).
 func (run *stageRun) phonemes(s spanVal) string {
 	var b strings.Builder
-	for i := s.a; i < s.b; i++ {
+	for i := run.nextVoiced(s.a); i < s.b; i = run.nextVoiced(i + 1) {
+		run.soundSteps++
 		b.WriteString(run.sound(i))
 	}
 	return b.String()

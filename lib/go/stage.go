@@ -83,6 +83,12 @@ type stageRun struct {
 	// looks at the token (§4, §5).
 	sounds     []string
 	soundsMade []bool
+	// voiced[i] is the first token at or after i whose sound is not empty,
+	// or len(toks), so that a sound test skips silent tokens in one step.
+	voiced []int
+	// soundSteps counts the tokens that sound tests and phonemes() visit,
+	// for the tests of their work.
+	soundSteps int
 }
 
 // sound is a token's phonemes in canonical form (§5). The lowercase mapping
@@ -100,12 +106,33 @@ func (run *stageRun) sound(i int) string {
 	return run.sounds[i]
 }
 
+// nextVoiced is the first token at or after i whose sound is not empty,
+// or len(toks). A span of silent tokens would otherwise cost its length at
+// every test, though it adds nothing to the sound.
+func (run *stageRun) nextVoiced(i int) int {
+	if run.voiced == nil {
+		run.voiced = make([]int, len(run.toks)+1)
+		next := len(run.toks)
+		run.voiced[next] = next
+		for j := len(run.toks) - 1; j >= 0; j-- {
+			if run.sound(j) != "" {
+				next = j
+			}
+			run.voiced[j] = next
+		}
+	}
+	return run.voiced[i]
+}
+
 // soundIs says whether the tokens [a, b) sound like a string: their
 // canonical sound is exactly it (§4, §5). A token with no phonemes adds
-// nothing, and an empty span sounds like the empty string.
+// nothing, and an empty span sounds like the empty string. Each token
+// visited has a sound that is not empty, so the work is bounded by the
+// length of the string, not of the span.
 func (run *stageRun) soundIs(sound string, a, b int) bool {
 	offset := 0
-	for i := a; i < b; i++ {
+	for i := run.nextVoiced(a); i < b; i = run.nextVoiced(i + 1) {
+		run.soundSteps++
 		s := run.sound(i)
 		if !strings.HasPrefix(sound[offset:], s) {
 			return false
