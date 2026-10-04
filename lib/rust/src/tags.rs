@@ -114,11 +114,11 @@ impl Tags {
 pub(crate) fn union_all<'l>(lists: impl IntoIterator<Item = &'l TagList>) -> TagList {
     let mut out = TagList::new();
     for list in lists {
+        // Each part is copied once, where a fold of pairs copied the
+        // growing union again for each part. It is counted before the copy.
+        work::count(Work::Listed, list.len() as u64);
         out.extend_from_slice(list);
     }
-    // Each part is copied once, where a fold of pairs copied the growing
-    // union again for each part.
-    work::count(Work::Listed, out.len() as u64);
     out.sort_unstable();
     out.dedup();
     out
@@ -126,12 +126,19 @@ pub(crate) fn union_all<'l>(lists: impl IntoIterator<Item = &'l TagList>) -> Tag
 
 /// The intersection: the tags of both.
 pub(crate) fn intersection(left: &TagList, right: &TagList) -> TagList {
-    left.iter().filter(|id| right.binary_search(id).is_ok()).copied().collect()
+    left.iter().filter(|id| listed(right.binary_search(id).is_ok())).copied().collect()
 }
 
 /// The difference: the tags of the first that are not in the second.
 pub(crate) fn difference(left: &TagList, right: &TagList) -> TagList {
-    left.iter().filter(|id| right.binary_search(id).is_err()).copied().collect()
+    left.iter().filter(|id| listed(right.binary_search(id).is_err())).copied().collect()
+}
+
+/// Counts one tag that a list's evaluation reads, and gives back what the
+/// read found.
+fn listed(found: bool) -> bool {
+    work::count(Work::Listed, 1);
+    found
 }
 
 /// Whether every tag of the first is in the second.
@@ -232,4 +239,30 @@ pub(crate) fn property_name(name: &str) -> String {
 /// tag or a character tag (engine §1).
 pub(crate) fn is_tag(tag: &str, unicode: &Unicode) -> bool {
     is_name(tag) || phoneme_of(tag).is_some() || is_character_tag(tag, unicode)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{difference, intersection, union_all, TagList};
+    use crate::work::{assert_stops, Work};
+
+    /// A union, an intersection and a difference count each tag as they
+    /// copy or read it, so a budget stops a long list at its first tag
+    /// past it, not once the list is made.
+    #[test]
+    fn lists_count_each_tag_as_it_is_read() {
+        let n = 1000;
+        let singles: Vec<TagList> = (0..n).map(|tag| vec![tag]).collect();
+        let all: TagList = (0..n).collect();
+        let even: TagList = (0..n).step_by(2).collect();
+        assert_stops(Work::Listed, 500, || {
+            union_all(&singles);
+        });
+        assert_stops(Work::Listed, 500, || {
+            intersection(&all, &even);
+        });
+        assert_stops(Work::Listed, 500, || {
+            difference(&all, &even);
+        });
+    }
 }

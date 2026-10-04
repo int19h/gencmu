@@ -41,8 +41,13 @@ pub(crate) enum Work {
     /// counted before it is evaluated, also in an evaluation that halts.
     Visits,
     /// The tags that the evaluation of tag terms writes into the lists it
-    /// makes: unions, the tags of spans, and ranges.
+    /// makes, or reads to make them: unions, the tags of spans, ranges,
+    /// intersections, differences, classes and the pieces of a split. Each
+    /// is counted as it is written or read.
     Listed,
+    /// The tokens of spans that `text` and `phonemes` terms read, each
+    /// counted as it is read.
+    Spanned,
     /// The implications, and their consequents, that the closure of a
     /// token's tags looks at (§11).
     Implied,
@@ -127,6 +132,21 @@ pub(crate) fn budget(work: Work, most: u64) {
 #[cfg(test)]
 pub(crate) fn counted(work: Work) -> u64 {
     COUNTS.with(|counts| counts.borrow()[work as usize])
+}
+
+/// Runs `run` with a budget of `most` for `work`, and asserts that it
+/// stops at the first count past the budget. A mutation that does too much
+/// work must stop there, not when the work is over.
+#[cfg(test)]
+pub(crate) fn assert_stops(work: Work, most: u64, run: impl FnOnce()) {
+    reset();
+    budget(work, most);
+    let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(run));
+    let total = counted(work);
+    reset();
+    let Err(payload) = caught else { panic!("{work:?}: {total} counted, and the budget of {most} never stopped it") };
+    let message = payload.downcast_ref::<String>().cloned().unwrap_or_default();
+    assert_eq!(message, format!("{} {work:?}, past the budget of {most}", most + 1));
 }
 
 /// Asserts that `run` at 4n counts at most five times the `work` that it

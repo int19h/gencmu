@@ -333,11 +333,13 @@ impl Chart {
     pub(crate) fn caps(&self, mut id: u32) -> Vec<Cap> {
         let mut out = Vec::new();
         while id != 0 {
+            // Each step counts as it is taken, so that a budget stops a
+            // long walk at once.
+            work::count(Work::CaptureSteps, 1);
             let entry = self.caps[id as usize];
             out.push(entry.cap);
             id = entry.parent;
         }
-        work::count(Work::CaptureSteps, out.len() as u64);
         out.reverse();
         out
     }
@@ -347,11 +349,11 @@ impl Chart {
     fn cap_at(&self, mut id: u32, slot: u32) -> (Cap, u32) {
         let mut steps = 0;
         while self.caps[id as usize].depth > slot + 1 {
+            work::count(Work::CaptureSteps, 1);
             let entry = self.caps[id as usize];
             id = if self.caps[entry.jump as usize].depth > slot { entry.jump } else { entry.parent };
             steps += 1;
         }
-        work::count(Work::CaptureSteps, u64::from(steps));
         (self.caps[id as usize].cap, steps)
     }
 
@@ -370,6 +372,34 @@ impl Chart {
         if let Some(&id) = self.caps_index.get(&(parent, cap)) {
             return id;
         }
+        // A mutation of the tests stores the prefix again, where the
+        // recognizer shares it.
+        #[cfg(test)]
+        let stored = if tests::COPY_PREFIXES.with(Cell::get) { self.copy_caps(parent) } else { parent };
+        #[cfg(not(test))]
+        let stored = parent;
+        let id = self.push_caps(stored, cap);
+        self.caps_index.insert((parent, cap), id);
+        id
+    }
+
+    /// A mutation for the tests of storage: a copy of a sequence, each of
+    /// its parts stored again, where the recognizer shares it.
+    #[cfg(test)]
+    fn copy_caps(&mut self, id: u32) -> u32 {
+        let mut parts = Vec::new();
+        let mut at = id;
+        while at != 0 {
+            parts.push(self.caps[at as usize].cap);
+            at = self.caps[at as usize].parent;
+        }
+        parts.into_iter().rev().fold(0, |copy, cap| self.push_caps(copy, cap))
+    }
+
+    /// Stores the sequence that extends `parent` by one part. Each entry
+    /// counts as it is stored, so that a budget of storage stops at once.
+    fn push_caps(&mut self, parent: u32, cap: Cap) -> u32 {
+        work::count(Work::Captures, 1);
         let id = self.caps.len() as u32;
         let before = self.caps[parent as usize];
         let above = self.caps[before.jump as usize];
@@ -379,8 +409,6 @@ impl Chart {
             parent
         };
         self.caps.push(CapEntry { parent, jump, depth: before.depth + 1, cap });
-        self.caps_index.insert((parent, cap), id);
-        work::count(Work::Captures, 1);
         id
     }
 
@@ -497,11 +525,16 @@ impl<'a> Shared<'a> {
             return list.clone();
         }
         let unicode = self.unicode;
-        let mut list: TagList =
-            (first..=last).filter_map(char::from_u32).map(|c| self.tags.tag(&character_tag(c, unicode))).collect();
+        // The list is made once, and each later evaluation shares it. Each
+        // tag counts as it is made.
+        let mut list: TagList = (first..=last)
+            .filter_map(char::from_u32)
+            .map(|c| {
+                work::count(Work::Listed, 1);
+                self.tags.tag(&character_tag(c, unicode))
+            })
+            .collect();
         list.sort_unstable();
-        // The list is made once, and each later evaluation shares it.
-        work::count(Work::Listed, list.len() as u64);
         let list = Arc::new(list);
         self.ranges.insert((first, last), list.clone());
         list
@@ -1633,6 +1666,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let mut sound = String::new();
         let mut at = start;
         while at < end {
+            work::count(Work::Spanned, 1);
             let token = &tokens[at];
             if token.quiet > 0 {
                 at += token.quiet as usize;
@@ -1647,11 +1681,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// The text over the source of the span's tokens (§1). The scan costs
     /// no more than the copy of the text.
     fn text(&self, tokens: &[Tok], start: usize, end: usize) -> String {
-        let span = &tokens[start..end];
-        match (span.iter().map(|token| token.source.0).min(), span.iter().map(|token| token.source.1).max()) {
-            (Some(low), Some(high)) => self.shared.source_text(low, high),
-            _ => String::new(),
+        let mut bounds: Option<(usize, usize)> = None;
+        for token in &tokens[start..end] {
+            work::count(Work::Spanned, 1);
+            let (from, to) = token.source;
+            bounds = Some(bounds.map_or((from, to), |(low, high)| (low.min(from), high.max(to))));
         }
+        bounds.map_or_else(String::new, |(low, high)| self.shared.source_text(low, high))
     }
 
     /// The tags of the tokens of a span, unioned.
@@ -1691,9 +1727,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// The class tags of a list, those whose names begin with a capital.
     fn classes(&self, list: &TagList) -> Value {
         let tags = &self.shared.tags;
-        Value::set(
-            list.iter().copied().filter(|&id| tags.name(id).starts_with(|c: char| c.is_ascii_uppercase())).collect(),
-        )
+        // Each tag read counts.
+        let class = |&id: &TagId| {
+            work::count(Work::Listed, 1);
+            tags.name(id).starts_with(|c: char| c.is_ascii_uppercase())
+        };
+        Value::set(list.iter().copied().filter(class).collect())
     }
 
     /// A query's answer from the memo. One not yet known halts the
@@ -2005,7 +2044,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     let mut list: TagList = string
                         .split(delimiter.as_str())
                         .filter(|piece| !piece.is_empty())
-                        .map(|piece| self.shared.tags.tag(piece))
+                        .map(|piece| {
+                            work::count(Work::Listed, 1);
+                            self.shared.tags.tag(piece)
+                        })
                         .collect();
                     list.sort_unstable();
                     list.dedup();
@@ -2100,9 +2142,34 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
 mod tests {
     use std::cell::Cell;
 
-    use crate::earley::{mark_quiet, matchers, sounds_like, Caps, Frame, Recognizer, Shared, Tok};
+    use crate::earley::{
+        mark_quiet, matchers, sounds_like, Cap, CapEntry, Caps, Chart, Frame, Recognizer, Shared, Tok,
+    };
     use crate::lower::{LTerm, Span, Sym};
-    use crate::work::{assert_linear, budget, counted, reset, Work};
+    use crate::work::{assert_linear, assert_stops, budget, counted, reset, Work};
+
+    thread_local! {
+        /// Whether `Chart::extend_caps` stores each prefix again, a
+        /// mutation that the tests of storage must stop at once.
+        pub(super) static COPY_PREFIXES: Cell<bool> = const { Cell::new(false) };
+    }
+
+    /// The mutation of `COPY_PREFIXES`, on until this is dropped, also when
+    /// a budget's panic unwinds.
+    struct Copying;
+
+    impl Copying {
+        fn on() -> Copying {
+            COPY_PREFIXES.with(|copying| copying.set(true));
+            Copying
+        }
+    }
+
+    impl Drop for Copying {
+        fn drop(&mut self) {
+            COPY_PREFIXES.with(|copying| copying.set(false));
+        }
+    }
 
     /// A sound test of each suffix of a run of tokens without sound steps
     /// through as many tokens as the sound is long, not the suffix.
@@ -2387,6 +2454,8 @@ mod tests {
             reset();
             budget(Work::Items, items);
             budget(Work::CaptureSteps, steps);
+            // An entry past the bound stops the parse as it is stored.
+            budget(Work::Captures, count as u64);
             let result = dialect.parse(&"a".repeat(count), &crate::ParseOptions::default()).expect("a result");
             assert!(result.ok, "{count} captures");
             assert_eq!(counted(Work::Captures), count as u64, "{count} captures");
@@ -2395,6 +2464,91 @@ mod tests {
             // The next dialect's grammar is read with no budget.
             reset();
         }
+    }
+
+    /// A recognizer that stores each prefix of the captured parts again,
+    /// some C²/2 entries, stops at the first entry past the bound of C that
+    /// `captures_share_their_prefixes` holds the parse to, while it runs.
+    #[test]
+    fn storing_each_prefix_again_stops_at_the_bound() {
+        let count = 100usize;
+        let names: Vec<String> = (0..count).map(|index| format!("$c{index}('a')")).collect();
+        let dialect = single(&format!("%rule text {}", names.join(" ")));
+        let text = "a".repeat(count);
+        let _copying = Copying::on();
+        assert_stops(Work::Captures, count as u64, || {
+            let _ = dialect.parse(&text, &crate::ParseOptions::default());
+        });
+    }
+
+    /// A chart that holds one sequence of `n` captured parts, and its id.
+    fn chain(n: u32) -> (Chart, u32) {
+        let mut chart = Chart::default();
+        chart.caps.push(CapEntry { parent: 0, jump: 0, depth: 0, cap: Cap { start: 0, end: 0, tags: 0 } });
+        let id = (0..n).fold(0, |id, at| chart.extend_caps(id, Cap { start: at, end: at + 1, tags: 0 }));
+        (chart, id)
+    }
+
+    /// The walk and the search of the captured parts count each step as
+    /// they take it, so a budget stops a long walk at its first step past
+    /// it, not once the walk is over.
+    #[test]
+    fn capture_steps_count_as_they_are_taken() {
+        let (chart, id) = chain(1000);
+        assert_stops(Work::CaptureSteps, 500, || {
+            chart.caps(id);
+        });
+        // The search for the first part takes some 2 log₂ 1000 steps.
+        assert_stops(Work::CaptureSteps, 3, || {
+            chart.cap_at(id, 0);
+        });
+    }
+
+    /// The terms count each tag of the lists they make and each token of
+    /// the spans they read, as they go. A budget then stops a term over a
+    /// long span or a long list at its first count past it.
+    #[test]
+    fn terms_count_their_lists_and_spans_as_they_go() {
+        let n = 1000usize;
+        let sources = [
+            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'\n```\n".to_string()),
+            ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
+        ];
+        let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
+        let g = dialect.lowered_stage(0);
+        let chars: Vec<char> = vec!['a'; n];
+        let mut shared = Shared::new(&dialect.unicode, &chars);
+        let tokens: Vec<Tok> = (0..n)
+            .map(|index| Tok {
+                text: "a".to_string(),
+                tags: shared.tags.set_of(["A"]),
+                phonemes: Some("a".to_string()),
+                source: (index, index + 1),
+                label: "a".to_string(),
+                sound: Default::default(),
+                quiet: 0,
+                before: Vec::new(),
+                after: Vec::new(),
+            })
+            .collect();
+        let names: Vec<String> = (0..n).map(|index| format!("C{index}")).collect();
+        let classes = shared.tags.set_of(names.iter().map(String::as_str));
+        let matchers = matchers(&g, &mut shared.tags);
+        let mut recognizer = Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None };
+        let caps = [Cap { start: 0, end: n as u32, tags: classes }];
+        let frame =
+            Frame { caps: Caps::All(&caps), prod: 0, origin: 0, end: n as u32, tags: Cell::new(None), project: None };
+        let split = |string: LTerm| LTerm::Split(Box::new(string), Box::new(LTerm::Str(" ".to_string())));
+        let mut stops = |work: Work, term: LTerm| {
+            assert_stops(work, n as u64 / 2, || {
+                let _ = recognizer.tag_list(&term, &frame, &tokens, 0);
+            });
+        };
+        stops(Work::Spanned, split(LTerm::Text(Span::Whole)));
+        stops(Work::Spanned, split(LTerm::Phonemes(Span::Whole)));
+        stops(Work::Listed, split(LTerm::Str(vec!["x"; n].join(" "))));
+        stops(Work::Listed, LTerm::Classes(Span::Cap(0)));
+        stops(Work::Listed, LTerm::Range(0x4E00, 0x4E00 + n as u32 - 1));
     }
 
     /// A condition at each capture of a long production reads the part it
