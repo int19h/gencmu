@@ -22,7 +22,7 @@
 # node tools/quoted-texts.js checks it.
 
 # Parts of texts that the sentences make claims about.
-ke brode ke'e bo brodi # grammars/syntax/cll.md:141,475 = selbri-5-not-ke-group adhoc.syntax.joik-ke-group-then-bo adhoc.syntax.joik-ke-group-then-bo.bpfk
+ke brode ke'e bo brodi # grammars/syntax/cll.md:136,470 = selbri-5-not-ke-group adhoc.syntax.joik-ke-group-then-bo adhoc.syntax.joik-ke-group-then-bo.bpfk
 se se broda # grammars/syntax/cll.md = tanru-unit-2 adhoc.syntax.se-se-unit adhoc.syntax.se-se-unit.bpfk
 na'e se broda # grammars/syntax/cll.md = tanru-unit-2 adhoc.syntax.nahe-se-unit adhoc.syntax.nahe-se-unit.bpfk
 pa xy. # grammars/syntax/cll.md = number adhoc.syntax.number-then-lerfu adhoc.syntax.number-then-lerfu.bpfk
@@ -68,9 +68,9 @@ a kru,a # grammars/words/cll.md # the reading that akru,a does not have; akru,a 
 terms zo'u # grammars/syntax/cll.md # notation: a rule name before the cmavo
 .i ja nai # grammars/syntax/cll.md # a connective between sentences
 .i joi # grammars/syntax/cll.md # a connective between sentences
-.i bo # grammars/syntax/cll.md:76,78 # a part of the pinned text quoted after it on its line
-gi'e ke # grammars/syntax/cll.md:135,699 # the words of one token of the official parser's lexer
-joi ke # grammars/syntax/cll.md:141,698 # the words of one token of the official parser's lexer
+.i bo # grammars/syntax/cll.md:71,73 # a part of the pinned text quoted after it on its line
+gi'e ke # grammars/syntax/cll.md:130,694 # the words of one token of the official parser's lexer
+joi ke # grammars/syntax/cll.md:136,693 # the words of one token of the official parser's lexer
 ca lo nu broda # grammars/syntax/cll.md # the shape of a tense with its sumti
 fi mi # grammars/syntax/cll.md # the shape of a place marker with its sumti
 pu ku # grammars/syntax/cll.md # the shape of a tense with an elided sumti
@@ -82,7 +82,7 @@ mi .e do # grammars/syntax/cll.md # the shape of an afterthought sumti connectio
 mi joi do # grammars/syntax/cll.md # the shape of a joik sumti connection
 ge mi gi do # grammars/syntax/cll.md # the shape of a forethought sumti connection
 re lo gerku # grammars/syntax/cll.md # the shape of an outer quantifier
-na'e bo # grammars/syntax/cll.md:227,394 # the shape of a NAhE sumti
+na'e bo # grammars/syntax/cll.md:222,389 # the shape of a NAhE sumti
 le mi zdani # grammars/syntax/cll.md # the shape of a possessive inner sumti
 lo re lo gerku # grammars/syntax/cll.md # the shape of a quantifier and a sumti after a descriptor
 mi goi ko'a # grammars/syntax/cll.md # the shape of a goi clause

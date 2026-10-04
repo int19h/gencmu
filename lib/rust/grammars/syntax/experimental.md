@@ -27,7 +27,7 @@ A stage is one step of a pipeline, with its own grammar. The pipeline is the seq
 
 The layer uses two feature guards, which make a part of a rule depend on a feature. `cbm` is the cmevla-brivla merger. `soi-clause` makes `soi` a term that takes a subsentence, where CLL has a free modifier of reciprocity. The experimental dialect turns both on, because camxes-exp has no way to turn them off. A caller can turn either off.
 
-Unlike the CLL grammar, this layer writes the free-modifier slot after an elidable terminator outside its brackets: `[X] #` where CLL has `[X #]`. So free modifiers can follow an elided terminator. The layer restates many rules below for that reason alone. `free-after-number` and `free-after-lerfu-string` keep a number or lerfu string maximal. After an elided `boi`, they exclude a first free modifier that starts with a word that the number or string can read.
+Unlike the CLL grammar, this layer writes the free-modifier slot after an elidable terminator outside its brackets: `[+X] #` where CLL has `[+X #]`. So free modifiers can follow an elided terminator. The layer restates many rules below for that reason alone. `free-after-number` and `free-after-lerfu-string` keep a number or lerfu string maximal. After an elided `boi`, they exclude a first free modifier that starts with a word that the number or string can read.
 
 Two directives set up the layer. `%ambiguity-resolution late-elision` says how the stage chooses among parses. It compares only where two parses elide terminators. At the first place where they differ, it takes the parse that reads on, so a terminator is elided as late as the grammar allows. Two parses that elide the same terminators at the same places are tied, and a tie is an error.
 
@@ -40,11 +40,10 @@ The layer does not declare `elision-only`, the option that applies CLL's rule th
 - A `be` group attaches to the tanru unit before it ("Selbri and tanru").
 - A subscript after a subscript nests. Any other free modifier after a subscript belongs to the word that the subscript marks ("Free modifiers, vocatives and indicators").
 
-`%elidable` adds the experimental terminators `ku'au` and `ku'oi` to CLL's.
+The experimental terminators `ku'au` and `ku'oi` are elidable, as CLL's are: the rules below write them `[+KUhAU]` and `[+KUhOI]`.
 
 ```jbogenbau
 %ambiguity-resolution late-elision
-%elidable KUhAU KUhOI
 ```
 
 ## The text and its paragraphs
@@ -114,13 +113,13 @@ The layer removes CLL's `na` fragment. A bare `na` is a term (see "Terms"), so `
   statement-3 [I [joik | jek | ek] [stag] BO # [statement-2]]
 
 %redefine-rule statement-3
-  sentence | [tag] TUhE # text-1 [TUhU] #
+  sentence | [tag] TUhE # text-1 [+TUhU] #
 
 %rule statement-connective
   joik # | jek # | ek # | VUhU #
 
 %redefine-rule fragment
-  ek # | gihek # | quantifier | terms [VAU] # | prenex | relative-clauses | links | linkargs
+  ek # | gihek # | quantifier | terms [+VAU] # | prenex | relative-clauses | links | linkargs
 
 %redefine-rule prenex
   [terms] ZOhU #
@@ -155,7 +154,7 @@ Connected bridi-tails group from the left, as in CLL (CLL 14.10), and `bridi-tai
   [bridi-tail-head] bridi-tail-2
 
 %redefine-rule bridi-tail
-  bridi-tail-1 [(bridi-tail-connective [stag] | GI stag) KE # headed-bridi-tail [KEhE] # tail-terms]
+  bridi-tail-1 [(bridi-tail-connective [stag] | GI stag) KE # headed-bridi-tail [+KEhE] # tail-terms]
 
 %redefine-rule bridi-tail-1
   bridi-tail-2 | bridi-tail-1 bridi-tail-connective connected-bridi-tail tail-terms
@@ -176,7 +175,7 @@ Connected bridi-tails group from the left, as in CLL (CLL 14.10), and `bridi-tai
   selbri-not-starting-with-ke tail-terms | gek-sentence
 
 %redefine-rule gek-sentence
-  gek subsentence gik subsentence tail-terms | [tag] KE # gek-sentence [KEhE] # | NA # gek-sentence
+  gek subsentence gik subsentence tail-terms | [tag] KE # gek-sentence [+KEhE] # | NA # gek-sentence
 
 %rule bridi-tail-connective
   gihek # | selbri-connective
@@ -185,7 +184,7 @@ Connected bridi-tails group from the left, as in CLL (CLL 14.10), and `bridi-tai
   joik # | jek # | ek # | VUhU #
 
 %redefine-rule tail-terms
-  [terms] [VAU] #
+  [terms] [+VAU] #
 ```
 
 ## Terms
@@ -288,12 +287,12 @@ The layer reads a termset with `nu'i` as `nu'i` with a forethought form wherever
   gek | ek | jek | joik | gihek
 
 %rule soi-term
-  SOI # subsentence [SEhU] #
+  SOI # subsentence [+SEhU] #
 
 %rule tagged-term
   (* tag_term: !gek tag free* followed by a sumti or KU_elidible free* *)
   | $g(tag) $s(sumti) <tags($s) ∩ $EXTENSIBLE-END>
-  | $g(tag) [KU] #
+  | $g(tag) [+KU] #
 %conditions
   ¬begins(from($g), gek)
 
@@ -336,7 +335,7 @@ The layer reads a termset with `nu'i` as `nu'i` with a forethought form wherever
 %rule listed-tagged-term
   (* abs_tag_term: !gek tag free* !selbri !gek_sentence, then a sumti or an elided KU *)
   | $g(tag) $s(sumti) <tags($s) ∩ $EXTENSIBLE-END>
-  | $g(tag) [KU] #
+  | $g(tag) [+KU] #
 %conditions
   ¬begins(from($g), gek),
   ¬begins(after($g), selbri-after-tag)
@@ -355,18 +354,18 @@ The layer reads a termset with `nu'i` as `nu'i` with a forethought form wherever
 
 %redefine-rule termset
   (* termset <- gek_termset / NUhI_clause free* gek terms NUhU_elidible free* gik terms NUhU_elidible free* / NUhI_clause free* terms NUhU_elidible free* *)
-  | gek termset-branch gik gek-terms [NUhU] #
-  | NUhI # gek terms [NUhU] # gik terms [NUhU] #
-  | NUhI # $t(terms-not-starting-with-bare-gek) [NUhU] #
+  | gek termset-branch gik gek-terms [+NUhU] #
+  | NUhI # gek terms [+NUhU] # gik terms [+NUhU] #
+  | NUhI # $t(terms-not-starting-with-bare-gek) [+NUhU] #
 %conditions
   ¬matches($t, gek-termset-body)
 
 %rule gek-termset-body
   (* NUhI_clause free* gek terms NUhU_elidible free* gik terms: tried before NUhI_clause free* terms *)
-  gek terms [NUhU] # gik terms
+  gek terms [+NUhU] # gik terms
 
 %rule termset-branch
-  gek-terms [NUhU] #
+  gek-terms [+NUhU] #
 
 %rule gek-terms
   {gek-terms-1}
@@ -408,8 +407,8 @@ The layer reads a termset with `nu'i` as `nu'i` with a forethought form wherever
   | soi-clause? soi-term
 
 %rule termset-with-nuhi
-  | NUhI # gek terms [NUhU] # gik terms [NUhU] #
-  | NUhI # $t(terms-not-starting-with-bare-gek) [NUhU] #
+  | NUhI # gek terms [+NUhU] # gik terms [+NUhU] #
+  | NUhI # $t(terms-not-starting-with-bare-gek) [+NUhU] #
 %conditions
   ¬matches($t, gek-termset-body)
 ```
@@ -438,7 +437,7 @@ A description can take a forethought sentence in place of a selbri, and so can a
 
 %redefine-rule sumti-1
   | sumti-2
-  | sumti-2 sumti-connective [stag] KE # $i(sumti) [KEhE] # <KEhE ⊈ tags(head(after($i))) ⟹ tags($i) ∩ $EXTENSIBLE-END>
+  | sumti-2 sumti-connective [stag] KE # $i(sumti) [+KEhE] # <KEhE ⊈ tags(head(after($i))) ⟹ tags($i) ∩ $EXTENSIBLE-END>
 
 %redefine-rule sumti-2
   {... sumti-3 \ sumti-connective}
@@ -452,20 +451,20 @@ A description can take a forethought sentence in place of a selbri, and so can a
   ek # | joik # | jek # | VUhU #
 
 %redefine-rule sumti-5
-  [quantifier] sumti-6 [relative-clauses] | quantifier (selbri | gek-sentence) [KU] # [relative-clauses]
+  [quantifier] sumti-6 [relative-clauses] | quantifier (selbri | gek-sentence) [+KU] # [relative-clauses]
 
 %redefine-rule sumti-6
-  | (LAhE # | NAhE BO # | NAhE #) [relative-clauses] sumti [LUhU] #
-  | (LAhE # | NAhE BO #) $t(term) [LUhU] #
-  | NAhE # $u(term) [LUhU] #
+  | (LAhE # | NAhE BO # | NAhE #) [relative-clauses] sumti [+LUhU] #
+  | (LAhE # | NAhE BO #) $t(term) [+LUhU] #
+  | NAhE # $u(term) [+LUhU] #
   | KOhA #
   | lerfu-string free-after-lerfu-string
   | ¬cbm? name-marker # [relative-clauses] {CMEVLA} #
-  | LE # sumti-tail [KU] #
-  | LOhOI # subsentence [KUhAU] #
-  | LI # mex [LOhO] #
+  | LE # sumti-tail [+KU] #
+  | LOhOI # subsentence [+KUhAU] #
+  | LI # mex [+LOhO] #
   | ZO any-word #
-  | LU text [LIhU] #
+  | LU text [+LIhU] #
   | LOhU [{any-word}] LEhU #
   | ZOI any-word anything any-word #
   | ZOhOI anything #
@@ -500,7 +499,7 @@ Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as
   | gek relative-clauses gik relative-clauses
 
 %redefine-rule relative-clause
-  GOI # term [GEhU] # | NOI # subsentence [KUhO] #
+  GOI # term [+GEhU] # | NOI # subsentence [+KUhO] #
 ```
 
 ## Selbri and tanru
@@ -524,7 +523,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | selbri-5
   | selbri-4 plain-selbri-connective selbri-5
   | selbri-4 joik-before-ke selbri-5-not-ke-group
-  | selbri-4 joik [stag] KE # selbri-3 [KEhE] #
+  | selbri-4 joik [stag] KE # selbri-3 [+KEhE] #
 
 %rule plain-selbri-connective
   | $j(joik) #
@@ -553,7 +552,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | selbri-5-not-starting-with-ke
   | selbri-4-not-starting-with-ke plain-selbri-connective selbri-5
   | selbri-4-not-starting-with-ke joik-before-ke selbri-5-not-ke-group
-  | selbri-4-not-starting-with-ke joik [stag] KE # selbri-3 [KEhE] #
+  | selbri-4-not-starting-with-ke joik [stag] KE # selbri-3 [+KEhE] #
 
 %rule selbri-5-not-starting-with-ke
   selbri-6-not-starting-with-ke [selbri-connective [stag] BO # selbri-5]
@@ -573,19 +572,19 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   BE ⊈ tags(head(after($u)))
 
 %redefine-rule tanru-unit-2
-  | KE # selbri-3 [KEhE] # <~ke-group>
+  | KE # selbri-3 [+KEhE] # <~ke-group>
   | BRIVLA #
   | cbm? CMEVLA #
   | GOhA [RAhO] #
-  | ME # sumti [MEhU] # [MOI #]
-  | ME # $x(mex) [MEhU] # [MOI #]
+  | ME # sumti [+MEhU] # [MOI #]
+  | ME # $x(mex) [+MEhU] # [MOI #]
   | mex MOI #
   | NUhA # operator
   | SE # tanru-unit-2
   | JAI # [tag] tanru-unit-2
   | any-word {ZEI any-word}
   | NAhE # tanru-unit-2
-  | abstractor-chain subsentence [KEI] #
+  | abstractor-chain subsentence [+KEI] #
   | linkargs tanru-unit-1
   | MEhOI anything #
 %conditions
@@ -604,15 +603,15 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | BRIVLA #
   | cbm? CMEVLA #
   | GOhA [RAhO] #
-  | ME # sumti [MEhU] # [MOI #]
-  | ME # $x(mex) [MEhU] # [MOI #]
+  | ME # sumti [+MEhU] # [MOI #]
+  | ME # $x(mex) [+MEhU] # [MOI #]
   | mex MOI #
   | NUhA # operator
   | SE # tanru-unit-2
   | JAI # [tag] tanru-unit-2
   | any-word {ZEI any-word}
   | NAhE # tanru-unit-2
-  | abstractor-chain subsentence [KEI] #
+  | abstractor-chain subsentence [+KEI] #
   | linkargs tanru-unit-1
   | MEhOI anything #
 %conditions
@@ -623,10 +622,10 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | gek selbri-relative-clauses gik selbri-relative-clauses
 
 %rule selbri-relative-clause
-  NOhOI # subsentence [KUhOI] #
+  NOhOI # subsentence [+KUhOI] #
 
 %redefine-rule linkargs
-  BE # [term] [links] [BEhO] #
+  BE # [term] [links] [+BEhO] #
 
 %redefine-rule links
   BEI # [term] [links]
@@ -676,10 +675,10 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 %redefine-rule mex-2
   | number free-after-number
   | lerfu-string free-after-lerfu-string
-  | VEI # mex [VEhO] #
+  | VEI # mex [+VEhO] #
   | gek mex gik mex-2
-  | (LAhE # | NAhE # [BO #]) mex [LUhU] #
-  | PEhO # operator {mex} [KUhE] #
+  | (LAhE # | NAhE # [BO #]) mex [+LUhU] #
+  | PEhO # operator {mex} [+KUhE] #
   | FUhA # rp-expression
 
 %redefine-rule rp-expression
@@ -689,17 +688,17 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   | operator-1
   | operator plain-joik-jek operator-1
   | operator joik-before-ke operator-1-not-ke-group
-  | operator joik [stag] KE # operator [KEhE] #
+  | operator joik [stag] KE # operator [+KEhE] #
 
 %redefine-rule operator-2
   | mex-operator
-  | KE # operator [KEhE] # <~ke-group>
+  | KE # operator [+KEhE] # <~ke-group>
 
 %redefine-rule mex-operator
   | SE # mex-operator
   | NAhE # mex-operator
-  | MAhO # mex [TEhU] #
-  | NAhU # selbri [TEhU] #
+  | MAhO # mex [+TEhU] #
+  | NAhU # selbri [+TEhU] #
   | VUhU #
   | joik-jek
   | ek #
@@ -708,7 +707,7 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   {number-part}
 
 %rule number-part
-  PA | NIhE # selbri [TEhU] # | MOhE # sumti [TEhU] #
+  PA | NIhE # selbri [+TEhU] # | MOhE # sumti [+TEhU] #
 
 %redefine-rule lerfu-string
   {lerfu-word}
@@ -769,8 +768,8 @@ A joik, jek, ek or VUhU connects tenses and modals, and `tag` is a left chain of
 
 %rule tense-atom
   | [NAhE] [SE] (BAI | CAhA | CUhE | KI | ZI | PU | VA | [MOhI] FAhA | ZEhA | VEhA | VIhA) #
-  | [NAhE] [SE] [FEhE] ((number | VEI # mex [VEhO] #) ROI | TAhE | ZAhO) #
-  | [NAhE] [SE] FIhO # selbri [FEhU] #
+  | [NAhE] [SE] [FEhE] ((number | VEI # mex [+VEhO] #) ROI | TAhE | ZAhO) #
+  | [NAhE] [SE] FIhO # selbri [+FEhU] #
   | [NAhE] [SE] FA #
 ```
 
@@ -796,16 +795,16 @@ camxes-exp departs here. It reads the mekso of a subscript as `mex_2`, which end
 
 ```jbogenbau
 %redefine-rule free
-  | SEI # [terms [CU #]] selbri [SEhU]
-  | vocative [relative-clauses] selbri [relative-clauses] [DOhU]
-  | ¬cbm? vocative [relative-clauses] {CMEVLA} # [relative-clauses] [DOhU]
-  | vocative [sumti] [DOhU]
+  | SEI # [terms [CU #]] selbri [+SEhU]
+  | vocative [relative-clauses] selbri [relative-clauses] [+DOhU]
+  | ¬cbm? vocative [relative-clauses] {CMEVLA} # [relative-clauses] [+DOhU]
+  | vocative [sumti] [+DOhU]
   | mex-2 MAI
-  | TO text [TOI]
+  | TO text [+TOI]
   | XI # $m(mex-2)
   | LOhAI [{lohai-word}] [LOhAI [{lohai-word}]] LEhAI
   | LEhAI
-  | ¬soi-clause? SOI # sumti [sumti] [SEhU]
+  | ¬soi-clause? SOI # sumti [sumti] [+SEhU]
 %conditions
   XI ⊈ tags(head(after($m))),
   ¬matches($m, mekso-ending-in-free)
@@ -820,13 +819,13 @@ camxes-exp departs here. It reads the mekso of a subscript as `mex_2`, which end
 
 %rule free-after-number
   (* number BOI_elidible free*: after an elided boi, the number has read every number part *)
-  [BOI] $f(#)
+  [+BOI] $f(#)
 %conditions
   begins($, spoken-boi) ∨ ¬begins($f, number-part)
 
 %rule free-after-lerfu-string
   (* lerfu_string BOI_elidible free*: after an elided boi, the string has read every letter *)
-  [BOI] $f(#)
+  [+BOI] $f(#)
 %conditions
   begins($, spoken-boi) ∨ ¬begins($f, lerfu-word)
 

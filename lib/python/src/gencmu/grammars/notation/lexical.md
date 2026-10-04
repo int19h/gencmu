@@ -181,7 +181,6 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
   | '%' $emits(name) <~keyword-emits>
   | '%' $opaque(name) <~keyword-opaque>
   | '%' $ambiguity-resolution(name) <~keyword-ambiguity-resolution>
-  | '%' $elidable(name) <~keyword-elidable>
   | '%' $stage(name) <~keyword-stage>
   | '%' $include(name) <~keyword-include>
   | '%' $features(name) <~keyword-features>
@@ -199,7 +198,6 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
   text($emits) = "emits",
   text($opaque) = "opaque",
   text($ambiguity-resolution) = "ambiguity-resolution",
-  text($elidable) = "elidable",
   text($stage) = "stage",
   text($include) = "include",
   text($features) = "features",
@@ -209,7 +207,7 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
   text($implies) = "implies",
   text($other) ≠ "rule", text($other) ≠ "redefine-rule", text($other) ≠ "extend-rule",
   text($other) ≠ "tags", text($other) ≠ "conditions", text($other) ≠ "emits",
-  text($other) ≠ "opaque", text($other) ≠ "ambiguity-resolution", text($other) ≠ "elidable",
+  text($other) ≠ "opaque", text($other) ≠ "ambiguity-resolution",
   text($other) ≠ "stage", text($other) ≠ "include", text($other) ≠ "features",
   text($other) ≠ "const", text($other) ≠ "redefine-const",
   text($other) ≠ "classifier", text($other) ≠ "implies"
@@ -219,14 +217,15 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
 
 ## Symbols
 
-Every other token is a symbol. A symbol of one character keeps the character tag of its one character, such as `'|'`. `⊇` and `⊉` stand only in a test in a body, such as `UI⊇~indicator`. Braces, `{` and `}`, hold a repetition, and a backslash, `\`, separates its item from its separator. A backslash inside a string, a character tag or a property belongs to that token, so it is a symbol only outside them. The rule for `...`, the marker of a chain, tags it `ellipsis`, and `..`, which joins the two ends of a range, is `double-dot`.
+Every other token is a symbol. A symbol of one character keeps the character tag of its one character, such as `'|'`. `⊇` and `⊉` stand only in a test in a body, such as `UI⊇~indicator`. Braces, `{` and `}`, hold a repetition, and a backslash, `\`, separates its item from its separator. A backslash inside a string, a character tag or a property belongs to that token, so it is a symbol only outside them. The rule for `...`, the marker of a chain, tags it `ellipsis`, and `..`, which joins the two ends of a range, is `double-dot`. A `+` after a bracket marks an elidable optional, and `++` one whose terminator is also maximal. The rule tags `++` `double-plus`, so `+++` is `++` and then `+`, never three markers.
 
 ```jbogenbau
 %rule symbol
-  | '|' | '&' | '(' | ')' | '[' | ']' | '{' | '}' | '\\' | '<' | '>' | '#' | 'ε' | ',' | '∧' | '∨' | '⟹'
+  | '|' | '&' | '(' | ')' | '[' | ']' | '{' | '}' | '\\' | '+' | '<' | '>' | '#' | 'ε' | ',' | '∧' | '∨' | '⟹'
   | '=' | '≠' | '∈' | '∉' | '⊆' | '⊈' | '⊇' | '⊉' | '∪' | '∩' | '∖' | '∅'
   | '.' '.' '.' <~ellipsis>
   | '.' '.' <~double-dot>
+  | '+' '+' <~double-plus>
 %emits
   $
 ```

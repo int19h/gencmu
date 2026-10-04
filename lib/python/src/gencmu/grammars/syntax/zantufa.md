@@ -19,7 +19,7 @@ The prose also uses these Lojban terms:
 
 A stage is one step of a pipeline, with its own grammar. The pipeline is the sequence of stages that reads a text. The indicator stage attaches `ba'e` and the other words of BAhE to the word after them, so this grammar does not read them. It reads every other word, the attitudinals included.
 
-Zantufa lets free modifiers follow every word (`post_clause`), with a few exceptions. These are `bu`, `fa'o`, a word of SI or BAhE, and the words inside a quote. So the translation writes `#`, the slot for free modifiers, after each terminal and after each quote. An elidable terminator keeps its slot inside its brackets, `[KU #]`, as the reference's `KU_elidible <- KU_clause?` does. After a PA word, the free modifiers do not begin with a number (`number_post_clause`). After a BY word they do not begin with a lerfu string, and after a COI word they do not begin with a vocative.
+Zantufa lets free modifiers follow every word (`post_clause`), with a few exceptions. These are `bu`, `fa'o`, a word of SI or BAhE, and the words inside a quote. So the translation writes `#`, the slot for free modifiers, after each terminal and after each quote. An elidable terminator keeps its slot inside its brackets, `[+KU #]`, as the reference's `KU_elidible <- KU_clause?` does. After a PA word, the free modifiers do not begin with a number (`number_post_clause`). After a BY word they do not begin with a lerfu string, and after a COI word they do not begin with a vocative.
 
 The word stage reads the magic words, the words such as `si` that act on other words. `zei` is SI there and erases a word, `sa` is an attitudinal, and `su` erases the whole text before it. "Differences from Zantufa 1.9999" says where the last differs from Zantufa.
 
@@ -27,19 +27,19 @@ The word stage reads the magic words, the words such as `si` that act on other w
 
 The directive `%ambiguity-resolution late-elision` says how the stage chooses among parses. It compares two parses only where they elide terminators. At the first place where they differ, it takes the parse that reads on. So a terminator is elided as late as the grammar allows. Two parses that elide the same terminators at the same places are tied, and a tie is an error. The stage does not declare `maximal` or `elision-only`.
 
-A PEG's repetition reads as far as it can, and the ranking usually gives the same reading. Where two alternatives of an ordered choice can read the same words, the later one has a condition that removes that reading. So the grammar, not the ranking, settles a choice that elides no terminator. The terminators that the reference writes with `_elidible` are elidable here, but `cu` and `i'au` are not.
+A PEG's repetition reads as far as it can, and the ranking usually gives the same reading. Where two alternatives of an ordered choice can read the same words, the later one has a condition that removes that reading. So the grammar, not the ranking, settles a choice that elides no terminator. The terminators that the reference writes with `_elidible` are elidable here, each marked in its place, as `[+KU]`, but `cu` and `i'au` are not.
 
 A condition parses the words that it tests, and that nested parse can elide terminators. It follows written-terminator priority ([engine §4](../../docs/engine.md#4-recognition)). So it cannot elide a terminator where the same construct can read on to that terminator as written. A PEG's lookahead reads on in the same way. So `cy to roi toi klama` parses as in Zantufa, with `roi` inside the parenthesis. The condition on a sumti term does not find the tag `cy roi` with an empty parenthesis there.
 
-Written-terminator priority does not help where no terminator is written. `to` holds a text and `sei` holds a statement, and the reference reads that content as far as it can. A nested reading here closed a `to` or a `sei` early, with its terminator elided. A negative condition then found a reading that the reference never forms, and it removed the right reading. So `%elidable maximal TOI SEhU` makes these two terminators maximal ([engine §4](../../docs/engine.md#4-recognition)). An elided `toi` or `se'u` then closes only content that cannot be longer, in the main parse and in each condition.
+Written-terminator priority does not help where no terminator is written. `to` holds a text and `sei` holds a statement, and the reference reads that content as far as it can. A nested reading here closed a `to` or a `sei` early, with its terminator elided. A negative condition then found a reading that the reference never forms, and it removed the right reading. So these two terminators are written `[++TOI]` and `[++SEhU]`, which makes them maximal ([engine §4](../../docs/engine.md#4-recognition)). The marker `++` is transitional, until this grammar's redesign (GitHub issues #138 and #139). An elided `toi` or `se'u` then closes only content that cannot be longer, in the main parse and in each condition.
 
 These texts showed the problem, and each now has Zantufa's reading. In `so to recap` and `so to mi klama`, the parenthesis holds the rest of the text, and the text is one mekso. In ` o'ocu'i is mere tolerance`, the parenthesis after `re` holds `le rance`. In `ro sei ny rere'u basna mutce cusku`, the `sei` holds `ny rere'u basna mutce cusku`. Before, each of them closed the `to` or `sei` early in a condition's nested reading. The rule also rejects `metonymy`, as Zantufa does, because the parenthesis takes `ny my`, and `me` then has nothing.
 
-The reference writes `CU_elidible`, but `cu` is a separator. It stands between the terms and the bridi-tail, and it closes neither of them. CLL's grammar does not make `cu` elidable either. So `[CU #]` is an ordinary optional here. A written `cu` parses as before, and a sentence can still omit it. `maximal` and `elision-only` do not treat `cu` as a terminator.
+The reference writes `CU_elidible`, but `cu` is a separator. It stands between the terms and the bridi-tail, and it closes neither of them. CLL's grammar does not make `cu` elidable either. So `[CU #]` is a plain optional here, with no marker. A written `cu` parses as before, and a sentence can still omit it. `maximal` and `elision-only` do not treat `cu` as a terminator.
 
 An absent `cu` makes no elided node in the tree, and the ranking does not count it. This matters. If `cu` is elidable, an absent `cu` is an elision before the bridi-tail, and so an early one. The ranking then prefers a reading that closes a parenthesis, a quote or a `jai` early, and begins the bridi-tail later. With an elidable `cu`, `to na cafne` closes the parenthesis after `na`. Zantufa holds `na cafne` in the parenthesis, and so does this grammar.
 
-The same holds for `i'au`. The reference writes `IAU_elidible` between a statement and the terms after it (`statement-terms`). There `i'au` separates the terms from the statement, and it closes nothing. So `[IAU #]` is an ordinary optional too, and an absent `i'au` makes no elided node.
+The same holds for `i'au`. The reference writes `IAU_elidible` between a statement and the terms after it (`statement-terms`). There `i'au` separates the terms from the statement, and it closes nothing. So `[IAU #]` is a plain optional too, and an absent `i'au` makes no elided node.
 
 The grammar also states the attachment conventions of the reference. These are the points where a greedy repetition or an ordered choice of the reference decides how words attach. A condition states each of them, so that the grammar gives the reading, and the ranking does not. These are the conventions:
 
@@ -52,11 +52,6 @@ Each of these conditions is a restriction of the grammar, not a preference among
 
 ```jbogenbau
 %ambiguity-resolution late-elision
-
-%elidable
-  BEhO BOI DOhU FEhU GEhU GIhI KEI KEhE KU KUhAU KUhE
-  KUhO LIhAU LIhU LOhO LUhU MEhU TEhU TUhU VAU VEhO
-%elidable maximal TOI SEhU
 
 %rule #
   [{free}]
@@ -126,11 +121,11 @@ The lookaheads of the reference's fragments are conditions here. A `gek` or `joi
 
 %rule statement-3
   (* statement_3 <- sentence / tag? TUhE_clause paragraphs TUhU_elidible / gek_statement *)
-  sentence | [tag] TUhE # paragraphs [TUhU #] | gek-statement
+  sentence | [tag] TUhE # paragraphs [+TUhU #] | gek-statement
 
 %rule gek-statement
   (* gek_statement <- gek statement (gik statement)+ GIhI_elidible *)
-  gek $a(gek-branches) gik $l(statement) [GIhI #]
+  gek $a(gek-branches) gik $l(statement) [+GIhI #]
 %conditions
   ¬matches($a, sentence-branches) ∨ ¬matches($l, sentence-continued)
 
@@ -182,7 +177,7 @@ The lookaheads of the reference's fragments are conditions here. A `gek` or `joi
   NA #
 
 %rule terms-vau
-  terms [VAU #]
+  terms [+VAU #]
 
 %rule ku-word
   KU
@@ -204,7 +199,7 @@ The tenses and modals before `ke` and a forethought bridi-tail are one tag. The 
 %rule sentence
   (* sentence <- terms? CU_elidible bridi_tail / terms? gek sentence (gik sentence)+ GIhI_elidible tail_terms *)
   | [terms] [CU #] bridi-tail
-  | [terms] $g(gek) sentence {gik sentence} [GIhI #] tail-terms
+  | [terms] $g(gek) sentence {gik sentence} [+GIhI #] tail-terms
 %conditions
   ¬begins(from($g), bridi-tail-before-no-gik)
 
@@ -249,7 +244,7 @@ The tenses and modals before `ke` and a forethought bridi-tail are one tag. The 
 
 %rule bridi-tail-3
   (* bridi_tail_3 <- KE_clause !(selbri_2 KEhE) bridi_tail KEhE_elidible tail_terms / selbri tail_terms / gek_bridi_tail *)
-  | $k(ke-clause) bridi-tail [KEhE #] tail-terms
+  | $k(ke-clause) bridi-tail [+KEhE #] tail-terms
   | $s(selbri) tail-terms
   | gek-bridi-tail
 %conditions
@@ -268,8 +263,8 @@ The tenses and modals before `ke` and a forethought bridi-tail are one tag. The 
 %rule gek-bridi-tail
   (* gek_bridi_tail <- gek bridi_tail (gik bridi_tail)+ !(gik (term / CU)) GIhI_elidible tail_terms
                      / tag* KE_clause gek_bridi_tail KEhE_elidible / NA_clause gek_bridi_tail *)
-  | gek bridi-tail $g(gik-bridi-tails) [GIhI #] tail-terms
-  | [tag] KE # gek-bridi-tail [KEhE #]
+  | gek bridi-tail $g(gik-bridi-tails) [+GIhI #] tail-terms
+  | [tag] KE # gek-bridi-tail [+KEhE #]
   | NA # gek-bridi-tail
 %conditions
   ¬begins(after($g), gik-term)
@@ -282,7 +277,7 @@ The tenses and modals before `ke` and a forethought bridi-tail are one tag. The 
 
 %rule tail-terms
   (* tail_terms <- term* VAU_elidible *)
-  [{term}] [VAU #]
+  [{term}] [+VAU #]
 ```
 
 ## Terms
@@ -319,8 +314,8 @@ A `ke` group of terms comes before a sumti that begins with `ke`, as in the refe
 %rule term-2
   (* term_2 <- XOI_clause statement SEhU_elidible / KE_clause !(sumti KEhE) term+ KEhE_elidible
               / tag_term / !tag sumti / brigahi / gek_term *)
-  | XOI # statement [SEhU #]
-  | $k(ke-clause) {term} [KEhE #]
+  | XOI # statement [++SEhU #]
+  | $k(ke-clause) {term} [+KEhE #]
   | tag-term
   | $s(sumti)
   | brigahi
@@ -341,8 +336,8 @@ A `ke` group of terms comes before a sumti that begins with `ke`, as in the refe
 
 %rule brigahi
   (* brigahi <- (POIhA_clause free* selbri / NA_clause !bridi_tail !joik_gihek) KU_elidible *)
-  | POIhA # selbri [KU #]
-  | $n(na-clause) [KU #]
+  | POIhA # selbri [+KU #]
+  | $n(na-clause) [+KU #]
 %conditions
   ¬begins(after($n), bridi-tail),
   ¬begins(after($n), joik-gihek)
@@ -362,7 +357,7 @@ A `ke` group of terms comes before a sumti that begins with `ke`, as in the refe
   ¬begins(after($f), tanru-unit-1)
 
 %rule tag-term-argument
-  sumti | [KU #]
+  sumti | [+KU #]
 
 %rule fa-jai
   {FA # \ joik} | JAI # [tag]
@@ -372,7 +367,7 @@ A `ke` group of terms comes before a sumti that begins with `ke`, as in the refe
 
 %rule gek-term
   (* gek_term <- gek term+ (gik term+)+ GIhI_elidible *)
-  gek {term} {gik {term}} [GIhI #]
+  gek {term} {gik {term}} [+GIhI #]
 ```
 
 ## Sumti
@@ -414,11 +409,11 @@ The conditions on `sumti-1` and `sumti-2` state this. Each says that no further 
 
 %rule sumti-3
   (* sumti_3 <- (KE_clause sumti KEhE_elidible / sumti_4 / gek sumti (gik sumti)+ GIhI_elidible) relative_clauses? *)
-  (KE # sumti [KEhE #] | sumti-4 | gek sumti {gik sumti} [GIhI #]) [relative-clauses]
+  (KE # sumti [+KEhE #] | sumti-4 | gek sumti {gik sumti} [+GIhI #]) [relative-clauses]
 
 %rule sumti-4
   (* sumti_4 <- quantifier? sumti_5 / quantifier selbri KU_elidible *)
-  [quantifier] sumti-5 | quantifier selbri [KU #]
+  [quantifier] sumti-5 | quantifier selbri [+KU #]
 
 %rule sumti-5
   (* sumti_5 <- RAhOI_clause / ZO_clause / ZOI_clause / LOhU_clause
@@ -431,19 +426,19 @@ The conditions on `sumti-1` and `sumti-2` state this. Each says that no further 
   | ZOI any-word anything any-word #
   | LOhU [{any-word}] LEhU #
   | $l(lerfu-boi)
-  | LU text [LIhU #]
-  | (LAhE # | NAhE # BO #) [relative-clauses] sumti [LUhU #]
+  | LU text [+LIhU #]
+  | (LAhE # | NAhE # BO #) [relative-clauses] sumti [+LUhU #]
   | KOhA #
-  | {LOhOI # \ joik} statement [KUhAU #]
-  | LE # sumti-tail [KU #]
-  | LI # mex [LOhO #]
+  | {LOhOI # \ joik} statement [+KUhAU #]
+  | LE # sumti-tail [+KU #]
+  | LI # mex [+LOhO #]
   | NAhE # sumti-3
 %conditions
   ¬begins(after($l), lerfu-operator),
   ¬begins(after($l), operand-kehe)
 
 %rule lerfu-boi
-  lerfu-string [BOI #]
+  lerfu-string [+BOI #]
 
 %rule lerfu-operator
   [{BO #}] [{operand}] $o(operator)
@@ -486,7 +481,7 @@ Relative clauses can stand side by side, joined by a joik or by nothing. They fo
 
 %rule relative-clause
   (* relative_clause <- GOI_clause term GEhU_elidible / NOI_clause statement KUhO_elidible *)
-  GOI # term [GEhU #] | NOI # statement [KUhO #]
+  GOI # term [+GEhU #] | NOI # statement [+KUhO #]
 ```
 
 ## Selbri and tanru
@@ -561,21 +556,21 @@ A run of `cei` nests to the right. The reference repeats `(CEI_clause selbri)*`,
   | CMEVLA #
   | BRIVLA #
   | GOhA #
-  | KE # selbri-2 [KEhE #]
-  | NAhE # gek selbri-2 $g(gik-selbris) [GIhI #]
-  | $k(gek) selbri-2 $g(gik-selbris) [GIhI #]
+  | KE # selbri-2 [+KEhE #]
+  | NAhE # gek selbri-2 $g(gik-selbris) [+GIhI #]
+  | $k(gek) selbri-2 $g(gik-selbris) [+GIhI #]
   | MUhOI any-word anything any-word #
   | GOhOI any-word #
-  | LUhEI text [LIhAU #]
-  | ME # sumti [MEhU #] [MOI #]
-  | ME # {operator} [MEhU #] [MOI #]
-  | ME # $m(mex) [MEhU #] [MOI #]
-  | ME # $t(tag) [MEhU #] [MOI #]
+  | LUhEI text [+LIhAU #]
+  | ME # sumti [+MEhU #] [MOI #]
+  | ME # {operator} [+MEhU #] [MOI #]
+  | ME # $m(mex) [+MEhU #] [MOI #]
+  | ME # $t(tag) [+MEhU #] [MOI #]
   | mex MOI #
   | ({FA # \ joik} | SE #) $w(tanru-unit-1)
   | JAI # [tag] tanru-unit-1
   | NAhE # $n(tanru-unit-1)
-  | {NU # \ joik} statement [KEI #]
+  | {NU # \ joik} statement [+KEI #]
 %conditions
   ¬begins(after($g), gik-term-or-cu),
   ¬matches($m, sumti),
@@ -609,7 +604,7 @@ A run of `cei` nests to the right. The reference repeats `(CEI_clause selbri)*`,
 
 %rule linkargs
   (* linkargs <- BE_clause term links? BEhO_elidible *)
-  BE # term [links] [BEhO #]
+  BE # term [links] [+BEhO #]
 
 %rule links
   (* links <- BEI_clause term links? *)
@@ -656,7 +651,7 @@ The operand after a run of operators is greedy too. The reference's `mex_1?` aft
   ¬begins(after($o), mex-group)
 
 %rule mex-group
-  KE # {mex-2} [KEhE #] | {mex-2 \ BO #}
+  KE # {mex-2} [+KEhE #] | {mex-2 \ BO #}
 
 %rule mex-2
   (* mex_2 <- operand / mex_rp / mex_forethought *)
@@ -664,21 +659,21 @@ The operand after a run of operators is greedy too. The reference's `mex_1?` aft
 
 %rule mex-rp
   (* mex_rp <- FUhA_clause mex_2+ operator (mex_2* operator)* KUhE_elidible *)
-  FUhA # {mex-2} operator [{[{mex-2}] operator}] [KUhE #]
+  FUhA # {mex-2} operator [{[{mex-2}] operator}] [+KUhE #]
 
 %rule mex-forethought
   (* mex_forethought <- !(lerfu_string BOI_elidible) operator mex_2+ mex_forethought? KUhE_elidible
                       / PEhO_clause operator mex_2+ mex_forethought? KUhE_elidible *)
-  [PEhO #] operator {mex-2} [KUhE #]
+  [PEhO #] operator {mex-2} [+KUhE #]
 
 %rule operator
   (* operator <- SE_clause operator / NAhE_clause operator / MAhO_clause (mex / selbri / sumti) TEhU_elidible
                / VUhU_clause / joik_ek !CU *)
   | SE # operator
   | NAhE # operator
-  | MAhO # $m(mex) [TEhU #]
-  | MAhO # $s(selbri) [TEhU #]
-  | MAhO # $u(sumti) [TEhU #]
+  | MAhO # $m(mex) [+TEhU #]
+  | MAhO # $s(selbri) [+TEhU #]
+  | MAhO # $u(sumti) [+TEhU #]
   | VUhU #
   | $j(joik-ek)
 %conditions
@@ -707,12 +702,12 @@ The operand after a run of operators is greedy too. The reference's `mex_1?` aft
   (* operand <- number BOI_elidible / lerfu_string BOI_elidible / VEI_clause mex VEhO_elidible
               / MOhE_clause (selbri / sumti) TEhU_elidible / (LAhE_clause / NAhE_clause BO_clause) mex LUhU_elidible
               / NAhE_clause operand *)
-  | number [BOI #]
-  | lerfu-string [BOI #]
-  | VEI # mex [VEhO #]
-  | MOhE # selbri [TEhU #]
-  | MOhE # $u(sumti) [TEhU #]
-  | (LAhE # | NAhE # BO #) mex [LUhU #]
+  | number [+BOI #]
+  | lerfu-string [+BOI #]
+  | VEI # mex [+VEhO #]
+  | MOhE # selbri [+TEhU #]
+  | MOhE # $u(sumti) [+TEhU #]
+  | (LAhE # | NAhE # BO #) mex [+LUhU #]
   | NAhE # operand
 %conditions
   ¬matches($u, selbri)
@@ -787,7 +782,7 @@ A tense or modal (the rule `tag`) is a run of `tcita-selci` joined by joiks. Eac
   | BAI #
   | ROI #
   | $m(mex) ROI #
-  | FIhO # selbri [FEhU #]
+  | FIhO # selbri [+FEhU #]
 %conditions
   $m ⟹ ¬matches($, nahe-se-tcita-selci)
 
@@ -814,11 +809,11 @@ The dialect keeps one odd reading of Zantufa. In `pe'usai doi xod ko jmina`, the
   (* free <- SEI_clause statement SEhU_elidible / vocative relative_clauses? selbri DOhU_elidible
            / vocative sumti? DOhU_elidible / mex_2 MAI_clause / TO_clause text TOI_elidible / xi_clause
            / LOhAI_clause / (UI_clause !BU_clause)+ *)
-  | SEI # statement [SEhU #]
-  | vocative [relative-clauses] selbri [DOhU #]
-  | vocative [sumti] [DOhU #]
+  | SEI # statement [++SEhU #]
+  | vocative [relative-clauses] selbri [+DOhU #]
+  | vocative [sumti] [+DOhU #]
   | mex-2 MAI #
-  | TO text [TOI #]
+  | TO text [++TOI #]
   | XI # mex-2
   | [LOhAI [{lohai-word}] [LOhAI [{lohai-word}]]] LEhAI #
   | UI #

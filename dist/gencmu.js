@@ -1543,9 +1543,9 @@
     // Whether the optional after each item is of a maximal terminator.
     const lowered = chart.context.lowered;
     const maximalNext = order.map((item, x) => {
-      if (next[x] !== "constituent" || lowered.maximalTerminals.size === 0) return false;
+      if (next[x] !== "constituent" || lowered.maximalHelpers.size === 0) return false;
       const helpers = lowered.byLhs.get(item.production.rhs[item.dot].name) || [];
-      return helpers.some((production) => production.elided !== null && lowered.maximalTerminals.has(production.elided));
+      return helpers.some((production) => production.elided !== null && lowered.maximalHelpers.has(production.lhs));
     });
     // The completed items of each symbol from each origin, in the query's
     // chart, made once per query when a maximal terminator needs them, with
@@ -1771,6 +1771,8 @@
   const DOM_FUNCTIONS = new Set(["phonemes", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
   const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈"]);
   const DOM_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
+  // The directives of the notation (engine §9).
+  const DIRECTIVE_NAMES = new Set(["ambiguity-resolution", "stage", "include", "features"]);
   // A capture's name is all lower case (engine §9).
   const CAPTURE_NAME = /^[a-z][a-z0-9-]*$/;
   // The nesting the notation allows (engine §9): deeper than any grammar a
@@ -1923,7 +1925,7 @@
    * The forms of an expression, a term and a condition, each as its members
    * (docs/output.md). The first member names the form.
    */
-  const EXPRESSION_FORMS = [["seq"], ["choice"], ["and"], ["optional"], ["repeat", "separator?", "chain?"], ["ref"], ["terminal"], ["capture", "expr"],
+  const EXPRESSION_FORMS = [["seq"], ["choice"], ["and"], ["optional", "elidable?", "maximal?"], ["repeat", "separator?", "chain?"], ["ref"], ["terminal"], ["capture", "expr"],
     ["range"], ["property"], ["test", "value", "expr"], ["empty"]];
   const TERM_FORMS = [["union"], ["intersection"], ["difference"], ["if", "then"], ["call", "args"], ["string"], ["tag"], ["range"], ["emptySet"], ["capture"], ["const", "at"]];
   const CONDITION_FORMS = [["op", "left", "right"], ["matches", "rule"], ["begins", "rule"], ["initial"], ["not"], ["any"], ["all"], ["captured"], ["if", "then"]];
@@ -1958,20 +1960,24 @@
     for (const directive of dom.directives) {
       if (!isDomObject(directive) || typeof directive.name !== "string" || !Array.isArray(directive.args) ||
           !directive.args.every((arg) => typeof arg === "string") || !isDomPosition(directive.at)) return "a malformed directive";
-      // Only an elidable directive can be maximal, and the member is then true
-      // (engine §9).
-      if ("maximal" in directive && (directive.name !== "elidable" || directive.maximal !== true)) return "a malformed directive";
+      // No directive has a maximal member, and the notation has four
+      // directives; %elidable is none of them (engine §9).
+      if ("maximal" in directive || !DIRECTIVE_NAMES.has(directive.name)) return "a malformed directive";
       // The operands the notation's syntax allows these directives (engine §9).
       const args = /** @type {string[]} */ (directive.args);
       if ((directive.name === "stage" && !(args.length === 1 && DOM_NAME.test(args[0]))) ||
           (directive.name === "include" && args.length !== 1) ||
-          (directive.name === "features" && !(args.length > 0 && args.every((arg) => DOM_NAME.test(arg)))) ||
-          (directive.name === "elidable" && !args.every((arg) => DOM_NAME.test(arg)))) return "a malformed directive";
+          (directive.name === "features" && !(args.length > 0 && args.every((arg) => DOM_NAME.test(arg))))) return "a malformed directive";
     }
     // `whole` marks an alternative's whole expression, where a chain may
-    // stand.
-    /** @type {{kind: string, value: unknown, depth: number, whole?: boolean}[]} */
+    // stand, and `sealed` a place inside braces or an elidable optional,
+    // where no capture stands.
+    /** @type {{kind: string, value: unknown, depth: number, whole?: boolean, sealed?: boolean}[]} */
     const pending = [];
+    // The expressions of the alternatives, whose capture names are checked
+    // per production once their shape is.
+    /** @type {unknown[]} */
+    const expressions = [];
     // The tested symbols, whose values are checked once the nesting is
     // bounded.
     /** @type {Record<string, any>[]} */
@@ -2021,26 +2027,10 @@
               (guard.kind === "gate" || (guard.kind === "warning" && guard.negated === false)))) {
           return "a malformed alternative";
         }
-        // A capture stands only at the top level of an alternative: the
-        // expression itself or an item of its sequence (engine §3.5).
         // Depth counts the compound nodes above a node (engine §9): the
         // items of a top-level sequence are below one, the sequence.
-        const expr = alternative.expr;
-        // The expression itself is checked before its sequence is split, so
-        // that a member beside `seq` is never left unread.
-        if (isDomObject(expr) && !hasOneForm(expr, EXPRESSION_FORMS)) return "a malformed expression";
-        const isSeq = isDomObject(expr) && Array.isArray(expr.seq);
-        const top = isSeq ? /** @type {unknown[]} */ (expr.seq) : [expr];
-        for (const item of top) {
-          if (isDomObject(item) && "capture" in item) pending.push({ kind: "top-capture", value: item, depth: isSeq ? 1 : 0 });
-          else pending.push({ kind: "expr", value: item, depth: isSeq ? 1 : 0, whole: !isSeq });
-        }
-        if (isDomObject(expr) && Array.isArray(expr.seq) && expr.seq.length < 2) return "a malformed expression";
-        const names = top.flatMap((item) => (isDomObject(item) && typeof item.capture === "string" ? [item.capture] : []));
-        if (new Set(names).size !== names.length) return "a capture name used twice in an alternative";
-        if (names.length > 4) return "more than four captures in an alternative";
-        if (names.includes("")) return "a capture that wraps a symbol has a name";
-        if (!names.every((name) => CAPTURE_NAME.test(name))) return "a capture name is not all lower case";
+        pending.push({ kind: "expr", value: alternative.expr, depth: 0, whole: true });
+        expressions.push(alternative.expr);
         if (alternative.tags !== undefined) pending.push({ kind: "constituent-tags", value: alternative.tags, depth: 0 });
       }
     }
@@ -2056,49 +2046,55 @@
       /** @type {(list: unknown, least: number, most?: number) => boolean} */
       const list = (items, least, most = Infinity) => Array.isArray(items) && items.length >= least && items.length <= most;
       // An expression has exactly the members of one form (docs/output.md).
-      if ((kind === "expr" || kind === "top-capture") && !hasOneForm(value, EXPRESSION_FORMS)) return "a malformed expression";
+      if (kind === "expr" && !hasOneForm(value, EXPRESSION_FORMS)) return "a malformed expression";
+      // A place inside braces or an elidable optional holds no capture, at
+      // any depth (engine §3.5).
+      /** @type {(child: unknown, sealed?: boolean) => void} */
+      const pushExpr = (child, sealed = false) => pending.push({ kind: "expr", value: child, depth: next, sealed: task.sealed || sealed });
       if (kind === "expr") {
         if ("range" in value || "property" in value) {
           if (!isCharacterClass(value, unicode)) return "a malformed expression";
         } else if ("choice" in value || "seq" in value) {
           const items = "choice" in value ? value.choice : value.seq;
           if (!list(items, 2)) return "a malformed expression";
-          for (const item of /** @type {unknown[]} */ (items)) push("expr", item);
+          for (const item of /** @type {unknown[]} */ (items)) pushExpr(item);
         } else if ("and" in value) {
           if (!list(value.and, 2, 16)) return "a malformed expression";
-          for (const item of /** @type {unknown[]} */ (value.and)) push("expr", item);
+          for (const item of /** @type {unknown[]} */ (value.and)) pushExpr(item);
         } else if ("repeat" in value) {
           // A chain is the whole expression of its alternative (engine §9),
           // and its direction is left or right. A separator counts on from
           // the depth of its repeat, as the item does.
           if ("chain" in value && (!task.whole || (value.chain !== "left" && value.chain !== "right"))) return "a malformed expression";
-          push("expr", value.repeat);
-          if ("separator" in value) push("expr", value.separator);
+          pushExpr(value.repeat, true);
+          if ("separator" in value) pushExpr(value.separator, true);
         } else if ("optional" in value) {
-          push("expr", value.optional);
+          // An elidable optional is marked true, and maximal only with it;
+          // its expression begins with its terminal (engine §3.8, §9).
+          if (("elidable" in value && value.elidable !== true) || ("maximal" in value && (value.maximal !== true || !("elidable" in value)))) return "a malformed expression";
+          if (value.elidable === true && elidableHead(value.optional) === null) return "a malformed elidable optional";
+          pushExpr(value.optional, value.elidable === true);
         } else if ("capture" in value) {
-          return "a capture below the top level of an alternative";
+          // A capture wraps one symbol: a reference, a terminal, a range, a
+          // property or a tested one of these, and stands anywhere but in
+          // braces or an elidable optional (engine §3.5, §9).
+          if (task.sealed) return "a capture inside braces or an elidable optional";
+          const inner = value.expr;
+          if (typeof value.capture !== "string" || !CAPTURE_NAME.test(value.capture) || !isDomObject(inner) ||
+              !["ref", "terminal", "range", "property", "test"].some((member) => member in inner)) return "a malformed capture";
+          pushExpr(inner);
         } else if ("test" in value) {
           // A compound node (engine §9) over one symbol; its value counts on
           // from its depth, and is checked once the nesting is bounded.
           if (typeof value.test !== "string" || !TEST_OPS.has(value.test)) return "a malformed test";
           if (!isTestable(value.expr, unicode)) return "a test follows only a reference other than # or a terminal";
-          push("expr", value.expr);
+          pushExpr(value.expr);
           push("term", value.value);
           tests.push(value);
         } else if (!((typeof value.ref === "string" && (DOM_NAME.test(value.ref) || value.ref === "#")) || isTag(value.terminal, unicode) || value.empty === true)) {
           // A reference is a name or `#` (engine §9).
           return "a malformed expression";
         }
-      } else if (kind === "top-capture") {
-        // A capture wraps one symbol: a reference, a terminal, a range, a
-        // property or a tested one of these (engine §9).
-        const inner = value.expr;
-        if (typeof value.capture !== "string" || !isDomObject(inner) ||
-            !["ref", "terminal", "range", "property", "test"].some((member) => member in inner)) return "a malformed capture";
-        // A capture is a compound node, and its symbol below it is checked
-        // as any expression is.
-        push("expr", inner);
       } else if (kind === "constituent-tags") {
         // A constituent's tags cannot be made of its own (engine §9).
         if (readsOwnTags(value)) return "a constituent's tags made of its own";
@@ -2203,6 +2199,10 @@
     }
     // A definition the reader would refuse (engine §9), and terms and
     // conditions whose types do not agree (engine §10).
+    // A capture name stands at most once in each production (engine §3.5).
+    for (const expr of expressions) {
+      if (captureSequences(expr).duplicates.length > 0) return "a capture name used twice in one production";
+    }
     for (const rule of /** @type {any[]} */ (dom.rules)) {
       const problem = definitionProblem(rule) || ruleTypeProblem(rule);
       if (problem) return problem;
@@ -2418,18 +2418,101 @@
   }
 
   /**
-   * The captures of an alternative's top level, name to position.
+   * The captures of each production of an alternative, name to its place in
+   * the order that the production reads them, with `$` at -1 (engine §3.5).
    * @param {any} alternative
-   * @returns {Map<string, number>}
+   * @returns {Map<string, number>[]}
    */
   function alternativeCaptures(alternative) {
-    const top = isDomObject(alternative.expr) && Array.isArray(alternative.expr.seq) ? alternative.expr.seq : [alternative.expr];
-    /** @type {Map<string, number>} */
-    const captures = new Map([["", -1]]);
-    top.forEach((/** @type {any} */ item, /** @type {number} */ index) => {
-      if (isDomObject(item) && typeof item.capture === "string") captures.set(item.capture, index);
+    return captureSequences(alternative.expr).sequences.map((sequence) => {
+      /** @type {Map<string, number>} */
+      const captures = new Map([["", -1]]);
+      sequence.forEach((capture, index) => captures.set(capture.capture, index));
+      return captures;
     });
-    return captures;
+  }
+
+  /**
+   * The distinct sequences of captures that the productions of an expression
+   * read, each in the order read (engine §3.2, §3.5): a choice gives each
+   * branch's, an `&` each subsequence's, a plain optional none or its
+   * content's, and braces and an elidable optional none. Productions that
+   * read the same names in the same order are one sequence. `duplicates` are
+   * the captures that some production reads after one of the same name, in
+   * no particular order. Gates do not matter, since they drop whole
+   * alternatives.
+   * @param {any} expr
+   * @returns {{sequences: {capture: string}[][], duplicates: {capture: string}[]}}
+   */
+  function captureSequences(expr) {
+    /** @type {Set<{capture: string}>} */
+    const duplicates = new Set();
+    /** @type {(lists: {capture: string}[][]) => {capture: string}[][]} */
+    const distinct = (lists) => {
+      const seen = new Set();
+      return lists.filter((list) => {
+        const key = list.map((capture) => capture.capture).join(" ");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    };
+    /** @type {(left: {capture: string}[][], right: {capture: string}[][]) => {capture: string}[][]} */
+    const product = (left, right) => {
+      /** @type {{capture: string}[][]} */
+      const result = [];
+      for (const a of left) {
+        for (const b of right) {
+          for (const capture of b) if (a.some((other) => other.capture === capture.capture)) duplicates.add(capture);
+          result.push([...a, ...b]);
+        }
+      }
+      return distinct(result);
+    };
+    /** @type {(node: any) => {capture: string}[][]} */
+    const visit = (node) => {
+      if (!isDomObject(node)) return [[]];
+      if (typeof node.capture === "string") return [[/** @type {{capture: string}} */ (node)]];
+      if (Array.isArray(node.seq)) return node.seq.reduce((/** @type {{capture: string}[][]} */ sequences, /** @type {any} */ item) => product(sequences, visit(item)), [[]]);
+      if (Array.isArray(node.choice)) return distinct(node.choice.flatMap(visit));
+      if (Array.isArray(node.and)) {
+        const parts = node.and.map(visit);
+        /** @type {{capture: string}[][]} */
+        const result = [];
+        for (let mask = 1; mask < 1 << parts.length; mask++) {
+          /** @type {{capture: string}[][]} */
+          let sequences = [[]];
+          parts.forEach((/** @type {{capture: string}[][]} */ part, /** @type {number} */ index) => {
+            if (mask & (1 << index)) sequences = product(sequences, part);
+          });
+          result.push(...sequences);
+        }
+        return distinct(result);
+      }
+      if ("optional" in node) return node.elidable === true ? [[]] : distinct([[], ...visit(node.optional)]);
+      return [[]];
+    };
+    const sequences = visit(expr);
+    return { sequences, duplicates: [...duplicates] };
+  }
+
+  /**
+   * The terminal at the head of an elidable optional's expression, or null
+   * when the expression has no such head (engine §3.8, §9): a `ref` whose
+   * name begins with a capital, a `terminal` whose tag is a name, or an `=`
+   * test of one of these, alone or first in a `seq`.
+   * @param {any} expr
+   * @returns {any}
+   */
+  function elidableHead(expr) {
+    const head = isDomObject(expr) && Array.isArray(expr.seq) ? expr.seq[0] : expr;
+    if (!isDomObject(head)) return null;
+    /** @type {(node: any) => boolean} */
+    const isTerminal = (node) => isDomObject(node) && Object.keys(node).length === 1 &&
+      ((typeof node.ref === "string" && /^[A-Z][A-Za-z0-9-]*$/.test(node.ref)) || (typeof node.terminal === "string" && DOM_NAME.test(node.terminal)));
+    if (isTerminal(head)) return head;
+    if (head.test === "=" && isTerminal(head.expr)) return head;
+    return null;
   }
 
   /**
@@ -2445,7 +2528,11 @@
     // holds a constant without one waits for the loader, which checks the
     // definition again once the constants have their values (engine §9).
     const waits = (/** @type {unknown} */ clause) => constantsIn(clause).some((reference) => !("value" in reference));
-    const alternatives = rule.alternatives.map(alternativeCaptures);
+    // Each production of each alternative, with the captures it reads
+    // (engine §3.5, §9); productions that read the same captures in the same
+    // order are one.
+    const productions = rule.alternatives.flatMap((/** @type {any} */ alternative) => alternativeCaptures(alternative).map((captures) => ({ captures, alternative })));
+    const alternatives = productions.map((/** @type {{captures: Map<string, number>}} */ production) => production.captures);
     const anyHas = (/** @type {string} */ name) => alternatives.some((/** @type {Map<string, number>} */ captures) => captures.has(name));
     const items = rule.emit ? rule.emit.items : [];
     // A constituent that does not count is never an opaque part (engine §9).
@@ -2463,25 +2550,24 @@
         const simple = simplify(condition, (name) => captures.has(name));
         return simple !== DOM_TRUE && capturesUsed(simple).every((name) => captures.has(name));
       });
-      if (!applies) return `a condition of ${rule.name} applies to no alternative`;
+      if (!applies) return `a condition of ${rule.name} applies to no production`;
     }
-    for (let index = 0; index < alternatives.length; index++) {
-      const captures = alternatives[index];
+    for (const { captures, alternative } of productions) {
       const has = (/** @type {string} */ name) => captures.has(name);
-      for (const term of [rule.tags, rule.alternatives[index].tags]) {
+      for (const term of [rule.tags, alternative.tags]) {
         if (term === undefined || waits(term)) continue;
         const missing = capturesUsed(simplify(term, has)).find((name) => !has(name));
-        if (missing !== undefined) return `a tag term of ${rule.name} uses $${missing}, which an alternative lacks; guard it with $${missing} ⟹`;
+        if (missing !== undefined) return `a tag term of ${rule.name} uses $${missing}, which a production lacks; guard it with $${missing} ⟹`;
       }
       if (!rule.emit) continue;
       const present = items.filter((/** @type {any} */ item) => item.capture === undefined || has(item.capture));
-      if (items.length > 0 && present.length === 0) return `%emits of ${rule.name} leaves an alternative nothing to emit`;
-      // An alternative without an item's carrier lacks its attachments too
+      if (items.length > 0 && present.length === 0) return `%emits of ${rule.name} leaves a production nothing to emit`;
+      // A production without an item's carrier lacks its attachments too
       // (engine §9).
       for (const item of items) {
         if (item.capture === undefined || has(item.capture)) continue;
         const stray = attachmentsOf(item).find(has);
-        if (stray !== undefined) return `%emits of ${rule.name} attaches $${stray} in an alternative without its carrier $${item.capture}`;
+        if (stray !== undefined) return `%emits of ${rule.name} attaches $${stray} in a production without its carrier $${item.capture}`;
       }
       // The written order of the captures, attachments included, is the order
       // they stand in (engine §9).
@@ -2493,14 +2579,14 @@
       for (const item of present) {
         if (!item.tags || waits(item.tags)) continue;
         const missing = capturesUsed(simplify(item.tags, has)).find((name) => !has(name));
-        if (missing !== undefined) return `a tag term of ${rule.name} uses $${missing}, which an alternative lacks; guard it with $${missing} ⟹`;
+        if (missing !== undefined) return `a tag term of ${rule.name} uses $${missing}, which a production lacks; guard it with $${missing} ⟹`;
       }
     }
     for (let index = 0; index < items.length; index++) {
       if (items[index].insert === undefined) continue;
       const next = items.slice(index + 1).find((/** @type {any} */ item) => item.capture !== undefined);
       if (next && next.capture !== "" && !alternatives.every((/** @type {Map<string, number>} */ captures) => captures.has(next.capture))) {
-        return `%emits of ${rule.name} inserts a tag before $${next.capture}, which an alternative lacks`;
+        return `%emits of ${rule.name} inserts a tag before $${next.capture}, which a production lacks`;
       }
     }
     return null;
@@ -2942,7 +3028,6 @@
    * @property {SymbolTest | null} elidedTest
    */
 
-  const MAX_CAPTURES = 4;
 
   // The most lowered grammars, and the most classifier tables, that a stage
   // keeps. Each set of the stage's gates that is on has its own, so a stage
@@ -2973,11 +3058,6 @@
       this.rules = new Map();
       /** @type {RuleChange[]} */
       this.changes = [];
-      /** @type {Set<string>} */
-      this.elidable = new Set();
-      // The elidable terminators that %elidable maximal names (engine §2).
-      /** @type {Set<string>} */
-      this.maximalTerminals = new Set();
       /** @type {Resolution | null} */
       this.resolution = null;
       /**
@@ -3009,7 +3089,6 @@
        * @type {WeakMap<object, SymbolTest>}
        */
       this.tests = new WeakMap();
-      this.checkElidableTests();
       if (!this.resolution) {
         throw new GencmuError("grammar", `stage ${stageName} has no %ambiguity-resolution`, { stage: stageName });
       }
@@ -3080,12 +3159,6 @@
             this.resolution = { lean, elisionOnly, maximal };
             break;
           }
-          case "elidable":
-            for (const terminal of directive.args) {
-              this.elidable.add(terminal);
-              if (directive.maximal) this.maximalTerminals.add(terminal);
-            }
-            break;
           default:
             throw new GencmuError("grammar", `${path}:${at.line}: unknown directive %${directive.name}`, at);
         }
@@ -3330,33 +3403,6 @@
     }
 
     /**
-     * The terminal of an elidable optional has no test or an `=` test, since
-     * elision-only restores it with a sound (engine §3.8). The check runs once
-     * the stage is stitched, since a later %elidable can make an optional
-     * elidable, over every alternative whatever the features.
-     */
-    checkElidableTests() {
-      for (const rule of this.rules.values()) {
-        for (const alternative of rule.alternatives) {
-          const stack = [alternative.expr];
-          for (let expr = stack.pop(); expr !== undefined; expr = stack.pop()) {
-            if ("optional" in expr) {
-              let first = expr.optional;
-              while ("seq" in first) first = first.seq[0];
-              if ("test" in first && first.test !== "=") {
-                const name = tagName(first.expr);
-                if (name !== undefined && this.elidable.has(name)) {
-                  throw new GencmuError("grammar", `${alternative.document}: ${rule.name} can elide ${name}, whose test ${first.test} gives it no sound to restore; an elidable terminator has no test or an = test`, alternative.at);
-                }
-              }
-            }
-            stack.push(...childExpressions(expr));
-          }
-        }
-      }
-    }
-
-    /**
      * A test of a body with its value, from the constants' final values
      * (engine §2, §4).
      * @param {{test: TestOp, value: Term}} test
@@ -3401,12 +3447,6 @@
             if (!this.classifierItems.some((item) => item.classifier.name === name)) {
               throw new GencmuError("grammar", `${alternative.document}: ${rule.name} classifies with ${name}, which no %classifier of stage ${this.stageName} names`, alternative.at);
             }
-          }
-          const top = "seq" in alternative.expr ? alternative.expr.seq : [alternative.expr];
-          const names = top.flatMap((item) => ("capture" in item ? [item.capture] : []));
-          const twice = names.find((name, index) => names.indexOf(name) !== index);
-          if (twice !== undefined) {
-            throw new GencmuError("grammar", `${alternative.document}: an alternative of ${rule.name} captures $${twice} twice`, alternative.at);
           }
         }
       }
@@ -3534,8 +3574,7 @@
   /**
    * The tag of a symbol that matches by a tag: a terminal, or a reference
    * whose name begins with a capital. A reference in lower case names a rule,
-   * so %elidable never makes it a terminator, even one that shares its name
-   * with an identifier tag (engine §2, §3.8).
+   * so it is never the terminator of an elidable optional (engine §2, §3.8).
    * @param {Expr} expr
    * @returns {string | undefined}
    */
@@ -3605,6 +3644,10 @@
       /** @type {Map<string, Production[]>} */
       this.byLhs = new Map();
       this.helperCount = 0;
+      // The helpers of the optionals written [++T x], whose terminators are
+      // maximal (engine §3.8, §4).
+      /** @type {Set<string>} */
+      this.maximalHelpers = new Set();
       // The structural grammar (engine §3.3): every production that the gates
       // and the expansion make, before a false condition removes any, with
       // its symbols' tests ignored.
@@ -3634,8 +3677,7 @@
       return {
         productions: this.productions,
         byLhs: this.byLhs,
-        elidable: this.grammar.elidable,
-        maximalTerminals: this.grammar.maximalTerminals,
+        maximalHelpers: this.maximalHelpers,
         resolution: /** @type {Resolution} */ (this.grammar.resolution),
       };
     }
@@ -3752,9 +3794,6 @@
       sequence.forEach((item, index) => {
         if (item.capture) captures.push({ name: item.capture, index });
       });
-      if (captures.length > MAX_CAPTURES) {
-        throw loweringError(alternative.at, `an alternative of ${rule.name} has more than ${MAX_CAPTURES} captures`);
-      }
       // `$`, the whole constituent, is a capture every production has.
       const names = new Set(["", ...captures.map((capture) => capture.name)]);
       const clauses = alternative.clauses;
@@ -3852,8 +3891,16 @@
       }
       if ("optional" in expr) {
         const inner = expr.optional;
-        const elided = this.elidedTerminal(inner, where);
+        // A plain optional that holds a capture expands in place, as (ε | x)
+        // would: first the empty sequence, then each expansion of x
+        // (engine §3.2).
+        if (expr.elidable !== true && holdsCapture(inner)) return [/** @type {SequenceItem[]} */ ([]), ...this.expand(inner, where)];
+        // Any other optional is a helper, and a marked one is elidable, with
+        // the terminal that its marker names; ++ makes it maximal
+        // (engine §3.8).
+        const elided = expr.elidable === true ? this.elidedTerminal(inner, where) : null;
         const name = this.helper(where, (context) => [/** @type {SequenceItem[]} */ ([]), ...this.expand(inner, context)], elided);
+        if (expr.maximal === true) this.maximalHelpers.add(name);
         return [[{ symbol: { name, terminal: false } }]];
       }
       if ("repeat" in expr) {
@@ -3926,19 +3973,17 @@
     }
 
     /**
-     * The elidable terminal an optional begins with, if any, and its test: a
-     * tested terminal is elidable when its terminal is (engine §3.8, §12).
+     * The terminal of an elidable optional, the first item of its content,
+     * and its `=` test, if any (engine §3.8, §12).
      * @param {Expr} expr
      * @param {Where} where
-     * @returns {{terminal: string, test: SymbolTest | null} | null}
+     * @returns {{terminal: string, test: SymbolTest | null}}
      */
     elidedTerminal(expr, where) {
-      let first = expr;
-      while ("seq" in first) first = first.seq[0];
+      const first = "seq" in expr ? expr.seq[0] : expr;
       const tested = "test" in first ? first : null;
-      if (tested) first = tested.expr;
-      const name = tagName(first);
-      if (name === undefined || !this.grammar.elidable.has(name)) return null;
+      const name = tagName(tested ? tested.expr : first);
+      if (name === undefined) throw loweringError(where.alternative.at, `an elidable optional in ${where.rule.name} does not begin with its terminator`);
       return { terminal: name, test: tested ? this.grammar.symbolTest(tested, where.rule.document, where.rule.at) : null };
     }
   }
@@ -3966,6 +4011,16 @@
    */
   function loweringError(at, message) {
     return new GencmuError("grammar", `${at.document}:${at.line}:${at.column}: ${message}`, at);
+  }
+
+  /**
+   * Whether an expression holds a capture, at any depth (engine §3.5).
+   * @param {Expr} expr
+   * @returns {boolean}
+   */
+  function holdsCapture(expr) {
+    if ("capture" in expr) return true;
+    return childExpressions(expr).some(holdsCapture);
   }
 
   /**
@@ -5233,8 +5288,8 @@
     if (found) return found;
     const observed = recon.observed;
     let lowered = observed.lowered;
-    if (name === "F5") lowered = { ...lowered, maximalTerminals: new Set() };
-    if (name === "F6") lowered = { ...lowered, maximalTerminals: new Set(lowered.productions.flatMap((production) => (production.helper && production.elided !== null ? [production.elided] : []))) };
+    if (name === "F5") lowered = { ...lowered, maximalHelpers: new Set() };
+    if (name === "F6") lowered = { ...lowered, maximalHelpers: new Set(lowered.productions.flatMap((production) => (production.helper && production.elided !== null ? [production.lhs] : []))) };
     const tokens = name === "F3" || name === "F13" ? r.tokens : observed.tokens;
     found = new ParseContext(lowered, tokens, observed.sourceText, observed.unicode);
     if (name === "F13" || name === "F2") {
@@ -7703,7 +7758,7 @@
     /** @type {Set<string>} */
     const elidable = new Set();
     for (const production of lowered.productions) {
-      if (production.helper && production.elided !== null && (stageWide || lowered.maximalTerminals.has(production.elided))) elidable.add(production.lhs);
+      if (production.helper && production.elided !== null && (stageWide || lowered.maximalHelpers.has(production.lhs))) elidable.add(production.lhs);
     }
     // Whether a constituent could have been longer depends only on its
     // symbol, origin and end: the furthest set holding a completed item of
@@ -7841,7 +7896,7 @@
       const resolution = lowered.resolution;
       // Maximality: stage-wide, or for the maximal terminators alone, before
       // the ranking (engine §4).
-      const maximal = resolution.maximal || lowered.maximalTerminals.size > 0 ? maximalRule(chart, lowered, resolution.maximal) : null;
+      const maximal = resolution.maximal || lowered.maximalHelpers.size > 0 ? maximalRule(chart, lowered, resolution.maximal) : null;
       const ranking = roots.length === 0 ? null : new Ranker(tokens, resolution.lean, maximal).rank(roots);
       if (ranking === null) {
         // A text that maximal leaves with no derivation is rejected at the
@@ -8058,7 +8113,7 @@
       // Neither form of maximality applies to the derivations of R (engine
       // §7.7), unless a fault applies them (F20). Cycles are over spans of R,
       // unless a fault finds them over projected spans (F19).
-      const maximal = fault("F20") && (lowered.resolution.maximal || lowered.maximalTerminals.size > 0)
+      const maximal = fault("F20") && (lowered.resolution.maximal || lowered.maximalHelpers.size > 0)
         ? maximalRule(chart, lowered, lowered.resolution.maximal) : null;
       // A test that watches the check marks W(D)'s edges before the check
       // ranks (tests/README.md).
@@ -8969,20 +9024,19 @@
     // test's operand, or null (engine §9, §10).
     /** @type {string | null} */
     let closedFor = null;
-    // The captures of the alternative being read, in order.
-    /** @type {string[]} */
-    let captures = [];
-    // How many braces the reader is inside, where no capture stands.
+    // The notation node of each capture of the alternative being read, where
+    // an error about it is reported.
+    /** @type {Map<object, ResultNode>} */
+    let captureNodes = new Map();
+    // How many braces and elidable optionals the reader is inside, where no
+    // capture stands.
     let braces = 0;
+    let marked = 0;
     for (const item of parts(tree)) {
       if (item.kind === "rule" && !ITEMS.has(item.rule)) fail(`the notation gives a ${item.rule} where an item stands`, item);
       if (ruleOf(item) === "directive") {
         const name = text(token(item)).slice(1);
-        let operands = parts(item).filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag");
-        // A first word maximal of %elidable makes its terminators maximal and
-        // is no operand; a tag ~maximal stays one (engine §9).
-        const maximal = name === "elidable" && operands.length > 0 && ruleOf(operands[0]) === "argument-word" && text(token(operands[0])) === "maximal";
-        if (maximal) operands = operands.slice(1);
+        const operands = parts(item).filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag");
         const problem = operandProblem(name, operands.map((child) => operandKind(child)));
         if (problem) fail(problem, item);
         directives.push({
@@ -8995,7 +9049,6 @@
             // A range or a property has no tag; operandProblem has refused it.
             return tagOf(symbolPart(child));
           }),
-          ...(maximal ? { maximal: /** @type {const} */ (true) } : {}),
           at: at(item),
         });
       } else if (ruleOf(item) === "rule") {
@@ -9128,9 +9181,17 @@
         const read = { feature: spelled.slice(negated ? 1 : 0, -1), kind: spelled.endsWith("!") ? "warning" : "gate", negated };
         return read;
       });
-      captures = [];
+      captureNodes = new Map();
       /** @type {DomAlternative} */
-      const alternative = { guards, expr: readExpression(only(node, "conjunction"), true, true) };
+      const alternative = { guards, expr: readExpression(only(node, "conjunction"), true) };
+      // A name stands at most once in each production, gates aside: the
+      // error stands at the second capture that such a production reads,
+      // the first in the text where there are several (engine §3.5, §9).
+      const twice = captureSequences(alternative.expr).duplicates.map((capture) => /** @type {ResultNode} */ (captureNodes.get(capture)));
+      if (twice.length > 0) {
+        const first = twice.reduce((a, b) => (firstToken(b) < firstToken(a) ? b : a));
+        fail(`the capture $${text(token(first)).slice(1)} is read twice by one production of the alternative`, first);
+      }
       const tags = one(node, "alternative-tags");
       if (tags) alternative.tags = readConstituentTags(tags);
       return alternative;
@@ -9138,34 +9199,69 @@
 
     /**
      * @param {ResultNode} node
-     * @param {boolean} [top] whether the expression is an alternative's top
-     *   level, where a capture may stand (engine §3.5)
      * @param {boolean} [whole] whether it is the alternative's whole
      *   expression, where a chain may stand (engine §9)
      * @returns {Expr}
      */
-    function readExpression(node, top = false, whole = false) {
+    function readExpression(node, whole = false) {
       switch (ruleOf(node)) {
         case "choice": {
           const found = some(node, "conjunction");
-          const items = found.map((item) => readExpression(item, top && found.length === 1));
+          const items = found.map((item) => readExpression(item));
           return items.length === 1 ? items[0] : { choice: items };
         }
         case "conjunction": {
           const found = some(node, "sequence");
-          const items = found.map((item) => readExpression(item, top && found.length === 1, whole && found.length === 1));
+          const items = found.map((item) => readExpression(item, whole && found.length === 1));
           // A & of n items expands to 2ⁿ−1 sequences (engine §3.2).
           if (items.length > 16) fail("an & joins at most 16 items", node);
           return items.length === 1 ? items[0] : { and: items };
         }
         case "sequence": {
           const found = some(node, "primary");
-          const items = found.map((item) => readPrimary(knownOf(item, PRIMARIES), top, whole && found.length === 1));
+          const items = found.map((item) => readPrimary(knownOf(item, PRIMARIES), whole && found.length === 1));
           return items.length === 1 ? items[0] : { seq: items };
         }
         default:
           return fail(`unexpected ${ruleOf(node)}`, node);
       }
+    }
+
+    /**
+     * An optional, and with a marker `+` or `++` among its parts an elidable
+     * one (engine §3.8, §9). Its form is checked on the tree, where a group
+     * is still a node: one sequence, whose first primary is the terminal
+     * itself, `=`-tested or not.
+     * @param {RuleNode} node
+     * @returns {Expr}
+     */
+    function readOptional(node) {
+      const found = parts(node);
+      const markers = found.filter((child) => tokenText(child) === "+" || tokenText(child) === "++");
+      if (markers.length >= 2) fail("an optional has one marker + or ++ at most", markers[1]);
+      const choice = only(node, "choice");
+      if (markers.length === 0) return { optional: readExpression(choice) };
+      const form = "an elidable optional begins with its terminator, a name with a capital or ~name, written directly after the marker, and joins it to nothing with | or &";
+      const conjunctions = ofRule(choice, "conjunction");
+      const sequences = conjunctions.length === 1 ? ofRule(conjunctions[0], "sequence") : [];
+      const primary = sequences.length === 1 ? ofRule(sequences[0], "primary")[0] : undefined;
+      const head = primary ? knownOf(primary, PRIMARIES) : undefined;
+      /** @type {(symbol: RuleNode) => boolean} */
+      const isTerminal = (symbol) => ruleOf(symbol) === "tag" || (ruleOf(symbol) === "reference" && /^[A-Z]/.test(text(token(symbol))));
+      if (!head) fail(form, node);
+      const symbol = /** @type {RuleNode} */ (head);
+      if (ruleOf(symbol) === "tested") {
+        if (!isTerminal(knownOf(only(symbol, "primary"), PRIMARIES))) fail(form, node);
+        const testNode = only(symbol, "test");
+        const comparator = parts(testNode).flatMap((child) => (child.kind === "token" ? [text(child)] : [])).join("");
+        if (comparator !== "=") fail("the terminator of an elidable optional takes no test but =, since elision-only restores it with its sound", testNode);
+      } else if (!isTerminal(symbol)) {
+        fail(form, node);
+      }
+      marked++;
+      const expr = readExpression(choice);
+      marked--;
+      return tokenText(markers[0]) === "++" ? { optional: expr, elidable: true, maximal: true } : { optional: expr, elidable: true };
     }
 
     /**
@@ -9200,11 +9296,10 @@
 
     /**
      * @param {ResultNode} node
-     * @param {boolean} [top] whether a capture may stand here
      * @param {boolean} [whole] whether a chain may stand here
      * @returns {Expr}
      */
-    function readPrimary(node, top = false, whole = false) {
+    function readPrimary(node, whole = false) {
       switch (ruleOf(node)) {
         case "reference": return { ref: text(token(node)) };
         case "tag": case "character": case "phoneme": return { terminal: tagOf(token(node)) };
@@ -9241,7 +9336,7 @@
         }
         case "capture": {
           if (braces > 0) fail("a capture cannot stand inside braces, whose parts repeat: name the list as a rule, and capture that", node);
-          if (!top) fail("a capture stands at the top level of an alternative, not inside [ ], { }, ( ), & or a choice", node);
+          if (marked > 0) fail("a capture cannot stand inside an elidable optional, which elision restores as one unit", node);
           const captureToken = token(node);
           const inner = only(node, "primary");
           if (text(captureToken) === "$") fail("$ is the whole constituent and wraps nothing", node);
@@ -9250,18 +9345,15 @@
           const kind = ruleOf(wrapped);
           if (kind === "constant-reference") fail(CONSTANT_IN_BODY, wrapped);
           if (!["reference", "tag", "character", "phoneme", "range", "property", "tested"].includes(/** @type {string} */ (kind))) fail("a capture wraps one symbol", node);
-          // An alternative names a capture once, and has at most four
-          // (engine §3.5, §9).
           const name = text(captureToken).slice(1);
-          if (captures.includes(name)) fail(`the capture $${name} is used twice in one alternative`, node);
-          captures.push(name);
-          if (captures.length > 4) fail("an alternative has at most four captures", node);
           const expr = readPrimary(wrapped);
-          return { capture: name, expr };
+          const capture = { capture: name, expr };
+          captureNodes.set(capture, node);
+          return capture;
         }
         case "constant-reference": return fail(CONSTANT_IN_BODY, node);
         case "group": return readExpression(only(node, "choice"));
-        case "optional": return { optional: readExpression(only(node, "choice")) };
+        case "optional": return readOptional(/** @type {RuleNode} */ (node));
         case "repetition": return readRepetition(/** @type {RuleNode} */ (node), whole);
         case "empty": return { empty: true };
         default: return fail(`unexpected ${ruleOf(node)}`, node);
@@ -9684,8 +9776,6 @@
     if (name === "stage") return kinds.length === 1 && names ? null : "%stage takes one name";
     if (name === "include") return kinds.length === 1 && kinds[0] === "string" ? null : "%include takes one string";
     if (name === "features") return kinds.length > 0 && names ? null : "%features takes one or more names";
-    // %elidable takes identifier tags: a name with a capital, or ~name.
-    if (name === "elidable") return kinds.every((kind) => kind === "class" || kind === "tag") ? null : "%elidable takes identifier tags: names with a capital, or ~name";
     return names ? null : `%${name} takes names only`;
   }
 
@@ -10888,8 +10978,6 @@
    * @typedef {object} DomDirective
    * @property {string} name
    * @property {string[]} args
-   * @property {true} [maximal] for `%elidable maximal`: its terminators are
-   *   maximal (engine §2, §4)
    * @property {Position} at
    */
 
@@ -10924,7 +11012,7 @@
    * A rule body expression.
    * @typedef {{choice: Expr[]} | {and: Expr[]} | {seq: Expr[]}
    *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
-   *   | {optional: Expr} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
+   *   | {optional: Expr, elidable?: true, maximal?: true} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
    *   | {range: [string, string]} | {property: string}
    *   | {test: TestOp, value: Term, expr: TestedSymbol} | {empty: true}} Expr
    */
@@ -11066,9 +11154,9 @@
    * @typedef {object} LoweredGrammar
    * @property {Production[]} productions
    * @property {Map<string, Production[]>} byLhs
-   * @property {Set<string>} elidable
-   * @property {Set<string>} maximalTerminals the elidable terminators that are
-   *   maximal (engine §4)
+   * @property {Set<string>} maximalHelpers the helpers of the elidable
+   *   optionals written [++T x], whose terminators are maximal (engine §3.8,
+   *   §4)
    * @property {Resolution} resolution
    * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
    *   of the stage, resolved for these features: each key's classes (engine
