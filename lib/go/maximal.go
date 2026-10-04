@@ -53,10 +53,11 @@ func newMaximal(rec *recognizer, stageWide bool) *maximal {
 // without stage-wide maximal, since every nested query asks.
 func maximalElides(g *lowered, stageWide bool) []string {
 	var elides []string
-	if w := work.Load(); w != nil {
-		w.elidableSteps.addN(int64(len(g.prods)), "elidable steps")
-	}
+	w := work.Load()
 	for _, p := range g.prods {
+		if w != nil {
+			w.elidableSteps.add("elidable steps")
+		}
 		if p.helper && p.elided != "" && (stageWide || g.maximalH[p.lhs]) {
 			if elides == nil {
 				elides = make([]string, len(g.rules))

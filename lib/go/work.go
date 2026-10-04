@@ -49,7 +49,7 @@ import (
 //   - implicationSteps: the implications that a token's tags set off.
 //   - decodeSteps: the values that decoding a precompiled DOM reads.
 //   - elidableSteps: the productions that finding elidable helpers and
-//     maximal terminators walks.
+//     maximal terminators walks, each before it is looked at.
 //   - spliceSteps: the documents and stages that splicing a pipeline
 //     looks at.
 type workCounts struct {

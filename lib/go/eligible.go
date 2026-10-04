@@ -36,10 +36,11 @@ package gencmu
 func elidableHelpers(g *lowered) ([]bool, bool) {
 	helpers := make([]bool, len(g.rules))
 	any := false
-	if w := work.Load(); w != nil {
-		w.elidableSteps.addN(int64(len(g.prods)), "elidable steps")
-	}
+	w := work.Load()
 	for _, p := range g.prods {
+		if w != nil {
+			w.elidableSteps.add("elidable steps")
+		}
 		if p.helper && p.elided != "" {
 			helpers[p.lhs], any = true, true
 		}
