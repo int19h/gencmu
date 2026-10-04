@@ -771,7 +771,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
         // The constituent's tags, where a condition of this step read them.
         let mut known = u32::MAX;
-        if production.conds.iter().any(|(_, trigger)| *trigger == item.dot as usize) {
+        let conds = production.conds_at(item.dot as usize);
+        #[cfg(test)]
+        tests::CONDITION_STEPS.with(|steps| steps.set(steps.get() + 1 + conds.len() as u64));
+        if !conds.is_empty() {
             let search = CapSearch::new(chart, item.caps);
             let (observed, project) = self.observed(tokens);
             let frame = Frame {
@@ -783,8 +786,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 project,
             };
             let mut failed = false;
-            for (cond, trigger) in &production.conds {
-                if *trigger == item.dot as usize && !self.condition(cond, &frame, observed, base)? {
+            for (cond, _) in conds {
+                if !self.condition(cond, &frame, observed, base)? {
                     failed = true;
                     break;
                 }
@@ -857,9 +860,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             // lacks gives a dead item, so prediction skips it. The set
             // records it, and the rejection report adds back the terminal
             // it expected.
-            if let (Some(Sym::T(terminal)), false) =
-                (lowered.syms.first(), lowered.conds.iter().any(|&(_, at)| at == 0))
-            {
+            if let (Some(Sym::T(terminal)), false) = (lowered.syms.first(), !lowered.conds_at(0).is_empty()) {
                 let matcher = self.matchers[*terminal as usize];
                 if e >= tokens.len() || !self.shared.reads(matcher, tokens[e].tags) {
                     if before.is_none() {
@@ -1453,6 +1454,9 @@ mod tests {
     thread_local! {
         /// How many tokens the sound tests on this thread have stepped to.
         pub(super) static SOUND_STEPS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+        /// How many conditions the items added on this thread have looked
+        /// at, with one more for each item.
+        pub(super) static CONDITION_STEPS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
     }
 
     /// A sound test of each suffix of a run of tokens without sound steps
@@ -1539,6 +1543,30 @@ mod tests {
                 }
             }
         });
+    }
+
+    /// A production of n captures with a condition at each finds the
+    /// conditions of each dot without a scan of all n, so a parse of it
+    /// looks at about n conditions, not n².
+    #[test]
+    fn each_dot_finds_its_conditions_at_once() {
+        for n in [200usize, 800] {
+            let names: Vec<String> = (0..n).map(|index| format!("$c{index}('a')")).collect();
+            let conditions: Vec<String> = (0..n).map(|index| format!("text($c{index}) = \"a\"")).collect();
+            let grammar = format!(
+                "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {}\n%conditions {}\n```\n",
+                names.join(" "),
+                conditions.join(", ")
+            );
+            let sources =
+                [("g.md", grammar), ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string())];
+            let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
+            CONDITION_STEPS.with(|steps| steps.set(0));
+            let result = dialect.parse(&"a".repeat(n), &crate::ParseOptions::default()).expect("a result");
+            assert!(result.ok, "{n} captures");
+            let steps = CONDITION_STEPS.with(|steps| steps.get());
+            assert!(steps <= 4 * n as u64 + 8, "{steps} conditions looked at for {n} captures");
+        }
     }
 
     /// The completed items of the production of `t` with two symbols, over

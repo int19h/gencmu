@@ -235,8 +235,12 @@ pub(crate) struct Prod {
     /// `%opaque`: its constituent is an opaque part, which sounds `?` and
     /// shows its text (§11).
     pub opaque: bool,
-    /// Conditions, each with the dot at which it is evaluated.
+    /// Conditions, each with the dot at which it is evaluated, in order of
+    /// that dot and then in written order.
     pub conds: Vec<(LCond, usize)>,
+    /// For each dot, where its conditions begin in `conds`, and one more
+    /// for where they end.
+    pub cond_at: Vec<u32>,
     pub visible: bool,
     /// The features of its alternative's warnings, in the order they are
     /// written (§12); none for a helper.
@@ -267,6 +271,12 @@ impl Prod {
     #[inline]
     pub(crate) fn test(&self, dot: usize) -> Option<u32> {
         self.tests.get(dot).copied().filter(|&test| test != NO_TEST)
+    }
+
+    /// The conditions evaluated at `dot`, in written order.
+    #[inline]
+    pub(crate) fn conds_at(&self, dot: usize) -> &[(LCond, usize)] {
+        &self.conds[self.cond_at[dot] as usize..self.cond_at[dot + 1] as usize]
     }
 }
 
@@ -898,6 +908,7 @@ pub(crate) fn lower(
             emit: LEmit::None,
             opaque: false,
             conds: Vec::new(),
+            cond_at: Vec::new(),
             warnings: Vec::new(),
             document: None,
             at: (0, 0),
@@ -1024,6 +1035,16 @@ pub(crate) fn lower(
             production.cap_at[0] = Some(production.cap_pos.len() as u32);
             production.cap_pos.push(0);
         }
+        // An item finds the conditions of its dot without a scan of all.
+        production.conds.sort_by_key(|&(_, trigger)| trigger);
+        let mut cond_at = vec![0u32; production.syms.len() + 2];
+        for &(_, trigger) in &production.conds {
+            cond_at[trigger + 1] += 1;
+        }
+        for dot in 1..cond_at.len() {
+            cond_at[dot] += cond_at[dot - 1];
+        }
+        production.cond_at = cond_at;
         let number = prods.len() as u32;
         rules[pending.rule as usize].prods.push(number);
         prods.push(production);
