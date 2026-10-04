@@ -528,6 +528,10 @@ class Attachments(unittest.TestCase):
         self.assertTrue(result.ok, result.error)
         self.assertEqual(len(result.stages[0].output or []), 1)
         self.assertTrue(gencmu.to_json(result))
+        # So do the equality and the representation of a token.
+        again = dialect.parse_tokens(tokens, " ".join(["w"] * count), auto_features=False)
+        self.assertEqual(result, again)
+        self.assertEqual(repr(result.stages[0].output).count("Token(text='w'"), count)
 
 
 class GrammarFaults(unittest.TestCase):
@@ -740,6 +744,14 @@ class Robustness(unittest.TestCase):
         self.assertEqual(text.count('"rule":"text"'), 10000)
         brackets = gencmu.to_brackets(result)
         self.assertTrue(brackets.startswith("(" + "[{(" * 3) and brackets.endswith("a)"))
+        # Equality and the representation of a tree walk it with a list for
+        # a stack, as the dataclass's own methods would not.
+        again = dialect.parse("a" * 10000, auto_features=False)
+        self.assertEqual(result, again)
+        assert again.tree is not None
+        again.tree.children[0].children[0].children[0].span = (0, 0)
+        self.assertNotEqual(result, again)
+        self.assertEqual(repr(result.tree).count("Node(kind='rule'"), 10000)
 
 
 def stage_output(dialect: gencmu.Dialect, text: str, name: str) -> list[gencmu.Token]:

@@ -3,7 +3,8 @@ as dataclasses."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
+from typing import Any
 
 Tags = frozenset[str]
 """A tag set: the tags it holds, each in its canonical spelling (engine §1).
@@ -45,6 +46,17 @@ class Token:
         if self.label is None:
             self.label = self.text
 
+    # Attachments nest as deep as a text is long, so equality and the
+    # representation walk them with a list for a stack. They give what the
+    # dataclass's own methods would.
+    def __eq__(self, other: object) -> bool:
+        if other.__class__ is not self.__class__:
+            return NotImplemented
+        return _equal(self, other)
+
+    def __repr__(self) -> str:
+        return _represent(self)
+
 
 @dataclass
 class Node:
@@ -69,6 +81,72 @@ class Node:
     tags: Tags | None = None
     children: list[Node] = field(default_factory=list)
     sound: str | None = None
+
+    # A tree nests as deep as a text is long, so equality and the
+    # representation walk it with a list for a stack. They give what the
+    # dataclass's own methods would.
+    def __eq__(self, other: object) -> bool:
+        if other.__class__ is not self.__class__:
+            return NotImplemented
+        return _equal(self, other)
+
+    def __repr__(self) -> str:
+        return _represent(self)
+
+
+_NESTED = (Token, Node)
+"""The classes whose instances nest as deep as a text is long."""
+
+_FIELDS = {cls: tuple(item.name for item in fields(cls)) for cls in _NESTED}
+
+
+def _equal(left: Any, right: Any) -> bool:
+    """Whether two tokens or two nodes are equal, field by field, as the
+    dataclass's own equality says."""
+    pending: list[tuple[Any, Any]] = [(left, right)]
+    while pending:
+        one, other = pending.pop()
+        if one is other:
+            continue
+        if isinstance(one, _NESTED) and one.__class__ is other.__class__:
+            pending.extend((getattr(one, name), getattr(other, name)) for name in _FIELDS[one.__class__])
+        elif isinstance(one, list) and isinstance(other, list):
+            if len(one) != len(other):
+                return False
+            pending.extend(zip(one, other))
+        elif not one == other:
+            return False
+    return True
+
+
+def _represent(value: Any) -> str:
+    """A token's or a node's representation, as the dataclass's own would
+    write it."""
+    out: list[str] = []
+    # Each entry is text to write, or a value to write.
+    pending: list[tuple[bool, Any]] = [(False, value)]
+    while pending:
+        literal, item = pending.pop()
+        if literal:
+            out.append(item)
+        elif isinstance(item, _NESTED):
+            parts: list[tuple[bool, Any]] = [(True, item.__class__.__qualname__ + "(")]
+            for position, name in enumerate(_FIELDS[item.__class__]):
+                parts.append((True, (", " if position else "") + name + "="))
+                parts.append((False, getattr(item, name)))
+            parts.append((True, ")"))
+            pending.extend(reversed(parts))
+        elif isinstance(item, list) and any(isinstance(member, _NESTED) for member in item):
+            parts = [(True, "[")]
+            for position, member in enumerate(item):
+                if position:
+                    parts.append((True, ", "))
+                parts.append((False, member))
+            parts.append((True, "]"))
+            pending.extend(reversed(parts))
+        else:
+            out.append(repr(item))
+    return "".join(out)
 
 
 @dataclass
