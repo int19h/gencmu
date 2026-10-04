@@ -99,9 +99,10 @@ export function quotedTexts(markdown, dialects = dialectNames()) {
     const items = ancestors.filter((ancestor) => ancestor.type === "listItem");
     const scope = items[items.length - 1] || [...ancestors].reverse().find((ancestor) => PROSE.has(ancestor.type));
     if (scope && !named.has(scope)) {
-      // An item's own prose leaves out the lists nested in it.
-      const own = (/** @type {any} */ item) => item.children.filter((/** @type {any} */ child) => child.type !== "list").map(proseOf).join(" ");
-      named.set(scope, namedDialects(items.length ? items.map(own).join(" ") : proseOf(scope), dialects));
+      // An item's own prose leaves out the lists nested in it, at any
+      // depth: inside a block quote too. An enclosing item's own prose
+      // scopes the item.
+      named.set(scope, namedDialects(items.length ? items.map((item) => proseOf(item, { lists: false })).join(" ") : proseOf(scope), dialects));
     }
     texts.push({ text, line: node.position.start.line, dialects: scope ? named.get(scope) : [] });
   }
@@ -111,16 +112,22 @@ export function quotedTexts(markdown, dialects = dialectNames()) {
 /**
  * The prose of a block: its text, the text of its links included, with
  * each code span as a space and a space between paragraphs. So neither a
- * code span nor a link target names a dialect.
+ * code span nor a link target names a dialect. With `lists: false`, the
+ * prose leaves out every list inside the block, whatever containers lie
+ * between, so that it is a list item's own prose.
  * @param {import("./markdown.js").Node} block
+ * @param {{lists?: boolean}} [options]
  * @returns {string}
  */
-export function proseOf(block) {
+export function proseOf(block, { lists = true } = {}) {
   let prose = "";
-  for (const { node } of walk(block)) {
+  /** @param {any} node */
+  const visit = (node) => {
     if (node.type === "text") prose += node.value;
     else if (node.type === "inlineCode" || PROSE.has(node.type)) prose += " ";
-  }
+    for (const child of node.children || []) if (lists || child.type !== "list") visit(child);
+  };
+  visit(block);
   return prose;
 }
 
