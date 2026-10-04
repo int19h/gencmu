@@ -42,6 +42,36 @@ fn engine_cases() {
     );
 }
 
+/// The runner's JSON reader and its comparisons walk with explicit stacks,
+/// so a value nested far deeper than any call stack holds is read, copied,
+/// compared, written and dropped on the test's ordinary thread.
+#[test]
+fn deep_json_needs_no_deep_stack() {
+    const DEPTH: usize = 50_000;
+    let nested = |leaf: &str| format!("{}{leaf}{}", "[{\"a\":".repeat(DEPTH), "}]".repeat(DEPTH));
+    let text = nested("1");
+    let value = parse_json(&text).expect("deep JSON");
+    assert_eq!(value.to_text(), text);
+    let copy = value.clone();
+    assert!(copy == value);
+    assert!(common::same(&value, &copy, "value").is_ok());
+    let other = parse_json(&nested("2")).expect("deep JSON");
+    assert!(other != value);
+    let problem = common::matches(&value, &other, "value").expect_err("a difference at the bottom");
+    assert!(problem.ends_with(".a is 2, not 1"), "{}", &problem[problem.len().saturating_sub(40)..]);
+}
+
+/// A whole engine case whose canonical result nests 20,000 deep runs on
+/// the test's ordinary thread, the library and the runner alike.
+#[test]
+fn a_deep_result_runs_on_an_ordinary_stack() {
+    let input = "a".repeat(20_000);
+    let case = format!(
+        r#"{{"grammar": "%rule text text 'a' | 'a'", "input": "{input}", "expect": {{"result": {{"ok": true, "stages": [{{"verdict": "unique"}}]}}}}}}"#
+    );
+    run_engine_case(&parse_json(&case).unwrap()).expect("the case passes");
+}
+
 #[test]
 fn harness_detects_a_wrong_expectation() {
     let case = parse_json(r#"{"grammar": "%rule text X | Y", "tokens": [{"text": "w", "tags": ["X", "Y"]}], "expect": {"result": {"ok": true, "stages": [{"verdict": "unique"}]}}}"#).unwrap();
