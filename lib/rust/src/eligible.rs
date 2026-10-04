@@ -13,7 +13,7 @@
 //! it has an eligible proof tree, and P, it has an eligible proof tree whose
 //! fixed prefix permits the optional after it to be empty.
 
-use std::cell::{Cell, OnceCell};
+use std::cell::OnceCell;
 
 use crate::earley::{test_holds, Cap, Chart, Item, Tok};
 use crate::fxhash::FxMap;
@@ -21,24 +21,7 @@ use crate::lower::{Lowered, Sym};
 use crate::maximal::Maximal;
 use crate::tags::Tags;
 use crate::unicode::Unicode;
-
-thread_local! {
-    /// How many entries of the chart the searches for a blocking path have
-    /// looked at on this thread, in every query: a measure of work that
-    /// tests compare across input lengths.
-    static SEARCHED: Cell<u64> = const { Cell::new(0) };
-}
-
-/// How many entries of the chart the searches have looked at on this
-/// thread (`SEARCHED`).
-pub fn searched_entries() -> u64 {
-    SEARCHED.with(Cell::get)
-}
-
-/// Sets the count of the entries searched on this thread back to zero.
-pub fn reset_searched_entries() {
-    SEARCHED.with(|searched| searched.set(0));
-}
+use crate::work::{self, Work};
 
 /// A place in the chart: the set and the index of an item there.
 type Place = (u32, u32);
@@ -88,9 +71,6 @@ pub(crate) struct Proofs<'a> {
     /// terminators, found once for the query when the first check needs
     /// them (§4).
     maximal: OnceCell<Maximal<'a>>,
-    /// How many entries of the chart the searches have looked at: the
-    /// index once, and then each completed item they read.
-    operations: Cell<u64>,
 }
 
 impl<'a> Proofs<'a> {
@@ -101,27 +81,11 @@ impl<'a> Proofs<'a> {
         unicode: &'a Unicode,
         tags: &'a Tags,
     ) -> Proofs<'a> {
-        Proofs {
-            g,
-            chart,
-            tokens,
-            unicode,
-            tags,
-            index: OnceCell::new(),
-            maximal: OnceCell::new(),
-            operations: Cell::new(0),
-        }
-    }
-
-    /// How many entries of the chart the searches have looked at so far.
-    #[cfg(test)]
-    pub(crate) fn operations(&self) -> u64 {
-        self.operations.get() + self.maximal.get().map_or(0, Maximal::looked)
+        Proofs { g, chart, tokens, unicode, tags, index: OnceCell::new(), maximal: OnceCell::new() }
     }
 
     fn count(&self, entries: usize) {
-        self.operations.set(self.operations.get() + entries as u64);
-        SEARCHED.with(|searched| searched.set(searched.get() + entries as u64));
+        work::count(Work::Searched, entries as u64);
     }
 
     fn item(&self, (set, index): Place) -> Item {
@@ -932,8 +896,9 @@ mod tests {
             .collect();
         assert!(!witnesses.is_empty(), "r completes");
         let proofs = Proofs::new(&g, &chart, &input, &dialect.unicode, &shared.tags);
+        crate::work::reset();
         let eligible = proofs.eligible(&witnesses);
-        (eligible, proofs.operations())
+        (eligible, crate::work::counted(crate::work::Work::Searched) + crate::work::counted(crate::work::Work::Looked))
     }
 
     #[test]

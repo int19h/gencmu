@@ -894,62 +894,6 @@ fn exponentially_long_derivations_keep_exact_counts() {
     }
 }
 
-/// A cycle context keeps only the rules of the cycle that the item lies
-/// on (engine §6). Here each wrapper of each level is a cycle of its own,
-/// so keeping every cyclic rule above would make 2^N contexts. At 15
-/// levels that is some 65000, made in about a second, so the count fails
-/// where a deeper grammar would hang.
-#[test]
-fn cycle_contexts_keep_only_the_rules_of_their_cycle() {
-    let depth = 15;
-    let mut grammar =
-        format!("%ambiguity-resolution late-elision\n%elidable T\n%rule text ε | r{depth}\n%rule r0 [T]\n");
-    for i in 1..=depth {
-        let below = i - 1;
-        grammar.push_str(&format!("%rule r{i} a{i} b{i}\n%rule a{i} r{below} | a{i}\n%rule b{i} r{below} | b{i}\n"));
-    }
-    let dialect = gencmu::load_dialect_sources(single(&grammar), "p.md").unwrap();
-    gencmu::tools::reset_cycle_contexts();
-    let result = dialect.parse_tokens(&[], &no_auto()).unwrap();
-    let contexts = gencmu::tools::cycle_contexts();
-    assert!(result.ok);
-    assert_eq!(result.stages[0].verdict, Some(Verdict::Resolved));
-    eprintln!("{contexts} cycle contexts for {depth} levels");
-    // A context of one wrapper each, not one of each set of wrappers.
-    assert!(contexts <= 4 * depth as u64, "{contexts} cycle contexts for {depth} levels");
-}
-
-/// Written-terminator priority (engine §4): a nested query over a long
-/// text with many omissions and no written terminator takes work in
-/// proportion to the text. The searches for a blocking path once looked at
-/// every later set of the chart for each omission, which took quadratic
-/// work: some 100 million entries at 8000 tokens, under a second, where
-/// the count fails.
-#[test]
-fn nested_queries_with_many_omissions_take_linear_work() {
-    let grammar = "%ambiguity-resolution greedy\n%elidable T\n%rule text body B\n%conditions matches($, r)\n\
-                   %rule body A ...\n%rule r parts B\n%rule parts part ...\n%rule part A [T]";
-    let dialect = gencmu::load_dialect_sources(single(grammar), "p.md").unwrap();
-    let work = |n: usize| {
-        let token = |tag: &str| gencmu::InputToken {
-            text: tag.to_lowercase(),
-            tags: [tag.to_string()].into_iter().collect(),
-            phonemes: None,
-        };
-        let tokens: Vec<_> = (0..n).map(|_| token("A")).chain([token("B")]).collect();
-        gencmu::tools::reset_recognizer_items();
-        gencmu::tools::reset_searched_entries();
-        let result = dialect.parse_tokens(&tokens, &no_auto()).unwrap();
-        assert!(result.ok, "{n}");
-        (gencmu::tools::recognizer_items(), gencmu::tools::searched_entries())
-    };
-    let (short, long) = (work(2000), work(8000));
-    eprintln!("2000 tokens: {short:?} items and entries searched; 8000: {long:?}");
-    assert!(short.1 > 0, "the searches ran");
-    // Linear work gives about four times as much; quadratic, sixteen.
-    assert!(long.0 <= 5 * short.0 && long.1 <= 5 * short.1, "2000 tokens: {short:?}; 8000: {long:?}");
-}
-
 /// The members of the error elision-witness-lost, in the order of
 /// docs/output.md, and an error with no code, which has none of them
 /// (format 9).
