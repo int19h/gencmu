@@ -2627,6 +2627,43 @@ mod tests {
         });
     }
 
+    /// The classes of a capture's n tags, and the split of a string of n
+    /// pieces, cost about n: each list is made once, not copied as it
+    /// grows.
+    #[test]
+    fn classes_and_splits_grow_linearly() {
+        let sources = [
+            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'\n```\n".to_string()),
+            ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
+        ];
+        let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
+        let g = dialect.lowered_stage(0);
+        let chars: Vec<char> = Vec::new();
+        let mut shared = Shared::new(&dialect.unicode, &chars);
+        // The tags, the strings and the terms are made apart, so that only
+        // their evaluation is counted.
+        let made: Vec<_> = [1000usize, 4000]
+            .into_iter()
+            .map(|n| {
+                let names: Vec<String> = (0..n).map(|index| format!("C{index}")).collect();
+                let classes = shared.tags.set_of(names.iter().map(String::as_str));
+                let split = LTerm::Split(Box::new(LTerm::Str(names.join(" "))), Box::new(LTerm::Str(" ".to_string())));
+                (n, classes, split)
+            })
+            .collect();
+        let matchers = matchers(&g, &mut shared.tags);
+        let mut recognizer = Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None };
+        assert_linear(Work::Listed, 1000, &mut |n| {
+            let (_, classes, split) = made.iter().find(|made| made.0 == n).expect("made");
+            let caps = [Cap { start: 0, end: 0, tags: *classes }];
+            let frame =
+                Frame { caps: Caps::All(&caps), prod: 0, origin: 0, end: 0, tags: Cell::new(None), project: None };
+            for term in [&LTerm::Classes(Span::Cap(0)), split] {
+                assert_eq!(recognizer.tag_list(term, &frame, &[], 0).expect("a set").len(), n);
+            }
+        });
+    }
+
     /// A condition at each capture of a long production reads the part it
     /// names without a walk of every part before it. The capture just made
     /// is the last part, and the first capture is a search by the jumps,
