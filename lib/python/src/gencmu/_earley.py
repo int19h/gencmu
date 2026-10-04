@@ -518,10 +518,15 @@ class Evaluator:
         if whole is not None:
             # $ of a completing item gives its tags on first use (engine §4).
             return self.context.tagtab.get(whole() if callable(whole) else whole)
-        result: Tags = EMPTY
+        # One set grows over the span, since a union per token would copy
+        # the tags gathered so far at every token.
+        tokens = self.context.tokens
+        if end - start == 1:
+            return tokens[start].tags
+        result: set[str] = set()
         for index in range(start, end):
-            result = union(result, self.context.tokens[index].tags)
-        return result
+            result.update(tokens[index].tags)
+        return frozenset(result) if result else EMPTY
 
     def phonemes(self, start: int, end: int) -> str:
         """The canonical sound of tokens start..end (engine §5)."""
