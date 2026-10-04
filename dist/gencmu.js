@@ -158,7 +158,8 @@
    * @property {number} soundSteps the tokens that a sound test or phonemes()
    *   visits
    * @property {number} tags the tags that a union of tag sets or an entry of
-   *   a classifier adds to a set or copies
+   *   a classifier adds to a set or copies, and those that an intersection,
+   *   a difference, a comparison or a test of tag sets reads
    * @property {number} implications the implications, and their tags and
    *   the token's, that the closure of a token's tags reads
    * @property {number} walkSteps the steps of the readers and walks of a
@@ -334,8 +335,13 @@
    * @returns {TagSet}
    */
   function tagIntersection(left, right) {
+    // Each tag of the left side counts as it is read, before its lookup in
+    // the right side, so a budget stops a fold of many sets at once.
     const result = new Set();
-    for (const tag of left) if (right.has(tag)) result.add(tag);
+    for (const tag of left) {
+      if (hooks.work) countWork(hooks.work, "tags");
+      if (right.has(tag)) result.add(tag);
+    }
     return result;
   }
 
@@ -347,7 +353,10 @@
    */
   function tagDifference(left, right) {
     const result = new Set();
-    for (const tag of left) if (!right.has(tag)) result.add(tag);
+    for (const tag of left) {
+      if (hooks.work) countWork(hooks.work, "tags");
+      if (!right.has(tag)) result.add(tag);
+    }
     return result;
   }
 
@@ -358,7 +367,10 @@
    * @returns {boolean}
    */
   function isSubset(small, large) {
-    for (const tag of small) if (!large.has(tag)) return false;
+    for (const tag of small) {
+      if (hooks.work) countWork(hooks.work, "tags");
+      if (!large.has(tag)) return false;
+    }
     return true;
   }
 
@@ -378,7 +390,10 @@
    */
   function sameTags(left, right) {
     if (left.size !== right.size) return false;
-    for (const tag of left) if (!right.has(tag)) return false;
+    for (const tag of left) {
+      if (hooks.work) countWork(hooks.work, "tags");
+      if (!right.has(tag)) return false;
+    }
     return true;
   }
 
@@ -2005,6 +2020,9 @@
       try {
         step = failed ? top.throw(error) : top.next(value);
       } catch (thrown) {
+        // A count past a test's budget leaves at once, so the test sees the
+        // first count past it, not a later count of the unwinding steps.
+        if (thrown instanceof WorkBudget) throw thrown;
         stack.pop();
         failed = true;
         error = thrown;
@@ -2861,7 +2879,10 @@
     // items before it: the side with fewer captures is looked up in the
     // other, and the two are then joined, the smaller into the larger, so a
     // capture moves a number of times that grows with the logarithm of their
-    // count, not with the depth of the expression.
+    // count, not with the depth of the expression. A name keeps its place
+    // once its captures are marked, but its list of captures not yet marked
+    // is emptied, so that a capture is marked once and not again at each
+    // level above it.
     /** @typedef {{names: Map<string, {capture: string}[]>, size: number}} Found */
     /** @type {{node: any, index: number, parts: Found[]}[]} */
     const stack = [{ node: expr, index: 0, parts: [] }];
@@ -2898,10 +2919,13 @@
             if (joined.size <= part.size) {
               for (const name of joined.names.keys()) {
                 if (hooks.work) countWork(hooks.work, "walkSteps");
-                for (const capture of part.names.get(name) ?? []) {
+                const captures = part.names.get(name);
+                if (!captures) continue;
+                for (const capture of captures) {
                   if (hooks.work) countWork(hooks.work, "walkSteps");
                   duplicates.add(capture);
                 }
+                part.names.set(name, []);
               }
             } else {
               for (const [name, captures] of part.names) {
@@ -2911,6 +2935,7 @@
                   if (hooks.work) countWork(hooks.work, "walkSteps");
                   duplicates.add(capture);
                 }
+                part.names.set(name, []);
               }
             }
           }
@@ -2991,7 +3016,12 @@
     }
     /** @type {Set<string>} */
     const everywhere = new Set(alternatives.length ? alternatives[0].keys() : []);
-    for (const captures of alternatives) for (const name of everywhere) if (!captures.has(name)) everywhere.delete(name);
+    for (const captures of alternatives) {
+      for (const name of everywhere) {
+        if (hooks.work) countWork(hooks.work, "clauses");
+        if (!captures.has(name)) everywhere.delete(name);
+      }
+    }
     const anyHas = (/** @type {string} */ name) => somewhere.has(name);
     const items = rule.emit ? rule.emit.items : [];
     // A constituent that does not count is never an opaque part (engine §9).
@@ -6033,6 +6063,7 @@
       default: {
         let meets = false;
         for (const tag of /** @type {TagSet} */ (test.tags)) {
+          if (hooks.work) countWork(hooks.work, "tags");
           if (tags.has(tag)) {
             meets = true;
             break;
@@ -6811,6 +6842,7 @@
   function classesAmong(tags) {
     const result = tagSet();
     for (const tag of tags) {
+      if (hooks.work) countWork(hooks.work, "tags");
       const first = tag.charCodeAt(0);
       if (first >= 0x41 && first <= 0x5a) result.add(tag);
     }
@@ -12116,6 +12148,7 @@
 
 
 
+
   /** @import { Feature, GrammarDom, ParseError, ParseOptions, ParseResult, Resources, ResultNode, StageReport } from "./types.js" */
 
 
@@ -12490,7 +12523,9 @@
     try {
       dom = treeToDom(tree, tokens, positionOf, path, unicode);
     } catch (error) {
-      if (error instanceof GencmuError) throw error;
+      // A count past a test's budget must reach the test as itself, or the
+      // reader's work would run on past the budget as an error of the grammar.
+      if (error instanceof GencmuError || error instanceof WorkBudget) throw error;
       // Only a bootstrap that is not the notation's gives a tree that the
       // reader cannot read. That is an error of the grammar too.
       throw new GencmuError("grammar", `${path}: the notation's tree cannot be read as a grammar: ${error instanceof Error ? error.message : String(error)}`,
