@@ -98,6 +98,12 @@ pub(crate) enum Mutant {
     /// The product of capture sequences copies each sequence with its
     /// suffix, not growing it in place.
     CopySequences,
+    /// The distinct capture sequences are found by comparing each with
+    /// every one kept before it, not by a set of keys.
+    ScanDistinct,
+    /// The search for cycles finds each component's members by a scan of
+    /// its stack from the bottom.
+    ComponentByScan,
     /// The check of a definition finds the first position of each capture
     /// by a scan from the start of its production.
     FirstByScan,

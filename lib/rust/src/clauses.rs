@@ -515,11 +515,38 @@ impl<'e> CaptureSequences<'e> {
     }
 
     fn distinct(&self, lists: Vec<Vec<usize>>) -> Vec<Vec<usize>> {
+        // Each name of a key counts as it is read.
+        let name = |&index: &usize| {
+            work::count(Work::Checked, 1);
+            self.names[index]
+        };
+        if work::mutated(Mutant::ScanDistinct) {
+            return self.distinct_by_scans(lists);
+        }
         let mut seen: HashSet<Vec<&str>> = HashSet::new();
         let mut out = Vec::new();
         for list in lists {
-            let key: Vec<&str> = list.iter().map(|&index| self.names[index]).collect();
+            let key: Vec<&str> = list.iter().map(name).collect();
             if seen.insert(key) {
+                out.push(list);
+            }
+        }
+        out
+    }
+
+    /// A mutation for the tests of work: the distinct sequences, each
+    /// compared name by name with every one kept before it.
+    fn distinct_by_scans(&self, lists: Vec<Vec<usize>>) -> Vec<Vec<usize>> {
+        let mut out: Vec<Vec<usize>> = Vec::new();
+        for list in lists {
+            let same = |kept: &Vec<usize>| {
+                kept.len() == list.len()
+                    && kept.iter().zip(&list).all(|(&a, &b)| {
+                        work::count(Work::Checked, 1);
+                        self.names[a] == self.names[b]
+                    })
+            };
+            if !out.iter().any(same) {
                 out.push(list);
             }
         }
@@ -892,7 +919,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{definition_problem, duplicate_captures};
+    use super::{definition_problem, duplicate_captures, CaptureSequences};
     use crate::dom::{Alternative, Arg, Attachments, EmitItem, Expr, Op, RuleDef, Term};
     use crate::work::{assert_linear, assert_mutant_stops, Mutant, Work};
 
@@ -919,6 +946,25 @@ mod tests {
                 definition_problem(&rules[usize::from(n != 8000)]);
             });
         }
+    }
+
+    /// A choice of n captures, each its own production, whose distinct
+    /// sequences are found by one key each. A comparison of each sequence
+    /// with every one kept before it stops at the first count past the
+    /// budget.
+    #[test]
+    fn a_choice_of_many_captures_finds_distinct_sequences_in_linear_work() {
+        let choice = |n: usize| {
+            Expr::Choice(
+                (0..n).map(|index| Expr::Capture(format!("c{index}"), Box::new(Expr::Terminal("A".into())))).collect(),
+            )
+        };
+        let exprs = [choice(2000), choice(8000)];
+        let mut run = |n: usize| {
+            assert_eq!(CaptureSequences::of(&exprs[usize::from(n != 2000)]).sequences.len(), n);
+        };
+        assert_linear(Work::Checked, 2000, &mut run);
+        assert_mutant_stops(Work::Checked, Mutant::ScanDistinct, 2000, &mut run);
     }
 
     /// A sequence of n captures nested to the right, each level a capture

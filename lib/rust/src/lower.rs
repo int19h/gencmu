@@ -1305,7 +1305,10 @@ fn cycles(rules: &[LRule], prods: &[Prod]) -> Vec<Option<u32>> {
     let mut cycle = vec![None; count];
     let mut components = 0u32;
     let mut next = 0u32;
+    // Each node counts as it is first reached, each edge as it is
+    // followed, and each member as it leaves the stack.
     for root in 0..count {
+        work::count(Work::Lowered, 1);
         if index[root] != u32::MAX {
             continue;
         }
@@ -1317,6 +1320,7 @@ fn cycles(rules: &[LRule], prods: &[Prod]) -> Vec<Option<u32>> {
         on_stack[root] = true;
         while let Some(&mut (node, ref mut edge)) = work.last_mut() {
             if *edge < edges[node].len() {
+                work::count(Work::Lowered, 1);
                 let target = edges[node][*edge] as usize;
                 *edge += 1;
                 if index[target] == u32::MAX {
@@ -1336,15 +1340,34 @@ fn cycles(rules: &[LRule], prods: &[Prod]) -> Vec<Option<u32>> {
                 }
                 if low[node] == index[node] {
                     let mut component = Vec::new();
-                    loop {
-                        let member = stack.pop().expect("a member of the component");
-                        on_stack[member] = false;
-                        component.push(member);
-                        if member == node {
-                            break;
+                    if work::mutated(Mutant::ComponentByScan) {
+                        // The node's place on the stack, by a scan from
+                        // the bottom.
+                        let at = stack
+                            .iter()
+                            .position(|&member| {
+                                work::count(Work::Lowered, 1);
+                                member == node
+                            })
+                            .expect("the node on the stack");
+                        component = stack.split_off(at);
+                        component.iter().for_each(|&member| on_stack[member] = false);
+                    } else {
+                        loop {
+                            work::count(Work::Lowered, 1);
+                            let member = stack.pop().expect("a member of the component");
+                            on_stack[member] = false;
+                            component.push(member);
+                            if member == node {
+                                break;
+                            }
                         }
                     }
-                    let is_cycle = component.len() > 1 || edges[node].contains(&(node as u32));
+                    let is_cycle = component.len() > 1
+                        || edges[node].iter().any(|&target| {
+                            work::count(Work::Lowered, 1);
+                            target == node as u32
+                        });
                     if is_cycle {
                         for member in component {
                             cycle[member] = Some(components);
@@ -1445,6 +1468,7 @@ mod tests {
             Mutant::LastReadByScans,
             Mutant::NullableByPasses,
             Mutant::CheckEveryOther,
+            Mutant::ComponentByScan,
         ] {
             assert_mutant_stops(Work::Lowered, mutant, 2000, &mut |n| {
                 lower(&grammars[usize::from(n != 2000)], &BTreeSet::new(), Arc::default()).expect("lowered");
