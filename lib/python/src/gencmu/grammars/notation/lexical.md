@@ -18,7 +18,7 @@ A name is the longest run of name characters, and `...` is one symbol, not three
 
 ## The text
 
-A text is any number of pieces, each a token or layout. The rule is written as left recursion, not as a list in braces. Each shorter text is then a constituent of its own, so the greedy reading above sees where each piece ends. A list in braces is not a constituent, and with one, the greedy reading can read `ab` as the two names `a` and `b`.
+A text is any number of pieces, each a token or layout. The rule is written as left recursion, not as a list in braces. Each shorter text is then a constituent of its own, so the greedy reading above sees where each piece ends. A list in braces is not a constituent, so the ranking could not compare where its pieces end. The condition of `whole-name` already keeps a name from ending inside a run. But with a list in braces, `++` could be one token or two `+`, and the two readings would tie.
 
 ```jbogenbau
 %rule text
