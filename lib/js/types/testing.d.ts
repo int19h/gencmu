@@ -46,6 +46,20 @@ export type ElisionCheckWatch = {
         counted: boolean;
     }) => void;
 };
+export type WorkCounts = {
+    /**
+     * the items that the recognizer made
+     */
+    items: number;
+    /**
+     * the checks of maximality in nested queries
+     */
+    checks: number;
+    /**
+     * the completions that those checks read
+     */
+    candidates: number;
+};
 /**
  * What the check of engine §7 hands its test hook.
  * @typedef {object} ElisionCheckRun
@@ -70,9 +84,17 @@ export type ElisionCheckWatch = {
  * @property {Map<import("./earley.js").Item, Set<number>> | null} marks
  * @property {(outcome: {ranking: import("./rank.js").Ranking | null, counted: boolean}) => void} ranked
  */
-/** @type {{elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null}} */
+/**
+ * The counts of `hooks.work`.
+ * @typedef {object} WorkCounts
+ * @property {number} items the items that the recognizer made
+ * @property {number} checks the checks of maximality in nested queries
+ * @property {number} candidates the completions that those checks read
+ */
+/** @type {{elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null}} */
 export declare const hooks: {
     elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null;
+    work: WorkCounts | null;
 };
 /**
  * Whether a fault is on, at one of its sites. A fault that is on counts the
