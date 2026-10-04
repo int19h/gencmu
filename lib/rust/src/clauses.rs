@@ -5,6 +5,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::earley::count_steps;
+use crate::fxhash::{FxMap, FxSet};
 
 use crate::dom::{constants_in_cond, constants_in_term, Arg, Cond, EmitItem, Expr, Mark, RuleDef, Term};
 
@@ -515,7 +516,16 @@ impl<'e> CaptureSequences<'e> {
         out
     }
 
-    fn product(&mut self, left: &[Vec<usize>], right: &[Vec<usize>]) -> Vec<Vec<usize>> {
+    fn product(&mut self, mut left: Vec<Vec<usize>>, right: &[Vec<usize>]) -> Vec<Vec<usize>> {
+        // With one right sequence, the usual case, each left sequence grows
+        // in place, so that a long sequence costs its length. Distinct
+        // sequences with one suffix added stay distinct.
+        if let [only] = right {
+            for sequence in &mut left {
+                sequence.extend_from_slice(only);
+            }
+            return left;
+        }
         let mut out = Vec::with_capacity(left.len() * right.len());
         for first in left {
             for second in right {
@@ -585,7 +595,7 @@ impl<'e> CaptureSequences<'e> {
                     let parts = done.split_off(done.len() - items.len());
                     let mut sequences = vec![Vec::new()];
                     for part in parts {
-                        sequences = self.product(&sequences, &part);
+                        sequences = self.product(sequences, &part);
                     }
                     sequences
                 }
@@ -601,7 +611,7 @@ impl<'e> CaptureSequences<'e> {
                         let mut sequences = vec![Vec::new()];
                         for (bit, part) in parts.iter().enumerate() {
                             if mask & (1 << bit) != 0 {
-                                sequences = self.product(&sequences, part);
+                                sequences = self.product(sequences, part);
                             }
                         }
                         all.extend(sequences);
@@ -661,11 +671,24 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
             CaptureSequences::of(&alternative.expr).named().into_iter().map(move |names| (index, names))
         })
         .collect();
+    // Where each production reads each capture, first, and every capture
+    // any production reads, so that a question about one is not a scan.
+    let positions: Vec<FxMap<&str, usize>> = productions
+        .iter()
+        .map(|(_, captures)| {
+            let mut at = FxMap::default();
+            for (position, &name) in captures.iter().enumerate() {
+                at.entry(name).or_insert(position);
+            }
+            at
+        })
+        .collect();
+    let everywhere: FxSet<&str> = productions.iter().flat_map(|(_, captures)| captures.iter().copied()).collect();
     let captures_of = |index: usize| {
-        let captures = &productions[index].1;
-        move |name: &str| name.is_empty() || captures.contains(&name)
+        let at = &positions[index];
+        move |name: &str| name.is_empty() || at.contains_key(name)
     };
-    let any_has = |name: &str| name.is_empty() || productions.iter().any(|(_, captures)| captures.contains(&name));
+    let any_has = |name: &str| name.is_empty() || everywhere.contains(name);
     let items: &[EmitItem] = rule.emit.as_deref().unwrap_or(&[]);
     // A constituent that does not count is never an opaque part (§9).
     if rule.opaque && rule.emit.is_some() && items.is_empty() {
@@ -720,7 +743,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
     let unguarded = |name: &str| {
         format!("a tag term of {} uses ${name}, which a production lacks; guard it with ${name} ⟹", rule.name)
     };
-    for (index, (alternative, captures)) in productions.iter().enumerate() {
+    for (index, (alternative, _)) in productions.iter().enumerate() {
         let alternative = &rule.alternatives[*alternative];
         let has = captures_of(index);
         for term in
@@ -774,7 +797,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
                     .collect(),
                 _ => Vec::new(),
             })
-            .filter_map(|name| captures.iter().position(|captured| *captured == name))
+            .filter_map(|name| positions[index].get(name).copied())
             .collect();
         if positions.windows(2).any(|pair| pair[1] < pair[0]) {
             return Some(format!("%emits of {} lists captures out of the order they stand in", rule.name));
@@ -792,15 +815,19 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
     }
 
     // An inserted tag whose anchor, the capture listed next after it, some
-    // production lacks.
-    for (index, item) in items.iter().enumerate() {
+    // production lacks. One backward pass finds every anchor.
+    let mut anchors: Vec<Option<&str>> = vec![None; items.len()];
+    let mut next = None;
+    for (index, item) in items.iter().enumerate().rev() {
+        anchors[index] = next;
+        if let EmitItem::Capture(name, ..) = item {
+            next = Some(name.as_str());
+        }
+    }
+    for (item, anchor) in items.iter().zip(anchors) {
         if !matches!(item, EmitItem::Insert(_)) {
             continue;
         }
-        let anchor = items[index + 1..].iter().find_map(|item| match item {
-            EmitItem::Capture(name, ..) => Some(name.as_str()),
-            EmitItem::Insert(_) => None,
-        });
         if let Some(anchor) = anchor {
             if !(0..productions.len()).all(|production| captures_of(production)(anchor)) {
                 return Some(format!(
@@ -811,4 +838,49 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::definition_problem;
+    use crate::dom::{Alternative, Arg, Attachments, EmitItem, Expr, Op, RuleDef, Term};
+    use crate::growth::assert_linear;
+
+    /// A rule of n captures whose tag term reads each and whose emission
+    /// lists n inserted tags and then each capture: its checks cost about
+    /// n, not n².
+    #[test]
+    fn a_definition_of_many_captures_checks_in_linear_time() {
+        let rule = |n: usize| {
+            let names: Vec<String> = (0..n).map(|index| format!("c{index}")).collect();
+            let expr = Expr::Seq(
+                names.iter().map(|name| Expr::Capture(name.clone(), Box::new(Expr::Terminal("A".into())))).collect(),
+            );
+            let tags = Term::Union(
+                names
+                    .iter()
+                    .map(|name| Term::Call("tags".into(), vec![Arg::Term(Term::Capture(name.clone()))]))
+                    .collect(),
+            );
+            let emit = (0..n)
+                .map(|_| EmitItem::Insert("X".into()))
+                .chain(names.iter().map(|name| EmitItem::Capture(name.clone(), None, Attachments::default())))
+                .collect();
+            RuleDef {
+                name: "r".into(),
+                op: Op::Define,
+                tags: Some(tags),
+                alternatives: vec![Alternative { guards: Vec::new(), expr, tags: None }],
+                emit: Some(emit),
+                conditions: Vec::new(),
+                opaque: false,
+                at: (0, 0),
+            }
+        };
+        let rules = [rule(8000), rule(32000)];
+        assert_linear("definition checks", 8000, &mut |n| {
+            let rule = &rules[usize::from(n != 8000)];
+            assert_eq!(definition_problem(rule), None);
+        });
+    }
 }

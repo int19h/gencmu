@@ -8,6 +8,7 @@ use crate::dom::{
 };
 use crate::earley::count_steps;
 use crate::error::Error;
+use crate::fxhash::FxSet;
 use crate::result::{Node, NodeKind, Token};
 use crate::tags::character_tag;
 use crate::unicode::Unicode;
@@ -1372,14 +1373,13 @@ impl<'a> Reader<'a> {
         }
         // A capture stands once in an emission, as an item or as an
         // attachment (engine §9).
-        let mut named: Vec<&str> = Vec::new();
+        let mut named: FxSet<&str> = FxSet::default();
         for item in &items {
             if let EmitItem::Capture(name, _, attachments) = item {
                 for name in std::iter::once(name.as_str()).filter(|name| !name.is_empty()).chain(attachments.names()) {
-                    if named.contains(&name) {
+                    if !named.insert(name) {
                         return Err(self.error(arrow, "an emission lists the same capture twice"));
                     }
-                    named.push(name);
                 }
             }
         }

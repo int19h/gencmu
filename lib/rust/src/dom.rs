@@ -2,6 +2,7 @@
 //! produces, what `bootstrap.json` and `compiled.json` hold, and what
 //! stitching and lowering read.
 
+use crate::fxhash::FxSet;
 use crate::json::{write_str, Json};
 use crate::tags::{character_code, is_name, is_tag};
 use crate::unicode::{is_property_name, Unicode};
@@ -1112,7 +1113,7 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                 }
                 let items = value.get("items").and_then(Json::as_array).unwrap_or(&[]);
                 let mut whole = 0;
-                let mut captures: Vec<&str> = Vec::new();
+                let mut captures: FxSet<&str> = FxSet::default();
                 for item in items {
                     let known = item.as_object().is_some_and(|members| {
                         members
@@ -1146,10 +1147,9 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                             }
                         }
                         for name in named {
-                            if captures.contains(&name) {
+                            if !captures.insert(name) {
                                 return Some("a malformed emission");
                             }
-                            captures.push(name);
                         }
                     } else if is_tag_json(item.get("insert"), unicode) {
                         if has(item, "tags") || has(item, "before") || has(item, "after") {

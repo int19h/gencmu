@@ -999,6 +999,23 @@ pub(crate) fn lower(
                         )
                     } else {
                         let slot = |name: &str| names.get(name).copied();
+                        // The anchor of an inserted tag is the first written
+                        // part of the capture item listed next after it: its
+                        // first before-attachment that the production has,
+                        // or else its carrier (§11). One backward pass finds
+                        // them all.
+                        let mut anchors = vec![None; items.len()];
+                        let mut next = None;
+                        for (index, item) in items.iter().enumerate().rev() {
+                            anchors[index] = next;
+                            if let EmitItem::Capture(name, _, attachments) = item {
+                                if let Some(anchor) =
+                                    attachments.before.iter().find_map(|name| slot(name)).or_else(|| slot(name))
+                                {
+                                    next = Some(anchor);
+                                }
+                            }
+                        }
                         let mut lowered = Vec::with_capacity(items.len());
                         for (index, item) in items.iter().enumerate() {
                             lowered.push(match item {
@@ -1011,20 +1028,7 @@ pub(crate) fn lower(
                                         slots(&attachments.after),
                                     )
                                 }
-                                EmitItem::Insert(tag) => {
-                                    // The anchor is the first written part
-                                    // of the capture item listed next after
-                                    // the tag: its first before-attachment
-                                    // that the production has, or else its
-                                    // carrier (§11).
-                                    let anchor = items[index + 1..].iter().find_map(|item| match item {
-                                        EmitItem::Capture(name, _, attachments) => {
-                                            attachments.before.iter().find_map(|name| slot(name)).or_else(|| slot(name))
-                                        }
-                                        EmitItem::Insert(_) => None,
-                                    });
-                                    LEmitItem::Insert(tag.clone(), anchor)
-                                }
+                                EmitItem::Insert(tag) => LEmitItem::Insert(tag.clone(), anchors[index]),
                             });
                         }
                         LEmit::Items(lowered)
