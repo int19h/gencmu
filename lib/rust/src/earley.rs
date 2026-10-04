@@ -12,6 +12,7 @@ use crate::result::Attachment;
 use crate::tags::{character_tag, difference, intersection, is_name, is_subset, union, SetId, TagId, TagList, Tags};
 use crate::unicode::Unicode;
 use crate::witness::{self, Fault};
+use crate::work::{self, Work};
 
 /// How a terminal matches a token (engine §4): by a tag the token carries,
 /// or, for a range or a property, by one of its character tags.
@@ -31,23 +32,6 @@ pub(crate) fn matchers(g: &Lowered, tags: &mut Tags) -> Vec<Matcher> {
             None => Matcher::Tag(tags.tag(name)),
         })
         .collect()
-}
-
-thread_local! {
-    /// How many items the recognizer has made on this thread, in parses and
-    /// nested parses alike: a measure of work that tests compare across
-    /// input lengths.
-    static ITEMS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
-}
-
-/// How many items the recognizer has made on this thread (`ITEMS`).
-pub fn recognizer_items() -> u64 {
-    ITEMS.with(|items| items.get())
-}
-
-/// Sets the count of the recognizer's items on this thread back to zero.
-pub fn reset_recognizer_items() {
-    ITEMS.with(|items| items.set(0));
 }
 
 /// A token of a stage's input.
@@ -582,7 +566,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             known = frame.tags.get().unwrap_or(u32::MAX);
         }
         let target = &mut chart.sets[set];
-        ITEMS.with(|items| items.set(items.get() + 1));
+        work::count(Work::Items, 1);
         let index = target.items.len() as u32;
         target.index.insert(item, index);
         target.items.push(item);
@@ -700,7 +684,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         if target.index.contains_key(&item) {
             return;
         }
-        ITEMS.with(|items| items.set(items.get() + 1));
+        work::count(Work::Items, 1);
         let index = target.items.len() as u32;
         target.index.insert(item, index);
         target.items.push(item);

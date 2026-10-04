@@ -46,6 +46,32 @@ export type ElisionCheckWatch = {
         counted: boolean;
     }) => void;
 };
+export type WorkCounts = {
+    /**
+     * the items that the recognizer made
+     */
+    items: number;
+    /**
+     * the checks of maximality in nested queries
+     */
+    checks: number;
+    /**
+     * the items of the chart that those checks
+     * read to find their table of completions
+     */
+    scanned: number;
+    /**
+     * the completions that those checks read for
+     * a tested symbol
+     */
+    candidates: number;
+    /**
+     * the most of each
+     * count that the work may reach
+     */
+    budget?: Partial<Record<WorkKind, number>>;
+};
+export type WorkKind = "items" | "checks" | "scanned" | "candidates";
 /**
  * What the check of engine §7 hands its test hook.
  * @typedef {object} ElisionCheckRun
@@ -70,9 +96,35 @@ export type ElisionCheckWatch = {
  * @property {Map<import("./earley.js").Item, Set<number>> | null} marks
  * @property {(outcome: {ranking: import("./rank.js").Ranking | null, counted: boolean}) => void} ranked
  */
-/** @type {{elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null}} */
+/**
+ * The counts of `hooks.work`.
+ * @typedef {object} WorkCounts
+ * @property {number} items the items that the recognizer made
+ * @property {number} checks the checks of maximality in nested queries
+ * @property {number} scanned the items of the chart that those checks
+ *   read to find their table of completions
+ * @property {number} candidates the completions that those checks read for
+ *   a tested symbol
+ * @property {Partial<Record<WorkKind, number>>} [budget] the most of each
+ *   count that the work may reach
+ */
+/** @typedef {"items" | "checks" | "scanned" | "candidates"} WorkKind */
+/**
+ * A count of `hooks.work` past its budget. It is no GencmuError, so no
+ * handler of the library's catches it.
+ */
+export declare class WorkBudget extends Error {
+}
+/**
+ * Counts one of `work`, and throws a WorkBudget if that passes its budget.
+ * @param {WorkCounts} work
+ * @param {WorkKind} kind
+ */
+export declare function countWork(work: WorkCounts, kind: WorkKind): void;
+/** @type {{elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null}} */
 export declare const hooks: {
     elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null;
+    work: WorkCounts | null;
 };
 /**
  * Whether a fault is on, at one of its sites. A fault that is on counts the

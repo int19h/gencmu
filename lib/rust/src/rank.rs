@@ -28,6 +28,7 @@ use crate::nat::Nat;
 use crate::tags::{SetId, Tags};
 use crate::unicode::Unicode;
 use crate::witness::{self, Fault, Marks, WitnessAct};
+use crate::work::{self, Work};
 
 pub(crate) const EMPTY: u32 = 0;
 const ANY: u32 = u32::MAX;
@@ -951,6 +952,7 @@ impl<'c> Ranker<'c> {
             return id;
         }
         let id = self.fsets.len() as u32;
+        work::count(Work::Contexts, 1);
         self.fsets.push(list.clone());
         self.fset_index.insert(list, id);
         id

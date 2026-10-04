@@ -1,7 +1,5 @@
 package gencmu
 
-import "sync/atomic"
-
 // Written-terminator priority for nested queries (engine §4): which
 // completed items of a queried rule have an eligible proof tree.
 //
@@ -98,10 +96,6 @@ func (e *eligibility) next(it *item) int {
 	return nextConstituent
 }
 
-// eligibilityRuns counts the searches of eligibility, for a test that a
-// query makes one.
-var eligibilityRuns atomic.Int64
-
 // eligibleItems keeps of the completed items those that have an eligible
 // proof tree (§4).
 func (r *recognizer) eligibleItems(items []*item) []*item {
@@ -109,7 +103,9 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 	if !any || len(items) == 0 {
 		return items
 	}
-	eligibilityRuns.Add(1)
+	if w := work.Load(); w != nil {
+		w.eligibilityRuns.add("eligibilityRuns")
+	}
 	e := &eligibility{r: r, helpers: helpers, index: map[*item]int{}}
 	// The items that the queried ones rest on, each after those below it
 	// where the links allow, so that one sweep settles most of them.
@@ -193,9 +189,9 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 	n := len(e.order)
 	next := make([]int, n)
 	// mx is the maximality of the grammar's maximal terminators over the
-	// query's chart, made once per query, and maximalNext says whether the
-	// optional after an item is of a maximal terminator.
-	mx := r.queryMaximal()
+	// query's chart, nil where the grammar has none, and maximalNext says
+	// whether the optional after an item is of a maximal terminator.
+	mx := newMaximal(r, false)
 	maximalNext := make([]bool, n)
 	for i, it := range e.order {
 		next[i] = e.next(it)
@@ -269,14 +265,4 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 		}
 	}
 	return out
-}
-
-// queryMaximal is the maximality of a nested query's chart: of the maximal
-// terminators of the grammar alone, made once per query. It is nil where
-// the grammar has none.
-func (r *recognizer) queryMaximal() *maximal {
-	if !r.mxMade {
-		r.mx, r.mxMade = newMaximal(r, false), true
-	}
-	return r.mx
 }

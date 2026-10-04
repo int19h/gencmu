@@ -27,6 +27,88 @@ CASE_SECONDS = float(os.environ.get("GENCMU_CASE_TIMEOUT", "60"))
 failure. GENCMU_CASE_TIMEOUT sets it."""
 
 
+class RecognizerWork:
+    """The items that the recognizer made while :func:`count_items` was
+    counting."""
+
+    items = 0
+
+
+class OverItems(BaseException):
+    """A parse that made more items than :func:`count_items` allowed it,
+    raised at the first item past the budget, so that a regression to
+    quadratic work fails by its count and does not run on. A
+    BaseException, which no handler of the library's catches."""
+
+
+@contextmanager
+def count_items(budget: int | None = None) -> Iterator[RecognizerWork]:
+    """Count the items that the recognizer makes, in parses and nested
+    parses alike, from the test's side, as it makes each one: a call of the
+    recognizer's ``add`` that grows its list of items makes one. With a
+    budget, the item past it stops the parse with :class:`OverItems`.
+
+    The count watches the calls of ``add`` alone through sys.monitoring
+    where there is one, from Python 3.12; before that, it traces every
+    call of the thread, in place of any other trace function, which it puts
+    back after."""
+    import types
+
+    from gencmu._earley import Parser
+
+    add = next((c for c in Parser.parse.__code__.co_consts if isinstance(c, types.CodeType) and c.co_name == "add"), None)
+    assert add is not None, "the recognizer has no add"
+    work = RecognizerWork()
+    calls: list[tuple[list[int], int]] = []
+
+    def begin(frame: Any) -> None:
+        items = frame.f_locals["prod"]
+        calls.append((items, len(items)))
+
+    def end() -> None:
+        items, before = calls.pop()
+        if len(items) > before:
+            work.items += 1
+            if budget is not None and work.items > budget:
+                raise OverItems(f"more than {budget} items")
+
+    monitoring = getattr(sys, "monitoring", None)
+    if monitoring is not None:
+        tool = next((tool for tool in range(6) if monitoring.get_tool(tool) is None), None)
+        assert tool is not None, "no tool of sys.monitoring is free"
+        events = monitoring.events.PY_START | monitoring.events.PY_RETURN
+        monitoring.use_tool_id(tool, "gencmu tests: count_items")
+        try:
+            monitoring.register_callback(tool, monitoring.events.PY_START, lambda code, offset: begin(sys._getframe(1)))
+            monitoring.register_callback(tool, monitoring.events.PY_RETURN, lambda code, offset, value: end())
+            monitoring.set_local_events(tool, add, events)
+            yield work
+        finally:
+            monitoring.set_local_events(tool, add, 0)
+            monitoring.free_tool_id(tool)
+        return
+
+    def trace(frame: Any, event: str, arg: Any) -> Any:
+        if frame.f_code is not add:
+            return None
+        begin(frame)
+        frame.f_trace_lines = False
+
+        def returned(frame: Any, event: str, arg: Any) -> Any:
+            if event == "return":
+                end()
+            return returned
+
+        return returned
+
+    previous = sys.gettrace()
+    sys.settrace(trace)
+    try:
+        yield work
+    finally:
+        sys.settrace(previous)
+
+
 class CaseTimeout(AssertionError):
     """A shared case that ran past its time, reported as a failure."""
 

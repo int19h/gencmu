@@ -11,6 +11,7 @@ use crate::fxhash::FxMap;
 use crate::lower::{Lowered, Sym, SymbolTest};
 use crate::tags::{SetId, Tags};
 use crate::unicode::Unicode;
+use crate::work::{self, Work};
 
 /// Every completed item of each symbol from each origin, by (symbol,
 /// origin), as its set and its tag set, in order.
@@ -40,9 +41,6 @@ pub(crate) struct Maximal<'c> {
     /// origin with its test holding, by (symbol, origin, test), found once
     /// for each.
     passing: RefCell<FxMap<(u32, u32, u32), Option<u32>>>,
-    /// How many completed items the checks have looked at, for the tests
-    /// of the cost.
-    looked: std::cell::Cell<u64>,
 }
 
 impl<'c> Maximal<'c> {
@@ -64,7 +62,6 @@ impl<'c> Maximal<'c> {
             furthest: OnceCell::new(),
             completed: OnceCell::new(),
             passing: RefCell::default(),
-            looked: std::cell::Cell::new(0),
         }
     }
 
@@ -74,12 +71,6 @@ impl<'c> Maximal<'c> {
     pub(crate) fn restricts(&self, rule: u32) -> bool {
         let rule = &self.g.rules[rule as usize];
         rule.elided.is_some() && (self.stage_wide || rule.maximal)
-    }
-
-    /// How many completed items the checks have looked at so far.
-    #[cfg(test)]
-    pub(crate) fn looked(&self) -> u64 {
-        self.looked.get()
     }
 
     /// Whether a constituent of `rule` from `origin` to `end` is an elided
@@ -127,7 +118,7 @@ impl<'c> Maximal<'c> {
     fn furthest_passing(&self, rule: u32, origin: u32, test: &SymbolTest) -> Option<u32> {
         let completed = self.completed().get(&(rule, origin))?;
         completed.iter().rev().find_map(|&(later, tags)| {
-            self.looked.set(self.looked.get() + 1);
+            work::count(Work::Looked, 1);
             test_holds(test, &self.tokens[origin as usize..later as usize], self.unicode, self.tags, tags)
                 .then_some(later)
         })
@@ -143,7 +134,7 @@ impl<'c> Maximal<'c> {
             // The sets in order, so that the last to insert a key is the
             // furthest.
             for (set, eset) in self.chart.sets.iter().enumerate() {
-                self.looked.set(self.looked.get() + eset.completed.len() as u64);
+                work::count(Work::Looked, eset.completed.len() as u64);
                 for &key in eset.completed.keys() {
                     furthest.insert(key, set as u32);
                 }
@@ -157,6 +148,7 @@ impl<'c> Maximal<'c> {
             let mut completed = Completed::default();
             for (set, eset) in self.chart.sets.iter().enumerate() {
                 for (&key, items) in &eset.completed {
+                    work::count(Work::Looked, items.len() as u64);
                     let list = completed.entry(key).or_default();
                     for &index in items {
                         list.push((set as u32, eset.tagset[index as usize]));

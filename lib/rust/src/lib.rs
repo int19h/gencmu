@@ -61,6 +61,7 @@ mod tags;
 mod tree;
 mod unicode;
 mod witness;
+mod work;
 
 pub use dialect::{Dialect, Feature, InputToken, ParseOptions};
 pub use dom::FeatureKind;
@@ -80,11 +81,6 @@ pub mod tools {
     pub use crate::dom::DOM_FORMAT;
     pub use crate::json::fnv1a64;
     pub use crate::loader::{bootstrap_hash, check_dom, read_grammar_document, splice_bundled_pipeline};
-
-    /// The recognizer's work counter, for the growth tests only: not part
-    /// of the documented API.
-    #[doc(hidden)]
-    pub use crate::earley::{recognizer_items, reset_recognizer_items};
 
     /// The test hook of the check of `elision-only` (tests/README.md): the
     /// checks that ran in a parse, each with whether its forest kept the

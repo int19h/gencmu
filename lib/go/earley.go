@@ -1,7 +1,5 @@
 package gencmu
 
-import "sync/atomic"
-
 // The recognizer (engine §4): an Earley parser whose items carry, for each
 // capture before the dot, the captured part's span and tag set, and which
 // evaluates each condition as soon as the item has read the last capture it
@@ -85,10 +83,6 @@ type recognizer struct {
 	recon    *reconstruction
 	sets     []*eset
 	furthest int
-	// mx is the maximality of a nested query's chart, made when first
-	// asked for (eligible.go).
-	mx     *maximal
-	mxMade bool
 }
 
 func (r *recognizer) set(k int) *eset {
@@ -215,7 +209,9 @@ func (r *recognizer) restore(k int, p *production) {
 	}
 	it := &item{itemKey: key, set: int32(k + 1), restores: true, queued: true}
 	it.links = []link{{tok: int32(k), term: term}}
-	recognizerWork.items.Add(1)
+	if w := work.Load(); w != nil {
+		w.items.add("items")
+	}
 	s.index[key] = it
 	s.items = append(s.items, it)
 	s.queue = append(s.queue, it)
@@ -263,11 +259,6 @@ func (r *recognizer) predictable(p *production, k int) bool {
 	return true
 }
 
-// recognizerWork counts the items that the recognizer makes, in parses and
-// nested parses alike, for a test that the work grows with the input's
-// length (tests/growth.json).
-var recognizerWork struct{ items atomic.Int64 }
-
 // add adds an item, or a link to it where it exists. strict says whether
 // the step that makes it is strict (§7.4): a strict item never completes,
 // and one ordinary step makes an item ordinary, which is then processed
@@ -280,7 +271,9 @@ func (r *recognizer) add(k int, key itemKey, l link, hasLink, strict bool) {
 	it := s.index[key]
 	if it == nil {
 		it = &item{itemKey: key, set: int32(k), strict: strict, queued: true}
-		recognizerWork.items.Add(1)
+		if w := work.Load(); w != nil {
+			w.items.add("items")
+		}
 		s.index[key] = it
 		s.items = append(s.items, it)
 		s.queue = append(s.queue, it)

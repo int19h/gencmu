@@ -50,9 +50,6 @@ export declare class TagInterner {
      */
     get(id: number): TagSet;
 }
-export declare const recognizerCounters: {
-    items: number;
-};
 export declare class ParseContext {
     lowered: LoweredGrammar;
     tokens: Token[];

@@ -894,55 +894,6 @@ fn exponentially_long_derivations_keep_exact_counts() {
     }
 }
 
-/// A cycle context keeps only the rules of the cycle that the item lies
-/// on (engine §6). Here each wrapper of each level is a cycle of its own,
-/// so keeping every cyclic rule above would make 2^N contexts.
-#[test]
-fn cycle_contexts_keep_only_the_rules_of_their_cycle() {
-    let depth = 40;
-    let mut grammar =
-        format!("%ambiguity-resolution late-elision\n%elidable T\n%rule text ε | r{depth}\n%rule r0 [T]\n");
-    for i in 1..=depth {
-        let below = i - 1;
-        grammar.push_str(&format!("%rule r{i} a{i} b{i}\n%rule a{i} r{below} | a{i}\n%rule b{i} r{below} | b{i}\n"));
-    }
-    let dialect = gencmu::load_dialect_sources(single(&grammar), "p.md").unwrap();
-    let started = std::time::Instant::now();
-    let result = dialect.parse_tokens(&[], &no_auto()).unwrap();
-    assert!(result.ok);
-    assert_eq!(result.stages[0].verdict, Some(Verdict::Resolved));
-    assert!(started.elapsed() < std::time::Duration::from_secs(30), "{:?}", started.elapsed());
-}
-
-/// A timing probe of written-terminator priority (engine §4): a nested
-/// query over a long text with many omissions and no written terminator
-/// takes time in proportion to the text. The searches for a blocking path
-/// once looked at every later set of the chart for each omission, which
-/// took quadratic time.
-#[test]
-fn nested_queries_with_many_omissions_take_linear_time() {
-    let grammar = "%ambiguity-resolution greedy\n%elidable T\n%rule text body B\n%conditions matches($, r)\n\
-                   %rule body A ...\n%rule r parts B\n%rule parts part ...\n%rule part A [T]";
-    let dialect = gencmu::load_dialect_sources(single(grammar), "p.md").unwrap();
-    let time = |n: usize| {
-        let token = |tag: &str| gencmu::InputToken {
-            text: tag.to_lowercase(),
-            tags: [tag.to_string()].into_iter().collect(),
-            phonemes: None,
-        };
-        let tokens: Vec<_> = (0..n).map(|_| token("A")).chain([token("B")]).collect();
-        let started = std::time::Instant::now();
-        let result = dialect.parse_tokens(&tokens, &no_auto()).unwrap();
-        assert!(result.ok, "{n}");
-        started.elapsed()
-    };
-    let _ = time(500);
-    let (short, long) = (time(4000), time(16000));
-    eprintln!("4000 tokens in {short:?}, 16000 in {long:?}");
-    // Linear time gives about four times as long; quadratic, sixteen.
-    assert!(long < short * 10, "4000 tokens in {short:?}, 16000 in {long:?}");
-}
-
 /// The members of the error elision-witness-lost, in the order of
 /// docs/output.md, and an error with no code, which has none of them
 /// (format 9).

@@ -2,19 +2,6 @@ import type { Item, SymbolTest, TagSet } from "./types.js";
 import type { Chart, ParseContext } from "./earley.js";
 export type TestHolds = (context: ParseContext, test: SymbolTest, from: number, to: number, tags: TagSet) => boolean;
 /**
- * @import { Edge, Item, LoweredGrammar, SymbolTest, TagSet } from "./types.js"
- * @import { Chart, ParseContext } from "./earley.js"
- */
-/**
- * Whether a test holds of a span with the given tags: the recognizer's own,
- * passed in so that this module does not import the recognizer.
- * @typedef {(context: ParseContext, test: SymbolTest, from: number, to: number, tags: TagSet) => boolean} TestHolds
- */
-export declare const counters: {
-    checks: number;
-    candidates: number;
-};
-/**
  * The witnesses, completed items of the queried rule, that have an eligible
  * witness in the chart (engine §4). An omission is an advance over the
  * empty helper of an elidable optional at its position p. It is forbidden
