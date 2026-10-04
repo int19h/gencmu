@@ -13,6 +13,7 @@ import { markdownFiles } from "./documents.js";
 import { sourceDoms, sourceLoader } from "./grammar-sources.js";
 import { parseMarkdown, walk } from "./markdown.js";
 import { PROSE, proseLineProblems } from "./prose-lines.js";
+import { resolvePath } from "../lib/js/src/markdown.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -86,8 +87,12 @@ export function dialectNames(base = root) {
  * that a CommonMark and GFM parser finds (tools/markdown.js), so a code
  * block holds none. Every paragraph, heading and table row is one line
  * (tools/prose-lines.js), so the line of a text is the block that quotes
- * it. The scope of a text is the innermost list item that holds it, or else
- * its block, so a blank line inside a list item changes nothing.
+ * it. The scope of a text is the list item that holds it, without the
+ * lists nested in it, together with each item that encloses that item,
+ * again without its nested lists. Outside a list item it is its block. So
+ * a blank line inside a list item changes nothing, a name in a nested item
+ * does not scope its parent, and a name in a parent scopes its nested
+ * items.
  * @param {string} markdown
  * @param {string[]} [dialects] the names that prose can name
  * @returns {{text: string, line: number, dialects: string[]}[]}
@@ -100,9 +105,13 @@ export function quotedTexts(markdown, dialects = dialectNames()) {
     if (node.type !== "inlineCode") continue;
     const text = quotedText(node.value);
     if (!text) continue;
-    const scope = [...ancestors].reverse().find((ancestor) => ancestor.type === "listItem")
-      || [...ancestors].reverse().find((ancestor) => PROSE.has(ancestor.type));
-    if (scope && !named.has(scope)) named.set(scope, namedDialects(proseOf(scope), dialects));
+    const items = ancestors.filter((ancestor) => ancestor.type === "listItem");
+    const scope = items[items.length - 1] || [...ancestors].reverse().find((ancestor) => PROSE.has(ancestor.type));
+    if (scope && !named.has(scope)) {
+      // An item's own prose leaves out the lists nested in it.
+      const own = (/** @type {any} */ item) => item.children.filter((/** @type {any} */ child) => child.type !== "list").map(proseOf).join(" ");
+      named.set(scope, namedDialects(items.length ? items.map(own).join(" ") : proseOf(scope), dialects));
+    }
     texts.push({ text, line: node.position.start.line, dialects: scope ? named.get(scope) : [] });
   }
   return texts;
@@ -166,7 +175,8 @@ function repositoryDoms(base) {
  * documents. A dialect document belongs to its own dialect.
  * @param {string} [base] the repository
  * @param {{get: (file: string) => any}} [doms]
- *   the DOMs by path under grammars/; grammars/compiled.json unless given
+ *   the DOMs by path under grammars/; those of the source documents unless
+ *   given
  * @returns {Map<string, string[]>} keyed by the path in the repository
  */
 export function documentDialects(base = root, doms = repositoryDoms(base)) {
@@ -181,7 +191,9 @@ export function documentDialects(base = root, doms = repositoryDoms(base)) {
       if (dialects.get(key).includes(dialect)) return;
       dialects.get(key).push(dialect);
       for (const directive of (doms.get(file) || { directives: [] }).directives) {
-        if (directive.name === "include") visit(path.posix.normalize(path.posix.join(path.posix.dirname(file), directive.args[0])));
+        // The path as the pipeline resolves it (lib/js/src/pipeline.js), so
+        // a `..` above the grammars drops out there as here.
+        if (directive.name === "include") visit(resolvePath(file, directive.args[0]));
       }
     };
     visit(document.slice("grammars/".length));
@@ -260,12 +272,23 @@ export function readAllowList(list) {
     else {
       entry.cases = [];
       let role = null;
+      let ids = 0;
       // An id has a full stop; a role, a rule name or `reject`, has none.
+      // A role with no id after it covers nothing: often it is an id
+      // mistyped without its full stop.
+      const idless = () => role !== null && !ids && problems.push(`${at}: the role ${role} has no case id after it`);
       for (const word of match[5].trim().split(/\s+/)) {
-        if (!word.includes(".")) role = word;
-        else if (!role) problems.push(`${at}: ${word} has no role before it`);
-        else entry.cases.push({ role, id: word });
+        if (!word.includes(".")) {
+          idless();
+          role = word;
+          ids = 0;
+        } else if (!role) problems.push(`${at}: ${word} has no role before it`);
+        else {
+          entry.cases.push({ role, id: word });
+          ids++;
+        }
       }
+      idless();
       if (!entry.cases.length) problems.push(`${at}: no case after " = "`);
     }
     entries.push(entry);
@@ -456,12 +479,14 @@ const reading = (c) => JSON.stringify([c.expect, c.brackets]);
  *
  * - a quoted text that lacks a case of a dialect of its document, or of a
  *   dialect that its scope names, and that the allow-list does not cover;
- * - a quoted text whose cases read it differently in the dialects that it
- *   needs, where its scope names none of those dialects;
+ * - a quoted text whose cases read it differently in two needed dialects
+ *   that its scope does not name, comparing the cases of the whole text
+ *   and the cases of its entry apart;
  * - an allow-list entry that is not needed, since the document does not
- *   quote the text or cases pin it, and an entry whose cases are missing,
- *   do not hold the text, do not show it in their role, or leave out a
- *   dialect that the text needs;
+ *   quote the text, or cases pin it and the entry gives a reason; an entry
+ *   that names no lines and covers several, or names a line that does not
+ *   need it; and an entry whose cases are missing, do not hold the text, do
+ *   not show it in their role, or leave out a dialect that the text needs;
  * - a grammar document that is neither checked nor in UNCHECKED, and one
  *   in UNCHECKED that is checked;
  * - a case that pins a quoted text and is not in tests/core.txt.
@@ -518,6 +543,8 @@ export function quotedTextProblems(base = root, { loader, doms, checked = CHECKE
   };
   /** @type {Map<string, any>} */
   const loaded = new Map();
+  /** @type {Map<string, string | null>} the problem of each case of an entry in its role, once judged */
+  const judged = new Map();
   for (const [document, claimed] of documents) {
     if (!files.has(document)) continue;
     const markdown = fs.readFileSync(path.join(base, document), "utf8");
@@ -529,18 +556,28 @@ export function quotedTextProblems(base = root, { loader, doms, checked = CHECKE
       const needed = [...new Set([...claimed, ...dialects])];
       const pins = (casesOf.get(text) || []).filter((c) => needed.includes(c.dialect));
       for (const c of pins) inCore(c.id, at);
+      // One reading for each needed dialect, from its pins and from the
+      // cases of an entry apart, since the two read a text in different
+      // terms. The dialects that the scope does not name read the text
+      // alike: the sentence speaks for them all.
       const disagree = (/** @type {Map<string, string>} */ readings) => {
-        const differ = new Set(readings.values()).size > 1;
-        if (differ && !needed.some((name) => readings.has(name) && dialects.includes(name))) {
-          problems.push(`${at}: \`${text}\` reads differently in ${[...readings.keys()].join(" and ")}, and its line names none of them; say which dialect the sentence is about`);
+        const unnamed = [...readings].filter(([name]) => !dialects.includes(name));
+        if (new Set(unnamed.map(([, value]) => value)).size > 1) {
+          const names = unnamed.map(([name]) => name).join(" and ");
+          problems.push(`${at}: \`${text}\` reads differently in ${names}, and its line names ${dialects.length ? `only ${dialects.join(" and ")}` : "no dialect"}; say which dialect the sentence is about`);
         }
       };
-      disagree(new Map(pins.map((c) => [c.dialect, reading(c)])));
-      const missing = needed.filter((name) => !pins.some((c) => c.dialect === name));
-      if (!missing.length) continue;
+      /** @type {Map<string, string>} */
+      const pinned = new Map();
+      for (const c of pins) if (!pinned.has(c.dialect)) pinned.set(c.dialect, reading(c));
+      disagree(pinned);
+      const missing = needed.filter((name) => !pinned.has(name));
       const entry = entryAt(document, text, line);
-      if (!entry) {
-        problems.push(`${at}: \`${text}\` is pinned by no case of ${missing.join(" or of ")}; add one to tests/corpus/adhoc.jsonl, or list it in tests/quoted-allow.txt`);
+      // A reason stands in for missing pins. The cases of a `=` entry show
+      // the claim about the fragment, which a pin of the same words as a
+      // whole text does not, so they are checked in every needed dialect.
+      if (!entry || (entry.reason && !missing.length)) {
+        if (missing.length) problems.push(`${at}: \`${text}\` is pinned by no case of ${missing.join(" or of ")}; add one to tests/corpus/adhoc.jsonl, or list it in tests/quoted-allow.txt`);
         continue;
       }
       if (!used.has(entry)) used.set(entry, new Set());
@@ -553,17 +590,24 @@ export function quotedTextProblems(base = root, { loader, doms, checked = CHECKE
       const roles = new Map();
       for (const { role, id } of entry.cases) {
         const c = byId.get(id);
-        let why;
         const place = `tests/quoted-allow.txt:${entry.line}`;
-        if (!c) problems.push(`${place}: no case has the id ${id}`);
-        else if (role !== "words" && !holds(c, text)) problems.push(`${place}: neither the text nor the words of ${id} hold \`${text}\``);
-        else if ((why = roleProblem(c, role, text, loaded, sourcesLoader()))) problems.push(`${place}: ${id} does not show \`${text}\` as ${role === "reject" ? "a rejected text" : role === "words" ? "words" : `one ${role}`}: ${why}`);
-        else {
-          roles.set(c.dialect, role);
-          inCore(id, place);
+        // An entry that covers several lines reports a case once.
+        const key = `${entry.line}\0${role}\0${id}`;
+        if (!judged.has(key)) {
+          let problem = null;
+          if (!c) problem = `${place}: no case has the id ${id}`;
+          else if (role !== "words" && !holds(c, text)) problem = `${place}: neither the text nor the words of ${id} hold \`${text}\``;
+          else {
+            const why = roleProblem(c, role, text, loaded, sourcesLoader());
+            if (why) problem = `${place}: ${id} does not show \`${text}\` as ${role === "reject" ? "a rejected text" : role === "words" ? "words" : `one ${role}`}: ${why}`;
+          }
+          judged.set(key, problem);
+          if (problem) problems.push(problem);
+          else inCore(id, place);
         }
+        if (!judged.get(key) && !roles.has(c.dialect)) roles.set(c.dialect, JSON.stringify([c.expect, role]));
       }
-      const uncovered = missing.filter((name) => !roles.has(name));
+      const uncovered = needed.filter((name) => !roles.has(name));
       if (uncovered.length) problems.push(`${at}: \`${text}\` is held by no listed case of ${uncovered.join(" or of ")} (tests/quoted-allow.txt:${entry.line})`);
       disagree(new Map([...roles].filter(([name]) => needed.includes(name))));
     }
