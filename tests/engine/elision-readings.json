@@ -77,6 +77,24 @@
             ]
           }
         ],
+        "witness": [
+          {
+            "read": {
+              "token": 1,
+              "terminal": "B"
+            }
+          },
+          {
+            "close": {
+              "rule": "s",
+              "production": 6,
+              "span": [
+                0,
+                1
+              ]
+            }
+          }
+        ],
         "reason": "elision-only"
       }
     },

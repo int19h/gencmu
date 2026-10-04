@@ -84,6 +84,28 @@
               }
             ]
           }
+        ],
+        "witness": [
+          {
+            "close": {
+              "rule": "a",
+              "production": 3,
+              "span": [
+                0,
+                1
+              ]
+            }
+          },
+          {
+            "close": {
+              "rule": "c",
+              "production": 15,
+              "span": [
+                0,
+                1
+              ]
+            }
+          }
         ]
       }
     }

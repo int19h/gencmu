@@ -66,6 +66,20 @@
               }
             ]
           }
+        ],
+        "witness": [
+          {
+            "read": {
+              "token": 0,
+              "terminal": "X"
+            }
+          },
+          {
+            "read": {
+              "token": 0,
+              "terminal": "Y"
+            }
+          }
         ]
       }
     },

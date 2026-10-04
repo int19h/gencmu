@@ -1,12 +1,14 @@
 {
-  "description": "An engine that loses the chosen derivation's witness can still give an ambiguous result, and the witness hook tells it from a correct one. Under late-elision, a, with one elided T, beats b, with two. In the check, a restores T, and c and d each read the synthetic T as a bare terminal, so R has three readings and the check fails. An engine that loses a's restoration, from its chart or from its ranking, still finds c and d, and so still fails the check. The runner's witness hook fails it, since the check's ranking no longer counts W(D) (engine §7.8, tests/README.md). The case also pins the two readings, a and then c, so such an engine changes the result as well.",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c | d\n%rule a A [T]\n%rule b A [T] [T]\n%rule c A T\n%rule d A T",
+  "description": "An elision-only witness whose actions are two reads of one original token as different terminals. The token carries A and B. The chosen x reads it as A and restores T. z reads it as B, and the synthetic T as a bare terminal (engine §7.10).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text x | y | z\n%rule x A [T]\n%rule y B [T] [T]\n%rule z B T",
   "tokens": [
     {
-      "text": "a",
+      "text": "x",
       "tags": [
-        "A"
-      ]
+        "A",
+        "B"
+      ],
+      "phonemes": "x"
     }
   ],
   "expect": {
@@ -40,7 +42,7 @@
             "children": [
               {
                 "kind": "rule",
-                "rule": "a",
+                "rule": "x",
                 "span": [
                   0,
                   1
@@ -95,7 +97,7 @@
             "children": [
               {
                 "kind": "rule",
-                "rule": "c",
+                "rule": "z",
                 "span": [
                   0,
                   1
@@ -108,7 +110,7 @@
                 "children": [
                   {
                     "kind": "token",
-                    "terminal": "A",
+                    "terminal": "B",
                     "token": 0,
                     "span": [
                       0,
@@ -138,23 +140,15 @@
         ],
         "witness": [
           {
-            "close": {
-              "rule": "a",
-              "production": 4,
-              "span": [
-                0,
-                1
-              ]
+            "read": {
+              "token": 0,
+              "terminal": "A"
             }
           },
           {
-            "close": {
-              "rule": "c",
-              "production": 12,
-              "span": [
-                0,
-                1
-              ]
+            "read": {
+              "token": 0,
+              "terminal": "B"
             }
           }
         ]

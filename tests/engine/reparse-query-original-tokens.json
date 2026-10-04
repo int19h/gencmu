@@ -23,7 +23,29 @@
       "error": {
         "kind": "ambiguous",
         "reason": "elision-only",
-        "stage": "main"
+        "stage": "main",
+        "witness": [
+          {
+            "close": {
+              "rule": "body",
+              "production": 4,
+              "span": [
+                0,
+                1
+              ]
+            }
+          },
+          {
+            "close": {
+              "rule": "c",
+              "production": 12,
+              "span": [
+                0,
+                1
+              ]
+            }
+          }
+        ]
       }
     }
   }

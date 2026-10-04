@@ -219,6 +219,24 @@
               }
             ]
           }
+        ],
+        "witness": [
+          {
+            "read": {
+              "token": 1,
+              "terminal": "B"
+            }
+          },
+          {
+            "close": {
+              "rule": "s",
+              "production": 2,
+              "span": [
+                0,
+                1
+              ]
+            }
+          }
         ]
       }
     },

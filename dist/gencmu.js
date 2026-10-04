@@ -1506,6 +1506,8 @@
   //   In the sibling cases that edge is W(D)'s. The count channel of the
   //   witness hook alone sees lost:context, where the readings stay; the
   //   selection channel sees lost:select, where W(D) was a reading.
+  // - "witness:project" leaves the witness of an error of elision-only over
+  //   R, unmapped: a read keeps its index in R, and a close its span there.
   // - "order:tags" evaluates a completing item's tag term before its
   //   conditions, and "order:conditions" evaluates the conditions that read
   //   only captures before those that read `$`, against the order of one step
@@ -8001,6 +8003,13 @@
       /** @type {(action: Action | null) => import("./types.js").WitnessAction | null} */
       const mapAction = (action) => {
         if (action === null) return null;
+        // A fault leaves the witness over R: a read keeps its index in R, and
+        // a close its span there (witness:project).
+        if (fault("witness:project")) {
+          if (action.kind === "read") return { kind: "read", token: action.token, terminal: action.terminal };
+          const { production, origin, end } = action.item;
+          return { kind: "close", rule: production.owner, production: production.id, helper: production.helper, span: [origin, end] };
+        }
         if (action.kind === "read") {
           return synthetic[action.token]
             ? { kind: "elided", at: project[action.token], terminal: action.terminal }

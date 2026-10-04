@@ -413,7 +413,29 @@
       "error": {
         "kind": "ambiguous",
         "reason": "elision-only",
-        "stage": "main"
+        "stage": "main",
+        "witness": [
+          {
+            "close": {
+              "rule": "a",
+              "production": 6,
+              "span": [
+                0,
+                66
+              ]
+            }
+          },
+          {
+            "close": {
+              "rule": "c",
+              "production": 14,
+              "span": [
+                0,
+                66
+              ]
+            }
+          }
+        ]
       }
     }
   }

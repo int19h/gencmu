@@ -31,7 +31,25 @@
       "error": {
         "kind": "ambiguous",
         "reason": "elision-only",
-        "stage": "main"
+        "stage": "main",
+        "witness": [
+          {
+            "read": {
+              "token": 1,
+              "terminal": "V"
+            }
+          },
+          {
+            "close": {
+              "rule": "x",
+              "production": 18,
+              "span": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
       }
     }
   }

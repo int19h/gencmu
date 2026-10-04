@@ -26,7 +26,29 @@
           "error": {
             "kind": "ambiguous",
             "reason": "elision-only",
-            "stage": "main"
+            "stage": "main",
+            "witness": [
+              {
+                "close": {
+                  "rule": "a",
+                  "production": 3,
+                  "span": [
+                    0,
+                    1
+                  ]
+                }
+              },
+              {
+                "close": {
+                  "rule": "c",
+                  "production": 11,
+                  "span": [
+                    0,
+                    1
+                  ]
+                }
+              }
+            ]
           }
         }
       }
@@ -66,7 +88,29 @@
           "error": {
             "kind": "ambiguous",
             "reason": "elision-only",
-            "stage": "main"
+            "stage": "main",
+            "witness": [
+              {
+                "close": {
+                  "rule": "a",
+                  "production": 3,
+                  "span": [
+                    0,
+                    1
+                  ]
+                }
+              },
+              {
+                "close": {
+                  "rule": "c",
+                  "production": 11,
+                  "span": [
+                    0,
+                    1
+                  ]
+                }
+              }
+            ]
           }
         }
       }
