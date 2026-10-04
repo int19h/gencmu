@@ -293,7 +293,7 @@ pub(crate) fn assert_linear(work: Work, n: usize, run: &mut dyn FnMut(usize)) {
 
 #[cfg(test)]
 mod tests {
-    use super::{bound, budget, counted, reset, Work};
+    use super::{assert_linear, bound, budget, counted, reset, Work};
     use crate::json::Json;
     use crate::{InputToken, ParseOptions, Verdict};
     use std::collections::BTreeMap;
@@ -417,5 +417,40 @@ mod tests {
         let long = work(8000, Some((5 * short.0, 5 * short.1)));
         // Linear work gives about four times as much; quadratic, sixteen.
         assert!(long.0 <= 5 * short.0 && long.1 <= 5 * short.1, "2000 tokens: {short:?}; 8000: {long:?}");
+    }
+
+    /// The check of `elision-only` restores each elidable optional at a
+    /// synthetic token (engine §7.4). Here each of n rules predicts its own
+    /// optional there, so the set after the token gains n restored items.
+    /// Each restoration looks its item up once, so the lookups grow with n,
+    /// where a scan of the set would grow with n².
+    #[test]
+    fn restorations_look_up_their_items_once() {
+        let dialects: Vec<_> = [250usize, 1000]
+            .into_iter()
+            .map(|n| {
+                let names: Vec<String> = (0..n).map(|index| format!("r{index}")).collect();
+                let rules: Vec<String> = (0..n).map(|index| format!("%rule r{index} A [+KU] [+KU] B{index}")).collect();
+                let grammar = format!(
+                    "%ambiguity-resolution late-elision elision-only\n%rule text {}\n{}",
+                    names.join(" | "),
+                    rules.join("\n")
+                );
+                crate::load_dialect_sources(single(&grammar), "p.md").unwrap()
+            })
+            .collect();
+        let token = |tag: &str| InputToken {
+            text: tag.to_lowercase(),
+            tags: [tag.to_string()].into_iter().collect(),
+            phonemes: None,
+        };
+        // One KU can stand in either place, so the stage chooses one
+        // derivation, and the check restores the elided one.
+        let tokens = [token("A"), token("KU"), token("B0")];
+        assert_linear(Work::Found, 250, &mut |n| {
+            let result = dialects[usize::from(n != 250)].parse_tokens(&tokens, &no_auto()).unwrap();
+            assert!(result.ok, "{n} rules");
+            assert_eq!(result.stages[0].verdict, Some(Verdict::Resolved));
+        });
     }
 }
