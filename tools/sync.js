@@ -20,7 +20,7 @@ import { fileURLToPath } from "node:url";
 import { Loader, fnv1a64 } from "../lib/js/src/node.js";
 import { DOM_FORMAT } from "../lib/js/src/dom.js";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
-import { includeIsLinked } from "./links.js";
+import { includeLinks } from "./links.js";
 import { layoutProblems } from "./alternatives.js";
 import { quotedTextProblems } from "./quoted-texts.js";
 import { proseLineProblems } from "./prose-lines.js";
@@ -144,9 +144,9 @@ if (parserMissing && check) {
 } else {
   const unlinked = [];
   for (const [file, { dom }] of Object.entries(documents)) {
-    const text = fs.readFileSync(path.join(grammars, file), "utf8");
+    const isLinked = includeLinks(fs.readFileSync(path.join(grammars, file), "utf8"));
     for (const directive of dom.directives) {
-      if (directive.name === "include" && !includeIsLinked(text, directive.at[0], directive.args[0])) unlinked.push(`${file}:${directive.at[0]}: %include "${directive.args[0]}" does not follow a list item with a link [text](${directive.args[0]})`);
+      if (directive.name === "include" && !isLinked(directive.at[0], directive.args[0])) unlinked.push(`${file}:${directive.at[0]}: %include "${directive.args[0]}" does not follow a list item with a link [text](${directive.args[0]})`);
     }
   }
   if (unlinked.length) {

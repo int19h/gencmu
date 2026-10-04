@@ -110,12 +110,25 @@ export function parseMarkdown(markdown) {
 }
 
 /**
- * Every node of a tree, in document order, each with its ancestors.
- * @param {Node} node
- * @param {Node[]} [ancestors]
+ * Every node of a tree, in document order, each with its ancestors. The
+ * ancestors are one list that the walk changes as it goes, so a caller
+ * reads them before it asks for the next node. A copy of them for each
+ * node, and a yield* at each level, would cost each node its depth.
+ * @param {Node} root
  * @returns {Generator<{node: Node, ancestors: Node[]}>}
  */
-export function* walk(node, ancestors = []) {
-  yield { node, ancestors };
-  for (const child of node.children || []) yield* walk(child, [...ancestors, node]);
+export function* walk(root) {
+  /** @type {Node[]} */
+  const ancestors = [];
+  /** @type {{node: Node, depth: number}[]} */
+  const stack = [{ node: root, depth: 0 }];
+  for (let top = stack.pop(); top !== undefined; top = stack.pop()) {
+    const { node, depth } = top;
+    ancestors.length = depth;
+    yield { node, ancestors };
+    ancestors.length = depth;
+    ancestors.push(node);
+    const children = node.children || [];
+    for (let index = children.length - 1; index >= 0; index--) stack.push({ node: children[index], depth: depth + 1 });
+  }
 }
