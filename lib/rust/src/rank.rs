@@ -871,8 +871,8 @@ impl<'c> Ranker<'c> {
     /// Whether a fault skips this alternative of a node of the check: the
     /// last of two or more links of an item, or members of a group
     /// (tests/README.md).
-    fn skips(&self, fault: Fault, number: u32, count: usize) -> bool {
-        self.check && count > 1 && number as usize == count - 1 && witness::fault(fault)
+    fn skips(&self, fault: Fault, site: &'static str, number: u32, count: usize) -> bool {
+        self.check && count > 1 && number as usize == count - 1 && witness::fault_at(fault, site)
     }
 
     /// W(D)'s actions as a derivation of the ranking's own, to compare with
@@ -900,7 +900,9 @@ impl<'c> Ranker<'c> {
     /// of the projected span in the check, else the span's own (§7.5).
     fn reference_span(&self, start: u32, end: u32) -> &'c [Tok] {
         match self.dag.projection {
-            Some(_) if witness::fault(Fault::ReferenceSpan) => &self.dag.tokens[start as usize..end as usize],
+            Some(_) if witness::fault_at(Fault::ReferenceSpan, "group") => {
+                &self.dag.tokens[start as usize..end as usize]
+            }
             Some((observed, project)) => &observed[project[start as usize] as usize..project[end as usize] as usize],
             None => &self.dag.tokens[start as usize..end as usize],
         }
@@ -975,8 +977,8 @@ impl<'c> Ranker<'c> {
                 // Faults of the check (tests/README.md): no test at all, or
                 // a test of a reference over its span of R.
                 let checking = projection.is_some();
-                let no_tests = checking && witness::fault(Fault::RankerTests);
-                if checking && witness::fault(Fault::ReferenceSpan) {
+                let no_tests = checking && witness::fault_at(Fault::RankerTests, "links");
+                if checking && witness::fault_at(Fault::ReferenceSpan, "links") {
                     projection = None;
                 }
                 let holds = |m: u32, own: SetId| {
@@ -1048,7 +1050,7 @@ impl<'c> Ranker<'c> {
             Node::Group { rule, origin, set, tags, test } => {
                 let eset = &self.dag.chart.sets[set as usize];
                 // A fault applies no test in the check (tests/README.md).
-                let no_tests = self.dag.projection.is_some() && witness::fault(Fault::RankerTests);
+                let no_tests = self.dag.projection.is_some() && witness::fault_at(Fault::RankerTests, "group");
                 let test = (test != NO_TEST && !no_tests).then(|| &self.dag.g.tests[test as usize]);
                 let span = self.reference_span(origin, set);
                 let (unicode, tag_table) = (self.dag.unicode, self.dag.tags);
@@ -1314,8 +1316,8 @@ impl<'c> Ranker<'c> {
                         && marks.is_some_and(|marks| marks.links.contains(&(set, index, m)));
                     // Faults of the check skip the last of two or more links,
                     // in the count or in the entries (tests/README.md).
-                    let counted = !self.skips(Fault::LostContext, number, alternatives);
-                    let selected = !self.skips(Fault::LostSelect, number, alternatives);
+                    let counted = !self.skips(Fault::LostContext, "links", number, alternatives);
+                    let selected = !self.skips(Fault::LostSelect, "links", number, alternatives);
                     if to_all && counted {
                         all.count = all.count.saturating_add(ways).min(2);
                         all.w |= w;
@@ -1372,11 +1374,11 @@ impl<'c> Ranker<'c> {
                     let result = &self.results[self.memo[&member] as usize];
                     // Faults of the check skip the last of two or more
                     // members, in the count or in the entries.
-                    if !self.skips(Fault::LostContext, number, alternatives) {
+                    if !self.skips(Fault::LostContext, "group", number, alternatives) {
                         count = count.saturating_add(result.count).min(2);
                         w |= result.count > 0 && result.w;
                     }
-                    if self.skips(Fault::LostSelect, number, alternatives) {
+                    if self.skips(Fault::LostSelect, "group", number, alternatives) {
                         continue;
                     }
                     for entry in &result.entries {

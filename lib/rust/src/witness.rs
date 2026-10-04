@@ -37,7 +37,7 @@ pub struct ElisionCheckRun {
 /// A fault of this library's own paths in the check of `elision-only`,
 /// which a test turns on to show that the shared cases catch it
 /// (tests/README.md). Each applies only while the check runs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Fault {
     /// The ranker, which rebuilds the links of the check's derivations from
     /// completed spans, applies no symbol test to them.
@@ -76,12 +76,28 @@ impl Fault {
         Fault::LostSelect,
         Fault::Restore,
     ];
+
+    /// The sites of a fault: the places in the code where it is checked,
+    /// each of which the named cases must enter while it is on.
+    pub fn sites(self) -> &'static [&'static str] {
+        match self {
+            Fault::RankerTests | Fault::ReferenceSpan | Fault::LostContext | Fault::LostSelect => &["links", "group"],
+            Fault::Reprocess | Fault::Route3 | Fault::RankRestoration | Fault::Restore => &[""],
+        }
+    }
 }
 
 thread_local! {
     static RUNS: RefCell<Option<Vec<ElisionCheckRun>>> = const { RefCell::new(None) };
     static LOSS: RefCell<Option<Loss>> = const { RefCell::new(None) };
     static FAULT: RefCell<Option<Fault>> = const { RefCell::new(None) };
+    static HITS: RefCell<Vec<(Fault, &'static str)>> = const { RefCell::new(Vec::new()) };
+}
+
+/// The sites of faults that this thread entered while they were on, each
+/// once, since the last call, which clears them.
+pub fn fault_hits() -> Vec<(Fault, &'static str)> {
+    HITS.with(|hits| std::mem::take(&mut *hits.borrow_mut()))
 }
 
 /// Runs `parse` on this thread with a fault of the check turned on.
@@ -97,9 +113,24 @@ pub fn with_fault<T>(fault: Fault, parse: impl FnOnce() -> T) -> T {
     parse()
 }
 
-/// Whether a test turned on this fault on this thread.
+/// Whether a test turned on this fault on this thread, at its one site.
 pub(crate) fn fault(fault: Fault) -> bool {
-    FAULT.with(|current| *current.borrow() == Some(fault))
+    fault_at(fault, "")
+}
+
+/// Whether a test turned on this fault on this thread, at one of its
+/// sites, which a fault that is on records as entered.
+pub(crate) fn fault_at(fault: Fault, site: &'static str) -> bool {
+    let on = FAULT.with(|current| *current.borrow() == Some(fault));
+    if on {
+        HITS.with(|hits| {
+            let mut hits = hits.borrow_mut();
+            if !hits.contains(&(fault, site)) {
+                hits.push((fault, site));
+            }
+        });
+    }
+    on
 }
 
 /// Runs `parse` on this thread and returns its value with the checks of

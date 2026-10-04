@@ -6,7 +6,7 @@
 mod common;
 
 use common::{case_files, has_caller_attachments, parse_json, run_engine_case, without_hook};
-use gencmu::tools::{with_fault, Fault};
+use gencmu::tools::{fault_hits, with_fault, Fault};
 
 /// How a case catches a fault.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,9 +77,19 @@ const CATCHES: [(Fault, &[(&str, Catch)]); 8] = [
     ),
     (
         Fault::LostContext,
-        &[("reparse-witness-sibling-first.json", Catch::Hook), ("reparse-witness-sibling-last.json", Catch::Hook)],
+        &[
+            ("reparse-witness-sibling-first.json", Catch::Hook),
+            ("reparse-witness-sibling-last.json", Catch::Hook),
+            ("reparse-strict-later-reading-symbol.json", Catch::Result),
+        ],
     ),
-    (Fault::LostSelect, &[("reparse-witness-sibling-first.json", Catch::Result)]),
+    (
+        Fault::LostSelect,
+        &[
+            ("reparse-witness-sibling-first.json", Catch::Result),
+            ("reparse-strict-later-reading-symbol.json", Catch::Result),
+        ],
+    ),
     (Fault::Restore, &[("reparse-incompatible-optional-sound.json", Catch::Result)]),
 ];
 
@@ -88,11 +98,20 @@ fn the_shared_cases_catch_each_fault() {
     let directory = common::repository().join("tests").join("engine");
     let mut missed = Vec::new();
     for (fault, cases) in CATCHES {
+        fault_hits();
         for &(case, how) in cases {
             let found = catch(fault, &directory.join(case));
             if found != Some(how) {
                 missed.push(format!("{case} catches {fault:?} as {found:?}, not {how:?}"));
             }
+        }
+        // The named cases enter every site of the fault, and no other.
+        let mut entered: Vec<&str> = fault_hits().into_iter().map(|(_, site)| site).collect();
+        entered.sort_unstable();
+        let mut declared = fault.sites().to_vec();
+        declared.sort_unstable();
+        if entered != declared {
+            missed.push(format!("{fault:?} enters the sites {entered:?}, not {declared:?}"));
         }
     }
     assert!(missed.is_empty(), "{missed:?}");
