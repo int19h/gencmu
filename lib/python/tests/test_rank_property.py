@@ -15,6 +15,7 @@ GENCMU_PROPERTY_SEED the first seed, for a larger sweep.
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import os
 import random
@@ -28,11 +29,12 @@ from gencmu._dialect import DOM_FORMAT, _resources, _unicode_table
 from gencmu._earley import Forest, Parser, StageContext
 from gencmu._grammar import lower, stitch
 from gencmu._maximal import Maximal
+from gencmu import _rank
 from gencmu._model import Token
 from gencmu._rank import Elided, Least, Vector, actions, compare_vectors, count_roots, join, rank
 from gencmu._stage import StageRunner
 
-from .shared import SHARED, case_tokens, load_case, load_case_dialect
+from .shared import SHARED, OverBudget, Watch, calls, case_tokens, count_work, load_case, load_case_dialect
 
 TERMINALS = ["A", "B", "C"]
 INF = float("inf")
@@ -898,12 +900,16 @@ class ElisionVectors(unittest.TestCase):
 
 
 class LongInputs(unittest.TestCase):
-    def test_late_elision_memory_grows_linearly(self) -> None:
-        """A summary shares the vector of the item before it, so a long
-        input with several derivations ranks in memory in proportion to its
-        length: each unit reads A and elides one or two T, so the input is
-        resolved. Four times the input takes about four times the memory,
-        where copying each vector would take sixteen."""
+    MOST = 6
+    """How many times the peak memory at n the peak at 4n may take."""
+
+    def peaks(self, large: Any = contextlib.nullcontext()) -> tuple[int, int]:
+        """The peak memory of ranking 500 tokens, and of 2000 tokens under a
+        budget of MOST times that. Each unit reads A and elides one or two
+        T, so the input is resolved. The budget is checked at each join of
+        two vectors, so a regression stops at the first join past it, with
+        :class:`OverBudget`, whose second argument is the peak there. The
+        larger run is made within ``large``."""
 
         def ref(name: str) -> dict[str, Any]:
             return {"ref": name}
@@ -923,21 +929,76 @@ class LongInputs(unittest.TestCase):
         }
         unicode = _unicode_table(_resources().unicode)
         lowered = lower(stitch("main", [("g.md", dom)], unicode), frozenset())
-        peaks = []
-        for length in (500, 2000):
+        # The code of join as the module defines it, which a regression
+        # under test calls in its place.
+        joins = calls(join)
+
+        def peak(length: int, budget: int | None) -> int:
             tokens = [Token("a", frozenset(["A"]), (index, index + 1), (index, index + 1)) for index in range(length)]
             context = StageContext(lowered, tokens, "a" * length, unicode)
             context.count = count_roots
             forest = Parser(context).parse(lowered.rule_ids["text"])
+
+            def over(frame: Any) -> int:
+                # No work counts, but the peak is checked at each join.
+                found = tracemalloc.get_traced_memory()[1]
+                if budget is not None and found > budget:
+                    raise OverBudget(f"more than {budget} bytes", found)
+                return 0
+
             tracemalloc.start()
             try:
-                ranking = rank(forest, "late-elision")
-                peaks.append(tracemalloc.get_traced_memory()[1])
+                with count_work(Watch(joins.calls, joins.codes, over)):
+                    ranking = rank(forest, "late-elision")
+                found = tracemalloc.get_traced_memory()[1]
             finally:
                 tracemalloc.stop()
             assert ranking is not None
             self.assertEqual(ranking.verdict, "resolved")
-        self.assertLess(peaks[1], 6 * peaks[0], f"peak memory {peaks[0]} bytes for 500 tokens, {peaks[1]} for 2000")
+            return found
+
+        small = peak(500, None)
+        with large:
+            return small, peak(2000, self.MOST * small)
+
+    def test_late_elision_memory_grows_linearly(self) -> None:
+        """A summary shares the vector of the item before it, so a long
+        input with several derivations ranks in memory in proportion to its
+        length. Four times the input takes about four times the memory,
+        where copying each vector would take sixteen."""
+        try:
+            self.peaks()
+        except OverBudget as over:
+            self.fail(f"peak memory {over.args[1]} bytes for 2000 tokens, {over.args[0]}")
+
+    def test_copying_each_vector_fails_at_the_first_join_past_the_budget(self) -> None:
+        """A join that copies the vector before it holds memory that grows
+        with the square of the input. The ranking of 2000 tokens stops at
+        the first join past its budget, long before it would end."""
+
+        def copying_join(left: Vector, right: Vector) -> Vector:
+            if left is None or right is None:
+                return join(left, right)
+            # A copy of the left sequence, node by node, joined to the right.
+            copies: dict[int, Elided] = {}
+            pending: list[tuple[Elided, bool]] = [(left, False)]
+            while pending:
+                node, ready = pending.pop()
+                if ready or node.left is None:
+                    inner = (copies[id(node.left)], copies[id(node.right)]) if node.left is not None and node.right is not None else (None, None)
+                    copies[id(node)] = Elided(node.size, node.first, node.last, *inner)
+                    continue
+                pending.append((node, True))
+                pending.append((node.left, False))
+                pending.append((node.right, False))  # type: ignore[arg-type]
+            return join(copies[id(left)], right)
+
+        with self.assertRaises(OverBudget) as raised:
+            self.peaks(mock.patch.object(_rank, "join", copying_join))
+        budget = int(raised.exception.args[0].split()[2])
+        # The first join past the budget stops the ranking: one join adds
+        # a copy of one vector, far less than the budget.
+        self.assertLess(raised.exception.args[1], 2 * budget)
 
 
 if __name__ == "__main__":
