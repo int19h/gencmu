@@ -8,7 +8,7 @@
 
 import fs from "node:fs";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
-import { DOM_FORMAT, captureSequences, comparisonProblem, constantValueType, definitionProblem, elidableHead, expectedProblem, readsOwnTags, openPart, propertyProblem, rangeProblem, soundProblem, termType, testValueFault } from "../lib/js/src/dom.js";
+import { DOM_FORMAT, duplicateCaptures, comparisonProblem, constantValueType, definitionProblem, elidableHead, expectedProblem, readsOwnTags, openPart, propertyProblem, rangeProblem, soundProblem, termType, testValueFault } from "../lib/js/src/dom.js";
 import { operandProblem } from "../lib/js/src/reader.js";
 import { UnicodeTable } from "../lib/js/src/unicode.js";
 import { characterTag } from "../lib/js/src/tags.js";
@@ -394,7 +394,7 @@ class Parser {
     this.start = this.index;
     const alternative = { guards, expr: this.conjunction() };
     // A name stands at most once in each production (engine §3.5, §9).
-    const twice = captureSequences(alternative.expr).duplicates.map((capture) => this.captureTokens.get(capture));
+    const twice = duplicateCaptures(alternative.expr).map((capture) => this.captureTokens.get(capture));
     if (twice.length > 0) {
       const first = twice.reduce((a, b) => (b.at[0] < a.at[0] || (b.at[0] === a.at[0] && b.at[1] < a.at[1]) ? b : a));
       fail("a capture name is read twice by one production", first);

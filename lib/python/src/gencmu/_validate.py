@@ -13,7 +13,7 @@ import json
 import re
 from typing import Any, Protocol
 
-from ._clauses import capture_sequences, definition_problem
+from ._clauses import definition_problem, duplicate_captures
 from ._tags import character_of_tag, is_tag
 from ._types import constant_value_problem, expected_problem, is_sound_test, open_part, rule_type_problem, term_type, test_type_problem
 from ._unicode import PROPERTY_NAMES
@@ -479,7 +479,7 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
             return fault[0]
     # A capture name stands at most once in each production (engine §3.5).
     for expr in expressions:
-        if capture_sequences(expr)[1]:
+        if duplicate_captures(expr):
             return "a capture name used twice in one production"
     # A definition is checked as a whole (engine §9), once its clauses are
     # known to be well formed, and so are the types of its terms and

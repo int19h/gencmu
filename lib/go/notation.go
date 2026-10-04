@@ -570,7 +570,7 @@ func (b *domBuilder) alternative(n *Node) *domAlt {
 	// A name stands at most once in each production, gates aside: the
 	// error stands at the second capture that such a production reads, the
 	// first in the text where there are several (engine §3.5, §9).
-	if _, twice := captureSequences(a.Expr); len(twice) > 0 {
+	if twice := duplicateCaptures(a.Expr); len(twice) > 0 {
 		var first *Node
 		for c := range twice {
 			node := b.captureNodes[c]

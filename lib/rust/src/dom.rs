@@ -1340,7 +1340,7 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
         let twice = |rule: &RuleDef| {
             rule.alternatives
                 .iter()
-                .any(|alternative| !crate::clauses::CaptureSequences::of(&alternative.expr).duplicates.is_empty())
+                .any(|alternative| !crate::clauses::duplicate_captures(&alternative.expr).is_empty())
         };
         match rule_from_json(rule) {
             Ok(rule) if twice(&rule) => return Some("a capture name used twice in one production"),

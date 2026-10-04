@@ -145,7 +145,7 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		// A capture name stands at most once in each production (engine
 		// §3.5).
 		for _, a := range r.Alternatives {
-			if _, twice := captureSequences(a.Expr); len(twice) > 0 {
+			if twice := duplicateCaptures(a.Expr); len(twice) > 0 {
 				return &domProblem{message: fmt.Sprintf("rule %s: a capture name used twice in one production", r.Name), rule: r}
 			}
 		}
@@ -442,6 +442,57 @@ func elidableHead(e *domExpr) *domExpr {
 		return head
 	}
 	return nil
+}
+
+// duplicateCaptures lists the captures that some production of an
+// expression reads after a capture of the same name (engine §3.5, §9),
+// found from the structure alone: two captures are read by one production
+// exactly when they stand in different items of one sequence or one &,
+// since each item is read in any of its expansions. So no production is
+// listed. A choice's branches never meet, and braces and an elidable
+// optional hold no capture.
+func duplicateCaptures(e *domExpr) map[*domExpr]bool {
+	duplicates := map[*domExpr]bool{}
+	var visit func(n *domExpr) []*domExpr
+	visit = func(n *domExpr) []*domExpr {
+		if n == nil {
+			return nil
+		}
+		switch n.Kind {
+		case exCapture:
+			return []*domExpr{n}
+		case exSeq, exAnd:
+			seen := map[string]bool{}
+			var all []*domExpr
+			for _, it := range n.Items {
+				part := visit(it)
+				for _, c := range part {
+					if seen[c.Name] {
+						duplicates[c] = true
+					}
+				}
+				for _, c := range part {
+					seen[c.Name] = true
+				}
+				all = append(all, part...)
+			}
+			return all
+		case exChoice:
+			var all []*domExpr
+			for _, it := range n.Items {
+				all = append(all, visit(it)...)
+			}
+			return all
+		case exOptional:
+			if n.Elidable {
+				return nil
+			}
+			return visit(n.Inner)
+		}
+		return nil
+	}
+	visit(e)
+	return duplicates
 }
 
 // captureSequences lists the distinct sequences of captures that the

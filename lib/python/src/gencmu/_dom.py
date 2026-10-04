@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from ._clauses import attachment_order, capture_sequences, definition_problem
+from ._clauses import attachment_order, definition_problem, duplicate_captures
 from ._errors import GencmuError
 from ._markdown import GrammarText
 from ._model import Node, Token
@@ -438,7 +438,7 @@ class DomBuilder:
         # A name stands at most once in each production, gates aside: the
         # error stands at the second capture that such a production reads,
         # the first in the text where there are several (engine §3.5, §9).
-        twice = [self.capture_nodes[id(capture)] for capture in capture_sequences(expr)[1]]
+        twice = [self.capture_nodes[id(capture)] for capture in duplicate_captures(expr)]
         if twice:
             first = min(twice, key=lambda capture: self.first_token(capture) or 0)
             name = self.text(self.token(first))[1:]

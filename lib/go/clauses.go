@@ -253,6 +253,16 @@ func condMentions(c *domCond, into map[string]bool) {
 	}
 }
 
+// anyAltTags says whether an alternative of a rule has tags of its own.
+func anyAltTags(r *domRule) bool {
+	for _, a := range r.Alternatives {
+		if a.Tags != nil {
+			return true
+		}
+	}
+	return false
+}
+
 // altCaptures lists, for each production of an alternative, each capture
 // it reads with its place in the order read; $ is at -1 (engine §3.5).
 // Productions that read the same captures in the same order are one.
@@ -283,6 +293,11 @@ func usesAll(names map[string]bool, has func(string) bool) (string, bool) {
 // clauses written with them, cannot be read (engine §9), or "". The DOM's
 // shape must already be sound.
 func definitionProblem(r *domRule) string {
+	// A definition with no clause has nothing to check about its captures,
+	// and its productions, whose number can be exponential, are not listed.
+	if r.Tags == nil && len(r.Conditions) == 0 && r.Emit == nil && !anyAltTags(r) {
+		return ""
+	}
 	// A constant is its value in simplification (§3.6). A clause that holds
 	// a constant without one waits for the loader, which checks the
 	// definition again once the constants have their values (§9).

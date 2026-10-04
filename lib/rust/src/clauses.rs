@@ -2,6 +2,8 @@
 //! §9): simplifying a clause for a production, the captures a clause uses,
 //! and the checks of a definition as a whole.
 
+use std::collections::HashSet;
+
 use crate::dom::{constants_in_cond, constants_in_term, Arg, Cond, EmitItem, Expr, Mark, RuleDef, Term};
 
 /// A condition simplified for a production: decided, or still to evaluate.
@@ -208,6 +210,66 @@ fn cond_presences<'a>(cond: &'a Cond, out: &mut Vec<&'a str>) {
     }
 }
 
+/// The captures that some production of an expression reads after a
+/// capture of the same name (engine §3.5, §9), found from the structure
+/// alone: two captures are read by one production exactly when they stand
+/// in different items of one sequence or one `&`, since each item is read in
+/// any of its expansions. So no production is listed. A choice's branches
+/// never meet, and braces and an elidable optional hold no capture. Each
+/// capture is its index in the order written, and the list is increasing.
+pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
+    fn visit<'e>(expr: &'e Expr, next: &mut usize, out: &mut Vec<usize>) -> Vec<(usize, &'e str)> {
+        match expr {
+            Expr::Capture(name, _) => {
+                *next += 1;
+                vec![(*next - 1, name.as_str())]
+            }
+            Expr::Seq(items) | Expr::And(items) => {
+                let mut seen: HashSet<&str> = HashSet::new();
+                let mut all = Vec::new();
+                for item in items {
+                    let part = visit(item, next, out);
+                    out.extend(part.iter().filter(|(_, name)| seen.contains(name)).map(|&(index, _)| index));
+                    seen.extend(part.iter().map(|&(_, name)| name));
+                    all.extend(part);
+                }
+                all
+            }
+            Expr::Choice(items) => {
+                let mut all = Vec::new();
+                for item in items {
+                    all.extend(visit(item, next, out));
+                }
+                all
+            }
+            Expr::Optional(inner, Mark::Plain) => visit(inner, next, out),
+            Expr::Optional(..) | Expr::Repeat(..) | Expr::Tested(..) => {
+                // No production reads a capture here, but its index counts.
+                let mut stack = vec![expr];
+                while let Some(current) = stack.pop() {
+                    match current {
+                        Expr::Capture(..) => *next += 1,
+                        Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => stack.extend(items.iter().rev()),
+                        Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => stack.push(inner),
+                        Expr::Repeat(item, separator, _) => {
+                            stack.extend(separator.as_deref());
+                            stack.push(item);
+                        }
+                        _ => {}
+                    }
+                }
+                Vec::new()
+            }
+            Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => Vec::new(),
+        }
+    }
+    let mut out = Vec::new();
+    visit(expr, &mut 0, &mut out);
+    out.sort_unstable();
+    out.dedup();
+    out
+}
+
 /// The distinct sequences of captures that the productions of an
 /// expression read, each in the order read (engine §3.2, §3.5): a choice
 /// gives each branch's, an `&` each subsequence's, a plain optional none
@@ -222,17 +284,12 @@ pub(crate) struct CaptureSequences<'e> {
     pub names: Vec<&'e str>,
     /// Each distinct sequence, as indices.
     pub sequences: Vec<Vec<usize>>,
-    /// The captures that some production reads after one of the same name,
-    /// in increasing order.
-    pub duplicates: Vec<usize>,
 }
 
 impl<'e> CaptureSequences<'e> {
     pub(crate) fn of(expr: &'e Expr) -> CaptureSequences<'e> {
-        let mut found = CaptureSequences { names: Vec::new(), sequences: Vec::new(), duplicates: Vec::new() };
+        let mut found = CaptureSequences { names: Vec::new(), sequences: Vec::new() };
         found.sequences = found.visit(expr);
-        found.duplicates.sort_unstable();
-        found.duplicates.dedup();
         found
     }
 
@@ -242,12 +299,11 @@ impl<'e> CaptureSequences<'e> {
     }
 
     fn distinct(&self, lists: Vec<Vec<usize>>) -> Vec<Vec<usize>> {
-        let mut seen: Vec<Vec<&str>> = Vec::new();
+        let mut seen: HashSet<Vec<&str>> = HashSet::new();
         let mut out = Vec::new();
         for list in lists {
             let key: Vec<&str> = list.iter().map(|&index| self.names[index]).collect();
-            if !seen.contains(&key) {
-                seen.push(key);
+            if seen.insert(key) {
                 out.push(list);
             }
         }
@@ -258,11 +314,6 @@ impl<'e> CaptureSequences<'e> {
         let mut out = Vec::with_capacity(left.len() * right.len());
         for first in left {
             for second in right {
-                for &capture in second {
-                    if first.iter().any(|&other| self.names[other] == self.names[capture]) {
-                        self.duplicates.push(capture);
-                    }
-                }
                 out.push(first.iter().chain(second).copied().collect());
             }
         }
@@ -358,6 +409,15 @@ fn cond_waits(cond: &Cond) -> bool {
 /// error of the document (engine §9), or `None`. The checks that
 /// simplification decides skip a clause that holds a constant.
 pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
+    // A definition with no clause has nothing to check about its captures,
+    // and its productions, whose number can be exponential, are not listed.
+    if rule.tags.is_none()
+        && rule.conditions.is_empty()
+        && rule.emit.is_none()
+        && rule.alternatives.iter().all(|alternative| alternative.tags.is_none())
+    {
+        return None;
+    }
     // Each production of each alternative, as the alternative and the
     // captures it reads in order (engine §3.5, §9); productions that read
     // the same captures in the same order are one.

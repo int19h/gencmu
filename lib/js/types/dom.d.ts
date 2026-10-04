@@ -149,6 +149,19 @@ export declare function captureSequences(expr: any): {
     }[];
 };
 /**
+ * The captures that some production of an expression reads after a
+ * capture of the same name (engine §3.5, §9), found from the structure
+ * alone: two captures are read by one production exactly when they stand
+ * in different items of one sequence or one &, since each item is read in
+ * any of its expansions. So no production is listed. A choice's branches
+ * never meet. Braces and an elidable optional hold no capture.
+ * @param {any} expr
+ * @returns {{capture: string}[]}
+ */
+export declare function duplicateCaptures(expr: any): {
+    capture: string;
+}[];
+/**
  * The terminal at the head of an elidable optional's expression, or null
  * when the expression has no such head (engine §3.8, §9): a `ref` whose
  * name begins with a capital, a `terminal` whose tag is a name, or an `=`

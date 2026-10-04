@@ -59,6 +59,55 @@ def mentioned_in(dom: Any) -> set[str]:
     return found
 
 
+def duplicate_captures(expr: Any) -> list[Dom]:
+    """The capture nodes that some production of an expression reads after
+    a capture of the same name (engine §3.5, §9), found from the structure
+    alone: two captures are read by one production exactly when they stand
+    in different items of one sequence or one ``&``, since each item is read
+    in any of its expansions. So no production is listed. A choice's
+    branches never meet, and braces and an elidable optional hold no
+    capture. In no particular order."""
+    duplicates: list[Dom] = []
+
+    def children(node: Any) -> list[Any]:
+        if not isinstance(node, dict) or (isinstance(node.get("capture"), str) and "expr" in node):
+            return []
+        for key in ("seq", "choice", "and"):
+            if isinstance(node.get(key), list):
+                return node[key]
+        if "optional" in node and node.get("elidable") is not True:
+            return [node["optional"]]
+        return []
+
+    # Each frame: a node, the index of its next child, and the captures of
+    # each child done so far. An explicit stack, since a DOM's depth is
+    # bounded only by its check.
+    stack: list[tuple[Any, list[int], list[list[Dom]]]] = [(expr, [0], [])]
+    while True:
+        node, index, parts = stack[-1]
+        kids = children(node)
+        if index[0] < len(kids):
+            index[0] += 1
+            stack.append((kids[index[0] - 1], [0], []))
+            continue
+        found: list[Dom] = []
+        if isinstance(node, dict) and isinstance(node.get("capture"), str) and "expr" in node:
+            found = [node]
+        elif isinstance(node, dict) and (isinstance(node.get("seq"), list) or isinstance(node.get("and"), list)):
+            seen: set[str] = set()
+            for part in parts:
+                duplicates.extend(capture for capture in part if capture["capture"] in seen)
+                seen.update(capture["capture"] for capture in part)
+                found.extend(part)
+        else:
+            for part in parts:
+                found.extend(part)
+        stack.pop()
+        if not stack:
+            return duplicates
+        stack[-1][2].append(found)
+
+
 def capture_sequences(expr: Any) -> tuple[list[list[Dom]], list[Dom]]:
     """The distinct sequences of captures that the productions of an
     expression read, each in the order read (engine §3.2, §3.5): a choice
@@ -296,6 +345,10 @@ def definition_problem(rule: Dom) -> str | None:
     simplification decides skip a clause that holds a constant without its
     value."""
     alternatives = rule["alternatives"]
+    # A definition with no clause has nothing to check about its captures,
+    # and its productions, whose number can be exponential, are not listed.
+    if "tags" not in rule and not rule["conditions"] and "emit" not in rule and all("tags" not in alternative for alternative in alternatives):
+        return None
     # Each production of each alternative, with the captures it reads
     # (engine §3.5, §9); productions that read the same captures in the same
     # order are one.

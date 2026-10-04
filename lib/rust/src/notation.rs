@@ -1,6 +1,5 @@
 //! From the notation's document tree to a grammar DOM (engine §9).
 
-use crate::clauses::CaptureSequences;
 use crate::dom::{
     comparison_problem, cond_type_problem, constant_value_type, expected_problem, is_capture_name, is_classifier_name,
     is_sound_test, joined_type, literal_call_problem, property_problem, range_problem, sound_problem, tag_term_problem,
@@ -390,7 +389,7 @@ impl<'a> Reader<'a> {
         // A name stands at most once in each production, gates aside: the
         // error stands at the second capture that such a production reads,
         // the first in the text where there are several (§3.5, §9).
-        if let Some(&twice) = CaptureSequences::of(&expr).duplicates.first() {
+        if let Some(&twice) = crate::clauses::duplicate_captures(&expr).first() {
             let capture = self.captures.borrow()[twice];
             let name = self.text(self.token(capture)?).trim_start_matches('$').to_string();
             return Err(

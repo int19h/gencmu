@@ -1,0 +1,10 @@
+{
+  "description": "The duplicate name is found from the structure: among 30 capturing optionals, more than 2³⁰ productions, the error stands at the second $c0, which the productions that read the first read too (engine §3.5, §9).",
+  "document": "```jbogenbau\n%rule text [$c0(A)] [$c1(A)] [$c2(A)] [$c3(A)] [$c4(A)] [$c5(A)] [$c6(A)] [$c7(A)] [$c8(A)] [$c9(A)] [$c10(A)] [$c11(A)] [$c12(A)] [$c13(A)] [$c14(A)] [$c15(A)] [$c16(A)] [$c17(A)] [$c18(A)] [$c19(A)] [$c20(A)] [$c21(A)] [$c22(A)] [$c23(A)] [$c24(A)] [$c25(A)] [$c26(A)] [$c27(A)] [$c28(A)] [$c29(A)] $c0(B)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 302
+    }
+  }
+}
