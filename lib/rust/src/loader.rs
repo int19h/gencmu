@@ -177,12 +177,16 @@ pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error
     let (Some(tree), Some(stage)) = (&result.tree, result.stages.last()) else {
         return Err(Error::grammar("the notation produced no tree"));
     };
-    // The walk from the tree to the DOM recurses as deeply as the document
-    // nests, so it runs on a thread with room for the deepest it allows.
+    // The walk from the tree to the DOM, and the checks of what it reads,
+    // recurse as deeply as the document nests, which only its number of
+    // tokens bounds (engine §9). So they run on a thread with room for
+    // that depth: the stack is reserved, and only what the walk reaches is
+    // used.
     let grammar = &grammar;
+    let stack = (256usize << 20).max(stage.input.len().saturating_mul(READ_STACK_PER_TOKEN));
     std::thread::scope(|scope| {
         std::thread::Builder::new()
-            .stack_size(256 << 20)
+            .stack_size(stack)
             .spawn_scoped(scope, move || {
                 let position = |index: usize| grammar.position(index);
                 let reader = Reader {
@@ -203,6 +207,11 @@ pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error
             .unwrap_or_else(|panic| std::panic::resume_unwind(panic))
     })
 }
+
+/// The stack that reading takes for each token of a document, at most,
+/// where every token opens a construct inside the one before: measured at
+/// under 16 KiB in a build without optimization, and doubled.
+const READ_STACK_PER_TOKEN: usize = 32 << 10;
 
 /// Holds a DOM just read to the rules a precompiled one is held to, the
 /// bound on nesting among them (engine §9), reported at the first item

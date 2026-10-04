@@ -11,13 +11,6 @@ use crate::result::{Node, NodeKind, Token};
 use crate::tags::character_tag;
 use crate::unicode::Unicode;
 
-/// How deeply constructs may nest before the reader gives up, so that a
-/// pathological document cannot exhaust the stack of the thread that reads
-/// it (see `loader::read_document`). A construct costs a few levels, and
-/// parentheses nest without nesting the DOM, so this is well above the 256
-/// of engine §9, which the DOM is checked against afterwards.
-const MAX_DEPTH: usize = 12_000;
-
 pub(crate) struct Reader<'a> {
     pub tokens: &'a [Token],
     /// The captures of the alternative being read, in the order written,
@@ -70,14 +63,6 @@ impl<'a> Reader<'a> {
     fn error(&self, node: &Node, message: impl Into<String>) -> Error {
         let (line, column) = self.first(node);
         Error::grammar(message).at(line, column)
-    }
-
-    fn deeper(&self, node: &'a Node, depth: usize) -> R<usize> {
-        if depth > MAX_DEPTH {
-            Err(self.error(node, "constructs nest too deeply"))
-        } else {
-            Ok(depth + 1)
-        }
     }
 
     /// The parts of a node: its children, with each wrapper, a rule that
@@ -234,7 +219,7 @@ impl<'a> Reader<'a> {
         let mut sides = Vec::new();
         for side in self.some(node, "union", 2)?.into_iter().take(2) {
             self.closed_for.set(Some("a side of an implication"));
-            let term = self.union(side, 0, false);
+            let term = self.union(side, false);
             self.closed_for.set(None);
             let term = term?;
             let problem = match term_type(&term) {
@@ -260,7 +245,7 @@ impl<'a> Reader<'a> {
         let redefine = self.text(definer) == "%redefine-const";
         let value_node = self.one(node, "term")?;
         self.closed_for.set(Some("a constant's value"));
-        let value = self.term(value_node, 0, false);
+        let value = self.term(value_node, false);
         self.closed_for.set(None);
         let value = value?;
         if let Err(fault) = constant_value_type(&value, redefine, &|_| Type::Any) {
@@ -344,7 +329,7 @@ impl<'a> Reader<'a> {
         let mut conditions = Vec::new();
         if let Some(clause) = Self::rules(node, "conditions-clause").next() {
             for implication in self.some(clause, "implication", 1)? {
-                conditions.push(self.implication(implication, 0)?);
+                conditions.push(self.implication(implication)?);
             }
         }
         let emit = match Self::rules(node, "emits-clause").next() {
@@ -385,7 +370,7 @@ impl<'a> Reader<'a> {
             })
             .collect::<R<_>>()?;
         self.captures.borrow_mut().clear();
-        let expr = self.conjunction(self.one(node, "conjunction")?, 0, true)?;
+        let expr = self.conjunction(self.one(node, "conjunction")?, true)?;
         // A name stands at most once in each production, gates aside: the
         // error stands at the second capture that such a production reads,
         // the first in the text where there are several (§3.5, §9).
@@ -418,7 +403,7 @@ impl<'a> Reader<'a> {
     /// A whole term that must be a tag set: a constituent's or an item's
     /// tags (engine §10). A type error stands at the term.
     fn tag_term(&self, node: &'a Node) -> R<Term> {
-        let term = self.term(node, 0, false)?;
+        let term = self.term(node, false)?;
         if let Some(problem) = tag_term_problem(&term) {
             return Err(self.error(node, problem));
         }
@@ -427,8 +412,7 @@ impl<'a> Reader<'a> {
 
     /// `whole` is whether this is its alternative's whole expression, where
     /// a chain may stand (§9).
-    fn conjunction(&self, node: &'a Node, depth: usize, whole: bool) -> R<Expr> {
-        let depth = self.deeper(node, depth)?;
+    fn conjunction(&self, node: &'a Node, whole: bool) -> R<Expr> {
         let sequences = self.some(node, "sequence", 1)?;
         // The bound of an & is its own form, so it comes before its items
         // (§9).
@@ -445,30 +429,28 @@ impl<'a> Reader<'a> {
             let whole = whole && primaries.len() == 1;
             let mut items = Vec::new();
             for primary in primaries {
-                items.push(self.primary(primary, depth, whole)?);
+                items.push(self.primary(primary, whole)?);
             }
             parts.push(single_or(items, Expr::Seq));
         }
         Ok(single_or(parts, Expr::And))
     }
 
-    fn choice(&self, node: &'a Node, depth: usize) -> R<Expr> {
-        let depth = self.deeper(node, depth)?;
+    fn choice(&self, node: &'a Node) -> R<Expr> {
         let mut parts = Vec::new();
         for conjunction in self.some(node, "conjunction", 1)? {
-            parts.push(self.conjunction(conjunction, depth, false)?);
+            parts.push(self.conjunction(conjunction, false)?);
         }
         Ok(single_or(parts, Expr::Choice))
     }
 
     /// `whole` is whether a chain may stand here (§9).
-    fn primary(&self, node: &'a Node, depth: usize, whole: bool) -> R<Expr> {
-        let depth = self.deeper(node, depth)?;
+    fn primary(&self, node: &'a Node, whole: bool) -> R<Expr> {
         let inner = self.inner(node, &PRIMARIES)?;
         let token = || self.token(inner);
         Ok(match rule_name(inner) {
             "reference" | "tag" | "character" | "phoneme" | "range" | "property" => self.symbol(inner)?,
-            "tested" => self.tested(inner, depth)?,
+            "tested" => self.tested(inner)?,
             "capture" => {
                 // A capture stands anywhere but in braces or an elidable
                 // optional (§3.5, §9), and its own form is checked before
@@ -507,11 +489,11 @@ impl<'a> Reader<'a> {
                     return Err(self.error(capture, "a capture must wrap a single symbol"));
                 }
                 self.captures.borrow_mut().push(inner);
-                Expr::Capture(name, Box::new(self.primary(primary, depth, false)?))
+                Expr::Capture(name, Box::new(self.primary(primary, false)?))
             }
-            "group" => self.choice(self.one(inner, "choice")?, depth)?,
-            "optional" => self.optional(inner, depth)?,
-            "repetition" => self.repetition(inner, depth, whole)?,
+            "group" => self.choice(self.one(inner, "choice")?)?,
+            "optional" => self.optional(inner)?,
+            "repetition" => self.repetition(inner, whole)?,
             "empty" => Expr::Empty,
             "constant-reference" => return Err(self.error(inner, CONSTANT_IN_BODY)),
             other => return Err(self.unknown(node, other)),
@@ -522,7 +504,7 @@ impl<'a> Reader<'a> {
     /// elidable one (§3.8, §9). Its form is checked on the tree, where a
     /// group is still a node: one sequence, whose first primary is the
     /// terminal itself, `=`-tested or not.
-    fn optional(&self, node: &'a Node, depth: usize) -> R<Expr> {
+    fn optional(&self, node: &'a Node) -> R<Expr> {
         // Its required part first, then its markers (§9).
         let choice = self.one(node, "choice")?;
         let markers: Vec<&Node> =
@@ -531,7 +513,7 @@ impl<'a> Reader<'a> {
             return Err(self.error(second, "an optional has one marker + or ++ at most"));
         }
         let Some(&marker) = markers.first() else {
-            return Ok(Expr::Optional(Box::new(self.choice(choice, depth)?), Mark::Plain));
+            return Ok(Expr::Optional(Box::new(self.choice(choice)?), Mark::Plain));
         };
         let form = || {
             self.error(
@@ -579,7 +561,7 @@ impl<'a> Reader<'a> {
             return Err(form());
         }
         self.marked.set(self.marked.get() + 1);
-        let expr = self.choice(choice, depth);
+        let expr = self.choice(choice);
         self.marked.set(self.marked.get() - 1);
         let mark = if self.text(marker) == "++" { Mark::Maximal } else { Mark::Elidable };
         Ok(Expr::Optional(Box::new(expr?), mark))
@@ -589,7 +571,7 @@ impl<'a> Reader<'a> {
     /// chain's direction from its marker, a `...` among the parts (§9).
     /// `whole` is whether the braces are their alternative's whole
     /// expression.
-    fn repetition(&self, node: &'a Node, depth: usize, whole: bool) -> R<Expr> {
+    fn repetition(&self, node: &'a Node, whole: bool) -> R<Expr> {
         let found = Self::parts(node);
         let choices = self.some(node, "choice", 1)?;
         let place = |part: &Node| found.iter().position(|other| std::ptr::eq(*other, part)).unwrap_or(found.len());
@@ -616,9 +598,9 @@ impl<'a> Reader<'a> {
                 .error(node, "a chain is the whole expression of its alternative: name it as a rule to use it here"));
         }
         self.braces.set(self.braces.get() + 1);
-        let item = self.choice(choices[0], depth);
+        let item = self.choice(choices[0]);
         let separator = match (&item, choices.get(1)) {
-            (Ok(_), Some(&separator)) => Some(self.choice(separator, depth)),
+            (Ok(_), Some(&separator)) => Some(self.choice(separator)),
             _ => None,
         };
         self.braces.set(self.braces.get() - 1);
@@ -629,7 +611,7 @@ impl<'a> Reader<'a> {
     /// A reference other than `#` or a terminal, and one test on its own
     /// span (engine §2, §9). The syntax grammar reads a test after any
     /// primary, so that the reader can name the reason.
-    fn tested(&self, node: &'a Node, depth: usize) -> R<Expr> {
+    fn tested(&self, node: &'a Node) -> R<Expr> {
         // Its test first, then its primary and the primary's one known part
         // (§9).
         let test = self.one(node, "test")?;
@@ -651,7 +633,7 @@ impl<'a> Reader<'a> {
         let op: String = Self::tokens_of(test).map(|token| self.text(token)).collect();
         let operand = self.one(test, "test-operand")?;
         self.closed_for.set(Some("a test's operand"));
-        let value = self.atom(operand, depth, false);
+        let value = self.atom(operand, false);
         self.closed_for.set(None);
         let value = value?;
         let problem = match term_type(&value) {
@@ -879,23 +861,21 @@ impl<'a> Reader<'a> {
 
     /// `A ⟹ B`, grouping to the right: `if` of its `any-of` and the
     /// implication after `⟹`, or the one `any-of` itself.
-    fn implication(&self, node: &'a Node, depth: usize) -> R<Cond> {
-        let depth = self.deeper(node, depth)?;
-        let antecedent = self.any_of(self.one(node, "any-of")?, depth)?;
+    fn implication(&self, node: &'a Node) -> R<Cond> {
+        let antecedent = self.any_of(self.one(node, "any-of")?)?;
         Ok(match Self::rules(node, "implication").next() {
-            Some(consequent) => Cond::If(Box::new(antecedent), Box::new(self.implication(consequent, depth)?)),
+            Some(consequent) => Cond::If(Box::new(antecedent), Box::new(self.implication(consequent)?)),
             None => antecedent,
         })
     }
 
     /// Conditions joined by `∨`: `any` of its `all-of`s, or the one itself.
-    fn any_of(&self, node: &'a Node, depth: usize) -> R<Cond> {
-        let depth = self.deeper(node, depth)?;
+    fn any_of(&self, node: &'a Node) -> R<Cond> {
         let mut parts = Vec::new();
         for all_of in self.some(node, "all-of", 1)? {
             // A parenthesized group of the same connective makes no node
             // of its own: its conditions take its place (§9).
-            match self.all_of(all_of, depth)? {
+            match self.all_of(all_of)? {
                 Cond::Any(items) => parts.extend(items),
                 other => parts.push(other),
             }
@@ -904,13 +884,12 @@ impl<'a> Reader<'a> {
     }
 
     /// Conditions joined by `∧`: `all` of them, or the one itself.
-    fn all_of(&self, node: &'a Node, depth: usize) -> R<Cond> {
-        let depth = self.deeper(node, depth)?;
+    fn all_of(&self, node: &'a Node) -> R<Cond> {
         let mut parts = Vec::new();
         for condition in self.some(node, "condition", 1)? {
             // A parenthesized group of the same connective makes no node
             // of its own: its conditions take its place (§9).
-            match self.condition(condition, depth)? {
+            match self.condition(condition)? {
                 Cond::All(items) => parts.extend(items),
                 other => parts.push(other),
             }
@@ -918,19 +897,18 @@ impl<'a> Reader<'a> {
         Ok(single_or(parts, Cond::All))
     }
 
-    fn condition(&self, node: &'a Node, depth: usize) -> R<Cond> {
-        let depth = self.deeper(node, depth)?;
+    fn condition(&self, node: &'a Node) -> R<Cond> {
         let inner = self.inner(node, &CONDITIONS)?;
         match rule_name(inner) {
             // Parentheses make no node of their own (§9).
-            "implication" => self.implication(inner, depth),
+            "implication" => self.implication(inner),
             "comparison" => {
                 let operands = self.some(inner, "union", 2)?;
                 let comparator = self.one(inner, "comparator")?;
                 let op = self.text(self.token(comparator)?).to_string();
                 let (left, right) = (operands[0], operands[1]);
-                let left = self.union(left, depth, false)?;
-                let right = self.union(right, depth, false)?;
+                let left = self.union(left, false)?;
+                let right = self.union(right, false)?;
                 // The two sides fit the comparator (engine §10).
                 let problem = match (term_type(&left), term_type(&right)) {
                     (Err(problem), _) | (_, Err(problem)) => Some(problem),
@@ -941,7 +919,7 @@ impl<'a> Reader<'a> {
                 }
                 Ok(Cond::Compare(op, left, right))
             }
-            "negation" => Ok(Cond::Not(Box::new(self.condition(self.one(inner, "condition")?, depth)?))),
+            "negation" => Ok(Cond::Not(Box::new(self.condition(self.one(inner, "condition")?)?))),
             "presence" => {
                 let token = self.token(inner)?;
                 Ok(Cond::Captured(self.text(token).trim_start_matches('$').to_string()))
@@ -959,7 +937,7 @@ impl<'a> Reader<'a> {
                 }
                 let mut args = Vec::new();
                 for argument in Self::rules(inner, "argument") {
-                    args.push(self.argument(argument, depth)?);
+                    args.push(self.argument(argument)?);
                 }
                 match (name, &mut args[..]) {
                     ("initial", [Arg::Term(span)]) if is_span(span) => Ok(Cond::Initial(span.clone())),
@@ -980,12 +958,12 @@ impl<'a> Reader<'a> {
     /// A function's argument: a rule, where it is a bare name without a
     /// capital, alone and perhaps in parentheses, or else a term where a
     /// span may stand.
-    fn argument(&self, node: &'a Node, depth: usize) -> R<Arg> {
+    fn argument(&self, node: &'a Node) -> R<Arg> {
         let union = self.one(node, "union")?;
         if let Some(rule) = self.rule_name_in(union) {
             return Ok(Arg::Rule(rule));
         }
-        Ok(Arg::Term(self.union(union, depth, true)?))
+        Ok(Arg::Term(self.union(union, true)?))
     }
 
     /// The bare name without a capital that a union is alone, if it is one.
@@ -1014,38 +992,35 @@ impl<'a> Reader<'a> {
 
     /// A `term`: its union, or its guarded term, `if` of its condition and
     /// its term (§9). `argument` is whether a span may stand here.
-    fn term(&self, node: &'a Node, depth: usize, argument: bool) -> R<Term> {
-        let depth = self.deeper(node, depth)?;
+    fn term(&self, node: &'a Node, argument: bool) -> R<Term> {
         let inner = self.inner(node, &TERMS)?;
         match rule_name(inner) {
             "guarded-term" => {
                 if let Some(closed) = self.closed_for.get() {
                     return Err(self.error(inner, format!("{closed} is a closed term, and holds no guarded term")));
                 }
-                let depth = self.deeper(inner, depth)?;
-                let cond = self.any_of(self.one(inner, "any-of")?, depth)?;
+                let cond = self.any_of(self.one(inner, "any-of")?)?;
                 if let Some(problem) = cond_type_problem(&cond) {
                     return Err(self.error(inner, problem));
                 }
-                let then = self.term(self.one(inner, "term")?, depth, false)?;
+                let then = self.term(self.one(inner, "term")?, false)?;
                 let guarded = Term::If(Box::new(cond), Box::new(then));
                 if let Err(problem) = term_type(&guarded) {
                     return Err(self.error(inner, problem));
                 }
                 Ok(guarded)
             }
-            _ => self.union(inner, depth, argument),
+            _ => self.union(inner, argument),
         }
     }
 
     /// Parts joined by `∪` and `∖`, which group from the left: a run joined
     /// by `∪` is one union, and each `∖` takes what stands before it (§9).
-    fn union(&self, node: &'a Node, depth: usize, argument: bool) -> R<Term> {
-        let depth = self.deeper(node, depth)?;
+    fn union(&self, node: &'a Node, argument: bool) -> R<Term> {
         let parts: Vec<&Node> = Self::rules(node, "intersection").collect();
         match parts[..] {
             [] => return Err(self.shape_error(node, "intersection")),
-            [part] => return self.intersection(part, depth, argument),
+            [part] => return self.intersection(part, argument),
             _ => {}
         }
         let mut operators: Vec<&str> =
@@ -1056,7 +1031,7 @@ impl<'a> Reader<'a> {
         }
         let mut items = Vec::new();
         for part in &parts {
-            items.push(self.intersection(part, depth, false)?);
+            items.push(self.intersection(part, false)?);
         }
         let types = items.iter().map(term_type).collect::<Result<Vec<_>, _>>().map_err(|p| self.error(node, p))?;
         let operator = if operators.contains(&"∖") { "∖" } else { "∪" };
@@ -1080,30 +1055,28 @@ impl<'a> Reader<'a> {
         Ok(result)
     }
 
-    fn intersection(&self, node: &'a Node, depth: usize, argument: bool) -> R<Term> {
-        let depth = self.deeper(node, depth)?;
+    fn intersection(&self, node: &'a Node, argument: bool) -> R<Term> {
         let atoms: Vec<&Node> = Self::rules(node, "term-atom").collect();
         match atoms[..] {
             [] => return Err(self.shape_error(node, "term-atom")),
-            [atom] => return self.atom(atom, depth, argument),
+            [atom] => return self.atom(atom, argument),
             _ => {}
         }
         let mut items = Vec::new();
         for atom in atoms {
-            items.push(self.atom(atom, depth, false)?);
+            items.push(self.atom(atom, false)?);
         }
         let types = items.iter().map(term_type).collect::<Result<Vec<_>, _>>().map_err(|p| self.error(node, p))?;
         joined_type(&types, "∩").map_err(|problem| self.error(node, problem))?;
         Ok(Term::Intersection(items))
     }
 
-    fn atom(&self, node: &'a Node, depth: usize, argument: bool) -> R<Term> {
-        let depth = self.deeper(node, depth)?;
+    fn atom(&self, node: &'a Node, argument: bool) -> R<Term> {
         let inner = self.inner(node, &ATOMS)?;
         let token = || self.token(inner);
         Ok(match rule_name(inner) {
             // A span may stand in parentheses where a span is due.
-            "term" => self.term(inner, depth, argument)?,
+            "term" => self.term(inner, argument)?,
             "string" => Term::Str(self.decode(token()?)?),
             "tag" | "character" | "phoneme" => Term::Tag(self.tag_of(token()?)?),
             "range" => {
@@ -1141,7 +1114,7 @@ impl<'a> Reader<'a> {
                 Term::Capture(name)
             }
             "call" => {
-                let call = self.call(inner, depth)?;
+                let call = self.call(inner)?;
                 if let Term::Call(name, _) = &call {
                     if !argument && is_span(&call) {
                         return Err(self.error(inner, format!("{name}() gives a span, which is not a value")));
@@ -1153,7 +1126,7 @@ impl<'a> Reader<'a> {
         })
     }
 
-    fn call(&self, node: &'a Node, depth: usize) -> R<Term> {
+    fn call(&self, node: &'a Node) -> R<Term> {
         let name_token = self.token(node)?;
         let name = self.text(name_token).to_string();
         if !FUNCTIONS.contains(&name.as_str()) {
@@ -1169,7 +1142,7 @@ impl<'a> Reader<'a> {
         }
         let mut args = Vec::new();
         for argument in Self::rules(node, "argument") {
-            args.push(self.argument(argument, depth)?);
+            args.push(self.argument(argument)?);
         }
         let span = |arg: &Arg| matches!(arg, Arg::Term(term) if is_span(term));
         let rule = |arg: &Arg| matches!(arg, Arg::Rule(_));

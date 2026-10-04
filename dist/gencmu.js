@@ -1757,6 +1757,57 @@
     }
   }
 
+  // ---- trampoline.js
+  // Runs mutually recursive readers and walks without the call stack, so a
+  // document's nesting cannot exhaust it (engine §9).
+
+  /**
+   * A step of a reader written as a generator: it yields the generator of
+   * each call it would make, and receives that call's result in its place,
+   * or the call's error, thrown at the yield.
+   * @typedef {Generator<any, any, any>} Step
+   */
+
+  /**
+   * Runs a reader to its result, keeping the chain of its calls in an
+   * explicit stack.
+   * @template T
+   * @param {Generator<any, T, any>} root
+   * @returns {T}
+   */
+  function run(root) {
+    /** @type {Step[]} */
+    const stack = [root];
+    /** @type {any} */
+    let value;
+    let failed = false;
+    /** @type {unknown} */
+    let error = null;
+    while (stack.length > 0) {
+      const top = stack[stack.length - 1];
+      let step;
+      try {
+        step = failed ? top.throw(error) : top.next(value);
+      } catch (thrown) {
+        stack.pop();
+        failed = true;
+        error = thrown;
+        continue;
+      }
+      failed = false;
+      error = null;
+      if (step.done) {
+        stack.pop();
+        value = step.value;
+      } else {
+        stack.push(step.value);
+        value = undefined;
+      }
+    }
+    if (failed) throw error;
+    return value;
+  }
+
   // ---- dom.js
   // Checks that a grammar DOM that did not come from reading a document, the
   // bootstrap's or a precompiled one from compiled.json, has the shape the
@@ -1766,7 +1817,9 @@
 
 
 
+
   /** @import { Argument, GrammarDom, Term } from "./types.js" */
+  /** @import { Step } from "./trampoline.js" */
 
   const DOM_FUNCTIONS = new Set(["phonemes", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
   const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈"]);
@@ -2279,22 +2332,29 @@
    * @returns {boolean}
    */
   function readsOwnTags(node) {
-    if (!isDomObject(node)) return false;
-    if (node.capture === "" && Object.keys(node).length === 1) return true;
-    if (typeof node.call === "string") {
-      if (!Array.isArray(node.args)) return false;
-      if ((node.call === "tags" || node.call === "classes") && node.args.length === 1) {
-        const span = node.args[0];
-        return isDomObject(span) && span.capture === "";
+    // The parts to look at, with an explicit stack: the depth of a term is
+    // bounded only once the whole document is read (engine §9).
+    const stack = [node];
+    while (stack.length > 0) {
+      const current = stack.pop();
+      if (!isDomObject(current)) continue;
+      if (current.capture === "" && Object.keys(current).length === 1) return true;
+      if (typeof current.call === "string") {
+        if (!Array.isArray(current.args)) continue;
+        if ((current.call === "tags" || current.call === "classes") && current.args.length === 1) {
+          const span = current.args[0];
+          if (isDomObject(span) && span.capture === "") return true;
+          continue;
+        }
+        for (const argument of current.args) if (isDomObject(argument) && typeof argument.call === "string") stack.push(argument);
+        continue;
       }
-      return node.args.some((argument) => isDomObject(argument) && typeof argument.call === "string" && readsOwnTags(argument));
+      if ("matches" in current || "begins" in current || "initial" in current) continue;
+      const key = ["union", "intersection", "difference", "any", "all"].find((name) => Array.isArray(current[name]));
+      if (key) for (const item of /** @type {unknown[]} */ (current[key])) stack.push(item);
+      else for (const name of ["left", "right", "not", "if", "then"]) stack.push(current[name]);
     }
-    if ("matches" in node || "begins" in node || "initial" in node) return false;
-    for (const key of ["union", "intersection", "difference", "any", "all"]) {
-      const items = node[key];
-      if (Array.isArray(items)) return items.some(readsOwnTags);
-    }
-    return ["left", "right", "not", "if", "then"].some((key) => readsOwnTags(node[key]));
+    return false;
   }
 
   // ---- Clauses against the captures of alternatives (engine §3.6, §9) ----
@@ -2315,29 +2375,41 @@
    * @returns {any}
    */
   function simplify(node, has) {
+    return run(simplifying(node, has));
+  }
+
+  /**
+   * The steps of simplify, run without the call stack.
+   * @param {any} node
+   * @param {(name: string) => boolean} has
+   * @returns {Generator<Step, any, any>}
+   */
+  function* simplifying(node, has) {
     if (!isDomObject(node)) return node;
     if (typeof node.captured === "string") return has(node.captured) ? DOM_TRUE : DOM_FALSE;
     if ("not" in node) {
-      const inner = simplify(node.not, has);
+      const inner = yield simplifying(node.not, has);
       return inner === DOM_TRUE ? DOM_FALSE : inner === DOM_FALSE ? DOM_TRUE : { not: inner };
     }
     if (Array.isArray(node.all)) {
-      const items = node.all.map((item) => simplify(item, has));
+      const items = [];
+      for (const item of node.all) items.push(yield simplifying(item, has));
       if (items.includes(DOM_FALSE)) return DOM_FALSE;
       const left = items.filter((item) => item !== DOM_TRUE);
       return left.length === 0 ? DOM_TRUE : left.length === 1 ? left[0] : { all: left };
     }
     if (Array.isArray(node.any)) {
-      const items = node.any.map((item) => simplify(item, has));
+      const items = [];
+      for (const item of node.any) items.push(yield simplifying(item, has));
       if (items.includes(DOM_TRUE)) return DOM_TRUE;
       const left = items.filter((item) => item !== DOM_FALSE);
       return left.length === 0 ? DOM_FALSE : left.length === 1 ? left[0] : { any: left };
     }
     if ("if" in node) {
-      const antecedent = simplify(node.if, has);
+      const antecedent = yield simplifying(node.if, has);
       const isTerm = !isCondition(node.then);
       if (antecedent === DOM_FALSE) return isTerm ? DOM_EMPTY : DOM_TRUE;
-      const consequent = simplify(node.then, has);
+      const consequent = yield simplifying(node.then, has);
       if (antecedent === DOM_TRUE) return consequent;
       if (isTerm && isEmptySet(consequent)) return DOM_EMPTY;
       if (!isTerm && consequent === DOM_TRUE) return DOM_TRUE;
@@ -2345,19 +2417,29 @@
       return { if: antecedent, then: consequent };
     }
     if (Array.isArray(node.union)) {
-      const items = node.union.map((item) => simplify(item, has)).filter((item) => !isEmptySet(item));
+      const items = [];
+      for (const item of node.union) {
+        const simple = yield simplifying(item, has);
+        if (!isEmptySet(simple)) items.push(simple);
+      }
       return items.length === 0 ? DOM_EMPTY : items.length === 1 ? items[0] : { union: items };
     }
     if (Array.isArray(node.intersection)) {
-      const items = node.intersection.map((item) => simplify(item, has));
+      const items = [];
+      for (const item of node.intersection) items.push(yield simplifying(item, has));
       return items.some(isEmptySet) ? DOM_EMPTY : { intersection: items };
     }
     if (Array.isArray(node.difference)) {
-      const [left, right] = node.difference.map((item) => simplify(item, has));
+      const left = yield simplifying(node.difference[0], has);
+      const right = yield simplifying(node.difference[1], has);
       return isEmptySet(left) ? DOM_EMPTY : isEmptySet(right) ? left : { difference: [left, right] };
     }
-    if (typeof node.op === "string") return { op: node.op, left: simplify(node.left, has), right: simplify(node.right, has) };
-    if (typeof node.call === "string" && Array.isArray(node.args)) return { call: node.call, args: node.args.map((argument) => simplify(argument, has)) };
+    if (typeof node.op === "string") return { op: node.op, left: yield simplifying(node.left, has), right: yield simplifying(node.right, has) };
+    if (typeof node.call === "string" && Array.isArray(node.args)) {
+      const args = [];
+      for (const argument of node.args) args.push(yield simplifying(argument, has));
+      return { call: node.call, args };
+    }
     return node;
   }
 
@@ -2380,8 +2462,14 @@
    * @returns {boolean}
    */
   function isCondition(node) {
-    return isDomObject(node) && (typeof node.op === "string" || "not" in node || "all" in node || "any" in node ||
-      "matches" in node || "begins" in node || "initial" in node || "captured" in node || ("if" in node && isCondition(node.then)) || "constant" in node);
+    // Down the chain of guards, in a loop.
+    let current = node;
+    while (isDomObject(current) && !(typeof current.op === "string" || "not" in current || "all" in current || "any" in current ||
+      "matches" in current || "begins" in current || "initial" in current || "captured" in current || "constant" in current)) {
+      if (!("if" in current)) return false;
+      current = current.then;
+    }
+    return isDomObject(current);
   }
 
   /**
@@ -2469,14 +2557,26 @@
       }
       return distinct(result);
     };
-    /** @type {(node: any) => {capture: string}[][]} */
-    const visit = (node) => {
+    /** @type {(node: any) => Generator<Step, {capture: string}[][], any>} */
+    const visit = function* (node) {
       if (!isDomObject(node)) return [[]];
       if (typeof node.capture === "string") return [[/** @type {{capture: string}} */ (node)]];
-      if (Array.isArray(node.seq)) return node.seq.reduce((/** @type {{capture: string}[][]} */ sequences, /** @type {any} */ item) => product(sequences, visit(item)), [[]]);
-      if (Array.isArray(node.choice)) return distinct(node.choice.flatMap(visit));
+      if (Array.isArray(node.seq)) {
+        /** @type {{capture: string}[][]} */
+        let sequences = [[]];
+        for (const item of node.seq) sequences = product(sequences, yield visit(item));
+        return sequences;
+      }
+      if (Array.isArray(node.choice)) {
+        /** @type {{capture: string}[][]} */
+        const all = [];
+        for (const item of node.choice) for (const sequence of yield visit(item)) all.push(sequence);
+        return distinct(all);
+      }
       if (Array.isArray(node.and)) {
-        const parts = node.and.map(visit);
+        /** @type {{capture: string}[][][]} */
+        const parts = [];
+        for (const item of node.and) parts.push(yield visit(item));
         /** @type {{capture: string}[][]} */
         const result = [];
         for (let mask = 1; mask < 1 << parts.length; mask++) {
@@ -2489,10 +2589,16 @@
         }
         return distinct(result);
       }
-      if ("optional" in node) return node.elidable === true ? [[]] : distinct([[], ...visit(node.optional)]);
+      if ("optional" in node) {
+        if (node.elidable === true) return [[]];
+        /** @type {{capture: string}[][]} */
+        const all = [[]];
+        for (const sequence of yield visit(node.optional)) all.push(sequence);
+        return distinct(all);
+      }
       return [[]];
     };
-    const sequences = visit(expr);
+    const sequences = run(visit(expr));
     return { sequences, duplicates: [...duplicates] };
   }
 
@@ -2771,6 +2877,16 @@
    * @returns {{type: TermType} | TypeFault}
    */
   function termType(term, constants = UNKNOWN_CONSTANTS) {
+    return run(typing(term, constants));
+  }
+
+  /**
+   * The steps of termType, run without the call stack.
+   * @param {any} term
+   * @param {ConstantTypes} constants
+   * @returns {Generator<Step, {type: TermType} | TypeFault, any>}
+   */
+  function* typing(term, constants) {
     if (typeof term.string === "string") return { type: "string" };
     if (typeof term.tag === "string" || "range" in term) return { type: "tags" };
     if (term.emptySet === true) return { type: "set" };
@@ -2781,7 +2897,7 @@
       /** @type {TermType[]} */
       const types = [];
       for (const item of term[key]) {
-        const found = termType(item, constants);
+        const found = /** @type {{type: TermType} | TypeFault} */ (yield typing(item, constants));
         if ("problem" in found) return found;
         types.push(found.type);
       }
@@ -2789,9 +2905,9 @@
       return "problem" in joined ? { problem: joined.problem, node: term } : joined;
     }
     if ("if" in term) {
-      const fault = conditionTypeFault(term.if, constants);
+      const fault = /** @type {TypeFault | null} */ (yield conditionTyping(term.if, constants));
       if (fault) return fault;
-      const then = termType(term.then, constants);
+      const then = /** @type {{type: TermType} | TypeFault} */ (yield typing(term.then, constants));
       if ("problem" in then) return then;
       const wrong = expectedProblem(then.type, "tags");
       return wrong ? { problem: wrong, node: term } : { type: "tags" };
@@ -2799,7 +2915,7 @@
     if (typeof term.call === "string") {
       for (const argument of term.args) {
         if ("rule" in argument || "classifier" in argument) continue;
-        const found = termType(argument, constants);
+        const found = /** @type {{type: TermType} | TypeFault} */ (yield typing(argument, constants));
         if ("problem" in found) return found;
         if (term.call === "split" || term.call === "tag" || term.call === "classify") {
           const wrong = expectedProblem(found.type, "string");
@@ -2819,19 +2935,29 @@
    * @returns {TypeFault | null}
    */
   function conditionTypeFault(condition, constants = UNKNOWN_CONSTANTS) {
+    return run(conditionTyping(condition, constants));
+  }
+
+  /**
+   * The steps of conditionTypeFault, run without the call stack.
+   * @param {any} condition
+   * @param {ConstantTypes} constants
+   * @returns {Generator<Step, TypeFault | null, any>}
+   */
+  function* conditionTyping(condition, constants) {
     if (Array.isArray(condition.any) || Array.isArray(condition.all)) {
       for (const item of condition.any ?? condition.all) {
-        const fault = conditionTypeFault(item, constants);
+        const fault = yield conditionTyping(item, constants);
         if (fault) return fault;
       }
       return null;
     }
-    if ("not" in condition) return conditionTypeFault(condition.not, constants);
-    if ("if" in condition) return conditionTypeFault(condition.if, constants) || conditionTypeFault(condition.then, constants);
+    if ("not" in condition) return yield conditionTyping(condition.not, constants);
+    if ("if" in condition) return (yield conditionTyping(condition.if, constants)) || (yield conditionTyping(condition.then, constants));
     if (typeof condition.op === "string") {
-      const left = termType(condition.left, constants);
+      const left = /** @type {{type: TermType} | TypeFault} */ (yield typing(condition.left, constants));
       if ("problem" in left) return left;
-      const right = termType(condition.right, constants);
+      const right = /** @type {{type: TermType} | TypeFault} */ (yield typing(condition.right, constants));
       if ("problem" in right) return right;
       const problem = comparisonProblem(condition.op, left.type, right.type);
       return problem ? { problem, node: condition } : null;
@@ -2966,23 +3092,22 @@
    * @returns {any}
    */
   function openPart(term) {
-    if (!isDomObject(term)) return null;
-    if ("capture" in term || "if" in term) return term;
-    if (typeof term.call === "string") {
-      if (term.call !== "split" && term.call !== "tag") return term;
-      for (const argument of Array.isArray(term.args) ? term.args : []) {
-        const open = openPart(argument);
-        if (open) return open;
+    // In the order written, with an explicit stack.
+    const stack = [term];
+    while (stack.length > 0) {
+      const current = stack.pop();
+      if (!isDomObject(current)) continue;
+      if ("capture" in current || "if" in current) return current;
+      /** @type {unknown[]} */
+      let items = [];
+      if (typeof current.call === "string") {
+        if (current.call !== "split" && current.call !== "tag") return current;
+        items = Array.isArray(current.args) ? current.args : [];
+      } else {
+        const key = ["union", "intersection", "difference"].find((name) => Array.isArray(current[name]));
+        if (key) items = /** @type {unknown[]} */ (current[key]);
       }
-      return null;
-    }
-    for (const key of ["union", "intersection", "difference"]) {
-      const items = term[key];
-      if (!Array.isArray(items)) continue;
-      for (const item of items) {
-        const open = openPart(item);
-        if (open) return open;
-      }
+      for (let index = items.length - 1; index >= 0; index--) stack.push(items[index]);
     }
     return null;
   }
@@ -2996,16 +3121,19 @@
   function constantsIn(node) {
     /** @type {import("./types.js").ConstantTerm[]} */
     const found = [];
-    /** @param {unknown} current */
-    const walk = (current) => {
-      if (Array.isArray(current)) {
-        for (const item of current) walk(item);
-      } else if (isDomObject(current)) {
+    // In the order written, with an explicit stack.
+    const stack = [node];
+    while (stack.length > 0) {
+      const current = stack.pop();
+      /** @type {unknown[]} */
+      let children = [];
+      if (Array.isArray(current)) children = current;
+      else if (isDomObject(current)) {
         if (typeof current.const === "string") found.push(/** @type {any} */ (current));
-        else for (const value of Object.values(current)) walk(value);
+        else children = Object.values(current);
       }
-    };
-    walk(node);
+      for (let index = children.length - 1; index >= 0; index--) stack.push(children[index]);
+    }
     return found;
   }
 
@@ -9026,7 +9154,9 @@
 
 
 
+
   /**
+   * @import { Step } from "./trampoline.js"
    * @import { Argument, Comparator, Condition, DomAlternative, DomClassifier, DomConstant, DomDirective, DomEntry, DomImplication, DomRule, EmitItem, Emission, Expr, GrammarDom, Position, ResultNode, RuleNode, Term } from "./types.js"
    * @import { Token } from "./tokens.js"
    */
@@ -9056,14 +9186,18 @@
       throw new GencmuError("grammar", `${path}:${line}:${column}: ${message}`, { document: path, line, column });
     };
 
-    // A rule node's children, with transparent rules read in their place.
+    // A rule node's children, with transparent rules read in their place,
+    // in the order written, with an explicit stack.
     /** @type {(node: ResultNode) => ResultNode[]} */
     const parts = (node) => {
       /** @type {ResultNode[]} */
       const result = [];
       if (node.kind !== "rule") return result;
-      for (const child of node.children) {
-        if (child.kind === "rule" && !NAMED.has(child.rule)) for (const part of parts(child)) result.push(part);
+      /** @type {ResultNode[]} */
+      const stack = node.children.slice().reverse();
+      while (stack.length > 0) {
+        const child = /** @type {ResultNode} */ (stack.pop());
+        if (child.kind === "rule" && !NAMED.has(child.rule)) for (let index = child.children.length - 1; index >= 0; index--) stack.push(child.children[index]);
         else result.push(child);
       }
       return result;
@@ -9110,10 +9244,12 @@
     // The first node of a rule at or below a node, in the order written.
     /** @type {(node: ResultNode, name: string) => ResultNode | null} */
     const firstOfRule = (node, name) => {
-      if (ruleOf(node) === name) return node;
-      for (const child of parts(node)) {
-        const found = firstOfRule(child, name);
-        if (found) return found;
+      const stack = [node];
+      while (stack.length > 0) {
+        const current = /** @type {ResultNode} */ (stack.pop());
+        if (ruleOf(current) === name) return current;
+        const children = parts(current);
+        for (let index = children.length - 1; index >= 0; index--) stack.push(children[index]);
       }
       return null;
     };
@@ -9160,13 +9296,13 @@
           at: at(item),
         });
       } else if (ruleOf(item) === "rule") {
-        rules.push(readRule(item));
+        rules.push(run(readRule(item)));
       } else if (ruleOf(item) === "constant-definition") {
-        constants.push(readConstant(item));
+        constants.push(run(readConstant(item)));
       } else if (ruleOf(item) === "classifier") {
         classifiers.push(readClassifier(item));
       } else if (ruleOf(item) === "implication-declaration") {
-        implications.push(readImplicationDeclaration(item));
+        implications.push(run(readImplicationDeclaration(item)));
       }
     }
     return { format: DOM_FORMAT, rules, directives, constants, classifiers, implications };
@@ -9217,33 +9353,35 @@
      * An implication, `%implies A ⟹ B`: two closed terms whose type is a tag
      * set (engine §2, §9).
      * @param {ResultNode} node
-     * @returns {DomImplication}
+     * @returns {Generator<Step, DomImplication, any>}
      */
-    function readImplicationDeclaration(node) {
-      const [antecedent, consequent] = some(node, "union", 2).slice(0, 2).map((side) => {
+    function* readImplicationDeclaration(node) {
+      /** @type {Term[]} */
+      const sides = [];
+      for (const side of some(node, "union", 2).slice(0, 2)) {
         closedFor = "a side of an implication";
-        const term = readTerm(side);
+        const term = /** @type {Term} */ (yield readTerm(side));
         closedFor = null;
         const found = termType(term);
         const problem = "problem" in found ? found.problem : expectedProblem(found.type, "tags");
         if (problem) fail(`a side of an implication is a tag set: ${problem}`, side);
-        return term;
-      });
-      return { if: antecedent, then: consequent, at: at(node) };
+        sides.push(term);
+      }
+      return { if: sides[0], then: sides[1], at: at(node) };
     }
 
     /**
      * A constant's definition: its name without `$`, and its value, a closed
      * term of a type that a constant can have (engine §2, §9, §10).
      * @param {ResultNode} node
-     * @returns {DomConstant}
+     * @returns {Generator<Step, DomConstant, any>}
      */
-    function readConstant(node) {
+    function* readConstant(node) {
       const keyword = text(token(only(node, "constant-definer")));
       const name = text(token(only(node, "constant-reference"))).slice(1);
       const valueNode = only(node, "term");
       closedFor = "a constant's value";
-      const value = readTerm(valueNode);
+      const value = /** @type {Term} */ (yield readTerm(valueNode));
       closedFor = null;
       const op = keyword === "%redefine-const" ? "redefine" : "define";
       const found = constantValueType(value, op === "redefine");
@@ -9253,24 +9391,28 @@
 
     /**
      * @param {ResultNode} node
-     * @returns {DomRule}
+     * @returns {Generator<Step, DomRule, any>}
      */
-    function readRule(node) {
+    function* readRule(node) {
       const keyword = text(token(only(node, "definer")));
       /** @type {Partial<DomRule>} */
       const rule = { name: text(token(only(node, "rule-name"))), op: keyword === "%extend-rule" ? "extend" : keyword === "%redefine-rule" ? "redefine" : "define" };
       // The parts of a definition are read in the order written: the body,
       // then its clauses in their fixed order, and the checks of the whole
       // definition last (engine §9).
-      const alternatives = some(only(node, "body"), "alternative").map(readAlternative);
+      /** @type {DomAlternative[]} */
+      const alternatives = [];
+      for (const alternative of some(only(node, "body"), "alternative")) alternatives.push(yield readAlternative(alternative));
       const tagsClause = one(node, "tags-clause");
-      const tags = tagsClause ? readConstituentTags(tagsClause) : undefined;
+      const tags = tagsClause ? /** @type {Term} */ (yield readConstituentTags(tagsClause)) : undefined;
       // Each condition of the list is one condition, applying where its
       // captures are (engine §3.6).
       const conditionsClause = one(node, "conditions-clause");
-      const conditions = conditionsClause ? some(conditionsClause, "implication").map(readImplication) : [];
+      /** @type {Condition[]} */
+      const conditions = [];
+      if (conditionsClause) for (const condition of some(conditionsClause, "implication")) conditions.push(yield readImplication(condition));
       const emits = one(node, "emits-clause");
-      const emit = emits ? readEmission(emits) : undefined;
+      const emit = emits ? /** @type {Emission} */ (yield readEmission(emits)) : undefined;
       if (tags) rule.tags = tags;
       rule.alternatives = alternatives;
       if (emit) rule.emit = emit;
@@ -9284,9 +9426,9 @@
 
     /**
      * @param {ResultNode} node
-     * @returns {DomAlternative}
+     * @returns {Generator<Step, DomAlternative, any>}
      */
-    function readAlternative(node) {
+    function* readAlternative(node) {
       // A guard's token is its spelling: `f?` or `¬f?` for a gate, `f!` for
       // a warning (engine §9).
       const guards = ofRule(node, "guard").map((guard) => {
@@ -9298,7 +9440,7 @@
       });
       captureNodes = new Map();
       /** @type {DomAlternative} */
-      const alternative = { guards, expr: readExpression(only(node, "conjunction"), true) };
+      const alternative = { guards, expr: /** @type {Expr} */ (yield readExpression(only(node, "conjunction"), true)) };
       // A name stands at most once in each production, gates aside: the
       // error stands at the second capture that such a production reads,
       // the first in the text where there are several (engine §3.5, §9).
@@ -9308,7 +9450,7 @@
         fail(`the capture $${text(token(first)).slice(1)} is read twice by one production of the alternative`, first);
       }
       const tags = one(node, "alternative-tags");
-      if (tags) alternative.tags = readConstituentTags(tags);
+      if (tags) alternative.tags = yield readConstituentTags(tags);
       return alternative;
     }
 
@@ -9316,13 +9458,15 @@
      * @param {ResultNode} node
      * @param {boolean} [whole] whether it is the alternative's whole
      *   expression, where a chain may stand (engine §9)
-     * @returns {Expr}
+     * @returns {Generator<Step, Expr, any>}
      */
-    function readExpression(node, whole = false) {
+    function* readExpression(node, whole = false) {
       switch (ruleOf(node)) {
         case "choice": {
           const found = some(node, "conjunction");
-          const items = found.map((item) => readExpression(item));
+          /** @type {Expr[]} */
+          const items = [];
+          for (const item of found) items.push(yield readExpression(item));
           return items.length === 1 ? items[0] : { choice: items };
         }
         case "conjunction": {
@@ -9330,12 +9474,16 @@
           // A & of n items expands to 2ⁿ−1 sequences (engine §3.2). The
           // bound is the &'s own form, so it comes before its items (§9).
           if (found.length > 16) fail("an & joins at most 16 items", node);
-          const items = found.map((item) => readExpression(item, whole && found.length === 1));
+          /** @type {Expr[]} */
+          const items = [];
+          for (const item of found) items.push(yield readExpression(item, whole && found.length === 1));
           return items.length === 1 ? items[0] : { and: items };
         }
         case "sequence": {
           const found = some(node, "primary");
-          const items = found.map((item) => readPrimary(knownOf(item, PRIMARIES), whole && found.length === 1));
+          /** @type {Expr[]} */
+          const items = [];
+          for (const item of found) items.push(yield readPrimary(knownOf(item, PRIMARIES), whole && found.length === 1));
           return items.length === 1 ? items[0] : { seq: items };
         }
         default:
@@ -9349,15 +9497,15 @@
      * is still a node: one sequence, whose first primary is the terminal
      * itself, `=`-tested or not.
      * @param {RuleNode} node
-     * @returns {Expr}
+     * @returns {Generator<Step, Expr, any>}
      */
-    function readOptional(node) {
+    function* readOptional(node) {
       // Its required part first, then its markers (engine §9).
       const choice = only(node, "choice");
       const found = parts(node);
       const markers = found.filter((child) => tokenText(child) === "+" || tokenText(child) === "++");
       if (markers.length >= 2) fail("an optional has one marker + or ++ at most", markers[1]);
-      if (markers.length === 0) return { optional: readExpression(choice) };
+      if (markers.length === 0) return { optional: yield readExpression(choice) };
       const form = "an elidable optional begins with its terminator, a name with a capital or ~name, written directly after the marker, and joins it to nothing with | or &";
       // One conjunction of one sequence, with no leading | or & either: the
       // terminator stands directly after the marker (engine §9).
@@ -9380,7 +9528,7 @@
         fail(form, node);
       }
       marked++;
-      const expr = readExpression(choice);
+      const expr = /** @type {Expr} */ (yield readExpression(choice));
       marked--;
       return tokenText(markers[0]) === "++" ? { optional: expr, elidable: true, maximal: true } : { optional: expr, elidable: true };
     }
@@ -9391,9 +9539,9 @@
      * @param {RuleNode} node
      * @param {boolean} whole whether the braces are their alternative's whole
      *   expression
-     * @returns {Expr}
+     * @returns {Generator<Step, Expr, any>}
      */
-    function readRepetition(node, whole) {
+    function* readRepetition(node, whole) {
       const found = parts(node);
       const choices = some(node, "choice");
       const markers = found.flatMap((child, index) => (tokenText(child) === "..." ? [index] : []));
@@ -9408,8 +9556,8 @@
       if (chain && !whole) fail("a chain is the whole expression of its alternative: name it as a rule to use it here", node);
       braces++;
       /** @type {Expr} */
-      const result = { repeat: readExpression(choices[0]) };
-      if (choices.length >= 2) result.separator = readExpression(choices[1]);
+      const result = { repeat: yield readExpression(choices[0]) };
+      if (choices.length >= 2) result.separator = yield readExpression(choices[1]);
       braces--;
       if (chain) result.chain = chain;
       return result;
@@ -9418,9 +9566,9 @@
     /**
      * @param {ResultNode} node
      * @param {boolean} [whole] whether a chain may stand here
-     * @returns {Expr}
+     * @returns {Generator<Step, Expr, any>}
      */
-    function readPrimary(node, whole = false) {
+    function* readPrimary(node, whole = false) {
       switch (ruleOf(node)) {
         case "reference": return { ref: text(token(node)) };
         case "tag": case "character": case "phoneme": return { terminal: tagOf(token(node)) };
@@ -9438,13 +9586,13 @@
               (kind === "reference" && text(token(symbol)) === "#")) {
             fail("a test follows only a reference other than # or a terminal, not a group, an optional, braces, a capture, ε, # or another test", testNode);
           }
-          const expr = /** @type {import("./types.js").TestedSymbol} */ (readPrimary(symbol));
+          const expr = /** @type {import("./types.js").TestedSymbol} */ (yield readPrimary(symbol));
           // The comparator is the test's tokens: `=`, `≠`, `⊇` or `⊉`, or
           // `∩` and `=∅` or `≠∅` around the operand.
           const test = /** @type {import("./types.js").TestOp} */ (parts(testNode).flatMap((child) => (child.kind === "token" ? [text(child)] : [])).join(""));
           const operand = only(testNode, "test-operand");
           closedFor = "a test's operand";
-          const value = readTerm(operand);
+          const value = /** @type {Term} */ (yield readTerm(operand));
           closedFor = null;
           const found = termType(value);
           const problem = "problem" in found ? found.problem : expectedProblem(found.type, isSoundTest(test) ? "string" : "tags");
@@ -9467,15 +9615,15 @@
           if (kind === "constant-reference") fail(CONSTANT_IN_BODY, wrapped);
           if (!["reference", "tag", "character", "phoneme", "range", "property", "tested"].includes(/** @type {string} */ (kind))) fail("a capture wraps one symbol", node);
           const name = text(captureToken).slice(1);
-          const expr = readPrimary(wrapped);
+          const expr = /** @type {Expr} */ (yield readPrimary(wrapped));
           const capture = { capture: name, expr };
           captureNodes.set(capture, node);
           return capture;
         }
         case "constant-reference": return fail(CONSTANT_IN_BODY, node);
-        case "group": return readExpression(only(node, "choice"));
-        case "optional": return readOptional(/** @type {RuleNode} */ (node));
-        case "repetition": return readRepetition(/** @type {RuleNode} */ (node), whole);
+        case "group": return yield readExpression(only(node, "choice"));
+        case "optional": return yield readOptional(/** @type {RuleNode} */ (node));
+        case "repetition": return yield readRepetition(/** @type {RuleNode} */ (node), whole);
         case "empty": return { empty: true };
         default: return fail(`unexpected ${ruleOf(node)}`, node);
       }
@@ -9483,12 +9631,14 @@
 
     /**
      * @param {ResultNode} node
-     * @returns {Emission}
+     * @returns {Generator<Step, Emission, any>}
      */
-    function readEmission(node) {
+    function* readEmission(node) {
       // `%emits ε` emits nothing, and the constituent does not count.
       if (parts(node).some((child) => tokenText(child) === "ε")) return { items: [] };
-      const items = some(node, "emit-item").map((itemNode) => {
+      /** @type {EmitItem[]} */
+      const items = [];
+      for (const itemNode of some(node, "emit-item")) {
         const target = symbolPart(only(itemNode, "emit-target"));
         const kind = target.kind === "rule" ? target.rule : target.terminal;
         /** @type {EmitItem} */
@@ -9502,7 +9652,7 @@
         const tags = one(itemNode, "emit-tags");
         if (tags && item.insert !== undefined) fail("an inserted tag takes no tags of its own", itemNode);
         if (tags) {
-          item.tags = readTagTerm(only(tags, "term"));
+          item.tags = /** @type {Term} */ (yield readTagTerm(only(tags, "term")));
           if ("emptySet" in item.tags) fail("<∅> emits a token no terminal can read; %emits ε emits nothing", itemNode);
         }
         // Attachments: named captures in parentheses, before the item and
@@ -9513,8 +9663,8 @@
         if ((before.length || after.length) && item.capture === "") fail("$ carries no attachments; name a capture", itemNode);
         if (before.length) item.before = before;
         if (after.length) item.after = after;
-        return item;
-      });
+        items.push(item);
+      }
       if (items.some((item) => item.capture === "") && !items.every((item) => item.capture === "")) {
         fail("$ goes with no item but another $", node);
       }
@@ -9540,10 +9690,10 @@
      * A constituent's tag term, which cannot read the tags it defines: `$`,
      * `tags($)` or `classes($)` (engine §9).
      * @param {ResultNode} node
-     * @returns {Term}
+     * @returns {Generator<Step, Term, any>}
      */
-    function readConstituentTags(node) {
-      const term = readTagTerm(only(node, "term"));
+    function* readConstituentTags(node) {
+      const term = /** @type {Term} */ (yield readTagTerm(only(node, "term")));
       if (readsOwnTags(term)) fail("a constituent's tags cannot be made of its own tags, tags($) or classes($)", node);
       return term;
     }
@@ -9552,10 +9702,10 @@
      * A whole term that must be a tag set: a constituent's or an item's tags
      * (engine §10). The error stands at the term.
      * @param {ResultNode} node
-     * @returns {Term}
+     * @returns {Generator<Step, Term, any>}
      */
-    function readTagTerm(node) {
-      const term = readTerm(node);
+    function* readTagTerm(node) {
+      const term = /** @type {Term} */ (yield readTerm(node));
       const found = termType(term);
       const problem = "problem" in found ? found.problem : expectedProblem(found.type, "tags");
       if (problem) fail(problem, node);
@@ -9565,46 +9715,55 @@
     /**
      * A condition, or conditions joined by ⟹, grouping to the right.
      * @param {ResultNode} node
-     * @returns {Condition}
+     * @returns {Generator<Step, Condition, any>}
      */
-    function readImplication(node) {
-      const antecedent = readAnyOf(only(node, "any-of"));
+    function* readImplication(node) {
+      const antecedent = /** @type {Condition} */ (yield readAnyOf(only(node, "any-of")));
       const consequent = one(node, "implication");
-      return consequent ? { if: antecedent, then: readImplication(consequent) } : antecedent;
+      return consequent ? { if: antecedent, then: yield readImplication(consequent) } : antecedent;
     }
 
     /**
      * Conditions joined by ∨, each several joined by ∧; a parenthesized group
      * of the same connective is part of the one around it (engine §9).
      * @param {ResultNode} node
-     * @returns {Condition}
+     * @returns {Generator<Step, Condition, any>}
      */
-    function readAnyOf(node) {
+    function* readAnyOf(node) {
       // Parentheses make no node, so a group of the same connective as the
       // one around it is part of it: (a ∧ b) ∧ c is a ∧ b ∧ c (engine §9).
-      const items = some(node, "all-of").flatMap((allNode) => {
-        const all = some(allNode, "condition").map(readCondition).flatMap((item) => ("all" in item ? item.all : [item]));
+      /** @type {Condition[]} */
+      const items = [];
+      for (const allNode of some(node, "all-of")) {
+        /** @type {Condition[]} */
+        const all = [];
+        for (const conditionNode of some(allNode, "condition")) {
+          const item = /** @type {Condition} */ (yield readCondition(conditionNode));
+          if ("all" in item) for (const part of item.all) all.push(part);
+          else all.push(item);
+        }
         const one = all.length === 1 ? all[0] : { all };
-        return "any" in one ? one.any : [one];
-      });
+        if ("any" in one) for (const part of one.any) items.push(part);
+        else items.push(one);
+      }
       return items.length === 1 ? items[0] : { any: items };
     }
 
     /**
      * @param {ResultNode} node
-     * @returns {Condition}
+     * @returns {Generator<Step, Condition, any>}
      */
-    function readCondition(node) {
+    function* readCondition(node) {
       const inner = knownOf(node, CONDITIONS);
       switch (ruleOf(inner)) {
         case "implication":
-          return readImplication(inner);
+          return yield readImplication(inner);
         case "presence":
           return { captured: text(token(inner)).slice(1) };
         case "comparison": {
           const [left, right] = some(inner, "union", 2);
           const op = /** @type {Comparator} */ (text(token(only(inner, "comparator"))));
-          const condition = { op, left: readTerm(left), right: readTerm(right) };
+          const condition = { op, left: /** @type {Term} */ (yield readTerm(left)), right: /** @type {Term} */ (yield readTerm(right)) };
           // The two sides fit the comparator (engine §10).
           const leftType = termType(condition.left);
           const rightType = termType(condition.right);
@@ -9614,9 +9773,9 @@
           return condition;
         }
         case "negation":
-          return { not: readCondition(only(inner, "condition")) };
+          return { not: yield readCondition(only(inner, "condition")) };
         case "call": {
-          const call = readCall(inner);
+          const call = /** @type {{call: string, args: Argument[]}} */ (yield readCall(inner));
           const [span, rule] = call.args;
           if (call.call === "initial" && call.args.length === 1 && !("rule" in span) && !("classifier" in span)) return { initial: span };
           if ((call.call !== "matches" && call.call !== "begins") || call.args.length !== 2 || !("rule" in rule) || "rule" in span || "classifier" in span) {
@@ -9634,17 +9793,17 @@
      * @param {ResultNode} node
      * @param {boolean} [argument] whether the term is a function's argument,
      *   where a span may stand
-     * @returns {Term}
+     * @returns {Generator<Step, Term, any>}
      */
-    function readTerm(node, argument = false) {
-      if (ruleOf(node) === "term") return readTerm(knownOf(node, TERMS), argument);
+    function* readTerm(node, argument = false) {
+      if (ruleOf(node) === "term") return yield readTerm(knownOf(node, TERMS), argument);
       if (ruleOf(node) === "guarded-term") {
         if (closedFor) fail(`${closedFor} is a closed term, and holds no guarded term`, node);
-        const condition = readAnyOf(only(node, "any-of"));
+        const condition = /** @type {Condition} */ (yield readAnyOf(only(node, "any-of")));
         const conditionProblem = conditionTypeProblem(condition);
         if (conditionProblem) fail(conditionProblem, node);
         /** @type {Term} */
-        const guarded = { if: condition, then: readTerm(only(node, "term")) };
+        const guarded = { if: condition, then: yield readTerm(only(node, "term")) };
         const found = termType(guarded);
         if ("problem" in found) fail(found.problem, node);
         return guarded;
@@ -9653,7 +9812,7 @@
         // Parts joined by ∪ and ∖ group from the left: a run joined by ∪ is
         // one union, and each ∖ takes what stands before it (engine §9).
         const found = some(node, "intersection");
-        if (found.length === 1) return readTerm(found[0], argument);
+        if (found.length === 1) return yield readTerm(found[0], argument);
         /** @type {string[]} */
         const operators = parts(node).flatMap((child) => {
           const written = tokenText(child);
@@ -9661,7 +9820,9 @@
         });
         // A leading ∪ is a separator, not an operator.
         while (operators.length >= found.length) operators.shift();
-        const items = found.map((item) => readTerm(item));
+        /** @type {Term[]} */
+        const items = [];
+        for (const item of found) items.push(yield readTerm(item));
         const joined = joinedType(items.map((item) => {
           const type = termType(item);
           return "problem" in type ? fail(type.problem, node) : type.type;
@@ -9686,7 +9847,9 @@
       }
       if (ruleOf(node) === "intersection") {
         const found = some(node, "term-atom");
-        const items = found.map((item) => readTerm(item, argument && found.length === 1));
+        /** @type {Term[]} */
+        const items = [];
+        for (const item of found) items.push(yield readTerm(item, argument && found.length === 1));
         if (items.length === 1) return items[0];
         const joined = joinedType(items.map((item) => {
           const type = termType(item);
@@ -9698,12 +9861,12 @@
       if (ruleOf(node) === "term-atom" || ruleOf(node) === "test-operand") {
         const inner = knownOf(node, ATOMS);
         if (ruleOf(inner) === "call") {
-          const call = readCall(inner);
+          const call = /** @type {{call: string, args: Argument[]}} */ (yield readCall(inner));
           if (!argument && SPANS.has(call.call)) fail(`${call.call} gives a span, which is not a value`, inner);
           if (call.call === "matches" || call.call === "begins" || call.call === "initial") fail(`${call.call} is a condition, not a term`, inner);
           return call;
         }
-        return readTerm(inner, argument);
+        return yield readTerm(inner, argument);
       }
       switch (ruleOf(node)) {
         case "string": return { string: decode(token(node)) };
@@ -9719,7 +9882,7 @@
           return fail(`${name} names a rule, which is not a value; ~${name} is the tag`, node);
         }
         case "empty-set": return { emptySet: true };
-        case "call": return readCall(node);
+        case "call": return yield readCall(node);
         case "constant-reference": return { const: text(token(node)).slice(1), at: at(node) };
         case "capture-reference": {
           const capture = text(token(node)).slice(1);
@@ -9733,15 +9896,17 @@
 
     /**
      * @param {ResultNode} node
-     * @returns {{call: string, args: Argument[]}}
+     * @returns {Generator<Step, {call: string, args: Argument[]}, any>}
      */
-    function readCall(node) {
+    function* readCall(node) {
       const name = text(token(node));
       if (!FUNCTIONS.has(name)) fail(`unknown function ${name}`, node);
       if (closedFor && name === "classify") fail(`${closedFor} is a closed term, and classify depends on the features`, node);
       if (closedFor && name !== "split" && name !== "tag") fail(`${closedFor} is a closed term, and ${name} reads a span`, node);
       /** @type {Argument[]} */
-      const args = ofRule(node, "argument").map((argument) => readTerm(only(argument, "union"), true));
+      /** @type {Argument[]} */
+      const args = [];
+      for (const argument of ofRule(node, "argument")) args.push(yield readTerm(only(argument, "union"), true));
       /** @type {(argument: Argument | undefined) => boolean} */
       const isSpan = (argument) => argument !== undefined && ("capture" in argument || ("call" in argument && SPANS.has(argument.call)));
       /** @type {(argument: Argument | undefined) => boolean} */
@@ -9939,16 +10104,16 @@
    * @returns {number}
    */
   function firstToken(node) {
-    if (node.kind === "token") return node.token;
-    if (node.kind === "elided") return node.span[0];
-    for (const child of node.children) {
-      if (child.kind === "token") return child.token;
-      if (child.kind === "rule") {
-        const found = firstToken(child);
-        if (found !== undefined) return found;
-      }
+    // Down the first child that is a token or a rule, in a loop: a deep
+    // nesting cannot exhaust the call stack.
+    let current = node;
+    for (;;) {
+      if (current.kind === "token") return current.token;
+      if (current.kind === "elided") return current.span[0];
+      const child = current.children.find((candidate) => candidate.kind === "token" || candidate.kind === "rule");
+      if (!child) return current.span[0];
+      current = child;
     }
-    return node.span[0];
   }
 
 
@@ -10617,7 +10782,6 @@
       dom = treeToDom(tree, tokens, positionOf, path, unicode);
     } catch (error) {
       if (error instanceof GencmuError) throw error;
-      if (error instanceof RangeError) throw new GencmuError("grammar", `${path}: nested too deeply`, { document: path }, { cause: error });
       // Only a bootstrap that is not the notation's gives a tree that the
       // reader cannot read. That is an error of the grammar too.
       throw new GencmuError("grammar", `${path}: the notation's tree cannot be read as a grammar: ${error instanceof Error ? error.message : String(error)}`,

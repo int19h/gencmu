@@ -13,6 +13,7 @@ import fs from "node:fs";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
 import { domOfTree } from "../lib/js/src/dialect.js";
 import { GencmuError } from "../lib/js/src/errors.js";
+import { run } from "../lib/js/src/trampoline.js";
 import { UnicodeTable } from "../lib/js/src/unicode.js";
 
 // The lowercase mapping that the string of a sound test is checked against,
@@ -205,7 +206,7 @@ class Parser {
 
   // What `read` reads at the current token, remembered by `name` and the
   // token, failure too.
-  memo(name, read) {
+  *memo(name, read) {
     const key = `${name}:${this.index}`;
     const found = this.remembered.get(key);
     if (found) {
@@ -214,7 +215,7 @@ class Parser {
       return found.node;
     }
     try {
-      const node = read();
+      const node = yield read.call(this);
       this.remembered.set(key, { node, end: this.index });
       return node;
     } catch (error) {
@@ -224,10 +225,10 @@ class Parser {
   }
 
   // What `read` reads, or undefined, with nothing read, if it fails.
-  attempt(read) {
+  *attempt(read) {
     const saved = this.index;
     try {
-      return read();
+      return yield read.call(this);
     } catch (error) {
       if (!(error instanceof SyntaxFailure)) throw error;
       this.index = saved;
@@ -256,21 +257,21 @@ class Parser {
     return this.node(rule, start, [this.tok()]);
   }
 
-  document() {
+  *document() {
     const children = [];
     while (this.peek()) {
       const kind = this.kindAt();
-      if (DIRECTIVES.has(kind)) children.push(this.directive());
-      else if (RULE_KEYWORDS.has(kind)) children.push(this.rule());
-      else if (CONSTANT_KEYWORDS.has(kind)) children.push(this.constantDefinition());
+      if (DIRECTIVES.has(kind)) children.push((yield this.directive()));
+      else if (RULE_KEYWORDS.has(kind)) children.push((yield this.rule()));
+      else if (CONSTANT_KEYWORDS.has(kind)) children.push((yield this.constantDefinition()));
       else if (kind === "%classifier") children.push(this.classifier());
-      else if (kind === "%implies") children.push(this.implicationDeclaration());
+      else if (kind === "%implies") children.push((yield this.implicationDeclaration()));
       else this.fail("expected a rule or a directive");
     }
     return { kind: "rule", rule: "text", children, span: [0, this.index] };
   }
 
-  directive() {
+  *directive() {
     const start = this.index;
     const children = [this.tok()];
     for (;;) {
@@ -300,11 +301,11 @@ class Parser {
     return this.node("range", start, [this.leaf("character"), this.expect(".."), (this.is("character") ? this.leaf("character") : this.fail("expected a character"))]);
   }
 
-  constantDefinition() {
+  *constantDefinition() {
     const start = this.index;
     const definer = this.leaf("constant-definer");
     const name = this.is("constant") ? this.leaf("constant-reference") : this.fail("expected a constant");
-    return this.node("constant-definition", start, [definer, name, this.term()]);
+    return this.node("constant-definition", start, [definer, name, (yield this.term())]);
   }
 
   classifier() {
@@ -324,104 +325,104 @@ class Parser {
     return this.node("classifier", start, children);
   }
 
-  implicationDeclaration() {
+  *implicationDeclaration() {
     const start = this.index;
-    return this.node("implication-declaration", start, [this.tok(), this.union(), this.expect("⟹"), this.union()]);
+    return this.node("implication-declaration", start, [this.tok(), (yield this.union()), this.expect("⟹"), (yield this.union())]);
   }
 
-  rule() {
+  *rule() {
     const start = this.index;
     const children = [this.leaf("definer")];
     children.push(this.is("identifier") || this.is("#") ? this.leaf("rule-name") : this.fail("expected a rule's name"));
-    children.push(this.body());
+    children.push((yield this.body()));
     if (this.is("%tags")) {
       const at = this.index;
-      children.push(this.node("tags-clause", at, [this.tok(), this.term()]));
+      children.push(this.node("tags-clause", at, [this.tok(), (yield this.term())]));
     }
     if (this.is("%conditions")) {
       const at = this.index;
       const clause = [this.tok()];
       if (this.is(",")) clause.push(this.tok());
-      clause.push(this.implication());
-      while (this.is(",")) clause.push(this.tok(), this.implication());
+      clause.push((yield this.implication()));
+      while (this.is(",")) clause.push(this.tok(), (yield this.implication()));
       children.push(this.node("conditions-clause", at, clause));
     }
-    if (this.is("%emits")) children.push(this.emitsClause());
+    if (this.is("%emits")) children.push((yield this.emitsClause()));
     if (this.is("%opaque")) children.push(this.leaf("opaque-clause"));
     return this.node("rule", start, children);
   }
 
-  body() {
+  *body() {
     const start = this.index;
     const children = [];
     if (this.is("|")) children.push(this.tok());
-    children.push(this.alternative());
-    while (this.is("|")) children.push(this.tok(), this.alternative());
+    children.push((yield this.alternative()));
+    while (this.is("|")) children.push(this.tok(), (yield this.alternative()));
     return this.node("body", start, children);
   }
 
-  alternative() {
+  *alternative() {
     const start = this.index;
     const children = [];
     while (this.is("guard")) children.push(this.leaf("guard"));
-    children.push(this.conjunction());
+    children.push((yield this.conjunction()));
     if (this.is("<")) {
       const at = this.index;
-      children.push(this.node("alternative-tags", at, [this.tok(), this.term(), this.expect(">")]));
+      children.push(this.node("alternative-tags", at, [this.tok(), (yield this.term()), this.expect(">")]));
     }
     return this.node("alternative", start, children);
   }
 
   // `|` and `&` join, each with a leading one allowed.
-  choice() {
+  *choice() {
     const start = this.index;
     const children = [];
     if (this.is("|")) children.push(this.tok());
-    children.push(this.conjunction());
-    while (this.is("|")) children.push(this.tok(), this.conjunction());
+    children.push((yield this.conjunction()));
+    while (this.is("|")) children.push(this.tok(), (yield this.conjunction()));
     return this.node("choice", start, children);
   }
 
-  conjunction() {
+  *conjunction() {
     const start = this.index;
     const children = [];
     if (this.is("&")) children.push(this.tok());
-    children.push(this.sequence());
-    while (this.is("&")) children.push(this.tok(), this.sequence());
+    children.push((yield this.sequence()));
+    while (this.is("&")) children.push(this.tok(), (yield this.sequence()));
     return this.node("conjunction", start, children);
   }
 
-  sequence() {
+  *sequence() {
     const start = this.index;
-    const children = [this.primary()];
-    while (PRIMARY_STARTS.has(this.kindAt())) children.push(this.primary());
+    const children = [(yield this.primary())];
+    while (PRIMARY_STARTS.has(this.kindAt())) children.push((yield this.primary()));
     return this.node("sequence", start, children);
   }
 
   // A primary, and a test after it makes it the primary of a tested one:
   // `A="a"="b"` is a test on a tested primary (syntax.md).
-  primary() {
+  *primary() {
     const start = this.index;
-    let primary = this.node("primary", start, [this.symbol()]);
+    let primary = this.node("primary", start, [(yield this.symbol())]);
     while (TEST_COMPARATORS.has(this.kindAt()) || this.is("∩")) {
-      const tested = this.node("tested", start, [primary, this.test()]);
+      const tested = this.node("tested", start, [primary, (yield this.test())]);
       primary = this.node("primary", start, [tested]);
     }
     return primary;
   }
 
-  symbol() {
+  *symbol() {
     const start = this.index;
     switch (this.kindAt()) {
       case "identifier": case "#": return this.leaf("reference");
       case "tag": case "character": case "phoneme": case "property": return this.symbolOrRange(true);
       case "constant": return this.leaf("constant-reference");
-      case "capture": return this.node("capture", start, [this.tok(), this.expect("("), this.primary(), this.expect(")")]);
-      case "(": return this.node("group", start, [this.tok(), this.choice(), this.expect(")")]);
+      case "capture": return this.node("capture", start, [this.tok(), this.expect("("), (yield this.primary()), this.expect(")")]);
+      case "(": return this.node("group", start, [this.tok(), (yield this.choice()), this.expect(")")]);
       case "[": {
         const children = [this.tok()];
         if (this.is("+") || this.is("++")) children.push(this.tok());
-        children.push(this.choice(), this.expect("]"));
+        children.push((yield this.choice()), this.expect("]"));
         return this.node("optional", start, children);
       }
       case "{": {
@@ -429,9 +430,9 @@ class Parser {
         const children = [this.tok()];
         const leading = this.is("...");
         if (leading) children.push(this.tok());
-        children.push(this.choice());
+        children.push((yield this.choice()));
         if (!leading && this.is("...")) children.push(this.tok());
-        if (this.is("\\")) children.push(this.tok(), this.choice());
+        if (this.is("\\")) children.push(this.tok(), (yield this.choice()));
         children.push(this.expect("}"));
         return this.node("repetition", start, children);
       }
@@ -440,25 +441,25 @@ class Parser {
     }
   }
 
-  test() {
+  *test() {
     const start = this.index;
     if (this.is("∩")) {
-      const children = [this.tok(), this.testOperand()];
+      const children = [this.tok(), (yield this.testOperand())];
       children.push(this.is("=") || this.is("≠") ? this.tok() : this.fail("expected = or ≠"), this.expect("∅"));
       return this.node("test", start, children);
     }
-    return this.node("test", start, [this.tok(), this.testOperand()]);
+    return this.node("test", start, [this.tok(), (yield this.testOperand())]);
   }
 
   // A test's operand: one atom, a bare name never a call (syntax.md).
-  testOperand() {
+  *testOperand() {
     const start = this.index;
     switch (this.kindAt()) {
       case "string": case "tag": case "character": case "phoneme": case "property": return this.node("test-operand", start, [this.atomSymbol()]);
       case "identifier": return this.node("test-operand", start, [this.leaf("name")]);
       case "∅": return this.node("test-operand", start, [this.leaf("empty-set")]);
       case "constant": return this.node("test-operand", start, [this.leaf("constant-reference")]);
-      case "(": return this.node("test-operand", start, [this.tok(), this.term(), this.expect(")")]);
+      case "(": return this.node("test-operand", start, [this.tok(), (yield this.term()), this.expect(")")]);
       default: return this.fail("expected a test's operand");
     }
   }
@@ -468,7 +469,7 @@ class Parser {
     return this.kindAt() === "string" ? this.leaf("string") : this.symbolOrRange(true);
   }
 
-  emitsClause() {
+  *emitsClause() {
     const start = this.index;
     const children = [this.tok()];
     if (this.is("ε")) {
@@ -476,12 +477,12 @@ class Parser {
       return this.node("emits-clause", start, children);
     }
     if (this.is(",")) children.push(this.tok());
-    children.push(this.emitItem());
-    while (this.is(",")) children.push(this.tok(), this.emitItem());
+    children.push((yield this.emitItem()));
+    while (this.is(",")) children.push(this.tok(), (yield this.emitItem()));
     return this.node("emits-clause", start, children);
   }
 
-  emitItem() {
+  *emitItem() {
     const start = this.index;
     const children = [];
     while (this.is("(")) children.push(this.attachment("emit-before"));
@@ -494,7 +495,7 @@ class Parser {
     }
     if (this.is("<")) {
       const tagsAt = this.index;
-      children.push(this.node("emit-tags", tagsAt, [this.tok(), this.term(), this.expect(">")]));
+      children.push(this.node("emit-tags", tagsAt, [this.tok(), (yield this.term()), this.expect(">")]));
     }
     while (this.is("(")) children.push(this.attachment("emit-after"));
     return this.node("emit-item", start, children);
@@ -505,30 +506,30 @@ class Parser {
     return this.node(rule, start, [this.tok(), this.expect("capture"), this.expect(")")]);
   }
 
-  implication() {
+  *implication() {
     const start = this.index;
-    const children = [this.anyOf()];
-    if (this.is("⟹")) children.push(this.tok(), this.implication());
+    const children = [(yield this.anyOf())];
+    if (this.is("⟹")) children.push(this.tok(), (yield this.implication()));
     return this.node("implication", start, children);
   }
 
-  anyOf() {
-    return this.memo("any-of", () => {
+  *anyOf() {
+    return (yield this.memo("any-of", function* () {
       const start = this.index;
       const children = [];
       if (this.is("∨")) children.push(this.tok());
-      children.push(this.allOf());
-      while (this.is("∨")) children.push(this.tok(), this.allOf());
+      children.push((yield this.allOf()));
+      while (this.is("∨")) children.push(this.tok(), (yield this.allOf()));
       return this.node("any-of", start, children);
-    });
+    }));
   }
 
-  allOf() {
+  *allOf() {
     const start = this.index;
     const children = [];
     if (this.is("∧")) children.push(this.tok());
-    children.push(this.condition());
-    while (this.is("∧")) children.push(this.tok(), this.condition());
+    children.push((yield this.condition()));
+    while (this.is("∧")) children.push(this.tok(), (yield this.condition()));
     return this.node("all-of", start, children);
   }
 
@@ -537,88 +538,88 @@ class Parser {
   // and one that begins a comparison, and a presence and a capture that
   // begins one: each that a comparator or more of a term follows is the
   // comparison.
-  condition() {
-    return this.memo("condition", () => {
+  *condition() {
+    return (yield this.memo("condition", function* () {
       const start = this.index;
       const kind = this.kindAt();
-      if (kind === "¬") return this.node("condition", start, [this.node("negation", start, [this.tok(), this.condition()])]);
+      if (kind === "¬") return this.node("condition", start, [this.node("negation", start, [this.tok(), (yield this.condition())])]);
       if (kind === "(") {
-        const grouped = this.attempt(() => {
-          const children = [this.tok(), this.implication(), this.expect(")")];
+        const grouped = (yield this.attempt(function* () {
+          const children = [this.tok(), (yield this.implication()), this.expect(")")];
           if (AFTER_TERM.has(this.kindAt())) throw new SyntaxFailure("a term, not conditions", null);
           return this.node("condition", start, children);
-        });
+        }));
         if (grouped) return grouped;
       }
       if (kind === "capture" && !AFTER_TERM.has(this.kindAt(1))) return this.node("condition", start, [this.leaf("presence")]);
       if (kind === "identifier" && this.is("(", 1)) {
-        const call = this.attempt(() => {
-          const node = this.call();
+        const call = (yield this.attempt(function* () {
+          const node = (yield this.call());
           if (AFTER_TERM.has(this.kindAt())) throw new SyntaxFailure("a term, not a condition", null);
           return node;
-        });
+        }));
         if (call) return this.node("condition", start, [call]);
       }
-      const left = this.union();
+      const left = (yield this.union());
       const comparator = COMPARATORS.has(this.kindAt()) ? this.leaf("comparator") : this.fail("expected a comparison");
-      return this.node("condition", start, [this.node("comparison", start, [left, comparator, this.union()])]);
-    });
+      return this.node("condition", start, [this.node("comparison", start, [left, comparator, (yield this.union())])]);
+    }));
   }
 
   // A whole term: a condition guarding a term, or else a union.
-  term() {
-    return this.memo("term", () => {
+  *term() {
+    return (yield this.memo("term", function* () {
       const start = this.index;
-      const guarded = this.attempt(() => this.node("guarded-term", start, [this.anyOf(), this.expect("⟹"), this.term()]));
-      return this.node("term", start, [guarded || this.union()]);
-    });
+      const guarded = (yield this.attempt(function* () { return this.node("guarded-term", start, [(yield this.anyOf()), this.expect("⟹"), (yield this.term())]); }));
+      return this.node("term", start, [guarded || (yield this.union())]);
+    }));
   }
 
-  union() {
-    return this.memo("union", () => {
+  *union() {
+    return (yield this.memo("union", function* () {
       const start = this.index;
       const children = [];
       if (this.is("∪")) children.push(this.tok());
-      children.push(this.intersection());
-      while (this.is("∪") || this.is("∖")) children.push(this.tok(), this.intersection());
+      children.push((yield this.intersection()));
+      while (this.is("∪") || this.is("∖")) children.push(this.tok(), (yield this.intersection()));
       return this.node("union", start, children);
-    });
+    }));
   }
 
-  intersection() {
+  *intersection() {
     const start = this.index;
     const children = [];
     if (this.is("∩")) children.push(this.tok());
-    children.push(this.termAtom());
-    while (this.is("∩")) children.push(this.tok(), this.termAtom());
+    children.push((yield this.termAtom()));
+    while (this.is("∩")) children.push(this.tok(), (yield this.termAtom()));
     return this.node("intersection", start, children);
   }
 
-  termAtom() {
+  *termAtom() {
     const start = this.index;
     switch (this.kindAt()) {
       case "string": case "tag": case "character": case "phoneme": case "property": return this.node("term-atom", start, [this.atomSymbol()]);
-      case "identifier": return this.node("term-atom", start, [this.is("(", 1) ? this.call() : this.leaf("name")]);
+      case "identifier": return this.node("term-atom", start, [this.is("(", 1) ? (yield this.call()) : this.leaf("name")]);
       case "∅": return this.node("term-atom", start, [this.leaf("empty-set")]);
-      case "(": return this.node("term-atom", start, [this.tok(), this.term(), this.expect(")")]);
+      case "(": return this.node("term-atom", start, [this.tok(), (yield this.term()), this.expect(")")]);
       case "capture": return this.node("term-atom", start, [this.leaf("capture-reference")]);
       case "constant": return this.node("term-atom", start, [this.leaf("constant-reference")]);
       default: return this.fail("expected a term");
     }
   }
 
-  call() {
+  *call() {
     const start = this.index;
     const children = [this.tok(), this.expect("(")];
-    children.push(this.argument());
-    while (this.is(",")) children.push(this.tok(), this.argument());
+    children.push((yield this.argument()));
+    while (this.is(",")) children.push(this.tok(), (yield this.argument()));
     children.push(this.expect(")"));
     return this.node("call", start, children);
   }
 
-  argument() {
+  *argument() {
     const start = this.index;
-    return this.node("argument", start, [this.union()]);
+    return this.node("argument", start, [(yield this.union())]);
   }
 }
 
@@ -639,7 +640,7 @@ export function readDocument(markdown, path) {
     const endAt = tokens.length ? tokens[tokens.length - 1].end : positions[positions.length - 1] || [1, 1];
     const parser = new Parser(tokens, endAt);
     try {
-      tree = parser.document();
+      tree = run(parser.document());
     } catch (error) {
       if (!(error instanceof SyntaxFailure) || parser.furthest === null) throw error;
       // The furthest token that a reading reached.
