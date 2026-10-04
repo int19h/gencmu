@@ -27,7 +27,8 @@ import (
 //   - linkSteps: the links that the check of elision-only compares and
 //     looks up to find a repeated link.
 //   - conditions: the conditions that advances examine, each before it is
-//     looked at, also one whose dot is not the advance's.
+//     looked at, also one whose dot is not the advance's, and those that
+//     predictions evaluate, each before it is evaluated.
 //   - visits: the nodes of conditions and terms that an evaluation enters,
 //     each before it is evaluated, in an evaluation that halts as well.
 //   - soundSteps: the tokens that sound tests and phonemes() visit.

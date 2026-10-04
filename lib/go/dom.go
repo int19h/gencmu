@@ -633,6 +633,10 @@ var errTooDeep = fmt.Errorf("an expression, term or condition is nested more tha
 type jobj map[string]json.RawMessage
 
 func decodeObj(raw json.RawMessage) (jobj, error) {
+	// The bytes are charged in one sum before the call, since
+	// encoding/json reads them where no count can reach. Counting each
+	// byte would mean a decoder of our own, whose errors would differ.
+	// The charge is the input of the call, not the size of its result.
 	if w := work.Load(); w != nil {
 		w.decodeSteps.addN(int64(len(raw)), "decoded bytes")
 	}

@@ -556,6 +556,7 @@ func (r *recognizer) predictable(p *production, k int) (bool, *nestedQuery) {
 		}
 		r.ev = r.run.evaluator(r.g, r.captureFunc(p, caps, int32(k), int32(k), tags))
 		r.pending, r.condAt = true, 0
+		countCondition()
 		r.w.cond(r.ev, p.predictConds[0])
 	}
 	for {
@@ -567,7 +568,16 @@ func (r *recognizer) predictable(p *production, k int) (bool, *nestedQuery) {
 			r.pending, r.ev = false, nil
 			return r.w.b, nil
 		}
+		countCondition()
 		r.w.cond(r.ev, p.predictConds[r.condAt])
+	}
+}
+
+// countCondition counts one condition at prediction, before it is
+// evaluated, so that a budget stops the first one past it.
+func countCondition() {
+	if w := work.Load(); w != nil {
+		w.conditions.add("conditions")
 	}
 }
 

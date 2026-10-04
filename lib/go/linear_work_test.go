@@ -454,6 +454,35 @@ func TestConditionsByDotMutation(t *testing.T) {
 	stopsAtFirst(t, w, &w.conditions, "conditions", func() { recognize() })
 }
 
+// TestPredictionConditionsStopAtFirst: a condition that holds or fails at
+// prediction counts before it is evaluated, so a budget one less than a
+// run's total stops the run at its last condition. The rule e is
+// predicted at each token, with a condition on its empty span.
+func TestPredictionConditionsStopAtFirst(t *testing.T) {
+	const n = 50
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text {A e}\n%rule e ε\n%conditions text($) = \"\""))
+	lg := d.lower(0, map[string]bool{})
+	if len(lg.rules[lg.byName["e"]].prods[0].predictConds) == 0 {
+		t.Fatal("e has no condition at prediction")
+	}
+	toks := make([]Token, n)
+	for i := range toks {
+		toks[i] = Token{Text: "a", Tags: []string{"A"}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
+	}
+	ps := newParseState(d.uni, []rune(strings.TrimSpace(strings.Repeat("a ", n))))
+	run := ps.newRun("main", d.stages[0], toks)
+	recognize := func() { run.recognize(lg, lg.byName["text"], 0, n) }
+	all := &workCounts{}
+	countWorkIn(all, recognize)
+	total := all.conditions.Load()
+	if total < n {
+		t.Fatalf("%d tokens: %d conditions", n, total)
+	}
+	w := &workCounts{}
+	w.conditions.most = total - 1
+	stopsAtFirst(t, w, &w.conditions, "conditions", recognize)
+}
+
 // TestIncludeChainLinear: a chain of documents, each including the next,
 // is spliced without copying the chain at each include, and n stages are
 // told apart by name without a scan of those before (engine §2).
