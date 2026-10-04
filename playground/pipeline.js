@@ -152,28 +152,33 @@
     const before = [];
     const stages = [];
     const reached = new Set([path]);
-    // Only the documents being included stop the recursion, so that a
-    // document included twice is listed twice, with what it includes. They
-    // are a set, added to and removed from as the recursion goes, since a
-    // list copied for each include costs the square of the depth.
+    // Only the documents being included stop the scan, so that a document
+    // included twice is listed twice, with what it includes. They are a
+    // stack of frames, each with its directives and the next one to read,
+    // since a chain of includes can be longer than the call stack is deep.
+    // A set of their paths finds a cycle with one lookup.
+    const frames = [{ path, directives: scan(path), next: 0 }];
     const including = new Set([path]);
-    const expand = (documentPath) => {
-      for (const directive of scan(documentPath)) {
-        count("splice");
-        if (directive.stage !== undefined) {
-          stages.push({ name: directive.stage, documents: [] });
-          continue;
-        }
-        const target = resolvePath(documentPath, directive.include);
-        (stages.length ? stages[stages.length - 1].documents : before).push(target);
-        reached.add(target);
-        if (including.has(target)) continue;
-        including.add(target);
-        expand(target);
-        including.delete(target);
+    while (frames.length > 0) {
+      const frame = frames[frames.length - 1];
+      if (frame.next === frame.directives.length) {
+        frames.pop();
+        including.delete(frame.path);
+        continue;
       }
-    };
-    expand(path);
+      const directive = frame.directives[frame.next++];
+      count("splice");
+      if (directive.stage !== undefined) {
+        stages.push({ name: directive.stage, documents: [] });
+        continue;
+      }
+      const target = resolvePath(frame.path, directive.include);
+      (stages.length ? stages[stages.length - 1].documents : before).push(target);
+      reached.add(target);
+      if (including.has(target)) continue;
+      including.add(target);
+      frames.push({ path: target, directives: scan(target), next: 0 });
+    }
     return { before, stages, documents: [...reached] };
   }
 
