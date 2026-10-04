@@ -118,7 +118,11 @@ def duplicate_captures(expr: Any) -> list[Dom]:
                                     flagged[id(capture)] = capture
                 large, small = (joined, part) if joined[1] >= part[1] else (part, joined)
                 for name, captures in small[0].items():
-                    large[0].setdefault(name, []).extend(captures)
+                    moved = large[0].setdefault(name, [])
+                    # One step for each capture moved, not one extend, so
+                    # that a test counts the captures and not the lists.
+                    for capture in captures:
+                        moved.append(capture)
                 joined = (large[0], large[1] + small[1])
         stack.pop()
         if not stack:

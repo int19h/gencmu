@@ -274,6 +274,22 @@ class DefinitionChecks(Linear):
 
         self.assert_linear(lambda: [steps(_clauses)], make, 1000)
 
+    def test_a_mutant_that_moves_the_larger_captures_fails_at_the_first_step_past_its_budget(self) -> None:
+        # The check of repeated captures joins the captures of each item of
+        # a sequence into those before it, the smaller into the larger. The
+        # regression always moves those before into the new item's, which
+        # moves each capture once for each item after it.
+        def make(n: int) -> Callable[[], object]:
+            expr = {"seq": [{"capture": f"c{index}", "expr": {"ref": "A"}} for index in range(n)]}
+            return lambda: _clauses.duplicate_captures(expr)
+
+        def watches() -> list[Watch]:
+            return [steps(_clauses.duplicate_captures)]
+
+        self.assert_linear(watches, make, 1000)
+        swap = ("large, small = (joined, part) if joined[1] >= part[1] else (part, joined)", "large, small = (part, joined)")
+        self.assert_mutant_stops(watches, make, 1000, lambda: mutant(_clauses, "duplicate_captures", swap))
+
     def test_lowering_an_emission_costs_its_items(self) -> None:
         def make(n: int) -> Callable[[], object]:
             emit = emitting_rule(n)["emit"]

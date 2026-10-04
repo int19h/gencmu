@@ -286,7 +286,7 @@ def reader_steps() -> list[Watch]:
         steps(_dom.flatten_groups, "current = stack.pop()"),
         steps(_dom.flatten_groups, "item = pending.pop()"),
         steps(_clauses.duplicate_captures, "node, index, parts = stack[-1]"),
-        steps(_clauses.duplicate_captures, "large[0].setdefault(name, []).extend(captures)", lambda frame: len(frame.f_locals["captures"])),
+        steps(_clauses.duplicate_captures, "moved.append(capture)"),
     ]
 
 
