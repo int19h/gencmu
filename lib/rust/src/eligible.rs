@@ -829,14 +829,22 @@ mod tests {
     fn the_searches_for_blocking_paths_look_at_each_set_once() {
         let grammar = "%ambiguity-resolution greedy\n%elidable T\n%rule text body B\n%conditions matches($, r)\n\
                        %rule body A ...\n%rule r parts B\n%rule parts part ...\n%rule part A [T]\n";
-        let operations = |n: usize| {
-            let (eligible, operations, _) = query_work(grammar, n, false);
+        let operations = |n: usize, budget: Option<u64>| {
+            let (eligible, operations, items) = query_work(grammar, n, 0, false, budget);
             assert!(eligible.iter().all(|&eligible| eligible));
-            operations
+            (operations, items)
         };
-        let (small, large) = (operations(500), operations(2000));
+        let (small, items) = operations(500, None);
         assert!(small > 0, "the searches ran");
-        // Four times the text costs about four times as much, not sixteen.
+        // The index is one pass over the chart, and the searches read each
+        // completed item of it at most once: at most twice the chart's
+        // items. An index built again for each search would read the chart
+        // once per search, so this fails on the shorter text, before the
+        // longer one costs much.
+        assert!(small <= 2 * items, "{small} operations for 500 tokens, over a chart of {items} items");
+        // Four times the text costs about four times as much, not sixteen,
+        // and the longer text's run stops at the first entry past that.
+        let (large, _) = operations(2000, Some(6 * small));
         assert!(large < small * 6, "{small} operations for 500 tokens, {large} for 2000");
     }
 
@@ -844,15 +852,28 @@ mod tests {
     /// of each symbol from each origin, and for a tested symbol the
     /// furthest end where its test holds, each found once. So the work
     /// grows linearly with the text, where every omission of a maximal `T`
-    /// meets a longer `y`, with and without a test on `y`.
+    /// meets a longer `y`, with and without a test on `y`. Each grammar asks
+    /// for one table again and again: the furthest ends, the furthest end
+    /// where the test holds from the start, and, where `matches` makes a
+    /// tested `y` from every position, the completions from many origins.
     #[test]
     fn the_checks_of_maximal_terminators_grow_linearly() {
         let plain = "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text body B\n\
                      %conditions begins(from($), r)\n%rule body A ...\n%rule r y [T]\n%rule y A ...\n";
         let tested = "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text body B\n\
                       %conditions begins(from($), r)\n%rule body A ...\n%rule r y⊇~p [T]\n%rule y A ... <~p>\n";
-        for grammar in [plain, tested] {
-            let (eligible, small, items) = query_work(grammar, 1000, true);
+        let many = "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text body B\n\
+                    %conditions matches($, r)\n%rule body A ...\n%rule r parts B\n%rule parts part ...\n\
+                    %rule part y⊇~p [T]\n%rule y A <~p>\n";
+        // After the A's come as many C's, so y completes from the start at
+        // every end, and the test holds only of those that end before the
+        // C's: the furthest end where it holds lies far before the furthest
+        // completion.
+        let far = "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text body B\n\
+                   %conditions begins(from($), r)\n%rule body A ... C ...\n%rule r y⊇~p [T]\n\
+                   %rule y A ... <~p> | A ... C ...\n";
+        for (grammar, begins, c) in [(plain, true, 0), (tested, true, 0), (many, false, 0), (far, true, 1)] {
+            let (eligible, small, items) = query_work(grammar, 1000, c * 1000, begins, None);
             // The searches read the index once and each completed item
             // once, and the checks find each table once, in a pass over the
             // chart, and test each completion at most once: at most four
@@ -860,29 +881,39 @@ mod tests {
             // would read the chart once per check, so this fails on the
             // shorter text, before the longer one costs much.
             assert!(small <= 4 * items, "{small} operations for 1000 tokens, over a chart of {items} items\n{grammar}");
-            // Only the longest y permits the omission.
+            // Only the longest y permits the omission, or with the C's, the
+            // longest where the test holds.
             assert_eq!(eligible.iter().filter(|&&eligible| eligible).count(), 1, "{grammar}");
-            let (_, large, _) = query_work(grammar, 4000, true);
+            // The longer text's run stops at the first entry past its
+            // budget.
+            let (_, large, _) = query_work(grammar, 4000, c * 4000, begins, Some(6 * small));
             assert!(large < small * 6, "{small} operations for 1000 tokens, {large} for 4000\n{grammar}");
         }
     }
 
-    /// Recognizes `n` tokens `A` and then a `B` as the rule `r` of the
+    /// Recognizes `n` tokens `A`, `c` tokens `C` and then a `B` as the rule `r` of the
     /// grammar, alone, as a query does. Gives which witnesses have an
     /// eligible proof tree, those of `begins` or of `matches`, how many
     /// entries of the chart the searches and the checks looked at, and how
-    /// many items the chart holds.
-    fn query_work(grammar: &str, n: usize, begins: bool) -> (Vec<bool>, u64, u64) {
+    /// many items the chart holds. With a budget, the searches and the
+    /// checks each panic at the first entry past it.
+    fn query_work(grammar: &str, n: usize, c: usize, begins: bool, budget: Option<u64>) -> (Vec<bool>, u64, u64) {
         let sources = [("main.md", format!("```jbogenbau\n{grammar}```\n")), ("p.md", PIPELINE.to_string())];
         let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
         let g = dialect.lowered_stage(0);
         let start = g.rules.iter().position(|rule| rule.name == "r" && !rule.helper).expect("r") as u32;
-        let chars: Vec<char> = vec![' '; (n + 1) * 2];
+        let chars: Vec<char> = vec![' '; (n + c + 1) * 2];
         let mut shared = Shared::new(&dialect.unicode, &chars);
-        let input: Vec<Tok> = (0..=n)
+        let input: Vec<Tok> = (0..=n + c)
             .map(|index| Tok {
                 text: "x".to_string(),
-                tags: shared.tags.set_of([if index < n { "A" } else { "B" }]),
+                tags: shared.tags.set_of([if index < n {
+                    "A"
+                } else if index < n + c {
+                    "C"
+                } else {
+                    "B"
+                }]),
                 phonemes: None,
                 source: (index * 2, index * 2 + 1),
                 label: "x".to_string(),
@@ -895,7 +926,7 @@ mod tests {
         let chart = Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None }
             .recognize(&input, 0, start)
             .expect("a chart");
-        let end = n + 1;
+        let end = n + c + 1;
         let sets = if begins { 0..chart.sets.len() } else { end..end + 1 };
         let witnesses: Vec<(u32, u32)> = sets
             .flat_map(|set| {
@@ -905,6 +936,10 @@ mod tests {
         assert!(!witnesses.is_empty(), "r completes");
         let proofs = Proofs::new(&g, &chart, &input, &dialect.unicode, &shared.tags);
         crate::work::reset();
+        if let Some(most) = budget {
+            crate::work::budget(crate::work::Work::Searched, most);
+            crate::work::budget(crate::work::Work::Looked, most);
+        }
         let eligible = proofs.eligible(&witnesses);
         let items = chart.sets.iter().map(|set| set.items.len() as u64).sum();
         (
