@@ -166,6 +166,34 @@ class RecognizerCounters:
 recognizer_counters = RecognizerCounters()
 
 
+class EdgeSets:
+    """The edges each item has, as sets, for the reconstruction mode, where
+    a step can repeat an edge an item already has (engine §7.4). A short
+    list is scanned, and an item gets a set once its list grows past a few
+    edges, so an item of many edges does not scan them all at each one."""
+
+    SHORT = 8
+
+    __slots__ = ("sets",)
+
+    def __init__(self) -> None:
+        self.sets: dict[int, set[tuple[Any, ...]]] = {}
+
+    def add(self, item: int, edges: list[tuple[Any, ...]], edge: tuple[Any, ...]) -> None:
+        """Appends an edge to an item's list unless the list holds it."""
+        if len(edges) < self.SHORT:
+            if edge in edges:
+                return
+        else:
+            seen = self.sets.get(item)
+            if seen is None:
+                seen = self.sets[item] = set(edges)
+            if edge in seen:
+                return
+            seen.add(edge)
+        edges.append(edge)
+
+
 @dataclass
 class Forest:
     """The items of a parse, each with the edges it was derived by."""
@@ -740,6 +768,7 @@ class Parser:
         # part it adds.
         extended: dict[tuple[Caps, tuple[int, int, int]], Caps] = {}
         edges: list[list[tuple[Any, ...]]] = []
+        edge_sets = EdgeSets()
         tag: dict[int, int] = {}
         # In the reconstruction mode: whether every step that made an item is
         # strict, and whether the item has been processed (engine §7.4).
@@ -783,9 +812,7 @@ class Parser:
                 # An item is processed again where an ordinary step reaches
                 # it after it was processed as strict, and that step can
                 # repeat an edge it already has.
-                found_edges = edges[found]
-                if edge not in found_edges:
-                    found_edges.append(edge)
+                edge_sets.add(found, edges[found], edge)
                 if strict[found] and not strict_step:
                     # One ordinary step makes an item ordinary, and the
                     # recognizer then applies to it what its strictness held

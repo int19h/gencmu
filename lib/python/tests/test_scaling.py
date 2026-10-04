@@ -10,7 +10,7 @@ import time
 import unittest
 from typing import Callable
 
-from gencmu._earley import Evaluator, StageContext
+from gencmu._earley import EdgeSets, Evaluator, StageContext
 from gencmu._grammar import Lowered, _Constants
 from gencmu._trampoline import run
 from gencmu._model import Token
@@ -117,6 +117,28 @@ class Closures(Linear):
             return work
 
         self.assert_linear(make, 1000)
+
+
+
+class Dedupes(Linear):
+    def test_an_item_of_many_edges_checks_each_new_edge_at_once(self) -> None:
+        # Every edge distinct, and each offered twice, as a strict step and
+        # then an ordinary one can offer it in the reconstruction mode.
+        def make(n: int) -> Callable[[], object]:
+            offered = [(index, 2, index, 0) for index in range(n)]
+
+            def work() -> None:
+                for _ in range(10):
+                    edge_sets = EdgeSets()
+                    edges: list[tuple[int, ...]] = []
+                    for edge in offered:
+                        edge_sets.add(0, edges, edge)
+                        edge_sets.add(0, edges, edge)
+                    assert edges == offered
+
+            return work
+
+        self.assert_linear(make, 5000)
 
 
 if __name__ == "__main__":
