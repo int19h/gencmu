@@ -338,3 +338,17 @@ func TestImpliedLinear(t *testing.T) {
 		}
 	})
 }
+
+// TestDeepDOMRefusedEarly: a precompiled DOM nested far deeper than its
+// limit is refused once decoding passes the limit, so its cost grows with
+// its size, not with its size times its depth (engine §9).
+func TestDeepDOMRefusedEarly(t *testing.T) {
+	// Each capture is one level of JSON, and encoding/json refuses more
+	// than 10,000.
+	linearTime(t, "a deep DOM", 2000, func(n int) {
+		expr := strings.Repeat(`{"capture":"x","expr":`, n) + `{"ref":"A"}` + strings.Repeat(`}`, n)
+		if _, err := decodeDOM(json.RawMessage(seqDOM([]string{expr})), nil); err == nil {
+			t.Fatalf("a DOM %d deep is not refused", n)
+		}
+	})
+}

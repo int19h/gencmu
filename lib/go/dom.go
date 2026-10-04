@@ -625,6 +625,11 @@ func (d *domDoc) json() []byte {
 
 // ---- reading
 
+// errTooDeep refuses a DOM nested deeper than validateDOM allows, while it
+// is decoded. Each level of decoding reads its subtree again, so a DOM
+// nested as deep as JSON allows would cost its size times its depth.
+var errTooDeep = fmt.Errorf("an expression, term or condition is nested more than %d deep", maxDOMDepth)
+
 type jobj map[string]json.RawMessage
 
 func decodeObj(raw json.RawMessage) (jobj, error) {
@@ -960,11 +965,21 @@ func decodePosition(raw json.RawMessage) ([2]int, error) {
 	return [2]int{at[0], at[1]}, nil
 }
 
-func decodeExpr(raw json.RawMessage) (*domExpr, error) {
+func decodeExpr(raw json.RawMessage) (*domExpr, error) { return decodeExprAt(raw, 0) }
+
+func decodeExprAt(raw json.RawMessage, depth int) (*domExpr, error) {
+	if depth > maxDOMDepth {
+		return nil, errTooDeep
+	}
 	o, err := decodeObj(raw)
 	if err != nil {
 		return nil, err
 	}
+	return decodeExprObj(raw, o, depth)
+}
+
+// decodeExprObj reads an expression, raw, whose members o are decoded.
+func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 	// An expression has exactly the members of one form (docs/output.md).
 	if !hasOneForm(o, exprForms) {
 		return nil, fmt.Errorf("a malformed expression")
@@ -979,12 +994,12 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 	}
 	for _, k := range []string{exSeq, exChoice, exAnd} {
 		if v, ok := o[k]; ok {
-			items, err := decodeList(v, decodeExpr)
+			items, err := decodeList(v, func(r json.RawMessage) (*domExpr, error) { return decodeExprAt(r, depth+1) })
 			return &domExpr{Kind: k, Items: items}, err
 		}
 	}
 	if v, ok := o["optional"]; ok {
-		inner, err := decodeExpr(v)
+		inner, err := decodeExprAt(v, depth+1)
 		if err != nil {
 			return nil, err
 		}
@@ -1008,13 +1023,13 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 		return e, nil
 	}
 	if v, ok := o["repeat"]; ok {
-		inner, err := decodeExpr(v)
+		inner, err := decodeExprAt(v, depth+1)
 		if err != nil {
 			return nil, err
 		}
 		e := &domExpr{Kind: exRepeat, Inner: inner}
 		if sep, ok := o["separator"]; ok {
-			if e.Sep, err = decodeExpr(sep); err != nil {
+			if e.Sep, err = decodeExprAt(sep, depth+1); err != nil {
 				return nil, err
 			}
 		}
@@ -1031,7 +1046,7 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 		if err != nil {
 			return nil, err
 		}
-		inner, err := decodeExpr(o["expr"])
+		inner, err := decodeExprAt(o["expr"], depth+1)
 		return &domExpr{Kind: exCapture, Name: name, Inner: inner}, err
 	}
 	if v, ok := o["test"]; ok {
@@ -1041,14 +1056,15 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 		if err != nil {
 			return nil, fmt.Errorf("a malformed test")
 		}
-		if io, err := decodeObj(o["expr"]); err != nil || len(io) != 1 {
+		io, err := decodeObj(o["expr"])
+		if err != nil || len(io) != 1 {
 			return nil, fmt.Errorf("a test follows only a reference other than # or a terminal")
 		}
-		inner, err := decodeExpr(o["expr"])
+		inner, err := decodeExprObj(o["expr"], io, depth+1)
 		if err != nil {
 			return nil, err
 		}
-		value, err := decodeTerm(o["value"])
+		value, err := decodeTermAt(o["value"], depth+1)
 		return &domExpr{Kind: exTest, Op: op, Inner: inner, Value: value}, err
 	}
 	for _, k := range []string{exRef, exTerminal} {
@@ -1115,7 +1131,12 @@ func hasOneForm(o jobj, forms [][]string) bool {
 	return false
 }
 
-func decodeTerm(raw json.RawMessage) (*domTerm, error) {
+func decodeTerm(raw json.RawMessage) (*domTerm, error) { return decodeTermAt(raw, 0) }
+
+func decodeTermAt(raw json.RawMessage, depth int) (*domTerm, error) {
+	if depth > maxDOMDepth {
+		return nil, errTooDeep
+	}
 	o, err := decodeObj(raw)
 	if err != nil {
 		return nil, err
@@ -1146,7 +1167,7 @@ func decodeTerm(raw json.RawMessage) (*domTerm, error) {
 	}
 	for _, k := range []string{tmUnion, tmIntersection, tmDifference} {
 		if v, ok := o[k]; ok {
-			items, err := decodeList(v, decodeTerm)
+			items, err := decodeList(v, func(r json.RawMessage) (*domTerm, error) { return decodeTermAt(r, depth+1) })
 			return &domTerm{Kind: k, Items: items}, err
 		}
 	}
@@ -1155,21 +1176,26 @@ func decodeTerm(raw json.RawMessage) (*domTerm, error) {
 		if err != nil {
 			return nil, err
 		}
-		args, err := decodeList(o["args"], decodeTerm)
+		args, err := decodeList(o["args"], func(r json.RawMessage) (*domTerm, error) { return decodeTermAt(r, depth+1) })
 		return &domTerm{Kind: tmCall, Str: name, Items: args}, err
 	}
 	if v, ok := o["if"]; ok {
-		cond, err := decodeCond(v)
+		cond, err := decodeCondAt(v, depth+1)
 		if err != nil {
 			return nil, err
 		}
-		then, err := decodeTerm(o["then"])
+		then, err := decodeTermAt(o["then"], depth+1)
 		return &domTerm{Kind: tmIf, Cond: cond, Items: []*domTerm{then}}, err
 	}
 	return nil, fmt.Errorf("unknown term %s", string(raw))
 }
 
-func decodeCond(raw json.RawMessage) (*domCond, error) {
+func decodeCond(raw json.RawMessage) (*domCond, error) { return decodeCondAt(raw, 0) }
+
+func decodeCondAt(raw json.RawMessage, depth int) (*domCond, error) {
+	if depth > maxDOMDepth {
+		return nil, errTooDeep
+	}
 	o, err := decodeObj(raw)
 	if err != nil {
 		return nil, err
@@ -1183,10 +1209,10 @@ func decodeCond(raw json.RawMessage) (*domCond, error) {
 		if c.Op, err = decodeString(v); err != nil {
 			return nil, err
 		}
-		if c.Left, err = decodeTerm(o["left"]); err != nil {
+		if c.Left, err = decodeTermAt(o["left"], depth+1); err != nil {
 			return nil, err
 		}
-		c.Right, err = decodeTerm(o["right"])
+		c.Right, err = decodeTermAt(o["right"], depth+1)
 		return c, err
 	}
 	for _, k := range []string{cdMatches, cdBegins} {
@@ -1196,7 +1222,7 @@ func decodeCond(raw json.RawMessage) (*domCond, error) {
 				return nil, fmt.Errorf("a malformed condition")
 			}
 			c := &domCond{Kind: k}
-			if c.Span, err = decodeTerm(v); err != nil {
+			if c.Span, err = decodeTermAt(v, depth+1); err != nil {
 				return nil, err
 			}
 			c.Rule, err = decodeString(o["rule"])
@@ -1208,11 +1234,11 @@ func decodeCond(raw json.RawMessage) (*domCond, error) {
 		if len(o) != 1 {
 			return nil, fmt.Errorf("a malformed condition")
 		}
-		span, err := decodeTerm(v)
+		span, err := decodeTermAt(v, depth+1)
 		return &domCond{Kind: cdInitial, Span: span}, err
 	}
 	if v, ok := o["not"]; ok {
-		inner, err := decodeCond(v)
+		inner, err := decodeCondAt(v, depth+1)
 		return &domCond{Kind: cdNot, Inner: inner}, err
 	}
 	if v, ok := o["captured"]; ok {
@@ -1220,16 +1246,16 @@ func decodeCond(raw json.RawMessage) (*domCond, error) {
 		return &domCond{Kind: cdCaptured, Rule: name}, err
 	}
 	if v, ok := o["if"]; ok {
-		premise, err := decodeCond(v)
+		premise, err := decodeCondAt(v, depth+1)
 		if err != nil {
 			return nil, err
 		}
-		then, err := decodeCond(o["then"])
+		then, err := decodeCondAt(o["then"], depth+1)
 		return &domCond{Kind: cdIf, Items: []*domCond{premise, then}}, err
 	}
 	for _, k := range []string{cdAny, cdAll} {
 		if v, ok := o[k]; ok {
-			items, err := decodeList(v, decodeCond)
+			items, err := decodeList(v, func(r json.RawMessage) (*domCond, error) { return decodeCondAt(r, depth+1) })
 			return &domCond{Kind: k, Items: items}, err
 		}
 	}
