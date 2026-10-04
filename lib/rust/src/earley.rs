@@ -1885,6 +1885,29 @@ mod tests {
         single_document(&format!("%ambiguity-resolution greedy\n{rules}"))
     }
 
+    /// The shared cases of `tests/query-depth.json` (tests/README.md):
+    /// nested queries nest as deep as the text makes them (engine §4). The
+    /// parse runs on the test's own thread, whose stack has the default
+    /// size, so a recognizer that nests on the call stack overflows here.
+    #[test]
+    fn query_depth_cases() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/query-depth.json");
+        let text = std::fs::read_to_string(path).expect("the cases");
+        let cases = crate::json::parse(&text).expect("the cases are JSON");
+        let cases = cases.as_array().expect("an array");
+        assert!(!cases.is_empty(), "no cases");
+        for case in cases {
+            let string = |name: &str| case.get(name).and_then(crate::json::Json::as_str).expect(name).to_string();
+            let count = case.get("count").and_then(crate::json::Json::as_int).expect("count") as usize;
+            let (name, grammar) = (string("name"), string("grammar"));
+            let dialect = single_document(&grammar);
+            let text = format!("{}{}", string("link").repeat(count), string("suffix"));
+            let options = crate::ParseOptions { auto_features: false, ..crate::ParseOptions::default() };
+            let result = dialect.parse(&text, &options).expect("a result");
+            assert!(result.ok, "{name}: {:?}", result.error);
+        }
+    }
+
     /// A dialect of one grammar document `g.md` whose block holds `rules`
     /// as they are, its directives included.
     fn single_document(rules: &str) -> crate::Dialect {
