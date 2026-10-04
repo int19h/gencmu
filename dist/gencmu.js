@@ -2709,6 +2709,220 @@
     return isDomObject(current);
   }
 
+  // ---- A clause simplified for many productions (engine §3.6) ----------
+
+  /**
+   * A clause prepared once for the productions of a definition. Its parts
+   * are the items of a top-level union of a term or ∧ of a condition, the
+   * conditions of a list, or the clause alone. A part that tests no presence
+   * simplifies the same for every production, and a part `$c ⟹ X`, whose X
+   * tests none, simplifies to X's value or vanishes. Those values are kept,
+   * and the guarded parts are indexed by capture. So a production's
+   * simplification costs its own captures and its output, not the number of
+   * parts. Parts of any other shape are simplified for each production.
+   * @typedef {object} PreparedClause
+   * @property {"union" | "all" | null} join how the parts join, or null for
+   *   a clause alone
+   * @property {any[]} parts
+   * @property {boolean} list whether the parts are the conditions of a list,
+   *   each of which is prepared in turn
+   * @property {number[]} fixed the parts that every production keeps, in
+   *   order: those that test no presence and do not vanish, and the others
+   * @property {(any | undefined)[]} values each part's simplified value,
+   *   where it is the same for every production that keeps it
+   * @property {Map<string, number[]>} guards the guarded parts by capture,
+   *   each list in order
+   * @property {any} absent for a guarded clause alone, its value for a
+   *   production without the capture
+   */
+
+  /**
+   * The captures of a production, each once.
+   * @typedef {{size: number, keys(): Iterable<string>}} CaptureNames
+   */
+
+  /** @type {WeakMap<object, PreparedClause>} */
+  const preparedClauses = new WeakMap();
+
+  /**
+   * Whether a clause tests the presence of no capture anywhere inside it.
+   * @param {unknown} node
+   * @returns {boolean}
+   */
+  function testsNoPresence(node) {
+    const stack = [node];
+    for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      if (!isDomObject(current) && !Array.isArray(current)) continue;
+      if (isDomObject(current) && "captured" in current) return false;
+      for (const value of Object.values(current)) if (value && typeof value === "object") stack.push(value);
+    }
+    return true;
+  }
+
+  /**
+   * The capture that a part `$c ⟹ X` tests, where X tests no presence, so
+   * that the part's value for a production depends on that capture alone.
+   * @param {any} part
+   * @returns {string | null}
+   */
+  function guardOf(part) {
+    if (!isDomObject(part) || Object.keys(part).length !== 2 || !("if" in part) || !("then" in part)) return null;
+    const test = part.if;
+    if (!isDomObject(test) || Object.keys(test).length !== 1 || typeof test.captured !== "string") return null;
+    return testsNoPresence(part.then) ? test.captured : null;
+  }
+
+  /** @type {(name: string) => boolean} */
+  const hasNone = () => false;
+
+  /**
+   * The parts of a clause or a list, classified, with the values of those
+   * that are the same for every production.
+   * @param {any[]} parts
+   * @param {"union" | "all" | null} join
+   * @param {boolean} list
+   * @returns {PreparedClause}
+   */
+  function prepareParts(parts, join, list) {
+    /** @type {PreparedClause} */
+    const prepared = { join, parts, list, fixed: [], values: [], guards: new Map(), absent: undefined };
+    // A part's value vanishes from its join where the join drops it.
+    const vanishes = (/** @type {any} */ value) => (join === "union" ? isEmptySet(value) : join === "all" ? value === DOM_TRUE : false);
+    parts.forEach((part, index) => {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      const name = guardOf(part);
+      if (name !== null) {
+        const absent = isCondition(part.then) ? DOM_TRUE : DOM_EMPTY;
+        if (join === null || vanishes(absent)) {
+          const value = simplify(part.then, hasNone);
+          prepared.values[index] = value;
+          prepared.absent = absent;
+          // A part that vanishes where its capture is present too is never
+          // kept.
+          if (join !== null && vanishes(value)) return;
+          const names = prepared.guards.get(name);
+          if (names) names.push(index);
+          else prepared.guards.set(name, [index]);
+          return;
+        }
+      } else if (testsNoPresence(part)) {
+        const value = simplify(part, hasNone);
+        prepared.values[index] = value;
+        if (join !== null && vanishes(value)) return;
+      }
+      prepared.fixed.push(index);
+    });
+    return prepared;
+  }
+
+  /**
+   * A clause prepared for the productions of its definition, once for each
+   * clause.
+   * @param {any} node a condition or a term
+   * @returns {PreparedClause}
+   */
+  function prepareClause(node) {
+    const known = isDomObject(node) ? preparedClauses.get(node) : undefined;
+    if (known) return known;
+    // The join that simplifying reads first decides, as it does there. An ∨
+    // does not split, since a guarded part that vanishes makes it true.
+    /** @type {"union" | "all" | null} */
+    let join = null;
+    if (isDomObject(node) && typeof node.captured !== "string" && !("not" in node)) {
+      if (Array.isArray(node.all)) join = "all";
+      else if (!Array.isArray(node.any) && !("if" in node) && Array.isArray(node.union)) join = "union";
+    }
+    const prepared = prepareParts(join === "all" ? node.all : join === "union" ? node.union : [node], join, false);
+    if (isDomObject(node)) preparedClauses.set(node, prepared);
+    return prepared;
+  }
+
+  /**
+   * A list of conditions prepared for the productions of its definition,
+   * once for each list. A condition false for a production removes it, and
+   * one true is dropped, as the items of an ∧ are.
+   * @param {any[]} conditions
+   * @returns {PreparedClause}
+   */
+  function prepareConditions(conditions) {
+    const known = preparedClauses.get(conditions);
+    if (known) return known;
+    const prepared = prepareParts(conditions, "all", true);
+    preparedClauses.set(conditions, prepared);
+    return prepared;
+  }
+
+  /**
+   * The values of a prepared clause's parts that a production keeps, in
+   * order: each simplified, without those its join drops.
+   * @param {PreparedClause} prepared
+   * @param {(name: string) => boolean} has
+   * @param {CaptureNames} names
+   * @returns {any[]}
+   */
+  function partsFor(prepared, has, names) {
+    const { join, parts, fixed, values, guards } = prepared;
+    // The guarded parts this production keeps, found from whichever is
+    // fewer, its captures or the captures that guard parts.
+    /** @type {number[]} */
+    const kept = [];
+    /** @type {(name: string) => void} */
+    const take = (name) => {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      const list = guards.get(name);
+      if (!list || !has(name)) return;
+      for (const index of list) {
+        if (hooks.work) countWork(hooks.work, "walkSteps");
+        kept.push(index);
+      }
+    };
+    if (names.size <= guards.size) for (const name of names.keys()) take(name);
+    else for (const name of guards.keys()) take(name);
+    kept.sort((left, right) => {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      return left - right;
+    });
+    /** @type {any[]} */
+    const items = [];
+    /** @type {(index: number) => void} */
+    const keep = (index) => {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      let value = values[index];
+      if (value === undefined) value = prepared.list ? simplifyFor(prepareClause(parts[index]), has, names) : simplify(parts[index], has);
+      if (join === "union" ? !isEmptySet(value) : value !== DOM_TRUE) items.push(value);
+    };
+    let next = 0;
+    for (const index of fixed) {
+      while (next < kept.length && kept[next] < index) keep(kept[next++]);
+      keep(index);
+    }
+    while (next < kept.length) keep(kept[next++]);
+    return items;
+  }
+
+  /**
+   * A prepared clause simplified for a production, the same as simplify
+   * gives (engine §3.6).
+   * @param {PreparedClause} prepared
+   * @param {(name: string) => boolean} has
+   * @param {CaptureNames} names
+   * @returns {any}
+   */
+  function simplifyFor(prepared, has, names) {
+    const { join, parts, fixed, values, guards } = prepared;
+    if (join === null) {
+      if (fixed.length === 1) return values[0] !== undefined ? values[0] : simplify(parts[0], has);
+      // A guarded clause alone is its value or vanishes.
+      const [name] = guards.keys();
+      return has(name) ? values[0] : prepared.absent;
+    }
+    const items = partsFor(prepared, has, names);
+    if (join === "union") return items.length === 0 ? DOM_EMPTY : items.length === 1 ? items[0] : { union: items };
+    if (items.includes(DOM_FALSE)) return DOM_FALSE;
+    return items.length === 0 ? DOM_TRUE : items.length === 1 ? items[0] : { all: items };
+  }
+
   /**
    * The captures a clause uses as values or spans, presence tests aside.
    * @param {unknown} node
@@ -2994,7 +3208,15 @@
     // A constant is its value in simplification (engine §3.6). A clause that
     // holds a constant without one waits for the loader, which checks the
     // definition again once the constants have their values (engine §9).
-    const waits = (/** @type {unknown} */ clause) => constantsIn(clause).some((reference) => !("value" in reference));
+    // Each clause is looked at once, since the checks below ask again for
+    // every production.
+    /** @type {Map<unknown, boolean>} */
+    const waiting = new Map();
+    const waits = (/** @type {unknown} */ clause) => {
+      let known = waiting.get(clause);
+      if (known === undefined) waiting.set(clause, (known = constantsIn(clause).some((reference) => !("value" in reference))));
+      return known;
+    };
     // A definition with no clause has nothing to check about its captures,
     // and its productions, whose number can be exponential, are not listed.
     if (rule.tags === undefined && rule.conditions.length === 0 && rule.emit === undefined &&
@@ -3006,14 +3228,18 @@
     const alternatives = productions.map((/** @type {{captures: Map<string, number>}} */ production) => production.captures);
     // The names some production captures, and those every one does, found
     // once rather than by a scan of the productions for each name.
-    /** @type {Set<string>} */
-    const somewhere = new Set();
-    for (const captures of alternatives) {
+    // The productions that capture each name, in order, which also gives
+    // the names some production captures.
+    /** @type {Map<string, number[]>} */
+    const capturing = new Map();
+    alternatives.forEach((/** @type {Map<string, number>} */ captures, /** @type {number} */ index) => {
       for (const name of captures.keys()) {
         if (hooks.work) countWork(hooks.work, "clauses");
-        somewhere.add(name);
+        const list = capturing.get(name);
+        if (list) list.push(index);
+        else capturing.set(name, [index]);
       }
-    }
+    });
     /** @type {Set<string>} */
     const everywhere = new Set(alternatives.length ? alternatives[0].keys() : []);
     for (const captures of alternatives) {
@@ -3022,7 +3248,7 @@
         if (!captures.has(name)) everywhere.delete(name);
       }
     }
-    const anyHas = (/** @type {string} */ name) => somewhere.has(name);
+    const anyHas = (/** @type {string} */ name) => capturing.has(name);
     const items = rule.emit ? rule.emit.items : [];
     // A constituent that does not count is never an opaque part (engine §9).
     if (rule.opaque && rule.emit && items.length === 0) return `${rule.name} is opaque and emits ε`;
@@ -3035,17 +3261,35 @@
     }
     for (const condition of rule.conditions) {
       if (waits(condition)) continue;
-      const applies = alternatives.some((/** @type {Map<string, number>} */ captures) => {
-        const simple = simplify(condition, (name) => captures.has(name));
-        return simple !== DOM_TRUE && capturesUsed(simple).every((name) => captures.has(name));
-      });
-      if (!applies) return `a condition of ${rule.name} applies to no production`;
+      const prepared = prepareClause(condition);
+      const applies = (/** @type {number} */ index) => {
+        if (hooks.work) countWork(hooks.work, "clauses");
+        const captures = alternatives[index];
+        const has = (/** @type {string} */ name) => captures.has(name);
+        const simple = simplifyFor(prepared, has, captures);
+        return simple !== DOM_TRUE && capturesUsed(simple).every(has);
+      };
+      // A condition made only of guarded parts is true for a production
+      // that has none of their captures, so only those that have one can
+      // apply.
+      let found = false;
+      if (prepared.fixed.length === 0 && (prepared.join === "all" || (prepared.join === null && prepared.absent === DOM_TRUE))) {
+        for (const name of prepared.guards.keys()) {
+          for (const index of capturing.get(name) ?? []) {
+            if ((found = applies(index))) break;
+          }
+          if (found) break;
+        }
+      } else {
+        found = alternatives.some((/** @type {unknown} */ _, /** @type {number} */ index) => applies(index));
+      }
+      if (!found) return `a condition of ${rule.name} applies to no production`;
     }
     for (const { captures, alternative } of productions) {
       const has = (/** @type {string} */ name) => captures.has(name);
       for (const term of [rule.tags, alternative.tags]) {
         if (term === undefined || waits(term)) continue;
-        const missing = capturesUsed(simplify(term, has)).find((name) => !has(name));
+        const missing = capturesUsed(simplifyFor(prepareClause(term), has, captures)).find((name) => !has(name));
         if (missing !== undefined) return `a tag term of ${rule.name} uses $${missing}, which a production lacks; guard it with $${missing} ⟹`;
       }
       if (!rule.emit) continue;
@@ -3978,10 +4222,16 @@
       const resolved = new Map();
       /** @type {<T>(node: T) => T} */
       const resolve = (node) => /** @type {any} */ (resolveNode(node, this.constants));
+      // Whether the clauses that alternatives share name a constant, found
+      // once for each, not again with each alternative.
+      /** @type {Map<object, boolean>} */
+      const naming = new Map();
       for (const rule of this.rules.values()) {
         rule.alternatives = rule.alternatives.map((alternative) => {
           const { clauses } = alternative;
-          if (constantsIn(alternative.tags).length === 0 && constantsIn([clauses.tags, clauses.conditions, clauses.emit]).length === 0) return alternative;
+          let names = naming.get(clauses);
+          if (names === undefined) naming.set(clauses, (names = constantsIn([clauses.tags, clauses.conditions, clauses.emit]).length > 0));
+          if (constantsIn(alternative.tags).length === 0 && !names) return alternative;
           let shared = resolved.get(clauses);
           if (!shared) {
             shared = { ...clauses, tags: resolve(clauses.tags), conditions: resolve(clauses.conditions), emit: resolve(clauses.emit) };
@@ -4029,11 +4279,20 @@
       // The stage's classifiers by name, rather than a scan of them for each
       // classifier a clause names.
       const classifierNames = new Set(this.classifierItems.map((item) => item.classifier.name));
+      // The clauses that a definition's alternatives share are read with the
+      // first of them, where an error in them stands, not again with each.
+      /** @type {Set<RuleClauses>} */
+      const read = new Set();
       for (const rule of this.rules.values()) {
         for (const alternative of rule.alternatives) {
           visit(alternative.expr, rule, alternative);
-          const { tags, conditions, emit } = alternative.clauses;
-          const clauses = [alternative.tags, tags, conditions, emit ? emit.items.map((item) => item.tags) : []];
+          /** @type {unknown[]} */
+          const clauses = [alternative.tags];
+          if (!read.has(alternative.clauses)) {
+            read.add(alternative.clauses);
+            const { tags, conditions, emit } = alternative.clauses;
+            clauses.push(tags, conditions, emit ? emit.items.map((item) => item.tags) : []);
+          }
           for (const name of clauseRules(clauses)) check(name, rule, alternative);
           // A classifier that classify names belongs to the stage (engine §2).
           for (const name of clauseClassifiers(clauses)) {
@@ -4184,6 +4443,7 @@
    * @returns {Generator<string>}
    */
   function* clauseRules(value) {
+    if (hooks.work) countWork(hooks.work, "clauses");
     if (Array.isArray(value)) {
       for (const item of value) yield* clauseRules(item);
     } else if (value !== null && typeof value === "object") {
@@ -4200,6 +4460,7 @@
    * @returns {Generator<string>}
    */
   function* clauseClassifiers(value) {
+    if (hooks.work) countWork(hooks.work, "clauses");
     if (Array.isArray(value)) {
       for (const item of value) yield* clauseClassifiers(item);
     } else if (value !== null && typeof value === "object") {
@@ -4472,7 +4733,9 @@
       const has = (name) => names.has(name);
       // The union of the alternative's own tags and the rule's (engine §3.7);
       // the reader has made sure neither uses a capture this production lacks.
-      const written = [alternative.tags, clauses.tags].filter((term) => term !== undefined).map((term) => simplify(term, has));
+      // Each clause is prepared once for all productions, so that one costs
+      // its own captures and output, not every part of the clause.
+      const written = [alternative.tags, clauses.tags].filter((term) => term !== undefined).map((term) => simplifyFor(prepareClause(term), has, names));
       /** @type {Term | null} */
       let tags = written.length === 0 ? null : written.length === 1 ? written[0] : { union: written };
       if (!tags && sequence.length === 1) {
@@ -4491,10 +4754,9 @@
       for (const capture of captures) if (!positionOf.has(capture.name)) positionOf.set(capture.name, capture.index);
       /** @type {import("./types.js").ReadyCondition[]} */
       const conditions = [];
-      for (const written of clauses.conditions) {
-        const condition = simplify(written, has);
-        if (condition === DOM_TRUE) continue;
-        // A condition false for this production removes it (engine §3.6).
+      // The conditions not true for this production, in order (engine §3.6).
+      for (const condition of partsFor(prepareConditions(clauses.conditions), has, names)) {
+        // A condition false for this production removes it.
         if (condition === DOM_FALSE) return;
         const variables = conditionVariables(condition);
         if (!variables.every((name) => names.has(name))) continue;
@@ -5463,6 +5725,9 @@
       if (test && !fault("F11", "restore") && !testHolds(context, test, position, position + 1, token.tags)) return;
       const target = setAt(position + 1);
       const key = itemKey((production.id * dots) * width + position - start, null);
+      // A restoration whose item exists is another way to build it. Each
+      // lookup counts, so that a search slower than the index fails a budget.
+      if (hooks.work) countWork(hooks.work, "edgeChecks");
       if (target.index.has(key)) return;
       const item = new Item(production, 0, position, null, null, null);
       item.restores = true;
@@ -7805,13 +8070,12 @@
   }
 
   /**
-   * Whether an alternative has a capture; every alternative has `$`.
+   * The captures of an alternative; every alternative has `$`.
    * @param {StitchedAlternative} alternative
-   * @returns {(name: string) => boolean}
+   * @returns {Set<string>}
    */
   function capturesOf(alternative) {
-    const captured = new Set(["", ...topItems(alternative.expr).flatMap((item) => ("capture" in item ? [item.capture] : []))]);
-    return (name) => captured.has(name);
+    return new Set(["", ...topItems(alternative.expr).flatMap((item) => ("capture" in item ? [item.capture] : []))]);
   }
 
   /**
@@ -7821,7 +8085,8 @@
    * @returns {import("./types.js").EmitItem[]}
    */
   function effectiveItems(alternative) {
-    const has = capturesOf(alternative);
+    const captured = capturesOf(alternative);
+    const has = (/** @type {string} */ name) => captured.has(name);
     return (alternative.clauses.emit ? alternative.clauses.emit.items : [])
       .filter((item) => item.capture === undefined || has(item.capture))
       .map((item) => (item.tags ? { ...item, tags: simplify(item.tags, has) } : item));
@@ -7834,8 +8099,10 @@
    * @returns {Term[]}
    */
   function constituentTerms(alternative) {
-    const has = capturesOf(alternative);
-    return [alternative.tags, alternative.clauses.tags].filter((term) => term !== undefined).map((term) => simplify(term, has));
+    const captured = capturesOf(alternative);
+    const has = (/** @type {string} */ name) => captured.has(name);
+    // Each clause is prepared once for every alternative that shares it.
+    return [alternative.tags, alternative.clauses.tags].filter((term) => term !== undefined).map((term) => simplifyFor(prepareClause(term), has, captured));
   }
 
   /**
@@ -7992,10 +8259,12 @@
           referencedRules(alternative.expr, found);
           // Rules named in clauses count only where the clause applies to the
           // alternative (engine §3.6).
-          const has = capturesOf(alternative);
+          const captured = capturesOf(alternative);
+          const has = (/** @type {string} */ name) => captured.has(name);
           const clauses = alternative.clauses;
-          const conditions = clauses.conditions.map((condition) => simplify(condition, has))
-            .filter((condition) => condition !== DOM_TRUE && capturesUsed(condition).every(has));
+          // The conditions not true for the alternative, in order, from a
+          // list prepared once for every alternative that shares it.
+          const conditions = partsFor(prepareConditions(clauses.conditions), has, captured).filter((condition) => capturesUsed(condition).every(has));
           namedRules([...constituentTerms(alternative), ...effectiveItems(alternative), ...conditions], found);
         }
         for (const next of found) {
