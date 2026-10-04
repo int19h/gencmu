@@ -27,6 +27,34 @@ CASE_SECONDS = float(os.environ.get("GENCMU_CASE_TIMEOUT", "60"))
 failure. GENCMU_CASE_TIMEOUT sets it."""
 
 
+class RecognizerWork:
+    """The items that the recognizer made while :func:`count_items` was
+    counting."""
+
+    items = 0
+
+
+@contextmanager
+def count_items() -> Iterator[RecognizerWork]:
+    """Count the items that the recognizer makes, in parses and nested
+    parses alike, from the test's side: each parse makes every item of its
+    forest once."""
+    from unittest import mock
+
+    from gencmu._earley import Parser
+
+    work = RecognizerWork()
+    parse = Parser.parse
+
+    def counted(self: Parser, start_rule: int) -> Any:
+        forest = parse(self, start_rule)
+        work.items += len(forest.prod)
+        return forest
+
+    with mock.patch.object(Parser, "parse", counted):
+        yield work
+
+
 class CaseTimeout(AssertionError):
     """A shared case that ran past its time, reported as a failure."""
 

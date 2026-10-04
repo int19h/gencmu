@@ -22,7 +22,7 @@ from typing import Any
 from gencmu._dialect import DOM_FORMAT, _resources, _unicode_table
 from gencmu._earley import Forest, Parser, StageContext
 from gencmu._eligible import eligible
-from gencmu._maximal import Maximal, maximal_counters
+from gencmu._maximal import Maximal
 from gencmu._grammar import lower, stitch
 from gencmu._model import Token
 from gencmu._rank import count_roots
@@ -266,15 +266,18 @@ class MaximalQueryCost(unittest.TestCase):
     def work(self, grammar: str, length: int, budget: tuple[int, int, int] | None = None) -> tuple[int, int, int]:
         """The maximality checks, the test evaluations and the items looked
         at of a parse of ``length`` tokens A and then B; with a budget of
-        each, it stops the parse and fails as soon as one is passed."""
+        each, it stops the parse and fails as soon as one is passed. The
+        items looked at are those of each forest that finding the furthest
+        ends, or every completion for a tested symbol, reads, counted from
+        here as each is found."""
         dialect, error = load_case_dialect({"grammar": grammar})
         assert dialect is not None, error
         tokens, text = case_tokens({"tokens": [{"text": "a", "tags": ["A"]}] * length + [{"text": "b", "tags": ["B"]}]})
         counts = [0, 0, 0]
         forbids, test_holds = Maximal.forbids, StageContext.test_holds
+        longest, all_completed = Maximal.longest, Maximal.all_completed
 
         def spend() -> None:
-            counts[2] = maximal_counters.looked
             if budget is not None and any(count > most for count, most in zip(counts, budget)):
                 raise OverBudget(tuple(counts))
 
@@ -289,14 +292,29 @@ class MaximalQueryCost(unittest.TestCase):
             spend()
             return test_holds(self, *args)
 
-        maximal_counters.looked = 0
-        with mock.patch.object(Maximal, "forbids", counted_forbids), mock.patch.object(StageContext, "test_holds", counted_test):
+        def counted_longest(self: Maximal) -> Any:
+            if self.furthest is None:
+                counts[2] += len(self.forest.prod)
+                spend()
+            return longest(self)
+
+        def counted_completed(self: Maximal) -> Any:
+            if self.completed is None:
+                counts[2] += len(self.forest.prod)
+                spend()
+            return all_completed(self)
+
+        with (
+            mock.patch.object(Maximal, "forbids", counted_forbids),
+            mock.patch.object(StageContext, "test_holds", counted_test),
+            mock.patch.object(Maximal, "longest", counted_longest),
+            mock.patch.object(Maximal, "all_completed", counted_completed),
+        ):
             try:
                 result = dialect.parse_tokens(tokens, text, auto_features=False)
             except OverBudget as over:
                 self.fail(f"{length} tokens went past the budget {budget} of checks, tests and items looked at, at {over.args[0]}")
         self.assertTrue(result.stages[0].verdict is not None or result.error is not None)
-        counts[2] = maximal_counters.looked
         return counts[0], counts[1], counts[2]
 
     def test_work_grows_linearly(self) -> None:

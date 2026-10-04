@@ -10,9 +10,8 @@ import json
 import unittest
 
 import gencmu
-from gencmu._earley import recognizer_counters
 
-from .shared import SHARED
+from .shared import SHARED, count_items
 
 
 class Growth(unittest.TestCase):
@@ -26,10 +25,10 @@ class Growth(unittest.TestCase):
 
                 def items(n: int) -> int:
                     text = case["text"].replace("{links}", " ".join([case["link"]] * n))
-                    recognizer_counters.items = 0
-                    result = dialect.parse(text)
+                    with count_items() as work:
+                        result = dialect.parse(text)
                     self.assertTrue(result.ok, text)
-                    return recognizer_counters.items
+                    return work.items
 
                 small = items(case["small"])
                 large = items(case["large"])
