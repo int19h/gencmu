@@ -2,6 +2,7 @@ package gencmu
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 	"sync/atomic"
 )
@@ -27,6 +28,7 @@ type production struct {
 	tags         *domTerm         // nil: default tags (§4)
 	implicit     bool             // one symbol and no tags: the constituent has its symbol's tags (§3.7)
 	conds        []lcond
+	condFrom     []int32    // conds[condFrom[d]:condFrom[d+1]] are those triggered at dot d; nil for none
 	predictConds []*domCond // conditions using no capture but $ of an empty production, checked at prediction
 	emit         *domEmit   // as dropped and simplified for the production (§3.6)
 	nothing      bool       // %emits ε: the constituent emits nothing and does not count (§11)
@@ -42,6 +44,14 @@ type production struct {
 	// in the order written, each giving a warning for a node of the chosen
 	// tree built by the production (§12); a helper has none.
 	warnings []string
+}
+
+// condsAt is the conditions that are ready once an item's dot reaches d.
+func (p *production) condsAt(d int) []lcond {
+	if p.condFrom == nil {
+		return nil
+	}
+	return p.conds[p.condFrom[d]:p.condFrom[d+1]]
 }
 
 // lcond is a condition, simplified for its production, with the dot
@@ -90,6 +100,11 @@ type lowered struct {
 	// elision-only, made once, when a check first needs it (§7.4).
 	readingOnce sync.Once
 	reading     *readingSets
+	// elidable says, for each rule, whether it is the helper of an elidable
+	// optional, and anyElidable whether one is; made once, since every
+	// nested query asks (§3.8).
+	elidable    []bool
+	anyElidable bool
 }
 
 type slot struct {
@@ -185,6 +200,7 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 		return l
 	}
 	l.computeCycles()
+	l.elidable, l.anyElidable = elidableHelpers(l)
 	return l
 }
 
@@ -506,6 +522,18 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 			p.predictConds = append(p.predictConds, c)
 		} else {
 			p.conds = append(p.conds, lcond{cond: c, trigger: trigger, whole: names[""]})
+		}
+	}
+	if len(p.conds) > 0 {
+		// By trigger, each dot's in the order written, so that an advance
+		// finds those ready at its dot without a scan of them all.
+		sort.SliceStable(p.conds, func(i, j int) bool { return p.conds[i].trigger < p.conds[j].trigger })
+		p.condFrom = make([]int32, len(body)+2)
+		for _, c := range p.conds {
+			p.condFrom[c.trigger+1]++
+		}
+		for d := 1; d < len(p.condFrom); d++ {
+			p.condFrom[d] += p.condFrom[d-1]
 		}
 	}
 	if a.emit != nil {

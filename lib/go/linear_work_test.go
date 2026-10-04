@@ -352,3 +352,52 @@ func TestDeepDOMRefusedEarly(t *testing.T) {
 		}
 	})
 }
+
+// TestEligibilityQueryConstant: a query of eligibility finds the helpers of
+// elidable optionals made once for the lowered grammar, not by a walk of
+// its productions, so n queries of a grammar of n rules cost n (engine §4).
+func TestEligibilityQueryConstant(t *testing.T) {
+	const n = 5000
+	elidable := `{"optional":{"ref":"A"},"elidable":true}`
+	lowered := map[int]*lowered{}
+	for _, size := range []int{n, 4 * n} {
+		lowered[size] = lower(domStage(t, chainDOM(size, elidable)).stages[0], map[string]bool{})
+	}
+	linearTime(t, "queries", n, func(n int) {
+		if !lowered[n].anyElidable {
+			t.Fatalf("no elidable optional in %d rules", n)
+		}
+		r := &recognizer{g: lowered[n]}
+		for range 10 * n {
+			r.eligibleItems(nil)
+		}
+	})
+}
+
+// TestConditionsByDot: an advance looks only at the conditions that its
+// dot makes ready, so a production of n captures, each with a condition,
+// looks at n conditions over a parse, not n at each advance (engine §4).
+func TestConditionsByDot(t *testing.T) {
+	for _, n := range []int{100, 400} {
+		names := make([]string, n)
+		conditions := make([]string, n)
+		for i := range names {
+			names[i] = fmt.Sprintf("$c%d(A)", i)
+			conditions[i] = fmt.Sprintf("text($c%d) = \"a\"", i)
+		}
+		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+strings.Join(names, " ")+"\n%conditions "+strings.Join(conditions, ", ")))
+		lg := d.lower(0, map[string]bool{})
+		toks := make([]Token, n)
+		for i := range toks {
+			toks[i] = Token{Text: "a", Tags: []string{"A"}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
+		}
+		ps := newParseState(d.uni, []rune(strings.TrimSpace(strings.Repeat("a ", n))))
+		rec := ps.newRun("main", d.stages[0], toks).recognize(lg, lg.byName["text"], 0, n)
+		if len(rec.sets[n].items) == 0 {
+			t.Fatalf("%d captures: no item at the end", n)
+		}
+		if rec.condSteps != n {
+			t.Errorf("%d captures: %d conditions looked at", n, rec.condSteps)
+		}
+	}
+}

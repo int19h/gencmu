@@ -99,8 +99,8 @@ func (e *eligibility) next(it *item) int {
 // eligibleItems keeps of the completed items those that have an eligible
 // proof tree (§4).
 func (r *recognizer) eligibleItems(items []*item) []*item {
-	helpers, any := elidableHelpers(r.g)
-	if !any || len(items) == 0 {
+	helpers := r.g.elidable
+	if !r.g.anyElidable || len(items) == 0 {
 		return items
 	}
 	if w := work.Load(); w != nil {

@@ -210,6 +210,9 @@ type recognizer struct {
 	// linkSteps counts the links compared and looked up in that check, for
 	// the test of its work.
 	linkSteps int
+	// condSteps counts the conditions that advances look at, for the test
+	// that an advance looks only at those ready at its dot.
+	condSteps int
 }
 
 func (r *recognizer) set(k int) *eset {
@@ -574,18 +577,17 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) {
 	}
 	key.dot++
 	var whole func() *tagset
-	for _, c := range p.conds {
-		if c.trigger == int(key.dot) {
-			// A condition on $ is evaluated once the item is complete. Its
-			// production's tag term gives $ its tags, and runs only where a
-			// condition reads them (§4).
-			caps := r.caps(&key)
-			if c.whole && whole == nil {
-				whole = r.lazyTags(p, caps, key.origin, int32(k))
-			}
-			if !r.run.evaluator(r.g, r.captureFunc(p, caps, key.origin, int32(k), whole)).cond(c.cond) {
-				return
-			}
+	for _, c := range p.condsAt(int(key.dot)) {
+		r.condSteps++
+		// A condition on $ is evaluated once the item is complete. Its
+		// production's tag term gives $ its tags, and runs only where a
+		// condition reads them (§4).
+		caps := r.caps(&key)
+		if c.whole && whole == nil {
+			whole = r.lazyTags(p, caps, key.origin, int32(k))
+		}
+		if !r.run.evaluator(r.g, r.captureFunc(p, caps, key.origin, int32(k), whole)).cond(c.cond) {
+			return
 		}
 	}
 	if l.prev != nil && l.prev.dot == 0 {
