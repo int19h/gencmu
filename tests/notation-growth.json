@@ -169,5 +169,14 @@
     "middle": "",
     "close": "",
     "suffix": "\""
+  },
+  {
+    "name": "repeated-capture-name",
+    "description": "The same capture name at every level of nested sequences, which the check of repeated captures reports. Each capture is marked as repeated once, not again at each level above it (engine §9).",
+    "prefix": "%rule text ",
+    "open": "$x(A) (",
+    "middle": "A",
+    "close": ")",
+    "suffix": ""
   }
 ]

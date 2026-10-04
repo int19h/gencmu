@@ -159,6 +159,8 @@ Each item says that a bundled dialect's work on a long text grows in proportion 
 
 Each item says that reading a document whose constructs nest deep costs work in proportion to its length. A reader that types or copies a whole subtree at each level of nesting makes a deep document cost the square of its depth. No other case shows that.
 
+One item nests sequences that each capture the same name, so the check of repeated captures marks captures at every level. The library counts each marking among its reader's steps.
+
 Some items repeat no nesting but one long token, such as a name, a comment or a string. Each says that the lexical stage reads a long token in work in proportion to its length. A lexer that tries every prefix of a name, or scans to a token's end again from each character inside it, makes the token cost the square of its length.
 
 The library builds the document `prefix`, `open` n times, `middle`, `close` n times and `suffix`, in a fence. It builds it for n = 250 and for n = 1000. It reads each once with its reader, after one read that loads the notation. The read can end in an error. The library counts the items that its recognizer makes and the steps of its reader and of the walks of what the reader reads. The count for 1000 must be at most five times the count for 250.
