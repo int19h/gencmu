@@ -2,7 +2,7 @@
 
 Every grammar in gencmu is a Markdown document. Its fenced `jbogenbau` blocks, read in order, are one grammar, and the prose between the blocks explains it. This document explains jbogenbau, the notation that those blocks use. The grammars only say what they are about, and refer here for the rest. Two grammars written in jbogenbau itself define it: `grammars/notation/lexical.md` and `grammars/notation/syntax.md`.
 
-A jbogenbau grammar is an attribute grammar with EBNF rule bodies. An attribute grammar is a grammar whose constituents carry computed values. A constituent is a part of the text that one rule matched. EBNF (Extended Backus-Naur Form) is a common notation for the bodies of grammar rules. Each rule body is EBNF in the form that *The Complete Lojban Language* (CLL) prints in chapter 21. Each constituent carries one attribute, its set of tags (names, phonemes or characters, such as `KOhA`, `/a/` or `'a'`), computed bottom-up from its parts.
+A jbogenbau grammar is an attribute grammar with EBNF rule bodies. An attribute grammar is a grammar whose constituents carry computed values. A constituent is a part of the text that one rule matched. EBNF (Extended Backus-Naur Form) is a common notation for the bodies of grammar rules. Each rule body is EBNF close to the form that *The Complete Lojban Language* (CLL) prints in chapter 21, except for repetition and elidable terminators. Each constituent carries one attribute, its set of tags (names, phonemes or characters, such as `KOhA`, `/a/` or `'a'`), computed bottom-up from its parts.
 
 Conditions over the parts restrict which parses exist. A condition can also ask whether a part parses as another rule. This takes the grammar beyond context-free grammars, whose rules only combine symbols. It goes beyond them in the way that Boolean grammars do. In a Boolean grammar, a rule can also require that the same text matches, or does not match, another rule.
 
@@ -90,12 +90,12 @@ A test does not replace a class. `zo la` quotes a word that sounds `la` but has 
 
 ## Operators
 
-The operators of a body are those of CLL, except for repetition:
+The operators of a body are those of CLL, except for repetition and elidable terminators:
 
 - Juxtaposition is sequence.
 - `[x]` is optional.
 - `[+T x]` is an elidable optional, whose first item is the terminator `T`. `[++T x]` is one whose terminator is also maximal. "Elided terminators" below explains both.
-- `{x}` is one or more of `x`, and `[{x}]` is zero or more. `{x \ s}` is one or more of `x` with `s` between each two. "Repetition" below explains braces, and the chains `{... x \ s}` and `{x ... \ s}`.
+- `{x}` is one or more of `x`, and `[{x}]` is zero or more. `{x \ s}` is one or more of `x` with `s` between each two. "Repetition" below explains braces, and the chains `{... x \ s}` and `{x ... \ s}`, which can also leave out `\ s`, as `{... x}` and `{x ...}`.
 - `A & B` is and/or: `A`, `B` or `A B`, but not `B A`. `A & B & C` is any non-empty subsequence in that order.
 - `( )` groups.
 - `ε` is the empty sequence.
@@ -117,7 +117,7 @@ Braces repeat what they hold. There are two kinds of braces. Flat braces read a 
 - `{... x \ s}` is a left chain: `x`, or a left chain, then `s` and `x`.
 - `{x ... \ s}` is a right chain: `x`, or `x` and `s`, then a right chain.
 
-The separator of a chain is optional, as in a list. So `{... selbri-4}` is a left chain of `selbri-4` with nothing between the items.
+A chain, like a list, can leave out `\ s`. So `{... selbri-4}` is a left chain of `selbri-4` with nothing between the items.
 
 `[{x}]` is zero or more of `x`: an optional list. The notation has no other way to say "zero or more". ISO 14977, the standard EBNF, reads `{x}` as zero or more. This notation reads it as one or more. So every kind of braces counts its items in the same way, and brackets are the one way to say "or none".
 
@@ -155,7 +155,7 @@ A list has no node, so nothing can name it, capture it or test it. The clauses o
 
 ### Chains in the tree
 
-Each level of a chain is a constituent of the chain's rule. The chain needs no rule names of its own, because every level is a node of that rule. Take `%rule tag {... tense-modal \ joik-jek}`. It reads `ba je ca je pu` as a `tag` node over a `tag` node over `ba je ca`. The innermost `tag` node holds `ba` alone.
+Each level of a chain is a constituent of the chain's rule. The chain needs no rule names of its own, because every level is a node of that rule. Take `%rule tag {... tense-modal \ joik-jek}`. It reads `ba je ca je pu` as three `tag` nodes. The outer node holds a `tag` node over `ba je ca`, then `je` and `pu`. That inner node holds a `tag` node over `ba` alone, then `je` and `ca`.
 
 The clauses of the rule serve every level, as they serve every alternative:
 
@@ -310,11 +310,11 @@ A capture wraps one symbol. That symbol can stand anywhere in an alternative, ex
 
 A capture cannot wrap anything but one symbol. So `$x((a | b))`, `$x((a b))` and `$x([a])` are errors. A capture names one constituent, with one span and one set of tags, and a group or an optional is no constituent. To capture a choice or a sequence, make it a rule of its own and capture the reference. To capture a part that can be absent, write the capture inside the optional, as in `[$x(a)]`. A presence test then says whether the part is there.
 
-A capture cannot wrap braces, and braces cannot hold a capture. A list has no span of its own, and a part of a list or of a chain repeats, so one name would stand for many parts. To capture a list or a chain, make it a rule of its own and capture the reference, as in `$t(tag)`.
+A capture cannot wrap braces, and braces cannot hold a capture. A list is not a constituent, so no capture can name its span. A part of a list or of a chain repeats, so one name cannot stand for all its parts. To capture a list or a chain, make it a rule of its own and capture the reference, as in `$t(tag)`.
 
 An elidable optional cannot hold a capture, at any depth. gencmu restores an elided terminator as the terminator alone (see "Elided terminators"), and it keeps the optional as one unit for that. A part inside it would be there in some readings of one omission and not in others.
 
-gencmu expands each alternative into productions, as engine §3 says. A production is one way to read the alternative, with one branch of each choice, one subsequence of each `&`, and each optional read or not. A plain optional that holds a capture is expanded in place, as if it were `(ε | x)`: first the production without it, then those with it. So `A [$b(B)] [$c(C)]` gives four productions, in this order: `A`, `A C`, `A B` and `A B C`. A plain optional without a capture stays one optional, as before. A production has a capture where it reads the captured symbol, and lacks it elsewhere.
+gencmu expands each alternative into productions, as engine §3 says. A production is one way to read the alternative, with one branch of each choice, one subsequence of each `&`, and each optional read or not. A plain optional that holds a capture is expanded in place, as if it were `(ε | x)`: first the production without it, then those with it. So `A [$b(B)] [$c(C)]` gives four productions, in this order: `A`, `A C`, `A B` and `A B C`. A plain optional without a capture stays one optional. It is not expanded into two productions. A production has a capture where it reads the captured symbol, and lacks it elsewhere.
 
 Either way, a rule node holds the parts that its production reads as its children, and an optional makes no node. But the tags and the constituents can differ, in two ways. A production that reads one symbol has that symbol's tags where no tags are written (see "Tags"). So `%rule r A [$b(B)]` without tags has the tags of `A` where `B` is absent. And an elided terminator after the optional has the constituent that the production gives it (see "Elided terminators"). In `a [$b(b)] [+KU]`, where `a` and `b` are rules, the constituent of an elided `ku` is `b` where the production reads `b`, and `a` where it does not.
 
@@ -534,7 +534,7 @@ An inserted token with a phoneme tag has that phoneme as its label, or a space f
 A directive is a keyword and its operands. By convention each stands in a block of its own, after prose that says why the grammar needs it. Two directives can share a line.
 
 - `%ambiguity-resolution` says how the stage chooses among parses. Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` and then `maximal` can follow it. "Ambiguity" and "Elided terminators" explain it. Every stage must say it exactly once, in any of its documents.
-- No directive names the elidable terminators. Each elidable optional is marked in its place, as `[+KU]` or `[++TOI]` (see "Elided terminators"). `%elidable` is not a directive, and a grammar that writes it is an error.
+- No directive names the elidable terminators. Each elidable optional is marked in its place, as `[+KU]` or `[++TOI]` (see "Elided terminators"). `%elidable` is not a directive. A document that writes it is an error, which the reader reports at the keyword.
 - `%stage NAME`, `%include "PATH"` and `%features NAME…` build a pipeline, as the next section says.
 
 ## Pipelines
