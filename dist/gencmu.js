@@ -1497,8 +1497,14 @@
   // - "lost:roots" and "lost:count" lose the witness after recognition
   //   (engine §7.9).
   // - "lost:rank" gives a restoration no derivation in the ranking, so the
-  //   check's ranking does not count W(D) though its chart holds it. Only the
-  //   witness hook sees that W(D) is gone where other readings remain.
+  //   check's ranking does not count W(D) though its chart holds it. Most
+  //   cases see it through the result too, since the readings change or none
+  //   is left. reparse-witness-sibling-last sees it through the hook alone.
+  // - "lost:context" makes the check's count skip the last edge of an item
+  //   that has two or more, and "lost:select" makes its candidates skip it.
+  //   In the sibling cases that edge is W(D)'s. The count channel of the
+  //   witness hook alone sees lost:context, where the readings stay; the
+  //   selection channel sees lost:select, where W(D) was a reading.
   // - "order:tags" evaluates a completing item's tag term before its
   //   conditions, and "order:conditions" evaluates the conditions that read
   //   only captures before those that read `$`, against the order of one step
@@ -1517,8 +1523,10 @@
   // comes first, and a case that catches it says so. A case for a fault that
   // depends on the order of processing comes in both orders.
   //
-  // `hooks.elisionCheck`, when set, receives each check that ran and met no
-  // error of the grammar, for the witness test of tests/README.md.
+  // `hooks.elisionCheck`, when set, receives each check that recognized R
+  // and met no error of the grammar, before the check ranks, for the witness
+  // test of tests/README.md. It returns the marks of W(D)'s edges, which the
+  // check's own ranker takes, and a callback that receives the ranking.
 
   /** @type {Set<string>} */
   const faults = new Set();
@@ -1531,10 +1539,6 @@
    * @property {import("./earley.js").Chart} chart the recognition of R
    * @property {import("./types.js").Item[]} roots the completed items of
    *   `text` over R
-   * @property {(roots: import("./earley.js").Item[]) => import("./rank.js").Ranking | null} rank
-   *   the check's own ranking of a part of its forest, whose roots are given,
-   *   in the cycle contexts of the whole forest: null where it counts no
-   *   derivation
    * @property {boolean[]} synthetic for each token of R, whether it is
    *   synthetic, by its provenance
    * @property {number[]} originalAt for each token of the stage's input, its
@@ -1543,7 +1547,17 @@
    *   its synthetic token in R
    */
 
-  /** @type {{elisionCheck: ((run: ElisionCheckRun) => void) | null}} */
+  /**
+   * What the witness test hands back to the check: the marks of W(D)'s
+   * edges, for each item the indices of the edges that W(D) uses, or null
+   * where the chart does not hold W(D); and a callback that receives the
+   * check's ranking, with whether its count counted W(D).
+   * @typedef {object} ElisionCheckWatch
+   * @property {Map<import("./earley.js").Item, Set<number>> | null} marks
+   * @property {(outcome: {ranking: import("./rank.js").Ranking | null, counted: boolean}) => void} ranked
+   */
+
+  /** @type {{elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null}} */
   const hooks = { elisionCheck: null };
 
   /**
@@ -6272,10 +6286,24 @@
    * @property {Rope} first
    * @property {Rope | null} second
    * @property {[Action | null, Action | null] | null} witness
+   * @property {boolean | null} witnessCounted with the witness hook's marks,
+   *   whether the count counted W(D); null without marks
    */
 
   /** @type {Rope} */
   const EMPTY = { empty: true, size: 0 };
+
+  /**
+   * The rope of a sequence of actions, for a derivation that no ranking
+   * built: the witness hook's W(D) (tests/README.md).
+   * @param {Iterable<Action>} sequence
+   * @returns {Rope}
+   */
+  function ropeOf(sequence) {
+    let rope = EMPTY;
+    for (const action of sequence) rope = concat(rope, leaf(action));
+    return rope;
+  }
 
   /**
    * @param {Action} action
@@ -6599,12 +6627,24 @@
       this.groups = (rule) => this.ruleGroups.get(rule);
       /** @type {{plain: Map<Item, Allowed<Candidate[]>>, contextual: Map<Item, Map<string, Allowed<Candidate[]>>>}} */
       this.memo = { plain: new Map(), contextual: new Map() };
-      /** @type {{plain: Map<Item, Allowed<number>>, contextual: Map<Item, Map<string, Allowed<number>>>}} */
+      /** @type {{plain: Map<Item, Allowed<number> & {w: boolean}>, contextual: Map<Item, Map<string, Allowed<number> & {w: boolean}>>}} */
       this.counts = { plain: new Map(), contextual: new Map() };
       /** @type {Map<Item, RopeLeaf>} */
       this.closes = new Map();
       /** @type {Map<string, RopeLeaf>} */
       this.reads = new Map();
+      // Whether this is the ranker of the check of engine §7, which only its
+      // faults read.
+      this.check = false;
+      /**
+       * The witness hook's marks (tests/README.md): for each item of W(D),
+       * the indices of its edges that W(D) uses. With marks, the count also
+       * says whether it counted a derivation made of marked edges only. A
+       * parse that no test watches has none, and does the same work as
+       * without them.
+       * @type {Map<Item, Set<number>> | null}
+       */
+      this.marks = null;
     }
 
     // An item's candidates: for each sequence the item's derivations could
@@ -6645,6 +6685,8 @@
         /** @type {Candidate[]} */
         let allowed = [];
         current.edges.forEach((edge, index) => {
+          // A fault skips the last of two or more edges in the check (lost:select).
+          if (this.check && index > 0 && index === current.edges.length - 1 && fault("lost:select")) return;
           const inAll = summary === null || summary.all.kept.has(index);
           const inAllowed = summary === null || summary.allowed.kept.has(index);
           if (!inAll && !inAllowed) return;
@@ -6902,26 +6944,59 @@
      * @returns {number}
      */
     count(item) {
+      return this.countOf(item).all;
+    }
+
+    /**
+     * The number of an item's derivations, capped at two, over all of them
+     * and over those that maximal allows. With the witness hook's marks, `w`
+     * says whether the count includes a derivation made of marked edges
+     * only (tests/README.md). The same loop decides both, over the same
+     * edges, so any choice that drops W(D) from the count drops it from `w`.
+     * A dependency that closes a cycle has no derivation, and no `w`.
+     * @param {Item} item
+     * @returns {Allowed<number> & {w: boolean}}
+     */
+    countOf(item) {
       const maximal = this.maximal;
+      const marks = this.marks;
       return this.traverse(item, this.counts, (current, dependency) => {
         const guarded = maximal !== null && maximal.guards(current);
+        const marked = marks === null ? undefined : marks.get(current);
+        const edges = current.edges;
         let all = 0;
         let allowed = 0;
-        for (const edge of current.edges) {
+        let w = false;
+        for (let index = 0; index < edges.length; index++) {
+          const edge = edges[index];
           let ways;
+          let edgeW;
           if (edge.kind === "restore" && fault("lost:rank")) continue;
-          if (edge.kind === "seed" || edge.kind === "restore") ways = 1;
-          else if (edge.kind === "scan") ways = dependency(edge.previous).all;
-          else {
+          // A fault skips the last of two or more edges in the check
+          // (lost:context).
+          if (this.check && index > 0 && index === edges.length - 1 && fault("lost:context")) continue;
+          if (edge.kind === "seed" || edge.kind === "restore") {
+            ways = 1;
+            edgeW = true;
+          } else if (edge.kind === "scan") {
             const before = dependency(edge.previous);
-            ways = (maximal !== null && maximal.elided(edge.child) ? before.allowed : before.all) * dependency(edge.child).all;
+            ways = before.all;
+            edgeW = before.w;
+          } else {
+            const before = dependency(edge.previous);
+            const child = dependency(edge.child);
+            ways = (maximal !== null && maximal.elided(edge.child) ? before.allowed : before.all) * child.all;
+            edgeW = before.w && child.w;
           }
+          if (marked !== undefined && ways > 0 && edgeW && marked.has(index)) w = true;
           all = Math.min(2, all + ways);
           if (guarded && (edge.kind !== "complete" || !(/** @type {Maximal} */ (maximal)).forbids(edge.child, current.production.rhs[current.dot - 1].test))) allowed = Math.min(2, allowed + ways);
-          if (all === 2 && (!guarded || allowed === 2)) break;
+          // The count is capped and only grows, so the loop can stop at two,
+          // but with marks only once `w` is known.
+          if (all === 2 && (!guarded || allowed === 2) && (marked === undefined || w)) break;
         }
-        return { all, allowed: guarded ? allowed : all };
-      }, { all: 0, allowed: 0 }).all;
+        return { all, allowed: guarded ? allowed : all, w };
+      }, { all: 0, allowed: 0, w: false });
     }
 
     // Computes `combine(item, dependency)` for an item after every item it
@@ -7151,17 +7226,15 @@
     // diverges from the first earliest, and the witness.
     /**
      * @param {Item[]} roots
-     * @param {Item[]} [groupsOf] the roots whose forest gives the rules'
-     *   groups, and so the contexts of cycles: by default `roots`. The witness
-     *   hook of the check ranks a part of a forest in the contexts of the
-     *   whole.
      * @returns {Ranking | null} null when every derivation is cyclic
      */
-    rank(roots, groupsOf = roots) {
-      this.groupRules(groupsOf);
+    rank(roots) {
+      this.groupRules(roots);
       let count;
       let ranked = roots;
       let tied = false;
+      /** @type {boolean | null} */
+      let witnessCounted = null;
       if (this.elisions) {
         // Every complete item of `text` is an edge of one root (engine §6).
         const root = noDerivation();
@@ -7174,6 +7247,12 @@
         ranked = roots.filter((_, index) => root.kept.has(index));
       } else {
         count = Math.min(2, roots.reduce((sum, item) => sum + this.count(item), 0));
+        // With marks, whether the count counted W(D): a root of W(D) must
+        // have it (tests/README.md).
+        if (this.marks !== null) {
+          const marks = this.marks;
+          witnessCounted = roots.some((item) => marks.has(item) && this.countOf(item).w);
+        }
       }
       /** @type {Candidate[]} */
       let kept = [];
@@ -7207,7 +7286,7 @@
         if (!difference || !difference.left || !difference.right) difference = firstDifference(main.seq, second, false);
         witness = difference ? [difference.left, difference.right] : null;
       }
-      return { verdict, first: main.seq, second, witness };
+      return { verdict, first: main.seq, second, witness, witnessCounted };
     }
   }
 
@@ -7840,18 +7919,22 @@
       // unless a fault finds them over projected spans (F19).
       const maximal = fault("F20") && (lowered.resolution.maximal || lowered.maximalTerminals.size > 0)
         ? maximalRule(chart, lowered, lowered.resolution.maximal) : null;
+      // A test that watches the check marks W(D)'s edges before the check
+      // ranks (tests/README.md).
+      const watch = hooks.elisionCheck ? hooks.elisionCheck({ chosen, chart, roots, synthetic, originalAt, recordAt }) : null;
       // The check's ranker: no lean, and cycles over spans of R (engine §7.7).
-      /** @type {(ranked: import("./earley.js").Item[]) => import("./rank.js").Ranking | null} */
-      const rankOf = (ranked) => ranked.length === 0 ? null : new Ranker(restored, "none", maximal, fault("F19") ? project : null).rank(ranked, roots);
-      let ranking = rankOf(roots);
+      const ranker = new Ranker(restored, "none", maximal, fault("F19") ? project : null);
+      ranker.check = true;
+      ranker.marks = watch ? watch.marks : null;
+      let ranking = roots.length === 0 ? null : ranker.rank(roots);
       if (fault("lost:count")) ranking = null;
+      if (watch) watch.ranked({ ranking, counted: ranking !== null && ranking.witnessCounted === true });
       if (fault("F23")) {
         // A fault leaves the main grammar in the mode of the check.
         for (const [name, productions] of lowered.byLhs) {
           lowered.byLhs.set(name, productions.filter((production) => !(production.rhs.length === 0 && production.helper && production.elided !== null)));
         }
       }
-      if (hooks.elisionCheck) hooks.elisionCheck({ chosen, chart, roots, rank: (ranked) => fault("lost:count") ? null : rankOf(ranked), synthetic, originalAt, recordAt });
       if (ranking === null) return old ? { kind: "pass" } : { kind: "lost", completion: records };
       if (ranking.verdict !== "tie") return { kind: "pass" };
       // The readings, mapped to the stage's input (engine §7.10).

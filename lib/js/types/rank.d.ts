@@ -20,7 +20,19 @@ export type Ranking = {
     first: Rope;
     second: Rope | null;
     witness: [Action | null, Action | null] | null;
+    /**
+     * with the witness hook's marks,
+     * whether the count counted W(D); null without marks
+     */
+    witnessCounted: boolean | null;
 };
+/**
+ * The rope of a sequence of actions, for a derivation that no ranking
+ * built: the witness hook's W(D) (tests/README.md).
+ * @param {Iterable<Action>} sequence
+ * @returns {Rope}
+ */
+export declare function ropeOf(sequence: Iterable<Action>): Rope;
 /**
  * @param {Action} action
  * @returns {RopeLeaf}
@@ -71,7 +83,7 @@ declare function decide(difference: {
  * @param {Lean} lean
  * @returns {number}
  */
-declare function totalOrder(left: Rope, right: Rope, lean: Lean): number;
+export declare function totalOrder(left: Rope, right: Rope, lean: Lean): number;
 export type TraversalContext = Set<string>;
 export declare class Ranker {
     tokens: import("./tokens.js").Token[];
@@ -97,15 +109,29 @@ export declare class Ranker {
         plain: Map<Item, Allowed<Candidate[]>>;
         contextual: Map<Item, Map<string, Allowed<Candidate[]>>>;
     };
-    /** @type {{plain: Map<Item, Allowed<number>>, contextual: Map<Item, Map<string, Allowed<number>>>}} */
+    /** @type {{plain: Map<Item, Allowed<number> & {w: boolean}>, contextual: Map<Item, Map<string, Allowed<number> & {w: boolean}>>}} */
     counts: {
-        plain: Map<Item, Allowed<number>>;
-        contextual: Map<Item, Map<string, Allowed<number>>>;
+        plain: Map<Item, Allowed<number> & {
+            w: boolean;
+        }>;
+        contextual: Map<Item, Map<string, Allowed<number> & {
+            w: boolean;
+        }>>;
     };
     /** @type {Map<Item, RopeLeaf>} */
     closes: Map<Item, RopeLeaf>;
     /** @type {Map<string, RopeLeaf>} */
     reads: Map<string, RopeLeaf>;
+    check: boolean;
+    /**
+     * The witness hook's marks (tests/README.md): for each item of W(D),
+     * the indices of its edges that W(D) uses. With marks, the count also
+     * says whether it counted a derivation made of marked edges only. A
+     * parse that no test watches has none, and does the same work as
+     * without them.
+     * @type {Map<Item, Set<number>> | null}
+     */
+    marks: Map<Item, Set<number>> | null;
     /**
      * @param {Token[]} tokens
      * @param {Lean} lean
@@ -192,6 +218,19 @@ export declare class Ranker {
      */
     count(item: Item): number;
     /**
+     * The number of an item's derivations, capped at two, over all of them
+     * and over those that maximal allows. With the witness hook's marks, `w`
+     * says whether the count includes a derivation made of marked edges
+     * only (tests/README.md). The same loop decides both, over the same
+     * edges, so any choice that drops W(D) from the count drops it from `w`.
+     * A dependency that closes a cycle has no derivation, and no `w`.
+     * @param {Item} item
+     * @returns {Allowed<number> & {w: boolean}}
+     */
+    countOf(item: Item): Allowed<number> & {
+        w: boolean;
+    };
+    /**
      * @template T
      * @param {Item} root
      * @param {{plain: Map<Item, T>, contextual: Map<Item, Map<string, T>>}} memo
@@ -212,13 +251,9 @@ export declare class Ranker {
     groupRules(roots: Item[]): void;
     /**
      * @param {Item[]} roots
-     * @param {Item[]} [groupsOf] the roots whose forest gives the rules'
-     *   groups, and so the contexts of cycles: by default `roots`. The witness
-     *   hook of the check ranks a part of a forest in the contexts of the
-     *   whole.
      * @returns {Ranking | null} null when every derivation is cyclic
      */
-    rank(roots: Item[], groupsOf?: Item[]): Ranking | null;
+    rank(roots: Item[]): Ranking | null;
 }
 /**
  * @param {Rope} rope

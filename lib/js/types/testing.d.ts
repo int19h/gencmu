@@ -16,12 +16,6 @@ export type ElisionCheckRun = {
      */
     roots: import("./types.js").Item[];
     /**
-     *   the check's own ranking of a part of its forest, whose roots are given,
-     *   in the cycle contexts of the whole forest: null where it counts no
-     *   derivation
-     */
-    rank: (roots: import("./earley.js").Item[]) => import("./rank.js").Ranking | null;
-    /**
      * for each token of R, whether it is
      * synthetic, by its provenance
      */
@@ -37,6 +31,13 @@ export type ElisionCheckRun = {
      */
     recordAt: number[];
 };
+export type ElisionCheckWatch = {
+    marks: Map<import("./earley.js").Item, Set<number>> | null;
+    ranked: (outcome: {
+        ranking: import("./rank.js").Ranking | null;
+        counted: boolean;
+    }) => void;
+};
 /**
  * What the check of engine §7 hands its test hook.
  * @typedef {object} ElisionCheckRun
@@ -45,10 +46,6 @@ export type ElisionCheckRun = {
  * @property {import("./earley.js").Chart} chart the recognition of R
  * @property {import("./types.js").Item[]} roots the completed items of
  *   `text` over R
- * @property {(roots: import("./earley.js").Item[]) => import("./rank.js").Ranking | null} rank
- *   the check's own ranking of a part of its forest, whose roots are given,
- *   in the cycle contexts of the whole forest: null where it counts no
- *   derivation
  * @property {boolean[]} synthetic for each token of R, whether it is
  *   synthetic, by its provenance
  * @property {number[]} originalAt for each token of the stage's input, its
@@ -56,9 +53,18 @@ export type ElisionCheckRun = {
  * @property {number[]} recordAt for each restoration record, the index of
  *   its synthetic token in R
  */
-/** @type {{elisionCheck: ((run: ElisionCheckRun) => void) | null}} */
+/**
+ * What the witness test hands back to the check: the marks of W(D)'s
+ * edges, for each item the indices of the edges that W(D) uses, or null
+ * where the chart does not hold W(D); and a callback that receives the
+ * check's ranking, with whether its count counted W(D).
+ * @typedef {object} ElisionCheckWatch
+ * @property {Map<import("./earley.js").Item, Set<number>> | null} marks
+ * @property {(outcome: {ranking: import("./rank.js").Ranking | null, counted: boolean}) => void} ranked
+ */
+/** @type {{elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null}} */
 export declare const hooks: {
-    elisionCheck: ((run: ElisionCheckRun) => void) | null;
+    elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null;
 };
 /**
  * Whether a fault is on.

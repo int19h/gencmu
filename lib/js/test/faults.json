@@ -260,6 +260,15 @@
       "F28",
       "lost:rank"
     ],
+    "reparse-witness-sibling-first.json": [
+      "lost:select"
+    ],
+    "reparse-witness-sibling-last.json": [
+      "lost:context"
+    ],
+    "reparse-witness-sibling-middle.json": [
+      "lost:select"
+    ],
     "reparse-written-observation-after.json": [
       "F1pos:after",
       "F1pos:head"
@@ -537,6 +546,9 @@
       "reparse-terminal-tag-test.json": "hook",
       "reparse-tested-rebuilt-derivations.json": "hook",
       "reparse-witness-hook-only.json": "hook",
+      "reparse-witness-sibling-first.json": "hook",
+      "reparse-witness-sibling-last.json": "hook",
+      "reparse-witness-sibling-middle.json": "hook",
       "reparse-written-observation-after.json": "result+hook",
       "reparse-written-observation-head.json": "result+hook",
       "reparse-written-observation-text.json": "hook",
@@ -631,7 +643,10 @@
       "reparse-same-boundary-order.json": "result",
       "reparse-strict-later-reading-symbol.json": "result",
       "reparse-synthetic-suffix-consumes-original.json": "result",
-      "reparse-witness-hook-only.json": "result"
+      "reparse-witness-hook-only.json": "result",
+      "reparse-witness-sibling-first.json": "result",
+      "reparse-witness-sibling-last.json": "result",
+      "reparse-witness-sibling-middle.json": "result"
     },
     "F27:order": {
       "reparse-incompatible-optional-sound.json": "hook",
@@ -718,6 +733,9 @@
       "reparse-terminal-tag-test.json": "result+hook",
       "reparse-tested-rebuilt-derivations.json": "result+hook",
       "reparse-witness-hook-only.json": "result+hook",
+      "reparse-witness-sibling-first.json": "result+hook",
+      "reparse-witness-sibling-last.json": "hook",
+      "reparse-witness-sibling-middle.json": "result+hook",
       "reparse-written-observation-after.json": "result+hook",
       "reparse-written-observation-head.json": "result+hook",
       "reparse-written-observation-text.json": "result+hook",
@@ -740,6 +758,13 @@
     "F32": {
       "reparse-strict-reclose-late.json": "result",
       "reparse-strict-reclose.json": "result"
+    },
+    "lost:context": {
+      "reparse-equal-readings-witness.json": "result+hook",
+      "reparse-strict-later-reading-symbol.json": "result",
+      "reparse-witness-sibling-first.json": "hook",
+      "reparse-witness-sibling-last.json": "hook",
+      "reparse-witness-sibling-middle.json": "hook"
     },
     "lost:rank": {
       "elision-only-none.json": "result+hook",
@@ -813,12 +838,21 @@
       "reparse-terminal-tag-test.json": "result+hook",
       "reparse-tested-rebuilt-derivations.json": "result+hook",
       "reparse-witness-hook-only.json": "result+hook",
+      "reparse-witness-sibling-first.json": "result+hook",
+      "reparse-witness-sibling-last.json": "hook",
+      "reparse-witness-sibling-middle.json": "result+hook",
       "reparse-written-observation-after.json": "result+hook",
       "reparse-written-observation-head.json": "result+hook",
       "reparse-written-observation-text.json": "result+hook",
       "step-order-conditions-written-check.json": "result+hook",
       "step-order-tag-term-after-conditions-check.json": "result+hook",
       "step-order-tag-term-definition-check.json": "result+hook"
+    },
+    "lost:select": {
+      "reparse-equal-readings-witness.json": "result",
+      "reparse-strict-later-reading-symbol.json": "result",
+      "reparse-witness-sibling-first.json": "result+hook",
+      "reparse-witness-sibling-middle.json": "result+hook"
     },
     "order:conditions": {
       "step-order-conditions-written-check.json": "result",
