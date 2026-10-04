@@ -1,5 +1,7 @@
 package gencmu
 
+import "sync/atomic"
+
 // A stage's grammar: its documents stitched into one set of rules,
 // directives, constants, classifiers and implications (engine §2).
 type stageGrammar struct {
@@ -188,9 +190,10 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 		}
 		return nil, e
 	}
+	checked := &checkedClauses{terms: map[*domTerm]bool{}, conds: map[condListKey]bool{}, emits: map[*domEmit]bool{}}
 	for _, r := range g.rules {
 		for _, a := range r.alts {
-			if err := g.checkAlt(a); err != nil {
+			if err := g.checkAlt(a, checked); err != nil {
 				err.Stage = stageName
 				return nil, err
 			}
@@ -240,9 +243,22 @@ func (g *stageGrammar) makeTests() *Error {
 	return nil
 }
 
+// clauseWork counts the nodes of clauses that checkAlt and the resolver of
+// constants walk, for the test that a shared clause is walked once.
+var clauseWork struct{ steps atomic.Int64 }
+
+// checkedClauses are the clauses that checkAlt has found sound, by
+// identity. The clauses of a rule statement are shared by its
+// alternatives, so each is walked once, not once for each alternative.
+type checkedClauses struct {
+	terms map[*domTerm]bool
+	conds map[condListKey]bool
+	emits map[*domEmit]bool
+}
+
 // checkAlt checks what the notation's grammar cannot state: every rule named
 // is defined.
-func (g *stageGrammar) checkAlt(a *sAlt) *Error {
+func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 	fail := func(format string, args ...any) *Error { return grammarError(a.doc, a.at, format, args...) }
 	var walk func(e *domExpr) *Error
 	walk = func(e *domExpr) *Error {
@@ -275,6 +291,7 @@ func (g *stageGrammar) checkAlt(a *sAlt) *Error {
 		if t == nil {
 			return nil
 		}
+		clauseWork.steps.Add(1)
 		if t.Kind == tmRule && g.byName[t.Str] == nil {
 			return fail("%s is not a rule of stage %s", t.Str, g.name)
 		}
@@ -295,6 +312,7 @@ func (g *stageGrammar) checkAlt(a *sAlt) *Error {
 		return nil
 	}
 	checkCond = func(c *domCond) *Error {
+		clauseWork.steps.Add(1)
 		switch c.Kind {
 		case cdCompare:
 			if err := checkTerm(c.Left); err != nil {
@@ -320,21 +338,31 @@ func (g *stageGrammar) checkAlt(a *sAlt) *Error {
 		return nil
 	}
 	for _, t := range []*domTerm{a.alt.Tags, a.ruleTags} {
+		if t == nil || checked.terms[t] {
+			continue
+		}
 		if err := checkTerm(t); err != nil {
 			return err
 		}
+		checked.terms[t] = true
 	}
-	for _, c := range a.conds {
-		if err := checkCond(c); err != nil {
-			return err
+	if len(a.conds) > 0 {
+		if key := (condListKey{&a.conds[0], len(a.conds)}); !checked.conds[key] {
+			for _, c := range a.conds {
+				if err := checkCond(c); err != nil {
+					return err
+				}
+			}
+			checked.conds[key] = true
 		}
 	}
-	if a.emit != nil {
+	if a.emit != nil && !checked.emits[a.emit] {
 		for _, it := range a.emit.Items {
 			if err := checkTerm(it.Tags); err != nil {
 				return err
 			}
 		}
+		checked.emits[a.emit] = true
 	}
 	return nil
 }

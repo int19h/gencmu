@@ -169,7 +169,7 @@ func TestEmissionLinear(t *testing.T) {
 		}
 		return domStage(t, fmt.Sprintf(`{"format":%d,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"seq":[%s]}}],"emit":{"items":[%s]},"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`, domFormat, strings.Join(seq, ","), strings.Join(items, ",")))
 	}
-	const n = 4000
+	const n = 10000
 	dialects := map[int]*Dialect{n: dialect(n), 4 * n: dialect(4 * n)}
 	parse := func(n int) {
 		toks := make([]Token, n)
@@ -225,6 +225,22 @@ func TestCaptureSequencesLinear(t *testing.T) {
 		}
 		if steps := readerWork.steps.Load(); steps > 8*int64(n) {
 			t.Errorf("%d captures: %d steps", n, steps)
+		}
+	}
+}
+
+// TestSharedClausesOnce: a rule's clauses, which all its alternatives
+// share, are checked and given their constants' values once, not once for
+// each alternative (engine §2, §9).
+func TestSharedClausesOnce(t *testing.T) {
+	for _, n := range []int{100, 400} {
+		alts := strings.TrimSuffix(strings.Repeat(`{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}},`, n), ",")
+		conds := strings.TrimSuffix(strings.Repeat(`{"op":"=","left":{"call":"text","args":[{"capture":"x"}]},"right":{"const":"K","at":[3,1]}},`, n), ",")
+		dom := fmt.Sprintf(`{"format":%d,"rules":[{"name":"text","op":"define","tags":{"union":[{"tag":"T"},{"tag":"U"}]},"alternatives":[%s],"conditions":[%s],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}],"constants":[{"name":"K","op":"define","value":{"string":"a"},"at":[2,1]}],"classifiers":[],"implications":[]}`, domFormat, alts, conds)
+		clauseWork.steps.Store(0)
+		domStage(t, dom)
+		if steps := clauseWork.steps.Load(); steps > 20*int64(n) {
+			t.Errorf("%d alternatives sharing %d conditions: %d steps", n, n, steps)
 		}
 	}
 }
