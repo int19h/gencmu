@@ -1,5 +1,13 @@
 /** @type {Set<string>} */
 export declare const faults: Set<string>;
+/**
+ * How often each site of a fault was entered while that fault was on, by
+ * the fault's name, or its name and the site's after an @, for a fault
+ * with several sites. The fault test asserts that its named cases enter
+ * every declared site (tests/README.md).
+ * @type {Map<string, number>}
+ */
+export declare const hits: Map<string, number>;
 export type ElisionCheckRun = {
     /**
      * D, the chosen
@@ -67,8 +75,10 @@ export declare const hooks: {
     elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null;
 };
 /**
- * Whether a fault is on.
+ * Whether a fault is on, at one of its sites. A fault that is on counts the
+ * site as entered.
  * @param {string} name
+ * @param {string} [site] the site, for a fault with several
  * @returns {boolean}
  */
-export declare function fault(name: string): boolean;
+export declare function fault(name: string, site?: string): boolean;

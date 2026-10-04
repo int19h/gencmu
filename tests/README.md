@@ -88,10 +88,18 @@ A load that fails gives only its error. Its kind is `grammar` for a grammar that
 
 A shared case shows that a library is wrong where it fails. It cannot show that a library is right. So each library also breaks itself on purpose, one fault at a time, and checks that the shared cases see the break. A fault is a private switch of the library's own tests, which the documented API does not name. Each one changes one path of the engine, mostly a path of the check of engine §7, in a way that the specification forbids.
 
-- The JavaScript library holds the full table. Its faults cover each observer of engine §7.5, the tags of synthetic tokens, the routes and strictness of §7.4, the projection, the queries of §7.6, cycles and maximality in the check, the order of one step of §4, and the ways to lose W(D). `lib/js/test/faults.json` names the cases that must catch each fault. It also records every catch, and whether the case caught it through the public result, through the witness hook alone, or through both. The witness hook alone catches a fault where another reading takes the place of W(D) and the result keeps its form.
-- Each other library has a few faults of its own paths, the ones that the JavaScript library does not have. Examples are a ranker that rebuilds the check's links from completed spans and applies the tests there, an item that an ordinary step reaches after it was processed as strict, and the strictness of route 3. Its own tests name, for each fault, the shared cases that catch it.
+- The JavaScript library holds the full table. Its faults cover each observer of engine §7.5, the tags of synthetic tokens, the routes and strictness of §7.4, the projection, the queries of §7.6, cycles and maximality in the check, the order of steps 3 and 4 of §4, and the ways to lose W(D). `lib/js/test/faults.json` names the cases that must catch each fault, and records every catch.
+- Each other library has faults of its own paths. Some are paths that JavaScript does not have, such as a ranker that rebuilds the check's links from completed spans and applies the tests there. Others are paths that every library has in a form of its own, such as the processing again of an item that an ordinary step reaches after it was processed as strict, the strictness of route 3, a restoration's test, and the ways to lose W(D). Its own tests name, for each fault, the shared cases that catch it.
 
-A test runs every named case with the fault on, and fails where a named case passes. So a change that weakens a case, or the hook, shows at once.
+Each library's fault test checks three things for each fault:
+
+- **How a case catches it.** The test runs each named case once with the witness hook and once without. The catch is `result` where the result alone fails the case, `hook` where only the hook does, and `result+hook` in JavaScript's record where both do. Each library has a fault whose only catch is `hook`: a mutation that the result alone does not show, such as a count that skips W(D)'s edge where its item has siblings. JavaScript labels a catch `bound` where the fault's own bound ends a recursion that it lets through.
+- **Its sites.** A fault can have several places in the code. Each place is a declared site, and the test asserts that the named cases enter every declared site while the fault is on. So a case that catches a fault at one site does not hide a site that nothing reaches.
+- **Completeness.** The list of faults comes from the declarations, and every fault has an entry in the table.
+
+A fault of the strict path shows only where that path comes first. The queue of a set is first in, first out in JavaScript, Go and Rust, and last in, first out in Python. So `reparse-strict-reclose-late` catches the processing-again fault of the first three, and `reparse-strict-reclose-swapped` that of Python.
+
+Apart from the table, each library's own tests lose the witness on purpose after recognition, with no completed item of `text` over R (`lost:roots`) or with no counted derivation (`lost:count`). They check the form of the error `elision-witness-lost`, as "Engine cases" says.
 
 ## Notation cases: `notation/*.json`
 

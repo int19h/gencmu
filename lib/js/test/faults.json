@@ -89,15 +89,15 @@
       "F7:union"
     ],
     "reparse-original-lookahead.json": [
-      "F1pos:after",
-      "F13"
+      "F13",
+      "F1pos:after"
     ],
     "reparse-original-nonmonotonic-sources.json": [
+      "F12",
       "F1:head",
       "F1:text",
       "F1pos:head",
-      "F1pos:text",
-      "F12"
+      "F1pos:text"
     ],
     "reparse-original-rule-test.json": [
       "F9"
@@ -187,11 +187,12 @@
       "F31"
     ],
     "reparse-strict-reclose-late.json": [
-      "F32"
+      "F32:queue"
     ],
     "reparse-strict-reclose-swapped.json": [],
     "reparse-strict-reclose.json": [
-      "F32"
+      "F32:predict",
+      "F32:queue"
     ],
     "reparse-strict-shared-prediction.json": [
       "F17"
@@ -244,10 +245,10 @@
       "F29"
     ],
     "reparse-terminal-recognition-values.json": [
+      "F10",
       "F1:phonemes",
       "F1pos:phonemes",
-      "F7:capture",
-      "F10"
+      "F7:capture"
     ],
     "reparse-terminal-sound-test.json": [
       "F10"
@@ -626,7 +627,7 @@
       "reparse-written-optional-suffix.json": "result+hook"
     },
     "F25": {
-      "reparse-recursion-nested-cycle.json": "result"
+      "reparse-recursion-nested-cycle.json": "bound"
     },
     "F26:lost": {
       "reparse-competing-evaluation-error.json": "result",
@@ -755,7 +756,11 @@
     "F31": {
       "reparse-strict-nested-route.json": "result"
     },
-    "F32": {
+    "F32:predict": {
+      "reparse-strict-reclose-late.json": "result",
+      "reparse-strict-reclose.json": "result"
+    },
+    "F32:queue": {
       "reparse-strict-reclose-late.json": "result",
       "reparse-strict-reclose.json": "result"
     },

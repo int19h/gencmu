@@ -1492,8 +1492,9 @@
   //   a read of a synthetic token as a token.
   // - "F30" takes the greatest answer of "can read" (engine §7.4), "F31"
   //   makes the item after the T of route 3 ordinary where a strict item read
-  //   T, and "F32" leaves an item that an ordinary step reaches as it was
-  //   processed while strict.
+  //   T. "F32:queue" leaves an item that an ordinary step reaches as it was
+  //   processed while strict, and "F32:predict" never predicts again a rule
+  //   that a strict prediction predicted first.
   // - "lost:roots" and "lost:count" lose the witness after recognition
   //   (engine §7.9).
   // - "lost:rank" gives a restoration no derivation in the ranking, so the
@@ -1515,7 +1516,12 @@
   // finds only some cycles gives the same public result, because the
   // recursion meets the same rule and span one level deeper, and only the
   // message differs, which no pattern pins. The switch ends the recursion at
-  // a bound, with an error that is not the library's.
+  // a bound, with an error that is not the library's, and faults.json labels
+  // that catch "bound".
+  //
+  // A fault with several sites names the site where it is checked, and
+  // `hits` counts each site that a run enters while the fault is on. The
+  // fault test asserts that the named cases enter every declared site.
   //
   // A strict and an ordinary prediction of one symbol at one position share
   // their items (engine §7.4). So a fault of the strict path (F16, F29, F31,
@@ -1530,6 +1536,15 @@
 
   /** @type {Set<string>} */
   const faults = new Set();
+
+  /**
+   * How often each site of a fault was entered while that fault was on, by
+   * the fault's name, or its name and the site's after an @, for a fault
+   * with several sites. The fault test asserts that its named cases enter
+   * every declared site (tests/README.md).
+   * @type {Map<string, number>}
+   */
+  const hits = new Map();
 
   /**
    * What the check of engine §7 hands its test hook.
@@ -1561,12 +1576,17 @@
   const hooks = { elisionCheck: null };
 
   /**
-   * Whether a fault is on.
+   * Whether a fault is on, at one of its sites. A fault that is on counts the
+   * site as entered.
    * @param {string} name
+   * @param {string} [site] the site, for a fault with several
    * @returns {boolean}
    */
-  function fault(name) {
-    return faults.size > 0 && faults.has(name);
+  function fault(name, site = "") {
+    if (faults.size === 0 || !faults.has(name)) return false;
+    const key = site === "" ? name : `${name}@${site}`;
+    hits.set(key, (hits.get(key) || 0) + 1);
+    return true;
   }
 
   // ---- unicode.js
@@ -4190,8 +4210,8 @@
       if (item) {
         // One ordinary step makes an item ordinary. It is then processed
         // again, for what strictness held back (engine §7.4), unless a fault
-        // leaves it as it was processed (F32).
-        if (item.strict && !strict && !fault("F32")) {
+        // leaves it as it was processed (F32:queue).
+        if (item.strict && !strict && !fault("F32:queue")) {
           item.strict = false;
           if (!item.queued) {
             item.queued = true;
@@ -4254,7 +4274,7 @@
       const token = tokens[position];
       if (!token.tags.has(/** @type {string} */ (production.elided))) return;
       const test = production.elidedTest;
-      if (test && !fault("F11") && !testHolds(context, test, position, position + 1, token.tags)) return;
+      if (test && !fault("F11", "restore") && !testHolds(context, test, position, position + 1, token.tags)) return;
       const target = setAt(position + 1);
       const key = itemKey((production.id * dots) * width + position - start, emptySlots(production));
       if (target.index.has(key)) return;
@@ -4277,7 +4297,9 @@
       // strict prediction (engine §7.4) leaves some out, so an ordinary one
       // after it adds them.
       const before = set.predicted.get(name);
-      if (before === false || (before === true && (strict || fault("F32")))) return;
+      // A fault keeps the strict prediction, and predicts nothing more
+      // (F32:predict).
+      if (before === false || (before === true && (strict || fault("F32:predict")))) return;
       set.predicted.set(name, strict);
       const next = set.position < end ? tokens[set.position] : null;
       let skipped = false;
@@ -4287,11 +4309,11 @@
         // sequence. Under the old contract it is not there at all.
         if (mode !== null && production.rhs.length === 0 && production.helper && production.elided !== null) {
           // A fault leaves the restoration out of a strict prediction (F29).
-          if (mode === "reconstruction" && !(strict && fault("F29") && !fault("F16"))) restore(set, production);
+          if (mode === "reconstruction" && !(strict && fault("F29", "predict"))) restore(set, production);
           continue;
         }
         // A strict prediction predicts only the productions that can read.
-        if (strict && !fault("F16") && /** @type {Reading} */ (reading).last.get(production) === -1) continue;
+        if (strict && !fault("F16", "predict") && /** @type {Reading} */ (reading).last.get(production) === -1) continue;
         const slots = emptySlots(production);
         // One scope for the step, which evaluates the tag term at most once
         // (engine §4).
@@ -4299,7 +4321,7 @@
         const step = { scope: null };
         // The tag term comes after the conditions (engine §4), unless a fault
         // evaluates it first (order:tags).
-        if (production.rhs.length === 0 && fault("order:tags")) completeTags(context, production, slots, set.position, set.position, step);
+        if (production.rhs.length === 0 && fault("order:tags", "predict")) completeTags(context, production, slots, set.position, set.position, step);
         const failed = failedCondition(context, production, -1, slots, set.position, set.position, step);
         if (failed) {
           const trace = context.trace;
@@ -4315,7 +4337,7 @@
           continue;
         }
         const tagId = production.rhs.length === 0 ? completeTags(context, production, slots, set.position, set.position, step) : -1;
-        add(set, production, 0, set.position, slots, null, null, tagId, strict && !fault("F16"));
+        add(set, production, 0, set.position, slots, null, null, tagId, strict && !fault("F16", "item"));
       }
       if (skipped && before === undefined) set.skipped.push(name);
     };
@@ -4348,7 +4370,7 @@
       }
       /** @type {StepScope} */
       const step = { scope: null };
-      if (item.dot + 1 === production.rhs.length && fault("order:tags")) completeTags(context, production, slots, item.origin, to, step);
+      if (item.dot + 1 === production.rhs.length && fault("order:tags", "advance")) completeTags(context, production, slots, item.origin, to, step);
       const failed = failedCondition(context, production, item.dot, slots, item.origin, to, step);
       if (failed) {
         const trace = context.trace;
@@ -4368,7 +4390,7 @@
     // Whether an advance from an item over an empty constituent is held back:
     // a strict item does it only where a later symbol can read.
     /** @type {(item: Item) => boolean} */
-    const emptyHeldBack = (item) => item.strict && !fault("F16") && !readsLater(item);
+    const emptyHeldBack = (item) => item.strict && !fault("F16", "empty") && !readsLater(item);
 
     predict(setAt(start), rule);
     let furthest = start;
@@ -4475,7 +4497,7 @@
   function readingOf(lowered) {
     // A fault leaves the restorations out (F29). Another takes the greatest
     // answer in place of the least (F30).
-    const withoutRestorations = fault("F29");
+    const withoutRestorations = fault("F29", "reading");
     const greatest = fault("F30");
     let known = readings.get(lowered);
     if (!known) readings.set(lowered, (known = new Map()));
@@ -4546,7 +4568,7 @@
     const recon = context.recon;
     if (child === null) {
       const synthetic = context.synthetic !== null && context.synthetic[from];
-      if (synthetic && fault("F11")) return true;
+      if (synthetic && fault("F11", "test")) return true;
       if (recon !== null && synthetic && fault("F10")) {
         const observed = recon.observed;
         const start = recon.project[from];
@@ -4927,7 +4949,7 @@
   function projectedArgument(span, scope, observer) {
     const r = reconstructionOf(scope);
     if (r === null || span.space === "raw") return span;
-    if (fault("F1pos:" + observer)) return { start: span.start, end: span.end, space: "raw" };
+    if (fault("F1pos:" + observer, "observe")) return { start: span.start, end: span.end, space: "raw" };
     if (span.space !== "R") return span;
     const project = /** @type {Reconstruction} */ (r.recon).project;
     return { start: project[span.start], end: project[span.end], reconstructed: [span.start, span.end], exact: [span.start, span.end] };
@@ -4958,7 +4980,7 @@
    */
   function functionFirst(argument, scope, call) {
     const r = reconstructionOf(scope);
-    if (r === null || !fault("F1:" + call)) return null;
+    if (r === null || !fault("F1:" + call, "function")) return null;
     const behind = exactBehind(argument);
     if (behind === null) return null;
     const [a, b] = behind;
@@ -5049,9 +5071,9 @@
   function observe(context, span, scope, observer) {
     const r = reconstructionOf(scope);
     if (r === null) return { context, start: span.start, end: span.end, exact: null };
-    if (span.space === "raw" || fault("F1pos:" + observer)) return { context: r, start: span.start, end: span.end, exact: null };
+    if (span.space === "raw" || fault("F1pos:" + observer, "argument")) return { context: r, start: span.start, end: span.end, exact: null };
     const exact = exactBehind(span);
-    if (exact !== null && fault("F1:" + observer)) return { context: r, start: exact[0], end: exact[1], exact: null };
+    if (exact !== null && fault("F1:" + observer, "argument")) return { context: r, start: exact[0], end: exact[1], exact: null };
     if (span.space === "R") {
       const project = /** @type {Reconstruction} */ (r.recon).project;
       return { context, start: project[span.start], end: project[span.end], exact };
@@ -6698,7 +6720,7 @@
           // follows (engine §7.4, §7.7).
           // A fault gives a restoration no derivation in the ranking
           // (lost:rank), here and in the summaries and the counts below.
-          else if (edge.kind === "restore") produced = fault("lost:rank") ? [] : [{ seq: this.readLeaf(edge.token, edge.terminal), alts: [], at: Infinity }];
+          else if (edge.kind === "restore") produced = fault("lost:rank", "candidates") ? [] : [{ seq: this.readLeaf(edge.token, edge.terminal), alts: [], at: Infinity }];
           else if (edge.kind === "scan") {
             const read = this.readLeaf(edge.token, edge.terminal);
             produced = dependency(edge.previous).all.map((entry) => extend(entry, read));
@@ -6751,7 +6773,6 @@
           let least;
           let total;
           let permitted = true;
-          if (edge.kind === "restore" && fault("lost:rank")) return;
           if (edge.kind === "seed" || edge.kind === "restore") {
             // The helper of an elidable optional that derives ε elides its
             // terminator where it is empty. A restoration elides nothing.
@@ -6971,7 +6992,7 @@
           const edge = edges[index];
           let ways;
           let edgeW;
-          if (edge.kind === "restore" && fault("lost:rank")) continue;
+          if (edge.kind === "restore" && fault("lost:rank", "count")) continue;
           // A fault skips the last of two or more edges in the check
           // (lost:context).
           if (this.check && index > 0 && index === edges.length - 1 && fault("lost:context")) continue;
