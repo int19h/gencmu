@@ -503,7 +503,8 @@
     if (error.column !== undefined) result.column = error.column;
     if (error.expected !== undefined) result.expected = error.expected;
     if (error.readings !== undefined) result.readings = error.readings.map(nodeJson);
-    if (error.witness !== undefined) result.witness = error.witness.map(actionJson);
+    // Only an error of elision-only has a witness (docs/output.md).
+    if (error.witness !== undefined && error.reason === "elision-only") result.witness = error.witness.map(actionJson);
     if (error.document !== undefined) result.document = error.document;
     result.message = error.message;
     // The members of elision-witness-lost follow its message (docs/output.md).

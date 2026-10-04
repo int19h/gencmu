@@ -40,7 +40,7 @@ CI fails if `types/` is not what `npm run types` writes.
 
 ## Tests of the check of elision-only
 
-`src/testing.js` holds switches and a hook for the library's own tests, which the API does not export. The runners of the shared cases and of the corpus ask the hook, after each check of `elision-only`, whether the check's forest kept the witness of the chosen derivation (`tests/README.md`, `test/witness.js`). `test/faults.test.js` turns on one fault at a time and runs the cases of the fault table (`tests/README.md`). `test/faults.json` records which cases catch each fault, and how. `GENCMU_FAULTS_WRITE=1 node --test test/faults.test.js` writes the record again.
+`src/testing.js` holds switches and a hook for the library's own tests, which the API does not export. After each check of `elision-only`, the runners of the shared cases and of the corpus ask the hook whether the check kept the chosen derivation (`tests/README.md`, `test/witness.js`). `test/faults.test.js` turns on one fault at a time and runs the cases of the fault table (`tests/README.md`). `test/faults.json` records which cases catch each fault, and how. `GENCMU_FAULTS_WRITE=1 node --test test/faults.test.js` writes the record again.
 
 ## The playground's smoke test
 

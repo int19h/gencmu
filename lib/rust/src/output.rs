@@ -9,6 +9,9 @@ use crate::result::{
     Tags, Token, Verdict, Warning,
 };
 
+/// The version of the shape of the result (docs/output.md).
+pub const RESULT_FORMAT: u32 = 9;
+
 fn write_range(out: &mut String, range: &Range<usize>) {
     out.push('[');
     out.push_str(&range.start.to_string());
@@ -390,7 +393,9 @@ fn write_warning(out: &mut String, warning: &Warning) {
 /// documented order, no whitespace, non-ASCII characters as themselves.
 pub fn to_json(result: &ParseResult) -> String {
     let mut out = String::new();
-    out.push_str("{\"format\":9,\"ok\":");
+    out.push_str("{\"format\":");
+    out.push_str(&RESULT_FORMAT.to_string());
+    out.push_str(",\"ok\":");
     out.push_str(if result.ok { "true" } else { "false" });
     out.push_str(",\"stages\":[");
     for (index, stage) in result.stages.iter().enumerate() {
