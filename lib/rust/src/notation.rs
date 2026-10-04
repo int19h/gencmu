@@ -992,7 +992,10 @@ impl<'a> Reader<'a> {
     /// `initial`.
     fn resume_call(&self, frame: &mut CallFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
         let node = frame.node;
-        let name_token = self.token(node)?;
+        let name_token = match frame.name {
+            Some(token) => token,
+            None => *frame.name.insert(self.token(node)?),
+        };
         if frame.arguments.is_none() {
             let name = self.text(name_token);
             if frame.condition {
@@ -1600,6 +1603,9 @@ struct CallFrame<'a> {
     node: &'a Node,
     /// Whether the call stands as a condition.
     condition: bool,
+    /// The token of its name, found once, since finding it collects every
+    /// part of the call.
+    name: Option<&'a Node>,
     arguments: Option<Vec<&'a Node>>,
     args: Vec<Arg>,
     types: Vec<Option<Type>>,
@@ -1607,7 +1613,7 @@ struct CallFrame<'a> {
 
 impl<'a> CallFrame<'a> {
     fn new(node: &'a Node, condition: bool) -> Self {
-        CallFrame { node, condition, arguments: None, args: Vec::new(), types: Vec::new() }
+        CallFrame { node, condition, name: None, arguments: None, args: Vec::new(), types: Vec::new() }
     }
 }
 

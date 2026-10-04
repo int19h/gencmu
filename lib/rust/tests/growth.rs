@@ -145,3 +145,22 @@ fn reading_deep_nesting_grows_linearly() {
         assert!(large <= 5 * small, "{name}: {small} for 250 levels, {large} for 1000");
     }
 }
+
+/// A call of many arguments reads in work that grows with its arguments,
+/// not with their square: the reader finds the call's parts once, not at
+/// each argument, before the arity error.
+#[test]
+fn a_call_of_many_arguments_reads_in_linear_work() {
+    let work = |n: usize| {
+        let arguments = vec!["$"; n].join(", ");
+        let text =
+            format!("```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'\n%tags tags({arguments})\n```\n");
+        reset_recognizer_items();
+        let read = read_grammar_document(&text);
+        assert!(read.is_err(), "tags() of {n} arguments");
+        recognizer_items() + walk_steps()
+    };
+    work(500);
+    let (small, large) = (work(500), work(2000));
+    assert!(large <= 5 * small, "{small} for 500 arguments, {large} for 2000");
+}
