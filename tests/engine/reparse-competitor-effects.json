@@ -1,0 +1,65 @@
+{
+  "description": "Only the chosen derivation emits and warns. The competitor c has a warning guard and an emission, and neither reaches the result: the output is a's one token, and there are no warnings (engine §7.10, §11, §12).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a $x(A) [T]\n%emits $x <~kept>\n%rule b A [T] [T]\n%rule c w! A T\n%emits $ <~competitor>",
+  "options": {
+    "features": [
+      "w"
+    ]
+  },
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved",
+          "output": [
+            {
+              "tags": [
+                "kept"
+              ]
+            }
+          ]
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "elision-only",
+        "stage": "main",
+        "witness": [
+          {
+            "close": {
+              "rule": "a",
+              "production": 3,
+              "span": [
+                0,
+                1
+              ]
+            }
+          },
+          {
+            "close": {
+              "rule": "c",
+              "production": 11,
+              "span": [
+                0,
+                1
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "warnings": []
+  }
+}

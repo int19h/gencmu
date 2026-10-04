@@ -4,26 +4,6 @@
 (function (root) {
   "use strict";
   function gencmuFactory() {
-  // ---- errors.js
-  // The one error type the library throws: a grammar that cannot be loaded or
-  // run. A text that does not parse is not an error but a result.
-
-  class GencmuError extends Error {
-    /**
-     * @param {"grammar" | "usage"} kind a grammar that cannot be loaded or
-     *   run, or a caller's mistake such as an unknown stage name
-     * @param {string} message
-     * @param {import("./types.js").ErrorLocation} [where]
-     * @param {{cause?: unknown}} [options] the error that caused this one
-     */
-    constructor(kind, message, where, options) {
-      super(message, options);
-      this.name = "GencmuError";
-      this.kind = kind;
-      this.where = where || {};
-    }
-  }
-
   // ---- tags.js
   // Tags and tag sets (engine §1). A tag is a string in its canonical
   // spelling: an identifier tag is a name, a phoneme tag is `/p/`, and a
@@ -302,1450 +282,6 @@
     return `${op}${written}`;
   }
 
-  // ---- tokens.js
-  // Tokens (engine §1): what every stage reads and writes.
-
-
-
-  /** @import { TagSet, Span } from "./types.js" */
-  /** @import { UnicodeTable } from "./unicode.js" */
-
-  /**
-   * A token attached to another (engine §11): a token with no span, since its
-   * span counts the input of the stage that attached it.
-   * @typedef {Omit<Token, "span">} AttachedToken
-   */
-
-  // The attachments of a token that has none: one frozen list, shared, so that
-  // a character token costs no lists of its own.
-  /** @type {AttachedToken[]} */
-  const NO_ATTACHMENTS = /** @type {AttachedToken[]} */ (/** @type {unknown} */ (Object.freeze([])));
-
-  class Token {
-    /**
-     * @param {TagSet} tags
-     * @param {Span} span the tokens of the stage before it this token covers
-     * @param {Span} source the code points of the text it covers
-     * @param {string} text the text it covers, as written
-     * @param {string | null} phonemes what it sounds like
-     * @param {string | undefined} insertedBy the rule that inserted it, for a
-     *   token no text stands for
-     * @param {string} [label] what it shows to people (engine §5): by default
-     *   its text, as for a character token or one that a caller supplies
-     */
-    constructor(tags, span, source, text, phonemes, insertedBy, label = text) {
-      this.tags = tags;
-      this.span = span;
-      this.source = source;
-      this.text = text;
-      this.phonemes = phonemes;
-      this.insertedBy = insertedBy;
-      this.label = label;
-      /**
-       * The tokens attached before this one (engine §11), none by default.
-       * @type {AttachedToken[]}
-       */
-      this.before = NO_ATTACHMENTS;
-      /**
-       * The tokens attached after this one (engine §11), none by default.
-       * @type {AttachedToken[]}
-       */
-      this.after = NO_ATTACHMENTS;
-    }
-  }
-
-  /**
-   * Whether a token has attachments (engine §11).
-   * @param {AttachedToken} token
-   * @returns {boolean}
-   */
-  function hasAttachments(token) {
-    return token.before.length > 0 || token.after.length > 0;
-  }
-
-  /**
-   * A token as an attachment: the same token without its span (engine §11).
-   * @param {Token} token
-   * @returns {AttachedToken}
-   */
-  function attached(token) {
-    const { span, ...rest } = token;
-    void span;
-    return rest;
-  }
-
-  // The source of a run of tokens (engine §1): from the least source start
-  // among them to the greatest source end. Tokens usually lie in the order of
-  // their sources, and then that is the first token's start and the last
-  // token's end. Otherwise a table of the least start and the greatest end of
-  // every run of a power of two tokens answers without a scan, so that the
-  // nested nodes of a long left-recursive rule cost no more than its tokens.
-  class Sources {
-    /** @param {Token[]} tokens */
-    constructor(tokens) {
-      this.tokens = tokens;
-      /**
-       * Made at the first question: null when the tokens are in order.
-       * @type {{lows: number[][], highs: number[][]} | null | undefined}
-       */
-      this.table = undefined;
-    }
-
-    /**
-     * The source of tokens [start, end), which must not be empty.
-     * @param {number} start
-     * @param {number} end
-     * @returns {Span}
-     */
-    of(start, end) {
-      if (this.table === undefined) this.table = sourceTable(this.tokens);
-      if (this.table === null) return [this.tokens[start].source[0], this.tokens[end - 1].source[1]];
-      // Two runs of a power of two tokens cover the span between them.
-      const level = 31 - Math.clz32(end - start);
-      const other = end - (1 << level);
-      const lows = this.table.lows[level];
-      const highs = this.table.highs[level];
-      return [Math.min(lows[start], lows[other]), Math.max(highs[start], highs[other])];
-    }
-  }
-
-  /**
-   * @param {Token[]} tokens
-   * @returns {{lows: number[][], highs: number[][]} | null}
-   */
-  function sourceTable(tokens) {
-    let ordered = true;
-    for (let index = 1; index < tokens.length && ordered; index++) {
-      const before = tokens[index - 1].source;
-      const after = tokens[index].source;
-      ordered = before[0] <= after[0] && before[1] <= after[1];
-    }
-    if (ordered) return null;
-    // lows[k][i] is the least start of tokens [i, i + 2^k), and highs[k][i]
-    // the greatest end.
-    const lows = [tokens.map((token) => token.source[0])];
-    const highs = [tokens.map((token) => token.source[1])];
-    for (let width = 1; 2 * width <= tokens.length; width *= 2) {
-      const low = lows[lows.length - 1];
-      const high = highs[highs.length - 1];
-      /** @type {number[]} */
-      const nextLow = [];
-      /** @type {number[]} */
-      const nextHigh = [];
-      for (let index = 0; index + 2 * width <= tokens.length; index++) {
-        nextLow.push(Math.min(low[index], low[index + width]));
-        nextHigh.push(Math.max(high[index], high[index + width]));
-      }
-      lows.push(nextLow);
-      highs.push(nextHigh);
-    }
-    return { lows, highs };
-  }
-
-  // The first stage's input: one token per code point, tagged with its
-  // character tag and nothing else (engine §1).
-  /**
-   * @param {string} text
-   * @param {UnicodeTable} unicode
-   * @returns {Token[]}
-   */
-  function characterTokens(text, unicode) {
-    const tokens = [];
-    let index = 0;
-    for (const character of text) {
-      const code = /** @type {number} */ (character.codePointAt(0));
-      const tags = tagSet([characterTag(code, unicode)]);
-      tokens.push(new Token(tags, [index, index + 1], [index, index + 1], character, null, undefined));
-      index++;
-    }
-    return tokens;
-  }
-
-  // A text's code points, for slicing by code point positions.
-  /**
-   * @param {string} text
-   * @returns {string[]}
-   */
-  function codePoints(text) {
-    return [...text];
-  }
-
-  // ---- eligible.js
-  // Written-terminator priority for nested queries (engine §4): which
-  // completed items of a queried rule have an eligible witness.
-
-  /**
-   * @import { Edge, Item, LoweredGrammar, SymbolTest, TagSet } from "./types.js"
-   * @import { Chart, ParseContext } from "./earley.js"
-   */
-
-  /**
-   * Whether a test holds of a span with the given tags: the recognizer's own,
-   * passed in so that this module does not import the recognizer.
-   * @typedef {(context: ParseContext, test: SymbolTest, from: number, to: number, tags: TagSet) => boolean} TestHolds
-   */
-
-  // How many completions the maximality checks of nested queries have read,
-  // for a test that the work stays linear.
-  const counters = { checks: 0, candidates: 0 };
-
-  /** @type {WeakMap<LoweredGrammar, Set<string>>} */
-  const elidableHelpers = new WeakMap();
-
-  /**
-   * The helpers of a grammar's elidable optionals (engine §3.8), by name.
-   * @param {LoweredGrammar} lowered
-   * @returns {Set<string>}
-   */
-  function helpersOf(lowered) {
-    let helpers = elidableHelpers.get(lowered);
-    if (!helpers) {
-      helpers = new Set();
-      for (const production of lowered.productions) if (production.helper && production.elided !== null) helpers.add(production.lhs);
-      elidableHelpers.set(lowered, helpers);
-    }
-    return helpers;
-  }
-
-  /**
-   * Whether a completed item is the empty helper of an elidable optional: an
-   * advance over it is an omission.
-   * @param {Item} item
-   * @returns {boolean}
-   */
-  function omitted(item) {
-    return item.production.helper && item.production.elided !== null && item.production.rhs.length === 0;
-  }
-
-  /**
-   * Whether a completed item is an elidable optional's helper over its
-   * nonempty alternative: an advance over it reads the optional as written.
-   * @param {Item} item
-   * @returns {boolean}
-   */
-  function written(item) {
-    return item.dot === item.production.rhs.length && item.production.helper && item.production.elided !== null && item.production.rhs.length > 0;
-  }
-
-  /**
-   * The witnesses, completed items of the queried rule, that have an eligible
-   * witness in the chart (engine §4). An omission is an advance over the
-   * empty helper of an elidable optional at its position p. It is forbidden
-   * where the prefix that the witness holds fixed can go on and read the
-   * optional as written:
-   *
-   * - Where the optional has a constituent Y, the prefix is the item before Y
-   *   in the same witness. The omission is forbidden when the chart advances
-   *   that item over Y to some p' ≥ p, and the item so made advances over the
-   *   optional's nonempty alternative.
-   * - Otherwise the prefix is the item before the optional, and the omission
-   *   is forbidden when the chart advances that item over the nonempty
-   *   alternative.
-   *
-   * An omission of a maximal terminator with a constituent Y is also
-   * forbidden when the chart has a longer Y: a completed item of Y from the
-   * same origin with a later end, which passes Y's test. Maximality never
-   * forbids an omission with no constituent.
-   *
-   * The chart is the whole recognition of the query, before any filtering,
-   * so an attempt that never completes the rule can forbid an omission.
-   *
-   * Each item has two states, computed together to the least fixpoint: it has
-   * an eligible witness (A), and it has an eligible witness that permits the
-   * optional after it to be empty (L). L follows the edge of the witness,
-   * so a permitted omission never combines with another witness's prefix.
-   * @param {Chart} chart
-   * @param {Item[]} witnesses
-   * @param {TestHolds} testHolds
-   * @returns {Item[]}
-   */
-  function eligibleWitnesses(chart, witnesses, testHolds) {
-    if (witnesses.length === 0) return witnesses;
-    const helpers = helpersOf(chart.context.lowered);
-    if (helpers.size === 0) return witnesses;
-    // The items the witnesses rest on, children before the items made from
-    // them where the edges allow, so that one sweep settles most of them.
-    /** @type {Map<Item, number>} */
-    const index = new Map();
-    /** @type {Item[]} */
-    const order = [];
-    let omits = false;
-    for (const witness of witnesses) {
-      if (index.has(witness)) continue;
-      index.set(witness, -1);
-      /** @type {{item: Item, edges: Edge[], next: number}[]} */
-      const stack = [{ item: witness, edges: witness.edges, next: 0 }];
-      while (stack.length > 0) {
-        const frame = stack[stack.length - 1];
-        let pushed = false;
-        while (frame.next < frame.edges.length * 2) {
-          const step = frame.next++;
-          const edge = frame.edges[step >> 1];
-          /** @type {Item | null} */
-          let below = null;
-          if ((step & 1) === 0) below = edge.kind === "seed" ? null : edge.previous;
-          else if (edge.kind === "complete") {
-            below = edge.child;
-            if (omitted(edge.child)) omits = true;
-          }
-          if (below !== null && !index.has(below)) {
-            index.set(below, -1);
-            stack.push({ item: below, edges: below.edges, next: 0 });
-            pushed = true;
-            break;
-          }
-        }
-        if (pushed) continue;
-        stack.pop();
-        index.set(frame.item, order.length);
-        order.push(frame.item);
-      }
-    }
-    // With no omission, every item of a chart has a finite proof, made from
-    // predicted items in the order in which the recognizer made it.
-    if (!omits) return witnesses;
-
-    // The prefixes that advance over a written optional, and for each item
-    // before a constituent Y, the furthest end of an advance over Y that then
-    // reads the optional as written.
-    /** @type {Set<Item>} */
-    const reads = new Set();
-    for (const set of chart.sets) {
-      if (!set) continue;
-      for (const item of set.items) {
-        for (const edge of item.edges) if (edge.kind === "complete" && written(edge.child)) reads.add(edge.previous);
-      }
-    }
-    /** @type {Map<Item, number>} */
-    const further = new Map();
-    for (const item of reads) {
-      for (const edge of item.edges) {
-        if (edge.kind !== "complete") continue;
-        const known = further.get(edge.previous);
-        if (known === undefined || known < item.end) further.set(edge.previous, item.end);
-      }
-    }
-
-    // For each item, whether an elidable optional comes next, and whether it
-    // has a constituent: not at the start, not after a terminal, and not
-    // after the first symbol of a production whose first symbol is its own
-    // rule (engine §4).
-    const next = order.map((item) => {
-      const rhs = item.production.rhs;
-      const symbol = rhs[item.dot];
-      if (symbol === undefined || symbol.terminal || !helpers.has(symbol.name)) return "none";
-      if (item.dot === 0 || rhs[item.dot - 1].terminal) return "alone";
-      if (item.dot === 1 && rhs[0].name === item.production.lhs) return "alone";
-      return "constituent";
-    });
-    // Whether the optional after each item is of a maximal terminator.
-    const lowered = chart.context.lowered;
-    const maximalNext = order.map((item, x) => {
-      if (next[x] !== "constituent" || lowered.maximalTerminals.size === 0) return false;
-      const helpers = lowered.byLhs.get(item.production.rhs[item.dot].name) || [];
-      return helpers.some((production) => production.elided !== null && lowered.maximalTerminals.has(production.elided));
-    });
-    // The completed items of each symbol from each origin, in the query's
-    // chart, made once per query when a maximal terminator needs them, with
-    // the furthest end of each list. For a tested symbol, the furthest end of
-    // a completion that passes the test is kept for each test, since a test
-    // reads only the candidate's own span and tags. So each check is a
-    // lookup, and not a walk of the list.
-    /** @type {Map<string, {items: Item[], furthest: number, tested: Map<SymbolTest, number>}> | null} */
-    let completed = null;
-    /** @type {(constituent: Item, x: number) => boolean} */
-    const longer = (constituent, x) => {
-      counters.checks++;
-      if (completed === null) {
-        completed = new Map();
-        for (const set of chart.sets) {
-          if (!set) continue;
-          for (const item of set.items) {
-            if (item.dot !== item.production.rhs.length) continue;
-            const key = `${item.production.lhs}\u0000${item.origin}`;
-            const entry = completed.get(key);
-            if (entry) {
-              entry.items.push(item);
-              if (item.end > entry.furthest) entry.furthest = item.end;
-            } else completed.set(key, { items: [item], furthest: item.end, tested: new Map() });
-          }
-        }
-      }
-      const entry = completed.get(`${constituent.production.lhs}\u0000${constituent.origin}`);
-      if (entry === undefined) return false;
-      const test = order[x].production.rhs[order[x].dot - 1].test;
-      if (!test) return entry.furthest > constituent.end;
-      let furthest = entry.tested.get(test);
-      if (furthest === undefined) {
-        furthest = -1;
-        for (const candidate of entry.items) {
-          counters.candidates++;
-          if (candidate.end > furthest && testHolds(chart.context, test, candidate.origin, candidate.end, chart.context.interner.get(candidate.tagId))) furthest = candidate.end;
-        }
-        entry.tested.set(test, furthest);
-      }
-      return furthest > constituent.end;
-    };
-    const eligible = new Uint8Array(order.length);
-    const permits = new Uint8Array(order.length);
-    /** @type {(item: Item) => number} */
-    const at = (item) => /** @type {number} */ (index.get(item));
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (let x = 0; x < order.length; x++) {
-        if (eligible[x] && (permits[x] || next[x] === "none")) continue;
-        const item = order[x];
-        let a = 0;
-        let l = 0;
-        for (const edge of item.edges) {
-          let through = 0;
-          if (edge.kind === "seed") through = 1;
-          else if (edge.kind === "scan") through = eligible[at(edge.previous)];
-          else {
-            const before = at(edge.previous);
-            through = (omitted(edge.child) ? permits[before] : eligible[before]) & eligible[at(edge.child)];
-          }
-          if (!through) continue;
-          a = 1;
-          if (next[x] === "alone") {
-            if (!reads.has(item)) l = 1;
-          } else if (next[x] === "constituent" && edge.kind === "complete") {
-            const end = further.get(edge.previous);
-            if ((end === undefined || end < item.end) && !(maximalNext[x] && longer(edge.child, x))) l = 1;
-          }
-        }
-        if (a && !eligible[x]) {
-          eligible[x] = 1;
-          changed = true;
-        }
-        if (l && !permits[x]) {
-          permits[x] = 1;
-          changed = true;
-        }
-      }
-    }
-    return witnesses.filter((witness) => eligible[at(witness)]);
-  }
-
-  // ---- earley.js
-  // Recognition (engine §4) and the terms and conditions it evaluates
-  // (engine §10).
-
-
-
-
-
-
-  /**
-   * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, Scope, Slot, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
-   * @import { Token } from "./tokens.js"
-   * @import { UnicodeTable } from "./unicode.js"
-   */
-
-  /**
-   * A chart: one set per position of the span it was run over.
-   * @typedef {object} Chart
-   * @property {ChartSet[]} sets
-   * @property {number} start
-   * @property {number} end
-   * @property {(position: number) => ChartSet} setAt reads a set without
-   *   making it: a set the recognizer never reached is empty
-   * @property {number} furthest the last position whose set holds an item
-   * @property {ParseContext} context
-   */
-
-  // Interns tag sets, so that an item names a captured part's tags by number.
-  class TagInterner {
-    constructor() {
-      /** @type {TagSet[]} */
-      this.sets = [];
-      /** @type {Map<string, number>} */
-      this.ids = new Map();
-    }
-    /**
-     * @param {TagSet} tags
-     * @returns {number}
-     */
-    intern(tags) {
-      const key = tagKey(tags);
-      let id = this.ids.get(key);
-      if (id === undefined) {
-        id = this.sets.length;
-        this.sets.push(tags);
-        this.ids.set(key, id);
-      }
-      return id;
-    }
-    /**
-     * @param {number} id
-     * @returns {TagSet}
-     */
-    get(id) {
-      return this.sets[id];
-    }
-  }
-
-  // How many items the recognizer has made, in parses and nested parses
-  // alike: a measure of work that tests compare across input lengths.
-  const recognizerCounters = { items: 0 };
-
-  // What a parse and every nested parse it starts share.
-  class ParseContext {
-    /**
-     * @param {LoweredGrammar} lowered
-     * @param {Token[]} tokens
-     * @param {string[]} sourceText the text's code points
-     * @param {UnicodeTable} unicode
-     */
-    constructor(lowered, tokens, sourceText, unicode) {
-      this.lowered = lowered;
-      this.tokens = tokens;
-      /** Where each run of the tokens lies in the text (engine §1). */
-      this.sources = new Sources(tokens);
-      this.sourceText = sourceText;
-      this.unicode = unicode;
-      this.interner = new TagInterner();
-      /**
-       * Each token's phonemes in canonical form, for the sound tests of
-       * symbols and for phonemes(), computed when one first looks at the
-       * token (engine §4, §5).
-       * @type {(string | undefined)[]}
-       */
-      this.sounds = new Array(tokens.length);
-      // The most places a dot can be in one production, for numbering the
-      // items of a set (see itemKey).
-      this.dots = lowered.productions.reduce((most, production) => Math.max(most, production.rhs.length + 1), 1);
-      /** @type {Map<string, boolean | TagSet>} */
-      this.nested = new Map();
-      /** @type {Set<string>} */
-      this.inProgress = new Set();
-      /** Where the input of the recognition now running begins. */
-      this.inputStart = 0;
-      /** Where it ends. */
-      this.inputEnd = tokens.length;
-      /**
-       * When set, the recognizer records what happens at one position of the
-       * top-level parse, for diagnostics (see diagnostics.js, trace).
-       * @type {{position: number, events: TraceEvent[], depth: number} | null}
-       */
-      this.trace = null;
-    }
-  }
-
-  /**
-   * Something the recognizer did at the traced position: an item predicted,
-   * advanced or completed there, or an advance that a condition refused.
-   * @typedef {object} TraceEvent
-   * @property {"predicted" | "advanced" | "completed" | "dropped"} kind
-   * @property {Production} production
-   * @property {number} dot the dot of the item made, or of the item refused
-   * @property {number} origin
-   * @property {Condition} [condition] for a drop, the condition that failed
-   * @property {SymbolTest} [test] for a drop, the test of the symbol the item
-   *   would have advanced over, which did not hold
-   */
-
-  // A chart item: a production with a dot, its origin, and its captured
-  // parts; `end` is the position of the set that holds it.
-  //
-  // A long text makes millions of items, almost every one built one way only,
-  // so an item holds its first way itself rather than as an edge in a list:
-  // the item it advanced, `previous`, null for a prediction, and the completed
-  // item it advanced over, `child`, null for a read, whose token and terminal
-  // the item implies. Each further way is an edge in `more`.
-  class Item {
-    /**
-     * @param {Production} production
-     * @param {number} dot
-     * @param {number} origin
-     * @param {Slot[]} slots
-     * @param {Item | null} previous
-     * @param {Item | null} child
-     */
-    constructor(production, dot, origin, slots, previous, child) {
-      this.production = production;
-      this.dot = dot;
-      this.origin = origin;
-      this.slots = slots;
-      this.tagId = -1;
-      this.end = -1;
-      this.previous = previous;
-      this.child = child;
-      /** @type {Edge[] | null} */
-      this.more = null;
-    }
-    get complete() {
-      return this.dot === this.production.rhs.length;
-    }
-    /**
-     * Every way the item was built, in the order they were found.
-     * @returns {Edge[]}
-     */
-    get edges() {
-      /** @type {Edge} */
-      let first;
-      if (this.previous === null) first = SEED;
-      else if (this.child === null) first = { kind: "scan", previous: this.previous, token: this.end - 1, terminal: this.production.rhs[this.dot - 1].name };
-      else first = { kind: "complete", previous: this.previous, child: this.child };
-      return this.more === null ? [first] : [first, ...this.more];
-    }
-  }
-
-  class ChartSet {
-    /** @param {number} position */
-    constructor(position) {
-      this.position = position;
-      /** @type {Item[]} */
-      this.items = [];
-      /** @type {Map<number | string, Item>} */
-      this.index = new Map();
-      /** @type {Item[]} */
-      this.queue = [];
-      this.head = 0;
-      /** @type {Map<string, Item[]>} */
-      this.waiting = new Map();
-      /** @type {Map<string, Item[]>} */
-      this.nullable = new Map();
-      /** @type {Set<string>} the rules already predicted here */
-      this.predicted = new Set();
-      /**
-       * The rules predicted here with productions not made items, since they
-       * begin with a terminal the next token does not carry; kept for saying
-       * what could have come next (see expectedAt). A rule, not each of its
-       * productions: a long text skips millions.
-       * @type {string[]}
-       */
-      this.skipped = [];
-    }
-  }
-
-  /**
-   * Runs the recognizer over tokens[start, end) with `rule` as the start rule.
-   * @param {ParseContext} context
-   * @param {string} rule
-   * @param {number} start
-   * @param {number} end
-   * @returns {Chart}
-   */
-  function recognize(context, rule, start, end) {
-    const outer = context.inputStart;
-    const outerEnd = context.inputEnd;
-    context.inputStart = start;
-    context.inputEnd = end;
-    try {
-      return recognizeFrom(context, rule, start, end);
-    } finally {
-      context.inputStart = outer;
-      context.inputEnd = outerEnd;
-    }
-  }
-
-  /**
-   * @param {ParseContext} context
-   * @param {string} rule
-   * @param {number} start
-   * @param {number} end
-   * @returns {Chart}
-   */
-  function recognizeFrom(context, rule, start, end) {
-    const { lowered, tokens } = context;
-    /** @type {ChartSet[]} */
-    const sets = [];
-    // A set is made when something first looks at it: once a set is empty,
-    // every later one is, and a nested parse over the rest of a long text
-    // stops there.
-    /** @type {(position: number) => ChartSet} */
-    const setAt = (position) => sets[position - start] || (sets[position - start] = new ChartSet(position));
-    const dots = context.dots;
-    const width = end - start + 1;
-
-    // Adds the item `previous` makes advanced over `child`, or over the token
-    // before the set when `child` is null; a prediction when both are null.
-    /** @type {(set: ChartSet, production: Production, dot: number, origin: number, slots: Slot[], previous: Item | null, child: Item | null, tagId: number) => void} */
-    const add = (set, production, dot, origin, slots, previous, child, tagId) => {
-      const key = itemKey((production.id * dots + dot) * width + origin - start, slots);
-      let item = set.index.get(key);
-      if (item) {
-        // The symbol before an item's dot fixes the kind of all its edges,
-        // and the item fixes a read's token and terminal: two edges are the
-        // same when they have the same `previous` and `child`. A prediction
-        // has no other edge, since nothing else puts a dot at the start.
-        if ((item.previous === previous && item.child === child) || previous === null) return;
-        const more = item.more || (item.more = []);
-        for (const edge of more) {
-          if (edge.kind === "scan" && edge.previous === previous) return;
-          if (edge.kind === "complete" && edge.previous === previous && edge.child === child) return;
-        }
-        if (child === null) more.push({ kind: "scan", previous, token: set.position - 1, terminal: production.rhs[dot - 1].name });
-        else more.push({ kind: "complete", previous, child });
-        return;
-      }
-      item = new Item(production, dot, origin, slots, previous, child);
-      recognizerCounters.items++;
-      item.end = set.position;
-      const trace = context.trace;
-      if (trace && trace.depth === 0 && set.position === trace.position) {
-        const kind = dot === production.rhs.length ? "completed" : dot === 0 ? "predicted" : "advanced";
-        trace.events.push({ kind, production, dot, origin });
-      }
-      item.tagId = tagId;
-      set.items.push(item);
-      set.index.set(key, item);
-      set.queue.push(item);
-      const next = production.rhs[dot];
-      if (next && !next.terminal) {
-        // Most lists hold one item, and an array made with its first element
-        // is a fraction of the size an empty one grows to on its first push.
-        const waiting = set.waiting.get(next.name);
-        if (waiting) waiting.push(item);
-        else set.waiting.set(next.name, [item]);
-      }
-      if (dot === production.rhs.length && origin === set.position) {
-        let nullable = set.nullable.get(production.lhs);
-        if (!nullable) set.nullable.set(production.lhs, (nullable = []));
-        nullable.push(item);
-      }
-    };
-
-    /** @type {(set: ChartSet, name: string) => void} */
-    const predict = (set, name) => {
-      // A rule's productions are the same at every prediction in one set:
-      // predicting them again would only rebuild items that already exist.
-      if (set.predicted.has(name)) return;
-      set.predicted.add(name);
-      const next = set.position < end ? tokens[set.position] : null;
-      let skipped = false;
-      for (const production of lowered.byLhs.get(name) || []) {
-        const slots = emptySlots(production);
-        const failed = failedCondition(context, production, -1, slots, set.position, set.position);
-        if (failed) {
-          const trace = context.trace;
-          if (trace && trace.depth === 0 && set.position === trace.position) {
-            trace.events.push({ kind: "dropped", production, dot: 0, origin: set.position, condition: failed });
-          }
-          continue;
-        }
-        // The conditions above run first, as they did when every prediction
-        // was made an item, so that a trace shows the production as dropped.
-        if (lookaheadSkips(context, production, next)) {
-          skipped = true;
-          continue;
-        }
-        const tagId = production.rhs.length === 0 ? completeTags(context, production, slots, set.position, set.position) : -1;
-        add(set, production, 0, set.position, slots, null, null, tagId);
-      }
-      if (skipped) set.skipped.push(name);
-    };
-
-    // The item advanced over its next symbol, which spans [from, to) and was
-    // built by `child`, or read as a token; null when a condition fails.
-    /** @type {(item: Item, from: number, to: number, child: Item | null) => {dot: number, slots: Slot[], tagId: number} | null} */
-    const advance = (item, from, to, child) => {
-      const production = item.production;
-      // A tested symbol's test must hold of its own span and tags, which is
-      // checked before any condition the advance makes ready (engine §4).
-      const test = production.rhs[item.dot].test;
-      if (test !== undefined && !testHolds(context, test, from, to, child ? context.interner.get(child.tagId) : tokens[from].tags)) {
-        const trace = context.trace;
-        if (trace && trace.depth === 0 && to === trace.position) {
-          trace.events.push({ kind: "dropped", production, dot: item.dot, origin: item.origin, test });
-        }
-        return null;
-      }
-      let slots = item.slots;
-      const captureIndex = production.captures.findIndex((capture) => capture.index === item.dot);
-      if (captureIndex >= 0) {
-        slots = slots.slice();
-        const tags = child ? child.tagId : context.interner.intern(tokens[from].tags);
-        slots[captureIndex] = [from, to, tags];
-      }
-      const failed = failedCondition(context, production, item.dot, slots, item.origin, to);
-      if (failed) {
-        const trace = context.trace;
-        if (trace && trace.depth === 0 && to === trace.position) {
-          trace.events.push({ kind: "dropped", production, dot: item.dot, origin: item.origin, condition: failed });
-        }
-        return null;
-      }
-      const dot = item.dot + 1;
-      const tagId = dot === production.rhs.length ? completeTags(context, production, slots, item.origin, to) : -1;
-      return { dot, slots, tagId };
-    };
-
-    predict(setAt(start), rule);
-    let furthest = start;
-    for (let position = start; position <= end; position++) {
-      const set = setAt(position);
-      if (position > start && set.items.length === 0) break;
-      furthest = position;
-      if (position > start) {
-        // Nothing is added to a set once the next one is being built: its
-        // index, queue and predictions can go, which a long text needs, and
-        // the lists it keeps can be copied to arrays of their own length,
-        // rather than of the length growing them by pushes left.
-        const done = setAt(position - 1);
-        done.index = new Map();
-        done.queue = [];
-        done.predicted = new Set();
-        done.nullable = new Map();
-        done.items = done.items.slice();
-        done.skipped = done.skipped.slice();
-        for (const [name, waiting] of done.waiting) if (waiting.length > 1) done.waiting.set(name, waiting.slice());
-      }
-      while (set.head < set.queue.length) {
-        const item = set.queue[set.head++];
-        const next = item.production.rhs[item.dot];
-        if (!next) {
-          const origin = setAt(item.origin);
-          for (const waiting of origin.waiting.get(item.production.lhs) || []) {
-            const advanced = advance(waiting, item.origin, position, item);
-            if (advanced) {
-              add(set, waiting.production, advanced.dot, waiting.origin, advanced.slots, waiting, item, advanced.tagId);
-            }
-          }
-        } else if (!next.terminal) {
-          predict(set, next.name);
-          for (const done of set.nullable.get(next.name) || []) {
-            const advanced = advance(item, position, position, done);
-            if (advanced) {
-              add(set, item.production, advanced.dot, item.origin, advanced.slots, item, done, advanced.tagId);
-            }
-          }
-        } else if (position < end && (next.characters === undefined ? tokens[position].tags.has(next.name) : carries(context.unicode, next.characters, tokens[position].tags))) {
-          const advanced = advance(item, position, position + 1, null);
-          if (advanced) {
-            add(setAt(position + 1), item.production, advanced.dot, item.origin, advanced.slots, item, null, advanced.tagId);
-          }
-        }
-      }
-    }
-    /** @type {(position: number) => ChartSet} */
-    const peek = (position) => sets[position - start] || new ChartSet(position);
-    return { sets, start, end, setAt: peek, furthest, context };
-  }
-
-  /** @type {Edge} */
-  const SEED = { kind: "seed" };
-
-  /**
-   * A symbol as the diagnostics write it: its name, followed by its test if
-   * it has one, such as LE="la" (docs/output.md).
-   * @param {{name: string, test?: SymbolTest | null}} symbol
-   * @returns {string}
-   */
-  function writtenSymbol(symbol) {
-    return symbol.test ? symbol.name + symbol.test.written : symbol.name;
-  }
-
-  /**
-   * Whether a test holds of a symbol's own span, the tokens [from, to), and
-   * its own tags (engine §4): a token's for a terminal, the completed item's
-   * for a reference. An empty span sounds like the empty string.
-   * @param {ParseContext} context
-   * @param {SymbolTest} test
-   * @param {number} from
-   * @param {number} to
-   * @param {TagSet} tags
-   * @returns {boolean}
-   */
-  function testHolds(context, test, from, to, tags) {
-    switch (test.op) {
-      case "=":
-      case "≠":
-        return soundIs(context, /** @type {string} */ (test.sound), from, to) === (test.op === "=");
-      case "⊇":
-      case "⊉":
-        return isSubset(/** @type {TagSet} */ (test.tags), tags) === (test.op === "⊇");
-      default: {
-        let meets = false;
-        for (const tag of /** @type {TagSet} */ (test.tags)) {
-          if (tags.has(tag)) {
-            meets = true;
-            break;
-          }
-        }
-        return meets === (test.op === "∩≠∅");
-      }
-    }
-  }
-
-  /**
-   * Whether the tokens [from, to) sound like a string: their canonical sound
-   * is exactly it (engine §4, §5). A token with no phonemes adds nothing.
-   * @param {ParseContext} context
-   * @param {string} sound
-   * @param {number} from
-   * @param {number} to
-   * @returns {boolean}
-   */
-  function soundIs(context, sound, from, to) {
-    let offset = 0;
-    for (let index = from; index < to; index++) {
-      const part = canonicalSound(context, index);
-      if (!sound.startsWith(part, offset)) return false;
-      offset += part.length;
-    }
-    return offset === sound.length;
-  }
-
-  /**
-   * A token's phonemes in canonical form (engine §5), remembered for the
-   * parse. The lowercase mapping and the removal of commas act on each code
-   * point alone, so the canonical sound of a span is its tokens' joined.
-   * @param {ParseContext} context
-   * @param {number} index
-   * @returns {string}
-   */
-  function canonicalSound(context, index) {
-    let sound = context.sounds[index];
-    if (sound === undefined) sound = context.sounds[index] = context.unicode.canonical(context.tokens[index].phonemes || "");
-    return sound;
-  }
-
-  // One token of lookahead: an item whose first symbol is a terminal the next
-  // token lacks could never advance, so a prediction of it is not made.
-  /**
-   * @param {ParseContext} context
-   * @param {Production} production
-   * @param {Token | null} next
-   * @returns {boolean}
-   */
-  function lookaheadSkips(context, production, next) {
-    const first = production.rhs[0];
-    return Boolean(first && first.terminal && !(next && reads(context, first, next)));
-  }
-
-  /**
-   * Whether a terminal matches a token (engine §4): a tag it carries, or, for
-   * a range or a property, one of its character tags.
-   * @param {ParseContext} context
-   * @param {GrammarSymbol} symbol
-   * @param {Token} token
-   * @returns {boolean}
-   */
-  function reads(context, symbol, token) {
-    return symbol.characters === undefined ? token.tags.has(symbol.name) : carries(context.unicode, symbol.characters, token.tags);
-  }
-
-  /**
-   * Whether tags hold a character tag of a range or a property (engine §4).
-   * @param {UnicodeTable} unicode
-   * @param {CharacterClass} characters
-   * @param {TagSet} tags
-   * @returns {boolean}
-   */
-  function carries(unicode, characters, tags) {
-    for (const tag of tags) {
-      const code = codeOfCharacterTag(tag);
-      if (code < 0) continue;
-      if ("property" in characters ? unicode.hasProperty(characters.property, code) : code >= characters.from && code <= characters.to) return true;
-    }
-    return false;
-  }
-
-  // The tags of each range that a term holds, made once (engine §10).
-  /** @type {WeakMap<object, TagSet>} */
-  const rangeSets = new WeakMap();
-
-  // The slots of a predicted item, one list per production that all its
-  // predictions share: advancing over a capture copies the list first.
-  /** @type {WeakMap<Production, Slot[]>} */
-  const noSlots = new WeakMap();
-
-  /**
-   * @param {Production} production
-   * @returns {Slot[]}
-   */
-  function emptySlots(production) {
-    let slots = noSlots.get(production);
-    if (!slots) noSlots.set(production, (slots = /** @type {Slot[]} */ (Object.freeze(production.captures.map(() => null)))));
-    return slots;
-  }
-
-  // An item's key in its set's index: `base`, a number unique to its
-  // production, dot and origin, and for an item that has captured something,
-  // a string adding its slots. Almost no item has, and a number is no
-  // allocation.
-  /**
-   * @param {number} base
-   * @param {Slot[]} slots
-   * @returns {number | string}
-   */
-  function itemKey(base, slots) {
-    /** @type {string | null} */
-    let key = null;
-    for (let index = 0; index < slots.length; index++) {
-      const slot = slots[index];
-      if (slot) key = (key === null ? String(base) : key) + "," + index + ":" + slot[0] + ":" + slot[1] + ":" + slot[2];
-    }
-    return key === null ? base : key;
-  }
-
-  /**
-   * The completed items of `rule` spanning [start, end).
-   * @param {Chart} chart
-   * @param {string} rule
-   * @returns {Item[]}
-   */
-  function rootItems(chart, rule) {
-    return chart.setAt(chart.end).items.filter((item) =>
-      item.complete && item.origin === chart.start && item.production.lhs === rule);
-  }
-
-  /**
-   * The first condition of a production that is ready at `readyAt` and fails,
-   * or null when they all hold.
-   * @param {ParseContext} context
-   * @param {Production} production
-   * @param {number} readyAt
-   * @param {Slot[]} slots
-   * @param {number} origin where the item began
-   * @param {number} end where it ends once it has read the symbol at `readyAt`
-   * @returns {Condition | null}
-   */
-  function failedCondition(context, production, readyAt, slots, origin, end) {
-    for (const { condition, readyAt: at } of production.conditions) {
-      if (at !== readyAt) continue;
-      const scope = new ChartScope(context, production, slots, origin, end);
-      if (!holds(context, condition, scope)) return condition;
-    }
-    return null;
-  }
-
-  /**
-   * @param {ParseContext} context
-   * @param {Production} production
-   * @param {Slot[]} slots
-   * @param {number} origin
-   * @param {number} end
-   * @returns {number}
-   */
-  function completeTags(context, production, slots, origin, end) {
-    return context.interner.intern(constituentTags(context, production, new ChartScope(context, production, slots, origin, end)));
-  }
-
-  /**
-   * A completed constituent's tags: its production's tag term, which cannot
-   * read `$`'s own (engine §9).
-   * @param {ParseContext} context
-   * @param {Production} production
-   * @param {Scope} scope
-   * @returns {TagSet}
-   */
-  function constituentTags(context, production, scope) {
-    return production.tags ? asSet(evaluate(context, production.tags, scope)) : tagSet();
-  }
-
-  /** @implements {Scope} */
-  class ChartScope {
-    /**
-     * @param {ParseContext} context
-     * @param {Production} production
-     * @param {Slot[]} slots
-     * @param {number} origin
-     * @param {number} end
-     */
-    constructor(context, production, slots, origin, end) {
-      this.context = context;
-      this.production = production;
-      this.slots = slots;
-      this.origin = origin;
-      this.end = end;
-    }
-    /**
-     * @param {string} name
-     * @returns {SpanValue}
-     */
-    capture(name) {
-      // `$` is the whole constituent, whose tags are read only once it is
-      // complete, by a condition or an emission (engine §4).
-      if (name === "") {
-        const scope = this;
-        return {
-          start: this.origin,
-          end: this.end,
-          get tags() { return constituentTags(scope.context, scope.production, scope); },
-        };
-      }
-      const index = this.production.captures.findIndex((capture) => capture.name === name);
-      const slot = /** @type {[number, number, number]} */ (this.slots[index]);
-      return { start: slot[0], end: slot[1], tags: this.context.interner.get(slot[2]) };
-    }
-  }
-
-  // A span value: [start, end) of the stage's tokens, and the tags of the
-  // captured constituent if it is a whole capture.
-  /**
-   * @param {ParseContext} context
-   * @param {Argument} span
-   * @param {Scope} scope
-   * @returns {SpanValue}
-   */
-  function spanOf(context, span, scope) {
-    if ("capture" in span) return scope.capture(span.capture);
-    if ("call" in span && (span.call === "head" || span.call === "tail" || span.call === "last")) {
-      const inner = spanOf(context, span.args[0], scope);
-      const { start, end } = inner;
-      if (span.call === "head") return { start, end: Math.min(start + 1, end) };
-      if (span.call === "tail") return { start: Math.min(start + 1, end), end };
-      return { start: Math.max(end - 1, start), end };
-    }
-    if ("call" in span && (span.call === "from" || span.call === "after")) {
-      const inner = spanOf(context, span.args[0], scope);
-      return { start: span.call === "from" ? inner.start : inner.end, end: context.inputEnd };
-    }
-    throw new GencmuError("grammar", `expected a span, found ${JSON.stringify(span)}`);
-  }
-
-  /**
-   * @param {ParseContext} context
-   * @param {number} start
-   * @param {number} end
-   * @returns {string}
-   */
-  function textOf(context, start, end) {
-    if (start >= end) return "";
-    const [from, to] = context.sources.of(start, end);
-    return context.sourceText.slice(from, to).join("");
-  }
-
-  /**
-   * @param {Token[]} tokens
-   * @param {number} start
-   * @param {number} end
-   * @returns {TagSet}
-   */
-  function tokensTags(tokens, start, end) {
-    let result = tagSet();
-    for (let index = start; index < end; index++) result = tagUnion(result, tokens[index].tags);
-    return result;
-  }
-
-  /**
-   * A term's value (engine §10): a string, or a set, of strings or of tags.
-   * The reader has made sure that the types agree, so a set's kind needs no
-   * mark here.
-   * @param {ParseContext} context
-   * @param {Argument} term
-   * @param {Scope} scope
-   * @returns {TermValue}
-   */
-  function evaluate(context, term, scope) {
-    if ("string" in term) return { string: term.string };
-    if ("tag" in term) return { set: tagSet([term.tag]) };
-    // A constant holds its final value once the stage is stitched (engine §2).
-    if ("const" in term) {
-      if (!term.value) throw new GencmuError("grammar", `the constant $${term.const} has no value`);
-      return term.value;
-    }
-    if ("range" in term) {
-      let tags = rangeSets.get(term);
-      if (!tags) rangeSets.set(term, (tags = rangeTags(term.range, context.unicode)));
-      return { set: tags };
-    }
-    if ("if" in term) return holds(context, term.if, scope) ? evaluate(context, term.then, scope) : { set: tagSet() };
-    if ("emptySet" in term) return { set: tagSet() };
-    if ("union" in term) return { set: term.union.reduce((acc, item) => tagUnion(acc, asSet(evaluate(context, item, scope))), tagSet()) };
-    if ("intersection" in term) {
-      const [first, ...rest] = term.intersection.map((item) => asSet(evaluate(context, item, scope)));
-      return { set: rest.reduce((acc, item) => tagIntersection(acc, item), first) };
-    }
-    if ("difference" in term) {
-      const [left, right] = term.difference.map((item) => asSet(evaluate(context, item, scope)));
-      return { set: tagDifference(left, right) };
-    }
-    if ("call" in term) {
-      const args = term.args;
-      switch (term.call) {
-        case "phonemes": {
-          // The canonical sound (engine §5).
-          const span = spanOf(context, args[0], scope);
-          let sound = "";
-          for (let index = span.start; index < span.end; index++) sound += canonicalSound(context, index);
-          return { string: sound };
-        }
-        case "text": {
-          const span = spanOf(context, args[0], scope);
-          return { string: textOf(context, span.start, span.end) };
-        }
-        case "split": {
-          // A set of strings (engine §10); an empty delimiter that only a
-          // parse sees is an error of the grammar.
-          const string = asString(evaluate(context, args[0], scope));
-          const delimiter = asString(evaluate(context, args[1], scope));
-          if (delimiter === "") throw new GencmuError("grammar", "split has an empty delimiter");
-          return { set: splitString(string, delimiter) };
-        }
-        case "tag": {
-          const name = asString(evaluate(context, args[0], scope));
-          if (!isName(name)) throw new GencmuError("grammar", `tag(${JSON.stringify(name)}): the string is not a name`);
-          return { set: tagSet([name]) };
-        }
-        case "tags": {
-          const span = spanOf(context, args[0], scope);
-          if (args.length === 2) return { set: nestedTags(context, ruleName(args[1]), span.start, span.end) };
-          if (span.tags && "capture" in args[0]) return { set: span.tags };
-          return { set: tokensTags(context.tokens, span.start, span.end) };
-        }
-        case "classify": {
-          // The classes that the classifier gives the string, for the
-          // features of the parse, or none for an unknown key (engine §10).
-          const key = asString(evaluate(context, args[0], scope));
-          const name = /** @type {{classifier: string}} */ (args[1]).classifier;
-          const table = context.lowered.classifiers.get(name);
-          return { set: (table && table.get(key)) || tagSet() };
-        }
-        case "classes": {
-          const span = spanOf(context, args[0], scope);
-          const tags = span.tags && "capture" in args[0] ? span.tags : tokensTags(context.tokens, span.start, span.end);
-          const result = tagSet();
-          for (const tag of tags) {
-            const first = tag.charCodeAt(0);
-            if (first >= 0x41 && first <= 0x5a) result.add(tag);
-          }
-          return { set: result };
-        }
-        default:
-          throw new GencmuError("grammar", `unknown function ${term.call}`);
-      }
-    }
-    throw new GencmuError("grammar", `unknown term ${JSON.stringify(term)}`);
-  }
-
-  /**
-   * The rule an argument names.
-   * @param {Argument} argument
-   * @returns {string}
-   */
-  function ruleName(argument) {
-    if ("rule" in argument) return argument.rule;
-    throw new GencmuError("grammar", `expected a rule name, found ${JSON.stringify(argument)}`);
-  }
-
-  /**
-   * @param {TermValue} value
-   * @returns {Set<string>}
-   */
-  function asSet(value) {
-    if ("set" in value) return value.set;
-    throw new GencmuError("grammar", "expected a set");
-  }
-
-  /**
-   * @param {TermValue} value
-   * @returns {string}
-   */
-  function asString(value) {
-    if ("string" in value) return value.string;
-    throw new GencmuError("grammar", "expected a string");
-  }
-
-  /**
-   * @param {ParseContext} context
-   * @param {Condition} condition
-   * @param {Scope} scope
-   * @returns {boolean}
-   */
-  function holds(context, condition, scope) {
-    if ("any" in condition) return condition.any.some((item) => holds(context, item, scope));
-    if ("all" in condition) return condition.all.every((item) => holds(context, item, scope));
-    // The consequent is evaluated only where the antecedent holds (engine §10).
-    if ("if" in condition) return !holds(context, condition.if, scope) || holds(context, /** @type {Condition} */ (condition.then), scope);
-    if ("not" in condition) return !holds(context, condition.not, scope);
-    // A presence test is decided when the grammar is lowered (engine §3.6).
-    if ("captured" in condition) throw new GencmuError("grammar", "a presence test outlived lowering");
-    if ("matches" in condition) {
-      const span = spanOf(context, condition.matches, scope);
-      return nestedMatches(context, condition.rule, span.start, span.end);
-    }
-    if ("begins" in condition) {
-      const span = spanOf(context, condition.begins, scope);
-      return nestedBegins(context, condition.rule, span.start, span.end);
-    }
-    // Where the input of the parse that reads the condition begins (engine §10).
-    if ("initial" in condition) return spanOf(context, condition.initial, scope).start === context.inputStart;
-    const left = evaluate(context, condition.left, scope);
-    const right = evaluate(context, condition.right, scope);
-    switch (condition.op) {
-      case "=":
-      case "≠": {
-        let equal;
-        if ("string" in left && "string" in right) equal = left.string === right.string;
-        else equal = sameTags(asSet(left), asSet(right));
-        return equal === (condition.op === "=");
-      }
-      case "∈":
-      case "∉":
-        return asSet(right).has(asString(left)) === (condition.op === "∈");
-      case "⊆":
-      case "⊈":
-        return isSubset(asSet(left), asSet(right)) === (condition.op === "⊆");
-      default:
-        throw new GencmuError("grammar", `unknown comparison ${condition.op}`);
-    }
-  }
-
-  // The longest span whose answers are remembered by content, so that a word
-  // repeated at many places is looked up once; a longer span is remembered by
-  // position, since a key of content costs as much as the span is long, and the
-  // span of `from` or `after` runs to the end of the input (engine §4).
-  const CONTENT_KEY_LIMIT = 64;
-
-  // The key under which a nested parse's answer is remembered: everything the
-  // nested parse can observe (engine §4).
-  /**
-   * @param {ParseContext} context
-   * @param {string} kind
-   * @param {string} rule
-   * @param {number} start
-   * @param {number} end
-   * @returns {string}
-   */
-  function nestedKey(context, kind, rule, start, end) {
-    if (end - start > CONTENT_KEY_LIMIT) return JSON.stringify(["at", kind, rule, start, end]);
-    // The text over the span's source (engine §1), and each token's tags,
-    // text, phonemes, and where it begins and ends in that text, which text()
-    // of a part of the span reads.
-    const [low, high] = start < end ? context.sources.of(start, end) : [0, 0];
-    /** @type {(string | number)[]} */
-    const key = ["of", kind, rule, context.sourceText.slice(low, high).join("")];
-    for (let index = start; index < end; index++) {
-      const token = context.tokens[index];
-      key.push(tagKey(token.tags), token.text, token.phonemes || "", token.source[0] - low, token.source[1] - low);
-    }
-    return JSON.stringify(key);
-  }
-
-  /**
-   * @template {boolean | TagSet} T
-   * @param {ParseContext} context
-   * @param {string} kind
-   * @param {string} rule
-   * @param {number} start
-   * @param {number} end
-   * @param {(chart: Chart) => T} compute
-   * @returns {T}
-   */
-  function nested(context, kind, rule, start, end, compute) {
-    const key = nestedKey(context, kind, rule, start, end);
-    if (context.nested.has(key)) return /** @type {T} */ (context.nested.get(key));
-    // A parse in progress is known by its rule and span, whatever the kind of
-    // query, so that alternating kinds cannot hide a query about a span from
-    // inside its own parse (engine §4).
-    const circular = "parse\u0001" + rule + "\u0001" + start + "\u0001" + end;
-    if (context.inProgress.has(circular)) {
-      throw new GencmuError("grammar",
-        `a condition asks whether ${JSON.stringify(textOf(context, start, end))} parses as ${rule} from inside the parse of that span as ${rule}: ` +
-        `the grammar defines ${rule} in terms of itself over the same text`, { rule });
-    }
-    context.inProgress.add(circular);
-    if (context.trace) context.trace.depth++;
-    try {
-      const chart = recognize(context, rule, start, end);
-      const answer = compute(chart);
-      context.nested.set(key, answer);
-      return answer;
-    } finally {
-      context.inProgress.delete(circular);
-      if (context.trace) context.trace.depth--;
-    }
-  }
-
-  /**
-   * @param {ParseContext} context
-   * @param {string} rule
-   * @param {number} start
-   * @param {number} end
-   * @returns {boolean}
-   */
-  function nestedMatches(context, rule, start, end) {
-    return nested(context, "matches", rule, start, end, (chart) => eligibleWitnesses(chart, rootItems(chart, rule), testHolds).length > 0);
-  }
-
-  /**
-   * Whether a prefix of [start, end) parses as `rule`: a completed item of it
-   * with an eligible witness has its origin at `start`, in any set (engine
-   * §4).
-   * @param {ParseContext} context
-   * @param {string} rule
-   * @param {number} start
-   * @param {number} end
-   * @returns {boolean}
-   */
-  function nestedBegins(context, rule, start, end) {
-    return nested(context, "begins", rule, start, end, (chart) => {
-      /** @type {Item[]} */
-      const witnesses = [];
-      for (const set of chart.sets) {
-        if (set === undefined) continue;
-        for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule) witnesses.push(item);
-      }
-      return eligibleWitnesses(chart, witnesses, testHolds).length > 0;
-    });
-  }
-
-  /**
-   * @param {ParseContext} context
-   * @param {string} rule
-   * @param {number} start
-   * @param {number} end
-   * @returns {TagSet}
-   */
-  function nestedTags(context, rule, start, end) {
-    return nested(context, "tags", rule, start, end, (chart) =>
-      eligibleWitnesses(chart, rootItems(chart, rule), testHolds).reduce((acc, item) => tagUnion(acc, context.interner.get(item.tagId)), tagSet()));
-  }
-
-  // The furthest position the parse reached, and what could have been read
-  // there, with the rules that could have read it.
-  /**
-   * @param {Chart} chart
-   * @returns {{position: number, expected: Expectation[]}}
-   */
-  function rejectionOf(chart) {
-    const position = chart.furthest;
-    return { position, expected: expectedAt(chart, position) };
-  }
-
-  /**
-   * The terminals the parse could have read at a position, each with the
-   * rules whose items could have read it: the items there whose next symbol
-   * is a terminal, and the predictions the lookahead did not make items of.
-   * @param {Chart} chart
-   * @param {number} position
-   * @returns {Expectation[]}
-   */
-  function expectedAt(chart, position) {
-    const set = chart.setAt(position);
-    /** @type {Map<string, Set<string>>} */
-    const expected = new Map();
-    /** @type {(terminal: string, rule: string) => void} */
-    const note = (terminal, rule) => {
-      let rules = expected.get(terminal);
-      if (!rules) expected.set(terminal, (rules = new Set()));
-      rules.add(rule);
-    };
-    for (const item of set.items) {
-      const next = item.production.rhs[item.dot];
-      if (next && next.terminal) note(writtenSymbol(next), item.production.owner);
-    }
-    // A skipped prediction passed its conditions before it was skipped. Those
-    // it checked then use no captures, so they hold again now.
-    const context = chart.context;
-    const next = position < chart.end ? context.tokens[position] : null;
-    for (const rule of set.skipped) {
-      for (const production of context.lowered.byLhs.get(rule) || []) {
-        if (!lookaheadSkips(context, production, next) || failedCondition(context, production, -1, emptySlots(production), position, position)) continue;
-        note(writtenSymbol(production.rhs[0]), production.owner);
-      }
-    }
-    return [...expected].sort((left, right) => compareCodePoints(left[0], right[0])).map(([terminal, rules]) => ({
-      terminal,
-      rules: [...rules].sort(compareCodePoints),
-    }));
-  }
-
   // ---- walk.js
   // Walks over result trees with an explicit stack. A left-recursive rule
   // with several alternatives, such as the word stage's stream, leaves one
@@ -1843,7 +379,8 @@
   /**
    * A witness action in the result JSON.
    * @typedef {{read: {token: number, terminal: string}}
-   *   | {close: {rule: string, production: number, span: Span}}} ActionJson
+   *   | {close: {rule: string, production: number, span: Span}}
+   *   | {elided: {at: number, terminal: string}}} ActionJson
    */
 
   /**
@@ -1851,6 +388,7 @@
    * @typedef {object} ErrorJson
    * @property {ParseError["kind"]} kind
    * @property {string} [stage]
+   * @property {"elision-witness-lost"} [code]
    * @property {"tie" | "elision-only"} [reason]
    * @property {number} [token]
    * @property {Span} [source]
@@ -1858,8 +396,11 @@
    * @property {number} [column]
    * @property {import("./types.js").Expectation[]} [expected]
    * @property {NodeJson[]} [readings]
+   * @property {ActionJson[]} [witness]
    * @property {string} [document]
    * @property {string} message
+   * @property {NodeJson} [chosen]
+   * @property {import("./types.js").Restoration[]} [completion]
    */
 
   /**
@@ -1867,7 +408,7 @@
    * @typedef {object} StageJson
    * @property {string} name
    * @property {import("./types.js").Verdict | null} verdict
-   * @property {(ActionJson | null)[]} [witness]
+   * @property {ActionJson[]} [witness]
    * @property {TokenJson[]} [output]
    */
 
@@ -1898,7 +439,7 @@
    * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | string[] | null}} DisplayValue
    */
 
-  const RESULT_FORMAT = 7;
+  const RESULT_FORMAT = 9;
 
   /**
    * A token in the result JSON. An attached token has no span, and a list of
@@ -1937,12 +478,12 @@
   }
 
   /**
-   * @param {WitnessAction | null} action
-   * @returns {ActionJson | null}
+   * @param {WitnessAction} action
+   * @returns {ActionJson}
    */
   function actionJson(action) {
-    if (action === null) return null;
     if (action.kind === "read") return { read: { token: action.token, terminal: action.terminal } };
+    if (action.kind === "elided") return { elided: { at: action.at, terminal: action.terminal } };
     return { close: { rule: action.rule, production: action.production, span: [action.span[0], action.span[1]] } };
   }
 
@@ -1954,6 +495,7 @@
     /** @type {Partial<ErrorJson>} */
     const result = { kind: error.kind };
     if (error.stage !== undefined) result.stage = error.stage;
+    if (error.code !== undefined) result.code = error.code;
     if (error.reason !== undefined) result.reason = error.reason;
     if (error.token !== undefined) result.token = error.token;
     if (error.source !== undefined) result.source = error.source;
@@ -1961,8 +503,20 @@
     if (error.column !== undefined) result.column = error.column;
     if (error.expected !== undefined) result.expected = error.expected;
     if (error.readings !== undefined) result.readings = error.readings.map(nodeJson);
+    // Only an error of elision-only has a witness (docs/output.md).
+    if (error.witness !== undefined && error.reason === "elision-only") result.witness = error.witness.map(actionJson);
     if (error.document !== undefined) result.document = error.document;
     result.message = error.message;
+    // The members of elision-witness-lost follow its message (docs/output.md).
+    if (error.chosen !== undefined) result.chosen = nodeJson(error.chosen);
+    if (error.completion !== undefined) {
+      result.completion = error.completion.map((record) => {
+        /** @type {import("./types.js").Restoration} */
+        const json = { terminal: record.terminal, at: record.at, source: [record.source[0], record.source[1]] };
+        if (record.sound !== undefined) json.sound = record.sound;
+        return json;
+      });
+    }
     return /** @type {ErrorJson} */ (result);
   }
 
@@ -2386,6 +940,656 @@
     return result.stages[result.stages.length - 1].input || [];
   }
 
+
+  // ---- cases.js
+  // Corpus cases (tests/README.md, "Corpus cases"): what a result gives in a
+  // case's own terms, and where it differs from the case. The corpus runner of
+  // the library's tests and `gencmu test` share this code, so that they compare
+  // cases in one way. Neither the index nor node.js exports it.
+
+
+
+  /**
+   * The fields of a corpus case that a result is compared with, in the order
+   * in which a difference is reported.
+   */
+  const CASE_FIELDS = /** @type {const} */ (["expect", "verdict", "stage", "at", "error", "ties", "words", "brackets"]);
+
+  /**
+   * What a corpus case records of a result.
+   * @typedef {object} CaseOutcome
+   * @property {"accept" | "reject"} expect
+   * @property {import("./types.js").Verdict | null} [verdict] the verdict of
+   *   the last stage of an accepted text
+   * @property {string | null | undefined} [stage] the stage that rejected a
+   *   text
+   * @property {number} [at] where that stage stopped, as a position in the
+   *   text
+   * @property {{kind: string, reason: string | undefined}} [error] an
+   *   ambiguous error's kind and reason
+   * @property {string[]} [ties] the stages whose verdict is a tie
+   * @property {string[]} [words] the labels of the words stage's output
+   * @property {string} [brackets] the tree of an accepted text, with elided
+   *   terminators hidden
+   */
+
+  /**
+   * A result in the terms of a corpus case.
+   * @param {import("./types.js").ParseResult} result
+   * @returns {CaseOutcome}
+   */
+  function caseOutcome(result) {
+    /** @type {CaseOutcome} */
+    const got = { expect: result.ok ? "accept" : "reject" };
+    if (result.ok) got.verdict = result.stages[result.stages.length - 1].verdict;
+    else got.stage = result.error ? result.error.stage : null;
+    // A rejection pins where its stage stopped, as a position in the text
+    // (tests/README.md).
+    if (!result.ok && result.error && result.error.source) got.at = result.error.source[0];
+    // An ambiguous error pins its kind and reason (tests/README.md).
+    if (result.error && result.error.kind === "ambiguous") got.error = { kind: result.error.kind, reason: result.error.reason };
+    const ties = result.stages.filter((stage) => stage.verdict === "tie").map((stage) => stage.name);
+    if (ties.length) got.ties = ties;
+    const words = result.stages.find((stage) => stage.name === "words");
+    if (words && words.output) got.words = words.output.map((token) => token.label);
+    if (result.ok) got.brackets = toBrackets(result);
+    return got;
+  }
+
+  /**
+   * The first field in which a case and an outcome differ, as a sentence, or
+   * null where they agree. A field counts where the case or the outcome has
+   * it (tests/README.md).
+   * @param {Record<string, unknown>} expected the case
+   * @param {CaseOutcome} got
+   * @returns {string | null}
+   */
+  function caseDifference(expected, got) {
+    for (const key of CASE_FIELDS) {
+      if (!(key in expected) && !(key in got)) continue;
+      if (JSON.stringify(expected[key]) !== JSON.stringify(got[key])) {
+        return `${key} expected ${JSON.stringify(expected[key])}, got ${JSON.stringify(got[key])}`;
+      }
+    }
+    return null;
+  }
+
+  // ---- errors.js
+  // The one error type the library throws: a grammar that cannot be loaded or
+  // run. A text that does not parse is not an error but a result.
+
+  class GencmuError extends Error {
+    /**
+     * @param {"grammar" | "usage"} kind a grammar that cannot be loaded or
+     *   run, or a caller's mistake such as an unknown stage name
+     * @param {string} message
+     * @param {import("./types.js").ErrorLocation} [where]
+     * @param {{cause?: unknown}} [options] the error that caused this one
+     */
+    constructor(kind, message, where, options) {
+      super(message, options);
+      this.name = "GencmuError";
+      this.kind = kind;
+      this.where = where || {};
+    }
+  }
+
+  // ---- tokens.js
+  // Tokens (engine §1): what every stage reads and writes.
+
+
+
+  /** @import { TagSet, Span } from "./types.js" */
+  /** @import { UnicodeTable } from "./unicode.js" */
+
+  /**
+   * A token attached to another (engine §11): a token with no span, since its
+   * span counts the input of the stage that attached it.
+   * @typedef {Omit<Token, "span">} AttachedToken
+   */
+
+  // The attachments of a token that has none: one frozen list, shared, so that
+  // a character token costs no lists of its own.
+  /** @type {AttachedToken[]} */
+  const NO_ATTACHMENTS = /** @type {AttachedToken[]} */ (/** @type {unknown} */ (Object.freeze([])));
+
+  class Token {
+    /**
+     * @param {TagSet} tags
+     * @param {Span} span the tokens of the stage before it this token covers
+     * @param {Span} source the code points of the text it covers
+     * @param {string} text the text it covers, as written
+     * @param {string | null} phonemes what it sounds like
+     * @param {string | undefined} insertedBy the rule that inserted it, for a
+     *   token no text stands for
+     * @param {string} [label] what it shows to people (engine §5): by default
+     *   its text, as for a character token or one that a caller supplies
+     */
+    constructor(tags, span, source, text, phonemes, insertedBy, label = text) {
+      this.tags = tags;
+      this.span = span;
+      this.source = source;
+      this.text = text;
+      this.phonemes = phonemes;
+      this.insertedBy = insertedBy;
+      this.label = label;
+      /**
+       * The tokens attached before this one (engine §11), none by default.
+       * @type {AttachedToken[]}
+       */
+      this.before = NO_ATTACHMENTS;
+      /**
+       * The tokens attached after this one (engine §11), none by default.
+       * @type {AttachedToken[]}
+       */
+      this.after = NO_ATTACHMENTS;
+    }
+  }
+
+  /**
+   * Whether a token has attachments (engine §11).
+   * @param {AttachedToken} token
+   * @returns {boolean}
+   */
+  function hasAttachments(token) {
+    return token.before.length > 0 || token.after.length > 0;
+  }
+
+  /**
+   * A token as an attachment: the same token without its span (engine §11).
+   * @param {Token} token
+   * @returns {AttachedToken}
+   */
+  function attached(token) {
+    const { span, ...rest } = token;
+    void span;
+    return rest;
+  }
+
+  // The source of a run of tokens (engine §1): from the least source start
+  // among them to the greatest source end. Tokens usually lie in the order of
+  // their sources, and then that is the first token's start and the last
+  // token's end. Otherwise a table of the least start and the greatest end of
+  // every run of a power of two tokens answers without a scan, so that the
+  // nested nodes of a long left-recursive rule cost no more than its tokens.
+  class Sources {
+    /** @param {Token[]} tokens */
+    constructor(tokens) {
+      this.tokens = tokens;
+      /**
+       * Made at the first question: null when the tokens are in order.
+       * @type {{lows: number[][], highs: number[][]} | null | undefined}
+       */
+      this.table = undefined;
+    }
+
+    /**
+     * The source of tokens [start, end), which must not be empty.
+     * @param {number} start
+     * @param {number} end
+     * @returns {Span}
+     */
+    of(start, end) {
+      if (this.table === undefined) this.table = sourceTable(this.tokens);
+      if (this.table === null) return [this.tokens[start].source[0], this.tokens[end - 1].source[1]];
+      // Two runs of a power of two tokens cover the span between them.
+      const level = 31 - Math.clz32(end - start);
+      const other = end - (1 << level);
+      const lows = this.table.lows[level];
+      const highs = this.table.highs[level];
+      return [Math.min(lows[start], lows[other]), Math.max(highs[start], highs[other])];
+    }
+  }
+
+  /**
+   * @param {Token[]} tokens
+   * @returns {{lows: number[][], highs: number[][]} | null}
+   */
+  function sourceTable(tokens) {
+    let ordered = true;
+    for (let index = 1; index < tokens.length && ordered; index++) {
+      const before = tokens[index - 1].source;
+      const after = tokens[index].source;
+      ordered = before[0] <= after[0] && before[1] <= after[1];
+    }
+    if (ordered) return null;
+    // lows[k][i] is the least start of tokens [i, i + 2^k), and highs[k][i]
+    // the greatest end.
+    const lows = [tokens.map((token) => token.source[0])];
+    const highs = [tokens.map((token) => token.source[1])];
+    for (let width = 1; 2 * width <= tokens.length; width *= 2) {
+      const low = lows[lows.length - 1];
+      const high = highs[highs.length - 1];
+      /** @type {number[]} */
+      const nextLow = [];
+      /** @type {number[]} */
+      const nextHigh = [];
+      for (let index = 0; index + 2 * width <= tokens.length; index++) {
+        nextLow.push(Math.min(low[index], low[index + width]));
+        nextHigh.push(Math.max(high[index], high[index + width]));
+      }
+      lows.push(nextLow);
+      highs.push(nextHigh);
+    }
+    return { lows, highs };
+  }
+
+  // The first stage's input: one token per code point, tagged with its
+  // character tag and nothing else (engine §1).
+  /**
+   * @param {string} text
+   * @param {UnicodeTable} unicode
+   * @returns {Token[]}
+   */
+  function characterTokens(text, unicode) {
+    const tokens = [];
+    let index = 0;
+    for (const character of text) {
+      const code = /** @type {number} */ (character.codePointAt(0));
+      const tags = tagSet([characterTag(code, unicode)]);
+      tokens.push(new Token(tags, [index, index + 1], [index, index + 1], character, null, undefined));
+      index++;
+    }
+    return tokens;
+  }
+
+  // A text's code points, for slicing by code point positions.
+  /**
+   * @param {string} text
+   * @returns {string[]}
+   */
+  function codePoints(text) {
+    return [...text];
+  }
+
+  // ---- eligible.js
+  // Written-terminator priority for nested queries (engine §4): which
+  // completed items of a queried rule have an eligible witness.
+
+  /**
+   * @import { Edge, Item, LoweredGrammar, SymbolTest, TagSet } from "./types.js"
+   * @import { Chart, ParseContext } from "./earley.js"
+   */
+
+  /**
+   * Whether a test holds of a span with the given tags: the recognizer's own,
+   * passed in so that this module does not import the recognizer.
+   * @typedef {(context: ParseContext, test: SymbolTest, from: number, to: number, tags: TagSet) => boolean} TestHolds
+   */
+
+  // How many completions the maximality checks of nested queries have read,
+  // for a test that the work stays linear.
+  const counters = { checks: 0, candidates: 0 };
+
+  /** @type {WeakMap<LoweredGrammar, Set<string>>} */
+  const elidableHelpers = new WeakMap();
+
+  /**
+   * The helpers of a grammar's elidable optionals (engine §3.8), by name.
+   * @param {LoweredGrammar} lowered
+   * @returns {Set<string>}
+   */
+  function helpersOf(lowered) {
+    let helpers = elidableHelpers.get(lowered);
+    if (!helpers) {
+      helpers = new Set();
+      for (const production of lowered.productions) if (production.helper && production.elided !== null) helpers.add(production.lhs);
+      elidableHelpers.set(lowered, helpers);
+    }
+    return helpers;
+  }
+
+  /**
+   * Whether a completed item is the empty helper of an elidable optional: an
+   * advance over it is an omission.
+   * @param {Item} item
+   * @returns {boolean}
+   */
+  function omitted(item) {
+    return item.production.helper && item.production.elided !== null && item.production.rhs.length === 0;
+  }
+
+  /**
+   * Whether a completed item is an elidable optional's helper over its
+   * nonempty alternative: an advance over it reads the optional as written.
+   * @param {Item} item
+   * @returns {boolean}
+   */
+  function written(item) {
+    return item.dot === item.production.rhs.length && item.production.helper && item.production.elided !== null && item.production.rhs.length > 0;
+  }
+
+  /**
+   * The witnesses, completed items of the queried rule, that have an eligible
+   * witness in the chart (engine §4). An omission is an advance over the
+   * empty helper of an elidable optional at its position p. It is forbidden
+   * where the prefix that the witness holds fixed can go on and read the
+   * optional as written:
+   *
+   * - Where the optional has a constituent Y, the prefix is the item before Y
+   *   in the same witness. The omission is forbidden when the chart advances
+   *   that item over Y to some p' ≥ p, and the item so made advances over the
+   *   optional's nonempty alternative.
+   * - Otherwise the prefix is the item before the optional, and the omission
+   *   is forbidden when the chart advances that item over the nonempty
+   *   alternative.
+   *
+   * An omission of a maximal terminator with a constituent Y is also
+   * forbidden when the chart has a longer Y: a completed item of Y from the
+   * same origin with a later end, which passes Y's test. Maximality never
+   * forbids an omission with no constituent.
+   *
+   * The chart is the whole recognition of the query, before any filtering,
+   * so an attempt that never completes the rule can forbid an omission.
+   *
+   * Each item has two states, computed together to the least fixpoint: it has
+   * an eligible witness (A), and it has an eligible witness that permits the
+   * optional after it to be empty (L). L follows the edge of the witness,
+   * so a permitted omission never combines with another witness's prefix.
+   * @param {Chart} chart
+   * @param {Item[]} witnesses
+   * @param {TestHolds} testHolds
+   * @returns {Item[]}
+   */
+  function eligibleWitnesses(chart, witnesses, testHolds) {
+    if (witnesses.length === 0) return witnesses;
+    const helpers = helpersOf(chart.context.lowered);
+    if (helpers.size === 0) return witnesses;
+    // The items the witnesses rest on, children before the items made from
+    // them where the edges allow, so that one sweep settles most of them.
+    /** @type {Map<Item, number>} */
+    const index = new Map();
+    /** @type {Item[]} */
+    const order = [];
+    let omits = false;
+    for (const witness of witnesses) {
+      if (index.has(witness)) continue;
+      index.set(witness, -1);
+      /** @type {{item: Item, edges: Edge[], next: number}[]} */
+      const stack = [{ item: witness, edges: witness.edges, next: 0 }];
+      while (stack.length > 0) {
+        const frame = stack[stack.length - 1];
+        let pushed = false;
+        while (frame.next < frame.edges.length * 2) {
+          const step = frame.next++;
+          const edge = frame.edges[step >> 1];
+          /** @type {Item | null} */
+          let below = null;
+          if ((step & 1) === 0) below = edge.kind === "seed" || edge.kind === "restore" ? null : edge.previous;
+          else if (edge.kind === "complete") {
+            below = edge.child;
+            if (omitted(edge.child)) omits = true;
+          }
+          if (below !== null && !index.has(below)) {
+            index.set(below, -1);
+            stack.push({ item: below, edges: below.edges, next: 0 });
+            pushed = true;
+            break;
+          }
+        }
+        if (pushed) continue;
+        stack.pop();
+        index.set(frame.item, order.length);
+        order.push(frame.item);
+      }
+    }
+    // With no omission, every item of a chart has a finite proof, made from
+    // predicted items in the order in which the recognizer made it.
+    if (!omits) return witnesses;
+
+    // The prefixes that advance over a written optional, and for each item
+    // before a constituent Y, the furthest end of an advance over Y that then
+    // reads the optional as written.
+    /** @type {Set<Item>} */
+    const reads = new Set();
+    for (const set of chart.sets) {
+      if (!set) continue;
+      for (const item of set.items) {
+        for (const edge of item.edges) if (edge.kind === "complete" && written(edge.child)) reads.add(edge.previous);
+      }
+    }
+    /** @type {Map<Item, number>} */
+    const further = new Map();
+    for (const item of reads) {
+      for (const edge of item.edges) {
+        if (edge.kind !== "complete") continue;
+        const known = further.get(edge.previous);
+        if (known === undefined || known < item.end) further.set(edge.previous, item.end);
+      }
+    }
+
+    // For each item, whether an elidable optional comes next, and whether it
+    // has a constituent: not at the start, not after a terminal, and not
+    // after the first symbol of a production whose first symbol is its own
+    // rule (engine §4).
+    const next = order.map((item) => {
+      const rhs = item.production.rhs;
+      const symbol = rhs[item.dot];
+      if (symbol === undefined || symbol.terminal || !helpers.has(symbol.name)) return "none";
+      if (item.dot === 0 || rhs[item.dot - 1].terminal) return "alone";
+      if (item.dot === 1 && rhs[0].name === item.production.lhs) return "alone";
+      return "constituent";
+    });
+    // Whether the optional after each item is of a maximal terminator.
+    const lowered = chart.context.lowered;
+    const maximalNext = order.map((item, x) => {
+      if (next[x] !== "constituent" || lowered.maximalTerminals.size === 0) return false;
+      const helpers = lowered.byLhs.get(item.production.rhs[item.dot].name) || [];
+      return helpers.some((production) => production.elided !== null && lowered.maximalTerminals.has(production.elided));
+    });
+    // The completed items of each symbol from each origin, in the query's
+    // chart, made once per query when a maximal terminator needs them, with
+    // the furthest end of each list. For a tested symbol, the furthest end of
+    // a completion that passes the test is kept for each test, since a test
+    // reads only the candidate's own span and tags. So each check is a
+    // lookup, and not a walk of the list.
+    /** @type {Map<string, {items: Item[], furthest: number, tested: Map<SymbolTest, number>}> | null} */
+    let completed = null;
+    /** @type {(constituent: Item, x: number) => boolean} */
+    const longer = (constituent, x) => {
+      counters.checks++;
+      if (completed === null) {
+        completed = new Map();
+        for (const set of chart.sets) {
+          if (!set) continue;
+          for (const item of set.items) {
+            if (item.dot !== item.production.rhs.length) continue;
+            const key = `${item.production.lhs}\u0000${item.origin}`;
+            const entry = completed.get(key);
+            if (entry) {
+              entry.items.push(item);
+              if (item.end > entry.furthest) entry.furthest = item.end;
+            } else completed.set(key, { items: [item], furthest: item.end, tested: new Map() });
+          }
+        }
+      }
+      const entry = completed.get(`${constituent.production.lhs}\u0000${constituent.origin}`);
+      if (entry === undefined) return false;
+      const test = order[x].production.rhs[order[x].dot - 1].test;
+      if (!test) return entry.furthest > constituent.end;
+      let furthest = entry.tested.get(test);
+      if (furthest === undefined) {
+        furthest = -1;
+        for (const candidate of entry.items) {
+          counters.candidates++;
+          if (candidate.end > furthest && testHolds(chart.context, test, candidate.origin, candidate.end, chart.context.interner.get(candidate.tagId))) furthest = candidate.end;
+        }
+        entry.tested.set(test, furthest);
+      }
+      return furthest > constituent.end;
+    };
+    const eligible = new Uint8Array(order.length);
+    const permits = new Uint8Array(order.length);
+    /** @type {(item: Item) => number} */
+    const at = (item) => /** @type {number} */ (index.get(item));
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let x = 0; x < order.length; x++) {
+        if (eligible[x] && (permits[x] || next[x] === "none")) continue;
+        const item = order[x];
+        let a = 0;
+        let l = 0;
+        for (const edge of item.edges) {
+          let through = 0;
+          // A query reads no synthetic token, so it has no restoration.
+          if (edge.kind === "seed" || edge.kind === "restore") through = 1;
+          else if (edge.kind === "scan") through = eligible[at(edge.previous)];
+          else {
+            const before = at(edge.previous);
+            through = (omitted(edge.child) ? permits[before] : eligible[before]) & eligible[at(edge.child)];
+          }
+          if (!through) continue;
+          a = 1;
+          if (next[x] === "alone") {
+            if (!reads.has(item)) l = 1;
+          } else if (next[x] === "constituent" && edge.kind === "complete") {
+            const end = further.get(edge.previous);
+            if ((end === undefined || end < item.end) && !(maximalNext[x] && longer(edge.child, x))) l = 1;
+          }
+        }
+        if (a && !eligible[x]) {
+          eligible[x] = 1;
+          changed = true;
+        }
+        if (l && !permits[x]) {
+          permits[x] = 1;
+          changed = true;
+        }
+      }
+    }
+    return witnesses.filter((witness) => eligible[at(witness)]);
+  }
+
+  // ---- testing.js
+  // Switches and hooks for the library's own tests. Nothing here is part of
+  // the API, and index.js does not export it.
+  //
+  // `faults` holds the faults that a test turns on, one at a time, to show
+  // which shared cases catch each (tests/README.md). An empty set is the
+  // engine as specified. The names F1 to F32 are those of the fault list of
+  // the check of elision-only. Each fault is defined by exactly what
+  // it reads, and a variant of a fault is a switch of its own, so that every
+  // catch that the fault table names is shown by injection:
+  //
+  // - "F1:<observer>", such as "F1:head", computes the observer over the
+  //   tokens of R behind its argument, and projects afterwards. The tokens
+  //   behind a function of a span are exact: one token for head and last,
+  //   and from the first original token for tail, from and after. from and
+  //   after have no such fault, since they give the same span before the
+  //   projection or after it.
+  // - "F1pos:<observer>" reads R at the positions that it is handed, which
+  //   for a function of a span are positions of the stage's input.
+  // - "F7:restoration" gives a restoration the synthetic token's tags,
+  //   "F7:capture" gives them to a capture of the terminal that reads it and
+  //   to a production that inherits from that terminal, and "F7:union" adds
+  //   the synthetic tokens' tags inside the exact span of R behind a span to
+  //   the union of its tokens' tags.
+  // - "F26:lost" loses an error of the grammar that the check meets, and
+  //   "F26:relabel" reports it as elision-witness-lost, which the runner
+  //   invariant of tests/README.md fails.
+  // - "F27:order" reverses the records at one position, and "F27:bare" shows
+  //   a read of a synthetic token as a token.
+  // - "F30" takes the greatest answer of "can read" (engine §7.4), "F31"
+  //   makes the item after the T of route 3 ordinary where a strict item read
+  //   T. "F32:queue" leaves an item that an ordinary step reaches as it was
+  //   processed while strict, and "F32:predict" never predicts again a rule
+  //   that a strict prediction predicted first.
+  // - "lost:roots" and "lost:count" lose the witness after recognition
+  //   (engine §7.9).
+  // - "lost:rank" gives a restoration no derivation in the ranking, so the
+  //   check's ranking does not count W(D) though its chart holds it. Most
+  //   cases see it through the result too, since the readings change or none
+  //   is left. reparse-witness-sibling-last sees it through the hook alone.
+  // - "lost:context" makes the check's count skip the last edge of an item
+  //   that has two or more, and "lost:select" makes its candidates skip it.
+  //   In the sibling cases that edge is W(D)'s. The count channel of the
+  //   witness hook alone sees lost:context, where the readings stay; the
+  //   selection channel sees lost:select, where W(D) was a reading.
+  // - "witness:project" leaves the witness of an error of elision-only over
+  //   R, unmapped: a read keeps its index in R, and a close its span there.
+  // - "order:tags" evaluates a completing item's tag term before its
+  //   conditions, and "order:conditions" evaluates the conditions that read
+  //   only captures before those that read `$`, against the order of one step
+  //   of the recognizer (engine §4). Both apply to every parse, the main parse
+  //   as well as the check.
+  //
+  // F25 finds no query cycle at all while the check runs. A detector that
+  // finds only some cycles gives the same public result, because the
+  // recursion meets the same rule and span one level deeper, and only the
+  // message differs, which no pattern pins. The switch ends the recursion at
+  // a bound, with an error that is not the library's, and faults.json labels
+  // that catch "bound".
+  //
+  // A fault with several sites names the site where it is checked, and
+  // `hits` counts each site that a run enters while the fault is on. The
+  // fault test asserts that the named cases enter every declared site.
+  //
+  // A strict and an ordinary prediction of one symbol at one position share
+  // their items (engine §7.4). So a fault of the strict path (F16, F29, F31,
+  // F32) shows only where that path is the only one at its position, or
+  // comes first, and a case that catches it says so. A case for a fault that
+  // depends on the order of processing comes in both orders.
+  //
+  // `hooks.elisionCheck`, when set, receives each check that recognized R
+  // and met no error of the grammar, before the check ranks, for the witness
+  // test of tests/README.md. It returns the marks of W(D)'s edges, which the
+  // check's own ranker takes, and a callback that receives the ranking.
+
+  /** @type {Set<string>} */
+  const faults = new Set();
+
+  /**
+   * How often each site of a fault was entered while that fault was on, by
+   * the fault's name, or its name and the site's after an @, for a fault
+   * with several sites. The fault test asserts that its named cases enter
+   * every declared site (tests/README.md).
+   * @type {Map<string, number>}
+   */
+  const hits = new Map();
+
+  /**
+   * What the check of engine §7 hands its test hook.
+   * @typedef {object} ElisionCheckRun
+   * @property {import("./types.js").Derivation} chosen D, the chosen
+   *   derivation of the main parse
+   * @property {import("./earley.js").Chart} chart the recognition of R
+   * @property {import("./types.js").Item[]} roots the completed items of
+   *   `text` over R
+   * @property {boolean[]} synthetic for each token of R, whether it is
+   *   synthetic, by its provenance
+   * @property {number[]} originalAt for each token of the stage's input, its
+   *   index in R
+   * @property {number[]} recordAt for each restoration record, the index of
+   *   its synthetic token in R
+   */
+
+  /**
+   * What the witness test hands back to the check: the marks of W(D)'s
+   * edges, for each item the indices of the edges that W(D) uses, or null
+   * where the chart does not hold W(D); and a callback that receives the
+   * check's ranking, with whether its count counted W(D).
+   * @typedef {object} ElisionCheckWatch
+   * @property {Map<import("./earley.js").Item, Set<number>> | null} marks
+   * @property {(outcome: {ranking: import("./rank.js").Ranking | null, counted: boolean}) => void} ranked
+   */
+
+  /** @type {{elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null}} */
+  const hooks = { elisionCheck: null };
+
+  /**
+   * Whether a fault is on, at one of its sites. A fault that is on counts the
+   * site as entered.
+   * @param {string} name
+   * @param {string} [site] the site, for a fault with several
+   * @returns {boolean}
+   */
+  function fault(name, site = "") {
+    if (faults.size === 0 || !faults.has(name)) return false;
+    const key = site === "" ? name : `${name}@${site}`;
+    hits.set(key, (hits.get(key) || 0) + 1);
+    return true;
+  }
 
   // ---- unicode.js
   // The character data of grammars/unicode.txt: the General_Category of a
@@ -3608,6 +2812,2717 @@
     return found;
   }
 
+  // ---- grammar.js
+  // A stage's grammar: its documents stitched together (engine §2) and
+  // lowered to productions for one set of features (engine §3).
+
+
+
+
+
+  /**
+   * @import { Condition, ConstantTerm, DomAlternative, DomClassifier, DomConstant, DomImplication, DomRule, Emission, ErrorLocation, Expr, GrammarDom, Guard, LoweredGrammar, Production, Resolution, SymbolTest, TagSet, Term, TermValue, TestOp } from "./types.js"
+   * @import { TermType } from "./dom.js"
+   */
+
+  /**
+   * A constant of a stage (engine §2): its value and type now, and the
+   * document of its last definition.
+   * @typedef {object} StageConstant
+   * @property {TermValue} value
+   * @property {TermType} type
+   * @property {string} document
+   */
+
+  /**
+   * An implication of a stage with its two sides' values (engine §2, §11).
+   * @typedef {object} StageImplication
+   * @property {TagSet} if
+   * @property {TagSet} then
+   */
+
+  /**
+   * A rule body's alternative as stitched: its own parts, its rule's clauses,
+   * and the document and position of the definition that wrote it.
+   * @typedef {DomAlternative & {clauses: RuleClauses, document: string, at: ErrorLocation}} StitchedAlternative
+   */
+
+  /**
+   * @typedef {object} RuleClauses
+   * @property {Term | undefined} tags
+   * @property {Emission | undefined} emit
+   * @property {Condition[]} conditions
+   * @property {boolean} opaque
+   */
+
+  /**
+   * A rule of the stitched grammar.
+   * @typedef {object} StitchedRule
+   * @property {string} name
+   * @property {string} document
+   * @property {ErrorLocation} at
+   * @property {StitchedAlternative[]} alternatives
+   */
+
+  /**
+   * How a later document changed a rule an earlier one defined.
+   * @typedef {object} RuleChange
+   * @property {"replaced" | "extended"} kind
+   * @property {string} rule
+   * @property {string} document
+   * @property {string} previous
+   */
+
+  /**
+   * A symbol of an expanded sequence, and the capture that names it.
+   * @typedef {{symbol: import("./types.js").GrammarSymbol, capture?: string}} SequenceItem
+   */
+
+  /**
+   * Where an expansion happens: the rule, and the helpers still to lower.
+   * @typedef {{rule: StitchedRule, pending: PendingHelper[]}} Where
+   */
+
+  /**
+   * @typedef {object} PendingHelper
+   * @property {string} name
+   * @property {(where: Where) => SequenceItem[][]} build
+   * @property {string | null} elided
+   * @property {SymbolTest | null} elidedTest
+   */
+
+  const MAX_CAPTURES = 4;
+
+  // The most lowered grammars, and the most classifier tables, that a stage
+  // keeps. Each set of the stage's gates that is on has its own, so a stage
+  // with k gates can have 2^k of them. The least recently used goes first.
+  const MAX_LOWERED = 16;
+
+  // Stitches documents, each { path, dom }, into one grammar.
+  class Grammar {
+    /**
+     * @param {string} stageName
+     * @param {{path: string, dom: GrammarDom}[]} documents
+     * @param {{isMark(code: number): boolean, lowercase(text: string): string}} unicode
+     *   the loader's table, for the tags of a range in a constant's value and
+     *   the canonical sound of a string constant in a test
+     */
+    constructor(stageName, documents, unicode) {
+      this.stageName = stageName;
+      this.unicode = unicode;
+      /** @type {Map<string, StageConstant>} */
+      this.constants = new Map();
+      /**
+       * The definitions of rules that use constants, which the loader checks
+       * once the constants have their final values.
+       * @type {{path: string, rule: DomRule}[]}
+       */
+      this.constantUsers = [];
+      /** @type {Map<string, StitchedRule>} */
+      this.rules = new Map();
+      /** @type {RuleChange[]} */
+      this.changes = [];
+      /** @type {Set<string>} */
+      this.elidable = new Set();
+      // The elidable terminators that %elidable maximal names (engine §2).
+      /** @type {Set<string>} */
+      this.maximalTerminals = new Set();
+      /** @type {Resolution | null} */
+      this.resolution = null;
+      /**
+       * The stage's `%classifier` items in stitching order, each with its
+       * document (engine §2).
+       * @type {{path: string, classifier: DomClassifier}[]}
+       */
+      this.classifierItems = [];
+      /** @type {{path: string, implication: DomImplication}[]} */
+      this.implicationItems = [];
+      for (const { path, dom } of documents) this.addDocument(path, dom);
+      this.resolveConstants();
+      /** @type {StageImplication[]} */
+      this.implications = this.implicationItems.map(({ path, implication }) => this.resolveImplication(path, implication));
+      /**
+       * The features that gate an entry of a classifier. Only these change
+       * the classifiers' values.
+       * @type {string[]}
+       */
+      this.classifierGates = gateNames(this.classifierItems.flatMap(({ classifier }) => classifier.entries.flatMap((entry) => entry.guards)));
+      /**
+       * The classifiers resolved for each set of the classifier gates that is
+       * on (engine §2).
+       * @type {Map<string, Map<string, Map<string, TagSet>>>}
+       */
+      this.classifierTables = new Map();
+      /**
+       * Each test of a body with its value, made once for every lowering.
+       * @type {WeakMap<object, SymbolTest>}
+       */
+      this.tests = new WeakMap();
+      this.checkElidableTests();
+      if (!this.resolution) {
+        throw new GencmuError("grammar", `stage ${stageName} has no %ambiguity-resolution`, { stage: stageName });
+      }
+      this.checkReferences();
+      /**
+       * The features that gate an alternative or an entry of a classifier.
+       * Only these change a lowered grammar. A warning keeps its alternative
+       * (engine §3.1), and any other name matches no guard (engine §13).
+       * @type {string[]}
+       */
+      this.gates = gateNames([
+        ...[...this.rules.values()].flatMap((rule) => rule.alternatives.flatMap((alternative) => alternative.guards)),
+        ...this.classifierItems.flatMap(({ classifier }) => classifier.entries.flatMap((entry) => entry.guards)),
+      ]);
+      /**
+       * The lowered grammars, keyed by the gates that are on.
+       * @type {Map<string, LoweredGrammar>}
+       */
+      this.lowered = new Map();
+    }
+
+    /**
+     * @param {string} path
+     * @param {GrammarDom} dom
+     */
+    addDocument(path, dom) {
+      for (const rule of dom.rules) {
+        if (constantsIn(rule).length > 0) this.constantUsers.push({ path, rule });
+        const at = { document: path, line: rule.at[0], column: rule.at[1] };
+        const clauses = { tags: rule.tags, emit: rule.emit, conditions: rule.conditions || [], opaque: rule.opaque === true };
+        const alternatives = rule.alternatives.map((alternative) => ({ ...alternative, clauses, document: path, at }));
+        const previous = this.rules.get(rule.name);
+        if (rule.op === "define") {
+          if (previous) {
+            throw new GencmuError("grammar", `${path}:${at.line}: %rule ${rule.name} is already defined, in ${previous.document}; %redefine-rule replaces a rule`, at);
+          }
+          this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives });
+        } else if (rule.op === "redefine") {
+          if (!previous) {
+            throw new GencmuError("grammar", `${path}:${at.line}: %redefine-rule ${rule.name} replaces no rule defined before it`, at);
+          }
+          this.changes.push({ kind: "replaced", rule: rule.name, document: path, previous: previous.document });
+          this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives });
+        } else {
+          const base = previous;
+          if (!base) {
+            throw new GencmuError("grammar", `${path}:${at.line}: %extend-rule ${rule.name} extends a rule that is not defined before it`, at);
+          }
+          this.changes.push({ kind: "extended", rule: rule.name, document: path, previous: base.document });
+          base.alternatives = base.alternatives.concat(alternatives);
+        }
+      }
+      for (const directive of dom.directives) {
+        const at = { document: path, line: directive.at[0], column: directive.at[1] };
+        switch (directive.name) {
+          case "ambiguity-resolution": {
+            if (this.resolution) {
+              throw new GencmuError("grammar", `${path}:${at.line}: stage ${this.stageName} has a second %ambiguity-resolution`, at);
+            }
+            const [lean, ...rest] = directive.args;
+            const elisionOnly = rest[0] === "elision-only";
+            if (elisionOnly) rest.shift();
+            const maximal = rest[0] === "maximal";
+            if (maximal) rest.shift();
+            if ((lean !== "greedy" && lean !== "lazy" && lean !== "late-elision") || rest.length > 0) {
+              throw new GencmuError("grammar", `${path}:${at.line}: %ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only, then optionally maximal`, at);
+            }
+            this.resolution = { lean, elisionOnly, maximal };
+            break;
+          }
+          case "elidable":
+            for (const terminal of directive.args) {
+              this.elidable.add(terminal);
+              if (directive.maximal) this.maximalTerminals.add(terminal);
+            }
+            break;
+          default:
+            throw new GencmuError("grammar", `${path}:${at.line}: unknown directive %${directive.name}`, at);
+        }
+      }
+      for (const constant of dom.constants) this.addConstant(path, constant);
+      for (const classifier of dom.classifiers) this.classifierItems.push({ path, classifier });
+      for (const implication of dom.implications) this.implicationItems.push({ path, implication });
+    }
+
+    /**
+     * An implication's two sides, with the constants' final values: closed
+     * terms whose type is a tag set (engine §2, §9).
+     * @param {string} path
+     * @param {DomImplication} implication
+     * @returns {StageImplication}
+     */
+    resolveImplication(path, implication) {
+      /** @type {(name: string) => TermType} */
+      const types = (name) => /** @type {StageConstant} */ (this.constants.get(name)).type;
+      /** @type {TagSet[]} */
+      const sides = [];
+      for (const side of [implication.if, implication.then]) {
+        for (const reference of constantsIn(side)) {
+          if (!this.constants.has(reference.const)) {
+            throw this.documentError(path, reference.at, `$${reference.const} is not defined in stage ${this.stageName}`);
+          }
+        }
+        const found = termType(side, types);
+        const problem = "problem" in found ? found.problem : expectedProblem(found.type, "tags");
+        if (problem) throw this.faultError(path, "problem" in found ? found.node : side, implication.at, `a side of an implication is a tag set: ${problem}`);
+        const value = this.evaluateClosed(path, side, implication.at);
+        sides.push("set" in value ? value.set : tagSet());
+      }
+      return { if: sides[0], then: sides[1] };
+    }
+
+    /**
+     * Each classifier of the stage for one set of features: each key's
+     * classes after every entry whose gates hold, in stitching order (engine
+     * §2). An entry that adds a membership that holds, or removes one that
+     * does not, is an error of the grammar for these features.
+     * @param {Set<string>} features
+     * @returns {Map<string, Map<string, TagSet>>}
+     */
+    classifiers(features) {
+      const key = JSON.stringify(this.classifierGates.filter((name) => features.has(name)));
+      let tables = recall(this.classifierTables, key);
+      if (tables) return tables;
+      tables = new Map();
+      for (const { path, classifier } of this.classifierItems) {
+        let table = tables.get(classifier.name);
+        if (!table) tables.set(classifier.name, (table = new Map()));
+        for (const entry of classifier.entries) {
+          if (!entry.guards.every((guard) => features.has(guard.feature) !== guard.negated)) continue;
+          for (const word of entry.keys) {
+            const classes = table.get(word) || tagSet();
+            if ((entry.op === "∈") === classes.has(entry.class)) {
+              const [line, column] = entry.at;
+              const message = entry.op === "∈" ? `${JSON.stringify(word)} is already in ${entry.class}` : `${JSON.stringify(word)} is not in ${entry.class}, so ∉ has nothing to remove`;
+              throw new GencmuError("grammar", `${path}:${line}:${column}: the classifier ${classifier.name}: ${message}`, { document: path, line, column });
+            }
+            const changed = new Set(classes);
+            if (entry.op === "∈") changed.add(entry.class);
+            else changed.delete(entry.class);
+            table.set(word, changed);
+          }
+        }
+      }
+      remember(this.classifierTables, key, tables);
+      return tables;
+    }
+
+    /**
+     * An error of the document at a position of it (engine §2).
+     * @param {string} path
+     * @param {[number, number]} position
+     * @param {string} message
+     * @returns {GencmuError}
+     */
+    documentError(path, position, message) {
+      const [line, column] = position;
+      return new GencmuError("grammar", `${path}:${line}:${column}: ${message}`, { document: path, line, column });
+    }
+
+    /**
+     * Defines or redefines a constant, with the value its term has at this
+     * point of the stage (engine §2).
+     * @param {string} path
+     * @param {DomConstant} constant
+     */
+    addConstant(path, constant) {
+      const { name, op, value } = constant;
+      const previous = this.constants.get(name);
+      if (op === "define" && previous) {
+        throw this.documentError(path, constant.at, `%const $${name} is already defined in stage ${this.stageName}, in ${previous.document}; %redefine-const gives it a new value`);
+      }
+      if (op === "redefine" && !previous) {
+        throw this.documentError(path, constant.at, `%redefine-const $${name} gives a value to no constant defined before it in stage ${this.stageName}`);
+      }
+      // A reference sees the constants defined before this point (engine §2).
+      for (const reference of constantsIn(value)) {
+        if (!this.constants.has(reference.const)) {
+          throw this.documentError(path, reference.at, `$${reference.const} is not defined before this point of stage ${this.stageName}`);
+        }
+      }
+      const found = constantValueType(value, op === "redefine", (other) => /** @type {StageConstant} */ (this.constants.get(other)).type);
+      if ("problem" in found) throw this.faultError(path, found.node, constant.at, found.problem);
+      let type = found.type;
+      if (previous) {
+        // A redefinition keeps the type, which gives ∅ its kind.
+        if (type === "set" && (previous.type === "strings" || previous.type === "tags")) type = previous.type;
+        if (type !== previous.type) {
+          throw this.documentError(path, constant.at, `%redefine-const $${name} keeps the type of the constant, and cannot make it ${TYPE_PHRASES[type]}`);
+        }
+      }
+      this.constants.set(name, { value: this.evaluateClosed(path, value, constant.at), type, document: path });
+    }
+
+    /**
+     * The error for a construct whose types disagree: at its first constant,
+     * which the loader alone could type, or else at the item (engine §9).
+     * @param {string} path
+     * @param {unknown} node
+     * @param {[number, number]} item
+     * @param {string} problem
+     * @returns {GencmuError}
+     */
+    faultError(path, node, item, problem) {
+      const first = constantsIn(node)[0];
+      return this.documentError(path, first ? first.at : item, problem);
+    }
+
+    /**
+     * The value of a closed term, with the constants' values now (engine §2,
+     * §10). An empty delimiter or a tag's string that is not a name comes
+     * from a constant here, since the reader refuses a literal one, and the
+     * error stands at that constant.
+     * @param {string} path
+     * @param {Term} term
+     * @param {[number, number]} item the position of the definition
+     * @returns {TermValue}
+     */
+    evaluateClosed(path, term, item) {
+      /** @type {(term: Term) => Set<string>} */
+      const set = (part) => {
+        const value = this.evaluateClosed(path, part, item);
+        return "set" in value ? value.set : tagSet();
+      };
+      /** @type {(term: Term) => string} */
+      const string = (part) => {
+        const value = this.evaluateClosed(path, part, item);
+        return "string" in value ? value.string : "";
+      };
+      if ("string" in term) return { string: term.string };
+      if ("tag" in term) return { set: tagSet([term.tag]) };
+      if ("range" in term) return { set: rangeTags(term.range, this.unicode) };
+      if ("emptySet" in term) return { set: tagSet() };
+      if ("const" in term) return /** @type {StageConstant} */ (this.constants.get(term.const)).value;
+      if ("union" in term) return { set: term.union.map(set).reduce(tagUnion, tagSet()) };
+      if ("intersection" in term) {
+        const [first, ...rest] = term.intersection.map(set);
+        return { set: rest.reduce(tagIntersection, first) };
+      }
+      if ("difference" in term) return { set: tagDifference(set(term.difference[0]), set(term.difference[1])) };
+      if ("call" in term && term.call === "split") {
+        // Left to right, as a parse evaluates a term (engine §10).
+        const [text, delimiter] = /** @type {Term[]} */ (term.args);
+        const pieces = string(text);
+        const seen = string(delimiter);
+        if (seen === "") throw this.faultError(path, delimiter, item, "split has an empty delimiter");
+        return { set: splitString(pieces, seen) };
+      }
+      if ("call" in term && term.call === "tag") {
+        const name = string(/** @type {Term} */ (term.args[0]));
+        if (!isName(name)) throw this.faultError(path, term.args[0], item, `tag(${JSON.stringify(name)}): the string is not a name`);
+        return { set: tagSet([name]) };
+      }
+      throw new GencmuError("grammar", `${path}: a constant's value is not a closed term`, { document: path });
+    }
+
+    /**
+     * Gives every constant in a rule its final value, once the stage is
+     * stitched, and checks what the reader could not: that each is defined,
+     * that the types agree, and that a constant that split or tag reads
+     * directly is a delimiter that is not empty, or a name (engine §2, §9,
+     * §10).
+     */
+    resolveConstants() {
+      /** @type {(name: string) => TermType} */
+      const types = (name) => /** @type {StageConstant} */ (this.constants.get(name)).type;
+      for (const { path, rule } of this.constantUsers) {
+        for (const reference of constantsIn(rule)) {
+          if (!this.constants.has(reference.const)) {
+            throw this.documentError(path, reference.at, `$${reference.const} is not defined in stage ${this.stageName}`);
+          }
+        }
+        const fault = ruleTypeFault(rule, types);
+        if (fault) throw this.faultError(path, fault.node, rule.at, fault.problem);
+        // The checks that simplification decides, which the reader left to
+        // the loader, now with the constants' values (engine §9).
+        const problem = definitionProblem(resolveNode(rule, this.constants));
+        if (problem) throw this.documentError(path, rule.at, problem);
+        // A string constant in a sound test must be a canonical sound (engine
+        // §2, §9); the error stands at the constant.
+        for (const alternative of rule.alternatives) {
+          for (const test of testsIn(alternative.expr)) {
+            const first = constantsIn(test.value)[0];
+            if (!isSoundTest(test.test) || !first) continue;
+            const value = this.evaluateClosed(path, test.value, rule.at);
+            const wrong = soundProblem("string" in value ? value.string : "", this.unicode);
+            if (wrong) throw this.documentError(path, first.at, wrong);
+          }
+        }
+        for (const call of callsIn(rule)) {
+          const argument = call.call === "split" ? call.args[1] : call.call === "tag" ? call.args[0] : undefined;
+          if (!argument || !("const" in argument)) continue;
+          const value = /** @type {StageConstant} */ (this.constants.get(argument.const)).value;
+          const seen = "string" in value ? value.string : "";
+          if (call.call === "split" && seen === "") throw this.documentError(path, argument.at, "split has an empty delimiter");
+          if (call.call === "tag" && !isName(seen)) throw this.documentError(path, argument.at, `tag(${JSON.stringify(seen)}): the string is not a name`);
+        }
+      }
+      if (this.constantUsers.length === 0) return;
+      // Each reference holds the final value; the clauses that a definition's
+      // alternatives share stay shared.
+      /** @type {Map<object, RuleClauses>} */
+      const resolved = new Map();
+      /** @type {<T>(node: T) => T} */
+      const resolve = (node) => /** @type {any} */ (resolveNode(node, this.constants));
+      for (const rule of this.rules.values()) {
+        rule.alternatives = rule.alternatives.map((alternative) => {
+          const { clauses } = alternative;
+          if (constantsIn(alternative.tags).length === 0 && constantsIn([clauses.tags, clauses.conditions, clauses.emit]).length === 0) return alternative;
+          let shared = resolved.get(clauses);
+          if (!shared) {
+            shared = { ...clauses, tags: resolve(clauses.tags), conditions: resolve(clauses.conditions), emit: resolve(clauses.emit) };
+            resolved.set(clauses, shared);
+          }
+          return { ...alternative, tags: resolve(alternative.tags), clauses: shared };
+        });
+      }
+    }
+
+    /**
+     * The terminal of an elidable optional has no test or an `=` test, since
+     * elision-only restores it with a sound (engine §3.8). The check runs once
+     * the stage is stitched, since a later %elidable can make an optional
+     * elidable, over every alternative whatever the features.
+     */
+    checkElidableTests() {
+      for (const rule of this.rules.values()) {
+        for (const alternative of rule.alternatives) {
+          const stack = [alternative.expr];
+          for (let expr = stack.pop(); expr !== undefined; expr = stack.pop()) {
+            if ("optional" in expr) {
+              let first = expr.optional;
+              while ("seq" in first) first = first.seq[0];
+              if ("test" in first && first.test !== "=") {
+                const name = tagName(first.expr);
+                if (name !== undefined && this.elidable.has(name)) {
+                  throw new GencmuError("grammar", `${alternative.document}: ${rule.name} can elide ${name}, whose test ${first.test} gives it no sound to restore; an elidable terminator has no test or an = test`, alternative.at);
+                }
+              }
+            }
+            stack.push(...childExpressions(expr));
+          }
+        }
+      }
+    }
+
+    /**
+     * A test of a body with its value, from the constants' final values
+     * (engine §2, §4).
+     * @param {{test: TestOp, value: Term}} test
+     * @param {string} path
+     * @param {ErrorLocation} at
+     * @returns {SymbolTest}
+     */
+    symbolTest(test, path, at) {
+      let found = this.tests.get(test);
+      if (!found) {
+        const value = this.evaluateClosed(path, test.value, [at.line ?? 0, at.column ?? 0]);
+        const written = writtenTest(test.test, value);
+        found = "string" in value ? { op: test.test, sound: value.string, written } : { op: test.test, tags: "set" in value ? value.set : tagSet(), written };
+        this.tests.set(test, found);
+      }
+      return found;
+    }
+
+    checkReferences() {
+      // A rule named anywhere must be defined: in a body, and in a clause as the
+      // rule of matches, begins or tags (engine §2). The error stands at the
+      // definition that wrote the alternative.
+      /** @type {(name: string, rule: StitchedRule, alternative: StitchedAlternative) => void} */
+      const check = (name, rule, alternative) => {
+        if (!this.rules.has(name)) {
+          throw new GencmuError("grammar", `${alternative.document}: ${rule.name} refers to ${name}, which is not defined`, alternative.at);
+        }
+      };
+      /** @type {(expr: Expr, rule: StitchedRule, alternative: StitchedAlternative) => void} */
+      const visit = (expr, rule, alternative) => {
+        if ("ref" in expr && !isTerminalName(expr.ref)) check(expr.ref, rule, alternative);
+        for (const child of childExpressions(expr)) visit(child, rule, alternative);
+      };
+      for (const rule of this.rules.values()) {
+        for (const alternative of rule.alternatives) {
+          visit(alternative.expr, rule, alternative);
+          const { tags, conditions, emit } = alternative.clauses;
+          const clauses = [alternative.tags, tags, conditions, emit ? emit.items.map((item) => item.tags) : []];
+          for (const name of clauseRules(clauses)) check(name, rule, alternative);
+          // A classifier that classify names belongs to the stage (engine §2).
+          for (const name of clauseClassifiers(clauses)) {
+            if (!this.classifierItems.some((item) => item.classifier.name === name)) {
+              throw new GencmuError("grammar", `${alternative.document}: ${rule.name} classifies with ${name}, which no %classifier of stage ${this.stageName} names`, alternative.at);
+            }
+          }
+          const top = "seq" in alternative.expr ? alternative.expr.seq : [alternative.expr];
+          const names = top.flatMap((item) => ("capture" in item ? [item.capture] : []));
+          const twice = names.find((name, index) => names.indexOf(name) !== index);
+          if (twice !== undefined) {
+            throw new GencmuError("grammar", `${alternative.document}: an alternative of ${rule.name} captures $${twice} twice`, alternative.at);
+          }
+        }
+      }
+      if (!this.rules.has("text")) throw new GencmuError("grammar", `stage ${this.stageName} has no rule text`, { stage: this.stageName });
+    }
+
+    /**
+     * The productions for a set of enabled features. The check of
+     * elision-only reads the same productions in a mode of its own (engine
+     * §3.8, §7.4).
+     * @param {Set<string>} features
+     * @returns {LoweredGrammar}
+     */
+    lower(features) {
+      // Only the gates that are on change the productions. So two sets of
+      // features with the same gates on share one lowered grammar.
+      const on = new Set(this.gates.filter((name) => features.has(name)));
+      const key = JSON.stringify([...on]);
+      let lowered = recall(this.lowered, key);
+      if (!lowered) {
+        // The stage resolves its classifiers for the same features, before it
+        // lowers its rules (engine §2, §3).
+        const classifiers = this.classifiers(on);
+        lowered = { ...new Lowering(this, on).run(), classifiers, implications: this.implications };
+        remember(this.lowered, key, lowered);
+      }
+      return lowered;
+    }
+  }
+
+  /**
+   * The names of the features that gate, in code point order, each once.
+   * @param {Guard[]} guards
+   * @returns {string[]}
+   */
+  function gateNames(guards) {
+    const names = new Set(guards.filter((guard) => guard.kind !== "warning").map((guard) => guard.feature));
+    return [...names].sort(compareCodePoints);
+  }
+
+  /**
+   * The value of a key in a bounded cache, now the most recently used.
+   * @template T
+   * @param {Map<string, T>} cache
+   * @param {string} key
+   * @returns {T | undefined}
+   */
+  function recall(cache, key) {
+    const value = cache.get(key);
+    if (value !== undefined) {
+      cache.delete(key);
+      cache.set(key, value);
+    }
+    return value;
+  }
+
+  /**
+   * Adds a value to a bounded cache, and drops the least recently used
+   * value when the cache is full.
+   * @template T
+   * @param {Map<string, T>} cache
+   * @param {string} key
+   * @param {T} value
+   */
+  function remember(cache, key, value) {
+    cache.set(key, value);
+    if (cache.size > MAX_LOWERED) cache.delete(/** @type {string} */ (cache.keys().next().value));
+  }
+
+  const TYPE_PHRASES = { string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", set: "a set", any: "a value" };
+
+  /**
+   * A copy of a clause in which every reference to a constant holds the
+   * constant's value (engine §2).
+   * @param {unknown} node
+   * @param {Map<string, StageConstant>} constants
+   * @returns {unknown}
+   */
+  function resolveNode(node, constants) {
+    if (Array.isArray(node)) return node.map((item) => resolveNode(item, constants));
+    if (node === null || typeof node !== "object") return node;
+    const record = /** @type {Record<string, unknown>} */ (node);
+    if (typeof record.const === "string") {
+      /** @type {ConstantTerm} */
+      const reference = { const: record.const, at: /** @type {[number, number]} */ (record.at), value: /** @type {StageConstant} */ (constants.get(record.const)).value };
+      return reference;
+    }
+    /** @type {Record<string, unknown>} */
+    const copy = {};
+    for (const [key, value] of Object.entries(record)) copy[key] = resolveNode(value, constants);
+    return copy;
+  }
+
+  /**
+   * The calls of split and tag in a rule's clauses.
+   * @param {unknown} node
+   * @returns {{call: string, args: any[]}[]}
+   */
+  function callsIn(node) {
+    /** @type {{call: string, args: any[]}[]} */
+    const found = [];
+    /** @param {unknown} current */
+    const walk = (current) => {
+      if (Array.isArray(current)) {
+        for (const item of current) walk(item);
+      } else if (current !== null && typeof current === "object") {
+        const record = /** @type {Record<string, unknown>} */ (current);
+        if ((record.call === "split" || record.call === "tag") && Array.isArray(record.args)) found.push(/** @type {any} */ (record));
+        for (const value of Object.values(record)) walk(value);
+      }
+    };
+    walk(node);
+    return found;
+  }
+
+  /**
+   * @param {string} name
+   * @returns {boolean}
+   */
+  function isTerminalName(name) {
+    const first = name.codePointAt(0);
+    return first !== undefined && first >= 0x41 && first <= 0x5a;
+  }
+
+  /**
+   * The tag of a symbol that matches by a tag: a terminal, or a reference
+   * whose name begins with a capital. A reference in lower case names a rule,
+   * so %elidable never makes it a terminator, even one that shares its name
+   * with an identifier tag (engine §2, §3.8).
+   * @param {Expr} expr
+   * @returns {string | undefined}
+   */
+  function tagName(expr) {
+    if ("terminal" in expr) return expr.terminal;
+    return "ref" in expr && isTerminalName(expr.ref) ? expr.ref : undefined;
+  }
+
+  /**
+   * The rules that terms and conditions name: the rule of a matches or begins
+   * condition, and the rule argument of a call such as tags(span, rule).
+   * @param {unknown} value
+   * @returns {Generator<string>}
+   */
+  function* clauseRules(value) {
+    if (Array.isArray(value)) {
+      for (const item of value) yield* clauseRules(item);
+    } else if (value !== null && typeof value === "object") {
+      for (const [key, child] of Object.entries(value)) {
+        if (key === "rule" && typeof child === "string") yield child;
+        else yield* clauseRules(child);
+      }
+    }
+  }
+
+  /**
+   * The classifiers that terms name, as the second argument of classify.
+   * @param {unknown} value
+   * @returns {Generator<string>}
+   */
+  function* clauseClassifiers(value) {
+    if (Array.isArray(value)) {
+      for (const item of value) yield* clauseClassifiers(item);
+    } else if (value !== null && typeof value === "object") {
+      for (const [key, child] of Object.entries(value)) {
+        if (key === "classifier" && typeof child === "string") yield child;
+        else yield* clauseClassifiers(child);
+      }
+    }
+  }
+
+  /**
+   * @param {Expr} expr
+   * @returns {Expr[]}
+   */
+  function childExpressions(expr) {
+    if ("seq" in expr) return expr.seq;
+    if ("choice" in expr) return expr.choice;
+    if ("and" in expr) return expr.and;
+    if ("optional" in expr) return [expr.optional];
+    if ("repeat" in expr) return [expr.repeat];
+    if ("capture" in expr || "test" in expr) return [expr.expr];
+    return [];
+  }
+
+  // The lowered grammar: productions, numbered as engine §3 says.
+  class Lowering {
+    /**
+     * @param {Grammar} grammar
+     * @param {Set<string>} features
+     */
+    constructor(grammar, features) {
+      this.grammar = grammar;
+      this.features = features;
+      /** @type {Production[]} */
+      this.productions = [];
+      /** @type {Map<string, Production[]>} */
+      this.byLhs = new Map();
+      this.helperCount = 0;
+    }
+
+    /** @returns {Omit<LoweredGrammar, "classifiers" | "implications">} */
+    run() {
+      for (const rule of this.grammar.rules.values()) {
+        // Only gates drop an alternative; a warning keeps it (engine §3.1).
+        const enabled = rule.alternatives.filter((alternative) => alternative.guards.every(
+          (guard) => guard.kind === "warning" || this.features.has(guard.feature) !== guard.negated));
+        for (const alternative of enabled) this.lowerAlternative(rule, alternative, enabled.length === 1);
+      }
+      return {
+        productions: this.productions,
+        byLhs: this.byLhs,
+        elidable: this.grammar.elidable,
+        maximalTerminals: this.grammar.maximalTerminals,
+        resolution: /** @type {Resolution} */ (this.grammar.resolution),
+      };
+    }
+
+    /**
+     * Numbers a production and adds it.
+     * @param {Omit<Production, "id">} fields
+     * @returns {Production}
+     */
+    addProduction(fields) {
+      /** @type {Production} */
+      const production = { ...fields, id: this.productions.length };
+      this.productions.push(production);
+      let same = this.byLhs.get(production.lhs);
+      if (!same) this.byLhs.set(production.lhs, (same = []));
+      same.push(production);
+      return production;
+    }
+
+    /**
+     * @param {StitchedRule} rule
+     * @param {StitchedAlternative} alternative
+     * @param {boolean} only whether it is the rule's only enabled alternative
+     */
+    lowerAlternative(rule, alternative, only) {
+      /** @type {PendingHelper[]} */
+      const pending = [];
+      const trailing = only ? trailingRepetition(alternative.expr) : null;
+      // A trailing repetition's recursive productions could not have its
+      // captures, whose parts lie inside the inner constituent (engine §3.3).
+      if (trailing && ("seq" in alternative.expr ? alternative.expr.seq : [alternative.expr]).some((item) => "capture" in item)) {
+        throw new GencmuError("grammar", `${alternative.document}: an alternative of ${rule.name} captures a part, and is lowered as a trailing repetition`, alternative.at);
+      }
+      /** @type {Where} */
+      const where = { rule, pending };
+      /** @type {SequenceItem[][]} */
+      let sequences;
+      /** @type {SequenceItem[][] | null} */
+      let recursive = null;
+      if (trailing) {
+        const prefixes = this.expandSequence(trailing.prefix, where);
+        const items = this.expand(trailing.item, where);
+        sequences = trailing.min === 1 ? product(prefixes, items) : prefixes;
+        recursive = items.map((sequence) => [{ symbol: { name: rule.name, terminal: false } }, ...sequence]);
+      } else {
+        sequences = this.expand(alternative.expr, where);
+      }
+      for (const sequence of sequences) this.addRuleProduction(rule, alternative, sequence, false);
+      for (const sequence of recursive || []) this.addRuleProduction(rule, alternative, sequence, true);
+      this.flushHelpers(pending, rule);
+    }
+
+    /**
+     * @param {PendingHelper[]} pending
+     * @param {StitchedRule} rule
+     */
+    flushHelpers(pending, rule) {
+      for (let helper = pending.shift(); helper !== undefined; helper = pending.shift()) {
+        /** @type {PendingHelper[]} */
+        const nested = [];
+        for (const sequence of helper.build({ rule, pending: nested })) {
+          // A helper with one symbol has that symbol's tags, like any
+          // production (engine §3.7).
+          const single = sequence.length === 1;
+          this.addProduction({
+            lhs: helper.name,
+            rhs: sequence.map((item) => item.symbol),
+            helper: true,
+            owner: rule.name,
+            elided: helper.elided,
+            elidedTest: helper.elidedTest,
+            captures: single ? [{ name: "\u0000child", index: 0 }] : [],
+            conditions: [],
+            tags: single ? { call: "tags", args: [{ capture: "\u0000child" }] } : null,
+            emit: null,
+            opaque: false,
+            recursivePrefix: false,
+            warnings: [],
+          });
+        }
+        pending.unshift(...nested);
+      }
+    }
+
+    /**
+     * @param {StitchedRule} rule
+     * @param {StitchedAlternative} alternative
+     * @param {SequenceItem[]} sequence
+     * @param {boolean} recursivePrefix
+     */
+    addRuleProduction(rule, alternative, sequence, recursivePrefix) {
+      /** @type {import("./types.js").Capture[]} */
+      const captures = [];
+      sequence.forEach((item, index) => {
+        if (item.capture) captures.push({ name: item.capture, index });
+      });
+      if (captures.length > MAX_CAPTURES) {
+        throw new GencmuError("grammar", `${alternative.document}: an alternative of ${rule.name} has more than ${MAX_CAPTURES} captures`, alternative.at);
+      }
+      // `$`, the whole constituent, is a capture every production has.
+      const names = new Set(["", ...captures.map((capture) => capture.name)]);
+      const clauses = alternative.clauses;
+      // The clauses simplified for this production: presence tests and the
+      // guards over them decided (engine §3.6).
+      /** @type {(name: string) => boolean} */
+      const has = (name) => names.has(name);
+      // The union of the alternative's own tags and the rule's (engine §3.7);
+      // the reader has made sure neither uses a capture this production lacks.
+      const written = [alternative.tags, clauses.tags].filter((term) => term !== undefined).map((term) => simplify(term, has));
+      /** @type {Term | null} */
+      let tags = written.length === 0 ? null : written.length === 1 ? written[0] : { union: written };
+      if (!tags && sequence.length === 1) {
+        // A production with one symbol has that symbol's tags (engine §3.7),
+        // whether or not the author captured it.
+        if (captures.length === 0) {
+          captures.push({ name: "\u0000child", index: 0 });
+          names.add("\u0000child");
+        }
+        tags = { call: "tags", args: [{ capture: captures[0].name }] };
+      }
+      /** @type {import("./types.js").ReadyCondition[]} */
+      const conditions = [];
+      for (const written of clauses.conditions) {
+        const condition = simplify(written, has);
+        if (condition === DOM_TRUE) continue;
+        // A condition false for this production removes it (engine §3.6).
+        if (condition === DOM_FALSE) return;
+        const variables = conditionVariables(condition);
+        if (!variables.every((name) => names.has(name))) continue;
+        // A condition is ready once its last capture is read, and one that
+        // reads `$` once the constituent is complete (engine §4).
+        const readyAt = Math.max(-1, ...variables.map((name) => (name === "" ? sequence.length - 1
+          : /** @type {import("./types.js").Capture} */ (captures.find((capture) => capture.name === name)).index)));
+        conditions.push({ condition, readyAt });
+      }
+      let emit = clauses.emit || null;
+      if (emit) {
+        // An item whose carrier the production lacks is dropped, and so is
+        // each attachment capture it lacks (engine §3.6); the reader has made
+        // sure the tags of those left use none.
+        emit = {
+          items: emit.items.filter((item) => item.capture === undefined || names.has(item.capture))
+            .map((item) => {
+              /** @type {import("./types.js").EmitItem} */
+              const kept = item.tags ? { ...item, tags: simplify(item.tags, has) } : { ...item };
+              const before = (item.before ?? []).filter(has);
+              const after = (item.after ?? []).filter(has);
+              if (before.length) kept.before = before;
+              else delete kept.before;
+              if (after.length) kept.after = after;
+              else delete kept.after;
+              return kept;
+            }),
+        };
+      }
+      this.addProduction({
+        lhs: rule.name,
+        rhs: sequence.map((item) => item.symbol),
+        helper: false,
+        owner: rule.name,
+        elided: null,
+        elidedTest: null,
+        captures,
+        conditions,
+        tags,
+        emit,
+        opaque: clauses.opaque,
+        recursivePrefix,
+        warnings: alternative.guards.filter((guard) => guard.kind === "warning").map((guard) => guard.feature),
+      });
+    }
+
+    /**
+     * The sequences of symbols an expression expands to.
+     * @param {Expr} expr
+     * @param {Where} where
+     * @returns {SequenceItem[][]}
+     */
+    expand(expr, where) {
+      if ("seq" in expr) return this.expandSequence(expr.seq, where);
+      if ("choice" in expr) return expr.choice.flatMap((item) => this.expand(item, where));
+      if ("and" in expr) {
+        const parts = expr.and.map((item) => this.expand(item, where));
+        /** @type {SequenceItem[][]} */
+        const result = [];
+        for (let mask = 1; mask < 1 << parts.length; mask++) {
+          /** @type {SequenceItem[][]} */
+          let sequences = [[]];
+          parts.forEach((part, index) => {
+            if (mask & (1 << index)) sequences = product(sequences, part);
+          });
+          result.push(...sequences);
+        }
+        return result;
+      }
+      if ("optional" in expr) {
+        const inner = expr.optional;
+        const elided = this.elidedTerminal(inner, where);
+        const name = this.helper(where, (context) => [/** @type {SequenceItem[]} */ ([]), ...this.expand(inner, context)], elided);
+        return [[{ symbol: { name, terminal: false } }]];
+      }
+      if ("repeat" in expr) {
+        const inner = expr.repeat;
+        const min = expr.min;
+        const name = this.helper(where, (context) => {
+          const expansions = this.expand(inner, context);
+          /** @type {SequenceItem} */
+          const self = { symbol: { name, terminal: false } };
+          const recursive = expansions.map((sequence) => [self, ...sequence]);
+          return min === 1 ? [...expansions, ...recursive] : [/** @type {SequenceItem[]} */ ([]), ...recursive];
+        }, null);
+        return [[{ symbol: { name, terminal: false } }]];
+      }
+      if ("empty" in expr) return [[]];
+      if ("test" in expr) {
+        // A tested symbol lowers to its symbol with the test, and adds no
+        // helper (engine §3).
+        const inner = this.expand(expr.expr, where);
+        const test = this.grammar.symbolTest(expr, where.rule.document, where.rule.at);
+        return [[{ symbol: { ...inner[0][0].symbol, test } }]];
+      }
+      if ("ref" in expr) return [[{ symbol: { name: expr.ref, terminal: isTerminalName(expr.ref) } }]];
+      if ("terminal" in expr) return [[{ symbol: { name: expr.terminal, terminal: true } }]];
+      // A range or a property is a terminal whose name is its written form,
+      // and which matches by its characters rather than by a tag (engine §4).
+      if ("range" in expr) {
+        const characters = { from: codeOfCharacterTag(expr.range[0]), to: codeOfCharacterTag(expr.range[1]) };
+        return [[{ symbol: { name: rangeName(expr.range), terminal: true, characters } }]];
+      }
+      if ("property" in expr) return [[{ symbol: { name: propertyName(expr.property), terminal: true, characters: { property: expr.property } } }]];
+      if ("capture" in expr) {
+        const inner = this.expand(expr.expr, where);
+        if (inner.length !== 1 || inner[0].length !== 1) {
+          throw new GencmuError("grammar", `${where.rule.document}: a capture in ${where.rule.name} must wrap one symbol`, where.rule.at);
+        }
+        return [[{ symbol: inner[0][0].symbol, capture: expr.capture }]];
+      }
+      throw new GencmuError("grammar", `${where.rule.document}: an unknown expression in ${where.rule.name}`, where.rule.at);
+    }
+
+    /**
+     * @param {Expr[]} items
+     * @param {Where} where
+     * @returns {SequenceItem[][]}
+     */
+    expandSequence(items, where) {
+      /** @type {SequenceItem[][]} */
+      let sequences = [[]];
+      for (const item of items) sequences = product(sequences, this.expand(item, where));
+      return sequences;
+    }
+
+    /**
+     * Names a helper rule, to be lowered when the alternative is done.
+     * @param {Where} where
+     * @param {(where: Where) => SequenceItem[][]} build
+     * @param {{terminal: string, test: SymbolTest | null} | null} elided
+     * @returns {string}
+     */
+    helper(where, build, elided) {
+      const name = `${where.rule.name}·${this.helperCount++}`;
+      where.pending.push({ name, build, elided: elided ? elided.terminal : null, elidedTest: elided ? elided.test : null });
+      return name;
+    }
+
+    /**
+     * The elidable terminal an optional begins with, if any, and its test: a
+     * tested terminal is elidable when its terminal is (engine §3.8, §12).
+     * @param {Expr} expr
+     * @param {Where} where
+     * @returns {{terminal: string, test: SymbolTest | null} | null}
+     */
+    elidedTerminal(expr, where) {
+      let first = expr;
+      while ("seq" in first) first = first.seq[0];
+      const tested = "test" in first ? first : null;
+      if (tested) first = tested.expr;
+      const name = tagName(first);
+      if (name === undefined || !this.grammar.elidable.has(name)) return null;
+      return { terminal: name, test: tested ? this.grammar.symbolTest(tested, where.rule.document, where.rule.at) : null };
+    }
+  }
+
+  /**
+   * @param {SequenceItem[][]} left
+   * @param {SequenceItem[][]} right
+   * @returns {SequenceItem[][]}
+   */
+  function product(left, right) {
+    /** @type {SequenceItem[][]} */
+    const result = [];
+    for (const a of left) for (const b of right) result.push([...a, ...b]);
+    return result;
+  }
+
+  /**
+   * A body ending in a repetition, split into what comes before it and what
+   * repeats.
+   * @param {Expr} expr
+   * @returns {{prefix: Expr[], item: Expr, min: number} | null}
+   */
+  function trailingRepetition(expr) {
+    if ("repeat" in expr) return { prefix: [], item: expr.repeat, min: expr.min };
+    if ("seq" in expr) {
+      const last = expr.seq[expr.seq.length - 1];
+      if ("repeat" in last) return { prefix: expr.seq.slice(0, -1), item: last.repeat, min: last.min };
+    }
+    return null;
+  }
+
+  /**
+   * The captures a term or condition names.
+   * @param {Term | Condition} term
+   * @returns {string[]}
+   */
+  function termVariables(term) {
+    /** @type {string[]} */
+    const names = [];
+    /** @type {(node: unknown) => void} */
+    const visit = (node) => {
+      if (!node || typeof node !== "object") return;
+      const record = /** @type {Record<string, unknown>} */ (node);
+      if (typeof record.capture === "string" && Object.keys(record).length === 1) names.push(record.capture);
+      for (const value of Object.values(record)) {
+        if (Array.isArray(value)) value.forEach(visit);
+        else if (value && typeof value === "object") visit(value);
+      }
+    };
+    visit(term);
+    return names;
+  }
+
+  /**
+   * @param {Condition} condition
+   * @returns {string[]}
+   */
+  function conditionVariables(condition) {
+    return termVariables(condition);
+  }
+
+  // ---- earley.js
+  // Recognition (engine §4) and the terms and conditions it evaluates
+  // (engine §10).
+
+
+
+
+
+
+
+
+  /**
+   * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, Scope, Slot, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
+   * @import { Token } from "./tokens.js"
+   * @import { UnicodeTable } from "./unicode.js"
+   */
+
+  /**
+   * A chart: one set per position of the span it was run over.
+   * @typedef {object} Chart
+   * @property {ChartSet[]} sets
+   * @property {number} start
+   * @property {number} end
+   * @property {(position: number) => ChartSet} setAt reads a set without
+   *   making it: a set the recognizer never reached is empty
+   * @property {number} furthest the last position whose set holds an item
+   * @property {ParseContext} context
+   */
+
+  // Interns tag sets, so that an item names a captured part's tags by number.
+  class TagInterner {
+    constructor() {
+      /** @type {TagSet[]} */
+      this.sets = [];
+      /** @type {Map<string, number>} */
+      this.ids = new Map();
+    }
+    /**
+     * @param {TagSet} tags
+     * @returns {number}
+     */
+    intern(tags) {
+      const key = tagKey(tags);
+      let id = this.ids.get(key);
+      if (id === undefined) {
+        id = this.sets.length;
+        this.sets.push(tags);
+        this.ids.set(key, id);
+      }
+      return id;
+    }
+    /**
+     * @param {number} id
+     * @returns {TagSet}
+     */
+    get(id) {
+      return this.sets[id];
+    }
+  }
+
+  // How many items the recognizer has made, in parses and nested parses
+  // alike: a measure of work that tests compare across input lengths.
+  const recognizerCounters = { items: 0 };
+
+  // What a parse and every nested parse it starts share.
+  class ParseContext {
+    /**
+     * @param {LoweredGrammar} lowered
+     * @param {Token[]} tokens
+     * @param {string[]} sourceText the text's code points
+     * @param {UnicodeTable} unicode
+     * @param {TagInterner} [interner] the interner of another context whose
+     *   tag numbers this one shares, as the check of engine §7 shares the
+     *   main parse's
+     */
+    constructor(lowered, tokens, sourceText, unicode, interner) {
+      this.lowered = lowered;
+      this.tokens = tokens;
+      /** Where each run of the tokens lies in the text (engine §1). */
+      this.sources = new Sources(tokens);
+      this.sourceText = sourceText;
+      this.unicode = unicode;
+      this.interner = interner || new TagInterner();
+      /**
+       * How the recognizer reads elidable optionals: null as engine §4 says,
+       * "reconstruction" in the mode of engine §7.4, or "mandatory", the old
+       * contract, where an elidable optional is never empty (a fault).
+       * @type {null | "reconstruction" | "mandatory"}
+       */
+      this.mode = null;
+      /**
+       * For each token, whether it is a synthetic token of engine §7.2, by
+       * its provenance; null where none is.
+       * @type {boolean[] | null}
+       */
+      this.synthetic = null;
+      /**
+       * On the context of the reconstructed input of engine §7, how its
+       * observations reach the stage's input; null elsewhere.
+       * @type {Reconstruction | null}
+       */
+      this.recon = null;
+      /** Whether the check of engine §7 is running over this context's input. */
+      this.checking = false;
+      /**
+       * Each token's phonemes in canonical form, for the sound tests of
+       * symbols and for phonemes(), computed when one first looks at the
+       * token (engine §4, §5).
+       * @type {(string | undefined)[]}
+       */
+      this.sounds = new Array(tokens.length);
+      // The most places a dot can be in one production, for numbering the
+      // items of a set (see itemKey).
+      this.dots = lowered.productions.reduce((most, production) => Math.max(most, production.rhs.length + 1), 1);
+      /** @type {Map<string, boolean | TagSet>} */
+      this.nested = new Map();
+      /** @type {Set<string>} */
+      this.inProgress = new Set();
+      /** Where the input of the recognition now running begins. */
+      this.inputStart = 0;
+      /** Where it ends. */
+      this.inputEnd = tokens.length;
+      /**
+       * When set, the recognizer records what happens at one position of the
+       * top-level parse, for diagnostics (see diagnostics.js, trace).
+       * @type {{position: number, events: TraceEvent[], depth: number} | null}
+       */
+      this.trace = null;
+    }
+  }
+
+  /**
+   * How the recognition of the reconstructed input R observes the stage's
+   * input O (engine §7.3, §7.5).
+   * @typedef {object} Reconstruction
+   * @property {ParseContext} observed the context of O, the main parse's,
+   *   whose memo and active queries the check shares
+   * @property {number[]} project π: for each position of R, the number of
+   *   original tokens before it
+   * @property {boolean} raw whether observations read R itself, as the old
+   *   contract did (a fault)
+   * @property {Map<string, ParseContext>} faulty the contexts of queries
+   *   that a fault sends elsewhere, by fault
+   */
+
+  /**
+   * Something the recognizer did at the traced position: an item predicted,
+   * advanced or completed there, or an advance that a condition refused.
+   * @typedef {object} TraceEvent
+   * @property {"predicted" | "advanced" | "completed" | "dropped"} kind
+   * @property {Production} production
+   * @property {number} dot the dot of the item made, or of the item refused
+   * @property {number} origin
+   * @property {Condition} [condition] for a drop, the condition that failed
+   * @property {SymbolTest} [test] for a drop, the test of the symbol the item
+   *   would have advanced over, which did not hold
+   */
+
+  // A chart item: a production with a dot, its origin, and its captured
+  // parts; `end` is the position of the set that holds it.
+  //
+  // A long text makes millions of items, almost every one built one way only,
+  // so an item holds its first way itself rather than as an edge in a list:
+  // the item it advanced, `previous`, null for a prediction, and the completed
+  // item it advanced over, `child`, null for a read, whose token and terminal
+  // the item implies. Each further way is an edge in `more`.
+  class Item {
+    /**
+     * @param {Production} production
+     * @param {number} dot
+     * @param {number} origin
+     * @param {Slot[]} slots
+     * @param {Item | null} previous
+     * @param {Item | null} child
+     */
+    constructor(production, dot, origin, slots, previous, child) {
+      this.production = production;
+      this.dot = dot;
+      this.origin = origin;
+      this.slots = slots;
+      this.tagId = -1;
+      this.end = -1;
+      this.previous = previous;
+      this.child = child;
+      /** @type {Edge[] | null} */
+      this.more = null;
+      // In the reconstruction mode (engine §7.4): whether every step that
+      // made the item is strict, and whether the item is the restoration of
+      // an elidable optional, a read of the synthetic token at its origin.
+      this.strict = false;
+      this.restores = false;
+      this.queued = true;
+    }
+    get complete() {
+      return this.dot === this.production.rhs.length;
+    }
+    /**
+     * Every way the item was built, in the order they were found.
+     * @returns {Edge[]}
+     */
+    get edges() {
+      /** @type {Edge} */
+      let first;
+      if (this.restores) first = { kind: "restore", token: this.origin, terminal: /** @type {string} */ (this.production.elided) };
+      else if (this.previous === null) first = SEED;
+      else if (this.child === null) first = { kind: "scan", previous: this.previous, token: this.end - 1, terminal: this.production.rhs[this.dot - 1].name };
+      else first = { kind: "complete", previous: this.previous, child: this.child };
+      return this.more === null ? [first] : [first, ...this.more];
+    }
+  }
+
+  class ChartSet {
+    /** @param {number} position */
+    constructor(position) {
+      this.position = position;
+      /** @type {Item[]} */
+      this.items = [];
+      /** @type {Map<number | string, Item>} */
+      this.index = new Map();
+      /** @type {Item[]} */
+      this.queue = [];
+      this.head = 0;
+      /** @type {Map<string, Item[]>} */
+      this.waiting = new Map();
+      /** @type {Map<string, Item[]>} */
+      this.nullable = new Map();
+      /**
+       * The rules already predicted here, each with whether that prediction
+       * was strict (engine §7.4).
+       * @type {Map<string, boolean>}
+       */
+      this.predicted = new Map();
+      /**
+       * The rules predicted here with productions not made items, since they
+       * begin with a terminal the next token does not carry; kept for saying
+       * what could have come next (see expectedAt). A rule, not each of its
+       * productions: a long text skips millions.
+       * @type {string[]}
+       */
+      this.skipped = [];
+    }
+  }
+
+  /**
+   * Runs the recognizer over tokens[start, end) with `rule` as the start rule.
+   * @param {ParseContext} context
+   * @param {string} rule
+   * @param {number} start
+   * @param {number} end
+   * @returns {Chart}
+   */
+  function recognize(context, rule, start, end) {
+    const outer = context.inputStart;
+    const outerEnd = context.inputEnd;
+    context.inputStart = start;
+    context.inputEnd = end;
+    try {
+      return recognizeFrom(context, rule, start, end);
+    } finally {
+      context.inputStart = outer;
+      context.inputEnd = outerEnd;
+    }
+  }
+
+  /**
+   * @param {ParseContext} context
+   * @param {string} rule
+   * @param {number} start
+   * @param {number} end
+   * @returns {Chart}
+   */
+  function recognizeFrom(context, rule, start, end) {
+    const { lowered, tokens } = context;
+    /** @type {ChartSet[]} */
+    const sets = [];
+    // A set is made when something first looks at it: once a set is empty,
+    // every later one is, and a nested parse over the rest of a long text
+    // stops there.
+    /** @type {(position: number) => ChartSet} */
+    const setAt = (position) => sets[position - start] || (sets[position - start] = new ChartSet(position));
+    const dots = context.dots;
+    const width = end - start + 1;
+
+    // The reconstruction mode of engine §7.4, or the old contract's
+    // mandatory optionals (a fault); null for the ordinary mode of §4.
+    const mode = context.mode;
+    const synthetic = context.synthetic;
+    const reading = mode === "reconstruction" ? readingOf(lowered) : null;
+    const twoItems = mode === "reconstruction" && fault("F17");
+
+    // Adds the item `previous` makes advanced over `child`, or over the token
+    // before the set when `child` is null; a prediction when both are null.
+    // `strict` says whether the step that makes it is strict (engine §7.4).
+    /** @type {(set: ChartSet, production: Production, dot: number, origin: number, slots: Slot[], previous: Item | null, child: Item | null, tagId: number, strict?: boolean) => void} */
+    const add = (set, production, dot, origin, slots, previous, child, tagId, strict = false) => {
+      // A strict item never completes (engine §7.4).
+      if (strict && dot === production.rhs.length) return;
+      let key = itemKey((production.id * dots + dot) * width + origin - start, slots);
+      if (twoItems && strict) key = "strict" + key;
+      let item = set.index.get(key);
+      if (item) {
+        // One ordinary step makes an item ordinary. It is then processed
+        // again, for what strictness held back (engine §7.4), unless a fault
+        // leaves it as it was processed (F32:queue).
+        if (item.strict && !strict && !fault("F32:queue")) {
+          item.strict = false;
+          if (!item.queued) {
+            item.queued = true;
+            set.queue.push(item);
+          }
+        }
+        // The symbol before an item's dot fixes the kind of all its edges,
+        // and the item fixes a read's token and terminal: two edges are the
+        // same when they have the same `previous` and `child`. A prediction
+        // has no other edge, since nothing else puts a dot at the start.
+        if ((item.previous === previous && item.child === child) || previous === null) return;
+        const more = item.more || (item.more = []);
+        for (const edge of more) {
+          if (edge.kind === "scan" && edge.previous === previous) return;
+          if (edge.kind === "complete" && edge.previous === previous && edge.child === child) return;
+        }
+        if (child === null) more.push({ kind: "scan", previous, token: set.position - 1, terminal: production.rhs[dot - 1].name });
+        else more.push({ kind: "complete", previous, child });
+        return;
+      }
+      item = new Item(production, dot, origin, slots, previous, child);
+      item.strict = strict;
+      recognizerCounters.items++;
+      item.end = set.position;
+      const trace = context.trace;
+      if (trace && trace.depth === 0 && set.position === trace.position) {
+        const kind = dot === production.rhs.length ? "completed" : dot === 0 ? "predicted" : "advanced";
+        trace.events.push({ kind, production, dot, origin });
+      }
+      item.tagId = tagId;
+      set.items.push(item);
+      set.index.set(key, item);
+      set.queue.push(item);
+      const next = production.rhs[dot];
+      if (next && !next.terminal) {
+        // Most lists hold one item, and an array made with its first element
+        // is a fraction of the size an empty one grows to on its first push.
+        const waiting = set.waiting.get(next.name);
+        if (waiting) waiting.push(item);
+        else set.waiting.set(next.name, [item]);
+      }
+      if (dot === production.rhs.length && origin === set.position) {
+        let nullable = set.nullable.get(production.lhs);
+        if (!nullable) set.nullable.set(production.lhs, (nullable = []));
+        nullable.push(item);
+      }
+    };
+
+    // The restoration of an elidable optional at a position (engine §7.4):
+    // its empty production read over the one synthetic token there, where
+    // that token is compatible with the optional. It has no tags.
+    /** @type {(set: ChartSet, production: Production) => void} */
+    const restore = (set, production) => {
+      const position = set.position;
+      if (position >= end || !(/** @type {boolean[]} */ (synthetic)[position])) return;
+      // A fault loses the restoration of the first synthetic token, and with
+      // it the witness of the chosen derivation, while other readings can
+      // survive (F28).
+      if (fault("F28") && /** @type {boolean[]} */ (synthetic).indexOf(true) === position) return;
+      const token = tokens[position];
+      if (!token.tags.has(/** @type {string} */ (production.elided))) return;
+      const test = production.elidedTest;
+      if (test && !fault("F11", "restore") && !testHolds(context, test, position, position + 1, token.tags)) return;
+      const target = setAt(position + 1);
+      const key = itemKey((production.id * dots) * width + position - start, emptySlots(production));
+      if (target.index.has(key)) return;
+      const item = new Item(production, 0, position, emptySlots(production), null, null);
+      item.restores = true;
+      recognizerCounters.items++;
+      item.end = position + 1;
+      // It has the tags of the empty production, none, unless a fault gives
+      // it the synthetic token's (F7:restoration).
+      item.tagId = context.interner.intern(fault("F7:restoration") ? token.tags : tagSet());
+      target.items.push(item);
+      target.index.set(key, item);
+      target.queue.push(item);
+    };
+
+    /** @type {(set: ChartSet, name: string, strict?: boolean) => void} */
+    const predict = (set, name, strict = false) => {
+      // A rule's productions are the same at every prediction in one set:
+      // predicting them again would only rebuild items that already exist. A
+      // strict prediction (engine §7.4) leaves some out, so an ordinary one
+      // after it adds them.
+      const before = set.predicted.get(name);
+      // A fault keeps the strict prediction, and predicts nothing more
+      // (F32:predict).
+      if (before === false || (before === true && (strict || fault("F32:predict")))) return;
+      set.predicted.set(name, strict);
+      const next = set.position < end ? tokens[set.position] : null;
+      let skipped = false;
+      for (const production of lowered.byLhs.get(name) || []) {
+        // In the reconstruction mode, the empty production of an elidable
+        // optional is its restoration, and it never derives the empty
+        // sequence. Under the old contract it is not there at all.
+        if (mode !== null && production.rhs.length === 0 && production.helper && production.elided !== null) {
+          // A fault leaves the restoration out of a strict prediction (F29).
+          if (mode === "reconstruction" && !(strict && fault("F29", "predict"))) restore(set, production);
+          continue;
+        }
+        // A strict prediction predicts only the productions that can read.
+        if (strict && !fault("F16", "predict") && /** @type {Reading} */ (reading).last.get(production) === -1) continue;
+        const slots = emptySlots(production);
+        // One scope for the step, which evaluates the tag term at most once
+        // (engine §4).
+        /** @type {StepScope} */
+        const step = { scope: null };
+        // The tag term comes after the conditions (engine §4), unless a fault
+        // evaluates it first (order:tags).
+        if (production.rhs.length === 0 && fault("order:tags", "predict")) completeTags(context, production, slots, set.position, set.position, step);
+        const failed = failedCondition(context, production, -1, slots, set.position, set.position, step);
+        if (failed) {
+          const trace = context.trace;
+          if (trace && trace.depth === 0 && set.position === trace.position) {
+            trace.events.push({ kind: "dropped", production, dot: 0, origin: set.position, condition: failed });
+          }
+          continue;
+        }
+        // The conditions above run first, as they did when every prediction
+        // was made an item, so that a trace shows the production as dropped.
+        if (lookaheadSkips(context, production, next)) {
+          skipped = true;
+          continue;
+        }
+        const tagId = production.rhs.length === 0 ? completeTags(context, production, slots, set.position, set.position, step) : -1;
+        add(set, production, 0, set.position, slots, null, null, tagId, strict && !fault("F16", "item"));
+      }
+      if (skipped && before === undefined) set.skipped.push(name);
+    };
+
+    // The item advanced over its next symbol, which spans [from, to) and was
+    // built by `child`, or read as a token; null when a condition fails.
+    /** @type {(item: Item, from: number, to: number, child: Item | null) => {dot: number, slots: Slot[], tagId: number} | null} */
+    const advance = (item, from, to, child) => {
+      const production = item.production;
+      // A tested symbol's test must hold of its own span and tags, which is
+      // checked before any condition the advance makes ready (engine §4).
+      const test = production.rhs[item.dot].test;
+      if (test !== undefined && !symbolTestHolds(context, test, from, to, child)) {
+        const trace = context.trace;
+        if (trace && trace.depth === 0 && to === trace.position) {
+          trace.events.push({ kind: "dropped", production, dot: item.dot, origin: item.origin, test });
+        }
+        return null;
+      }
+      let slots = item.slots;
+      const captureIndex = production.captures.findIndex((capture) => capture.index === item.dot);
+      if (captureIndex >= 0) {
+        slots = slots.slice();
+        // A terminal that reads a synthetic token captures no tags (engine
+        // §7.5), unless a fault gives it the token's, to a capture and to a
+        // production that inherits from the terminal (F7:capture).
+        const tags = child ? child.tagId
+          : context.interner.intern(synthetic !== null && synthetic[from] && !rawObservations(context) && !fault("F7:capture") ? tagSet() : tokens[from].tags);
+        slots[captureIndex] = [from, to, tags];
+      }
+      /** @type {StepScope} */
+      const step = { scope: null };
+      if (item.dot + 1 === production.rhs.length && fault("order:tags", "advance")) completeTags(context, production, slots, item.origin, to, step);
+      const failed = failedCondition(context, production, item.dot, slots, item.origin, to, step);
+      if (failed) {
+        const trace = context.trace;
+        if (trace && trace.depth === 0 && to === trace.position) {
+          trace.events.push({ kind: "dropped", production, dot: item.dot, origin: item.origin, condition: failed });
+        }
+        return null;
+      }
+      const dot = item.dot + 1;
+      const tagId = dot === production.rhs.length ? completeTags(context, production, slots, item.origin, to, step) : -1;
+      return { dot, slots, tagId };
+    };
+
+    // Whether a symbol after an item's next symbol can read (engine §7.4).
+    /** @type {(item: Item) => boolean} */
+    const readsLater = (item) => /** @type {number} */ (/** @type {Reading} */ (reading).last.get(item.production)) > item.dot;
+    // Whether an advance from an item over an empty constituent is held back:
+    // a strict item does it only where a later symbol can read.
+    /** @type {(item: Item) => boolean} */
+    const emptyHeldBack = (item) => item.strict && !fault("F16", "empty") && !readsLater(item);
+
+    predict(setAt(start), rule);
+    let furthest = start;
+    for (let position = start; position <= end; position++) {
+      const set = setAt(position);
+      if (position > start && set.items.length === 0) break;
+      furthest = position;
+      if (position > start) {
+        // Nothing is added to a set once the next one is being built: its
+        // index, queue and predictions can go, which a long text needs, and
+        // the lists it keeps can be copied to arrays of their own length,
+        // rather than of the length growing them by pushes left.
+        const done = setAt(position - 1);
+        done.index = new Map();
+        done.queue = [];
+        done.predicted = new Map();
+        done.nullable = new Map();
+        done.items = done.items.slice();
+        done.skipped = done.skipped.slice();
+        for (const [name, waiting] of done.waiting) if (waiting.length > 1) done.waiting.set(name, waiting.slice());
+      }
+      while (set.head < set.queue.length) {
+        const item = set.queue[set.head++];
+        item.queued = false;
+        const next = item.production.rhs[item.dot];
+        if (!next) {
+          const origin = setAt(item.origin);
+          const empty = item.origin === position;
+          for (const waiting of origin.waiting.get(item.production.lhs) || []) {
+            if (empty && mode === "reconstruction" && emptyHeldBack(waiting)) continue;
+            const advanced = advance(waiting, item.origin, position, item);
+            if (advanced) {
+              add(set, waiting.production, advanced.dot, waiting.origin, advanced.slots, waiting, item, advanced.tagId, empty && waiting.strict);
+            }
+          }
+        } else if (!next.terminal) {
+          // A strict item predicts its next symbol strictly where no symbol
+          // after it can read (engine §7.4).
+          predict(set, next.name, mode === "reconstruction" && item.strict && !readsLater(item));
+          if (mode === "reconstruction" && emptyHeldBack(item)) continue;
+          for (const done of set.nullable.get(next.name) || []) {
+            const advanced = advance(item, position, position, done);
+            if (advanced) {
+              add(set, item.production, advanced.dot, item.origin, advanced.slots, item, done, advanced.tagId, item.strict);
+            }
+          }
+        } else if (position < end && (next.characters === undefined ? tokens[position].tags.has(next.name) : carries(context.unicode, next.characters, tokens[position].tags))) {
+          // The written routes of an elidable optional (engine §7.4): from an
+          // original token, or from a synthetic one, after which the rest of
+          // the optional must read, so the item after it is strict.
+          let strict = false;
+          if (mode === "reconstruction" && item.dot === 0 && item.production.helper && item.production.elided !== null) {
+            const fromSynthetic = /** @type {boolean[]} */ (synthetic)[position];
+            if (fromSynthetic && fault("F14")) continue;
+            if (!fromSynthetic && fault("F24")) continue;
+            // A fault makes the item after T ordinary where a strict item
+            // read T (F31).
+            strict = fromSynthetic && !fault("F15") && !(fault("F31") && item.strict);
+            // An optional whose content is T alone would complete here, which
+            // a strict item never does: drop the item before evaluating its
+            // test or its tags (engine §7.4).
+            if (strict && item.dot + 1 === item.production.rhs.length) continue;
+          }
+          const advanced = advance(item, position, position + 1, null);
+          if (advanced) {
+            add(setAt(position + 1), item.production, advanced.dot, item.origin, advanced.slots, item, null, advanced.tagId, strict);
+          }
+        }
+      }
+    }
+    /** @type {(position: number) => ChartSet} */
+    const peek = (position) => sets[position - start] || new ChartSet(position);
+    return { sets, start, end, setAt: peek, furthest, context };
+  }
+
+  /** @type {Edge} */
+  const SEED = { kind: "seed" };
+
+  /**
+   * A symbol as the diagnostics write it: its name, followed by its test if
+   * it has one, such as LE="la" (docs/output.md).
+   * @param {{name: string, test?: SymbolTest | null}} symbol
+   * @returns {string}
+   */
+  function writtenSymbol(symbol) {
+    return symbol.test ? symbol.name + symbol.test.written : symbol.name;
+  }
+
+  /**
+   * Which productions can read in the reconstruction mode (engine §7.4): for
+   * each production, the index of its last symbol that can read, or -1. A
+   * terminal can read; so can a rule or helper with a production that can,
+   * and the empty production of an elidable helper, the restoration.
+   * @typedef {{last: Map<Production, number>}} Reading
+   */
+
+  /** @type {WeakMap<LoweredGrammar, Map<string, Reading>>} */
+  const readings = new WeakMap();
+
+  /**
+   * @param {LoweredGrammar} lowered
+   * @returns {Reading}
+   */
+  function readingOf(lowered) {
+    // A fault leaves the restorations out (F29). Another takes the greatest
+    // answer in place of the least (F30).
+    const withoutRestorations = fault("F29", "reading");
+    const greatest = fault("F30");
+    let known = readings.get(lowered);
+    if (!known) readings.set(lowered, (known = new Map()));
+    const which = `${withoutRestorations} ${greatest}`;
+    let found = known.get(which);
+    if (found) return found;
+    /** @type {Set<string>} */
+    const rules = new Set();
+    /** @type {(symbol: GrammarSymbol) => boolean} */
+    const reads = (symbol) => symbol.terminal || rules.has(symbol.name);
+    /** @type {(production: Production) => boolean} */
+    const productionReads = (production) => {
+      const restoration = production.rhs.length === 0 && production.helper && production.elided !== null;
+      return (restoration && !withoutRestorations) || production.rhs.some(reads);
+    };
+    if (greatest) {
+      // Everything can read, until nothing more is removed.
+      for (const production of lowered.productions) rules.add(production.lhs);
+      for (let changed = true; changed;) {
+        changed = false;
+        for (const name of [...rules]) {
+          if (!(lowered.byLhs.get(name) || []).some(productionReads)) {
+            rules.delete(name);
+            changed = true;
+          }
+        }
+      }
+    }
+    // Nothing can read, until nothing more is added (engine §7.4).
+    for (let changed = !greatest; changed;) {
+      changed = false;
+      for (const production of lowered.productions) {
+        if (rules.has(production.lhs)) continue;
+        if (productionReads(production)) {
+          rules.add(production.lhs);
+          changed = true;
+        }
+      }
+    }
+    /** @type {Map<Production, number>} */
+    const last = new Map();
+    for (const production of lowered.productions) {
+      let at = -1;
+      production.rhs.forEach((symbol, index) => {
+        if (reads(symbol)) at = index;
+      });
+      last.set(production, at);
+    }
+    found = { last };
+    known.set(which, found);
+    return found;
+  }
+
+  /**
+   * Whether the test of a symbol holds where an item advances over it, the
+   * tokens [from, to), read as a token when `child` is null. A test of a
+   * terminal reads the token, with its recognition values. In the check of
+   * engine §7, a test of a reference reads its projected span and its
+   * constituent's tags (engine §7.5).
+   * @param {ParseContext} context
+   * @param {SymbolTest} test
+   * @param {number} from
+   * @param {number} to
+   * @param {Item | null} child
+   * @returns {boolean}
+   */
+  function symbolTestHolds(context, test, from, to, child) {
+    const recon = context.recon;
+    if (child === null) {
+      const synthetic = context.synthetic !== null && context.synthetic[from];
+      if (synthetic && fault("F11", "test")) return true;
+      if (recon !== null && synthetic && fault("F10")) {
+        const observed = recon.observed;
+        const start = recon.project[from];
+        const end = recon.project[to];
+        return testHolds(observed, test, start, end, tokensTags(observed.tokens, start, end));
+      }
+      return testHolds(context, test, from, to, context.tokens[from].tags);
+    }
+    const tags = context.interner.get(child.tagId);
+    if (recon === null) return testHolds(context, test, from, to, tags);
+    if (recon.raw || fault("F9")) return testHolds(context, test, from, to, tagUnion(tags, syntheticTags(context, from, to)));
+    return testHolds(recon.observed, test, recon.project[from], recon.project[to], tags);
+  }
+
+  /**
+   * The union of the tags of the synthetic tokens of R in [from, to), which
+   * no correct observation reads (faults F7 and F9).
+   * @param {ParseContext} context
+   * @param {number} from
+   * @param {number} to
+   * @returns {TagSet}
+   */
+  function syntheticTags(context, from, to) {
+    let result = tagSet();
+    const synthetic = context.synthetic;
+    if (synthetic === null) return result;
+    for (let index = from; index < to; index++) if (synthetic[index]) result = tagUnion(result, context.tokens[index].tags);
+    return result;
+  }
+
+  /**
+   * Whether the observations of a context read the reconstructed tokens
+   * themselves, as the old contract did (a fault).
+   * @param {ParseContext} context
+   * @returns {boolean}
+   */
+  function rawObservations(context) {
+    return context.recon !== null && context.recon.raw;
+  }
+
+  /**
+   * Whether a test holds of a symbol's own span, the tokens [from, to), and
+   * its own tags (engine §4): a token's for a terminal, the completed item's
+   * for a reference. An empty span sounds like the empty string.
+   * @param {ParseContext} context
+   * @param {SymbolTest} test
+   * @param {number} from
+   * @param {number} to
+   * @param {TagSet} tags
+   * @returns {boolean}
+   */
+  function testHolds(context, test, from, to, tags) {
+    switch (test.op) {
+      case "=":
+      case "≠":
+        return soundIs(context, /** @type {string} */ (test.sound), from, to) === (test.op === "=");
+      case "⊇":
+      case "⊉":
+        return isSubset(/** @type {TagSet} */ (test.tags), tags) === (test.op === "⊇");
+      default: {
+        let meets = false;
+        for (const tag of /** @type {TagSet} */ (test.tags)) {
+          if (tags.has(tag)) {
+            meets = true;
+            break;
+          }
+        }
+        return meets === (test.op === "∩≠∅");
+      }
+    }
+  }
+
+  /**
+   * Whether the tokens [from, to) sound like a string: their canonical sound
+   * is exactly it (engine §4, §5). A token with no phonemes adds nothing.
+   * @param {ParseContext} context
+   * @param {string} sound
+   * @param {number} from
+   * @param {number} to
+   * @returns {boolean}
+   */
+  function soundIs(context, sound, from, to) {
+    let offset = 0;
+    for (let index = from; index < to; index++) {
+      const part = canonicalSound(context, index);
+      if (!sound.startsWith(part, offset)) return false;
+      offset += part.length;
+    }
+    return offset === sound.length;
+  }
+
+  /**
+   * A token's phonemes in canonical form (engine §5), remembered for the
+   * parse. The lowercase mapping and the removal of commas act on each code
+   * point alone, so the canonical sound of a span is its tokens' joined.
+   * @param {ParseContext} context
+   * @param {number} index
+   * @returns {string}
+   */
+  function canonicalSound(context, index) {
+    let sound = context.sounds[index];
+    if (sound === undefined) sound = context.sounds[index] = context.unicode.canonical(context.tokens[index].phonemes || "");
+    return sound;
+  }
+
+  // One token of lookahead: an item whose first symbol is a terminal the next
+  // token lacks could never advance, so a prediction of it is not made.
+  /**
+   * @param {ParseContext} context
+   * @param {Production} production
+   * @param {Token | null} next
+   * @returns {boolean}
+   */
+  function lookaheadSkips(context, production, next) {
+    const first = production.rhs[0];
+    return Boolean(first && first.terminal && !(next && reads(context, first, next)));
+  }
+
+  /**
+   * Whether a terminal matches a token (engine §4): a tag it carries, or, for
+   * a range or a property, one of its character tags.
+   * @param {ParseContext} context
+   * @param {GrammarSymbol} symbol
+   * @param {Token} token
+   * @returns {boolean}
+   */
+  function reads(context, symbol, token) {
+    return symbol.characters === undefined ? token.tags.has(symbol.name) : carries(context.unicode, symbol.characters, token.tags);
+  }
+
+  /**
+   * Whether tags hold a character tag of a range or a property (engine §4).
+   * @param {UnicodeTable} unicode
+   * @param {CharacterClass} characters
+   * @param {TagSet} tags
+   * @returns {boolean}
+   */
+  function carries(unicode, characters, tags) {
+    for (const tag of tags) {
+      const code = codeOfCharacterTag(tag);
+      if (code < 0) continue;
+      if ("property" in characters ? unicode.hasProperty(characters.property, code) : code >= characters.from && code <= characters.to) return true;
+    }
+    return false;
+  }
+
+  // The tags of each range that a term holds, made once (engine §10).
+  /** @type {WeakMap<object, TagSet>} */
+  const rangeSets = new WeakMap();
+
+  // The slots of a predicted item, one list per production that all its
+  // predictions share: advancing over a capture copies the list first.
+  /** @type {WeakMap<Production, Slot[]>} */
+  const noSlots = new WeakMap();
+
+  /**
+   * @param {Production} production
+   * @returns {Slot[]}
+   */
+  function emptySlots(production) {
+    let slots = noSlots.get(production);
+    if (!slots) noSlots.set(production, (slots = /** @type {Slot[]} */ (Object.freeze(production.captures.map(() => null)))));
+    return slots;
+  }
+
+  // An item's key in its set's index: `base`, a number unique to its
+  // production, dot and origin, and for an item that has captured something,
+  // a string adding its slots. Almost no item has, and a number is no
+  // allocation.
+  /**
+   * @param {number} base
+   * @param {Slot[]} slots
+   * @returns {number | string}
+   */
+  function itemKey(base, slots) {
+    /** @type {string | null} */
+    let key = null;
+    for (let index = 0; index < slots.length; index++) {
+      const slot = slots[index];
+      if (slot) key = (key === null ? String(base) : key) + "," + index + ":" + slot[0] + ":" + slot[1] + ":" + slot[2];
+    }
+    return key === null ? base : key;
+  }
+
+  /**
+   * The completed items of `rule` spanning [start, end).
+   * @param {Chart} chart
+   * @param {string} rule
+   * @returns {Item[]}
+   */
+  function rootItems(chart, rule) {
+    return chart.setAt(chart.end).items.filter((item) =>
+      item.complete && item.origin === chart.start && item.production.lhs === rule);
+  }
+
+  /**
+   * The first condition of a production that is ready at `readyAt` and fails,
+   * or null when they all hold.
+   * @param {ParseContext} context
+   * @param {Production} production
+   * @param {number} readyAt
+   * @param {Slot[]} slots
+   * @param {number} origin where the item began
+   * @param {number} end where it ends once it has read the symbol at `readyAt`
+   * @param {StepScope} [step] the scope of the step, shared with its tag term
+   * @returns {Condition | null}
+   */
+  function failedCondition(context, production, readyAt, slots, origin, end, step = { scope: null }) {
+    // In written order (engine §4), unless a fault takes the conditions that
+    // read only captures before those that read `$` (order:conditions).
+    const conditions = fault("order:conditions")
+      ? [...production.conditions].sort((a, b) => Number(conditionVariables(a.condition).includes("")) - Number(conditionVariables(b.condition).includes("")))
+      : production.conditions;
+    for (const { condition, readyAt: at } of conditions) {
+      if (at !== readyAt) continue;
+      const scope = step.scope ??= new ChartScope(context, production, slots, origin, end);
+      if (!holds(scope.observing, condition, scope)) return condition;
+    }
+    return null;
+  }
+
+  /**
+   * @param {ParseContext} context
+   * @param {Production} production
+   * @param {Slot[]} slots
+   * @param {number} origin
+   * @param {number} end
+   * @param {StepScope} step the scope of the step, which holds the tag set
+   *   once a condition has read it
+   * @returns {number}
+   */
+  function completeTags(context, production, slots, origin, end, step) {
+    const scope = step.scope ??= new ChartScope(context, production, slots, origin, end);
+    return context.interner.intern(scope.constituent());
+  }
+
+  /**
+   * The scope that one step of the recognizer makes on demand, and shares
+   * between its conditions and its tag term, so that the tag term runs at
+   * most once in the step. This saves time only: how many times a step
+   * evaluates its tag term is not observable (engine §4).
+   * @typedef {{scope: ChartScope | null}} StepScope
+   */
+
+  /**
+   * A completed constituent's tags: its production's tag term, which cannot
+   * read `$`'s own (engine §9).
+   * @param {ParseContext} context
+   * @param {Production} production
+   * @param {Scope} scope
+   * @returns {TagSet}
+   */
+  function constituentTags(context, production, scope) {
+    return production.tags ? asSet(evaluate(context, production.tags, scope)) : tagSet();
+  }
+
+  /** @implements {Scope} */
+  class ChartScope {
+    /**
+     * @param {ParseContext} context
+     * @param {Production} production
+     * @param {Slot[]} slots
+     * @param {number} origin
+     * @param {number} end
+     */
+    constructor(context, production, slots, origin, end) {
+      this.context = context;
+      this.production = production;
+      this.slots = slots;
+      this.origin = origin;
+      this.end = end;
+      // In the check of engine §7, the spans of R, which every observation
+      // projects to the stage's input, where it is evaluated (engine §7.5).
+      /** @type {ParseContext | null} */
+      this.reconstructed = context.recon ? context : null;
+      this.observing = context.recon ? context.recon.observed : context;
+      /** @type {SpanValue["space"]} */
+      this.space = context.recon ? (context.recon.raw ? "raw" : "R") : undefined;
+      /** @type {TagSet | null} the constituent's tags, once evaluated */
+      this.tagSet = null;
+    }
+    /**
+     * The constituent's tags, from its production's tag term, evaluated at
+     * most once.
+     * @returns {TagSet}
+     */
+    constituent() {
+      return this.tagSet ??= constituentTags(this.observing, this.production, this);
+    }
+    /**
+     * @param {string} name
+     * @returns {SpanValue}
+     */
+    capture(name) {
+      // `$` is the whole constituent, whose tags are read only once it is
+      // complete, by a condition or an emission (engine §4).
+      if (name === "") {
+        const scope = this;
+        return {
+          start: this.origin,
+          end: this.end,
+          get tags() { return scope.constituent(); },
+          space: this.space,
+        };
+      }
+      const index = this.production.captures.findIndex((capture) => capture.name === name);
+      const slot = /** @type {[number, number, number]} */ (this.slots[index]);
+      return { start: slot[0], end: slot[1], tags: this.context.interner.get(slot[2]), space: this.space };
+    }
+  }
+
+  // A span value: [start, end) of the stage's tokens, and the tags of the
+  // captured constituent if it is a whole capture.
+  /**
+   * @param {ParseContext} context
+   * @param {Argument} span
+   * @param {Scope} scope
+   * @returns {SpanValue}
+   */
+  function spanOf(context, span, scope) {
+    if ("capture" in span) return scope.capture(span.capture);
+    if ("call" in span && (span.call === "head" || span.call === "tail" || span.call === "last")) {
+      // In the check, the projection comes first, then the function (engine
+      // §7.5), unless a fault applies the function first (F1).
+      const argument = spanOf(context, span.args[0], scope);
+      const first = functionFirst(argument, scope, span.call);
+      if (first) return first;
+      const inner = projectedArgument(argument, scope, span.call);
+      const { start, end, space } = inner;
+      /** @type {SpanValue} */
+      let result;
+      if (span.call === "head") result = { start, end: Math.min(start + 1, end), space };
+      else if (span.call === "tail") result = { start: Math.min(start + 1, end), end, space };
+      else result = { start: Math.max(end - 1, start), end, space };
+      if (inner.reconstructed) result.reconstructed = reconstructedPart(scope, inner.reconstructed, span.call);
+      if (inner.exact) result.exact = exactPart(scope, inner.exact, span.call);
+      return result;
+    }
+    if ("call" in span && (span.call === "from" || span.call === "after")) {
+      const argument = spanOf(context, span.args[0], scope);
+      const first = functionFirst(argument, scope, span.call);
+      if (first) return first;
+      const inner = projectedArgument(argument, scope, span.call);
+      const r = reconstructionOf(scope);
+      const end = inner.space === "raw" ? /** @type {ParseContext} */ (r).inputEnd : context.inputEnd;
+      /** @type {SpanValue} */
+      const result = { start: span.call === "from" ? inner.start : inner.end, end, space: inner.space };
+      if (inner.reconstructed) {
+        const [a, b] = inner.reconstructed;
+        result.reconstructed = [span.call === "from" ? a : b, /** @type {ParseContext} */ (r).inputEnd];
+      }
+      if (inner.exact) result.exact = exactPart(scope, inner.exact, span.call);
+      return result;
+    }
+    throw new GencmuError("grammar", `expected a span, found ${JSON.stringify(span)}`);
+  }
+
+  /**
+   * The context of R behind a scope that reads the reconstruction, or null.
+   * @param {Scope} scope
+   * @returns {ParseContext | null}
+   */
+  function reconstructionOf(scope) {
+    return /** @type {{reconstructed?: ParseContext | null}} */ (scope).reconstructed || null;
+  }
+
+  /**
+   * The argument of a span function in the check: projected to the stage's
+   * input. A projected span remembers the span of R that it came from, and
+   * the exact span of R behind it, which only faults read. Under a fault of
+   * the function's positions (F1pos), or the old contract, the function reads
+   * R itself at the positions it has (raw).
+   * @param {SpanValue} span
+   * @param {Scope} scope
+   * @param {string} observer
+   * @returns {SpanValue}
+   */
+  function projectedArgument(span, scope, observer) {
+    const r = reconstructionOf(scope);
+    if (r === null || span.space === "raw") return span;
+    if (fault("F1pos:" + observer, "observe")) return { start: span.start, end: span.end, space: "raw" };
+    if (span.space !== "R") return span;
+    const project = /** @type {Reconstruction} */ (r.recon).project;
+    return { start: project[span.start], end: project[span.end], reconstructed: [span.start, span.end], exact: [span.start, span.end] };
+  }
+
+  /**
+   * The exact span of R behind a span of the check, which only faults read
+   * (F1, F7:union): a capture's own span, or the one that a function of it
+   * computed (exactPart). Null where there is none.
+   * @param {SpanValue} span
+   * @returns {[number, number] | null}
+   */
+  function exactBehind(span) {
+    if (span.space === "R") return [span.start, span.end];
+    if (span.space === "raw") return null;
+    return span.exact || null;
+  }
+
+  /**
+   * Under a fault of a span function (F1), the function applied to the
+   * tokens of R behind its argument, and the projection after it, in place of
+   * the order of engine §7.5. Null where the fault is off or the argument has
+   * no span of R behind it.
+   * @param {SpanValue} argument
+   * @param {Scope} scope
+   * @param {string} call
+   * @returns {SpanValue | null}
+   */
+  function functionFirst(argument, scope, call) {
+    const r = reconstructionOf(scope);
+    if (r === null || !fault("F1:" + call, "function")) return null;
+    const behind = exactBehind(argument);
+    if (behind === null) return null;
+    const [a, b] = behind;
+    /** @type {[number, number]} */
+    let part;
+    if (call === "head") part = [a, Math.min(a + 1, b)];
+    else if (call === "tail") part = [Math.min(a + 1, b), b];
+    else if (call === "last") part = [Math.max(b - 1, a), b];
+    else if (call === "from") part = [a, r.inputEnd];
+    else part = [b, r.inputEnd];
+    const project = /** @type {Reconstruction} */ (r.recon).project;
+    return { start: project[part[0]], end: project[part[1]], reconstructed: part, exact: part };
+  }
+
+  /**
+   * The exact span of R behind a function of a span whose exact span of R is
+   * `span`: the one original token for head and last, and from the first
+   * original token of the result for tail, from and after. Only faults read
+   * it (F1, F7:union).
+   * @param {Scope} scope
+   * @param {[number, number]} span
+   * @param {string} call
+   * @returns {[number, number]}
+   */
+  function exactPart(scope, span, call) {
+    const r = /** @type {ParseContext} */ (reconstructionOf(scope));
+    const synthetic = /** @type {boolean[]} */ (r.synthetic);
+    const [a, b] = span;
+    /** @type {(at: number, limit: number) => number} */
+    const original = (at, limit) => {
+      while (at < limit && synthetic[at]) at++;
+      return at;
+    };
+    if (call === "last") {
+      let at = b - 1;
+      while (at >= a && synthetic[at]) at--;
+      return at >= a ? [at, at + 1] : [b, b];
+    }
+    if (call === "head") {
+      const at = original(a, b);
+      return at < b ? [at, at + 1] : [b, b];
+    }
+    if (call === "tail") {
+      const first = original(a, b);
+      return [first < b ? original(first + 1, b) : b, b];
+    }
+    const end = r.inputEnd;
+    return [original(call === "from" ? a : b, end), end];
+  }
+
+  /**
+   * The part of a span of R that a function of its projection covers: up to
+   * and including the first original token for head, after it for tail, and
+   * from the last one for last. Only the faults of queries read it (F3, F4
+   * and F21).
+   * @param {Scope} scope
+   * @param {[number, number]} span
+   * @param {string} call
+   * @returns {[number, number]}
+   */
+  function reconstructedPart(scope, span, call) {
+    const r = /** @type {ParseContext} */ (reconstructionOf(scope));
+    const synthetic = /** @type {boolean[]} */ (r.synthetic);
+    const [a, b] = span;
+    if (call === "last") {
+      let at = b - 1;
+      while (at >= a && synthetic[at]) at--;
+      return [Math.max(at, a), b];
+    }
+    let at = a;
+    while (at < b && synthetic[at]) at++;
+    return call === "head" ? [a, Math.min(at + 1, b)] : [Math.min(at + 1, b), b];
+  }
+
+  /**
+   * Where an observation reads a span (engine §7.5): the context and the span
+   * in its positions. A span of R projects to the stage's input. A raw span,
+   * or any span under a fault of the observation's positions (F1pos), reads
+   * R itself at the positions it has. Under a fault of the observation (F1),
+   * it reads the exact span of R behind the span. `exact` is that span, where
+   * there is one.
+   * @param {ParseContext} context
+   * @param {SpanValue} span
+   * @param {Scope} scope
+   * @param {string} observer
+   * @returns {{context: ParseContext, start: number, end: number, exact: [number, number] | null}}
+   */
+  function observe(context, span, scope, observer) {
+    const r = reconstructionOf(scope);
+    if (r === null) return { context, start: span.start, end: span.end, exact: null };
+    if (span.space === "raw" || fault("F1pos:" + observer, "argument")) return { context: r, start: span.start, end: span.end, exact: null };
+    const exact = exactBehind(span);
+    if (exact !== null && fault("F1:" + observer, "argument")) return { context: r, start: exact[0], end: exact[1], exact: null };
+    if (span.space === "R") {
+      const project = /** @type {Reconstruction} */ (r.recon).project;
+      return { context, start: project[span.start], end: project[span.end], exact };
+    }
+    return { context, start: span.start, end: span.end, exact };
+  }
+
+  /**
+   * The tags of a span's tokens where an observation reads them, with the
+   * synthetic tokens' tags of the exact span of R behind it under a fault
+   * (F7:union).
+   * @param {{context: ParseContext, start: number, end: number, exact: [number, number] | null}} where
+   * @param {Scope} scope
+   * @returns {TagSet}
+   */
+  function observedTokenTags(where, scope) {
+    const tags = tokensTags(where.context.tokens, where.start, where.end);
+    const r = reconstructionOf(scope);
+    if (where.exact === null || r === null || !fault("F7:union")) return tags;
+    return tagUnion(tags, syntheticTags(r, where.exact[0], where.exact[1]));
+  }
+
+  /**
+   * Where a query that a condition starts runs (engine §7.6): in the check,
+   * over the projected span, with the main grammar in its ordinary mode and
+   * the main parse's memo. A fault can send it elsewhere.
+   * @param {ParseContext} context
+   * @param {SpanValue} span
+   * @param {Scope} scope
+   * @returns {{context: ParseContext, start: number, end: number, key: [number, number] | null, fromCheck: boolean}}
+   */
+  function queryTarget(context, span, scope) {
+    const r = reconstructionOf(scope);
+    if (r === null) return { context, start: span.start, end: span.end, key: null, fromCheck: false };
+    const recon = /** @type {Reconstruction} */ (r.recon);
+    if (span.space === "raw") return { context: faultyContext(r, recon.raw ? "F13" : "F3"), start: span.start, end: span.end, key: null, fromCheck: true };
+    // The span in R and its projection.
+    const rspan = span.space === "R" ? [span.start, span.end] : span.reconstructed || [span.start, span.end];
+    const [start, end] = span.space === "R" ? [recon.project[span.start], recon.project[span.end]] : [span.start, span.end];
+    if (fault("F3")) return { context: faultyContext(r, "F3"), start: rspan[0], end: rspan[1], key: null, fromCheck: true };
+    for (const name of ["F2", "F5", "F6"]) {
+      if (fault(name)) return { context: faultyContext(r, name), start, end, key: null, fromCheck: true };
+    }
+    if (fault("F4")) {
+      const length = context.tokens.length;
+      return { context, start: Math.min(rspan[0], length), end: Math.min(rspan[1], length), key: null, fromCheck: true };
+    }
+    return { context, start, end, key: fault("F21") ? [rspan[0], rspan[1]] : null, fromCheck: true };
+  }
+
+  /**
+   * The context of the queries that a fault sends away from the main parse,
+   * made once per check.
+   * @param {ParseContext} r the context of R
+   * @param {string} name
+   * @returns {ParseContext}
+   */
+  function faultyContext(r, name) {
+    const recon = /** @type {Reconstruction} */ (r.recon);
+    let found = recon.faulty.get(name);
+    if (found) return found;
+    const observed = recon.observed;
+    let lowered = observed.lowered;
+    if (name === "F5") lowered = { ...lowered, maximalTerminals: new Set() };
+    if (name === "F6") lowered = { ...lowered, maximalTerminals: new Set(lowered.productions.flatMap((production) => (production.helper && production.elided !== null ? [production.elided] : []))) };
+    const tokens = name === "F3" || name === "F13" ? r.tokens : observed.tokens;
+    found = new ParseContext(lowered, tokens, observed.sourceText, observed.unicode);
+    if (name === "F13" || name === "F2") {
+      found.mode = "mandatory";
+      found.synthetic = name === "F13" ? r.synthetic : tokens.map(() => false);
+    }
+    recon.faulty.set(name, found);
+    return found;
+  }
+
+  /**
+   * @param {ParseContext} context
+   * @param {number} start
+   * @param {number} end
+   * @returns {string}
+   */
+  function textOf(context, start, end) {
+    if (start >= end) return "";
+    const [from, to] = context.sources.of(start, end);
+    return context.sourceText.slice(from, to).join("");
+  }
+
+  /**
+   * @param {Token[]} tokens
+   * @param {number} start
+   * @param {number} end
+   * @returns {TagSet}
+   */
+  function tokensTags(tokens, start, end) {
+    let result = tagSet();
+    for (let index = start; index < end; index++) result = tagUnion(result, tokens[index].tags);
+    return result;
+  }
+
+  /**
+   * A term's value (engine §10): a string, or a set, of strings or of tags.
+   * The reader has made sure that the types agree, so a set's kind needs no
+   * mark here.
+   * @param {ParseContext} context
+   * @param {Argument} term
+   * @param {Scope} scope
+   * @returns {TermValue}
+   */
+  function evaluate(context, term, scope) {
+    if ("string" in term) return { string: term.string };
+    if ("tag" in term) return { set: tagSet([term.tag]) };
+    // A constant holds its final value once the stage is stitched (engine §2).
+    if ("const" in term) {
+      if (!term.value) throw new GencmuError("grammar", `the constant $${term.const} has no value`);
+      return term.value;
+    }
+    if ("range" in term) {
+      let tags = rangeSets.get(term);
+      if (!tags) rangeSets.set(term, (tags = rangeTags(term.range, context.unicode)));
+      return { set: tags };
+    }
+    if ("if" in term) return holds(context, term.if, scope) ? evaluate(context, term.then, scope) : { set: tagSet() };
+    if ("emptySet" in term) return { set: tagSet() };
+    if ("union" in term) return { set: term.union.reduce((acc, item) => tagUnion(acc, asSet(evaluate(context, item, scope))), tagSet()) };
+    if ("intersection" in term) {
+      const [first, ...rest] = term.intersection.map((item) => asSet(evaluate(context, item, scope)));
+      return { set: rest.reduce((acc, item) => tagIntersection(acc, item), first) };
+    }
+    if ("difference" in term) {
+      const [left, right] = term.difference.map((item) => asSet(evaluate(context, item, scope)));
+      return { set: tagDifference(left, right) };
+    }
+    if ("call" in term) {
+      const args = term.args;
+      switch (term.call) {
+        case "phonemes": {
+          // The canonical sound (engine §5).
+          const where = observe(context, spanOf(context, args[0], scope), scope, "phonemes");
+          let sound = "";
+          for (let index = where.start; index < where.end; index++) sound += canonicalSound(where.context, index);
+          return { string: sound };
+        }
+        case "text": {
+          const where = observe(context, spanOf(context, args[0], scope), scope, "text");
+          return { string: textOf(where.context, where.start, where.end) };
+        }
+        case "split": {
+          // A set of strings (engine §10); an empty delimiter that only a
+          // parse sees is an error of the grammar.
+          const string = asString(evaluate(context, args[0], scope));
+          const delimiter = asString(evaluate(context, args[1], scope));
+          if (delimiter === "") throw new GencmuError("grammar", "split has an empty delimiter");
+          return { set: splitString(string, delimiter) };
+        }
+        case "tag": {
+          const name = asString(evaluate(context, args[0], scope));
+          if (!isName(name)) throw new GencmuError("grammar", `tag(${JSON.stringify(name)}): the string is not a name`);
+          return { set: tagSet([name]) };
+        }
+        case "tags": {
+          const span = spanOf(context, args[0], scope);
+          if (args.length === 2) {
+            const target = queryTarget(context, span, scope);
+            return { set: nestedTags(target.context, ruleName(args[1]), target.start, target.end, target) };
+          }
+          if (span.tags && "capture" in args[0]) return { set: span.tags };
+          return { set: observedTokenTags(observe(context, span, scope, "tags"), scope) };
+        }
+        case "classify": {
+          // The classes that the classifier gives the string, for the
+          // features of the parse, or none for an unknown key (engine §10).
+          const key = asString(evaluate(context, args[0], scope));
+          const name = /** @type {{classifier: string}} */ (args[1]).classifier;
+          const table = context.lowered.classifiers.get(name);
+          return { set: (table && table.get(key)) || tagSet() };
+        }
+        case "classes": {
+          const span = spanOf(context, args[0], scope);
+          const tags = span.tags && "capture" in args[0] ? span.tags : observedTokenTags(observe(context, span, scope, "classes"), scope);
+          const result = tagSet();
+          for (const tag of tags) {
+            const first = tag.charCodeAt(0);
+            if (first >= 0x41 && first <= 0x5a) result.add(tag);
+          }
+          return { set: result };
+        }
+        default:
+          throw new GencmuError("grammar", `unknown function ${term.call}`);
+      }
+    }
+    throw new GencmuError("grammar", `unknown term ${JSON.stringify(term)}`);
+  }
+
+  /**
+   * The rule an argument names.
+   * @param {Argument} argument
+   * @returns {string}
+   */
+  function ruleName(argument) {
+    if ("rule" in argument) return argument.rule;
+    throw new GencmuError("grammar", `expected a rule name, found ${JSON.stringify(argument)}`);
+  }
+
+  /**
+   * @param {TermValue} value
+   * @returns {Set<string>}
+   */
+  function asSet(value) {
+    if ("set" in value) return value.set;
+    throw new GencmuError("grammar", "expected a set");
+  }
+
+  /**
+   * @param {TermValue} value
+   * @returns {string}
+   */
+  function asString(value) {
+    if ("string" in value) return value.string;
+    throw new GencmuError("grammar", "expected a string");
+  }
+
+  /**
+   * @param {ParseContext} context
+   * @param {Condition} condition
+   * @param {Scope} scope
+   * @returns {boolean}
+   */
+  function holds(context, condition, scope) {
+    if ("any" in condition) return condition.any.some((item) => holds(context, item, scope));
+    if ("all" in condition) return condition.all.every((item) => holds(context, item, scope));
+    // The consequent is evaluated only where the antecedent holds (engine §10).
+    if ("if" in condition) return !holds(context, condition.if, scope) || holds(context, /** @type {Condition} */ (condition.then), scope);
+    if ("not" in condition) return !holds(context, condition.not, scope);
+    // A presence test is decided when the grammar is lowered (engine §3.6).
+    if ("captured" in condition) throw new GencmuError("grammar", "a presence test outlived lowering");
+    if ("matches" in condition) {
+      const target = queryTarget(context, spanOf(context, condition.matches, scope), scope);
+      return nestedMatches(target.context, condition.rule, target.start, target.end, target);
+    }
+    if ("begins" in condition) {
+      const target = queryTarget(context, spanOf(context, condition.begins, scope), scope);
+      return nestedBegins(target.context, condition.rule, target.start, target.end, target);
+    }
+    // Where the input of the parse that reads the condition begins (engine §10).
+    if ("initial" in condition) {
+      const where = observe(context, spanOf(context, condition.initial, scope), scope, "initial");
+      return where.start === where.context.inputStart;
+    }
+    const left = evaluate(context, condition.left, scope);
+    const right = evaluate(context, condition.right, scope);
+    switch (condition.op) {
+      case "=":
+      case "≠": {
+        let equal;
+        if ("string" in left && "string" in right) equal = left.string === right.string;
+        else equal = sameTags(asSet(left), asSet(right));
+        return equal === (condition.op === "=");
+      }
+      case "∈":
+      case "∉":
+        return asSet(right).has(asString(left)) === (condition.op === "∈");
+      case "⊆":
+      case "⊈":
+        return isSubset(asSet(left), asSet(right)) === (condition.op === "⊆");
+      default:
+        throw new GencmuError("grammar", `unknown comparison ${condition.op}`);
+    }
+  }
+
+  // The longest span whose answers are remembered by content, so that a word
+  // repeated at many places is looked up once; a longer span is remembered by
+  // position, since a key of content costs as much as the span is long, and the
+  // span of `from` or `after` runs to the end of the input (engine §4).
+  const CONTENT_KEY_LIMIT = 64;
+
+  // The key under which a nested parse's answer is remembered: everything the
+  // nested parse can observe (engine §4).
+  /**
+   * @param {ParseContext} context
+   * @param {string} kind
+   * @param {string} rule
+   * @param {number} start
+   * @param {number} end
+   * @returns {string}
+   */
+  function nestedKey(context, kind, rule, start, end) {
+    if (end - start > CONTENT_KEY_LIMIT) return JSON.stringify(["at", kind, rule, start, end]);
+    // The text over the span's source (engine §1), and each token's tags,
+    // text, phonemes, and where it begins and ends in that text, which text()
+    // of a part of the span reads.
+    const [low, high] = start < end ? context.sources.of(start, end) : [0, 0];
+    /** @type {(string | number)[]} */
+    const key = ["of", kind, rule, context.sourceText.slice(low, high).join("")];
+    for (let index = start; index < end; index++) {
+      const token = context.tokens[index];
+      key.push(tagKey(token.tags), token.text, token.phonemes || "", token.source[0] - low, token.source[1] - low);
+    }
+    return JSON.stringify(key);
+  }
+
+  // How deep the queries that fault F25 lets through nest before they end.
+  const UNSEEN_DEPTH = 64;
+  let unseenDepth = 0;
+
+  /**
+   * @template {boolean | TagSet} T
+   * @param {ParseContext} context
+   * @param {string} kind
+   * @param {string} rule
+   * @param {number} start
+   * @param {number} end
+   * @param {(chart: Chart) => T} compute
+   * @param {{key: [number, number] | null, fromCheck: boolean} | null} [target]
+   *   where a query of the check came from
+   * @returns {T}
+   */
+  function nested(context, kind, rule, start, end, compute, target = null) {
+    // A fault keys a long query of the check by its span in R (F21).
+    const key = target !== null && target.key !== null && end - start > CONTENT_KEY_LIMIT
+      ? JSON.stringify(["at", kind, rule, target.key[0], target.key[1]])
+      : nestedKey(context, kind, rule, start, end);
+    if (context.nested.has(key)) return /** @type {T} */ (context.nested.get(key));
+    // A fault finds no query cycle while the check runs (F25). The recursion
+    // that it lets through ends at a bound, not in a stack overflow.
+    const unseen = context.checking && fault("F25");
+    if (unseen && unseenDepth >= UNSEEN_DEPTH) throw new Error("F25: the queries of the check recurse without end");
+    // A parse in progress is known by its rule and span, whatever the kind of
+    // query, so that alternating kinds cannot hide a query about a span from
+    // inside its own parse (engine §4).
+    const circular = "parse\u0001" + rule + "\u0001" + start + "\u0001" + end;
+    if (context.inProgress.has(circular)) {
+      throw new GencmuError("grammar",
+        `a condition asks whether ${JSON.stringify(textOf(context, start, end))} parses as ${rule} from inside the parse of that span as ${rule}: ` +
+        `the grammar defines ${rule} in terms of itself over the same text`, { rule });
+    }
+    if (!unseen) context.inProgress.add(circular);
+    else unseenDepth++;
+    if (context.trace) context.trace.depth++;
+    try {
+      const chart = recognize(context, rule, start, end);
+      const answer = compute(chart);
+      context.nested.set(key, answer);
+      return answer;
+    } finally {
+      if (!unseen) context.inProgress.delete(circular);
+      else unseenDepth--;
+      if (context.trace) context.trace.depth--;
+    }
+  }
+
+  /**
+   * @param {ParseContext} context
+   * @param {string} rule
+   * @param {number} start
+   * @param {number} end
+   * @param {{key: [number, number] | null, fromCheck: boolean} | null} [target]
+   * @returns {boolean}
+   */
+  function nestedMatches(context, rule, start, end, target = null) {
+    return nested(context, "matches", rule, start, end, (chart) => eligibleWitnesses(chart, rootItems(chart, rule), testHolds).length > 0, target);
+  }
+
+  /**
+   * Whether a prefix of [start, end) parses as `rule`: a completed item of it
+   * with an eligible witness has its origin at `start`, in any set (engine
+   * §4).
+   * @param {ParseContext} context
+   * @param {string} rule
+   * @param {number} start
+   * @param {number} end
+   * @param {{key: [number, number] | null, fromCheck: boolean} | null} [target]
+   * @returns {boolean}
+   */
+  function nestedBegins(context, rule, start, end, target = null) {
+    return nested(context, "begins", rule, start, end, (chart) => {
+      /** @type {Item[]} */
+      const witnesses = [];
+      for (const set of chart.sets) {
+        if (set === undefined) continue;
+        for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule) witnesses.push(item);
+      }
+      return eligibleWitnesses(chart, witnesses, testHolds).length > 0;
+    }, target);
+  }
+
+  /**
+   * @param {ParseContext} context
+   * @param {string} rule
+   * @param {number} start
+   * @param {number} end
+   * @param {{key: [number, number] | null, fromCheck: boolean} | null} [target]
+   * @returns {TagSet}
+   */
+  function nestedTags(context, rule, start, end, target = null) {
+    return nested(context, "tags", rule, start, end, (chart) =>
+      eligibleWitnesses(chart, rootItems(chart, rule), testHolds).reduce((acc, item) => tagUnion(acc, context.interner.get(item.tagId)), tagSet()), target);
+  }
+
+  // The furthest position the parse reached, and what could have been read
+  // there, with the rules that could have read it.
+  /**
+   * @param {Chart} chart
+   * @returns {{position: number, expected: Expectation[]}}
+   */
+  function rejectionOf(chart) {
+    const position = chart.furthest;
+    return { position, expected: expectedAt(chart, position) };
+  }
+
+  /**
+   * The terminals the parse could have read at a position, each with the
+   * rules whose items could have read it: the items there whose next symbol
+   * is a terminal, and the predictions the lookahead did not make items of.
+   * @param {Chart} chart
+   * @param {number} position
+   * @returns {Expectation[]}
+   */
+  function expectedAt(chart, position) {
+    const set = chart.setAt(position);
+    /** @type {Map<string, Set<string>>} */
+    const expected = new Map();
+    /** @type {(terminal: string, rule: string) => void} */
+    const note = (terminal, rule) => {
+      let rules = expected.get(terminal);
+      if (!rules) expected.set(terminal, (rules = new Set()));
+      rules.add(rule);
+    };
+    for (const item of set.items) {
+      const next = item.production.rhs[item.dot];
+      if (next && next.terminal) note(writtenSymbol(next), item.production.owner);
+    }
+    // A skipped prediction passed its conditions before it was skipped. Those
+    // it checked then use no captures, so they hold again now.
+    const context = chart.context;
+    const next = position < chart.end ? context.tokens[position] : null;
+    for (const rule of set.skipped) {
+      for (const production of context.lowered.byLhs.get(rule) || []) {
+        if (!lookaheadSkips(context, production, next) || failedCondition(context, production, -1, emptySlots(production), position, position)) continue;
+        note(writtenSymbol(production.rhs[0]), production.owner);
+      }
+    }
+    return [...expected].sort((left, right) => compareCodePoints(left[0], right[0])).map(([terminal, rules]) => ({
+      terminal,
+      rules: [...rules].sort(compareCodePoints),
+    }));
+  }
+
   // ---- diagnostics.js
   // Diagnostics for people: what went wrong with a text or a grammar, said in
   // the grammar's own terms. The CLI and the playground print these; nothing
@@ -3710,6 +5625,13 @@
       lines.push(`The ${error.stage} stage's text is ambiguous even with every elided terminator written out,`);
       lines.push("so the ambiguity is not about terminators (elision-only). Two readings:");
       for (const reading of error.readings || []) lines.push("  " + nodeBrackets(reading, tokens, { showElided: true }));
+      // Two readings can show the same brackets, so the witness says where
+      // they first differ (engine §7.10).
+      if (error.witness) {
+        lines.push("They first differ where:");
+        lines.push(`  the first reading ${describeAction(error.witness[0], tokens)}`);
+        lines.push(`  the second reading ${describeAction(error.witness[1], tokens)}`);
+      }
     } else {
       const where = error.document ? `${error.document}${error.line ? `:${error.line}:${error.column}` : ""}: ` : "";
       lines.push(`A grammar error${error.stage ? ` in the ${error.stage} stage` : ""}: ${where}${error.message}`);
@@ -3720,13 +5642,13 @@
   // ---- Ties ----------------------------------------------------------------
 
   /**
-   * @param {WitnessAction | null} action
+   * @param {WitnessAction} action
    * @param {Token[]} tokens
    * @returns {string}
    */
   function describeAction(action, tokens) {
-    if (!action) return "ends there";
     if (action.kind === "read") return `reads ${quoted(tokens[action.token] ? tokens[action.token].text : "")} as ${action.terminal}`;
+    if (action.kind === "elided") return `reads the ${action.terminal} written back at position ${action.at}`;
     const rule = action.helper ? `part of ${action.rule}` : action.rule;
     return `closes ${rule} over tokens ${action.span[0]} to ${action.span[1]}`;
   }
@@ -3764,8 +5686,9 @@
       if (stage.verdict !== "tie") continue;
       const tokens = stage.input || [];
       const [first, second] = stage.witness;
-      const action = first || second;
-      const at = action ? (action.kind === "read" ? action.token : action.span[1]) : 0;
+      // A tie in a stage has no written-back terminator, so its actions are
+      // reads and closes.
+      const at = first.kind === "read" ? first.token : first.kind === "close" ? first.span[1] : 0;
       const lines = [`The ${stage.name} stage is ambiguous: its grammar reads the text in two ways, and no rule ranks one above the other.`,
         "They first differ here:"];
       if (tokens.length) {
@@ -4257,7 +6180,7 @@
     const tokens = report.input;
     const features = new Set(run.features);
     const stage = dialect.stages[index];
-    const lowered = stage.grammar.lower(features, false);
+    const lowered = stage.grammar.lower(features);
     const context = new ParseContext(lowered, tokens, [...text], dialect.loader.unicode);
     const position = Math.max(0, Math.min(options.position, tokens.length));
     context.trace = { position, events: [], depth: 0 };
@@ -4299,1113 +6222,11 @@
     return lines.join("\n");
   }
 
-  // ---- grammar.js
-  // A stage's grammar: its documents stitched together (engine §2) and
-  // lowered to productions for one set of features (engine §3).
-
-
-
-
-
-  /**
-   * @import { Condition, ConstantTerm, DomAlternative, DomClassifier, DomConstant, DomImplication, DomRule, Emission, ErrorLocation, Expr, GrammarDom, Guard, LoweredGrammar, Production, Resolution, SymbolTest, TagSet, Term, TermValue, TestOp } from "./types.js"
-   * @import { TermType } from "./dom.js"
-   */
-
-  /**
-   * A constant of a stage (engine §2): its value and type now, and the
-   * document of its last definition.
-   * @typedef {object} StageConstant
-   * @property {TermValue} value
-   * @property {TermType} type
-   * @property {string} document
-   */
-
-  /**
-   * An implication of a stage with its two sides' values (engine §2, §11).
-   * @typedef {object} StageImplication
-   * @property {TagSet} if
-   * @property {TagSet} then
-   */
-
-  /**
-   * A rule body's alternative as stitched: its own parts, its rule's clauses,
-   * and the document and position of the definition that wrote it.
-   * @typedef {DomAlternative & {clauses: RuleClauses, document: string, at: ErrorLocation}} StitchedAlternative
-   */
-
-  /**
-   * @typedef {object} RuleClauses
-   * @property {Term | undefined} tags
-   * @property {Emission | undefined} emit
-   * @property {Condition[]} conditions
-   * @property {boolean} opaque
-   */
-
-  /**
-   * A rule of the stitched grammar.
-   * @typedef {object} StitchedRule
-   * @property {string} name
-   * @property {string} document
-   * @property {ErrorLocation} at
-   * @property {StitchedAlternative[]} alternatives
-   */
-
-  /**
-   * How a later document changed a rule an earlier one defined.
-   * @typedef {object} RuleChange
-   * @property {"replaced" | "extended"} kind
-   * @property {string} rule
-   * @property {string} document
-   * @property {string} previous
-   */
-
-  /**
-   * A symbol of an expanded sequence, and the capture that names it.
-   * @typedef {{symbol: import("./types.js").GrammarSymbol, capture?: string}} SequenceItem
-   */
-
-  /**
-   * Where an expansion happens: the rule, and the helpers still to lower.
-   * @typedef {{rule: StitchedRule, pending: PendingHelper[]}} Where
-   */
-
-  /**
-   * @typedef {object} PendingHelper
-   * @property {string} name
-   * @property {(where: Where) => SequenceItem[][]} build
-   * @property {string | null} elided
-   * @property {SymbolTest | null} elidedTest
-   */
-
-  const MAX_CAPTURES = 4;
-
-  // The most lowered grammars, and the most classifier tables, that a stage
-  // keeps. Each set of the stage's gates that is on has its own, so a stage
-  // with k gates can have 2^k of them. The least recently used goes first.
-  const MAX_LOWERED = 16;
-
-  // Stitches documents, each { path, dom }, into one grammar.
-  class Grammar {
-    /**
-     * @param {string} stageName
-     * @param {{path: string, dom: GrammarDom}[]} documents
-     * @param {{isMark(code: number): boolean, lowercase(text: string): string}} unicode
-     *   the loader's table, for the tags of a range in a constant's value and
-     *   the canonical sound of a string constant in a test
-     */
-    constructor(stageName, documents, unicode) {
-      this.stageName = stageName;
-      this.unicode = unicode;
-      /** @type {Map<string, StageConstant>} */
-      this.constants = new Map();
-      /**
-       * The definitions of rules that use constants, which the loader checks
-       * once the constants have their final values.
-       * @type {{path: string, rule: DomRule}[]}
-       */
-      this.constantUsers = [];
-      /** @type {Map<string, StitchedRule>} */
-      this.rules = new Map();
-      /** @type {RuleChange[]} */
-      this.changes = [];
-      /** @type {Set<string>} */
-      this.elidable = new Set();
-      // The elidable terminators that %elidable maximal names (engine §2).
-      /** @type {Set<string>} */
-      this.maximalTerminals = new Set();
-      /** @type {Resolution | null} */
-      this.resolution = null;
-      /**
-       * The stage's `%classifier` items in stitching order, each with its
-       * document (engine §2).
-       * @type {{path: string, classifier: DomClassifier}[]}
-       */
-      this.classifierItems = [];
-      /** @type {{path: string, implication: DomImplication}[]} */
-      this.implicationItems = [];
-      for (const { path, dom } of documents) this.addDocument(path, dom);
-      this.resolveConstants();
-      /** @type {StageImplication[]} */
-      this.implications = this.implicationItems.map(({ path, implication }) => this.resolveImplication(path, implication));
-      /**
-       * The features that gate an entry of a classifier. Only these change
-       * the classifiers' values.
-       * @type {string[]}
-       */
-      this.classifierGates = gateNames(this.classifierItems.flatMap(({ classifier }) => classifier.entries.flatMap((entry) => entry.guards)));
-      /**
-       * The classifiers resolved for each set of the classifier gates that is
-       * on (engine §2).
-       * @type {Map<string, Map<string, Map<string, TagSet>>>}
-       */
-      this.classifierTables = new Map();
-      /**
-       * Each test of a body with its value, made once for every lowering.
-       * @type {WeakMap<object, SymbolTest>}
-       */
-      this.tests = new WeakMap();
-      this.checkElidableTests();
-      if (!this.resolution) {
-        throw new GencmuError("grammar", `stage ${stageName} has no %ambiguity-resolution`, { stage: stageName });
-      }
-      this.checkReferences();
-      /**
-       * The features that gate an alternative or an entry of a classifier.
-       * Only these change a lowered grammar. A warning keeps its alternative
-       * (engine §3.1), and any other name matches no guard (engine §13).
-       * @type {string[]}
-       */
-      this.gates = gateNames([
-        ...[...this.rules.values()].flatMap((rule) => rule.alternatives.flatMap((alternative) => alternative.guards)),
-        ...this.classifierItems.flatMap(({ classifier }) => classifier.entries.flatMap((entry) => entry.guards)),
-      ]);
-      /**
-       * The lowered grammars, keyed by strictness and by the gates that are on.
-       * @type {Map<string, LoweredGrammar>}
-       */
-      this.lowered = new Map();
-    }
-
-    /**
-     * @param {string} path
-     * @param {GrammarDom} dom
-     */
-    addDocument(path, dom) {
-      for (const rule of dom.rules) {
-        if (constantsIn(rule).length > 0) this.constantUsers.push({ path, rule });
-        const at = { document: path, line: rule.at[0], column: rule.at[1] };
-        const clauses = { tags: rule.tags, emit: rule.emit, conditions: rule.conditions || [], opaque: rule.opaque === true };
-        const alternatives = rule.alternatives.map((alternative) => ({ ...alternative, clauses, document: path, at }));
-        const previous = this.rules.get(rule.name);
-        if (rule.op === "define") {
-          if (previous) {
-            throw new GencmuError("grammar", `${path}:${at.line}: %rule ${rule.name} is already defined, in ${previous.document}; %redefine-rule replaces a rule`, at);
-          }
-          this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives });
-        } else if (rule.op === "redefine") {
-          if (!previous) {
-            throw new GencmuError("grammar", `${path}:${at.line}: %redefine-rule ${rule.name} replaces no rule defined before it`, at);
-          }
-          this.changes.push({ kind: "replaced", rule: rule.name, document: path, previous: previous.document });
-          this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives });
-        } else {
-          const base = previous;
-          if (!base) {
-            throw new GencmuError("grammar", `${path}:${at.line}: %extend-rule ${rule.name} extends a rule that is not defined before it`, at);
-          }
-          this.changes.push({ kind: "extended", rule: rule.name, document: path, previous: base.document });
-          base.alternatives = base.alternatives.concat(alternatives);
-        }
-      }
-      for (const directive of dom.directives) {
-        const at = { document: path, line: directive.at[0], column: directive.at[1] };
-        switch (directive.name) {
-          case "ambiguity-resolution": {
-            if (this.resolution) {
-              throw new GencmuError("grammar", `${path}:${at.line}: stage ${this.stageName} has a second %ambiguity-resolution`, at);
-            }
-            const [lean, ...rest] = directive.args;
-            const elisionOnly = rest[0] === "elision-only";
-            if (elisionOnly) rest.shift();
-            const maximal = rest[0] === "maximal";
-            if (maximal) rest.shift();
-            if ((lean !== "greedy" && lean !== "lazy" && lean !== "late-elision") || rest.length > 0) {
-              throw new GencmuError("grammar", `${path}:${at.line}: %ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only, then optionally maximal`, at);
-            }
-            this.resolution = { lean, elisionOnly, maximal };
-            break;
-          }
-          case "elidable":
-            for (const terminal of directive.args) {
-              this.elidable.add(terminal);
-              if (directive.maximal) this.maximalTerminals.add(terminal);
-            }
-            break;
-          default:
-            throw new GencmuError("grammar", `${path}:${at.line}: unknown directive %${directive.name}`, at);
-        }
-      }
-      for (const constant of dom.constants) this.addConstant(path, constant);
-      for (const classifier of dom.classifiers) this.classifierItems.push({ path, classifier });
-      for (const implication of dom.implications) this.implicationItems.push({ path, implication });
-    }
-
-    /**
-     * An implication's two sides, with the constants' final values: closed
-     * terms whose type is a tag set (engine §2, §9).
-     * @param {string} path
-     * @param {DomImplication} implication
-     * @returns {StageImplication}
-     */
-    resolveImplication(path, implication) {
-      /** @type {(name: string) => TermType} */
-      const types = (name) => /** @type {StageConstant} */ (this.constants.get(name)).type;
-      /** @type {TagSet[]} */
-      const sides = [];
-      for (const side of [implication.if, implication.then]) {
-        for (const reference of constantsIn(side)) {
-          if (!this.constants.has(reference.const)) {
-            throw this.documentError(path, reference.at, `$${reference.const} is not defined in stage ${this.stageName}`);
-          }
-        }
-        const found = termType(side, types);
-        const problem = "problem" in found ? found.problem : expectedProblem(found.type, "tags");
-        if (problem) throw this.faultError(path, "problem" in found ? found.node : side, implication.at, `a side of an implication is a tag set: ${problem}`);
-        const value = this.evaluateClosed(path, side, implication.at);
-        sides.push("set" in value ? value.set : tagSet());
-      }
-      return { if: sides[0], then: sides[1] };
-    }
-
-    /**
-     * Each classifier of the stage for one set of features: each key's
-     * classes after every entry whose gates hold, in stitching order (engine
-     * §2). An entry that adds a membership that holds, or removes one that
-     * does not, is an error of the grammar for these features.
-     * @param {Set<string>} features
-     * @returns {Map<string, Map<string, TagSet>>}
-     */
-    classifiers(features) {
-      const key = JSON.stringify(this.classifierGates.filter((name) => features.has(name)));
-      let tables = recall(this.classifierTables, key);
-      if (tables) return tables;
-      tables = new Map();
-      for (const { path, classifier } of this.classifierItems) {
-        let table = tables.get(classifier.name);
-        if (!table) tables.set(classifier.name, (table = new Map()));
-        for (const entry of classifier.entries) {
-          if (!entry.guards.every((guard) => features.has(guard.feature) !== guard.negated)) continue;
-          for (const word of entry.keys) {
-            const classes = table.get(word) || tagSet();
-            if ((entry.op === "∈") === classes.has(entry.class)) {
-              const [line, column] = entry.at;
-              const message = entry.op === "∈" ? `${JSON.stringify(word)} is already in ${entry.class}` : `${JSON.stringify(word)} is not in ${entry.class}, so ∉ has nothing to remove`;
-              throw new GencmuError("grammar", `${path}:${line}:${column}: the classifier ${classifier.name}: ${message}`, { document: path, line, column });
-            }
-            const changed = new Set(classes);
-            if (entry.op === "∈") changed.add(entry.class);
-            else changed.delete(entry.class);
-            table.set(word, changed);
-          }
-        }
-      }
-      remember(this.classifierTables, key, tables);
-      return tables;
-    }
-
-    /**
-     * An error of the document at a position of it (engine §2).
-     * @param {string} path
-     * @param {[number, number]} position
-     * @param {string} message
-     * @returns {GencmuError}
-     */
-    documentError(path, position, message) {
-      const [line, column] = position;
-      return new GencmuError("grammar", `${path}:${line}:${column}: ${message}`, { document: path, line, column });
-    }
-
-    /**
-     * Defines or redefines a constant, with the value its term has at this
-     * point of the stage (engine §2).
-     * @param {string} path
-     * @param {DomConstant} constant
-     */
-    addConstant(path, constant) {
-      const { name, op, value } = constant;
-      const previous = this.constants.get(name);
-      if (op === "define" && previous) {
-        throw this.documentError(path, constant.at, `%const $${name} is already defined in stage ${this.stageName}, in ${previous.document}; %redefine-const gives it a new value`);
-      }
-      if (op === "redefine" && !previous) {
-        throw this.documentError(path, constant.at, `%redefine-const $${name} gives a value to no constant defined before it in stage ${this.stageName}`);
-      }
-      // A reference sees the constants defined before this point (engine §2).
-      for (const reference of constantsIn(value)) {
-        if (!this.constants.has(reference.const)) {
-          throw this.documentError(path, reference.at, `$${reference.const} is not defined before this point of stage ${this.stageName}`);
-        }
-      }
-      const found = constantValueType(value, op === "redefine", (other) => /** @type {StageConstant} */ (this.constants.get(other)).type);
-      if ("problem" in found) throw this.faultError(path, found.node, constant.at, found.problem);
-      let type = found.type;
-      if (previous) {
-        // A redefinition keeps the type, which gives ∅ its kind.
-        if (type === "set" && (previous.type === "strings" || previous.type === "tags")) type = previous.type;
-        if (type !== previous.type) {
-          throw this.documentError(path, constant.at, `%redefine-const $${name} keeps the type of the constant, and cannot make it ${TYPE_PHRASES[type]}`);
-        }
-      }
-      this.constants.set(name, { value: this.evaluateClosed(path, value, constant.at), type, document: path });
-    }
-
-    /**
-     * The error for a construct whose types disagree: at its first constant,
-     * which the loader alone could type, or else at the item (engine §9).
-     * @param {string} path
-     * @param {unknown} node
-     * @param {[number, number]} item
-     * @param {string} problem
-     * @returns {GencmuError}
-     */
-    faultError(path, node, item, problem) {
-      const first = constantsIn(node)[0];
-      return this.documentError(path, first ? first.at : item, problem);
-    }
-
-    /**
-     * The value of a closed term, with the constants' values now (engine §2,
-     * §10). An empty delimiter or a tag's string that is not a name comes
-     * from a constant here, since the reader refuses a literal one, and the
-     * error stands at that constant.
-     * @param {string} path
-     * @param {Term} term
-     * @param {[number, number]} item the position of the definition
-     * @returns {TermValue}
-     */
-    evaluateClosed(path, term, item) {
-      /** @type {(term: Term) => Set<string>} */
-      const set = (part) => {
-        const value = this.evaluateClosed(path, part, item);
-        return "set" in value ? value.set : tagSet();
-      };
-      /** @type {(term: Term) => string} */
-      const string = (part) => {
-        const value = this.evaluateClosed(path, part, item);
-        return "string" in value ? value.string : "";
-      };
-      if ("string" in term) return { string: term.string };
-      if ("tag" in term) return { set: tagSet([term.tag]) };
-      if ("range" in term) return { set: rangeTags(term.range, this.unicode) };
-      if ("emptySet" in term) return { set: tagSet() };
-      if ("const" in term) return /** @type {StageConstant} */ (this.constants.get(term.const)).value;
-      if ("union" in term) return { set: term.union.map(set).reduce(tagUnion, tagSet()) };
-      if ("intersection" in term) {
-        const [first, ...rest] = term.intersection.map(set);
-        return { set: rest.reduce(tagIntersection, first) };
-      }
-      if ("difference" in term) return { set: tagDifference(set(term.difference[0]), set(term.difference[1])) };
-      if ("call" in term && term.call === "split") {
-        // Left to right, as a parse evaluates a term (engine §10).
-        const [text, delimiter] = /** @type {Term[]} */ (term.args);
-        const pieces = string(text);
-        const seen = string(delimiter);
-        if (seen === "") throw this.faultError(path, delimiter, item, "split has an empty delimiter");
-        return { set: splitString(pieces, seen) };
-      }
-      if ("call" in term && term.call === "tag") {
-        const name = string(/** @type {Term} */ (term.args[0]));
-        if (!isName(name)) throw this.faultError(path, term.args[0], item, `tag(${JSON.stringify(name)}): the string is not a name`);
-        return { set: tagSet([name]) };
-      }
-      throw new GencmuError("grammar", `${path}: a constant's value is not a closed term`, { document: path });
-    }
-
-    /**
-     * Gives every constant in a rule its final value, once the stage is
-     * stitched, and checks what the reader could not: that each is defined,
-     * that the types agree, and that a constant that split or tag reads
-     * directly is a delimiter that is not empty, or a name (engine §2, §9,
-     * §10).
-     */
-    resolveConstants() {
-      /** @type {(name: string) => TermType} */
-      const types = (name) => /** @type {StageConstant} */ (this.constants.get(name)).type;
-      for (const { path, rule } of this.constantUsers) {
-        for (const reference of constantsIn(rule)) {
-          if (!this.constants.has(reference.const)) {
-            throw this.documentError(path, reference.at, `$${reference.const} is not defined in stage ${this.stageName}`);
-          }
-        }
-        const fault = ruleTypeFault(rule, types);
-        if (fault) throw this.faultError(path, fault.node, rule.at, fault.problem);
-        // The checks that simplification decides, which the reader left to
-        // the loader, now with the constants' values (engine §9).
-        const problem = definitionProblem(resolveNode(rule, this.constants));
-        if (problem) throw this.documentError(path, rule.at, problem);
-        // A string constant in a sound test must be a canonical sound (engine
-        // §2, §9); the error stands at the constant.
-        for (const alternative of rule.alternatives) {
-          for (const test of testsIn(alternative.expr)) {
-            const first = constantsIn(test.value)[0];
-            if (!isSoundTest(test.test) || !first) continue;
-            const value = this.evaluateClosed(path, test.value, rule.at);
-            const wrong = soundProblem("string" in value ? value.string : "", this.unicode);
-            if (wrong) throw this.documentError(path, first.at, wrong);
-          }
-        }
-        for (const call of callsIn(rule)) {
-          const argument = call.call === "split" ? call.args[1] : call.call === "tag" ? call.args[0] : undefined;
-          if (!argument || !("const" in argument)) continue;
-          const value = /** @type {StageConstant} */ (this.constants.get(argument.const)).value;
-          const seen = "string" in value ? value.string : "";
-          if (call.call === "split" && seen === "") throw this.documentError(path, argument.at, "split has an empty delimiter");
-          if (call.call === "tag" && !isName(seen)) throw this.documentError(path, argument.at, `tag(${JSON.stringify(seen)}): the string is not a name`);
-        }
-      }
-      if (this.constantUsers.length === 0) return;
-      // Each reference holds the final value; the clauses that a definition's
-      // alternatives share stay shared.
-      /** @type {Map<object, RuleClauses>} */
-      const resolved = new Map();
-      /** @type {<T>(node: T) => T} */
-      const resolve = (node) => /** @type {any} */ (resolveNode(node, this.constants));
-      for (const rule of this.rules.values()) {
-        rule.alternatives = rule.alternatives.map((alternative) => {
-          const { clauses } = alternative;
-          if (constantsIn(alternative.tags).length === 0 && constantsIn([clauses.tags, clauses.conditions, clauses.emit]).length === 0) return alternative;
-          let shared = resolved.get(clauses);
-          if (!shared) {
-            shared = { ...clauses, tags: resolve(clauses.tags), conditions: resolve(clauses.conditions), emit: resolve(clauses.emit) };
-            resolved.set(clauses, shared);
-          }
-          return { ...alternative, tags: resolve(alternative.tags), clauses: shared };
-        });
-      }
-    }
-
-    /**
-     * The terminal of an elidable optional has no test or an `=` test, since
-     * elision-only restores it with a sound (engine §3.8). The check runs once
-     * the stage is stitched, since a later %elidable can make an optional
-     * elidable, over every alternative whatever the features.
-     */
-    checkElidableTests() {
-      for (const rule of this.rules.values()) {
-        for (const alternative of rule.alternatives) {
-          const stack = [alternative.expr];
-          for (let expr = stack.pop(); expr !== undefined; expr = stack.pop()) {
-            if ("optional" in expr) {
-              let first = expr.optional;
-              while ("seq" in first) first = first.seq[0];
-              if ("test" in first && first.test !== "=") {
-                const name = tagName(first.expr);
-                if (name !== undefined && this.elidable.has(name)) {
-                  throw new GencmuError("grammar", `${alternative.document}: ${rule.name} can elide ${name}, whose test ${first.test} gives it no sound to restore; an elidable terminator has no test or an = test`, alternative.at);
-                }
-              }
-            }
-            stack.push(...childExpressions(expr));
-          }
-        }
-      }
-    }
-
-    /**
-     * A test of a body with its value, from the constants' final values
-     * (engine §2, §4).
-     * @param {{test: TestOp, value: Term}} test
-     * @param {string} path
-     * @param {ErrorLocation} at
-     * @returns {SymbolTest}
-     */
-    symbolTest(test, path, at) {
-      let found = this.tests.get(test);
-      if (!found) {
-        const value = this.evaluateClosed(path, test.value, [at.line ?? 0, at.column ?? 0]);
-        const written = writtenTest(test.test, value);
-        found = "string" in value ? { op: test.test, sound: value.string, written } : { op: test.test, tags: "set" in value ? value.set : tagSet(), written };
-        this.tests.set(test, found);
-      }
-      return found;
-    }
-
-    checkReferences() {
-      // A rule named anywhere must be defined: in a body, and in a clause as the
-      // rule of matches, begins or tags (engine §2). The error stands at the
-      // definition that wrote the alternative.
-      /** @type {(name: string, rule: StitchedRule, alternative: StitchedAlternative) => void} */
-      const check = (name, rule, alternative) => {
-        if (!this.rules.has(name)) {
-          throw new GencmuError("grammar", `${alternative.document}: ${rule.name} refers to ${name}, which is not defined`, alternative.at);
-        }
-      };
-      /** @type {(expr: Expr, rule: StitchedRule, alternative: StitchedAlternative) => void} */
-      const visit = (expr, rule, alternative) => {
-        if ("ref" in expr && !isTerminalName(expr.ref)) check(expr.ref, rule, alternative);
-        for (const child of childExpressions(expr)) visit(child, rule, alternative);
-      };
-      for (const rule of this.rules.values()) {
-        for (const alternative of rule.alternatives) {
-          visit(alternative.expr, rule, alternative);
-          const { tags, conditions, emit } = alternative.clauses;
-          const clauses = [alternative.tags, tags, conditions, emit ? emit.items.map((item) => item.tags) : []];
-          for (const name of clauseRules(clauses)) check(name, rule, alternative);
-          // A classifier that classify names belongs to the stage (engine §2).
-          for (const name of clauseClassifiers(clauses)) {
-            if (!this.classifierItems.some((item) => item.classifier.name === name)) {
-              throw new GencmuError("grammar", `${alternative.document}: ${rule.name} classifies with ${name}, which no %classifier of stage ${this.stageName} names`, alternative.at);
-            }
-          }
-          const top = "seq" in alternative.expr ? alternative.expr.seq : [alternative.expr];
-          const names = top.flatMap((item) => ("capture" in item ? [item.capture] : []));
-          const twice = names.find((name, index) => names.indexOf(name) !== index);
-          if (twice !== undefined) {
-            throw new GencmuError("grammar", `${alternative.document}: an alternative of ${rule.name} captures $${twice} twice`, alternative.at);
-          }
-        }
-      }
-      if (!this.rules.has("text")) throw new GencmuError("grammar", `stage ${this.stageName} has no rule text`, { stage: this.stageName });
-    }
-
-    /**
-     * The productions for a set of enabled features; `strict` makes elidable
-     * optionals mandatory (engine §3.8).
-     * @param {Set<string>} features
-     * @param {boolean} strict
-     * @returns {LoweredGrammar}
-     */
-    lower(features, strict) {
-      // Only the gates that are on change the productions. So two sets of
-      // features with the same gates on share one lowered grammar.
-      const on = new Set(this.gates.filter((name) => features.has(name)));
-      const key = JSON.stringify([strict, [...on]]);
-      let lowered = recall(this.lowered, key);
-      if (!lowered) {
-        // The stage resolves its classifiers for the same features, before it
-        // lowers its rules (engine §2, §3).
-        const classifiers = this.classifiers(on);
-        lowered = { ...new Lowering(this, on, strict).run(), classifiers, implications: this.implications };
-        remember(this.lowered, key, lowered);
-      }
-      return lowered;
-    }
-  }
-
-  /**
-   * The names of the features that gate, in code point order, each once.
-   * @param {Guard[]} guards
-   * @returns {string[]}
-   */
-  function gateNames(guards) {
-    const names = new Set(guards.filter((guard) => guard.kind !== "warning").map((guard) => guard.feature));
-    return [...names].sort(compareCodePoints);
-  }
-
-  /**
-   * The value of a key in a bounded cache, now the most recently used.
-   * @template T
-   * @param {Map<string, T>} cache
-   * @param {string} key
-   * @returns {T | undefined}
-   */
-  function recall(cache, key) {
-    const value = cache.get(key);
-    if (value !== undefined) {
-      cache.delete(key);
-      cache.set(key, value);
-    }
-    return value;
-  }
-
-  /**
-   * Adds a value to a bounded cache, and drops the least recently used
-   * value when the cache is full.
-   * @template T
-   * @param {Map<string, T>} cache
-   * @param {string} key
-   * @param {T} value
-   */
-  function remember(cache, key, value) {
-    cache.set(key, value);
-    if (cache.size > MAX_LOWERED) cache.delete(/** @type {string} */ (cache.keys().next().value));
-  }
-
-  const TYPE_PHRASES = { string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", set: "a set", any: "a value" };
-
-  /**
-   * A copy of a clause in which every reference to a constant holds the
-   * constant's value (engine §2).
-   * @param {unknown} node
-   * @param {Map<string, StageConstant>} constants
-   * @returns {unknown}
-   */
-  function resolveNode(node, constants) {
-    if (Array.isArray(node)) return node.map((item) => resolveNode(item, constants));
-    if (node === null || typeof node !== "object") return node;
-    const record = /** @type {Record<string, unknown>} */ (node);
-    if (typeof record.const === "string") {
-      /** @type {ConstantTerm} */
-      const reference = { const: record.const, at: /** @type {[number, number]} */ (record.at), value: /** @type {StageConstant} */ (constants.get(record.const)).value };
-      return reference;
-    }
-    /** @type {Record<string, unknown>} */
-    const copy = {};
-    for (const [key, value] of Object.entries(record)) copy[key] = resolveNode(value, constants);
-    return copy;
-  }
-
-  /**
-   * The calls of split and tag in a rule's clauses.
-   * @param {unknown} node
-   * @returns {{call: string, args: any[]}[]}
-   */
-  function callsIn(node) {
-    /** @type {{call: string, args: any[]}[]} */
-    const found = [];
-    /** @param {unknown} current */
-    const walk = (current) => {
-      if (Array.isArray(current)) {
-        for (const item of current) walk(item);
-      } else if (current !== null && typeof current === "object") {
-        const record = /** @type {Record<string, unknown>} */ (current);
-        if ((record.call === "split" || record.call === "tag") && Array.isArray(record.args)) found.push(/** @type {any} */ (record));
-        for (const value of Object.values(record)) walk(value);
-      }
-    };
-    walk(node);
-    return found;
-  }
-
-  /**
-   * @param {string} name
-   * @returns {boolean}
-   */
-  function isTerminalName(name) {
-    const first = name.codePointAt(0);
-    return first !== undefined && first >= 0x41 && first <= 0x5a;
-  }
-
-  /**
-   * The tag of a symbol that matches by a tag: a terminal, or a reference
-   * whose name begins with a capital. A reference in lower case names a rule,
-   * so %elidable never makes it a terminator, even one that shares its name
-   * with an identifier tag (engine §2, §3.8).
-   * @param {Expr} expr
-   * @returns {string | undefined}
-   */
-  function tagName(expr) {
-    if ("terminal" in expr) return expr.terminal;
-    return "ref" in expr && isTerminalName(expr.ref) ? expr.ref : undefined;
-  }
-
-  /**
-   * The rules that terms and conditions name: the rule of a matches or begins
-   * condition, and the rule argument of a call such as tags(span, rule).
-   * @param {unknown} value
-   * @returns {Generator<string>}
-   */
-  function* clauseRules(value) {
-    if (Array.isArray(value)) {
-      for (const item of value) yield* clauseRules(item);
-    } else if (value !== null && typeof value === "object") {
-      for (const [key, child] of Object.entries(value)) {
-        if (key === "rule" && typeof child === "string") yield child;
-        else yield* clauseRules(child);
-      }
-    }
-  }
-
-  /**
-   * The classifiers that terms name, as the second argument of classify.
-   * @param {unknown} value
-   * @returns {Generator<string>}
-   */
-  function* clauseClassifiers(value) {
-    if (Array.isArray(value)) {
-      for (const item of value) yield* clauseClassifiers(item);
-    } else if (value !== null && typeof value === "object") {
-      for (const [key, child] of Object.entries(value)) {
-        if (key === "classifier" && typeof child === "string") yield child;
-        else yield* clauseClassifiers(child);
-      }
-    }
-  }
-
-  /**
-   * @param {Expr} expr
-   * @returns {Expr[]}
-   */
-  function childExpressions(expr) {
-    if ("seq" in expr) return expr.seq;
-    if ("choice" in expr) return expr.choice;
-    if ("and" in expr) return expr.and;
-    if ("optional" in expr) return [expr.optional];
-    if ("repeat" in expr) return [expr.repeat];
-    if ("capture" in expr || "test" in expr) return [expr.expr];
-    return [];
-  }
-
-  // The lowered grammar: productions, numbered as engine §3 says.
-  class Lowering {
-    /**
-     * @param {Grammar} grammar
-     * @param {Set<string>} features
-     * @param {boolean} strict
-     */
-    constructor(grammar, features, strict) {
-      this.grammar = grammar;
-      this.features = features;
-      this.strict = strict;
-      /** @type {Production[]} */
-      this.productions = [];
-      /** @type {Map<string, Production[]>} */
-      this.byLhs = new Map();
-      this.helperCount = 0;
-    }
-
-    /** @returns {Omit<LoweredGrammar, "classifiers" | "implications">} */
-    run() {
-      for (const rule of this.grammar.rules.values()) {
-        // Only gates drop an alternative; a warning keeps it (engine §3.1).
-        const enabled = rule.alternatives.filter((alternative) => alternative.guards.every(
-          (guard) => guard.kind === "warning" || this.features.has(guard.feature) !== guard.negated));
-        for (const alternative of enabled) this.lowerAlternative(rule, alternative, enabled.length === 1);
-      }
-      return {
-        productions: this.productions,
-        byLhs: this.byLhs,
-        elidable: this.grammar.elidable,
-        maximalTerminals: this.grammar.maximalTerminals,
-        resolution: /** @type {Resolution} */ (this.grammar.resolution),
-      };
-    }
-
-    /**
-     * Numbers a production and adds it.
-     * @param {Omit<Production, "id">} fields
-     * @returns {Production}
-     */
-    addProduction(fields) {
-      /** @type {Production} */
-      const production = { ...fields, id: this.productions.length };
-      this.productions.push(production);
-      let same = this.byLhs.get(production.lhs);
-      if (!same) this.byLhs.set(production.lhs, (same = []));
-      same.push(production);
-      return production;
-    }
-
-    /**
-     * @param {StitchedRule} rule
-     * @param {StitchedAlternative} alternative
-     * @param {boolean} only whether it is the rule's only enabled alternative
-     */
-    lowerAlternative(rule, alternative, only) {
-      /** @type {PendingHelper[]} */
-      const pending = [];
-      const trailing = only ? trailingRepetition(alternative.expr) : null;
-      // A trailing repetition's recursive productions could not have its
-      // captures, whose parts lie inside the inner constituent (engine §3.3).
-      if (trailing && ("seq" in alternative.expr ? alternative.expr.seq : [alternative.expr]).some((item) => "capture" in item)) {
-        throw new GencmuError("grammar", `${alternative.document}: an alternative of ${rule.name} captures a part, and is lowered as a trailing repetition`, alternative.at);
-      }
-      /** @type {Where} */
-      const where = { rule, pending };
-      /** @type {SequenceItem[][]} */
-      let sequences;
-      /** @type {SequenceItem[][] | null} */
-      let recursive = null;
-      if (trailing) {
-        const prefixes = this.expandSequence(trailing.prefix, where);
-        const items = this.expand(trailing.item, where);
-        sequences = trailing.min === 1 ? product(prefixes, items) : prefixes;
-        recursive = items.map((sequence) => [{ symbol: { name: rule.name, terminal: false } }, ...sequence]);
-      } else {
-        sequences = this.expand(alternative.expr, where);
-      }
-      for (const sequence of sequences) this.addRuleProduction(rule, alternative, sequence, false);
-      for (const sequence of recursive || []) this.addRuleProduction(rule, alternative, sequence, true);
-      this.flushHelpers(pending, rule);
-    }
-
-    /**
-     * @param {PendingHelper[]} pending
-     * @param {StitchedRule} rule
-     */
-    flushHelpers(pending, rule) {
-      for (let helper = pending.shift(); helper !== undefined; helper = pending.shift()) {
-        /** @type {PendingHelper[]} */
-        const nested = [];
-        for (const sequence of helper.build({ rule, pending: nested })) {
-          // A helper with one symbol has that symbol's tags, like any
-          // production (engine §3.7).
-          const single = sequence.length === 1;
-          this.addProduction({
-            lhs: helper.name,
-            rhs: sequence.map((item) => item.symbol),
-            helper: true,
-            owner: rule.name,
-            elided: helper.elided,
-            elidedTest: helper.elidedTest,
-            captures: single ? [{ name: "\u0000child", index: 0 }] : [],
-            conditions: [],
-            tags: single ? { call: "tags", args: [{ capture: "\u0000child" }] } : null,
-            emit: null,
-            opaque: false,
-            recursivePrefix: false,
-            warnings: [],
-          });
-        }
-        pending.unshift(...nested);
-      }
-    }
-
-    /**
-     * @param {StitchedRule} rule
-     * @param {StitchedAlternative} alternative
-     * @param {SequenceItem[]} sequence
-     * @param {boolean} recursivePrefix
-     */
-    addRuleProduction(rule, alternative, sequence, recursivePrefix) {
-      /** @type {import("./types.js").Capture[]} */
-      const captures = [];
-      sequence.forEach((item, index) => {
-        if (item.capture) captures.push({ name: item.capture, index });
-      });
-      if (captures.length > MAX_CAPTURES) {
-        throw new GencmuError("grammar", `${alternative.document}: an alternative of ${rule.name} has more than ${MAX_CAPTURES} captures`, alternative.at);
-      }
-      // `$`, the whole constituent, is a capture every production has.
-      const names = new Set(["", ...captures.map((capture) => capture.name)]);
-      const clauses = alternative.clauses;
-      // The clauses simplified for this production: presence tests and the
-      // guards over them decided (engine §3.6).
-      /** @type {(name: string) => boolean} */
-      const has = (name) => names.has(name);
-      // The union of the alternative's own tags and the rule's (engine §3.7);
-      // the reader has made sure neither uses a capture this production lacks.
-      const written = [alternative.tags, clauses.tags].filter((term) => term !== undefined).map((term) => simplify(term, has));
-      /** @type {Term | null} */
-      let tags = written.length === 0 ? null : written.length === 1 ? written[0] : { union: written };
-      if (!tags && sequence.length === 1) {
-        // A production with one symbol has that symbol's tags (engine §3.7),
-        // whether or not the author captured it.
-        if (captures.length === 0) {
-          captures.push({ name: "\u0000child", index: 0 });
-          names.add("\u0000child");
-        }
-        tags = { call: "tags", args: [{ capture: captures[0].name }] };
-      }
-      /** @type {import("./types.js").ReadyCondition[]} */
-      const conditions = [];
-      for (const written of clauses.conditions) {
-        const condition = simplify(written, has);
-        if (condition === DOM_TRUE) continue;
-        // A condition false for this production removes it (engine §3.6).
-        if (condition === DOM_FALSE) return;
-        const variables = conditionVariables(condition);
-        if (!variables.every((name) => names.has(name))) continue;
-        // A condition is ready once its last capture is read, and one that
-        // reads `$` once the constituent is complete (engine §4).
-        const readyAt = Math.max(-1, ...variables.map((name) => (name === "" ? sequence.length - 1
-          : /** @type {import("./types.js").Capture} */ (captures.find((capture) => capture.name === name)).index)));
-        conditions.push({ condition, readyAt });
-      }
-      let emit = clauses.emit || null;
-      if (emit) {
-        // An item whose carrier the production lacks is dropped, and so is
-        // each attachment capture it lacks (engine §3.6); the reader has made
-        // sure the tags of those left use none.
-        emit = {
-          items: emit.items.filter((item) => item.capture === undefined || names.has(item.capture))
-            .map((item) => {
-              /** @type {import("./types.js").EmitItem} */
-              const kept = item.tags ? { ...item, tags: simplify(item.tags, has) } : { ...item };
-              const before = (item.before ?? []).filter(has);
-              const after = (item.after ?? []).filter(has);
-              if (before.length) kept.before = before;
-              else delete kept.before;
-              if (after.length) kept.after = after;
-              else delete kept.after;
-              return kept;
-            }),
-        };
-      }
-      this.addProduction({
-        lhs: rule.name,
-        rhs: sequence.map((item) => item.symbol),
-        helper: false,
-        owner: rule.name,
-        elided: null,
-        elidedTest: null,
-        captures,
-        conditions,
-        tags,
-        emit,
-        opaque: clauses.opaque,
-        recursivePrefix,
-        warnings: alternative.guards.filter((guard) => guard.kind === "warning").map((guard) => guard.feature),
-      });
-    }
-
-    /**
-     * The sequences of symbols an expression expands to.
-     * @param {Expr} expr
-     * @param {Where} where
-     * @returns {SequenceItem[][]}
-     */
-    expand(expr, where) {
-      if ("seq" in expr) return this.expandSequence(expr.seq, where);
-      if ("choice" in expr) return expr.choice.flatMap((item) => this.expand(item, where));
-      if ("and" in expr) {
-        const parts = expr.and.map((item) => this.expand(item, where));
-        /** @type {SequenceItem[][]} */
-        const result = [];
-        for (let mask = 1; mask < 1 << parts.length; mask++) {
-          /** @type {SequenceItem[][]} */
-          let sequences = [[]];
-          parts.forEach((part, index) => {
-            if (mask & (1 << index)) sequences = product(sequences, part);
-          });
-          result.push(...sequences);
-        }
-        return result;
-      }
-      if ("optional" in expr) {
-        const inner = expr.optional;
-        const elided = this.elidedTerminal(inner, where);
-        const mandatory = this.strict && elided !== null;
-        const name = this.helper(where, (context) => {
-          const expansions = this.expand(inner, context);
-          return mandatory ? expansions : [/** @type {SequenceItem[]} */ ([]), ...expansions];
-        }, elided);
-        return [[{ symbol: { name, terminal: false } }]];
-      }
-      if ("repeat" in expr) {
-        const inner = expr.repeat;
-        const min = expr.min;
-        const name = this.helper(where, (context) => {
-          const expansions = this.expand(inner, context);
-          /** @type {SequenceItem} */
-          const self = { symbol: { name, terminal: false } };
-          const recursive = expansions.map((sequence) => [self, ...sequence]);
-          return min === 1 ? [...expansions, ...recursive] : [/** @type {SequenceItem[]} */ ([]), ...recursive];
-        }, null);
-        return [[{ symbol: { name, terminal: false } }]];
-      }
-      if ("empty" in expr) return [[]];
-      if ("test" in expr) {
-        // A tested symbol lowers to its symbol with the test, and adds no
-        // helper (engine §3).
-        const inner = this.expand(expr.expr, where);
-        const test = this.grammar.symbolTest(expr, where.rule.document, where.rule.at);
-        return [[{ symbol: { ...inner[0][0].symbol, test } }]];
-      }
-      if ("ref" in expr) return [[{ symbol: { name: expr.ref, terminal: isTerminalName(expr.ref) } }]];
-      if ("terminal" in expr) return [[{ symbol: { name: expr.terminal, terminal: true } }]];
-      // A range or a property is a terminal whose name is its written form,
-      // and which matches by its characters rather than by a tag (engine §4).
-      if ("range" in expr) {
-        const characters = { from: codeOfCharacterTag(expr.range[0]), to: codeOfCharacterTag(expr.range[1]) };
-        return [[{ symbol: { name: rangeName(expr.range), terminal: true, characters } }]];
-      }
-      if ("property" in expr) return [[{ symbol: { name: propertyName(expr.property), terminal: true, characters: { property: expr.property } } }]];
-      if ("capture" in expr) {
-        const inner = this.expand(expr.expr, where);
-        if (inner.length !== 1 || inner[0].length !== 1) {
-          throw new GencmuError("grammar", `${where.rule.document}: a capture in ${where.rule.name} must wrap one symbol`, where.rule.at);
-        }
-        return [[{ symbol: inner[0][0].symbol, capture: expr.capture }]];
-      }
-      throw new GencmuError("grammar", `${where.rule.document}: an unknown expression in ${where.rule.name}`, where.rule.at);
-    }
-
-    /**
-     * @param {Expr[]} items
-     * @param {Where} where
-     * @returns {SequenceItem[][]}
-     */
-    expandSequence(items, where) {
-      /** @type {SequenceItem[][]} */
-      let sequences = [[]];
-      for (const item of items) sequences = product(sequences, this.expand(item, where));
-      return sequences;
-    }
-
-    /**
-     * Names a helper rule, to be lowered when the alternative is done.
-     * @param {Where} where
-     * @param {(where: Where) => SequenceItem[][]} build
-     * @param {{terminal: string, test: SymbolTest | null} | null} elided
-     * @returns {string}
-     */
-    helper(where, build, elided) {
-      const name = `${where.rule.name}·${this.helperCount++}`;
-      where.pending.push({ name, build, elided: elided ? elided.terminal : null, elidedTest: elided ? elided.test : null });
-      return name;
-    }
-
-    /**
-     * The elidable terminal an optional begins with, if any, and its test: a
-     * tested terminal is elidable when its terminal is (engine §3.8, §12).
-     * @param {Expr} expr
-     * @param {Where} where
-     * @returns {{terminal: string, test: SymbolTest | null} | null}
-     */
-    elidedTerminal(expr, where) {
-      let first = expr;
-      while ("seq" in first) first = first.seq[0];
-      const tested = "test" in first ? first : null;
-      if (tested) first = tested.expr;
-      const name = tagName(first);
-      if (name === undefined || !this.grammar.elidable.has(name)) return null;
-      return { terminal: name, test: tested ? this.grammar.symbolTest(tested, where.rule.document, where.rule.at) : null };
-    }
-  }
-
-  /**
-   * @param {SequenceItem[][]} left
-   * @param {SequenceItem[][]} right
-   * @returns {SequenceItem[][]}
-   */
-  function product(left, right) {
-    /** @type {SequenceItem[][]} */
-    const result = [];
-    for (const a of left) for (const b of right) result.push([...a, ...b]);
-    return result;
-  }
-
-  /**
-   * A body ending in a repetition, split into what comes before it and what
-   * repeats.
-   * @param {Expr} expr
-   * @returns {{prefix: Expr[], item: Expr, min: number} | null}
-   */
-  function trailingRepetition(expr) {
-    if ("repeat" in expr) return { prefix: [], item: expr.repeat, min: expr.min };
-    if ("seq" in expr) {
-      const last = expr.seq[expr.seq.length - 1];
-      if ("repeat" in last) return { prefix: expr.seq.slice(0, -1), item: last.repeat, min: last.min };
-    }
-    return null;
-  }
-
-  /**
-   * The captures a term or condition names.
-   * @param {Term | Condition} term
-   * @returns {string[]}
-   */
-  function termVariables(term) {
-    /** @type {string[]} */
-    const names = [];
-    /** @type {(node: unknown) => void} */
-    const visit = (node) => {
-      if (!node || typeof node !== "object") return;
-      const record = /** @type {Record<string, unknown>} */ (node);
-      if (typeof record.capture === "string" && Object.keys(record).length === 1) names.push(record.capture);
-      for (const value of Object.values(record)) {
-        if (Array.isArray(value)) value.forEach(visit);
-        else if (value && typeof value === "object") visit(value);
-      }
-    };
-    visit(term);
-    return names;
-  }
-
-  /**
-   * @param {Condition} condition
-   * @returns {string[]}
-   */
-  function conditionVariables(condition) {
-    return termVariables(condition);
-  }
-
   // ---- rank.js
   // Choosing a parse (engine §6): the first-difference order over bottom-up
   // action sequences under greedy and lazy, and the order of elision vectors
   // under late-elision, both computed over the packed forest.
+
 
 
 
@@ -5489,10 +6310,48 @@
    * @property {Rope} first
    * @property {Rope | null} second
    * @property {[Action | null, Action | null] | null} witness
+   * @property {boolean | null} witnessCounted with the witness hook's marks,
+   *   whether the count counted W(D); null without marks
    */
 
   /** @type {Rope} */
   const EMPTY = { empty: true, size: 0 };
+
+  /**
+   * How two derivations other than the first reading compare as the second
+   * reading (engine §6): the one that diverges earlier from the first, in
+   * visible actions, comes first, and the order T decides between two that
+   * diverge at one point. Negative where `left` comes first.
+   * @param {Rope} first
+   * @param {Rope} left
+   * @param {Rope} right
+   * @param {Lean} lean
+   * @returns {number}
+   */
+  function secondOrder(first, left, right, lean) {
+    /** @type {(other: Rope) => Count} */
+    const divergence = (other) => {
+      const difference = firstDifference(first, other, true);
+      return difference ? difference.index : Infinity;
+    };
+    const a = divergence(left);
+    const b = divergence(right);
+    if (a < b) return -1;
+    if (b < a) return 1;
+    return totalOrder(left, right, lean);
+  }
+
+  /**
+   * The rope of a sequence of actions, for a derivation that no ranking
+   * built: the witness hook's W(D) (tests/README.md).
+   * @param {Iterable<Action>} sequence
+   * @returns {Rope}
+   */
+  function ropeOf(sequence) {
+    let rope = EMPTY;
+    for (const action of sequence) rope = concat(rope, leaf(action));
+    return rope;
+  }
 
   /**
    * @param {Action} action
@@ -5788,9 +6647,16 @@
      * @param {Lean} lean
      * @param {Maximal | null} [maximal] the resolution's maximal, if it has
      *   it (engine §4)
+     * @param {number[] | null} [project] positions to find cycles over in
+     *   place of the items' own, which only a fault of the check of engine
+     *   §7 gives (F19)
      */
-    constructor(tokens, lean, maximal = null) {
+    constructor(tokens, lean, maximal = null, project = null) {
       this.tokens = tokens;
+      /** @type {(left: Item, right: Item) => boolean} */
+      this.sameSpan = project === null
+        ? (left, right) => left.origin === right.origin && left.end === right.end
+        : (left, right) => project[left.origin] === project[right.origin] && project[left.end] === project[right.end];
       // Under late-elision, the readings come from a ranking with no lean
       // over the forest of the best derivations (engine §6).
       this.elisions = lean === "late-elision";
@@ -5809,12 +6675,24 @@
       this.groups = (rule) => this.ruleGroups.get(rule);
       /** @type {{plain: Map<Item, Allowed<Candidate[]>>, contextual: Map<Item, Map<string, Allowed<Candidate[]>>>}} */
       this.memo = { plain: new Map(), contextual: new Map() };
-      /** @type {{plain: Map<Item, Allowed<number>>, contextual: Map<Item, Map<string, Allowed<number>>>}} */
+      /** @type {{plain: Map<Item, Allowed<number> & {w: boolean}>, contextual: Map<Item, Map<string, Allowed<number> & {w: boolean}>>}} */
       this.counts = { plain: new Map(), contextual: new Map() };
       /** @type {Map<Item, RopeLeaf>} */
       this.closes = new Map();
       /** @type {Map<string, RopeLeaf>} */
       this.reads = new Map();
+      // Whether this is the ranker of the check of engine §7, which only its
+      // faults read.
+      this.check = false;
+      /**
+       * The witness hook's marks (tests/README.md): for each item of W(D),
+       * the indices of its edges that W(D) uses. With marks, the count also
+       * says whether it counted a derivation made of marked edges only. A
+       * parse that no test watches has none, and does the same work as
+       * without them.
+       * @type {Map<Item, Set<number>> | null}
+       */
+      this.marks = null;
     }
 
     // An item's candidates: for each sequence the item's derivations could
@@ -5855,6 +6733,8 @@
         /** @type {Candidate[]} */
         let allowed = [];
         current.edges.forEach((edge, index) => {
+          // A fault skips the last of two or more edges in the check (lost:select).
+          if (this.check && index > 0 && index === current.edges.length - 1 && fault("lost:select")) return;
           const inAll = summary === null || summary.all.kept.has(index);
           const inAllowed = summary === null || summary.allowed.kept.has(index);
           if (!inAll && !inAllowed) return;
@@ -5862,6 +6742,11 @@
           let produced;
           let permitted = true;
           if (edge.kind === "seed") produced = [{ seq: EMPTY, alts: [], at: Infinity }];
+          // A restoration reads its synthetic token, and its own close
+          // follows (engine §7.4, §7.7).
+          // A fault gives a restoration no derivation in the ranking
+          // (lost:rank), here and in the summaries and the counts below.
+          else if (edge.kind === "restore") produced = fault("lost:rank", "candidates") ? [] : [{ seq: this.readLeaf(edge.token, edge.terminal), alts: [], at: Infinity }];
           else if (edge.kind === "scan") {
             const read = this.readLeaf(edge.token, edge.terminal);
             produced = dependency(edge.previous).all.map((entry) => extend(entry, read));
@@ -5914,10 +6799,10 @@
           let least;
           let total;
           let permitted = true;
-          if (edge.kind === "seed") {
+          if (edge.kind === "seed" || edge.kind === "restore") {
             // The helper of an elidable optional that derives ε elides its
-            // terminator where it is empty.
-            vector = isElided(current) ? this.elisionLeaf(current.origin) : NO_ELISIONS;
+            // terminator where it is empty. A restoration elides nothing.
+            vector = edge.kind === "seed" && isElided(current) ? this.elisionLeaf(current.origin) : NO_ELISIONS;
             least = 1;
             total = 1;
           } else if (edge.kind === "scan") {
@@ -6106,25 +6991,59 @@
      * @returns {number}
      */
     count(item) {
+      return this.countOf(item).all;
+    }
+
+    /**
+     * The number of an item's derivations, capped at two, over all of them
+     * and over those that maximal allows. With the witness hook's marks, `w`
+     * says whether the count includes a derivation made of marked edges
+     * only (tests/README.md). The same loop decides both, over the same
+     * edges, so any choice that drops W(D) from the count drops it from `w`.
+     * A dependency that closes a cycle has no derivation, and no `w`.
+     * @param {Item} item
+     * @returns {Allowed<number> & {w: boolean}}
+     */
+    countOf(item) {
       const maximal = this.maximal;
+      const marks = this.marks;
       return this.traverse(item, this.counts, (current, dependency) => {
         const guarded = maximal !== null && maximal.guards(current);
+        const marked = marks === null ? undefined : marks.get(current);
+        const edges = current.edges;
         let all = 0;
         let allowed = 0;
-        for (const edge of current.edges) {
+        let w = false;
+        for (let index = 0; index < edges.length; index++) {
+          const edge = edges[index];
           let ways;
-          if (edge.kind === "seed") ways = 1;
-          else if (edge.kind === "scan") ways = dependency(edge.previous).all;
-          else {
+          let edgeW;
+          if (edge.kind === "restore" && fault("lost:rank", "count")) continue;
+          // A fault skips the last of two or more edges in the check
+          // (lost:context).
+          if (this.check && index > 0 && index === edges.length - 1 && fault("lost:context")) continue;
+          if (edge.kind === "seed" || edge.kind === "restore") {
+            ways = 1;
+            edgeW = true;
+          } else if (edge.kind === "scan") {
             const before = dependency(edge.previous);
-            ways = (maximal !== null && maximal.elided(edge.child) ? before.allowed : before.all) * dependency(edge.child).all;
+            ways = before.all;
+            edgeW = before.w;
+          } else {
+            const before = dependency(edge.previous);
+            const child = dependency(edge.child);
+            ways = (maximal !== null && maximal.elided(edge.child) ? before.allowed : before.all) * child.all;
+            edgeW = before.w && child.w;
           }
+          if (marked !== undefined && ways > 0 && edgeW && marked.has(index)) w = true;
           all = Math.min(2, all + ways);
           if (guarded && (edge.kind !== "complete" || !(/** @type {Maximal} */ (maximal)).forbids(edge.child, current.production.rhs[current.dot - 1].test))) allowed = Math.min(2, allowed + ways);
-          if (all === 2 && (!guarded || allowed === 2)) break;
+          // The count is capped and only grows, so the loop can stop at two,
+          // but with marks only once `w` is known.
+          if (all === 2 && (!guarded || allowed === 2) && (marked === undefined || w)) break;
         }
-        return { all, allowed: guarded ? allowed : all };
-      }, { all: 0, allowed: 0 }).all;
+        return { all, allowed: guarded ? allowed : all, w };
+      }, { all: 0, allowed: 0, w: false });
     }
 
     // Computes `combine(item, dependency)` for an item after every item it
@@ -6194,7 +7113,7 @@
       const group = this.groups;
       /** @type {(frame: Frame, item: Item) => TraversalContext} */
       const contextBelow = (frame, item) => {
-        if (frame.item.origin !== item.origin || frame.item.end !== item.end) return EMPTY_CONTEXT;
+        if (!this.sameSpan(frame.item, item)) return EMPTY_CONTEXT;
         const own = group(item.production.lhs);
         if (own === undefined) return EMPTY_CONTEXT;
         /** @type {TraversalContext} */
@@ -6279,11 +7198,11 @@
         if (seen.has(item)) continue;
         seen.add(item);
         for (const edge of item.edges) {
-          if (edge.kind === "seed") continue;
+          if (edge.kind === "seed" || edge.kind === "restore") continue;
           pending.push(edge.previous);
           if (edge.kind !== "complete") continue;
           pending.push(edge.child);
-          if (edge.child.origin !== item.origin || edge.child.end !== item.end) continue;
+          if (!this.sameSpan(edge.child, item)) continue;
           let targets = arcs.get(item.production.lhs);
           if (!targets) arcs.set(item.production.lhs, (targets = new Set()));
           targets.add(edge.child.production.lhs);
@@ -6361,6 +7280,8 @@
       let count;
       let ranked = roots;
       let tied = false;
+      /** @type {boolean | null} */
+      let witnessCounted = null;
       if (this.elisions) {
         // Every complete item of `text` is an edge of one root (engine §6).
         const root = noDerivation();
@@ -6373,6 +7294,12 @@
         ranked = roots.filter((_, index) => root.kept.has(index));
       } else {
         count = Math.min(2, roots.reduce((sum, item) => sum + this.count(item), 0));
+        // With marks, whether the count counted W(D): a root of W(D) must
+        // have it (tests/README.md).
+        if (this.marks !== null) {
+          const marks = this.marks;
+          witnessCounted = roots.some((item) => marks.has(item) && this.countOf(item).w);
+        }
       }
       /** @type {Candidate[]} */
       let kept = [];
@@ -6406,7 +7333,7 @@
         if (!difference || !difference.left || !difference.right) difference = firstDifference(main.seq, second, false);
         witness = difference ? [difference.left, difference.right] : null;
       }
-      return { verdict, first: main.seq, second, witness };
+      return { verdict, first: main.seq, second, witness, witnessCounted };
     }
   }
 
@@ -6458,7 +7385,9 @@
       if (action.kind === "read") {
         stack.push({ read: action, start: action.token, end: action.token + 1 });
       } else {
-        const arity = action.item.production.rhs.length;
+        // A restoration closes its empty production over the one token that
+        // it read (engine §7.4).
+        const arity = action.item.restores ? 1 : action.item.production.rhs.length;
         const children = stack.splice(stack.length - arity, arity);
         stack.push({ item: action.item, production: action.item.production, children, start: action.item.origin, end: action.item.end });
       }
@@ -6758,6 +7687,7 @@
 
 
 
+
   /**
    * @import { Action, Derivation, DerivationRule, ElidedNode, EmitItem, ResultNode, Scope, Span, StageReport, TagSet } from "./types.js"
    * @import { Grammar } from "./grammar.js"
@@ -6801,7 +7731,7 @@
       try {
         // Lowering for these features may itself find an error of the grammar
         // (engine §3.3), which is a result like any found while parsing.
-        lowered = this.grammar.lower(features, false);
+        lowered = this.grammar.lower(features);
         context = new ParseContext(lowered, tokens, sourceText, unicode);
         chart = recognize(context, "text", 0, tokens.length);
         roots = rootItems(chart, "text");
@@ -6872,27 +7802,54 @@
       const elisionOnly = options.elisionOnly === undefined || options.elisionOnly === null
         ? lowered.resolution.elisionOnly : options.elisionOnly;
       // The check runs only for a stage that chose one of several
-      // derivations (engine §7).
+      // derivations (engine §7.1).
       if (elisionOnly && report.verdict === "resolved") {
-        let readings;
+        /** @type {ElisionCheck} */
+        let check;
         try {
-          readings = this.elisionCheck(report.tree, tokens, sourceText, unicode, features);
+          check = this.elisionCheck(derivation, report.tree, context, features);
         } catch (error) {
-          // An error of the grammar in the reparse ends the stage as one found
-          // while emitting does: no output, the rest kept (engine §7).
+          // An error of the grammar in the check ends the stage as one found
+          // while emitting does: no output, the rest kept (engine §7.7).
           if (error instanceof GencmuError) {
+            // A fault loses the error (F26:lost), and another reports it as
+            // a lost witness (F26:relabel).
+            if (fault("F26:lost")) return report;
             report.output = null;
-            report.error = { kind: "grammar", stage: this.name, message: error.message };
+            report.error = fault("F26:relabel")
+              ? {
+                kind: "grammar",
+                stage: this.name,
+                code: "elision-witness-lost",
+                message: `the ${this.name} stage could not reconstruct its chosen derivation for elision-only`,
+                chosen: report.tree,
+                completion: [],
+              }
+              : { kind: "grammar", stage: this.name, message: error.message };
             return report;
           }
           throw error;
         }
-        if (readings) {
+        if (check.competitorWarnings) report.warnings = [...(report.warnings || []), ...check.competitorWarnings];
+        if (check.kind === "lost") {
+          // The witness of the chosen derivation is lost: a defect of the
+          // engine, which ends the stage with no output (engine §7.9).
+          report.output = null;
+          report.error = {
+            kind: "grammar",
+            stage: this.name,
+            code: "elision-witness-lost",
+            message: `the ${this.name} stage could not reconstruct its chosen derivation for elision-only`,
+            chosen: report.tree,
+            completion: check.completion,
+          };
+        } else if (check.kind === "ambiguous") {
           report.error = {
             kind: "ambiguous",
             stage: this.name,
             reason: "elision-only",
-            readings,
+            readings: check.readings,
+            witness: check.witness,
             message: `the ${this.name} stage's text is ambiguous with every elided terminator written out`,
           };
         }
@@ -6901,80 +7858,217 @@
     }
 
     /**
-     * Engine §7: null when the check passes, else the two first readings of
-     * the input with its elided terminators written out.
-     * @param {ResultNode} tree
-     * @param {Token[]} tokens
-     * @param {string[]} sourceText
-     * @param {UnicodeTable} unicode
+     * Engine §7: the check of elision-only. It writes the chosen derivation's
+     * elided terminators back into the stage's input as synthetic tokens and
+     * recognizes that input, R, with the main lowering in the reconstruction
+     * mode. Every observation reads the stage's input through the projection
+     * π. The check passes where R has one derivation, and gives two readings
+     * where it has more. With none, the witness of the chosen derivation is
+     * lost.
+     * @param {Derivation} chosen D, the chosen derivation
+     * @param {ResultNode} tree D's tree
+     * @param {ParseContext} main the context of the main parse, whose memo
+     *   the check's queries share
      * @param {Set<string>} features
-     * @returns {ResultNode[] | null}
+     * @returns {ElisionCheck}
      */
-    elisionCheck(tree, tokens, sourceText, unicode, features) {
+    elisionCheck(chosen, tree, main, features) {
+      const tokens = main.tokens;
+      const lowered = main.lowered;
+      // The old contract, as a whole (a fault, F13): every elidable optional
+      // mandatory, observations of R itself, and no reading a pass.
+      const old = fault("F13");
       /** @type {ElidedNode[]} */
       const elided = [];
-      // In text order: the leaves left to right.
+      // In text order: the leaves left to right (engine §7.2).
       const pending = [tree];
       for (let node = pending.pop(); node !== undefined; node = pending.pop()) {
         if (node.kind === "elided") elided.push(node);
         if (node.kind === "rule") for (let index = node.children.length - 1; index >= 0; index--) pending.push(node.children[index]);
       }
-      // The input with the chosen parse's elided terminators written back, in
-      // the order of the tree's leaves; and
-      // which positions of it are those synthetic terminators.
+      /** @type {RestorationRecord[]} */
+      const records = elided.map((node) => {
+        /** @type {RestorationRecord} */
+        const record = { terminal: node.terminal, at: node.span[0], source: [node.source[0], node.source[1]] };
+        if (node.sound !== undefined) record.sound = node.sound;
+        return record;
+      });
+      // The order of insertion: the records' own, or, under a fault, each run
+      // at one position reversed (F27).
+      let order = records.map((_, index) => index);
+      if (fault("F27:order")) {
+        order = [];
+        for (let index = 0; index < records.length;) {
+          let end = index;
+          while (end < records.length && records[end].at === records[index].at) end++;
+          for (let at = end - 1; at >= index; at--) order.push(at);
+          index = end;
+        }
+      }
+      // R: the stage's input with one synthetic token before the input token
+      // at each record's position, or at the end. A synthetic token's
+      // recognition tags are its terminal, and its recognition sound is its
+      // saved sound. Its provenance, kept apart, is what marks it (engine
+      // §7.2), unless a fault tells it by an empty source (F12).
       /** @type {Token[]} */
       const restored = [];
-      /** @type {number[]} */
+      /** @type {boolean[]} */
       const synthetic = [];
+      /** @type {number[]} */
+      const originalAt = [];
+      /** @type {number[]} */
+      const recordAt = new Array(records.length);
+      /** @type {(number | undefined)[]} */
+      const recordOf = [];
       let next = 0;
       for (let index = 0; index <= tokens.length; index++) {
-        while (next < elided.length && elided[next].span[0] === index) {
-          const node = elided[next++];
-          const position = node.source[0];
-          synthetic.push(restored.length);
-          // A restored terminator with an `=` test sounds like the test's
-          // string, so that it matches its own terminator in the stricter
-          // grammar (engine §7).
-          restored.push(new Token(tagSet([node.terminal]), [restored.length, restored.length], [position, position], "", node.sound ?? null, undefined));
+        while (next < order.length && records[order[next]].at === index) {
+          const record = records[order[next++]];
+          recordAt[order[next - 1]] = restored.length;
+          recordOf.push(order[next - 1]);
+          synthetic.push(true);
+          restored.push(new Token(tagSet([record.terminal]), [restored.length, restored.length], [record.source[0], record.source[1]], "", record.sound ?? null, undefined));
         }
-        if (index < tokens.length) restored.push(tokens[index]);
+        if (index < tokens.length) {
+          const token = tokens[index];
+          originalAt.push(restored.length);
+          recordOf.push(undefined);
+          synthetic.push(fault("F12") && token.source[0] === token.source[1]);
+          restored.push(token);
+        }
       }
-      const lowered = this.grammar.lower(features, true);
-      const context = new ParseContext(lowered, restored, sourceText, unicode);
-      const chart = recognize(context, "text", 0, restored.length);
-      const roots = rootItems(chart, "text");
-      if (roots.length === 0) return null;
-      const ranking = new Ranker(restored, "none").rank(roots);
-      if (ranking === null || ranking.verdict !== "tie") return null;
-      // The readings are shown over the original input: a synthetic
-      // terminator becomes an elided node where it was inserted.
-      const isSynthetic = new Set(synthetic);
-      /** @type {(index: number) => number} */
-      const toOriginal = (index) => index - synthetic.filter((position) => position < index).length;
-      // A node's source is taken again over the original input, since the
-      // synthetic terminators have sources too.
+      // π: the number of original tokens before each position of R (engine
+      // §7.3).
+      /** @type {number[]} */
+      const project = [0];
+      for (let index = 0; index < restored.length; index++) project.push(project[index] + (synthetic[index] ? 0 : 1));
+      const r = new ParseContext(lowered, restored, main.sourceText, main.unicode, main.interner);
+      r.mode = old ? "mandatory" : "reconstruction";
+      r.synthetic = synthetic;
+      r.recon = { observed: main, project, raw: old, faulty: new Map() };
+      // The recognition of R is not a query (engine §4, §7.6), unless a fault
+      // makes it one (F18).
+      const active = "parse\u0001text\u00010\u0001" + tokens.length;
+      const asQuery = (old || fault("F18")) && !main.inProgress.has(active);
+      if (asQuery) main.inProgress.add(active);
+      let chart;
+      main.checking = true;
+      try {
+        chart = recognize(r, "text", 0, restored.length);
+      } finally {
+        main.checking = false;
+        if (asQuery) main.inProgress.delete(active);
+      }
+      let roots = rootItems(chart, "text");
+      if (fault("lost:roots")) roots = [];
+      // Neither form of maximality applies to the derivations of R (engine
+      // §7.7), unless a fault applies them (F20). Cycles are over spans of R,
+      // unless a fault finds them over projected spans (F19).
+      const maximal = fault("F20") && (lowered.resolution.maximal || lowered.maximalTerminals.size > 0)
+        ? maximalRule(chart, lowered, lowered.resolution.maximal) : null;
+      // A test that watches the check marks W(D)'s edges before the check
+      // ranks (tests/README.md).
+      const watch = hooks.elisionCheck ? hooks.elisionCheck({ chosen, chart, roots, synthetic, originalAt, recordAt }) : null;
+      // The check's ranker: no lean, and cycles over spans of R (engine §7.7).
+      const ranker = new Ranker(restored, "none", maximal, fault("F19") ? project : null);
+      ranker.check = true;
+      ranker.marks = watch ? watch.marks : null;
+      let ranking = roots.length === 0 ? null : ranker.rank(roots);
+      if (fault("lost:count")) ranking = null;
+      if (watch) watch.ranked({ ranking, counted: ranking !== null && ranking.witnessCounted === true });
+      if (fault("F23")) {
+        // A fault leaves the main grammar in the mode of the check.
+        for (const [name, productions] of lowered.byLhs) {
+          lowered.byLhs.set(name, productions.filter((production) => !(production.rhs.length === 0 && production.helper && production.elided !== null)));
+        }
+      }
+      if (ranking === null) return old ? { kind: "pass" } : { kind: "lost", completion: records };
+      if (ranking.verdict !== "tie") return { kind: "pass" };
+      // The readings, mapped to the stage's input (engine §7.10).
       const original = new Sources(tokens);
-      /** @type {(node: ResultNode) => ResultNode} */
+      /** @type {Map<string, TagSet>} */
+      const chosenTags = new Map();
+      if (fault("F8")) {
+        foldTree(tree, () => null, (node) => {
+          chosenTags.set(`${node.rule}\u0000${node.span[0]}\u0000${node.span[1]}`, node.tags);
+          return null;
+        });
+      }
+      /** @type {(root: ResultNode) => ResultNode} */
       const remap = (root) => foldTree(root,
         /** @returns {ResultNode} */
         (node) => {
-          if (node.kind === "token" && isSynthetic.has(node.token)) {
-            const at = toOriginal(node.token);
-            return { kind: "elided", terminal: node.terminal, span: [at, at], source: node.source };
+          if (node.kind === "token" && synthetic[node.token]) {
+            // A read of a synthetic token is an elided node of its record's
+            // terminal, at the record's position, with the record's source.
+            const at = project[node.token];
+            const index = recordOf[node.token];
+            if (fault("F27:bare")) return { kind: "token", terminal: node.terminal, token: at, span: [at, at + 1], source: node.source };
+            if (index === undefined) return { kind: "elided", terminal: node.terminal, span: [at, at], source: node.source };
+            const record = records[index];
+            /** @type {ElidedNode} */
+            const result = { kind: "elided", terminal: record.terminal, span: [at, at], source: [record.source[0], record.source[1]] };
+            if (record.sound !== undefined) result.sound = record.sound;
+            return result;
           }
-          if (node.kind === "token") return { ...node, token: toOriginal(node.token), span: [toOriginal(node.span[0]), toOriginal(node.span[0]) + 1] };
-          const at = toOriginal(node.span[0]);
-          return { ...node, span: [at, at], source: sourceOf(original, at, at) };
+          if (node.kind === "token") return { ...node, token: project[node.token], span: [project[node.span[0]], project[node.span[0]] + 1] };
+          return node;
         },
         /** @returns {ResultNode} */
         (node, children) => {
-          const start = toOriginal(node.span[0]);
-          const end = toOriginal(node.span[1]);
-          return { ...node, span: [start, end], source: sourceOf(original, start, end), children };
+          const start = project[node.span[0]];
+          const end = project[node.span[1]];
+          const tags = chosenTags.get(`${node.rule}\u0000${start}\u0000${end}`) || node.tags;
+          return { ...node, span: [start, end], source: sourceOf(original, start, end), tags, children };
         });
-      return [ranking.first, /** @type {import("./types.js").Rope} */ (ranking.second)].map((rope) => remap(resultTree(derivationTree(rope), context)[0]));
+      const ropes = [ranking.first, /** @type {import("./types.js").Rope} */ (ranking.second)];
+      // The witness, mapped to the stage's input as the readings are
+      // (engine §7.10).
+      /** @type {(action: Action | null) => import("./types.js").WitnessAction} */
+      const mapAction = (action) => {
+        // Neither action is ever missing (engine §6, §7.10).
+        if (action === null) throw new Error("the witness of the check of elision-only lacks an action");
+        // A fault leaves the witness over R: a read keeps its index in R, and
+        // a close its span there (witness:project).
+        if (fault("witness:project")) {
+          if (action.kind === "read") return { kind: "read", token: action.token, terminal: action.terminal };
+          const { production, origin, end } = action.item;
+          return { kind: "close", rule: production.owner, production: production.id, helper: production.helper, span: [origin, end] };
+        }
+        if (action.kind === "read") {
+          return synthetic[action.token]
+            ? { kind: "elided", at: project[action.token], terminal: action.terminal }
+            : { kind: "read", token: project[action.token], terminal: action.terminal };
+        }
+        const { production, origin, end } = action.item;
+        return { kind: "close", rule: production.owner, production: production.id, helper: production.helper, span: [project[origin], project[end]] };
+      };
+      const witness = /** @type {[Action | null, Action | null]} */ (ranking.witness);
+      /** @type {ElisionCheck} */
+      const result = {
+        kind: "ambiguous",
+        readings: ropes.map((rope) => remap(resultTree(derivationTree(rope), r)[0])),
+        witness: [mapAction(witness[0]), mapAction(witness[1])],
+      };
+      // A competing reading gives no warning (engine §7.10), unless a fault
+      // takes its warnings (F22).
+      if (fault("F22")) result.competitorWarnings = warningsOf(derivationTree(ropes[1]), r, features, this.name);
+      return result;
     }
   }
+
+  /**
+   * A restoration record (engine §7.2): the terminal, its position in the
+   * stage's input, the empty source of its elided node, and the saved sound
+   * of a terminator with an `=` test.
+   * @typedef {{terminal: string, at: number, source: Span, sound?: string}} RestorationRecord
+   */
+
+  /**
+   * What the check of engine §7 found: one reading, two, or none.
+   * @typedef {({kind: "pass"} | {kind: "ambiguous", readings: ResultNode[], witness: import("./types.js").Witness} | {kind: "lost", completion: RestorationRecord[]})
+   *   & {competitorWarnings?: import("./types.js").ParseWarning[]}} ElisionCheck
+   */
 
   /**
    * @param {Token[]} tokens
@@ -7212,9 +8306,10 @@
    * @returns {import("./types.js").Witness}
    */
   function witnessOf(actions) {
-    /** @type {(action: Action | null) => import("./types.js").WitnessAction | null} */
+    /** @type {(action: Action | null) => import("./types.js").WitnessAction} */
     const plain = (action) => {
-      if (action === null) return null;
+      // Neither action is ever missing (engine §6).
+      if (action === null) throw new Error("the witness of a tie lacks an action");
       if (action.kind === "read") return { kind: "read", token: action.token, terminal: action.terminal };
       const { production, origin, end } = action.item;
       return { kind: "close", rule: production.owner, production: production.id, helper: production.helper, span: [origin, end] };
@@ -9453,14 +10548,32 @@
    * @property {string} [stage]
    * @property {"tie" | "elision-only"} [reason] why an ambiguous error is
    *   one: a tie (engine §6) or the check of elision-only (engine §7)
+   * @property {"elision-witness-lost"} [code] a defect that the check of
+   *   elision-only found: it lost its chosen derivation (engine §7.9)
+   * @property {ResultNode} [chosen] for that defect, the chosen tree
+   * @property {Restoration[]} [completion] for that defect, the terminators
+   *   that the check wrote back, in their order of insertion
    * @property {number} [token]
    * @property {Span} [source]
    * @property {number} [line]
    * @property {number} [column]
    * @property {Expectation[]} [expected]
    * @property {ResultNode[]} [readings]
+   * @property {Witness} [witness] for an error of elision-only, where its
+   *   two readings first differ (engine §7.10)
    * @property {string} [document]
    * @property {string} message
+   */
+
+  /**
+   * A terminator that the check of elision-only wrote back (engine §7.9): its
+   * terminal, its position in the stage's input, the empty source of its
+   * elided node, and the sound of a terminator with an `=` test.
+   * @typedef {object} Restoration
+   * @property {string} terminal
+   * @property {number} at
+   * @property {Span} source
+   * @property {string} [sound]
    */
 
   /**
@@ -9497,15 +10610,25 @@
    */
 
   /**
-   * Where the two readings of a tie first differ: their actions
-   * there, null on the side of one that ended. The witness is plain data of
-   * the result's own, and shares nothing with the grammar.
-   * @typedef {[WitnessAction | null, WitnessAction | null]} Witness
+   * Where the two readings of a tie first differ: their actions there.
+   * Neither is ever missing (engine §6). The witness is plain data of the
+   * result's own, and shares nothing with the grammar.
+   * @typedef {[WitnessAction, WitnessAction]} Witness
    */
 
   /**
-   * An action of a witness: a token read, or a production closed.
-   * @typedef {WitnessRead | WitnessClose} WitnessAction
+   * An action of a witness: a token read, a production closed, or, in the
+   * witness of an error of elision-only, a read of a terminator that the
+   * check wrote back (engine §7.10).
+   * @typedef {WitnessRead | WitnessClose | WitnessElided} WitnessAction
+   */
+
+  /**
+   * @typedef {object} WitnessElided
+   * @property {"elided"} kind
+   * @property {number} at the position in the stage's input where the
+   *   terminator was written back
+   * @property {string} terminal the terminal that read it
    */
 
   /**
@@ -9845,7 +10968,8 @@
   /**
    * How an item was built.
    * @typedef {{kind: "seed"} | {kind: "scan", previous: Item, token: number, terminal: string}
-   *   | {kind: "complete", previous: Item, child: Item}} Edge
+   *   | {kind: "complete", previous: Item, child: Item}
+   *   | {kind: "restore", token: number, terminal: string}} Edge
    */
 
   /**
@@ -9861,6 +10985,16 @@
    * @property {number} start
    * @property {number} end
    * @property {TagSet} [tags]
+   * @property {"R" | "raw"} [space] in the check of engine §7, a span of the
+   *   reconstructed input that an observation projects ("R"), or one that a
+   *   fault reads as it is ("raw"); absent for a span of the stage's input
+   * @property {[number, number]} [reconstructed] for a span of the stage's
+   *   input that a function computed in the check, the span of R behind it,
+   *   which only faults read
+   * @property {[number, number]} [exact] for such a span, the exact span of R
+   *   behind it: one original token for head and last, and from the first
+   *   original token of the span for tail, from and after; only faults read
+   *   it
    */
 
   /**

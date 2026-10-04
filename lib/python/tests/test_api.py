@@ -371,7 +371,7 @@ class Output(unittest.TestCase):
         result = dialect.parse("mi", until="words", auto_features=False)
         text = gencmu.to_json(result)
         self.assertEqual(json.loads(text), gencmu.result_json(result))
-        self.assertTrue(text.startswith('{"format":7,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","phonemes":"m","label":"m","tags":["/m/"],"span":[0,1],"source":[0,1]}'), text)
+        self.assertTrue(text.startswith('{"format":9,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","phonemes":"m","label":"m","tags":["/m/"],"span":[0,1],"source":[0,1]}'), text)
         self.assertIn(
             '"tree":{"kind":"rule","rule":"text","span":[0,2],"source":[0,2],"tags":[],"children":[{"kind":"rule","rule":"piece"',
             text,
@@ -389,6 +389,33 @@ class Output(unittest.TestCase):
         self.assertEqual(value["error"]["expected"][0], {"terminal": "'\\p{White_Space}'", "rules": ["c"]})
         self.assertEqual(value["error"]["expected"][1], {"terminal": "'a'", "rules": ["c"]})
         self.assertIsNone(value["tree"])
+
+    def test_witness_lost_json(self) -> None:
+        """The members of elision-witness-lost stand in the order kind,
+        stage, code, message, chosen, completion, and a record has its sound
+        last and only for a tested terminator (docs/output.md)."""
+        from gencmu._output import error_json
+
+        chosen = gencmu.Node("rule", (0, 1), (0, 1), rule="text")
+        error = gencmu.ParseError(
+            "grammar",
+            "the main stage could not reconstruct its chosen derivation for elision-only",
+            stage="main",
+            code="elision-witness-lost",
+            chosen=chosen,
+            completion=[gencmu.Restoration("KU", 1, (1, 1), "ku"), gencmu.Restoration("VAU", 1, (1, 1))],
+        )
+        value = error_json(error)
+        self.assertEqual(list(value), ["kind", "stage", "code", "message", "chosen", "completion"])
+        self.assertEqual(value["code"], "elision-witness-lost")
+        self.assertEqual(value["chosen"]["rule"], "text")
+        self.assertEqual(
+            value["completion"],
+            [{"terminal": "KU", "at": 1, "source": [1, 1], "sound": "ku"}, {"terminal": "VAU", "at": 1, "source": [1, 1]}],
+        )
+        self.assertEqual(list(value["completion"][0]), ["terminal", "at", "source", "sound"])
+        # Any other error has no code.
+        self.assertNotIn("code", error_json(gencmu.ParseError("grammar", "a defect", stage="main")))
 
     def test_brackets(self) -> None:
         dialect = gencmu.load_dialect_sources(ELIDING, "p.md")

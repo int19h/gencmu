@@ -27,6 +27,7 @@ use crate::maximal::Maximal;
 use crate::nat::Nat;
 use crate::tags::{SetId, Tags};
 use crate::unicode::Unicode;
+use crate::witness::{self, Fault, Marks, WitnessAct};
 
 pub(crate) const EMPTY: u32 = 0;
 const ANY: u32 = u32::MAX;
@@ -119,6 +120,10 @@ struct Entry {
 struct NodeResult {
     entries: Vec<Entry>,
     count: u8,
+    /// With the witness hook's marks, whether `count` includes a derivation
+    /// made of marked links only (tests/README.md). The same loop decides
+    /// both, so any choice that drops W(D) from the count drops it here.
+    w: bool,
     /// Under `maximal` (§4, §6), for an item whose next symbol is an
     /// elidable optional: the entries and count of only its derivations an
     /// elided terminator may follow; `None` where those are all of them.
@@ -171,6 +176,9 @@ pub(crate) struct Ranking {
     pub first: u32,
     pub second: Option<u32>,
     pub witness: Option<(Act, Act)>,
+    /// With the witness hook's marks, whether the count counted W(D): the
+    /// root has the bit (tests/README.md).
+    pub witness_counted: Option<bool>,
 }
 
 /// Elision vectors (§6), each kept as the positions of its elided
@@ -439,6 +447,9 @@ pub(crate) struct Dag<'c> {
     /// symbols read (§4, §5).
     unicode: &'c Unicode,
     tags: &'c Tags,
+    /// In the check of `elision-only`, O and π: a test of a reference reads
+    /// its projected span (§7.5); `None` elsewhere.
+    projection: Option<(&'c [Tok], &'c [u32])>,
     lean: Lean,
     pub arena: Vec<DNode>,
     /// The number of visible actions and of all actions of each node,
@@ -457,6 +468,13 @@ pub(crate) struct Ranker<'c> {
     maximal: Option<&'c Maximal<'c>>,
     /// Under `late-elision`, the vectors and the summaries.
     elisions: Option<Elisions>,
+    /// The witness hook's marks of W(D) (tests/README.md). With them, each
+    /// count also says whether it includes a derivation made of marked links
+    /// only. A parse that no test watches has none.
+    marks: Option<&'c Marks>,
+    /// Whether this is the ranker of the check of `elision-only`, which only
+    /// its faults read.
+    check: bool,
 }
 
 impl<'c> Dag<'c> {
@@ -813,6 +831,7 @@ impl<'c> Ranker<'c> {
             tokens,
             unicode: shared.unicode,
             tags: &shared.tags,
+            projection: None,
             lean,
             arena: Vec::new(),
             vlen: Vec::new(),
@@ -827,9 +846,82 @@ impl<'c> Ranker<'c> {
             fset_index: FxMap::default(),
             maximal,
             elisions: late.then(|| Elisions { vectors: Vectors::new(), summaries: FxMap::default() }),
+            marks: None,
+            check: false,
         };
         ranker.fset_index.insert(Vec::new(), 0);
         ranker
+    }
+
+    /// Ranks the derivations of the reconstructed input of `elision-only`,
+    /// whose tests of references read the projected span in O (§7.5).
+    pub(crate) fn observing(mut self, observed: &'c [Tok], project: &'c [u32]) -> Ranker<'c> {
+        self.dag.projection = Some((observed, project));
+        self
+    }
+
+    /// Ranks for the check of `elision-only`, with the witness hook's marks
+    /// of W(D) where a test watches it (tests/README.md).
+    pub(crate) fn checking(mut self, marks: Option<&'c Marks>) -> Ranker<'c> {
+        self.check = true;
+        self.marks = marks;
+        self
+    }
+
+    /// Whether a fault skips this alternative of a node of the check: the
+    /// last of two or more links of an item, or members of a group
+    /// (tests/README.md).
+    fn skips(&self, fault: Fault, site: &'static str, number: u32, count: usize) -> bool {
+        self.check && count > 1 && number as usize == count - 1 && witness::fault_at(fault, site)
+    }
+
+    /// W(D)'s actions as a derivation of the ranking's own, to compare with
+    /// its readings in the order T.
+    pub(crate) fn derivation(&mut self, sequence: &[WitnessAct]) -> u32 {
+        let mut x = EMPTY;
+        for act in sequence {
+            x = match *act {
+                WitnessAct::Read { tok, terminal } => {
+                    let read = self.dag.push(DNode::Read { tok, terminal }, Nat::ONE, Nat::ONE);
+                    self.dag.seq(x, read)
+                }
+                WitnessAct::Close { set, index } => self.dag.close(x, set, index),
+            };
+        }
+        x
+    }
+
+    /// Whether `a` comes before `b` in the order T.
+    pub(crate) fn before(&self, a: u32, b: u32) -> bool {
+        self.dag.before(a, b)
+    }
+
+    /// Whether `a` comes before `b` as the second reading after `first`
+    /// (§6): it diverges from `first` earlier, or at the same point and
+    /// before `b` in the order T. As `rank` measures it.
+    pub(crate) fn second_before(&self, first: u32, a: u32, b: u32) -> bool {
+        let div = |d: u32| match self.dag.first_difference(first, d, true) {
+            Diff::At { index, .. } => Div::At(index),
+            Diff::APrefix { len } | Diff::BPrefix { len } => Div::At(len),
+            Diff::Equal => Div::Last,
+        };
+        match div(a).cmp(&div(b)) {
+            Ordering::Less => true,
+            Ordering::Greater => false,
+            Ordering::Equal => self.dag.before(a, b),
+        }
+    }
+
+    /// The tokens that a test of a reference over `start..end` reads: those
+    /// of the projected span in the check, else the span's own (§7.5).
+    fn reference_span(&self, start: u32, end: u32) -> &'c [Tok] {
+        match self.dag.projection {
+            Some(_) if witness::fault_at(Fault::ReferenceSpan, "group") => {
+                &self.dag.tokens[start as usize..end as usize]
+            }
+            Some((observed, project)) => &observed[project[start as usize] as usize..project[end as usize] as usize],
+            None => &self.dag.tokens[start as usize..end as usize],
+        }
     }
 
     pub(crate) fn chart(&self) -> &Chart {
@@ -894,8 +986,28 @@ impl<'c> Ranker<'c> {
                 let test_id = production.test(position).unwrap_or(NO_TEST);
                 let test = self.dag.g.test(item.prod, position);
                 let (tokens, unicode, tags) = (self.dag.tokens, self.dag.unicode, self.dag.tags);
+                // A test of a terminal reads its token with its recognition
+                // values, and one of a reference its projected span (§7.5).
+                let terminal_test = matches!(production.syms[position], Sym::T(_));
+                let mut projection = self.dag.projection;
+                // Faults of the check (tests/README.md): no test at all, or
+                // a test of a reference over its span of R.
+                let checking = projection.is_some();
+                let no_tests = checking && witness::fault_at(Fault::RankerTests, "links");
+                if checking && witness::fault_at(Fault::ReferenceSpan, "links") {
+                    projection = None;
+                }
                 let holds = |m: u32, own: SetId| {
-                    test.map_or(true, |test| test_holds(test, &tokens[m as usize..set as usize], unicode, tags, own))
+                    no_tests
+                        || test.map_or(true, |test| {
+                            let span = match projection {
+                                Some((observed, project)) if !terminal_test => {
+                                    &observed[project[m as usize] as usize..project[set as usize] as usize]
+                                }
+                                _ => &tokens[m as usize..set as usize],
+                            };
+                            test_holds(test, span, unicode, tags, own)
+                        })
                 };
                 match production.syms[position] {
                     Sym::T(terminal) => {
@@ -953,8 +1065,10 @@ impl<'c> Ranker<'c> {
             }
             Node::Group { rule, origin, set, tags, test } => {
                 let eset = &self.dag.chart.sets[set as usize];
-                let test = (test != NO_TEST).then(|| &self.dag.g.tests[test as usize]);
-                let span = &self.dag.tokens[origin as usize..set as usize];
+                // A fault applies no test in the check (tests/README.md).
+                let no_tests = self.dag.projection.is_some() && witness::fault_at(Fault::RankerTests, "group");
+                let test = (test != NO_TEST && !no_tests).then(|| &self.dag.g.tests[test as usize]);
+                let span = self.reference_span(origin, set);
                 let (unicode, tag_table) = (self.dag.unicode, self.dag.tags);
                 let members = eset
                     .completed
@@ -1150,6 +1264,10 @@ impl<'c> Ranker<'c> {
     fn compute(&mut self, key: Key, deps: Deps) -> NodeResult {
         let (node, _) = key;
         let kept = self.kept(&key);
+        // Whether an item is marked, as a leaf or as the end of a marked
+        // link (tests/README.md).
+        let marks = self.marks;
+        let marked = |set: u32, index: u32| marks.is_some_and(|marks| marks.items.contains(&(set, index)));
         let in_all = |index: u32| kept.as_ref().map_or(true, |(all, _)| all.contains(&index));
         let in_allowed =
             |index: u32| kept.as_ref().map_or(true, |(all, allowed)| allowed.as_ref().unwrap_or(all).contains(&index));
@@ -1157,9 +1275,30 @@ impl<'c> Ranker<'c> {
             Deps::Leaf => match node {
                 Node::Read { tok, terminal } => {
                     let x = self.dag.push(DNode::Read { tok, terminal }, Nat::ONE, Nat::ONE);
-                    NodeResult { entries: vec![Entry { x, comps: Vec::new() }], count: 1, allowed: None }
+                    NodeResult { entries: vec![Entry { x, comps: Vec::new() }], count: 1, allowed: None, w: true }
                 }
-                _ => NodeResult { entries: vec![Entry { x: EMPTY, comps: Vec::new() }], count: 1, allowed: None },
+                // A restoration of the check of `elision-only` reads its
+                // synthetic token, and its own close follows (§7.4, §7.7).
+                // Only a restoration has its first item after its origin.
+                Node::Item { set, index } if self.item(set, index).origin != set => {
+                    // A fault gives it no derivation (tests/README.md).
+                    if witness::fault(Fault::RankRestoration) {
+                        return NodeResult::default();
+                    }
+                    let item = self.item(set, index);
+                    let terminal = restored_terminal(self.dag.g, item.prod);
+                    let x = self.dag.push(DNode::Read { tok: item.origin, terminal }, Nat::ONE, Nat::ONE);
+                    NodeResult {
+                        entries: vec![Entry { x, comps: Vec::new() }],
+                        count: 1,
+                        allowed: None,
+                        w: marked(set, index),
+                    }
+                }
+                _ => {
+                    let w = matches!(node, Node::Item { set, index } if marked(set, index));
+                    NodeResult { entries: vec![Entry { x: EMPTY, comps: Vec::new() }], count: 1, allowed: None, w }
+                }
             },
             Deps::Links(links) => {
                 // Under `maximal` (§4, §6), an item whose next symbol is an
@@ -1172,6 +1311,7 @@ impl<'c> Ranker<'c> {
                 let (guarded, test) = self.guard(set, index);
                 let mut all = NodeResult::default();
                 let mut allowed = NodeResult::default();
+                let alternatives = links.len();
                 for (number, (pred, child)) in (0..).zip(links) {
                     let (to_all, to_allowed) = (in_all(number), in_allowed(number));
                     if !to_all && !to_allowed {
@@ -1183,11 +1323,27 @@ impl<'c> Ranker<'c> {
                     let right = &self.results[self.memo[&child] as usize];
                     let ways = left.count.saturating_mul(right.count);
                     let kept = guarded && permitted && to_allowed;
-                    if to_all {
+                    // The link is W(D)'s where it is marked, and its
+                    // predecessor and child are W(D)'s.
+                    let Node::Item { set: m, .. } = pred.0 else { unreachable!("a predecessor item") };
+                    let w = ways > 0
+                        && left.w
+                        && right.w
+                        && marks.is_some_and(|marks| marks.links.contains(&(set, index, m)));
+                    // Faults of the check skip the last of two or more links,
+                    // in the count or in the entries (tests/README.md).
+                    let counted = !self.skips(Fault::LostContext, "links", number, alternatives);
+                    let selected = !self.skips(Fault::LostSelect, "links", number, alternatives);
+                    if to_all && counted {
                         all.count = all.count.saturating_add(ways).min(2);
+                        all.w |= w;
                     }
-                    if kept {
+                    if kept && counted {
                         allowed.count = allowed.count.saturating_add(ways).min(2);
+                        allowed.w |= w;
+                    }
+                    if !selected {
+                        continue;
                     }
                     for first in &left.entries {
                         for second in &right.entries {
@@ -1220,22 +1376,32 @@ impl<'c> Ranker<'c> {
                         .collect();
                     self.dag.add_entry(&mut list, Entry { x, comps });
                 }
-                NodeResult { entries: list, count: body.count, allowed: None }
+                NodeResult { entries: list, count: body.count, allowed: None, w: body.w }
             }
             Deps::Group(members) => {
                 let mut list = Vec::new();
                 let mut count = 0u8;
+                let mut w = false;
+                let alternatives = members.len();
                 for (number, member) in (0..).zip(members) {
                     if !in_all(number) {
                         continue;
                     }
                     let result = &self.results[self.memo[&member] as usize];
-                    count = count.saturating_add(result.count).min(2);
+                    // Faults of the check skip the last of two or more
+                    // members, in the count or in the entries.
+                    if !self.skips(Fault::LostContext, "group", number, alternatives) {
+                        count = count.saturating_add(result.count).min(2);
+                        w |= result.count > 0 && result.w;
+                    }
+                    if self.skips(Fault::LostSelect, "group", number, alternatives) {
+                        continue;
+                    }
                     for entry in &result.entries {
                         self.dag.add_entry(&mut list, entry.clone());
                     }
                 }
-                NodeResult { entries: list, count, allowed: None }
+                NodeResult { entries: list, count, allowed: None, w }
             }
         }
     }
@@ -1263,6 +1429,7 @@ impl<'c> Ranker<'c> {
             return None;
         }
         let result = result.clone();
+        let witness_counted = self.marks.map(|_| result.w);
         let mut chosen = result.entries[0].x;
         for entry in &result.entries[1..] {
             if self.dag.before(entry.x, chosen) {
@@ -1332,8 +1499,21 @@ impl<'c> Ranker<'c> {
                 _ => unreachable!("two different derivations differ"),
             },
         });
-        Some(Ranking { verdict, first: chosen, second, witness })
+        Some(Ranking { verdict, first: chosen, second, witness, witness_counted })
     }
+}
+
+/// The terminal of the elidable optional whose empty production is `prod`:
+/// the first symbol of the helper's other productions (§3.8).
+pub(crate) fn restored_terminal(g: &Lowered, prod: u32) -> u32 {
+    let rule = &g.rules[g.prods[prod as usize].rule as usize];
+    rule.prods
+        .iter()
+        .find_map(|&other| match g.prods[other as usize].syms.first() {
+            Some(&Sym::T(terminal)) => Some(terminal),
+            _ => None,
+        })
+        .expect("an elidable optional begins with its terminal")
 }
 
 #[cfg(test)]

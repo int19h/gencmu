@@ -1,5 +1,5 @@
 import { Sources } from "./tokens.js";
-import type { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Slot, SymbolTest, TagSet, TermValue } from "./types.js";
+import type { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Slot, SpanValue, SymbolTest, TagSet, TermValue } from "./types.js";
 import type { Token } from "./tokens.js";
 import type { UnicodeTable } from "./unicode.js";
 export type Chart = {
@@ -62,6 +62,27 @@ export declare class ParseContext {
     unicode: UnicodeTable;
     interner: TagInterner;
     /**
+     * How the recognizer reads elidable optionals: null as engine §4 says,
+     * "reconstruction" in the mode of engine §7.4, or "mandatory", the old
+     * contract, where an elidable optional is never empty (a fault).
+     * @type {null | "reconstruction" | "mandatory"}
+     */
+    mode: null | "reconstruction" | "mandatory";
+    /**
+     * For each token, whether it is a synthetic token of engine §7.2, by
+     * its provenance; null where none is.
+     * @type {boolean[] | null}
+     */
+    synthetic: boolean[] | null;
+    /**
+     * On the context of the reconstructed input of engine §7, how its
+     * observations reach the stage's input; null elsewhere.
+     * @type {Reconstruction | null}
+     */
+    recon: Reconstruction | null;
+    /** Whether the check of engine §7 is running over this context's input. */
+    checking: boolean;
+    /**
      * Each token's phonemes in canonical form, for the sound tests of
      * symbols and for phonemes(), computed when one first looks at the
      * token (engine §4, §5).
@@ -92,9 +113,34 @@ export declare class ParseContext {
      * @param {Token[]} tokens
      * @param {string[]} sourceText the text's code points
      * @param {UnicodeTable} unicode
+     * @param {TagInterner} [interner] the interner of another context whose
+     *   tag numbers this one shares, as the check of engine §7 shares the
+     *   main parse's
      */
-    constructor(lowered: LoweredGrammar, tokens: Token[], sourceText: string[], unicode: UnicodeTable);
+    constructor(lowered: LoweredGrammar, tokens: Token[], sourceText: string[], unicode: UnicodeTable, interner?: TagInterner);
 }
+export type Reconstruction = {
+    /**
+     * the context of O, the main parse's,
+     * whose memo and active queries the check shares
+     */
+    observed: ParseContext;
+    /**
+     * π: for each position of R, the number of
+     * original tokens before it
+     */
+    project: number[];
+    /**
+     * whether observations read R itself, as the old
+     * contract did (a fault)
+     */
+    raw: boolean;
+    /**
+     * the contexts of queries
+     * that a fault sends elsewhere, by fault
+     */
+    faulty: Map<string, ParseContext>;
+};
 export type TraceEvent = {
     kind: "predicted" | "advanced" | "completed" | "dropped";
     production: Production;
@@ -113,6 +159,19 @@ export type TraceEvent = {
      */
     test?: SymbolTest;
 };
+/**
+ * How the recognition of the reconstructed input R observes the stage's
+ * input O (engine §7.3, §7.5).
+ * @typedef {object} Reconstruction
+ * @property {ParseContext} observed the context of O, the main parse's,
+ *   whose memo and active queries the check shares
+ * @property {number[]} project π: for each position of R, the number of
+ *   original tokens before it
+ * @property {boolean} raw whether observations read R itself, as the old
+ *   contract did (a fault)
+ * @property {Map<string, ParseContext>} faulty the contexts of queries
+ *   that a fault sends elsewhere, by fault
+ */
 /**
  * Something the recognizer did at the traced position: an item predicted,
  * advanced or completed there, or an advance that a condition refused.
@@ -136,6 +195,9 @@ export declare class Item {
     child: Item | null;
     /** @type {Edge[] | null} */
     more: Edge[] | null;
+    strict: boolean;
+    restores: boolean;
+    queued: boolean;
     /**
      * @param {Production} production
      * @param {number} dot
@@ -165,8 +227,12 @@ export declare class ChartSet {
     waiting: Map<string, Item[]>;
     /** @type {Map<string, Item[]>} */
     nullable: Map<string, Item[]>;
-    /** @type {Set<string>} the rules already predicted here */
-    predicted: Set<string>;
+    /**
+     * The rules already predicted here, each with whether that prediction
+     * was strict (engine §7.4).
+     * @type {Map<string, boolean>}
+     */
+    predicted: Map<string, boolean>;
     /**
      * The rules predicted here with productions not made items, since they
      * begin with a terminal the next token does not carry; kept for saying
@@ -197,6 +263,14 @@ export declare function writtenSymbol(symbol: {
     name: string;
     test?: SymbolTest | null;
 }): string;
+export type Reading = {
+    last: Map<Production, number>;
+};
+/**
+ * @param {LoweredGrammar} lowered
+ * @returns {Reading}
+ */
+export declare function readingOf(lowered: LoweredGrammar): Reading;
 /**
  * Whether a test holds of a symbol's own span, the tokens [from, to), and
  * its own tags (engine §4): a token's for a terminal, the completed item's
@@ -216,6 +290,43 @@ export declare function testHolds(context: ParseContext, test: SymbolTest, from:
  * @returns {Item[]}
  */
 export declare function rootItems(chart: Chart, rule: string): Item[];
+export type StepScope = {
+    scope: ChartScope | null;
+};
+/** @implements {Scope} */
+declare class ChartScope implements Scope {
+    context: ParseContext;
+    production: Production;
+    slots: Slot[];
+    origin: number;
+    end: number;
+    /** @type {ParseContext | null} */
+    reconstructed: ParseContext | null;
+    observing: ParseContext;
+    /** @type {SpanValue["space"]} */
+    space: SpanValue["space"];
+    /** @type {TagSet | null} the constituent's tags, once evaluated */
+    tagSet: TagSet | null;
+    /**
+     * @param {ParseContext} context
+     * @param {Production} production
+     * @param {Slot[]} slots
+     * @param {number} origin
+     * @param {number} end
+     */
+    constructor(context: ParseContext, production: Production, slots: Slot[], origin: number, end: number);
+    /**
+     * The constituent's tags, from its production's tag term, evaluated at
+     * most once.
+     * @returns {TagSet}
+     */
+    constituent(): TagSet;
+    /**
+     * @param {string} name
+     * @returns {SpanValue}
+     */
+    capture(name: string): SpanValue;
+}
 /**
  * @param {ParseContext} context
  * @param {number} start
@@ -262,3 +373,4 @@ export declare function rejectionOf(chart: Chart): {
  * @returns {Expectation[]}
  */
 export declare function expectedAt(chart: Chart, position: number): Expectation[];
+export {};

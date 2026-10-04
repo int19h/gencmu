@@ -241,6 +241,22 @@ type ranker struct {
 	marked   map[*item]bool
 	// leaves holds the one vector of a single elision at each position.
 	leaves map[int32]*elSeq
+	// marks, where a test watches the check, are the witness hook's marks
+	// of W(D): for each item of W(D), the links that W(D) uses
+	// (tests/README.md). With them, each count also says whether it includes
+	// a derivation of marked links only. A parse that no test watches has
+	// none.
+	marks map[*item]map[link]bool
+	// check says that this ranks the check of elision-only, which only its
+	// faults read.
+	check bool
+}
+
+// skips says whether a fault of the check skips this alternative: the last
+// of two or more links of an item, or completed items of a constituent
+// (tests/README.md).
+func (rk *ranker) skips(fault, site string, i, n int) bool {
+	return rk.check && n > 1 && i == n-1 && rk.rec.run.ps.faultAt(fault, site)
 }
 
 // newRanker ranks under the rule of a directive, greedy, lazy or
@@ -474,6 +490,11 @@ type entry struct {
 	// cands then holds only derivations that attain vec.
 	vec   *elSeq
 	least int
+	// w, with the witness hook's marks, says whether count includes a
+	// derivation of marked links only (tests/README.md). The same loop
+	// decides both, so any choice that drops W(D) from the count drops it
+	// here.
+	w bool
 	// allowed is the same over only the derivations an elided terminator
 	// may follow, where maximal forbids some of the item's (see itemVal);
 	// nil where it may follow them all.
@@ -698,6 +719,10 @@ func (f forbidden) with(r int32) forbidden {
 
 var unitEntry = &entry{cands: []*cand{{}}, count: 1, least: 1}
 
+// markedUnitEntry is unitEntry for a predicted item that the witness hook
+// marked.
+var markedUnitEntry = &entry{cands: []*cand{{}}, count: 1, least: 1, w: true}
+
 func memoSlotFor(m *itemRank, f forbidden) *memoSlot {
 	if len(f) == 0 {
 		return &m.base
@@ -722,9 +747,20 @@ func memoSlotFor(m *itemRank, f forbidden) *memoSlot {
 // the links whose last symbol's node maximal does not forbid, which an
 // elided terminator may follow. A link over an elided terminator combines
 // the second of the item before it.
+//
+// A restoration (engine §7.4) has one link, a read of its synthetic token,
+// and its close follows (§7.7).
 func (rk *ranker) itemVal(it *item, f forbidden) *entry {
-	if it.dot == 0 {
+	if it.dot == 0 && !it.restores {
+		// A predicted item of W(D), such as an empty production's, is
+		// W(D)'s (tests/README.md).
+		if _, ok := rk.marks[it]; ok {
+			return markedUnitEntry
+		}
 		return unitEntry
+	}
+	if it.restores && rk.rec.run.ps.fault("rank-restoration") {
+		return nil
 	}
 	f = rk.restrict(f, it.prod.lhs)
 	slot := memoSlotFor(rk.itemMemo(it), f)
@@ -747,8 +783,10 @@ func (rk *ranker) itemVal(it *item, f forbidden) *entry {
 	}
 	var vals []linkVal
 	all, allowed := summary{}, summary{}
+	allW, allowedW := false, false
 	forbade := false
-	for _, l := range it.links {
+	marked := rk.marks[it]
+	for i, l := range it.links {
 		prev := unitEntry
 		if l.prev != nil {
 			var pf forbidden
@@ -786,11 +824,22 @@ func (rk *ranker) itemVal(it *item, f forbidden) *entry {
 			// count their product (engine §6).
 			v.vec, v.least = concatElisions(prev.vec, child.vec), min(prev.least*child.least, 2)
 		}
-		all.add(v.vec, v.least, count)
-		if v.permitted {
-			allowed.add(v.vec, v.least, count)
+		// The link is W(D)'s where it is marked, and its predecessor and
+		// child are W(D)'s. A predicted predecessor and a read are.
+		w := marked[l] && (l.prev == nil || prev.w) && (l.sym == nil || child.w)
+		// Faults of the check skip the last of two or more links, in the
+		// count or in the candidates (tests/README.md).
+		if !rk.skips("lost:context", "links", i, len(it.links)) {
+			all.add(v.vec, v.least, count)
+			allW = allW || w
+			if v.permitted {
+				allowed.add(v.vec, v.least, count)
+				allowedW = allowedW || w
+			}
 		}
-		vals = append(vals, v)
+		if !rk.skips("lost:select", "links", i, len(it.links)) {
+			vals = append(vals, v)
+		}
 	}
 	// Then the candidates. Under late-elision, only the links that attain
 	// the least vector of the summary give them.
@@ -811,7 +860,7 @@ func (rk *ranker) itemVal(it *item, f forbidden) *entry {
 	}
 	var e *entry
 	if all.total > 0 {
-		e = &entry{count: all.total, vec: all.vec, least: all.least}
+		e = &entry{count: all.total, vec: all.vec, least: all.least, w: allW}
 		// Where maximal forbids none of the links, an elided terminator may
 		// follow every derivation. Otherwise it may follow the candidates of
 		// the links maximal permits, copied before merging changes them.
@@ -820,7 +869,7 @@ func (rk *ranker) itemVal(it *item, f forbidden) *entry {
 			for i, c := range permitted {
 				forks[i] = c.fork()
 			}
-			e.allowed = &entry{cands: rk.merge(forks), count: allowed.total, vec: allowed.vec, least: allowed.least}
+			e.allowed = &entry{cands: rk.merge(forks), count: allowed.total, vec: allowed.vec, least: allowed.least, w: allowedW}
 		}
 		e.cands = rk.merge(cands)
 	}
@@ -854,19 +903,27 @@ func (rk *ranker) symVal(s *symNode, f forbidden) *entry {
 	}
 	var vals []itemVal
 	var sum summary
-	for _, c := range s.items {
+	w := false
+	for i, c := range s.items {
 		e := rk.itemVal(c, inner)
 		if e == nil || e.count == 0 {
 			continue
 		}
 		vec := e.vec
-		if rk.elisions && c.prod.helper && c.prod.elided != "" && len(c.prod.rhs) == 0 {
+		if rk.elisions && c.prod.restoration() && !c.restores {
 			// The helper of an elidable optional that derives ε elides its
 			// terminator at its position (engine §6).
 			vec = rk.leaf(s.start)
 		}
-		sum.add(vec, e.least, e.count)
-		vals = append(vals, itemVal{it: c, e: e, vec: vec})
+		// Faults of the check skip the last of two or more completed
+		// items, in the count or in the candidates (tests/README.md).
+		if !rk.skips("lost:context", "items", i, len(s.items)) {
+			sum.add(vec, e.least, e.count)
+			w = w || e.w
+		}
+		if !rk.skips("lost:select", "items", i, len(s.items)) {
+			vals = append(vals, itemVal{it: c, e: e, vec: vec})
+		}
 	}
 	var cands []*cand
 	for _, v := range vals {
@@ -882,7 +939,7 @@ func (rk *ranker) symVal(s *symNode, f forbidden) *entry {
 	}
 	var e *entry
 	if sum.total > 0 {
-		e = &entry{cands: rk.merge(cands), count: sum.total, vec: sum.vec, least: sum.least}
+		e = &entry{cands: rk.merge(cands), count: sum.total, vec: sum.vec, least: sum.least, w: w}
 	}
 	slot.state, slot.e = 2, e
 	return e
@@ -950,6 +1007,9 @@ type rankResult struct {
 	first   *dn
 	second  *dn // nil unless the verdict is a tie
 	witness [2]action
+	// witnessCounted, with the witness hook's marks, says whether the count
+	// counted W(D): a root has the bit (tests/README.md).
+	witnessCounted bool
 }
 
 // rank ranks the derivations of the input, those of every completed item of
@@ -963,12 +1023,14 @@ func (rk *ranker) rank(top []*symNode) *rankResult {
 	}
 	var vals []rootVal
 	var root summary
+	counted := false
 	for _, s := range top {
 		e := rk.symVal(s, nil)
 		if e == nil || e.count == 0 {
 			continue
 		}
 		root.add(e.vec, e.least, e.count)
+		counted = counted || e.w
 		vals = append(vals, rootVal{e: e, vec: e.vec})
 	}
 	if root.total == 0 {
@@ -982,7 +1044,7 @@ func (rk *ranker) rank(top []*symNode) *rankResult {
 		cands = append(cands, v.e.cands...)
 	}
 	m := rk.finish(rk.merge(cands))
-	res := &rankResult{first: m.d}
+	res := &rankResult{first: m.d, witnessCounted: rk.marks != nil && counted}
 	switch {
 	case root.total == 1:
 		res.verdict = VerdictUnique

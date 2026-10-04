@@ -8,7 +8,7 @@
   "input": "wi",
   "expect": {
     "result": {
-      "format": 7,
+      "format": 9,
       "ok": false,
       "stages": [
         {

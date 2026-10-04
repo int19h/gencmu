@@ -30,6 +30,16 @@ type engineCase struct {
 		Options caseOptions
 		Expect  caseExpect
 	}
+	// fault, which no case file sets, is a fault of the library's own
+	// paths that the parses of the case turn on (faults_test.go).
+	fault string
+	// noHook, which no case file sets either, ignores the witness hook's
+	// answer, so that only the result can fail the case, and onlyHook
+	// ignores everything but the hook's answer (faults_test.go).
+	noHook, onlyHook bool
+	// hits, where set, records the sites of the fault that the parses
+	// enter (faults_test.go).
+	hits map[string]bool
 }
 
 // caseToken is a token that a case supplies (tests/README.md). Its before
@@ -135,21 +145,35 @@ func caseDialect(c *engineCase, noCache bool) (*Dialect, error) {
 // runCase parses a case's input with a loaded dialect, under the options
 // of the case or of one item of its parses.
 func runCase(d *Dialect, c *engineCase, o *caseOptions) (*ParseResult, error) {
+	res, _, err := runCaseLogged(d, c, o, "")
+	return res, err
+}
+
+// runCaseLogged is runCase, with the checks of elision-only that ran, and
+// with a private switch that loses their witness, or "" for none.
+func runCaseLogged(d *Dialect, c *engineCase, o *caseOptions, lose string) (*ParseResult, *checkLog, error) {
 	if err := loadBundled(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	opts := ParseOptions{Features: o.Features, WithoutFeatures: o.WithoutFeatures, ElisionOnly: o.ElisionOnly, Until: o.Until, NoAutoFeatures: true}
+	log := withChecks(&opts)
+	opts.private.loseWitness = lose
+	opts.private.fault, opts.private.hits = c.fault, c.hits
 	if o.AutoFeatures != nil && *o.AutoFeatures {
 		opts.NoAutoFeatures = false
 	}
+	var res *ParseResult
+	var err error
 	if c.Input != nil {
-		return d.Parse(*c.Input, opts)
+		res, err = d.Parse(*c.Input, opts)
+	} else {
+		toks, text, terr := caseTokens(c.Tokens)
+		if terr != nil {
+			return nil, nil, terr
+		}
+		res, err = d.ParseTokens(text, toks, opts)
 	}
-	toks, text, err := caseTokens(c.Tokens)
-	if err != nil {
-		return nil, err
-	}
-	return d.ParseTokens(text, toks, opts)
+	return res, log, err
 }
 
 // caseTokens makes a case's tokens and the text they index
@@ -208,6 +232,9 @@ func checkCase(c *engineCase, noCache bool) error {
 		return nil
 	}
 	if err != nil {
+		if c.onlyHook {
+			return nil
+		}
 		return checkLoadError(&c.Expect, err)
 	}
 	return checkParse(d, c, &c.Options, &c.Expect)
@@ -252,7 +279,13 @@ func checkParse(d *Dialect, c *engineCase, options *caseOptions, expect *caseExp
 			return fmt.Errorf("features: expected %s, got %+v", expect.Features, d.Features())
 		}
 	}
-	res, err := runCase(d, c, options)
+	res, log, err := runCaseLogged(d, c, options, "")
+	if c.onlyHook {
+		if err == nil && log.lost() > 0 {
+			return fmt.Errorf("%d checks of elision-only lost the witness of their chosen derivation", log.lost())
+		}
+		return nil
+	}
 	if err != nil {
 		// A mistake of the caller is an error, and there is no result
 		// (engine §13).
@@ -266,6 +299,11 @@ func checkParse(d *Dialect, c *engineCase, options *caseOptions, expect *caseExp
 	if err := json.Unmarshal(data, &got); err != nil {
 		return fmt.Errorf("the canonical JSON does not parse: %v\n%s", err, data)
 	}
+	// Every check of elision-only that ran keeps its witness
+	// (tests/README.md).
+	if n := log.lost(); n > 0 && !c.noHook {
+		return fmt.Errorf("%d checks of elision-only lost the witness of their chosen derivation\n%s", n, data)
+	}
 	return checkResult(res, got, data, expect)
 }
 
@@ -274,11 +312,19 @@ func checkParse(d *Dialect, c *engineCase, options *caseOptions, expect *caseExp
 // (tests/README.md): no stage has a member tied, and a stage whose verdict
 // is tie has no output, is the last stage, and has the result's ambiguous
 // error with the reason tie, its name and two readings. An ambiguous error
-// has no token or source.
+// has no token or source. An error that loses the witness of elision-only
+// is a grammar error of the last stage, which is resolved and has no
+// output, with its chosen tree and completion and no position, reason or
+// readings (engine §7.9). No result has it, whatever the case expects, since
+// engine §7.8 proves that no grammar gives it.
 func resultProblems(got any) []string {
 	var problems []string
 	result, _ := got.(map[string]any)
 	stages, _ := result["stages"].([]any)
+	if e, _ := result["error"].(map[string]any); e != nil && e["code"] != nil {
+		problems = append(problems, witnessLostProblems(e, stages)...)
+		problems = append(problems, "the result is the error elision-witness-lost, which no grammar gives")
+	}
 	// An ambiguous error has no position (docs/output.md).
 	if e, _ := result["error"].(map[string]any); e != nil && e["kind"] == ErrorAmbiguous {
 		for _, member := range []string{"token", "source"} {
@@ -567,4 +613,34 @@ func TestEngineCases(t *testing.T) {
 			}
 		})
 	}
+}
+
+// witnessLostProblems lists what an error with a code breaks of the form of
+// elision-witness-lost (tests/README.md, engine §7.9).
+func witnessLostProblems(e map[string]any, stages []any) []string {
+	var problems []string
+	if e["code"] != CodeElisionWitnessLost {
+		problems = append(problems, fmt.Sprintf("the error has the code %v", e["code"]))
+	}
+	stage, _ := e["stage"].(string)
+	_, chosen := e["chosen"]
+	completion, isList := e["completion"].([]any)
+	if e["kind"] != ErrorGrammar || stage == "" || !chosen || !isList {
+		problems = append(problems, "the elision-witness-lost error lacks its kind grammar, stage, chosen or completion")
+	}
+	_ = completion
+	for _, member := range []string{"token", "source", "line", "column", "expected", "reason", "readings"} {
+		if _, ok := e[member]; ok {
+			problems = append(problems, "the elision-witness-lost error has a member "+member)
+		}
+	}
+	var last map[string]any
+	if len(stages) > 0 {
+		last, _ = stages[len(stages)-1].(map[string]any)
+	}
+	_, output := last["output"]
+	if last == nil || last["name"] != stage || last["verdict"] != VerdictResolved || output {
+		problems = append(problems, "the stage of the elision-witness-lost error is not the last, resolved, with no output")
+	}
+	return problems
 }

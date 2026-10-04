@@ -1,0 +1,175 @@
+{
+  "description": "An elision-only witness whose actions are a read of an original token and a close. The chosen a restores T, so R is A T. c closes the empty e before it reads A, and reads the synthetic T as a bare terminal (engine §7.10).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a A [T]\n%rule b A [T] [T]\n%rule c e A T\n%rule e ε",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "elision-only",
+        "stage": "main",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "a",
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "elided",
+                    "terminal": "T",
+                    "span": [
+                      1,
+                      1
+                    ],
+                    "source": [
+                      1,
+                      1
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "c",
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "e",
+                    "span": [
+                      0,
+                      0
+                    ],
+                    "source": [
+                      0,
+                      0
+                    ],
+                    "tags": [],
+                    "children": []
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "elided",
+                    "terminal": "T",
+                    "span": [
+                      1,
+                      1
+                    ],
+                    "source": [
+                      1,
+                      1
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "witness": [
+          {
+            "read": {
+              "token": 0,
+              "terminal": "A"
+            }
+          },
+          {
+            "close": {
+              "rule": "e",
+              "production": 12,
+              "span": [
+                0,
+                0
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

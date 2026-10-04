@@ -1,0 +1,52 @@
+{
+  "description": "A restoration has the tags of the empty production that it stands for, which are none. So helper, a unary rule over the restored optional, has no tags, and zero survives. A synthetic token gives a constituent no tag (engine §3.7, §7.4).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text A zero | A b | A c\n%rule zero $x(helper)\n%conditions tags($x) = ∅\n%rule helper [T]\n%rule b [T] [T]\n%rule c T",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "elision-only",
+        "stage": "main",
+        "witness": [
+          {
+            "close": {
+              "rule": "text",
+              "production": 0,
+              "span": [
+                0,
+                1
+              ]
+            }
+          },
+          {
+            "close": {
+              "rule": "text",
+              "production": 2,
+              "span": [
+                0,
+                1
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

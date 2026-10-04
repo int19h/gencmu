@@ -1,0 +1,80 @@
+{
+  "description": "Each reading has its own tags: the chosen a has ~first and the competitor c has ~second. The engine does not copy the chosen derivation's tags to another reading (engine §7.5, §7.10).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a $x(A) [T] <~first>\n%rule b A [T] [T]\n%rule c $x(A) T <~second>",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "elision-only",
+        "stage": "main",
+        "readings": [
+          {
+            "tags": [
+              "first"
+            ],
+            "children": [
+              {
+                "rule": "a",
+                "tags": [
+                  "first"
+                ]
+              }
+            ]
+          },
+          {
+            "tags": [
+              "second"
+            ],
+            "children": [
+              {
+                "rule": "c",
+                "tags": [
+                  "second"
+                ]
+              }
+            ]
+          }
+        ],
+        "witness": [
+          {
+            "close": {
+              "rule": "a",
+              "production": 3,
+              "span": [
+                0,
+                1
+              ]
+            }
+          },
+          {
+            "close": {
+              "rule": "c",
+              "production": 11,
+              "span": [
+                0,
+                1
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

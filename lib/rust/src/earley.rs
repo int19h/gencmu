@@ -2,6 +2,8 @@
 //! capture before the dot, the captured part's span and tag set; with the
 //! evaluation of terms and conditions (§10) and nested parses.
 
+use std::cell::Cell;
+
 use crate::eligible::Proofs;
 use crate::fxhash::{FxMap, FxSet};
 
@@ -9,6 +11,7 @@ use crate::lower::{Characters, CmpOp, LCond, LTerm, Lowered, Span, Sym, SymbolTe
 use crate::result::Attachment;
 use crate::tags::{character_tag, difference, intersection, is_name, is_subset, union, SetId, TagId, TagList, Tags};
 use crate::unicode::Unicode;
+use crate::witness::{self, Fault};
 
 /// How a terminal matches a token (engine §4): by a tag the token carries,
 /// or, for a range or a property, by one of its character tags.
@@ -131,6 +134,19 @@ pub(crate) struct Item {
 #[derive(Debug, Default)]
 pub(crate) struct ESet {
     pub items: Vec<Item>,
+    /// In the reconstruction mode of `elision-only` (§7.4), whether each
+    /// item is strict: every step that made it was strict. An ordinary step
+    /// makes it ordinary for good. Empty in any other parse, where no item
+    /// is strict.
+    strict: Vec<bool>,
+    /// The items to process, in order. An item that an ordinary step
+    /// reached after it was processed as strict is processed again (§7.4),
+    /// and its entry then has the bit `AGAIN`, which only the
+    /// reconstruction mode sets.
+    queue: Vec<u32>,
+    /// In the reconstruction mode, whether each item has been taken from
+    /// the queue; empty in any other parse.
+    processed: Vec<bool>,
     /// For a completed item, its constituent's tag set; else `u32::MAX`.
     pub tagset: Vec<SetId>,
     index: FxMap<Item, u32>,
@@ -142,17 +158,37 @@ pub(crate) struct ESet {
     pub origins: FxMap<u32, Vec<u32>>,
     done: FxSet<(u32, u32, SetId)>,
     empty: FxMap<u32, Vec<SetId>>,
-    /// The rules predicted here.
-    predicted: FxSet<u32>,
+    /// The rules predicted here, each with whether every prediction of it
+    /// was strict (§7.4).
+    predicted: FxMap<u32, bool>,
     /// The productions that prediction skipped here because the next token
     /// lacked their first terminal. A production whose condition failed is
     /// not one of them.
     pub skipped: Vec<u32>,
 }
 
+/// The bit of a queue entry that marks an item processed again (§7.4).
+const AGAIN: u32 = 1 << 31;
+
 impl ESet {
     pub(crate) fn find(&self, item: &Item) -> Option<u32> {
         self.index.get(item).copied()
+    }
+
+    /// Whether an item is strict, which only the reconstruction mode
+    /// records.
+    fn is_strict(&self, index: usize) -> bool {
+        self.strict.get(index).copied().unwrap_or(false)
+    }
+
+    /// Queues a new item, and in the reconstruction mode records its
+    /// strictness.
+    fn enqueue(&mut self, index: u32, recon: bool, strict: bool) {
+        if recon {
+            self.strict.push(strict);
+            self.processed.push(false);
+        }
+        self.queue.push(index);
     }
 }
 
@@ -306,6 +342,17 @@ impl<'a> Shared<'a> {
     }
 }
 
+/// How the recognition of the reconstructed input R of `elision-only`
+/// observes the stage's input O (engine §7.2, §7.3, §7.5).
+pub(crate) struct Recon<'o> {
+    /// O, the stage's input, which every observation reads.
+    pub observed: &'o [Tok],
+    /// π: for each position of R, the number of original tokens before it.
+    pub project: Vec<u32>,
+    /// For each token of R, whether it is synthetic, by its provenance.
+    pub synthetic: Vec<bool>,
+}
+
 /// A term's value (§10).
 #[derive(Debug, Clone)]
 enum Value {
@@ -318,19 +365,29 @@ pub(crate) struct Recognizer<'g, 's, 'a> {
     /// How each terminal of the grammar matches a token, by terminal id.
     pub matchers: &'g [Matcher],
     pub shared: &'s mut Shared<'a>,
+    /// In the check of `elision-only`, the reconstruction that the parse in
+    /// progress reads in its mode (§7.4); `None` in the ordinary mode, and
+    /// inside every nested query, which reads O in that mode (§7.6).
+    pub recon: Option<&'g Recon<'g>>,
 }
 
 /// What terms and conditions are evaluated over (§10): an item's captured
 /// parts, and `$`, the whole constituent, from the item's origin to `end`.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub(crate) struct Frame<'c> {
     pub caps: &'c [Cap],
     pub prod: u32,
     pub origin: u32,
     pub end: u32,
     /// The constituent's tags, when known; otherwise its production's tag
-    /// term gives them when they are read (§4).
-    pub tags: Option<SetId>,
+    /// term gives them when they are first read (§4), and they are kept
+    /// here, so that one step evaluates the term at most once. That saves
+    /// time only: how many times the term runs is not observable.
+    pub tags: Cell<Option<SetId>>,
+    /// In the check of `elision-only`, π, which takes the positions of the
+    /// frame, which are of R, to those of O, where every observation reads
+    /// (§7.3, §7.5); `None` elsewhere.
+    pub project: Option<&'c [u32]>,
 }
 
 /// Whose tags a span has: a captured part's, the whole constituent's, or
@@ -347,13 +404,24 @@ type Bounds = (usize, usize, Whose);
 
 /// A span's bounds; `input` is where the input of the parse that evaluates
 /// it ends, which `from` and `after` run to (§10).
+/// In the check of `elision-only`, the projection comes first, then the
+/// function (§7.5): a capture and `$` are projected to O, and the functions
+/// of a span work on the projected span.
 fn span_bounds(span: &Span, frame: &Frame, input: usize) -> Bounds {
+    let projected = |start: u32, end: u32| match frame.project {
+        Some(project) => (project[start as usize] as usize, project[end as usize] as usize),
+        None => (start as usize, end as usize),
+    };
     match span {
         Span::Cap(slot) => {
             let cap = frame.caps[*slot as usize];
-            (cap.start as usize, cap.end as usize, Whose::Cap(cap.tags))
+            let (start, end) = projected(cap.start, cap.end);
+            (start, end, Whose::Cap(cap.tags))
         }
-        Span::Whole => (frame.origin as usize, frame.end as usize, Whose::Whole),
+        Span::Whole => {
+            let (start, end) = projected(frame.origin, frame.end);
+            (start, end, Whose::Whole)
+        }
         Span::Head(inner) => {
             let (start, end, _) = span_bounds(inner, frame, input);
             (start, if start < end { start + 1 } else { start }, Whose::Tokens)
@@ -382,43 +450,81 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let mut chart = Chart::default();
         chart.intern_caps(Vec::new());
         chart.sets.push(ESet::default());
-        self.predict(&mut chart, tokens, base, start, 0)?;
+        self.predict(&mut chart, tokens, base, start, 0, false)?;
         let mut e = 0;
         while e < chart.sets.len() && (e == 0 || !chart.sets[e].items.is_empty()) {
             chart.reached = e;
-            let mut k = 0;
-            while k < chart.sets[e].items.len() {
+            let mut head = 0;
+            while head < chart.sets[e].queue.len() {
+                let entry = chart.sets[e].queue[head];
+                head += 1;
+                let (k, again) = ((entry & !AGAIN) as usize, entry & AGAIN != 0);
+                if let Some(processed) = chart.sets[e].processed.get_mut(k) {
+                    *processed = true;
+                }
                 let item = chart.sets[e].items[k];
                 let g = self.g;
                 let production = &g.prods[item.prod as usize];
                 if item.dot as usize == production.syms.len() {
                     self.complete(&mut chart, tokens, base, e, k)?;
-                } else {
-                    match production.syms[item.dot as usize] {
-                        Sym::T(terminal) => {
-                            if e < n && self.shared.reads(self.matchers[terminal as usize], tokens[e].tags) {
-                                let cap = Cap { start: e as u32, end: e as u32 + 1, tags: tokens[e].tags };
-                                self.advance(&mut chart, tokens, base, item, cap, e + 1)?;
-                            }
+                    continue;
+                }
+                match production.syms[item.dot as usize] {
+                    Sym::T(terminal) => {
+                        if e < n && self.shared.reads(self.matchers[terminal as usize], tokens[e].tags) {
+                            // A terminal that reads a synthetic token
+                            // captures no tags (§7.5).
+                            let synthetic = self.recon.is_some_and(|recon| recon.synthetic[e]);
+                            let tags = if synthetic { self.shared.tags.set(TagList::new()) } else { tokens[e].tags };
+                            // The written route of an elidable optional from
+                            // a synthetic token: the rest of the optional
+                            // must read, so the item after it is strict
+                            // (§7.4).
+                            let rule = &g.rules[production.rule as usize];
+                            let strict = synthetic
+                                && item.dot == 0
+                                && rule.helper
+                                && rule.elided.is_some()
+                                && !witness::fault(Fault::Route3);
+                            let cap = Cap { start: e as u32, end: e as u32 + 1, tags };
+                            self.advance(&mut chart, tokens, base, item, cap, e + 1, strict)?;
                         }
-                        Sym::N(rule) => {
+                    }
+                    Sym::N(rule) => {
+                        if !again {
                             chart.sets[e].waiting.entry(rule).or_default().push(k as u32);
-                            self.predict(&mut chart, tokens, base, rule, e)?;
-                            let empties = chart.sets[e].empty.get(&rule).cloned().unwrap_or_default();
-                            for tags in empties {
-                                let cap = Cap { start: e as u32, end: e as u32, tags };
-                                self.advance(&mut chart, tokens, base, item, cap, e)?;
-                            }
+                        }
+                        let strict = chart.sets[e].is_strict(k);
+                        // A strict item predicts its next symbol strictly
+                        // where no symbol after it can read, and it advances
+                        // over an empty constituent only where one can
+                        // (§7.4).
+                        let later = self.reads_later(item);
+                        self.predict(&mut chart, tokens, base, rule, e, strict && !later)?;
+                        if strict && !later {
+                            continue;
+                        }
+                        let empties = chart.sets[e].empty.get(&rule).cloned().unwrap_or_default();
+                        for tags in empties {
+                            let cap = Cap { start: e as u32, end: e as u32, tags };
+                            self.advance(&mut chart, tokens, base, item, cap, e, strict)?;
                         }
                     }
                 }
-                k += 1;
             }
             e += 1;
         }
         Ok(chart)
     }
 
+    /// Whether a symbol after an item's next symbol can read in the
+    /// reconstruction mode (§7.4).
+    fn reads_later(&self, item: Item) -> bool {
+        self.g.reads_until[item.prod as usize] > item.dot + 1
+    }
+
+    /// Adds an item to a set, made by a step that is strict or not (§7.4).
+    #[allow(clippy::too_many_arguments)]
     fn add(
         &mut self,
         chart: &mut Chart,
@@ -426,32 +532,76 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         base: usize,
         item: Item,
         set: usize,
+        strict: bool,
     ) -> Result<(), EngineError> {
+        let g = self.g;
+        let production = &g.prods[item.prod as usize];
+        // A strict item never completes.
+        if strict && item.dot as usize == production.syms.len() {
+            return Ok(());
+        }
         if set >= chart.sets.len() {
             chart.sets.resize_with(set + 1, ESet::default);
         }
-        let target = &chart.sets[set];
-        if target.index.contains_key(&item) || target.failed.contains(&item) {
+        let target = &mut chart.sets[set];
+        if let Some(&index) = target.index.get(&item) {
+            // One ordinary step makes an item ordinary. It is then processed
+            // again, for what strictness held back, if it was processed.
+            let index = index as usize;
+            if target.is_strict(index) && !strict {
+                target.strict[index] = false;
+                // A fault leaves it as it was processed (tests/README.md).
+                if target.processed[index] && !witness::fault(Fault::Reprocess) {
+                    target.queue.push(index as u32 | AGAIN);
+                }
+            }
             return Ok(());
         }
-        let g = self.g;
-        let production = &g.prods[item.prod as usize];
-        for (cond, trigger) in &production.conds {
-            if *trigger == item.dot as usize {
-                let caps = chart.caps(item.caps).to_vec();
-                let frame = Frame { caps: &caps, prod: item.prod, origin: item.origin, end: set as u32, tags: None };
-                if !self.condition(cond, &frame, tokens, base)? {
+        if target.failed.contains(&item) {
+            return Ok(());
+        }
+        // The constituent's tags, where a condition of this step read them.
+        let mut known = u32::MAX;
+        if production.conds.iter().any(|(_, trigger)| *trigger == item.dot as usize) {
+            let caps = chart.caps(item.caps).to_vec();
+            let (observed, project) = self.observed(tokens);
+            let frame = Frame {
+                caps: &caps,
+                prod: item.prod,
+                origin: item.origin,
+                end: set as u32,
+                tags: Cell::new(None),
+                project,
+            };
+            for (cond, trigger) in &production.conds {
+                if *trigger == item.dot as usize && !self.condition(cond, &frame, observed, base)? {
                     chart.sets[set].failed.insert(item);
                     return Ok(());
                 }
             }
+            known = frame.tags.get().unwrap_or(u32::MAX);
         }
         let target = &mut chart.sets[set];
         ITEMS.with(|items| items.set(items.get() + 1));
-        target.index.insert(item, target.items.len() as u32);
+        let index = target.items.len() as u32;
+        target.index.insert(item, index);
         target.items.push(item);
-        target.tagset.push(u32::MAX);
+        // The tags that the conditions read, which completion reuses.
+        target.tagset.push(known);
+        target.enqueue(index, self.recon.is_some(), strict);
         Ok(())
+    }
+
+    /// The tokens that observations read, and the projection to them: O and
+    /// π in the reconstruction mode (§7.5), else the parse's own tokens.
+    fn observed<'t>(&self, tokens: &'t [Tok]) -> (&'t [Tok], Option<&'t [u32]>)
+    where
+        'g: 't,
+    {
+        match self.recon {
+            Some(recon) => (recon.observed, Some(&recon.project)),
+            None => (tokens, None),
+        }
     }
 
     fn predict(
@@ -461,31 +611,104 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         base: usize,
         rule: u32,
         e: usize,
+        strict: bool,
     ) -> Result<(), EngineError> {
-        if !chart.sets[e].predicted.insert(rule) {
+        // A rule's productions are the same at every prediction in one set.
+        // A strict prediction leaves some out, so an ordinary one after it
+        // adds them (§7.4).
+        let before = chart.sets[e].predicted.get(&rule).copied();
+        if before == Some(false) || (before == Some(true) && strict) {
             return Ok(());
         }
+        chart.sets[e].predicted.insert(rule, strict);
         let g = self.g;
-        for &production in &g.rules[rule as usize].prods {
+        let helper = &g.rules[rule as usize];
+        for &production in &helper.prods {
+            let lowered = &g.prods[production as usize];
+            // In the reconstruction mode, the empty production of an
+            // elidable optional is its restoration, and it never derives
+            // the empty sequence (§7.4).
+            if let (Some(recon), true, true, Some(terminal)) =
+                (self.recon, lowered.syms.is_empty(), helper.helper, &helper.elided)
+            {
+                self.restore(chart, tokens, recon, production, terminal, helper.elided_test, e);
+                continue;
+            }
+            // A strict prediction predicts only the productions that can
+            // read.
+            if strict && g.reads_until[production as usize] == 0 {
+                continue;
+            }
             // A production that must first read a terminal the next token
             // lacks gives a dead item, so prediction skips it. The set
             // records it, and the rejection report adds back the terminal
             // it expected.
-            let lowered = &g.prods[production as usize];
             if let (Some(Sym::T(terminal)), false) =
                 (lowered.syms.first(), lowered.conds.iter().any(|&(_, at)| at == 0))
             {
                 let matcher = self.matchers[*terminal as usize];
                 if e >= tokens.len() || !self.shared.reads(matcher, tokens[e].tags) {
-                    chart.sets[e].skipped.push(production);
+                    if before.is_none() {
+                        chart.sets[e].skipped.push(production);
+                    }
                     continue;
                 }
             }
-            self.add(chart, tokens, base, Item { prod: production, dot: 0, origin: e as u32, caps: 0 }, e)?;
+            self.add(chart, tokens, base, Item { prod: production, dot: 0, origin: e as u32, caps: 0 }, e, strict)?;
         }
         Ok(())
     }
 
+    /// The restoration of an elidable optional at `e` (§7.4): its empty
+    /// production read over the one synthetic token there, where that token
+    /// is compatible with the optional. It is an item of the empty
+    /// production with its origin at `e`, in the set after `e`, which only
+    /// a restoration makes; it evaluates nothing of the optional's content.
+    #[allow(clippy::too_many_arguments)]
+    fn restore(
+        &mut self,
+        chart: &mut Chart,
+        tokens: &[Tok],
+        recon: &Recon,
+        production: u32,
+        terminal: &str,
+        test: Option<u32>,
+        e: usize,
+    ) {
+        if e >= tokens.len() || !recon.synthetic[e] {
+            return;
+        }
+        let token = &tokens[e];
+        let tags = &self.shared.tags;
+        if !tags.lookup(terminal).is_some_and(|tag| tags.contains(token.tags, tag)) {
+            return;
+        }
+        if let Some(test) = test {
+            let test = &self.g.tests[test as usize];
+            // A fault restores without the test (tests/README.md).
+            if !test_holds(test, std::slice::from_ref(token), self.shared.unicode, tags, token.tags)
+                && !witness::fault(Fault::Restore)
+            {
+                return;
+            }
+        }
+        let item = Item { prod: production, dot: 0, origin: e as u32, caps: 0 };
+        if e + 1 >= chart.sets.len() {
+            chart.sets.resize_with(e + 2, ESet::default);
+        }
+        let target = &mut chart.sets[e + 1];
+        if target.index.contains_key(&item) {
+            return;
+        }
+        ITEMS.with(|items| items.set(items.get() + 1));
+        let index = target.items.len() as u32;
+        target.index.insert(item, index);
+        target.items.push(item);
+        target.tagset.push(u32::MAX);
+        target.enqueue(index, true, false);
+    }
+
+    #[allow(clippy::too_many_arguments)]
     fn advance(
         &mut self,
         chart: &mut Chart,
@@ -494,14 +717,37 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         item: Item,
         cap: Cap,
         into: usize,
+        strict: bool,
     ) -> Result<(), EngineError> {
         let g = self.g;
         let production = &g.prods[item.prod as usize];
+        // A strict step that completes, route 3's read of T with nothing
+        // after it, makes a strict item at the end of its production. The
+        // step drops it before it evaluates anything (§4, §7.4; JS
+        // earley.js, the written routes).
+        if strict && item.dot as usize + 1 == production.syms.len() {
+            return Ok(());
+        }
         // A tested symbol's test must hold of its own span and tags, which
-        // is checked before any condition the advance makes ready (§4).
+        // is checked before any condition the advance makes ready (§4). A
+        // test of a terminal reads the token with its recognition values; in
+        // the check, a test of a reference reads its projected span and its
+        // constituent's tags (§7.5).
         if let Some(test) = g.test(item.prod, item.dot as usize) {
-            let span = &tokens[cap.start as usize..cap.end as usize];
-            if !test_holds(test, span, self.shared.unicode, &self.shared.tags, cap.tags) {
+            let (start, end) = (cap.start as usize, cap.end as usize);
+            let holds = match (production.syms[item.dot as usize], self.recon) {
+                (Sym::T(_), _) => {
+                    test_holds(test, &tokens[start..end], self.shared.unicode, &self.shared.tags, tokens[start].tags)
+                }
+                (Sym::N(_), Some(recon)) => {
+                    let span = &recon.observed[recon.project[start] as usize..recon.project[end] as usize];
+                    test_holds(test, span, self.shared.unicode, &self.shared.tags, cap.tags)
+                }
+                (Sym::N(_), None) => {
+                    test_holds(test, &tokens[start..end], self.shared.unicode, &self.shared.tags, cap.tags)
+                }
+            };
+            if !holds {
                 return Ok(());
             }
         }
@@ -513,7 +759,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             item.caps
         };
         let next = Item { prod: item.prod, dot: item.dot + 1, origin: item.origin, caps };
-        self.add(chart, tokens, base, next, into)
+        self.add(chart, tokens, base, next, into, strict)
     }
 
     fn complete(
@@ -528,8 +774,21 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let g = self.g;
         let production = &g.prods[item.prod as usize];
         let caps = chart.caps(item.caps).to_vec();
-        let frame = Frame { caps: &caps, prod: item.prod, origin: item.origin, end: e as u32, tags: None };
-        let tags = self.constituent_tags(&frame, tokens, base)?;
+        let (observed, project) = self.observed(tokens);
+        let known = chart.sets[e].tagset[k];
+        let tags = if known != u32::MAX {
+            known
+        } else {
+            let frame = Frame {
+                caps: &caps,
+                prod: item.prod,
+                origin: item.origin,
+                end: e as u32,
+                tags: Cell::new(None),
+                project,
+            };
+            self.constituent_tags(&frame, observed, base)?
+        };
         let rule = production.rule;
         chart.sets[e].tagset[k] = tags;
         let completed = chart.sets[e].completed.entry((rule, item.origin)).or_default();
@@ -543,15 +802,22 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             return Ok(());
         }
         let origin = item.origin as usize;
-        if origin == e {
+        let empty = origin == e;
+        if empty {
             chart.sets[e].empty.entry(rule).or_default().push(tags);
         }
         let count = chart.sets[origin].waiting.get(&rule).map_or(0, Vec::len);
         for index in 0..count {
             let waiter = chart.sets[origin].waiting[&rule][index];
             let waiting = chart.sets[origin].items[waiter as usize];
+            // A strict item advances over an empty constituent only where a
+            // later symbol can read, and stays strict (§7.4).
+            let strict = empty && chart.sets[origin].is_strict(waiter as usize);
+            if strict && !self.reads_later(waiting) {
+                continue;
+            }
             let cap = Cap { start: item.origin, end: e as u32, tags };
-            self.advance(chart, tokens, base, waiting, cap, e)?;
+            self.advance(chart, tokens, base, waiting, cap, e, strict)?;
         }
         Ok(())
     }
@@ -564,7 +830,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         Ok(match &production.tags {
             Some(term) => {
                 // The term cannot read `$`'s tags, which it defines (§9).
-                let frame = Frame { tags: Some(0), ..*frame };
+                let frame = Frame { tags: Cell::new(Some(0)), ..*frame };
                 let list = self.set_term(term, &frame, tokens, base)?;
                 self.shared.tags.set(list)
             }
@@ -693,7 +959,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 rule: Some(rule),
             });
         }
+        // A nested query reads O in the ordinary mode (§7.6).
+        let recon = self.recon.take();
         let chart = self.recognize(&tokens[start..end], base + start, rule);
+        self.recon = recon;
         // Also when the parse failed, so that the place is free again.
         self.shared.running.remove(&place);
         chart
@@ -726,9 +995,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         Ok(match bounds {
             (_, _, Whose::Cap(set)) => self.shared.tags.list(set).clone(),
             (_, _, Whose::Whole) => {
-                let set = match frame.tags {
+                let set = match frame.tags.get() {
                     Some(set) => set,
-                    None => self.constituent_tags(frame, tokens, base)?,
+                    None => {
+                        let set = self.constituent_tags(frame, tokens, base)?;
+                        frame.tags.set(Some(set));
+                        set
+                    }
                 };
                 self.shared.tags.list(set).clone()
             }

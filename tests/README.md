@@ -50,6 +50,21 @@ Every runner also checks these invariants on each canonical result that a case g
 - No stage has a member `tied`.
 - A stage whose verdict is `tie` has no member `output`, and it is the last stage of the result.
 - Such a result has `ok` false, `tree` null, and an error of kind `ambiguous` with the reason `tie`, that stage's name and two readings.
+- No result has an error with the code `elision-witness-lost`. Engine §7.8 proves that a check that meets no error of the grammar finds W(D). §7.9 gives this error only where a check finds no derivation of R at all. So no grammar can give it, and it is a defect of the library, whatever the case expects.
+
+A library's own tests lose the witness on purpose, through a private switch, and call the engine directly, not through the runner. They check the form of the error: it has the kind `grammar`, a `stage`, `chosen` and `completion`, and no `token`, `source`, `line`, `column`, `expected`, `reason` or `readings`. Its stage has the verdict `resolved` and no `output`, and it is the last stage of the result. A library's own tests also show that an ordinary error of the grammar in the check has no `code`.
+
+Take each stage where the check of engine §7 ran and ended without an error of the grammar. Every runner also asks its library whether that check kept its witness. The library answers through a test-only export that the documented API does not name (as `gencmu::tools` does in Rust), or through a module of its own tests. The answer is yes only where the check holds W(D), the derivation of R that engine §7.8 builds from the chosen derivation, and the check's own ranking kept it. The hook observes that ranking, and it ranks nothing itself:
+
+- **The walk.** After the check recognizes R and before it ranks, a walk looks for W(D) in the chart. It takes each occurrence in the derivation tree on its own, even where the representation shares one object between occurrences. It marks the edges or links that W(D) uses. JavaScript and Python mark an edge by its index among its item's edges. Go marks a link. Rust marks a link as its ranker rebuilds it, by the item and the set where its predecessor stands. Where the chart does not hold W(D), the answer is no.
+- **The count channel.** The check passes the marks to the ranker that it uses. Beside each item's count, capped at two, the ranker keeps a bit: whether the count includes a derivation made only of marked edges. The same loop decides both, over the same edges, in the same contexts, with the same faults. So a choice that drops W(D) from the count also drops it from the bit. A cut that closes a cycle has no bit. The loop may stop once the count is two, but at a marked item only once the bit is known. A root of W(D) must have the bit.
+- **The selection channel.** Where the check reports two readings, W(D) is one of the derivations that the order T ranks. So the first reading must not come after W(D) in T. Where the first reading is not W(D), W(D) was a candidate for the second. So the second reading must not come after W(D) by the criterion that engine §6 uses to pick it: the derivation that diverges from the first earliest, in visible actions, and the order T between two that diverge at one point. The walk builds W(D)'s actions, its reads and closes in post-order, to compare.
+
+A parse that no test watches passes no marks, and its ranker does the same work as before.
+
+The hook asks about the check's own ranking because any other question is a stand-in. A chart that holds W(D) is not enough, because a faulty ranker can still lose it. A positive count is not enough, because another reading can survive without W(D). A ranking of W(D) alone is not enough either, because the ranker's handling of an edge can depend on its siblings, and W(D) alone has none. Equal trees are not enough, because transparent productions can give equal trees. A loss that passes both channels changes no output of the check: the count still counted W(D), and the readings are those of a set that holds it.
+
+The walk pins the shape of W(D), not its tags. The tags follow from the derivation, and the cases pin them. A runner fails a case, or a corpus case, whose answer is no.
 
 A pattern matches a result that has members beyond its own. So the invariants, and not the patterns, say that a tied stage has no output.
 
@@ -68,6 +83,23 @@ The library loads the dialect once, and then parses the input with each item's o
 A load that fails gives only its error. Its kind is `grammar` for a grammar that cannot be loaded. It is `usage` for a mistake of the caller at load, such as a document held in memory that is not a sequence of Unicode scalar values (engine §1). A case expects such an error with `expect.error` of that kind. For a `grammar` error, it can also give `expect.where`. It gives no `result`, `brackets`, `warnings` or `features`, because only a loaded dialect gives them. A runner fails a case when the load fails with another kind, or when the case expects one of these members. It also fails a case that gives `expect.where` with a kind other than `grammar`.
 
 `expect.where`, when present, is where the error of a grammar that cannot be loaded stands. It is only for an error of kind `grammar`. It names a document of the case and a line and a column in it. For a case with `grammar`, the document is `main.md`. Its fence is line 1, so the rules start on line 3, or on line 2 when they hold their own `%ambiguity-resolution`.
+
+### Faults
+
+A shared case shows that a library is wrong where it fails. It cannot show that a library is right. So each library also breaks itself on purpose, one fault at a time, and checks that the shared cases see the break. A fault is a private switch of the library's own tests, which the documented API does not name. Each one changes one path of the engine, mostly a path of the check of engine §7, in a way that the specification forbids.
+
+- The JavaScript library holds the full table. Its faults cover each observer of engine §7.5, the tags of synthetic tokens, and the routes and strictness of §7.4. They also cover the projection, the queries of §7.6, cycles and maximality in the check, the order of steps 3 and 4 of §4, and the ways to lose W(D). `lib/js/test/faults.json` names the cases that must catch each fault, and records every catch.
+- Each other library has faults of its own paths. Some are paths that JavaScript does not have, such as a ranker that rebuilds the check's links from completed spans and applies the tests there. Others are paths that every library has in a form of its own. Examples are the strictness of route 3, a restoration's test, and the ways to lose W(D). Another is the processing again of an item that an ordinary step reaches after it was processed as strict. Its own tests name, for each fault, the shared cases that catch it.
+
+Each library's fault test checks three things for each fault:
+
+- **How a case catches it.** The test checks each named case twice, once by its result alone and once by the witness hook alone, so that each check is shown on its own. The catch is `result` where only the result fails the case, `hook` where only the hook does, and `result+hook` where both do. Each library has a fault whose only catch is `hook`, a mutation that the result alone does not show. An example is a count that skips W(D)'s edge where its item has siblings. Each library also has a case that the hook catches when the candidates skip W(D)'s edge, so the selection channel is shown to work by itself, whatever the result does. JavaScript labels a catch `bound` where the fault's own bound ends a recursion that it lets through.
+- **Its sites.** A fault can have several places in the code. Each place is a declared site, and the test asserts that the named cases enter every declared site while the fault is on. So a case that catches a fault at one site does not hide a site that nothing reaches.
+- **Completeness.** The list of faults comes from the declarations, and every fault has an entry in the table.
+
+A fault of the strict path shows only where that path comes first. The queue of a set is first in, first out in JavaScript, Go and Rust, and last in, first out in Python. So `reparse-strict-reclose-late` catches the processing-again fault of the first three, and `reparse-strict-reclose-swapped` that of Python.
+
+Apart from the table, each library's own tests lose the witness on purpose after recognition. They leave no completed item of `text` over R (`lost:roots`), or no counted derivation (`lost:count`). They check the form of the error `elision-witness-lost`, as "Engine cases" says.
 
 ## Notation cases: `notation/*.json`
 
@@ -143,7 +175,7 @@ Each line is one case: a Lojban text, with the result that gencmu must give for 
 - `ties`, when present, names the stage whose verdict is `tie`. A tie ends the run, so at most one stage has it, and that stage can come before the last.
 - `words` records the word stage's output when that output is present. The case writes each token as its label (engine §5). So a pause inside a word is a space, and an opaque part is its text.
 
-A runner also checks the invariants of a tie (above) on the result of each corpus case. No corpus text ties in its dialect, so each library also tests that its runner refuses the result mutants below. A case runs with auto features on, which is the default of the API. The case matches when every one of those fields that the case or the result of the library has is equal. Every runner compares all of these fields, `at` included.
+A runner also checks the invariants of a tie (above) on the result of each corpus case, and fails a corpus case whose result has an error with the code `elision-witness-lost`. No corpus text ties in its dialect, so each library also tests that its runner refuses the result mutants below. A case runs with auto features on, which is the default of the API. The case matches when every one of those fields that the case or the result of the library has is equal. Every runner compares all of these fields, `at` included.
 
 The runners differ on input that this format does not allow, such as a field whose value is null. So `node tools/sync.js --check` checks the shape of every case first (`tools/corpus-shape.js`). Each file is UTF-8, and each line is one JSON object. No object has a member name twice, at any depth, and every string is a sequence of Unicode scalar values, with no lone surrogate. A case has only the fields above, and none of them is null. An accepted case has `verdict` and `brackets`. A rejected case has `stage`, and it has `at` exactly when it has no `error`.
 

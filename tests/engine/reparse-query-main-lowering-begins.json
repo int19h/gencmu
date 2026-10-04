@@ -1,0 +1,52 @@
+{
+  "description": "begins in the reconstruction parses the original span with the main grammar, where [T] of probe is optional. So the chosen a survives beside c (engine §7.6).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a $x(A) [T]\n%conditions begins($x, probe)\n%rule b A [T] [T]\n%rule c A T\n%rule probe A [T]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "elision-only",
+        "stage": "main",
+        "witness": [
+          {
+            "close": {
+              "rule": "a",
+              "production": 3,
+              "span": [
+                0,
+                1
+              ]
+            }
+          },
+          {
+            "close": {
+              "rule": "c",
+              "production": 11,
+              "span": [
+                0,
+                1
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

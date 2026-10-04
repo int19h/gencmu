@@ -50,10 +50,16 @@ export type ActionJson = {
         production: number;
         span: Span;
     };
+} | {
+    elided: {
+        at: number;
+        terminal: string;
+    };
 };
 export type ErrorJson = {
     kind: ParseError["kind"];
     stage?: string;
+    code?: "elision-witness-lost";
     reason?: "tie" | "elision-only";
     token?: number;
     source?: Span;
@@ -61,13 +67,16 @@ export type ErrorJson = {
     column?: number;
     expected?: import("./types.js").Expectation[];
     readings?: NodeJson[];
+    witness?: ActionJson[];
     document?: string;
     message: string;
+    chosen?: NodeJson;
+    completion?: import("./types.js").Restoration[];
 };
 export type StageJson = {
     name: string;
     verdict: import("./types.js").Verdict | null;
-    witness?: (ActionJson | null)[];
+    witness?: ActionJson[];
     output?: TokenJson[];
 };
 export type ResultJson = {
@@ -115,13 +124,15 @@ export type DisplayValue = {
 /**
  * A witness action in the result JSON.
  * @typedef {{read: {token: number, terminal: string}}
- *   | {close: {rule: string, production: number, span: Span}}} ActionJson
+ *   | {close: {rule: string, production: number, span: Span}}
+ *   | {elided: {at: number, terminal: string}}} ActionJson
  */
 /**
  * An error in the result JSON.
  * @typedef {object} ErrorJson
  * @property {ParseError["kind"]} kind
  * @property {string} [stage]
+ * @property {"elision-witness-lost"} [code]
  * @property {"tie" | "elision-only"} [reason]
  * @property {number} [token]
  * @property {Span} [source]
@@ -129,15 +140,18 @@ export type DisplayValue = {
  * @property {number} [column]
  * @property {import("./types.js").Expectation[]} [expected]
  * @property {NodeJson[]} [readings]
+ * @property {ActionJson[]} [witness]
  * @property {string} [document]
  * @property {string} message
+ * @property {NodeJson} [chosen]
+ * @property {import("./types.js").Restoration[]} [completion]
  */
 /**
  * A stage in the result JSON.
  * @typedef {object} StageJson
  * @property {string} name
  * @property {import("./types.js").Verdict | null} verdict
- * @property {(ActionJson | null)[]} [witness]
+ * @property {ActionJson[]} [witness]
  * @property {TokenJson[]} [output]
  */
 /**
@@ -164,7 +178,7 @@ export type DisplayValue = {
  * member, its rule or terminal.
  * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | string[] | null}} DisplayValue
  */
-export declare const RESULT_FORMAT = 7;
+export declare const RESULT_FORMAT = 9;
 /**
  * @param {ResultNode} node
  * @returns {NodeJson}

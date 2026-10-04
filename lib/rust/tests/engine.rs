@@ -171,3 +171,108 @@ fn the_runner_refuses_a_result_that_breaks_an_invariant() {
         assert!(check_json(&expect, &changed).is_err(), "{name}");
     }
 }
+
+/// The error elision-witness-lost (engine §7.9). No grammar gives it while
+/// the witness of engine §7.8 holds, so these tests lose the witness through
+/// the library's private switches, after recognition: no completed item of
+/// `text` over the reconstructed input, or such items with no counted
+/// derivation. They call the engine directly, not through the runner.
+#[test]
+fn a_check_that_loses_its_witness_is_the_grammar_error_elision_witness_lost() {
+    use common::{result_problems, witness_problem, Value};
+    use gencmu::tools::{losing_witness, with_elision_checks, Loss};
+    let case = parse_json(
+        r#"{"documents": {"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n%elidable T U\n%rule text a | b\n%rule a w! A [T=\"ta\"] [U] %emits $ <~x>\n%rule b A [T=\"ta\"] [U] [U]\n%stage later\n%ambiguity-resolution greedy\n%rule text ~x\n```\n"},
+            "pipeline": "p.md", "tokens": [{"text": "a", "tags": ["A"]}], "options": {"features": ["w"]}}"#,
+    )
+    .unwrap();
+    let (documents, pipeline) = common::case_documents(&case);
+    let dialect = gencmu::load_dialect_sources(documents, &pipeline).expect("the dialect");
+    let tokens = common::case_tokens(&case).expect("tokens");
+    let options = common::case_options(&case);
+    let (clean, checks) = with_elision_checks(|| dialect.parse_tokens(&tokens, &options).unwrap());
+    assert!(clean.ok, "{:?}", clean.error);
+    assert_eq!(checks.len(), 1);
+    assert!(checks[0].keeps_witness);
+    assert_eq!(witness_problem(&clean, &checks), None);
+    // The chosen tree is that of the main stage, as a run that ends there
+    // shows it.
+    let until = gencmu::ParseOptions { until: Some("main".to_string()), elision_only: Some(false), ..options.clone() };
+    let main = dialect.parse_tokens(&tokens, &until).unwrap();
+    for loss in [Loss::Roots, Loss::Count] {
+        let (result, checks) =
+            with_elision_checks(|| losing_witness(loss, || dialect.parse_tokens(&tokens, &options).unwrap()));
+        let json = parse_json(&gencmu::to_json(&result)).unwrap();
+        assert_eq!(result_problems(&json), Vec::<String>::new(), "{loss:?}");
+        // The runner fails it, whatever a case expects (tests/README.md).
+        assert!(witness_problem(&result, &[]).is_some_and(|problem| problem.contains("elision-witness-lost")));
+        assert!(checks.iter().all(|check| !check.keeps_witness), "{loss:?}");
+        assert!(!result.ok);
+        assert!(result.tree.is_none());
+        let error = json.get("error").unwrap();
+        let keys: Vec<&str> = error.object().iter().map(|(key, _)| key.as_str()).collect();
+        assert_eq!(keys, ["kind", "stage", "code", "message", "chosen", "completion"], "{loss:?}");
+        assert_eq!(error.get("kind").and_then(Value::str), Some("grammar"));
+        assert_eq!(error.get("stage").and_then(Value::str), Some("main"));
+        assert_eq!(error.get("code").and_then(Value::str), Some("elision-witness-lost"));
+        assert_eq!(
+            error.get("message").and_then(Value::str),
+            Some("the main stage could not reconstruct its chosen derivation for elision-only")
+        );
+        let error = result.error.as_ref().unwrap();
+        assert_eq!(error.chosen, main.tree);
+        // The records in their order of insertion, with the sound only for
+        // the tested terminator.
+        let completion = parse_json(r#"[{"terminal": "T", "at": 1, "source": [1, 1], "sound": "ta"}, {"terminal": "U", "at": 1, "source": [1, 1]}]"#).unwrap();
+        assert_eq!(json.get("error").unwrap().get("completion"), Some(&completion));
+        // The stage keeps its verdict and warnings, has no output, and no
+        // later stage runs.
+        assert_eq!(result.stages.len(), 1);
+        assert_eq!(result.stages[0].verdict, Some(gencmu::Verdict::Resolved));
+        assert!(result.stages[0].output.is_none());
+        let warnings: Vec<_> = clean.warnings.iter().filter(|warning| warning.stage == "main").cloned().collect();
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(result.warnings, warnings);
+    }
+}
+
+/// An ordinary error of the grammar in the check keeps its own message, and
+/// has no code, chosen tree or completion (tests/README.md).
+#[test]
+fn an_ordinary_grammar_error_in_the_check_has_no_code() {
+    let file = common::repository().join("tests/engine/reparse-competing-evaluation-error.json");
+    let case = parse_json(&std::fs::read_to_string(file).expect("the case")).expect("JSON");
+    let (documents, pipeline) = common::case_documents(&case);
+    let dialect = gencmu::load_dialect_sources(documents, &pipeline).expect("the dialect");
+    let options = common::case_options(&case);
+    let result = match common::case_tokens(&case) {
+        Some(tokens) => dialect.parse_tokens(&tokens, &options),
+        None => dialect.parse(case.get("input").and_then(common::Value::str).unwrap_or(""), &options),
+    }
+    .expect("a result");
+    let error = result.error.expect("an error");
+    assert_eq!(error.kind, gencmu::ParseErrorKind::Grammar);
+    assert_eq!(error.code, None);
+    assert_eq!(error.chosen, None);
+    assert!(error.completion.is_empty());
+    assert_ne!(error.message, "the main stage could not reconstruct its chosen derivation for elision-only");
+    let json = gencmu::to_json(&gencmu::ParseResult {
+        ok: false,
+        stages: Vec::new(),
+        tree: None,
+        error: Some(error),
+        warnings: Vec::new(),
+    });
+    assert!(!json.contains("\"code\"") && !json.contains("\"chosen\"") && !json.contains("\"completion\""));
+}
+
+/// The runner refuses a result whose check of elision-only lost its
+/// witness, even where the result itself passes (tests/README.md).
+#[test]
+fn the_runner_refuses_a_check_that_lost_its_witness() {
+    let result = gencmu::ParseResult { ok: true, stages: Vec::new(), tree: None, error: None, warnings: Vec::new() };
+    let kept = gencmu::tools::ElisionCheckRun { stage: "main".to_string(), keeps_witness: true };
+    let lost = gencmu::tools::ElisionCheckRun { stage: "main".to_string(), keeps_witness: false };
+    assert_eq!(common::witness_problem(&result, std::slice::from_ref(&kept)), None);
+    assert!(common::witness_problem(&result, &[kept, lost]).is_some());
+}

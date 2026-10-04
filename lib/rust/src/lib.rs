@@ -60,6 +60,7 @@ mod result;
 mod tags;
 mod tree;
 mod unicode;
+mod witness;
 
 pub use dialect::{Dialect, Feature, InputToken, ParseOptions};
 pub use dom::FeatureKind;
@@ -68,8 +69,8 @@ pub use grammar::Change;
 pub use loader::{load_dialect, load_dialect_file, load_dialect_sources};
 pub use output::{node_to_json, to_brackets, to_json};
 pub use result::{
-    Action, AmbiguityReason, Attachment, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Stage,
-    Tags, Token, Verdict, Warning,
+    Action, AmbiguityReason, Attachment, ErrorCode, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult,
+    Restoration, Stage, Tags, Token, Verdict, Warning,
 };
 
 /// Helpers for tests and tools: reading one grammar document to its DOM,
@@ -84,6 +85,15 @@ pub mod tools {
     /// of the documented API.
     #[doc(hidden)]
     pub use crate::earley::{recognizer_items, reset_recognizer_items};
+
+    /// The test hook of the check of `elision-only` (tests/README.md): the
+    /// checks that ran in a parse, each with whether its forest kept the
+    /// witness of the chosen derivation, and the ways to lose it on
+    /// purpose. Not part of the documented API.
+    #[doc(hidden)]
+    pub use crate::witness::{
+        fault_hits, losing_witness, with_elision_checks, with_fault, ElisionCheckRun, Fault, Loss,
+    };
 }
 
 #[cfg(test)]

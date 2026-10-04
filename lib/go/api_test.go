@@ -268,7 +268,7 @@ func TestMarshalResult(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"format":7,"ok":true,"stages":[{"name":"main","verdict":"unique","output":[]}],"tree":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"'é'","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"KU","span":[1,1],"source":[1,1]}]},"error":null}`
+	want := `{"format":9,"ok":true,"stages":[{"name":"main","verdict":"unique","output":[]}],"tree":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"'é'","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"KU","span":[1,1],"source":[1,1]}]},"error":null}`
 	if string(data) != want {
 		t.Fatalf("got  %s\nwant %s", data, want)
 	}
@@ -280,7 +280,7 @@ func TestMarshalResult(t *testing.T) {
 	}
 	res, _ = d.Parse("x", ParseOptions{})
 	data, _ = MarshalResult(res)
-	if !strings.HasPrefix(string(data), `{"format":7,"ok":false,"stages":[{"name":"main","verdict":null}],"tree":null,"error":{"kind":"rejected","stage":"main","token":0,"source":[0,1],"line":1,"column":1,"expected":[{"terminal":"'é'","rules":["text"]}],"message":`) {
+	if !strings.HasPrefix(string(data), `{"format":9,"ok":false,"stages":[{"name":"main","verdict":null}],"tree":null,"error":{"kind":"rejected","stage":"main","token":0,"source":[0,1],"line":1,"column":1,"expected":[{"terminal":"'é'","rules":["text"]}],"message":`) {
 		t.Fatalf("%s", data)
 	}
 	// The warnings follow the error, only when there is one; the result's
@@ -1349,5 +1349,32 @@ func TestClassifierTablesBounded(t *testing.T) {
 	}
 	if n := d.stages[0].classifierSet.byKey.len(); n > maxLowered {
 		t.Fatalf("%d classifier tables", n)
+	}
+}
+
+// The error elision-witness-lost writes its code after its stage, and its
+// chosen tree and completion after its message, with the sound only for a
+// tested terminator (docs/output.md). No other error has a code.
+func TestMarshalWitnessLost(t *testing.T) {
+	chosen := &Node{Kind: KindRule, Rule: "text", Span: [2]int{0, 1}, Source: [2]int{0, 1}, Children: []*Node{
+		{Kind: KindToken, Terminal: "A", Token: 0, Span: [2]int{0, 1}, Source: [2]int{0, 1}},
+		{Kind: KindElided, Terminal: "T", Span: [2]int{1, 1}, Source: [2]int{1, 1}, sound: "ta", tested: true},
+	}}
+	res := &ParseResult{Stages: []Stage{{Name: "main", Verdict: VerdictResolved}}, Error: &ParseError{
+		Kind: ErrorGrammar, Stage: "main", Code: CodeElisionWitnessLost,
+		Message: "the main stage could not reconstruct its chosen derivation for elision-only",
+		Chosen:  chosen,
+		Completion: []Restoration{
+			{Terminal: "T", At: 1, Source: [2]int{1, 1}, Sound: "ta", Tested: true},
+			{Terminal: "U", At: 1, Source: [2]int{1, 1}},
+		},
+	}}
+	data, err := MarshalResult(res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"format":9,"ok":false,"stages":[{"name":"main","verdict":"resolved"}],"tree":null,"error":{"kind":"grammar","stage":"main","code":"elision-witness-lost","message":"the main stage could not reconstruct its chosen derivation for elision-only","chosen":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"A","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"T","span":[1,1],"source":[1,1]}]},"completion":[{"terminal":"T","at":1,"source":[1,1],"sound":"ta"},{"terminal":"U","at":1,"source":[1,1]}]}}`
+	if string(data) != want {
+		t.Fatalf("got  %s\nwant %s", data, want)
 	}
 }

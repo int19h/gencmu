@@ -1,0 +1,60 @@
+{
+  "description": "classes(span) of a span that is not a whole capture reads the tokens of the projected span. $x spans A, the restored U and B. from($x) projects to A B, so its classes are A and B, and a survives beside c, which reads U as a bare terminal. A library that takes the union over the tokens of R behind from($x), from the original A to the original B, takes in the synthetic U between them, loses a, and passes (engine §7.5).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable U\n%rule text a | b | c\n%rule a $x(pair)\n%conditions classes(from($x)) = A ∪ B\n%rule pair A [U] B\n%rule b A [U] [U] B\n%rule c A U B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "elision-only",
+        "stage": "main",
+        "witness": [
+          {
+            "close": {
+              "rule": "pair",
+              "production": 4,
+              "span": [
+                0,
+                2
+              ]
+            }
+          },
+          {
+            "close": {
+              "rule": "c",
+              "production": 12,
+              "span": [
+                0,
+                2
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

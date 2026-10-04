@@ -1,0 +1,967 @@
+{
+  "named": {
+    "elision-only-none.json": [
+      "F28"
+    ],
+    "reparse-competing-evaluation-error.json": [
+      "F26:lost",
+      "F26:relabel"
+    ],
+    "reparse-competitor-effects.json": [
+      "F22"
+    ],
+    "reparse-derivation-tags.json": [
+      "F8"
+    ],
+    "reparse-empty-capture-provenance.json": [
+      "F1:phonemes",
+      "F1pos:head",
+      "F1pos:phonemes"
+    ],
+    "reparse-equal-readings-witness.json": [],
+    "reparse-incompatible-optional-sound.json": [
+      "F11"
+    ],
+    "reparse-incompatible-terminal-sound.json": [
+      "F11"
+    ],
+    "reparse-memo-features.json": [
+      "F2",
+      "F23"
+    ],
+    "reparse-memo-modes.json": [
+      "F1pos:after",
+      "F23"
+    ],
+    "reparse-observer-after.json": [
+      "F1pos:after"
+    ],
+    "reparse-observer-classes.json": [
+      "F1:head",
+      "F1pos:classes",
+      "F1pos:head"
+    ],
+    "reparse-observer-from.json": [
+      "F1pos:from",
+      "F1pos:text"
+    ],
+    "reparse-observer-head.json": [
+      "F1:head",
+      "F1pos:head"
+    ],
+    "reparse-observer-initial.json": [
+      "F1:initial",
+      "F1pos:initial"
+    ],
+    "reparse-observer-last.json": [
+      "F1:last",
+      "F1pos:last"
+    ],
+    "reparse-observer-phonemes.json": [
+      "F1:phonemes",
+      "F1pos:phonemes"
+    ],
+    "reparse-observer-tags.json": [
+      "F1pos:tags"
+    ],
+    "reparse-observer-tail.json": [
+      "F1:tail",
+      "F1pos:tail"
+    ],
+    "reparse-observer-union-classes-from.json": [
+      "F1:classes",
+      "F1pos:from",
+      "F7:union"
+    ],
+    "reparse-observer-union-classes-tail.json": [
+      "F1:classes",
+      "F1:tail",
+      "F7:union"
+    ],
+    "reparse-observer-union-tags-from.json": [
+      "F1:tags",
+      "F1pos:from",
+      "F7:union"
+    ],
+    "reparse-observer-union-tags-tail.json": [
+      "F1:tags",
+      "F1:tail",
+      "F7:union"
+    ],
+    "reparse-original-lookahead.json": [
+      "F13",
+      "F1pos:after"
+    ],
+    "reparse-original-nonmonotonic-sources.json": [
+      "F12",
+      "F1:head",
+      "F1:text",
+      "F1pos:head",
+      "F1pos:text"
+    ],
+    "reparse-original-rule-test.json": [
+      "F9"
+    ],
+    "reparse-original-text.json": [
+      "F1:text",
+      "F1pos:text"
+    ],
+    "reparse-original-zero-width-token.json": [
+      "F12"
+    ],
+    "reparse-projected-cycle.json": [
+      "F19"
+    ],
+    "reparse-query-long-after.json": [
+      "F1pos:after",
+      "F1pos:from"
+    ],
+    "reparse-query-long-collision.json": [
+      "F21"
+    ],
+    "reparse-query-long-projected.json": [
+      "F2",
+      "F3"
+    ],
+    "reparse-query-main-lowering-begins.json": [
+      "F2"
+    ],
+    "reparse-query-main-lowering-tags.json": [
+      "F2"
+    ],
+    "reparse-query-main-lowering.json": [
+      "F2"
+    ],
+    "reparse-query-maximal-stage.json": [
+      "F2",
+      "F6"
+    ],
+    "reparse-query-maximal-terminal.json": [
+      "F2",
+      "F5"
+    ],
+    "reparse-query-nested-bounds.json": [
+      "F4"
+    ],
+    "reparse-query-original-tokens.json": [
+      "F3"
+    ],
+    "reparse-recursion-nested-cycle.json": [
+      "F25"
+    ],
+    "reparse-recursion-root-context.json": [
+      "F18"
+    ],
+    "reparse-reference-sound-test.json": [
+      "F9"
+    ],
+    "reparse-reference-tag-test.json": [
+      "F7:capture",
+      "F9"
+    ],
+    "reparse-root-maximal-both.json": [
+      "F20"
+    ],
+    "reparse-root-maximal-stage.json": [
+      "F20"
+    ],
+    "reparse-root-maximal-terminal.json": [
+      "F20"
+    ],
+    "reparse-same-boundary-order.json": [
+      "F27:order"
+    ],
+    "reparse-strict-empty-before-reading-control.json": [
+      "F16"
+    ],
+    "reparse-strict-empty-before-reading.json": [
+      "F14"
+    ],
+    "reparse-strict-later-reading-symbol.json": [
+      "F14"
+    ],
+    "reparse-strict-least-fixpoint.json": [
+      "F30"
+    ],
+    "reparse-strict-nested-route.json": [
+      "F31"
+    ],
+    "reparse-strict-reclose-late.json": [
+      "F32:queue"
+    ],
+    "reparse-strict-reclose-swapped.json": [],
+    "reparse-strict-reclose.json": [
+      "F32:predict",
+      "F32:queue"
+    ],
+    "reparse-strict-shared-prediction.json": [
+      "F17"
+    ],
+    "reparse-synthetic-optional-tags.json": [
+      "F7:restoration"
+    ],
+    "reparse-synthetic-suffix-consumes-original.json": [
+      "F14",
+      "F27:bare"
+    ],
+    "reparse-synthetic-suffix-consumes-synthetic.json": [
+      "F14"
+    ],
+    "reparse-synthetic-suffix-elidable.json": [
+      "F13"
+    ],
+    "reparse-synthetic-suffix-empty-ambiguous.json": [
+      "F13",
+      "F15"
+    ],
+    "reparse-synthetic-suffix-empty-throwing.json": [
+      "F13",
+      "F16"
+    ],
+    "reparse-synthetic-suffix-empty.json": [
+      "F15"
+    ],
+    "reparse-synthetic-suffix-free-modifier.json": [
+      "F14"
+    ],
+    "reparse-synthetic-suffix-nested-restoration-rule.json": [
+      "F14",
+      "F29"
+    ],
+    "reparse-synthetic-suffix-nested-restoration.json": [
+      "F14",
+      "F29"
+    ],
+    "reparse-synthetic-suffix-nonnullable.json": [
+      "F13"
+    ],
+    "reparse-synthetic-suffix-nullable-reads.json": [
+      "F13",
+      "F14",
+      "F16"
+    ],
+    "reparse-synthetic-suffix-restoration-after-empty.json": [
+      "F14",
+      "F29"
+    ],
+    "reparse-terminal-recognition-values.json": [
+      "F10",
+      "F1:phonemes",
+      "F1pos:phonemes",
+      "F7:capture"
+    ],
+    "reparse-terminal-sound-test.json": [
+      "F10"
+    ],
+    "reparse-terminal-tag-test.json": [
+      "F10"
+    ],
+    "reparse-tested-rebuilt-derivations.json": [],
+    "reparse-witness-elided-action.json": [
+      "witness:project"
+    ],
+    "reparse-witness-equal-actions.json": [
+      "witness:project"
+    ],
+    "reparse-witness-hook-only.json": [
+      "F28",
+      "lost:rank"
+    ],
+    "reparse-witness-read-close.json": [],
+    "reparse-witness-read-read.json": [],
+    "reparse-witness-sibling-first.json": [
+      "lost:select"
+    ],
+    "reparse-witness-sibling-last.json": [
+      "lost:context"
+    ],
+    "reparse-witness-sibling-middle.json": [
+      "lost:select"
+    ],
+    "reparse-written-observation-after.json": [
+      "F1pos:after",
+      "F1pos:head"
+    ],
+    "reparse-written-observation-head.json": [
+      "F1pos:head"
+    ],
+    "reparse-written-observation-text.json": [
+      "F14"
+    ],
+    "reparse-written-optional-suffix.json": [
+      "F24"
+    ],
+    "step-order-chosen-tag-term.json": [
+      "order:tags"
+    ],
+    "step-order-conditions-written-check.json": [
+      "order:conditions"
+    ],
+    "step-order-conditions-written.json": [
+      "order:conditions"
+    ],
+    "step-order-tag-term-after-conditions-check.json": [
+      "order:tags"
+    ],
+    "step-order-tag-term-after-conditions.json": [
+      "order:tags"
+    ],
+    "step-order-tag-term-at-prediction.json": [
+      "order:tags"
+    ],
+    "step-order-tag-term-definition-check.json": [
+      "order:tags"
+    ]
+  },
+  "unconfirmed": {},
+  "caught": {
+    "F1:classes": {
+      "reparse-observer-union-classes-from.json": "result+hook",
+      "reparse-observer-union-classes-tail.json": "result+hook"
+    },
+    "F1:head": {
+      "reparse-observer-classes.json": "result+hook",
+      "reparse-observer-head.json": "result+hook",
+      "reparse-original-nonmonotonic-sources.json": "result+hook"
+    },
+    "F1:initial": {
+      "reparse-observer-initial.json": "result+hook"
+    },
+    "F1:last": {
+      "reparse-observer-last.json": "result+hook",
+      "reparse-observer-tags.json": "result+hook"
+    },
+    "F1:phonemes": {
+      "reparse-empty-capture-provenance.json": "result+hook",
+      "reparse-observer-phonemes.json": "result+hook",
+      "reparse-terminal-recognition-values.json": "result"
+    },
+    "F1:tags": {
+      "reparse-observer-union-tags-from.json": "result+hook",
+      "reparse-observer-union-tags-tail.json": "result+hook"
+    },
+    "F1:tail": {
+      "reparse-observer-tail.json": "result+hook",
+      "reparse-observer-union-classes-tail.json": "result+hook",
+      "reparse-observer-union-tags-tail.json": "result+hook"
+    },
+    "F1:text": {
+      "reparse-original-nonmonotonic-sources.json": "result+hook",
+      "reparse-original-text.json": "result+hook"
+    },
+    "F1pos:after": {
+      "elision-only-none.json": "result+hook",
+      "reparse-memo-modes.json": "result+hook",
+      "reparse-observer-after.json": "result+hook",
+      "reparse-original-lookahead.json": "result+hook",
+      "reparse-query-long-after.json": "result+hook",
+      "reparse-written-observation-after.json": "result"
+    },
+    "F1pos:classes": {
+      "reparse-observer-classes.json": "result+hook",
+      "reparse-observer-union-classes-from.json": "result+hook",
+      "reparse-observer-union-classes-tail.json": "result+hook"
+    },
+    "F1pos:from": {
+      "reparse-observer-from.json": "result+hook",
+      "reparse-observer-union-classes-from.json": "result+hook",
+      "reparse-observer-union-tags-from.json": "result+hook",
+      "reparse-query-long-after.json": "result+hook"
+    },
+    "F1pos:head": {
+      "reparse-empty-capture-provenance.json": "result+hook",
+      "reparse-observer-classes.json": "result+hook",
+      "reparse-observer-head.json": "result+hook",
+      "reparse-original-nonmonotonic-sources.json": "result+hook",
+      "reparse-written-observation-after.json": "result",
+      "reparse-written-observation-head.json": "result"
+    },
+    "F1pos:initial": {
+      "reparse-observer-initial.json": "result+hook"
+    },
+    "F1pos:last": {
+      "reparse-observer-last.json": "result+hook",
+      "reparse-observer-tags.json": "result+hook"
+    },
+    "F1pos:phonemes": {
+      "reparse-empty-capture-provenance.json": "result+hook",
+      "reparse-observer-phonemes.json": "result+hook",
+      "reparse-terminal-recognition-values.json": "result"
+    },
+    "F1pos:tags": {
+      "reparse-observer-tags.json": "result+hook",
+      "reparse-observer-union-tags-from.json": "result+hook",
+      "reparse-observer-union-tags-tail.json": "result+hook",
+      "reparse-original-nonmonotonic-sources.json": "result+hook",
+      "reparse-written-observation-after.json": "result",
+      "reparse-written-observation-head.json": "result"
+    },
+    "F1pos:tail": {
+      "reparse-observer-tail.json": "result+hook",
+      "reparse-observer-union-classes-tail.json": "result+hook",
+      "reparse-observer-union-tags-tail.json": "result+hook"
+    },
+    "F1pos:text": {
+      "reparse-observer-from.json": "result+hook",
+      "reparse-observer-head.json": "result+hook",
+      "reparse-observer-last.json": "result+hook",
+      "reparse-observer-tail.json": "result+hook",
+      "reparse-original-nonmonotonic-sources.json": "result+hook",
+      "reparse-original-text.json": "result+hook"
+    },
+    "F2": {
+      "reparse-memo-features.json": "result+hook",
+      "reparse-query-long-projected.json": "result+hook",
+      "reparse-query-main-lowering-begins.json": "result+hook",
+      "reparse-query-main-lowering-tags.json": "result+hook",
+      "reparse-query-main-lowering.json": "result+hook",
+      "reparse-query-maximal-stage.json": "result+hook",
+      "reparse-query-maximal-terminal.json": "result",
+      "reparse-recursion-root-context.json": "result"
+    },
+    "F3": {
+      "elision-only-none.json": "result+hook",
+      "reparse-memo-modes.json": "result+hook",
+      "reparse-observer-after.json": "result+hook",
+      "reparse-original-lookahead.json": "result+hook",
+      "reparse-query-long-after.json": "result+hook",
+      "reparse-query-long-projected.json": "result+hook",
+      "reparse-query-original-tokens.json": "result+hook",
+      "reparse-recursion-root-context.json": "result"
+    },
+    "F4": {
+      "reparse-query-long-collision.json": "result+hook",
+      "reparse-query-nested-bounds.json": "result+hook"
+    },
+    "F5": {
+      "reparse-query-maximal-terminal.json": "result"
+    },
+    "F6": {
+      "reparse-query-maximal-stage.json": "result+hook"
+    },
+    "F7:capture": {
+      "reparse-reference-tag-test.json": "result",
+      "reparse-terminal-recognition-values.json": "result",
+      "reparse-witness-equal-actions.json": "result"
+    },
+    "F7:restoration": {
+      "reparse-synthetic-optional-tags.json": "result+hook"
+    },
+    "F7:union": {
+      "reparse-observer-union-classes-from.json": "result+hook",
+      "reparse-observer-union-classes-tail.json": "result+hook",
+      "reparse-observer-union-tags-from.json": "result+hook",
+      "reparse-observer-union-tags-tail.json": "result+hook"
+    },
+    "F8": {
+      "reparse-derivation-tags.json": "result"
+    },
+    "F9": {
+      "reparse-original-rule-test.json": "result+hook",
+      "reparse-reference-sound-test.json": "result",
+      "reparse-reference-tag-test.json": "result"
+    },
+    "F10": {
+      "reparse-empty-capture-provenance.json": "result",
+      "reparse-observer-after.json": "result",
+      "reparse-observer-classes.json": "result",
+      "reparse-observer-head.json": "result",
+      "reparse-observer-initial.json": "result",
+      "reparse-observer-last.json": "result",
+      "reparse-observer-phonemes.json": "result",
+      "reparse-observer-tags.json": "result",
+      "reparse-observer-tail.json": "result",
+      "reparse-original-rule-test.json": "result",
+      "reparse-terminal-recognition-values.json": "result",
+      "reparse-terminal-sound-test.json": "result",
+      "reparse-terminal-tag-test.json": "result"
+    },
+    "F11": {
+      "reparse-incompatible-optional-sound.json": "result",
+      "reparse-incompatible-terminal-sound.json": "result"
+    },
+    "F12": {
+      "reparse-original-nonmonotonic-sources.json": "result+hook",
+      "reparse-original-zero-width-token.json": "result+hook"
+    },
+    "F13": {
+      "elision-only-none.json": "hook",
+      "reparse-competitor-effects.json": "hook",
+      "reparse-derivation-tags.json": "hook",
+      "reparse-empty-capture-provenance.json": "result+hook",
+      "reparse-equal-readings-witness.json": "hook",
+      "reparse-incompatible-optional-sound.json": "hook",
+      "reparse-incompatible-terminal-sound.json": "hook",
+      "reparse-memo-features.json": "result+hook",
+      "reparse-memo-modes.json": "result+hook",
+      "reparse-observer-after.json": "result+hook",
+      "reparse-observer-classes.json": "result+hook",
+      "reparse-observer-from.json": "result+hook",
+      "reparse-observer-head.json": "result+hook",
+      "reparse-observer-initial.json": "result+hook",
+      "reparse-observer-last.json": "result+hook",
+      "reparse-observer-phonemes.json": "result+hook",
+      "reparse-observer-tags.json": "result+hook",
+      "reparse-observer-tail.json": "result+hook",
+      "reparse-observer-union-classes-from.json": "result+hook",
+      "reparse-observer-union-classes-tail.json": "result+hook",
+      "reparse-observer-union-tags-from.json": "result+hook",
+      "reparse-observer-union-tags-tail.json": "result+hook",
+      "reparse-original-lookahead.json": "result+hook",
+      "reparse-original-nonmonotonic-sources.json": "result+hook",
+      "reparse-original-rule-test.json": "result+hook",
+      "reparse-original-text.json": "result+hook",
+      "reparse-original-zero-width-token.json": "hook",
+      "reparse-projected-cycle.json": "hook",
+      "reparse-query-long-after.json": "result+hook",
+      "reparse-query-long-collision.json": "hook",
+      "reparse-query-long-projected.json": "result+hook",
+      "reparse-query-main-lowering-begins.json": "result+hook",
+      "reparse-query-main-lowering-tags.json": "result+hook",
+      "reparse-query-main-lowering.json": "result+hook",
+      "reparse-query-maximal-stage.json": "result+hook",
+      "reparse-query-maximal-terminal.json": "result+hook",
+      "reparse-query-nested-bounds.json": "hook",
+      "reparse-query-original-tokens.json": "result+hook",
+      "reparse-recursion-root-context.json": "result",
+      "reparse-reference-sound-test.json": "result+hook",
+      "reparse-reference-tag-test.json": "result+hook",
+      "reparse-root-maximal-both.json": "hook",
+      "reparse-root-maximal-stage.json": "hook",
+      "reparse-root-maximal-terminal.json": "hook",
+      "reparse-same-boundary-order.json": "hook",
+      "reparse-strict-empty-before-reading-control.json": "result",
+      "reparse-strict-later-reading-symbol.json": "result+hook",
+      "reparse-strict-least-fixpoint.json": "result",
+      "reparse-strict-nested-route.json": "result",
+      "reparse-strict-reclose-late.json": "hook",
+      "reparse-strict-reclose-swapped.json": "hook",
+      "reparse-strict-reclose.json": "hook",
+      "reparse-strict-shared-prediction.json": "hook",
+      "reparse-synthetic-optional-tags.json": "result+hook",
+      "reparse-synthetic-suffix-consumes-original.json": "hook",
+      "reparse-synthetic-suffix-consumes-synthetic.json": "hook",
+      "reparse-synthetic-suffix-elidable.json": "result+hook",
+      "reparse-synthetic-suffix-empty-ambiguous.json": "result+hook",
+      "reparse-synthetic-suffix-empty-throwing.json": "result",
+      "reparse-synthetic-suffix-empty.json": "hook",
+      "reparse-synthetic-suffix-free-modifier.json": "hook",
+      "reparse-synthetic-suffix-nested-restoration-rule.json": "hook",
+      "reparse-synthetic-suffix-nested-restoration.json": "hook",
+      "reparse-synthetic-suffix-nonnullable.json": "result+hook",
+      "reparse-synthetic-suffix-nullable-reads.json": "result",
+      "reparse-synthetic-suffix-restoration-after-empty.json": "hook",
+      "reparse-terminal-recognition-values.json": "result+hook",
+      "reparse-terminal-sound-test.json": "hook",
+      "reparse-terminal-tag-test.json": "hook",
+      "reparse-tested-rebuilt-derivations.json": "hook",
+      "reparse-witness-elided-action.json": "hook",
+      "reparse-witness-equal-actions.json": "result+hook",
+      "reparse-witness-hook-only.json": "hook",
+      "reparse-witness-read-close.json": "hook",
+      "reparse-witness-read-read.json": "hook",
+      "reparse-witness-sibling-first.json": "hook",
+      "reparse-witness-sibling-last.json": "hook",
+      "reparse-witness-sibling-middle.json": "hook",
+      "reparse-written-observation-after.json": "result+hook",
+      "reparse-written-observation-head.json": "result+hook",
+      "reparse-written-observation-text.json": "hook",
+      "step-order-conditions-written-check.json": "hook",
+      "step-order-tag-term-after-conditions-check.json": "hook",
+      "step-order-tag-term-definition-check.json": "hook"
+    },
+    "F14": {
+      "reparse-strict-empty-before-reading.json": "result",
+      "reparse-strict-later-reading-symbol.json": "result",
+      "reparse-strict-nested-route.json": "result",
+      "reparse-synthetic-suffix-consumes-original.json": "result",
+      "reparse-synthetic-suffix-consumes-synthetic.json": "result",
+      "reparse-synthetic-suffix-free-modifier.json": "result",
+      "reparse-synthetic-suffix-nested-restoration-rule.json": "result",
+      "reparse-synthetic-suffix-nested-restoration.json": "result",
+      "reparse-synthetic-suffix-nullable-reads.json": "result",
+      "reparse-synthetic-suffix-restoration-after-empty.json": "result",
+      "reparse-written-observation-text.json": "result"
+    },
+    "F15": {
+      "elision-only-none.json": "result",
+      "reparse-incompatible-optional-sound.json": "result",
+      "reparse-incompatible-terminal-sound.json": "result",
+      "reparse-reference-sound-test.json": "result",
+      "reparse-reference-tag-test.json": "result",
+      "reparse-strict-empty-before-reading-control.json": "result",
+      "reparse-strict-least-fixpoint.json": "result",
+      "reparse-strict-nested-route.json": "result",
+      "reparse-strict-shared-prediction.json": "result",
+      "reparse-synthetic-suffix-empty-ambiguous.json": "result",
+      "reparse-synthetic-suffix-empty-throwing.json": "result",
+      "reparse-synthetic-suffix-empty.json": "result",
+      "reparse-synthetic-suffix-nullable-reads.json": "result",
+      "reparse-tested-rebuilt-derivations.json": "result",
+      "reparse-written-observation-after.json": "result",
+      "reparse-written-observation-head.json": "result",
+      "step-order-conditions-written-check.json": "result",
+      "step-order-tag-term-after-conditions-check.json": "result",
+      "step-order-tag-term-definition-check.json": "result"
+    },
+    "F16": {
+      "reparse-strict-empty-before-reading-control.json": "result",
+      "reparse-strict-least-fixpoint.json": "result",
+      "reparse-strict-nested-route.json": "result",
+      "reparse-synthetic-suffix-empty-throwing.json": "result",
+      "reparse-synthetic-suffix-nullable-reads.json": "result"
+    },
+    "F17": {
+      "reparse-strict-shared-prediction.json": "result"
+    },
+    "F18": {
+      "reparse-recursion-root-context.json": "result"
+    },
+    "F19": {
+      "reparse-projected-cycle.json": "result"
+    },
+    "F20": {
+      "reparse-root-maximal-both.json": "result",
+      "reparse-root-maximal-stage.json": "result",
+      "reparse-root-maximal-terminal.json": "result"
+    },
+    "F21": {
+      "reparse-query-long-collision.json": "result+hook"
+    },
+    "F22": {
+      "reparse-competitor-effects.json": "result"
+    },
+    "F23": {
+      "reparse-memo-features.json": "result",
+      "reparse-memo-modes.json": "result"
+    },
+    "F24": {
+      "reparse-original-zero-width-token.json": "result+hook",
+      "reparse-written-optional-suffix.json": "result+hook"
+    },
+    "F25": {
+      "reparse-recursion-nested-cycle.json": "bound"
+    },
+    "F26:lost": {
+      "reparse-competing-evaluation-error.json": "result",
+      "reparse-recursion-nested-cycle.json": "result",
+      "reparse-strict-empty-before-reading.json": "result"
+    },
+    "F26:relabel": {
+      "reparse-competing-evaluation-error.json": "result",
+      "reparse-recursion-nested-cycle.json": "result",
+      "reparse-strict-empty-before-reading.json": "result"
+    },
+    "F27:bare": {
+      "reparse-equal-readings-witness.json": "result",
+      "reparse-same-boundary-order.json": "result",
+      "reparse-strict-later-reading-symbol.json": "result",
+      "reparse-synthetic-suffix-consumes-original.json": "result",
+      "reparse-witness-elided-action.json": "result",
+      "reparse-witness-equal-actions.json": "result",
+      "reparse-witness-hook-only.json": "result",
+      "reparse-witness-read-close.json": "result",
+      "reparse-witness-read-read.json": "result",
+      "reparse-witness-sibling-first.json": "result",
+      "reparse-witness-sibling-last.json": "result",
+      "reparse-witness-sibling-middle.json": "result"
+    },
+    "F27:order": {
+      "reparse-incompatible-optional-sound.json": "hook",
+      "reparse-projected-cycle.json": "hook",
+      "reparse-root-maximal-both.json": "hook",
+      "reparse-root-maximal-stage.json": "hook",
+      "reparse-root-maximal-terminal.json": "hook",
+      "reparse-same-boundary-order.json": "result+hook",
+      "reparse-strict-nested-route.json": "result+hook",
+      "reparse-synthetic-suffix-consumes-synthetic.json": "result+hook",
+      "reparse-synthetic-suffix-nested-restoration-rule.json": "result+hook",
+      "reparse-synthetic-suffix-nested-restoration.json": "result+hook",
+      "reparse-synthetic-suffix-restoration-after-empty.json": "result+hook",
+      "reparse-witness-equal-actions.json": "hook"
+    },
+    "F28": {
+      "elision-only-none.json": "result+hook",
+      "reparse-competitor-effects.json": "result+hook",
+      "reparse-derivation-tags.json": "result+hook",
+      "reparse-empty-capture-provenance.json": "result+hook",
+      "reparse-equal-readings-witness.json": "result+hook",
+      "reparse-incompatible-optional-sound.json": "result+hook",
+      "reparse-incompatible-terminal-sound.json": "result+hook",
+      "reparse-memo-features.json": "result+hook",
+      "reparse-memo-modes.json": "result+hook",
+      "reparse-observer-after.json": "result+hook",
+      "reparse-observer-classes.json": "result+hook",
+      "reparse-observer-from.json": "result+hook",
+      "reparse-observer-head.json": "result+hook",
+      "reparse-observer-initial.json": "result+hook",
+      "reparse-observer-last.json": "result+hook",
+      "reparse-observer-phonemes.json": "result+hook",
+      "reparse-observer-tags.json": "result+hook",
+      "reparse-observer-tail.json": "result+hook",
+      "reparse-observer-union-classes-from.json": "result+hook",
+      "reparse-observer-union-classes-tail.json": "result+hook",
+      "reparse-observer-union-tags-from.json": "result+hook",
+      "reparse-observer-union-tags-tail.json": "result+hook",
+      "reparse-original-lookahead.json": "result+hook",
+      "reparse-original-nonmonotonic-sources.json": "result+hook",
+      "reparse-original-rule-test.json": "result+hook",
+      "reparse-original-text.json": "result+hook",
+      "reparse-original-zero-width-token.json": "result+hook",
+      "reparse-projected-cycle.json": "result+hook",
+      "reparse-query-long-after.json": "result+hook",
+      "reparse-query-long-collision.json": "result+hook",
+      "reparse-query-long-projected.json": "result+hook",
+      "reparse-query-main-lowering-begins.json": "result+hook",
+      "reparse-query-main-lowering-tags.json": "result+hook",
+      "reparse-query-main-lowering.json": "result+hook",
+      "reparse-query-maximal-stage.json": "result+hook",
+      "reparse-query-maximal-terminal.json": "result+hook",
+      "reparse-query-nested-bounds.json": "result+hook",
+      "reparse-query-original-tokens.json": "result+hook",
+      "reparse-recursion-root-context.json": "result+hook",
+      "reparse-reference-sound-test.json": "result+hook",
+      "reparse-reference-tag-test.json": "result+hook",
+      "reparse-root-maximal-both.json": "result+hook",
+      "reparse-root-maximal-stage.json": "result+hook",
+      "reparse-root-maximal-terminal.json": "result+hook",
+      "reparse-same-boundary-order.json": "result+hook",
+      "reparse-strict-empty-before-reading-control.json": "result+hook",
+      "reparse-strict-later-reading-symbol.json": "result+hook",
+      "reparse-strict-least-fixpoint.json": "result+hook",
+      "reparse-strict-nested-route.json": "result+hook",
+      "reparse-strict-reclose-late.json": "result+hook",
+      "reparse-strict-reclose-swapped.json": "result+hook",
+      "reparse-strict-reclose.json": "result+hook",
+      "reparse-strict-shared-prediction.json": "result+hook",
+      "reparse-synthetic-optional-tags.json": "result+hook",
+      "reparse-synthetic-suffix-consumes-original.json": "result+hook",
+      "reparse-synthetic-suffix-consumes-synthetic.json": "result+hook",
+      "reparse-synthetic-suffix-elidable.json": "result+hook",
+      "reparse-synthetic-suffix-empty-ambiguous.json": "result+hook",
+      "reparse-synthetic-suffix-empty-throwing.json": "result+hook",
+      "reparse-synthetic-suffix-empty.json": "result+hook",
+      "reparse-synthetic-suffix-free-modifier.json": "result+hook",
+      "reparse-synthetic-suffix-nested-restoration-rule.json": "result+hook",
+      "reparse-synthetic-suffix-nested-restoration.json": "result+hook",
+      "reparse-synthetic-suffix-nonnullable.json": "result+hook",
+      "reparse-synthetic-suffix-nullable-reads.json": "result+hook",
+      "reparse-synthetic-suffix-restoration-after-empty.json": "result+hook",
+      "reparse-terminal-recognition-values.json": "result+hook",
+      "reparse-terminal-sound-test.json": "result+hook",
+      "reparse-terminal-tag-test.json": "result+hook",
+      "reparse-tested-rebuilt-derivations.json": "result+hook",
+      "reparse-witness-elided-action.json": "result+hook",
+      "reparse-witness-equal-actions.json": "hook",
+      "reparse-witness-hook-only.json": "result+hook",
+      "reparse-witness-read-close.json": "result+hook",
+      "reparse-witness-read-read.json": "result+hook",
+      "reparse-witness-sibling-first.json": "result+hook",
+      "reparse-witness-sibling-last.json": "hook",
+      "reparse-witness-sibling-middle.json": "result+hook",
+      "reparse-written-observation-after.json": "result+hook",
+      "reparse-written-observation-head.json": "result+hook",
+      "reparse-written-observation-text.json": "result+hook",
+      "step-order-conditions-written-check.json": "result+hook",
+      "step-order-tag-term-after-conditions-check.json": "result+hook",
+      "step-order-tag-term-definition-check.json": "result+hook"
+    },
+    "F29": {
+      "reparse-strict-nested-route.json": "result",
+      "reparse-synthetic-suffix-nested-restoration-rule.json": "result",
+      "reparse-synthetic-suffix-nested-restoration.json": "result",
+      "reparse-synthetic-suffix-restoration-after-empty.json": "result"
+    },
+    "F30": {
+      "reparse-strict-least-fixpoint.json": "result"
+    },
+    "F31": {
+      "reparse-strict-nested-route.json": "result"
+    },
+    "F32:predict": {
+      "reparse-strict-reclose-late.json": "result",
+      "reparse-strict-reclose.json": "result"
+    },
+    "F32:queue": {
+      "reparse-strict-reclose-late.json": "result",
+      "reparse-strict-reclose.json": "result"
+    },
+    "lost:context": {
+      "reparse-equal-readings-witness.json": "result+hook",
+      "reparse-strict-later-reading-symbol.json": "result",
+      "reparse-witness-sibling-first.json": "hook",
+      "reparse-witness-sibling-last.json": "hook",
+      "reparse-witness-sibling-middle.json": "hook"
+    },
+    "lost:rank": {
+      "elision-only-none.json": "result+hook",
+      "reparse-competitor-effects.json": "result+hook",
+      "reparse-derivation-tags.json": "result+hook",
+      "reparse-empty-capture-provenance.json": "result+hook",
+      "reparse-equal-readings-witness.json": "result+hook",
+      "reparse-incompatible-optional-sound.json": "result+hook",
+      "reparse-incompatible-terminal-sound.json": "result+hook",
+      "reparse-memo-features.json": "result+hook",
+      "reparse-memo-modes.json": "result+hook",
+      "reparse-observer-after.json": "result+hook",
+      "reparse-observer-classes.json": "result+hook",
+      "reparse-observer-from.json": "result+hook",
+      "reparse-observer-head.json": "result+hook",
+      "reparse-observer-initial.json": "result+hook",
+      "reparse-observer-last.json": "result+hook",
+      "reparse-observer-phonemes.json": "result+hook",
+      "reparse-observer-tags.json": "result+hook",
+      "reparse-observer-tail.json": "result+hook",
+      "reparse-observer-union-classes-from.json": "result+hook",
+      "reparse-observer-union-classes-tail.json": "result+hook",
+      "reparse-observer-union-tags-from.json": "result+hook",
+      "reparse-observer-union-tags-tail.json": "result+hook",
+      "reparse-original-lookahead.json": "result+hook",
+      "reparse-original-nonmonotonic-sources.json": "result+hook",
+      "reparse-original-rule-test.json": "result+hook",
+      "reparse-original-text.json": "result+hook",
+      "reparse-original-zero-width-token.json": "result+hook",
+      "reparse-projected-cycle.json": "result+hook",
+      "reparse-query-long-after.json": "result+hook",
+      "reparse-query-long-collision.json": "result+hook",
+      "reparse-query-long-projected.json": "result+hook",
+      "reparse-query-main-lowering-begins.json": "result+hook",
+      "reparse-query-main-lowering-tags.json": "result+hook",
+      "reparse-query-main-lowering.json": "result+hook",
+      "reparse-query-maximal-stage.json": "result+hook",
+      "reparse-query-maximal-terminal.json": "result+hook",
+      "reparse-query-nested-bounds.json": "result+hook",
+      "reparse-query-original-tokens.json": "result+hook",
+      "reparse-recursion-root-context.json": "result+hook",
+      "reparse-reference-sound-test.json": "result+hook",
+      "reparse-reference-tag-test.json": "result+hook",
+      "reparse-root-maximal-both.json": "result+hook",
+      "reparse-root-maximal-stage.json": "result+hook",
+      "reparse-root-maximal-terminal.json": "result+hook",
+      "reparse-same-boundary-order.json": "result+hook",
+      "reparse-strict-empty-before-reading-control.json": "result+hook",
+      "reparse-strict-later-reading-symbol.json": "result+hook",
+      "reparse-strict-least-fixpoint.json": "result+hook",
+      "reparse-strict-nested-route.json": "result+hook",
+      "reparse-strict-reclose-late.json": "result+hook",
+      "reparse-strict-reclose-swapped.json": "result+hook",
+      "reparse-strict-reclose.json": "result+hook",
+      "reparse-strict-shared-prediction.json": "result+hook",
+      "reparse-synthetic-optional-tags.json": "result+hook",
+      "reparse-synthetic-suffix-consumes-original.json": "result+hook",
+      "reparse-synthetic-suffix-consumes-synthetic.json": "result+hook",
+      "reparse-synthetic-suffix-elidable.json": "result+hook",
+      "reparse-synthetic-suffix-empty-ambiguous.json": "result+hook",
+      "reparse-synthetic-suffix-empty-throwing.json": "result+hook",
+      "reparse-synthetic-suffix-empty.json": "result+hook",
+      "reparse-synthetic-suffix-free-modifier.json": "result+hook",
+      "reparse-synthetic-suffix-nested-restoration-rule.json": "result+hook",
+      "reparse-synthetic-suffix-nested-restoration.json": "result+hook",
+      "reparse-synthetic-suffix-nonnullable.json": "result+hook",
+      "reparse-synthetic-suffix-nullable-reads.json": "result+hook",
+      "reparse-synthetic-suffix-restoration-after-empty.json": "result+hook",
+      "reparse-terminal-recognition-values.json": "result+hook",
+      "reparse-terminal-sound-test.json": "result+hook",
+      "reparse-terminal-tag-test.json": "result+hook",
+      "reparse-tested-rebuilt-derivations.json": "result+hook",
+      "reparse-witness-elided-action.json": "result+hook",
+      "reparse-witness-equal-actions.json": "hook",
+      "reparse-witness-hook-only.json": "result+hook",
+      "reparse-witness-read-close.json": "result+hook",
+      "reparse-witness-read-read.json": "result+hook",
+      "reparse-witness-sibling-first.json": "result+hook",
+      "reparse-witness-sibling-last.json": "hook",
+      "reparse-witness-sibling-middle.json": "result+hook",
+      "reparse-written-observation-after.json": "result+hook",
+      "reparse-written-observation-head.json": "result+hook",
+      "reparse-written-observation-text.json": "result+hook",
+      "step-order-conditions-written-check.json": "result+hook",
+      "step-order-tag-term-after-conditions-check.json": "result+hook",
+      "step-order-tag-term-definition-check.json": "result+hook"
+    },
+    "lost:select": {
+      "reparse-equal-readings-witness.json": "result",
+      "reparse-strict-later-reading-symbol.json": "result",
+      "reparse-witness-sibling-first.json": "result+hook",
+      "reparse-witness-sibling-middle.json": "result+hook"
+    },
+    "order:conditions": {
+      "step-order-conditions-written-check.json": "result",
+      "step-order-conditions-written.json": "result"
+    },
+    "order:tags": {
+      "step-order-chosen-tag-term.json": "result",
+      "step-order-tag-term-after-conditions-check.json": "result",
+      "step-order-tag-term-after-conditions.json": "result",
+      "step-order-tag-term-at-prediction.json": "result",
+      "step-order-tag-term-definition-check.json": "result"
+    },
+    "witness:project": {
+      "reparse-competitor-effects.json": "result",
+      "reparse-derivation-tags.json": "result",
+      "reparse-empty-capture-provenance.json": "result",
+      "reparse-equal-readings-witness.json": "result",
+      "reparse-memo-features.json": "result",
+      "reparse-memo-modes.json": "result",
+      "reparse-observer-after.json": "result",
+      "reparse-observer-classes.json": "result",
+      "reparse-observer-from.json": "result",
+      "reparse-observer-head.json": "result",
+      "reparse-observer-initial.json": "result",
+      "reparse-observer-last.json": "result",
+      "reparse-observer-phonemes.json": "result",
+      "reparse-observer-tags.json": "result",
+      "reparse-observer-tail.json": "result",
+      "reparse-observer-union-classes-from.json": "result",
+      "reparse-observer-union-classes-tail.json": "result",
+      "reparse-observer-union-tags-from.json": "result",
+      "reparse-observer-union-tags-tail.json": "result",
+      "reparse-original-lookahead.json": "result",
+      "reparse-original-nonmonotonic-sources.json": "result",
+      "reparse-original-rule-test.json": "result",
+      "reparse-original-text.json": "result",
+      "reparse-original-zero-width-token.json": "result",
+      "reparse-projected-cycle.json": "result",
+      "reparse-query-long-after.json": "result",
+      "reparse-query-long-collision.json": "result",
+      "reparse-query-long-projected.json": "result",
+      "reparse-query-main-lowering-begins.json": "result",
+      "reparse-query-main-lowering-tags.json": "result",
+      "reparse-query-main-lowering.json": "result",
+      "reparse-query-maximal-stage.json": "result",
+      "reparse-query-maximal-terminal.json": "result",
+      "reparse-query-nested-bounds.json": "result",
+      "reparse-query-original-tokens.json": "result",
+      "reparse-recursion-root-context.json": "result",
+      "reparse-root-maximal-both.json": "result",
+      "reparse-root-maximal-stage.json": "result",
+      "reparse-root-maximal-terminal.json": "result",
+      "reparse-same-boundary-order.json": "result",
+      "reparse-strict-later-reading-symbol.json": "result",
+      "reparse-strict-nested-route.json": "result",
+      "reparse-strict-reclose-late.json": "result",
+      "reparse-strict-reclose-swapped.json": "result",
+      "reparse-strict-reclose.json": "result",
+      "reparse-synthetic-optional-tags.json": "result",
+      "reparse-synthetic-suffix-consumes-original.json": "result",
+      "reparse-synthetic-suffix-consumes-synthetic.json": "result",
+      "reparse-synthetic-suffix-elidable.json": "result",
+      "reparse-synthetic-suffix-free-modifier.json": "result",
+      "reparse-synthetic-suffix-nested-restoration-rule.json": "result",
+      "reparse-synthetic-suffix-nested-restoration.json": "result",
+      "reparse-synthetic-suffix-nonnullable.json": "result",
+      "reparse-synthetic-suffix-nullable-reads.json": "result",
+      "reparse-synthetic-suffix-restoration-after-empty.json": "result",
+      "reparse-terminal-recognition-values.json": "result",
+      "reparse-terminal-sound-test.json": "result",
+      "reparse-terminal-tag-test.json": "result",
+      "reparse-witness-elided-action.json": "result",
+      "reparse-witness-equal-actions.json": "result",
+      "reparse-witness-hook-only.json": "result",
+      "reparse-witness-sibling-first.json": "result",
+      "reparse-witness-sibling-last.json": "result",
+      "reparse-witness-sibling-middle.json": "result",
+      "reparse-written-observation-text.json": "result"
+    }
+  }
+}

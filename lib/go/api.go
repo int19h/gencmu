@@ -344,13 +344,12 @@ type Dialect struct {
 	uni      *unicodeTable
 	mu       sync.Mutex
 	// lowered holds each stage's lowered grammars, keyed by the guarded
-	// features that are on and by whether elidable optionals are mandatory.
+	// features that are on.
 	lowered []*recent[lowerKey, *lowerEntry]
 }
 
 type lowerKey struct {
-	guarded   string
-	mandatory bool
+	guarded string
 }
 
 // lowerEntry is a stage's grammar lowered for one key, once.
@@ -377,6 +376,9 @@ type ParseOptions struct {
 	Until string
 	// ElisionOnly, when set, switches elision-only on or off for every stage.
 	ElisionOnly *bool
+	// private holds the switches and hooks of the library's own tests,
+	// which no caller can set.
+	private *privateOptions
 }
 
 // StageNames lists the dialect's stages in order.
@@ -408,10 +410,10 @@ func (d *Dialect) kind(name string) string {
 // lower is a stage's grammar lowered for a set of features. Only the guarded
 // features that are on change the productions. So two sets of features with
 // the same guarded features on share one lowered grammar.
-func (d *Dialect) lower(stage int, features map[string]bool, mandatory bool) *lowered {
+func (d *Dialect) lower(stage int, features map[string]bool) *lowered {
 	g := d.stages[stage]
 	on, guarded := namesOn(g.guarded, features)
-	key := lowerKey{guarded, mandatory}
+	key := lowerKey{guarded}
 	d.mu.Lock()
 	if d.lowered == nil {
 		d.lowered = make([]*recent[lowerKey, *lowerEntry], len(d.stages))
@@ -427,7 +429,7 @@ func (d *Dialect) lower(stage int, features map[string]bool, mandatory bool) *lo
 	d.mu.Unlock()
 	// The first parse that needs it lowers it, outside the lock. So it does
 	// not hold up the parses that need other ones.
-	e.once.Do(func() { e.l = lower(g, on, mandatory) })
+	e.once.Do(func() { e.l = lower(g, on) })
 	return e.l
 }
 
@@ -543,6 +545,7 @@ func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (res 
 		}
 	}
 	ps := newParseState(d.uni, text)
+	ps.private = options.private
 	if tokens == nil {
 		tokens = ps.characterTokens()
 	}
@@ -558,6 +561,7 @@ func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (res 
 		if len(outcomes) != words+1 || probe.err != nil || hasSaSu(probe) {
 			features["sa-su"] = true
 			ps = newParseState(d.uni, text)
+			ps.private = options.private
 			outcomes = nil
 		} else if words < last {
 			outcomes = append(outcomes, d.runStages(ps, features, options, probe.stage.Output, words+1, last)...)
@@ -590,9 +594,8 @@ func (d *Dialect) runStages(ps *parseState, features map[string]bool, options Pa
 		if options.ElisionOnly != nil {
 			elision = *options.ElisionOnly
 		}
-		idx := i
 		run := ps.newRun(g.name, g, tokens)
-		o := run.run(d.lower(i, features, false), func() *lowered { return d.lower(idx, features, true) }, elision)
+		o := run.run(d.lower(i, features), elision)
 		out = append(out, o)
 		if o.err != nil {
 			break

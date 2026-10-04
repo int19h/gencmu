@@ -1,0 +1,315 @@
+{
+  "description": "A strict item advances over an empty constituent where some later symbol can read, not only the one right after it. The chosen a elides [T r], so R is A T B V. a restores T, and y reads B. a also writes [T r] from the synthetic T: in r → p q z, q cannot read but z can, so the strict item advances over the empty p and the empty q, z reads B, and y is empty. So the check fails with those two readings. A library that asked only whether the symbol right after p can read would hold back the advance over p, lose the second reading and pass (engine §7.4).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b\n%rule a A [T r] y V\n%rule r p q z\n%rule p ε | B\n%rule q ε\n%rule z B\n%rule y ε | B\n%rule b [T] A y V",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "v",
+      "tags": [
+        "V"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "elision-only",
+        "stage": "main",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              3
+            ],
+            "source": [
+              0,
+              5
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "a",
+                "span": [
+                  0,
+                  3
+                ],
+                "source": [
+                  0,
+                  5
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "elided",
+                    "terminal": "T",
+                    "span": [
+                      1,
+                      1
+                    ],
+                    "source": [
+                      1,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "rule",
+                    "rule": "y",
+                    "span": [
+                      1,
+                      2
+                    ],
+                    "source": [
+                      2,
+                      3
+                    ],
+                    "tags": [
+                      "B"
+                    ],
+                    "children": [
+                      {
+                        "kind": "token",
+                        "terminal": "B",
+                        "token": 1,
+                        "span": [
+                          1,
+                          2
+                        ],
+                        "source": [
+                          2,
+                          3
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "V",
+                    "token": 2,
+                    "span": [
+                      2,
+                      3
+                    ],
+                    "source": [
+                      4,
+                      5
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              3
+            ],
+            "source": [
+              0,
+              5
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "a",
+                "span": [
+                  0,
+                  3
+                ],
+                "source": [
+                  0,
+                  5
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "elided",
+                    "terminal": "T",
+                    "span": [
+                      1,
+                      1
+                    ],
+                    "source": [
+                      1,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "rule",
+                    "rule": "r",
+                    "span": [
+                      1,
+                      2
+                    ],
+                    "source": [
+                      2,
+                      3
+                    ],
+                    "tags": [],
+                    "children": [
+                      {
+                        "kind": "rule",
+                        "rule": "p",
+                        "span": [
+                          1,
+                          1
+                        ],
+                        "source": [
+                          1,
+                          1
+                        ],
+                        "tags": [],
+                        "children": []
+                      },
+                      {
+                        "kind": "rule",
+                        "rule": "q",
+                        "span": [
+                          1,
+                          1
+                        ],
+                        "source": [
+                          1,
+                          1
+                        ],
+                        "tags": [],
+                        "children": []
+                      },
+                      {
+                        "kind": "rule",
+                        "rule": "z",
+                        "span": [
+                          1,
+                          2
+                        ],
+                        "source": [
+                          2,
+                          3
+                        ],
+                        "tags": [
+                          "B"
+                        ],
+                        "children": [
+                          {
+                            "kind": "token",
+                            "terminal": "B",
+                            "token": 1,
+                            "span": [
+                              1,
+                              2
+                            ],
+                            "source": [
+                              2,
+                              3
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "rule",
+                    "rule": "y",
+                    "span": [
+                      2,
+                      2
+                    ],
+                    "source": [
+                      3,
+                      3
+                    ],
+                    "tags": [],
+                    "children": []
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "V",
+                    "token": 2,
+                    "span": [
+                      2,
+                      3
+                    ],
+                    "source": [
+                      4,
+                      5
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "witness": [
+          {
+            "read": {
+              "token": 1,
+              "terminal": "B"
+            }
+          },
+          {
+            "close": {
+              "rule": "p",
+              "production": 6,
+              "span": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -11,6 +11,9 @@ type spanVal struct {
 	a, b  int // absolute token range in the stage input
 	whole bool
 	tags  *tagset // for a whole capture: the captured part's tags
+	// lazy, for $ of a completing item, gives its tags on first use: the
+	// tag term runs only where a condition reads them (§4).
+	lazy func() *tagset
 }
 
 // A term's value is a string or a set, of strings or of tags (§10). The
@@ -50,7 +53,7 @@ func (ev *evaluator) span(t *domTerm) spanVal {
 	case tmCall:
 		if len(t.Items) == 1 {
 			s := ev.span(t.Items[0])
-			s.whole, s.tags = false, nil
+			s.whole, s.tags, s.lazy = false, nil, nil
 			switch t.Str {
 			case "head":
 				if s.b > s.a {
@@ -102,6 +105,9 @@ func (ev *evaluator) str(t *domTerm) string {
 // spanTags is tags(s): the captured part's tags for a whole capture, else
 // the union of its tokens' tags.
 func (ev *evaluator) spanTags(s spanVal) *tagset {
+	if s.whole && s.tags == nil && s.lazy != nil {
+		s.tags = s.lazy()
+	}
 	if s.whole && s.tags != nil {
 		return s.tags
 	}
@@ -394,8 +400,10 @@ func (run *stageRun) spanContent(s spanVal) string {
 }
 
 // spanKey is a parse of tokens [a, b) as a rule, by position. The tokens of
-// a lowered grammar's stage do not change within one parse: the reparse of
-// elision-only, over other tokens, has a lowered grammar of its own.
+// a lowered grammar's stage do not change within one parse. The queries
+// that the check of elision-only starts read the stage's own input, at
+// their projected spans, with the main lowering (§4, §7.6). So they share
+// the main parse's answers and active queries.
 type spanKey struct {
 	g    *lowered
 	rule int32

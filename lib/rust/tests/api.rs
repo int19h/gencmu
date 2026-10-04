@@ -413,7 +413,7 @@ fn results_outlive_the_dialect_and_cross_threads() {
         dialect.parse(&text, &ParseOptions::default()).unwrap()
     };
     let json = std::thread::spawn(move || gencmu::to_json(&result)).join().unwrap();
-    assert!(json.starts_with("{\"format\":7,\"ok\":true"));
+    assert!(json.starts_with("{\"format\":9,\"ok\":true"));
 
     let dialect = std::sync::Arc::new(gencmu::load_dialect("notation").unwrap());
     let threads: Vec<_> = (0..4)
@@ -941,4 +941,56 @@ fn nested_queries_with_many_omissions_take_linear_time() {
     eprintln!("4000 tokens in {short:?}, 16000 in {long:?}");
     // Linear time gives about four times as long; quadratic, sixteen.
     assert!(long < short * 10, "4000 tokens in {short:?}, 16000 in {long:?}");
+}
+
+/// The members of the error elision-witness-lost, in the order of
+/// docs/output.md, and an error with no code, which has none of them
+/// (format 9).
+#[test]
+fn the_witness_lost_error_writes_its_members_in_order() {
+    use gencmu::{ErrorCode, ParseError, ParseResult, Restoration};
+    let chosen = gencmu::Node {
+        kind: NodeKind::Rule,
+        rule: Some("text".to_string()),
+        terminal: None,
+        token: None,
+        span: 0..0,
+        source: 0..0,
+        tags: Default::default(),
+        children: Vec::new(),
+    };
+    let error = ParseError {
+        kind: ParseErrorKind::Grammar,
+        stage: Some("syntax".to_string()),
+        code: Some(ErrorCode::ElisionWitnessLost),
+        reason: None,
+        token: None,
+        source: None,
+        document: None,
+        line: None,
+        column: None,
+        expected: Vec::new(),
+        readings: Vec::new(),
+        witness: None,
+        message: "the syntax stage could not reconstruct its chosen derivation for elision-only".to_string(),
+        chosen: Some(chosen),
+        completion: vec![
+            Restoration { terminal: "KU".to_string(), at: 3, source: 9..9, sound: None },
+            Restoration { terminal: "VAU".to_string(), at: 5, source: 16..16, sound: Some("vau".to_string()) },
+        ],
+    };
+    let result =
+        ParseResult { ok: false, stages: Vec::new(), tree: None, error: Some(error.clone()), warnings: Vec::new() };
+    assert_eq!(
+        gencmu::to_json(&result),
+        concat!(
+            r#"{"format":9,"ok":false,"stages":[],"tree":null,"error":{"kind":"grammar","stage":"syntax","code":"elision-witness-lost","#,
+            r#""message":"the syntax stage could not reconstruct its chosen derivation for elision-only","#,
+            r#""chosen":{"kind":"rule","rule":"text","span":[0,0],"source":[0,0],"tags":[],"children":[]},"#,
+            r#""completion":[{"terminal":"KU","at":3,"source":[9,9]},{"terminal":"VAU","at":5,"source":[16,16],"sound":"vau"}]}}"#
+        )
+    );
+    let plain = ParseError { code: None, chosen: None, completion: Vec::new(), message: "m".to_string(), ..error };
+    let result = ParseResult { error: Some(plain), ..result };
+    assert!(gencmu::to_json(&result).ends_with(r#""error":{"kind":"grammar","stage":"syntax","message":"m"}}"#));
 }

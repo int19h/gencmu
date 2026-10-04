@@ -1,0 +1,53 @@
+{
+  "description": "A terminal tag test reads the tags by which the terminal matched, so T⊇T holds of the synthetic T, and c is a second reading. Compare reparse-reference-tag-test (engine §7.5).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T U\n%rule text a | b | c\n%rule a A [T]\n%rule b A [T] [U]\n%rule c A T⊇T",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "elision-only",
+        "stage": "main",
+        "witness": [
+          {
+            "close": {
+              "rule": "a",
+              "production": 3,
+              "span": [
+                0,
+                1
+              ]
+            }
+          },
+          {
+            "close": {
+              "rule": "c",
+              "production": 11,
+              "span": [
+                0,
+                1
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

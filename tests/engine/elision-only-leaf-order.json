@@ -111,6 +111,28 @@
               }
             ]
           }
+        ],
+        "witness": [
+          {
+            "close": {
+              "rule": "s",
+              "production": 5,
+              "span": [
+                1,
+                2
+              ]
+            }
+          },
+          {
+            "close": {
+              "rule": "u",
+              "production": 13,
+              "span": [
+                1,
+                2
+              ]
+            }
+          }
         ]
       }
     },

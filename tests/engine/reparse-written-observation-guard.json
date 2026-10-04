@@ -1,0 +1,40 @@
+{
+  "description": "tt marks a written T by its first original word, head(after($m)), as tail-terms of the CLL grammar marks a written vau. That word can belong to what follows tt: here it is the T that ends the text. So the second condition of the mark, text($) ≠ text($m), keeps tt from marking an empty optional. With the guard, c fails, a is the one parse that the ranking keeps, and the check passes. Without it, tt is marked with its [T #] empty, c elides T at the place where a does, and the two tie. The guard decides the main parse, so the check does not change this result (engine §7.5, grammars/syntax/cll.md).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a A m [T] T\n%rule b A m [T] [T] T\n%rule c A $t(tt) T\n%conditions ~written ⊆ tags($t)\n%rule # [F ...]\n%rule m B\n%rule tt $m(m) [T #] <text($) ≠ text($m) ∧ T ⊆ tags(head(after($m))) ⟹ ~written>",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ],
+      "phonemes": "ta"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ]
+    },
+    "brackets": "(a b t)"
+  }
+}

@@ -56,14 +56,39 @@ export type ParseError = {
      * one: a tie (engine §6) or the check of elision-only (engine §7)
      */
     reason?: "tie" | "elision-only";
+    /**
+     * a defect that the check of
+     * elision-only found: it lost its chosen derivation (engine §7.9)
+     */
+    code?: "elision-witness-lost";
+    /**
+     * for that defect, the chosen tree
+     */
+    chosen?: ResultNode;
+    /**
+     * for that defect, the terminators
+     * that the check wrote back, in their order of insertion
+     */
+    completion?: Restoration[];
     token?: number;
     source?: Span;
     line?: number;
     column?: number;
     expected?: Expectation[];
     readings?: ResultNode[];
+    /**
+     * for an error of elision-only, where its
+     * two readings first differ (engine §7.10)
+     */
+    witness?: Witness;
     document?: string;
     message: string;
+};
+export type Restoration = {
+    terminal: string;
+    at: number;
+    source: Span;
+    sound?: string;
 };
 export type Action = ReadAction | CloseAction;
 export type ReadAction = {
@@ -84,8 +109,20 @@ export type SettledStageReport = StageReportBase & {
     verdict: "unique" | "resolved" | null;
     witness: null;
 };
-export type Witness = [WitnessAction | null, WitnessAction | null];
-export type WitnessAction = WitnessRead | WitnessClose;
+export type Witness = [WitnessAction, WitnessAction];
+export type WitnessAction = WitnessRead | WitnessClose | WitnessElided;
+export type WitnessElided = {
+    kind: "elided";
+    /**
+     * the position in the stage's input where the
+     * terminator was written back
+     */
+    at: number;
+    /**
+     * the terminal that read it
+     */
+    terminal: string;
+};
 export type WitnessRead = {
     kind: "read";
     /**
@@ -516,6 +553,10 @@ export type Edge = {
     kind: "complete";
     previous: Item;
     child: Item;
+} | {
+    kind: "restore";
+    token: number;
+    terminal: string;
 };
 export type TermValue = {
     string: string;
@@ -526,6 +567,25 @@ export type SpanValue = {
     start: number;
     end: number;
     tags?: TagSet;
+    /**
+     * in the check of engine §7, a span of the
+     * reconstructed input that an observation projects ("R"), or one that a
+     * fault reads as it is ("raw"); absent for a span of the stage's input
+     */
+    space?: "R" | "raw";
+    /**
+     * for a span of the stage's
+     * input that a function computed in the check, the span of R behind it,
+     * which only faults read
+     */
+    reconstructed?: [number, number];
+    /**
+     * for such a span, the exact span of R
+     * behind it: one original token for head and last, and from the first
+     * original token of the span for tail, from and after; only faults read
+     * it
+     */
+    exact?: [number, number];
 };
 export type Scope = {
     capture: (name: string) => SpanValue;
@@ -637,14 +697,31 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {string} [stage]
  * @property {"tie" | "elision-only"} [reason] why an ambiguous error is
  *   one: a tie (engine §6) or the check of elision-only (engine §7)
+ * @property {"elision-witness-lost"} [code] a defect that the check of
+ *   elision-only found: it lost its chosen derivation (engine §7.9)
+ * @property {ResultNode} [chosen] for that defect, the chosen tree
+ * @property {Restoration[]} [completion] for that defect, the terminators
+ *   that the check wrote back, in their order of insertion
  * @property {number} [token]
  * @property {Span} [source]
  * @property {number} [line]
  * @property {number} [column]
  * @property {Expectation[]} [expected]
  * @property {ResultNode[]} [readings]
+ * @property {Witness} [witness] for an error of elision-only, where its
+ *   two readings first differ (engine §7.10)
  * @property {string} [document]
  * @property {string} message
+ */
+/**
+ * A terminator that the check of elision-only wrote back (engine §7.9): its
+ * terminal, its position in the stage's input, the empty source of its
+ * elided node, and the sound of a terminator with an `=` test.
+ * @typedef {object} Restoration
+ * @property {string} terminal
+ * @property {number} at
+ * @property {Span} source
+ * @property {string} [sound]
  */
 /**
  * One step of a derivation, read bottom-up: a token read, or a production
@@ -674,14 +751,23 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {StageReportBase & {verdict: "unique" | "resolved" | null, witness: null}} SettledStageReport
  */
 /**
- * Where the two readings of a tie first differ: their actions
- * there, null on the side of one that ended. The witness is plain data of
- * the result's own, and shares nothing with the grammar.
- * @typedef {[WitnessAction | null, WitnessAction | null]} Witness
+ * Where the two readings of a tie first differ: their actions there.
+ * Neither is ever missing (engine §6). The witness is plain data of the
+ * result's own, and shares nothing with the grammar.
+ * @typedef {[WitnessAction, WitnessAction]} Witness
  */
 /**
- * An action of a witness: a token read, or a production closed.
- * @typedef {WitnessRead | WitnessClose} WitnessAction
+ * An action of a witness: a token read, a production closed, or, in the
+ * witness of an error of elision-only, a read of a terminator that the
+ * check wrote back (engine §7.10).
+ * @typedef {WitnessRead | WitnessClose | WitnessElided} WitnessAction
+ */
+/**
+ * @typedef {object} WitnessElided
+ * @property {"elided"} kind
+ * @property {number} at the position in the stage's input where the
+ *   terminator was written back
+ * @property {string} terminal the terminal that read it
  */
 /**
  * @typedef {object} WitnessRead
@@ -980,7 +1066,8 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * How an item was built.
  * @typedef {{kind: "seed"} | {kind: "scan", previous: Item, token: number, terminal: string}
- *   | {kind: "complete", previous: Item, child: Item}} Edge
+ *   | {kind: "complete", previous: Item, child: Item}
+ *   | {kind: "restore", token: number, terminal: string}} Edge
  */
 /**
  * A value a term evaluates to: a string, or a set, of strings or of tags,
@@ -994,6 +1081,16 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {number} start
  * @property {number} end
  * @property {TagSet} [tags]
+ * @property {"R" | "raw"} [space] in the check of engine §7, a span of the
+ *   reconstructed input that an observation projects ("R"), or one that a
+ *   fault reads as it is ("raw"); absent for a span of the stage's input
+ * @property {[number, number]} [reconstructed] for a span of the stage's
+ *   input that a function computed in the check, the span of R behind it,
+ *   which only faults read
+ * @property {[number, number]} [exact] for such a span, the exact span of R
+ *   behind it: one original token for head and last, and from the first
+ *   original token of the span for tail, from and after; only faults read
+ *   it
  */
 /**
  * Where a term looks up its captures.

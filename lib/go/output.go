@@ -6,7 +6,7 @@ import (
 )
 
 // resultFormat is the version of docs/output.md.
-const resultFormat = 7
+const resultFormat = 9
 
 // MarshalResult writes the canonical JSON of a result (docs/output.md).
 func MarshalResult(result *ParseResult) ([]byte, error) {
@@ -165,6 +165,12 @@ func writeAction(w *jsonWriter, a Action) {
 		w.raw(`,"span":`)
 		w.pair(a.Close.Span)
 		w.raw("}}")
+	case a.Elided != nil:
+		w.raw(`{"elided":{"at":`)
+		w.int(a.Elided.At)
+		w.raw(`,"terminal":`)
+		w.str(a.Elided.Terminal)
+		w.raw("}}")
 	default:
 		w.raw("null")
 	}
@@ -243,6 +249,10 @@ func writeError(w *jsonWriter, e *ParseError) {
 		w.raw(`,"stage":`)
 		w.str(e.Stage)
 	}
+	if e.Code != "" {
+		w.raw(`,"code":`)
+		w.str(e.Code)
+	}
 	if e.Reason != "" {
 		w.raw(`,"reason":`)
 		w.str(e.Reason)
@@ -293,9 +303,43 @@ func writeError(w *jsonWriter, e *ParseError) {
 			writeNode(w, r)
 		}
 		w.raw("]")
+		if len(e.Witness) > 0 {
+			w.raw(`,"witness":[`)
+			for i, a := range e.Witness {
+				if i > 0 {
+					w.raw(",")
+				}
+				writeAction(w, a)
+			}
+			w.raw("]")
+		}
 	}
 	w.raw(`,"message":`)
 	w.str(e.Message)
+	// The members of elision-witness-lost follow its message
+	// (docs/output.md).
+	if e.Code == CodeElisionWitnessLost {
+		w.raw(`,"chosen":`)
+		writeNode(w, e.Chosen)
+		w.raw(`,"completion":[`)
+		for i, r := range e.Completion {
+			if i > 0 {
+				w.raw(",")
+			}
+			w.raw(`{"terminal":`)
+			w.str(r.Terminal)
+			w.raw(`,"at":`)
+			w.int(r.At)
+			w.raw(`,"source":`)
+			w.pair(r.Source)
+			if r.Tested {
+				w.raw(`,"sound":`)
+				w.str(r.Sound)
+			}
+			w.raw("}")
+		}
+		w.raw("]")
+	}
 	w.raw("}")
 }
 

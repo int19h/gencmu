@@ -1,0 +1,267 @@
+{
+  "description": "The two actions of an elision-only witness can be equal over the stage's input, where they are closes of one production whose spans of R differ only in synthetic tokens. The chosen d elides two T, so R is A T T B. x1 and x2 read the two synthetic T as bare terminals: x1's m covers both, and x2's m only the second. The witness closes m over the empty span at position 1 of the stage's input on both sides (engine §7.10).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text x1 | x2 | d | e\n%rule m [q] T\n%rule q T\n%rule x1 A m B\n%rule x2 A T m B\n%rule d A g B\n%rule g [T] [T]\n%rule e A [T] [T] [T] B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "elision-only",
+        "stage": "main",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              2
+            ],
+            "source": [
+              0,
+              3
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "x1",
+                "span": [
+                  0,
+                  2
+                ],
+                "source": [
+                  0,
+                  3
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "rule",
+                    "rule": "m",
+                    "span": [
+                      1,
+                      1
+                    ],
+                    "source": [
+                      1,
+                      1
+                    ],
+                    "tags": [],
+                    "children": [
+                      {
+                        "kind": "rule",
+                        "rule": "q",
+                        "span": [
+                          1,
+                          1
+                        ],
+                        "source": [
+                          1,
+                          1
+                        ],
+                        "tags": [],
+                        "children": [
+                          {
+                            "kind": "elided",
+                            "terminal": "T",
+                            "span": [
+                              1,
+                              1
+                            ],
+                            "source": [
+                              1,
+                              1
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "elided",
+                        "terminal": "T",
+                        "span": [
+                          1,
+                          1
+                        ],
+                        "source": [
+                          1,
+                          1
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "B",
+                    "token": 1,
+                    "span": [
+                      1,
+                      2
+                    ],
+                    "source": [
+                      2,
+                      3
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              2
+            ],
+            "source": [
+              0,
+              3
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "x2",
+                "span": [
+                  0,
+                  2
+                ],
+                "source": [
+                  0,
+                  3
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "elided",
+                    "terminal": "T",
+                    "span": [
+                      1,
+                      1
+                    ],
+                    "source": [
+                      1,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "rule",
+                    "rule": "m",
+                    "span": [
+                      1,
+                      1
+                    ],
+                    "source": [
+                      1,
+                      1
+                    ],
+                    "tags": [],
+                    "children": [
+                      {
+                        "kind": "elided",
+                        "terminal": "T",
+                        "span": [
+                          1,
+                          1
+                        ],
+                        "source": [
+                          1,
+                          1
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "B",
+                    "token": 1,
+                    "span": [
+                      1,
+                      2
+                    ],
+                    "source": [
+                      2,
+                      3
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "witness": [
+          {
+            "close": {
+              "rule": "m",
+              "production": 4,
+              "span": [
+                1,
+                1
+              ]
+            }
+          },
+          {
+            "close": {
+              "rule": "m",
+              "production": 4,
+              "span": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

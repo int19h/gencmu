@@ -633,7 +633,7 @@ func TestRankingProperty(t *testing.T) {
 		if serr != nil {
 			t.Fatalf("seed %d: %v", seed+int64(c), serr)
 		}
-		lg := lower(sg, nil, false)
+		lg := lower(sg, nil)
 		if lg.fault != "" {
 			skipped++
 			continue
@@ -723,7 +723,7 @@ func TestRankingProperty(t *testing.T) {
 		// otherwise it has the verdict of the oracle.
 		if lean == lg.lean {
 			ps := newParseState(bundled.uni, []rune(strings.Join(texts, " ")))
-			out := ps.newRun("main", sg, toks).run(lg, nil, false)
+			out := ps.newRun("main", sg, toks).run(lg, false)
 			wantVerdict := ""
 			if want != nil {
 				wantVerdict = want.verdict
@@ -804,7 +804,7 @@ func TestOracleRepeatedPartialItem(t *testing.T) {
 	if serr != nil {
 		t.Fatal(serr)
 	}
-	lg := lower(sg, nil, false)
+	lg := lower(sg, nil)
 	tags := []map[string]bool{{"A": true}, {"B": true}}
 	en := &enumerator{g: lg, tags: tags, sounds: []string{"", ""}, memo: map[string][]*bnode{}, budget: 20000}
 	trees, derr := en.derive(symbol{id: lg.byName["text"]}, 0, 2, nil)

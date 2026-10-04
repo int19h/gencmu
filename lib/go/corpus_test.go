@@ -75,9 +75,26 @@ func readCorpus(t *testing.T) []*corpusCase {
 
 // corpusOutcome is what gencmu makes of a case, in the case's own terms.
 func corpusOutcome(d *Dialect, c *corpusCase) (map[string]any, error) {
-	res, err := d.Parse(c.Text, ParseOptions{Features: c.Features, WithoutFeatures: c.WithoutFeatures})
+	return corpusOutcomeLosing(d, c, "")
+}
+
+// corpusOutcomeLosing is corpusOutcome, with a private switch that loses
+// the witness of each check of elision-only, or "" for none. A result with
+// the error elision-witness-lost fails, whatever the case expects, and so
+// does a check that did not keep its witness (tests/README.md).
+func corpusOutcomeLosing(d *Dialect, c *corpusCase, lose string) (map[string]any, error) {
+	opts := ParseOptions{Features: c.Features, WithoutFeatures: c.WithoutFeatures}
+	log := withChecks(&opts)
+	opts.private.loseWitness = lose
+	res, err := d.Parse(c.Text, opts)
 	if err != nil {
 		return nil, err
+	}
+	if res.Error != nil && res.Error.Code != "" {
+		return nil, fmt.Errorf("the result is the error %s, which no grammar gives", res.Error.Code)
+	}
+	if n := log.lost(); n > 0 {
+		return nil, fmt.Errorf("%d checks of elision-only lost the witness of their chosen derivation", n)
 	}
 	data, _ := MarshalResult(res)
 	var canonical any
@@ -212,6 +229,28 @@ func TestCorpus(t *testing.T) {
 	if s := os.Getenv("GENCMU_CORPUS_WORKERS"); s != "" {
 		workers, _ = strconv.Atoi(s)
 	}
+	// The peak of the live heap, sampled while the cases run, for comparing
+	// the memory of one version with another's (runtime.MemStats).
+	var before runtime.MemStats
+	runtime.ReadMemStats(&before)
+	var peakAlloc, peakInuse uint64
+	sampled := make(chan struct{})
+	stopSampling := make(chan struct{})
+	go func() {
+		defer close(sampled)
+		tick := time.NewTicker(250 * time.Millisecond)
+		defer tick.Stop()
+		for {
+			var m runtime.MemStats
+			runtime.ReadMemStats(&m)
+			peakAlloc, peakInuse = max(peakAlloc, m.HeapAlloc), max(peakInuse, m.HeapInuse)
+			select {
+			case <-stopSampling:
+				return
+			case <-tick.C:
+			}
+		}
+	}()
 	started := time.Now()
 	jobs := make(chan *corpusCase)
 	var mu sync.Mutex
@@ -236,9 +275,11 @@ func TestCorpus(t *testing.T) {
 	}
 	close(jobs)
 	wg.Wait()
+	close(stopSampling)
+	<-sampled
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
-	t.Logf("%d cases on %d goroutines in %v; %d differ; heap obtained from the OS %d MB", len(cases), workers, time.Since(started).Round(time.Millisecond), len(failures), mem.Sys>>20)
+	t.Logf("%d cases on %d goroutines in %v; %d differ; live heap at peak %d MB allocated, %d MB in use; %d MB allocated in all; heap obtained from the OS %d MB", len(cases), workers, time.Since(started).Round(time.Millisecond), len(failures), peakAlloc>>20, peakInuse>>20, (mem.TotalAlloc-before.TotalAlloc)>>20, mem.Sys>>20)
 	sort.Strings(failures)
 	for i, f := range failures {
 		if i == 20 {

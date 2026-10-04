@@ -1,0 +1,52 @@
+{
+  "description": "Maximality does not apply to the reconstruction's roots. c restores its [T] after y → A, although y → A T is longer, because a restoration reads a token and omits nothing. So c is a second reading (stage-wide maximal; engine §7.7).",
+  "grammar": "%ambiguity-resolution late-elision elision-only maximal\n%elidable T\n%rule text a | b | c\n%rule a A [T] [T]\n%rule b A [T] [T] [T]\n%rule c y [T] T\n%rule y A | A T",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "elision-only",
+        "stage": "main",
+        "witness": [
+          {
+            "close": {
+              "rule": "a",
+              "production": 3,
+              "span": [
+                0,
+                1
+              ]
+            }
+          },
+          {
+            "close": {
+              "rule": "c",
+              "production": 15,
+              "span": [
+                0,
+                1
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

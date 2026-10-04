@@ -1,0 +1,36 @@
+{
+  "description": "A production with no symbols has a `$` condition, initial($), which the recognizer evaluates at prediction, and a tag term that would be an error of the grammar. Away from the start of the input the condition fails first, so the tag term never runs, and the text is rejected (engine §4).",
+  "grammar": "%rule text A x B\n%rule x ε <tag(text($))>\n%conditions initial($)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "token": 1
+      }
+    },
+    "error": "rejected"
+  }
+}

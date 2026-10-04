@@ -721,7 +721,9 @@ class Production:
     slots: tuple[int, ...] = ()
     conds_predict: list[Dom] = field(default_factory=list)
     conds_at: dict[int, list[Dom]] = field(default_factory=dict)
-    conds_whole: list[Dom] = field(default_factory=list)
+    # Whether a condition at the last symbol reads ``$``, which then has the
+    # constituent's tags (engine §4).
+    whole_ready: bool = False
     tags_term: Dom | None = None
     emit: Any = None
     # Whether its constituent is an opaque part, which sounds ``?`` and
@@ -770,6 +772,10 @@ class Lowered:
     # terminator.
     elidable_helpers: frozenset[int] = frozenset()
     maximal_helpers: frozenset[int] = frozenset()
+    # For each production, the index of its last symbol that can read in
+    # the reconstruction mode of engine §7.4, or -1; found when the check
+    # first needs it.
+    reading_last: list[int] | None = None
 
     def __post_init__(self) -> None:
         self.elidable_helpers = frozenset(
@@ -810,10 +816,9 @@ def written_symbol(name: str, test: SymbolTest | None) -> str:
 
 
 class _Lowerer:
-    def __init__(self, grammar: Grammar, features: frozenset[str], elision: bool) -> None:
+    def __init__(self, grammar: Grammar, features: frozenset[str]) -> None:
         self.grammar = grammar
         self.features = features
-        self.elision = elision
         self.rule_names: list[str] = list(grammar.rules)
         self.rule_ids = {name: index for index, name in enumerate(self.rule_names)}
         self.rule_display: list[str] = list(self.rule_names)
@@ -921,8 +926,6 @@ class _Lowerer:
             body = yield self._expand(inner)
             first = self.first_terminal(inner)
             elidable = first is not None and first[0] in self.grammar.elidable
-            if elidable and self.elision:
-                return [[(("n", self.new_helper(body)), None)]]
             helper = self.new_helper([[]] + body, first if elidable else None)
             return [[(("n", helper), None)]]
         if "repeat" in expr:
@@ -1011,8 +1014,11 @@ class _Lowerer:
                     return
                 names = captures_in(condition)
                 if WHOLE in names and rhs:
-                    # Evaluated when the item is complete (engine §4).
-                    production.conds_whole.append(condition)
+                    # Evaluated when the item is complete, in written order
+                    # with the conditions on captures that become ready at
+                    # the same advance (engine §4).
+                    production.conds_at.setdefault(len(rhs) - 1, []).append(condition)
+                    production.whole_ready = True
                 elif names - {WHOLE}:
                     production.conds_at.setdefault(max(captures[name] for name in names), []).append(condition)
                 else:
@@ -1186,12 +1192,12 @@ class _Lowerer:
         )
 
 
-def lower(grammar: Grammar, features: frozenset[str], elision: bool = False) -> Lowered:
+def lower(grammar: Grammar, features: frozenset[str]) -> Lowered:
     """Lower a stage's grammar for a set of enabled features (engine §3).
     The stage resolves its classifiers for the same features, before it
     lowers its rules (engine §2, §3)."""
     classifiers = grammar.classifiers(features)
-    lowered = _Lowerer(grammar, features, elision).lower()
+    lowered = _Lowerer(grammar, features).lower()
     lowered.classifiers = classifiers
     lowered.implications = grammar.implications
     return lowered

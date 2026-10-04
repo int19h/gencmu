@@ -186,8 +186,10 @@ class NotationReader:
         tree = None
         for number, (name, lowered) in enumerate(self.stages):
             last = number == len(self.stages) - 1
-            runner = StageRunner(name, lowered, lambda: lowered, tokens, grammar_text.text, self.unicode, emit=not last)
-            outcome = runner.run(False)
+            runner = StageRunner(name, lowered, tokens, grammar_text.text, self.unicode, emit=not last)
+            # Each notation stage runs the check of elision-only where its
+            # own directive declares it (engine §8).
+            outcome = runner.run(lowered.grammar.elision_only)
             if outcome.error is not None and outcome.error.kind == "ambiguous":
                 # A tie has no single position, so the error names the
                 # document alone, never its start (engine §8).
@@ -439,13 +441,13 @@ class Dialect:
         self.features = _dialect_features(path, stages, pipeline.features)
         self.grammars = stages
         self.unicode = unicode
-        # Each stage's lowered grammars, keyed by the gates that are on and
-        # by strictness, or the error that lowering found.
-        self._lowered: list[Recent[tuple[frozenset[str], bool], Lowered | ErrorData]] = [Recent(MAX_LOWERED) for _ in stages]
+        # Each stage's lowered grammars, keyed by the gates that are on, or
+        # the error that lowering found.
+        self._lowered: list[Recent[frozenset[str], Lowered | ErrorData]] = [Recent(MAX_LOWERED) for _ in stages]
         self._lock = threading.Lock()
         for number in range(len(stages)):
             try:
-                self.lowered(number, self.declared, False)
+                self.lowered(number, self.declared)
             except GencmuError:
                 # An error lowering finds is a result of the parses that
                 # meet it (engine §3.3, §13), not an error of the load.
@@ -455,16 +457,18 @@ class Dialect:
     def stage_names(self) -> list[str]:
         return [grammar.stage for grammar in self.grammars]
 
-    def lowered(self, number: int, features: frozenset[str], elision: bool) -> Lowered:
+    def lowered(self, number: int, features: frozenset[str]) -> Lowered:
         # Only the gates that are on change the productions. So two sets of
-        # features with the same gates on share one lowered grammar.
+        # features with the same gates on share one lowered grammar. The
+        # check of elision-only reads the same one in a mode of its own
+        # (engine §7.1).
         gates = features & self.grammars[number].gates
-        key = (gates, elision)
+        key = gates
         with self._lock:
             found = self._lowered[number].get(key)
         if found is None:
             try:
-                found = lower(self.grammars[number], gates, elision)
+                found = lower(self.grammars[number], gates)
             except GencmuError as error:
                 found = ErrorData.of(error)
             with self._lock:
@@ -623,7 +627,7 @@ class Dialect:
         for number in range(first, last + 1):
             grammar = self.grammars[number]
             try:
-                lowered = self.lowered(number, features, False)
+                lowered = self.lowered(number, features)
             except GencmuError as error:
                 # An error of the grammar lowering finds for these features
                 # is a result, with its stage and no position (engine §13).
@@ -632,10 +636,7 @@ class Dialect:
                 outcomes.append(StageOutcome(error=failure))
                 return ParseResult(False, stages, None, failure, text, warnings), [StageOutcome()] * first + outcomes
 
-            def elision_lowered(number: int = number) -> Lowered:
-                return self.lowered(number, features, True)
-
-            runner = StageRunner(grammar.stage, lowered, elision_lowered, current, text, self.unicode, features=features)
+            runner = StageRunner(grammar.stage, lowered, current, text, self.unicode, features=features)
             check = grammar.elision_only if elision_only is None else elision_only
             outcome = runner.run(check)
             outcomes.append(outcome)

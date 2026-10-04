@@ -1,0 +1,58 @@
+{
+  "description": "Nonempty text does not show that T was written. In the check, c reads the synthetic T and then F through #, so the text of tt is \"f\", tt has ~written, and c is a second reading. The engine is right here, and a grammar that means \"T was written\" observes the token, as reparse-written-observation-head does (engine §7.5).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a A [T] f\n%rule b A [T] [T] f\n%rule c A $t(tt)\n%conditions ~written ⊆ tags($t)\n%rule tt [T #] <text($) ≠ \"\" ⟹ ~written>\n%rule # [F ...]\n%rule f F",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "f",
+      "tags": [
+        "F"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "elision-only",
+        "stage": "main",
+        "witness": [
+          {
+            "close": {
+              "rule": "a",
+              "production": 3,
+              "span": [
+                0,
+                2
+              ]
+            }
+          },
+          {
+            "close": {
+              "rule": "c",
+              "production": 11,
+              "span": [
+                0,
+                2
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "description": "Where an alternative's own tag term and the definition's `%tags` join, both can fail. Here the alternative's own term is tag(\"\"), and `%tags` asks a query about its own rule and span. Either error ends the parse with an error of the grammar. Which of the two messages the result has is free, so the case pins only the kind (engine §4, §3.7).",
+  "grammar": "%rule text A x\n%rule x B <tag(text(tail($)))>\n%tags\n  tags($, x)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "error": {
+        "kind": "grammar"
+      }
+    },
+    "error": "grammar"
+  }
+}

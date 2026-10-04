@@ -5,20 +5,21 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::dom::{FeatureKind, Guard};
-use crate::earley::{matchers, Chart, EngineError, Recognizer, Shared, Tok};
+use crate::earley::{matchers, Chart, EngineError, Matcher, Recognizer, Recon, Shared, Tok};
 use crate::error::Error;
 use crate::grammar::{Change, ClassifierTables, Lean, StageGrammar};
 use crate::lower::{lower, Lowered, Prod, Sym, SymbolTest, TestOp};
 use crate::maximal::Maximal;
-use crate::rank::{Act, Ranker, Ranking, Verdict as RankVerdict};
+use crate::rank::{Act, Ranker, Verdict as RankVerdict};
 use crate::recent::Recent;
 use crate::result::{
-    Action, AmbiguityReason, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Stage, Tags, Token,
-    Verdict, Warning,
+    Action, AmbiguityReason, ErrorCode, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Restoration,
+    Stage, Tags, Token, Verdict, Warning,
 };
 use crate::tags::character_tag;
-use crate::tree::{build, emit, public_tree, warnings_of, IKind, ITree, TreeContext};
+use crate::tree::{build, emit, public_tree, warnings_of, IKind, ITree, ReadingMap, Sources, TreeContext};
 use crate::unicode::Unicode;
+use crate::witness::{self, CheckForest};
 
 /// The options of [`Dialect::parse`].
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -104,9 +105,8 @@ struct StageCache {
     /// The features that gate an entry of a classifier, in code point
     /// order. Only these change the classifiers.
     classifier_gates: Vec<String>,
-    /// The lowered grammars, keyed by the gates that are on and by whether
-    /// elidable optionals are mandatory.
-    lowered: Mutex<Recent<(Vec<String>, bool), LoweredCell>>,
+    /// The lowered grammars, keyed by the gates that are on.
+    lowered: Mutex<Recent<Vec<String>, LoweredCell>>,
     /// The classifiers, keyed by the classifier gates that are on (§2).
     classifiers: Mutex<Recent<Vec<String>, ClassifiersCell>>,
 }
@@ -279,20 +279,20 @@ impl Dialect {
     /// features with the same gates on share one lowered grammar. The first
     /// parse that needs it lowers it, outside the lock, so it does not hold
     /// up the parses that need other ones.
-    fn lowered(&self, stage: usize, features: &BTreeSet<String>, mandatory: bool) -> LoweredResult {
+    fn lowered(&self, stage: usize, features: &BTreeSet<String>) -> LoweredResult {
         let cache = &self.caches[stage];
         let on = names_on(&cache.gates, features);
         let cell = cache
             .lowered
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .get_or_insert_with((on.clone(), mandatory), Default::default);
+            .get_or_insert_with(on.clone(), Default::default);
         cell.get_or_init(|| {
             let on: BTreeSet<String> = on.into_iter().collect();
             // The stage resolves its classifiers for the same features,
             // before it lowers its rules (§2, §3).
             let classifiers = self.classifiers(stage, &on)?;
-            lower(&self.stages[stage], &on, mandatory, classifiers)
+            lower(&self.stages[stage], &on, classifiers)
                 .map(Arc::new)
                 .map_err(|error| EngineError { message: error.message, rule: Some(error.rule) })
         })
@@ -516,6 +516,7 @@ impl Dialect {
         ParseError {
             kind: ParseErrorKind::Grammar,
             stage: Some(stage.name.clone()),
+            code: None,
             reason: None,
             token: None,
             source: None,
@@ -525,6 +526,9 @@ impl Dialect {
             expected: Vec::new(),
             readings: Vec::new(),
             message,
+            chosen: None,
+            completion: Vec::new(),
+            witness: None,
         }
     }
 
@@ -542,7 +546,7 @@ impl Dialect {
         let public_input = std::mem::take(&mut run.public_input);
         let mut stage =
             Stage { name: grammar.name.clone(), input: public_input, output: None, verdict: None, witness: None };
-        let lowered = match self.lowered(index, features, false) {
+        let lowered = match self.lowered(index, features) {
             Ok(lowered) => lowered,
             Err(error) => {
                 let error = self.grammar_error(index, error);
@@ -552,7 +556,7 @@ impl Dialect {
         };
         let matchers = matchers(&lowered, &mut shared.tags);
         let chart = {
-            let mut recognizer = Recognizer { g: &lowered, matchers: &matchers, shared };
+            let mut recognizer = Recognizer { g: &lowered, matchers: &matchers, shared, recon: None };
             recognizer.recognize(&input, 0, lowered.start)
         };
         let chart = match chart {
@@ -600,7 +604,7 @@ impl Dialect {
             return Err(Box::new(error));
         };
         let tag_set = |set: u32| shared.tags.to_set(set);
-        let context = TreeContext { g: &lowered, tokens: &input, tag_map: &tag_set, synthetic: None };
+        let context = TreeContext { g: &lowered, tokens: &input, tag_map: &tag_set, reading: None };
         stage.verdict = Some(match ranking.verdict {
             RankVerdict::Unique => Verdict::Unique,
             RankVerdict::Resolved => Verdict::Resolved,
@@ -624,7 +628,7 @@ impl Dialect {
         // the `elision-only` check then fails (§12).
         run.warnings.extend(warnings_of(&chosen, &lowered, &input, features, &grammar.name));
         let emitted = {
-            let mut recognizer = Recognizer { g: &lowered, matchers: &matchers, shared };
+            let mut recognizer = Recognizer { g: &lowered, matchers: &matchers, shared, recon: None };
             emit(&mut recognizer, &chosen, &input)
         };
         let emitted = match emitted {
@@ -666,11 +670,39 @@ impl Dialect {
         let check = elision.unwrap_or(grammar.elision_only);
         let mut ambiguous = None;
         if check && ranking.verdict == RankVerdict::Resolved {
-            match self.elision_check(index, shared, &input, &chosen, &lowered, features) {
-                Ok(found) => ambiguous = found,
+            match self.elision_check(index, shared, &input, &chosen, &lowered, &matchers) {
+                Ok(Check::Pass) => {}
+                Ok(Check::Ambiguous(error)) => ambiguous = Some(*error),
+                // The witness of the chosen derivation is lost: a defect of
+                // the engine, which ends the stage with no output (§7.9).
+                Ok(Check::Lost(completion)) => {
+                    let name = &grammar.name;
+                    let error = ParseError {
+                        kind: ParseErrorKind::Grammar,
+                        stage: Some(name.clone()),
+                        code: Some(ErrorCode::ElisionWitnessLost),
+                        reason: None,
+                        token: None,
+                        source: None,
+                        document: None,
+                        line: None,
+                        column: None,
+                        expected: Vec::new(),
+                        readings: Vec::new(),
+                        message: format!(
+                            "the {name} stage could not reconstruct its chosen derivation for elision-only"
+                        ),
+                        chosen: Some(tree),
+                        completion,
+                        witness: None,
+                    };
+                    run.stages.push(stage);
+                    return Err(Box::new(error));
+                }
+                // An error of the grammar in the check ends the stage as
+                // one found while emitting does: it keeps its verdict and
+                // warnings, but it has no output (§7.7).
                 Err(error) => {
-                    // The stage keeps its verdict and warnings, but it has
-                    // no output.
                     let error = self.grammar_error(index, error);
                     run.stages.push(stage);
                     return Err(Box::new(error));
@@ -697,6 +729,7 @@ impl Dialect {
         ParseError {
             kind: ParseErrorKind::Ambiguous,
             stage: Some(stage.clone()),
+            code: None,
             reason: Some(AmbiguityReason::Tie),
             token: None,
             source: None,
@@ -706,6 +739,9 @@ impl Dialect {
             expected: Vec::new(),
             readings,
             message: format!("stage {stage} has two best readings of its text, a tie"),
+            chosen: None,
+            completion: Vec::new(),
+            witness: None,
         }
     }
 
@@ -732,6 +768,7 @@ impl Dialect {
         ParseError {
             kind: ParseErrorKind::Rejected,
             stage: Some(stage.clone()),
+            code: None,
             reason: None,
             token: Some(position),
             source: Some(source),
@@ -741,11 +778,21 @@ impl Dialect {
             expected,
             readings: Vec::new(),
             message,
+            chosen: None,
+            completion: Vec::new(),
+            witness: None,
         }
     }
 
-    /// The `elision-only` check (engine §7): `Some` error when the text is
-    /// still ambiguous with the chosen tree's elided terminators written.
+    /// The check of `elision-only` (engine §7). It writes the chosen
+    /// derivation's elided terminators back into the stage's input as
+    /// synthetic tokens, and recognizes that input, R, with the main
+    /// lowering in the reconstruction mode. Every observation reads the
+    /// stage's input through the projection π, and the check's queries
+    /// share the main parse's memo. It passes where R has one derivation,
+    /// gives two readings where it has more, and has lost the witness of
+    /// the chosen derivation where it has none.
+    #[allow(clippy::too_many_arguments)]
     fn elision_check(
         &self,
         index: usize,
@@ -753,12 +800,14 @@ impl Dialect {
         input: &[Tok],
         chosen: &ITree,
         g: &Lowered,
-        features: &BTreeSet<String>,
-    ) -> Result<Option<ParseError>, EngineError> {
-        // The chosen tree's elided terminators in the order of its leaves,
-        // each with its position and the string of its `=` test, if it has
-        // one.
-        let mut elided: Vec<(usize, &str, Option<&str>)> = Vec::new();
+        matchers: &[Matcher],
+    ) -> Result<Check, EngineError> {
+        // The restoration records (§7.2): the chosen tree's elided
+        // terminators in the order of its leaves, each with its position,
+        // the empty source of its elided node, and the string of its `=`
+        // test, if it has one.
+        let sources = Sources::new(input);
+        let mut records: Vec<Restoration> = Vec::new();
         let mut stack = vec![0u32];
         while let Some(index) = stack.pop() {
             let node = &chosen.nodes[index as usize];
@@ -766,72 +815,162 @@ impl Dialect {
                 let production = &g.prods[prod as usize];
                 let rule = &g.rules[production.rule as usize];
                 if let (true, Some(terminal), true) = (rule.helper, &rule.elided, production.syms.is_empty()) {
-                    // Only the string of an `=` test gives the restored
-                    // token a sound (§7).
                     let test =
                         rule.elided_test.map(|test| &g.tests[test as usize]).filter(|test| test.op == TestOp::Is);
-                    elided.push((start as usize, terminal, test.and_then(|test| test.sound.as_deref())));
+                    let at = sources.empty(start as usize);
+                    records.push(Restoration {
+                        terminal: terminal.clone(),
+                        at: start as usize,
+                        source: at..at,
+                        sound: test.and_then(|test| test.sound.clone()),
+                    });
                 }
             }
             stack.extend(node.children.iter().rev());
         }
-        let mut tokens = Vec::with_capacity(input.len() + elided.len());
-        let mut synthetic = Vec::with_capacity(input.len() + elided.len());
-        let mut next = elided.iter().peekable();
+        // R: the stage's input with one synthetic token before the input
+        // token at each record's position, or at the end. A synthetic
+        // token's recognition tags are its terminal, and its recognition
+        // sound its saved sound. Its provenance, kept apart, is what marks
+        // it (§7.2).
+        let mut tokens = Vec::with_capacity(input.len() + records.len());
+        let mut synthetic = Vec::with_capacity(input.len() + records.len());
+        let mut record_of: Vec<Option<u32>> = Vec::with_capacity(input.len() + records.len());
+        let mut original_at = Vec::with_capacity(input.len());
+        let mut record_at = Vec::with_capacity(records.len());
+        let mut next = records.iter().enumerate().peekable();
         for position in 0..=input.len() {
-            while let Some((_, terminal, sound)) = next.next_if(|(at, _, _)| *at == position) {
-                let at = if position > 0 {
-                    input[position - 1].source.1
-                } else {
-                    input.first().map_or(0, |token| token.source.0)
-                };
-                // A restored terminator with an `=` test sounds like the
-                // test's string, so that it matches its own terminator in the
-                // stricter grammar (§7).
+            while let Some((number, record)) = next.next_if(|(_, record)| record.at == position) {
+                record_at.push(tokens.len() as u32);
                 tokens.push(Tok {
                     text: String::new(),
-                    tags: shared.tags.set_of([*terminal]),
-                    phonemes: sound.map(str::to_string),
-                    source: (at, at),
+                    tags: shared.tags.set_of([record.terminal.as_str()]),
+                    phonemes: record.sound.clone(),
+                    source: (record.source.start, record.source.end),
                     label: String::new(),
                     sound: Default::default(),
                     before: Vec::new(),
                     after: Vec::new(),
                 });
                 synthetic.push(true);
+                record_of.push(Some(number as u32));
             }
             if position < input.len() {
+                original_at.push(tokens.len() as u32);
                 tokens.push(input[position].clone());
                 synthetic.push(false);
+                record_of.push(None);
             }
         }
-        let lowered = self.lowered(index, features, true)?;
-        let matchers = matchers(&lowered, &mut shared.tags);
-        shared.next_stage();
-        let chart = {
-            let mut recognizer = Recognizer { g: &lowered, matchers: &matchers, shared };
-            recognizer.recognize(&tokens, 0, lowered.start)
-        };
-        shared.next_stage();
-        let chart = chart?;
-        if !chart.accepts(lowered.start, tokens.len()) {
-            return Ok(None);
+        // π: the number of original tokens before each position of R
+        // (§7.3).
+        let mut project = Vec::with_capacity(tokens.len() + 1);
+        project.push(0u32);
+        for (index, &flag) in synthetic.iter().enumerate() {
+            project.push(project[index] + u32::from(!flag));
         }
-        // `maximal` does not apply here: the check's parse has no elided
-        // terminator (§4).
-        let mut ranker = Ranker::new(&lowered, &chart, &tokens, shared, Lean::Neither, None);
-        let Some(Ranking { verdict: RankVerdict::Tie, first, second: Some(second), .. }) = ranker.rank() else {
-            return Ok(None);
+        let recon = Recon { observed: input, project, synthetic };
+        // The recognition of R is not a query, and its queries share the
+        // memo and the active queries of the main parse (§7.6).
+        let chart = Recognizer { g, matchers, shared, recon: Some(&recon) }.recognize(&tokens, 0, g.start)?;
+        let loss = witness::loss();
+        let rooted = chart.accepts(g.start, tokens.len()) && loss != Some(witness::Loss::Roots);
+        // A test that watches the check marks W(D)'s links before the check
+        // ranks (tests/README.md).
+        let walk = if witness::watched() {
+            let empty = shared.tags.set(Vec::new());
+            let forest = CheckForest {
+                g,
+                chart: &chart,
+                rooted,
+                tokens: &tokens,
+                observed: input,
+                project: &recon.project,
+                synthetic: &recon.synthetic,
+                original_at: &original_at,
+                record_at: &record_at,
+                unicode: shared.unicode,
+                tags: &shared.tags,
+                empty,
+            };
+            Some(witness::walk(&forest, chosen))
+        } else {
+            None
         };
-        let first = build(&ranker, first);
-        let second = build(&ranker, second);
+        // Neither form of maximality applies to the derivations of R, and
+        // the ranking has no lean (§7.7).
+        let ranking = if rooted {
+            let marks = walk.as_ref().and_then(|walk| walk.as_ref()).map(|walk| &walk.marks);
+            let mut ranker = Ranker::new(g, &chart, &tokens, shared, Lean::Neither, None)
+                .observing(input, &recon.project)
+                .checking(marks);
+            ranker.rank().filter(|_| loss != Some(witness::Loss::Count)).map(|ranking| {
+                // The witness hook's two channels (tests/README.md): the count
+                // counted W(D), and on a tie neither reading comes after W(D)
+                // in the order T, unless the first is W(D).
+                let keeps = match walk.as_ref().and_then(|walk| walk.as_ref()) {
+                    Some(walk) if ranking.witness_counted == Some(true) => match ranking.second {
+                        Some(second) if ranking.verdict == RankVerdict::Tie => {
+                            let w = ranker.derivation(&walk.sequence);
+                            // W(D) is not after the first in T; where the first
+                            // is not W(D), W(D) is not before the second by
+                            // the criterion that picks it (§6): divergence from
+                            // the first, then T.
+                            !ranker.before(w, ranking.first)
+                                && (!ranker.before(ranking.first, w) || !ranker.second_before(ranking.first, w, second))
+                        }
+                        _ => true,
+                    },
+                    _ => false,
+                };
+                let readings = match (ranking.verdict, ranking.second) {
+                    (RankVerdict::Tie, Some(second)) => {
+                        Some((build(&ranker, ranking.first), build(&ranker, second), ranking.witness))
+                    }
+                    _ => None,
+                };
+                (ranking, readings, keeps)
+            })
+        } else {
+            None
+        };
+        if walk.is_some() {
+            witness::record(&self.stages[index].name, ranking.as_ref().is_some_and(|(_, _, keeps)| *keeps));
+        }
+        let Some((_, readings, _)) = ranking else {
+            return Ok(Check::Lost(records));
+        };
+        let Some((first, second, difference)) = readings else {
+            return Ok(Check::Pass);
+        };
+        // The witness, mapped to the stage's input as the readings are: a
+        // read of a synthetic token is an elided action at its record's
+        // position, and a close has the projection of its span (§7.10).
+        let project = &recon.project;
+        let mapped = |act: Act| match act {
+            Act::Read { tok, terminal } if recon.synthetic[tok as usize] => {
+                Action::Elided { at: project[tok as usize] as usize, terminal: g.terminals[terminal as usize].clone() }
+            }
+            Act::Read { tok, terminal } => {
+                Action::Read { token: project[tok as usize] as usize, terminal: g.terminals[terminal as usize].clone() }
+            }
+            Act::Close { prod, start, end, .. } => Action::Close {
+                rule: g.rules[g.prods[prod as usize].owner as usize].name.clone(),
+                production: prod as usize,
+                span: project[start as usize] as usize..project[end as usize] as usize,
+            },
+        };
+        let witness = difference.map(|(left, right)| [mapped(left), mapped(right)]);
+        // The readings, mapped to the stage's input (§7.10).
         let tag_set = |set: u32| shared.tags.to_set(set);
-        let context = TreeContext { g: &lowered, tokens: &tokens, tag_map: &tag_set, synthetic: Some(&synthetic) };
+        let map = ReadingMap { project: &recon.project, record_of: &record_of, records: &records };
+        let context = TreeContext { g, tokens: input, tag_map: &tag_set, reading: Some(&map) };
         let readings = vec![public_tree(&first, &context), public_tree(&second, &context)];
         let stage = &self.stages[index].name;
-        Ok(Some(ParseError {
+        Ok(Check::Ambiguous(Box::new(ParseError {
             kind: ParseErrorKind::Ambiguous,
             stage: Some(stage.clone()),
+            code: None,
             reason: Some(AmbiguityReason::ElisionOnly),
             token: None,
             source: None,
@@ -843,8 +982,21 @@ impl Dialect {
             message: format!(
                 "stage {stage} is ambiguous with every elided terminator written, so the ambiguity is not about terminators"
             ),
-        }))
+            chosen: None,
+            completion: Vec::new(),
+            witness,
+        })))
     }
+}
+
+/// What the check of `elision-only` found (engine §7): one reading of the
+/// reconstructed input, two, or none.
+enum Check {
+    Pass,
+    Ambiguous(Box<ParseError>),
+    /// The witness of the chosen derivation is lost (§7.9), with the
+    /// restoration records.
+    Lost(Vec<Restoration>),
 }
 
 /// Where a rejected input stopped (§4): the furthest position any item
@@ -979,7 +1131,7 @@ fn has_sa_su(tree: &Node) -> bool {
 #[cfg(test)]
 impl Dialect {
     pub(crate) fn lowered_stage(&self, stage: usize) -> Arc<Lowered> {
-        self.lowered(stage, &BTreeSet::new(), false).unwrap_or_else(|error| panic!("{}", error.message))
+        self.lowered(stage, &BTreeSet::new()).unwrap_or_else(|error| panic!("{}", error.message))
     }
 }
 

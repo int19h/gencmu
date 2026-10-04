@@ -1,6 +1,9 @@
 package gencmu
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 // The lowered grammar (engine §3): context-free productions over terminals
 // and rules, the helpers for the notation's sugar among the rules.
@@ -80,6 +83,10 @@ type lowered struct {
 	// classifiers holds the stage's classifiers resolved for these
 	// features: for each, each key's classes (§2).
 	classifiers map[string]map[string]*constValue
+	// reading is what can read in the reconstruction mode of the check of
+	// elision-only, made once, when a check first needs it (§7.4).
+	readingOnce sync.Once
+	reading     *readingSets
 }
 
 type slot struct {
@@ -108,14 +115,13 @@ func (p *production) testAt(i int) *symTest {
 }
 
 type lowerer struct {
-	g         *stageGrammar
-	l         *lowered
-	features  map[string]bool
-	mandatory bool
-	helpers   int
-	memo      map[*domExpr][][]slot // expansions of one alternative, by place
-	tests     map[*domExpr]*symTest // the tests of that alternative with their values
-	into      *[]*helperNode        // where a new helper goes
+	g        *stageGrammar
+	l        *lowered
+	features map[string]bool
+	helpers  int
+	memo     map[*domExpr][][]slot // expansions of one alternative, by place
+	tests    map[*domExpr]*symTest // the tests of that alternative with their values
+	into     *[]*helperNode        // where a new helper goes
 }
 
 // helperNode is the helper of one place where [ ] or ... is written,
@@ -129,9 +135,9 @@ type helperNode struct {
 	children []*helperNode
 }
 
-// lower lowers a stage's grammar for a set of features; mandatory makes
-// every optional that begins with an elidable terminal mandatory (§3.8).
-func lower(g *stageGrammar, features map[string]bool, mandatory bool) *lowered {
+// lower lowers a stage's grammar for a set of features. The check of
+// elision-only reads the same productions in a mode of its own (§3.8, §7.4).
+func lower(g *stageGrammar, features map[string]bool) *lowered {
 	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, lean: g.lean, maximal: g.maximal, maximalT: g.maximalT}
 	// The stage resolves its classifiers for the same features, before it
 	// lowers its rules; an error there ends the stage as an error of
@@ -142,7 +148,7 @@ func lower(g *stageGrammar, features map[string]bool, mandatory bool) *lowered {
 		return l
 	}
 	l.classifiers = tables.tables
-	lw := &lowerer{g: g, l: l, features: features, mandatory: mandatory}
+	lw := &lowerer{g: g, l: l, features: features}
 	for _, r := range g.rules {
 		l.byName[r.name] = int32(len(l.rules))
 		l.rules = append(l.rules, &lrule{name: r.name, owner: r.name, scc: -1})
@@ -534,15 +540,8 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 				elideT = lw.tests[tested]
 			}
 		}
-		// A tested elidable terminal keeps its test when its optional is
-		// made mandatory (§3.8).
-		mandatory := elide != "" && lw.mandatory
 		return lw.helper(a, ruleName, elide, elideT, func(int32) [][]slot {
-			var out [][]slot
-			if !mandatory {
-				out = append(out, []slot{})
-			}
-			return append(out, lw.expand(inner, a, ruleName)...)
+			return append([][]slot{{}}, lw.expand(inner, a, ruleName)...)
 		})
 	case exRepeat:
 		inner, min := e.Inner, e.Min

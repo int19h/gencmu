@@ -290,7 +290,8 @@ pub enum Verdict {
     Tie,
 }
 
-/// An action of a derivation, in a tie's witness (engine §6).
+/// An action of a derivation, in a tie's witness (engine §6) or in that of
+/// an error of `elision-only` (engine §7.10).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     /// A read of a token as a terminal.
@@ -309,6 +310,14 @@ pub enum Action {
         production: usize,
         /// The range of the stage's input tokens it covers.
         span: Range<usize>,
+    },
+    /// In the witness of an error of `elision-only`, a read of a terminator
+    /// that the check wrote back (engine §7.10).
+    Elided {
+        /// The position in the stage's input where it was written back.
+        at: usize,
+        /// The terminal it was read as.
+        terminal: String,
     },
 }
 
@@ -356,6 +365,31 @@ pub enum AmbiguityReason {
     ElisionOnly,
 }
 
+/// What a defect that the library found in itself is (engine §7.9). Only
+/// an error of kind `Grammar` can have one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ErrorCode {
+    /// The check of `elision-only` lost the chosen derivation: the text with
+    /// its elided terminators written back had no reading at all. It is a
+    /// defect of the library, not of the text or the grammar.
+    ElisionWitnessLost,
+}
+
+/// A terminator that the check of `elision-only` wrote back (engine §7.2,
+/// §7.9).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Restoration {
+    /// The terminal.
+    pub terminal: String,
+    /// Its position in the stage's input.
+    pub at: usize,
+    /// The empty source of its elided node.
+    pub source: Range<usize>,
+    /// The string of the terminator's `=` test, its saved sound; `None`
+    /// for a terminator with no such test.
+    pub sound: Option<String>,
+}
+
 /// A terminal a rejected stage could have read next, with the rules whose
 /// items could have read it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -373,6 +407,9 @@ pub struct ParseError {
     pub kind: ParseErrorKind,
     /// The stage it concerns.
     pub stage: Option<String>,
+    /// For a defect that the library found in itself, what it is (engine
+    /// §7.9); `None` for every other error.
+    pub code: Option<ErrorCode>,
     /// For an ambiguity, why it is one.
     pub reason: Option<AmbiguityReason>,
     /// The stage-input token it concerns.
@@ -391,8 +428,17 @@ pub struct ParseError {
     /// For an ambiguity, the two readings: the first and the second
     /// reading of the tie, or of the ranking of the `elision-only` check.
     pub readings: Vec<Node>,
+    /// For an error of `elision-only`, the pair of actions where its two
+    /// readings first differ, over the stage's input (engine §7.10). A
+    /// tie's witness is its stage's.
+    pub witness: Option<[Action; 2]>,
     /// The human description.
     pub message: String,
+    /// For `ErrorCode::ElisionWitnessLost`, the stage's chosen tree.
+    pub chosen: Option<Node>,
+    /// For `ErrorCode::ElisionWitnessLost`, the terminators that the check
+    /// wrote back, in their order of insertion; empty for any other error.
+    pub completion: Vec<Restoration>,
 }
 
 impl fmt::Display for ParseError {

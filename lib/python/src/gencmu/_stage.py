@@ -4,17 +4,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Union
+from typing import Any, Union
 
-from ._earley import Evaluator, Forest, Parser, Sources, StageContext
+from ._earley import RESTORE, Evaluator, Forest, Parser, Sources, StageContext
 from ._errors import _GrammarFault
 from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._markdown import line_column
 from ._maximal import Maximal
-from ._model import Action, Expected, Node, ParseError, ParseWarning, Range, Tags, Token
-from ._rank import Act, Ranking, Rope, actions, count_roots, rank
+from ._model import Action, Expected, Node, ParseError, ParseWarning, Range, Restoration, Tags, Token
+from ._rank import Act, Ranker, Ranking, Rope, actions, count_roots, rank
 from ._tags import PAUSE, phoneme_of
 from ._unicode import UnicodeTable
+from . import _testing
 
 
 class DRead:
@@ -55,7 +56,9 @@ def derivation(forest: Forest, rope: Rope | None) -> DNode:
             stack.append(DRead(act.token, act.terminal))
             continue
         production = productions[act.production]
-        size = len(production.rhs)
+        # A restoration closes its empty production over the one token that
+        # it read (engine §7.4).
+        size = 1 if forest.edges[act.item][0][1] == RESTORE else len(production.rhs)
         children = stack[len(stack) - size :] if size else []
         if size:
             del stack[len(stack) - size :]
@@ -605,7 +608,6 @@ class StageRunner:
         self,
         name: str,
         lowered: Lowered,
-        elision_lowered: Callable[[], Lowered],
         tokens: list[Token],
         text: str,
         unicode: UnicodeTable,
@@ -614,7 +616,6 @@ class StageRunner:
     ) -> None:
         self.name = name
         self.lowered = lowered
-        self.elision_lowered = elision_lowered
         self.tokens = tokens
         self.text = text
         self.unicode = unicode
@@ -696,19 +697,23 @@ class StageRunner:
             if self.emit:
                 outcome.output = emitter.emit()
             # The check runs only for a stage that chose one of several
-            # derivations (engine §7).
+            # derivations (engine §7.1).
             if elision_only and ranking.verdict == "resolved":
                 # The stage accepted its input, so it has its output; the
                 # check makes the parse fail, and the result has no tree.
-                error = self.check_elision(tree.root)
+                error = self.check_elision(context, root, tree.root)
                 if error is not None:
                     outcome.error = error
                     outcome.tree = None
+                    if error.code is not None:
+                        # A lost witness is a defect of the engine, and the
+                        # stage has no output (engine §7.9).
+                        outcome.output = None
         except _GrammarFault as fault:
             # A defect found once the stage has chosen its tree, while emitting
-            # or in the reparse of elision-only, leaves it without output; it
-            # keeps its verdict and warnings (engine §7, §11). A defect found
-            # while emitting ends the stage before the check.
+            # or in the check of elision-only, leaves it without output; it
+            # keeps its verdict and warnings (engine §7.7, §11). A defect
+            # found while emitting ends the stage before the check.
             outcome.output = None
             outcome.tree = None
             outcome.error = self.fault(fault, self.tokens)
@@ -721,7 +726,9 @@ class StageRunner:
         and no warnings. The error holds the first and the second reading
         (engine §6)."""
         lowered = self.lowered
-        assert ranking.witness is not None and ranking.witness[0] is not None and ranking.witness[1] is not None
+        # Neither action of a witness is ever missing (engine §6, §7.10).
+        if ranking.witness is None or ranking.witness[0] is None or ranking.witness[1] is None:
+            raise RuntimeError("the witness of a ranking lacks an action")
         readings = [Tree(derivation(forest, rope), context.sources, context.tagtab).root for rope in (ranking.first, ranking.second)]
         error = ParseError(
             "ambiguous",
@@ -733,70 +740,154 @@ class StageRunner:
         witness = (_action(ranking.witness[0], lowered), _action(ranking.witness[1], lowered))
         return StageOutcome(verdict="tie", witness=witness, error=error)
 
-    def check_elision(self, tree: Node) -> ParseError | None:
-        """Engine §7: write the chosen tree's elided terminators back and
-        parse again with none elidable. The check passes when that parse has
-        at most one derivation: it ranks with no lean, whatever the rule of
-        the stage, so any two derivations that differ are tied. Otherwise
-        the error holds the first and the second reading of that ranking."""
+    def check_elision(self, main: StageContext, chosen: DNode, tree: Node) -> ParseError | None:
+        """Engine §7: the check of elision-only. It writes the chosen
+        derivation's elided terminators back into the stage's input as
+        synthetic tokens and recognizes that input, R, with the main
+        lowering in the reconstruction mode. Every observation reads the
+        stage's input through the projection π. The check passes where R has
+        one derivation, and gives two readings where it has more. With none,
+        the witness of the chosen derivation is lost. ``main`` is the main
+        parse's context, whose memo the check's queries share; ``chosen`` is
+        D and ``tree`` its tree."""
         tokens = self.tokens
-        inserted = elided_nodes(tree)
-        new_tokens: list[Token] = []
+        # The restoration records, in the order of the tree's leaves (engine
+        # §7.2).
+        records = [
+            Restoration(node.terminal or "", node.span[0], node.source, node.sound) for node in elided_nodes(tree)
+        ]
+        # R: the stage's input with one synthetic token before the input
+        # token at each record's position, or at the end. A synthetic token's
+        # recognition tags are its terminal, and its recognition sound is its
+        # saved sound. Its provenance, kept apart, is what marks it.
+        restored: list[Token] = []
         synthetic: list[bool] = []
+        original_at: list[int] = []
+        record_at: list[int] = []
+        record_of: list[int] = []
         pending = 0
         for index in range(len(tokens) + 1):
-            while pending < len(inserted) and inserted[pending].span[0] == index:
-                node = inserted[pending]
-                # A restored terminator with an = test sounds like the
-                # test's string, so that it matches its own terminator in the
-                # stricter grammar (engine §7).
-                new_tokens.append(Token("", frozenset((node.terminal or "",)), (len(new_tokens), len(new_tokens)), node.source, node.sound))
+            while pending < len(records) and records[pending].at == index:
+                record = records[pending]
+                record_at.append(len(restored))
+                record_of.append(pending)
+                restored.append(Token("", frozenset((record.terminal,)), (len(restored), len(restored)), record.source, record.sound))
                 synthetic.append(True)
                 pending += 1
             if index < len(tokens):
-                new_tokens.append(tokens[index])
+                original_at.append(len(restored))
+                record_of.append(-1)
+                restored.append(tokens[index])
                 synthetic.append(False)
-        boundary = [0] * (len(new_tokens) + 1)
+        # π: the number of original tokens before each position of R (engine
+        # §7.3).
+        project = [0] * (len(restored) + 1)
         for index, is_synthetic in enumerate(synthetic):
-            boundary[index + 1] = boundary[index] + (0 if is_synthetic else 1)
-        lowered = self.elision_lowered()
-        context = self.context(lowered, new_tokens)
-        forest = Parser(context).parse(lowered.rule_ids["text"])
-        ranking = rank(forest, "none")
-        if ranking is None or ranking.verdict != "tie":
+            project[index + 1] = project[index] + (0 if is_synthetic else 1)
+        lowered = self.lowered
+        context = StageContext(lowered, restored, self.text, self.unicode, tagtab=main.tagtab)
+        context.synthetic = synthetic
+        context.project = project
+        context.observed = main
+        # The recognition of R is not a query (engine §4, §7.6).
+        forest = _reconstruct(context)
+        # A test that watches the check marks W(D)'s edges before the check
+        # ranks (tests/README.md).
+        hook = _testing.elision_check
+        watch = hook(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at)) if hook is not None else None
+        # Neither form of maximality applies to the derivations of R, and
+        # they rank with no lean (engine §7.7).
+        ranking = _rank_check(forest, watch.marks if watch is not None else None)
+        if watch is not None:
+            watch.ranked(ranking)
+        if ranking is None:
+            # The witness of the chosen derivation is lost: a defect of the
+            # engine (engine §7.9).
+            return ParseError(
+                "grammar",
+                f"the {self.name} stage could not reconstruct its chosen derivation for elision-only",
+                stage=self.name,
+                code="elision-witness-lost",
+                chosen=tree,
+                completion=records,
+            )
+        if ranking.verdict != "tie":
             return None
         readings = []
         original = Sources(tokens)
         for rope in (ranking.first, ranking.second):
             reading = Tree(derivation(forest, rope), context.sources, context.tagtab).root
-            readings.append(_map_back(reading, synthetic, boundary, original))
+            readings.append(_map_back(reading, synthetic, project, records, record_of, original))
+        # The witness, mapped to the stage's input as the readings are: a
+        # read of a synthetic token is an elided action at its record's
+        # position, and a close has the projection of its span (engine
+        # §7.10).
+        # Neither action of a witness is ever missing (engine §6, §7.10).
+        if ranking.witness is None or ranking.witness[0] is None or ranking.witness[1] is None:
+            raise RuntimeError("the witness of a ranking lacks an action")
+
+        def mapped(act: Act) -> Action:
+            if act.read and synthetic[act.token]:
+                return Action("elided", terminal=act.terminal, at=project[act.token])
+            if act.read:
+                return Action("read", token=project[act.token], terminal=act.terminal)
+            production = lowered.productions[act.production]
+            return Action("close", rule=production.rule_name, production=production.id, span=(project[act.start], project[act.end]))
+
         return ParseError(
             "ambiguous",
             f"stage {self.name} is ambiguous even with every elided terminator written out",
             stage=self.name,
             reason="elision-only",
             readings=readings,
+            witness=(mapped(ranking.witness[0]), mapped(ranking.witness[1])),
         )
 
 
-def _map_back(tree: Node, synthetic: list[bool], boundary: list[int], original: Sources) -> Node:
-    """A tree over the tokens with terminators written back, shown over the
-    original tokens: a written-back terminator is an elided node, and every
-    other node has the span and the source it has over the original tokens
-    (engine §7), since the written-back terminators have sources too."""
+def _reconstruct(context: StageContext) -> Forest:
+    """The recognition of the reconstructed input in the reconstruction
+    mode (engine §7.4, §7.7)."""
+    return Parser(context).parse(context.lowered.rule_ids["text"])
+
+
+def _rank_check(forest: Forest, marks: dict[int, set[int]] | None = None) -> Ranking | None:
+    """The ranking of the check's derivations with no lean and no
+    maximality (engine §7.7); ``None`` where R has no derivation that
+    counts. ``marks``, where a test watches the check, are the witness
+    hook's marks of W(D) (tests/README.md)."""
+    if not forest.roots:
+        return None
+    ranker = Ranker(forest, "none")
+    ranker.check = True
+    ranker.marks = marks
+    return ranker.rank(forest.roots)
+
+
+def _map_back(
+    tree: Node, synthetic: list[bool], project: list[int], records: list[Restoration], record_of: list[int], original: Sources
+) -> Node:
+    """A reading of the check, mapped to the stage's input (engine §7.10): a
+    read of an original token is a token node of its index there, a read of
+    a synthetic token is an elided node of its record's terminal with an
+    empty span at the record's position and the record's source, and a rule
+    node has the projection of its span, with its source over the stage's
+    input."""
     stack = [tree]
     while stack:
         node = stack.pop()
         if node.kind == "token" and node.token is not None and synthetic[node.token]:
-            position = boundary[node.token]
+            record = records[record_of[node.token]]
             node.kind = "elided"
-            node.span = (position, position)
+            node.terminal = record.terminal
+            node.span = (record.at, record.at)
+            node.source = record.source
+            node.sound = record.sound
             node.token = None
         elif node.kind == "token" and node.token is not None:
-            node.token = boundary[node.token]
+            node.token = project[node.token]
             node.span = (node.token, node.token + 1)
         else:
-            node.span = (boundary[node.span[0]], boundary[node.span[1]])
+            node.span = (project[node.span[0]], project[node.span[1]])
             node.source = _range_source(original, node.span[0], node.span[1])
         stack.extend(node.children)
     return tree
