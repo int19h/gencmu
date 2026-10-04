@@ -10,13 +10,14 @@ import functools
 import json
 import math
 import unittest
-from typing import Any, Callable
+from contextlib import contextmanager
+from typing import Any, Callable, Iterator
 from unittest import mock
 
 import gencmu
 from gencmu import _clauses, _dom, _trampoline
 from gencmu._dialect import read_document
-from gencmu._earley import Caps, StageContext
+from gencmu._earley import Caps, Evaluator, StageContext
 
 from .shared import SHARED, OverBudget, Watch, Work, calls, case_sources, count_work, load_case_dialect, made_items, parse_case, steps
 
@@ -290,6 +291,129 @@ class QueryDepth(unittest.TestCase):
                 dialect = gencmu.load_dialect_sources(sources, pipeline, use_cache=False)
                 result = dialect.parse(case["link"] * case["count"] + case["suffix"], auto_features=False)
                 self.assertTrue(result.ok, result.error)
+
+
+def visits() -> list[Watch]:
+    """Each visit of a node of a condition or a term, counted at the first
+    line of the walk that evaluates it. A generator runs that line once,
+    when it starts, so a walk that resumes after a query counts once."""
+    return [
+        steps(Evaluator.walk_condition, 'if "op" in dom:'),
+        steps(Evaluator.walk_value, 'if "string" in dom:'),
+        steps(Evaluator._span, "if isinstance(dom, dict):"),
+    ]
+
+
+@contextmanager
+def halting_and_repeating() -> Iterator[None]:
+    """A recognizer that halts a step for each query whose answer is not
+    yet known and makes the step again from its start, as Rust, Go and JS
+    did before they resumed in place. It is built on the walks: each
+    evaluation of one bound that answered a new query is followed by the
+    evaluations of that bound so far, once for each such query."""
+    walk_condition, walk_value, answer = Evaluator.walk_condition, Evaluator.walk_value, StageContext.answer
+    # The depth of the evaluation running, and the queries answered so far.
+    state = {"depth": 0, "answered": 0}
+    # The evaluations of each bound so far, in order, kept with the bound
+    # so that its id stays its own.
+    made: dict[int, tuple[Any, list[tuple[Callable[..., Any], Any]]]] = {}
+
+    def repeating(original: Callable[..., Any]) -> Callable[..., Any]:
+        def evaluate(self: Evaluator, dom: Any, bound: Any) -> Any:
+            if state["depth"]:
+                state["depth"] += 1
+                try:
+                    return (yield original(self, dom, bound))
+                finally:
+                    state["depth"] -= 1
+            before = state["answered"]
+            state["depth"] = 1
+            try:
+                value = yield original(self, dom, bound)
+            finally:
+                state["depth"] = 0
+            done = made.setdefault(id(bound), (bound, []))[1]
+            done.append((original, dom))
+            for _ in range(state["answered"] - before):
+                for again, earlier in done:
+                    state["depth"] = 1
+                    try:
+                        yield again(self, earlier, bound)
+                    finally:
+                        state["depth"] = 0
+            return value
+
+        return evaluate
+
+    def answering(self: StageContext, *args: Any) -> Any:
+        # A nested parse runs evaluations of its own, from depth 0.
+        depth, state["depth"] = state["depth"], 0
+        try:
+            yield answer(self, *args)
+        finally:
+            state["depth"] = depth
+        state["answered"] += 1
+
+    with (
+        mock.patch.object(Evaluator, "walk_condition", repeating(walk_condition)),
+        mock.patch.object(Evaluator, "walk_value", repeating(walk_value)),
+        mock.patch.object(StageContext, "answer", answering),
+    ):
+        yield
+
+
+class QueryWork(unittest.TestCase):
+    # The shared cases of tests/query-work.json: a step or a term that
+    # starts many queries evaluates each of its parts a bounded number of
+    # times. Python resumes an evaluation in place, so the count holds.
+
+    @staticmethod
+    def cases() -> list[dict[str, Any]]:
+        with open(SHARED / "query-work.json", encoding="utf-8") as file:
+            cases: list[dict[str, Any]] = json.load(file)
+        return cases
+
+    def parse(self, case: dict[str, Any], work: list[Work], watches: list[Watch]) -> None:
+        """Parses a case's text under its budget of visits, which stops the
+        parse at the first visit past it."""
+        indices = range(case["count"])
+        grammar = (
+            case["head"]
+            + case["joiner"].join(case["item"].replace("{i}", str(i)) for i in indices)
+            + case["tail"]
+            + "".join(case["rule"].replace("{i}", str(i)) for i in indices)
+        )
+        sources, pipeline = case_sources({"grammar": grammar})
+        dialect = gencmu.load_dialect_sources(sources, pipeline, use_cache=False)
+        with count_work(*watches, budget=case["most"] * case["count"]) as counted:
+            work.append(counted)
+            result = dialect.parse(case["text"], auto_features=False)
+        self.assertTrue(result.ok, result.error)
+
+    def test_cases(self) -> None:
+        cases = self.cases()
+        self.assertTrue(cases, "no cases found")
+        for case in cases:
+            with self.subTest(case=case["name"]):
+                work: list[Work] = []
+                try:
+                    self.parse(case, work, visits())
+                except OverBudget:
+                    self.fail(f"{case['name']}: more than {case['most']} visits for each of {case['count']} queries")
+                # Each query is visited, so a count that saw nothing would
+                # pass any budget.
+                self.assertGreaterEqual(work[0].count, case["count"])
+
+    def test_halting_and_repeating_fails_at_the_first_visit_past_the_budget(self) -> None:
+        for case in self.cases():
+            with self.subTest(case=case["name"]):
+                work: list[Work] = []
+                # The watches name the library's own walks, which the
+                # mutant wraps.
+                watches = visits()
+                with halting_and_repeating(), self.assertRaises(OverBudget):
+                    self.parse(case, work, watches)
+                self.assertEqual(work[0].count, case["most"] * case["count"] + 1)
 
 
 if __name__ == "__main__":
