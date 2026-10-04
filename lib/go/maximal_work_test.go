@@ -31,16 +31,17 @@ func TestMaximalWorkLinear(t *testing.T) {
 			}
 			w := countWork(t)
 			w.checks.most, w.scanned.most, w.candidates.most = most.checks, most.scanned, most.candidates
+			// The tables are found once, in one pass over the query's chart,
+			// whose completed symbols are among the items that the parse
+			// made before. Tables found again for each check would read the
+			// chart once per check, so the first read past the items made
+			// stops the shorter input, before the longer one costs much.
+			w.scanned.under = &w.items
 			if _, err := d.ParseTokens(strings.TrimSpace(strings.Repeat("x ", n+1)), toks, ParseOptions{}); err != nil {
 				t.Fatalf("%d tokens: %v", n, err)
 			}
-			// The tables are found once, in one pass over the query's chart,
-			// whose completed symbols are among the items that the parse
-			// made. Tables found again for each check would read the chart
-			// once per check, so this fails on the shorter input, before
-			// the longer one costs much.
-			if scanned, items := w.scanned.Load(), w.items.Load(); scanned == 0 || scanned > items {
-				t.Fatalf("%d tokens: %d completed symbols read for the tables, of %d items made", n, scanned, items)
+			if w.scanned.Load() == 0 {
+				t.Fatalf("%d tokens: no completed symbol read for the tables", n)
 			}
 			return counts{w.checks.Load(), w.scanned.Load(), w.candidates.Load()}
 		}

@@ -52,10 +52,13 @@ type workCounts struct {
 }
 
 // workCount is one count of workCounts, with its budget, or 0 for none,
-// which a test sets before the parse.
+// which a test sets before the parse. A test can also bound it by another
+// count, which it may never pass, for work whose budget is the size of
+// what other work made.
 type workCount struct {
-	n    atomic.Int64
-	most int64
+	n     atomic.Int64
+	most  int64
+	under *workCount
 }
 
 // add counts one, and panics if that passes the budget.
@@ -65,8 +68,14 @@ func (c *workCount) add(name string) {
 
 // addN counts k, and panics if that passes the budget.
 func (c *workCount) addN(k int64, name string) {
-	if n := c.n.Add(k); c.most > 0 && n > c.most {
+	n := c.n.Add(k)
+	if c.most > 0 && n > c.most {
 		panic(fmt.Sprintf("%d %s, past the budget of %d", n, name, c.most))
+	}
+	if c.under != nil {
+		if bound := c.under.Load(); n > bound {
+			panic(fmt.Sprintf("%d %s, past the bound of %d", n, name, bound))
+		}
 	}
 }
 

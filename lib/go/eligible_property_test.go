@@ -344,10 +344,15 @@ func TestEligibleProperty(t *testing.T) {
 func TestTagsQueryEligibleOnce(t *testing.T) {
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text A B\n%tags tags($, r)\n%rule r A [+T] B <X> | A [+T] B <Y> | A [+T] B <Z>"))
 	toks := []Token{{Text: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "b", Tags: []string{"B"}, Span: [2]int{1, 2}, Source: [2]int{2, 3}}}
+	// A search for each tag set would pass this budget at the second.
 	w := countWork(t)
+	w.eligibilityRuns.most = 1
 	res, err := d.ParseTokens("a b", toks, ParseOptions{})
-	if err != nil || !res.OK {
-		t.Fatalf("%v %+v", err, res.Error)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.OK {
+		t.Fatalf("%+v", res.Error)
 	}
 	if got := strings.Join(res.Tree.Tags, " "); got != "X Y Z" {
 		t.Fatalf("the tags are %q", got)
