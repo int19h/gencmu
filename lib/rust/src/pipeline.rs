@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use crate::dom::{ClassifierDef, ConstDef, Directive, Dom, ImplicationDef, RuleDef};
 use crate::error::Error;
+use crate::fxhash::{FxMap, FxSet};
 
 /// An item of a document: a rule, a directive, a constant's definition, a
 /// classifier or an implication.
@@ -79,6 +80,12 @@ struct Splicer<'d> {
     documents: &'d mut dyn Documents,
     stages: Vec<SplicedStage>,
     features: Vec<String>,
+    /// The documents on the chain of includes, the stages' names with
+    /// where each is in `stages`, and the features listed, so that a
+    /// check of one is not a scan.
+    on_chain: FxSet<Arc<str>>,
+    stage_index: FxMap<String, usize>,
+    feature_set: FxSet<String>,
     /// Whether the last item placed went into the stage's last run: an
     /// include or a `%stage` ends a run.
     open_run: bool,
@@ -103,12 +110,13 @@ impl Splicer<'_> {
                         return Err(in_stage(here(format!("the document path {target_text} leaves the grammars"))));
                     };
                     chain.push(path.clone());
+                    self.on_chain.insert(path.clone());
                     let through = || {
                         let mut names: Vec<&str> = chain.iter().map(|name| &**name).collect();
                         names.push(&target);
                         names.join(" → ")
                     };
-                    if chain.iter().any(|earlier| **earlier == *target) {
+                    if self.on_chain.contains(target.as_str()) {
                         return Err(in_stage(here(format!("{target} includes itself ({})", through()))));
                     }
                     let Some(included) = self.documents.dom(&target).map_err(in_stage)? else {
@@ -117,23 +125,25 @@ impl Splicer<'_> {
                     self.open_run = false;
                     self.splice(&Arc::from(target.as_str()), &included, chain)?;
                     chain.pop();
+                    self.on_chain.remove(path);
                     self.open_run = false;
                 }
                 Item::Directive(directive) if directive.name == "features" => {
                     for name in &directive.args {
-                        if !self.features.contains(name) {
+                        if self.feature_set.insert(name.clone()) {
                             self.features.push(name.clone());
                         }
                     }
                 }
                 Item::Directive(directive) if directive.name == "stage" => {
                     let name = directive.args.first().cloned().unwrap_or_default();
-                    if let Some(earlier) = self.stages.iter().find(|stage| stage.name == name) {
+                    if let Some(earlier) = self.stage_index.get(&name).map(|&index| &self.stages[index]) {
                         return Err(here(format!(
                             "a second stage named {name}; the first is at {}:{}:{}",
                             earlier.document, earlier.at.0, earlier.at.1
                         )));
                     }
+                    self.stage_index.insert(name.clone(), self.stages.len());
                     self.stages.push(SplicedStage {
                         name,
                         document: path.clone(),
@@ -178,7 +188,15 @@ pub(crate) fn splice(path: &str, documents: &mut dyn Documents) -> Result<Splice
     let Some(top) = documents.dom(path)? else {
         return Err(Error::grammar(format!("the pipeline document {path} was not found")).in_document(path));
     };
-    let mut splicer = Splicer { documents, stages: Vec::new(), features: Vec::new(), open_run: false };
+    let mut splicer = Splicer {
+        documents,
+        stages: Vec::new(),
+        features: Vec::new(),
+        on_chain: FxSet::default(),
+        stage_index: FxMap::default(),
+        feature_set: FxSet::default(),
+        open_run: false,
+    };
     splicer.splice(&Arc::from(path), &top, &mut Vec::new())?;
     let Splicer { stages, mut features, .. } = splicer;
     if stages.is_empty() {
@@ -194,4 +212,72 @@ pub(crate) fn splice(path: &str, documents: &mut dyn Documents) -> Result<Splice
     }
     features.sort();
     Ok(Spliced { stages, features })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use super::{splice, Documents};
+    use crate::dom::{Alternative, Directive, Dom, Expr, Op, RuleDef};
+    use crate::error::Error;
+    use crate::growth::assert_linear;
+
+    /// Documents held in memory, each path its own name.
+    struct Held(HashMap<String, Arc<Dom>>);
+
+    impl Documents for Held {
+        fn dom(&mut self, path: &str) -> Result<Option<Arc<Dom>>, Error> {
+            Ok(self.0.get(path).cloned())
+        }
+
+        fn resolve(&self, _: &str, target: &str) -> Option<String> {
+            Some(target.to_string())
+        }
+    }
+
+    /// A chain of n documents, each including the next, the last with a
+    /// stage that lists n features, splices in about n: the chain, the
+    /// stages and the features are checked by sets, not scans.
+    #[test]
+    fn a_long_include_chain_splices_in_linear_time() {
+        let directive = |name: &str, args: Vec<String>| Directive { name: name.into(), args, at: (1, 1) };
+        let held = move |n: usize| {
+            let mut documents: HashMap<String, Arc<Dom>> = (0..n - 1)
+                .map(|index| {
+                    let include = directive("include", vec![format!("d{}", index + 1)]);
+                    (format!("d{index}"), Arc::new(Dom { directives: vec![include], ..Dom::default() }))
+                })
+                .collect();
+            let rule = RuleDef {
+                name: "text".into(),
+                op: Op::Define,
+                tags: None,
+                alternatives: vec![Alternative { guards: Vec::new(), expr: Expr::Empty, tags: None }],
+                emit: None,
+                conditions: Vec::new(),
+                opaque: false,
+                at: (3, 1),
+            };
+            let features = directive("features", (0..n).map(|index| format!("f{index}")).collect());
+            let stage = Directive { at: (2, 1), ..directive("stage", vec!["main".into()]) };
+            let last = Dom { rules: vec![rule], directives: vec![features, stage], ..Dom::default() };
+            documents.insert(format!("d{}", n - 1), Arc::new(last));
+            Held(documents)
+        };
+        // Each include is a frame of the splice, so the chain needs room.
+        std::thread::Builder::new()
+            .stack_size(256 << 20)
+            .spawn(move || {
+                let mut helds = [held(1500), held(6000)];
+                assert_linear("splicing", 1500, &mut |n| {
+                    let spliced = splice("d0", &mut helds[usize::from(n != 1500)]).expect("spliced");
+                    assert_eq!(spliced.features.len(), n);
+                });
+            })
+            .expect("a thread")
+            .join()
+            .expect("the test");
+    }
 }
