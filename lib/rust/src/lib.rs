@@ -85,7 +85,7 @@ pub mod tools {
     /// The recognizer's work counter, for the growth tests only: not part
     /// of the documented API.
     #[doc(hidden)]
-    pub use crate::earley::{capture_steps, recognizer_captures, recognizer_items, reset_recognizer_items};
+    pub use crate::earley::{capture_steps, recognizer_captures, recognizer_items, reset_recognizer_items, walk_steps};
 
     /// The test hook of the check of `elision-only` (tests/README.md): the
     /// checks that ran in a parse, each with whether its forest kept the

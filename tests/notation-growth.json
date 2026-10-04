@@ -1,0 +1,101 @@
+[
+  {
+    "name": "groups",
+    "description": "Groups in a body, which add no depth to the DOM (engine §9).",
+    "prefix": "%rule text ",
+    "open": "(",
+    "middle": "A",
+    "close": ")",
+    "suffix": ""
+  },
+  {
+    "name": "groups-syntax-later",
+    "description": "Groups, and a syntax error after them.",
+    "prefix": "%rule text ",
+    "open": "(",
+    "middle": "A",
+    "close": ")",
+    "suffix": "\n%rule b )"
+  },
+  {
+    "name": "optionals",
+    "description": "Optionals, an expression nested too deep.",
+    "prefix": "%rule text ",
+    "open": "[",
+    "middle": "A",
+    "close": "]",
+    "suffix": ""
+  },
+  {
+    "name": "optionals-error-later",
+    "description": "Optionals, and an error of reading after them.",
+    "prefix": "%rule text ",
+    "open": "[",
+    "middle": "A",
+    "close": "]",
+    "suffix": "\n%rule b $X"
+  },
+  {
+    "name": "term-parens",
+    "description": "Parentheses around a tag in a tag term.",
+    "prefix": "%rule text A <",
+    "open": "(",
+    "middle": "~a",
+    "close": ")",
+    "suffix": ">"
+  },
+  {
+    "name": "condition-parens",
+    "description": "Parentheses around a condition.",
+    "prefix": "%rule text $x(A) %conditions ",
+    "open": "(",
+    "middle": "text($x) = \"a\"",
+    "close": ")",
+    "suffix": ""
+  },
+  {
+    "name": "negations",
+    "description": "Negations of a presence test.",
+    "prefix": "%rule text $x(A) %conditions ",
+    "open": "¬",
+    "middle": "$x",
+    "close": "",
+    "suffix": ""
+  },
+  {
+    "name": "implications",
+    "description": "Conditions joined by ⟹, which group to the right.",
+    "prefix": "%rule text $x(A) %conditions ",
+    "open": "$x ⟹ ",
+    "middle": "$x",
+    "close": "",
+    "suffix": ""
+  },
+  {
+    "name": "guards",
+    "description": "Guards in a row before a tag term.",
+    "prefix": "%rule text $x(A) <",
+    "open": "$x ⟹ ",
+    "middle": "~a",
+    "close": "",
+    "suffix": ">"
+  },
+  {
+    "name": "unions",
+    "description": "Unions, each in parentheses inside the one before.",
+    "prefix": "%rule text A <",
+    "open": "(~a ∪ ",
+    "middle": "~b",
+    "close": ")",
+    "suffix": ">"
+  },
+  {
+    "name": "any-groups",
+    "description": "Conditions joined by ∨, each group in parentheses inside the one before, which the reader folds into one.",
+    "prefix": "%rule text $x(A) %conditions ",
+    "open": "($x ∨ ",
+    "middle": "$x",
+    "close": ")",
+    "suffix": ""
+  }
+]

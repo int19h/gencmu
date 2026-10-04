@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 )
 
 // notationReader reads grammar documents with the notation dialect, whose
@@ -110,7 +111,7 @@ func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
 			toks = out.stage.Output
 		}
 	}
-	b := &domBuilder{toks: toks, gt: gt, doc: docPath, uni: nr.uni}
+	b := &domBuilder{toks: toks, gt: gt, doc: docPath, uni: nr.uni, types: newTypeMemo()}
 	defer func() {
 		if x := recover(); x != nil {
 			if e, ok := x.(*Error); ok {
@@ -186,6 +187,9 @@ type domBuilder struct {
 	// closedFor is what the reader is reading as a closed term, a
 	// constant's value or a test's operand, or "" (§9, §10).
 	closedFor string
+	// types keeps the types found of the terms and conditions read, each
+	// found once (§10).
+	types *typeMemo
 }
 
 // The rules of the notation's syntax grammar that the reader knows (engine
@@ -544,6 +548,7 @@ func (b *domBuilder) rule(n *Node) *domRule {
 		r.Emit = b.emission(p)
 	}
 	r.Opaque = one(n, "opaque-clause") != nil
+	flattenGroups(r)
 	// The definition as a whole (§9), reported at the rule.
 	if msg := definitionProblem(r); msg != "" {
 		b.fail(definer, "%s", msg)
@@ -600,8 +605,8 @@ func (b *domBuilder) constituentTags(n *Node) *domTerm {
 // item's tags (§10). The error stands at the term.
 func (b *domBuilder) tagTerm(n *Node) *domTerm {
 	t := b.value(n)
-	if problem := tagTermProblem(t); problem != "" {
-		b.fail(n, "%s", problem)
+	if f := tagTermFault(t, nil); f != nil {
+		b.fail(n, "%s", f.problem)
 	}
 	return t
 }
@@ -616,6 +621,7 @@ func before(a, c [2]int) bool {
 // exprIn reads an expression; whole says it is the alternative's whole
 // expression, where a chain may stand (engine §9).
 func (b *domBuilder) exprIn(n *Node, whole bool) *domExpr {
+	readerWork.steps.Add(1)
 	switch n.Rule {
 	case "choice", "conjunction", "sequence":
 		kind := map[string]string{"choice": exChoice, "conjunction": exAnd, "sequence": exSeq}[n.Rule]
@@ -675,7 +681,7 @@ func (b *domBuilder) exprIn(n *Node, whole bool) *domExpr {
 		b.closedFor = "a test's operand"
 		value := b.term(operand)
 		b.closedFor = ""
-		ty, problem := typeOf(value)
+		ty, problem := b.typeOf(value)
 		if problem == "" {
 			problem = testTypeProblem(test, ty)
 		}
@@ -980,6 +986,7 @@ func (b *domBuilder) term(n *Node) *domTerm { return b.termIn(n, false) }
 // termIn reads a term; argument says it is a function's argument, where a
 // span or a rule may stand (§9, §10).
 func (b *domBuilder) termIn(n *Node, argument bool) *domTerm {
+	readerWork.steps.Add(1)
 	switch n.Rule {
 	case "term":
 		return b.termIn(b.knownOf(n, termRules), argument)
@@ -992,13 +999,30 @@ func (b *domBuilder) termIn(n *Node, argument bool) *domTerm {
 		if b.closedFor != "" {
 			b.fail(n, "%s is a closed term, and holds no guarded term", b.closedFor)
 		}
-		cond := b.anyOf(b.only(n, "any-of"))
-		if problem := condTypeProblem(cond); problem != "" {
-			b.fail(n, "%s", problem)
+		// Its any-ofs, each guarding the rest, and then its union, or the
+		// term of a notation that writes one after ⟹ (§9). The reader has
+		// checked each comparison of a condition, so a condition's terms
+		// agree; the term guarded last must be a tag set, an error at its
+		// guard.
+		guards := b.some(n, "any-of", 1)
+		conds := make([]*domCond, 0, len(guards))
+		for _, g := range guards {
+			conds = append(conds, b.anyOf(g))
 		}
-		t := &domTerm{Kind: tmIf, Cond: cond, Items: []*domTerm{b.value(b.only(n, "term"))}}
-		if _, problem := typeOf(t); problem != "" {
-			b.fail(n, "%s", problem)
+		last := one(n, "union")
+		if last == nil {
+			last = b.only(n, "term")
+		}
+		t := b.value(last)
+		ty, problem := b.typeOf(t)
+		if problem == "" {
+			problem = expectedProblem(ty, tyTags)
+		}
+		if problem != "" {
+			b.fail(guards[len(guards)-1], "%s", problem)
+		}
+		for i := len(conds) - 1; i >= 0; i-- {
+			t = &domTerm{Kind: tmIf, Cond: conds[i], Items: []*domTerm{t}}
 		}
 		return t
 	case "union":
@@ -1089,7 +1113,7 @@ func (b *domBuilder) joined(n *Node, ps []*Node, ops []string) []*domTerm {
 	types := make([]termType, 0, len(ps))
 	for _, p := range ps {
 		t := b.value(p)
-		ty, problem := typeOf(t)
+		ty, problem := b.typeOf(t)
 		if problem != "" {
 			b.fail(n, "%s", problem)
 		}
@@ -1124,11 +1148,11 @@ func isSpanTerm(t *domTerm) bool {
 
 // isStringTerm says whether a term, not a rule, is a string (§10). A
 // constant's type is known only when the loader stitches the stage.
-func isStringTerm(t *domTerm) bool {
+func (b *domBuilder) isStringTerm(t *domTerm) bool {
 	if t.Kind == tmRule {
 		return false
 	}
-	ty, problem := typeOf(t)
+	ty, problem := b.typeOf(t)
 	return problem == "" && (ty == tyString || ty == tyAny)
 }
 
@@ -1183,13 +1207,13 @@ func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
 	case "tags":
 		shape((len(args) == 1 && span(0)) || (len(args) == 2 && span(0) && rule(1)))
 	case "split":
-		shape(len(args) == 2 && isStringTerm(args[0]) && isStringTerm(args[1]))
+		shape(len(args) == 2 && b.isStringTerm(args[0]) && b.isStringTerm(args[1]))
 	case "tag":
-		shape(len(args) == 1 && isStringTerm(args[0]))
+		shape(len(args) == 1 && b.isStringTerm(args[0]))
 	case "classify":
 		// A string, and a bare name, which names a classifier and not a
 		// rule (§9).
-		shape(len(args) == 2 && isStringTerm(args[0]) && rule(1))
+		shape(len(args) == 2 && b.isStringTerm(args[0]) && rule(1))
 		return &domTerm{Kind: tmCall, Str: name, Items: []*domTerm{args[0], {Kind: tmClassifier, Str: args[1].Str}}}
 	case "matches", "begins", "initial":
 		b.fail(ps[0], "%s() is a condition, not a term", name)
@@ -1211,34 +1235,49 @@ var notationFunctions = map[string]bool{
 
 // implication reads A ⟹ B, which groups to the right, or the one any-of.
 func (b *domBuilder) implication(n *Node) *domCond {
-	premise := b.anyOf(b.only(n, "any-of"))
-	consequent := one(n, "implication")
-	if consequent == nil {
-		return premise
+	readerWork.steps.Add(1)
+	// Its any-ofs in order, and after them the implication of a notation
+	// that writes one after ⟹, grouped to the right (§9).
+	var items []*domCond
+	for _, p := range b.some(n, "any-of", 1) {
+		items = append(items, b.anyOf(p))
 	}
-	return &domCond{Kind: cdIf, Items: []*domCond{premise, b.implication(consequent)}}
+	if consequent := one(n, "implication"); consequent != nil {
+		items = append(items, b.implication(consequent))
+	}
+	result := items[len(items)-1]
+	for i := len(items) - 2; i >= 0; i-- {
+		result = &domCond{Kind: cdIf, Items: []*domCond{items[i], result}}
+	}
+	return result
+}
+
+// typeOf is a term's type, or why its parts do not agree, through the
+// reader's memo.
+func (b *domBuilder) typeOf(t *domTerm) (termType, string) {
+	ty, f := termTypeMemo(t, nil, b.types)
+	if f != nil {
+		return 0, f.problem
+	}
+	return ty, ""
 }
 
 // anyOf reads conditions joined by ∨, each several joined by ∧. Parentheses
 // make no node, so a group of the connective around it is folded into it:
-// (a ∧ b) ∧ c is an all of three, (a ∨ b) ∨ c an any of three (§9).
+// (a ∧ b) ∧ c is an all of three, (a ∨ b) ∨ c an any of three (§9). The
+// reader folds such groups once the rule is read (flattenGroups), in one
+// walk, since folding them here would copy a list at each depth.
 func (b *domBuilder) anyOf(n *Node) *domCond {
+	readerWork.steps.Add(1)
 	var items []*domCond
 	for _, all := range b.some(n, "all-of", 1) {
 		var conds []*domCond
 		for _, p := range b.some(all, "condition", 1) {
-			if c := b.condition(p); c.Kind == cdAll {
-				conds = append(conds, c.Items...)
-			} else {
-				conds = append(conds, c)
-			}
+			conds = append(conds, b.condition(p))
 		}
-		switch {
-		case len(conds) > 1:
+		if len(conds) > 1 {
 			items = append(items, &domCond{Kind: cdAll, Items: conds})
-		case conds[0].Kind == cdAny:
-			items = append(items, conds[0].Items...)
-		default:
+		} else {
 			items = append(items, conds[0])
 		}
 	}
@@ -1249,6 +1288,7 @@ func (b *domBuilder) anyOf(n *Node) *domCond {
 }
 
 func (b *domBuilder) condition(n *Node) *domCond {
+	readerWork.steps.Add(1)
 	switch n.Rule {
 	case "condition":
 		return b.condition(b.knownOf(n, conditionRules))
@@ -1256,8 +1296,8 @@ func (b *domBuilder) condition(n *Node) *domCond {
 		ps := b.some(n, "union", 2)
 		d := &domCond{Kind: cdCompare, Left: b.value(ps[0]), Op: b.text(b.token(b.only(n, "comparator"))), Right: b.value(ps[1])}
 		// The two sides fit the comparator (§10).
-		if problem := condTypeProblem(d); problem != "" {
-			b.fail(n, "%s", problem)
+		if f := condTypeMemo(d, nil, b.types); f != nil {
+			b.fail(n, "%s", f.problem)
 		}
 		return d
 	case "negation":
@@ -1427,3 +1467,73 @@ func operandProblem(name string, kinds []string) string {
 	}
 	return ""
 }
+
+// flattenGroups folds each any that stands directly in an any, and each
+// all in an all, into the one around it, in place: a group in parentheses
+// of the same connective is part of the one around it (§9). One walk, with
+// an explicit stack, that gathers each folded list once.
+func flattenGroups(r *domRule) {
+	var conds []*domCond
+	var terms []*domTerm
+	push := func(t *domTerm) {
+		if t != nil {
+			terms = append(terms, t)
+		}
+	}
+	conds = append(conds, r.Conditions...)
+	push(r.Tags)
+	for _, a := range r.Alternatives {
+		push(a.Tags)
+	}
+	if r.Emit != nil {
+		for _, it := range r.Emit.Items {
+			push(it.Tags)
+		}
+	}
+	for len(conds) > 0 || len(terms) > 0 {
+		readerWork.steps.Add(1)
+		if len(terms) > 0 {
+			t := terms[len(terms)-1]
+			terms = terms[:len(terms)-1]
+			terms = append(terms, t.Items...)
+			if t.Cond != nil {
+				conds = append(conds, t.Cond)
+			}
+			continue
+		}
+		c := conds[len(conds)-1]
+		conds = conds[:len(conds)-1]
+		if c.Kind == cdAny || c.Kind == cdAll {
+			var joined []*domCond
+			pending := make([]*domCond, 0, len(c.Items))
+			for i := len(c.Items) - 1; i >= 0; i-- {
+				pending = append(pending, c.Items[i])
+			}
+			for len(pending) > 0 {
+				readerWork.steps.Add(1)
+				it := pending[len(pending)-1]
+				pending = pending[:len(pending)-1]
+				if it.Kind == c.Kind {
+					for i := len(it.Items) - 1; i >= 0; i-- {
+						pending = append(pending, it.Items[i])
+					}
+				} else {
+					joined = append(joined, it)
+				}
+			}
+			c.Items = joined
+		}
+		conds = append(conds, c.Items...)
+		if c.Inner != nil {
+			conds = append(conds, c.Inner)
+		}
+		for _, t := range []*domTerm{c.Left, c.Right, c.Span} {
+			push(t)
+		}
+	}
+}
+
+// readerWork counts the steps of the reader and of the walks it makes of
+// what it reads: a measure of work that the tests of growth compare across
+// depths of nesting (tests/README.md).
+var readerWork struct{ steps atomic.Int64 }

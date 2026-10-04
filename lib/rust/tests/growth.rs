@@ -7,7 +7,9 @@
 mod common;
 
 use common::{parse_json, repository, Value};
-use gencmu::tools::{capture_steps, recognizer_captures, recognizer_items, reset_recognizer_items};
+use gencmu::tools::{
+    capture_steps, read_grammar_document, recognizer_captures, recognizer_items, reset_recognizer_items, walk_steps,
+};
 use gencmu::ParseOptions;
 
 /// A whole number field of a case.
@@ -70,5 +72,43 @@ fn captures_share_their_prefixes() {
         assert_eq!(recognizer_captures(), count as u64, "{count} captures");
         assert!(recognizer_items() <= 2 * count as u64 + 4, "{} items for {count} captures", recognizer_items());
         assert!(capture_steps() <= 4 * count as u64 + 8, "{} steps for {count} captures", capture_steps());
+    }
+}
+
+/// The shared cases of tests/notation-growth.json: reading a document whose
+/// constructs nest deep costs work that grows with its length, not with its
+/// square. The work is the recognizer's items and the steps of the reader,
+/// its walks and the ranker, counted, not timed. The reading runs on a
+/// thread with a fixed stack of 2 MiB, whatever the depth: no part of it
+/// recurses deeper than the bound of 256 that the DOM is checked against.
+#[test]
+fn reading_deep_nesting_grows_linearly() {
+    let text = std::fs::read_to_string(repository().join("tests/notation-growth.json")).expect("the cases");
+    let cases = parse_json(&text).expect("JSON");
+    assert!(cases.array().len() > 5);
+    for case in cases.array() {
+        let field = |name: &str| case.get(name).and_then(Value::str).expect("a field of the case").to_string();
+        let name = field("name");
+        let (prefix, open, middle, close, suffix) =
+            (field("prefix"), field("open"), field("middle"), field("close"), field("suffix"));
+        let work = move |n: usize| {
+            let text = format!("```jbogenbau\n{prefix}{}{middle}{}{suffix}\n```\n", open.repeat(n), close.repeat(n));
+            std::thread::Builder::new()
+                .stack_size(2 << 20)
+                .spawn(move || {
+                    reset_recognizer_items();
+                    // An error is an outcome too; its place is the notation
+                    // cases' concern.
+                    let _ = read_grammar_document(&text);
+                    recognizer_items() + walk_steps()
+                })
+                .expect("a thread")
+                .join()
+                .expect("no overflow")
+        };
+        // Once first, so that loading the notation counts in neither.
+        work(250);
+        let (small, large) = (work(250), work(1000));
+        assert!(large <= 5 * small, "{name}: {small} for 250 levels, {large} for 1000");
     }
 }

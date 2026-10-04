@@ -764,7 +764,7 @@ The notation's syntax grammar names its constituents so that the reader can read
 | `tags-clause` | its `term` |
 | `conditions-clause` | its `implication`s, each one condition of the list, in order |
 | `emits-clause` | `items` of its `emit-item`s. Each item is a capture, `""` for `$`, with the term of its `emit-tags` if it has one. `before` holds the captures of its `emit-before`s, and `after` those of its `emit-after`s, each the name without `$`, in order. Each list is present only if it is not empty. Or the item is `insert`, the tag of its `~name`, bare name, character tag or phoneme tag. No items for `ε` |
-| `implication` | `if` of its `any-of` and the `implication` after `⟹`, or the one `any-of` itself |
+| `implication` | its `any-of`s in order, and after them its `implication`, if it has one, grouped to the right: `if` of each around the rest, or the one alone |
 | `any-of` | `any` of its `all-of`s, or the one `all-of` itself. An `all-of` that is itself an `any` gives its conditions in its place |
 | `all-of` | `all` of its `condition`s, or the one condition itself. A `condition` that is itself an `all` gives its conditions in its place |
 | `condition` | its comparison, call, negation or presence, or the `implication` between its parentheses, which makes no node of its own |
@@ -773,7 +773,7 @@ The notation's syntax grammar names its constituents so that the reader can read
 | `presence` | `captured`, the name without `$`, `""` for `$` |
 | `call` in a condition | `matches`, `begins` or `initial`, the only functions a condition calls directly |
 | `term` | its `union` or its `guarded-term` |
-| `guarded-term` | `if` of its `any-of` and its `term` |
+| `guarded-term` | `if` of each of its `any-of`s, in order, around the rest, the last around its `union`, or its `term` if it has no `union` |
 | `union` | its `intersection`s joined from the left: a run joined by `∪` is one `union`, and each `∖` makes a `difference` of what stands before it and the next part. The one part itself, if there is one |
 | `intersection` | `intersection` of the parts, or the one part itself |
 | `string` in a term | `string`, the decoded string |
@@ -811,11 +811,12 @@ A node must have the parts that the reader reads from it. A node without one is 
 | `test` | a `test-operand`. Its tokens make its comparator |
 | `capture` | a token, its capture, and a `primary` |
 | `group`, `optional` | a `choice`. An `optional` can also have a marker, a token `+` or `++` |
-| `tags-clause`, `alternative-tags`, `emit-tags`, `guarded-term` | a `term`. A `guarded-term` also needs an `any-of` |
+| `tags-clause`, `alternative-tags`, `emit-tags` | a `term` |
+| `guarded-term` | one or more `any-of`, and a `union` or a `term` |
 | `conditions-clause` | one or more `implication` |
 | `emits-clause` | a token `ε`, or one or more `emit-item` |
 | `emit-item` | an `emit-target` |
-| `implication` | an `any-of` |
+| `implication` | one or more `any-of` |
 | `any-of` | one or more `all-of` |
 | `all-of` | one or more `condition` |
 | `condition` | one known part: a `comparison`, `call`, `negation`, `presence` or `implication` |

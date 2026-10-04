@@ -47,6 +47,22 @@ thread_local! {
     /// sequences, from a part to the one before it, to read them: a measure
     /// of work that tests compare across numbers of captures.
     static CAPTURE_STEPS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+    /// How many steps the readers, the walks of what they read and the
+    /// ranker's search for the derivations of an item have taken on this
+    /// thread: a measure of work that the tests of growth compare across
+    /// depths of nesting.
+    static WALK_STEPS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// Counts `steps` steps of a reader or a walk (`WALK_STEPS`).
+pub(crate) fn count_steps(steps: u64) {
+    WALK_STEPS.with(|count| count.set(count.get() + steps));
+}
+
+/// How many steps of readers and walks this thread has taken
+/// (`WALK_STEPS`).
+pub fn walk_steps() -> u64 {
+    WALK_STEPS.with(|count| count.get())
 }
 
 /// How many steps the engine has taken through sequences of captured parts
@@ -71,6 +87,7 @@ pub fn reset_recognizer_items() {
     ITEMS.with(|items| items.set(0));
     CAPTURES.with(|captures| captures.set(0));
     CAPTURE_STEPS.with(|steps| steps.set(0));
+    WALK_STEPS.with(|steps| steps.set(0));
 }
 
 /// A token of a stage's input.
@@ -228,9 +245,45 @@ pub(crate) struct Chart {
     /// entry. Entry 0 is the empty sequence.
     caps: Vec<(u32, Cap)>,
     caps_index: FxMap<(u32, Cap), u32>,
+    /// The positions of the sets that hold each item, in order, made when a
+    /// derivation is first rebuilt.
+    positions: std::cell::OnceCell<FxMap<Item, Vec<u32>>>,
 }
 
 impl Chart {
+    /// The origins `m`, in order, of the derivations of an item that reads
+    /// its constituent of `rule` last, from `pred`, the item before that
+    /// read, to `set`: the positions from `from` on whose set holds `pred`
+    /// and where a constituent of `rule` that ends at `set` begins. It looks
+    /// at the shorter of the two lists, so that rebuilding the derivations
+    /// of a deep nesting, where every rule ends at one place, costs each
+    /// item its own few origins, not every origin at that place.
+    pub(crate) fn origins_between(&self, pred: &Item, rule: u32, from: u32, set: u32) -> Vec<u32> {
+        let positions = self.positions.get_or_init(|| {
+            let mut positions: FxMap<Item, Vec<u32>> = FxMap::default();
+            for (at, eset) in self.sets.iter().enumerate() {
+                count_steps(eset.items.len() as u64);
+                for item in &eset.items {
+                    positions.entry(*item).or_default().push(at as u32);
+                }
+            }
+            positions
+        });
+        let held = positions.get(pred).map_or(&[][..], Vec::as_slice);
+        let held = &held[held.partition_point(|&m| m < from)..held.partition_point(|&m| m <= set)];
+        let eset = &self.sets[set as usize];
+        let ending = eset.origins.get(&rule).map_or(&[][..], Vec::as_slice);
+        count_steps(held.len().min(ending.len()) as u64 + 1);
+        let mut found: Vec<u32> = if held.len() <= ending.len() {
+            held.iter().copied().filter(|&m| eset.completed.contains_key(&(rule, m))).collect()
+        } else {
+            ending.iter().copied().filter(|&m| m >= from && held.binary_search(&m).is_ok()).collect()
+        };
+        found.sort_unstable();
+        found.dedup();
+        found
+    }
+
     /// The captured parts of a sequence, in the order read, in one walk.
     /// Only a step that reads the parts by their slots needs them all.
     pub(crate) fn caps(&self, mut id: u32) -> Vec<Cap> {

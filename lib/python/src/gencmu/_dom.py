@@ -10,10 +10,10 @@ from ._errors import GencmuError
 from ._markdown import GrammarText
 from ._model import Node, Token
 from ._tags import character_tag
-from ._trampoline import Walk, run
+from ._trampoline import Walk, run, walk_counter
 from ._types import (
     comparison_problem,
-    condition_type_problem,
+    Memo as TypeMemo,
     constant_value_type,
     expected_problem,
     is_sound_test,
@@ -168,6 +168,9 @@ class DomBuilder:
         self.capture_nodes: dict[int, Node] = {}
         self.braces = 0
         self.marked = 0
+        # The types found of the terms and conditions read, each found once
+        # (engine §10).
+        self.types: TypeMemo = {}
 
     # -- positions and errors
 
@@ -327,7 +330,7 @@ class DomBuilder:
                 term = self.value(side)
             finally:
                 self.closed_for = None
-            kind, problem = term_type(term)
+            kind, problem = term_type(term, memo=self.types)
             if problem is None:
                 problem = expected_problem(kind, "tags")  # type: ignore[arg-type]
             if problem is not None:
@@ -348,7 +351,7 @@ class DomBuilder:
         finally:
             self.closed_for = None
         op = "redefine" if keyword == "%redefine-const" else "define"
-        _, fault = constant_value_type(value, op == "redefine")
+        _, fault = constant_value_type(value, op == "redefine", memo=self.types)
         if fault is not None:
             raise self.fail(value_node, fault[0])
         return {"name": name, "op": op, "value": value, "at": list(self.position(node))}
@@ -415,6 +418,7 @@ class DomBuilder:
         if opaque:
             dom["opaque"] = True
         dom["at"] = list(self.position(node))
+        flatten_groups(dom)
         problem = definition_problem(dom)
         if problem is not None:
             raise self.fail(node, problem)
@@ -462,7 +466,7 @@ class DomBuilder:
         """A whole term that must be a tag set: a constituent's or an item's
         tags (engine §10). The error stands at the term."""
         term = self.value(node)
-        problem = tag_term_problem(term)
+        problem = tag_term_problem(term, memo=self.types)
         if problem is not None:
             raise self.fail(node, problem)
         return term
@@ -521,7 +525,7 @@ class DomBuilder:
                 value = self.value(operand)
             finally:
                 self.closed_for = None
-            found, problem = term_type(value)
+            found, problem = term_type(value, memo=self.types)
             if problem is None:
                 problem = test_type_problem(op, found)  # type: ignore[arg-type]
             if problem is not None:
@@ -774,11 +778,19 @@ class DomBuilder:
         connective, ``∧`` or ``∨``, is folded into the one around it, since
         parentheses make no node (engine §9)."""
         if node.rule == "implication":
-            premise = yield self._condition(self.only(node, "any-of"))
+            # Its any-ofs in order, and after them the implication of a
+            # notation that writes one after ⟹, grouped to the right (engine
+            # §9).
+            items: list[Dom] = []
+            for kid in self.some(node, "any-of"):
+                items.append((yield self._condition(kid)))
             consequent = self.one(node, "implication")
-            if consequent is None:
-                return premise
-            return {"if": premise, "then": (yield self._condition(consequent))}
+            if consequent is not None:
+                items.append((yield self._condition(consequent)))
+            result = items.pop()
+            while items:
+                result = {"if": items.pop(), "then": result}
+            return result
         if node.rule == "condition":
             return (yield self._condition(self.known_of(node, _CONDITIONS)))
         if node.rule in ("any-of", "all-of"):
@@ -786,13 +798,11 @@ class DomBuilder:
             parts: list[Dom] = []
             for kid in self.some(node, "all-of" if node.rule == "any-of" else "condition"):
                 if kid.kind == "rule":
-                    part = yield self._condition(kid)
                     # Parentheses make no node: a group of the same
-                    # connective is folded into this one (engine §9).
-                    if key in part:
-                        parts.extend(part[key])
-                    else:
-                        parts.append(part)
+                    # connective is folded into this one (engine §9), once
+                    # the rule is read (flatten_groups), in one walk, since
+                    # folding here would copy a list at each depth.
+                    parts.append((yield self._condition(kid)))
             return parts[0] if len(parts) == 1 else {key: parts}
         return (yield self._simple_condition(node))
 
@@ -803,9 +813,9 @@ class DomBuilder:
             left = yield self._term(terms[0])
             right = yield self._term(terms[1])
             # The two sides fit the comparator (engine §10).
-            left_type, problem = term_type(left)
+            left_type, problem = term_type(left, memo=self.types)
             if problem is None:
-                right_type, problem = term_type(right)
+                right_type, problem = term_type(right, memo=self.types)
                 if problem is None:
                     problem = comparison_problem(op, left_type, right_type)  # type: ignore[arg-type]
             if problem is not None:
@@ -854,7 +864,7 @@ class DomBuilder:
         def is_string(argument: Dom) -> bool:
             if "rule" in argument:
                 return False
-            kind, problem = term_type(argument)
+            kind, problem = term_type(argument, memo=self.types)
             # A constant's type is known only when the loader stitches the
             # stage.
             return problem is None and kind in ("string", "any")
@@ -892,7 +902,7 @@ class DomBuilder:
         error stands at the construct that joins them."""
         types = []
         for item in items:
-            kind, problem = term_type(item)
+            kind, problem = term_type(item, memo=self.types)
             if problem is not None:
                 raise self.fail(node, problem)
             types.append(kind)
@@ -912,14 +922,24 @@ class DomBuilder:
         if rule == "guarded-term":
             if self.closed_for:
                 raise self.fail(node, f"{self.closed_for} is a closed term, and holds no guarded term")
-            condition = yield self._condition(self.only(node, "any-of"))
-            problem = condition_type_problem(condition)
+            # Its any-ofs, each guarding the rest, and then its union, or the
+            # term of a notation that writes one after ⟹ (engine §9). The
+            # reader has checked each comparison of a condition, so a
+            # condition's terms agree; the term guarded last must be a tag
+            # set, an error at its guard.
+            guards = self.some(node, "any-of")
+            conditions: list[Dom] = []
+            for guard in guards:
+                conditions.append((yield self._condition(guard)))
+            last = self.one(node, "union") or self.only(node, "term")
+            guarded = yield self._term(last)
+            kind, problem = term_type(guarded, memo=self.types)
+            if problem is None:
+                problem = expected_problem(kind, "tags")  # type: ignore[arg-type]
             if problem is not None:
-                raise self.fail(node, problem)
-            guarded = {"if": condition, "then": (yield self._term(self.only(node, "term")))}
-            _, problem = term_type(guarded)
-            if problem is not None:
-                raise self.fail(node, problem)
+                raise self.fail(guards[-1], problem)
+            for condition in reversed(conditions):
+                guarded = {"if": condition, "then": guarded}
             return guarded
         if rule == "union":
             # Parts joined by ∪ and ∖ group from the left: a run joined by ∪
@@ -993,6 +1013,39 @@ class DomBuilder:
                 raise self.fail(node, f"{call['call']}() is a condition, not a term")
             return call
         raise self.fail(node, f"unexpected {rule} in a term")
+
+
+def flatten_groups(root: Any) -> None:
+    """Folds each ``any`` that stands directly in an ``any``, and each
+    ``all`` in an ``all``, into the one around it, in place: a group in
+    parentheses of the same connective is part of the one around it (engine
+    §9). One walk, with a list for a stack, that gathers each folded list
+    once."""
+    stack: list[Any] = [root]
+    while stack:
+        walk_counter.steps += 1
+        current = stack.pop()
+        if isinstance(current, list):
+            stack.extend(current)
+            continue
+        if not isinstance(current, dict):
+            continue
+        for key in ("any", "all"):
+            items = current.get(key)
+            if not isinstance(items, list):
+                continue
+            joined: list[Any] = []
+            pending = list(reversed(items))
+            while pending:
+                walk_counter.steps += 1
+                item = pending.pop()
+                inner = item.get(key) if isinstance(item, dict) else None
+                if isinstance(inner, list):
+                    pending.extend(reversed(inner))
+                else:
+                    joined.append(item)
+            current[key] = joined
+        stack.extend(value for value in current.values() if isinstance(value, (dict, list)))
 
 
 def operand_problem(name: str, kinds: list[str]) -> str | None:

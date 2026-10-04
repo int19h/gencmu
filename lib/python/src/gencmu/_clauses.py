@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import AbstractSet, Any, Union
 
-from ._trampoline import Walk, run
+from ._trampoline import Walk, run, walk_counter
 
 Dom = dict[str, Any]
 
@@ -79,33 +79,54 @@ def duplicate_captures(expr: Any) -> list[Dom]:
             return [node["optional"]]
         return []
 
-    # Each frame: a node, the index of its next child, and the captures of
-    # each child done so far. An explicit stack, since a DOM's depth is
-    # bounded only by its check.
-    stack: list[tuple[Any, list[int], list[list[Dom]]]] = [(expr, [0], [])]
+    # Each frame: a node, the index of its next child, and what each child
+    # done so far gives: its captures by name, and their number. An explicit
+    # stack, since a DOM's depth is bounded only by its check. An item of a
+    # sequence or an & meets the items before it: the side with fewer
+    # captures is looked up in the other, and the two are then joined, the
+    # smaller into the larger, so a capture moves a number of times that
+    # grows with the logarithm of their count, not with the depth of the
+    # expression.
+    flagged: dict[int, Dom] = {}
+    Found = tuple[dict[str, list[Dom]], int]
+    stack: list[tuple[Any, list[int], list[Found]]] = [(expr, [0], [])]
     while True:
+        walk_counter.steps += 1
         node, index, parts = stack[-1]
         kids = children(node)
         if index[0] < len(kids):
             index[0] += 1
             stack.append((kids[index[0] - 1], [0], []))
             continue
-        found: list[Dom] = []
+        joined: Found = ({}, 0)
         if isinstance(node, dict) and isinstance(node.get("capture"), str) and "expr" in node:
-            found = [node]
-        elif isinstance(node, dict) and (isinstance(node.get("seq"), list) or isinstance(node.get("and"), list)):
-            seen: set[str] = set()
-            for part in parts:
-                duplicates.extend(capture for capture in part if capture["capture"] in seen)
-                seen.update(capture["capture"] for capture in part)
-                found.extend(part)
+            joined = ({node["capture"]: [node]}, 1)
         else:
-            for part in parts:
-                found.extend(part)
+            meets = isinstance(node, dict) and (isinstance(node.get("seq"), list) or isinstance(node.get("and"), list))
+            for position, part in enumerate(parts):
+                if position == 0:
+                    joined = part
+                    continue
+                if meets:
+                    if joined[1] <= part[1]:
+                        for name in joined[0]:
+                            for capture in part[0].get(name, ()):
+                                flagged[id(capture)] = capture
+                    else:
+                        for name, captures in part[0].items():
+                            if name in joined[0]:
+                                for capture in captures:
+                                    flagged[id(capture)] = capture
+                large, small = (joined, part) if joined[1] >= part[1] else (part, joined)
+                for name, captures in small[0].items():
+                    large[0].setdefault(name, []).extend(captures)
+                    walk_counter.steps += len(captures)
+                joined = (large[0], large[1] + small[1])
         stack.pop()
         if not stack:
+            duplicates.extend(flagged.values())
             return duplicates
-        stack[-1][2].append(found)
+        stack[-1][2].append(joined)
 
 
 def capture_sequences(expr: Any) -> tuple[list[list[Dom]], list[Dom]]:

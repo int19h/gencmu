@@ -177,47 +177,58 @@ pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error
     let (Some(tree), Some(stage)) = (&result.tree, result.stages.last()) else {
         return Err(Error::grammar("the notation produced no tree"));
     };
-    // The walk from the tree to the DOM, and the checks of what it reads,
-    // recurse as deeply as the document nests, which only its number of
-    // tokens bounds (engine §9). So they run on a thread with room for
-    // that depth: the stack is reserved, and only what the walk reaches is
-    // used.
-    let grammar = &grammar;
-    let stack = (256usize << 20).max(stage.input.len().saturating_mul(READ_STACK_PER_TOKEN));
-    std::thread::scope(|scope| {
-        std::thread::Builder::new()
-            .stack_size(stack)
-            .spawn_scoped(scope, move || {
-                let position = |index: usize| grammar.position(index);
-                let reader = Reader {
-                    tokens: &stage.input,
-                    captures: Default::default(),
-                    braces: Default::default(),
-                    marked: Default::default(),
-                    position: &position,
-                    unicode: &notation.unicode,
-                    closed_for: Default::default(),
-                };
-                let dom = reader.document(tree)?;
-                check_read(&dom, &notation.unicode)?;
-                Ok(dom)
-            })
-            .map_err(|error| Error::grammar(format!("cannot start a thread to read the document: {error}")))?
-            .join()
-            .unwrap_or_else(|panic| std::panic::resume_unwind(panic))
-    })
+    // The reader, its checks and the drop of what it reads walk the tree
+    // and the DOM with explicit stacks, so a document of any depth reads
+    // on the caller's thread (engine §9).
+    let position = |index: usize| grammar.position(index);
+    let reader = Reader {
+        tokens: &stage.input,
+        captures: Default::default(),
+        braces: Default::default(),
+        marked: Default::default(),
+        position: &position,
+        unicode: &notation.unicode,
+        closed_for: Default::default(),
+    };
+    let dom = reader.document(tree)?;
+    check_read(&dom, &notation.unicode)?;
+    Ok(dom)
 }
-
-/// The stack that reading takes for each token of a document, at most,
-/// where every token opens a construct inside the one before: measured at
-/// under 16 KiB in a build without optimization, and doubled.
-const READ_STACK_PER_TOKEN: usize = 32 << 10;
 
 /// Holds a DOM just read to the rules a precompiled one is held to, the
 /// bound on nesting among them (engine §9), reported at the first item
 /// that breaks one.
 fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
     const TOO_DEEP: &str = "an expression, term or condition is nested more than 256 deep";
+    // The bound on nesting first, on the DOM itself and with an explicit
+    // stack, at the first item in the order of the document that breaks
+    // it: a DOM just read is as deep as its document nests, and the checks
+    // below walk it by recursion.
+    let mut deep: Vec<(usize, usize)> = dom
+        .rules
+        .iter()
+        .filter(|rule| crate::dom::rule_too_deep(rule))
+        .map(|rule| rule.at)
+        .chain(
+            dom.constants
+                .iter()
+                .filter(|constant| crate::dom::term_too_deep(&constant.value))
+                .map(|constant| constant.at),
+        )
+        .chain(
+            dom.implications
+                .iter()
+                .filter(|implication| {
+                    crate::dom::term_too_deep(&implication.antecedent)
+                        || crate::dom::term_too_deep(&implication.consequent)
+                })
+                .map(|implication| implication.at),
+        )
+        .collect();
+    deep.sort();
+    if let Some(&(line, column)) = deep.first() {
+        return Err(Error::grammar(TOO_DEEP).at(line, column));
+    }
     // The problem of a DOM, through its JSON. JSON nested deeper than the
     // parser follows holds a node below far more than 256 compound nodes.
     let problem_of = |dom: &Dom| -> Option<String> {

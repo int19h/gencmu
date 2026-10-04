@@ -131,3 +131,44 @@ func TestCaptureStorage(t *testing.T) {
 		}
 	}
 }
+
+// TestNotationGrowth: the shared cases of tests/notation-growth.json.
+// Reading a document whose constructs nest deep costs work that grows with
+// its length, not with its square. The work is the recognizer's items and
+// the steps of the reader and its walks, counted, not timed.
+func TestNotationGrowth(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile("../../tests/notation-growth.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cases []struct {
+		Name, Prefix, Open, Middle, Close, Suffix string
+	}
+	if err := json.Unmarshal(data, &cases); err != nil {
+		t.Fatal(err)
+	}
+	if len(cases) <= 5 {
+		t.Fatal("too few cases")
+	}
+	for _, c := range cases {
+		work := func(n int) int64 {
+			text := "```jbogenbau\n" + c.Prefix + strings.Repeat(c.Open, n) + c.Middle + strings.Repeat(c.Close, n) + c.Suffix + "\n```\n"
+			recognizerWork.items.Store(0)
+			readerWork.steps.Store(0)
+			// An error is an outcome too; its place is the notation cases'
+			// concern.
+			bundled.reader.read(text, "t.md")
+			return recognizerWork.items.Load() + readerWork.steps.Load()
+		}
+		// Once first, so that loading the notation counts in neither.
+		work(250)
+		small, large := work(250), work(1000)
+		if large > 5*small {
+			t.Errorf("%s: %d for 250 levels, %d for 1000", c.Name, small, large)
+		}
+		t.Logf("%s: %d for 250 levels, %d for 1000", c.Name, small, large)
+	}
+}

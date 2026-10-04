@@ -225,9 +225,11 @@ An item can have attachments: captures in parentheses, any number before its tar
 
 A condition joins others with `∧`, `∨` and `⟹`. These operators bind in that order, and `⟹` groups to the right. Parentheses group, and `¬` negates the condition after it. A capture alone is a condition, true where the alternative has it.
 
+The grammar reads a run of conditions joined by `⟹` as one list, and the reader groups it to the right. A rule that reads the run by right recursion would complete again at each `⟹`, so the work of a parse would grow with the square of the run's length.
+
 ```jbogenbau
 %rule implication
-  any-of ['⟹' implication]
+  {any-of \ '⟹'}
 
 %rule any-of
   ['∨'] {all-of \ '∨'}
@@ -253,7 +255,7 @@ A condition joins others with `∧`, `∨` and `⟹`. These operators bind in th
 
 ## Terms
 
-A term is a string, a set of strings, a tag set or a span. A range is a tag set, and `..` binds tighter than any other operator, since its two sides are character tags. `∩` binds tighter than `∪` and `∖`, which bind equally and group from the left. A term guarded by a condition, `A ⟹ t`, is `t` where `A` holds and nothing where it does not. It binds looser than `∪`, `∩` and `∖`, so it stands in parentheses inside a larger term. Only a whole tag term can be a guarded term without parentheses.
+A term is a string, a set of strings, a tag set or a span. A range is a tag set, and `..` binds tighter than any other operator, since its two sides are character tags. `∩` binds tighter than `∪` and `∖`, which bind equally and group from the left. A term guarded by a condition, `A ⟹ t`, is `t` where `A` holds and nothing where it does not. It binds looser than `∪`, `∩` and `∖`, so it stands in parentheses inside a larger term. Only a whole tag term can be a guarded term without parentheses. Guards in a row, `A ⟹ B ⟹ t`, are one list of conditions before the union, for the reason above, and the reader groups them to the right: `A ⟹ (B ⟹ t)`.
 
 A property is not a tag set, but the grammar reads one in a term, so that the reader can refuse it by name. A bare name in a term is a tag literal when it begins with a capital. Otherwise it names a rule or a classifier, which only a function's argument can do. A constant, such as `$SU-STOPS`, stands for its value. The reader tells the two apart and gives each term its type (`../../docs/engine.md`, §9, §10).
 
@@ -262,7 +264,7 @@ A property is not a tag set, but the grammar reads one in a term, so that the re
   union | guarded-term
 
 %rule guarded-term
-  any-of '⟹' term
+  {any-of '⟹'} union
 
 %rule union
   ['∪'] {intersection \ '∪' | '∖'}

@@ -1861,44 +1861,149 @@ impl Fault {
 
 /// The references to constants in a term, in the order written.
 pub(crate) fn constants_in_term<'t>(term: &'t Term, out: &mut Vec<(&'t str, (usize, usize))>) {
-    match term {
-        Term::Const(name, at) => out.push((name, *at)),
-        Term::Union(items) | Term::Intersection(items) => items.iter().for_each(|item| constants_in_term(item, out)),
-        Term::Difference(left, right) => {
-            constants_in_term(left, out);
-            constants_in_term(right, out);
-        }
-        Term::If(cond, then) => {
-            constants_in_cond(cond, out);
-            constants_in_term(then, out);
-        }
-        Term::Call(_, args) => {
-            for arg in args {
-                if let Arg::Term(term) = arg {
-                    constants_in_term(term, out);
-                }
-            }
-        }
-        Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Capture(_) => {}
-    }
+    constants_in(Nested::Term(term), out);
 }
 
 /// The references to constants in a condition, in the order written.
 pub(crate) fn constants_in_cond<'t>(cond: &'t Cond, out: &mut Vec<(&'t str, (usize, usize))>) {
-    match cond {
-        Cond::Compare(_, left, right) => {
-            constants_in_term(left, out);
-            constants_in_term(right, out);
+    constants_in(Nested::Cond(cond), out);
+}
+
+/// The references to constants of a part, in the order written, with an
+/// explicit stack.
+fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>) {
+    let mut stack = vec![start];
+    while let Some(part) = stack.pop() {
+        crate::earley::count_steps(1);
+        match part {
+            Nested::Term(term) => match term {
+                Term::Const(name, at) => out.push((name, *at)),
+                Term::Union(items) | Term::Intersection(items) => stack.extend(items.iter().rev().map(Nested::Term)),
+                Term::Difference(left, right) => stack.extend([Nested::Term(right), Nested::Term(left)]),
+                Term::If(cond, then) => stack.extend([Nested::Term(then), Nested::Cond(cond)]),
+                Term::Call(_, args) => stack.extend(args.iter().rev().filter_map(|arg| match arg {
+                    Arg::Term(term) => Some(Nested::Term(term)),
+                    _ => None,
+                })),
+                Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Capture(_) => {}
+            },
+            Nested::Cond(cond) => match cond {
+                Cond::Compare(_, left, right) => stack.extend([Nested::Term(right), Nested::Term(left)]),
+                Cond::Not(inner) => stack.push(Nested::Cond(inner)),
+                Cond::Any(items) | Cond::All(items) => stack.extend(items.iter().rev().map(Nested::Cond)),
+                Cond::If(antecedent, consequent) => stack.extend([Nested::Cond(consequent), Nested::Cond(antecedent)]),
+                Cond::Matches(span, _) | Cond::Begins(span, _) | Cond::Initial(span) => stack.push(Nested::Term(span)),
+                Cond::Captured(_) => {}
+            },
+            Nested::Expr(_) => {}
         }
-        Cond::Not(inner) => constants_in_cond(inner, out),
-        Cond::Any(items) | Cond::All(items) => items.iter().for_each(|item| constants_in_cond(item, out)),
-        Cond::If(antecedent, consequent) => {
-            constants_in_cond(antecedent, out);
-            constants_in_cond(consequent, out);
-        }
-        Cond::Matches(span, _) | Cond::Begins(span, _) | Cond::Initial(span) => constants_in_term(span, out),
-        Cond::Captured(_) => {}
     }
+}
+
+/// The most compound nodes that may stand above a node of an expression,
+/// a term or a condition (engine §9).
+const MAX_NESTING: usize = 256;
+
+/// A node of a DOM that the check of nesting walks.
+enum Nested<'d> {
+    Expr(&'d Expr),
+    Term(&'d Term),
+    Cond(&'d Cond),
+}
+
+/// Whether a node of these parts stands below more than 256 compound nodes
+/// (engine §9), walked with an explicit stack. A compound node is an
+/// `optional`, a `repeat`, an `and`, a `choice`, a `seq`, a `capture` or a
+/// `test` in an expression; a `union`, an `intersection`, a `difference`,
+/// an `if` or a `call` in a term; and an `any`, an `all`, a `not`, an `if`,
+/// a `matches`, a `begins`, an `initial` or a comparison in a condition.
+fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
+    let mut stack: Vec<(Nested<'d>, usize)> = roots.into_iter().map(|root| (root, 0)).collect();
+    while let Some((node, depth)) = stack.pop() {
+        crate::earley::count_steps(1);
+        if depth > MAX_NESTING {
+            return true;
+        }
+        let below = depth + 1;
+        match node {
+            Nested::Expr(expr) => match expr {
+                Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
+                    stack.extend(items.iter().map(|item| (Nested::Expr(item), below)))
+                }
+                Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push((Nested::Expr(inner), below)),
+                Expr::Repeat(item, separator, _) => {
+                    stack.push((Nested::Expr(item), below));
+                    stack.extend(separator.as_deref().map(|separator| (Nested::Expr(separator), below)));
+                }
+                Expr::Tested(_, value, inner) => {
+                    stack.push((Nested::Term(value), below));
+                    stack.push((Nested::Expr(inner), below));
+                }
+                Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {}
+            },
+            Nested::Term(term) => match term {
+                Term::Union(items) | Term::Intersection(items) => {
+                    stack.extend(items.iter().map(|item| (Nested::Term(item), below)))
+                }
+                Term::Difference(left, right) => {
+                    stack.push((Nested::Term(left), below));
+                    stack.push((Nested::Term(right), below));
+                }
+                Term::If(cond, then) => {
+                    stack.push((Nested::Cond(cond), below));
+                    stack.push((Nested::Term(then), below));
+                }
+                // A rule or a classifier that a call names is no node of it.
+                Term::Call(_, args) => stack.extend(args.iter().filter_map(|arg| match arg {
+                    Arg::Term(term) => Some((Nested::Term(term), below)),
+                    Arg::Rule(_) | Arg::Classifier(_) => None,
+                })),
+                Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Capture(_) | Term::Const(..) => {
+                }
+            },
+            Nested::Cond(cond) => match cond {
+                Cond::Any(items) | Cond::All(items) => {
+                    stack.extend(items.iter().map(|item| (Nested::Cond(item), below)))
+                }
+                Cond::Not(inner) => stack.push((Nested::Cond(inner), below)),
+                Cond::If(antecedent, consequent) => {
+                    stack.push((Nested::Cond(antecedent), below));
+                    stack.push((Nested::Cond(consequent), below));
+                }
+                Cond::Matches(span, _) | Cond::Begins(span, _) | Cond::Initial(span) => {
+                    stack.push((Nested::Term(span), below))
+                }
+                Cond::Compare(_, left, right) => {
+                    stack.push((Nested::Term(left), below));
+                    stack.push((Nested::Term(right), below));
+                }
+                Cond::Captured(_) => {}
+            },
+        }
+    }
+    false
+}
+
+/// Whether a rule holds a node below more than 256 compound nodes.
+pub(crate) fn rule_too_deep(rule: &RuleDef) -> bool {
+    let mut roots: Vec<Nested> = Vec::new();
+    roots.extend(rule.tags.iter().map(Nested::Term));
+    for alternative in &rule.alternatives {
+        roots.push(Nested::Expr(&alternative.expr));
+        roots.extend(alternative.tags.iter().map(Nested::Term));
+    }
+    for item in rule.emit.iter().flatten() {
+        if let EmitItem::Capture(_, Some(tags), _) = item {
+            roots.push(Nested::Term(tags));
+        }
+    }
+    roots.extend(rule.conditions.iter().map(Nested::Cond));
+    too_deep(roots)
+}
+
+/// Whether a term holds a node below more than 256 compound nodes.
+pub(crate) fn term_too_deep(term: &Term) -> bool {
+    too_deep(vec![Nested::Term(term)])
 }
 
 /// The tested symbols of an expression, in the order written: each
@@ -1960,7 +2065,7 @@ fn first_constant_in_cond(cond: &Cond) -> Option<(usize, usize)> {
 const SPAN_NOT_VALUE: &str = "a span is not a value: tags($x) is the tag set of $x";
 
 /// The type of the value a function gives (engine §10).
-fn call_type(call: &str) -> Type {
+pub(crate) fn call_type(call: &str) -> Type {
     match call {
         "phonemes" | "text" => Type::String,
         "split" => Type::Strings,
@@ -2097,11 +2202,6 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
     }
 }
 
-/// Why a condition's terms do not agree in type, or `None` (engine §10).
-pub(crate) fn cond_type_problem(cond: &Cond) -> Option<String> {
-    cond_type_fault(cond, &unknown).map(|fault| fault.problem)
-}
-
 /// Why a condition's terms do not agree in type, at the smallest construct
 /// that disagrees, or `None` (engine §10).
 pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<Fault> {
@@ -2124,12 +2224,6 @@ pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<F
         }
         Cond::Matches(..) | Cond::Begins(..) | Cond::Initial(_) | Cond::Captured(_) => None,
     }
-}
-
-/// Why a term that must be a tag set, a constituent's or an item's, is
-/// not one, or `None`.
-pub(crate) fn tag_term_problem(term: &Term) -> Option<String> {
-    tag_term_fault(term, &unknown).map(|fault| fault.problem)
 }
 
 fn tag_term_fault(term: &Term, constants: ConstantTypes) -> Option<Fault> {
@@ -2174,11 +2268,141 @@ pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Optio
 /// constant's type, which gives `∅` its kind, so its value can be of open
 /// kind.
 pub(crate) fn constant_value_type(value: &Term, redefine: bool, constants: ConstantTypes) -> Result<Type, Fault> {
-    match term_type_in(value, constants)? {
-        Type::Span => Err(Fault::in_term("a constant's value is a string or a set, never a span".to_string(), value)),
-        Type::Set if !redefine => {
-            Err(Fault::in_term("the kind of the set that the constant holds is not given".to_string(), value))
+    let ty = term_type_in(value, constants)?;
+    match constant_type_problem(ty, redefine) {
+        Some(problem) => Err(Fault::in_term(problem, value)),
+        None => Ok(ty),
+    }
+}
+
+/// Why a constant's value of type `ty` cannot be one, or `None`: a string
+/// or a set, of a kind that a definition gives (engine §2, §10).
+pub(crate) fn constant_type_problem(ty: Type, redefine: bool) -> Option<String> {
+    match ty {
+        Type::Span => Some("a constant's value is a string or a set, never a span".to_string()),
+        Type::Set if !redefine => Some("the kind of the set that the constant holds is not given".to_string()),
+        _ => None,
+    }
+}
+
+/// A part of a DOM being dropped.
+enum Dropping {
+    Expr(Expr),
+    Term(Term),
+    Cond(Cond),
+}
+
+impl Dropping {
+    /// Moves the parts of a node out onto `stack`, leaving it shallow.
+    fn take(&mut self, stack: &mut Vec<Dropping>) {
+        match self {
+            Dropping::Expr(expr) => expr.take_parts(stack),
+            Dropping::Term(term) => term.take_parts(stack),
+            Dropping::Cond(cond) => cond.take_parts(stack),
         }
-        ty => Ok(ty),
+    }
+}
+
+/// Drops the parts that `take` moved out, with an explicit stack: a DOM
+/// that a reader reads is as deep as its document nests until the check of
+/// its depth (engine §9), so a recursive drop could exhaust the call stack.
+fn drop_parts(mut stack: Vec<Dropping>) {
+    while let Some(mut part) = stack.pop() {
+        part.take(&mut stack);
+    }
+}
+
+impl Expr {
+    fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
+        match self {
+            Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
+                stack.extend(items.drain(..).map(Dropping::Expr))
+            }
+            Expr::Optional(inner, _) | Expr::Capture(_, inner) => {
+                stack.push(Dropping::Expr(std::mem::replace(&mut **inner, Expr::Empty)))
+            }
+            Expr::Repeat(item, separator, _) => {
+                stack.push(Dropping::Expr(std::mem::replace(&mut **item, Expr::Empty)));
+                if let Some(separator) = separator {
+                    stack.push(Dropping::Expr(std::mem::replace(&mut **separator, Expr::Empty)));
+                }
+            }
+            Expr::Tested(_, value, symbol) => {
+                stack.push(Dropping::Term(std::mem::replace(value, Term::EmptySet)));
+                stack.push(Dropping::Expr(std::mem::replace(&mut **symbol, Expr::Empty)));
+            }
+            Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {}
+        }
+    }
+}
+
+impl Term {
+    fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
+        match self {
+            Term::Union(items) | Term::Intersection(items) => stack.extend(items.drain(..).map(Dropping::Term)),
+            Term::Difference(left, right) => {
+                stack.push(Dropping::Term(std::mem::replace(&mut **left, Term::EmptySet)));
+                stack.push(Dropping::Term(std::mem::replace(&mut **right, Term::EmptySet)));
+            }
+            Term::Call(_, args) => {
+                for arg in args.drain(..) {
+                    if let Arg::Term(term) = arg {
+                        stack.push(Dropping::Term(term));
+                    }
+                }
+            }
+            Term::If(cond, then) => {
+                stack.push(Dropping::Cond(std::mem::replace(&mut **cond, Cond::Captured(String::new()))));
+                stack.push(Dropping::Term(std::mem::replace(&mut **then, Term::EmptySet)));
+            }
+            Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Capture(_) | Term::Const(..) => {}
+        }
+    }
+}
+
+impl Cond {
+    fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
+        match self {
+            Cond::Compare(_, left, right) => {
+                stack.push(Dropping::Term(std::mem::replace(left, Term::EmptySet)));
+                stack.push(Dropping::Term(std::mem::replace(right, Term::EmptySet)));
+            }
+            Cond::Matches(span, _) | Cond::Begins(span, _) | Cond::Initial(span) => {
+                stack.push(Dropping::Term(std::mem::replace(span, Term::EmptySet)))
+            }
+            Cond::Not(inner) => {
+                stack.push(Dropping::Cond(std::mem::replace(&mut **inner, Cond::Captured(String::new()))))
+            }
+            Cond::Any(items) | Cond::All(items) => stack.extend(items.drain(..).map(Dropping::Cond)),
+            Cond::If(antecedent, consequent) => {
+                stack.push(Dropping::Cond(std::mem::replace(&mut **antecedent, Cond::Captured(String::new()))));
+                stack.push(Dropping::Cond(std::mem::replace(&mut **consequent, Cond::Captured(String::new()))));
+            }
+            Cond::Captured(_) => {}
+        }
+    }
+}
+
+impl Drop for Expr {
+    fn drop(&mut self) {
+        let mut stack = Vec::new();
+        self.take_parts(&mut stack);
+        drop_parts(stack);
+    }
+}
+
+impl Drop for Term {
+    fn drop(&mut self) {
+        let mut stack = Vec::new();
+        self.take_parts(&mut stack);
+        drop_parts(stack);
+    }
+}
+
+impl Drop for Cond {
+    fn drop(&mut self) {
+        let mut stack = Vec::new();
+        self.take_parts(&mut stack);
+        drop_parts(stack);
     }
 }

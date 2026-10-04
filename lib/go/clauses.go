@@ -37,6 +37,7 @@ func isEmptySet(t *domTerm) bool {
 // left to evaluate; the one given is returned where nothing changed. A
 // reduced part is never evaluated (§10).
 func simplifyCond(c *domCond, has func(string) bool) (*domCond, truth) {
+	readerWork.steps.Add(1)
 	switch c.Kind {
 	case cdCaptured:
 		if has(c.Rule) {
@@ -121,6 +122,7 @@ func simplifyCond(c *domCond, has func(string) bool) (*domCond, truth) {
 // intersection with one. A difference whose first part is empty is empty,
 // and one whose second part is empty is its first part.
 func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
+	readerWork.steps.Add(1)
 	if t == nil {
 		return nil
 	}
@@ -189,6 +191,7 @@ func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
 // termCaptures adds the captures a term uses, as values or spans, "" for $;
 // a presence test is not a use.
 func termCaptures(t *domTerm, into map[string]bool) {
+	readerWork.steps.Add(1)
 	if t == nil {
 		return
 	}
@@ -204,6 +207,7 @@ func termCaptures(t *domTerm, into map[string]bool) {
 }
 
 func condCaptures(c *domCond, into map[string]bool) {
+	readerWork.steps.Add(1)
 	switch c.Kind {
 	case cdCompare:
 		termCaptures(c.Left, into)

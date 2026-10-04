@@ -211,11 +211,7 @@ impl<'a> Proofs<'a> {
                 let origins: Vec<u32> = if captured {
                     vec![self.chart.last_cap(item.caps).start]
                 } else {
-                    self.chart.sets[set as usize]
-                        .origins
-                        .get(&rule)
-                        .map(|origins| origins.iter().copied().filter(|&m| m >= item.origin).collect())
-                        .unwrap_or_default()
+                    self.chart.origins_between(&before, rule, item.origin, set)
                 };
                 let mut edges = Vec::new();
                 for m in origins {

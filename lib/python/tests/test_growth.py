@@ -10,6 +10,9 @@ import json
 import unittest
 
 import gencmu
+from gencmu._dialect import read_document
+from gencmu._earley import recognizer_counters
+from gencmu._trampoline import walk_counter
 
 from .shared import SHARED, OverItems, count_items, load_case_dialect, parse_case
 
@@ -67,6 +70,37 @@ class CaptureStorage(unittest.TestCase):
             # result, walks each a bounded number of times, not once for
             # each capture before it.
             self.assertLessEqual(recognizer_counters.capture_steps, 2 * count + 4, f"{count} captures: {recognizer_counters.capture_steps} steps")
+
+
+class NotationGrowth(unittest.TestCase):
+    def test_cases(self) -> None:
+        # The shared cases of tests/notation-growth.json: reading a document
+        # whose constructs nest deep costs work that grows with its length,
+        # not with its square. The work is the recognizer's items and the
+        # steps of the readers and walks, counted, not timed.
+        with open(SHARED / "notation-growth.json", encoding="utf-8") as file:
+            cases = json.load(file)
+        self.assertGreater(len(cases), 5)
+        for case in cases:
+            with self.subTest(case=case["name"]):
+
+                def work(n: int) -> int:
+                    text = "```jbogenbau\n" + case["prefix"] + case["open"] * n + case["middle"] + case["close"] * n + case["suffix"] + "\n```\n"
+                    recognizer_counters.items = 0
+                    walk_counter.steps = 0
+                    try:
+                        read_document(text, "t.md")
+                    except gencmu.GencmuError:
+                        # An error is an outcome too; its place is the
+                        # notation cases' concern.
+                        pass
+                    return recognizer_counters.items + walk_counter.steps
+
+                # Once first, so that loading the notation counts in neither.
+                work(250)
+                small = work(250)
+                large = work(1000)
+                self.assertLessEqual(large, 5 * small, f"{case['name']}: {small} for 250 levels, {large} for 1000")
 
 
 if __name__ == "__main__":

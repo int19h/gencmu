@@ -2,7 +2,9 @@
 //! §9): simplifying a clause for a production, the captures a clause uses,
 //! and the checks of a definition as a whole.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+
+use crate::earley::count_steps;
 
 use crate::dom::{constants_in_cond, constants_in_term, Arg, Cond, EmitItem, Expr, Mark, RuleDef, Term};
 
@@ -124,90 +126,251 @@ pub(crate) fn simplify_value(term: &Term, has: &dyn Fn(&str) -> bool) -> Term {
     simplify_term(term, has).unwrap_or(Term::EmptySet)
 }
 
-fn term_captures<'a>(term: &'a Term, out: &mut Vec<&'a str>) {
-    match term {
-        Term::Capture(name) => out.push(name),
-        Term::Union(items) | Term::Intersection(items) => items.iter().for_each(|item| term_captures(item, out)),
-        Term::Difference(left, right) => {
-            term_captures(left, out);
-            term_captures(right, out);
-        }
-        Term::Call(_, args) => {
-            for arg in args {
-                if let Arg::Term(term) = arg {
-                    term_captures(term, out);
+/// A part of a clause: a term or a condition.
+#[derive(Clone, Copy)]
+enum Part<'a> {
+    Term(&'a Term),
+    Cond(&'a Cond),
+}
+
+/// The captures that a clause uses as values or spans, presence tests
+/// aside (`values`), or its presence tests, outside calls (`presences`), in
+/// the order written. One walk, with an explicit stack: a clause is as deep
+/// as its document nests until the check of its depth (§9).
+fn walk_captures<'a>(start: Part<'a>, values: bool, presences: bool, out: &mut Vec<&'a str>) {
+    let mut stack = vec![start];
+    while let Some(part) = stack.pop() {
+        count_steps(1);
+        match part {
+            Part::Term(term) => match term {
+                Term::Capture(name) => {
+                    if values {
+                        out.push(name);
+                    }
                 }
-            }
+                Term::Union(items) | Term::Intersection(items) => stack.extend(items.iter().rev().map(Part::Term)),
+                Term::Difference(left, right) => stack.extend([Part::Term(right), Part::Term(left)]),
+                Term::Call(_, args) => {
+                    if values {
+                        stack.extend(args.iter().rev().filter_map(|arg| match arg {
+                            Arg::Term(term) => Some(Part::Term(term)),
+                            _ => None,
+                        }));
+                    }
+                }
+                Term::If(cond, then) => stack.extend([Part::Term(then), Part::Cond(cond)]),
+                Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Const(..) => {}
+            },
+            Part::Cond(cond) => match cond {
+                Cond::Captured(name) => {
+                    if presences {
+                        out.push(name);
+                    }
+                }
+                Cond::Compare(_, left, right) => stack.extend([Part::Term(right), Part::Term(left)]),
+                Cond::Matches(span, _) | Cond::Begins(span, _) | Cond::Initial(span) => {
+                    if values {
+                        stack.push(Part::Term(span));
+                    }
+                }
+                Cond::Not(inner) => stack.push(Part::Cond(inner)),
+                Cond::Any(items) | Cond::All(items) => stack.extend(items.iter().rev().map(Part::Cond)),
+                Cond::If(antecedent, consequent) => stack.extend([Part::Cond(consequent), Part::Cond(antecedent)]),
+            },
         }
-        Term::If(cond, then) => {
-            cond_captures(cond, out);
-            term_captures(then, out);
-        }
-        Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Const(..) => {}
     }
+}
+
+fn term_captures<'a>(term: &'a Term, out: &mut Vec<&'a str>) {
+    walk_captures(Part::Term(term), true, false, out);
 }
 
 fn cond_captures<'a>(cond: &'a Cond, out: &mut Vec<&'a str>) {
-    match cond {
-        Cond::Compare(_, left, right) => {
-            term_captures(left, out);
-            term_captures(right, out);
-        }
-        Cond::Matches(span, _) | Cond::Begins(span, _) | Cond::Initial(span) => term_captures(span, out),
-        Cond::Not(inner) => cond_captures(inner, out),
-        Cond::Any(items) | Cond::All(items) => items.iter().for_each(|item| cond_captures(item, out)),
-        Cond::If(antecedent, consequent) => {
-            cond_captures(antecedent, out);
-            cond_captures(consequent, out);
-        }
-        Cond::Captured(_) => {}
-    }
-}
-
-/// The captures a term uses as values or spans, presence tests aside.
-pub(crate) fn term_uses(term: &Term) -> Vec<&str> {
-    let mut out = Vec::new();
-    term_captures(term, &mut out);
-    out
-}
-
-/// The captures a condition uses as values or spans, presence tests aside.
-pub(crate) fn cond_uses(cond: &Cond) -> Vec<&str> {
-    let mut out = Vec::new();
-    cond_captures(cond, &mut out);
-    out
+    walk_captures(Part::Cond(cond), true, false, out);
 }
 
 fn term_presences<'a>(term: &'a Term, out: &mut Vec<&'a str>) {
-    match term {
-        Term::Union(items) | Term::Intersection(items) => items.iter().for_each(|item| term_presences(item, out)),
-        Term::Difference(left, right) => {
-            term_presences(left, out);
-            term_presences(right, out);
-        }
-        Term::If(cond, then) => {
-            cond_presences(cond, out);
-            term_presences(then, out);
-        }
-        _ => {}
-    }
+    walk_captures(Part::Term(term), false, true, out);
 }
 
 fn cond_presences<'a>(cond: &'a Cond, out: &mut Vec<&'a str>) {
-    match cond {
-        Cond::Captured(name) => out.push(name),
-        Cond::Compare(_, left, right) => {
-            term_presences(left, out);
-            term_presences(right, out);
+    walk_captures(Part::Cond(cond), false, true, out);
+}
+
+/// What a clause gives for a production once simplified (§3.6), as far as
+/// the checks of a definition need it: a condition true or false, or else
+/// the first capture its simplified form uses that the production lacks,
+/// if any; a term empty, or else that first capture. It walks the clause
+/// once, with an explicit stack, and builds no simplified clause, so a
+/// deep clause costs its size.
+#[derive(Clone, Copy)]
+enum Outcome<'a> {
+    True,
+    False,
+    Empty,
+    Uses(Option<&'a str>),
+}
+
+fn simplified_outcome<'a>(start: Part<'a>, has: &dyn Fn(&str) -> bool) -> Outcome<'a> {
+    let first = |a: Option<&'a str>, b: Option<&'a str>| a.or(b);
+    // Each part is met twice: first to push its parts, then to combine
+    // their outcomes, which stand on `done` in the order written.
+    let mut stack: Vec<(Part<'a>, bool)> = vec![(start, false)];
+    let mut done: Vec<Outcome<'a>> = Vec::new();
+    while let Some((part, combine)) = stack.pop() {
+        count_steps(1);
+        if !combine {
+            let children: Vec<Part<'a>> = match part {
+                Part::Term(Term::If(cond, then)) => vec![Part::Cond(cond), Part::Term(then)],
+                Part::Term(Term::Union(items) | Term::Intersection(items)) => items.iter().map(Part::Term).collect(),
+                Part::Term(Term::Difference(left, right)) => vec![Part::Term(left), Part::Term(right)],
+                Part::Cond(Cond::Not(inner)) => vec![Part::Cond(inner)],
+                Part::Cond(Cond::Any(items) | Cond::All(items)) => items.iter().map(Part::Cond).collect(),
+                Part::Cond(Cond::If(antecedent, consequent)) => vec![Part::Cond(antecedent), Part::Cond(consequent)],
+                Part::Cond(Cond::Compare(_, left, right)) => vec![Part::Term(left), Part::Term(right)],
+                _ => Vec::new(),
+            };
+            stack.push((part, true));
+            stack.extend(children.into_iter().rev().map(|child| (child, false)));
+            continue;
         }
-        Cond::Not(inner) => cond_presences(inner, out),
-        Cond::Any(items) | Cond::All(items) => items.iter().for_each(|item| cond_presences(item, out)),
-        Cond::If(antecedent, consequent) => {
-            cond_presences(antecedent, out);
-            cond_presences(consequent, out);
-        }
-        Cond::Matches(..) | Cond::Begins(..) | Cond::Initial(_) => {}
+        let missing = |part: Part<'a>| {
+            let mut out = Vec::new();
+            walk_captures(part, true, false, &mut out);
+            out.into_iter().find(|name| !has(name))
+        };
+        let outcome = match part {
+            Part::Term(term) => match term {
+                Term::EmptySet => Outcome::Empty,
+                Term::If(..) => {
+                    let then = done.pop().expect("the term");
+                    match done.pop().expect("the condition") {
+                        Outcome::False => Outcome::Empty,
+                        Outcome::True => then,
+                        Outcome::Uses(used) => match then {
+                            Outcome::Empty => Outcome::Empty,
+                            Outcome::Uses(then) => Outcome::Uses(first(used, then)),
+                            _ => unreachable!("a term is empty or uses captures"),
+                        },
+                        Outcome::Empty => unreachable!("a condition is not empty"),
+                    }
+                }
+                Term::Union(items) => {
+                    let parts = done.split_off(done.len() - items.len());
+                    let left: Vec<Option<&str>> = parts
+                        .into_iter()
+                        .filter_map(|outcome| match outcome {
+                            Outcome::Uses(used) => Some(used),
+                            _ => None,
+                        })
+                        .collect();
+                    if left.is_empty() {
+                        Outcome::Empty
+                    } else {
+                        Outcome::Uses(left.into_iter().flatten().next())
+                    }
+                }
+                Term::Intersection(items) => {
+                    let parts = done.split_off(done.len() - items.len());
+                    let mut used = None;
+                    let mut empty = false;
+                    for outcome in parts {
+                        match outcome {
+                            Outcome::Uses(part) => used = first(used, part),
+                            _ => empty = true,
+                        }
+                    }
+                    if empty {
+                        Outcome::Empty
+                    } else {
+                        Outcome::Uses(used)
+                    }
+                }
+                Term::Difference(..) => {
+                    let right = done.pop().expect("the second part");
+                    match (done.pop().expect("the first part"), right) {
+                        (Outcome::Uses(left), Outcome::Uses(right)) => Outcome::Uses(first(left, right)),
+                        (Outcome::Uses(left), _) => Outcome::Uses(left),
+                        _ => Outcome::Empty,
+                    }
+                }
+                // A capture, a literal or a call, as written.
+                _ => Outcome::Uses(missing(part)),
+            },
+            Part::Cond(cond) => match cond {
+                Cond::Captured(name) => {
+                    if has(name) {
+                        Outcome::True
+                    } else {
+                        Outcome::False
+                    }
+                }
+                Cond::Not(_) => match done.pop().expect("the condition") {
+                    Outcome::True => Outcome::False,
+                    Outcome::False => Outcome::True,
+                    other => other,
+                },
+                Cond::All(items) | Cond::Any(items) => {
+                    let all = matches!(cond, Cond::All(_));
+                    let parts = done.split_off(done.len() - items.len());
+                    let (stop, skip) = if all { (Outcome::False, true) } else { (Outcome::True, false) };
+                    let mut used = None;
+                    let mut left = 0;
+                    let mut stopped = false;
+                    for outcome in parts {
+                        match outcome {
+                            Outcome::True if !all => stopped = true,
+                            Outcome::False if all => stopped = true,
+                            Outcome::True | Outcome::False => {}
+                            Outcome::Uses(part) => {
+                                used = first(used, part);
+                                left += 1;
+                            }
+                            Outcome::Empty => unreachable!("a condition is not empty"),
+                        }
+                    }
+                    if stopped {
+                        stop
+                    } else if left == 0 {
+                        if skip {
+                            Outcome::True
+                        } else {
+                            Outcome::False
+                        }
+                    } else {
+                        Outcome::Uses(used)
+                    }
+                }
+                Cond::If(..) => {
+                    let consequent = done.pop().expect("the consequent");
+                    match done.pop().expect("the antecedent") {
+                        Outcome::False => Outcome::True,
+                        Outcome::True => consequent,
+                        Outcome::Uses(antecedent) => match consequent {
+                            Outcome::True => Outcome::True,
+                            Outcome::False => Outcome::Uses(antecedent),
+                            Outcome::Uses(consequent) => Outcome::Uses(first(antecedent, consequent)),
+                            Outcome::Empty => unreachable!("a condition is not empty"),
+                        },
+                        Outcome::Empty => unreachable!("a condition is not empty"),
+                    }
+                }
+                Cond::Compare(..) => {
+                    // An empty side is written out as ∅, which uses nothing.
+                    let right = done.pop().expect("the right side");
+                    let left = done.pop().expect("the left side");
+                    let used = |outcome: Outcome<'a>| match outcome {
+                        Outcome::Uses(used) => used,
+                        _ => None,
+                    };
+                    Outcome::Uses(first(used(left), used(right)))
+                }
+                Cond::Matches(..) | Cond::Begins(..) | Cond::Initial(_) => Outcome::Uses(missing(part)),
+            },
+        };
+        done.push(outcome);
     }
+    done.pop().expect("the outcome")
 }
 
 /// The captures that some production of an expression reads after a
@@ -218,56 +381,98 @@ fn cond_presences<'a>(cond: &'a Cond, out: &mut Vec<&'a str>) {
 /// never meet, and braces and an elidable optional hold no capture. Each
 /// capture is its index in the order written, and the list is increasing.
 pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
-    fn visit<'e>(expr: &'e Expr, next: &mut usize, out: &mut Vec<usize>) -> Vec<(usize, &'e str)> {
-        match expr {
-            Expr::Capture(name, _) => {
-                *next += 1;
-                vec![(*next - 1, name.as_str())]
-            }
-            Expr::Seq(items) | Expr::And(items) => {
-                let mut seen: HashSet<&str> = HashSet::new();
-                let mut all = Vec::new();
-                for item in items {
-                    let part = visit(item, next, out);
-                    out.extend(part.iter().filter(|(_, name)| seen.contains(name)).map(|&(index, _)| index));
-                    seen.extend(part.iter().map(|&(_, name)| name));
-                    all.extend(part);
+    // Each part gives its captures, by name, each a list of indices, and
+    // counts them. An item of a sequence or an `&` meets the items before
+    // it: the side with fewer captures is looked up in the other, and the
+    // two are then joined, the smaller into the larger, so that each
+    // capture moves a number of times that grows with the logarithm of
+    // their count, not with the depth of the expression.
+    type Found<'e> = (HashMap<&'e str, Vec<usize>>, usize);
+    let mut duplicate: Vec<bool> = Vec::new();
+    let mut stack: Vec<(&Expr, bool)> = vec![(expr, false)];
+    let mut done: Vec<Found> = Vec::new();
+    let empty = || (HashMap::new(), 0);
+    while let Some((expr, combine)) = stack.pop() {
+        count_steps(1);
+        if !combine {
+            match expr {
+                Expr::Capture(name, _) => {
+                    duplicate.push(false);
+                    done.push((HashMap::from([(name.as_str(), vec![duplicate.len() - 1])]), 1));
                 }
-                all
-            }
-            Expr::Choice(items) => {
-                let mut all = Vec::new();
-                for item in items {
-                    all.extend(visit(item, next, out));
+                Expr::Seq(items) | Expr::And(items) | Expr::Choice(items) => {
+                    stack.push((expr, true));
+                    stack.extend(items.iter().rev().map(|item| (item, false)));
                 }
-                all
-            }
-            Expr::Optional(inner, Mark::Plain) => visit(inner, next, out),
-            Expr::Optional(..) | Expr::Repeat(..) | Expr::Tested(..) => {
-                // No production reads a capture here, but its index counts.
-                let mut stack = vec![expr];
-                while let Some(current) = stack.pop() {
-                    match current {
-                        Expr::Capture(..) => *next += 1,
-                        Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => stack.extend(items.iter().rev()),
-                        Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => stack.push(inner),
-                        Expr::Repeat(item, separator, _) => {
-                            stack.extend(separator.as_deref());
-                            stack.push(item);
+                Expr::Optional(inner, Mark::Plain) => {
+                    stack.push((expr, true));
+                    stack.push((inner, false));
+                }
+                Expr::Optional(..) | Expr::Repeat(..) | Expr::Tested(..) => {
+                    // No production reads a capture here, but its index
+                    // counts.
+                    let mut inside = vec![expr];
+                    while let Some(current) = inside.pop() {
+                        count_steps(1);
+                        match current {
+                            Expr::Capture(..) => duplicate.push(false),
+                            Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
+                                inside.extend(items.iter().rev())
+                            }
+                            Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => inside.push(inner),
+                            Expr::Repeat(item, separator, _) => {
+                                inside.extend(separator.as_deref());
+                                inside.push(item);
+                            }
+                            _ => {}
                         }
-                        _ => {}
+                    }
+                    done.push(empty());
+                }
+                Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {
+                    done.push(empty())
+                }
+            }
+            continue;
+        }
+        let count = match expr {
+            Expr::Seq(items) | Expr::And(items) | Expr::Choice(items) => items.len(),
+            _ => 1,
+        };
+        let parts = done.split_off(done.len() - count);
+        let meets = matches!(expr, Expr::Seq(_) | Expr::And(_));
+        let mut parts = parts.into_iter();
+        let mut joined = parts.next().unwrap_or_else(empty);
+        for mut part in parts {
+            if meets {
+                if joined.1 <= part.1 {
+                    for name in joined.0.keys() {
+                        for &index in part.0.get(name).into_iter().flatten() {
+                            duplicate[index] = true;
+                        }
+                    }
+                } else {
+                    for (name, indices) in &part.0 {
+                        if joined.0.contains_key(name) {
+                            for &index in indices {
+                                duplicate[index] = true;
+                            }
+                        }
                     }
                 }
-                Vec::new()
             }
-            Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => Vec::new(),
+            if joined.1 < part.1 {
+                std::mem::swap(&mut joined, &mut part);
+            }
+            joined.1 += part.1;
+            for (name, mut indices) in part.0 {
+                count_steps(indices.len() as u64);
+                joined.0.entry(name).or_default().append(&mut indices);
+            }
         }
+        done.push(joined);
     }
-    let mut out = Vec::new();
-    visit(expr, &mut 0, &mut out);
-    out.sort_unstable();
-    out.dedup();
-    out
+    (0..duplicate.len()).filter(|&index| duplicate[index]).collect()
 }
 
 /// The distinct sequences of captures that the productions of an
@@ -325,6 +530,7 @@ impl<'e> CaptureSequences<'e> {
     fn skip(&mut self, expr: &'e Expr) {
         let mut stack = vec![expr];
         while let Some(current) = stack.pop() {
+            count_steps(1);
             match current {
                 Expr::Capture(name, _) => self.names.push(name),
                 Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => stack.extend(items.iter().rev()),
@@ -338,54 +544,80 @@ impl<'e> CaptureSequences<'e> {
         }
     }
 
+    /// The sequences of an expression, with an explicit stack: each part
+    /// is met first to name its captures in the order written and to push
+    /// its parts, and then to combine their sequences.
     fn visit(&mut self, expr: &'e Expr) -> Vec<Vec<usize>> {
-        match expr {
-            Expr::Capture(name, _) => {
-                self.names.push(name);
-                vec![vec![self.names.len() - 1]]
-            }
-            Expr::Seq(items) => {
-                let mut sequences = vec![Vec::new()];
-                for item in items {
-                    let part = self.visit(item);
-                    sequences = self.product(&sequences, &part);
-                }
-                sequences
-            }
-            Expr::Choice(items) => {
-                let mut all = Vec::new();
-                for item in items {
-                    all.extend(self.visit(item));
-                }
-                self.distinct(all)
-            }
-            Expr::And(items) => {
-                let parts: Vec<Vec<Vec<usize>>> = items.iter().map(|item| self.visit(item)).collect();
-                let mut all = Vec::new();
-                for mask in 1u64..(1u64 << parts.len().min(63)) {
-                    let mut sequences = vec![Vec::new()];
-                    for (bit, part) in parts.iter().enumerate() {
-                        if mask & (1 << bit) != 0 {
-                            sequences = self.product(&sequences, part);
-                        }
+        let mut stack: Vec<(&'e Expr, bool)> = vec![(expr, false)];
+        let mut done: Vec<Vec<Vec<usize>>> = Vec::new();
+        while let Some((expr, combine)) = stack.pop() {
+            count_steps(1);
+            count_steps(1);
+            if !combine {
+                match expr {
+                    Expr::Capture(name, _) => {
+                        self.names.push(name);
+                        done.push(vec![vec![self.names.len() - 1]]);
                     }
-                    all.extend(sequences);
+                    Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
+                        stack.push((expr, true));
+                        stack.extend(items.iter().rev().map(|item| (item, false)));
+                    }
+                    Expr::Optional(inner, Mark::Plain) => {
+                        stack.push((expr, true));
+                        stack.push((inner, false));
+                    }
+                    Expr::Optional(..) | Expr::Repeat(..) => {
+                        self.skip(expr);
+                        done.push(vec![Vec::new()]);
+                    }
+                    Expr::Tested(..)
+                    | Expr::Ref(_)
+                    | Expr::Terminal(_)
+                    | Expr::Range(..)
+                    | Expr::Property(_)
+                    | Expr::Empty => done.push(vec![Vec::new()]),
                 }
-                self.distinct(all)
+                continue;
             }
-            Expr::Optional(inner, Mark::Plain) => {
-                let mut all = vec![Vec::new()];
-                all.extend(self.visit(inner));
-                self.distinct(all)
-            }
-            Expr::Optional(..) | Expr::Repeat(..) => {
-                self.skip(expr);
-                vec![Vec::new()]
-            }
-            Expr::Tested(..) | Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {
-                vec![Vec::new()]
-            }
+            let combined = match expr {
+                Expr::Seq(items) => {
+                    let parts = done.split_off(done.len() - items.len());
+                    let mut sequences = vec![Vec::new()];
+                    for part in parts {
+                        sequences = self.product(&sequences, &part);
+                    }
+                    sequences
+                }
+                Expr::Choice(items) => {
+                    let parts = done.split_off(done.len() - items.len());
+                    let all = parts.into_iter().flatten().collect();
+                    self.distinct(all)
+                }
+                Expr::And(items) => {
+                    let parts = done.split_off(done.len() - items.len());
+                    let mut all = Vec::new();
+                    for mask in 1u64..(1u64 << parts.len().min(63)) {
+                        let mut sequences = vec![Vec::new()];
+                        for (bit, part) in parts.iter().enumerate() {
+                            if mask & (1 << bit) != 0 {
+                                sequences = self.product(&sequences, part);
+                            }
+                        }
+                        all.extend(sequences);
+                    }
+                    self.distinct(all)
+                }
+                _ => {
+                    // A plain optional: none, or its content's.
+                    let mut all = vec![Vec::new()];
+                    all.extend(done.pop().expect("the content"));
+                    self.distinct(all)
+                }
+            };
+            done.push(combined);
         }
+        done.pop().expect("the sequences")
     }
 }
 
@@ -473,10 +705,11 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
     for cond in rule.conditions.iter().filter(|cond| !cond_waits(cond)) {
         let applies = (0..productions.len()).any(|index| {
             let has = captures_of(index);
-            match simplify_cond(cond, &has) {
-                Simple::True => false,
-                Simple::False => true,
-                Simple::Cond(simple) => cond_uses(&simple).iter().all(|name| has(name)),
+            match simplified_outcome(Part::Cond(cond), &has) {
+                Outcome::True => false,
+                Outcome::False => true,
+                Outcome::Uses(missing) => missing.is_none(),
+                Outcome::Empty => unreachable!("a condition is not empty"),
             }
         });
         if !applies {
@@ -493,10 +726,8 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         for term in
             [rule.tags.as_ref(), alternative.tags.as_ref()].into_iter().flatten().filter(|term| !term_waits(term))
         {
-            if let Some(simple) = simplify_term(term, &has) {
-                if let Some(missing) = term_uses(&simple).into_iter().find(|name| !has(name)) {
-                    return Some(unguarded(missing));
-                }
+            if let Outcome::Uses(Some(missing)) = simplified_outcome(Part::Term(term), &has) {
+                return Some(unguarded(missing));
             }
         }
         if rule.emit.is_none() {
@@ -553,10 +784,8 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
                 if term_waits(term) {
                     continue;
                 }
-                if let Some(simple) = simplify_term(term, &has) {
-                    if let Some(missing) = term_uses(&simple).into_iter().find(|name| !has(name)) {
-                        return Some(unguarded(missing));
-                    }
+                if let Outcome::Uses(Some(missing)) = simplified_outcome(Part::Term(term), &has) {
+                    return Some(unguarded(missing));
                 }
             }
         }

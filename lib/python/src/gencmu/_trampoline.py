@@ -13,6 +13,18 @@ from typing import Any, Generator
 Walk = Generator[Any, Any, Any]
 
 
+class WalkCounter:
+    """The steps that the readers and the walks of a document have taken:
+    a measure of work that the tests of growth compare across depths of
+    nesting (tests/README.md). Each step of a run counts one, and so does
+    each node that a walk with an explicit stack meets."""
+
+    steps = 0
+
+
+walk_counter = WalkCounter()
+
+
 def run(walk: Walk) -> Any:
     """The result of a walk, as a recursive call would have returned it;
     an exception propagates to the callers as it would have."""
@@ -20,6 +32,7 @@ def run(walk: Walk) -> Any:
     value: Any = None
     error: BaseException | None = None
     while True:
+        walk_counter.steps += 1
         top = stack[-1]
         try:
             if error is not None:

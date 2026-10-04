@@ -453,43 +453,73 @@ func elidableHead(e *domExpr) *domExpr {
 // optional hold no capture.
 func duplicateCaptures(e *domExpr) map[*domExpr]bool {
 	duplicates := map[*domExpr]bool{}
-	var visit func(n *domExpr) []*domExpr
-	visit = func(n *domExpr) []*domExpr {
+	// Each part gives its captures by name, and their number. An item of a
+	// sequence or an & meets the items before it: the side with fewer
+	// captures is looked up in the other, and the two are then joined, the
+	// smaller into the larger, so a capture moves a number of times that
+	// grows with the logarithm of their count, not with the depth of the
+	// expression.
+	type found struct {
+		names map[string][]*domExpr
+		size  int
+	}
+	var visit func(n *domExpr) found
+	visit = func(n *domExpr) found {
+		readerWork.steps.Add(1)
 		if n == nil {
-			return nil
+			return found{map[string][]*domExpr{}, 0}
 		}
+		var items []*domExpr
 		switch n.Kind {
 		case exCapture:
-			return []*domExpr{n}
-		case exSeq, exAnd:
-			seen := map[string]bool{}
-			var all []*domExpr
-			for _, it := range n.Items {
-				part := visit(it)
-				for _, c := range part {
-					if seen[c.Name] {
-						duplicates[c] = true
-					}
-				}
-				for _, c := range part {
-					seen[c.Name] = true
-				}
-				all = append(all, part...)
-			}
-			return all
-		case exChoice:
-			var all []*domExpr
-			for _, it := range n.Items {
-				all = append(all, visit(it)...)
-			}
-			return all
+			return found{map[string][]*domExpr{n.Name: {n}}, 1}
+		case exSeq, exAnd, exChoice:
+			items = n.Items
 		case exOptional:
 			if n.Elidable {
-				return nil
+				return found{map[string][]*domExpr{}, 0}
 			}
-			return visit(n.Inner)
+			items = []*domExpr{n.Inner}
+		default:
+			return found{map[string][]*domExpr{}, 0}
 		}
-		return nil
+		meets := n.Kind == exSeq || n.Kind == exAnd
+		joined := found{map[string][]*domExpr{}, 0}
+		for i, it := range items {
+			part := visit(it)
+			if i == 0 {
+				joined = part
+				continue
+			}
+			if meets {
+				if joined.size <= part.size {
+					for name := range joined.names {
+						for _, c := range part.names[name] {
+							duplicates[c] = true
+						}
+					}
+				} else {
+					for name, cs := range part.names {
+						if _, ok := joined.names[name]; ok {
+							for _, c := range cs {
+								duplicates[c] = true
+							}
+						}
+					}
+				}
+			}
+			large, small := joined, part
+			if part.size > joined.size {
+				large, small = part, joined
+			}
+			for name, cs := range small.names {
+				large.names[name] = append(large.names[name], cs...)
+				readerWork.steps.Add(int64(len(cs)))
+			}
+			large.size += small.size
+			joined = large
+		}
+		return joined
 	}
 	visit(e)
 	return duplicates
@@ -1165,6 +1195,43 @@ func typeOf(t *domTerm) (termType, string) {
 // termTypeIn is a term's type, or why its parts do not agree, with the
 // smallest construct whose parts disagree; ct gives each constant's type.
 func termTypeIn(t *domTerm, ct constTypes) (termType, *typeFault) {
+	return termTypeMemo(t, ct, nil)
+}
+
+// typeMemo keeps the types found of terms and the type faults of
+// conditions: a reader asks the type of each term it reads and of the
+// terms around it, so each is found once, and a deep term costs no more
+// than its size. A DOM is never changed once read.
+type typeMemo struct {
+	terms map[*domTerm]typeFound
+	conds map[*domCond]*typeFault
+}
+
+type typeFound struct {
+	ty termType
+	f  *typeFault
+}
+
+func newTypeMemo() *typeMemo {
+	return &typeMemo{terms: map[*domTerm]typeFound{}, conds: map[*domCond]*typeFault{}}
+}
+
+// termTypeMemo is termTypeIn through a memo, which may be nil.
+func termTypeMemo(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFault) {
+	if memo != nil {
+		if found, ok := memo.terms[t]; ok {
+			return found.ty, found.f
+		}
+	}
+	ty, f := termTypeOnce(t, ct, memo)
+	if memo != nil {
+		memo.terms[t] = typeFound{ty, f}
+	}
+	return ty, f
+}
+
+func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFault) {
+	readerWork.steps.Add(1)
 	switch t.Kind {
 	case tmString:
 		return tyString, nil
@@ -1180,7 +1247,7 @@ func termTypeIn(t *domTerm, ct constTypes) (termType, *typeFault) {
 		op := map[string]string{tmUnion: "∪", tmIntersection: "∩", tmDifference: "∖"}[t.Kind]
 		types := make([]termType, 0, len(t.Items))
 		for _, it := range t.Items {
-			ty, f := termTypeIn(it, ct)
+			ty, f := termTypeMemo(it, ct, memo)
 			if f != nil {
 				return 0, f
 			}
@@ -1192,10 +1259,10 @@ func termTypeIn(t *domTerm, ct constTypes) (termType, *typeFault) {
 		}
 		return ty, nil
 	case tmIf:
-		if f := condTypeFault(t.Cond, ct); f != nil {
+		if f := condTypeMemo(t.Cond, ct, memo); f != nil {
 			return 0, f
 		}
-		ty, f := termTypeIn(t.Items[0], ct)
+		ty, f := termTypeMemo(t.Items[0], ct, memo)
 		if f != nil {
 			return 0, f
 		}
@@ -1208,7 +1275,7 @@ func termTypeIn(t *domTerm, ct constTypes) (termType, *typeFault) {
 			if a.Kind == tmRule || a.Kind == tmClassifier {
 				continue
 			}
-			ty, f := termTypeIn(a, ct)
+			ty, f := termTypeMemo(a, ct, memo)
 			if f != nil {
 				return 0, f
 			}
@@ -1234,21 +1301,40 @@ func condTypeProblem(c *domCond) string {
 // condTypeFault is why a condition's terms do not agree in type, with the
 // smallest construct that disagrees, or nil.
 func condTypeFault(c *domCond, ct constTypes) *typeFault {
+	return condTypeMemo(c, ct, nil)
+}
+
+// condTypeMemo is condTypeFault through a memo, which may be nil.
+func condTypeMemo(c *domCond, ct constTypes, memo *typeMemo) *typeFault {
+	if memo != nil {
+		if f, ok := memo.conds[c]; ok {
+			return f
+		}
+	}
+	f := condTypeOnce(c, ct, memo)
+	if memo != nil {
+		memo.conds[c] = f
+	}
+	return f
+}
+
+func condTypeOnce(c *domCond, ct constTypes, memo *typeMemo) *typeFault {
+	readerWork.steps.Add(1)
 	switch c.Kind {
 	case cdAny, cdAll, cdIf:
 		for _, it := range c.Items {
-			if f := condTypeFault(it, ct); f != nil {
+			if f := condTypeMemo(it, ct, memo); f != nil {
 				return f
 			}
 		}
 	case cdNot:
-		return condTypeFault(c.Inner, ct)
+		return condTypeMemo(c.Inner, ct, memo)
 	case cdCompare:
-		left, f := termTypeIn(c.Left, ct)
+		left, f := termTypeMemo(c.Left, ct, memo)
 		if f != nil {
 			return f
 		}
-		right, f := termTypeIn(c.Right, ct)
+		right, f := termTypeMemo(c.Right, ct, memo)
 		if f != nil {
 			return f
 		}

@@ -144,6 +144,15 @@ Each item is one directive of a DOM (`docs/output.md`). A library puts it alone 
 
 Each item says that a bundled dialect's work on a long text grows in proportion to its length. A condition that parses a whole prefix again at each step makes a long text cost more than its length says, and no other case shows that. The library builds two texts from `text`. It replaces `{links}` with `small` copies of `link`, joined by spaces, and then with `large` copies. Both texts must parse. The library counts the items that its recognizer makes for each text, in the main parse and in every nested parse, but not while it loads the dialect. The count for `large` copies must be at most `most` times the count for `small` copies.
 
+## Notation growth cases: `notation-growth.json`
+
+```
+[{"name": "groups", "description": "...", "prefix": "%rule text ", "open": "(", "middle": "A",
+  "close": ")", "suffix": ""}, ...]
+```
+
+Each item says that reading a document whose constructs nest deep costs work in proportion to its length. A reader that types or copies a whole subtree at each level of nesting makes a deep document cost the square of its depth, and no other case shows that. The library builds the document `prefix`, `open` n times, `middle`, `close` n times and `suffix`, in a fence, for n = 250 and n = 1000, and reads each once with its reader, after one read that loads the notation. The read can end in an error. The library counts the items that its recognizer makes and the steps of its reader and of the walks of what the reader reads. The count for 1000 must be at most five times the count for 250. The JavaScript library also reads each document with the hand-written bootstrap reader. The Rust library reads each on a thread with a stack of 2 MiB, which no depth changes.
+
 A library compares only its own two counts. Counts from different libraries are not compared, since each library makes its items in its own way.
 
 ## Result mutants: `result-mutants.json`

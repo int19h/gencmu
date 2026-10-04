@@ -1029,12 +1029,7 @@ impl<'c> Ranker<'c> {
                                 links.push(((Node::Item { set: m, index: p }, same(m, fset)), (child, child_fset)));
                             }
                         } else {
-                            let mut origins: Vec<u32> = self.dag.chart.sets[set as usize]
-                                .origins
-                                .get(&rule)
-                                .map(|origins| origins.iter().copied().filter(|&m| m >= item.origin).collect())
-                                .unwrap_or_default();
-                            origins.sort_unstable();
+                            let origins = self.dag.chart.origins_between(&pred, rule, item.origin, set);
                             let eset = &self.dag.chart.sets[set as usize];
                             for m in origins {
                                 // Two completed items over one span can have

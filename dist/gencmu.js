@@ -1769,6 +1769,14 @@
    */
 
   /**
+   * The steps that the readers and the walks of a document have taken, in
+   * this process: a measure of work that the tests of growth compare across
+   * depths of nesting (tests/README.md). Each step of a run counts one, and
+   * so does each node that a walk with an explicit stack meets.
+   */
+  const walkCounter = { steps: 0 };
+
+  /**
    * Runs a reader to its result, keeping the chain of its calls in an
    * explicit stack.
    * @template T
@@ -1784,6 +1792,7 @@
     /** @type {unknown} */
     let error = null;
     while (stack.length > 0) {
+      walkCounter.steps++;
       const top = stack[stack.length - 1];
       let step;
       try {
@@ -2088,6 +2097,7 @@
       }
     }
     for (let task = pending.pop(); task !== undefined; task = pending.pop()) {
+      walkCounter.steps++;
       const { kind, value, depth } = task;
       // A function's argument is a term where a span may stand.
       const argument = kind === "argument";
@@ -2336,6 +2346,7 @@
     // bounded only once the whole document is read (engine §9).
     const stack = [node];
     while (stack.length > 0) {
+      walkCounter.steps++;
       const current = stack.pop();
       if (!isDomObject(current)) continue;
       if (current.capture === "" && Object.keys(current).length === 1) return true;
@@ -2482,6 +2493,7 @@
     const names = [];
     const stack = [node];
     for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+      walkCounter.steps++;
       if (!isDomObject(current) && !Array.isArray(current)) continue;
       if (isDomObject(current) && typeof current.capture === "string" && Object.keys(current).length === 1) names.push(current.capture);
       for (const value of Object.values(current)) if (value && typeof value === "object") stack.push(value);
@@ -2498,6 +2510,7 @@
     const names = capturesUsed(node);
     const stack = [node];
     for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+      walkCounter.steps++;
       if (!isDomObject(current) && !Array.isArray(current)) continue;
       if (isDomObject(current) && typeof current.captured === "string") names.push(current.captured);
       for (const value of Object.values(current)) if (value && typeof value === "object") stack.push(value);
@@ -2613,12 +2626,18 @@
    * @returns {{capture: string}[]}
    */
   function duplicateCaptures(expr) {
-    /** @type {{capture: string}[]} */
-    const duplicates = [];
-    // Each node with the captures below it, gathered after its children: an
-    // explicit stack, since the depth of a DOM is bounded only by its check.
-    /** @type {{node: any, index: number, captures: {capture: string}[][]}[]} */
-    const stack = [{ node: expr, index: 0, captures: [] }];
+    /** @type {Set<{capture: string}>} */
+    const duplicates = new Set();
+    // Each node gives its captures by name, and their number, gathered after
+    // its children, with an explicit stack, since the depth of a DOM is
+    // bounded only by its check. An item of a sequence or an & meets the
+    // items before it: the side with fewer captures is looked up in the
+    // other, and the two are then joined, the smaller into the larger, so a
+    // capture moves a number of times that grows with the logarithm of their
+    // count, not with the depth of the expression.
+    /** @typedef {{names: Map<string, {capture: string}[]>, size: number}} Found */
+    /** @type {{node: any, index: number, parts: Found[]}[]} */
+    const stack = [{ node: expr, index: 0, parts: [] }];
     /** @type {(node: any) => any[]} */
     const children = (node) => {
       if (!isDomObject(node) || typeof node.capture === "string") return [];
@@ -2629,34 +2648,48 @@
       return [];
     };
     for (;;) {
+      walkCounter.steps++;
       const frame = stack[stack.length - 1];
       const node = frame.node;
       const list = children(node);
       if (frame.index < list.length) {
-        stack.push({ node: list[frame.index++], index: 0, captures: [] });
+        stack.push({ node: list[frame.index++], index: 0, parts: [] });
         continue;
       }
-      // Every child is done: in a sequence or an &, a capture of a later item
-      // whose name an earlier item reads is read twice.
-      /** @type {{capture: string}[]} */
-      let all = [];
-      if (isDomObject(node) && typeof node.capture === "string") all = [/** @type {{capture: string}} */ (node)];
-      else if (isDomObject(node) && (Array.isArray(node.seq) || Array.isArray(node.and))) {
-        /** @type {Set<string>} */
-        const seen = new Set();
-        for (const part of frame.captures) {
-          for (const capture of part) if (seen.has(capture.capture)) duplicates.push(capture);
-          for (const capture of part) seen.add(capture.capture);
-          for (const capture of part) all.push(capture);
-        }
+      /** @type {Found} */
+      let joined = { names: new Map(), size: 0 };
+      if (isDomObject(node) && typeof node.capture === "string") {
+        joined = { names: new Map([[node.capture, [/** @type {{capture: string}} */ (node)]]]), size: 1 };
       } else {
-        for (const part of frame.captures) for (const capture of part) all.push(capture);
+        const meets = isDomObject(node) && (Array.isArray(node.seq) || Array.isArray(node.and));
+        frame.parts.forEach((part, index) => {
+          if (index === 0) {
+            joined = part;
+            return;
+          }
+          if (meets) {
+            if (joined.size <= part.size) {
+              for (const name of joined.names.keys()) for (const capture of part.names.get(name) ?? []) duplicates.add(capture);
+            } else {
+              for (const [name, captures] of part.names) if (joined.names.has(name)) for (const capture of captures) duplicates.add(capture);
+            }
+          }
+          let [large, small] = joined.size >= part.size ? [joined, part] : [part, joined];
+          for (const [name, captures] of small.names) {
+            const found = large.names.get(name);
+            if (found) for (const capture of captures) found.push(capture);
+            else large.names.set(name, captures);
+            walkCounter.steps += captures.length;
+          }
+          large.size += small.size;
+          joined = large;
+        });
       }
       stack.pop();
       if (stack.length === 0) break;
-      stack[stack.length - 1].captures.push(all);
+      stack[stack.length - 1].parts.push(joined);
     }
-    return duplicates;
+    return [...duplicates];
   }
 
   /**
@@ -2881,12 +2914,50 @@
   }
 
   /**
+   * The types found, by the constants' types and the term or condition: a
+   * reader asks the type of each term it reads and of the terms around it,
+   * so each is found once, and a deep term costs no more than its size. A
+   * DOM is never changed once read.
+   * @type {WeakMap<ConstantTypes, WeakMap<object, any>>}
+   */
+  const typesFound = new WeakMap();
+
+  /**
+   * The memo of types for one way of typing constants.
+   * @param {ConstantTypes} constants
+   * @returns {WeakMap<object, any>}
+   */
+  function typesFor(constants) {
+    let found = typesFound.get(constants);
+    if (!found) {
+      found = new WeakMap();
+      typesFound.set(constants, found);
+    }
+    return found;
+  }
+
+  /**
    * The steps of termType, run without the call stack.
    * @param {any} term
    * @param {ConstantTypes} constants
    * @returns {Generator<Step, {type: TermType} | TypeFault, any>}
    */
   function* typing(term, constants) {
+    const memo = typesFor(constants);
+    if (memo.has(term)) return memo.get(term);
+    const found = yield typingOnce(term, constants);
+    memo.set(term, found);
+    return found;
+  }
+
+  /**
+   * The steps of the type of one term, whose parts are typed through the
+   * memo.
+   * @param {any} term
+   * @param {ConstantTypes} constants
+   * @returns {Generator<Step, {type: TermType} | TypeFault, any>}
+   */
+  function* typingOnce(term, constants) {
     if (typeof term.string === "string") return { type: "string" };
     if (typeof term.tag === "string" || "range" in term) return { type: "tags" };
     if (term.emptySet === true) return { type: "set" };
@@ -2945,6 +3016,21 @@
    * @returns {Generator<Step, TypeFault | null, any>}
    */
   function* conditionTyping(condition, constants) {
+    const memo = typesFor(constants);
+    if (memo.has(condition)) return memo.get(condition);
+    const found = yield conditionTypingOnce(condition, constants);
+    memo.set(condition, found);
+    return found;
+  }
+
+  /**
+   * The steps of the type fault of one condition, whose parts are typed
+   * through the memo.
+   * @param {any} condition
+   * @param {ConstantTypes} constants
+   * @returns {Generator<Step, TypeFault | null, any>}
+   */
+  function* conditionTypingOnce(condition, constants) {
     if (Array.isArray(condition.any) || Array.isArray(condition.all)) {
       for (const item of condition.any ?? condition.all) {
         const fault = yield conditionTyping(item, constants);
@@ -3031,6 +3117,7 @@
     const found = [];
     const stack = [expr];
     for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+      walkCounter.steps++;
       if (!isDomObject(current)) continue;
       if (typeof current.test === "string") found.push(/** @type {any} */ (current));
       for (const key of ["choice", "and", "seq"]) {
@@ -3095,6 +3182,7 @@
     // In the order written, with an explicit stack.
     const stack = [term];
     while (stack.length > 0) {
+      walkCounter.steps++;
       const current = stack.pop();
       if (!isDomObject(current)) continue;
       if ("capture" in current || "if" in current) return current;
@@ -3124,6 +3212,7 @@
     // In the order written, with an explicit stack.
     const stack = [node];
     while (stack.length > 0) {
+      walkCounter.steps++;
       const current = stack.pop();
       /** @type {unknown[]} */
       let children = [];
@@ -9196,6 +9285,7 @@
       /** @type {ResultNode[]} */
       const stack = node.children.slice().reverse();
       while (stack.length > 0) {
+        walkCounter.steps++;
         const child = /** @type {ResultNode} */ (stack.pop());
         if (child.kind === "rule" && !NAMED.has(child.rule)) for (let index = child.children.length - 1; index >= 0; index--) stack.push(child.children[index]);
         else result.push(child);
@@ -9246,6 +9336,7 @@
     const firstOfRule = (node, name) => {
       const stack = [node];
       while (stack.length > 0) {
+        walkCounter.steps++;
         const current = /** @type {ResultNode} */ (stack.pop());
         if (ruleOf(current) === name) return current;
         const children = parts(current);
@@ -9419,6 +9510,7 @@
       rule.conditions = conditions;
       if (one(node, "opaque-clause")) rule.opaque = true;
       rule.at = at(node);
+      flattenGroups(rule);
       const problem = definitionProblem(rule);
       if (problem) fail(problem, node);
       return /** @type {DomRule} */ (rule);
@@ -9718,9 +9810,16 @@
      * @returns {Generator<Step, Condition, any>}
      */
     function* readImplication(node) {
-      const antecedent = /** @type {Condition} */ (yield readAnyOf(only(node, "any-of")));
+      // Its any-ofs in order, and after them the implication of a notation
+      // that writes one after `⟹`, grouped to the right (engine §9).
+      /** @type {Condition[]} */
+      const items = [];
+      for (const anyOf of some(node, "any-of")) items.push(yield readAnyOf(anyOf));
       const consequent = one(node, "implication");
-      return consequent ? { if: antecedent, then: yield readImplication(consequent) } : antecedent;
+      if (consequent) items.push(yield readImplication(consequent));
+      let result = /** @type {Condition} */ (items.pop());
+      while (items.length > 0) result = { if: /** @type {Condition} */ (items.pop()), then: result };
+      return result;
     }
 
     /**
@@ -9732,19 +9831,15 @@
     function* readAnyOf(node) {
       // Parentheses make no node, so a group of the same connective as the
       // one around it is part of it: (a ∧ b) ∧ c is a ∧ b ∧ c (engine §9).
+      // The reader joins such groups once the rule is read (flattenGroups),
+      // in one walk, since joining them here would copy a list at each depth.
       /** @type {Condition[]} */
       const items = [];
       for (const allNode of some(node, "all-of")) {
         /** @type {Condition[]} */
         const all = [];
-        for (const conditionNode of some(allNode, "condition")) {
-          const item = /** @type {Condition} */ (yield readCondition(conditionNode));
-          if ("all" in item) for (const part of item.all) all.push(part);
-          else all.push(item);
-        }
-        const one = all.length === 1 ? all[0] : { all };
-        if ("any" in one) for (const part of one.any) items.push(part);
-        else items.push(one);
+        for (const conditionNode of some(allNode, "condition")) all.push(yield readCondition(conditionNode));
+        items.push(all.length === 1 ? all[0] : { all });
       }
       return items.length === 1 ? items[0] : { any: items };
     }
@@ -9799,13 +9894,22 @@
       if (ruleOf(node) === "term") return yield readTerm(knownOf(node, TERMS), argument);
       if (ruleOf(node) === "guarded-term") {
         if (closedFor) fail(`${closedFor} is a closed term, and holds no guarded term`, node);
-        const condition = /** @type {Condition} */ (yield readAnyOf(only(node, "any-of")));
-        const conditionProblem = conditionTypeProblem(condition);
-        if (conditionProblem) fail(conditionProblem, node);
+        // Its any-ofs, each guarding the rest, and then its union, or the
+        // term of a notation that writes one after `⟹` (engine §9). The
+        // reader has checked each comparison of a condition, so a condition's
+        // terms agree; the term guarded last must be a tag set, an error at
+        // its guard.
+        const guards = some(node, "any-of");
+        /** @type {Condition[]} */
+        const conditions = [];
+        for (const guard of guards) conditions.push(yield readAnyOf(guard));
+        const last = one(node, "union") || only(node, "term");
         /** @type {Term} */
-        const guarded = { if: condition, then: yield readTerm(only(node, "term")) };
+        let guarded = yield readTerm(last);
         const found = termType(guarded);
-        if ("problem" in found) fail(found.problem, node);
+        const problem = "problem" in found ? found.problem : expectedProblem(found.type, "tags");
+        if (problem) fail(problem, guards[guards.length - 1]);
+        for (let index = conditions.length - 1; index >= 0; index--) guarded = { if: conditions[index], then: guarded };
         return guarded;
       }
       if (ruleOf(node) === "union") {
@@ -10032,6 +10136,45 @@
   }
 
   /**
+   * Joins each `any` that stands directly in an `any`, and each `all` in an
+   * `all`, into the one around it, in place: a group in parentheses of the
+   * same connective is part of the one around it (engine §9). One walk, with
+   * an explicit stack, that gathers each joined list once.
+   * @param {unknown} root
+   */
+  function flattenGroups(root) {
+    /** @type {unknown[]} */
+    const stack = [root];
+    while (stack.length > 0) {
+      walkCounter.steps++;
+      const current = stack.pop();
+      if (Array.isArray(current)) {
+        for (const item of current) stack.push(item);
+        continue;
+      }
+      if (current === null || typeof current !== "object") continue;
+      const node = /** @type {Record<string, unknown>} */ (current);
+      for (const key of ["any", "all"]) {
+        const items = node[key];
+        if (!Array.isArray(items)) continue;
+        /** @type {unknown[]} */
+        const joined = [];
+        /** @type {unknown[]} */
+        const pending = items.slice().reverse();
+        while (pending.length > 0) {
+          walkCounter.steps++;
+          const item = pending.pop();
+          const inner = item !== null && typeof item === "object" ? /** @type {Record<string, unknown>} */ (item)[key] : undefined;
+          if (Array.isArray(inner)) for (let index = inner.length - 1; index >= 0; index--) pending.push(inner[index]);
+          else joined.push(item);
+        }
+        node[key] = joined;
+      }
+      for (const value of Object.values(node)) if (value !== null && typeof value === "object") stack.push(value);
+    }
+  }
+
+  /**
    * Whether a name begins with a capital, and so is a terminal and a tag
    * literal (engine §2).
    * @param {string} name
@@ -10108,6 +10251,7 @@
     // nesting cannot exhaust the call stack.
     let current = node;
     for (;;) {
+      walkCounter.steps++;
       if (current.kind === "token") return current.token;
       if (current.kind === "elided") return current.span[0];
       const child = current.children.find((candidate) => candidate.kind === "token" || candidate.kind === "rule");

@@ -508,8 +508,9 @@ class Parser {
 
   *implication() {
     const start = this.index;
+    // `{any-of \ '⟹'}`: the reader groups the list to the right.
     const children = [(yield this.anyOf())];
-    if (this.is("⟹")) children.push(this.tok(), (yield this.implication()));
+    while (this.is("⟹")) children.push(this.tok(), (yield this.anyOf()));
     return this.node("implication", start, children);
   }
 
@@ -570,7 +571,18 @@ class Parser {
   *term() {
     return (yield this.memo("term", function* () {
       const start = this.index;
-      const guarded = (yield this.attempt(function* () { return this.node("guarded-term", start, [(yield this.anyOf()), this.expect("⟹"), (yield this.term())]); }));
+      // `{any-of '⟹'} union`: guards while an any-of and `⟹` follow, and
+      // then the union.
+      const guarded = (yield this.attempt(function* () {
+        const children = [(yield this.anyOf()), this.expect("⟹")];
+        for (;;) {
+          const guard = (yield this.attempt(function* () { return [(yield this.anyOf()), this.expect("⟹")]; }));
+          if (!guard) break;
+          children.push(guard[0], guard[1]);
+        }
+        children.push((yield this.union()));
+        return this.node("guarded-term", start, children);
+      }));
       return this.node("term", start, [guarded || (yield this.union())]);
     }));
   }
