@@ -10320,38 +10320,7 @@
         throw new GencmuError("grammar", `${path}:${line}:${column}: ${error.message}`, { document: path, line, column });
       }
       const syntax = run.stages[run.stages.length - 1];
-      /** @type {GrammarDom} */
-      let dom;
-      try {
-        dom = treeToDom(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path, this.unicode);
-      } catch (error) {
-        if (error instanceof GencmuError) throw error;
-        if (error instanceof RangeError) throw new GencmuError("grammar", `${path}: nested too deeply`, { document: path }, { cause: error });
-        // Only a bootstrap that is not the notation's gives a tree that the
-        // reader cannot read. That is an error of the grammar too.
-        throw new GencmuError("grammar", `${path}: the notation's tree cannot be read as a grammar: ${error instanceof Error ? error.message : String(error)}`,
-          { document: path }, { cause: error });
-      }
-      // A document read here is held to the rules of a precompiled DOM
-      // (engine §9). A bootstrap that is not the notation's can give a DOM
-      // that breaks them.
-      const problem = domProblem(dom, this.unicode);
-      if (problem === null) return dom;
-      if (problem === "nested too deeply") {
-        // Reported at the first item, a rule, a constant's definition or an
-        // implication, that
-        // holds it, in the order of the document.
-        const item = itemsAlone(dom).find((candidate) => domProblem(candidate.alone, this.unicode) === "nested too deeply");
-        const [line, column] = item ? item.at : [1, 1];
-        throw new GencmuError("grammar", `${path}:${line}:${column}: an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`, { document: path, line, column });
-      }
-      // Any other problem is reported at the first item that has it alone,
-      // in the order of the document, or else at the document.
-      const item = itemsAlone(dom).map((candidate) => ({ at: candidate.at, problem: domProblem(candidate.alone, this.unicode) }))
-        .find((candidate) => candidate.problem !== null);
-      if (!item) throw new GencmuError("grammar", `${path}: ${problem}`, { document: path });
-      const [line, column] = item.at;
-      throw new GencmuError("grammar", `${path}:${line}:${column}: ${item.problem}`, { document: path, line, column });
+      return domOfTree(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path, this.unicode);
     }
 
     /**
@@ -10594,6 +10563,52 @@
   function containsEraser(tree) {
     if (!tree) return false;
     return someNode(tree, (node) => node.kind === "rule" && node.rule === "word" && (node.tags.has("SA") || node.tags.has("SU")));
+  }
+
+  /**
+   * A document's DOM from the notation's syntax tree of it: the reader's DOM,
+   * held to the rules of a precompiled DOM, or a grammar error at its place
+   * (engine §9). The hand-written reader of tools/bootstrap-reader.js reads
+   * its own tree with it too.
+   * @param {ResultNode} tree
+   * @param {Token[]} tokens the syntax stage's input tokens
+   * @param {(token: Token) => import("./types.js").Position} positionOf
+   * @param {string} path
+   * @param {UnicodeTable} unicode
+   * @returns {GrammarDom}
+   */
+  function domOfTree(tree, tokens, positionOf, path, unicode) {
+    /** @type {GrammarDom} */
+    let dom;
+    try {
+      dom = treeToDom(tree, tokens, positionOf, path, unicode);
+    } catch (error) {
+      if (error instanceof GencmuError) throw error;
+      if (error instanceof RangeError) throw new GencmuError("grammar", `${path}: nested too deeply`, { document: path }, { cause: error });
+      // Only a bootstrap that is not the notation's gives a tree that the
+      // reader cannot read. That is an error of the grammar too.
+      throw new GencmuError("grammar", `${path}: the notation's tree cannot be read as a grammar: ${error instanceof Error ? error.message : String(error)}`,
+        { document: path }, { cause: error });
+    }
+    // A document read here is held to the rules of a precompiled DOM
+    // (engine §9). A bootstrap that is not the notation's can give a DOM
+    // that breaks them.
+    const problem = domProblem(dom, unicode);
+    if (problem === null) return dom;
+    if (problem === "nested too deeply") {
+      // Reported at the first item, a rule, a constant's definition or an
+      // implication, that holds it, in the order of the document.
+      const item = itemsAlone(dom).find((candidate) => domProblem(candidate.alone, unicode) === "nested too deeply");
+      const [line, column] = item ? item.at : [1, 1];
+      throw new GencmuError("grammar", `${path}:${line}:${column}: an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`, { document: path, line, column });
+    }
+    // Any other problem is reported at the first item that has it alone,
+    // in the order of the document, or else at the document.
+    const item = itemsAlone(dom).map((candidate) => ({ at: candidate.at, problem: domProblem(candidate.alone, unicode) }))
+      .find((candidate) => candidate.problem !== null);
+    if (!item) throw new GencmuError("grammar", `${path}: ${problem}`, { document: path });
+    const [line, column] = item.at;
+    throw new GencmuError("grammar", `${path}:${line}:${column}: ${item.problem}`, { document: path, line, column });
   }
 
   // Adds the line and column of an error's source position.
