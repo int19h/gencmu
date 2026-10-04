@@ -18,7 +18,7 @@ from gencmu import _clauses, _dom, _trampoline
 from gencmu._dialect import read_document
 from gencmu._earley import Caps, StageContext
 
-from .shared import SHARED, OverBudget, Watch, Work, calls, count_work, load_case_dialect, made_items, parse_case, steps
+from .shared import SHARED, OverBudget, Watch, Work, calls, case_sources, count_work, load_case_dialect, made_items, parse_case, steps
 
 
 def capture_steps() -> list[Watch]:
@@ -272,6 +272,24 @@ class NotationGrowth(unittest.TestCase):
         with mock.patch.object(_dom, "flatten_groups", flatten_each):
             small, large = self.grows(case, watches)
         self.assertEqual(large.count, 5 * small + 1)
+
+
+class QueryDepth(unittest.TestCase):
+    # The shared cases of tests/query-depth.json: nested queries nest as
+    # deep as the text makes them, with no bound (engine §4). The parse runs
+    # on the main thread under the default recursion limit, so a recognizer
+    # that ran each nested parse on the call stack would fail here.
+
+    def test_cases(self) -> None:
+        with open(SHARED / "query-depth.json", encoding="utf-8") as file:
+            cases = json.load(file)
+        self.assertTrue(cases, "no cases found")
+        for case in cases:
+            with self.subTest(case=case["name"]):
+                sources, pipeline = case_sources(case)
+                dialect = gencmu.load_dialect_sources(sources, pipeline, use_cache=False)
+                result = dialect.parse(case["link"] * case["count"] + case["suffix"], auto_features=False)
+                self.assertTrue(result.ok, result.error)
 
 
 if __name__ == "__main__":
