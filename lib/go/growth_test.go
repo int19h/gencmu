@@ -250,3 +250,20 @@ func TestNotationDeep(t *testing.T) {
 		}
 	}
 }
+
+// TestIncludeChainDeep loads a chain of 20,000 documents, each including
+// the next, with a valid stage at its end. The stack of a goroutine is held
+// to 1 MiB, so splicing the chain by recursion would end the process.
+func TestIncludeChainDeep(t *testing.T) {
+	const n = 20000
+	sources := map[string]string{"p.md": block("%stage main", `%include "d1.md"`)}
+	for i := 1; i < n; i++ {
+		sources[fmt.Sprintf("d%d.md", i)] = block(fmt.Sprintf("%%include \"d%d.md\"", i+1))
+	}
+	sources[fmt.Sprintf("d%d.md", n)] = block("%ambiguity-resolution greedy", "%rule text A")
+	defer debug.SetMaxStack(debug.SetMaxStack(1 << 20))
+	d := mustLoad(t, sources)
+	if got := strings.Join(d.StageNames(), " "); got != "main" {
+		t.Fatalf("stages %q", got)
+	}
+}

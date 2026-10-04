@@ -90,27 +90,45 @@ func splicePipeline(pipelinePath string, domOf func(p string) (*domDoc, *Error))
 		return p.stages[len(p.stages)-1]
 	}
 
-	// The documents being spliced, outermost first, and the same as a set.
-	// The trail of includes is joined only for an error, so a deep chain
-	// of includes costs its depth, not its square.
-	var through []string
+	// The documents being spliced, outermost first, each with its items and
+	// the next one to splice, and the same paths as a set. An explicit stack
+	// keeps a deep chain of includes off the goroutine's stack. The trail of
+	// includes is joined only for an error, so a deep chain costs its
+	// depth, not its square.
+	type spliceFrame struct {
+		path  string
+		items []docItem
+		next  int
+	}
+	var through []*spliceFrame
 	inChain := map[string]bool{}
 	stageNamed := map[string]*splicedStage{}
-	var splice func(docPath string, dom *domDoc) *Error
-	splice = func(docPath string, dom *domDoc) *Error {
-		through = append(through, docPath)
+	enter := func(docPath string, dom *domDoc) {
+		through = append(through, &spliceFrame{path: docPath, items: itemsInOrder(dom)})
 		inChain[docPath] = true
-		defer func() {
-			through = through[:len(through)-1]
-			delete(inChain, docPath)
-		}()
-		for _, item := range itemsInOrder(dom) {
+	}
+	splice := func() *Error {
+		for len(through) > 0 {
+			f := through[len(through)-1]
+			if f.next == len(f.items) {
+				through = through[:len(through)-1]
+				delete(inChain, f.path)
+				// The includer's items after this include start a new run.
+				run = nil
+				continue
+			}
+			item, docPath := f.items[f.next], f.path
+			f.next++
 			at := item.at()
 			switch {
 			case item.dir != nil && item.dir.Name == "include":
 				target := resolvePath(docPath, item.dir.Args[0])
 				trail := func() string {
-					return strings.Join(append(append([]string{}, through...), target), " → ")
+					paths := make([]string, 0, len(through)+1)
+					for _, g := range through {
+						paths = append(paths, g.path)
+					}
+					return strings.Join(append(paths, target), " → ")
 				}
 				if w := work.Load(); w != nil {
 					w.spliceSteps.add("splice steps")
@@ -129,10 +147,7 @@ func splicePipeline(pipelinePath string, domOf func(p string) (*domDoc, *Error))
 					return grammarError(docPath, at, "%s was not found (%s)", target, trail())
 				}
 				run = nil
-				if err := splice(target, included); err != nil {
-					return err
-				}
-				run = nil
+				enter(target, included)
 			case item.dir != nil && item.dir.Name == "features":
 				for _, name := range item.dir.Args {
 					if !features[name] {
@@ -196,7 +211,8 @@ func splicePipeline(pipelinePath string, domOf func(p string) (*domDoc, *Error))
 	if top == nil {
 		return nil, &Error{Kind: ErrorGrammar, Document: pipelinePath, Message: "the pipeline document is missing"}
 	}
-	if err := splice(pipelinePath, top); err != nil {
+	enter(pipelinePath, top)
+	if err := splice(); err != nil {
 		return nil, err
 	}
 	if len(p.stages) == 0 {
