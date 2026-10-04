@@ -439,7 +439,10 @@ class _Constants:
         # walked once, not once for each alternative.
         copies: dict[int, Any] = {}
 
-        def resolve(node: Any) -> Any:
+        # A walk, since each level of a clause's nesting costs a few frames
+        # of the call stack, more than the depth limit of 256 leaves room
+        # for before Python 3.12.
+        def resolve(node: Any) -> Walk:
             if not isinstance(node, (dict, list)):
                 return node
             done = copies.get(id(node))
@@ -447,22 +450,26 @@ class _Constants:
                 return done
             copy: Any
             if isinstance(node, list):
-                items = [resolve(item) for item in node]
+                items: list[Any] = []
+                for item in node:
+                    items.append((yield resolve(item)))
                 copy = node if all(item is old for item, old in zip(items, node)) else items
             elif isinstance(node.get("const"), str):
                 copy = {"const": node["const"], "at": node["at"], "value": self.values[node["const"]].value}
             else:
-                values = {key: resolve(value) for key, value in node.items()}
+                values: dict[str, Any] = {}
+                for key, value in node.items():
+                    values[key] = yield resolve(value)
                 copy = node if all(values[key] is value for key, value in node.items()) else values
             copies[id(node)] = copy
             return copy
 
         for rule in rules.values():
             for alternative in rule.alternatives:
-                alternative.tags = resolve(alternative.tags)
-                alternative.rule_tags = resolve(alternative.rule_tags)
-                alternative.emit = resolve(alternative.emit)
-                alternative.conditions = resolve(alternative.conditions)
+                alternative.tags = run(resolve(alternative.tags))
+                alternative.rule_tags = run(resolve(alternative.rule_tags))
+                alternative.emit = run(resolve(alternative.emit))
+                alternative.conditions = run(resolve(alternative.conditions))
 
 
 def _set(value: Any) -> Any:
@@ -647,7 +654,10 @@ def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
     # expression its depth times its size.
     tested: dict[int, bool] = {}
 
-    def holds_test(node: Any) -> bool:
+    # Walks, since an expression nests as deep as the depth limit of 256,
+    # and each level costs a few frames of the call stack before Python
+    # 3.12.
+    def holds_test(node: Any) -> Walk:
         if not isinstance(node, dict):
             return False
         found = tested.get(id(node))
@@ -656,15 +666,16 @@ def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
             for key in ("choice", "and", "seq"):
                 items = node.get(key)
                 if isinstance(items, list):
-                    found = any([holds_test(item) for item in items]) or found
+                    for item in items:
+                        found = (yield holds_test(item)) or found
             for key in ("expr", "separator", "repeat", "optional"):
                 if key in node:
-                    found = holds_test(node[key]) or found
+                    found = (yield holds_test(node[key])) or found
             tested[id(node)] = found
         return found
 
-    def resolve(node: Any, alt: Alternative) -> Any:
-        if not isinstance(node, dict) or not holds_test(node):
+    def resolve(node: Any, alt: Alternative) -> Walk:
+        if not isinstance(node, dict) or not (yield holds_test(node)):
             return node
         done = copies.get(id(node))
         if done is not None:
@@ -672,9 +683,12 @@ def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
         copy: dict[str, Any] = {}
         for key, value in node.items():
             if isinstance(value, list):
-                copy[key] = [resolve(item, alt) for item in value]
+                items: list[Any] = []
+                for item in value:
+                    items.append((yield resolve(item, alt)))
+                copy[key] = items
             elif key in ("optional", "repeat", "separator", "expr"):
-                copy[key] = resolve(value, alt)
+                copy[key] = yield resolve(value, alt)
             else:
                 copy[key] = value
         if isinstance(node.get("test"), str):
@@ -684,7 +698,7 @@ def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
 
     for rule in rules.values():
         for alt in rule.alternatives:
-            alt.expr = resolve(alt.expr, alt)
+            alt.expr = run(resolve(alt.expr, alt))
 
 
 # ---------------------------------------------------------------------------

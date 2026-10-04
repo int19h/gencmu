@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import gc
+import inspect
 import json
+import sys
 import tempfile
 import unittest
 import weakref
@@ -666,6 +668,26 @@ class Robustness(unittest.TestCase):
         self.assertEqual(gencmu.to_brackets(result), "a")
         assert result.tree is not None
         self.assertEqual(result.tree.tags, frozenset({"T"}))
+
+    def test_deeply_nested_clauses_need_no_recursion(self) -> None:
+        """Constants and tests in clauses nested as deep as engine §9 allows
+        resolve on a call stack shallower than the nesting. The test lowers
+        the recursion limit, since before Python 3.12 the default limit
+        was too low for the comprehensions that resolved them."""
+        depth = 250
+        term = "".join("($K ∪ " if level % 2 == 0 else "($K ∩ " for level in range(depth)) + "$K" + ")" * depth
+        # Each level is an optional and a sequence, two levels of depth.
+        expression = "[A⊇$K " * (depth // 2) + "]" * (depth // 2) + " A"
+        limit = sys.getrecursionlimit()
+        self.addCleanup(sys.setrecursionlimit, limit)
+        sys.setrecursionlimit(len(inspect.stack()) + 150)
+        dialect = gencmu.load_dialect_sources(self.grammar(f"%const $K ~a\n%rule text {expression} <{term}>"), "p.md", use_cache=False)
+        sys.setrecursionlimit(limit)
+        tokens = [gencmu.Token("a", frozenset({"A", "a"}), (0, 1), (0, 1)), gencmu.Token("b", frozenset({"A"}), (1, 2), (2, 3))]
+        result = dialect.parse_tokens(tokens, "a b", auto_features=False)
+        self.assertTrue(result.ok, result.error)
+        assert result.tree is not None
+        self.assertEqual(result.tree.tags, frozenset({"a"}))
 
     def test_too_deeply_nested_grammar(self) -> None:
         """Nesting more than 256 deep is an error at the rule that holds it."""
