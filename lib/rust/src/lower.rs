@@ -11,7 +11,7 @@ use crate::dom::{Arg, Chain, Cond, EmitItem, Expr, FeatureKind, Mark, Term};
 use crate::grammar::{is_terminal_name, ClassifierTables, Implication, StageGrammar, StitchedAlternative};
 use crate::tags::{code_of_character_tag, property_name, range_name};
 use crate::unicode::Property;
-use crate::work::{self, Work};
+use crate::work::{self, Mutant, Work};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Sym {
@@ -274,10 +274,30 @@ impl Prod {
         self.tests.get(dot).copied().filter(|&test| test != NO_TEST)
     }
 
-    /// The conditions evaluated at `dot`, in written order.
+    /// The conditions evaluated at `dot`, in written order. The walk counts
+    /// each condition it examines before it checks the condition's dot. A
+    /// scan of every condition, which the tests switch on, then counts all
+    /// it looks at, not the few it finds.
     #[inline]
     pub(crate) fn conds_at(&self, dot: usize) -> &[(LCond, usize)] {
-        &self.conds[self.cond_at[dot] as usize..self.cond_at[dot + 1] as usize]
+        let (start, end) = (self.cond_at[dot] as usize, self.cond_at[dot + 1] as usize);
+        let (from, to) = if work::mutated(Mutant::ScanConditions) { (0, self.conds.len()) } else { (start, end) };
+        let (mut first, mut past) = (end, end);
+        for (index, (_, at)) in self.conds.iter().enumerate().take(to).skip(from) {
+            work::count(Work::Conditions, 1);
+            if *at == dot {
+                first = first.min(index);
+                past = index + 1;
+            }
+        }
+        &self.conds[first..past]
+    }
+
+    /// Whether any condition is evaluated at `dot`: one comparison of the
+    /// bounds, which examines no condition.
+    #[inline]
+    pub(crate) fn has_conds_at(&self, dot: usize) -> bool {
+        self.cond_at[dot] != self.cond_at[dot + 1]
     }
 }
 

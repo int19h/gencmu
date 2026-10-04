@@ -69,6 +69,51 @@ pub(crate) enum Work {
     Classified,
 }
 
+/// The mutations that the tests of work switch on, one at a time, to check
+/// that a budget stops a quadratic version of some code at its first count
+/// past it. Each names the version that the code takes while it is on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Mutant {
+    /// Condition selection scans every condition of the production for
+    /// those of the dot.
+    ScanConditions,
+}
+
+/// Whether the tests have switched `mutant` on, on this thread. Outside the
+/// crate's own tests it is always false, so the branch it guards is gone.
+#[inline(always)]
+pub(crate) fn mutated(mutant: Mutant) -> bool {
+    #[cfg(test)]
+    {
+        MUTANT.with(|on| on.get() == Some(mutant))
+    }
+    #[cfg(not(test))]
+    {
+        let _ = mutant;
+        false
+    }
+}
+
+/// A mutation switched on until this is dropped, also when a budget's
+/// panic unwinds.
+#[cfg(test)]
+pub(crate) struct Mutation;
+
+#[cfg(test)]
+impl Mutation {
+    pub(crate) fn on(mutant: Mutant) -> Mutation {
+        MUTANT.with(|on| on.set(Some(mutant)));
+        Mutation
+    }
+}
+
+#[cfg(test)]
+impl Drop for Mutation {
+    fn drop(&mut self) {
+        MUTANT.with(|on| on.set(None));
+    }
+}
+
 /// How many kinds of work there are.
 #[cfg(test)]
 const KINDS: usize = Work::Classified as usize + 1;
@@ -80,6 +125,8 @@ thread_local! {
     /// For each kind, another kind and a factor: the count may not pass
     /// the factor times the other's count so far.
     static BOUNDS: RefCell<[Option<(Work, u64)>; KINDS]> = const { RefCell::new([None; KINDS]) };
+    /// The mutation switched on, if any.
+    static MUTANT: std::cell::Cell<Option<Mutant>> = const { std::cell::Cell::new(None) };
 }
 
 /// Adds `n` to the counter of `work`, in tests only, and panics if that
@@ -147,6 +194,20 @@ pub(crate) fn assert_stops(work: Work, most: u64, run: impl FnOnce()) {
     let Err(payload) = caught else { panic!("{work:?}: {total} counted, and the budget of {most} never stopped it") };
     let message = payload.downcast_ref::<String>().cloned().unwrap_or_default();
     assert_eq!(message, format!("{} {work:?}, past the budget of {most}", most + 1));
+}
+
+/// Runs `run` at n as it is, and then at 4n with `mutant` on and the
+/// budget that `assert_linear` gives the larger run: five times the count
+/// at n. The mutation must stop at the first count past that budget, so
+/// the test of linear work would catch it.
+#[cfg(test)]
+pub(crate) fn assert_mutant_stops(work: Work, mutant: Mutant, n: usize, run: &mut dyn FnMut(usize)) {
+    reset();
+    run(n);
+    let small = counted(work);
+    assert!(small > 0, "no {work:?} counted at {n}");
+    let _mutation = Mutation::on(mutant);
+    assert_stops(work, 5 * small, || run(4 * n));
 }
 
 /// Asserts that `run` at 4n counts at most five times the `work` that it

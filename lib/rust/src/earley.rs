@@ -1269,10 +1269,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         if target.failed.contains(&item) {
             return Ok(());
         }
+        // The item counts once, and its selection counts each condition it
+        // examines.
+        work::count(Work::Conditions, 1);
         let conds = production.conds_at(item.dot as usize);
-        // Every condition that the item could look at counts, once, as
-        // its evaluation begins.
-        work::count(Work::Conditions, 1 + conds.len() as u64);
         if conds.is_empty() {
             Self::insert(chart, item, set, strict, u32::MAX, self.recon.is_some());
             return Ok(());
@@ -1426,7 +1426,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         // A production that must first read a terminal the next token lacks
         // gives a dead item, so prediction skips it. The set records it, and
         // the rejection report adds back the terminal it expected.
-        if let (Some(Sym::T(terminal)), false) = (lowered.syms.first(), !lowered.conds_at(0).is_empty()) {
+        if let (Some(Sym::T(terminal)), false) = (lowered.syms.first(), lowered.has_conds_at(0)) {
             let matcher = self.matchers[*terminal as usize];
             if e >= tokens.len() || !self.shared.reads(matcher, tokens[e].tags) {
                 if before.is_none() {
@@ -2146,7 +2146,7 @@ mod tests {
         mark_quiet, matchers, sounds_like, Cap, CapEntry, Caps, Chart, Frame, Recognizer, Shared, Tok,
     };
     use crate::lower::{LTerm, Span, Sym};
-    use crate::work::{assert_linear, assert_stops, budget, counted, reset, Work};
+    use crate::work::{assert_linear, assert_stops, budget, counted, reset, Mutant, Mutation, Work};
 
     thread_local! {
         /// Whether `Chart::extend_caps` stores each prefix again, a
@@ -2258,22 +2258,26 @@ mod tests {
         });
     }
 
+    /// A dialect of one production of n captures with a condition at each.
+    fn condition_at_each_capture(n: usize) -> crate::Dialect {
+        let names: Vec<String> = (0..n).map(|index| format!("$c{index}('a')")).collect();
+        let conditions: Vec<String> = (0..n).map(|index| format!("text($c{index}) = \"a\"")).collect();
+        let grammar = format!(
+            "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {}\n%conditions {}\n```\n",
+            names.join(" "),
+            conditions.join(", ")
+        );
+        let sources = [("g.md", grammar), ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string())];
+        crate::load_dialect_sources(sources, "p.md").expect("the dialect")
+    }
+
     /// A production of n captures with a condition at each finds the
     /// conditions of each dot without a scan of all n, so a parse of it
     /// looks at about n conditions, not n².
     #[test]
     fn each_dot_finds_its_conditions_at_once() {
         for n in [200usize, 800] {
-            let names: Vec<String> = (0..n).map(|index| format!("$c{index}('a')")).collect();
-            let conditions: Vec<String> = (0..n).map(|index| format!("text($c{index}) = \"a\"")).collect();
-            let grammar = format!(
-                "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {}\n%conditions {}\n```\n",
-                names.join(" "),
-                conditions.join(", ")
-            );
-            let sources =
-                [("g.md", grammar), ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string())];
-            let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
+            let dialect = condition_at_each_capture(n);
             reset();
             budget(Work::Conditions, 4 * n as u64 + 8);
             let result = dialect.parse(&"a".repeat(n), &crate::ParseOptions::default()).expect("a result");
@@ -2283,6 +2287,20 @@ mod tests {
             reset();
             assert!(steps <= 4 * n as u64 + 8, "{steps} conditions looked at for {n} captures");
         }
+    }
+
+    /// A selection that scans every condition of the production at each
+    /// dot examines some n² conditions. It stops at the first past the
+    /// budget of `each_dot_finds_its_conditions_at_once`.
+    #[test]
+    fn scanning_every_condition_stops_at_the_budget() {
+        let n = 800;
+        let dialect = condition_at_each_capture(n);
+        let text = "a".repeat(n);
+        let _mutation = Mutation::on(Mutant::ScanConditions);
+        assert_stops(Work::Conditions, 4 * n as u64 + 8, || {
+            let _ = dialect.parse(&text, &crate::ParseOptions::default());
+        });
     }
 
     /// A range term evaluated again shares the list it made the first
