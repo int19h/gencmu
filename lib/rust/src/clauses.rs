@@ -398,6 +398,10 @@ enum Known<'a, T> {
     /// The part is `$c ⟹ X`, and X reads no presence: the result of X
     /// where the production has c.
     Guarded(&'a str, T),
+    /// The part reads no presence, and it uses captures. Its result counts
+    /// only where the production has the capture named, since a production
+    /// that lacks any capture the part uses drops it.
+    Needs(String, T),
     /// The part has another shape, and each production simplifies it.
     Other,
 }
@@ -416,6 +420,8 @@ struct Split<'a, P, T> {
     /// guard. A name whose parts all have a neutral result stays, with no
     /// parts, so that a `∨` can ask whether a production has every guard.
     guarded: FxMap<&'a str, Vec<usize>>,
+    /// The parts that need a capture, under its name.
+    needs: FxMap<String, Vec<usize>>,
     /// The parts of other shapes, in the order written.
     other: Vec<usize>,
     /// Whether a fixed part decides the whole for every production.
@@ -436,6 +442,7 @@ impl<'a, P: Copy, T> Split<'a, P, T> {
             parts: Vec::new(),
             fixed: Vec::new(),
             guarded: FxMap::default(),
+            needs: FxMap::default(),
             other: Vec::new(),
             absorbed: false,
         };
@@ -455,6 +462,10 @@ impl<'a, P: Copy, T> Split<'a, P, T> {
                     if !neutral(&result) {
                         parts.push(index);
                     }
+                    Some(result)
+                }
+                Known::Needs(name, result) => {
+                    split.needs.entry(name).or_default().push(index);
                     Some(result)
                 }
                 Known::Other => {
@@ -481,6 +492,10 @@ impl<'a, P: Copy, T> Split<'a, P, T> {
                     work::count(Work::Walked, 1);
                     chosen.push(index);
                 }
+            }
+            for &index in self.needs.get(name).into_iter().flatten() {
+                work::count(Work::Walked, 1);
+                chosen.push(index);
             }
         }
         for &index in self.fixed.iter().chain(&self.other) {
@@ -546,6 +561,14 @@ fn know_cond<'a, T>(cond: &'a Cond, fixed: &dyn Fn(&'a Cond) -> T) -> Known<'a, 
     }
 }
 
+/// The first name in order of the captures, other than `$`, that a
+/// simplified condition uses as values or spans.
+fn first_capture(cond: &Cond) -> Option<String> {
+    let mut out = Vec::new();
+    cond_captures(cond, &mut out);
+    out.into_iter().filter(|name| !name.is_empty()).min().map(str::to_string)
+}
+
 /// The presence tests of a part that reads none: never asked.
 fn no_presence(_: &str) -> bool {
     unreachable!("a part that reads no presence asks about none")
@@ -558,7 +581,24 @@ pub(crate) struct TermSplit<'a>(Split<'a, &'a Term, Option<Term>>);
 impl<'a> TermSplit<'a> {
     pub(crate) fn new(term: &'a Term) -> TermSplit<'a> {
         let fixed = |part: &'a Term| simplify_term(part, &no_presence);
-        TermSplit(Split::new(union_parts(term), |part| know_term(part, &fixed), Option::is_none, |_| false))
+        let unindexed = work::mutated(Mutant::FixedUnindexed);
+        let know = |part| match know_term(part, &fixed) {
+            // The check of a definition refuses a tag term that uses a
+            // capture some production lacks. So in lowering a production
+            // with the part's first name has them all, and one without it
+            // never meets the part. The check itself cannot index so,
+            // since it must find that capture.
+            Known::Fixed(Some(term)) if !unindexed => {
+                let mut out = Vec::new();
+                term_captures(&term, &mut out);
+                match out.into_iter().filter(|name| !name.is_empty()).min().map(str::to_string) {
+                    Some(name) => Known::Needs(name, Some(term)),
+                    None => Known::Fixed(Some(term)),
+                }
+            }
+            known => known,
+        };
+        TermSplit(Split::new(union_parts(term), know, Option::is_none, |_| false))
     }
 
     /// The term simplified for a production whose distinct captures are
@@ -659,12 +699,17 @@ pub(crate) struct CondListSplit<'a> {
 impl<'a> CondListSplit<'a> {
     pub(crate) fn new(conds: &'a [Cond]) -> CondListSplit<'a> {
         let fixed = |part: &'a Cond| simplify_cond(part, &no_presence);
-        let split = Split::new(
-            conds,
-            |part| know_cond(part, &fixed),
-            |simple| *simple == Simple::True,
-            |simple| *simple == Simple::False,
-        );
+        let unindexed = work::mutated(Mutant::FixedUnindexed);
+        let know = |part| match know_cond(part, &fixed) {
+            // Lowering drops a condition that uses a capture the production
+            // lacks, so only a production with its first name keeps it.
+            Known::Fixed(Simple::Cond(cond)) if !unindexed => match first_capture(&cond) {
+                Some(name) => Known::Needs(name, Simple::Cond(cond)),
+                None => Known::Fixed(Simple::Cond(cond)),
+            },
+            known => known,
+        };
+        let split = Split::new(conds, know, |simple| *simple == Simple::True, |simple| *simple == Simple::False);
         let parts = split.other.iter().map(|&index| (index, CondParts::new(split.parts[index].0))).collect();
         CondListSplit { split, parts }
     }
@@ -724,6 +769,14 @@ impl<'a> TermCheck<'a> {
     }
 }
 
+/// The productions that a condition can apply to: none, every one, or
+/// only those with the capture named.
+enum Reach<'a> {
+    Nothing,
+    Every,
+    Named(&'a str),
+}
+
 /// A condition split once for the check of a definition (§9), to find
 /// its outcome for each production as `simplified_outcome` finds it.
 enum CondCheck<'a> {
@@ -741,6 +794,7 @@ impl<'a> CondCheck<'a> {
         match know(cond) {
             Known::Fixed(shaped) => CondCheck::Fixed(shaped),
             Known::Guarded(name, shaped) => CondCheck::Guarded(name, shaped),
+            Known::Needs(..) => unreachable!("a condition of the check needs no capture"),
             Known::Other => match cond {
                 Cond::All(items) => CondCheck::All(Split::new(
                     items,
@@ -756,6 +810,25 @@ impl<'a> CondCheck<'a> {
                 )),
                 cond => CondCheck::Whole(cond),
             },
+        }
+    }
+
+    /// The productions that the condition can apply to, as far as that is
+    /// known before them. A production that lacks a capture that a fixed
+    /// condition uses, or the guard of a guarded one, finds it unknown or
+    /// true.
+    fn reach(&self) -> Reach<'a> {
+        match self {
+            CondCheck::Fixed(shaped) => match shaped.shape {
+                Outcome::True => Reach::Nothing,
+                Outcome::Uses(_) => match shaped.uses.iter().copied().filter(|name| !name.is_empty()).min() {
+                    Some(name) => Reach::Named(name),
+                    None => Reach::Every,
+                },
+                _ => Reach::Every,
+            },
+            CondCheck::Guarded(name, _) => Reach::Named(name),
+            _ => Reach::Every,
         }
     }
 
@@ -797,6 +870,91 @@ impl<'a> CondCheck<'a> {
         } else {
             Outcome::Uses(used)
         }
+    }
+}
+
+/// The items of an emission indexed once for a rule (§9, §11). A
+/// production keeps an inserted tag, an item of `$`, and an item whose
+/// carrier it has. So it finds its items from its own captures, and the
+/// items it might attach to from the names of their attachments.
+pub(crate) struct EmitIndex<'a> {
+    /// The items that every production keeps.
+    always: Vec<usize>,
+    /// The other items, under the name of their carrier.
+    carriers: FxMap<&'a str, Vec<usize>>,
+    /// The capture items under the name of each of their attachments.
+    attached: FxMap<&'a str, Vec<usize>>,
+    /// The capture items with an attachment of `$`, which every
+    /// production has.
+    attached_always: Vec<usize>,
+}
+
+impl<'a> EmitIndex<'a> {
+    pub(crate) fn new(items: &'a [EmitItem]) -> EmitIndex<'a> {
+        let mut index = EmitIndex {
+            always: Vec::new(),
+            carriers: FxMap::default(),
+            attached: FxMap::default(),
+            attached_always: Vec::new(),
+        };
+        for (at, item) in items.iter().enumerate() {
+            work::count(Work::Walked, 1);
+            let EmitItem::Capture(carrier, _, attachments) = item else {
+                index.always.push(at);
+                continue;
+            };
+            if carrier.is_empty() {
+                index.always.push(at);
+            } else {
+                index.carriers.entry(carrier).or_default().push(at);
+            }
+            for name in attachments.names() {
+                work::count(Work::Walked, 1);
+                if name.is_empty() {
+                    index.attached_always.push(at);
+                } else {
+                    index.attached.entry(name).or_default().push(at);
+                }
+            }
+        }
+        index
+    }
+
+    /// The items found under each of `own` in `map`, with `always`, in
+    /// the order written and each once.
+    fn gather<'n>(
+        map: &FxMap<&'a str, Vec<usize>>,
+        always: &[usize],
+        own: impl Iterator<Item = &'n str>,
+    ) -> Vec<usize> {
+        let mut found: Vec<usize> = Vec::new();
+        for name in own {
+            work::count(Work::Walked, 1);
+            for &at in map.get(name).into_iter().flatten() {
+                work::count(Work::Walked, 1);
+                found.push(at);
+            }
+        }
+        for &at in always {
+            work::count(Work::Walked, 1);
+            found.push(at);
+        }
+        found.sort_unstable();
+        found.dedup();
+        found
+    }
+
+    /// The items that a production whose distinct captures are `own`
+    /// keeps, in the order written.
+    pub(crate) fn kept<'n>(&self, own: impl Iterator<Item = &'n str>) -> Vec<usize> {
+        Self::gather(&self.carriers, &self.always, own)
+    }
+
+    /// The capture items that have an attachment among `own`, in the
+    /// order written. Only these could attach a capture to a production
+    /// that lacks their carrier.
+    fn attaching<'n>(&self, own: impl Iterator<Item = &'n str>) -> Vec<usize> {
+        Self::gather(&self.attached, &self.attached_always, own)
     }
 }
 
@@ -1231,9 +1389,21 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
 
     // A condition that applies to no production.
     let each_part = work::mutated(Mutant::CheckEachPart);
+    let by_scan = each_part || work::mutated(Mutant::AppliesByScan);
+    // The productions that have each capture. A condition that needs one
+    // asks only those, and an inserted tag's anchor counts them.
+    let mut holders: FxMap<&str, Vec<usize>> = FxMap::default();
+    if !rule.conditions.is_empty() || items.iter().any(|item| matches!(item, EmitItem::Insert(_))) {
+        for (index, at) in positions.iter().enumerate() {
+            for &name in at.keys() {
+                work::count(Work::Checked, 1);
+                holders.entry(name).or_default().push(index);
+            }
+        }
+    }
     for cond in rule.conditions.iter().filter(|cond| !cond_waits(cond)) {
         let check = CondCheck::new(cond);
-        let applies = (0..productions.len()).any(|index| {
+        let applies_to = |index: usize| {
             let has = captures_of(index);
             let outcome = if each_part {
                 // A mutation of the tests simplifies every part of the
@@ -1248,7 +1418,14 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
                 Outcome::Uses(missing) => missing.is_none(),
                 Outcome::Empty => unreachable!("a condition is not empty"),
             }
-        });
+        };
+        let applies = match check.reach() {
+            // A mutation of the tests asks every production.
+            _ if by_scan => (0..productions.len()).any(applies_to),
+            Reach::Nothing => false,
+            Reach::Every => (0..productions.len()).any(applies_to),
+            Reach::Named(name) => holders.get(name).into_iter().flatten().any(|&index| applies_to(index)),
+        };
         if !applies {
             return Some(format!("a condition of {} applies to no production", rule.name));
         }
@@ -1267,6 +1444,10 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         .collect();
     let item_waits: Vec<bool> =
         items.iter().map(|item| matches!(item, EmitItem::Capture(_, Some(term), ..) if term_waits(term))).collect();
+    // The items of the emission, indexed once by their carriers and their
+    // attachments.
+    let emit_index = EmitIndex::new(items);
+    let items_by_scan = work::mutated(Mutant::CheckItemsByScan);
     // Each tag term split once, for the rule and for each alternative.
     let rule_check = rule_tags.map(TermCheck::new);
     let alternative_checks: Vec<Option<TermCheck>> =
@@ -1290,14 +1471,23 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         if rule.emit.is_none() {
             continue;
         }
-        let present: Vec<(&EmitItem, bool)> = items
-            .iter()
-            .zip(item_waits.iter().copied())
-            .filter(|(item, _)| match item {
-                EmitItem::Capture(name, ..) => has(name),
-                EmitItem::Insert(_) => true,
-            })
-            .collect();
+        let present: Vec<(&EmitItem, bool)> = if items_by_scan {
+            // A mutation of the tests scans every item for each production.
+            items
+                .iter()
+                .zip(item_waits.iter().copied())
+                .filter(|(item, _)| match item {
+                    EmitItem::Capture(name, ..) => has(name),
+                    EmitItem::Insert(_) => true,
+                })
+                .collect()
+        } else {
+            emit_index
+                .kept(positions[index].keys().copied())
+                .into_iter()
+                .map(|at| (&items[at], item_waits[at]))
+                .collect()
+        };
         // Nothing left to emit is an error only where the rule lists items:
         // `%emits ε` lists none (§9).
         if present.is_empty() && !items.is_empty() {
@@ -1305,7 +1495,12 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         }
         // A production without an item's carrier lacks its attachments too
         // (§9).
-        for item in items {
+        let attaching: Vec<&EmitItem> = if items_by_scan {
+            items.iter().collect()
+        } else {
+            emit_index.attaching(positions[index].keys().copied()).into_iter().map(|at| &items[at]).collect()
+        };
+        for item in attaching {
             if let EmitItem::Capture(carrier, _, attachments) = item {
                 if has(carrier) {
                     continue;
@@ -1368,7 +1563,15 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
             continue;
         }
         if let Some(anchor) = anchor {
-            if !(0..productions.len()).all(|production| captures_of(production)(anchor)) {
+            // Each production has a name once, so the anchor is in every
+            // production when as many hold it.
+            let everywhere = if work::mutated(Mutant::CheckItemsByScan) {
+                (0..productions.len()).all(|production| captures_of(production)(anchor))
+            } else {
+                work::count(Work::Checked, 1);
+                anchor.is_empty() || holders.get(anchor).map_or(0, Vec::len) == productions.len()
+            };
+            if !everywhere {
                 return Some(format!(
                     "%emits of {} inserts a tag before ${anchor}, which a production lacks",
                     rule.name

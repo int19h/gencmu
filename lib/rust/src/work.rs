@@ -149,6 +149,19 @@ pub(crate) enum Mutant {
     /// Lowering simplifies every part of each tag term and condition for
     /// each production, not from its split.
     LowerEachPart,
+    /// Lowering keeps a fixed tag part or condition that uses captures for
+    /// every production, not only for those with the capture it is
+    /// indexed under.
+    FixedUnindexed,
+    /// The check of a definition asks every production whether each
+    /// condition applies, not only those with the capture it needs.
+    AppliesByScan,
+    /// The check of a definition scans every emission item for each
+    /// production, not the items indexed under its captures.
+    CheckItemsByScan,
+    /// Lowering scans every emission item for each production, not the
+    /// items indexed under its captures.
+    LowerItemsByScan,
 }
 
 /// Whether the tests have switched `mutant` on, on this thread. Outside the
