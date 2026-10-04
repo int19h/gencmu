@@ -172,7 +172,7 @@ A right chain is not the same as an optional suffix. In a rule `r`, the body `x 
 - That level has the tags of `x` in the chain, where `x` is one symbol, and none with the suffix, unless the rule writes tags.
 - Where `s` begins with an elidable optional `[+T]`, the two place `[+T]` differently. In the suffix, it starts the optional's content, so it has no constituent. In the chain, it follows `x`, and the rules of "Elided terminators" decide its constituent.
 
-Where the suffix is plain and `s` does not begin with an elidable optional, the two give the same tree.
+Where the suffix is plain and `s` does not begin with an elidable optional, the two group the words in the same way. The tags of a level of one item can still differ, as the second difference says.
 
 ## Feature guards
 
@@ -316,7 +316,7 @@ An elidable optional cannot hold a capture, at any depth. gencmu restores an eli
 
 gencmu expands each alternative into productions, as engine §3 says. A production is one way to read the alternative, with one branch of each choice, one subsequence of each `&`, and each optional read or not. A plain optional that holds a capture is expanded in place, as if it were `(ε | x)`: first the production without it, then those with it. So `A [$b(B)] [$c(C)]` gives four productions, in this order: `A`, `A C`, `A B` and `A B C`. A plain optional without a capture stays one optional, as before. A production has a capture where it reads the captured symbol, and lacks it elsewhere.
 
-The tree is the same either way: a rule node holds the parts that its production reads, and an optional makes no node. Two things follow from the expansion, though. A production that reads one symbol has that symbol's tags where no tags are written (see "Tags"). So `%rule r A [$b(B)]` without tags has the tags of `A` where `B` is absent. And an elided terminator after the optional has the constituent that the production gives it (see "Elided terminators"). In `a [$b(b)] [+KU]`, where `a` and `b` are rules, the constituent of an elided `ku` is `b` where the production reads `b`, and `a` where it does not.
+Either way, a rule node holds the parts that its production reads as its children, and an optional makes no node. But the tags and the constituents can differ, in two ways. A production that reads one symbol has that symbol's tags where no tags are written (see "Tags"). So `%rule r A [$b(B)]` without tags has the tags of `A` where `B` is absent. And an elided terminator after the optional has the constituent that the production gives it (see "Elided terminators"). In `a [$b(b)] [+KU]`, where `a` and `b` are rules, the constituent of an elided `ku` is `b` where the production reads `b`, and `a` where it does not.
 
 A plain optional that holds a capture, whose content has k expansions, contributes 1 + k: the empty one and those k. A sequence multiplies these counts. So `[$b(B)]` doubles the productions of its alternative, `[($a(A) | B | C)]` contributes four, and `[A [$b(B)]]` three, not four. Each capture can also multiply the work of the parser. The parser keeps a captured part's span with each partial reading, so readings that differ only in where a captured part ends are not merged. So a capture whose span can end in many places costs much more than one that reads a single token.
 
@@ -344,7 +344,7 @@ A constant counts in these rules as its value. So where `$E` is empty, `$E ∩ t
 
 ## Conditions
 
-`%conditions` lists what must hold of a rule's captured parts, separated by commas. A parse in which a condition fails does not exist. The parser evaluates each condition as soon as it reads the last capture that the condition mentions. It evaluates a condition that mentions `$` when the constituent is complete. Each condition of the list applies to the alternatives that capture everything it mentions, and to no other alternative. So one rule can state a condition for the alternatives that have a quote body, and none for the alternative that does not:
+`%conditions` lists what must hold of a rule's captured parts, separated by commas. A parse in which a condition fails does not exist. The parser evaluates each condition as soon as it reads the last capture that the condition mentions. It evaluates a condition that mentions `$` when the constituent is complete. Each condition of the list applies to the productions that capture everything it mentions, and to no other production. A production is one expanded sequence of an alternative (see "Captures"). So `A [$b(B)]` has two productions, and a condition that mentions `$b` applies only to the one that reads `B`. One rule can also state a condition for the productions that have a quote body, and none for those that do not:
 
 ```jbogenbau
 %rule zoi-quote
@@ -409,7 +409,7 @@ Inside such a parse, a condition can ask about the very span that is being parse
 
 Every nested query, whether `matches`, `begins` or `tags`, follows written-terminator priority (engine §4). A nested reading cannot leave out an elidable optional where the same construct can read that whole optional as written. In the Zantufa dialect, `cy to roi toi klama` gives `([cy {to roi toi}] klama)`. A nested `tag` cannot read `cy to roi` as `cy roi` with an empty parenthesis, because the parenthesis can read on to its written `toi`.
 
-In the same way, the experimental dialect gives `(mi [klama {na (to broda toi)}])` for `mi klama na to broda toi`. There `broda` stays inside the parenthesis. The priority has a cost: a positive query can fail where a parse without it succeeds. Take `T` elidable, `r → A c [T] T` and `c → B`. Then `matches` of `r` over `A B T` fails, because `[T]` takes the written `T`. Several readings that the priority keeps do not cause an ambiguity error.
+In the same way, the experimental dialect gives `(mi [klama {na (to broda toi)}])` for `mi klama na to broda toi`. There `broda` stays inside the parenthesis. The priority has a cost: a positive query can fail where a parse without it succeeds. Take `r → A c [+T] T` and `c → B`. Then `matches` of `r` over `A B T` fails, because `[+T]` takes the written `T`. Several readings that the priority keeps do not cause an ambiguity error.
 
 A lookahead tests a rule without reading the input. A PEG is a grammar that tries alternatives in order. PEG is short for parsing expression grammar. `begins` with `from` or `after` is a lookahead, like the lookahead of a PEG.
 
