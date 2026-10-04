@@ -12,7 +12,7 @@ from typing import Any
 
 import gencmu
 
-from .shared import CaseTimeout, case_features, cases, deadline, load_case, load_case_dialect, mismatch, parse_case, result_problems, run_case
+from .shared import CaseTimeout, apply_mutant, case_features, cases, deadline, load_case, load_case_dialect, mismatch, parse_case, result_mutants, result_problems, run_case
 
 
 # The members of `expect` that only a loaded dialect can meet.
@@ -167,28 +167,18 @@ class EngineCases(unittest.TestCase):
             self.check("load", {"error": "usage", "where": {"document": "main.md"}}, value, result, error, features)
 
     def test_a_result_that_breaks_an_invariant_is_refused(self) -> None:
-        """The runner refuses a result that breaks an invariant of a tie,
-        whatever the case expects (tests/README.md)."""
-        value, result, error, features = run_case(
-            {"grammar": "%rule text x | y\n%rule x A\n%rule y A", "tokens": [{"text": "a", "tags": ["A"]}]}
-        )
-        assert value is not None and error is None
-        self.assertEqual(result_problems(value), [])
-        self.check("tie", {"error": "ambiguous"}, value, result, error, features)
-        tied = value["stages"][0]
-        mutants = {
-            "a tied stage with output": {**value, "stages": [{**tied, "output": []}]},
-            "a stage with a tied tree": {**value, "stages": [{**tied, "tied": value["error"]["readings"][1]}]},
-            "a stage after the tie": {**value, "stages": [tied, {"name": "later", "verdict": "unique"}]},
-            "an error without a reason": {**value, "error": {key: found for key, found in value["error"].items() if key != "reason"}},
-            "an ambiguous error with a token": {**value, "error": {**value["error"], "token": 0}},
-            "an ambiguous error with a source": {**value, "error": {**value["error"], "source": [0, 1]}},
-        }
-        for name, mutant in mutants.items():
-            with self.subTest(mutant=name):
-                self.assertNotEqual(result_problems(mutant), [])
+        """The runner refuses a result that breaks an invariant, whatever the
+        case expects: each shared mutant (tests/README.md, "Result
+        mutants")."""
+        for mutant in result_mutants():
+            with self.subTest(mutant=mutant["name"]):
+                value, result, error, features = run_case(mutant["engine_case"])
+                assert value is not None and error is None
+                self.assertEqual(result_problems(value), [])
+                changed = apply_mutant(value, mutant)
+                self.assertNotEqual(result_problems(changed), [])
                 with self.assertRaisesRegex(AssertionError, "breaks an invariant"):
-                    self.check("tie", {"error": "ambiguous"}, mutant, result, error, features)
+                    self.check("mutant", {"error": "ambiguous"}, changed, result, error, features)
 
 
 if __name__ == "__main__":

@@ -214,56 +214,15 @@ fn the_corpus() {
     );
 }
 
-/// The corpus runner refuses the canonical result of a tied case once it
-/// breaks any part of the invariants, the whole error and tree included. No
-/// text ties in a bundled dialect, so a tied engine case of two stages
-/// stands for a tied corpus case.
+/// The corpus runner refuses the canonical result of a case once it breaks
+/// any part of the invariants: each shared mutant (tests/README.md, "Result
+/// mutants").
 #[test]
 fn the_corpus_runner_refuses_a_result_that_breaks_an_invariant() {
-    let file = repository().join("tests/engine/attach-tie.json");
-    let case = parse_json(&std::fs::read_to_string(file).expect("the tied engine case")).expect("JSON");
-    let (documents, pipeline) = common::case_documents(&case);
-    let dialect = gencmu::load_dialect_sources(documents, &pipeline).expect("the dialect of the case");
-    let text = case.get("input").and_then(Value::str).expect("an input");
-    let options = gencmu::ParseOptions { auto_features: false, ..gencmu::ParseOptions::default() };
-    let json = parse_json(&gencmu::to_json(&dialect.parse(text, &options).unwrap())).unwrap();
-    assert_eq!(invariants(&json), Ok(()));
-    assert_eq!(json.get("error").and_then(|error| error.get("reason")).and_then(Value::str), Some("tie"));
-
-    // A copy of an object with one member set, or removed for `None`.
-    fn with(object: &Value, key: &str, value: Option<Value>) -> Value {
-        let mut members: Vec<(String, Value)> =
-            object.object().iter().filter(|(name, _)| name != key).cloned().collect();
-        members.extend(value.map(|value| (key.to_string(), value)));
-        Value::Object(members)
-    }
-    let stages = json.get("stages").unwrap().array();
-    let (last, before) = stages.split_last().expect("stages");
-    let staged = |tied: Value, after: Option<Value>| {
-        let mut all = before.to_vec();
-        all.push(tied);
-        all.extend(after);
-        with(&json, "stages", Some(Value::Array(all)))
-    };
-    let error = json.get("error").unwrap();
-    let readings = error.get("readings").unwrap().array();
-    let erred = |key: &str, value: Option<Value>| with(&json, "error", Some(with(error, key, value)));
-    let mutants = [
-        staged(with(last, "output", Some(Value::Array(Vec::new()))), None),
-        staged(with(last, "tied", Some(readings[1].clone())), None),
-        staged(last.clone(), Some(parse_json(r#"{"name": "later", "verdict": "unique"}"#).unwrap())),
-        erred("token", Some(Value::Number(0.0))),
-        erred("source", Some(Value::Array(vec![Value::Number(0.0), Value::Number(0.0)]))),
-        erred("reason", None),
-        erred("reason", Some(string("elision-only"))),
-        erred("kind", Some(string("rejected"))),
-        erred("stage", Some(string("words"))),
-        erred("readings", Some(Value::Array(readings[..1].to_vec()))),
-        with(&json, "tree", Some(readings[0].clone())),
-        with(&json, "ok", Some(Value::Bool(true))),
-        with(&json, "error", Some(Value::Null)),
-    ];
-    for mutant in &mutants {
-        assert!(invariants(mutant).is_err(), "{mutant:?}");
+    for (mutant, case) in common::result_mutants() {
+        let name = mutant.get("name").and_then(Value::str).unwrap_or("").to_string();
+        let json = common::engine_case_result(&case);
+        assert_eq!(invariants(&json), Ok(()), "{name}");
+        assert!(invariants(&common::apply_mutant(&json, &mutant)).is_err(), "{name}");
     }
 }

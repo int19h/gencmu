@@ -16,7 +16,7 @@ import unittest
 from concurrent.futures import ProcessPoolExecutor
 from typing import Any, Callable
 
-from .shared import SHARED, load_case, load_case_dialect, parse_case, result_problems
+from .shared import SHARED, apply_mutant, load_case_dialect, parse_case, result_mutants, result_problems
 
 FIELDS = ("expect", "verdict", "stage", "at", "error", "ties", "words", "brackets")
 
@@ -135,54 +135,24 @@ class Corpus(unittest.TestCase):
             lines.append(json.dumps({"id": case_id, "seconds": round(seconds, 3), "chars": len(case["text"]), "ok": problem is None, "problem": problem}, ensure_ascii=False) + "\n")
 
     def test_a_result_that_breaks_an_invariant_is_refused(self) -> None:
-        """The runner checks the whole invariant of a tie on the canonical
-        result of each tied corpus case (tests/README.md). No text ties in a
-        bundled dialect, so a tied engine case of two stages stands for a
-        tied corpus case, beside any tied case that the corpus has."""
-        tied_cases = [case for case in all_cases() if "ties" in case]
+        """The runner checks the invariants on the canonical result of each
+        corpus case, and refuses each shared mutant (tests/README.md,
+        "Result mutants"). No text ties in a bundled dialect, so the tied
+        corpus cases, if any, only pass as they are."""
+        for mutant in result_mutants():
+            with self.subTest(mutant=mutant["name"]):
+                dialect, load_error = load_case_dialect(mutant["engine_case"])
+                self.assertIsNone(load_error)
+                assert dialect is not None
+                result = parse_case(dialect, mutant["engine_case"])[1]
+                assert result is not None
+                outcome({}, result=result)
+                with self.assertRaisesRegex(AssertionError, "breaks an invariant"):
+                    outcome({}, lambda value: apply_mutant(value, mutant), result=result)
+        for case in all_cases():
+            if "ties" in case:
+                self.assertIsNone(mismatch(case, outcome(case)))
 
-        def tied(value: dict[str, Any], **changes: Any) -> dict[str, Any]:
-            stages = list(value["stages"])
-            stages[-1] = {**stages[-1], **changes}
-            return {**value, "stages": stages}
-
-        def error(value: dict[str, Any], **changes: Any) -> dict[str, Any]:
-            return {**value, "error": {**value["error"], **changes}}
-
-        mutants: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
-            "an error with a token": lambda value: error(value, token=0),
-            "an error with a source": lambda value: error(value, source=[0, 0]),
-            "a tree": lambda value: {**value, "tree": value["error"]["readings"][0]},
-            "one reading": lambda value: error(value, readings=value["error"]["readings"][:1]),
-            "an ok result": lambda value: {**value, "ok": True},
-            "another kind of error": lambda value: error(value, kind="rejected"),
-            "an error of another stage": lambda value: error(value, stage="another"),
-            "another reason": lambda value: error(value, reason="elision-only"),
-            "a tied stage with output": lambda value: tied(value, output=[]),
-            "a stage with a tied tree": lambda value: tied(value, tied=value["error"]["readings"][1]),
-            "a stage after the tie": lambda value: {**value, "stages": [*value["stages"], {"name": "later", "verdict": "unique"}]},
-            "an error without a reason": lambda value: {
-                **value,
-                "error": {key: found for key, found in value["error"].items() if key != "reason"},
-            },
-        }
-        engine_case = load_case(SHARED / "engine" / "attach-tie.json")
-        dialect, load_error = load_case_dialect(engine_case)
-        self.assertIsNone(load_error)
-        assert dialect is not None
-        result = parse_case(dialect, engine_case)[1]
-        assert result is not None
-        # The engine case's result goes through the runner's own check, as a
-        # corpus case's result does.
-        self.assertEqual(outcome({}, result=result)["error"], {"kind": "ambiguous", "reason": "tie"})
-        for name, mutate in mutants.items():
-            with self.subTest(case="engine/attach-tie.json", mutant=name), self.assertRaisesRegex(AssertionError, "breaks an invariant"):
-                outcome({}, mutate, result=result)
-        for case in tied_cases:
-            self.assertIsNone(mismatch(case, outcome(case)))
-            for name, mutate in mutants.items():
-                with self.subTest(case=case["id"], mutant=name), self.assertRaisesRegex(AssertionError, "breaks an invariant"):
-                    outcome(case, mutate)
 
 if __name__ == "__main__":
     unittest.main()

@@ -570,3 +570,106 @@ fn check_parse(dialect: &gencmu::Dialect, case: &Value, run: &Value, expect: &Va
         Err(format!("{problems}result: {json}"))
     }
 }
+
+/// The changes to a canonical result that break an invariant
+/// (tests/README.md, "Result mutants"), each with its engine case.
+pub fn result_mutants() -> Vec<(Value, Value)> {
+    let text =
+        std::fs::read_to_string(repository().join("tests/result-mutants.json")).expect("tests/result-mutants.json");
+    let file = parse_json(&text).expect("JSON");
+    file.get("mutants")
+        .expect("mutants")
+        .array()
+        .iter()
+        .map(|mutant| {
+            let name = mutant.get("case").and_then(Value::str).expect("the mutant's case");
+            let path = repository().join("tests/engine").join(name);
+            let case = parse_json(&std::fs::read_to_string(path).expect("the engine case")).expect("JSON");
+            (mutant.clone(), case)
+        })
+        .collect()
+}
+
+/// The canonical result of an engine case that loads and parses.
+pub fn engine_case_result(case: &Value) -> Value {
+    let (documents, pipeline) = case_documents(case);
+    let dialect = gencmu::load_dialect_sources(documents, &pipeline).expect("the dialect of the case");
+    let options = case_options(case);
+    let result = match case_tokens(case) {
+        Some(tokens) => dialect.parse_tokens(&tokens, &options),
+        None => dialect.parse(case.get("input").and_then(Value::str).unwrap_or(""), &options),
+    }
+    .expect("a result");
+    parse_json(&gencmu::to_json(&result)).expect("JSON")
+}
+
+/// A copy of a canonical result with a mutant's change. A path step of -1
+/// is the last element of a list.
+pub fn apply_mutant(value: &Value, mutant: &Value) -> Value {
+    fn index(items: &[Value], step: &Value) -> usize {
+        let step = step.number().expect("an index");
+        if step < 0.0 {
+            items.len() - 1
+        } else {
+            step as usize
+        }
+    }
+    fn follow<'a>(value: &'a Value, path: &[Value]) -> &'a Value {
+        path.iter().fold(value, |target, step| match step {
+            Value::String(key) => target.get(key).expect("a member"),
+            _ => &target.array()[index(target.array(), step)],
+        })
+    }
+    // The value with `change` applied at the end of `path`.
+    fn change(value: &Value, path: &[Value], apply: &dyn Fn(Option<&Value>) -> Option<Value>) -> Value {
+        let (step, rest) = path.split_first().expect("a path");
+        match (value, step) {
+            (Value::Object(members), Value::String(key)) => {
+                let current = value.get(key);
+                let next = if rest.is_empty() {
+                    apply(current)
+                } else {
+                    Some(change(current.expect("a member"), rest, apply))
+                };
+                let mut members: Vec<(String, Value)> =
+                    members.iter().filter(|(name, _)| name != key).cloned().collect();
+                members.extend(next.map(|next| (key.clone(), next)));
+                Value::Object(members)
+            }
+            (Value::Array(items), _) => {
+                let at = index(items, step);
+                let mut items = items.clone();
+                items[at] = if rest.is_empty() {
+                    apply(Some(&items[at])).expect("a value")
+                } else {
+                    change(&items[at], rest, apply)
+                };
+                Value::Array(items)
+            }
+            _ => panic!("a path step that does not fit"),
+        }
+    }
+    let path = mutant.get("path").expect("a path").array();
+    let new = if let Some(set) = mutant.get("set") {
+        let set = set.clone();
+        change(value, path, &move |_| Some(set.clone()))
+    } else if let Some(from) = mutant.get("copy") {
+        let copied = follow(value, from.array()).clone();
+        change(value, path, &move |_| Some(copied.clone()))
+    } else if let Some(keep) = mutant.get("keep") {
+        let keep = keep.number().expect("a length") as usize;
+        change(value, path, &move |current| Some(Value::Array(current.expect("a list").array()[..keep].to_vec())))
+    } else if mutant.get("remove").is_some() {
+        change(value, path, &|_| None)
+    } else if let Some(item) = mutant.get("append") {
+        let item = item.clone();
+        change(value, path, &move |current| {
+            let mut items = current.expect("a list").array().to_vec();
+            items.push(item.clone());
+            Some(Value::Array(items))
+        })
+    } else {
+        panic!("a mutant that changes nothing: {mutant:?}")
+    };
+    new
+}

@@ -1,0 +1,20 @@
+{
+  "description": "Changes to a canonical result that break an invariant of the result (tests/README.md, \"Result mutants\"). Every runner applies each to the result of its engine case and requires that its checks refuse it.",
+  "mutants": [
+    {"name": "an ambiguous error with a token", "case": "attach-tie.json", "path": ["error", "token"], "set": 0},
+    {"name": "an ambiguous error with a source", "case": "attach-tie.json", "path": ["error", "source"], "set": [0, 1]},
+    {"name": "an elision-only error with a token", "case": "elision-only-warnings.json", "path": ["error", "token"], "set": 0},
+    {"name": "an elision-only error with a source", "case": "elision-only-warnings.json", "path": ["error", "source"], "set": [0, 1]},
+    {"name": "a tree beside the tie", "case": "attach-tie.json", "path": ["tree"], "copy": ["error", "readings", 0]},
+    {"name": "one reading", "case": "attach-tie.json", "path": ["error", "readings"], "keep": 1},
+    {"name": "an ok result", "case": "attach-tie.json", "path": ["ok"], "set": true},
+    {"name": "an error of another kind", "case": "attach-tie.json", "path": ["error", "kind"], "set": "rejected"},
+    {"name": "an error of another stage", "case": "attach-tie.json", "path": ["error", "stage"], "set": "another"},
+    {"name": "an error of another reason", "case": "attach-tie.json", "path": ["error", "reason"], "set": "elision-only"},
+    {"name": "an error without a reason", "case": "attach-tie.json", "path": ["error", "reason"], "remove": true},
+    {"name": "no error", "case": "attach-tie.json", "path": ["error"], "set": null},
+    {"name": "a tied stage with output", "case": "attach-tie.json", "path": ["stages", -1, "output"], "set": []},
+    {"name": "a stage with a tied tree", "case": "attach-tie.json", "path": ["stages", -1, "tied"], "copy": ["error", "readings", 1]},
+    {"name": "a stage after the tie", "case": "attach-tie.json", "path": ["stages"], "append": {"name": "later", "verdict": "unique"}}
+  ]
+}
