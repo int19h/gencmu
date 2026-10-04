@@ -454,6 +454,7 @@ export function rejectionWindows(caseText, text) {
   /** @type {{start: number, end: number}[]} the words of the case's text */
   const words = [];
   points.forEach((point, index) => {
+    if (hooks.work) countWork(hooks.work, "text");
     if (/\s/u.test(point)) return;
     if (index && !/\s/u.test(points[index - 1])) words[words.length - 1].end = index + 1;
     else words.push({ start: index, end: index + 1 });
@@ -461,7 +462,15 @@ export function rejectionWindows(caseText, text) {
   const wanted = text.split(" ");
   /** @type {[number, number][]} */
   const windows = [];
-  const spelled = words.map((word) => points.slice(word.start, word.end).join(""));
+  // Each word spelled from its points, each counted as it is read.
+  const spelled = words.map((word) => {
+    let spelling = "";
+    for (let index = word.start; index < word.end; index++) {
+      if (hooks.work) countWork(hooks.work, "text");
+      spelling += points[index];
+    }
+    return spelling;
+  });
   for (const first of runStarts(spelled, wanted)) {
     const after = words[first + wanted.length];
     windows.push([words[first].start, after ? after.end : points.length]);
