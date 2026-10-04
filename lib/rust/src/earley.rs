@@ -2586,6 +2586,43 @@ mod tests {
         stops(Work::Listed, LTerm::Range(0x4E00, 0x4E00 + n as u32 - 1));
     }
 
+    /// The phonemes of each suffix of a run of tokens without sound, and
+    /// the text of the whole run, cost about what they read: the run is
+    /// skipped whole, and the text's bounds are found in one walk.
+    #[test]
+    fn spans_cost_what_they_read() {
+        let sources = [
+            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'\n```\n".to_string()),
+            ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
+        ];
+        let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
+        let g = dialect.lowered_stage(0);
+        let chars: Vec<char> = vec!['a'; 4000];
+        let mut shared = Shared::new(&dialect.unicode, &chars);
+        let matchers = matchers(&g, &mut shared.tags);
+        let recognizer = Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None };
+        assert_linear(Work::Spanned, 1000, &mut |n| {
+            let mut tokens: Vec<Tok> = (0..n)
+                .map(|index| Tok {
+                    text: "a".to_string(),
+                    tags: 0,
+                    phonemes: (index + 1 == n).then(|| "a".to_string()),
+                    source: (index, index + 1),
+                    label: "a".to_string(),
+                    sound: Default::default(),
+                    quiet: 0,
+                    before: Vec::new(),
+                    after: Vec::new(),
+                })
+                .collect();
+            mark_quiet(&mut tokens, &dialect.unicode);
+            for start in 0..n {
+                assert_eq!(recognizer.phonemes(&tokens, start, n), "a");
+            }
+            assert_eq!(recognizer.text(&tokens, 0, n).len(), n);
+        });
+    }
+
     /// A condition at each capture of a long production reads the part it
     /// names without a walk of every part before it. The capture just made
     /// is the last part, and the first capture is a search by the jumps,
