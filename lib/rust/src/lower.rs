@@ -3,7 +3,7 @@
 
 use std::collections::BTreeSet;
 
-use crate::fxhash::FxMap;
+use crate::fxhash::{FxMap, FxSet};
 use std::sync::Arc;
 
 use crate::clauses::{simplify_cond, simplify_value, Simple};
@@ -120,7 +120,7 @@ pub(crate) enum LEmit {
 }
 
 /// The comparator of a test in a body (engine §2, §4).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum TestOp {
     /// `X="s"`: the canonical sound of the span is `s`.
     Is,
@@ -139,7 +139,7 @@ pub(crate) enum TestOp {
 /// A test of a lowered symbol, with its value: a string for a sound test
 /// and a tag set for a tag test, and the test as an expected list writes
 /// it after its terminal (docs/output.md).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct SymbolTest {
     pub op: TestOp,
     /// The string of a sound test.
@@ -340,6 +340,8 @@ struct Lowerer<'a> {
     characters: Vec<Option<Characters>>,
     terminal_index: FxMap<String, u32>,
     tests: Vec<SymbolTest>,
+    /// The id of each test, so that a test met again is found at once.
+    test_index: FxMap<SymbolTest, u32>,
     helpers: Vec<HelperDef>,
     owner: u32,
     /// For each place of sugar being expanded, and the alternative itself at
@@ -400,13 +402,13 @@ impl<'a> Lowerer<'a> {
     /// A test's id: one test for each comparator and value.
     fn test(&mut self, op: &str, value: &Term) -> u32 {
         let test = SymbolTest::new(op, value);
-        match self.tests.iter().position(|known| *known == test) {
-            Some(id) => id as u32,
-            None => {
-                self.tests.push(test);
-                (self.tests.len() - 1) as u32
-            }
+        if let Some(&id) = self.test_index.get(&test) {
+            return id;
         }
+        let id = self.tests.len() as u32;
+        self.test_index.insert(test.clone(), id);
+        self.tests.push(test);
+        id
     }
 
     /// The terminator of an elidable optional, the first item of its
@@ -743,6 +745,7 @@ pub(crate) fn lower(
         characters: Vec::new(),
         terminal_index: FxMap::default(),
         tests: Vec::new(),
+        test_index: FxMap::default(),
         helpers: Vec::new(),
         owner: 0,
         places: Vec::new(),
@@ -849,23 +852,12 @@ pub(crate) fn lower(
     // (§3.3), decided over the structural grammar: every production made
     // so far, helpers included, before a false condition removes any, with
     // tests ignored. Every remaining alternative counts, reachable or not.
-    let mut nullable = vec![false; rules.len()];
+    let sequences: Vec<(u32, Vec<Sym>)> =
+        order.iter().map(|pending| (pending.rule, pending.sequence.iter().map(|(sym, ..)| *sym).collect())).collect();
+    let nullable = nullable_rules(rules.len(), sequences.iter().map(|(rule, syms)| (*rule, syms.as_slice())));
     let empty = |nullable: &[bool], syms: &[Sym]| {
         syms.iter().all(|sym| matches!(sym, Sym::N(rule) if nullable[*rule as usize]))
     };
-    loop {
-        let mut changed = false;
-        for pending in &order {
-            let syms: Vec<Sym> = pending.sequence.iter().map(|(sym, ..)| *sym).collect();
-            if !nullable[pending.rule as usize] && empty(&nullable, &syms) {
-                nullable[pending.rule as usize] = true;
-                changed = true;
-            }
-        }
-        if !changed {
-            break;
-        }
-    }
     for item in &lowerer.brace_items {
         if item.expansions.iter().any(|expansion| empty(&nullable, expansion)) {
             let name = &grammar.rules[item.owner as usize].name;
@@ -1089,21 +1081,30 @@ fn reads_until(rules: &[LRule], prods: &[Prod]) -> Vec<u32> {
         Sym::T(_) => true,
         Sym::N(rule) => reads[rule as usize],
     };
-    loop {
-        let mut changed = false;
-        for production in prods {
-            if reads[production.rule as usize] {
-                continue;
-            }
-            let rule = &rules[production.rule as usize];
-            let restoration = production.syms.is_empty() && rule.helper && rule.elided.is_some();
-            if restoration || production.syms.iter().any(|symbol| symbol_reads(&reads, symbol)) {
-                reads[production.rule as usize] = true;
-                changed = true;
+    // A worklist: the rules that read at once, and then each rule with a
+    // production that holds a rule found to read.
+    let mut holding: Vec<Vec<u32>> = vec![Vec::new(); rules.len()];
+    let mut queue = Vec::new();
+    for production in prods {
+        let rule = &rules[production.rule as usize];
+        let restoration = production.syms.is_empty() && rule.helper && rule.elided.is_some();
+        let terminal = production.syms.iter().any(|symbol| matches!(symbol, Sym::T(_)));
+        if (restoration || terminal) && !reads[production.rule as usize] {
+            reads[production.rule as usize] = true;
+            queue.push(production.rule);
+        }
+        for symbol in &production.syms {
+            if let Sym::N(inner) = *symbol {
+                holding[inner as usize].push(production.rule);
             }
         }
-        if !changed {
-            break;
+    }
+    while let Some(inner) = queue.pop() {
+        for &outer in &holding[inner as usize] {
+            if !reads[outer as usize] {
+                reads[outer as usize] = true;
+                queue.push(outer);
+            }
         }
     }
     prods
@@ -1114,36 +1115,71 @@ fn reads_until(rules: &[LRule], prods: &[Prod]) -> Vec<u32> {
         .collect()
 }
 
+/// Which rules derive the empty sequence, from productions given as their
+/// rule and symbols. A worklist counts each production's symbols not yet
+/// known to be nullable, so each symbol is looked at once or twice, not
+/// once in each pass that settles one more rule.
+fn nullable_rules<'s>(count: usize, prods: impl Iterator<Item = (u32, &'s [Sym])>) -> Vec<bool> {
+    let mut nullable = vec![false; count];
+    let mut owner = Vec::new();
+    let mut waiting = Vec::new();
+    let mut occurs: Vec<Vec<u32>> = vec![Vec::new(); count];
+    let mut queue = Vec::new();
+    for (index, (rule, syms)) in prods.enumerate() {
+        owner.push(rule);
+        // Each occurrence of a rule is paid off once that rule is found
+        // nullable. A terminal never is.
+        let left = syms.len() as u32;
+        for sym in syms {
+            if let Sym::N(inner) = *sym {
+                occurs[inner as usize].push(index as u32);
+            }
+        }
+        waiting.push(left);
+        if left == 0 && !nullable[rule as usize] {
+            nullable[rule as usize] = true;
+            queue.push(rule);
+        }
+    }
+    while let Some(inner) = queue.pop() {
+        for &index in &occurs[inner as usize] {
+            waiting[index as usize] -= 1;
+            let rule = owner[index as usize];
+            if waiting[index as usize] == 0 && !nullable[rule as usize] {
+                nullable[rule as usize] = true;
+                queue.push(rule);
+            }
+        }
+    }
+    nullable
+}
+
 /// For each nonterminal, the cycle of the unit graph that it lies on, if
 /// any: the number of its strongly connected component.
 fn cycles(rules: &[LRule], prods: &[Prod]) -> Vec<Option<u32>> {
     let count = rules.len();
-    let mut nullable = vec![false; count];
-    loop {
-        let mut changed = false;
-        for production in prods {
-            if !nullable[production.rule as usize]
-                && production.syms.iter().all(|sym| matches!(sym, Sym::N(n) if nullable[*n as usize]))
-            {
-                nullable[production.rule as usize] = true;
-                changed = true;
-            }
-        }
-        if !changed {
-            break;
-        }
-    }
+    let nullable = nullable_rules(count, prods.iter().map(|production| (production.rule, production.syms.as_slice())));
     let mut edges: Vec<Vec<u32>> = vec![Vec::new(); count];
+    let mut seen: FxSet<(u32, u32)> = FxSet::default();
     for production in prods {
-        for (position, sym) in production.syms.iter().enumerate() {
-            if let Sym::N(target) = sym {
-                let others_nullable = production
-                    .syms
-                    .iter()
-                    .enumerate()
-                    .all(|(other, sym)| other == position || matches!(sym, Sym::N(n) if nullable[*n as usize]));
-                if others_nullable && !edges[production.rule as usize].contains(target) {
-                    edges[production.rule as usize].push(*target);
+        // A symbol has an edge when every other symbol is nullable: every
+        // symbol where none is not nullable, the one where one is not, and
+        // none where two or more are not.
+        let mut stubborn = production
+            .syms
+            .iter()
+            .enumerate()
+            .filter(|(_, sym)| !matches!(sym, Sym::N(n) if nullable[*n as usize]))
+            .map(|(position, _)| position);
+        let positions: Vec<usize> = match (stubborn.next(), stubborn.next()) {
+            (None, _) => (0..production.syms.len()).collect(),
+            (Some(only), None) => vec![only],
+            (Some(_), Some(_)) => Vec::new(),
+        };
+        for position in positions {
+            if let Sym::N(target) = production.syms[position] {
+                if seen.insert((production.rule, target)) {
+                    edges[production.rule as usize].push(target);
                 }
             }
         }
@@ -1207,4 +1243,64 @@ fn cycles(rules: &[LRule], prods: &[Prod]) -> Vec<Option<u32>> {
         }
     }
     cycle
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+    use std::sync::Arc;
+
+    use super::lower;
+    use crate::dom::{Alternative, Directive, Dom, Expr, Op, RuleDef, Term};
+    use crate::grammar::stitch;
+    use crate::growth::assert_linear;
+    use crate::unicode::Unicode;
+
+    /// A grammar of a chain of n rules, each nullable and reading only
+    /// through the next, a production of n nullable symbols, and n tested
+    /// alternatives lowers in about n. Its nullable rules, the rules that
+    /// read and the unit edges are found by worklists, and tests by a map.
+    #[test]
+    fn lowering_a_long_chain_takes_linear_time() {
+        let unicode = Unicode::parse(crate::loader::bundled("unicode.txt").expect("the table")).expect("the table");
+        let grammar = |n: usize| {
+            let rule = |name: String, alternatives: Vec<Expr>| RuleDef {
+                name,
+                op: Op::Define,
+                tags: None,
+                alternatives: alternatives
+                    .into_iter()
+                    .map(|expr| Alternative { guards: Vec::new(), expr, tags: None })
+                    .collect(),
+                emit: None,
+                conditions: Vec::new(),
+                opaque: false,
+                at: (0, 0),
+            };
+            let tested = (0..n).map(|index| {
+                Expr::Tested("=".into(), Term::Str(format!("s{index}")), Box::new(Expr::Terminal("A".into())))
+            });
+            let wide = Expr::Seq((1..n).map(|index| Expr::Ref(format!("r{index}"))).collect());
+            let mut rules = vec![rule("text".into(), tested.chain([wide]).collect())];
+            rules.extend((1..n).map(|index| {
+                let next =
+                    if index + 1 < n { Expr::Ref(format!("r{}", index + 1)) } else { Expr::Terminal("A".into()) };
+                rule(format!("r{index}"), vec![next, Expr::Empty])
+            }));
+            let directive = Directive { name: "ambiguity-resolution".into(), args: vec!["greedy".into()], at: (0, 0) };
+            let dom = Dom {
+                rules,
+                directives: vec![directive],
+                constants: Vec::new(),
+                classifiers: Vec::new(),
+                implications: Vec::new(),
+            };
+            stitch("s", &[(Arc::<str>::from("d.md"), Arc::new(dom))], &unicode).expect("a grammar")
+        };
+        let grammars = [grammar(2000), grammar(8000)];
+        assert_linear("lowering", 2000, &mut |n| {
+            let lowered = lower(&grammars[usize::from(n != 2000)], &BTreeSet::new(), Arc::default()).expect("lowered");
+            assert_eq!(lowered.tests.len(), n);
+        });
+    }
 }
