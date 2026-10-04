@@ -10774,41 +10774,63 @@
     const stages = [];
     /** @type {string[]} */
     const features = [];
+    // Sets beside the lists, so that a check of a name costs one lookup and
+    // not a scan of all that came before it.
+    const featureNames = new Set();
+    /** @type {Map<string, SplicedStage>} */
+    const stageNames = new Map();
     /** @type {{path: string, dom: GrammarDom} | null} the run being built */
     let run = null;
+    // The documents being included, outermost first, grown and shrunk as the
+    // splice goes in and out rather than copied for each include.
+    /** @type {string[]} */
+    const chain = [];
+    const including = new Set();
 
     /**
      * @param {string} documentPath
      * @param {GrammarDom} dom
-     * @param {string[]} chain the documents being included, outermost first
      */
-    const splice = (documentPath, dom, chain) => {
+    const splice = (documentPath, dom) => {
       for (const item of itemsInOrder(dom)) {
         const where = itemAt(item);
         const at = { document: documentPath, line: where[0], column: where[1] };
         const place = `${documentPath}:${at.line}:${at.column}`;
         if ("directive" in item && item.directive.name === "include") {
           const target = resolvePath(documentPath, item.directive.args[0]);
-          const through = [...chain, documentPath].join(" → ");
-          if (chain.includes(target) || target === documentPath) {
-            throw new GencmuError("grammar", `${place}: ${target} includes itself (${through} → ${target})`, at);
+          // Joined only for an error: a chain of D documents joined at each
+          // include would cost the square of D.
+          const through = () => [...chain, documentPath].join(" → ");
+          if (including.has(target) || target === documentPath) {
+            throw new GencmuError("grammar", `${place}: ${target} includes itself (${through()} → ${target})`, at);
           }
           const included = domOf(target);
           if (included === undefined) {
-            throw new GencmuError("grammar", `${place}: ${target} was not found (${through} → ${target})`, at);
+            throw new GencmuError("grammar", `${place}: ${target} was not found (${through()} → ${target})`, at);
           }
           run = null;
-          splice(target, included, [...chain, documentPath]);
+          chain.push(documentPath);
+          including.add(documentPath);
+          splice(target, included);
+          chain.pop();
+          including.delete(documentPath);
           run = null;
         } else if ("directive" in item && item.directive.name === "features") {
-          for (const name of item.directive.args) if (!features.includes(name)) features.push(name);
+          for (const name of item.directive.args) {
+            if (featureNames.has(name)) continue;
+            featureNames.add(name);
+            features.push(name);
+          }
         } else if ("directive" in item && item.directive.name === "stage") {
           const name = item.directive.args[0];
-          const earlier = stages.find((stage) => stage.name === name);
+          const earlier = stageNames.get(name);
           if (earlier) {
             throw new GencmuError("grammar", `${place}: a second stage named ${name}; the first is at ${earlier.at.document}:${earlier.at.line}:${earlier.at.column}`, at);
           }
-          stages.push({ name, at, documents: [] });
+          /** @type {SplicedStage} */
+          const stage = { name, at, documents: [] };
+          stages.push(stage);
+          stageNames.set(name, stage);
           run = null;
         } else {
           const stage = stages[stages.length - 1];
@@ -10832,7 +10854,7 @@
 
     const top = domOf(path);
     if (top === undefined) throw new GencmuError("grammar", `${path} was not found`, { document: path });
-    splice(path, top, []);
+    splice(path, top);
     if (stages.length === 0) throw new GencmuError("grammar", `${path}: a pipeline needs at least one %stage`, { document: path });
     for (const stage of stages) {
       if (!stage.documents.some((document) => document.dom.rules.length > 0)) {
@@ -11086,7 +11108,8 @@
       }
     }
     const names = [...new Set([...kinds.keys(), ...declared])].sort(compareCodePoints);
-    return names.map((name) => ({ name, kind: kinds.get(name) || "gate", default: declared.includes(name) }));
+    const defaults = new Set(declared);
+    return names.map((name) => ({ name, kind: kinds.get(name) || "gate", default: defaults.has(name) }));
   }
 
   /**
