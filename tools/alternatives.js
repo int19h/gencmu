@@ -170,50 +170,107 @@ export function suggestLayout(symbols, indent, limit = LINE_LIMIT) {
   };
   const one = linesOf(0, n, indent);
   if (one.length === 1 && width(one[0]) <= limit) return one;
-  // What a line of the layout of symbols i to j - 1 counts toward the
-  // longest line, or null when it cannot be a line of the layout.
-  /** @type {(number | null)[][]} */
+  // cost[i][j - i - 1]: what a line of the layout of symbols i to j - 1
+  // counts toward the longest line, for each j up to the last such line
+  // that can be a line of the layout.
+  // Each row is built by adding one symbol at a time to the line, and stops
+  // once a line of two or more symbols is too long: adding symbols never
+  // shortens a line, so no longer one fits either. Rebuilding every line
+  // from its first symbol, for every pair, would cost the cube of n.
+  /** @type {number[][]} */
   const cost = [];
+  const partWidths = parts.map((lines) => lines.map(width));
+  const startWidth = width(`${indent}| `);
   for (let i = 0; i < n; i++) {
-    cost.push([]);
+    /** @type {number[]} */
+    const row = [];
+    cost.push(row);
+    let last = startWidth;
+    let most = 0;
+    let fits = true;
     for (let j = i + 1; j <= n; j++) {
-      const widths = linesOf(i, j, `${indent}| `).map(width);
-      const fitting = widths.filter((w) => w <= limit);
-      cost[i][j] = fitting.length === widths.length || j - i === 1 ? fitting.reduce((most, w) => Math.max(most, w), 0) : null;
+      const [first, ...rest] = partWidths[j - 1];
+      last += (j - 1 === i ? 0 : 3) + first;
+      for (const w of rest) {
+        if (last <= limit) most = Math.max(most, last);
+        else fits = false;
+        last = w;
+      }
+      const lastFits = last <= limit;
+      // Kept from i + 1 on: an array with holes before i would cost i to walk.
+      if ((fits && lastFits) || j - i === 1) row.push(Math.max(most, lastFits ? last : 0));
+      else break;
     }
   }
-  // best[k][j]: the shortest longest line of symbols 0 to j - 1 on k lines
-  // of the layout; from[k][j]: where the last of those lines begins. The
-  // lines after the first of each symbol are the same in every layout, so
-  // the fewest lines of the layout make the fewest lines.
-  const best = [[0, ...Array(n).fill(Infinity)]];
+  // The starts of the lines that can end before j, last first, as the
+  // search below takes them: each row is short, so this is the size of the
+  // table rather than of every pair.
   /** @type {number[][]} */
-  const from = [[]];
-  for (let k = 1; k <= n; k++) {
-    best.push(Array(n + 1).fill(Infinity));
-    from.push(Array(n + 1).fill(-1));
-    for (let j = 1; j <= n; j++) {
-      for (let i = j - 1; i >= 0; i--) {
-        const c = cost[i][j];
-        if (c === null) continue;
-        const value = Math.max(best[k - 1][i], c);
-        if (value < best[k][j]) {
-          best[k][j] = value;
-          from[k][j] = i;
+  const starts = Array.from({ length: n + 1 }, () => []);
+  for (let i = n - 1; i >= 0; i--) {
+    cost[i].forEach((_, index) => starts[i + 1 + index].push(i));
+  }
+  // The fewest lines of the layout for the symbols before each j, and for
+  // those from each i to the end. Every symbol can stand alone, so both are
+  // finite. The fewest for all of them is `lines`.
+  const before = [0];
+  for (let j = 1; j <= n; j++) {
+    let fewest = Infinity;
+    for (const i of starts[j]) fewest = Math.min(fewest, 1 + before[i]);
+    before.push(fewest);
+  }
+  const after = Array(n + 1).fill(0);
+  for (let i = n - 1; i >= 0; i--) {
+    let fewest = Infinity;
+    cost[i].forEach((_, index) => {
+      fewest = Math.min(fewest, 1 + after[i + 1 + index]);
+    });
+    after[i] = fewest;
+  }
+  const lines = before[n];
+  // best[k]: for each j, the shortest longest line of symbols 0 to j - 1 on
+  // k lines of the layout; from[k]: where the last of those lines begins.
+  // The lines after the first of each symbol are the same in every layout,
+  // so the fewest lines of the layout make the fewest lines. Only the j that
+  // k lines can reach, and from which the rest fits in the lines left, can
+  // be on the way to the answer, so only they are filled in: a full table
+  // for each number of lines would cost that number times the square of n.
+  /** @type {number[][]} */
+  const active = Array.from({ length: lines + 1 }, () => []);
+  for (let j = 1; j <= n; j++) for (let k = before[j]; k <= lines - after[j]; k++) active[k].push(j);
+  /** @type {Map<number, number>[]} */
+  const best = [new Map([[0, 0]])];
+  /** @type {Map<number, number>[]} */
+  const from = [new Map()];
+  for (let k = 1; k <= lines; k++) {
+    /** @type {Map<number, number>} */
+    const level = new Map();
+    /** @type {Map<number, number>} */
+    const levelFrom = new Map();
+    best.push(level);
+    from.push(levelFrom);
+    for (const j of active[k]) {
+      let shortest = Infinity;
+      for (const i of starts[j]) {
+        const previous = best[k - 1].get(i);
+        if (previous === undefined) continue;
+        const value = Math.max(previous, cost[i][j - i - 1]);
+        if (value < shortest) {
+          shortest = value;
+          levelFrom.set(j, i);
         }
       }
+      if (shortest < Infinity) level.set(j, shortest);
     }
-    if (best[k][n] === Infinity) continue;
-    /** @type {string[][]} */
-    const groups = [];
-    for (let j = n, line = k; line > 0; line--) {
-      const i = from[line][j];
-      groups.unshift(linesOf(i, j, `${indent}| `));
-      j = i;
-    }
-    return groups.flat();
   }
-  throw new Error("unreachable: every symbol can stand on its own line");
+  /** @type {string[][]} */
+  const groups = [];
+  for (let j = n, line = lines; line > 0; line--) {
+    const i = /** @type {number} */ (from[line].get(j));
+    groups.push(linesOf(i, j, `${indent}| `));
+    j = i;
+  }
+  return groups.reverse().flat();
 }
 
 /**
