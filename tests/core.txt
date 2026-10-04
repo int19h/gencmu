@@ -1510,6 +1510,8 @@ adhoc.syntax.i-bo-no-prenex
 adhoc.syntax.i-bo-no-prenex.bpfk
 adhoc.syntax.i-bo-chain-groups-right
 adhoc.syntax.i-bo-chain-groups-right.bpfk
+adhoc.syntax.at-end-after-attached-indicator
+adhoc.syntax.at-end-after-attached-indicator.bpfk
 adhoc.syntax.number-then-lerfu
 adhoc.syntax.number-then-lerfu.bpfk
 adhoc.syntax.simple-tense-modal-time-caha
