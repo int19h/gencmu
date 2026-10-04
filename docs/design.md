@@ -142,12 +142,12 @@ A name in upper case is a terminal that matches a token carrying that tag. A cha
 
 A reference or a terminal can carry a test on its own span, as in `LE="la"`. The symbol then matches only where the test holds. The `=` and `≠` tests compare the sound of the span, whatever the stress or the script. The four tag tests compare the symbol's own tags with a set, as in `cmavo∩UI=∅`. So a rule can name a word by its sound or its tags in its body, and not in a condition. A test does not replace a class, since a word that `zo` quotes has the sound but not the class.
 
-The operators of a body are those of CLL, except for repetition (see "Repetition, lists and chains" below):
+The operators of a body are those of CLL, except for repetition and elidable terminators (see "Repetition, lists and chains" and "Elidable optionals and captures" below):
 
 - Juxtaposition is sequence.
 - `[x]` is optional.
 - `{x}` is one or more, and `[{x}]` is zero or more. `{x \ s}` is a separated list.
-- `{... x \ s}` is a left chain, and `{x ... \ s}` a right chain. A chain is the whole of its rule.
+- `{... x \ s}` is a left chain, and `{x ... \ s}` a right chain. A chain, like a list, can leave out `\ s`, as in `{... x}`. A chain is the whole of its rule.
 - `[+T x]` is an elidable optional, which begins with the terminator `T`. `[++T x]` also makes `T` maximal there, for Zantufa alone, until its redesign.
 - `A & B` is and/or, in order.
 - `( )` is grouping.
@@ -214,7 +214,7 @@ The fixpoint alone proves only that the notation reads itself consistently. So `
 CLL writes repetition as `x ...`, and its note 7 to chapter 21.2 says that `...` implies left grouping. gencmu departs from that note. Its notation writes repetition with braces, and says in each place whether the tree shows a list or the grouping.
 
 - Flat braces, `{x}` and `{x \ s}`, read a list. The tree shows the items and the separators as children of the rule that writes the braces.
-- Chain braces, `{... x \ s}` and `{x ... \ s}`, show the grouping. Each level is a node of the chain's rule. A chain is the whole of its rule, so its levels need no other name.
+- Chain braces, `{... x \ s}` and `{x ... \ s}`, with or without `\ s`, show the grouping. Each level is a node of the chain's rule. A chain is the whole of its rule, so its levels need no other name.
 - `...` alone is gone. So is the trailing repetition, the old rule that lowered `x ...` into left recursion on its rule where the gates left it alone in that rule.
 
 The reasons are these:
@@ -232,6 +232,9 @@ The change has these consequences, which `docs/engine.md` (§3) states as rules:
 - A chain's levels see the clauses of their rule, each level its own `$`. A warning on the chain's alternative gives one warning per level.
 - A right chain differs from an optional suffix, `x [s r]`, at its level of one item. Where the suffix is an elidable optional, `[+T s′ r]`, the chain has none, so the elision vectors differ, and `late-elision` can choose otherwise. The level has the tags of `x` where `x` is one symbol. A terminator elided at the start of `s` has a constituent by the ordinary rules, where the suffix gave it none. More generally, a rewrite that adds or removes an elidable optional changes which terminators can be elided. So a migration checks each optional that it removes. With the markers, the check reads the text: it looks for `[+` and `[++`.
 - Two CLL constructs become rules of their own, so that each level holds its first part: the operator chain of `mex` and the connected abstractors of `tanru-unit-2`. So a single abstractor with `nai` or free modifiers is now a group of its own.
+- A chain adds a level over a single item, such as a `selbri-3` over one tanru unit. This changes the tree, but not the bracket form, which collapses a node of one child.
+- A trailing `x [y] ...` that became `x [{y}]` no longer gives its level of one item the tags of `x`. The old rule lowered it to a production of the one symbol `x`, which inherited its tags. Now the production also holds the helper of `[{y}]`. So a `number` no longer carries the word tags of its first `PA`, such as `cmavo`, which were never true of a number. The same holds for `lerfu-string`, and for three `terms-…-not-starting-with-bare-gek` rules of the experimental dialect. No condition reads these tags, so no verdict changes.
+- Over the 29,723 cases of the corpus, the migration to braces and markers kept every verdict, every error and every token sequence. The bracket form of 822 existing cases changed. About 9,120 trees changed, most of them only by a level of one item that the bracket form collapses. The tags alone changed in 1,951 trees, by the consequence above. For comparison, the measurement above, which nested every repetition, changed the bracket form of 1,819 cll-ebnf trees.
 
 ## Elidable optionals and captures
 
@@ -242,7 +245,7 @@ Elidability was a property of a terminal. `%elidable KU` made every optional who
 - The marker is local, so a wrong test on a terminator is an error of the document. Before, the loader found it only after it stitched the stage.
 - The terminator stands directly after the marker. A group there, even `[+(KU) #]`, is an error of the document, although parentheses mean nothing elsewhere. The reason is one spelling and one check: the readers check the written text, while a DOM cannot show a group and checks only the normalized form.
 
-Everything else about an elided terminator stays: the elided node, its constituent, the elision vector, the restoration of `elision-only` and its routes, and the saved sound of an `=` test. Only what selects the optionals changes. The migration marks exactly the optionals that were elidable, so no tree and no verdict changes. A probe checked every optional of every stage of every bundled dialect, and found none whose elidability or maximality would change, and no plain optional that begins with a terminal that the same stage marks.
+Everything else about an elided terminator stays: the elided node, its constituent, the elision vector, the restoration of `elision-only` and its routes, and the saved sound of an `=` test. Only what selects the optionals changes. The migration marks exactly the optionals that were elidable, so the markers change no elided node and no verdict. The trees that the migration changes are those of the chains and the lists (see "Repetition, lists and chains"). A probe checked every optional of every stage of every bundled dialect, and found none whose elidability or maximality would change, and no plain optional that begins with a terminal that the same stage marks.
 
 `[++T]` keeps today's maximal terminators, which only Zantufa uses, for `TOI` and `SEhU`. It is transitional, until the Zantufa redesign (GitHub issues #138 and #139). Stage-wide `maximal` in `%ambiguity-resolution` stays for the bpfk dialect, and a later change retires it once bpfk no longer needs it. Maximality now belongs to an optional, not to a terminal. Where every optional of a terminal is written `[++T]`, as in Zantufa, that is the same thing.
 
