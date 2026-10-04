@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use crate::fxhash::FxMap;
 use crate::unicode::Unicode;
-use crate::work::{self, Work};
+use crate::work::{self, Mutant, Work};
 
 pub(crate) type TagId = u32;
 pub(crate) type SetId = u32;
@@ -113,11 +113,21 @@ impl Tags {
 /// the growing union at each list.
 pub(crate) fn union_all<'l>(lists: impl IntoIterator<Item = &'l TagList>) -> TagList {
     let mut out = TagList::new();
+    // Each tag counts as it is copied.
+    let copied = |&tag: &TagId| {
+        work::count(Work::Listed, 1);
+        tag
+    };
     for list in lists {
         // Each part is copied once, where a fold of pairs copied the
-        // growing union again for each part. It is counted before the copy.
-        work::count(Work::Listed, list.len() as u64);
-        out.extend_from_slice(list);
+        // growing union again for each part.
+        if work::mutated(Mutant::FoldUnions) {
+            out = out.iter().chain(list).map(copied).collect();
+            out.sort_unstable();
+            out.dedup();
+            continue;
+        }
+        out.extend(list.iter().map(copied));
     }
     out.sort_unstable();
     out.dedup();
@@ -244,7 +254,7 @@ pub(crate) fn is_tag(tag: &str, unicode: &Unicode) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{difference, intersection, union_all, TagList};
-    use crate::work::{assert_stops, Work};
+    use crate::work::{assert_linear, assert_mutant_stops, assert_stops, Mutant, Work};
 
     /// A union, an intersection and a difference count each tag as they
     /// copy or read it, so a budget stops a long list at its first tag
@@ -264,5 +274,18 @@ mod tests {
         assert_stops(Work::Listed, 500, || {
             difference(&all, &even);
         });
+    }
+
+    /// A union of many lists counts about the tags it gathers. A fold of
+    /// pairwise unions, which copies the growing union for each list, stops
+    /// at the first count past the budget.
+    #[test]
+    fn a_union_of_many_lists_copies_each_tag_once() {
+        let mut run = |n: usize| {
+            let singles: Vec<TagList> = (0..n as u32).map(|tag| vec![tag]).collect();
+            assert_eq!(union_all(&singles).len(), n);
+        };
+        assert_linear(Work::Listed, 1000, &mut run);
+        assert_mutant_stops(Work::Listed, Mutant::FoldUnions, 1000, &mut run);
     }
 }

@@ -15,7 +15,7 @@ use crate::error::Error;
 use crate::fxhash::{FxMap, FxSet};
 use crate::tags::{character_tag, code_of_character_tag, is_name};
 use crate::unicode::Unicode;
-use crate::work::{self, Work};
+use crate::work::{self, Mutant, Work};
 
 /// The rule by which a stage ranks its derivations (engine §6): the lean
 /// of rule 2, the counts of elided terminators, or, for the `elision-only`
@@ -217,19 +217,25 @@ pub(crate) fn stitch(
                 users.push((document, rule));
             }
             // The clauses are copied once for the rule, not for each
-            // alternative.
-            work::count(Work::Stitched, rule.conditions.len() as u64);
-            let clauses = Arc::new(RuleClauses {
-                tags: rule.tags.clone(),
-                emit: rule.emit.clone(),
-                conditions: rule.conditions.clone(),
-            });
+            // alternative. Each condition counts as it is copied.
+            let copy_clauses = || {
+                Arc::new(RuleClauses {
+                    tags: rule.tags.clone(),
+                    emit: rule.emit.clone(),
+                    conditions: rule.conditions.iter().inspect(|_| work::count(Work::Stitched, 1)).cloned().collect(),
+                })
+            };
+            let clauses = copy_clauses();
             let alternatives: Vec<StitchedAlternative> = rule
                 .alternatives
                 .iter()
                 .map(|alternative| StitchedAlternative {
                     alternative: alternative.clone(),
-                    clauses: clauses.clone(),
+                    clauses: if work::mutated(Mutant::ClausesPerAlternative) {
+                        copy_clauses()
+                    } else {
+                        clauses.clone()
+                    },
                     opaque: rule.opaque,
                     document: document.clone(),
                     at: rule.at,
@@ -979,7 +985,7 @@ mod tests {
     use super::{stitch, Lean, StageGrammar};
     use crate::dom::{Alternative, ClassifierDef, Cond, Directive, Dom, Entry, Expr, Op, RuleDef, Term};
     use crate::unicode::Unicode;
-    use crate::work::{assert_linear, Work};
+    use crate::work::{assert_linear, assert_mutant_stops, Mutant, Work};
 
     /// A rule of n alternatives with n conditions stitches in about n:
     /// its alternatives share its clauses, and they are checked once.
@@ -1011,10 +1017,14 @@ mod tests {
             vec![(Arc::<str>::from("d.md"), Arc::new(dom))]
         };
         let doms = [dom(1000), dom(4000)];
-        assert_linear(Work::Stitched, 1000, &mut |n| {
+        let mut run = |n: usize| {
             let grammar = stitch("s", &doms[usize::from(n != 1000)], &unicode).expect("a grammar");
             assert_eq!(grammar.rules[0].alternatives.len(), n);
-        });
+        };
+        assert_linear(Work::Stitched, 1000, &mut run);
+        // A copy of the clauses for each alternative stops at the first
+        // count past the budget.
+        assert_mutant_stops(Work::Stitched, Mutant::ClausesPerAlternative, 1000, &mut run);
     }
 
     /// A key that a classifier puts in n classes and then takes out of

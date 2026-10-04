@@ -99,6 +99,12 @@ pub(crate) enum Mutant {
     /// The check of a definition finds the first position of each capture
     /// by a scan from the start of its production.
     FirstByScan,
+    /// Stitching copies a rule's clauses for each alternative.
+    ClausesPerAlternative,
+    /// The closure of a token's tags scans every implication for each tag.
+    ScanImplications,
+    /// A union of many lists is a fold of pairwise unions.
+    FoldUnions,
     /// The search of lowering for the rules that read tests every symbol
     /// of a production for a terminal at each of its symbols.
     TerminalAtEach,

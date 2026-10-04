@@ -12,7 +12,7 @@ use crate::lower::{LEmit, LEmitItem, LTerm, Lowered};
 use crate::rank::{DNode, Ranker};
 use crate::result::{Attachment, Node, NodeKind, Restoration, Warning};
 use crate::tags::{phoneme_of, SetId, TagId, TagList, Tags};
-use crate::work::{self, Work as Counted};
+use crate::work::{self, Mutant, Work as Counted};
 
 #[derive(Debug, Clone)]
 pub(crate) enum IKind {
@@ -723,15 +723,29 @@ impl Implications {
         let mut added: TagList = Vec::new();
         while let Some(tag) = queue.pop() {
             // Each tag looks only at the implications it is an antecedent
-            // of, and each implication fires once.
-            let indices = self.by_tag.get(&tag).map_or(&[][..], Vec::as_slice);
-            work::count(Counted::Implied, 1 + indices.len() as u64);
+            // of, and each implication fires once. Each tag, implication
+            // and consequent counts as it is examined.
+            work::count(Counted::Implied, 1);
+            let scanned: Vec<u32>;
+            let indices = if work::mutated(Mutant::ScanImplications) {
+                // Every implication, each looked at for the tag.
+                scanned = (0..self.consequents.len() as u32)
+                    .filter(|index| {
+                        work::count(Counted::Implied, 1);
+                        self.by_tag.get(&tag).is_some_and(|list| list.contains(index))
+                    })
+                    .collect();
+                &scanned[..]
+            } else {
+                self.by_tag.get(&tag).map_or(&[][..], Vec::as_slice)
+            };
             for &index in indices {
+                work::count(Counted::Implied, 1);
                 if !fired.insert(index) {
                     continue;
                 }
-                work::count(Counted::Implied, self.consequents[index as usize].len() as u64);
                 for &consequent in &self.consequents[index as usize] {
+                    work::count(Counted::Implied, 1);
                     if have.insert(consequent) {
                         queue.push(consequent);
                         added.push(consequent);
@@ -914,7 +928,7 @@ mod tests {
     use super::Implications;
     use crate::grammar::Implication;
     use crate::tags::Tags;
-    use crate::work::{assert_linear, Work};
+    use crate::work::{assert_linear, assert_mutant_stops, Mutant, Work};
 
     /// A chain of implications, written last link first, closes a token's
     /// tags in work that grows with its length, where a pass over every
@@ -922,7 +936,7 @@ mod tests {
     #[test]
     fn a_chain_of_implications_closes_in_one_sweep() {
         let names = |index: usize| BTreeSet::from([format!("{index}a")]);
-        assert_linear(Work::Implied, 100, &mut |n| {
+        let mut run = |n: usize| {
             let chain: Vec<Implication> = (0..n)
                 .rev()
                 .map(|index| Implication { antecedent: names(index), consequent: names(index + 1) })
@@ -932,6 +946,10 @@ mod tests {
             let start = tags.set_of(["0a"]);
             let closure = implications.implied(&mut tags, start);
             assert_eq!(tags.list(closure).len(), n + 1);
-        });
+        };
+        assert_linear(Work::Implied, 100, &mut run);
+        // A scan of every implication for each tag stops at the first
+        // count past the budget.
+        assert_mutant_stops(Work::Implied, Mutant::ScanImplications, 100, &mut run);
     }
 }
