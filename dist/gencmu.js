@@ -3426,9 +3426,12 @@
       const guarded = prepared.guards.size > 0 || prepared.join === "all";
       if (prepared.fixed.length === 0 && guarded && (prepared.join === "all" || prepared.join === "any" || (prepared.join === null && prepared.absent === DOM_TRUE))) {
         candidates = prepared.guards.keys();
-      } else if (prepared.join === null && prepared.guards.size === 0 && prepared.values[0] !== undefined) {
+      } else if (prepared.join === null ? prepared.guards.size === 0 && prepared.values[0] !== undefined : testsNoPresence(condition)) {
+        // A condition that tests no presence anywhere, alone or joined, has
+        // one value for every production.
+        const value = prepared.join === null ? prepared.values[0] : simplify(condition, hasNone);
         let first = null;
-        for (const used of capturesUsed(prepared.values[0])) if (used !== "" && (first === null || used < first)) first = used;
+        for (const used of capturesUsed(value)) if (used !== "" && (first === null || used < first)) first = used;
         if (first !== null) candidates = [first];
       }
       let found = false;
