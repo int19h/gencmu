@@ -1014,10 +1014,8 @@ def _case_tokens(specs: list[dict[str, Any]]) -> Walk:
 
 def load_case_dialect(case: dict[str, Any], use_cache: bool = True) -> tuple[gencmu.Dialect | None, gencmu.GencmuError | None]:
     """An engine case's loaded dialect, or the error of its load."""
+    sources, pipeline = case_sources(case)
     try:
-        if "dialect" in case:
-            return gencmu.load_dialect(case["dialect"]), None
-        sources, pipeline = case_sources(case)
         return gencmu.load_dialect_sources(sources, pipeline, use_cache=use_cache), None
     except gencmu.GencmuError as error:
         return None, error

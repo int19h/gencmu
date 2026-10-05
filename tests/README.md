@@ -26,9 +26,7 @@ Each file is one case:
 }
 ```
 
-The optional `dialect` field selects a bundled dialect instead of case documents. Such a case omits `grammar`, `documents`, and `pipeline`. All four runners compare its canonical result with the same pattern.
-
-Otherwise, the grammar comes from `grammar`, or from `documents` and `pipeline`. `grammar` is rule text for a single stage named `main`. The document of this stage is those rules in one `jbogenbau` block. On a line of its own before the rules, the block has `%ambiguity-resolution greedy`, unless the text has its own `%ambiguity-resolution`. `pipeline` names a pipeline document among `documents`.
+The grammar comes from `grammar`, or from `documents` and `pipeline`. `grammar` is rule text for a single stage named `main`. The document of this stage is those rules in one `jbogenbau` block. On a line of its own before the rules, the block has `%ambiguity-resolution greedy`, unless the text has its own `%ambiguity-resolution`. `pipeline` names a pipeline document among `documents`.
 
 The input is `input` or `tokens`. `input` is a string of characters, read as engine §1 says. `tokens` replaces the input of the first stage. Each token gets these values:
 
