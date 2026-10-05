@@ -167,7 +167,7 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
   y-atom | y-prefix y-atom
 
 %rule y-atom
-  [/,/] /y/
+  [/,/] any-y
 
 %rule bu-form-ahead
   [PAUSE] bu-form
