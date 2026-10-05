@@ -169,7 +169,7 @@ So `xy. xi ky.` (CLL example 17.38) needs `xy. boi xi ky.` under the printed gra
 
 A captured item can also carry attachments, captures in parentheses before or after it, as in `($b) $w ($a)`. The tokens of an attachment belong to the item's token, and no later stage reads them. So the indicator stage keeps `ui` and `ba'e` visible on the word that they modify, without an indicator slot after every word of the syntax. A later stage forwards the attachments with the token, and the renderings show them.
 
-The syntax reads leading indicators itself. They stand at the start of a text or after a text opener such as `lu`. In such a run, the indicator stage attaches only `ba'e`, to the indicator after it. A `nai` after an attitudinal stays a separate token there. The syntax reads `UI NAI`. In a run after a word, the `nai` attaches to its attitudinal instead.
+The syntax reads leading indicators itself. They stand at the start of a text or after a quotation opener such as `lu`. In such a run, the indicator stage attaches only `ba'e`, to the indicator after it. A `nai` after an attitudinal stays a separate token there. The syntax reads `UI NAI`. In a run after a word, the `nai` attaches to its attitudinal instead.
 
 During emission, `%opaque` treats a constituent as one part, with its text as its label and `?` as its phonemes. The body of a `zoi` quote is an example. Its emitted token sounds `?`, so later sound comparisons distinguish it from Lojban words. Its label preserves the text for the renderings. The stage's own recognition and conditions still read the phonemes of its input tokens. The text of an opaque part also takes in punctuation next to it that no token covers.
 

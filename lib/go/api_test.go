@@ -1213,7 +1213,7 @@ func TestCyLetterIsNeverContinued(t *testing.T) {
 
 // indicators/cll.md: the greedy ranking reads a nai after a leading
 // attitudinal into the leading run, with or without a ba'e before it, and
-// after a text opener as at the start of the text. No condition decides it,
+// after a quotation opener as at the start of the text. No condition decides it,
 // so each of these texts has the verdict resolved in the indicator stage.
 func TestRankingReadsLeadingNaiIntoTheRun(t *testing.T) {
 	d, err := LoadDialect("cll-ebnf")

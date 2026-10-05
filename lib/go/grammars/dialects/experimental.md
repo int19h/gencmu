@@ -145,7 +145,9 @@ A replacement quote is one unit of raw words in the word stage (`../words/lohai.
 
 `ba'e` is not a magic word, as the Magic Words proposal says. So the word stage removes `fa'o` and what follows it first, and `mi ba'e fa'o` leaves a `ba'e` with nothing to mark. The proposal calls that an error, and the dialect rejects it. camxes-exp accepts it.
 
-After `to`, indicators begin the parenthesis, as they begin a quote after `lu`. So `to ui mi klama toi` holds `ui` inside the parenthesis. camxes-exp attaches `ui` to `to`, because its `TO_post` takes indicators.
+Indicators after `to` and `to'i` attach to the opener, as camxes-exp's `TO_post` specifies. CLL 19.12 example 19.67 gives `sa'a` after `to'i` scope over the whole bracketed remark.
+
+Indicators after `lu` begin the quoted content. CLL 21.2 writes `LU text`, and the text-initial exception of CLL 13.9 gives initial indicators scope over what follows. The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs.
 
 A quote or a parenthesis whose terminator is elided can hold a fragment of terms or a whole sentence. So `to mi klama` holds `mi` or `mi klama`. The reading with `mi` elides `vau` and `toi` after `mi`, so `late-elision` takes the sentence, as camxes-exp does.
 
