@@ -117,9 +117,9 @@ fn notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dialect, E
 }
 
 fn build_notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dialect, Error> {
-    let value = json::parse(bootstrap).map_err(|message| grammar_error(format!("bootstrap.json: {message}")))?;
+    let value = json::parse(bootstrap).map_err(grammar_error)?;
     if value.get("format").and_then(Json::as_int) != Some(DOM_FORMAT) {
-        return Err(grammar_error("bootstrap.json: an unsupported format".to_string()));
+        return Err(grammar_error("an unsupported bootstrap format".to_string()));
     }
     let mut stages = Vec::new();
     let stage_values = value
@@ -147,10 +147,8 @@ fn build_notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dial
                 .into();
             let dom = document
                 .get("dom")
-                .ok_or_else(|| grammar_error("bootstrap.json: a document without a DOM".to_string()))
-                .and_then(|dom| {
-                    dom_from_json(dom, &unicode).map_err(|message| grammar_error(format!("bootstrap.json: {message}")))
-                })?;
+                .ok_or_else(|| grammar_error("a bootstrap document without a DOM".to_string()))
+                .and_then(|dom| dom_from_json(dom, &unicode).map_err(grammar_error))?;
             documents.push((path, Arc::new(dom)));
         }
         stages.push(stitch(&name, &documents, &unicode)?);
