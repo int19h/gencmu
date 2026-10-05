@@ -477,7 +477,7 @@ SA at normal end has no key and erases back to the start of the text. SA before 
 
 A reach carries classes of whole live units. It excludes nearer matching units and skips erased regions. It never searches original source words inside a quote or compound.
 
-In cll-ebnf, SU erases everything before it. In bpfk, experimental, and Zantufa, SU stops at the last NIhO, LU, TUhE, or TO unit. That boundary survives.
+In cll-ebnf and Zantufa, SU erases everything before it. In bpfk and experimental, SU stops at the last NIhO, LU, TUhE, or TO unit. That boundary survives.
 
 The feature `su-boundary` selects the surviving-boundary policy. A boundary inside an opaque unit cannot stop SU. With no boundary, SU erases the whole prefix.
 
@@ -594,7 +594,7 @@ camxes-std keys `sa .ebu` on BY and selects the earliest matching unit. These di
 
 Only the letter word for y serves as a y delimiter. Its closing spelling uses one run or two adjacent runs. Ordinary hesitation never needs a delimiter-matching rule. The raw body retains its source spelling.
 
-The cll-ebnf SU policy follows CLL 19.13. The other three dialects preserve a boundary unit, as the Magic Words proposal specifies. Zantufa adopts this shared boundary policy.
+The cll-ebnf SU policy follows CLL 19.13. Zantufa also erases the whole preceding text, as its reference grammar specifies. Bpfk and experimental preserve a boundary unit by the maintainer's decision. The Magic Words proposal names those boundaries but does not say whether they survive.
 
 The dialects keep `mi ba'e fa'o` rejected. The stranded BAhE cannot mark a word after FAhO ends the text. This policy differs from the study review's proposed acceptance.
 

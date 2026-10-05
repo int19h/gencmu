@@ -2693,3 +2693,11 @@ adhoc.words.panel.y.82.zantufa
 adhoc.words.panel.y.83.zantufa
 adhoc.words.panel.y.84.zantufa
 adhoc.words.panel.y.85.zantufa
+adhoc.words.panel.su.1.zantufa
+adhoc.words.panel.su.2.zantufa
+adhoc.words.panel.su.3.zantufa
+adhoc.words.panel.su.4.zantufa
+adhoc.words.panel.su.5.zantufa
+adhoc.words.panel.su.6.zantufa
+adhoc.words.panel.su.9.zantufa
+adhoc.words.panel.su.10.zantufa

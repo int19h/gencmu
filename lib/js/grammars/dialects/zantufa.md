@@ -6,7 +6,7 @@ The dialect's policy is the experimental dialect's ([`experimental.md`](experime
 
 A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. The word forms are the approved ones ([`../words/bpfk.md`](../words/bpfk.md)) with Zantufa's changes ([`../words/zantufa.md`](../words/zantufa.md)): the pair `mz`, `ie'o` as hesitation, and the forms that `ra'oi` quotes. A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. The lexicon gives each cmavo the selma'o that Zantufa gives it ([`../words/lexicon-zantufa.md`](../words/lexicon-zantufa.md)).
 
-So `zei` erases a word, as `si` does. `sa` is an attitudinal, and `su` erases back to the last NIhO, LU, TUhE, or TO unit. That boundary survives. Before BU binds, SU instead supplies a letter base and erases nothing. The dialect keeps its reference parser's quote-first fallback. [`../words/zantufa-stream.md`](../words/zantufa-stream.md) makes the changes to the word stream that the classes alone do not.
+So `zei` erases a word, as `si` does. `sa` is an attitudinal, and `su` erases the whole preceding text, as its reference grammar specifies. Before BU binds, SU instead supplies a letter base and erases nothing. The dialect keeps its reference parser's quote-first fallback. [`../words/zantufa-stream.md`](../words/zantufa-stream.md) makes the changes to the word stream that the classes alone do not.
 
 The indicator stage is the cll-ebnf dialect's. No word of the Zantufa lexicon is an indicator, so the stage attaches no indicators. It attaches only `ba'e` and the other words of BAhE, to the word after them. The syntax reads the attitudinals as free modifiers.
 
@@ -15,10 +15,6 @@ Every leading free modifier after a word of TO occupies the opener's slot, as Za
 CLL 21.2 writes `LU text`, and the text-initial exception of CLL 13.9 gives initial indicators scope over what follows. The dialect extends that quotation boundary to every leading free modifier and to LUhEI. The [syntax document](../syntax/zantufa.md#differences-from-zantufa-19999) records this departure and the camxes history. The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs.
 
 The syntax is [`../syntax/zantufa.md`](../syntax/zantufa.md), a grammar of its own that translates Zantufa's rules one by one. It says where the dialect reads a text differently from Zantufa 1.9999.
-
-```jbogenbau
-%features su-boundary
-```
 
 ## Stage 1: phonemes
 
