@@ -17,9 +17,9 @@ func TestBootstrapErrorMetadata(t *testing.T) {
 	var fixtures struct {
 		Kind, Document string
 		Cases          []struct {
-			Description, Find, Replace string
-			Line, Column               int
-			Bootstrap                  *string
+			Description, Find, Replace, Context, Message string
+			Line, Column                                 int
+			Bootstrap                                    *string
 		}
 	}
 	if err := json.Unmarshal(raw, &fixtures); err != nil {
@@ -51,6 +51,15 @@ func TestBootstrapErrorMetadata(t *testing.T) {
 			}
 			if e.Kind != fixtures.Kind || e.Document != fixtures.Document {
 				t.Fatalf("expected %s in %s, got %#v", fixtures.Kind, fixtures.Document, e)
+			}
+			if !strings.HasPrefix(e.Message, fixtures.Document+":") || e.Error() != e.Message {
+				t.Fatalf("the diagnostic does not name the bootstrap: %s", e)
+			}
+			if item.Context != "" && !strings.Contains(e.Message, item.Context) {
+				t.Fatalf("the diagnostic lost its source: %s", e)
+			}
+			if item.Message != "" && !strings.Contains(e.Message, item.Message) {
+				t.Fatalf("expected %q, got %s", item.Message, e)
 			}
 			if item.Line != 0 && (e.Line != item.Line || e.Column != item.Column) {
 				t.Fatalf("expected %d:%d, got %d:%d", item.Line, item.Column, e.Line, e.Column)

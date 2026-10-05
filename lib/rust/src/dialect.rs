@@ -254,6 +254,14 @@ impl Dialect {
         Ok(Dialect { stages, declared, features, unicode, changes, caches })
     }
 
+    pub(crate) fn prepare_bootstrap(&self) -> Result<(), Error> {
+        let features = BTreeSet::new();
+        for (index, stage) in self.stages.iter().enumerate() {
+            self.lowered(index, &features).map_err(|error| Error::grammar(error.message).in_stage(&stage.name))?;
+        }
+        Ok(())
+    }
+
     /// The names of the pipeline's stages, in order.
     pub fn stage_names(&self) -> Vec<&str> {
         self.stages.iter().map(|stage| stage.name.as_str()).collect()

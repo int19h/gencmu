@@ -48,14 +48,88 @@
       "find": "\"directives\":[",
       "replace": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[900,1]},",
       "line": 16,
-      "column": 1
+      "column": 1,
+      "context": "notation/lexical.md"
     },
     {
       "description": "Duplicate bootstrap rule",
       "find": "\"name\":\"text\",\"op\":\"define\"",
       "replace": "\"name\":\"word\",\"op\":\"define\"",
       "line": 39,
-      "column": 1
+      "column": 1,
+      "context": "notation/lexical.md"
+    },
+    {
+      "description": "Missing bootstrap stage name",
+      "find": "\"name\":\"lexical\",",
+      "replace": ""
+    },
+    {
+      "description": "Bootstrap stage name is null",
+      "find": "\"name\":\"lexical\"",
+      "replace": "\"name\":null"
+    },
+    {
+      "description": "Bootstrap stage name is number",
+      "find": "\"name\":\"lexical\"",
+      "replace": "\"name\":0"
+    },
+    {
+      "description": "Bootstrap stage name is boolean",
+      "find": "\"name\":\"lexical\"",
+      "replace": "\"name\":false"
+    },
+    {
+      "description": "Bootstrap stage name is object",
+      "find": "\"name\":\"lexical\"",
+      "replace": "\"name\":{}"
+    },
+    {
+      "description": "Bootstrap stage name is array",
+      "find": "\"name\":\"lexical\"",
+      "replace": "\"name\":[]"
+    },
+    {
+      "description": "Missing bootstrap document path",
+      "find": "\"path\":\"notation/lexical.md\",",
+      "replace": ""
+    },
+    {
+      "description": "Bootstrap document path is null",
+      "find": "\"path\":\"notation/lexical.md\"",
+      "replace": "\"path\":null"
+    },
+    {
+      "description": "Bootstrap document path is number",
+      "find": "\"path\":\"notation/lexical.md\"",
+      "replace": "\"path\":0"
+    },
+    {
+      "description": "Bootstrap document path is boolean",
+      "find": "\"path\":\"notation/lexical.md\"",
+      "replace": "\"path\":false"
+    },
+    {
+      "description": "Bootstrap document path is object",
+      "find": "\"path\":\"notation/lexical.md\"",
+      "replace": "\"path\":{}"
+    },
+    {
+      "description": "Bootstrap document path is array",
+      "find": "\"path\":\"notation/lexical.md\"",
+      "replace": "\"path\":[]"
+    },
+    {
+      "description": "Nullable item in bootstrap braces",
+      "bootstrap": "{\"format\":18,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"embedded.md\",\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"empty\"}}}],\"conditions\":[],\"at\":[40,2]},{\"name\":\"empty\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}}],\"conditions\":[],\"at\":[41,2]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[1,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "context": "embedded.md",
+      "message": "an item of braces"
+    },
+    {
+      "description": "Bootstrap chain beside another alternative",
+      "bootstrap": "{\"format\":18,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"embedded.md\",\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"A\"},\"chain\":\"left\"}},{\"guards\":[],\"expr\":{\"ref\":\"B\"}}],\"conditions\":[],\"at\":[40,2]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[1,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "context": "embedded.md",
+      "message": "chain"
     }
   ]
 }

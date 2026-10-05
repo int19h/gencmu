@@ -78,6 +78,11 @@ impl Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.document.as_deref() == Some("notation/bootstrap.json")
+            && self.message.starts_with("notation/bootstrap.json:")
+        {
+            return write!(f, "{}", self.message);
+        }
         if let Some(document) = &self.document {
             write!(f, "{document}")?;
             if let (Some(line), Some(column)) = (self.line, self.column) {

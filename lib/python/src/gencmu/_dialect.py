@@ -62,6 +62,19 @@ def _decode(data: bytes, document: str) -> str:
         ) from None
 
 
+def _bootstrap_error(error: GencmuError) -> GencmuError:
+    embedded = error.document
+    if embedded and embedded != "notation/bootstrap.json" and embedded not in error.message:
+        error.message += f" (embedded document: {embedded})"
+    error.document = "notation/bootstrap.json"
+    location = error.where
+    if not error.message.startswith(f"{location}: "):
+        stage = f"stage {error.stage}: " if error.stage else ""
+        error.message = f"{location}: {stage}{error.message}"
+    error.args = (error.message,)
+    return error
+
+
 def _read_bundled(path: str) -> str | None:
     node = _bundled_root()
     for part in path.split("/"):
@@ -74,12 +87,14 @@ def _read_bundled(path: str) -> str | None:
         return None
     try:
         return _decode(data, path)
-    except GencmuError:
+    except GencmuError as error:
         # compiled.json is only a cache, so bytes of it that do not decode
         # make it absent, a miss for every document. Anything else that
         # does not decode stays an error.
         if path == "compiled.json":
             return None
+        if path == "notation/bootstrap.json":
+            _bootstrap_error(error)
         raise
 
 
@@ -152,7 +167,7 @@ class NotationReader:
         try:
             self.stages = self._bootstrap_stages(bootstrap, unicode)
         except GencmuError as error:
-            error.document = "notation/bootstrap.json"
+            _bootstrap_error(error)
             raise
 
     def _bootstrap_stages(self, bootstrap: str, unicode: UnicodeTable) -> list[tuple[str, Lowered]]:
@@ -375,8 +390,10 @@ def _resources(sources: Mapping[str, str] | None = None) -> _Resources:
 
     unicode = get("unicode.txt")
     bootstrap = get("notation/bootstrap.json")
-    if unicode is None or bootstrap is None:
-        raise GencmuError("the bundled grammars are missing unicode.txt or notation/bootstrap.json")
+    if unicode is None:
+        raise GencmuError("the bundled unicode.txt is missing", document="unicode.txt")
+    if bootstrap is None:
+        raise _bootstrap_error(GencmuError("the bundled bootstrap is missing"))
     return _Resources(unicode, bootstrap, get("compiled.json"))
 
 

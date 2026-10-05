@@ -95,7 +95,23 @@ fn grammar_error(message: String) -> Error {
 
 fn notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dialect, Error> {
     build_notation_dialect(bootstrap, unicode).map_err(|mut error| {
+        if let Some(embedded) = &error.document {
+            if embedded != "notation/bootstrap.json" && !error.message.contains(embedded) {
+                error.message.push_str(&format!(" (embedded document: {embedded})"));
+            }
+        }
         error.document = Some("notation/bootstrap.json".to_string());
+        let mut location = "notation/bootstrap.json".to_string();
+        if let Some(line) = error.line {
+            location.push_str(&format!(":{line}"));
+            if let Some(column) = error.column {
+                location.push_str(&format!(":{column}"));
+            }
+        }
+        if !error.message.starts_with(&format!("{location}: ")) {
+            let stage = error.stage.as_ref().map(|name| format!("stage {name}: ")).unwrap_or_default();
+            error.message = format!("{location}: {stage}{}", error.message);
+        }
         error
     })
 }
@@ -106,11 +122,29 @@ fn build_notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dial
         return Err(grammar_error("bootstrap.json: an unsupported format".to_string()));
     }
     let mut stages = Vec::new();
-    for stage in value.get("stages").and_then(Json::as_array).unwrap_or(&[]) {
-        let name = stage.get("name").and_then(Json::as_str).unwrap_or("").to_string();
+    let stage_values = value
+        .get("stages")
+        .and_then(Json::as_array)
+        .filter(|stages| !stages.is_empty())
+        .ok_or_else(|| grammar_error("the bootstrap requires a nonempty stages array".to_string()))?;
+    for stage in stage_values {
+        let name = stage
+            .get("name")
+            .and_then(Json::as_str)
+            .ok_or_else(|| grammar_error("a bootstrap stage requires a string name".to_string()))?
+            .to_string();
         let mut documents = Vec::new();
-        for document in stage.get("documents").and_then(Json::as_array).unwrap_or(&[]) {
-            let path: Arc<str> = document.get("path").and_then(Json::as_str).unwrap_or("").into();
+        let document_values = stage
+            .get("documents")
+            .and_then(Json::as_array)
+            .filter(|documents| !documents.is_empty())
+            .ok_or_else(|| grammar_error("a bootstrap stage requires a nonempty documents array".to_string()))?;
+        for document in document_values {
+            let path: Arc<str> = document
+                .get("path")
+                .and_then(Json::as_str)
+                .ok_or_else(|| grammar_error("a bootstrap document requires a string path".to_string()))?
+                .into();
             let dom = document
                 .get("dom")
                 .ok_or_else(|| grammar_error("bootstrap.json: a document without a DOM".to_string()))
@@ -121,13 +155,9 @@ fn build_notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dial
         }
         stages.push(stitch(&name, &documents, &unicode)?);
     }
-    if stages.is_empty() {
-        return Err(grammar_error("bootstrap.json has no stages".to_string()));
-    }
-    Dialect::new(stages, Vec::new(), unicode).map_err(|mut error| {
-        error.message = format!("bootstrap.json: {}", error.message);
-        error
-    })
+    let dialect = Dialect::new(stages, Vec::new(), unicode)?;
+    dialect.prepare_bootstrap()?;
+    Ok(dialect)
 }
 
 impl Context {

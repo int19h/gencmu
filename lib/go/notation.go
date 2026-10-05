@@ -21,7 +21,25 @@ type notationReader struct {
 func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationReader, err error) {
 	defer func() {
 		if e, ok := err.(*Error); ok {
+			embedded := e.Document
+			if embedded != "" && embedded != "notation/bootstrap.json" && !strings.Contains(e.Message, embedded) {
+				e.Message += " (embedded document: " + embedded + ")"
+			}
 			e.Document = "notation/bootstrap.json"
+			location := e.Document
+			if e.Line != 0 {
+				location += ":" + strconv.Itoa(e.Line)
+				if e.Column != 0 {
+					location += ":" + strconv.Itoa(e.Column)
+				}
+			}
+			if !strings.HasPrefix(e.Message, location+": ") {
+				stage := ""
+				if e.Stage != "" {
+					stage = "stage " + e.Stage + ": "
+				}
+				e.Message = location + ": " + stage + e.Message
+			}
 		}
 	}()
 	var b struct {

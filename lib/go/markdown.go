@@ -22,6 +22,9 @@ type Error struct {
 }
 
 func (e *Error) Error() string {
+	if e.Document == "notation/bootstrap.json" && strings.HasPrefix(e.Message, "notation/bootstrap.json:") {
+		return e.Message
+	}
 	var b strings.Builder
 	if e.Document != "" {
 		b.WriteString(e.Document)
