@@ -4,7 +4,7 @@
 
 #![allow(dead_code)]
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
@@ -238,7 +238,7 @@ pub fn parse_json(text: &str) -> Result<Value, String> {
     // members so far and the key of the value being read.
     enum Open {
         Array(Vec<Value>),
-        Object(Vec<(String, Value)>, String),
+        Object(Vec<(String, Value)>, HashMap<String, usize>, String),
     }
     let chars: Vec<char> = text.chars().collect();
     let at = &mut 0;
@@ -264,7 +264,7 @@ pub fn parse_json(text: &str) -> Result<Value, String> {
                     *at += 1;
                     Value::Object(Vec::new())
                 } else {
-                    open.push(Open::Object(Vec::new(), parse_key(&chars, at)?));
+                    open.push(Open::Object(Vec::new(), HashMap::new(), parse_key(&chars, at)?));
                     continue;
                 }
             }
@@ -289,8 +289,14 @@ pub fn parse_json(text: &str) -> Result<Value, String> {
                         _ => return Err(format!("expected ',' or ']' at {at}")),
                     }
                 }
-                Some(Open::Object(members, key)) => {
-                    members.push((std::mem::take(key), value));
+                Some(Open::Object(members, indices, key)) => {
+                    let key = std::mem::take(key);
+                    if let Some(&index) = indices.get(&key) {
+                        members[index].1 = value;
+                    } else {
+                        indices.insert(key.clone(), members.len());
+                        members.push((key, value));
+                    }
                     match chars.get(*at) {
                         Some(',') => false,
                         Some('}') => true,
@@ -300,14 +306,14 @@ pub fn parse_json(text: &str) -> Result<Value, String> {
             };
             *at += 1;
             if !closes {
-                if let Some(Open::Object(_, key)) = open.last_mut() {
+                if let Some(Open::Object(_, _, key)) = open.last_mut() {
                     *key = parse_key(&chars, at)?;
                 }
                 break;
             }
             value = match open.pop().expect("an open value") {
                 Open::Array(items) => Value::Array(items),
-                Open::Object(members, _) => Value::Object(members),
+                Open::Object(members, _, _) => Value::Object(members),
             };
         }
     }

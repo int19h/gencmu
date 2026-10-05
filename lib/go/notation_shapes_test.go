@@ -1,7 +1,6 @@
 package gencmu
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -19,21 +18,25 @@ func TestNotationShapes(t *testing.T) {
 		t.Fatal(err)
 	}
 	var shapes struct {
-		Document   string
-		Inputs     []string
-		Control    any
-		Loads      map[string]any
+		Document   string         `json:"document"`
+		Inputs     []string       `json:"inputs"`
+		Control    any            `json:"control"`
+		Loads      map[string]any `json:"loads"`
 		ExtraParts []struct {
-			Description, Find, Replace, Document string
-			Inputs                               []string
-			Expect                               any
+			Description string   `json:"description"`
+			Find        string   `json:"find"`
+			Replace     string   `json:"replace"`
+			Document    string   `json:"document"`
+			Inputs      []string `json:"inputs"`
+			Expect      any      `json:"expect"`
 			// Where is the place of an expected load error in its
 			// document, when the item gives it (tests/README.md).
 			Where *struct {
-				Document     string
-				Line, Column int
-			}
-		}
+				Document string `json:"document"`
+				Line     int    `json:"line"`
+				Column   int    `json:"column"`
+			} `json:"where"`
+		} `json:"extraParts"`
 	}
 	if err := unmarshalJSON(raw, &shapes); err != nil {
 		t.Fatal(err)
@@ -47,12 +50,16 @@ func TestNotationShapes(t *testing.T) {
 	var b struct {
 		Stages []struct {
 			Documents []struct {
-				Path string
-				Dom  struct{ Rules []struct{ Name string } }
-			}
-		}
+				Path string `json:"path"`
+				Dom  struct {
+					Rules []struct {
+						Name string `json:"name"`
+					} `json:"rules"`
+				} `json:"dom"`
+			} `json:"documents"`
+		} `json:"stages"`
 	}
-	if err := json.Unmarshal(bootstrapRaw, &b); err != nil {
+	if err := unmarshalJSON(bootstrapRaw, &b); err != nil {
 		t.Fatal(err)
 	}
 	var names []string

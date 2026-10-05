@@ -43,18 +43,18 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 		}
 	}()
 	var b struct {
-		Format int
+		Format int `json:"format"`
 		// A stage's name and a document's path are strings: null and
 		// absent are refused, as the other libraries refuse them.
 		Stages []struct {
-			Name      *string
+			Name      *string `json:"name"`
 			Documents []struct {
-				Path *string
-				Dom  json.RawMessage
-			}
-		}
+				Path *string         `json:"path"`
+				Dom  json.RawMessage `json:"dom"`
+			} `json:"documents"`
+		} `json:"stages"`
 	}
-	if err := json.Unmarshal([]byte(bootstrap), &b); err != nil {
+	if err := unmarshalJSON([]byte(bootstrap), &b, "dom"); err != nil {
 		return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "cannot read the bootstrap: " + err.Error()}
 	}
 	if b.Format != domFormat {

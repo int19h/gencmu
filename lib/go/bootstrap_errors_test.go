@@ -1,7 +1,6 @@
 package gencmu
 
 import (
-	"encoding/json"
 	"errors"
 	"os"
 	"strings"
@@ -15,15 +14,21 @@ func TestBootstrapErrorMetadata(t *testing.T) {
 		t.Fatal(err)
 	}
 	var fixtures struct {
-		Kind, Document string
-		Cases          []struct {
-			Description, Find, Replace, Context, Message string
-			Stage                                        *string
-			Line, Column                                 *int
-			Bootstrap                                    *string
-		}
+		Kind     string `json:"kind"`
+		Document string `json:"document"`
+		Cases    []struct {
+			Description string  `json:"description"`
+			Find        string  `json:"find"`
+			Replace     string  `json:"replace"`
+			Context     string  `json:"context"`
+			Message     string  `json:"message"`
+			Stage       *string `json:"stage"`
+			Line        *int    `json:"line"`
+			Column      *int    `json:"column"`
+			Bootstrap   *string `json:"bootstrap"`
+		} `json:"cases"`
 	}
-	if err := json.Unmarshal(raw, &fixtures); err != nil {
+	if err := unmarshalJSON(raw, &fixtures); err != nil {
 		t.Fatal(err)
 	}
 	bundled, err := os.ReadFile("../../grammars/notation/bootstrap.json")

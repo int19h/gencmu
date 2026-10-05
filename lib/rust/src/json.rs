@@ -2,6 +2,7 @@
 //! `compiled.json`), and the string escaping its hand-written JSON uses.
 //! The standard library has neither.
 
+use std::collections::HashMap;
 use std::fmt::Write as _;
 
 /// A parsed JSON value. Objects keep their members in document order.
@@ -122,7 +123,7 @@ struct Reader<'a> {
 
 enum Frame {
     Arr(Vec<Json>),
-    Obj(Vec<(String, Json)>, String),
+    Obj(Vec<(String, Json)>, HashMap<String, usize>, String),
 }
 
 impl<'a> Reader<'a> {
@@ -170,7 +171,7 @@ impl<'a> Reader<'a> {
                         if stack.len() >= self.depth {
                             return Err(self.error("JSON nested too deeply"));
                         }
-                        stack.push(Frame::Obj(Vec::new(), key));
+                        stack.push(Frame::Obj(Vec::new(), HashMap::new(), key));
                         continue;
                     }
                 }
@@ -215,8 +216,13 @@ impl<'a> Reader<'a> {
                             _ => return Err(self.error("expected ',' or ']'")),
                         }
                     }
-                    Some(Frame::Obj(mut members, key)) => {
-                        members.push((key, value));
+                    Some(Frame::Obj(mut members, mut indices, key)) => {
+                        if let Some(&index) = indices.get(&key) {
+                            members[index].1 = value;
+                        } else {
+                            indices.insert(key.clone(), members.len());
+                            members.push((key, value));
+                        }
                         self.space();
                         match self.bytes.get(self.at) {
                             Some(b',') => {
@@ -225,7 +231,7 @@ impl<'a> Reader<'a> {
                                 let key = self.string()?;
                                 self.space();
                                 self.expect(b':')?;
-                                stack.push(Frame::Obj(members, key));
+                                stack.push(Frame::Obj(members, indices, key));
                                 break;
                             }
                             Some(b'}') => {
@@ -367,6 +373,19 @@ pub fn fnv1a64(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shared_json_keys() {
+        let fixtures = parse(include_str!("../../../tests/json-keys.json")).unwrap();
+        for case in fixtures.get("values").unwrap().as_array().unwrap() {
+            assert_eq!(
+                &parse(case.get("json").unwrap().as_str().unwrap()).unwrap(),
+                case.get("expect").unwrap(),
+                "{}",
+                case.get("description").unwrap().as_str().unwrap()
+            );
+        }
+    }
 
     #[test]
     fn nesting_is_bounded() {

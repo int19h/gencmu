@@ -20,11 +20,11 @@ import (
 // share one *Dialect per dialect.
 
 type corpusCase struct {
-	ID              string
-	Text            string
-	Dialect         string
-	Features        []string
-	WithoutFeatures []string
+	ID              string         `json:"id"`
+	Text            string         `json:"text"`
+	Dialect         string         `json:"dialect"`
+	Features        []string       `json:"features"`
+	WithoutFeatures []string       `json:"withoutFeatures"`
 	fields          map[string]any // the fields compared
 }
 

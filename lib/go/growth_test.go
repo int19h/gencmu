@@ -21,13 +21,13 @@ func TestGrowth(t *testing.T) {
 		t.Fatal(err)
 	}
 	var cases []struct {
-		Description string
-		Dialect     string
-		Text        string
-		Link        string
-		Small       int
-		Large       int
-		Most        int64
+		Description string `json:"description"`
+		Dialect     string `json:"dialect"`
+		Text        string `json:"text"`
+		Link        string `json:"link"`
+		Small       int    `json:"small"`
+		Large       int    `json:"large"`
+		Most        int64  `json:"most"`
 	}
 	if err := unmarshalJSON(data, &cases); err != nil {
 		t.Fatal(err)
@@ -230,7 +230,12 @@ func TestNotationGrowth(t *testing.T) {
 		t.Fatal(err)
 	}
 	var cases []struct {
-		Name, Prefix, Open, Middle, Close, Suffix string
+		Name   string `json:"name"`
+		Prefix string `json:"prefix"`
+		Open   string `json:"open"`
+		Middle string `json:"middle"`
+		Close  string `json:"close"`
+		Suffix string `json:"suffix"`
 	}
 	if err := unmarshalJSON(data, &cases); err != nil {
 		t.Fatal(err)
@@ -367,7 +372,12 @@ func TestNotationDeep(t *testing.T) {
 		t.Fatal(err)
 	}
 	var cases []struct {
-		Name, Prefix, Open, Middle, Close, Suffix string
+		Name   string `json:"name"`
+		Prefix string `json:"prefix"`
+		Open   string `json:"open"`
+		Middle string `json:"middle"`
+		Close  string `json:"close"`
+		Suffix string `json:"suffix"`
 	}
 	if err := unmarshalJSON(data, &cases); err != nil {
 		t.Fatal(err)
@@ -396,8 +406,11 @@ func TestQueryDepth(t *testing.T) {
 		t.Fatal(err)
 	}
 	var cases []struct {
-		Name, Grammar, Link, Suffix string
-		Count                       int
+		Name    string `json:"name"`
+		Grammar string `json:"grammar"`
+		Link    string `json:"link"`
+		Suffix  string `json:"suffix"`
+		Count   int    `json:"count"`
 	}
 	if err := unmarshalJSON(data, &cases); err != nil {
 		t.Fatal(err)
@@ -495,9 +508,15 @@ func TestQueryWork(t *testing.T) {
 		t.Fatal(err)
 	}
 	var cases []struct {
-		Name, Head, Item, Joiner, Tail, Rule, Text string
-		Count                                      int
-		Most                                       int64
+		Name   string `json:"name"`
+		Head   string `json:"head"`
+		Item   string `json:"item"`
+		Joiner string `json:"joiner"`
+		Tail   string `json:"tail"`
+		Rule   string `json:"rule"`
+		Text   string `json:"text"`
+		Count  int    `json:"count"`
+		Most   int64  `json:"most"`
 	}
 	if err := unmarshalJSON(data, &cases); err != nil {
 		t.Fatal(err)

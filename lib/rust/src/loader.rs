@@ -43,7 +43,7 @@ fn members(mut value: Json) -> Vec<(String, Json)> {
     }
 }
 
-/// The value of an object's first member of the name `key`, taken out of it.
+/// The value of an object's member of the exact name `key`, taken out of it.
 fn take(value: Json, key: &str) -> Option<Json> {
     members(value).into_iter().find(|(name, _)| name == key).map(|(_, value)| value)
 }

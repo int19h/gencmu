@@ -62,15 +62,15 @@ func loadBundled() error {
 // made in this DOM format with this bootstrap (engine §8).
 func readCompiled(text, bootstrapHash string) map[string]json.RawMessage {
 	var c struct {
-		Format    int
-		Bootstrap string
+		Format    int    `json:"format"`
+		Bootstrap string `json:"bootstrap"`
 		Documents map[string]struct {
-			Hash string
-			Dom  json.RawMessage
-		}
+			Hash string          `json:"hash"`
+			Dom  json.RawMessage `json:"dom"`
+		} `json:"documents"`
 	}
 	out := map[string]json.RawMessage{}
-	if text == "" || json.Unmarshal([]byte(text), &c) != nil || c.Format != domFormat || c.Bootstrap != bootstrapHash {
+	if text == "" || unmarshalJSON([]byte(text), &c, "dom") != nil || c.Format != domFormat || c.Bootstrap != bootstrapHash {
 		return out
 	}
 	for _, d := range c.Documents {
