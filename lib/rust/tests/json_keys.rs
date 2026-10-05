@@ -66,17 +66,7 @@ fn shared_json_keys() {
         let cached = flag(case, if case.get("rustCached").is_some() { "rustCached" } else { "cached" });
         let dialect = gencmu::load_dialect_sources(sources, "p.md")
             .unwrap_or_else(|e| panic!("{}: {e}", text(case, "description")));
-        assert_eq!(
-            dialect.parse("a", &Default::default()).unwrap().ok,
-            !cached,
-            "{}",
-            text(case, "description")
-        );
-        assert_eq!(
-            dialect.parse("b", &Default::default()).unwrap().ok,
-            cached,
-            "{}",
-            text(case, "description")
-        );
+        assert_eq!(dialect.parse("a", &Default::default()).unwrap().ok, !cached, "{}", text(case, "description"));
+        assert_eq!(dialect.parse("b", &Default::default()).unwrap().ok, cached, "{}", text(case, "description"));
     }
 }
