@@ -2,6 +2,7 @@ package gencmu
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,11 +21,11 @@ import (
 // share one *Dialect per dialect.
 
 type corpusCase struct {
-	ID              string
-	Text            string
-	Dialect         string
-	Features        []string
-	WithoutFeatures []string
+	ID              string         `json:"id"`
+	Text            string         `json:"text"`
+	Dialect         string         `json:"dialect"`
+	Features        []string       `json:"features"`
+	WithoutFeatures []string       `json:"withoutFeatures"`
 	fields          map[string]any // the fields compared
 }
 
@@ -49,18 +50,21 @@ func readCorpus(t *testing.T) []*corpusCase {
 			if line == "" {
 				continue
 			}
-			tree, err := decodeJSON([]byte(line))
-			if err != nil {
-				t.Fatalf("%s: %v", f, err)
-			}
 			c := &corpusCase{}
-			if err := fromTree(tree, c); err != nil {
+			if err := unmarshalJSON([]byte(line), c); err != nil {
 				t.Fatalf("%s: %v", f, err)
 			}
-			all, _ := tree.(map[string]any)
+			var all map[string]json.RawMessage
+			if err := unmarshalJSON([]byte(line), &all); err != nil {
+				t.Fatalf("%s: %v", f, err)
+			}
 			c.fields = map[string]any{}
 			for _, k := range corpusFields {
-				if v, ok := all[k]; ok {
+				if raw, ok := all[k]; ok {
+					v, err := decodeJSON(raw)
+					if err != nil {
+						t.Fatalf("%s: %v", f, err)
+					}
 					c.fields[k] = v
 				}
 			}

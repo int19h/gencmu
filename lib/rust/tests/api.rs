@@ -284,7 +284,11 @@ fn gates_turn_off_and_warnings_follow_the_chosen_tree() {
     );
     sources.insert("h.md".to_string(), grammar("%ambiguity-resolution greedy\n%rule text w? X"));
     let error = gencmu::load_dialect_sources(sources, "q.md").expect_err("w a warning in one stage, a gate in another");
-    assert_eq!((error.kind, error.document.as_deref()), (ErrorKind::Grammar, Some("q.md")), "{error}");
+    assert_eq!(
+        (error.kind, error.document.as_deref(), error.stage.as_deref(), error.line, error.column),
+        (ErrorKind::Grammar, Some("h.md"), Some("two"), Some(5), Some(1)),
+        "{error}"
+    );
 }
 
 #[test]

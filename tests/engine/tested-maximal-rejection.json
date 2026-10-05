@@ -1,6 +1,6 @@
 {
   "description": "A maximal rejection names a tested terminator with its test, as the one terminal expected there (engine §4, docs/output.md).",
-  "grammar": "%ambiguity-resolution greedy maximal\n%rule text x B C\n%rule x y [+T=\"t\"]\n%rule y A | A B",
+  "grammar": "%ambiguity-resolution greedy\n%rule text x B C\n%rule x y [++T=\"t\"]\n%rule y A | A B",
   "tokens": [
     {
       "text": "a",

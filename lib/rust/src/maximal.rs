@@ -27,9 +27,6 @@ pub(crate) struct Maximal<'c> {
     tokens: &'c [Tok],
     unicode: &'c Unicode,
     tags: &'c Tags,
-    /// Whether stage-wide `maximal` restricts every elidable terminator,
-    /// or only the maximal terminators do.
-    stage_wide: bool,
     /// The furthest set in which each symbol completes from each origin,
     /// found the first time it is asked for.
     furthest: OnceCell<FxMap<(u32, u32), u32>>,
@@ -50,7 +47,6 @@ impl<'c> Maximal<'c> {
         tokens: &'c [Tok],
         unicode: &'c Unicode,
         tags: &'c Tags,
-        stage_wide: bool,
     ) -> Maximal<'c> {
         Maximal {
             g,
@@ -58,7 +54,6 @@ impl<'c> Maximal<'c> {
             tokens,
             unicode,
             tags,
-            stage_wide,
             furthest: OnceCell::new(),
             completed: OnceCell::new(),
             passing: RefCell::default(),
@@ -66,11 +61,10 @@ impl<'c> Maximal<'c> {
     }
 
     /// Whether maximality restricts the elided terminators of the helper
-    /// `rule`: it is an elidable optional's helper, and stage-wide
-    /// `maximal` is on or its terminator is maximal.
+    /// `rule`: it is the helper of a maximal terminator.
     pub(crate) fn restricts(&self, rule: u32) -> bool {
         let rule = &self.g.rules[rule as usize];
-        rule.elided.is_some() && (self.stage_wide || rule.maximal)
+        rule.elided.is_some() && rule.maximal
     }
 
     /// Whether a constituent of `rule` from `origin` to `end` is an elided

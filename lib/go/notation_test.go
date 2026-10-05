@@ -32,12 +32,15 @@ func TestNotationCases(t *testing.T) {
 			t.Fatal(err)
 		}
 		var c struct {
-			Description string
-			Document    string
+			Description string `json:"description"`
+			Document    string `json:"document"`
 			Expect      struct {
-				Dom   *any
-				Error *struct{ Line, Column int }
-			}
+				Dom   *any `json:"dom"`
+				Error *struct {
+					Line   int `json:"line"`
+					Column int `json:"column"`
+				} `json:"error"`
+			} `json:"expect"`
 		}
 		if err := unmarshalJSON(data, &c); err != nil {
 			t.Fatal(err)
@@ -77,14 +80,14 @@ func TestFixpoint(t *testing.T) {
 	}
 	var b struct {
 		Stages []struct {
-			Name      string
+			Name      string `json:"name"`
 			Documents []struct {
-				Path string
-				Dom  json.RawMessage
-			}
-		}
+				Path string          `json:"path"`
+				Dom  json.RawMessage `json:"dom"`
+			} `json:"documents"`
+		} `json:"stages"`
 	}
-	if err := json.Unmarshal([]byte(bundled.sources["notation/bootstrap.json"]), &b); err != nil {
+	if err := unmarshalJSON([]byte(bundled.sources["notation/bootstrap.json"]), &b); err != nil {
 		t.Fatal(err)
 	}
 	// The repository's documents, each read with the bootstrap.
@@ -134,14 +137,14 @@ func TestCompiled(t *testing.T) {
 		t.Fatal(err)
 	}
 	var c struct {
-		Format    int
-		Bootstrap string
+		Format    int    `json:"format"`
+		Bootstrap string `json:"bootstrap"`
 		Documents map[string]struct {
-			Hash string
-			Dom  json.RawMessage
-		}
+			Hash string          `json:"hash"`
+			Dom  json.RawMessage `json:"dom"`
+		} `json:"documents"`
 	}
-	if err := json.Unmarshal([]byte(bundled.sources["compiled.json"]), &c); err != nil {
+	if err := unmarshalJSON([]byte(bundled.sources["compiled.json"]), &c); err != nil {
 		t.Fatal(err)
 	}
 	if c.Format != domFormat || c.Bootstrap != bundled.reader.hash {

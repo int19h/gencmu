@@ -18,29 +18,68 @@ type notationReader struct {
 	hash    string
 }
 
-func newNotationReader(bootstrap string, uni *unicodeTable) (*notationReader, error) {
+func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationReader, err error) {
+	defer func() {
+		if e, ok := err.(*Error); ok {
+			embedded := e.Document
+			if embedded != "" && embedded != "notation/bootstrap.json" && !strings.Contains(e.Message, embedded) {
+				e.Message += " (embedded document: " + embedded + ")"
+			}
+			e.Document = "notation/bootstrap.json"
+			location := e.Document
+			if e.Line != 0 {
+				location += ":" + strconv.Itoa(e.Line)
+				if e.Column != 0 {
+					location += ":" + strconv.Itoa(e.Column)
+				}
+			}
+			if !strings.HasPrefix(e.Message, location+": ") {
+				stage := ""
+				if e.Stage != "" {
+					stage = "stage " + e.Stage + ": "
+				}
+				e.Message = location + ": " + stage + e.Message
+			}
+		}
+	}()
 	var b struct {
-		Format int
+		Format int `json:"format"`
 		// A stage's name and a document's path are strings: null and
 		// absent are refused, as the other libraries refuse them.
 		Stages []struct {
-			Name      *string
+			Name      *string `json:"name"`
 			Documents []struct {
-				Path *string
-				Dom  json.RawMessage
-			}
-		}
+				Path *string         `json:"path"`
+				Dom  json.RawMessage `json:"dom"`
+			} `json:"documents"`
+		} `json:"stages"`
 	}
-	if err := json.Unmarshal([]byte(bootstrap), &b); err != nil {
+	if err := unmarshalJSON([]byte(bootstrap), &b); err != nil {
 		return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "cannot read the bootstrap: " + err.Error()}
 	}
 	if b.Format != domFormat {
 		return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "the bootstrap has an unknown format"}
 	}
 	nr := &notationReader{uni: uni, hash: fnv1a64(bootstrap)}
+	if len(b.Stages) == 0 {
+		return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "the bootstrap has no stages"}
+	}
+	type stageInput struct {
+		name      string
+		documents []docDOM
+	}
+	var inputs []stageInput
+	names := map[string]bool{}
 	for _, s := range b.Stages {
-		if s.Name == nil {
+		if s.Name == nil || !isName(*s.Name) {
 			return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "a stage of the bootstrap has no name"}
+		}
+		if names[*s.Name] {
+			return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "a second stage named " + *s.Name}
+		}
+		names[*s.Name] = true
+		if len(s.Documents) == 0 {
+			return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "a bootstrap stage requires documents"}
 		}
 		var docs []docDOM
 		for _, d := range s.Documents {
@@ -53,19 +92,35 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (*notationReader, er
 			}
 			docs = append(docs, docDOM{path: *d.Path, dom: dom})
 		}
-		g, gerr := stitch(*s.Name, docs, uni)
+		inputs = append(inputs, stageInput{*s.Name, docs})
+	}
+	for _, input := range inputs {
+		hasRules := false
+		for _, document := range input.documents {
+			hasRules = hasRules || len(document.dom.Rules) > 0
+		}
+		if !hasRules {
+			return nil, &Error{Kind: ErrorGrammar, Stage: input.name, Message: "stage " + input.name + " has no rules"}
+		}
+	}
+	for _, input := range inputs {
+		g, gerr := stitch(input.name, input.documents, uni)
 		if gerr != nil {
+			gerr.Stage = input.name
 			return nil, gerr
 		}
+		nr.stages = append(nr.stages, g)
+	}
+	if _, err := newDialect(nr.stages, nil, uni); err != nil {
+		return nil, err
+	}
+	for _, g := range nr.stages {
 		l := lower(g, nil)
 		if l.fault != "" {
-			return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Stage: *s.Name, Message: l.fault}
+			fault := *l.faultLocation
+			return nil, &fault
 		}
-		nr.stages = append(nr.stages, g)
 		nr.lowered = append(nr.lowered, l)
-	}
-	if len(nr.stages) == 0 {
-		return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "the bootstrap has no stages"}
 	}
 	return nr, nil
 }
@@ -423,6 +478,13 @@ func (b *domBuilder) document(root *Node) *domDoc {
 			}
 			if problem := operandProblem(dir.Name, kinds); problem != "" {
 				b.fail(keyword, "%s", problem)
+			}
+			if dir.Name == "ambiguity-resolution" {
+				for _, arg := range dir.Args {
+					if arg == "maximal" {
+						b.fail(keyword, "stage-wide maximal is retired; use [++T] for an individual terminator")
+					}
+				}
 			}
 			d.Directives = append(d.Directives, dir)
 		}

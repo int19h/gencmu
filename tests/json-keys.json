@@ -1,0 +1,637 @@
+{
+  "values": [
+    {
+      "description": "Exact keys differ by case",
+      "json": "{\"name\":1,\"Name\":2}",
+      "expect": {
+        "name": 1,
+        "Name": 2
+      }
+    },
+    {
+      "description": "The last exact key wins",
+      "json": "{\"name\":1,\"Name\":2,\"name\":3}",
+      "expect": {
+        "name": 3,
+        "Name": 2
+      }
+    },
+    {
+      "description": "An escaped key names the same member",
+      "json": "{\"name\":1,\"na\\u006de\":3}",
+      "expect": {
+        "name": 3
+      }
+    },
+    {
+      "description": "An escaped capital remains distinct",
+      "json": "{\"name\":1,\"\\u004eame\":3}",
+      "expect": {
+        "name": 1,
+        "Name": 3
+      }
+    },
+    {
+      "description": "Duplicate objects replace rather than merge",
+      "json": "{\"x\":{\"a\":1},\"x\":{\"b\":2}}",
+      "expect": {
+        "x": {
+          "b": 2
+        }
+      }
+    },
+    {
+      "description": "A duplicate null replaces its old value",
+      "json": "{\"x\":1,\"x\":null}",
+      "expect": {
+        "x": null
+      }
+    },
+    {
+      "description": "Duplicates inside arrays use the same rule",
+      "json": "[{\"x\":1,\"x\":2},{\"X\":1,\"x\":2}]",
+      "expect": [
+        {
+          "x": 2
+        },
+        {
+          "X": 1,
+          "x": 2
+        }
+      ]
+    }
+  ],
+  "bootstrap": [
+    {
+      "description": "Bootstrap requires exact format",
+      "find": "\"format\":",
+      "replace": "\"Format\":",
+      "loads": false
+    },
+    {
+      "description": "Bootstrap ignores preceding Format",
+      "find": "\"format\":",
+      "replace": "\"Format\":0,\"format\":",
+      "loads": true
+    },
+    {
+      "description": "Bootstrap ignores following Format",
+      "find": "\"format\":18",
+      "replace": "\"format\":18,\"Format\":0",
+      "loads": true
+    },
+    {
+      "description": "Bootstrap replaces an earlier invalid format",
+      "find": "\"format\":",
+      "replace": "\"format\":null,\"format\":",
+      "loads": true
+    },
+    {
+      "description": "Bootstrap uses a later invalid format",
+      "find": "\"format\":18",
+      "replace": "\"format\":18,\"format\":null",
+      "loads": false
+    },
+    {
+      "description": "Bootstrap requires exact stages",
+      "find": "\"stages\":",
+      "replace": "\"Stages\":",
+      "loads": false
+    },
+    {
+      "description": "Bootstrap ignores preceding Stages",
+      "find": "\"stages\":",
+      "replace": "\"Stages\":null,\"stages\":",
+      "loads": true
+    },
+    {
+      "description": "Bootstrap replaces an earlier invalid stages",
+      "find": "\"stages\":",
+      "replace": "\"stages\":null,\"stages\":",
+      "loads": true
+    },
+    {
+      "description": "Bootstrap requires exact name",
+      "find": "\"name\":",
+      "replace": "\"Name\":",
+      "loads": false
+    },
+    {
+      "description": "Bootstrap ignores preceding Name",
+      "find": "\"name\":",
+      "replace": "\"Name\":null,\"name\":",
+      "loads": true
+    },
+    {
+      "description": "Bootstrap ignores following Name",
+      "find": "\"name\":\"lexical\"",
+      "replace": "\"name\":\"lexical\",\"Name\":null",
+      "loads": true
+    },
+    {
+      "description": "Bootstrap replaces an earlier invalid name",
+      "find": "\"name\":",
+      "replace": "\"name\":null,\"name\":",
+      "loads": true
+    },
+    {
+      "description": "Bootstrap uses a later invalid name",
+      "find": "\"name\":\"lexical\"",
+      "replace": "\"name\":\"lexical\",\"name\":null",
+      "loads": false
+    },
+    {
+      "description": "Bootstrap requires exact documents",
+      "find": "\"documents\":",
+      "replace": "\"Documents\":",
+      "loads": false
+    },
+    {
+      "description": "Bootstrap ignores preceding Documents",
+      "find": "\"documents\":",
+      "replace": "\"Documents\":null,\"documents\":",
+      "loads": true
+    },
+    {
+      "description": "Bootstrap replaces an earlier invalid documents",
+      "find": "\"documents\":",
+      "replace": "\"documents\":null,\"documents\":",
+      "loads": true
+    },
+    {
+      "description": "Bootstrap requires exact path",
+      "find": "\"path\":",
+      "replace": "\"Path\":",
+      "loads": false
+    },
+    {
+      "description": "Bootstrap ignores preceding Path",
+      "find": "\"path\":",
+      "replace": "\"Path\":null,\"path\":",
+      "loads": true
+    },
+    {
+      "description": "Bootstrap ignores following Path",
+      "find": "\"path\":\"notation/lexical.md\"",
+      "replace": "\"path\":\"notation/lexical.md\",\"Path\":null",
+      "loads": true
+    },
+    {
+      "description": "Bootstrap replaces an earlier invalid path",
+      "find": "\"path\":",
+      "replace": "\"path\":null,\"path\":",
+      "loads": true
+    },
+    {
+      "description": "Bootstrap uses a later invalid path",
+      "find": "\"path\":\"notation/lexical.md\"",
+      "replace": "\"path\":\"notation/lexical.md\",\"path\":null",
+      "loads": false
+    },
+    {
+      "description": "Bootstrap requires exact dom",
+      "find": "\"dom\":",
+      "replace": "\"Dom\":",
+      "loads": false
+    },
+    {
+      "description": "Bootstrap ignores preceding Dom",
+      "find": "\"dom\":",
+      "replace": "\"Dom\":null,\"dom\":",
+      "loads": true
+    },
+    {
+      "description": "Bootstrap replaces an earlier invalid dom",
+      "find": "\"dom\":",
+      "replace": "\"dom\":null,\"dom\":",
+      "loads": true
+    },
+    {
+      "description": "Bootstrap ignores a 400-digit integer in its manifest",
+      "find": "{\"format\":18",
+      "replace": "{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":18",
+      "loads": true,
+      "rustLoads": false,
+      "note": "Rust rejects ignored integers outside signed 64-bit range. Sol records this existing limit outside the numbers branch."
+    },
+    {
+      "description": "Bootstrap ignores a 400-digit integer in its stage",
+      "find": "{\"name\":\"lexical\"",
+      "replace": "{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"name\":\"lexical\"",
+      "loads": true,
+      "rustLoads": false,
+      "note": "Rust rejects ignored integers outside signed 64-bit range. Sol records this existing limit outside the numbers branch."
+    },
+    {
+      "description": "Bootstrap ignores a 400-digit integer in its document",
+      "find": "{\"path\":\"notation/lexical.md\"",
+      "replace": "{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"path\":\"notation/lexical.md\"",
+      "loads": true,
+      "rustLoads": false,
+      "note": "Rust rejects ignored integers outside signed 64-bit range. Sol records this existing limit outside the numbers branch."
+    },
+    {
+      "description": "Bootstrap ignores a 400-digit integer in its raw DOM",
+      "find": "\"dom\":{\"format\":18",
+      "replace": "\"dom\":{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":18",
+      "loads": true,
+      "rustLoads": false,
+      "note": "Rust rejects ignored integers outside signed 64-bit range. Sol records this existing limit outside the numbers branch."
+    },
+    {
+      "description": "Bootstrap ignores a 400-digit integer in its directive",
+      "find": "{\"name\":\"ambiguity-resolution\"",
+      "replace": "{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"name\":\"ambiguity-resolution\"",
+      "loads": true,
+      "rustLoads": false,
+      "note": "Rust rejects ignored integers outside signed 64-bit range. Sol records this existing limit outside the numbers branch."
+    }
+  ],
+  "compiled": [
+    {
+      "description": "Compiled cache requires exact manifest format",
+      "find": "\"format\":18",
+      "replace": "\"Format\":18",
+      "cached": false
+    },
+    {
+      "description": "Compiled cache ignores preceding Format at manifest format",
+      "find": "\"format\":18",
+      "replace": "\"Format\":0,\"format\":18",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache ignores following Format at manifest format",
+      "find": "\"format\":18",
+      "replace": "\"format\":18,\"Format\":0",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache replaces an invalid manifest format",
+      "find": "\"format\":18",
+      "replace": "\"format\":null,\"format\":18",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache uses the last manifest format",
+      "find": "\"format\":18",
+      "replace": "\"format\":18,\"format\":null",
+      "cached": false
+    },
+    {
+      "description": "Compiled cache requires exact manifest bootstrap",
+      "find": "\"bootstrap\":\"@bootstrap@\"",
+      "replace": "\"Bootstrap\":\"@bootstrap@\"",
+      "cached": false
+    },
+    {
+      "description": "Compiled cache ignores preceding Bootstrap at manifest bootstrap",
+      "find": "\"bootstrap\":\"@bootstrap@\"",
+      "replace": "\"Bootstrap\":\"wrong-bootstrap\",\"bootstrap\":\"@bootstrap@\"",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache ignores following Bootstrap at manifest bootstrap",
+      "find": "\"bootstrap\":\"@bootstrap@\"",
+      "replace": "\"bootstrap\":\"@bootstrap@\",\"Bootstrap\":\"wrong-bootstrap\"",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache replaces an invalid manifest bootstrap",
+      "find": "\"bootstrap\":\"@bootstrap@\"",
+      "replace": "\"bootstrap\":null,\"bootstrap\":\"@bootstrap@\"",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache uses the last manifest bootstrap",
+      "find": "\"bootstrap\":\"@bootstrap@\"",
+      "replace": "\"bootstrap\":\"@bootstrap@\",\"bootstrap\":null",
+      "cached": false
+    },
+    {
+      "description": "Compiled cache requires exact manifest documents",
+      "find": "\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
+      "replace": "\"Documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
+      "cached": false
+    },
+    {
+      "description": "Compiled cache ignores preceding Documents at manifest documents",
+      "find": "\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
+      "replace": "\"Documents\":null,\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache ignores following Documents at manifest documents",
+      "find": "\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
+      "replace": "\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}},\"Documents\":null",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache replaces an invalid manifest documents",
+      "find": "\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
+      "replace": "\"documents\":null,\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache uses the last manifest documents",
+      "find": "\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
+      "replace": "\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}},\"documents\":null",
+      "cached": false
+    },
+    {
+      "description": "Compiled cache requires exact entry hash",
+      "find": "\"hash\":\"@source@\"",
+      "replace": "\"Hash\":\"@source@\"",
+      "cached": false
+    },
+    {
+      "description": "Compiled cache ignores preceding Hash at entry hash",
+      "find": "\"hash\":\"@source@\"",
+      "replace": "\"Hash\":\"wrong-source\",\"hash\":\"@source@\"",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache ignores following Hash at entry hash",
+      "find": "\"hash\":\"@source@\"",
+      "replace": "\"hash\":\"@source@\",\"Hash\":\"wrong-source\"",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache replaces an invalid entry hash",
+      "find": "\"hash\":\"@source@\"",
+      "replace": "\"hash\":null,\"hash\":\"@source@\"",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache uses the last entry hash",
+      "find": "\"hash\":\"@source@\"",
+      "replace": "\"hash\":\"@source@\",\"hash\":null",
+      "cached": false
+    },
+    {
+      "description": "Compiled cache requires exact entry dom",
+      "find": "\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
+      "replace": "\"Dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
+      "cached": false
+    },
+    {
+      "description": "Compiled cache ignores preceding Dom at entry dom",
+      "find": "\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
+      "replace": "\"Dom\":null,\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache ignores following Dom at entry dom",
+      "find": "\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
+      "replace": "\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"Dom\":null",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache replaces an invalid entry dom",
+      "find": "\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
+      "replace": "\"dom\":null,\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache uses the last entry dom",
+      "find": "\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
+      "replace": "\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"dom\":null",
+      "cached": false
+    },
+    {
+      "description": "Compiled cache requires exact DOM format",
+      "find": "\"dom\":{\"format\":18",
+      "replace": "\"dom\":{\"Format\":18",
+      "cached": false
+    },
+    {
+      "description": "Compiled cache ignores preceding Format at DOM format",
+      "find": "\"dom\":{\"format\":18",
+      "replace": "\"dom\":{\"Format\":0,\"format\":18",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache ignores following Format at DOM format",
+      "find": "\"dom\":{\"format\":18",
+      "replace": "\"dom\":{\"format\":18,\"Format\":0",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache replaces an invalid DOM format",
+      "find": "\"dom\":{\"format\":18",
+      "replace": "\"dom\":{\"format\":null,\"format\":18",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache uses the last DOM format",
+      "find": "\"dom\":{\"format\":18",
+      "replace": "\"dom\":{\"format\":18,\"format\":null",
+      "cached": false
+    },
+    {
+      "description": "Compiled cache requires exact DOM rules",
+      "find": "\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}]",
+      "replace": "\"Rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}]",
+      "cached": false
+    },
+    {
+      "description": "Compiled cache ignores preceding Rules at DOM rules",
+      "find": "\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}]",
+      "replace": "\"Rules\":null,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}]",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache ignores following Rules at DOM rules",
+      "find": "\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}]",
+      "replace": "\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"Rules\":null",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache replaces an invalid DOM rules",
+      "find": "\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}]",
+      "replace": "\"rules\":null,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}]",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache uses the last DOM rules",
+      "find": "\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}]",
+      "replace": "\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"rules\":null",
+      "cached": false
+    },
+    {
+      "description": "Compiled cache requires exact DOM directives",
+      "find": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}]",
+      "replace": "\"Directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}]",
+      "cached": false
+    },
+    {
+      "description": "Compiled cache ignores preceding Directives at DOM directives",
+      "find": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}]",
+      "replace": "\"Directives\":null,\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}]",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache ignores following Directives at DOM directives",
+      "find": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}]",
+      "replace": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"Directives\":null",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache replaces an invalid DOM directives",
+      "find": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}]",
+      "replace": "\"directives\":null,\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}]",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache uses the last DOM directives",
+      "find": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}]",
+      "replace": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"directives\":null",
+      "cached": false
+    },
+    {
+      "description": "Compiled cache requires exact DOM constants",
+      "find": "\"constants\":[]",
+      "replace": "\"Constants\":[]",
+      "cached": false
+    },
+    {
+      "description": "Compiled cache ignores preceding Constants at DOM constants",
+      "find": "\"constants\":[]",
+      "replace": "\"Constants\":null,\"constants\":[]",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache ignores following Constants at DOM constants",
+      "find": "\"constants\":[]",
+      "replace": "\"constants\":[],\"Constants\":null",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache replaces an invalid DOM constants",
+      "find": "\"constants\":[]",
+      "replace": "\"constants\":null,\"constants\":[]",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache uses the last DOM constants",
+      "find": "\"constants\":[]",
+      "replace": "\"constants\":[],\"constants\":null",
+      "cached": false
+    },
+    {
+      "description": "Compiled cache requires exact DOM classifiers",
+      "find": "\"classifiers\":[]",
+      "replace": "\"Classifiers\":[]",
+      "cached": false
+    },
+    {
+      "description": "Compiled cache ignores preceding Classifiers at DOM classifiers",
+      "find": "\"classifiers\":[]",
+      "replace": "\"Classifiers\":null,\"classifiers\":[]",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache ignores following Classifiers at DOM classifiers",
+      "find": "\"classifiers\":[]",
+      "replace": "\"classifiers\":[],\"Classifiers\":null",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache replaces an invalid DOM classifiers",
+      "find": "\"classifiers\":[]",
+      "replace": "\"classifiers\":null,\"classifiers\":[]",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache uses the last DOM classifiers",
+      "find": "\"classifiers\":[]",
+      "replace": "\"classifiers\":[],\"classifiers\":null",
+      "cached": false
+    },
+    {
+      "description": "Compiled cache requires exact DOM implications",
+      "find": "\"implications\":[]",
+      "replace": "\"Implications\":[]",
+      "cached": false
+    },
+    {
+      "description": "Compiled cache ignores preceding Implications at DOM implications",
+      "find": "\"implications\":[]",
+      "replace": "\"Implications\":null,\"implications\":[]",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache ignores following Implications at DOM implications",
+      "find": "\"implications\":[]",
+      "replace": "\"implications\":[],\"Implications\":null",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache replaces an invalid DOM implications",
+      "find": "\"implications\":[]",
+      "replace": "\"implications\":null,\"implications\":[]",
+      "cached": true
+    },
+    {
+      "description": "Compiled cache uses the last DOM implications",
+      "find": "\"implications\":[]",
+      "replace": "\"implications\":[],\"implications\":null",
+      "cached": false
+    },
+    {
+      "description": "Compiled ignores a 400-digit integer in its manifest",
+      "find": "{\"format\":18",
+      "replace": "{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":18",
+      "cached": true,
+      "rustCached": false,
+      "note": "Rust rejects ignored integers outside signed 64-bit range. Sol records this existing limit outside the numbers branch."
+    },
+    {
+      "description": "Compiled ignores a 400-digit integer in its entry",
+      "find": "{\"hash\":\"@source@\"",
+      "replace": "{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"hash\":\"@source@\"",
+      "cached": true,
+      "rustCached": false,
+      "note": "Rust rejects ignored integers outside signed 64-bit range. Sol records this existing limit outside the numbers branch."
+    },
+    {
+      "description": "Compiled ignores a 400-digit integer in its raw DOM",
+      "find": "\"dom\":{\"format\":18",
+      "replace": "\"dom\":{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":18",
+      "cached": true,
+      "rustCached": false,
+      "note": "Rust rejects ignored integers outside signed 64-bit range. Sol records this existing limit outside the numbers branch."
+    },
+    {
+      "description": "Compiled ignores a 400-digit integer in its directive",
+      "find": "{\"name\":\"ambiguity-resolution\"",
+      "replace": "{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"name\":\"ambiguity-resolution\"",
+      "cached": true,
+      "rustCached": false,
+      "note": "Rust rejects ignored integers outside signed 64-bit range. Sol records this existing limit outside the numbers branch."
+    },
+    {
+      "description": "Cache reads the document key dom",
+      "document": "dom",
+      "find": "\"g.md\":",
+      "replace": "\"dom\":",
+      "cached": true
+    },
+    {
+      "description": "Cache reads the document key d\\u006fm",
+      "document": "dom",
+      "find": "\"g.md\":",
+      "replace": "\"d\\u006fm\":",
+      "cached": true
+    },
+    {
+      "description": "Cache reads the document key \\u0064om",
+      "document": "dom",
+      "find": "\"g.md\":",
+      "replace": "\"\\u0064om\":",
+      "cached": true
+    }
+  ],
+  "grammar": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'\n```\n",
+  "cache": "{\"format\":18,\"bootstrap\":\"@bootstrap@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}"
+}

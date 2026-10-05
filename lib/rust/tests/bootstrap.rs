@@ -239,3 +239,44 @@ fn a_bootstrap_of_another_shape_is_an_error_and_never_a_panic() {
     // A rule without its definer, among others.
     assert!(refused.contains(&"definer"), "{refused:?}");
 }
+
+/// Every library requires the bootstrap path on the shared construction errors.
+#[test]
+fn bootstrap_errors_name_the_bootstrap_document() {
+    let text = std::fs::read_to_string(repository().join("tests/bootstrap-errors.json")).expect("the shared cases");
+    let fixtures = parse_json(&text).expect("JSON");
+    let bundled = read("notation/bootstrap.json");
+    for item in fixtures.get("cases").expect("cases").array() {
+        let description = item.get("description").and_then(Value::str).expect("description");
+        let bootstrap = if let Some(text) = item.get("bootstrap").and_then(Value::str) {
+            text.to_string()
+        } else {
+            let find = item.get("find").and_then(Value::str).expect("find");
+            let replace = item.get("replace").and_then(Value::str).expect("replace");
+            assert!(bundled.contains(find), "{description}: the mutation is absent");
+            bundled.replacen(find, replace, 1)
+        };
+        let error = match load_with_bootstrap(bootstrap, "%ambiguity-resolution greedy\n%rule text A\n") {
+            Ok(_) => panic!("{description}: the malformed bootstrap loaded"),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind, gencmu::ErrorKind::Grammar, "{description}: {error}");
+        assert_eq!(error.document.as_deref(), fixtures.get("document").and_then(Value::str), "{description}: {error}");
+        let document = fixtures.get("document").and_then(Value::str).expect("document");
+        assert!(error.message.starts_with(&format!("{document}:")), "{description}: {error}");
+        assert_eq!(error.to_string(), error.message, "{description}");
+        if let Some(context) = item.get("context").and_then(Value::str) {
+            assert!(error.message.contains(context), "{description}: {error}");
+        }
+        if let Some(message) = item.get("message").and_then(Value::str) {
+            assert!(error.message.contains(message), "{description}: {error}");
+        }
+        assert_eq!(error.stage.as_deref(), item.get("stage").and_then(Value::str), "{description}: {error}");
+        assert_eq!(error.line, item.get("line").and_then(Value::number).map(|n| n as usize), "{description}: {error}");
+        assert_eq!(
+            error.column,
+            item.get("column").and_then(Value::number).map(|n| n as usize),
+            "{description}: {error}"
+        );
+    }
+}

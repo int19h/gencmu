@@ -297,7 +297,7 @@ fn a_bootstrap_with_a_malformed_range_or_property_is_an_error() {
         ];
         let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a notation that cannot read g.md");
         assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
-        error.message.strip_prefix("bootstrap.json: ").map(str::to_string)
+        error.message.strip_prefix("notation/bootstrap.json: ").map(str::to_string)
     };
     let expr = |expr: &str| with_alternative(&format!(r#"{{"guards":[],"expr":{expr}}}"#));
     // A bootstrap that is read, whose notation then fails on g.md.
@@ -742,7 +742,7 @@ fn a_refused_bootstrap_test_is_an_error() {
         ];
         let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a notation that cannot read g.md");
         assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
-        error.message.strip_prefix("bootstrap.json: ").map(str::to_string)
+        error.message.strip_prefix("notation/bootstrap.json: ").map(str::to_string)
     };
     // A bootstrap that is read, whose notation then fails on g.md.
     assert_eq!(refusal(r#"{"test":"=","value":{"string":"b"},"expr":{"terminal":"b"}}"#), None);
@@ -776,7 +776,7 @@ fn a_bootstrap_term_of_two_forms_is_an_error() {
         ];
         let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a notation that cannot read g.md");
         assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
-        error.message.strip_prefix("bootstrap.json: ").map(str::to_string)
+        error.message.strip_prefix("notation/bootstrap.json: ").map(str::to_string)
     };
     // A bootstrap that is read, whose notation then fails on g.md.
     assert_eq!(refusal(r#"{"tag":"T"}"#), None);
@@ -968,7 +968,7 @@ fn a_bootstrap_with_a_malformed_constant_is_an_error() {
         ];
         let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a notation that cannot read g.md");
         assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
-        error.message.strip_prefix("bootstrap.json: ").map(str::to_string)
+        error.message.strip_prefix("notation/bootstrap.json: ").map(str::to_string)
     };
     // A bootstrap that is read, whose notation then fails on g.md.
     assert_eq!(refusal(&constant("K", "define", r#"{"tag":"a"}"#, 5)), None);
@@ -1167,7 +1167,7 @@ fn bootstrap_refusal(dom: &str) -> Option<String> {
     ];
     let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a notation that cannot read g.md");
     assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
-    error.message.strip_prefix("bootstrap.json: ").map(str::to_string)
+    error.message.strip_prefix("notation/bootstrap.json: ").map(str::to_string)
 }
 
 /// `well_formed` is used from the cache and read from the bootstrap. Each

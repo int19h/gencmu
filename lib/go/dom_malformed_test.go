@@ -19,13 +19,13 @@ func TestDOMMalformed(t *testing.T) {
 		t.Fatal(err)
 	}
 	var cases []struct {
-		Description string
-		Directive   json.RawMessage
-		Malformed   bool
+		Description string          `json:"description"`
+		Directive   json.RawMessage `json:"directive"`
+		Malformed   bool            `json:"malformed"`
 	}
 	// Each directive is kept as written, so that a malformed one reaches
 	// the check as it stands.
-	if err := unmarshalJSON(data, &cases, "directive"); err != nil {
+	if err := unmarshalJSON(data, &cases); err != nil {
 		t.Fatal(err)
 	}
 	if len(cases) == 0 {

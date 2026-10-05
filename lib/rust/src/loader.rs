@@ -2,7 +2,7 @@
 //! it includes, read through the notation or taken from the DOM cache,
 //! spliced into stages and stitched stage by stage.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
@@ -43,7 +43,7 @@ fn members(mut value: Json) -> Vec<(String, Json)> {
     }
 }
 
-/// The value of an object's first member of the name `key`, taken out of it.
+/// The value of an object's member of the exact name `key`, taken out of it.
 fn take(value: Json, key: &str) -> Option<Json> {
     members(value).into_iter().find(|(name, _)| name == key).map(|(_, value)| value)
 }
@@ -94,31 +94,82 @@ fn grammar_error(message: String) -> Error {
 }
 
 fn notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dialect, Error> {
-    let value = json::parse(bootstrap).map_err(|message| grammar_error(format!("bootstrap.json: {message}")))?;
+    build_notation_dialect(bootstrap, unicode).map_err(|mut error| {
+        if let Some(embedded) = &error.document {
+            if embedded != "notation/bootstrap.json" && !error.message.contains(embedded) {
+                error.message.push_str(&format!(" (embedded document: {embedded})"));
+            }
+        }
+        error.document = Some("notation/bootstrap.json".to_string());
+        let mut location = "notation/bootstrap.json".to_string();
+        if let Some(line) = error.line {
+            location.push_str(&format!(":{line}"));
+            if let Some(column) = error.column {
+                location.push_str(&format!(":{column}"));
+            }
+        }
+        if !error.message.starts_with(&format!("{location}: ")) {
+            let stage = error.stage.as_ref().map(|name| format!("stage {name}: ")).unwrap_or_default();
+            error.message = format!("{location}: {stage}{}", error.message);
+        }
+        error
+    })
+}
+
+fn build_notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dialect, Error> {
+    let value = json::parse(bootstrap).map_err(grammar_error)?;
     if value.get("format").and_then(Json::as_int) != Some(DOM_FORMAT) {
-        return Err(grammar_error("bootstrap.json: an unsupported format".to_string()));
+        return Err(grammar_error("an unsupported bootstrap format".to_string()));
     }
     let mut stages = Vec::new();
-    for stage in value.get("stages").and_then(Json::as_array).unwrap_or(&[]) {
-        let name = stage.get("name").and_then(Json::as_str).unwrap_or("").to_string();
+    let mut inputs = Vec::new();
+    let mut names = HashSet::new();
+    let stage_values = value
+        .get("stages")
+        .and_then(Json::as_array)
+        .filter(|stages| !stages.is_empty())
+        .ok_or_else(|| grammar_error("the bootstrap requires a nonempty stages array".to_string()))?;
+    for stage in stage_values {
+        let name = stage
+            .get("name")
+            .and_then(Json::as_str)
+            .filter(|name| crate::tags::is_name(name))
+            .ok_or_else(|| grammar_error("a bootstrap stage requires a valid name".to_string()))?
+            .to_string();
+        if !names.insert(name.clone()) {
+            return Err(grammar_error(format!("a second stage named {name}")));
+        }
         let mut documents = Vec::new();
-        for document in stage.get("documents").and_then(Json::as_array).unwrap_or(&[]) {
-            let path: Arc<str> = document.get("path").and_then(Json::as_str).unwrap_or("").into();
+        let document_values = stage
+            .get("documents")
+            .and_then(Json::as_array)
+            .filter(|documents| !documents.is_empty())
+            .ok_or_else(|| grammar_error("a bootstrap stage requires a nonempty documents array".to_string()))?;
+        for document in document_values {
+            let path: Arc<str> = document
+                .get("path")
+                .and_then(Json::as_str)
+                .ok_or_else(|| grammar_error("a bootstrap document requires a string path".to_string()))?
+                .into();
             let dom = document
                 .get("dom")
-                .ok_or_else(|| grammar_error("bootstrap.json: a document without a DOM".to_string()))
-                .and_then(|dom| {
-                    dom_from_json(dom, &unicode).map_err(|message| grammar_error(format!("bootstrap.json: {message}")))
-                })?;
+                .ok_or_else(|| grammar_error("a bootstrap document without a DOM".to_string()))
+                .and_then(|dom| dom_from_json(dom, &unicode).map_err(grammar_error))?;
             documents.push((path, Arc::new(dom)));
         }
-        stages.push(stitch(&name, &documents, &unicode)?);
+        inputs.push((name, documents));
     }
-    if stages.is_empty() {
-        return Err(grammar_error("bootstrap.json has no stages".to_string()));
+    for (name, documents) in &inputs {
+        if !documents.iter().any(|(_, dom)| !dom.rules.is_empty()) {
+            return Err(Error::grammar(format!("stage {name} has no rules")).in_stage(name));
+        }
     }
-    Dialect::new(stages, Vec::new(), unicode)
-        .map_err(|error| grammar_error(format!("bootstrap.json: {}", error.message)))
+    for (name, documents) in inputs {
+        stages.push(stitch(&name, &documents, &unicode).map_err(|error| error.in_stage(&name))?);
+    }
+    let dialect = Dialect::new(stages, Vec::new(), unicode)?;
+    dialect.prepare_bootstrap()?;
+    Ok(dialect)
 }
 
 impl Context {
@@ -133,8 +184,10 @@ impl Context {
         static CONTEXT: OnceLock<Result<Arc<Context>, Error>> = OnceLock::new();
         CONTEXT
             .get_or_init(|| {
-                let file =
-                    |path: &str| bundled(path).ok_or_else(|| grammar_error(format!("the bundled {path} is missing")));
+                let file = |path: &str| {
+                    bundled(path)
+                        .ok_or_else(|| grammar_error(format!("the bundled {path} is missing")).in_document(path))
+                };
                 Context::new(file("unicode.txt")?, file("notation/bootstrap.json")?, file("compiled.json")?)
                     .map(Arc::new)
             })
@@ -448,7 +501,7 @@ where
                 own(path)
                     .or_else(|| bundled(path))
                     .map(str::to_string)
-                    .ok_or_else(|| grammar_error(format!("the bundled {path} is missing")))
+                    .ok_or_else(|| grammar_error(format!("the bundled {path} is missing")).in_document(path))
             };
             Arc::new(Context::new(&pick("unicode.txt")?, &pick("notation/bootstrap.json")?, &pick("compiled.json")?)?)
         };

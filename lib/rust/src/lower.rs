@@ -746,11 +746,21 @@ struct Pending {
 #[derive(Debug, Clone)]
 pub(crate) struct LowerError {
     pub message: String,
+    pub document: String,
+    pub line: usize,
+    pub column: usize,
+    pub stage: String,
 }
 
 impl LowerError {
-    fn at(document: &str, (line, column): (usize, usize), message: String) -> LowerError {
-        LowerError { message: format!("{document}:{line}:{column}: {message}") }
+    fn at(stage: &str, document: &str, (line, column): (usize, usize), message: String) -> LowerError {
+        LowerError {
+            message: format!("{document}:{line}:{column}: {message}"),
+            document: document.to_string(),
+            line,
+            column,
+            stage: stage.to_string(),
+        }
     }
 }
 
@@ -803,6 +813,7 @@ pub(crate) fn lower(
         let chain = live.iter().find(|alternative| matches!(alternative.alternative.expr, Expr::Repeat(_, _, Some(_))));
         if let Some(chain) = chain.filter(|_| live.len() > 1) {
             return Err(LowerError::at(
+                &grammar.name,
                 &chain.document,
                 chain.at,
                 format!(
@@ -885,6 +896,7 @@ pub(crate) fn lower(
         if item.expansions.iter().any(|expansion| empty(&nullable, expansion)) {
             let name = &grammar.rules[item.owner as usize].name;
             return Err(LowerError::at(
+                &grammar.name,
                 &item.document,
                 item.at,
                 format!("an item of braces in {name} can match no tokens"),

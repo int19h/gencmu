@@ -14,28 +14,29 @@ import (
 // The shared cases of tests/README.md.
 
 type engineCase struct {
-	Description string
-	Grammar     *string
-	Documents   map[string]string
-	Pipeline    string
-	Tokens      []caseToken
-	Input       *string
-	Options     caseOptions
-	Expect      caseExpect
+	Description string            `json:"description"`
+	Grammar     *string           `json:"grammar"`
+	Documents   map[string]string `json:"documents"`
+	Pipeline    string            `json:"pipeline"`
+	Tokens      []caseToken       `json:"tokens"`
+	Input       *string           `json:"input"`
+	Options     caseOptions       `json:"options"`
+	Expect      caseExpect        `json:"expect"`
 	// Parses, when present, parses the input several times with the one
 	// loaded dialect, each with its own options and expectation, in place
 	// of the case's (tests/README.md).
 	Parses []struct {
-		Options caseOptions
-		Expect  caseExpect
-	}
+		Options caseOptions `json:"options"`
+		Expect  caseExpect  `json:"expect"`
+	} `json:"parses"`
 	// fault, which no case file sets, is a fault of the library's own
 	// paths that the parses of the case turn on (faults_test.go).
 	fault string
 	// noHook, which no case file sets either, ignores the witness hook's
 	// answer, so that only the result can fail the case, and onlyHook
 	// ignores everything but the hook's answer (faults_test.go).
-	noHook, onlyHook bool
+	noHook   bool
+	onlyHook bool
 	// hits, where set, records the sites of the fault that the parses
 	// enter (faults_test.go).
 	hits map[string]bool
@@ -45,34 +46,35 @@ type engineCase struct {
 // and after, which a caller cannot supply, go to the library as they
 // stand, so that it refuses them or drops empty ones.
 type caseToken struct {
-	Text     string
-	Tags     []string
-	Phonemes *string
-	Before   []caseToken
-	After    []caseToken
+	Text     string      `json:"text"`
+	Tags     []string    `json:"tags"`
+	Phonemes *string     `json:"phonemes"`
+	Before   []caseToken `json:"before"`
+	After    []caseToken `json:"after"`
 }
 
 type caseOptions struct {
-	Features        []string
-	WithoutFeatures []string
-	ElisionOnly     *bool
-	AutoFeatures    *bool
-	Until           string
+	Features        []string `json:"features"`
+	WithoutFeatures []string `json:"withoutFeatures"`
+	ElisionOnly     *bool    `json:"elisionOnly"`
+	AutoFeatures    *bool    `json:"autoFeatures"`
+	Until           string   `json:"until"`
 }
 
 // caseExpect is what a case expects. Result, Warnings and Features are
 // decoded JSON, nil where the case leaves them out.
 type caseExpect struct {
-	Result   *any
-	Brackets *string
-	Warnings *any
-	Features *any
-	Error    string
+	Result   *any    `json:"result"`
+	Brackets *string `json:"brackets"`
+	Warnings *any    `json:"warnings"`
+	Features *any    `json:"features"`
+	Error    string  `json:"error"`
 	// Where is where a load error stands (tests/README.md).
 	Where *struct {
-		Document     string
-		Line, Column int
-	}
+		Document string `json:"document"`
+		Line     int    `json:"line"`
+		Column   int    `json:"column"`
+	} `json:"where"`
 }
 
 // match matches a value against a pattern (tests/README.md). It compares
@@ -424,8 +426,9 @@ func TestEngineRunnerLoadError(t *testing.T) {
 	// memory is a usage error at load (engine §1).
 	unusable := "%rule text 'a\xed\xa0\x80'"
 	where := &struct {
-		Document     string
-		Line, Column int
+		Document string `json:"document"`
+		Line     int    `json:"line"`
+		Column   int    `json:"column"`
 	}{Document: "main.md"}
 	for _, tc := range []struct {
 		name    string
@@ -456,8 +459,8 @@ func TestEngineRunnerLoadError(t *testing.T) {
 // (tests/README.md, "Result mutants"): its name, its engine case and the
 // change itself, as tests/result-mutants.json writes it.
 type resultMutant struct {
-	Name   string
-	Case   string
+	Name   string `json:"name"`
+	Case   string `json:"case"`
 	change map[string]any
 }
 

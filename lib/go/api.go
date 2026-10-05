@@ -62,15 +62,15 @@ func loadBundled() error {
 // made in this DOM format with this bootstrap (engine §8).
 func readCompiled(text, bootstrapHash string) map[string]json.RawMessage {
 	var c struct {
-		Format    int
-		Bootstrap string
+		Format    int    `json:"format"`
+		Bootstrap string `json:"bootstrap"`
 		Documents map[string]struct {
-			Hash string
-			Dom  json.RawMessage
-		}
+			Hash string          `json:"hash"`
+			Dom  json.RawMessage `json:"dom"`
+		} `json:"documents"`
 	}
 	out := map[string]json.RawMessage{}
-	if text == "" || json.Unmarshal([]byte(text), &c) != nil || c.Format != domFormat || c.Bootstrap != bootstrapHash {
+	if text == "" || unmarshalJSON([]byte(text), &c) != nil || c.Format != domFormat || c.Bootstrap != bootstrapHash {
 		return out
 	}
 	for _, d := range c.Documents {
@@ -163,12 +163,11 @@ func (l *loader) load(pipelinePath string) (*Dialect, error) {
 		}
 		d.stages = append(d.stages, g)
 	}
-	features, err := dialectFeatures(d.stages, p.features)
+	dialect, err := newDialect(d.stages, p.features, l.uni)
 	if err != nil {
 		return nil, err
 	}
-	d.features = features
-	return d, nil
+	return dialect, nil
 }
 
 // pipeline splices the pipeline document at pipelinePath: its stages, each
@@ -190,6 +189,15 @@ func (l *loader) pipeline(pipelinePath string) (*splicedPipeline, *Error) {
 		doms[p] = dom
 		return dom, nil
 	})
+}
+
+// newDialect applies the validation shared by normal and bootstrap dialects.
+func newDialect(stages []*stageGrammar, declared []string, uni *unicodeTable) (*Dialect, *Error) {
+	features, err := dialectFeatures(stages, declared)
+	if err != nil {
+		return nil, err
+	}
+	return &Dialect{uni: uni, stages: stages, declared: declared, features: features}, nil
 }
 
 // dialectFeatures lists a dialect's features (engine §13): every name that a

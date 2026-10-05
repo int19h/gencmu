@@ -42,7 +42,8 @@ export function caseShapeProblems(c) {
       if ("at" in c) problems.push("an ambiguous case has at");
     } else if (!Number.isInteger(c.at) || /** @type {number} */ (c.at) < 0) problems.push("a rejected case has no at, a position counted from 0");
   } else problems.push("expect is neither accept nor reject");
-  if (("seeded" in c) !== ("reason" in c)) problems.push("seeded and reason come together");
+  if ("seeded" in c && !("reason" in c)) problems.push("seeded needs a reason");
+  if ("reason" in c && typeof c.reason !== "string") problems.push("reason is not a string");
   if ("seeded" in c && !["accept", "reject"].includes(/** @type {string} */ (c.seeded))) problems.push("seeded is neither accept nor reject");
   return problems;
 }

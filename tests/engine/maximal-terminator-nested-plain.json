@@ -1,0 +1,24 @@
+{
+  "description": "A plain [+T] keeps the default omission policy in a query. No maximal marker restricts it (engine §4).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text A B\n%conditions begins(from($), r)\n%rule r y [+T] B\n%rule y A | A B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null
+    }
+  }
+}

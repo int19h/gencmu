@@ -673,10 +673,9 @@ class StageRunner:
         context = self.context(lowered, self.tokens)
         start = lowered.rule_ids["text"]
         forest = Parser(context).parse(start)
-        # Maximality, stage-wide or for the maximal terminators alone, before
+        # Maximality, for maximal terminators, before
         # the ranking (engine §4).
-        stage_wide = lowered.grammar.maximal
-        maximal = Maximal(forest, context, stage_wide) if stage_wide or lowered.maximal_helpers else None
+        maximal = Maximal(forest, context) if lowered.maximal_helpers else None
         ranking = rank(forest, lowered.lean, maximal)
         if ranking is None:
             forbidden = None
@@ -798,7 +797,7 @@ class StageRunner:
         # ranks (tests/README.md).
         hook = _testing.elision_check
         watch = hook(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at)) if hook is not None else None
-        # Neither form of maximality applies to the derivations of R, and
+        # Maximality does not apply to the derivations of R, and
         # they rank with no lean (engine §7.7).
         ranking = _rank_check(forest, watch.marks if watch is not None else None)
         if watch is not None:

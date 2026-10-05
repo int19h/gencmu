@@ -127,9 +127,6 @@ class Grammar:
     # The rule of the ranking, one of RANKING_RULES (engine §6).
     lean: str
     elision_only: bool
-    # Whether an elided terminator is forbidden where its constituent could
-    # have been longer (engine §4).
-    maximal: bool
     changes: list[Change] = field(default_factory=list)
     # The stage's %classifier items in stitching order, each with its
     # document (engine §2).
@@ -169,6 +166,7 @@ class Grammar:
             try:
                 found = _resolve_classifiers(self.classifier_items, key)
             except GencmuError as error:
+                error.stage = self.stage
                 found = ErrorData.of(error)
             with self._lock:
                 self._classifier_tables.put(key, found)
@@ -213,7 +211,7 @@ def _resolve_classifiers(items: list[tuple[str, Dom]], features: frozenset[str])
                     message = f"{word} is already in {name}" if adds else f"{word} is not in {name}, so ∉ has nothing to remove"
                     # A lowering error is a result's, whose message alone
                     # names the entry (engine §2).
-                    raise GencmuError(f"{path}:{line}:{column}: the classifier {classifier['name']}: {message}")
+                    raise GencmuError(f"{path}:{line}:{column}: the classifier {classifier['name']}: {message}", document=path, line=line, column=column)
                 if adds:
                     classes.add(name)
                 else:
@@ -572,18 +570,15 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
         args, path, at = resolutions[1]
         raise _error(f"stage {stage} has more than one %ambiguity-resolution", path, at, stage)
     args, path, at = resolutions[0]
-    # The rule of the ranking (engine §6), then elision-only and maximal,
+    # The rule of the ranking (engine §6), then optionally elision-only,
     # each optional, in that order (engine §2).
     rest = args[1:]
     elision_only = rest[:1] == ["elision-only"]
     if elision_only:
         rest = rest[1:]
-    maximal = rest[:1] == ["maximal"]
-    if maximal:
-        rest = rest[1:]
     if not args or args[0] not in RANKING_RULES or rest:
         raise _error(
-            "%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only, then optionally maximal",
+            "%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only",
             path,
             at,
             stage,
@@ -631,7 +626,6 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
         rules,
         args[0],
         elision_only,
-        maximal,
         changes,
         classifier_items=classifier_items,
         implications=implications,
@@ -887,7 +881,7 @@ class _Lowerer:
         document = alt.document if alt else (rule.document if rule else "")
         at = alt.at if alt else (rule.at if rule else None)
         place = f"{document}:{at[0]}:{at[1]}" if at is not None else document
-        return GencmuError(f"{place}: {message}", stage=self.grammar.stage)
+        return GencmuError(f"{place}: {message}", document=document or None, line=at[0] if at else None, column=at[1] if at else None, stage=self.grammar.stage)
 
     # -- expansions
 

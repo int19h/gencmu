@@ -867,7 +867,11 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
             _ => false,
         };
         // No directive has the member `maximal` (engine §9).
-        if !operands_ok || has(directive, "maximal") {
+        if !operands_ok
+            || has(directive, "maximal")
+            || (directive.get("name").and_then(Json::as_str) == Some("ambiguity-resolution")
+                && args.contains(&"maximal"))
+        {
             return Some("a malformed directive");
         }
     }

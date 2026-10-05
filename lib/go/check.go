@@ -225,7 +225,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	if private.elisionCheck != nil {
 		watch = private.elisionCheck(&elisionCheckRun{chosen: d, rec: r, top: top, recon: rc, originalAt: originalAt, recordAt: recordAt})
 	}
-	// Neither form of maximality applies to R, and the check ranks with no
+	// Maximality does not apply to R, and the check ranks with no
 	// lean (§7.7).
 	var res *rankResult
 	rk := newRanker(r, "", nil)

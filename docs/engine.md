@@ -114,7 +114,7 @@ A call `classify(a, C)` names the classifier `C` (§10). A `classify` whose clas
 
 A stage also has implications. An item `%implies A ⟹ B` (`implication`) adds one. `A` and `B` are closed terms (§10) whose type is a tag set. A constant in them has the value that the last definition of the stage gives it, as in a rule. After the loader stitches the stage, it makes sure that their types agree, as it does for a rule (§9). §11 says how the stage applies its implications.
 
-A stage has exactly one `%ambiguity-resolution L [elision-only] [maximal]`, or it is an error naming the stage. `L` is the rule of the ranking, `greedy`, `lazy` or `late-elision` (§6). If both `elision-only` (§7) and `maximal` (§4) are written, they stand in that order.
+A stage has exactly one `%ambiguity-resolution L [elision-only]`, or it is an error naming the stage. `L` is `greedy`, `lazy` or `late-elision` (§6). A document that declares the retired operand `maximal` is an error at the directive. `[++T]` still marks an individual maximal terminator (§4).
 
 No directive names elidable terminators. A rule marks each elidable optional in its body, as `[+T …]`, or as `[++T …]` where its terminator is also maximal (§3.8, §4). `%elidable` is not a directive. So whether an optional is elidable, and whether its terminator is maximal, is a property of the optional itself. It is the same in every stage that includes its document.
 
@@ -280,7 +280,7 @@ The order between steps, between items and between sets is not observable either
 
 `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` each run a nested parse. A nested parse is one recognition over the span's tokens alone, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does.
 
-A query that the check of §7 starts reads the projected span in the stage's input. It uses this lowered grammar in its ordinary mode (§7.6). Its chart is every item, partial or completed, that this recognition holds after it ends. The three functions read the eligible proof trees of the chart (below), before any ranking and before stage-wide `maximal`:
+A query that the check of §7 starts reads the projected span in the stage's input. It uses this lowered grammar in its ordinary mode (§7.6). Its chart is every item, partial or completed, that this recognition holds after it ends. The three functions read the eligible proof trees of the chart (below), before any ranking:
 
 - `matches` holds when a completed item of `rule` spans the tokens and has an eligible proof tree.
 - `begins` holds when a completed item of `rule` has its origin at the span's start, in any set, and has an eligible proof tree. So it covers a prefix of the span, the empty prefix included.
@@ -375,27 +375,19 @@ One elided at the start of each later item of `{x}` has none either, as the seco
 
 A PEG (parsing expression grammar) repetition such as `{[+T] A}` reads its next item after what it read. It does not make what it read longer first.
 
-When the stage's directive has stage-wide `maximal`, the engine does not count some more derivations, as it does not count cyclic ones. It does not count a derivation if one of its elided terminators has a constituent that is not the longest possible. Such a constituent is a node of a symbol `Y` spanning `[s, p)`. The recognizer also has a completed item of a production of `Y`, with origin `s`, in a set after `p`.
+A maximal terminator is the terminator of an optional written `[++T …]` (§3.8). An optional of the same terminal written `[+T …]` is not maximal. The engine excludes a derivation when a maximal terminator is elided after a constituent that can be longer.
 
-When `Y` is tested, the longer constituent counts only if the test holds of it, with its own span and its own tags. The longer constituent need not fit into any derivation of `text`, which is what makes `maximal` commit as a PEG does. The longer constituent can contain the constituent itself, as a left-recursive rule builds a longer node on a shorter one.
+The constituent is a symbol `Y` over `[s, p)`. A longer candidate is a completed item of `Y`, with origin `s`, in a set after `p`. When `Y` is tested, that test must hold of the candidate's own span and tags. The longer constituent need not fit into a derivation of `text`. It can contain the shorter constituent, as left recursion builds a longer node on a shorter one.
 
-Only the constituent matters, not what follows the elided terminator in its production. Whether a constituent is the longest possible depends only on its symbol, its test, its origin and its end. So an implementation can find, once per parse, the furthest set in which each symbol completes from each origin. For a tested symbol, it needs each completed item of the symbol from each origin, since the furthest one need not pass the test. Maximality does not apply to the derivations of the check of §7, whose restorations read tokens and omit nothing. The queries that the check starts follow the query policy above. Stage-wide `maximal` also does not apply to a nested parse, which follows written-terminator priority instead (above).
+Only the constituent matters, not what follows the terminator in its production. The restriction depends on the symbol, its test, its origin, and its end. The three cases with no constituent above permit the omission. Written-terminator priority still applies in a query.
 
-A maximal terminator is the terminator of an optional written `[++T …]` (§3.8). It brings the condition of stage-wide `maximal` to that optional alone. Another optional of the same terminal written `[+T …]` is not maximal. Maximality is this restriction to the longest constituent, from either form.
+Maximal terminators apply in the main parse and nested queries. The ranking (§6) sees only the remaining derivations. `elision-only` restores a maximal terminator as any other (§7). A restoration reads a token, so its derivation contains no elided terminator for maximality to forbid.
 
-The engine does not count a derivation in which a maximal terminator is elided and has a constituent that is not the longest possible. The terminal is that of the elidable optional (§3.8). The constituent, its origin, its test and the three cases with no constituent are as above.
-
-Maximality never forbids an omission with no constituent. Written-terminator priority still applies in a query.
-
-The longer constituent need not fit into any derivation of `text`, as above. Stage-wide `maximal` restricts every elidable optional, but in the main parse only. It makes no optional maximal in nested queries. A maximal terminator applies whether or not `%ambiguity-resolution` includes `maximal`. It applies in the main parse and in a nested parse (above).
-
-The ranking (§6) sees only the derivations that remain, under every ranking rule. `elision-only` writes back a maximal terminator as any other (§7). The check's derivations have no elided terminator, so no terminator there is maximal or forbidden.
-
-Lowering keeps, with each helper of an elidable optional, whether it is maximal (§3.8), as part of the lowered grammar and of what identifies it. An implementation already finds the furthest completion of each symbol from each origin for stage-wide `maximal`. The main parse builds that table whenever either form needs it. A nested parse whose grammar has a maximal terminator builds that table from its own chart, once per query. The table depends only on the query's chart, so the keys of the memo (above) fit the answer.
+Lowering records which helpers belong to maximal terminators (§3.8). The lowered grammar and its cache identity include this information. For each parse that needs them, the engine records the furthest completion of each symbol from each origin. A tested symbol needs its completed items because the furthest completion need not pass its test. A nested parse builds this table from its own chart, once per query. The query's memo keys identify that chart.
 
 A stage accepts when an item of the start rule `text` spans the whole input and has at least one derivation that is counted. It rejects an input whose every such derivation is cyclic, as it rejects one with no such item. A stage that accepts its input can still end with a tie, which is an error (§6). A rejected input reports the furthest position that any item reached. It also reports the terminals that the items there can read next, together with the rules that those items belong to (§11). The stage writes a tested terminal with its test, such as `LE="la"` (`docs/output.md`).
 
-An input rejected only because maximality forbids an elided terminator in every derivation that is not cyclic reports that terminator instead. The terminator comes from the first reading, `m`, of the ranking that the stage makes with both forms of maximality off (§6). It is the first elided terminator of that derivation, in the order of the tree's leaves, that maximality forbids. Its position is the position reported, and its terminal, with the rule in whose alternative its optional is written, is the one terminal expected there. If that terminator is tested, the stage writes it with its test there too.
+An input rejected only because maximality forbids an elided terminator in every derivation that is not cyclic reports that terminator instead. The terminator comes from the first reading, `m`, of the ranking that the stage makes with maximal terminators unrestricted (§6). It is the first elided terminator of that derivation, in the order of the tree's leaves, that maximality forbids. Its position is the position reported, and its terminal, with the rule in whose alternative its optional is written, is the one terminal expected there. If that terminator is tested, the stage writes it with its test there too.
 
 That ranking reads the same chart of the main parse. It does not run recognition again, and the answers of nested queries in it are those of the parse.
 
@@ -521,7 +513,7 @@ An edge of an item is one step by which the recognizer makes it. A start edge pr
 
 The context of a child is what its use in a derivation allows it. It has two parts, under every ranking rule:
 
-- The eligibility of the child. Under `maximal` (§4), a completion edge over an elided terminator combines only some derivations of the item before it. These are the derivations whose last symbol's node `maximal` does not forbid. A maximal terminator (§4) does the same for its own elided terminators, whether or not `%ambiguity-resolution` includes `maximal`. Every other edge combines all derivations of its children.
+- The eligibility of the child. Before an elided maximal terminator (§4), an edge combines only the prefixes whose last constituent permits the omission. Every other edge combines all derivations of its children.
 - The cycle context of the child. A child cannot use a rule over the span of a constituent of that rule above it, or the derivation is cyclic (§4). The rules above a child over its own span are its cycle context.
 
   Only a rule that can complete again below the child over that span matters. Such a rule is reached from the child's rule through constituents over the same span, and it reaches that rule back in the same way. Such rules form the cyclic group of the child's rule. An implementation can leave every other rule out of the context. Two contexts that differ only in rules that it leaves out give the same summary.
@@ -548,7 +540,7 @@ The root combines its items in the same way. A total of two with a least count o
 
 The best derivations form a smaller forest. For each summary, the implementation keeps the edges that attain the summary's least vector. Each kept edge leads to the summaries of its children, in their own contexts. The stage finds `m` and `t` by a ranking with no lean over that forest. That ranking keeps the same contexts, so it reaches a child only through the summary that its context allows.
 
-For example, take `text → [A] y [+T] B` and `y → A A | A A B | A [+U]`. The stage declares `maximal`. On `A A B`, the least prefix before `[+T]` over all edges uses `y → A A` and elides nothing. `maximal` forbids `T` after it, because `y → A A B` ends later. The only eligible prefix reads the first `A` alone and uses `y → A [+U]`. A forest of the least edges over all derivations loses the only derivation that counts.
+For example, take `text → [A] y [++T] B` and `y → A A | A A B | A [+U]`. On `A A B`, the least prefix before `[++T]` over all edges uses `y → A A` and elides nothing. The maximal terminator forbids `T` after it, because `y → A A B` ends later. The only eligible prefix reads the first `A` alone and uses `y → A [+U]`. A forest of the least edges over all derivations loses the only derivation that counts.
 
 A vector has N + 1 components. So a sparse vector, or a shared sequence of elisions, keeps the cost of each addition and comparison small.
 
@@ -663,7 +655,7 @@ Presence tests `$x`, feature guards, closed terms and constants mean what they m
 
 A nested query that the check starts reads the tokens of `s′`, the projected span, in O. It runs with G in its ordinary mode, as in the main parse. In that mode every elidable optional is an optional. The query reads no synthetic token, and its own nested queries do the same. It follows the query policy of §4.
 
-Written-terminator priority applies to the tokens that it reads, and a maximal terminator (§4) is maximal in it. Stage-wide `maximal` does not apply in it. It does not rank its proof trees, and it emits nothing.
+Written-terminator priority applies to the tokens that it reads, and a maximal terminator (§4) is maximal in it. It does not rank its proof trees, and it emits nothing.
 
 Inside the query, `initial`, `from` and `after` read the query's span of O. Its start and end are positions of O.
 
@@ -679,7 +671,7 @@ The check recognizes all of R, from the start rule `text`, in the reconstruction
 
 Cycles are found over spans of R, as §4 says. Two constituents of one rule whose spans of R differ are no cycle, even where both project to one span of O.
 
-Neither form of maximality applies to the derivations of R. A restoration reads a token, so the reconstruction has no elided terminator, and nothing for maximality to forbid. The queries of §7.6 keep their own policy.
+Maximality does not apply to the derivations of R. A restoration reads a token, so the reconstruction has no elided terminator, and nothing for maximality to forbid. The queries of §7.6 keep their own policy.
 
 The check ranks the derivations of R with no lean (§6), whatever the rule of the stage. Their elision vectors are all zero. A restoration's read of its synthetic token is a read action, and its close is the close of a helper, which is transparent. The canonical order *T* of §6 picks the first and the second reading for the error. It never turns a tie into a pass. Derivations whose trees are equal over O are still distinct derivations.
 
@@ -771,6 +763,18 @@ The info string is `jbogenbau` when it is exactly that once leading and trailing
 The reader parses the grammar text with the notation dialect, `grammars/dialects/notation.md`, whose DOM ships as `grammars/notation/bootstrap.json`. The rules in §9 turn the tree that this parse produces into the document's DOM. An implementation reads the bootstrap DOM, not the notation documents, to parse any grammar, the notation documents included. Splicing the notation's pipeline (§13) with the bootstrap must reproduce the bootstrap exactly (the fixpoint). The bootstrap holds each stage as its name and its runs of items. A run is a path and a DOM that holds consecutive items of that one document.
 
 A tie in either stage of the notation dialect, `lexical` or `syntax`, is an error of kind `grammar` of loading (§6). The error names the document. It has no line and no column, since an ambiguity has no single position. Its message names the notation stage and says that the grammar text is ambiguous. A library never puts such an error at the start of the document in place of a position.
+
+Every bootstrap failure names `notation/bootstrap.json` in its structured document field and its message. Reading and schema errors have no stage, line, or column. Stitching and lowering errors name the stage that failed. If the failure has a definition location, its structured line and column retain that location. The message also names the embedded document at that location. A failure without a definition location has no structured line or column.
+
+A bootstrap supplies already-spliced document runs, so its stages must have distinct valid names. Each stage requires at least one document run. Its runs cannot contain `stage`, `include`, or `features` directives because pipeline splicing consumes them.
+
+The loader validates every bootstrap DOM before it stitches any stage. Each stage must contain at least one rule. The loader then stitches every stage in order with the normal stage validator.
+
+Next, it validates feature roles across all stitched stages with the normal dialect validator. Finally, it lowers the stages in order. A later stitching error therefore precedes an earlier lowering error.
+
+A feature-role conflict names the stage and definition that introduce the conflicting role.
+
+These locations concern embedded definitions, not lines of the bootstrap JSON. The CLI reports the same bootstrap attribution.
 
 Each stage of the notation runs as any stage does (§4 to §7, §11, §12). So each notation stage runs the check of §7 where its own directive declares `elision-only`. The bundled notation declares it in no stage, but a caller's own bootstrap can (`docs/api.md`). An ambiguity that the check finds is an error of the document in the same way as a tie. The error names the document and the notation stage, with no line or column. The caller's option for the check (`docs/api.md`) does not reach a notation stage, so it neither switches the check on there nor off.
 
@@ -974,7 +978,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A capture other than `$` named twice in one emission, as an item or as an attachment, is an error. So an attachment capture is never an item of its own.
 - A rule's or an alternative's tag term that reads the tags that it defines is an error: `tags($)` or `classes($)` in it. `tags(head($))` and the like read the tokens' tags, not the constituent's, and are allowed, as is `tags($, R)`.
 - An unknown directive or keyword is an error. The syntax grammar already refuses it.
-- A directive with the wrong operands is an error, reported at the directive. `%stage` takes one name, `%include` one string, and `%features` one or more names. `%ambiguity-resolution` takes names only. `%elidable` is no directive, and the syntax grammar refuses it as an unknown keyword.
+- A directive with the wrong operands is an error, reported at the directive. `%stage` takes one name, `%include` one string, and `%features` one or more names. `%ambiguity-resolution` takes a ranking name and optionally `elision-only`. The retired operand `maximal` is an error. `%elidable` is no directive, and the syntax grammar refuses it as an unknown keyword.
 
 Once the reader reads a definition (§2), it makes sure that the whole definition meets its requirements. These checks are about the productions of the definition's alternatives, the expansions of §3.2 with the captures of §3.5. Gates do not matter here, so every alternative counts. Two expansions of one alternative that read the same captures in the same order are one case for these checks. So the reader can decide them over the distinct sequences of captures that the expansions read, without listing the expansions.
 
@@ -1008,8 +1012,8 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has an emission with a member other than `items`.
 - It has a guard of an alternative whose feature is not a name, or that has a member other than its feature, its kind and whether it is negated.
 - It has a directive whose name is not `ambiguity-resolution`, `stage`, `include` or `features`. So a directive named `elidable` is malformed.
-- It has a `stage`, `include` or `features` directive whose operands the reader refuses.
-- It has a `maximal` member on a directive. No directive has one.
+- It has an `ambiguity-resolution`, `stage`, `include` or `features` directive whose operands the reader refuses.
+- It has a `maximal` member on a directive. No directive has that member.
 - It has a test that the reader refuses. That is a test after anything but a reference other than `#` or a terminal, or an unknown comparator. It is also a value that is not a closed term of the right type. It is also a string that holds a comma or that the lowercase mapping of the canonical sound changes.
 - It has a `terminal`, a `tag` or an inserted tag that is not a tag in its canonical spelling (§1).
 - It has a `range` whose ends are not two character tags in their canonical spelling, or whose start is above its end.

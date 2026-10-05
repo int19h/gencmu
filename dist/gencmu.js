@@ -2250,7 +2250,8 @@
           !directive.args.every((arg) => typeof arg === "string") || !isDomPosition(directive.at)) return "a malformed directive";
       // No directive has a maximal member, and the notation has four
       // directives; %elidable is none of them (engine §9).
-      if ("maximal" in directive || !DIRECTIVE_NAMES.has(directive.name)) return "a malformed directive";
+      if ("maximal" in directive || !DIRECTIVE_NAMES.has(directive.name) ||
+          (directive.name === "ambiguity-resolution" && directive.args.includes("maximal"))) return "a malformed directive";
       // The operands the notation's syntax allows these directives (engine §9).
       const args = /** @type {string[]} */ (directive.args);
       if ((directive.name === "stage" && !(args.length === 1 && DOM_NAME.test(args[0]))) ||
@@ -4145,12 +4146,10 @@
             const [lean, ...rest] = directive.args;
             const elisionOnly = rest[0] === "elision-only";
             if (elisionOnly) rest.shift();
-            const maximal = rest[0] === "maximal";
-            if (maximal) rest.shift();
             if ((lean !== "greedy" && lean !== "lazy" && lean !== "late-elision") || rest.length > 0) {
-              throw new GencmuError("grammar", `${path}:${at.line}: %ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only, then optionally maximal`, at);
+              throw new GencmuError("grammar", `${path}:${at.line}: %ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only`, at);
             }
-            this.resolution = { lean, elisionOnly, maximal };
+            this.resolution = { lean, elisionOnly };
             break;
           }
           default:
@@ -4488,8 +4487,13 @@
       if (!lowered) {
         // The stage resolves its classifiers for the same features, before it
         // lowers its rules (engine §2, §3).
-        const classifiers = this.classifiers(on);
-        lowered = { ...new Lowering(this, on).run(), classifiers, implications: this.implications };
+        try {
+          const classifiers = this.classifiers(on);
+          lowered = { ...new Lowering(this, on).run(), classifiers, implications: this.implications };
+        } catch (error) {
+          if (error instanceof GencmuError) error.where.stage = this.stageName;
+          throw error;
+        }
         remember(this.lowered, key, lowered);
       }
       return lowered;
@@ -8492,7 +8496,7 @@
       }
       return {
         name: stage.name,
-        resolution: resolution ? `${resolution.lean}${resolution.elisionOnly ? " elision-only" : ""}${resolution.maximal ? " maximal" : ""}` : "none",
+        resolution: resolution ? `${resolution.lean}${resolution.elisionOnly ? " elision-only" : ""}` : "none",
         rules: grammar.rules.size,
         unreachable: [...grammar.rules.keys()].filter((name) => !reachable.has(name)).sort(compareCodePoints),
         changes: grammar.changes.slice(),
@@ -9038,8 +9042,8 @@
     /**
      * @param {Token[]} tokens
      * @param {Lean} lean
-     * @param {Maximal | null} [maximal] the resolution's maximal, if it has
-     *   it (engine §4)
+     * @param {Maximal | null} [maximal] the maximal terminators, if there are
+     *   any (engine §4)
      * @param {number[] | null} [project] positions to find cycles over in
      *   place of the items' own, which only a fault of the check of engine
      *   §7 gives (F19)
@@ -9986,7 +9990,7 @@
   const internals = { actions, firstDifference, totalOrder, decide, visible, concat, leaf, concatElisions };
 
   // ---- maximal.js
-  // The resolution maximal (engine §4): an elided terminator is forbidden
+  // Maximal terminators (engine §4): an elided terminator is forbidden
   // where its constituent, the node before it, could have been longer.
 
   /**
@@ -10013,19 +10017,14 @@
   /**
    * @param {Chart} chart
    * @param {LoweredGrammar} lowered
-   * @param {boolean} [stageWide] whether every elidable terminator is
-   *   restricted, as under the resolution's maximal, or only the maximal
-   *   terminators
    * @returns {Maximal}
    */
-  function maximalRule(chart, lowered, stageWide = true) {
-    // The helpers whose omission maximality restricts: every elidable
-    // optional's under stage-wide maximal, and otherwise those of the maximal
-    // terminators (engine §4).
+  function maximalRule(chart, lowered) {
+    // The helpers of maximal terminators (engine §4).
     /** @type {Set<string>} */
     const elidable = new Set();
     for (const production of lowered.productions) {
-      if (production.helper && production.elided !== null && (stageWide || lowered.maximalHelpers.has(production.lhs))) elidable.add(production.lhs);
+      if (production.helper && production.elided !== null && lowered.maximalHelpers.has(production.lhs)) elidable.add(production.lhs);
     }
     // Whether a constituent could have been longer depends only on its
     // symbol, origin and end: the furthest set holding a completed item of
@@ -10161,9 +10160,9 @@
       // An input whose every derivation is cyclic (engine §4) has none to
       // count, and is rejected like one with no item of `text` at all.
       const resolution = lowered.resolution;
-      // Maximality: stage-wide, or for the maximal terminators alone, before
+      // Maximal terminators before
       // the ranking (engine §4).
-      const maximal = resolution.maximal || lowered.maximalHelpers.size > 0 ? maximalRule(chart, lowered, resolution.maximal) : null;
+      const maximal = lowered.maximalHelpers.size > 0 ? maximalRule(chart, lowered) : null;
       const ranking = roots.length === 0 ? null : new Ranker(tokens, resolution.lean, maximal).rank(roots);
       if (ranking === null) {
         // A text that maximal leaves with no derivation is rejected at the
@@ -10377,11 +10376,11 @@
       }
       let roots = rootItems(chart, "text");
       if (fault("lost:roots")) roots = [];
-      // Neither form of maximality applies to the derivations of R (engine
+      // Maximality does not apply to the derivations of R (engine
       // §7.7), unless a fault applies them (F20). Cycles are over spans of R,
       // unless a fault finds them over projected spans (F19).
-      const maximal = fault("F20") && (lowered.resolution.maximal || lowered.maximalHelpers.size > 0)
-        ? maximalRule(chart, lowered, lowered.resolution.maximal) : null;
+      const maximal = fault("F20") && (lowered.maximalHelpers.size > 0)
+        ? maximalRule(chart, lowered) : null;
       // A test that watches the check marks W(D)'s edges before the check
       // ranks (tests/README.md).
       const watch = hooks.elisionCheck ? hooks.elisionCheck({ chosen, chart, roots, synthetic, originalAt, recordAt }) : null;
@@ -11367,6 +11366,9 @@
         const operands = parts(item).filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag");
         const problem = operandProblem(name, operands.map((child) => operandKind(child)));
         if (problem) fail(problem, item);
+        if (name === "ambiguity-resolution" && operands.some((child) => text(token(child)) === "maximal")) {
+          fail("stage-wide maximal is retired; use [++T] for an individual terminator", item);
+        }
         directives.push({
           name,
           // A string operand is decoded, as a string of a rule is, and a tag
@@ -12610,10 +12612,34 @@
     constructor(read) {
       this.read = read;
       this.unicode = new UnicodeTable(this.need("unicode.txt"));
-      const bootstrap = readBootstrap(this.need("notation/bootstrap.json"), this.unicode);
-      this.bootstrapHash = fnv1a64(this.need("notation/bootstrap.json"));
-      this.notation = new Dialect("dialects/notation.md", bootstrap.stages.map((stage) =>
-        new Stage(stage.name, new Grammar(stage.name, stage.documents.map((document) => ({ path: document.path, dom: document.dom })), this.unicode))), this);
+      try {
+        const bootstrapText = this.need("notation/bootstrap.json");
+        const bootstrap = readBootstrap(bootstrapText, this.unicode);
+        this.bootstrapHash = fnv1a64(bootstrapText);
+        this.notation = new Dialect("dialects/notation.md", bootstrap.stages.map((stage) => {
+          try {
+            return new Stage(stage.name, new Grammar(stage.name, stage.documents.map((document) => ({ path: document.path, dom: document.dom })), this.unicode));
+          } catch (error) {
+            if (error instanceof GencmuError) error.where.stage = stage.name;
+            throw error;
+          }
+        }), this);
+        for (const stage of this.notation.stages) stage.grammar.lower(new Set());
+      } catch (error) {
+        if (error instanceof GencmuError) {
+          const embedded = error.where.document;
+          if (embedded && embedded !== "notation/bootstrap.json" && !error.message.includes(embedded)) {
+            error.message += ` (embedded document: ${embedded})`;
+          }
+          error.where.document = "notation/bootstrap.json";
+          const location = [error.where.document, error.where.line, error.where.column].filter((part) => part !== undefined).join(":");
+          if (!error.message.startsWith(`${location}: `)) {
+            const stage = error.where.stage ? `stage ${error.where.stage}: ` : "";
+            error.message = `${location}: ${stage}${error.message}`;
+          }
+        }
+        throw error;
+      }
       /** @type {Map<string, CompiledEntry>} */
       this.compiled = new Map();
       // Precompiled DOMs are a cache: one that cannot be read, or an entry
@@ -12642,7 +12668,11 @@
      * @returns {string}
      */
     need(path) {
-      const text = this.read(path);
+      let text;
+      try { text = this.read(path); } catch (error) {
+        if (path !== "notation/bootstrap.json" || error instanceof GencmuError) throw error;
+        throw new GencmuError("grammar", `cannot read the bootstrap: ${error instanceof Error ? error.message : String(error)}`, { document: path }, { cause: error });
+      }
       if (text === undefined) throw new GencmuError("grammar", `${path} was not found`, { document: path });
       return text;
     }
@@ -12737,12 +12767,15 @@
     for (const stage of stages) {
       // The guards of the stitched rules, and the gates of every classifier's
       // entries (engine §13).
-      const guards = [...stage.grammar.rules.values()].flatMap((rule) => rule.alternatives.flatMap((alternative) => alternative.guards));
-      for (const { classifier } of stage.grammar.classifierItems) for (const entry of classifier.entries) for (const guard of entry.guards) guards.push(guard);
-      for (const guard of guards) {
+      const guards = [...stage.grammar.rules.values()].flatMap((rule) => rule.alternatives.flatMap((alternative) =>
+        alternative.guards.map((guard) => ({ guard, where: { ...alternative.at, stage: stage.name } }))));
+      for (const { path: document, classifier } of stage.grammar.classifierItems) for (const entry of classifier.entries) for (const guard of entry.guards) {
+        guards.push({ guard, where: { document, line: entry.at[0], column: entry.at[1], stage: stage.name } });
+      }
+      for (const { guard, where } of guards) {
         const known = kinds.get(guard.feature);
         if (known !== undefined && known !== guard.kind) {
-          throw new GencmuError("grammar", `${path}: the feature ${guard.feature} is used both as a gate and as a warning`, { document: path });
+          throw new GencmuError("grammar", `${where.document}:${where.line}:${where.column}: the feature ${guard.feature} is used both as a gate and as a warning`, where);
         }
         kinds.set(guard.feature, guard.kind);
       }
@@ -13018,15 +13051,23 @@
     } catch (error) {
       throw new GencmuError("grammar", `notation/bootstrap.json is not JSON: ${/** @type {Error} */ (error).message}`, { document: "notation/bootstrap.json" });
     }
+    const names = new Set();
     const stages = data && data.format === DOM_FORMAT && Array.isArray(data.stages) ? data.stages : null;
     if (!stages || stages.length === 0) throw new GencmuError("grammar", "notation/bootstrap.json has no stages", { document: "notation/bootstrap.json" });
     for (const stage of stages) {
-      if (!stage || typeof stage.name !== "string" || !Array.isArray(stage.documents) || stage.documents.length === 0) {
+      if (!stage || typeof stage.name !== "string" || !isName(stage.name) || !Array.isArray(stage.documents) || stage.documents.length === 0) {
         throw new GencmuError("grammar", "notation/bootstrap.json has a malformed stage", { document: "notation/bootstrap.json" });
       }
+      if (names.has(stage.name)) throw new GencmuError("grammar", `notation/bootstrap.json: a second stage named ${stage.name}`, { document: "notation/bootstrap.json" });
+      names.add(stage.name);
       for (const document of stage.documents) {
         const problem = document && typeof document.path === "string" ? domProblem(document.dom, unicode) : "a document without a path";
         if (problem) throw new GencmuError("grammar", `notation/bootstrap.json: ${problem}`, { document: "notation/bootstrap.json" });
+      }
+    }
+    for (const stage of stages) {
+      if (!stage.documents.some((/** @type {{dom: GrammarDom}} */ document) => document.dom.rules.length > 0)) {
+        throw new GencmuError("grammar", `stage ${stage.name} has no rules`, { stage: stage.name });
       }
     }
     return data;
@@ -13631,8 +13672,6 @@
    * @property {"greedy" | "lazy" | "late-elision"} lean the rule of the
    *   ranking (engine §6)
    * @property {boolean} elisionOnly
-   * @property {boolean} maximal whether an elided terminator is forbidden
-   *   where its constituent could have been longer (engine §4)
    */
 
   /**

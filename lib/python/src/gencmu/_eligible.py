@@ -145,7 +145,7 @@ def eligible(forest: Forest, witnesses: list[int], context: StageContext | None 
             from ._maximal import Maximal
 
             assert context is not None
-            longest.append(Maximal(forest, context, False, base))
+            longest.append(Maximal(forest, context, base))
         production = productions[prod[item]]
         test = production.tests[dot[item] - 1] if production.tests else None
         return bool(longest[0].forbids(child, test))

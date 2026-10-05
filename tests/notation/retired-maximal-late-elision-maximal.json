@@ -1,0 +1,10 @@
+{
+  "description": "The reader rejects the retired stage-wide maximal operand at its directive.",
+  "document": "```jbogenbau\n%ambiguity-resolution late-elision maximal\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

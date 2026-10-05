@@ -81,7 +81,6 @@ pub(crate) struct StageGrammar {
     pub elision_only: bool,
     /// Whether an elided terminator is forbidden where its constituent
     /// could have been longer (engine §4).
-    pub maximal: bool,
     pub changes: Vec<Change>,
     /// The stage's `%classifier` items in stitching order, each with its
     /// document (engine §2).
@@ -109,7 +108,7 @@ impl StageGrammar {
     /// (engine §2). An entry that adds a membership that holds, or removes
     /// one that does not, is an error of the grammar for these features,
     /// whose message names the entry's document, line and column.
-    pub(crate) fn resolve_classifiers(&self, features: &BTreeSet<String>) -> Result<ClassifierTables, String> {
+    pub(crate) fn resolve_classifiers(&self, features: &BTreeSet<String>) -> Result<ClassifierTables, Error> {
         // Each key's classes as slots in the order added, a removed one
         // emptied, with where each class held stands, so that an entry
         // finds its class without a scan of the key's classes.
@@ -151,10 +150,13 @@ impl StageGrammar {
                                 format!("{key:?} is not in {}, so ∉ has nothing to remove", entry.class)
                             };
                             let (line, column) = entry.at;
-                            return Err(format!(
+                            return Err(Error::grammar(format!(
                                 "{document}:{line}:{column}: the classifier {}: {problem}",
                                 classifier.name
-                            ));
+                            ))
+                            .in_document(document)
+                            .at(line, column)
+                            .in_stage(&self.name));
                         }
                     }
                 }
@@ -199,7 +201,6 @@ pub(crate) fn stitch(
         index: HashMap::new(),
         lean: Lean::Greedy,
         elision_only: false,
-        maximal: false,
         changes: Vec::new(),
         classifiers: Vec::new(),
         implications: Arc::from(Vec::new()),
@@ -300,7 +301,7 @@ pub(crate) fn stitch(
                     }
                     let refused = || {
                         here(
-                            "%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only, then optionally maximal"
+                            "%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only"
                                 .to_string(),
                         )
                     };
@@ -314,7 +315,6 @@ pub(crate) fn stitch(
                     // Each optional word in its place, and nothing after
                     // them (engine §2).
                     grammar.elision_only = args.next_if_eq(&"elision-only").is_some();
-                    grammar.maximal = args.next_if_eq(&"maximal").is_some();
                     if args.next().is_some() {
                         return Err(refused());
                     }
@@ -1054,7 +1054,6 @@ mod tests {
                 index: HashMap::new(),
                 lean: Lean::Greedy,
                 elision_only: false,
-                maximal: false,
                 changes: Vec::new(),
                 classifiers: vec![(Arc::from("d.md"), ClassifierDef { name: "c".into(), entries, at: (0, 0) })],
                 implications: Arc::from(Vec::new()),

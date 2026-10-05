@@ -383,7 +383,7 @@ impl<'a> Proofs<'a> {
             return true;
         }
         let maximal =
-            self.maximal.get_or_init(|| Maximal::new(self.g, self.chart, self.tokens, self.unicode, self.tags, false));
+            self.maximal.get_or_init(|| Maximal::new(self.g, self.chart, self.tokens, self.unicode, self.tags));
         let constituent = self.item(child);
         let rule = self.g.prods[constituent.prod as usize].rule;
         !maximal.forbids(rule, constituent.origin, child.0, production.test(item.dot as usize - 1))

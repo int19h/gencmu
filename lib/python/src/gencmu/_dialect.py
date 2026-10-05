@@ -20,7 +20,7 @@ from ._model import Feature, Node, ParseError, ParseResult, ParseWarning, Stage,
 from ._pipeline import Pipeline, splice_pipeline
 from ._recent import Recent
 from ._stage import StageOutcome, StageRunner
-from ._tags import character_tag
+from ._tags import character_tag, is_name
 from ._unicode import UnicodeTable
 from ._validate import FORMAT, MAX_DEPTH, TOO_DEEP, dom_problem
 
@@ -62,6 +62,19 @@ def _decode(data: bytes, document: str) -> str:
         ) from None
 
 
+def _bootstrap_error(error: GencmuError) -> GencmuError:
+    embedded = error.document
+    if embedded and embedded != "notation/bootstrap.json" and embedded not in error.message:
+        error.message += f" (embedded document: {embedded})"
+    error.document = "notation/bootstrap.json"
+    location = error.where
+    if not error.message.startswith(f"{location}: "):
+        stage = f"stage {error.stage}: " if error.stage else ""
+        error.message = f"{location}: {stage}{error.message}"
+    error.args = (error.message,)
+    return error
+
+
 def _read_bundled(path: str) -> str | None:
     node = _bundled_root()
     for part in path.split("/"):
@@ -74,12 +87,14 @@ def _read_bundled(path: str) -> str | None:
         return None
     try:
         return _decode(data, path)
-    except GencmuError:
+    except GencmuError as error:
         # compiled.json is only a cache, so bytes of it that do not decode
         # make it absent, a miss for every document. Anything else that
         # does not decode stays an error.
         if path == "compiled.json":
             return None
+        if path == "notation/bootstrap.json":
+            _bootstrap_error(error)
         raise
 
 
@@ -149,6 +164,13 @@ class NotationReader:
         # The DOMs this reader read, by the hash of the text and the DOM
         # format. The module's lock guards it.
         self.doms: Recent[tuple[str, int], Dom] = Recent(_MAX_DOMS, _MAX_DOM_SIZE)
+        try:
+            self.stages = self._bootstrap_stages(bootstrap, unicode)
+        except GencmuError as error:
+            _bootstrap_error(error)
+            raise
+
+    def _bootstrap_stages(self, bootstrap: str, unicode: UnicodeTable) -> list[tuple[str, Lowered]]:
         where = "notation/bootstrap.json"
         try:
             data = json.loads(bootstrap)
@@ -160,10 +182,15 @@ class NotationReader:
         if not isinstance(data, dict) or data.get("format") != DOM_FORMAT or not isinstance(stages_data, list) or not stages_data:
             raise GencmuError(f"the bootstrap is an object of format {DOM_FORMAT} with at least one stage", document=where)
         stages: list[Grammar] = []
+        inputs: list[tuple[str, list[tuple[str, Dom]]]] = []
+        names: set[str] = set()
         for stage in stages_data:
             documents = stage.get("documents") if isinstance(stage, dict) else None
-            if not isinstance(stage, dict) or not isinstance(stage.get("name"), str) or not isinstance(documents, list):
+            if not isinstance(stage, dict) or not isinstance(stage.get("name"), str) or not is_name(stage["name"]) or not isinstance(documents, list) or not documents:
                 raise GencmuError("a stage of the bootstrap has a name and documents", document=where)
+            if stage["name"] in names:
+                raise GencmuError(f"a second stage named {stage['name']}", document=where)
+            names.add(stage["name"])
             pairs: list[tuple[str, Dom]] = []
             for document in documents:
                 if not isinstance(document, dict) or not isinstance(document.get("path"), str):
@@ -172,8 +199,25 @@ class NotationReader:
                 if problem is not None:
                     raise GencmuError(f"the bootstrap's DOM of {document['path']} is malformed: {problem}", document=where)
                 pairs.append((document["path"], document["dom"]))
-            stages.append(stitch(stage["name"], pairs, unicode))
-        self.stages = [(grammar.stage, lower(grammar, frozenset())) for grammar in stages]
+            inputs.append((stage["name"], pairs))
+        for name, pairs in inputs:
+            if not any(dom["rules"] for _, dom in pairs):
+                raise GencmuError(f"stage {name} has no rules", stage=name)
+        for name, pairs in inputs:
+            try:
+                stages.append(stitch(name, pairs, unicode))
+            except GencmuError as error:
+                error.stage = name
+                raise
+        _dialect_features(where, stages, frozenset())
+        lowered = []
+        for grammar in stages:
+            try:
+                lowered.append((grammar.stage, lower(grammar, frozenset())))
+            except GencmuError as error:
+                error.stage = grammar.stage
+                raise
+        return lowered
 
     def read(self, text: str, path: str) -> Dom:
         """The DOM of a grammar document (engine §8, §9)."""
@@ -368,8 +412,10 @@ def _resources(sources: Mapping[str, str] | None = None) -> _Resources:
 
     unicode = get("unicode.txt")
     bootstrap = get("notation/bootstrap.json")
-    if unicode is None or bootstrap is None:
-        raise GencmuError("the bundled grammars are missing unicode.txt or notation/bootstrap.json")
+    if unicode is None:
+        raise GencmuError("the bundled unicode.txt is missing", document="unicode.txt")
+    if bootstrap is None:
+        raise _bootstrap_error(GencmuError("the bundled bootstrap is missing"))
     return _Resources(unicode, bootstrap, get("compiled.json"))
 
 
@@ -418,15 +464,15 @@ def _dialect_features(path: str, grammars: list[Grammar], declared: frozenset[st
     name used both ways is an error of the dialect."""
     kinds: dict[str, str] = {}
     for grammar in grammars:
-        guards = [guard for rule in grammar.rules.values() for alternative in rule.alternatives for guard in alternative.guards]
-        for _, classifier in grammar.classifier_items:
+        guards = [(guard, alternative.document, alternative.at) for rule in grammar.rules.values() for alternative in rule.alternatives for guard in alternative.guards]
+        for document, classifier in grammar.classifier_items:
             for entry in classifier["entries"]:
-                guards.extend(entry["guards"])
-        for guard in guards:
+                guards.extend((guard, document, entry["at"]) for guard in entry["guards"])
+        for guard, document, at in guards:
             name = guard["feature"]
             kind = "warning" if guard.get("kind") == "warning" else "gate"
             if kinds.setdefault(name, kind) != kind:
-                raise GencmuError(f"the feature {name} is used both as a gate and as a warning", document=path)
+                raise GencmuError(f"{document}:{at[0]}:{at[1]}: the feature {name} is used both as a gate and as a warning", document=document, line=at[0], column=at[1], stage=grammar.stage)
     return tuple(Feature(name, kinds.get(name, "gate"), name in declared) for name in sorted(kinds.keys() | declared))
 
 

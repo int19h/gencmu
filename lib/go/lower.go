@@ -83,14 +83,14 @@ type lowered struct {
 	classes []*charClass
 	prods   []*production
 	lean    string // "greedy", "lazy", "late-elision", or "" for no lean (§6, §7)
-	maximal bool   // no terminator is elided where its constituent could have been longer (§4)
 	// maximalH holds the helpers of the optionals written [++T x], whose
 	// terminators are maximal, which maximality restricts anyway (§3.8, §4).
 	maximalH   map[int32]bool
 	sccMembers [][]int32
 	// fault is an error of the grammar that lowering for these features
 	// found (§3.3), or "": parsing with it is a result with that error.
-	fault string
+	fault         string
+	faultLocation *Error
 	// warns says some production gives warnings under these features (§12).
 	warns bool
 	// classifiers holds the stage's classifiers resolved for these
@@ -105,8 +105,8 @@ type lowered struct {
 	// every nested query asks (§3.8).
 	elidable    []bool
 	anyElidable bool
-	// maximalElides is maximalElides without and with stage-wide maximal.
-	maximalElides [2][]string
+	// maximalElides records the helpers of maximal terminators.
+	maximalElides []string
 }
 
 type slot struct {
@@ -190,13 +190,16 @@ type helperNode struct {
 // lower lowers a stage's grammar for a set of features. The check of
 // elision-only reads the same productions in a mode of its own (§3.8, §7.4).
 func lower(g *stageGrammar, features map[string]bool) *lowered {
-	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, lean: g.lean, maximal: g.maximal, maximalH: map[int32]bool{}}
+	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, lean: g.lean, maximalH: map[int32]bool{}}
 	// The stage resolves its classifiers for the same features, before it
 	// lowers its rules; an error there ends the stage as an error of
 	// lowering does (§2, §3.3).
 	tables := g.classifiers(features)
 	if tables.fault != "" {
 		l.fault = tables.fault
+		location := *tables.faultLocation
+		location.Stage = g.name
+		l.faultLocation = &location
 		return l
 	}
 	l.classifiers = tables.tables
@@ -217,7 +220,7 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 	}
 	l.computeCycles()
 	l.elidable, l.anyElidable = elidableHelpers(l)
-	l.maximalElides = [2][]string{maximalElides(l, false), maximalElides(l, true)}
+	l.maximalElides = maximalElides(l)
 	return l
 }
 
@@ -228,6 +231,7 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 func (lw *lowerer) loweringFault(a *sAlt, format string, args ...any) {
 	if lw.l.fault == "" {
 		lw.l.fault = fmt.Sprintf("%s:%d:%d: ", a.doc, a.at[0], a.at[1]) + fmt.Sprintf(format, args...)
+		lw.l.faultLocation = &Error{Kind: ErrorGrammar, Document: a.doc, Line: a.at[0], Column: a.at[1], Stage: lw.g.name, Message: lw.l.fault}
 	}
 }
 

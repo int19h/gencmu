@@ -477,7 +477,7 @@ pub(crate) struct Ranker<'c> {
     results: Vec<NodeResult>,
     fsets: Vec<Vec<u32>>,
     fset_index: FxMap<Vec<u32>, u32>,
-    /// The resolution's `maximal`, if it has it (§4).
+    /// The maximal terminators, if there are any (§4).
     maximal: Option<&'c Maximal<'c>>,
     /// Under `late-elision`, the vectors and the summaries.
     elisions: Option<Elisions>,

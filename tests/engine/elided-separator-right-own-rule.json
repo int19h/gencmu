@@ -1,6 +1,6 @@
 {
   "description": "Twin of elided-separator-right.json whose item can be the chain's own rule: r → r s r starts with its own left side, so the elided T after it has no constituent, and the text parses through that production (engine §3.3, §4).",
-  "grammar": "%ambiguity-resolution greedy maximal\n%rule text c\n%rule c {c | a ... \\ [+T] s}\n%rule a A | A B\n%rule s B S",
+  "grammar": "%ambiguity-resolution greedy\n%rule text c\n%rule c {c | a ... \\ [++T] s}\n%rule a A | A B\n%rule s B S",
   "tokens": [
     {
       "text": "a",

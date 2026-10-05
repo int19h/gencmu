@@ -1,6 +1,6 @@
 {
-  "description": "Stage-wide maximal restricts every marked optional: on A X B, the [+T] after the short body is forbidden, and the text is rejected at the T (engine §4).",
-  "grammar": "%ambiguity-resolution late-elision maximal\n%rule text x | y\n%rule x A body [+T] B\n%rule y C body [T] B\n%rule body X | X B",
+  "description": "Individual maximal markers restrict their optionals. On A X B, maximality forbids the [++T] after the short body. The engine rejects the text at T (engine §4).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text x | y\n%rule x A body [++T] B\n%rule y C body [T] B\n%rule body X | X B",
   "tokens": [
     {
       "text": "a",

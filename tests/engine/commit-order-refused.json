@@ -1,5 +1,5 @@
 {
-  "description": "maximal follows elision-only in the directive, when both are written (engine §2).",
+  "description": "The retired stage-wide maximal operand is a document error, regardless of operand order.",
   "grammar": "%ambiguity-resolution greedy maximal elision-only\n%rule text x\n%rule x A [+T]",
   "tokens": [
     {

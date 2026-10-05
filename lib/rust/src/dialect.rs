@@ -82,8 +82,8 @@ pub struct InputToken {
     pub phonemes: Option<String>,
 }
 
-type LoweredResult = Result<Arc<Lowered>, EngineError>;
-type ClassifiersResult = Result<Arc<ClassifierTables>, EngineError>;
+type LoweredResult = Result<Arc<Lowered>, Error>;
+type ClassifiersResult = Result<Arc<ClassifierTables>, Error>;
 /// A lowered grammar, or its error, built once by the first parse that
 /// needs it.
 type LoweredCell = Arc<OnceLock<LoweredResult>>;
@@ -189,18 +189,28 @@ struct Run {
 fn dialect_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec<Feature>, Error> {
     let mut kinds: BTreeMap<&str, FeatureKind> = BTreeMap::new();
     for stage in stages {
-        let rules = stage
-            .rules
-            .iter()
-            .flat_map(|rule| &rule.alternatives)
-            .flat_map(|alternative| &alternative.alternative.guards);
-        let entries = stage.classifiers.iter().flat_map(|(_, classifier)| &classifier.entries);
-        for guard in rules.chain(entries.flat_map(|entry| &entry.guards)) {
+        let rules = stage.rules.iter().flat_map(|rule| &rule.alternatives).flat_map(|alternative| {
+            alternative
+                .alternative
+                .guards
+                .iter()
+                .map(move |guard| (guard, alternative.document.as_ref(), alternative.at))
+        });
+        let entries = stage.classifiers.iter().flat_map(|(document, classifier)| {
+            classifier
+                .entries
+                .iter()
+                .flat_map(move |entry| entry.guards.iter().map(move |guard| (guard, document.as_ref(), entry.at)))
+        });
+        for (guard, document, (line, column)) in rules.chain(entries) {
             if *kinds.entry(&guard.feature).or_insert(guard.kind) != guard.kind {
                 return Err(Error::grammar(format!(
-                    "the feature {} is used both as a gate and as a warning",
+                    "{document}:{line}:{column}: the feature {} is used both as a gate and as a warning",
                     guard.feature
-                )));
+                ))
+                .in_document(document)
+                .at(line, column)
+                .in_stage(&stage.name));
             }
         }
     }
@@ -254,6 +264,14 @@ impl Dialect {
         Ok(Dialect { stages, declared, features, unicode, changes, caches })
     }
 
+    pub(crate) fn prepare_bootstrap(&self) -> Result<(), Error> {
+        let features = BTreeSet::new();
+        for (index, stage) in self.stages.iter().enumerate() {
+            self.lowered(index, &features).map_err(|error| error.in_stage(&stage.name))?;
+        }
+        Ok(())
+    }
+
     /// The names of the pipeline's stages, in order.
     pub fn stage_names(&self) -> Vec<&str> {
         self.stages.iter().map(|stage| stage.name.as_str()).collect()
@@ -292,9 +310,12 @@ impl Dialect {
             // The stage resolves its classifiers for the same features,
             // before it lowers its rules (§2, §3).
             let classifiers = self.classifiers(stage, &on)?;
-            lower(&self.stages[stage], &on, classifiers)
-                .map(Arc::new)
-                .map_err(|error| EngineError { message: error.message, rule: None })
+            lower(&self.stages[stage], &on, classifiers).map(Arc::new).map_err(|error| {
+                Error::grammar(error.message)
+                    .in_document(&error.document)
+                    .at(error.line, error.column)
+                    .in_stage(&error.stage)
+            })
         })
         .clone()
     }
@@ -315,7 +336,7 @@ impl Dialect {
             self.stages[stage]
                 .resolve_classifiers(&on)
                 .map(Arc::new)
-                .map_err(|message| EngineError { message, rule: None })
+                .map_err(|error| error.in_stage(&self.stages[stage].name))
         })
         .clone()
     }
@@ -552,7 +573,7 @@ impl Dialect {
         let lowered = match self.lowered(index, features) {
             Ok(lowered) => lowered,
             Err(error) => {
-                let error = self.grammar_error(index, error);
+                let error = self.grammar_error(index, EngineError { message: error.message, rule: None });
                 run.stages.push(stage);
                 return Err(Box::new(error));
             }
@@ -573,11 +594,9 @@ impl Dialect {
         let n = input.len();
         let accepted = chart.accepts(lowered.start, n);
         let lean = grammar.lean;
-        // Maximality applies under stage-wide `maximal`, and to the maximal
-        // terminators whether or not the stage declares it (§4).
-        let restricted = grammar.maximal || lowered.rules.iter().any(|rule| rule.maximal);
-        let maximal =
-            restricted.then(|| Maximal::new(&lowered, &chart, &input, shared.unicode, &shared.tags, grammar.maximal));
+        // Maximality applies to the marked terminators (§4).
+        let restricted = lowered.rules.iter().any(|rule| rule.maximal);
+        let maximal = restricted.then(|| Maximal::new(&lowered, &chart, &input, shared.unicode, &shared.tags));
         let ranked = if accepted {
             let mut ranker = Ranker::new(&lowered, &chart, &input, shared, lean, maximal.as_ref());
             ranker.rank().map(|ranking| {
@@ -904,7 +923,7 @@ impl Dialect {
         } else {
             None
         };
-        // Neither form of maximality applies to the derivations of R, and
+        // Maximality does not apply to the derivations of R, and
         // the ranking has no lean (§7.7).
         let ranking = if rooted {
             let marks = walk.as_ref().and_then(|walk| walk.as_ref()).map(|walk| &walk.marks);

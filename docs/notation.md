@@ -178,7 +178,7 @@ A chain cannot hold a capture, since a capture never stands inside braces (see "
 
 A right chain is not the same as an optional suffix. In a rule `r`, the body `x [s r]` and the chain `{x ... \ s}` read the same words. But the level of one item is `x` alone in the chain, and `x` with an empty optional in the suffix. That makes three differences:
 
-- The suffix can be an elidable optional, `[+T s′ r]`, where `s` is `T s′`. Where that suffix is absent, it leaves an elided node, and `late-elision` counts it. The chain has no optional there, so it elides nothing. So a text can tie, or resolve otherwise, under `late-elision`, and `maximal` and `elision-only` see a different terminator. A plain suffix, `[s r]`, elides nothing, as the chain does.
+- The suffix can be an elidable optional, `[+T s′ r]`, where `s` is `T s′`. Where that suffix is absent, it leaves an elided node, and `late-elision` counts it. The chain has no optional there, so it elides nothing. So a text can tie, or resolve otherwise, under `late-elision`, and maximal terminators and `elision-only` see a different terminator. A plain suffix, `[s r]`, elides nothing, as the chain does.
 - That level has the tags of `x` in the chain, where `x` is one symbol, and none with the suffix, unless the rule writes tags.
 - Where `s` begins with an elidable optional `[+T]`, the two place `[+T]` differently. In the suffix, it starts the optional's content, so it has no constituent. In the chain, it follows `x`, and the rules of "Elided terminators" decide its constituent.
 
@@ -555,7 +555,7 @@ An inserted token with a phoneme tag has that phoneme as its label, or a space f
 
 A directive is a keyword and its operands. By convention each stands in a block of its own, after prose that says why the grammar needs it. Two directives can share a line.
 
-- `%ambiguity-resolution` says how the stage chooses among parses. Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` and then `maximal` can follow it. "Ambiguity" and "Elided terminators" explain it. Every stage must say it exactly once, in any of its documents.
+- `%ambiguity-resolution` says how the stage chooses among parses. Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` can follow it. The retired operand `maximal` is an error. "Ambiguity" and "Elided terminators" explain it. Every stage must say it exactly once, in any of its documents.
 - No directive names the elidable terminators. Each elidable optional is marked in its place, as `[+KU]` or `[++TOI]` (see "Elided terminators"). `%elidable` is not a directive. A document that writes it is an error, which the reader reports at the keyword.
 - `%stage NAME`, `%include "PATH"` and `%features NAME…` build a pipeline, as the next section says.
 
@@ -632,7 +632,7 @@ The forms and words stages are lazy. The word forms divide a run in one way only
 
 ## Elided terminators
 
-CLL permits eliding a terminator "if no grammatical ambiguity results", and says no more about how a parser decides that. By default, a stage decides it from the whole text. A stage that declares `maximal` decides it as a PEG does.
+CLL permits eliding a terminator "if no grammatical ambiguity results", and says no more about how a parser decides that. A stage decides it from the whole text. A grammar can restrict an individual terminator with `[++T]`.
 
 A grammar marks each terminator that can be elided where it writes it. An elidable optional is a bracket, then `+`, then the terminator, then the rest of the optional:
 
@@ -667,23 +667,19 @@ A plain optional that holds a capture is expanded in place (see "Captures"), so 
 
 By default, the constituent of an elided terminator can end wherever a parse of the whole text needs it to end. The ranking above chooses among the parses. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses. The `sumti-tail` of `le lojbo` ends before `se farvi`, which becomes the selbri (the main predicate). A parse with the longer `sumti-tail` `lojbo se farvi` leaves the sentence without a selbri.
 
-`maximal` forbids an elided terminator where its constituent can be longer. If the constituent is a tested symbol, the test must hold of the longer one too. That is what a PEG's greedy repetition does: once a PEG reads a constituent, it never gives back what it read.
+A maximal terminator, written `[++T]`, cannot be elided where its constituent can be longer. If the constituent is a tested symbol, the test must hold of the longer one too. The longer constituent need not fit into a parse of the whole text. This restriction only removes parses and never chooses among those that remain.
 
-`le nanmu joi le ninmu cu klama` parses, because no longer `sumti-tail` begins at `nanmu`. `joi` can continue a tanru (a compound predicate), but `le` cannot follow it. The `le lojbo` text is an error, because `lojbo se farvi` is a longer `sumti-tail`. The longer constituent need not fit into a parse of the whole text, and that is what makes `maximal` commit as a PEG does.
+If maximal terminators remove every main parse, the text is an error. The error names the first forbidden terminator in the parse that the stage ranks first without the restriction. Where that ranking ties, the engine's canonical order selects the diagnostic parse. The canonical order never decides whether the text parses.
 
-`maximal` only removes parses, and never chooses among the parses that remain. The rule of the stage ranks the parses that remain, as before. `maximal` does not order the alternatives of a rule, as a PEG does. A stage that declares `maximal` still sees every parse that its rules allow, apart from those that `maximal` removes.
+`late-elision` ranks only complete parses. Maximal terminators can exclude a parse because of a longer constituent that fits no complete parse. So ranking cannot replace the restriction.
 
-If maximality, from stage-wide `maximal` or from maximal terminators, removes every main parse, the text is an error. The error is at the first terminator that maximality forbids in the parse that the stage ranks first without it. Writing that terminator out ends its constituent there. Where that ranking is a tie, the engine's canonical order decides which tied parse names the terminator. It never decides whether the text parses.
+`[++T]` applies in the main parse and inside `matches`, `begins` and `tags`. Inside a query, the longer constituent lies within the query's span. Written-terminator priority also applies there. An optional written `[+T]` keeps the default, even when another optional of that terminal uses `[++T]`.
 
-`maximal` and `late-elision` do different things, and a stage can declare both. `late-elision` ranks only parses of the whole text. `maximal` removes a parse because of a longer constituent, even one that fits no parse of the whole text. So a ranking cannot reproduce the rejections of `maximal`.
-
-Stage-wide `maximal` holds for every elidable optional of a stage, and only in its main parse. A grammar can also make a single optional's terminator maximal, by writing it `[++T]` (engine §4). Such a terminator follows the rule of `maximal` wherever that optional is elided, in the main parse and inside `matches`, `begins` and `tags`. Inside a query, the longer constituent lies within the query's own span, and it holds whether or not a terminator is written. The other elidable optionals of the stage keep the default, also those of the same terminator written `[+T]`.
-
-`[++T]` is transitional. Only the Zantufa dialect uses it, for `TOI` and `SEhU`, until its redesign (GitHub issues #138 and #139). Stage-wide `maximal` in `%ambiguity-resolution` stays too for now, for the bpfk dialect.
+Only the Zantufa dialect uses `[++T]`, for `TOI` and `SEhU`, until its redesign (GitHub issues #138 and #139). The notation retires stage-wide `maximal`. A document that declares it is an error.
 
 A rejection names a forbidden terminator only when maximality removes every main parse. A nested query that maximality changes only changes the value of its condition. If no parse then remains, the error is an ordinary rejection, which lists the terminals expected at the furthest position.
 
-This is for a construct that a reader closes as late as it can, such as a parenthesis. In Zantufa, `so to mi klama` can close the parenthesis `to` after `mi`, with `toi` elided, and leave `klama` as the selbri. The reference parser reads `to mi klama` as one parenthesis. No `toi` is written, so written-terminator priority cannot decide. With `TOI` maximal, the `to` cannot close before `klama`, because a longer parenthesis exists.
+`[++T]` is for a construct that a reader closes as late as it can, such as a parenthesis. In Zantufa, `so to mi klama` can close the parenthesis `to` after `mi`, with `toi` elided, and leave `klama` as the selbri. The reference parser reads `to mi klama` as one parenthesis. No `toi` is written, so written-terminator priority cannot decide. With `TOI` maximal, the `to` cannot close before `klama`, because a longer parenthesis exists.
 
 CLL's own rule is narrower: a terminator can be elided only if no ambiguity results. CLL says nothing of the other ambiguities of its EBNF. `elision-only` is one reading of that rule. It tests only the parse that the ranking chose, and CLL does not say how to choose that parse.
 
