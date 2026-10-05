@@ -271,13 +271,12 @@ fn bootstrap_errors_name_the_bootstrap_document() {
         if let Some(message) = item.get("message").and_then(Value::str) {
             assert!(error.message.contains(message), "{description}: {error}");
         }
-        if let Some(line) = item.get("line").and_then(Value::number) {
-            assert_eq!(error.line, Some(line as usize), "{description}: {error}");
-            assert_eq!(
-                error.column,
-                item.get("column").and_then(Value::number).map(|n| n as usize),
-                "{description}: {error}"
-            );
-        }
+        assert_eq!(error.stage.as_deref(), item.get("stage").and_then(Value::str), "{description}: {error}");
+        assert_eq!(error.line, item.get("line").and_then(Value::number).map(|n| n as usize), "{description}: {error}");
+        assert_eq!(
+            error.column,
+            item.get("column").and_then(Value::number).map(|n| n as usize),
+            "{description}: {error}"
+        );
     }
 }

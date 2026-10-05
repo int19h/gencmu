@@ -89,7 +89,8 @@ type lowered struct {
 	sccMembers [][]int32
 	// fault is an error of the grammar that lowering for these features
 	// found (§3.3), or "": parsing with it is a result with that error.
-	fault string
+	fault         string
+	faultLocation *Error
 	// warns says some production gives warnings under these features (§12).
 	warns bool
 	// classifiers holds the stage's classifiers resolved for these
@@ -196,6 +197,9 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 	tables := g.classifiers(features)
 	if tables.fault != "" {
 		l.fault = tables.fault
+		location := *tables.faultLocation
+		location.Stage = g.name
+		l.faultLocation = &location
 		return l
 	}
 	l.classifiers = tables.tables
@@ -227,6 +231,7 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 func (lw *lowerer) loweringFault(a *sAlt, format string, args ...any) {
 	if lw.l.fault == "" {
 		lw.l.fault = fmt.Sprintf("%s:%d:%d: ", a.doc, a.at[0], a.at[1]) + fmt.Sprintf(format, args...)
+		lw.l.faultLocation = &Error{Kind: ErrorGrammar, Document: a.doc, Line: a.at[0], Column: a.at[1], Stage: lw.g.name, Message: lw.l.fault}
 	}
 }
 

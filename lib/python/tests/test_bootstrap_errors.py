@@ -35,9 +35,8 @@ class BootstrapErrors(unittest.TestCase):
                     self.assertIn(item["context"], raised.exception.message)
                 if "message" in item:
                     self.assertIn(item["message"], raised.exception.message)
-                if "line" in item:
-                    self.assertEqual(raised.exception.line, item["line"])
-                    self.assertEqual(raised.exception.column, item["column"])
+                for field in ("stage", "line", "column"):
+                    self.assertEqual(getattr(raised.exception, field), item[field], field)
 
     def test_bootstrap_file_reading_errors(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

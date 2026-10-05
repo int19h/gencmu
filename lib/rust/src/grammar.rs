@@ -108,7 +108,7 @@ impl StageGrammar {
     /// (engine §2). An entry that adds a membership that holds, or removes
     /// one that does not, is an error of the grammar for these features,
     /// whose message names the entry's document, line and column.
-    pub(crate) fn resolve_classifiers(&self, features: &BTreeSet<String>) -> Result<ClassifierTables, String> {
+    pub(crate) fn resolve_classifiers(&self, features: &BTreeSet<String>) -> Result<ClassifierTables, Error> {
         // Each key's classes as slots in the order added, a removed one
         // emptied, with where each class held stands, so that an entry
         // finds its class without a scan of the key's classes.
@@ -150,10 +150,13 @@ impl StageGrammar {
                                 format!("{key:?} is not in {}, so ∉ has nothing to remove", entry.class)
                             };
                             let (line, column) = entry.at;
-                            return Err(format!(
+                            return Err(Error::grammar(format!(
                                 "{document}:{line}:{column}: the classifier {}: {problem}",
                                 classifier.name
-                            ));
+                            ))
+                            .in_document(document)
+                            .at(line, column)
+                            .in_stage(&self.name));
                         }
                     }
                 }

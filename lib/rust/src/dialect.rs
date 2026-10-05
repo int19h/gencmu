@@ -82,8 +82,8 @@ pub struct InputToken {
     pub phonemes: Option<String>,
 }
 
-type LoweredResult = Result<Arc<Lowered>, EngineError>;
-type ClassifiersResult = Result<Arc<ClassifierTables>, EngineError>;
+type LoweredResult = Result<Arc<Lowered>, Error>;
+type ClassifiersResult = Result<Arc<ClassifierTables>, Error>;
 /// A lowered grammar, or its error, built once by the first parse that
 /// needs it.
 type LoweredCell = Arc<OnceLock<LoweredResult>>;
@@ -257,7 +257,7 @@ impl Dialect {
     pub(crate) fn prepare_bootstrap(&self) -> Result<(), Error> {
         let features = BTreeSet::new();
         for (index, stage) in self.stages.iter().enumerate() {
-            self.lowered(index, &features).map_err(|error| Error::grammar(error.message).in_stage(&stage.name))?;
+            self.lowered(index, &features).map_err(|error| error.in_stage(&stage.name))?;
         }
         Ok(())
     }
@@ -300,9 +300,12 @@ impl Dialect {
             // The stage resolves its classifiers for the same features,
             // before it lowers its rules (§2, §3).
             let classifiers = self.classifiers(stage, &on)?;
-            lower(&self.stages[stage], &on, classifiers)
-                .map(Arc::new)
-                .map_err(|error| EngineError { message: error.message, rule: None })
+            lower(&self.stages[stage], &on, classifiers).map(Arc::new).map_err(|error| {
+                Error::grammar(error.message)
+                    .in_document(&error.document)
+                    .at(error.line, error.column)
+                    .in_stage(&error.stage)
+            })
         })
         .clone()
     }
@@ -323,7 +326,7 @@ impl Dialect {
             self.stages[stage]
                 .resolve_classifiers(&on)
                 .map(Arc::new)
-                .map_err(|message| EngineError { message, rule: None })
+                .map_err(|error| error.in_stage(&self.stages[stage].name))
         })
         .clone()
     }
@@ -560,7 +563,7 @@ impl Dialect {
         let lowered = match self.lowered(index, features) {
             Ok(lowered) => lowered,
             Err(error) => {
-                let error = self.grammar_error(index, error);
+                let error = self.grammar_error(index, EngineError { message: error.message, rule: None });
                 run.stages.push(stage);
                 return Err(Box::new(error));
             }

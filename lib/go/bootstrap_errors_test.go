@@ -18,7 +18,8 @@ func TestBootstrapErrorMetadata(t *testing.T) {
 		Kind, Document string
 		Cases          []struct {
 			Description, Find, Replace, Context, Message string
-			Line, Column                                 int
+			Stage                                        *string
+			Line, Column                                 *int
 			Bootstrap                                    *string
 		}
 	}
@@ -61,9 +62,20 @@ func TestBootstrapErrorMetadata(t *testing.T) {
 			if item.Message != "" && !strings.Contains(e.Message, item.Message) {
 				t.Fatalf("expected %q, got %s", item.Message, e)
 			}
-			if item.Line != 0 && (e.Line != item.Line || e.Column != item.Column) {
-				t.Fatalf("expected %d:%d, got %d:%d", item.Line, item.Column, e.Line, e.Column)
+			line, column, stage := 0, 0, ""
+			if item.Line != nil {
+				line = *item.Line
 			}
+			if item.Column != nil {
+				column = *item.Column
+			}
+			if item.Stage != nil {
+				stage = *item.Stage
+			}
+			if e.Line != line || e.Column != column || e.Stage != stage {
+				t.Fatalf("expected stage %q at %d:%d, got %#v", stage, line, column, e)
+			}
+
 		})
 	}
 }

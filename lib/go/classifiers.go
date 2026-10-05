@@ -29,8 +29,9 @@ type stageImplication struct {
 // features: for each classifier, each key's classes, a tag set. fault is
 // the error of the grammar that resolving them found, or "".
 type classifierTables struct {
-	tables map[string]map[string]*constValue
-	fault  string
+	tables        map[string]map[string]*constValue
+	fault         string
+	faultLocation *Error
 }
 
 // stageClassifiers holds a stage's classifier items in stitching order and
@@ -153,7 +154,8 @@ func resolveClassifiers(items []classifierItem, features map[string]bool) *class
 					if e.Op == "∉" {
 						message = fmt.Sprintf("%s is not in %s, so ∉ has nothing to remove", strconv.Quote(word), e.Class)
 					}
-					return &classifierTables{fault: fmt.Sprintf("%s:%d:%d: the classifier %s: %s", it.doc, e.At[0], e.At[1], c.Name, message)}
+					fault := fmt.Sprintf("%s:%d:%d: the classifier %s: %s", it.doc, e.At[0], e.At[1], c.Name, message)
+					return &classifierTables{fault: fault, faultLocation: &Error{Kind: ErrorGrammar, Document: it.doc, Line: e.At[0], Column: e.At[1], Message: fault}}
 				}
 				if e.Op == "∈" {
 					held.add(e.Class)

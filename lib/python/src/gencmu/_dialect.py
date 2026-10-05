@@ -194,8 +194,19 @@ class NotationReader:
                 if problem is not None:
                     raise GencmuError(f"the bootstrap's DOM of {document['path']} is malformed: {problem}", document=where)
                 pairs.append((document["path"], document["dom"]))
-            stages.append(stitch(stage["name"], pairs, unicode))
-        return [(grammar.stage, lower(grammar, frozenset())) for grammar in stages]
+            try:
+                stages.append(stitch(stage["name"], pairs, unicode))
+            except GencmuError as error:
+                error.stage = stage["name"]
+                raise
+        lowered = []
+        for grammar in stages:
+            try:
+                lowered.append((grammar.stage, lower(grammar, frozenset())))
+            except GencmuError as error:
+                error.stage = grammar.stage
+                raise
+        return lowered
 
     def read(self, text: str, path: str) -> Dom:
         """The DOM of a grammar document (engine §8, §9)."""

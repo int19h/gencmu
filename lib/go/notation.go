@@ -78,11 +78,13 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 		}
 		g, gerr := stitch(*s.Name, docs, uni)
 		if gerr != nil {
+			gerr.Stage = *s.Name
 			return nil, gerr
 		}
 		l := lower(g, nil)
 		if l.fault != "" {
-			return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Stage: *s.Name, Message: l.fault}
+			fault := *l.faultLocation
+			return nil, &fault
 		}
 		nr.stages = append(nr.stages, g)
 		nr.lowered = append(nr.lowered, l)

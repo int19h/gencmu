@@ -151,7 +151,7 @@ fn build_notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dial
                 .and_then(|dom| dom_from_json(dom, &unicode).map_err(grammar_error))?;
             documents.push((path, Arc::new(dom)));
         }
-        stages.push(stitch(&name, &documents, &unicode)?);
+        stages.push(stitch(&name, &documents, &unicode).map_err(|error| error.in_stage(&name))?);
     }
     let dialect = Dialect::new(stages, Vec::new(), unicode)?;
     dialect.prepare_bootstrap()?;

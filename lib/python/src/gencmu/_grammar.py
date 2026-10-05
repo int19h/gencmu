@@ -166,6 +166,7 @@ class Grammar:
             try:
                 found = _resolve_classifiers(self.classifier_items, key)
             except GencmuError as error:
+                error.stage = self.stage
                 found = ErrorData.of(error)
             with self._lock:
                 self._classifier_tables.put(key, found)
@@ -210,7 +211,7 @@ def _resolve_classifiers(items: list[tuple[str, Dom]], features: frozenset[str])
                     message = f"{word} is already in {name}" if adds else f"{word} is not in {name}, so ∉ has nothing to remove"
                     # A lowering error is a result's, whose message alone
                     # names the entry (engine §2).
-                    raise GencmuError(f"{path}:{line}:{column}: the classifier {classifier['name']}: {message}")
+                    raise GencmuError(f"{path}:{line}:{column}: the classifier {classifier['name']}: {message}", document=path, line=line, column=column)
                 if adds:
                     classes.add(name)
                 else:
@@ -880,7 +881,7 @@ class _Lowerer:
         document = alt.document if alt else (rule.document if rule else "")
         at = alt.at if alt else (rule.at if rule else None)
         place = f"{document}:{at[0]}:{at[1]}" if at is not None else document
-        return GencmuError(f"{place}: {message}", stage=self.grammar.stage)
+        return GencmuError(f"{place}: {message}", document=document or None, line=at[0] if at else None, column=at[1] if at else None, stage=self.grammar.stage)
 
     # -- expansions
 

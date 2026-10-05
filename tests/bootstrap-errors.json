@@ -4,44 +4,71 @@
   "cases": [
     {
       "description": "Invalid bootstrap JSON",
-      "bootstrap": "{"
+      "bootstrap": "{",
+      "line": null,
+      "column": null,
+      "stage": null
     },
     {
       "description": "Unsupported bootstrap format",
-      "bootstrap": "{\"format\":0,\"stages\":[]}"
+      "bootstrap": "{\"format\":0,\"stages\":[]}",
+      "line": null,
+      "column": null,
+      "stage": null
     },
     {
       "description": "Missing bootstrap stages",
-      "bootstrap": "{\"format\":18,\"stages\":[]}"
+      "bootstrap": "{\"format\":18,\"stages\":[]}",
+      "line": null,
+      "column": null,
+      "stage": null
     },
     {
       "description": "Malformed bootstrap stage",
-      "bootstrap": "{\"format\":18,\"stages\":[null]}"
+      "bootstrap": "{\"format\":18,\"stages\":[null]}",
+      "line": null,
+      "column": null,
+      "stage": null
     },
     {
       "description": "Missing bootstrap DOM",
       "find": "\"dom\":",
-      "replace": "\"absent\":"
+      "replace": "\"absent\":",
+      "line": null,
+      "column": null,
+      "stage": null
     },
     {
       "description": "Malformed bootstrap DOM",
       "find": "\"rules\":[",
-      "replace": "\"rules\":null,\"absent\":["
+      "replace": "\"rules\":null,\"absent\":[",
+      "line": null,
+      "column": null,
+      "stage": null
     },
     {
       "description": "Retired greedy maximal operand",
       "find": "\"args\":[\"greedy\"]",
-      "replace": "\"args\":[\"greedy\",\"maximal\"]"
+      "replace": "\"args\":[\"greedy\",\"maximal\"]",
+      "line": null,
+      "column": null,
+      "stage": null
     },
     {
       "description": "Retired late-elision maximal operand",
       "find": "\"args\":[\"greedy\"]",
-      "replace": "\"args\":[\"late-elision\",\"elision-only\",\"maximal\"]"
+      "replace": "\"args\":[\"late-elision\",\"elision-only\",\"maximal\"]",
+      "line": null,
+      "column": null,
+      "stage": null
     },
     {
       "description": "Missing bootstrap resolution",
       "find": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[16,1]}]",
-      "replace": "\"directives\":[]"
+      "replace": "\"directives\":[]",
+      "line": null,
+      "column": null,
+      "stage": "lexical"
     },
     {
       "description": "Duplicate bootstrap resolution",
@@ -49,7 +76,8 @@
       "replace": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[900,1]},",
       "line": 16,
       "column": 1,
-      "context": "notation/lexical.md"
+      "context": "notation/lexical.md",
+      "stage": "lexical"
     },
     {
       "description": "Duplicate bootstrap rule",
@@ -57,79 +85,131 @@
       "replace": "\"name\":\"word\",\"op\":\"define\"",
       "line": 39,
       "column": 1,
-      "context": "notation/lexical.md"
+      "context": "notation/lexical.md",
+      "stage": "lexical"
     },
     {
       "description": "Missing bootstrap stage name",
       "find": "\"name\":\"lexical\",",
-      "replace": ""
+      "replace": "",
+      "line": null,
+      "column": null,
+      "stage": null
     },
     {
       "description": "Bootstrap stage name is null",
       "find": "\"name\":\"lexical\"",
-      "replace": "\"name\":null"
+      "replace": "\"name\":null",
+      "line": null,
+      "column": null,
+      "stage": null
     },
     {
       "description": "Bootstrap stage name is number",
       "find": "\"name\":\"lexical\"",
-      "replace": "\"name\":0"
+      "replace": "\"name\":0",
+      "line": null,
+      "column": null,
+      "stage": null
     },
     {
       "description": "Bootstrap stage name is boolean",
       "find": "\"name\":\"lexical\"",
-      "replace": "\"name\":false"
+      "replace": "\"name\":false",
+      "line": null,
+      "column": null,
+      "stage": null
     },
     {
       "description": "Bootstrap stage name is object",
       "find": "\"name\":\"lexical\"",
-      "replace": "\"name\":{}"
+      "replace": "\"name\":{}",
+      "line": null,
+      "column": null,
+      "stage": null
     },
     {
       "description": "Bootstrap stage name is array",
       "find": "\"name\":\"lexical\"",
-      "replace": "\"name\":[]"
+      "replace": "\"name\":[]",
+      "line": null,
+      "column": null,
+      "stage": null
     },
     {
       "description": "Missing bootstrap document path",
       "find": "\"path\":\"notation/lexical.md\",",
-      "replace": ""
+      "replace": "",
+      "line": null,
+      "column": null,
+      "stage": null
     },
     {
       "description": "Bootstrap document path is null",
       "find": "\"path\":\"notation/lexical.md\"",
-      "replace": "\"path\":null"
+      "replace": "\"path\":null",
+      "line": null,
+      "column": null,
+      "stage": null
     },
     {
       "description": "Bootstrap document path is number",
       "find": "\"path\":\"notation/lexical.md\"",
-      "replace": "\"path\":0"
+      "replace": "\"path\":0",
+      "line": null,
+      "column": null,
+      "stage": null
     },
     {
       "description": "Bootstrap document path is boolean",
       "find": "\"path\":\"notation/lexical.md\"",
-      "replace": "\"path\":false"
+      "replace": "\"path\":false",
+      "line": null,
+      "column": null,
+      "stage": null
     },
     {
       "description": "Bootstrap document path is object",
       "find": "\"path\":\"notation/lexical.md\"",
-      "replace": "\"path\":{}"
+      "replace": "\"path\":{}",
+      "line": null,
+      "column": null,
+      "stage": null
     },
     {
       "description": "Bootstrap document path is array",
       "find": "\"path\":\"notation/lexical.md\"",
-      "replace": "\"path\":[]"
+      "replace": "\"path\":[]",
+      "line": null,
+      "column": null,
+      "stage": null
     },
     {
       "description": "Nullable item in bootstrap braces",
       "bootstrap": "{\"format\":18,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"embedded.md\",\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"empty\"}}}],\"conditions\":[],\"at\":[40,2]},{\"name\":\"empty\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}}],\"conditions\":[],\"at\":[41,2]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[1,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
       "context": "embedded.md",
-      "message": "an item of braces"
+      "message": "an item of braces",
+      "line": 40,
+      "column": 2,
+      "stage": "lexical"
     },
     {
       "description": "Bootstrap chain beside another alternative",
       "bootstrap": "{\"format\":18,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"embedded.md\",\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"A\"},\"chain\":\"left\"}},{\"guards\":[],\"expr\":{\"ref\":\"B\"}}],\"conditions\":[],\"at\":[40,2]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[1,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
       "context": "embedded.md",
-      "message": "chain"
+      "message": "chain",
+      "line": 40,
+      "column": 2,
+      "stage": "lexical"
+    },
+    {
+      "description": "Conflicting bootstrap classifier entries",
+      "bootstrap": "{\"format\":18,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"embedded.md\",\"dom\":{\"format\":18,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[40,2]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[1,1]}],\"constants\":[],\"classifiers\":[{\"name\":\"letters\",\"entries\":[{\"guards\":[],\"keys\":[\"a\"],\"op\":\"∈\",\"class\":\"A\",\"at\":[50,3]},{\"guards\":[],\"keys\":[\"a\"],\"op\":\"∈\",\"class\":\"A\",\"at\":[51,4]}],\"at\":[49,1]}],\"implications\":[]}}]}]}",
+      "context": "embedded.md",
+      "message": "already in",
+      "stage": "lexical",
+      "line": 51,
+      "column": 4
     }
   ]
 }
