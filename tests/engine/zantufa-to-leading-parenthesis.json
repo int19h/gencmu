@@ -1,0 +1,99 @@
+{
+  "description": "Zantufa TO_post places a leading nested parenthesis in the opener slot. The outer parenthesis body remains empty (grammars/syntax/zantufa.md).",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "to to mi klama toi toi",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "#",
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "free",
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "TO",
+                    "token": 0
+                  },
+                  {
+                    "kind": "rule",
+                    "rule": "#",
+                    "children": [
+                      {
+                        "kind": "rule",
+                        "rule": "free",
+                        "children": [
+                          {
+                            "kind": "token",
+                            "terminal": "TO",
+                            "token": 1
+                          },
+                          {
+                            "kind": "rule",
+                            "rule": "#",
+                            "children": []
+                          },
+                          {
+                            "kind": "rule",
+                            "rule": "parenthesis-text"
+                          },
+                          {
+                            "kind": "token",
+                            "terminal": "TOI",
+                            "token": 4
+                          },
+                          {
+                            "kind": "rule",
+                            "rule": "#",
+                            "children": []
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "rule",
+                    "rule": "parenthesis-text",
+                    "children": [
+                      {
+                        "kind": "rule",
+                        "rule": "text",
+                        "children": [
+                          {
+                            "kind": "rule",
+                            "rule": "#",
+                            "children": []
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "TOI",
+                    "token": 5
+                  },
+                  {
+                    "kind": "rule",
+                    "rule": "#",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

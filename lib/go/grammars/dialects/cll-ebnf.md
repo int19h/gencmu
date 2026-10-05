@@ -90,7 +90,7 @@ The warning `y-cmavo` reports a cmavo that uses `y` as a vowel beyond the forms 
 
 The stage applies CLL's non-formal rule `word = [BAhE] any-word [indicators]`. Indicators attach to the preceding word, and `ba'e` attaches to the following word.
 
-CLL 21.2 writes `LU text`, whose initial indicators modify what follows under CLL 13.9. Indicators after `lu` therefore begin quoted content. CLL 19.12 example 19.67 instead attaches `sa'a` to `to'i` over the whole bracketed remark. Indicators after `to` and `to'i` attach to the opener.
+CLL 21.2 writes `LU text`, whose initial indicators modify what follows under the text-initial exception of CLL 13.9. Indicators after `lu` therefore begin quoted content. CLL 19.12 example 19.67 gives `sa'a` scope over the whole bracketed remark. The BPFK section "Digressives" defines `to'i` as "Equivalent to {to sa'a}". These sources support attachment after `to` and `to'i` to the opener.
 
 The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs. A quoted text takes the same start as a whole text. CLL 21.2 permits initial names or indicators, but not both.
 

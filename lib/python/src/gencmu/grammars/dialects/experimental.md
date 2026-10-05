@@ -147,7 +147,7 @@ A replacement quote is one unit of raw words in the word stage (`../words/lohai.
 
 Indicators after `to` and `to'i` attach to the opener, as camxes-exp's `TO_post` specifies. CLL 19.12 example 19.67 gives `sa'a` after `to'i` scope over the whole bracketed remark.
 
-Indicators after `lu` begin the quoted content. CLL 21.2 writes `LU text`, and CLL 13.9 gives initial indicators scope over what follows. The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs.
+Indicators after `lu` begin the quoted content. CLL 21.2 writes `LU text`, and the text-initial exception of CLL 13.9 gives initial indicators scope over what follows. The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs.
 
 A quote or a parenthesis whose terminator is elided can hold a fragment of terms or a whole sentence. So `to mi klama` holds `mi` or `mi klama`. The reading with `mi` elides `vau` and `toi` after `mi`, so `late-elision` takes the sentence, as camxes-exp does.
 
