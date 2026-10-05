@@ -54,7 +54,7 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 			} `json:"documents"`
 		} `json:"stages"`
 	}
-	if err := unmarshalJSON([]byte(bootstrap), &b, "dom"); err != nil {
+	if err := unmarshalJSON([]byte(bootstrap), &b); err != nil {
 		return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "cannot read the bootstrap: " + err.Error()}
 	}
 	if b.Format != domFormat {

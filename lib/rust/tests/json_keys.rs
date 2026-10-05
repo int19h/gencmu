@@ -37,7 +37,9 @@ fn shared_json_keys() {
         let mut sources = sources();
         sources.insert("notation/bootstrap.json".into(), mutate(&bundled, case));
         let outcome = gencmu::load_dialect_sources(sources, "p.md");
-        if flag(case, "loads") {
+        // The shared case records Rust's existing integer limit explicitly.
+        let loads = flag(case, if case.get("rustLoads").is_some() { "rustLoads" } else { "loads" });
+        if loads {
             let dialect = outcome.unwrap_or_else(|e| panic!("{}: {e}", text(case, "description")));
             assert!(dialect.parse("a", &Default::default()).unwrap().ok, "{}", text(case, "description"));
         } else {
@@ -55,19 +57,24 @@ fn shared_json_keys() {
         let cache = mutate(text(&fixtures, "cache"), case)
             .replace("@bootstrap@", &gencmu::tools::fnv1a64(&bundled))
             .replace("@source@", &gencmu::tools::fnv1a64(text(&fixtures, "grammar")));
-        let mut sources = sources();
+        let document = case.get("document").and_then(Value::str).unwrap_or("g.md");
+        let mut sources = BTreeMap::from([
+            ("p.md".to_string(), format!("```jbogenbau\n%stage main\n%include \"{document}\"\n```\n")),
+            (document.to_string(), text(&fixtures, "grammar").to_string()),
+        ]);
         sources.insert("compiled.json".into(), cache);
+        let cached = flag(case, if case.get("rustCached").is_some() { "rustCached" } else { "cached" });
         let dialect = gencmu::load_dialect_sources(sources, "p.md")
             .unwrap_or_else(|e| panic!("{}: {e}", text(case, "description")));
         assert_eq!(
             dialect.parse("a", &Default::default()).unwrap().ok,
-            !flag(case, "cached"),
+            !cached,
             "{}",
             text(case, "description")
         );
         assert_eq!(
             dialect.parse("b", &Default::default()).unwrap().ok,
-            flag(case, "cached"),
+            cached,
             "{}",
             text(case, "description")
         );

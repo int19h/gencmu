@@ -2,6 +2,7 @@ package gencmu
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -49,18 +50,21 @@ func readCorpus(t *testing.T) []*corpusCase {
 			if line == "" {
 				continue
 			}
-			tree, err := decodeJSON([]byte(line))
-			if err != nil {
-				t.Fatalf("%s: %v", f, err)
-			}
 			c := &corpusCase{}
-			if err := fromTree(tree, c); err != nil {
+			if err := unmarshalJSON([]byte(line), c); err != nil {
 				t.Fatalf("%s: %v", f, err)
 			}
-			all, _ := tree.(map[string]any)
+			var all map[string]json.RawMessage
+			if err := unmarshalJSON([]byte(line), &all); err != nil {
+				t.Fatalf("%s: %v", f, err)
+			}
 			c.fields = map[string]any{}
 			for _, k := range corpusFields {
-				if v, ok := all[k]; ok {
+				if raw, ok := all[k]; ok {
+					v, err := decodeJSON(raw)
+					if err != nil {
+						t.Fatalf("%s: %v", f, err)
+					}
 					c.fields[k] = v
 				}
 			}

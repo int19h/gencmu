@@ -199,10 +199,15 @@ func TestJSONTreeAgrees(t *testing.T) {
 		}
 	}
 	// A member kept raw keeps its text, and what follows it is read on.
-	got, err := decodeJSON([]byte(`[{"d": {"x": [1, {"d": 2}]} , "e": 3}]`), "d")
-	if err != nil || !reflect.DeepEqual(got, []any{map[string]any{"d": json.RawMessage(`{"x": [1, {"d": 2}]}`), "e": 3.0}}) {
+	var got []struct {
+		D json.RawMessage `json:"d"`
+		E int             `json:"e"`
+	}
+	err := unmarshalJSON([]byte(`[{"d": {"x": [1, {"d": 2}]} , "e": 3}]`), &got)
+	if err != nil || len(got) != 1 || string(got[0].D) != `{"x": [1, {"d": 2}]}` || got[0].E != 3 {
 		t.Errorf("raw: %#v %v", got, err)
 	}
+
 }
 
 // TestJSONTreeDeep reads, converts, compares, copies and writes JSON

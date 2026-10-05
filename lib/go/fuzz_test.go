@@ -18,7 +18,7 @@ func FuzzPrecompiledDOM(f *testing.F) {
 				Dom json.RawMessage `json:"dom"`
 			} `json:"documents"`
 		}
-		unmarshalJSON([]byte(bundled.sources["compiled.json"]), &c, "dom")
+		unmarshalJSON([]byte(bundled.sources["compiled.json"]), &c)
 		f.Add(string(c.Documents[doc].Dom), "%rule text A")
 	}
 	format := `{"format":` + strconv.Itoa(domFormat)

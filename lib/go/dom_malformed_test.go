@@ -25,7 +25,7 @@ func TestDOMMalformed(t *testing.T) {
 	}
 	// Each directive is kept as written, so that a malformed one reaches
 	// the check as it stands.
-	if err := unmarshalJSON(data, &cases, "directive"); err != nil {
+	if err := unmarshalJSON(data, &cases); err != nil {
 		t.Fatal(err)
 	}
 	if len(cases) == 0 {

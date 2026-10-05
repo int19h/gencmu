@@ -70,7 +70,7 @@ func readCompiled(text, bootstrapHash string) map[string]json.RawMessage {
 		} `json:"documents"`
 	}
 	out := map[string]json.RawMessage{}
-	if text == "" || unmarshalJSON([]byte(text), &c, "dom") != nil || c.Format != domFormat || c.Bootstrap != bootstrapHash {
+	if text == "" || unmarshalJSON([]byte(text), &c) != nil || c.Format != domFormat || c.Bootstrap != bootstrapHash {
 		return out
 	}
 	for _, d := range c.Documents {

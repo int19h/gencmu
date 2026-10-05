@@ -87,7 +87,7 @@ func TestFixpoint(t *testing.T) {
 			} `json:"documents"`
 		} `json:"stages"`
 	}
-	if err := unmarshalJSON([]byte(bundled.sources["notation/bootstrap.json"]), &b, "dom"); err != nil {
+	if err := unmarshalJSON([]byte(bundled.sources["notation/bootstrap.json"]), &b); err != nil {
 		t.Fatal(err)
 	}
 	// The repository's documents, each read with the bootstrap.
@@ -144,7 +144,7 @@ func TestCompiled(t *testing.T) {
 			Dom  json.RawMessage `json:"dom"`
 		} `json:"documents"`
 	}
-	if err := unmarshalJSON([]byte(bundled.sources["compiled.json"]), &c, "dom"); err != nil {
+	if err := unmarshalJSON([]byte(bundled.sources["compiled.json"]), &c); err != nil {
 		t.Fatal(err)
 	}
 	if c.Format != domFormat || c.Bootstrap != bundled.reader.hash {
