@@ -156,4 +156,31 @@ A quote word that opens no quote is an ordinary word in Zantufa, which `si` eras
   classes($q) ∩ (ZOI ∪ MUhOI ∪ LOhU ∪ LOhAI ∪ RAhOI) ≠ ∅
 ```
 
-The shared BU constructor also takes a bare marker when no quote begins there. SU instead executes before a following BU. This order departs from Zantufa's SU-before-BU letter-base shortcut.
+The shared BU constructor also takes a bare marker when no quote begins there. Zantufa keeps its reference parser's quote-first fallback. A complete quote takes priority over a bare marker.
+
+Zantufa also keeps SU as a letter base before BU binds. Such a SU erases nothing, so `mi su bu si` leaves `mi`. This exception follows `bu_clause_no_pre` in Zantufa 1.9999.
+
+The lookahead skips erased regions before BU. Thus `su mi si bu` forms the letteral of SU. Without a following BU, SU performs its ordinary erasure.
+
+```jbogenbau
+%extend-rule unit
+  $s(su-letter-base) skipped bu-word <~word ∪ BY>
+%emits
+  $
+
+%rule su-letter-base
+  $q(magic-body)
+%conditions
+  SU ⊆ classes($q)
+
+%rule su-letter-tail
+  skipped bu-word
+
+%redefine-rule su-word
+  $q(magic-body)
+%conditions
+  SU ⊆ classes($q),
+  ¬begins(after($q), su-letter-tail)
+%emits
+  ε
+```

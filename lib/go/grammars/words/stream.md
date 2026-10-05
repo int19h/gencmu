@@ -411,6 +411,8 @@ BU takes the preceding live unit and forms one BY unit. ZEI takes that unit and 
 
 The right word of ZEI executes no operation. Thus `.abu zei bu` has a literal BU operand. In `da zei de bu`, the final BU takes the completed compound.
 
+Zantufa keeps its reference parser's SU-before-BU letter-base exception. Its quote-first fallback also keeps priority over bare markers. The dialect document defines both exceptions.
+
 The constructors can repeat and combine without exposing their operands. Each result keeps any fault of its base. SI erases the complete result as one unit.
 
 Erased regions and ordinary hesitation can separate an operand from its operator. The constructors omit these regions from the emitted compound. Their warnings still belong to the selected derivation.
