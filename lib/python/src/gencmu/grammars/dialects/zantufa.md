@@ -8,7 +8,7 @@ A dialect is a pipeline of stages, defined by one pipeline document. A stage is 
 
 So `zei` erases a word, as `si` does. `sa` is an attitudinal, and `su` erases the whole text before it. [`../words/zantufa-stream.md`](../words/zantufa-stream.md) makes the changes to the word stream that the classes alone do not.
 
-The indicator stage is the cll-ebnf dialect's. No word of the Zantufa lexicon is an indicator, so the stage attaches no indicators. It attaches only `ba'e` and the other words of BAhE, to the word after them. The syntax reads the attitudinals as free modifiers.
+The indicator stage is the cll-ebnf dialect's. No word of the Zantufa lexicon is an indicator, so the stage attaches no indicators. It attaches only `ba'e` and the other words of BAhE, to the word after them. The syntax reads the attitudinals as free modifiers. Those after `to` and `to'i` occupy the opener's slot. Those after `lu` and `lu'ei` begin quoted content.
 
 The syntax is [`../syntax/zantufa.md`](../syntax/zantufa.md), a grammar of its own that translates Zantufa's rules one by one. It says where the dialect reads a text differently from Zantufa 1.9999.
 

@@ -69,7 +69,7 @@ Each of these conditions is a restriction of the grammar, not a preference among
 
 A text is free modifiers and then paragraphs, which `ni'o` and `no'i` separate. A run of `ni'o` can stand alone, or join two paragraphs with a connective, or with a connective or a tense or modal and `bo`. A paragraph is statements and fragments, separated by `.i`.
 
-A text after a word of LU, TO or LUhEI, such as `lu`, is a `text` too. It begins with its own free modifiers, and the opener takes none. So in `lu ui mi klama li'u`, the `ui` belongs to the quote, and in `lu doi djan. mi klama li'u` so does the vocative. The dialect departs from Zantufa here (see "Differences from Zantufa 1.9999").
+A quotation after LU or LUhEI begins with its own free modifiers. So `lu ui mi klama li'u` keeps `ui` inside the quote. The opener's slot takes free modifiers after TO, which introduces a parenthesis without quoting its words. The dialect keeps the quotation boundary as its departure from Zantufa (see "Differences from Zantufa 1.9999").
 
 ```jbogenbau
 %rule text
@@ -815,12 +815,17 @@ The dialect keeps one odd reading of Zantufa. In `pe'usai doi xod ko jmina`, the
   | vocative [relative-clauses] selbri [+DOhU #]
   | vocative [sumti] [+DOhU #]
   | mex-2 MAI #
-  | TO text [++TOI #]
+  | TO # parenthesis-text [++TOI #]
   | XI # mex-2
   | [LOhAI [{lohai-word}] [LOhAI [{lohai-word}]]] LEhAI #
   | UI #
 %conditions
   ¬begins(after($), free)
+
+%rule parenthesis-text
+  text
+%conditions
+  ¬begins(from($), free)
 
 %rule vocative
   (* vocative <- COI_clause+;  COI_post <- vocative_post_clause *)
@@ -868,7 +873,7 @@ The dialect reads some texts differently from Zantufa 1.9999. The policy of the 
 - For `toi` and `se'u`, the dialect keeps the PEG's commitment by design, unlike its general policy. These two terminators are maximal, so an elided one closes only content that cannot be longer (see "The Zantufa grammar" above). So a `to` or `sei` reads as far as it can, even where the text then fails. Zantufa rejects these texts in the same way. In `metonymy`, the parenthesis takes `ny my`, and `me` is left without a sumti. Take `genai do gletu le do tanbo gi to prami le do tanbo`. There the parenthesis takes `prami le do tanbo`, and the second branch of the gek is empty.
 - For the same reason, the dialect rejects this text, as Zantufa does: `.u'i nypyry cu cusku lesedu'u le xindo cu cusku lesedu'u le kisto soi xy cu ca sarji le terpa sonci`. `soi` is SEI here. Its statement reads `le terpa sonci`, because the description can take `sonci`. Then the last `du'u` has the sumti `le kisto` and no selbri. The dialect formerly closed the `soi` before `sonci`, which was then the selbri of that `du'u`.
 - A lookahead here sees the words that the syntax reads, after erasure and without `ba'e`. Zantufa erases and reads `ba'e` inside its grammar, so its lookaheads see those words. So Zantufa accepts `li pa je ba'e cu broda`, `li pa je brode si cu broda` and `ba'e ke broda ke'e ke'e be mi`, and the dialect rejects them. And Zantufa reads `ke mi ba'e ke'e` as a group of terms, and the dialect as a grouped sumti.
-- A nested text takes its own leading free modifiers: those after a word of LU, LUhEI or TO. Zantufa's `LU_clause`, `LUhEI_clause` and `TO_clause` take them as the free modifiers of the opener, before the text begins. The dialect follows the principle of every dialect's indicator stage, that a text begins with its own indicators. It applies that principle to every free modifier, so that one boundary separates the opener from its text. So `lu ui li'u` quotes the text `ui`, and a vocative at the start of a quote belongs to the quote.
+- Quoted content takes its own leading free modifiers after LU and LUhEI. Zantufa instead puts those modifiers in the opener's slot. The dialect preserves the quotation boundary, so `lu ui li'u` quotes `ui`. The slot after TO takes free modifiers before the parenthesis body, as in Zantufa. CLL 19.8 and 13.9 give an indicator after that opener scope over the whole parenthesis.
 - The word stage reads a stray `si` or `bu` at the start of a text as the Magic Words proposal does. So `si mi` is `mi`, and `bu si` is nothing. Zantufa rejects both, because its `si` and `bu` need a word before them there.
 - `su` erases the whole text before it. Zantufa scans for `su` from the start of each text. The scan passes a letter word, or a `su`, together with the free modifiers after it. A parenthesis among those free modifiers, or a quote inside one, holds a text with its own start. A `su` inside that text erases only back to that start.
 

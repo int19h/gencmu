@@ -6,7 +6,7 @@ The approved grammar differs from chapter 4 in several ways. A rafsi is a shorte
 
 The syntax of the dialect is the CLL grammar. Both CLL dialects use the same policy for elided terminators. Their numbers and letter strings are indivisible.
 
-A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../phonemes/latin.md`](../phonemes/latin.md). The approved grammar reads part of these conventions too. The phoneme stage also reads gencmu's Cyrillic and zbalermorna. The indicator stage is the indicator stage of the [cll-ebnf](cll-ebnf.md) dialect.
+A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../phonemes/latin.md`](../phonemes/latin.md). The approved grammar reads part of these conventions too. The phoneme stage also reads gencmu's Cyrillic and zbalermorna. The indicator stage is the indicator stage of the [cll-ebnf](cll-ebnf.md) dialect. Indicators after `lu` begin quoted content. Indicators after `to` and `to'i` attach to the opener, under CLL 19.8 and 13.9.
 
 A feature is a named switch that the grammars test. The dialect turns on the feature `su-boundary`, so that `su` erases back to the last `ni'o`, `no'i`, `lu`, `tu'e`, `to` or `to'i`. The Magic Words proposal and camxes-std (the reference PEG (parsing expression grammar) parser) read `su` in this way. Under CLL 19.13, `su` erases the whole text.
 

@@ -88,7 +88,7 @@ The warning `y-cmavo` reports a cmavo that uses `y` as a vowel beyond the forms 
   %include "../indicators/cll.md"
   ```
 
-The stage applies CLL's non-formal rule `word = [BAhE] any-word [indicators]`. A run of indicators attaches to the word before it, and `ba'e` attaches to the word after it. The syntax reads the indicators at the start of a text and after a text opener. A text opener is a word of LU or TO, such as `lu` or `to'i`. At those places, only `ba'e` attaches. The stage hands on the words that the syntax reads.
+The stage applies CLL's non-formal rule `word = [BAhE] any-word [indicators]`. Indicators attach to the preceding word, and `ba'e` attaches to the following word. Indicators after `lu` begin quoted content and stay in the stream. Leading indicators at the start of a text also stay there. Indicators after `to` and `to'i` attach to the opener and concern the parenthesis, under CLL 19.8 and 13.9.
 
 ## Stage 5: syntax
 

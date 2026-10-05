@@ -16,15 +16,19 @@ The stage reads an indicator run as far as it goes, so the stage is greedy. Wher
 %ambiguity-resolution greedy
 ```
 
-## Nested texts
+## Quotation boundaries
 
-A text opener is a word whose class introduces a nested text: a word of LU or TO, such as `lu` or `to`. In the Zantufa dialect, `lu'ei` of LUhEI also opens a text. This stage needs no entry for it, because no word of the Zantufa lexicon is an indicator. The syntax reads a nested text with `text`, which begins with its own indicators. So an indicator directly after a text opener belongs to the nested text, not to the opener. `lu ui mi klama li'u` quotes `ui mi klama`, `lu ui li'u` quotes the text `ui`, and `to ui mi klama toi` holds `ui` in the parenthesis.
+A quotation opener introduces words that form quoted content. After `lu`, indicators stay in the stream and begin the quoted text. CLL 19.9 requires the text between `lu` and `li'u` to be valid Lojban. So `lu ui mi klama li'u` quotes `ui mi klama`, and `lu ui li'u` quotes the text `ui`.
 
-So a run of indicators directly after a text opener stays in the stream. A run at the start of the text does the same (see "Leading runs"). A closing word, such as `li'u` or `toi`, is an ordinary word. An indicator after it attaches to it, and so applies to the quote or the parenthesis as a whole. `tu'e` of TUhE is not a text opener. It introduces `text-1`, which reads no leading indicators, so an indicator after `tu'e` attaches to `tu'e`.
+A parenthesis does not quote its content. Indicators after either word of TO, `to` or `to'i`, attach to that opener. CLL 19.8 and 13.9 give them scope over the whole construction. So `to ui mi klama toi` attaches `ui` to `to`. Indicators after `tu'e` attach to that sentence-group opener for the same reason.
+
+The word stage already protects the material inside `zo`, `lo'u ... le'u`, and delimiter quotes such as `zoi`. That material carries no indicator class here. Zantufa's `lu'ei` also introduces quoted content, but its syntax handles that boundary. No word of the Zantufa lexicon carries the indicator tag, so this stage attaches only BAhE there.
+
+A leading indicator run also stays in the stream at the start of the whole text. Closing words, such as `li'u` and `toi`, take ordinary indicator attachments.
 
 ```jbogenbau
-%const $TEXT-OPENERS
-  LU ∪ TO
+%const $QUOTE-OPENERS
+  LU
 ```
 
 ## The stream
@@ -39,10 +43,10 @@ So a run of indicators directly after a text opener stays in the stream. A run a
   | item-run item
   | $p(item-run) leading
 %conditions
-  classes(last($p)) ∩ $TEXT-OPENERS ≠ ∅
+  classes(last($p)) ∩ $QUOTE-OPENERS ≠ ∅
 ```
 
-An item is a word with the `ba'e` run before it and the indicator run after it, where it has them. The item hands on the word, with the `ba'e` words attached before it and the indicators after it. A text opener takes no indicators, as above.
+An item hands on a word with its preceding `ba'e` run and following indicator run attached. A quotation opener takes no following indicators, as above.
 
 ```jbogenbau
 %rule item
@@ -51,7 +55,7 @@ An item is a word with the `ba'e` run before it and the indicator run after it, 
 %tags
   tags($w)
 %conditions
-  $a ⟹ classes($w) ∩ $TEXT-OPENERS = ∅
+  $a ⟹ classes($w) ∩ $QUOTE-OPENERS = ∅
 %emits
   ($b) $w ($a)
 
@@ -144,7 +148,7 @@ The stage also rejects `mi fu'e y klama`. The EBNF counts `y` as an indicator, b
 
 ## Leading runs
 
-A leading run is a run of indicators that the syntax reads itself: at the start of the text, or directly after a text opener. Its indicators stay in the stream, each as a token of its own. A `ba'e` before one of them attaches to it, since the syntax does not read `ba'e`. But a `nai` after an attitudinal stays a token of its own, and the syntax reads `UI NAI`. So `ba'e ui nai mi klama` hands on `ui`, with `ba'e` attached before it, and then `nai`, `mi` and `klama`.
+A leading run is a run of indicators that the syntax reads itself: at the start of the text, or directly after a quotation opener. Its indicators stay in the stream, each as a token of its own. A `ba'e` before one of them attaches to it, since the syntax does not read `ba'e`. But a `nai` after an attitudinal stays a token of its own, and the syntax reads `UI NAI`. So `ba'e ui nai mi klama` hands on `ui`, with `ba'e` attached before it, and then `nai`, `mi` and `klama`.
 
 The reason is that the syntax reads this run. A `nai` nested under its attitudinal hides from the syntax, which then reads a second `nai` after the attitudinal as that attitudinal's own. So `pau nai nai mi klama` becomes a text. With the `nai` in the stream, the syntax rejects it.
 
