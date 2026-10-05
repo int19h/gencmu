@@ -675,11 +675,11 @@ If maximal terminators remove every main parse, the text is an error. The error 
 
 `[++T]` applies in the main parse and inside `matches`, `begins` and `tags`. Inside a query, the longer constituent lies within the query's span. Written-terminator priority also applies there. An optional written `[+T]` keeps the default, even when another optional of that terminal uses `[++T]`.
 
-Only the Zantufa dialect uses `[++T]`, for `TOI` and `SEhU`, until its redesign (GitHub issues #138 and #139). Stage-wide `maximal` is retired. A document that declares it is an error.
+Only the Zantufa dialect uses `[++T]`, for `TOI` and `SEhU`, until its redesign (GitHub issues #138 and #139). The notation retires stage-wide `maximal`. A document that declares it is an error.
 
 A rejection names a forbidden terminator only when maximality removes every main parse. A nested query that maximality changes only changes the value of its condition. If no parse then remains, the error is an ordinary rejection, which lists the terminals expected at the furthest position.
 
-This is for a construct that a reader closes as late as it can, such as a parenthesis. In Zantufa, `so to mi klama` can close the parenthesis `to` after `mi`, with `toi` elided, and leave `klama` as the selbri. The reference parser reads `to mi klama` as one parenthesis. No `toi` is written, so written-terminator priority cannot decide. With `TOI` maximal, the `to` cannot close before `klama`, because a longer parenthesis exists.
+`[++T]` is for a construct that a reader closes as late as it can, such as a parenthesis. In Zantufa, `so to mi klama` can close the parenthesis `to` after `mi`, with `toi` elided, and leave `klama` as the selbri. The reference parser reads `to mi klama` as one parenthesis. No `toi` is written, so written-terminator priority cannot decide. With `TOI` maximal, the `to` cannot close before `klama`, because a longer parenthesis exists.
 
 CLL's own rule is narrower: a terminator can be elided only if no ambiguity results. CLL says nothing of the other ambiguities of its EBNF. `elision-only` is one reading of that rule. It tests only the parse that the ranking chose, and CLL does not say how to choose that parse.
 

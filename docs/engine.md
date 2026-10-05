@@ -383,7 +383,7 @@ Only the constituent matters, not what follows the terminator in its production.
 
 Maximal terminators apply in the main parse and nested queries. The ranking (§6) sees only the remaining derivations. `elision-only` restores a maximal terminator as any other (§7). A restoration reads a token, so its derivation contains no elided terminator for maximality to forbid.
 
-Lowering records which helpers belong to maximal terminators (§3.8). For each parse that needs them, the engine records the furthest completion of each symbol from each origin. A tested symbol needs its completed items because the furthest completion need not pass its test. A nested parse builds this table from its own chart, once per query. The query's memo keys identify that chart.
+Lowering records which helpers belong to maximal terminators (§3.8). The lowered grammar and its cache identity include this information. For each parse that needs them, the engine records the furthest completion of each symbol from each origin. A tested symbol needs its completed items because the furthest completion need not pass its test. A nested parse builds this table from its own chart, once per query. The query's memo keys identify that chart.
 
 A stage accepts when an item of the start rule `text` spans the whole input and has at least one derivation that is counted. It rejects an input whose every such derivation is cyclic, as it rejects one with no such item. A stage that accepts its input can still end with a tie, which is an error (§6). A rejected input reports the furthest position that any item reached. It also reports the terminals that the items there can read next, together with the rules that those items belong to (§11). The stage writes a tested terminal with its test, such as `LE="la"` (`docs/output.md`).
 
@@ -1000,8 +1000,8 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has an emission with a member other than `items`.
 - It has a guard of an alternative whose feature is not a name, or that has a member other than its feature, its kind and whether it is negated.
 - It has a directive whose name is not `ambiguity-resolution`, `stage`, `include` or `features`. So a directive named `elidable` is malformed.
-- It has a `stage`, `include` or `features` directive whose operands the reader refuses.
-- It has a `maximal` member on a directive, or the retired `maximal` operand in `ambiguity-resolution`. No directive has that member.
+- It has an `ambiguity-resolution`, `stage`, `include` or `features` directive whose operands the reader refuses.
+- It has a `maximal` member on a directive. No directive has that member.
 - It has a test that the reader refuses. That is a test after anything but a reference other than `#` or a terminal, or an unknown comparator. It is also a value that is not a closed term of the right type. It is also a string that holds a comma or that the lowercase mapping of the canonical sound changes.
 - It has a `terminal`, a `tag` or an inserted tag that is not a tag in its canonical spelling (§1).
 - It has a `range` whose ends are not two character tags in their canonical spelling, or whose start is above its end.

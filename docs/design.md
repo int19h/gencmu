@@ -183,7 +183,7 @@ A tag term is an error unless it is guarded, as in `($c ⟹ classify(phonemes($c
 
 Directives are keywords too, and can stand in any block.
 
-`%ambiguity-resolution` says how the stage chooses among parses (see "Ambiguity"). Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` can follow it. Stage-wide `maximal` is retired. Every stage must have exactly one, in any of its documents. A stage with none or two is a load error that names the stage.
+`%ambiguity-resolution` says how the stage chooses among parses (see "Ambiguity"). Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` can follow it. The notation retires stage-wide `maximal`. Every stage must have exactly one, in any of its documents. A stage with none or two is a load error that names the stage.
 
 No directive lists the elidable terminators. An absent elidable optional, `[+KU]`, appears in the tree as its terminator, elided at that point. `elision-only` restores these terminators. `[++TOI]` also makes its terminator maximal (see "Maximal terminators").
 
@@ -257,7 +257,7 @@ Only what selects the optionals changes. The migration marks exactly the optiona
 
 A probe checked every optional of every stage of every bundled dialect. It found none whose elidability or maximality changes. It also found no plain optional that begins with a terminal that the same stage marks.
 
-`[++T]` keeps today's maximal terminators, which only Zantufa uses, for `TOI` and `SEhU`. It is transitional, until the Zantufa redesign (GitHub issues #138 and #139). At that migration, BPFK kept stage-wide `maximal`. The atomic-number change below removes it from the dialect. Maximality now belongs to an optional, not to a terminal. Where every optional of a terminal is written `[++T]`, as in Zantufa, that is the same thing.
+`[++T]` keeps today's maximal terminators, which only Zantufa uses, for `TOI` and `SEhU`. It is transitional, until the Zantufa redesign (GitHub issues #138 and #139). At that migration, BPFK kept stage-wide `maximal`. The indivisible-number change below removes it from the dialect. Maximality now belongs to an optional, not to a terminal. Where every optional of a terminal is written `[++T]`, as in Zantufa, that is the same thing.
 
 Captures used to stand only at the top level of an alternative, at most four of them. Now a capture can stand anywhere except inside braces and inside an elidable optional. An alternative already expands into productions, one for each branch of a choice and each subsequence of `&`. A plain optional that holds a capture now expands in the same way, into the production without it and the productions with it. So a capture is present in some productions and missing in others, as it was missing in some alternatives before.
 
@@ -437,7 +437,7 @@ A bounded query stays within its span. A `matches` over a captured span asks whe
 - CLL's official parser reads one lexeme ahead and never goes back. A lexeme is one unit that the parser reads. It is a word, or a run of words that the parser joins. The parser elides a terminator only through the error recovery of its grammar, where the next lexeme cannot continue what it is reading. CLL's own explanations of elision describe this. That is why CLL 14.14 says that `le nanmu ku joi le ninmu` needs its `ku`.
 - The PEG grammars that replaced the YACC grammar (the grammar of the official parser) commit too, but in another way. What a PEG read before an elided terminator runs as far as it can be read. So `le nanmu joi le ninmu` parses, and the `le lojbo` text does not.
 
-The notation formerly offered the third reading as stage-wide `maximal`. It is a condition on which parses count, stated over the recognizer's items. It does not order the alternatives of a rule, so a grammar stays a description of its language. BPFK formerly read elided terminators this way because the definition effort also adopted the PEG. The atomic-number change below replaces that policy.
+The notation formerly offered the third reading as stage-wide `maximal`. It is a condition on which parses count, stated over the recognizer's items. It does not order the alternatives of a rule, so a grammar stays a description of its language. BPFK formerly read elided terminators this way because the definition effort also adopted the PEG. The indivisible-number change below replaces that policy.
 
 The cll-ebnf and bpfk dialects take the printed grammar as normative and keep the whole-text reading. So do the experimental and Zantufa dialects, which accept the most. Zantufa has explicit exceptions for `TOI` and `SEhU`, which are maximal terminators and commit as the PEG does. Its grammar document lists the three texts that it rejects for this reason. The cll-ebnf and bpfk dialects each name their reading in their pipeline documents, after they include the CLL grammar. A stage states its `%ambiguity-resolution` exactly once, so the experimental layer over the CLL grammar states its own.
 
@@ -465,7 +465,7 @@ Most of those ties are choices of the grammar, not of terminators. Examples are 
 
 ### Migration to late-elision
 
-The syntax stage of all four Lojban dialects declares `late-elision`. The grammar changes that this needs come with the engine change, on the same branch. At this migration, cll-ebnf kept `elision-only`, and bpfk kept both `elision-only` and `maximal`. The atomic-number change below removes the BPFK stage option.
+The syntax stage of all four Lojban dialects declares `late-elision`. The grammar changes that this needs come with the engine change, on the same branch. At this migration, cll-ebnf kept `elision-only`, and bpfk kept both `elision-only` and `maximal`. The indivisible-number change below removes the BPFK stage option.
 
 The CLL grammar gains the condition that the official parser's lexer applies with `JOIK_KE`. A plain joik is a joik in the ordinary connective alternative of a rule, which joins two units. It is not the joik of the dedicated alternative `joik [stag] KE … KEhE`, which groups with the connective itself. Where both alternatives can read the same words, a unit that starts with `ke` cannot directly follow a plain joik.
 
@@ -708,10 +708,12 @@ The repository keeps the corpus whole. With the cases added since, it now has ab
 
 Nothing else came from the prototype: no code, no scripts, no notes. The maintainers edit the CLL lexicon by hand. The experimental and Zantufa lexicons come from the word tables of other parsers. `tools/peg-lexicon.js` generates each of them, and a maintainer changes one by running the tool again. The Zantufa grammar is a grammar of its own, as above.
 
-## Atomic numbers and letter strings
+## Indivisible numbers and letter strings
 
-Both CLL dialects now use `late-elision elision-only`. Their numbers and letter strings cannot end before another continuation unit. The continuation is `PA | lerfu-word`, with complete recursive LAU atoms and balanced TEI/FOI compounds. CLL 17.9 and 18.6 require a separator between adjacent runs. CLL 17.14 states which forms count as letter atoms.
+Both CLL dialects now use `late-elision elision-only`. Their numbers and letter strings cannot end before another continuation unit. A continuation unit is `PA` or a complete `lerfu-word`. It includes recursive LAU words and balanced TEI/FOI compounds. CLL 17.9 and 18.6 require `boi` between adjacent runs. CLL 17.14 lists what can follow a LAU cmavo.
 
-The conditions on `number` and `lerfu-string` test each completed boundary. The rules keep brace notation. The experimental and Zantufa number rules stay the same. Stage-wide `maximal` is retired. `[++T]` keeps its per-optional meaning.
+The conditions on `number` and `lerfu-string` test the completed run once, where it ends. The rules keep brace notation. The experimental and Zantufa number rules stay the same. The notation retires stage-wide `maximal`. `[++T]` keeps its per-optional meaning.
 
-The Rust corpus comparison recovers BPFK readings that cll-ebnf already accepts under the shared elision policy. This includes CLL 8.48 without `ku'o`, despite the requirement in CLL 8.6. The maintainer approves that policy as an interpretation of CLL 21.2 note 10. The number and letter boundaries separately follow CLL 17.9 and 18.6.
+The Rust corpus comparison gives bpfk 54 new acceptances under the shared elision policy. The cll-ebnf dialect already accepts 52 of those texts. Two texts hold digits that its word forms reject at the words stage. Both dialects accept example 8.48 without `ku'o`, despite the requirement in CLL 8.6. The maintainer approves that policy as an interpretation of CLL 21.2 note 10. The number and letter boundaries separately follow CLL 17.9 and 18.6.
+
+The comparison changes 512 results among 29,725 existing cases. In cll-ebnf, 26 texts now reject, one tree changes, and 394 verdicts change from `resolved` to `unique`. In bpfk, 23 rejection positions move, and 14 verdicts change from `unique` to `resolved`, alongside the 54 new acceptances. No experimental or Zantufa result changes.
