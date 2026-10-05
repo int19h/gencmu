@@ -1696,3 +1696,5 @@ adhoc.syntax.atomic-letters-boi.bpfk
 adhoc.syntax.atomic-number-moi.bpfk
 adhoc.syntax.atomic-number-moi-boi.bpfk
 adhoc.syntax.atomic-false-number-blocker.bpfk
+adhoc.syntax.number-indicator-continuation.cll-ebnf
+adhoc.syntax.number-indicator-continuation.bpfk

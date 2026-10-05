@@ -4487,8 +4487,13 @@
       if (!lowered) {
         // The stage resolves its classifiers for the same features, before it
         // lowers its rules (engine §2, §3).
-        const classifiers = this.classifiers(on);
-        lowered = { ...new Lowering(this, on).run(), classifiers, implications: this.implications };
+        try {
+          const classifiers = this.classifiers(on);
+          lowered = { ...new Lowering(this, on).run(), classifiers, implications: this.implications };
+        } catch (error) {
+          if (error instanceof GencmuError) error.where.stage = this.stageName;
+          throw error;
+        }
         remember(this.lowered, key, lowered);
       }
       return lowered;
@@ -12611,8 +12616,14 @@
         const bootstrapText = this.need("notation/bootstrap.json");
         const bootstrap = readBootstrap(bootstrapText, this.unicode);
         this.bootstrapHash = fnv1a64(bootstrapText);
-        this.notation = new Dialect("dialects/notation.md", bootstrap.stages.map((stage) =>
-          new Stage(stage.name, new Grammar(stage.name, stage.documents.map((document) => ({ path: document.path, dom: document.dom })), this.unicode))), this);
+        this.notation = new Dialect("dialects/notation.md", bootstrap.stages.map((stage) => {
+          try {
+            return new Stage(stage.name, new Grammar(stage.name, stage.documents.map((document) => ({ path: document.path, dom: document.dom })), this.unicode));
+          } catch (error) {
+            if (error instanceof GencmuError) error.where.stage = stage.name;
+            throw error;
+          }
+        }), this);
         for (const stage of this.notation.stages) stage.grammar.lower(new Set());
       } catch (error) {
         if (error instanceof GencmuError) {
@@ -12622,7 +12633,10 @@
           }
           error.where.document = "notation/bootstrap.json";
           const location = [error.where.document, error.where.line, error.where.column].filter((part) => part !== undefined).join(":");
-          if (!error.message.startsWith(`${location}: `)) error.message = `${location}: ${error.message}`;
+          if (!error.message.startsWith(`${location}: `)) {
+            const stage = error.where.stage ? `stage ${error.where.stage}: ` : "";
+            error.message = `${location}: ${stage}${error.message}`;
+          }
         }
         throw error;
       }

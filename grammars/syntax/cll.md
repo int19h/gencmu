@@ -402,7 +402,11 @@ Each level of the chain holds its first abstractor. So a single abstractor with 
 
 A number is a string of PA words, such as the digits `pa` and `re` and the decimal point `pi`. Lerfu words can follow its first word (`pa re ci`, `pa xy.`). A lerfu string is the same thing, but it begins with a lerfu word (CLL 18.2, 17.8). A lerfu word is a member of BY, any word followed by `bu`, a `lau` shift before a lerfu word, or a `tei ... foi` compound. The word stage builds each letter word with `bu` and hands on one `BY`, so the `BU` alternative never matches. This grammar keeps that alternative as CLL prints it.
 
-A number or letter string cannot end before another unit of the same run. A written `boi` ends the run. Any word that is not a continuation unit also ends the run. CLL 17.9 requires this boundary for letter strings. Example 17.27 requires `boi` before the following `PA` word. CLL 18.6 requires the boundary for numbers and function names. CLL 17.8 allows digits inside a letter string. CLL 17.11 repeats the function example with `boi`.
+A number or letter string cannot end before another unit of the same run. A written `boi` ends the run. At the syntax stage, the run ends where no complete continuation unit begins.
+
+CLL 17.9 requires this boundary for letter strings. Example 17.27 requires `boi` before the following `PA` word. CLL 18.6 requires the boundary for numbers and function names. CLL 17.8 allows digits inside a letter string. CLL 17.11 repeats the function example with `boi`.
+
+Earlier stages attach indicators and combine words with `bu` into single letter words. So `li pa ui re` contains one number, with `ui` attached to `pa`. The syntax stage receives `pa` and `re` as consecutive continuation units.
 
 A continuation unit is `PA` or a complete `lerfu-word`. It includes a BY word, a word with `bu`, recursive LAU prefixes, and a balanced TEI/FOI compound. CLL 17.6 describes compounds, and CLL 17.14 lists the recursive equivalents after LAU. `FOI` closes the inner string and cannot continue it.
 
