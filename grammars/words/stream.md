@@ -6,25 +6,25 @@ The [forms stage](forms.md) supplies source words. This stage applies quotes, co
 
 A unit is one item on which an operation acts. A token is one emitted item for the next stage. Every quote and compound is one opaque unit, even when its emission contains several tokens.
 
-The grammar follows the maintainer's opaque-unit interpretation of the Magic Words proposal. The shared grammar processes every operation strictly from left to right. Zantufa keeps its reference parser's local quote-first and SU-letter-base exceptions. Only the shared word reader joins hesitation with BU before an operation takes the word.
+A letteral is a letter word of class BY. The y letteral sounds like ybu.
+
+The grammar follows the maintainer's opaque-unit interpretation of the Magic Words proposal. The shared grammar processes every operation strictly from left to right. Zantufa keeps its reference parser's local quote-first and SU-letter-base exceptions.
 
 ## The stream of elements
 
-The stream contains live units and erased regions. A live unit is one item that an eraser or compounder takes. A quote can emit several tokens but remains one unit.
+The stream contains live units and erased regions. A live unit is a unit that no eraser removes.
 
 The stage reads from left to right. Each operator acts on the units that survive when the stage reaches it. No operator reaches inside a unit.
 
-A shared word reader supplies every requested word. It joins hesitation with a following `bu` before any operation takes that word. This exception applies inside word quotes and to delimiters and compound operands.
+A shared word reader supplies every requested word. It joins hesitation with a following `bu` before any operation takes that word. This exception applies inside ZO quotes, LOhU and LOhAI bodies, delimiters, and ZEI operands.
 
 An erased region emits nothing. Later operators skip that region and use the surviving units beside it. Erasure never restores an earlier erased word.
 
-The grammar uses lazy ambiguity resolution. It favors a completed constituent over another token at the first difference. The rules enforce the operation order before this choice applies.
-
 A dangling `bu` creates a unit with a missing-base fault. A dangling `le'u` creates a unit with an unopened-quote fault. Constructors preserve these faults, and erasers remove the whole units.
 
-A second `bu` wraps a fault unit like any other unit. Thus `bu bu si` leaves nothing. A fault that survives normal end or active `fa'o` rejects the word stage.
+A second `bu` wraps a fault unit like any other unit. Thus `bu bu si` leaves nothing. If a fault survives to the text end or an active `fa'o`, the word stage rejects the text.
 
-Hesitation emits nothing unless the word reader joins it with `bu`. The reader treats `yybu` as hesitation followed by the letter word for y. This also holds when a pause separates y from BU.
+Hesitation emits nothing unless the word reader joins it with `bu`. The reader treats `yybu` as hesitation followed by the y letteral. The reader also forms the y letteral from `.yy. bu` and `.yyy. bu`.
 
 An active `fa'o` ends the text. The stage reads no words after it. A quoted `fa'o` or a right operand of `zei` does not end the text.
 
@@ -120,15 +120,15 @@ The rule `empty` reads a prefix that leaves no units. Its first three alternativ
 
 The forms stage supplies source words, their lexical classes, and their run boundaries. A run is a stretch without a pause. This stage does not divide ordinary runs again.
 
-The shared reader reads a cmavo, brivla, cmevla, or the letter word for y. A cmavo is a particle. A brivla is a predicate word. A cmevla is a name word.
+The shared reader reads a cmavo, brivla, cmevla, or the y letteral. A cmavo is a particle. A brivla is a predicate word. A cmevla is a name word.
 
-Every cmavo read uses `cmavo-token`. The CLL dialect adds optional word-form warnings there. A committed read keeps its warning even if an eraser later removes the word.
+Every cmavo read uses `cmavo-token`. The CLL dialect adds optional word-form warnings there. A word read in the selected derivation keeps its warning even if an eraser later removes the word.
 
 A failed word stage publishes no warnings from that stage. A successful stage keeps warnings from its selected derivation. Raw quote bodies and the suffix after active `fa'o` supply no word reads.
 
 The lexicon gives each cmavo its classes. Operators use these classes rather than spelling. The experimental syntax can treat names as predicates without changing their lexical class.
 
-The feature `sa-su` enables the two long-range erasers. Without that feature, SA and SU are ordinary words. The wrapper named `word` preserves automatic feature detection.
+The feature `sa-su` enables the two long-range erasers. Without that feature, SA and SU are ordinary words. The libraries turn on `sa-su` for a text that needs it ([engine §13](../../docs/engine.md#13-features)). The rule `word` identifies such texts by tagging SA and SU only when that feature is off.
 
 ```jbogenbau
 %const $MAGIC-WORDS
@@ -169,21 +169,27 @@ Every complete quote is one opaque unit. Later operations see its opening marker
 
 A quote marker keeps its word kind and classes but drops the `indicator` mark. Otherwise the indicator stage can detach a marker from its quoted contents.
 
-ZO quotes one word from the shared reader. Inside that quote, an eraser, compounder, or quote marker executes no operation. The reader still forms the letter word for y.
+ZO quotes one word from the shared reader. Inside that quote, an eraser, compounder, or quote marker executes no operation. The reader still forms the y letteral.
 
 ZOhOI and MEhOI quote one raw run in the experimental dialect. After a pause, they skip ordinary hesitation. The quote must finish at the end of its run.
 
-ZOI and LAhO skip hesitation and read the next real word as their opening delimiter. Hesitation never serves as a delimiter. They close at the first matching whole run by canonical sound. Canonical sound ignores case and commas.
+In `zo'oi .y. bu`, the quote takes the raw y run as its payload. BU then forms a letteral from the whole quote. The same rule keeps the prolonged raw run in `zo'oi .yyy. bu`.
 
-The letter-y delimiter can close on one `ybu` run or adjacent `y` and `bu` runs. The reader accepts both opening spellings. The closing test preserves adjacency and never joins the body into words. Extra y sounds before the opening BU remain hesitation, even across a pause. The delimiter then sounds like ybu. A raw yybu or yyybu run cannot close it.
+The words of ZOI, `zoi` and `la'o`, skip hesitation and read the next real word as their opening delimiter. Hesitation never serves as a delimiter. They close at the first matching whole run by canonical sound. Canonical sound ignores case and commas.
 
-The rule `zoi-y-quote` reads y-letter delimiters, and `zoi-quote` reads ordinary delimiters. Each rule includes empty and nonempty bodies.
+The y letteral used as a delimiter can close on one `ybu` run or adjacent `y` and `bu` runs. The reader accepts both opening spellings. The closing test preserves adjacency and never joins the body into words.
+
+Extra y sounds before the opening BU remain hesitation, even across a pause. The delimiter then sounds like ybu. A raw yybu or yyybu run cannot close it. Neither can a raw prolonged y run followed by BU.
+
+Thus `zoi .yy. bu. foo .yy. bu.` fails, and `zoi .yy. bu. foo .y. bu.` succeeds. The opening reader drops extra y sounds, and the raw closing comparison keeps them.
+
+The rule `zoi-y-quote` reads letteral delimiters formed from hesitation. Zantufa also forms such a delimiter from `ie'o`, as [zantufa.md](zantufa.md) describes. The rule `zoi-quote` reads other delimiters. Each rule includes empty and nonempty bodies.
 
 The body remains raw and opaque. In `zoi bu. foo .y. bu.`, the final `bu` closes the quote. The preceding y remains body text.
 
 Ordinary compounds cannot become delimiters because the marker reads the delimiter before a later compounder acts. Empty quotes still emit an opaque body token. Pauses delimit the body and the closing run.
 
-A LOhU quote ends at the first LEhU. Its body reads shielded Lojban words through the shared reader. No quote marker or eraser acts there, and an unread run rejects the quote.
+A LOhU quote ends at the first LEhU. Its body reads Lojban words through the shared reader without executing operations. No magic word acts there, including BU, ZEI, and FAhO. An unread run makes the quote fail.
 
 The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supplies no later search target inside it. Replacement quotes and dialect quote kinds follow the same opacity rule.
 
@@ -389,7 +395,7 @@ The raw rule rejoins every piece of one y run. A drawn-out raw run retains its e
 
 ## Compounds
 
-BU takes the preceding live unit and forms one BY unit. ZEI takes that unit and the next word as read, then forms one BRIVLA unit.
+BU takes the preceding live unit and forms one letteral. ZEI takes that unit and the next word as read, then forms one BRIVLA unit.
 
 The right word of ZEI executes no operation. Thus `.abu zei bu` has a literal BU operand. In `da zei de bu`, the final BU takes the completed compound.
 
@@ -397,7 +403,7 @@ Zantufa keeps its reference parser's SU-before-BU letter-base exception. Its quo
 
 The constructors can repeat and combine without exposing their operands. Each result keeps any fault of its base. SI erases the complete result as one unit.
 
-Erased regions and ordinary hesitation can separate an operand from its operator. The constructors omit these regions from the emitted compound. Their warnings still belong to the selected derivation.
+Erased regions and ordinary hesitation can separate an operand from its operator. The compound's sound and label omit these regions. Its text retains the original source span, including erased words. Their warnings still belong to the selected derivation.
 
 The CLL dialect requires pauses around a direct name base of BU. It tests the source run boundary. A name inside a compound does not make that compound a direct name.
 
@@ -448,6 +454,8 @@ SI skips hesitation and erased regions. It never erases an already executed SA o
 SA reads its key from the next word before that word executes. It erases through the nearest preceding unit whose class matches that key. The next word stays and then executes normally.
 
 The key of `sa .ebu` is the class of `.e`. BU has not yet formed that letteral. A letteral has class BY, so `sa bu` finds no BU inside it.
+
+A cmavo missing from the lexicon has no class and matches no unit, even the same spelling. SA with such a key erases everything before it.
 
 With no matching unit, SA erases everything before it. Thus `mi bu sa bu` removes the letteral and leaves a dangling BU fault. A later eraser can remove that fault.
 
@@ -551,39 +559,45 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
   SU ⊆ classes($q)
 ```
 
-## Departures from CLL 19
+## Departures from CLL, the proposal, and camxes-std
 
-The dialects use the left-to-right model of the [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words), with the departures below. The maintainer chooses opaque units where that proposal exposes internal markers.
+The dialects follow the [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) with the departures below. The maintainer chooses opaque units where that proposal exposes internal markers.
 
 CLL 19.13 describes erasure, 19.14 describes hesitation, and 19.15 describes FAhO. CLL 19.16 describes interactions among these words. These sections do not specify one complete processing order.
 
-The dialects keep six established departures from CLL 19. Zantufa instead makes ZEI an eraser and gives attached hesitation a lexical Y class.
+The dialects keep six established departures from CLL 19. Items 2 and 4 differ in Zantufa. There ZEI erases, and hesitation attached to a word has class Y ([zantufa-stream.md](zantufa-stream.md)).
 
-1. SI erases a whole quote or compound. CLL Examples 19.77 and 19.79 count quotation markers and contents as separate words.
+1. SI, BU, and ZEI each take a whole quote or compound as one unit. CLL Examples 19.77 and 19.79 count quotation markers and contents separately. CLL 19.16 defines BU and ZEI by the preceding word, and CLL 17.4 limits BU to one word.
 2. ZEI takes any next word as its right operand. CLL 19.16 excludes several magic words from that interaction.
 3. BU forms a letteral over BAhE. CLL 17.4 and 19.16 exclude BAhE as a BU base.
-4. Ordinary hesitation counts as space, not a word. CLL 19.14 gives y the class Y. Only the shared reader forms the letter-y word.
+4. Ordinary hesitation counts as space, not a word. CLL 19.14 gives y the class Y. Only the shared reader forms the y letteral.
 5. LOhU closes at the first LEhU. CLL 19.16 excludes a LEhU after ZO, and 19.10 permits a ZOI quote inside LOhU.
-6. ZOI compares whole raw runs by sound. CLL Example 19.50 instead forbids the delimiter inside a longer written run.
+6. ZOI compares whole raw runs by sound. CLL Examples 19.50 and 19.51 instead forbid the delimiter's spelling or sound inside a longer run.
 
-The [proposal's BU page](https://mw.lojban.org/papri/bu) lets SA BU reach inside a letteral. Its main page marks this interpretation controversial. These dialects instead keep the letteral opaque.
+The [proposal's BU page](https://mw.lojban.org/papri/bu) lets SA BU reach inside a letteral. Its main page marks this interpretation controversial. These dialects instead keep the letteral opaque. SA ZEI likewise finds no ZEI inside a compound.
 
-The proposal also exposes a completed LOhU quote's LEhU ending to SA. These dialects expose only the opening class. A surviving bare LEhU remains a fault even after a constructor wraps it.
+The proposal's ZEI paragraph writes "ZEI+BU grabs back to the last ZEI". That is a typo for SA+ZEI, and the page's discussion records the unclear wording. This grammar permits no such search inside a compound.
 
-camxes-std keys `sa .ebu` on BY and selects the earliest matching unit. These dialects use the next source word's class and select the nearest match. Counted SA selects successively earlier matches. A trailing SA instead clears the text, as the proposal's table specifies.
+The proposal also exposes a completed LOhU quote's LEhU ending to SA. These dialects expose only the opening class. A constructor keeps the unopened-quote fault. `le'u bu` still fails, and `le'u bu si` is empty.
 
-Only the letter word for y serves as a y delimiter. Its closing spelling uses one run or two adjacent runs. Ordinary hesitation never needs a delimiter-matching rule. The raw body retains its source spelling.
+A dangling BU is also a fault unit that BU or ZEI can wrap. An eraser can remove the result, so `bu zei klama si` leaves nothing. The proposal's BU page instead forbids ZEI to bind a dangling BU on its left.
+
+camxes-std follows the grammatical reading of CLL 19.13, without a class key. SA erases back to the start of a construct that the following words continue. Such a construct can be a term or sentence. camxes-std applies this rule unevenly. It accepts `broda sa broda` but rejects `lo broda sa broda`.
+
+A run of letterals forms one camxes sumti, an argument of a predicate. Thus `by cy sa .ebu` erases both letters. In `by boi cy sa .ebu`, BOI ends the first sumti, so SA keeps `by`. `mi do sa ti` keeps `mi`, and `mi broda le brode sa ti` gives `mi broda ti`.
+
+camxes-std reads `sa sa` as one SA. It rejects a trailing SA and an SA with no construct before it. Thus it rejects `mi do sa brodi`, `sa broda`, and `broda sa`. It also rejects `bu si` and `.abu sa bu`. It rejects `mi ni'o do su si`, which cll-ebnf accepts as empty.
+
+These dialects instead use the next word's class and select the nearest matching unit. Counted SA selects successively earlier matches. A trailing SA clears the text, as the `bu sa` row of the proposal's BU page specifies. The opaque-unit rule keeps `.abu sa bu` rejected in cll-ebnf, bpfk, and experimental.
+
+Zantufa gives SA class UI, so it performs no SA erasure.
 
 The cll-ebnf SU policy follows CLL 19.13. Zantufa also erases the whole preceding text, as its reference grammar specifies. Bpfk and experimental preserve a boundary unit by the maintainer's decision. The Magic Words proposal names those boundaries but does not say whether they survive.
 
-The dialects keep `mi ba'e fa'o` rejected. The stranded BAhE cannot mark a word after FAhO ends the text. This policy differs from the study review's proposed acceptance.
+The dialects keep `mi ba'e fa'o` rejected. The stranded BAhE cannot mark a word after FAhO ends the text. This policy differs from camxes-exp's acceptance ([experimental.md](../dialects/experimental.md)).
 
 ## Choosing among parses
 
 The stage uses lazy ambiguity resolution. It compares the first structural difference and favors closing a constituent over another token. The rules exclude readings that violate left-to-right operations.
 
-The forms stage fixes ordinary word boundaries before this stage. The privileged y-letter read does not add a normalization stage. It applies only when an operation requests a word.
-
-## Known gaps
-
-The phoneme stage reads Cyrillic and zbalermorna before this grammar. Quotes still require the documented source pauses. This redesign does not change those orthography or pause rules.
+The forms stage fixes ordinary word boundaries before this stage. The shared reader forms the y letteral when an operation requests a word. It adds no normalization stage.
