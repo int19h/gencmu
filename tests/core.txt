@@ -1771,3 +1771,5 @@ adhoc.indicators.initial-name-and-indicator.quote.zantufa
 adhoc.indicators.opener.to-nai.experimental
 adhoc.indicators.opener.toi-nai.experimental
 adhoc.indicators.quoted-boundary.lu-nai.experimental
+adhoc.indicators.opener.to-nested-parenthesis-with-body.zantufa
+adhoc.indicators.quoted-boundary.luhei-sei.zantufa
