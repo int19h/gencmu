@@ -8,8 +8,6 @@ A unit is one item on which an operation acts. A token is one emitted item for t
 
 The grammar follows the maintainer's opaque-unit interpretation of the Magic Words proposal. The shared grammar processes every operation strictly from left to right. Zantufa keeps its reference parser's local quote-first and SU-letter-base exceptions. Only the shared word reader joins hesitation with BU before an operation takes the word.
 
-
-
 ## The stream of elements
 
 The stream contains live units and erased regions. A live unit is one item that an eraser or compounder takes. A quote can emit several tokens but remains one unit.
@@ -31,6 +29,8 @@ Hesitation emits nothing unless the word reader joins it with `bu`. The reader t
 An active `fa'o` ends the text. The stage reads no words after it. A quoted `fa'o` or a right operand of `zei` does not end the text.
 
 BAhE marks the next word in the indicator stage. It remains a separate unit during word operations. The dialects keep `mi ba'e fa'o` rejected because the surviving BAhE has no target.
+
+The rule `empty` reads a prefix that leaves no units. Its first three alternatives read the text start, stray SI, and an erased stretch. The next three read SU after an empty prefix, whole-prefix SU, and boundary-aware SU without a boundary. The last three read unmatched SA and trailing SA after an empty or nonempty prefix. The rule `su-cleared` keeps its boundary test beside the stream that it tests.
 
 ```jbogenbau
 %ambiguity-resolution lazy
@@ -54,14 +54,17 @@ BAhE marks the next word in the indicator stage. It remains a separate unit duri
   | empty erasure spacing
   | sa-su? empty su-word spacing
   | sa-su? ¬su-boundary? stream spacing su-word spacing
-  | sa-su? su-boundary? $s(stream) spacing su-word spacing
+  | su-cleared
   | sa-su? sa-wiped spacing
   | sa-su? empty sa-tail
   | sa-su? stream spacing sa-tail
-%conditions
-  classes($s) ∩ $SU-STOPS = ∅
 %emits
   ε
+
+%rule su-cleared
+  sa-su? su-boundary? $s(stream) spacing su-word spacing
+%conditions
+  classes($s) ∩ $SU-STOPS = ∅
 
 %rule stream
   | empty $u(unit) <tags($u)>
@@ -73,9 +76,6 @@ BAhE marks the next word in the indicator stage. It remains a separate unit duri
 
 %rule spacing
   [PAUSE] [hesitations [PAUSE]]
-
-%rule gap
-  spacing
 
 %rule skipped
   spacing [erasures spacing]
@@ -102,14 +102,8 @@ BAhE marks the next word in the indicator stage. It remains a separate unit duri
 %rule y-run
   ~hesitation
 
-%rule y-base
-  y-run
-
-%rule bu-next
-  [PAUSE] BU
-
 %rule faho-group
-  faho-word [zoi-body]
+  faho-word [raw-tokens]
 %emits
   ε
 
@@ -120,8 +114,6 @@ BAhE marks the next word in the indicator stage. It remains a separate unit duri
   sa-su? sa-run spacing
 %conditions
   ¬begins(after($), read-word)
-%emits
-  ε
 ```
 
 ## Words
@@ -169,8 +161,6 @@ The feature `sa-su` enables the two long-range erasers. Without that feature, SA
 %rule cmavo-token
   $c(~cmavo) <tags($c)>
 
-%rule magic-body
-  read-word
 ```
 
 ## Quotes
@@ -187,6 +177,8 @@ ZOI and LAhO skip hesitation and read the next real word as their opening delimi
 
 The letter-y delimiter can close on one `ybu` run or adjacent `y` and `bu` runs. The reader accepts both opening spellings. The closing test preserves adjacency and never joins the body into words. Extra y sounds before the opening BU remain hesitation, even across a pause. The delimiter then sounds like ybu. A raw yybu or yyybu run cannot close it.
 
+The rule `zoi-y-quote` reads y-letter delimiters, and `zoi-quote` reads ordinary delimiters. Each rule includes empty and nonempty bodies.
+
 The body remains raw and opaque. In `zoi bu. foo .y. bu.`, the final `bu` closes the quote. The preceding y remains body text.
 
 Ordinary compounds cannot become delimiters because the marker reads the delimiter before a later compounder acts. Empty quotes still emit an opaque body token. Pauses delimit the body and the closing run.
@@ -197,19 +189,17 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
 
 ```jbogenbau
 %rule quote
-  quoted-word | zoi-quote | empty-zoi-quote | lohu-quote | single-word-quote
+  quoted-word | zoi-y-quote | zoi-quote | lohu-quote | single-word-quote
 
 %rule quoted-word
-  $m(word-quote-marker) quote-gap $w(quotable-word) <tags($m)>
+  $m(word-quote-marker) quote-gap $w(read-word) <tags($m)>
 %emits
   $m, $w <~word>
 
-
 %rule word-quote-marker
-  $q(magic-body) <classes($q) ∪ ~word ∪ ~cmavo>
+  $q(read-word) <classes($q) ∪ ~word ∪ ~cmavo>
 %conditions
   ZO ⊆ classes($q)
-
 
 %rule single-word-quote
   | $m(single-marker) $r(zohoi-payload) <tags($m)>
@@ -221,35 +211,32 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
 %emits
   $m, $r <~quoted-text>, $s <~quoted-text>
 
-
 %rule single-marker
-  $q(magic-body) <classes($q) ∪ ~word ∪ ~cmavo>
+  $q(read-word) <classes($q) ∪ ~word ∪ ~cmavo>
 %conditions
   classes($q) ∩ (ZOhOI ∪ MEhOI) ≠ ∅
 
-
-%rule quotable-word
-  read-word
-
-%rule zoi-quote
-  $m(zoi-marker) delimiter-gap $open(delimiter) PAUSE $content(zoi-body) PAUSE $close(raw-close)
+%rule zoi-y-quote
+  | $m(zoi-marker) delimiter-gap $open(delimiter) PAUSE $content(raw-tokens) PAUSE $close(raw-close)
+  | $m(zoi-marker) delimiter-gap $open(delimiter) PAUSE $content(empty-zoi-body) $close(raw-close)
 %tags
   tags($m)
 %conditions
-  ~y-letter ⊆ tags($open) ⟹ tags($open) ∖ $Y-PROPERTIES = tags($close),
-  ~y-letter ⊈ tags($open) ⟹ phonemes($open) = phonemes($close),
-  ~y-letter ⊆ tags($open) ⟹ tags($open) ∖ $Y-PROPERTIES ⊈ tags($content, body-with-y-close),
-  ~y-letter ⊈ tags($open) ⟹ phonemes($open) ∉ split(phonemes($content), ".")
+  ~y-letter ⊆ tags($open),
+  tags($open) ∖ $Y-PROPERTIES = tags($close),
+  tags($open) ∖ $Y-PROPERTIES ⊈ tags($content, body-with-y-close)
 %emits
   $m, $open <~word>, $content <~quoted-text>, $close <~word>
 
-%rule empty-zoi-quote
-  $m(zoi-marker) delimiter-gap $open(delimiter) PAUSE $content(empty-zoi-body) $close(raw-close)
+%rule zoi-quote
+  | $m(zoi-marker) delimiter-gap $open(delimiter) PAUSE $content(raw-tokens) PAUSE $close(raw-close)
+  | $m(zoi-marker) delimiter-gap $open(delimiter) PAUSE $content(empty-zoi-body) $close(raw-close)
 %tags
   tags($m)
 %conditions
-  ~y-letter ⊆ tags($open) ⟹ tags($open) ∖ $Y-PROPERTIES = tags($close),
-  ~y-letter ⊈ tags($open) ⟹ phonemes($open) = phonemes($close)
+  ~y-letter ⊈ tags($open),
+  phonemes($open) = phonemes($close),
+  phonemes($open) ∉ split(phonemes($content), ".")
 %emits
   $m, $open <~word>, $content <~quoted-text>, $close <~word>
 
@@ -275,7 +262,7 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
   ε
 
 %rule y-key
-  $y(y-base)
+  $y(y-run)
 %tags
   (phonemes($y) = "ie'o" ⟹ ~ieho) ∪ (phonemes($y) ≠ "ie'o" ⟹ tag(phonemes($y)))
 
@@ -309,6 +296,11 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
   phonemes($b) ≠ "ie'o",
   phonemes($h) ≠ "ie'o"
 
+```
+
+The raw rule rejoins every piece of one y run. A drawn-out raw run retains its extra y sounds and cannot close a ybu delimiter. Zantufa's [`ie'o` exception](zantufa.md) keeps each `ie'o` separate from adjacent hesitation.
+
+```jbogenbau
 %rule raw-y-key
   $y(raw-y-base)
 %tags
@@ -328,47 +320,42 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
   zohoi-hesitation | zohoi-hesitations [PAUSE] zohoi-hesitation
 
 %rule body-with-y-close
-  [zoi-body] $c(raw-y-close) [zoi-body] <tags($c)>
+  [raw-tokens] $c(raw-y-close) [raw-tokens] <tags($c)>
 
 %rule empty-zoi-body
   ε
 %opaque
 
-
 %rule zoi-marker
-  $q(magic-body) <classes($q) ∪ ~word ∪ ~cmavo>
+  $q(read-word) <classes($q) ∪ ~word ∪ ~cmavo>
 %conditions
   ZOI ⊆ classes($q)
 
 %rule lohu-quote
-  | $m(lohu-marker) gap lohu-stream gap lehu-marker <tags($m)>
+  | $m(lohu-marker) spacing lohu-stream spacing lehu-marker <tags($m)>
   | $m(lohu-marker) [PAUSE] lehu-marker <tags($m)>
 
 %rule lohu-marker
-  $q(magic-body) <classes($q) ∪ ~word ∪ ~cmavo>
+  $q(read-word) <classes($q) ∪ ~word ∪ ~cmavo>
 %conditions
   LOhU ⊆ classes($q)
 %emits
   $
 
-
 %rule lehu-marker
-  $q(magic-body) <classes($q) ∪ ~word ∪ ~cmavo>
+  $q(read-word) <classes($q) ∪ ~word ∪ ~cmavo>
 %conditions
   LEhU ⊆ classes($q)
 %emits
   $ <LEhU>
-
 
 %rule lohu-stream
   | lohu-element
   | lohu-stream PAUSE lohu-element
   | lohu-stream lohu-element
 
-
 %rule lohu-element
   lohu-word | hesitation
-
 
 %rule lohu-word
   $w(read-word)
@@ -380,26 +367,21 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
 %rule quote-gap
   [PAUSE] | [PAUSE] hesitations PAUSE | [PAUSE] hesitations
 
-
 %rule hesitations
   | hesitation
   | hesitations PAUSE hesitation
   | hesitations hesitation
 
-
-%rule zoi-body
-  any-token | zoi-body any-token
+%rule raw-tokens
+  any-token | raw-tokens any-token
 %opaque
-
 
 %rule zohoi-payload
   payload-token | zohoi-payload payload-token
 %opaque
 
-
 %rule any-token
   payload-token | PAUSE
-
 
 %rule payload-token
   ~word | ~hesitation | UNREAD
@@ -459,8 +441,6 @@ SI skips hesitation and erased regions. It never erases an already executed SA o
   $q(cmavo-token)
 %conditions
   SI ⊆ classes($q)
-%emits
-  ε
 ```
 
 ## Erasure by `sa` and `su`
@@ -475,11 +455,15 @@ Counted SA selects the second-nearest match for two markers, the third-nearest f
 
 SA at normal end has no key and erases back to the start of the text. SA before active FAhO uses FAhO as its key, erases the prefix, and then ends the text.
 
-A reach carries classes of whole live units. It excludes nearer matching units and skips erased regions. It never searches original source words inside a quote or compound.
+A reach is the stretch from a candidate unit to SA. Its tags keep classes of its first unit that no later live unit shares. Thus a surviving class identifies the nearest candidate for that key. Each nested SA intersects the possible target classes from its reaches. The rule `sa-wipe-core` handles too few matching units. No reach searches inside a quote or compound.
 
 In cll-ebnf and Zantufa, SU erases everything before it. In bpfk and experimental, SU stops at the last NIhO, LU, TUhE, or TO unit. That boundary survives.
 
-The feature `su-boundary` selects the surviving-boundary policy. A boundary inside an opaque unit cannot stop SU. With no boundary, SU erases the whole prefix.
+The feature `su-boundary` selects the surviving-boundary policy. A boundary inside an opaque unit cannot stop SU. With no boundary, SU erases the whole prefix. The grammar attaches each SU to its surviving boundary as one unit. Thus `unit` includes `su-survivor`.
+
+The word-stage traces show the target choice. `le broda le brode sa le` leaves `le broda le`. `le broda le brode sa sa le` leaves `le`. `mi bu sa bu` fails. `broda sa` leaves nothing.
+
+The rule `sa-key` refuses an SA key because a run of SA forms one counted erasure. The rule `next-word-class` tests the whole remaining span through `tags(after($), next-word-class)`. Its optional `raw-tokens` reads everything after the key, including material after FAhO ([notation, Conditions](../../docs/notation.md#conditions)). The rule reads those tokens without word operations, as quote bodies and the active FAhO suffix do.
 
 ```jbogenbau
 %rule sa-erasure
@@ -511,14 +495,12 @@ The feature `su-boundary` selects the surviving-boundary policy. A boundary insi
   SA ⊈ tags($)
 
 %rule next-word-class
-  spacing $w(read-word) [zoi-body] <classes($w) ∪ ~has-word>
+  spacing $w(read-word) [raw-tokens] <classes($w) ∪ ~has-word>
 
 %rule sa-word
   $q(cmavo-token)
 %conditions
   SA ⊆ classes($q)
-%emits
-  ε
 
 %rule sa-run
   sa-word | sa-run spacing sa-word
@@ -567,8 +549,6 @@ The feature `su-boundary` selects the surviving-boundary policy. A boundary insi
   $q(cmavo-token)
 %conditions
   SU ⊆ classes($q)
-%emits
-  ε
 ```
 
 ## Departures from CLL 19

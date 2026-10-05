@@ -2701,3 +2701,17 @@ adhoc.words.panel.su.5.zantufa
 adhoc.words.panel.su.6.zantufa
 adhoc.words.panel.su.9.zantufa
 adhoc.words.panel.su.10.zantufa
+adhoc.words.panel.clarity.1.cll-ebnf
+adhoc.words.panel.clarity.2.cll-ebnf
+adhoc.words.panel.clarity.4.cll-ebnf
+adhoc.words.panel.clarity.5.cll-ebnf
+adhoc.words.panel.clarity.7.bpfk
+adhoc.words.panel.clarity.8.bpfk
+adhoc.words.panel.clarity.10.bpfk
+adhoc.words.panel.clarity.11.bpfk
+adhoc.words.panel.clarity.12.bpfk
+adhoc.words.panel.clarity.13.experimental
+adhoc.words.panel.clarity.14.experimental
+adhoc.words.panel.clarity.16.experimental
+adhoc.words.panel.clarity.17.experimental
+adhoc.words.panel.clarity.18.experimental

@@ -18,7 +18,7 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 ```jbogenbau
 %redefine-rule word-quote-marker
   (* ZO_pre <- pre_clause ZO spaces? any_word spaces?;  GOhOI_pre <- pre_clause GOhOI spaces? any_word spaces? *)
-  $q(magic-body) <classes($q) ∪ ~word ∪ ~cmavo>
+  $q(read-word) <classes($q) ∪ ~word ∪ ~cmavo>
 %conditions
   classes($q) ∩ (ZO ∪ GOhOI) ≠ ∅
 ```
@@ -35,7 +35,7 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
   $m, $f <~quoted-text>
 
 %rule rahoi-marker
-  $q(magic-body) <classes($q) ∪ ~word ∪ ~cmavo>
+  $q(read-word) <classes($q) ∪ ~word ∪ ~cmavo>
 %conditions
   RAhOI ⊆ classes($q)
 ```
@@ -45,7 +45,7 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 ```jbogenbau
 %redefine-rule zoi-marker
   (* ZOI_pre <- pre_clause ZOI spaces? zoi_open spaces? zoi_word* zoi_close spaces?;  MUhOI_pre likewise *)
-  $q(magic-body) <classes($q) ∪ ~word ∪ ~cmavo>
+  $q(read-word) <classes($q) ∪ ~word ∪ ~cmavo>
 %conditions
   classes($q) ∩ (ZOI ∪ MUhOI) ≠ ∅
 ```
@@ -78,7 +78,6 @@ In a `lo'u` or `lo'ai` quote, such a word is tagged `word` only, as the other wo
 
 %extend-rule read-word
   attached-y
-
 
 ```
 
@@ -151,7 +150,7 @@ A quote word that opens no quote is an ordinary word in Zantufa, which `si` eras
   skipped si-word | skipped bu-word
 
 %rule bare-marker
-  $q(magic-body)
+  $q(read-word)
 %conditions
   classes($q) ∩ (ZOI ∪ MUhOI ∪ LOhU ∪ LOhAI ∪ RAhOI) ≠ ∅
 ```
@@ -169,7 +168,7 @@ The lookahead skips erased regions before BU. Thus `su mi si bu` forms the lette
   $
 
 %rule su-letter-base
-  $q(magic-body)
+  $q(read-word)
 %conditions
   SU ⊆ classes($q)
 
@@ -177,10 +176,8 @@ The lookahead skips erased regions before BU. Thus `su mi si bu` forms the lette
   skipped bu-word
 
 %redefine-rule su-word
-  $q(magic-body)
+  $q(read-word)
 %conditions
   SU ⊆ classes($q),
   ¬begins(after($q), su-letter-tail)
-%emits
-  ε
 ```
