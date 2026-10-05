@@ -406,7 +406,7 @@ A number or letter string cannot end before another unit of the same run. A writ
 
 A continuation unit is `PA` or a complete `lerfu-word`. It includes a BY word, a word with `bu`, recursive LAU prefixes, and a balanced TEI/FOI compound. CLL 17.6 describes compounds, and CLL 17.14 lists the recursive equivalents after LAU. `FOI` closes the inner string and cannot continue it.
 
-The conditions on `number` and `lerfu-string` reject a boundary before another complete continuation unit. Each condition tests the whole run when its rule completes.
+The conditions on `number` and `lerfu-string` reject a boundary before another complete continuation unit. Each condition tests the whole run when its rule completes. This boundary holds even when splitting the run is the only way to parse the whole text.
 
 A quantifier is a number closed by `boi` or a mekso in `vei ... ve'o` brackets (CLL 18.6). A mekso is a mathematical expression, and the rules follow CLL 18 closely. `mex` is a sequence of `mex-1` joined by operators in afterthought infix form, `li pa su'i re`, or a reverse Polish expression introduced by `fu'a`. The infix form is `mex-chain`, a left chain, since operators are applied from left to right (CLL 18.5). So `ci su'i vo pi'i mu` is `(ci su'i vo) pi'i mu`.
 
