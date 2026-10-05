@@ -712,6 +712,6 @@ Nothing else came from the prototype: no code, no scripts, no notes. The maintai
 
 Both CLL dialects now use `late-elision elision-only`. Their numbers and letter strings cannot end before another continuation unit. The continuation is `PA | lerfu-word`, with complete recursive LAU atoms and balanced TEI/FOI compounds. CLL 17.9 and 18.6 require a separator between adjacent runs. CLL 17.14 states which forms count as letter atoms.
 
-The wrappers test each completed boundary. The bodies keep brace notation and all prefixes that their repetition needs. The experimental and Zantufa number rules stay the same. Stage-wide `maximal` is retired. `[++T]` keeps its per-optional meaning.
+The conditions on `number` and `lerfu-string` test each completed boundary. The rules keep brace notation. The experimental and Zantufa number rules stay the same. Stage-wide `maximal` is retired. `[++T]` keeps its per-optional meaning.
 
 The Rust corpus comparison recovers BPFK readings that cll-ebnf already accepts under the shared elision policy. This includes CLL 8.48 without `ku'o`, despite the requirement in CLL 8.6. The maintainer approves that policy as an interpretation of CLL 21.2 note 10. The number and letter boundaries separately follow CLL 17.9 and 18.6.
