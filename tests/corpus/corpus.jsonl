@@ -13824,7 +13824,7 @@
 {"id":"corpus.camxes.22221","text":"06 Feb 2004 15:43:13 * tsali blinks","dialect":"cll-ebnf","expect":"reject","stage":"words","at":0}
 {"id":"corpus.camxes.22222","text":"mi nelci zoi latmo veni vidi vici latmo","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","nelci","zoi","latmo","veni vidi vici","latmo"],"brackets":"(mi [nelci {zoi latmo veni vidi vici latmo}])"}
 {"id":"corpus.camxes.22223","text":"la gliban bangu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","gliban","bangu"],"brackets":"([la gliban] bangu)"}
-{"id":"corpus.camxes.22224","text":" le'u .i mi stidi zo sidjuban bangu","dialect":"cll-ebnf","expect":"reject","stage":"words","at":35,"reason":"LOhU closes at the first LEhU. A later bare LEhU leaves a surviving fault, so the word stage rejects before publishing any words."}
+{"id":"corpus.camxes.22224","text":" le'u .i mi stidi zo sidjuban bangu","dialect":"cll-ebnf","expect":"reject","stage":"words","at":35,"reason":"The initial bare LEhU creates an unopened-quote fault. No eraser removes it, so the word stage rejects before publishing any words."}
 {"id":"corpus.camxes.22225","text":".u'icai","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["u'i","cai"],"brackets":"(u'i cai)"}
 {"id":"corpus.camxes.22226","text":"u'i  .i ki'e","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["u'i","i","ki'e"],"brackets":"(u'i [i ki'e])"}
 {"id":"corpus.camxes.22227","text":"xu do djisku zo zmaselnei","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xu","do","djisku","zo","zmaselnei"],"brackets":"(xu [do {djisku (zo zmaselnei)}])"}
@@ -14989,7 +14989,7 @@
 {"id":"corpus.camxes.2927","text":"mi pu zgatirna le lisri .i xu do go'i","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["mi","pu","zgatirna","le","lisri","i","xu","do","go'i"],"brackets":"([mi {(pu zgatirna) (le lisri)}] [i xu] [do go'i])"}
 {"id":"corpus.camxes.2928","text":"uanai","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ua","nai"],"brackets":"(ua nai)"}
 {"id":"corpus.camxes.2929","text":"ma lisri","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ma","lisri"],"brackets":"(ma lisri)"}
-{"id":"corpus.camxes.293","text":"le'u bu co bu","dialect":"cll-ebnf","seeded":"accept","expect":"reject","stage":"words","at":13,"reason":"LOhU closes at the first LEhU. A later bare LEhU leaves a surviving fault, so the word stage rejects before publishing any words."}
+{"id":"corpus.camxes.293","text":"le'u bu co bu","dialect":"cll-ebnf","seeded":"accept","expect":"reject","stage":"words","at":13,"reason":"The initial bare LEhU creates an unopened-quote fault. BU preserves that fault in its letteral, so the word stage rejects."}
 {"id":"corpus.camxes.2930","text":"le lisri fe la babelfic","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["le","lisri","fe","la","babelfic"],"brackets":"([le lisri] [fe {la babelfic}])"}
 {"id":"corpus.camxes.2931","text":"la'edi'u na jursa","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la'e","di'u","na","jursa"],"brackets":"([la'e di'u] [na jursa])"}
 {"id":"corpus.camxes.2932","text":"ku'i xu do jimpe le lisri","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ku'i","xu","do","jimpe","le","lisri"],"brackets":"([ku'i xu] [do {jimpe (le lisri)}])"}
