@@ -26,7 +26,7 @@ A dangling `bu` creates a unit with a missing-base fault. A dangling `le'u` crea
 
 A second `bu` wraps a fault unit like any other unit. Thus `bu bu si` leaves nothing. A fault that survives normal end or active `fa'o` rejects the word stage.
 
-Hesitation emits nothing unless the word reader joins it with `bu`. The reader treats `yybu` as hesitation followed by the letter word for y.
+Hesitation emits nothing unless the word reader joins it with `bu`. The reader treats `yybu` as hesitation followed by the letter word for y. This also holds when a pause separates y from BU.
 
 An active `fa'o` ends the text. The stage reads no words after it. A quoted `fa'o` or a right operand of `zei` does not end the text.
 
@@ -185,7 +185,7 @@ ZOhOI and MEhOI quote one raw run in the experimental dialect. After a pause, th
 
 ZOI and LAhO skip hesitation and read the next real word as their opening delimiter. Hesitation never serves as a delimiter. They close at the first matching whole run by canonical sound. Canonical sound ignores case and commas.
 
-The letter-y delimiter can close on one `ybu` run or adjacent `y` and `bu` runs. The reader accepts both opening spellings. The closing test preserves adjacency and never joins the body into words.
+The letter-y delimiter can close on one `ybu` run or adjacent `y` and `bu` runs. The reader accepts both opening spellings. The closing test preserves adjacency and never joins the body into words. Extra y sounds before the opening BU remain hesitation, even across a pause. The delimiter then sounds like ybu. A raw yybu or yyybu run cannot close it.
 
 The body remains raw and opaque. In `zoi bu. foo .y. bu.`, the final `bu` closes the quote. The preceding y remains body text.
 

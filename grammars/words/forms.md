@@ -19,7 +19,7 @@ The `cll-ebnf` dialect stitches [shapes.md](shapes.md) and [cll.md](cll.md) as i
 
 The text is runs and pauses. A run is a stretch of text with no pause inside. The phoneme stage emits each pause as one `PAUSE` token. The phoneme stage decides what counts as a pause. In CLL's orthography, a pause is a space or a period. In the conventions that the other dialects read, other punctuation is a pause too.
 
-Every pause rule of CLL 4.9 and 4.2 holds within one run. A pause satisfies each of them, so two words with a pause between them never constrain each other. The approved word forms look past the end of a word only as far as the next pause. So this stage reads each run on its own. The one exception is in the Zantufa dialect. There, a `ra'oi` before a pause changes how the stage divides the next run ([zantufa.md](zantufa.md)).
+Every pause rule of CLL 4.9 and 4.2 holds within one run. A pause satisfies each of them, so two words with a pause between them never constrain each other. The approved word forms look past the end of a word only as far as the next pause. This stage reads each run on its own, except for two lookaheads. A prolonged y run tests whether BU follows across one pause. In Zantufa, a second lookahead applies before a quoted form. There, a `ra'oi` before a pause changes how the stage divides the next run ([zantufa.md](zantufa.md)).
 
 A run is a sequence of words, or it is unread. An unread run is one that the pipeline did not read as words, and it carries the tag `UNREAD`. A run is unread when the phoneme stage already left it unread, because it has a character that no script reads. A run of phonemes that divides into no words is also unread.
 
@@ -114,7 +114,7 @@ The first condition of `run-words` follows from the second. Each join of the sec
 
 The parser tests it as soon as it reads `$r`. If the condition fails, the parser drops the join before reading another word. Engine §4 gives this order of evaluation. Without the condition, the parser tries every word shape after a word that no word can join. The full corpus then takes about 13% longer in the Rust library.
 
-Before BU, this stage splits prolonged y hesitation into a prefix and a final y token. The word reader drops the prefix and joins only the final y with BU. This split preserves source positions and leaves raw quote bodies unjoined.
+Before BU, this stage splits prolonged y hesitation into a prefix and a final y token, with or without a pause. The word reader drops the prefix and joins only the final y with BU. This split preserves source positions and leaves raw quote bodies unjoined.
 
 The word stage needs to know where a run begins and ends. A name that `bu` takes needs a pause before it (CLL 17.4). A `zoi` quote and a `zo'oi` quote end at the end of a run. So this stage tags the first word of each run `run-initial`, and the last word `run-final`.
 
@@ -145,10 +145,10 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
   tags($, source-word)
 %conditions
   matches($, hesitation-shape),
-  begins(after($), bu-form)
+  begins(after($), bu-form-ahead)
 %emits
   $p <tags($, source-word) ∪ ~run-initial>,
-  $y <tags($, source-word) ∪ ~spacing ∪ ~after-hesitation>
+  $y <tags($, source-word) ∪ ~spacing ∪ ~after-hesitation ∪ (¬begins(after($), nonpause-phoneme) ⟹ ~run-final)>
 
 %rule split-later-y
   $p(y-prefix) $y(y-atom)
@@ -156,16 +156,19 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
   tags($, source-word)
 %conditions
   matches($, hesitation-shape),
-  begins(after($), bu-form)
+  begins(after($), bu-form-ahead)
 %emits
   $p <tags($, source-word)>,
-  $y <tags($, source-word) ∪ ~after-hesitation>
+  $y <tags($, source-word) ∪ ~after-hesitation ∪ (¬begins(after($), nonpause-phoneme) ⟹ ~run-final)>
 
 %rule y-prefix
   y-atom | y-prefix y-atom
 
 %rule y-atom
   [/,/] /y/
+
+%rule bu-form-ahead
+  [PAUSE] bu-form
 
 %rule bu-form
   cmavo-shape="bu"
