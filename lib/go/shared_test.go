@@ -15,6 +15,7 @@ import (
 
 type engineCase struct {
 	Description string            `json:"description"`
+	Dialect     string            `json:"dialect"`
 	Grammar     *string           `json:"grammar"`
 	Documents   map[string]string `json:"documents"`
 	Pipeline    string            `json:"pipeline"`
@@ -139,6 +140,9 @@ func loadCase(t testing.TB, file string) *engineCase {
 }
 
 func caseDialect(c *engineCase, noCache bool) (*Dialect, error) {
+	if c.Dialect != "" {
+		return LoadDialect(c.Dialect)
+	}
 	if c.Grammar != nil {
 		g := *c.Grammar
 		if !strings.Contains(g, "%ambiguity-resolution") {

@@ -614,14 +614,21 @@ pub fn within<T: Send + 'static>(limit: std::time::Duration, work: impl FnOnce()
     receive.recv_timeout(limit).ok()
 }
 
+/// Loads a bundled dialect or the documents of a shared engine case.
+fn case_dialect(case: &Value) -> Result<gencmu::Dialect, gencmu::Error> {
+    if let Some(name) = case.get("dialect").and_then(Value::str) {
+        return gencmu::load_dialect(name);
+    }
+    let (documents, pipeline) = case_documents(case);
+    gencmu::load_dialect_sources(documents, &pipeline)
+}
+
 /// Runs one engine case (tests/README.md); the error says what differs.
 /// A case with `parses` loads its dialect once and parses its input with
 /// each item's options in order, each result held to the item's `expect`.
 pub fn run_engine_case(case: &Value) -> Result<(), String> {
-    let (documents, pipeline) = case_documents(case);
     if let Some(parses) = case.get("parses") {
-        let dialect = gencmu::load_dialect_sources(documents, &pipeline)
-            .map_err(|error| format!("the dialect did not load: {error}"))?;
+        let dialect = case_dialect(case).map_err(|error| format!("the dialect did not load: {error}"))?;
         for (index, run) in parses.array().iter().enumerate() {
             let expect = run.get("expect").ok_or("a parse without expect")?;
             check_parse(&dialect, case, run, expect).map_err(|problem| format!("parse {index}: {problem}"))?;
@@ -629,7 +636,7 @@ pub fn run_engine_case(case: &Value) -> Result<(), String> {
         return Ok(());
     }
     let expect = case.get("expect").ok_or("a case without expect")?;
-    let dialect = match gencmu::load_dialect_sources(documents, &pipeline) {
+    let dialect = match case_dialect(case) {
         Ok(dialect) => dialect,
         Err(_) if CHECKS.with(std::cell::Cell::get) == Checks::Hook => return Ok(()),
         Err(error) => return check_load_error(expect, &error),
@@ -870,8 +877,7 @@ pub fn result_mutants() -> Vec<(Value, Value)> {
 
 /// The canonical result of an engine case that loads and parses.
 pub fn engine_case_result(case: &Value) -> Value {
-    let (documents, pipeline) = case_documents(case);
-    let dialect = gencmu::load_dialect_sources(documents, &pipeline).expect("the dialect of the case");
+    let dialect = case_dialect(case).expect("the dialect of the case");
     let options = case_options(case);
     let result = match case_tokens(case) {
         Some(tokens) => dialect.parse_tokens(&tokens, &options),

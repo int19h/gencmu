@@ -1,9 +1,5 @@
 {
   "description": "Zantufa TO_post places a leading nested parenthesis in the opener slot. The outer parenthesis body remains empty (grammars/syntax/zantufa.md).",
-  "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
-  },
-  "pipeline": "pipeline.md",
   "input": "to to mi klama toi toi",
   "expect": {
     "result": {
@@ -95,5 +91,6 @@
         ]
       }
     }
-  }
+  },
+  "dialect": "zantufa"
 }
