@@ -128,7 +128,7 @@ A failed word stage publishes no warnings from that stage. A successful stage ke
 
 The lexicon gives each cmavo its classes. Operators use these classes rather than spelling. The experimental syntax can treat names as predicates without changing their lexical class.
 
-The feature `sa-su` enables the two long-range erasers. Without that feature, SA and SU are ordinary words. The libraries turn on `sa-su` for a text that needs it ([engine §13](../../docs/engine.md#13-features)). The rule `word` identifies such texts by tagging SA and SU only when that feature is off.
+The feature `sa-su` enables the two long-range erasers. Without that feature, SA and SU are ordinary words. The libraries turn on `sa-su` for a text that needs it ([engine §13](../../docs/engine.md#13-the-pipeline)). The rule `word` identifies such texts by tagging SA and SU only when that feature is off.
 
 ```jbogenbau
 %const $MAGIC-WORDS
@@ -467,7 +467,7 @@ A reach is the stretch from a candidate unit to SA. Its tags keep classes of its
 
 In cll-ebnf and Zantufa, SU erases everything before it. In bpfk and experimental, SU stops at the last NIhO, LU, TUhE, or TO unit. That boundary survives.
 
-The feature `su-boundary` selects the surviving-boundary policy. A boundary inside an opaque unit cannot stop SU. With no boundary, SU erases the whole prefix. The grammar attaches each SU to its surviving boundary as one unit. Thus `unit` includes `su-survivor`.
+The feature `su-boundary` makes SU keep its stopping boundary. A boundary inside an opaque unit cannot stop SU. With no boundary, SU erases the whole prefix. When a boundary survives SU, the grammar groups both into one unit. Thus `unit` includes `su-survivor`.
 
 The word-stage traces show the target choice. `le broda le brode sa le` leaves `le broda le`. `le broda le brode sa sa le` leaves `le`. `mi bu sa bu` fails. `broda sa` leaves nothing.
 
