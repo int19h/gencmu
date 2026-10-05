@@ -33,12 +33,9 @@ In the experimental dialect, a marker that opens no quote is an ordinary word. [
   lohai-word | hesitation
 
 %rule lohai-word
-  | $c(cmavo-token)
-  | BRIVLA
-  | CMEVLA
-  | y-bu-word
+  $w(read-word)
 %conditions
-  classes($c) ∩ (LOhAI ∪ LEhAI) = ∅
+  classes($w) ∩ (LOhAI ∪ LEhAI) = ∅
 %emits
   $ <~word>
 

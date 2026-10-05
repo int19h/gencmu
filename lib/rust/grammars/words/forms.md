@@ -114,18 +114,62 @@ The first condition of `run-words` follows from the second. Each join of the sec
 
 The parser tests it as soon as it reads `$r`. If the condition fails, the parser drops the join before reading another word. Engine §4 gives this order of evaluation. Without the condition, the parser tries every word shape after a word that no word can join. The full corpus then takes about 13% longer in the Rust library.
 
+Before BU, this stage splits prolonged y hesitation into a prefix and a final y token. The word reader drops the prefix and joins only the final y with BU. This split preserves source positions and leaves raw quote bodies unjoined.
+
 The word stage needs to know where a run begins and ends. A name that `bu` takes needs a pause before it (CLL 17.4). A `zoi` quote and a `zo'oi` quote end at the end of a run. So this stage tags the first word of each run `run-initial`, and the last word `run-final`.
 
 ```jbogenbau
 %rule first-word
+  ordinary-first-word | split-first-y
+
+%rule ordinary-first-word
   $w(source-word)
+%conditions
+  ¬begins(from($w), split-first-y)
 %emits
   $ <tags($w) ∪ ~run-initial ∪ (¬begins(after($w), nonpause-phoneme) ⟹ ~run-final)>
 
 %rule later-word
+  ordinary-later-word | split-later-y
+
+%rule ordinary-later-word
   $w(source-word)
+%conditions
+  ¬begins(from($w), split-later-y)
 %emits
   $ <tags($w) ∪ (¬begins(after($w), nonpause-phoneme) ⟹ ~run-final)>
+
+%rule split-first-y
+  $p(y-prefix) $y(y-atom)
+%tags
+  tags($, source-word)
+%conditions
+  matches($, hesitation-shape),
+  begins(after($), bu-form)
+%emits
+  $p <tags($, source-word) ∪ ~run-initial>,
+  $y <tags($, source-word) ∪ ~spacing ∪ ~after-hesitation>
+
+%rule split-later-y
+  $p(y-prefix) $y(y-atom)
+%tags
+  tags($, source-word)
+%conditions
+  matches($, hesitation-shape),
+  begins(after($), bu-form)
+%emits
+  $p <tags($, source-word)>,
+  $y <tags($, source-word) ∪ ~after-hesitation>
+
+%rule y-prefix
+  y-atom | y-prefix y-atom
+
+%rule y-atom
+  [/,/] /y/
+
+%rule bu-form
+  cmavo-shape="bu"
+
 ```
 
 ## Words
