@@ -36,8 +36,8 @@ BAhE marks the next word in the indicator stage. It remains a separate unit duri
 %ambiguity-resolution lazy
 
 %rule text
-  | empty [sa-tail]
-  | $s(stream) spacing [sa-tail]
+  | empty
+  | $s(stream) spacing
   | empty faho-group
   | $s(stream) spacing faho-group
 %conditions
@@ -56,6 +56,8 @@ BAhE marks the next word in the indicator stage. It remains a separate unit duri
   | sa-su? ¬su-boundary? stream spacing su-word spacing
   | sa-su? su-boundary? $s(stream) spacing su-word spacing
   | sa-su? sa-wiped spacing
+  | sa-su? empty sa-tail
+  | sa-su? stream spacing sa-tail
 %conditions
   classes($s) ∩ $SU-STOPS = ∅
 %emits
@@ -181,7 +183,7 @@ ZO quotes one word from the shared reader. Inside that quote, an eraser, compoun
 
 ZOhOI and MEhOI quote one raw run in the experimental dialect. After a pause, they skip ordinary hesitation. The quote must finish at the end of its run.
 
-ZOI and LAhO read an opening delimiter through the shared reader. They close at the first matching whole run by canonical sound. Canonical sound ignores case and commas.
+ZOI and LAhO skip hesitation and read the next real word as their opening delimiter. Hesitation never serves as a delimiter. They close at the first matching whole run by canonical sound. Canonical sound ignores case and commas.
 
 The letter-y delimiter can close on one `ybu` run or adjacent `y` and `bu` runs. The reader accepts both opening spellings. The closing test preserves adjacency and never joins the body into words.
 
@@ -230,7 +232,7 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
   read-word
 
 %rule zoi-quote
-  $m(zoi-marker) quote-gap $open(delimiter) PAUSE $content(zoi-body) PAUSE $close(raw-close)
+  $m(zoi-marker) delimiter-gap $open(delimiter) PAUSE $content(zoi-body) PAUSE $close(raw-close)
 %tags
   tags($m)
 %conditions
@@ -242,7 +244,7 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
   $m, $open <~word>, $content <~quoted-text>, $close <~word>
 
 %rule empty-zoi-quote
-  $m(zoi-marker) quote-gap $open(delimiter) PAUSE $content(empty-zoi-body) $close(raw-close)
+  $m(zoi-marker) delimiter-gap $open(delimiter) PAUSE $content(empty-zoi-body) $close(raw-close)
 %tags
   tags($m)
 %conditions
@@ -255,7 +257,22 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
   ~word ∪ BY ∪ ~y-letter ∪ ~run-initial ∪ ~run-final
 
 %rule delimiter
-  read-word
+  $w(read-word)
+%conditions
+  Y ⊈ classes($w)
+
+%rule delimiter-gap
+  [PAUSE] [delimiter-hesitations [PAUSE]]
+
+%rule delimiter-hesitations
+  delimiter-hesitation | delimiter-hesitations [PAUSE] delimiter-hesitation
+
+%rule delimiter-hesitation
+  $h(y-run)
+%conditions
+  ¬begins(from($h), y-bu-word)
+%emits
+  ε
 
 %rule y-key
   $y(y-base)
@@ -454,7 +471,7 @@ With no matching unit, SA erases everything before it. Thus `mi bu sa bu` remove
 
 Counted SA selects the second-nearest match for two markers, the third-nearest for three, and so on. The grammar nests one reach per marker. Too few matches erase the whole prefix.
 
-SA at normal end has no key and erases nothing. SA before active FAhO uses FAhO as its key, erases the prefix, and then ends the text.
+SA at normal end has no key and erases back to the start of the text. SA before active FAhO uses FAhO as its key, erases the prefix, and then ends the text.
 
 A reach carries classes of whole live units. It excludes nearer matching units and skips erased regions. It never searches original source words inside a quote or compound.
 
@@ -571,9 +588,9 @@ The [proposal's BU page](https://mw.lojban.org/papri/bu) lets SA BU reach inside
 
 The proposal also exposes a completed LOhU quote's LEhU ending to SA. These dialects expose only the opening class. A surviving bare LEhU remains a fault even after a constructor wraps it.
 
-camxes-std keys `sa .ebu` on BY and selects the earliest matching unit. These dialects use the next source word's class and select the nearest match. Counted SA selects successively earlier matches.
+camxes-std keys `sa .ebu` on BY and selects the earliest matching unit. These dialects use the next source word's class and select the nearest match. Counted SA selects successively earlier matches. A trailing SA instead clears the text, as the proposal's table specifies.
 
-The y-delimiter policy accepts both one-run and two-run closing spellings. It compares the existing canonical sounds without a separate duration normalization. The raw body retains its source spelling.
+Only the letter word for y serves as a y delimiter. Its closing spelling uses one run or two adjacent runs. Ordinary hesitation never needs a delimiter-matching rule. The raw body retains its source spelling.
 
 The cll-ebnf SU policy follows CLL 19.13. The other three dialects preserve a boundary unit, as the Magic Words proposal specifies. Zantufa adopts this shared boundary policy.
 
