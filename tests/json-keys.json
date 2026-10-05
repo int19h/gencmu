@@ -71,13 +71,13 @@
     {
       "description": "Bootstrap ignores preceding Format",
       "find": "\"format\":",
-      "replace": "\"Format\":null,\"format\":",
+      "replace": "\"Format\":0,\"format\":",
       "loads": true
     },
     {
       "description": "Bootstrap ignores following Format",
       "find": "\"format\":18",
-      "replace": "\"format\":18,\"Format\":null",
+      "replace": "\"format\":18,\"Format\":0",
       "loads": true
     },
     {
@@ -217,13 +217,13 @@
     {
       "description": "Compiled cache ignores preceding Format at manifest format",
       "find": "\"format\":18",
-      "replace": "\"Format\":null,\"format\":18",
+      "replace": "\"Format\":0,\"format\":18",
       "cached": true
     },
     {
       "description": "Compiled cache ignores following Format at manifest format",
       "find": "\"format\":18",
-      "replace": "\"format\":18,\"Format\":null",
+      "replace": "\"format\":18,\"Format\":0",
       "cached": true
     },
     {
@@ -247,13 +247,13 @@
     {
       "description": "Compiled cache ignores preceding Bootstrap at manifest bootstrap",
       "find": "\"bootstrap\":\"@bootstrap@\"",
-      "replace": "\"Bootstrap\":null,\"bootstrap\":\"@bootstrap@\"",
+      "replace": "\"Bootstrap\":\"wrong-bootstrap\",\"bootstrap\":\"@bootstrap@\"",
       "cached": true
     },
     {
       "description": "Compiled cache ignores following Bootstrap at manifest bootstrap",
       "find": "\"bootstrap\":\"@bootstrap@\"",
-      "replace": "\"bootstrap\":\"@bootstrap@\",\"Bootstrap\":null",
+      "replace": "\"bootstrap\":\"@bootstrap@\",\"Bootstrap\":\"wrong-bootstrap\"",
       "cached": true
     },
     {
@@ -307,13 +307,13 @@
     {
       "description": "Compiled cache ignores preceding Hash at entry hash",
       "find": "\"hash\":\"@source@\"",
-      "replace": "\"Hash\":null,\"hash\":\"@source@\"",
+      "replace": "\"Hash\":\"wrong-source\",\"hash\":\"@source@\"",
       "cached": true
     },
     {
       "description": "Compiled cache ignores following Hash at entry hash",
       "find": "\"hash\":\"@source@\"",
-      "replace": "\"hash\":\"@source@\",\"Hash\":null",
+      "replace": "\"hash\":\"@source@\",\"Hash\":\"wrong-source\"",
       "cached": true
     },
     {
@@ -367,13 +367,13 @@
     {
       "description": "Compiled cache ignores preceding Format at DOM format",
       "find": "\"dom\":{\"format\":18",
-      "replace": "\"dom\":{\"Format\":null,\"format\":18",
+      "replace": "\"dom\":{\"Format\":0,\"format\":18",
       "cached": true
     },
     {
       "description": "Compiled cache ignores following Format at DOM format",
       "find": "\"dom\":{\"format\":18",
-      "replace": "\"dom\":{\"format\":18,\"Format\":null",
+      "replace": "\"dom\":{\"format\":18,\"Format\":0",
       "cached": true
     },
     {
