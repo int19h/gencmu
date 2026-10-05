@@ -6,7 +6,7 @@ The [forms stage](forms.md) supplies source words. This stage applies quotes, co
 
 A unit is one item on which an operation acts. A token is one emitted item for the next stage. Every quote and compound is one opaque unit, even when its emission contains several tokens.
 
-The grammar follows the maintainer's opaque-unit interpretation of the Magic Words proposal. It processes every operation strictly from left to right. Only the shared word reader joins hesitation with BU before an operation takes the word.
+The grammar follows the maintainer's opaque-unit interpretation of the Magic Words proposal. The shared grammar processes every operation strictly from left to right. Zantufa keeps its reference parser's local quote-first and SU-letter-base exceptions. Only the shared word reader joins hesitation with BU before an operation takes the word.
 
 
 
