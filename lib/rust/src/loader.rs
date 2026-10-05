@@ -94,6 +94,13 @@ fn grammar_error(message: String) -> Error {
 }
 
 fn notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dialect, Error> {
+    build_notation_dialect(bootstrap, unicode).map_err(|mut error| {
+        error.document = Some("notation/bootstrap.json".to_string());
+        error
+    })
+}
+
+fn build_notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dialect, Error> {
     let value = json::parse(bootstrap).map_err(|message| grammar_error(format!("bootstrap.json: {message}")))?;
     if value.get("format").and_then(Json::as_int) != Some(DOM_FORMAT) {
         return Err(grammar_error("bootstrap.json: an unsupported format".to_string()));
@@ -117,8 +124,10 @@ fn notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dialect, E
     if stages.is_empty() {
         return Err(grammar_error("bootstrap.json has no stages".to_string()));
     }
-    Dialect::new(stages, Vec::new(), unicode)
-        .map_err(|error| grammar_error(format!("bootstrap.json: {}", error.message)))
+    Dialect::new(stages, Vec::new(), unicode).map_err(|mut error| {
+        error.message = format!("bootstrap.json: {}", error.message);
+        error
+    })
 }
 
 impl Context {
@@ -133,8 +142,10 @@ impl Context {
         static CONTEXT: OnceLock<Result<Arc<Context>, Error>> = OnceLock::new();
         CONTEXT
             .get_or_init(|| {
-                let file =
-                    |path: &str| bundled(path).ok_or_else(|| grammar_error(format!("the bundled {path} is missing")));
+                let file = |path: &str| {
+                    bundled(path)
+                        .ok_or_else(|| grammar_error(format!("the bundled {path} is missing")).in_document(path))
+                };
                 Context::new(file("unicode.txt")?, file("notation/bootstrap.json")?, file("compiled.json")?)
                     .map(Arc::new)
             })
@@ -448,7 +459,7 @@ where
                 own(path)
                     .or_else(|| bundled(path))
                     .map(str::to_string)
-                    .ok_or_else(|| grammar_error(format!("the bundled {path} is missing")))
+                    .ok_or_else(|| grammar_error(format!("the bundled {path} is missing")).in_document(path))
             };
             Arc::new(Context::new(&pick("unicode.txt")?, &pick("notation/bootstrap.json")?, &pick("compiled.json")?)?)
         };

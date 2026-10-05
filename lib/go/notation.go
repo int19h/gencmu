@@ -18,7 +18,12 @@ type notationReader struct {
 	hash    string
 }
 
-func newNotationReader(bootstrap string, uni *unicodeTable) (*notationReader, error) {
+func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationReader, err error) {
+	defer func() {
+		if e, ok := err.(*Error); ok {
+			e.Document = "notation/bootstrap.json"
+		}
+	}()
 	var b struct {
 		Format int
 		// A stage's name and a document's path are strings: null and

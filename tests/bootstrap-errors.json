@@ -1,0 +1,61 @@
+{
+  "kind": "grammar",
+  "document": "notation/bootstrap.json",
+  "cases": [
+    {
+      "description": "Invalid bootstrap JSON",
+      "bootstrap": "{"
+    },
+    {
+      "description": "Unsupported bootstrap format",
+      "bootstrap": "{\"format\":0,\"stages\":[]}"
+    },
+    {
+      "description": "Missing bootstrap stages",
+      "bootstrap": "{\"format\":18,\"stages\":[]}"
+    },
+    {
+      "description": "Malformed bootstrap stage",
+      "bootstrap": "{\"format\":18,\"stages\":[null]}"
+    },
+    {
+      "description": "Missing bootstrap DOM",
+      "find": "\"dom\":",
+      "replace": "\"absent\":"
+    },
+    {
+      "description": "Malformed bootstrap DOM",
+      "find": "\"rules\":[",
+      "replace": "\"rules\":null,\"absent\":["
+    },
+    {
+      "description": "Retired greedy maximal operand",
+      "find": "\"args\":[\"greedy\"]",
+      "replace": "\"args\":[\"greedy\",\"maximal\"]"
+    },
+    {
+      "description": "Retired late-elision maximal operand",
+      "find": "\"args\":[\"greedy\"]",
+      "replace": "\"args\":[\"late-elision\",\"elision-only\",\"maximal\"]"
+    },
+    {
+      "description": "Missing bootstrap resolution",
+      "find": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[16,1]}]",
+      "replace": "\"directives\":[]"
+    },
+    {
+      "description": "Duplicate bootstrap resolution",
+      "find": "\"directives\":[",
+      "replace": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[900,1]},",
+      "line": 16,
+      "column": 1
+    },
+    {
+      "description": "Duplicate bootstrap rule",
+      "find": "\"name\":\"text\",\"op\":\"define\"",
+      "replace": "\"name\":\"word\",\"op\":\"define\"",
+      "line": 39,
+      "column": 1
+    }
+  ]
+}

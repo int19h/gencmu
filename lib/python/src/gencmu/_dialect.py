@@ -149,6 +149,13 @@ class NotationReader:
         # The DOMs this reader read, by the hash of the text and the DOM
         # format. The module's lock guards it.
         self.doms: Recent[tuple[str, int], Dom] = Recent(_MAX_DOMS, _MAX_DOM_SIZE)
+        try:
+            self.stages = self._bootstrap_stages(bootstrap, unicode)
+        except GencmuError as error:
+            error.document = "notation/bootstrap.json"
+            raise
+
+    def _bootstrap_stages(self, bootstrap: str, unicode: UnicodeTable) -> list[tuple[str, Lowered]]:
         where = "notation/bootstrap.json"
         try:
             data = json.loads(bootstrap)
@@ -173,7 +180,7 @@ class NotationReader:
                     raise GencmuError(f"the bootstrap's DOM of {document['path']} is malformed: {problem}", document=where)
                 pairs.append((document["path"], document["dom"]))
             stages.append(stitch(stage["name"], pairs, unicode))
-        self.stages = [(grammar.stage, lower(grammar, frozenset())) for grammar in stages]
+        return [(grammar.stage, lower(grammar, frozenset())) for grammar in stages]
 
     def read(self, text: str, path: str) -> Dom:
         """The DOM of a grammar document (engine §8, §9)."""

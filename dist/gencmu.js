@@ -12607,10 +12607,15 @@
     constructor(read) {
       this.read = read;
       this.unicode = new UnicodeTable(this.need("unicode.txt"));
-      const bootstrap = readBootstrap(this.need("notation/bootstrap.json"), this.unicode);
-      this.bootstrapHash = fnv1a64(this.need("notation/bootstrap.json"));
-      this.notation = new Dialect("dialects/notation.md", bootstrap.stages.map((stage) =>
-        new Stage(stage.name, new Grammar(stage.name, stage.documents.map((document) => ({ path: document.path, dom: document.dom })), this.unicode))), this);
+      try {
+        const bootstrap = readBootstrap(this.need("notation/bootstrap.json"), this.unicode);
+        this.bootstrapHash = fnv1a64(this.need("notation/bootstrap.json"));
+        this.notation = new Dialect("dialects/notation.md", bootstrap.stages.map((stage) =>
+          new Stage(stage.name, new Grammar(stage.name, stage.documents.map((document) => ({ path: document.path, dom: document.dom })), this.unicode))), this);
+      } catch (error) {
+        if (error instanceof GencmuError) error.where.document = "notation/bootstrap.json";
+        throw error;
+      }
       /** @type {Map<string, CompiledEntry>} */
       this.compiled = new Map();
       // Precompiled DOMs are a cache: one that cannot be read, or an entry

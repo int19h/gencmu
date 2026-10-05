@@ -117,6 +117,10 @@ Apart from the table, each library's own tests lose the witness on purpose after
 
 Each library reads the document as a grammar document (engine §8, §9). The reading makes a DOM (document object model), as `docs/output.md` describes. The library matches the DOM against the pattern, or it compares the position of the error with the expected position. The reader reports a syntax error at the first token that cannot continue the document. It reports an error of §9 at the first token of the offending construct.
 
+## Bootstrap errors: `bootstrap-errors.json`
+
+Each case supplies bootstrap text or replaces the first occurrence of `find` with `replace` in the bundled bootstrap. Each library loads a simple pipeline with that bootstrap and requires a grammar error. The error must name `notation/bootstrap.json`, including failures that arise when the loader constructs the stages. If a case supplies `line` and `column`, the error must keep that position.
+
 ## Notation shapes: `notation-shapes.json`
 
 ```
