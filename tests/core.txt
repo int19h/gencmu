@@ -1750,3 +1750,7 @@ adhoc.indicators.quoted-boundary.probe-65.zantufa
 adhoc.indicators.quoted-boundary.probe-66.zantufa
 adhoc.indicators.quoted-boundary.probe-67.zantufa
 adhoc.indicators.quoted-boundary.probe-68.experimental
+adhoc.indicators.initial-name-and-indicator.text.cll-ebnf
+adhoc.indicators.initial-name-and-indicator.quote.cll-ebnf
+adhoc.indicators.initial-name-and-indicator.text.bpfk
+adhoc.indicators.initial-name-and-indicator.quote.bpfk

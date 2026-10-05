@@ -18,9 +18,17 @@ The stage reads an indicator run as far as it goes, so the stage is greedy. Wher
 
 ## Quotation boundaries
 
-A quotation opener introduces words that form quoted content. After `lu`, indicators stay in the stream and begin the quoted text. CLL 19.9 requires the text between `lu` and `li'u` to be valid Lojban. So `lu ui mi klama li'u` quotes `ui mi klama`, and `lu ui li'u` quotes the text `ui`.
+CLL 21.2 writes `LU text`, and its `text` rule permits initial indicators. CLL 13.9 says that indicators "at the beginning of a text" modify what follows. So indicators after `lu` begin the quoted text and stay in the stream.
 
-A parenthesis does not quote its content. Indicators after either word of TO, `to` or `to'i`, attach to that opener. CLL 19.8 and 13.9 give them scope over the whole construction. So `to ui mi klama toi` attaches `ui` to `to`. Indicators after `tu'e` attach to that sentence-group opener for the same reason.
+A quotation must hold any text, including one that begins with an indicator. Attaching that indicator to `lu` prevents the speaker from quoting such a text. An attachment to `lu` also only duplicates an indicator on `li'u`.
+
+CLL 13.9 also says that an attached indicator "pertains to the referent of the entire structure". That sentence describes meaning, and a quotation refers to its quoted text. It does not require attachment to `lu`.
+
+A quoted text starts as a whole text does. CLL 21.2 lets `text` start with names or indicators, but not both. The dialect rejects both `ui .djan. mi klama` and `lu ui .djan. mi klama li'u` for that reason.
+
+CLL 21.2 also writes `TO text`, so that rule alone does not separate TO from LU. CLL 19.12 example 19.67 uses `to'isa'a` and says that `sa'a` marks the whole bracketed remark. Thus indicators after `to` and `to'i` attach to the opener. Indicators after `tu'e` also attach to that opener under CLL 19.8 and 13.9.
+
+The official parser differs after `lu` because its preprocessor absorbs following indicators into the preceding token. This stage instead preserves the initial indicators of the quoted text. So `lu ui mi klama li'u` quotes `ui mi klama`, and `lu ui li'u` quotes `ui`.
 
 The word stage already protects the material inside `zo`, `lo'u ... le'u`, and delimiter quotes such as `zoi`. That material carries no indicator class here. Zantufa's `lu'ei` also introduces quoted content, but its syntax handles that boundary. No word of the Zantufa lexicon carries the indicator tag, so this stage attaches only BAhE there.
 
