@@ -61,9 +61,25 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 		return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "the bootstrap has an unknown format"}
 	}
 	nr := &notationReader{uni: uni, hash: fnv1a64(bootstrap)}
+	if len(b.Stages) == 0 {
+		return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "the bootstrap has no stages"}
+	}
+	type stageInput struct {
+		name      string
+		documents []docDOM
+	}
+	var inputs []stageInput
+	names := map[string]bool{}
 	for _, s := range b.Stages {
-		if s.Name == nil {
+		if s.Name == nil || !isName(*s.Name) {
 			return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "a stage of the bootstrap has no name"}
+		}
+		if names[*s.Name] {
+			return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "a second stage named " + *s.Name}
+		}
+		names[*s.Name] = true
+		if len(s.Documents) == 0 {
+			return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "a bootstrap stage requires documents"}
 		}
 		var docs []docDOM
 		for _, d := range s.Documents {
@@ -76,21 +92,35 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 			}
 			docs = append(docs, docDOM{path: *d.Path, dom: dom})
 		}
-		g, gerr := stitch(*s.Name, docs, uni)
+		inputs = append(inputs, stageInput{*s.Name, docs})
+	}
+	for _, input := range inputs {
+		hasRules := false
+		for _, document := range input.documents {
+			hasRules = hasRules || len(document.dom.Rules) > 0
+		}
+		if !hasRules {
+			return nil, &Error{Kind: ErrorGrammar, Stage: input.name, Message: "stage " + input.name + " has no rules"}
+		}
+	}
+	for _, input := range inputs {
+		g, gerr := stitch(input.name, input.documents, uni)
 		if gerr != nil {
-			gerr.Stage = *s.Name
+			gerr.Stage = input.name
 			return nil, gerr
 		}
+		nr.stages = append(nr.stages, g)
+	}
+	if _, err := newDialect(nr.stages, nil, uni); err != nil {
+		return nil, err
+	}
+	for _, g := range nr.stages {
 		l := lower(g, nil)
 		if l.fault != "" {
 			fault := *l.faultLocation
 			return nil, &fault
 		}
-		nr.stages = append(nr.stages, g)
 		nr.lowered = append(nr.lowered, l)
-	}
-	if len(nr.stages) == 0 {
-		return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "the bootstrap has no stages"}
 	}
 	return nr, nil
 }

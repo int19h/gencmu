@@ -189,18 +189,28 @@ struct Run {
 fn dialect_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec<Feature>, Error> {
     let mut kinds: BTreeMap<&str, FeatureKind> = BTreeMap::new();
     for stage in stages {
-        let rules = stage
-            .rules
-            .iter()
-            .flat_map(|rule| &rule.alternatives)
-            .flat_map(|alternative| &alternative.alternative.guards);
-        let entries = stage.classifiers.iter().flat_map(|(_, classifier)| &classifier.entries);
-        for guard in rules.chain(entries.flat_map(|entry| &entry.guards)) {
+        let rules = stage.rules.iter().flat_map(|rule| &rule.alternatives).flat_map(|alternative| {
+            alternative
+                .alternative
+                .guards
+                .iter()
+                .map(move |guard| (guard, alternative.document.as_ref(), alternative.at))
+        });
+        let entries = stage.classifiers.iter().flat_map(|(document, classifier)| {
+            classifier
+                .entries
+                .iter()
+                .flat_map(move |entry| entry.guards.iter().map(move |guard| (guard, document.as_ref(), entry.at)))
+        });
+        for (guard, document, (line, column)) in rules.chain(entries) {
             if *kinds.entry(&guard.feature).or_insert(guard.kind) != guard.kind {
                 return Err(Error::grammar(format!(
-                    "the feature {} is used both as a gate and as a warning",
+                    "{document}:{line}:{column}: the feature {} is used both as a gate and as a warning",
                     guard.feature
-                )));
+                ))
+                .in_document(document)
+                .at(line, column)
+                .in_stage(&stage.name));
             }
         }
     }

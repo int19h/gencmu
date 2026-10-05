@@ -2,7 +2,7 @@
 //! it includes, read through the notation or taken from the DOM cache,
 //! spliced into stages and stitched stage by stage.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
@@ -122,6 +122,8 @@ fn build_notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dial
         return Err(grammar_error("an unsupported bootstrap format".to_string()));
     }
     let mut stages = Vec::new();
+    let mut inputs = Vec::new();
+    let mut names = HashSet::new();
     let stage_values = value
         .get("stages")
         .and_then(Json::as_array)
@@ -131,8 +133,12 @@ fn build_notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dial
         let name = stage
             .get("name")
             .and_then(Json::as_str)
-            .ok_or_else(|| grammar_error("a bootstrap stage requires a string name".to_string()))?
+            .filter(|name| crate::tags::is_name(name))
+            .ok_or_else(|| grammar_error("a bootstrap stage requires a valid name".to_string()))?
             .to_string();
+        if !names.insert(name.clone()) {
+            return Err(grammar_error(format!("a second stage named {name}")));
+        }
         let mut documents = Vec::new();
         let document_values = stage
             .get("documents")
@@ -151,6 +157,14 @@ fn build_notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dial
                 .and_then(|dom| dom_from_json(dom, &unicode).map_err(grammar_error))?;
             documents.push((path, Arc::new(dom)));
         }
+        inputs.push((name, documents));
+    }
+    for (name, documents) in &inputs {
+        if !documents.iter().any(|(_, dom)| !dom.rules.is_empty()) {
+            return Err(Error::grammar(format!("stage {name} has no rules")).in_stage(name));
+        }
+    }
+    for (name, documents) in inputs {
         stages.push(stitch(&name, &documents, &unicode).map_err(|error| error.in_stage(&name))?);
     }
     let dialect = Dialect::new(stages, Vec::new(), unicode)?;

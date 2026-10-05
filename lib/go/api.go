@@ -163,12 +163,7 @@ func (l *loader) load(pipelinePath string) (*Dialect, error) {
 		}
 		d.stages = append(d.stages, g)
 	}
-	features, err := dialectFeatures(d.stages, p.features)
-	if err != nil {
-		return nil, err
-	}
-	d.features = features
-	return d, nil
+	return newDialect(d.stages, p.features, l.uni)
 }
 
 // pipeline splices the pipeline document at pipelinePath: its stages, each
@@ -190,6 +185,15 @@ func (l *loader) pipeline(pipelinePath string) (*splicedPipeline, *Error) {
 		doms[p] = dom
 		return dom, nil
 	})
+}
+
+// newDialect applies the validation shared by normal and bootstrap dialects.
+func newDialect(stages []*stageGrammar, declared []string, uni *unicodeTable) (*Dialect, *Error) {
+	features, err := dialectFeatures(stages, declared)
+	if err != nil {
+		return nil, err
+	}
+	return &Dialect{uni: uni, stages: stages, declared: declared, features: features}, nil
 }
 
 // dialectFeatures lists a dialect's features (engine §13): every name that a

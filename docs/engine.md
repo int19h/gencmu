@@ -766,6 +766,14 @@ A tie in either stage of the notation dialect, `lexical` or `syntax`, is an erro
 
 Every bootstrap failure names `notation/bootstrap.json` in its structured document field and its message. Reading and schema errors have no stage, line, or column. Stitching and lowering errors name the stage that failed. If the failure has a definition location, its structured line and column retain that location. The message also names the embedded document at that location. A failure without a definition location has no structured line or column.
 
+A bootstrap supplies already-spliced document runs, so its stages must have distinct valid names. Each stage requires at least one document run. Its runs cannot contain `stage`, `include`, or `features` directives because pipeline splicing consumes them.
+
+The loader validates every bootstrap DOM before it stitches any stage. Each stage must contain at least one rule. The loader then stitches every stage in order with the normal stage validator.
+
+Next, it validates feature roles across all stitched stages with the normal dialect validator. Finally, it lowers the stages in order. A later stitching error therefore precedes an earlier lowering error.
+
+A feature-role conflict names the stage and definition that introduce the conflicting role.
+
 These locations concern embedded definitions, not lines of the bootstrap JSON. The CLI reports the same bootstrap attribution.
 
 Each stage of the notation runs as any stage does (§4 to §7, §11, §12). So each notation stage runs the check of §7 where its own directive declares `elision-only`. The bundled notation declares it in no stage, but a caller's own bootstrap can (`docs/api.md`). An ambiguity that the check finds is an error of the document in the same way as a tie. The error names the document and the notation stage, with no line or column. The caller's option for the check (`docs/api.md`) does not reach a notation stage, so it neither switches the check on there nor off.

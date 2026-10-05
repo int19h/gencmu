@@ -20,7 +20,7 @@ from ._model import Feature, Node, ParseError, ParseResult, ParseWarning, Stage,
 from ._pipeline import Pipeline, splice_pipeline
 from ._recent import Recent
 from ._stage import StageOutcome, StageRunner
-from ._tags import character_tag
+from ._tags import character_tag, is_name
 from ._unicode import UnicodeTable
 from ._validate import FORMAT, MAX_DEPTH, TOO_DEEP, dom_problem
 
@@ -182,10 +182,15 @@ class NotationReader:
         if not isinstance(data, dict) or data.get("format") != DOM_FORMAT or not isinstance(stages_data, list) or not stages_data:
             raise GencmuError(f"the bootstrap is an object of format {DOM_FORMAT} with at least one stage", document=where)
         stages: list[Grammar] = []
+        inputs: list[tuple[str, list[tuple[str, Dom]]]] = []
+        names: set[str] = set()
         for stage in stages_data:
             documents = stage.get("documents") if isinstance(stage, dict) else None
-            if not isinstance(stage, dict) or not isinstance(stage.get("name"), str) or not isinstance(documents, list):
+            if not isinstance(stage, dict) or not isinstance(stage.get("name"), str) or not is_name(stage["name"]) or not isinstance(documents, list) or not documents:
                 raise GencmuError("a stage of the bootstrap has a name and documents", document=where)
+            if stage["name"] in names:
+                raise GencmuError(f"a second stage named {stage['name']}", document=where)
+            names.add(stage["name"])
             pairs: list[tuple[str, Dom]] = []
             for document in documents:
                 if not isinstance(document, dict) or not isinstance(document.get("path"), str):
@@ -194,11 +199,17 @@ class NotationReader:
                 if problem is not None:
                     raise GencmuError(f"the bootstrap's DOM of {document['path']} is malformed: {problem}", document=where)
                 pairs.append((document["path"], document["dom"]))
+            inputs.append((stage["name"], pairs))
+        for name, pairs in inputs:
+            if not any(dom["rules"] for _, dom in pairs):
+                raise GencmuError(f"stage {name} has no rules", stage=name)
+        for name, pairs in inputs:
             try:
-                stages.append(stitch(stage["name"], pairs, unicode))
+                stages.append(stitch(name, pairs, unicode))
             except GencmuError as error:
-                error.stage = stage["name"]
+                error.stage = name
                 raise
+        _dialect_features(where, stages, frozenset())
         lowered = []
         for grammar in stages:
             try:
@@ -453,15 +464,15 @@ def _dialect_features(path: str, grammars: list[Grammar], declared: frozenset[st
     name used both ways is an error of the dialect."""
     kinds: dict[str, str] = {}
     for grammar in grammars:
-        guards = [guard for rule in grammar.rules.values() for alternative in rule.alternatives for guard in alternative.guards]
-        for _, classifier in grammar.classifier_items:
+        guards = [(guard, alternative.document, alternative.at) for rule in grammar.rules.values() for alternative in rule.alternatives for guard in alternative.guards]
+        for document, classifier in grammar.classifier_items:
             for entry in classifier["entries"]:
-                guards.extend(entry["guards"])
-        for guard in guards:
+                guards.extend((guard, document, entry["at"]) for guard in entry["guards"])
+        for guard, document, at in guards:
             name = guard["feature"]
             kind = "warning" if guard.get("kind") == "warning" else "gate"
             if kinds.setdefault(name, kind) != kind:
-                raise GencmuError(f"the feature {name} is used both as a gate and as a warning", document=path)
+                raise GencmuError(f"{document}:{at[0]}:{at[1]}: the feature {name} is used both as a gate and as a warning", document=document, line=at[0], column=at[1], stage=grammar.stage)
     return tuple(Feature(name, kinds.get(name, "gate"), name in declared) for name in sorted(kinds.keys() | declared))
 
 
