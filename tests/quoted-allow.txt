@@ -42,7 +42,6 @@ se farvi # grammars/dialects/bpfk.md = selbri corpus.camxes.12997.bpfk
 mi klama # grammars/indicators/cll.md = words adhoc.prose.indicators.mi-ui-klama adhoc.prose.indicators.mi-ui-klama.bpfk
 mi klama # grammars/phonemes/latin.md = words adhoc.words.foreign.punctuation-at-pause-edge.bpfk
 ky yy kerlo # grammars/words/bpfk.md = words adhoc.words.peg.kyyykerlo.bpfk
-la djim.bu # grammars/words/cll-stream.md = words adhoc.words.split.d7.ladjan-sa-djim-bu
 bu klama # grammars/words/cll.md = words adhoc.words.magic-rules.buklama
 a klama # grammars/words/cll.md = words adhoc.prose.words-cll.aklama
 
@@ -102,11 +101,3 @@ p t k f c s x # grammars/words/shapes.md # notation: the unvoiced consonant lett
 l m n r # grammars/words/shapes.md # notation: the consonant letters that are neither voiced nor unvoiced
 ai ei oi au # grammars/words/shapes.md # notation: the falling diphthongs
 ia ie ii io iu ua ue ui uo uu # grammars/words/shapes.md # notation: the rising diphthongs
-sa lo'u # grammars/words/stream.md # a magic word pair whose reach the pinned texts of its line show
-sa le'u # grammars/words/stream.md:283 # a magic word pair whose reach the pinned texts of its line show
-sa bu # grammars/words/stream.md:470 # a magic word pair whose reach the pinned texts of its line show
-sa le'u # grammars/words/stream.md:649 # notation: the pair names the reach of a rule
-sa bu # grammars/words/stream.md:649 # notation: the pair names the reach of a rule
-le brodi # grammars/words/stream.md # a part of the pinned text quoted before it on its line
-mi zei co # grammars/words/stream.md # a part of the pinned text quoted before it on its line
-mi brodi .i # grammars/words/stream.md # a part of the pinned text quoted before it on its line

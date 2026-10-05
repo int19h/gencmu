@@ -211,11 +211,11 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
 
 %rule single-word-quote
   | $m(single-marker) $r(zohoi-payload) <tags($m)>
-  | $m(single-marker) PAUSE [hesitations [PAUSE]] $s(zohoi-payload) <tags($m)>
+  | $m(single-marker) PAUSE [zohoi-hesitations [PAUSE]] $s(zohoi-payload) <tags($m)>
 %conditions
   ~run-final ⊆ tags(last($r)),
   ~run-final ⊆ tags(last($s)),
-  ~hesitation ⊈ tags(head($s)) ∨ begins(after(head($s)), bu-next)
+  ~hesitation ⊈ tags(head($s)) ∨ begins(from(head($s)), raw-y-letter)
 %emits
   $m, $r <~quoted-text>, $s <~quoted-text>
 
@@ -268,7 +268,6 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
 %rule raw-run
   $r(raw-run-parts)
 %conditions
-  ~run-initial ⊆ tags(head($r)),
   ~run-final ⊆ tags(last($r))
 
 %rule raw-run-parts
@@ -278,13 +277,38 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
   cmavo-token | payload-token⊉~cmavo
 
 %rule raw-y-close
-  $y(y-key) [PAUSE] $b(matched-close-token)
+  $y(raw-y-key) [PAUSE] $b(matched-close-token)
 %tags
   tags($y)
 %conditions
   phonemes($b) = "bu",
   ~run-initial ⊆ tags(head($y)),
   ~run-final ⊆ tags(last($b))
+
+%rule raw-y-base
+  | y-run
+  | $b(raw-y-base) $h(y-run)
+%conditions
+  phonemes($b) ≠ "ie'o",
+  phonemes($h) ≠ "ie'o"
+
+%rule raw-y-key
+  $y(raw-y-base)
+%tags
+  (phonemes($y) = "ie'o" ⟹ ~ieho) ∪ (phonemes($y) ≠ "ie'o" ⟹ tag(phonemes($y)))
+
+%rule raw-y-letter
+  raw-y-base [PAUSE] bu-word
+
+%rule zohoi-hesitation
+  $h(y-run)
+%conditions
+  ¬begins(from($h), raw-y-letter)
+%emits
+  ε
+
+%rule zohoi-hesitations
+  zohoi-hesitation | zohoi-hesitations [PAUSE] zohoi-hesitation
 
 %rule body-with-y-close
   [zoi-body] $c(raw-y-close) [zoi-body] <tags($c)>
@@ -468,7 +492,7 @@ The feature `su-boundary` selects the surviving-boundary policy. A boundary insi
   SA ⊈ tags($)
 
 %rule next-word-class
-  spacing $w(read-word) [zoi-body] <classes($w)>
+  spacing $w(read-word) [zoi-body] <classes($w) ∪ ~has-word>
 
 %rule sa-word
   $q(cmavo-token)
@@ -489,7 +513,7 @@ The feature `su-boundary` selects the surviving-boundary policy. A boundary insi
   | empty $n(sa-wipe-core) spacing $k(sa-key)
   | $s(stream) spacing $n(sa-wipe-core) spacing $k(sa-key)
 %conditions
-  tags($k) ≠ ∅,
+  ~has-word ⊆ tags($k),
   classes($s) ∩ tags($k) = ∅,
   classes($n) ∩ tags($k) ≠ ∅
 %emits

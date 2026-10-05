@@ -60,7 +60,7 @@ In a `lo'u` or `lo'ai` quote, such a word is tagged `word` only, as the other wo
   $h(y-run) <∅>
 %conditions
   ¬begins(from($h), y-bu-word),
-  (~run-initial ∪ ~spacing) ∩ tags($h) ≠ ∅ ∨ begins(after($h), y-letter-ahead)
+  (~run-initial ∪ ~spacing) ∩ tags($h) ≠ ∅ ∨ ~y-letters ⊆ tags($h) ∧ begins(after($h), y-letter-ahead)
 %emits
   ε
 
@@ -71,7 +71,7 @@ In a `lo'u` or `lo'ai` quote, such a word is tagged `word` only, as the other wo
   $h(~hesitation) <~word ∪ ~cmavo ∪ Y>
 %conditions
   (~run-initial ∪ ~spacing) ∩ tags($h) = ∅,
-  ¬begins(after($h), y-letter-ahead),
+  ~y-letters ⊈ tags($h) ∨ ¬begins(after($h), y-letter-ahead),
   ¬begins(from($h), y-bu-word)
 %emits
   $
@@ -138,7 +138,7 @@ The forms stage hands on the form after `ra'oi` as a `rafsi-form` token, even wh
   ~rafsi-form
 ```
 
-A quote word that opens no quote is an ordinary word in Zantufa, which `si` erases. Zantufa's `si_word` tries the quotes first, and then reads any cmavo but `bu`, a word of SI or SU, and `fa'o`. So `zoi si broda` is `broda`, and `lo'u si` is nothing. Such a marker is a unit only before its `si`, and only where no quote begins at it, because Zantufa tries the quote first. `zo` and the words of GOhOI always quote the next word, so they are never bare. So a bare marker is a word of ZOI, MUhOI, LOhU, LOhAI or RAhOI, the other quotes of `si_word`.
+A quote word that opens no quote is an ordinary word in Zantufa, which `si` erases. Zantufa's `si_word` tries the quotes first, and then reads any cmavo but `bu`, a word of SI or SU, and `fa'o`. So `zoi si broda` is `broda`, and `lo'u si` is nothing. A bare marker can occupy a unit before SI or BU. It remains bare only where no complete quote begins. `zo` and the words of GOhOI always quote the next word, so they are never bare. So a bare marker is a word of ZOI, MUhOI, LOhU, LOhAI or RAhOI, the other quotes of `si_word`.
 
 ```jbogenbau
 %extend-rule unit
