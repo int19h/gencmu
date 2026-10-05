@@ -2,7 +2,7 @@
 
 This dialect is Lojban as *The Complete Lojban Language* (CLL) describes it. The dialect reads the grammar printed in chapter 21 of the book, and the word forms of its chapters 3 and 4. A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. The dialect gives each cmavo the selma'o of the book's dictionary.
 
-The printed grammar is normative here, with the repairs that [the CLL grammar](../syntax/cll.md) lists. Any parse that the printed grammar admits counts. The dialect accepts a text that the grammar admits. But the text must not have two readings or more once the syntax stage writes back its elided terminators. Conditions and tags in that parse read the original words, so a written-back terminator is not a written one. The option `elision-only` states this rule, and `docs/engine.md` (§7) gives it exactly.
+The printed grammar is normative here, with the repairs that [the CLL grammar](../syntax/cll.md) lists. A parse counts when the repaired grammar admits it. The dialect accepts a text that the grammar admits. But the text must not have two readings or more once the syntax stage writes back its elided terminators. Conditions and tags in that parse read the original words, so a written-back terminator is not a written one. The option `elision-only` states this rule, and `docs/engine.md` (§7) gives it exactly.
 
 A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. Each stage reads the tokens that the stage before it emitted.
 
@@ -107,7 +107,7 @@ The stage is the grammar of chapter 21, with selma'o as its terminals. The CLL g
 %ambiguity-resolution late-elision elision-only
 ```
 
-The stage ranks with `late-elision`. It compares only where two parses elide terminators. At the first place where they differ, the parse that reads on wins. So an elided terminator is absent for as long as the grammar allows. A terminator can be elided wherever a parse of the whole text needs it. Two parses that elide the same terminators at the same places are tied, and a tie is an error.
+The stage ranks with `late-elision`. It compares only where two parses elide terminators. At the first place where they differ, the parse that reads on wins. So an elided terminator is absent for as long as the grammar allows. A terminator can be elided wherever a parse of the whole text needs it. Numbers and letter strings cannot split before a continuation unit. The CLL grammar states that rule separately, under "Numbers, lerfu strings and mekso". Two parses that elide the same terminators at the same places are tied, and a tie is an error.
 
 With `elision-only`, the stage checks the parse that the ranking chose. The check runs only after the verdict `resolved`, where the ranking chose one parse among several. It does not run after the verdict `unique`, and a tie fails before it. The check writes the chosen parse's elided terminators back into the text and parses that text again, with each elidable optional restored or written. The text is an error if that text has two readings or more. The check passes where it has one reading. The chosen parse is always one of its readings, so the check tests that the chosen parse has no other. It does not test every other way to write the terminators back. [The notation document](../../docs/notation.md) explains the ranking and the check, under "Ambiguity", and `docs/engine.md` (§7) gives the check exactly.
 

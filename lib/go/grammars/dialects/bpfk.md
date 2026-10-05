@@ -8,7 +8,7 @@ The syntax of the dialect is the CLL grammar. Both CLL dialects use the same pol
 
 A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../phonemes/latin.md`](../phonemes/latin.md). The approved grammar reads part of these conventions too. The phoneme stage also reads gencmu's Cyrillic and zbalermorna. The indicator stage is the indicator stage of the [cll-ebnf](cll-ebnf.md) dialect.
 
-A feature is a named switch that the grammars test. The dialect turns on the feature `su-boundary`, so that `su` erases back to the last `ni'o`, `no'i`, `lu`, `tu'e`, `to` or `to'i`. The Magic Words proposal and camxes-std (the reference PEG parser) read `su` in this way. Under CLL 19.13, `su` erases the whole text.
+A feature is a named switch that the grammars test. The dialect turns on the feature `su-boundary`, so that `su` erases back to the last `ni'o`, `no'i`, `lu`, `tu'e`, `to` or `to'i`. The Magic Words proposal and camxes-std (the reference PEG (parsing expression grammar) parser) read `su` in this way. Under CLL 19.13, `su` erases the whole text.
 
 ```jbogenbau
 %features su-boundary
@@ -99,12 +99,14 @@ The CLL grammar leaves the choice among parses to each dialect that uses it. Thi
 %ambiguity-resolution late-elision elision-only
 ```
 
-The stage ranks with `late-elision` and applies `elision-only`, as in the cll-ebnf dialect. `late-elision` takes the parse that elides a terminator later. `elision-only` writes those terminators back and rejects a completion with multiple readings.
+The stage ranks with `late-elision` and applies `elision-only`, as in the cll-ebnf dialect. `late-elision` takes the parse that elides a terminator later. `elision-only` writes the elided terminators of the chosen parse back. If that text has more than one reading, the original text is an error.
 
 A constituent can end wherever a parse of the whole text needs it. Numbers and letter strings cannot split before a continuation unit. The CLL grammar states that rule separately, under "Numbers, lerfu strings and mekso".
 
-A PEG is a parsing expression grammar. It commits to choices before it knows whether the whole text parses. This dialect follows the whole text instead. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses with the description ending before `se farvi`.
+This policy accepts some texts whose terminators CLL requires in sections 8.6, 14.14, 18.11, and 18.17. "Choosing among parses" in [the CLL grammar](../syntax/cll.md) lists these shared departures.
 
-The stage does not order the alternatives of a rule. A text that remains ambiguous after terminator restoration is an error. The CLL grammar settles two connective ambiguities with conditions.
+A PEG commits to choices before it knows whether the whole text parses. This dialect follows the whole text instead. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses with the description ending before `se farvi`.
+
+The stage does not order the alternatives of a rule. A text that remains ambiguous after terminator restoration is an error. The CLL grammar settles two connective ambiguities with conditions. `mi broda joi ke brode ke'e` is a `ke` group joined to `broda` by `joi`. `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails after `gi'e`.
 
 camxes-std departs from this. It tries the plain connective first, so it reads `joi` before a tanru unit that begins with `ke`. Where only the plain reading parses, as in `mi broda joi ke brode ke'e bo brodi`, the dialect agrees with camxes-std.
