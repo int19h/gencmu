@@ -163,7 +163,11 @@ func (l *loader) load(pipelinePath string) (*Dialect, error) {
 		}
 		d.stages = append(d.stages, g)
 	}
-	return newDialect(d.stages, p.features, l.uni)
+	dialect, err := newDialect(d.stages, p.features, l.uni)
+	if err != nil {
+		return nil, err
+	}
+	return dialect, nil
 }
 
 // pipeline splices the pipeline document at pipelinePath: its stages, each
