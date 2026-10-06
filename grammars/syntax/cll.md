@@ -34,7 +34,7 @@ This document writes the grammar literately: each block of rules follows the pro
 
 A rule sets the grammar up. This document does not say how the stage chooses among parses. CLL's rule that a terminator can be elided "if no grammatical ambiguity results" has more than one reading (see "Choosing among parses"). So each dialect that uses this grammar names its own reading after this document. The cll-ebnf and bpfk dialects do so in their pipeline documents. The experimental layer (a document that changes earlier rules) names its reading itself.
 
-CLL marks a terminator as elidable by writing it between slashes, `/KU/`, or `/KU#/` when its free-modifier slot goes with it. Here each is an elidable optional, marked in its place: `[+KU]`, or `[+KU #]`. An absent one shows in the parse tree as that terminator, elided. Every terminator between slashes in the printed grammar is marked so, and no other optional is. `#` is the free-modifier slot that follows almost every word: any number of free modifiers, as CLL's EBNF defines it. This document defines `free`, a single free modifier, under "Free modifiers, vocatives and indicators".
+CLL marks a terminator as elidable by writing it between slashes, `/KU/`, or `/KU#/` when its free-modifier slot goes with it. Here each is an elidable optional, marked in its place: `[+KU]`, or `[+KU #]`. An absent one shows in the parse tree as that terminator, elided. Every terminator between slashes in the printed grammar is marked so, and no other optional is. `#` is a free-modifier slot that "appears in many places" (CLL 21.2, point 9): any number of free modifiers, as CLL's EBNF defines it. This document defines `free`, a single free modifier, under "Free modifiers, vocatives and indicators".
 
 ```jbogenbau
 %rule #
@@ -92,7 +92,7 @@ In the printed EBNF and this grammar, bare `.i` binds loosest. The next level co
 
 CLL 14.6 prints example 14.27, `la djan. .ije la .alis. klama le zarci`, with a fragment before the sentence connective. This grammar rejects it. Printed rules 10, 12, and 13 allow fragments only beside bare `.i`.
 
-LLG `techfix.300`, CHANGE 45, deliberately removes fragments as operands of sentence connectives. It states that "they can only be connected by I, not by any lower-level form." The 1997 online draft frames example 6.3, now 14.27, as a bad alternative to the sumti connection in example 6.2.
+LLG `techfix.300`, CHANGE 45, deliberately removes fragments as operands of sentence connectives. It states that "they can only be connected by I, not by any lower-level form." CLL 1.1, section 14.6, presents example 14.27 as a worse alternative to the sumti connection in 14.26. It leaves "the reader uncertain why John is mentioned at all." The 1997 online draft gives the same framing under example 6.3.
 
 The official parser accepts example 14.27 because its lexer never produces the statement-level token `I_JEK_820`. On lojban-list, John Cowan addressed fragment connections in "fragment + i-jek" on June 18, 2004. His reply says: "It's wrong, or rather obsolete." The reply's Message-ID is `20040618052316.ga24048@ccil.org`.
 
@@ -101,11 +101,11 @@ The CLL errata page records the related prenex problem as chapter 16, section 10
 
 CLL 1.1 contains further errors in its examples. This grammar follows the printed rules in each case below. The official parser also rejects these texts or gives the reading that contradicts the gloss.
 
-Example 14.123 uses an ek after PEhE. Rule 81 requires a joik-jek there, so this grammar rejects the text. The official lexer misclassifies CEhE and PEhE as UI. Its parser accepts a reading that loses the term connections.
+Example 14.123 uses an ek after PEhE. Rule 81 requires a joik-jek there, so this grammar rejects the text. The official lexer does not know CEhE and PEhE and assumes UI for both words. Its parser accepts a reading that loses the term connections.
 
 Example 14.131 ends with NUhU without an opening NUhI. Both parsers reject the text.
 
-Example 14.133 omits NUhI before the second termset. Its afterthought termset connection also needs PEhE. Both parsers reject the text.
+Example 14.133 intends a forethought termset but prints neither FAhUGI nor GI. Rules 81 through 83 cannot join its halves with the printed NUhU FAhU sequence. The final NUhU has no opening NUhI. CLL 1.3.4 supplies the forethought connectives. The errata page instead proposes an afterthought termset with PEhE FAhU. Both parsers reject the original text.
 
 Examples 14.152 and 18.118 share one text. They use GA for a forethought operator connection. Rule 371 requires GUhA instead, so both parsers reject them.
 
@@ -464,7 +464,7 @@ CLL 17.9 requires this boundary for letter strings. Example 17.27 requires `boi`
 
 Earlier stages attach indicators and combine words with `bu` into single letter words. So `li pa ui re` contains one number, with `ui` attached to `pa`. The syntax stage receives `pa` and `re` as consecutive continuation units.
 
-A continuation unit is `PA` or a complete `lerfu-word`. It includes a BY word, a word with `bu`, a LAU prefix, or a balanced TEI/FOI compound. Rule 987 permits LAU prefixes to repeat recursively. CLL 17.6 describes compounds, and CLL 17.14 lists the auxiliary cmavo. `FOI` closes the inner string and cannot continue it.
+A continuation unit is `PA` or a complete `lerfu-word`. It includes a BY word, a word with `bu`, a lerfu word with LAU prefixes, or a balanced TEI/FOI compound. Rule 987 permits LAU prefixes to repeat recursively. CLL 17.6 describes compounds, and CLL 17.14 lists the auxiliary cmavo. `FOI` closes the inner string and cannot continue it.
 
 The conditions on `number` and `lerfu-string` reject a boundary before another complete continuation unit. Each condition tests the whole run when its rule completes. This boundary holds even when splitting the run is the only way to parse the whole text.
 
@@ -706,7 +706,7 @@ These rules allow more than some of CLL's prose and more than the lexer of the o
 
 ## Free modifiers, vocatives and indicators
 
-A free modifier can stand wherever the grammar writes `#`. CLL 6.11 allows free modifiers after many constructions. Point 9 of CLL 21.2 defines `#`, which follows almost every word in that grammar. The forms are these:
+A free modifier can stand wherever the grammar writes `#`. CLL 6.11 allows free modifiers after many constructions. Point 9 of CLL 21.2 defines `#` as a construct that "appears in many places". The forms are these:
 
 - A `sei ... se'u` discursive bridi, `sei mi cusku`
 - A `soi ... se'u` reciprocity marker
@@ -785,7 +785,7 @@ For example, `le sutra tavla` has two parses. One is a statement with the descri
 
 Note 10 of CLL 21.2 says that an elidable terminator "may be omitted (without change of meaning) if no grammatical ambiguity results". It does not say which parse a text has when the grammar allows more than one, so the ranking is a choice of this grammar's dialects. Nor does the note say how to check that no ambiguity results, so `elision-only` is a choice too. Both are chosen to fit the conventions of CLL. CLL does not state them.
 
-CLL gives advice about boundaries that preserve an intended reading. A complete parse can force such a boundary without a written terminator. General advice does not override the elision principle of CLL 21.2 note 10.
+CLL gives advice about boundaries that preserve an intended reading. A complete parse can force such a boundary without a written terminator. Where nothing forces the boundary, the grammar gives the reading that CLL warns about. General advice does not override the elision principle of CLL 21.2 note 10.
 
 CLL 6.2 warns about a description before a selbri. In `le broda brode gi'e brodi`, the whole text forces the description to end before `brode`.
 
@@ -793,9 +793,11 @@ CLL 8.6 and 8.7 describe failed left-to-right readings after omitted terminators
 
 CLL 9.5 warns that a non-logical connective can continue the modal's selbri without `fe'u`. Both dialects read `mi fi'o broda joi pu brode` with `fe'u` elided before `joi`. The whole text forces that boundary.
 
+In `le broda brode`, both selbri stay inside the description, as CLL 6.2 warns. In `mi fi'o kanla viska do`, KANLA VISKA remains the modal selbri, as CLL 9.9 warns for example 9.60. Neither text forces the intended outside selbri. These passages therefore describe our readings too and give no departure.
+
 CLL 6.11 says that `do'u` is rarely needed. CLL 19.12 gives the same advice for `se'u`, except before an outside selbri. Both dialects read `mi coi broda brode gi'e brodi` and `mi sei do broda brode gi'e brodi` with the free modifier ending before `brode`.
 
-Other warnings describe the official parser. CLL 14.14 says that its parsing rules assume another tanru component after `le nanmu joi`. Here `le nanmu joi le ninmu cu klama le zarci` has the intended sumti connection. The official parser rejects it.
+Other warnings describe the official parser. CLL 14.14 says that "Lojban's parsing rules would see le nanmu joi and assume that another tanru component is to follow". The complete grammar permits a sumti connection that this left-to-right reading misses. Here `le nanmu joi le ninmu cu klama le zarci` has the intended sumti connection. The official parser rejects it.
 
 CLL 18.11 says that the parser combines `pa` and `moi` in example 18.93 without `me'u`. Here `ta me li ny. su'i pa moi le'i mi ratcu` has `me'u` elided where the example writes it. The official parser rejects it.
 
@@ -813,7 +815,7 @@ The shared elision policy follows CLL's general advice where the whole text dete
 
 This grammar departs from the EBNF printed in CLL in ten places. The first settles a precedence that the printed text leaves open. The next three repair the EBNF's copy of the YACC grammar, the grammar of the official parser for the YACC parser generator. The EBNF uses that grammar as its source and cites its rule numbers. In each case, the YACC grammar has a path that the EBNF omits. The official parser accepts the text.
 
-The fifth adopts an inference from CLL 19.8 about several active FUhE groups. The sixth and seventh match the official lexer where two parses compete. They retain the sole plain parse where the group cannot complete. The seventh also follows CLL 14.10 and 14.18.
+The fifth adopts an inference from CLL 19.8 about several active FUhE groups. The sixth and seventh prefer the grouped reading when their conditions find competing parses of the same words. They retain the plain reading when only it completes. Item 7 does not force an enclosing construct to close. In the nested abstraction under "Bridi-tails", late-elision instead keeps the plain reading, unlike the official lexer. The seventh also follows CLL 14.10 and 14.18.
 
 The eighth follows CLL 10.4, which contradicts the printed rule. The ninth follows the number and letter boundaries of CLL 17.9 and 18.6. The tenth repairs rule 83 so a tag governs its whole termset, as CLL 10.25 states. This grammar also spells printed `CMENE` as `CMEVLA`, the word stage's class for a name.
 
