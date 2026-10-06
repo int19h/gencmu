@@ -127,7 +127,7 @@ gencmu.to_brackets(result, show_elided=True)
 - `to_json(result) -> str` writes the canonical JSON. `result_json(result)` returns it as plain data. `to_brackets(result, *, show_elided=False)` renders the tree as brackets.
 - Errors raise `gencmu.GencmuError`, with `kind` and `where`.
 
-The package needs Python 3.10 or later. It is pure Python with no dependencies.
+The package needs Python 3.12 or later. It is pure Python with no dependencies.
 
 ## Go
 

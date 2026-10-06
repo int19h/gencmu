@@ -1,6 +1,6 @@
 # gencmu for Python
 
-gencmu is a Lojban parser whose grammars are literate Markdown documents loaded at runtime. This is the Python library. It is pure Python, uses the standard library only, and needs Python 3.10 or later. It implements the engine specification of the gencmu repository, `docs/engine.md`. The library can write its results as the canonical JSON of `docs/output.md`.
+gencmu is a Lojban parser whose grammars are literate Markdown documents loaded at runtime. This is the Python library. It is pure Python, uses the standard library only, and needs Python 3.12 or later. It implements the engine specification of the gencmu repository, `docs/engine.md`. The library can write its results as the canonical JSON of `docs/output.md`.
 
 ```python
 import gencmu

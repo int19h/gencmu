@@ -656,7 +656,7 @@ Every library runs the whole corpus. On a pull request, a core of about 1,650 ca
 CI has two workflows. `nightly.yml` runs the whole corpus in all four languages each night and on demand. `ci.yml` runs on each pull request and each push to `main`. It has three additional jobs: the playground in two browsers, the whole corpus in JavaScript, and the JavaScript types. It also has one job for each language, which runs on the oldest and the newest supported toolchain:
 
 - JavaScript: Node 20 and current, the bundle freshness check, `node --test`, and `npm pack --dry-run` to make sure that the package holds its files
-- Python: 3.10 and current, `python -m unittest`, `python -m build` for the wheel, and the tests again from the installed wheel
+- Python: 3.12 and current, `python -m unittest`, `python -m build` for the wheel, and the tests again from the installed wheel
 - Go: 1.22, the minimum of the module, and current, `go vet`, `go test`, `go test -race` for concurrent parses, and a build of the module alone
 - Rust: its minimum version and stable, `cargo fmt --check`, `cargo clippy`, `cargo test`, `cargo package` to make sure that the crate is self-contained, and the whole corpus on stable
 
