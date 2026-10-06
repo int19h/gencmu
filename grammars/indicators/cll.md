@@ -1,6 +1,6 @@
 # Indicators and `ba'e`
 
-This document is the indicator stage, the fourth stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. This stage reads the words that the word stage emitted, and applies `word`, one of the four rules that CLL's grammar calls non-formal. A parser applies this rule before the grammar proper. The rule is `word ≔ [BAhE] any-word [indicators]`.
+This document is the indicator stage, the fourth stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. This stage reads the words that the word stage emitted, and applies `word`, one of CLL 1.1 section 21.2's four non-formal rules. A parser applies this rule before the grammar proper. The rule is `word ≔ [BAhE] any-word [indicators]`.
 
 The indicators are the attitudinals and discursives of UI and CAI with an optional `nai` after each. They are also the cancel `da'o` and the scope marker `fu'o`. A `fu'e` opens a group of them. CLL counts the hesitation `y` among them too, but the word stage drops hesitation, so it never reaches this stage.
 
@@ -156,7 +156,7 @@ This stage follows CLL 19.8, which gives the meaning of `fu'e`: "Placing fu'e in
 
 CLL 19.8 says that FUhO "cancels all in-force attitudinals". This stage infers that several FUhE groups can remain active together. Its `indicator-run` therefore permits each indicator to carry its own `fu'e`. The passage about local attitudinals describes unmarked attitudes, rather than several marked groups.
 
-This choice departs from the printed EBNF, which permits one indicator group after a word. The official preprocessor absorbs indicators before its grammar reads them.
+This choice departs from CLL 1.1 section 21.2's printed EBNF, which permits one indicator group after a word. The official preprocessor absorbs indicators before its grammar reads them.
 
 In [camxes-std](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L343-L1100), `post_clause` repeats `indicators <- FUhE_clause? indicator+`. This stage and camxes-std require an indicator after FUhE. Both permit further FUhE groups.
 

@@ -13,7 +13,7 @@ The prose uses these Lojban terms for words:
 
 ## The pair mz
 
-CLL 3.6 forbids the consonant pair `mz`. The working morphology, the word-form grammar that bpfk.md translates, forbids it too: its letter rule for `m` refuses a following `z`. The letter rule for `m` in camxes-exp refuses only another `m` among the consonants. So camxes-exp accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`.
+CLL 1.1 section 3.6 forbids the consonant pair `mz`. The working morphology, the word-form grammar that bpfk.md translates, forbids it too: its letter rule for `m` refuses a following `z`. The letter rule for `m` in camxes-exp refuses only another `m` among the consonants. So camxes-exp accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`.
 
 ```jbogenbau
 %redefine-rule m              (* m <- comma* [mM] !h !glide !m *)

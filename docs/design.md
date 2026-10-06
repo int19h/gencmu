@@ -435,7 +435,7 @@ A bounded query stays within its span. A `matches` over a captured span asks whe
 
 - The printed grammar, read literally, counts every parse: a terminator can be elided wherever a parse of the whole text needs it. `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses, with the description ending before `se farvi`.
 - CLL's official parser reads one lexeme ahead and never goes back. A lexeme is one unit that the parser reads. It is a word, or a run of words that the parser joins. The parser elides a terminator only through the error recovery of its grammar, where the next lexeme cannot continue what it is reading. CLL's own explanations of elision describe this. That is why CLL 14.14 says that `le nanmu ku joi le ninmu` needs its `ku`.
-- The camxes PEG grammars commit too, but in another way. They serve as working alternatives to YACC, the grammar of the official parser. What a PEG read before an elided terminator runs as far as it can be read. So `le nanmu joi le ninmu` parses, and the `le lojbo` text does not.
+- camxes-std commits too, but in another way. It serves as a working alternative to YACC, the grammar of CLL 1.1's official parser. camxes-std reads as far as its rules permit before it elides a terminator. So `le nanmu joi le ninmu` parses. The `le lojbo` text above does not.
 
 The notation formerly offered the third reading as stage-wide `maximal`. It is a condition on which parses count, stated over the recognizer's items. It does not order the alternatives of a rule, so a grammar stays a description of its language. The bpfk dialect formerly applied this policy to mirror camxes syntax. The indivisible-number change below replaces that policy.
 

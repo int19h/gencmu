@@ -813,7 +813,7 @@ An initial pair is two consonants that can begin a word. `initial` says which: a
   c | f | k | p | s | t | x
 ```
 
-Each consonant letter refuses a following apostrophe that begins a syllable, a glide, or the same consonant. Each letter also refuses consonants of the other voicing, and some letters refuse other letters, as CLL 3.6 says. The BPFK approved the consonant-glide-vowel ban on December 27, 2014 ([CLL 1.3.4, appendix A3.3](https://github.com/int19h/cll/blob/v1.3.4/chapters/a03.xml)).
+Each consonant letter refuses a following apostrophe that begins a syllable, a glide, or the same consonant. Each letter also refuses consonants of the other voicing, and some letters refuse other letters, as CLL 1.1 section 3.6 says. The BPFK approved the consonant-glide-vowel ban on December 27, 2014 ([CLL 1.3.4, appendix A3.3](https://github.com/int19h/cll/blob/v1.3.4/chapters/a03.xml)).
 
 ```jbogenbau
 %rule l                       (* l <- comma* [lL] !h !glide !l *)
