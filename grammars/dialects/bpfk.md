@@ -12,7 +12,9 @@ CLL 21.2 writes `LU text`, whose initial indicators modify what follows under th
 
 The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs. A quoted text takes the same start as a whole text. CLL 21.2 permits initial names or indicators, but not both.
 
-A feature is a named switch that the grammars test. The dialect turns on the feature `su-boundary`, so that `su` erases back to the last `ni'o`, `no'i`, `lu`, `tu'e`, `to` or `to'i`. The Magic Words proposal and camxes-std (the reference PEG (parsing expression grammar) parser) read `su` in this way. Under CLL 19.13, `su` erases the whole text.
+A feature is a named switch that the grammars test. The dialect turns on `su-boundary`. That feature makes SU stop at the last `ni'o`, `no'i`, `lu`, `tu'e`, `to`, or `to'i`. The maintainer chooses to keep that boundary.
+
+The Magic Words proposal names these boundaries but leaves their survival unspecified. camxes-std, the reference PEG (parsing expression grammar) parser, also stops at these boundaries. Under CLL 19.13, SU erases the whole text.
 
 ```jbogenbau
 %features su-boundary

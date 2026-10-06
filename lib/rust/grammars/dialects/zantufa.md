@@ -6,7 +6,7 @@ The dialect's policy is the experimental dialect's ([`experimental.md`](experime
 
 A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. The word forms are the approved ones ([`../words/bpfk.md`](../words/bpfk.md)) with Zantufa's changes ([`../words/zantufa.md`](../words/zantufa.md)): the pair `mz`, `ie'o` as hesitation, and the forms that `ra'oi` quotes. A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. The lexicon gives each cmavo the selma'o that Zantufa gives it ([`../words/lexicon-zantufa.md`](../words/lexicon-zantufa.md)).
 
-So `zei` erases a word, as `si` does. `sa` is an attitudinal, and `su` erases the whole text before it. [`../words/zantufa-stream.md`](../words/zantufa-stream.md) makes the changes to the word stream that the classes alone do not.
+So `zei` erases a word, as `si` does. `sa` is an attitudinal, and `su` erases the whole preceding text, as its reference grammar specifies. Before BU binds, SU instead supplies a letter base and erases nothing. The dialect keeps its reference parser's quote-first fallback. [`../words/zantufa-stream.md`](../words/zantufa-stream.md) makes the changes to the word stream that the classes alone do not.
 
 The indicator stage is the cll-ebnf dialect's. No word of the Zantufa lexicon is an indicator, so the stage attaches no indicators. It attaches only `ba'e` and the other words of BAhE, to the word after them. The syntax reads the attitudinals as free modifiers.
 
