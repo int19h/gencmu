@@ -2,9 +2,9 @@
 
 This dialect extends the Lojban of *The Complete Lojban Language* (CLL) with constructs that entered use after CLL appeared in print. A selbri is the predicate of a sentence. A sumti is an argument of a predicate. A cmavo is a particle, a short structure word. Examples of such constructs are `cu` before a bare selbri, connected sumti with `je`, and the experimental cmavo. The syntax is [`../syntax/experimental.md`](../syntax/experimental.md), which says what it adds to CLL's.
 
-A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. The phoneme stage is the phoneme stage of the approved-word-forms dialect ([`bpfk.md`](bpfk.md)). The forms stage reads the approved word forms of the definition effort ([`../words/bpfk.md`](../words/bpfk.md)). A selma'o is a word class of cmavo. A lexicon gives the experimental cmavo their selma'o.
+A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. The phoneme stage is the phoneme stage of the bpfk dialect ([`bpfk.md`](bpfk.md)). The forms stage reads the working word forms of the BPFK, a Lojban committee for language definitions ([`../words/bpfk.md`](../words/bpfk.md)). A selma'o is a word class of cmavo. A lexicon gives the experimental cmavo their selma'o.
 
-camxes-exp is the experimental PEG grammar. A PEG commits to the first matching alternative. camxes-exp reads the same word forms with a few changes, such as the consonant pair `mz`, which [`../words/experimental.md`](../words/experimental.md) makes. The indicator stage is the cll-ebnf dialect's ([`cll-ebnf.md`](cll-ebnf.md)) with a layer that reads indicators as camxes-exp does. A layer is a document that changes earlier rules.
+camxes-exp is the experimental PEG (parsing expression grammar). A PEG commits to the first matching alternative. camxes-exp reads the same word forms with a few changes, such as the consonant pair `mz`, which [`../words/experimental.md`](../words/experimental.md) makes. The indicator stage starts with the cll-ebnf dialect's stage ([`cll-ebnf.md`](cll-ebnf.md)). The experimental layer adds camxes-exp's bare NAI indicators and keeps CLL's flat attachment. A layer is a document that changes earlier rules.
 
 A feature is a named switch that the grammars test. The dialect turns on `su-boundary`. That feature makes SU stop at the last `ni'o`, `no'i`, `lu`, `tu'e`, `to`, or `to'i`. The maintainer chooses to keep that boundary. camxes-exp also stops at these boundaries.
 
@@ -51,7 +51,7 @@ The dialect also turns on two features of the syntax, because camxes-exp has no 
   ```jbogenbau
   %include "../words/forms.md"
   ```
-- [Approved word forms](../words/bpfk.md)
+- [BPFK word forms](../words/bpfk.md)
   ```jbogenbau
   %include "../words/bpfk.md"
   ```
@@ -89,7 +89,7 @@ The dialect also turns on two features of the syntax, because camxes-exp has no 
   ```jbogenbau
   %include "../indicators/cll.md"
   ```
-- [The indicators of camxes-exp](../indicators/experimental.md): a bare `nai` is an indicator
+- [The experimental indicators](../indicators/experimental.md): a bare `nai` is an indicator
   ```jbogenbau
   %include "../indicators/experimental.md"
   ```
@@ -147,7 +147,7 @@ A replacement quote is one unit of raw words in the word stage (`../words/lohai.
 
 Indicators after `to` and `to'i` attach to the opener, as camxes-exp's `TO_post` specifies. CLL 19.12 example 19.67 gives `sa'a` after `to'i` scope over the whole bracketed remark.
 
-Indicators after `lu` begin the quoted content. CLL 21.2 writes `LU text`, and the text-initial exception of CLL 13.9 gives initial indicators scope over what follows. The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs.
+Indicators after `lu` begin the quoted content. CLL 1.1 section 21.2 writes `LU text`, and the text-initial exception of CLL 13.9 gives initial indicators scope over what follows. The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs.
 
 A quote or a parenthesis whose terminator is elided can hold a fragment of terms or a whole sentence. So `to mi klama` holds `mi` or `mi klama`. The reading with `mi` elides `vau` and `toi` after `mi`, so `late-elision` takes the sentence, as camxes-exp does.
 

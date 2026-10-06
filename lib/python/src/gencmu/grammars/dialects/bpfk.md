@@ -1,20 +1,46 @@
-# The approved word forms
+# CLL syntax with BPFK word forms
 
-This dialect is the CLL dialect with the word-form grammar that the definition effort (the BPFK, a committee of the Lojban community) approved. That grammar replaces the grammar of chapter 4. The 1.3 editions of *The Complete Lojban Language* (CLL) print that grammar as appendix A2. [`../words/bpfk.md`](../words/bpfk.md) translates that grammar rule by rule.
+CLL is *The Complete Lojban Language*. The BPFK is a Lojban committee for language definitions. This dialect combines CLL syntax with the BPFK working morphology, the grammar of word forms. That morphology uses a parsing expression grammar (PEG).
 
-The approved grammar differs from chapter 4 in several ways. A rafsi is a shortened word form used inside compounds. A brivla is a predicate word. For example, the approved grammar has the extended rafsi, which let a brivla or a borrowing stand inside a compound before a y-hyphen. It also lets a `Cy` letter word stand before another word without a pause, so `fyno` is `fy no`. CLL 4.9 rule 6 asks for a pause there.
+[CLL 1.3.4](https://github.com/int19h/cll/blob/v1.3.4/chapters/a02.xml) prints that grammar in appendix A2. [`../words/bpfk.md`](../words/bpfk.md) translates that grammar rule by rule.
 
-The syntax of the dialect is the CLL grammar. Both CLL dialects use the same policy for elided terminators. Their numbers and letter strings are indivisible.
+The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&oldid=109606) defers morphology. The [Formal Grammar section](https://mw.lojban.org/index.php?title=BPFK_Section:_Formal_Grammar&oldid=111787) proposes replacing YACC with a PEG. [CLL 1.3.4, appendix A3.1](https://github.com/int19h/cll/blob/v1.3.4/chapters/a03.xml) keeps EBNF (Extended Backus-Naur Form) and YACC as the official syntax. It describes camxes PEG syntax as practice without ratification.
 
-A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../phonemes/latin.md`](../phonemes/latin.md). The approved grammar reads part of these conventions too. The phoneme stage also reads gencmu's Cyrillic and zbalermorna. The indicator stage is the indicator stage of the [cll-ebnf](cll-ebnf.md) dialect.
+The executable baseline is `camxes.peg` at ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg).
 
-CLL 21.2 writes `LU text`, whose initial indicators modify what follows under the text-initial exception of CLL 13.9. Indicators after `lu` therefore begin quoted content. CLL 19.12 example 19.67 gives `sa'a` scope over the whole bracketed remark. The BPFK section "Digressives" defines `to'i` as "Equivalent to {to sa'a}". These sources support attachment after `to` and `to'i` to the opener.
+A rafsi is a word form used inside compounds. A brivla is a predicate word. The working morphology has extended rafsi. One kind lets a non-borrowing brivla stand whole before `'y` inside a compound, as in `klama'ybroda`. Neither [CLL 1.1 chapter 4](https://github.com/int19h/cll/blob/v1.1-2016-08-26-html/chapters/04.xml) nor [CLL 1.3.4 chapter 4](https://github.com/int19h/cll/blob/v1.3.4/chapters/04.xml) teaches that form.
 
-The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs. A quoted text takes the same start as a whole text. CLL 21.2 permits initial names or indicators, but not both.
+[CLL 1.3.4 section 4.16](https://github.com/int19h/cll/blob/v1.3.4/chapters/04.xml#L6131-L6186) already teaches the borrowing form, as in `spageti'ykukte`.
+
+The working morphology also lets a `Cy` letter word stand before another word without a pause, so `fyno` is `fy no`. [CLL 1.1 section 4.9 rule 6](https://github.com/int19h/cll/blob/v1.1-2016-08-26-html/chapters/04.xml#L2115-L2117) requires a pause there.
+
+Outside the working morphology and the project choices below, this dialect follows CLL 1.1. It uses the [Magic Words stream](../words/stream.md) and the shared CLL indicator stage. Both CLL dialects use `late-elision elision-only` for omitted terminators. Their numbers and letter strings are indivisible. The project choices below specify this dialect's erasure, elision, and connective policies.
+
+The BPFK recorded one decision on syntax, and this dialect does not apply it. On 15 March 2016, the BPFK [ruled](https://mw.lojban.org/index.php?title=BPFK:_lo_nu_broda_ba_brode&oldid=119454) that a tag attaches to a following selbri, the predicate of a sentence, unless `ku` closes the tag. So `lo nu broda ba brode` means `lo nu broda cu ba brode`. This dialect keeps the reading of CLL 1.1, where `ba` is a term inside the `nu` clause, the abstraction: `(lo [{nu (broda ba)} brode])`. camxes-std, the reference parser of `camxes.peg`, follows the decision and puts `ba` on `brode`.
+
+A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../phonemes/latin.md`](../phonemes/latin.md). The working morphology reads part of these conventions too. The phoneme stage also reads gencmu's Cyrillic and zbalermorna. The indicator stage is the indicator stage of the [cll-ebnf](cll-ebnf.md) dialect.
+
+CLL 1.1 section 21.2 writes `LU text`, whose initial indicators modify what follows under the text-initial exception of CLL 13.9. Indicators after `lu` therefore begin quoted content. CLL 19.12 example 19.67 gives `sa'a` scope over the whole bracketed remark. The [BPFK section "Digressives", revision 111784](https://mw.lojban.org/index.php?title=BPFK_Section:_Digressives&oldid=111784) defines `to'i` as "Equivalent to {to sa'a}". These sources support attachment after `to` and `to'i` to the opener.
+
+The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs. A quoted text takes the same start as a whole text. CLL 1.1 section 21.2 permits initial names or indicators, but not both.
+
+## NAI attachment
+
+The shared indicator stage keeps each run flat. Within a run, `nai` attaches only to the UI or CAI directly before it. BAhE can stand between them. CLL 1.1 section 19.16 separates UI and CAI from DAhO and FUhO, which do not absorb `nai`.
+
+This dialect departs from [camxes-std](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L343-L1100) on NAI attachment. camxes-std lets UI and CAI clauses recursively take more indicators before their following optional NAI. Repeated NAI can therefore close successive indicator levels. The difference changes both acceptance and negation scope, in attached and leading runs.
+
+In cll-ebnf and bpfk, `mi .e ui da'o nai do` negates `.e`. camxes-std instead negates `ui`.
+
+In cll-ebnf and bpfk, `mi pu ui da'o nai klama` negates `pu`. camxes-std instead negates `ui`.
+
+In cll-ebnf and bpfk, `mi ui ia nai nai klama` fails. camxes-std accepts it and gives each attitudinal its own NAI.
+
+FUhE opens an indicator group. The [indicator document](../indicators/cll.md#indicator-runs) compares the FUhE grouping and NAI rules. The syntax reads any NAI that the indicator stage leaves outside a pair under its own rules.
 
 A feature is a named switch that the grammars test. The dialect turns on `su-boundary`. That feature makes SU stop at the last `ni'o`, `no'i`, `lu`, `tu'e`, `to`, or `to'i`. The maintainer chooses to keep that boundary.
 
-The Magic Words proposal names these boundaries but leaves their survival unspecified. camxes-std, the reference PEG (parsing expression grammar) parser, also stops at these boundaries. Under CLL 19.13, SU erases the whole text.
+The Magic Words proposal names these boundaries but leaves their survival unspecified. camxes-std also stops at these boundaries. Under CLL 19.13, SU erases the whole text.
 
 ```jbogenbau
 %features su-boundary
@@ -57,7 +83,7 @@ The Magic Words proposal names these boundaries but leaves their survival unspec
   ```jbogenbau
   %include "../words/forms.md"
   ```
-- [Approved word forms](../words/bpfk.md)
+- [BPFK word forms](../words/bpfk.md)
   ```jbogenbau
   %include "../words/bpfk.md"
   ```

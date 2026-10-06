@@ -1,6 +1,6 @@
 # The CLL dialect, by its printed grammar
 
-This dialect is Lojban as *The Complete Lojban Language* (CLL) describes it. The dialect reads the grammar printed in chapter 21 of the book, and the word forms of its chapters 3 and 4. A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. The dialect gives each cmavo the selma'o of the book's dictionary.
+This dialect is Lojban as *The Complete Lojban Language* (CLL) describes it. The dialect reads the grammar printed in CLL 1.1 chapter 21, and the word forms of its chapters 3 and 4. A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. The dialect gives each cmavo the selma'o of the book's dictionary.
 
 The printed grammar is normative here, with the repairs that [the CLL grammar](../syntax/cll.md) lists. A parse counts when the repaired grammar admits it. The dialect accepts a text that the grammar admits. But the text must not have two readings or more once the syntax stage writes back its elided terminators. Conditions and tags in that parse read the original words, so a written-back terminator is not a written one. The option `elision-only` states this rule, and `docs/engine.md` (§7) gives it exactly.
 
@@ -90,9 +90,9 @@ The warning `y-cmavo` reports a cmavo that uses `y` as a vowel beyond the forms 
 
 The stage applies CLL's non-formal rule `word = [BAhE] any-word [indicators]`. Indicators attach to the preceding word, and `ba'e` attaches to the following word.
 
-CLL 21.2 writes `LU text`, whose initial indicators modify what follows under the text-initial exception of CLL 13.9. Indicators after `lu` therefore begin quoted content. CLL 19.12 example 19.67 gives `sa'a` scope over the whole bracketed remark. The BPFK section "Digressives" defines `to'i` as "Equivalent to {to sa'a}". These sources support attachment after `to` and `to'i` to the opener.
+CLL 1.1 section 21.2 writes `LU text`, whose initial indicators modify what follows under the text-initial exception of CLL 13.9. Indicators after `lu` therefore begin quoted content. CLL 19.12 example 19.67 gives `sa'a` scope over the whole bracketed remark. The BPFK is a Lojban committee for language definitions. The [BPFK section "Digressives", revision 111784](https://mw.lojban.org/index.php?title=BPFK_Section:_Digressives&oldid=111784) defines `to'i` as "Equivalent to {to sa'a}". These sources support attachment after `to` and `to'i` to the opener.
 
-The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs. A quoted text takes the same start as a whole text. CLL 21.2 permits initial names or indicators, but not both.
+The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs. A quoted text takes the same start as a whole text. CLL 1.1 section 21.2 permits initial names or indicators, but not both.
 
 ## Stage 5: syntax
 
@@ -105,7 +105,7 @@ The [indicator document](../indicators/cll.md#quotation-boundaries) explains why
   %include "../syntax/cll.md"
   ```
 
-The stage is the grammar of chapter 21, with selma'o as its terminals. The CLL grammar leaves the choice among parses to each dialect that uses it. This dialect makes the choice here:
+The stage is the grammar of CLL 1.1 chapter 21, with selma'o as its terminals. The CLL grammar leaves the choice among parses to each dialect that uses it. This dialect makes the choice here:
 
 ```jbogenbau
 %ambiguity-resolution late-elision elision-only
@@ -115,7 +115,9 @@ The stage ranks with `late-elision`. It compares only where two parses elide ter
 
 With `elision-only`, the stage checks the parse that the ranking chose. The check runs only after the verdict `resolved`, where the ranking chose one parse among several. It does not run after the verdict `unique`, and a tie fails before it. The check writes the chosen parse's elided terminators back into the text and parses that text again, with each elidable optional restored or written. The text is an error if that text has two readings or more. The check passes where it has one reading. The chosen parse is always one of its readings, so the check tests that the chosen parse has no other. It does not test every other way to write the terminators back. [The notation document](../../docs/notation.md) explains the ranking and the check, under "Ambiguity", and `docs/engine.md` (§7) gives the check exactly.
 
-`late-elision` and `elision-only` together are an interpretation of note 10 of CLL 21.2, which says that a terminator "may be omitted (without change of meaning) if no grammatical ambiguity results". They are chosen to fit CLL's conventions. The note does not specify them. It does not say which parse a text has when the grammar allows more than one, which `late-elision` decides. It does not say how to find that no ambiguity results, which `elision-only` decides by checking one chosen completion. "Choosing among parses" in [the CLL grammar](../syntax/cll.md) separates terminator advice, parser limitations, and boundaries that the whole text forces.
+`late-elision` and `elision-only` together interpret note 10 of CLL 1.1 section 21.2. That note permits an omitted terminator when no grammatical ambiguity results.
+
+The dialect chooses `late-elision` and `elision-only` to fit CLL's conventions. The note does not specify them. It does not say which parse a text has when the grammar allows more than one, which `late-elision` decides. It does not say how to find that no ambiguity results, which `elision-only` decides by checking one chosen completion. "Choosing among parses" in [the CLL grammar](../syntax/cll.md) separates terminator advice, parser limitations, and boundaries that the whole text forces.
 
 Under this policy, `le nanmu joi le ninmu cu klama` parses with KU elided at the boundary that CLL 14.14 intends. CLL describes the official parser's failed left-to-right reading. "Choosing among parses" in [the CLL grammar](../syntax/cll.md) explains the same kind of forced boundary in examples 8.48 and 8.62. CLL describes their merged readings without naming the official parser. The elision policy disagrees with no specific text of CLL.
 

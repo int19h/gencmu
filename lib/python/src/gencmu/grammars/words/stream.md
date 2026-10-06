@@ -122,7 +122,7 @@ The forms stage supplies source words, their lexical classes, and their run boun
 
 The shared reader reads a cmavo, brivla, cmevla, or the y letteral. A cmavo is a particle. A brivla is a predicate word. A cmevla is a name word.
 
-Every cmavo read uses `cmavo-token`. The CLL dialect adds optional word-form warnings there. A word read in the selected derivation keeps its warning even if an eraser later removes the word.
+CLL is *The Complete Lojban Language*. Every cmavo read uses `cmavo-token`. The CLL dialect adds optional word-form warnings there. A word read in the selected derivation keeps its warning even if an eraser later removes the word.
 
 A failed word stage publishes no warnings from that stage. A successful stage keeps warnings from its selected derivation. Raw quote bodies and the suffix after active `fa'o` supply no word reads.
 
