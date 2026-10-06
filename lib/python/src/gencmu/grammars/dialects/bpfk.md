@@ -16,7 +16,7 @@ The working morphology also lets a `Cy` letter word stand before another word wi
 
 Outside the working morphology and the project choices below, this dialect follows CLL 1.1. It uses the [Magic Words stream](../words/stream.md) and the shared CLL indicator stage. Both CLL dialects use `late-elision elision-only` for omitted terminators. Their numbers and letter strings are indivisible. The project choices below specify this dialect's erasure, elision, and connective policies.
 
-The BPFK recorded one decision on syntax, and this dialect does not apply it. On 15 March 2016, the BPFK [approved `lo nu broda ba brode` as a synonym of `lo nu broda cu ba brode`](https://mw.lojban.org/index.php?title=BPFK:_lo_nu_broda_ba_brode&oldid=119454). This dialect keeps the reading of CLL 1.1, where `ba` stays inside the abstraction: `(lo [{nu (broda ba)} brode])`. camxes-std follows the decision and puts `ba` on `brode`.
+The BPFK recorded one decision on syntax, and this dialect does not apply it. On 15 March 2016, the BPFK [ruled](https://mw.lojban.org/index.php?title=BPFK:_lo_nu_broda_ba_brode&oldid=119454) that a tag attaches to a following selbri unless `ku` closes the tag. So `lo nu broda ba brode` means `lo nu broda cu ba brode`. This dialect keeps the reading of CLL 1.1, where `ba` is a term inside the `nu` clause, the abstraction: `(lo [{nu (broda ba)} brode])`. camxes-std, the reference parser of `camxes.peg`, follows the decision and puts `ba` on `brode`.
 
 A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../phonemes/latin.md`](../phonemes/latin.md). The working morphology reads part of these conventions too. The phoneme stage also reads gencmu's Cyrillic and zbalermorna. The indicator stage is the indicator stage of the [cll-ebnf](cll-ebnf.md) dialect.
 
@@ -40,7 +40,7 @@ FUhE opens an indicator group. The [indicator document](../indicators/cll.md#ind
 
 A feature is a named switch that the grammars test. The dialect turns on `su-boundary`. That feature makes SU stop at the last `ni'o`, `no'i`, `lu`, `tu'e`, `to`, or `to'i`. The maintainer chooses to keep that boundary.
 
-The Magic Words proposal names these boundaries but leaves their survival unspecified. camxes-std, the reference PEG parser, also stops at these boundaries. Under CLL 19.13, SU erases the whole text.
+The Magic Words proposal names these boundaries but leaves their survival unspecified. camxes-std also stops at these boundaries. Under CLL 19.13, SU erases the whole text.
 
 ```jbogenbau
 %features su-boundary
