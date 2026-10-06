@@ -143,7 +143,10 @@ class Corpus(unittest.TestCase):
             lines.append(json.dumps({"id": case_id, "seconds": round(seconds, 3), "chars": len(case["text"]), "ok": problem is None, "problem": problem}, ensure_ascii=False) + "\n")
 
     def test_a_result_that_breaks_an_invariant_is_refused(self) -> None:
-        """The runner tests the invariants of each corpus result and refuses each shared mutant (tests/README.md, "Result mutants"). The tied corpus cases pass without mutation."""
+        """The runner checks the invariants on the canonical result of each
+        corpus case, and refuses each shared mutant (tests/README.md,
+        "Result mutants"). No text ties in a bundled dialect, so the tied
+        corpus cases, if any, only pass as they are."""
         for mutant in result_mutants():
             with self.subTest(mutant=mutant["name"]):
                 dialect, load_error = load_case_dialect(mutant["engine_case"])
