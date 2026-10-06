@@ -101,7 +101,7 @@ The CLL errata page records the related prenex problem as chapter 16, section 10
 
 CLL 1.1 contains further errors in its examples. This grammar follows the printed rules in each case below. The official parser also rejects these texts or gives the reading that contradicts the gloss.
 
-Example 14.123 uses an ek after PEhE. Rule 81 requires a joik-jek there. Both parsers reject the text.
+Example 14.123 uses an ek after PEhE. Rule 81 requires a joik-jek there, so this grammar rejects the text. The official lexer misclassifies CEhE and PEhE as UI. Its parser accepts a reading that loses the term connections.
 
 Example 14.131 ends with NUhU without an opening NUhI. Both parsers reject the text.
 
