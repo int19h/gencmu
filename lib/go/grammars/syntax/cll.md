@@ -96,6 +96,23 @@ The official parser accepts example 14.27 because its lexer never produces the s
 
 The CLL errata page records the related prenex problem as chapter 16, section 10, examples 10.5 and 10.6. Those examples are 16.77 and 16.78 in CLL 1.1. Cowan's response carries `NOFIX`. That record does not change printed rules 12 and 13.
 
+
+CLL 1.1 contains further errors in its examples. This grammar follows the printed rules in each case below. The official parser also rejects these texts or gives the reading that contradicts the gloss.
+
+Example 14.123 uses an ek after PEhE. Rule 81 requires a joik-jek there. Both parsers reject the text.
+
+Example 14.131 ends with NUhU without an opening NUhI. Both parsers reject the text.
+
+Example 14.133 omits NUhI before the second termset. Its afterthought termset connection also needs PEhE. Both parsers reject the text.
+
+Examples 14.152 and 18.118 share one text. They use GA for a forethought operator connection. Rule 371 requires GUhA instead, so both parsers reject them.
+
+Example 18.122 closes an interval with GAhO but supplies no opening GAhO. Rule 806 requires both. Both parsers reject the text.
+
+Examples 16.82 and 16.83 omit KUhO before NAKU. Both parsers keep NAKU inside the relative clause. Their readings disagree with the glosses.
+
+Example 17.36 omits CU after the first sumti. Both parsers read two sumti as a fragment. The gloss instead describes a sentence.
+
 A fragment is what a speaker utters when the utterance is not a sentence (CLL 19.5 and 14.13). It is one of these:
 
 - A bare connective, as the answer to a `ji` or `gi'i` question
