@@ -652,13 +652,17 @@ A tense or modal (the rule `tag`) turns a sumti into a modal or tense term (CLL 
 A `tense-modal` is a simple tense-modal with a free-modifier slot, or `fi'o selbri fe'u`, which makes a modal from any selbri (CLL 9.5). A `simple-tense-modal` is one of these:
 
 - A BAI modal
-- A time tense, a space tense, or both with time first, then optionally a CAhA word such as `ka'e`. A CAhA word can also stand alone (`pu`, `va`, `pu va`, `ka'e`, `pu ka'e`).
+- A time tense, a space tense, or both in either order, followed by an optional CAhA word such as `ka'e`. A CAhA word can also stand alone (`pu`, `va`, `pu va`, `ka'e`, `pu ka'e`).
 - The sticky tense `ki`
 - The question word `cu'e`
 
-`ki` sets a reference point (CLL 10.13). `se` can convert a BAI modal. `na'e` can negate a BAI modal or a tense, and `ki` can follow either. CLL 10.4 puts time before space in one tense. The printed rule also lets space come first, and this grammar does not (item 8 of "Differences from the printed CLL grammar").
+`ki` sets a reference point (CLL 10.13). `se` can convert a BAI modal. `na'e` can negate a BAI modal or a tense, and `ki` can follow either.
 
-A time tense is any combination of these, in this order (CLL 10.4 to 10.9):
+Rule 972 allows both time and space orders. CLL 10.4 prefers time first to avoid ambiguity, which this grammar resolves through its ranking.
+
+In `mi va pu klama`, `va pu` is one tense on the selbri `klama`. The official parser binary splits that tense because its tense lexer (the code that groups tense words) predates techfix change 42.
+
+A time tense contains these parts in this order (CLL 10.4 to 10.9):
 
 - A `zi` distance
 - Offsets `pu`, `ca`, `ba`, each with an optional distance
@@ -684,7 +688,7 @@ These rules allow more than some of CLL's prose and more than the lexer of the o
   simple-tense-modal # | FIhO # selbri [+FEhU #]
 
 %rule simple-tense-modal
-  [NAhE] [SE] BAI [NAI] [KI] | [NAhE] ((time [space] | space) & CAhA) [KI] | KI | CUhE
+  [NAhE] [SE] BAI [NAI] [KI] | [NAhE] ((time [space] | space [time]) & CAhA) [KI] | KI | CUhE
 
 %rule time
   ZI & {time-offset} & (ZEhA [PU [NAI]]) & {interval-property}
@@ -817,11 +821,11 @@ The shared elision policy follows CLL's general advice where the whole text dete
 
 ## Differences from the printed CLL grammar
 
-This grammar departs from the EBNF printed in CLL in ten places. The first settles a precedence that the printed text leaves open. The next three repair the EBNF's copy of the YACC grammar, the grammar of the official parser for the YACC parser generator. The EBNF uses that grammar as its source and cites its rule numbers. In each case, the YACC grammar has a path that the EBNF omits. The official parser accepts the text.
+This grammar departs from the EBNF printed in CLL in nine places. The first settles a precedence that the printed text leaves open. The next three repair the EBNF's copy of the YACC grammar, the grammar of the official parser for the YACC parser generator. The EBNF uses that grammar as its source and cites its rule numbers. In each case, the YACC grammar has a path that the EBNF omits. The official parser accepts the text.
 
 The fifth adopts an inference from CLL 19.8 about several active FUhE groups. The sixth and seventh prefer the grouped reading when their conditions find competing parses of the same words. They retain the plain reading when only it completes. Item 7 does not force an enclosing construct to close. In the nested abstraction under "Bridi-tails", `late-elision` instead keeps the plain reading, unlike the official lexer. The seventh also follows CLL 14.10 and 14.18.
 
-The eighth follows CLL 10.4, which contradicts the printed rule. The ninth follows the number and letter boundaries of CLL 17.9 and 18.6. The tenth repairs rule 83 so a tag governs its whole termset, as CLL 10.25 states. This grammar also spells printed `CMENE` as `CMEVLA`, the word stage's class for a name.
+The eighth follows the number and letter boundaries of CLL 17.9 and 18.6. The ninth repairs rule 83 so a tag governs its whole termset, as CLL 10.25 states. This grammar also spells printed `CMENE` as `CMEVLA`, the word stage's class for a name.
 
 Earlier stages also depart from CLL. [The word stream](../words/stream.md) lists six departures under "Departures from CLL, the proposal, and camxes-std". They concern SI, ZEI, BU, hesitation, LOhU, and ZOI. Its prose states each relationship to the Magic Words proposal.
 
@@ -829,7 +833,7 @@ Earlier stages also depart from CLL. [The word stream](../words/stream.md) lists
 
 1. Printed rule 972 reads `[NAhE] (time [space] | space [time]) & CAhA [KI]`. CLL 1.1 section 21.2 ranks `...` above `&`, and `&` above `|`. It gives no precedence between juxtaposition and `&`. This grammar follows its notation and ranks juxtaposition higher.
 
-   That precedence attaches `[NAhE]` only to the time and space branch, and `[KI]` only to the CAhA branch. The repair instead surrounds the combination with those optionals. It reads `[NAhE] ((time [space] | space [time]) & CAhA) [KI]`. Item 8 further narrows the time and space branch.
+   That precedence attaches `[NAhE]` only to the time and space branch, and `[KI]` only to the CAhA branch. The repair instead surrounds the combination with those optionals. It reads `[NAhE] ((time [space] | space [time]) & CAhA) [KI]`.
 
    The repair admits `ba za ki`, `na'e ka'e`, `pu ki`, and `na'e ca'a` as single simple-tense-modal forms. The alternative precedence preserves rule 972's intended scope but splits `ZEhA [PU [NAI]]` in rule 1030. Either precedence therefore needs a repair. This grammar also parenthesizes `(ZEhA [PU [NAI]])` in `time`. Those parentheses leave its chosen reading unchanged.
 2. A text can begin with `.i` separators followed by `ni'o` markers, as in `.i ni'o mi klama`. The printed `text-1` makes the two alternatives. YACC rule 2 (`text_B_2`) lets any number of `.i` forms precede a `ni'o` run. The camxes grammars call the printed form "a bug in the BNF".
@@ -844,11 +848,10 @@ Earlier stages also depart from CLL. [The word stream](../words/stream.md) lists
    The printed grammar reads `mi broda gi'e ke brode ke'e` in two ways. One is a `ke` group of tails after `gi'e` (rule 50). The other is a plain `gi'e` (rule 51) before a tail whose selbri is a `ke` tanru unit. The elided terminators cannot choose: the two parses tie when `ke'e` is elided at the end, and `late-elision` takes the tanru when `ke'e` is written.
 
    CLL 14.10 groups tails with `ke` after a gihek. CLL 14.18 puts a tense between a gihek and `ke`, which the tanru parse moves onto the selbri. The lexer of the official parser makes `gi'e ke` one token, `GIhEK_KE`, so it reads only the group. That lexer also rejects `mi broda gi'e ke brode ke'e brodi`, which has only the plain reading. This grammar keeps the plain reading there, as the printed grammar does.
-8. In `simple-tense-modal`, space cannot come before time. The printed rule reads `time [space] | space [time]`, and the YACC grammar also lets space come before time. CLL 10.4 says that when a tense has both, time comes first. It gives the reason: if space could come before or after time at will, some constructions would be ambiguous. This grammar reads `time [space] | space`. So `mi va pu klama` reads as the term `va` followed by the selbri `klama` with the tense `pu`, as the official parser reads it. Under the printed rule, the dialect's ranking read `va pu` there as one tense. `mi fe'e di'i co'a klama` also splits. Without its own `fe'e`, `co'a` is an event contour of time (CLL 10.10), not a space interval modifier (CLL 10.11). A time modifier cannot follow space in one tense. So `fe'e di'i` is a term, and `co'a` is the tense of `klama`. The official parser reads `fe'e di'i co'a` as one tense, with one `fe'e` over both properties. Where a term can stand before the tense, the space part becomes a term (`mi va pu klama`, `va pu gi mi klama gi do cadzu`). The official parser rejects the second text. Elsewhere the text is now an error. That covers a tense in a connective before `bo` or `ke`, as in `mi .e vi pu bo do klama`, `mi broda gi'e va pu ke brode ke'e` and `li pa su'i je va pu bo pi'i re`. It also covers a tense before `tu'e`, after `jai`, and on the selbri of a description (`lo va pu broda`). The printed grammar accepts these texts, and the official parser rejects them. `mi viska va pu gi do gi la djan` tied before. Now `late-elision` chooses one reading: `va` tags the sumti `pu gi do gi la djan`, as in the official parser. The other reading, `va` with `ku` elided and then that sumti, elides one more terminator. No example in CLL writes space before time.
 
-9. Numbers and letter strings are indivisible. The printed repetition permits shorter prefixes, but CLL 17.9 and 18.6 require `boi` between adjacent runs. The conditions reject a boundary before another complete continuation unit.
+8. Numbers and letter strings are indivisible. The printed repetition permits shorter prefixes, but CLL 17.9 and 18.6 require `boi` between adjacent runs. The conditions reject a boundary before another complete continuation unit.
 
-10. In `term`, `tag termset` lets a tense or modal govern a whole termset. Printed rule 83 omits this alternative. CLL 10.25 explicitly allows it, and examples 10.189 and 10.190 give that structure. A written `ku` makes the tag and termset separate terms.
+9. In `term`, `tag termset` lets a tense or modal govern a whole termset. Printed rule 83 omits this alternative. CLL 10.25 explicitly allows it, and examples 10.189 and 10.190 give that structure. A written `ku` makes the tag and termset separate terms.
 
 The CLL errata page records the conflict between section 10.25 and printed rule 83 as NOFIX. Cowan writes:
 

@@ -1418,12 +1418,12 @@ adhoc.syntax.lu-elided-lihu-then-free-modifier
 adhoc.syntax.lu-elided-lihu-then-free-modifier.bpfk
 adhoc.indicators.fuhe.text-start-second-group
 adhoc.indicators.fuhe.text-start-second-group.bpfk
-adhoc.syntax.space-time-term-then-tense
-adhoc.syntax.space-time-term-then-tense.bpfk
+adhoc.syntax.space-time-single-tense
+adhoc.syntax.space-time-single-tense.bpfk
 adhoc.syntax.space-fehe-then-time-contour
 adhoc.syntax.space-fehe-then-time-contour.bpfk
-adhoc.syntax.space-before-time-gek-term
-adhoc.syntax.space-before-time-gek-term.bpfk
+adhoc.syntax.space-before-time-gek
+adhoc.syntax.space-before-time-gek.bpfk
 adhoc.syntax.space-time-ek-bo
 adhoc.syntax.space-time-ek-bo.bpfk
 adhoc.syntax.space-before-time-gihek-ke
@@ -3015,3 +3015,9 @@ adhoc.indicators.nai.fuhe-after-nai.bpfk
 adhoc.indicators.nai.daho-after-nai.bpfk
 adhoc.syntax.bpfk-2016-tag-decision-not-applied.bpfk
 adhoc.syntax.bpfk-2016-tag-decision-synonym.bpfk
+adhoc.syntax.space-time-i-bo
+adhoc.syntax.space-time-i-bo.bpfk
+adhoc.syntax.space-time-gihek-bo
+adhoc.syntax.space-time-gihek-bo.bpfk
+adhoc.syntax.simple-tense-modal-space-time-caha-ki
+adhoc.syntax.simple-tense-modal-space-time-caha-ki.bpfk
