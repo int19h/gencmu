@@ -99,31 +99,31 @@ The official parser accepts example 14.27 because its lexer never produces the s
 The CLL errata page records the related prenex problem as chapter 16, section 10, examples 10.5 and 10.6. Those examples are 16.77 and 16.78 in CLL 1.1. Cowan's response carries `NOFIX`. That record does not change printed rules 12 and 13.
 
 
-CLL 1.1 contains further errors in its examples. This grammar follows the printed rules in each case below. The official parser also rejects these texts or gives the reading that contradicts the gloss.
+CLL 1.1 contains further errors in its examples. This grammar follows the printed rules in each case below. The official parser also rejects these texts or gives a reading that contradicts the gloss or the surrounding text.
 
-Example 14.123 uses an ek after PEhE. Rule 81 requires a joik-jek there, so this grammar rejects the text. The official lexer does not know CEhE and PEhE and assumes UI for both words. Its parser accepts a reading that loses the term connections.
+Example 14.123 uses an ek after PEhE. Rule 81 requires a joik-jek there, so this grammar rejects the text. The official lexer does not know the cmavo `ce'e` and `pe'e` and assumes UI for both words. Its parser accepts a reading that loses the term connections.
 
 Example 14.131 ends with NUhU without an opening NUhI. Both parsers reject the text.
 
-Example 14.133 intends a forethought termset but prints neither FAhUGI nor GI. Rules 81 through 83 cannot join its halves with the printed NUhU FAhU sequence. The final NUhU has no opening NUhI. CLL 1.3.4 supplies the forethought connectives. The errata page instead proposes an afterthought termset with PEhE FAhU. Both parsers reject the original text.
+Example 14.133 intends a forethought termset but prints neither `fa'ugi` nor `gi`. Rules 81 through 83 cannot join its halves with the printed `nu'u fa'u` sequence. The final NUhU has no opening NUhI. Every edition from 1.2.15 onward supplies the forethought connectives. The errata page instead proposes an afterthought termset with `pe'e fa'u`. Both parsers reject the original text.
 
 Examples 14.152 and 18.118 share one text. They use GA for a forethought operator connection. Rule 371 requires GUhA instead, so both parsers reject them.
 
 Example 18.122 closes an interval with GAhO but supplies no opening GAhO. Rule 806 requires both. Both parsers reject the text.
 
-Examples 16.82 and 16.83 omit KUhO before NAKU. Both parsers keep NAKU inside the relative clause. Their readings disagree with the glosses.
+Examples 16.82 and 16.83 omit KUhO before `naku`. Both parsers keep `naku` inside the relative clause. Their readings disagree with the glosses.
 
 Example 15.55 prints `nake` for the intended `na'e ke` in its seventh text. Both parsers read NA over the whole selbri. The correction applies NAhE only to the grouped first tanru unit, as the paired lujvo requires.
 
 Example 17.36 omits CU after the first sumti. Both parsers read two sumti as a fragment. The gloss instead describes a sentence.
 
-Examples 5.121 and 5.123 omit BO after SUTRA. Both parsers connect CADZU with MASNO inside the tanru, against the glosses. CLL 1.3.4 adds BO.
+Examples 5.121 and 5.123 omit BO after `sutra`. Both parsers connect `cadzu` with `masno` inside the tanru, against the glosses. Every edition from 1.2.15 onward adds BO after `sutra`.
 
-Examples 16.89 and 16.92 omit KUhO after VERBA. Both parsers keep the school term inside the relative clause, against the prenex glosses. CLL 1.3.4 adds KUhO.
+Examples 16.89 and 16.92 omit KUhO after `verba`. Both parsers keep the school term inside the relative clause, against the prenex glosses. Every edition from 1.2.12 onward adds KUhO after `verba`.
 
-Example 18.126 omits CU before DU. Both parsers keep RACTU DU inside the second MOhE sumti and read two LI sumti. CLL 1.3.4 adds CU to give the intended sentence.
+Example 18.126 omits CU before `du`. Both parsers keep `ractu du` inside the second MOhE sumti and read two LI sumti. Every edition from 1.3.3 onward adds CU before `du`.
 
-Example 14.173 omits NA from the second embedded bridi. Both parsers repeat the affirmative claim instead of its negation. CLL 1.3.4 adds NA.
+Example 14.173 prints CU where the gloss of the second embedded bridi needs NA. The text repeats the affirmative claim, and both parsers read it as printed. Every edition from 1.2.12 onward replaces CU with NA and numbers the example 14.172.
 
 A fragment is what a speaker utters when the utterance is not a sentence (CLL 19.5 and 14.13). It is one of these:
 
@@ -793,7 +793,7 @@ CLL 8.6 and 8.7 describe failed left-to-right readings after omitted terminators
 
 CLL 9.5 warns that a non-logical connective can continue the modal's selbri without `fe'u`. Both dialects read `mi fi'o broda joi pu brode` with `fe'u` elided before `joi`. The whole text forces that boundary.
 
-In `le broda brode`, both selbri stay inside the description, as CLL 6.2 warns. In `mi fi'o kanla viska do`, KANLA VISKA remains the modal selbri, as CLL 9.9 warns for example 9.60. Neither text forces the intended outside selbri. These passages therefore describe our readings too and give no departure.
+In `le broda brode`, both selbri stay inside the description, as CLL 6.2 warns. In `mi fi'o kanla viska do`, `kanla viska` remains the modal selbri, as CLL 9.9 warns for example 9.60. Neither text forces the intended outside selbri. These passages therefore describe our readings too and give no departure.
 
 CLL 6.11 says that `do'u` is rarely needed. CLL 19.12 gives the same advice for `se'u`, except before an outside selbri. Both dialects read `mi coi broda brode gi'e brodi` and `mi sei do broda brode gi'e brodi` with the free modifier ending before `brode`.
 
@@ -815,7 +815,7 @@ The shared elision policy follows CLL's general advice where the whole text dete
 
 This grammar departs from the EBNF printed in CLL in ten places. The first settles a precedence that the printed text leaves open. The next three repair the EBNF's copy of the YACC grammar, the grammar of the official parser for the YACC parser generator. The EBNF uses that grammar as its source and cites its rule numbers. In each case, the YACC grammar has a path that the EBNF omits. The official parser accepts the text.
 
-The fifth adopts an inference from CLL 19.8 about several active FUhE groups. The sixth and seventh prefer the grouped reading when their conditions find competing parses of the same words. They retain the plain reading when only it completes. Item 7 does not force an enclosing construct to close. In the nested abstraction under "Bridi-tails", late-elision instead keeps the plain reading, unlike the official lexer. The seventh also follows CLL 14.10 and 14.18.
+The fifth adopts an inference from CLL 19.8 about several active FUhE groups. The sixth and seventh prefer the grouped reading when their conditions find competing parses of the same words. They retain the plain reading when only it completes. Item 7 does not force an enclosing construct to close. In the nested abstraction under "Bridi-tails", `late-elision` instead keeps the plain reading, unlike the official lexer. The seventh also follows CLL 14.10 and 14.18.
 
 The eighth follows CLL 10.4, which contradicts the printed rule. The ninth follows the number and letter boundaries of CLL 17.9 and 18.6. The tenth repairs rule 83 so a tag governs its whole termset, as CLL 10.25 states. This grammar also spells printed `CMENE` as `CMEVLA`, the word stage's class for a name.
 
