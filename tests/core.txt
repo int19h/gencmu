@@ -3013,3 +3013,5 @@ adhoc.indicators.nai.fuhe-after-nai.cll-ebnf
 adhoc.indicators.nai.daho-after-nai.cll-ebnf
 adhoc.indicators.nai.fuhe-after-nai.bpfk
 adhoc.indicators.nai.daho-after-nai.bpfk
+adhoc.syntax.bpfk-2016-tag-decision-not-applied.bpfk
+adhoc.syntax.bpfk-2016-tag-decision-synonym.bpfk
