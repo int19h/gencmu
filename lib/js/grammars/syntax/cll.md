@@ -113,6 +113,8 @@ Example 18.122 closes an interval with GAhO but supplies no opening GAhO. Rule 8
 
 Examples 16.82 and 16.83 omit KUhO before NAKU. Both parsers keep NAKU inside the relative clause. Their readings disagree with the glosses.
 
+Example 15.55 prints `nake` for the intended `na'e ke` in its seventh text. Both parsers read NA over the whole selbri. The correction applies NAhE only to the grouped first tanru unit, as the paired lujvo requires.
+
 Example 17.36 omits CU after the first sumti. Both parsers read two sumti as a fragment. The gloss instead describes a sentence.
 
 A fragment is what a speaker utters when the utterance is not a sentence (CLL 19.5 and 14.13). It is one of these:
@@ -777,7 +779,9 @@ Note 10 of CLL 21.2 says that an elidable terminator "may be omitted (without ch
 
 CLL gives advice about boundaries that preserve an intended reading. A complete parse can force such a boundary without a written terminator. General advice does not override the elision principle of CLL 21.2 note 10.
 
-CLL 6.2 warns about a description before a selbri. In `le broda brode gi'e brodi`, the whole text forces the description to end before `brode`. CLL 8.7 says that the inner `ku` of example 8.62 prevents the possessor's selbri from merging with the outer description. Both dialects read `le le nanmu karce cu blanu` with that same boundary. The merged reading cannot complete the text.
+CLL 6.2 warns about a description before a selbri. In `le broda brode gi'e brodi`, the whole text forces the description to end before `brode`.
+
+CLL 8.6 and 8.7 describe failed left-to-right readings after omitted terminators. Both dialects accept `le poi blabi gerku cu klama` and `le le nanmu karce cu blanu`. The whole text forces KUhO and KU exactly where examples 8.48 and 8.62 write them. Merging the selbri leaves the outer description incomplete under printed rules 111 and 112. The official parser rejects both omitted forms.
 
 CLL 9.5 warns that a non-logical connective can continue the modal's selbri without `fe'u`. Both dialects read `mi fi'o broda joi pu brode` with `fe'u` elided before `joi`. The whole text forces that boundary.
 
@@ -789,17 +793,13 @@ CLL 18.11 says that the parser combines `pa` and `moi` in example 18.93 without 
 
 CLL 18.17 says that the parser assumes another operand after `.onai` in example 18.116 without `lo'o`. Here `li re su'i re du li vo .onai lo nalseldjuno namcu` retains the example's sumti connection. The official parser rejects it. These parser limitations do not require written terminators in the grammar.
 
-One specific-text claim differs from the whole-text reading:
-
-- CLL 8.6 says that removing `ku'o` from example 8.48 merges the two selbri and produces an ungrammatical sentence. Both dialects accept `le poi blabi gerku cu klama` with separate relative-clause and description selbri. The official parser rejects it.
-
 The indivisible-number rule follows these CLL requirements in both dialects:
 
 - CLL 17.9, after example 17.25, requires `boi` between adjacent letter or numeral strings. Both dialects reject `pa xy. cu barda` and accept `pa boi xy. cu barda`.
 - CLL 18.6, after example 18.32, requires `boi` between adjacent numbers. CLL 18.16 shows reverse Polish examples 18.110 through 18.112 with the required `boi` boundaries. Both dialects reject `li fu'a pa re su'i du li ci` and accept `li fu'a pa boi re su'i du li ci`.
 - CLL 18.6, after example 18.34, requires `boi` between the function name and its operand. Both dialects reject `li zy du li ma'o fy. xy.` and accept `li zy du li ma'o fy. boi xy.`.
 
-The shared elision policy follows CLL's general advice where the whole text determines the intended boundary. It differs from CLL 8.6's specific prediction for example 8.48. It does not override number and letter boundaries. The maintainer approves this interpretation of CLL 21.2 note 10 for both dialects.
+The shared elision policy follows CLL's general advice where the whole text determines the intended boundary. It disagrees with no specific text of CLL. CLL 8.6, 8.7, 14.14, 18.11, and 18.17 describe the official parser's left-to-right reading. It does not override number and letter boundaries. The maintainer approves this interpretation of CLL 21.2 note 10 for both dialects.
 
 ## Differences from the printed CLL grammar
 
