@@ -80,6 +80,14 @@ So `A .i je B .i ja C` is `(A and B) or C`, and the tree shows that grouping. Th
 
 A prenex belongs to a whole statement. Between two statements, a sentence after `.i` with a connective cannot have its own prenex (rules 12 and 13). Examples are `.ije` and `.i bo`, so `mi klama .i bo naku zo'u do klama` is an error. A `tu'e ... tu'u` block can hold one. CLL 1.1 prints examples 16.77 and 16.78 with a second `zo'u` there. Example 16.77 is `roda zo'u mi prami da .ije naku zo'u do prami da`. Example 16.78 is `su'oda zo'u mi prami da .ije naku zo'u do prami da`. This grammar rejects the printed texts and reads them without that `zo'u`. Then `naku` is a term of the second sentence. The prenex covers the whole statement, so it binds `da` in both sentences. The official parser accepts the printed texts. Its lexer reads `.ije` there as a plain `.i` (rule 10), and a prenex can follow that. Every edition of CLL from 1.2.12 on corrects example 16.77 in this way. These editions keep the `zo'u` of 16.78.
 
+CLL 14.6 prints example 14.27, `la djan. .ije la .alis. klama le zarci`, with a fragment before the sentence connective. This grammar rejects it. Printed rules 10, 12, and 13 allow fragments only beside bare `.i`.
+
+LLG `techfix.300`, CHANGE 45, deliberately removes fragments as operands of sentence connectives. It states that "they can only be connected by I, not by any lower-level form." The 1997 online draft frames example 6.3, now 14.27, as a bad alternative to the sumti connection in example 6.2.
+
+The official parser accepts example 14.27 because its lexer never produces the statement-level token `I_JEK_820`. On lojban-list, John Cowan addressed fragment connections in "fragment + i-jek" on June 18, 2004. His reply says: "It's wrong, or rather obsolete." The reply's Message-ID is `20040618052316.ga24048@ccil.org`.
+
+The CLL errata page records the related prenex problem as chapter 16, section 10, examples 10.5 and 10.6. Those examples are 16.77 and 16.78 in CLL 1.1. Cowan's response carries `NOFIX`. That record does not change printed rules 12 and 13.
+
 A fragment is what a speaker utters when the utterance is not a sentence (CLL 19.5 and 14.13). It is one of these:
 
 - A bare connective, as the answer to a `ji` or `gi'i` question

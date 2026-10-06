@@ -2868,3 +2868,6 @@ adhoc.syntax.final.elision.17.cll-ebnf
 adhoc.syntax.final.elision.18.bpfk
 adhoc.syntax.final.elision.19.cll-ebnf
 adhoc.syntax.final.elision.20.bpfk
+corpus.camxes.752
+adhoc.syntax.final.fragments.2.bpfk
+cll.14.27.c14e6d3
