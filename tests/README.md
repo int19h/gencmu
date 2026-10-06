@@ -277,3 +277,5 @@ Each entry of `quoted-allow.txt` covers one quoted text in one document: every l
 The sentence on each line makes its own claim. So when a document quotes a text unpinned on more than one line, its entry names those lines, and a line can have an entry of its own. The check reports an entry that names no lines and covers several, and a named line that does not need the entry.
 
 Lines that begin with `#` are comments. An entry that the check does not need is an error, so the list does not keep stale entries.
+
+The numeric suffix in `adhoc.syntax.final.errata.*` names its original candidate position. A missing position reused an existing corpus record or repeated the text of another erratum. Those records carry the erratum reasons, and `core.txt` includes their identifiers.

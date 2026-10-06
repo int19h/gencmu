@@ -117,6 +117,14 @@ Example 15.55 prints `nake` for the intended `na'e ke` in its seventh text. Both
 
 Example 17.36 omits CU after the first sumti. Both parsers read two sumti as a fragment. The gloss instead describes a sentence.
 
+Examples 5.121 and 5.123 omit BO after SUTRA. Both parsers connect CADZU with MASNO inside the tanru, against the glosses. CLL 1.3.4 adds BO.
+
+Examples 16.89 and 16.92 omit KUhO after VERBA. Both parsers keep the school term inside the relative clause, against the prenex glosses. CLL 1.3.4 adds KUhO.
+
+Example 18.126 omits CU before DU. Both parsers keep RACTU DU inside the second MOhE sumti and read two LI sumti. CLL 1.3.4 adds CU to give the intended sentence.
+
+Example 14.173 omits NA from the second embedded bridi. Both parsers repeat the affirmative claim instead of its negation. CLL 1.3.4 adds NA.
+
 A fragment is what a speaker utters when the utterance is not a sentence (CLL 19.5 and 14.13). It is one of these:
 
 - A bare connective, as the answer to a `ji` or `gi'i` question
@@ -835,6 +843,12 @@ Earlier stages also depart from CLL. [The word stream](../words/stream.md) lists
 9. Numbers and letter strings are indivisible. The printed repetition permits shorter prefixes, but CLL 17.9 and 18.6 require `boi` between adjacent runs. The conditions reject a boundary before another complete continuation unit.
 
 10. In `term`, `tag termset` lets a tense or modal govern a whole termset. Printed rule 83 omits this alternative. CLL 10.25 explicitly allows it, and examples 10.189 and 10.190 give that structure. A written `ku` makes the tag and termset separate terms.
+
+The CLL errata page records the conflict between section 10.25 and printed rule 83 as NOFIX. Cowan writes:
+
+> Unfortunately true.  Termsets suck rocks, and some work will have to be done to make everything said about them consistent -- if it is even possible.  Personally, I'd like to just burn them.
+
+This grammar resolves the conflict in favor of CLL 10.25. The official parser and camxes-std read the tag and termset as separate terms.
 
 This grammar keeps the free-modifier slot after an elided terminator as printed: an elided `[+X #]` leaves no slot. So a free modifier cannot follow an elided `boi`, and where CLL example 17.38 writes `xy. xi ky.`, this grammar requires `xy. boi xi ky.`.
 
