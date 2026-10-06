@@ -1,6 +1,8 @@
 # The experimental indicators
 
-This document is a layer (a document that changes earlier rules) over [the indicator stage of CLL](cll.md). A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. The [experimental](../dialects/experimental.md) dialect stitches this layer after the CLL document, that is, it reads the two as one grammar. This layer adds bare NAI indicators and changes leading runs. It keeps the CLL stage's flat attachment. [The notation document](../../docs/notation.md) explains the notation.
+This document is a layer (a document that changes earlier rules) over [the indicator stage of CLL](cll.md). A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. The [experimental](../dialects/experimental.md) dialect stitches this layer after the CLL document, that is, it reads the two as one grammar.
+
+This layer adds bare NAI indicators and changes leading runs. It keeps the CLL stage's flat attachment. [The notation document](../../docs/notation.md) explains the notation.
 
 A bare `nai` is an indicator, since camxes-exp's `indicator` rule takes a NAI word alone. [The experimental word forms](../words/experimental.md) mark the NAI words `indicator` with an implication. Outside a quotation boundary, a `nai` after a word attaches to it. For example, `mi nai klama` is `mi klama` with the indicator `nai`. In `je nai`, the `nai` attaches to `je`. A bare `nai` stays in the stream at the start of a text or directly after `lu`. After `to` or `to'i`, it attaches to the opener.
 
