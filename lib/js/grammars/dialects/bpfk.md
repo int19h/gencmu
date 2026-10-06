@@ -8,7 +8,11 @@ The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&o
 
 The executable baseline is `camxes.peg` at ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg).
 
-The working morphology differs from chapter 4 in several ways. A rafsi is a shortened word form used inside compounds. A brivla is a predicate word. For example, the working morphology has the extended rafsi, which let a brivla or a borrowing stand inside a compound before a y-hyphen. It also lets a `Cy` letter word stand before another word without a pause, so `fyno` is `fy no`. CLL 4.9 rule 6 asks for a pause there.
+A rafsi is a word form used inside compounds. A brivla is a predicate word. The working morphology lets a non-borrowing brivla stand whole before `'y` inside a compound, as in `klama'ybroda`. Neither [CLL 1.1 chapter 4](https://github.com/int19h/cll/blob/v1.1-2016-08-26-html/chapters/04.xml) nor [CLL 1.3.4 chapter 4](https://github.com/int19h/cll/blob/v1.3.4/chapters/04.xml) teaches that form.
+
+[CLL 1.3.4 section 4.16](https://github.com/int19h/cll/blob/v1.3.4/chapters/04.xml#L6131-L6186) already teaches the borrowing form, as in `spageti'ykukte`.
+
+The working morphology also lets a `Cy` letter word stand before another word without a pause, so `fyno` is `fy no`. [CLL 1.1 section 4.9 rule 6](https://github.com/int19h/cll/blob/v1.1-2016-08-26-html/chapters/04.xml#L2115-L2117) requires a pause there.
 
 This dialect follows CLL 1.1 where recorded BPFK decisions do not supersede it. It uses the [Magic Words stream](../words/stream.md) and the shared CLL indicator stage. Both CLL dialects use `late-elision elision-only` for omitted terminators. Their numbers and letter strings are indivisible. The project choices below define further differences from camxes-std.
 
