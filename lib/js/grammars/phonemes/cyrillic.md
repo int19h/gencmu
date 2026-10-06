@@ -4,7 +4,7 @@ This document adds gencmu's Cyrillic orthography to the phoneme stage, the first
 
 A dialect that lists neither this document nor [cyrillic-cll.md](cyrillic-cll.md) reads a Cyrillic letter as foreign. [The notation document](../../docs/notation.md) explains the notation.
 
-The consonants are those of CLL 3.12: `ш` for `c`, `ж` for `j`, `х` for `x`, and the others in the obvious ways. CLL is *The Complete Lojban Language*. `ъ`, the Bulgarian hard sign, is `y`. This document also reads letters that other Cyrillic alphabets use for the same or nearly the same sounds. CLL 3.12 does not name them, but a writer at home in one of those alphabets reaches for them:
+The consonants are those of *The Complete Lojban Language* (CLL), section 3.12. The mappings are `ш` for `c`, `ж` for `j`, `х` for `x`, and the others in the obvious ways. `ъ`, the Bulgarian hard sign, is `y`. This document also reads letters that other Cyrillic alphabets use for the same or nearly the same sounds. CLL 3.12 does not name them, but a writer at home in one of those alphabets reaches for them:
 
 - `э` and `є` for `e`
 - `і` for `i`
