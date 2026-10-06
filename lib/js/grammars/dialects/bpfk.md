@@ -109,7 +109,9 @@ The stage ranks with `late-elision` and applies `elision-only`, as in the cll-eb
 
 A constituent can end wherever a parse of the whole text needs it. Numbers and letter strings cannot split before a continuation unit. The CLL grammar states that rule separately, under "Numbers, lerfu strings and mekso".
 
-CLL gives terminator advice and describes some limitations of its official parser. This policy follows that advice both where the whole text forces a boundary and where omission changes the reading. "Choosing among parses" in [the CLL grammar](../syntax/cll.md) explains the forced boundaries in examples 8.48 and 8.62. CLL describes the official parser's failed left-to-right readings there. The elision policy disagrees with no specific text of CLL.
+CLL gives terminator advice and describes some limitations of its official parser. This policy follows the intended boundary where the whole text forces it. Where nothing forces that boundary, the policy keeps the reading that CLL warns about.
+
+"Choosing among parses" in [the CLL grammar](../syntax/cll.md) explains the forced boundaries in examples 8.48 and 8.62. CLL describes the merged readings that a left-to-right reading of the words gives. The whole text forces the boundary where CLL writes the terminator. The elision policy disagrees with no specific text of CLL.
 
 A PEG commits to choices before it knows whether the whole text parses. This dialect follows the whole text instead. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses with the description ending before `se farvi`.
 
