@@ -437,9 +437,8 @@ class _Constants:
         # walked once, not once for each alternative.
         copies: dict[int, Any] = {}
 
-        # A walk, since each level of a clause's nesting costs a few frames
-        # of the call stack, more than the depth limit of 256 leaves room
-        # for before Python 3.12.
+        # The walk resolves nested clauses without adding a call frame at
+        # each level. It also works when the caller lowers the stack limit.
         def resolve(node: Any) -> Walk:
             if not isinstance(node, (dict, list)):
                 return node
