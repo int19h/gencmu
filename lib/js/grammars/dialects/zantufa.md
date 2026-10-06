@@ -12,7 +12,7 @@ The indicator stage is the cll-ebnf dialect's. No word of the Zantufa lexicon is
 
 Every leading free modifier after a word of TO occupies the opener's slot, as Zantufa's `TO_post <- post_clause` specifies. TO includes `to`, `to'i`, `mau'e`, and `noi'i`. Every leading free modifier after a word of LU or LUhEI instead begins quoted content. LU includes `lu`, `la'au`, and `tu'ai`, and LUhEI contains `lu'ei`.
 
-CLL 21.2 writes `LU text`, and the text-initial exception of CLL 13.9 gives initial indicators scope over what follows. The dialect extends that quotation boundary to every leading free modifier and to LUhEI. The [syntax document](../syntax/zantufa.md#differences-from-zantufa-19999) records this departure and the camxes history. The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs.
+CLL 1.1 section 21.2 writes `LU text`, and the text-initial exception of CLL 13.9 gives initial indicators scope over what follows. The dialect extends that quotation boundary to every leading free modifier and to LUhEI. The [syntax document](../syntax/zantufa.md#differences-from-zantufa-19999) records this departure and the camxes history. The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs.
 
 The syntax is [`../syntax/zantufa.md`](../syntax/zantufa.md), a grammar of its own that translates Zantufa's rules one by one. It says where the dialect reads a text differently from Zantufa 1.9999.
 

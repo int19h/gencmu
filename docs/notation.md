@@ -2,7 +2,7 @@
 
 Every grammar in gencmu is a Markdown document. Its fenced `jbogenbau` blocks, read in order, are one grammar, and the prose between the blocks explains it. This document explains jbogenbau, the notation that those blocks use. The grammars only say what they are about, and refer here for the rest. Two grammars written in jbogenbau itself define it: `grammars/notation/lexical.md` and `grammars/notation/syntax.md`.
 
-A jbogenbau grammar is an attribute grammar with EBNF rule bodies. An attribute grammar is a grammar whose constituents carry computed values. A constituent is a part of the text that one rule matched. EBNF (Extended Backus-Naur Form) is a common notation for the bodies of grammar rules. Each rule body is EBNF close to the form that *The Complete Lojban Language* (CLL) prints in chapter 21, except for repetition and elidable terminators. Each constituent carries one attribute, its set of tags (names, phonemes or characters, such as `KOhA`, `/a/` or `'a'`), computed bottom-up from its parts.
+A jbogenbau grammar is an attribute grammar with EBNF rule bodies. An attribute grammar is a grammar whose constituents carry computed values. A constituent is a part of the text that one rule matched. EBNF (Extended Backus-Naur Form) is a common notation for the bodies of grammar rules. Each rule body follows the EBNF form of CLL 1.1 chapter 21. Repetition and elidable terminators differ. Each constituent carries one attribute, its set of tags (names, phonemes or characters, such as `KOhA`, `/a/` or `'a'`), computed bottom-up from its parts.
 
 Conditions over the parts restrict which parses exist. A condition can also ask whether a part parses as another rule. This takes the grammar beyond context-free grammars, whose rules only combine symbols. It goes beyond them in the way that Boolean grammars do. In a Boolean grammar, a rule can also require that the same text matches, or does not match, another rule.
 
@@ -102,7 +102,7 @@ The operators of a body are those of CLL, except for repetition and elidable ter
 
 `&` binds tighter than `|`. Parentheses, brackets and braces each delimit what they hold, so they need no precedence.
 
-`#` is shorthand for an optional list of free modifiers (CLL 21.2, point 9). This construct appears in many places. A free modifier is a word or phrase that stands almost anywhere. A vocative is an example.
+`#` is shorthand for an optional list of free modifiers (CLL 1.1 section 21.2, point 9). This construct appears in many places. A free modifier is a word or phrase that stands almost anywhere. A vocative is an example.
 
 `#` is not an operator but a rule, whose name is `#` and not a word. The grammar defines it like any other rule. The syntax grammars define it as `[{free}]`, zero or more free modifiers, as CLL's own EBNF does with `[free ...]`. Its constituent is a node of the tree like that of any rule, so the free modifiers in one slot are grouped under it.
 

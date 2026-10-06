@@ -215,7 +215,7 @@ The fixpoint alone proves only that the notation reads itself consistently. So `
 
 ## Repetition, lists and chains
 
-CLL writes repetition as `x ...`, and its note 7 to chapter 21.2 says that `...` implies left grouping. gencmu departs from that note. Its notation writes repetition with braces, and says in each place whether the tree shows a list or the grouping.
+CLL writes repetition as `x ...`, and note 7 of CLL 1.1 section 21.2 says that `...` implies left grouping. gencmu departs from that note. Its notation writes repetition with braces, and says in each place whether the tree shows a list or the grouping.
 
 - Flat braces, `{x}` and `{x \ s}`, read a list. The tree shows the items and the separators as children of the rule that writes the braces.
 - Chain braces, `{... x \ s}` and `{x ... \ s}`, with or without `\ s`, show the grouping. Each level is a node of the chain's rule. A chain is the whole of its rule, so its levels need no other name.
@@ -714,6 +714,6 @@ Both CLL dialects now use `late-elision elision-only`. Their numbers and letter 
 
 The conditions on `number` and `lerfu-string` test the completed run once, where it ends. The rules keep brace notation. The experimental and Zantufa number rules stay the same. The notation retires stage-wide `maximal`. `[++T]` keeps its per-optional meaning.
 
-The Rust corpus comparison gives bpfk 54 new acceptances under the shared elision policy. The cll-ebnf dialect already accepts 52 of those texts. Two texts hold digits that its word forms reject at the words stage. Both dialects accept example 8.48 without `ku'o`, despite the requirement in CLL 8.6. The maintainer approves that policy as an interpretation of CLL 21.2 note 10. The number and letter boundaries separately follow CLL 17.9 and 18.6.
+The Rust corpus comparison gives bpfk 54 new acceptances under the shared elision policy. The cll-ebnf dialect already accepts 52 of those texts. Two texts hold digits that its word forms reject at the words stage. Both dialects accept example 8.48 without `ku'o`, despite the requirement in CLL 8.6. The maintainer approves that policy as an interpretation of CLL 1.1 section 21.2 note 10. The number and letter boundaries separately follow CLL 17.9 and 18.6.
 
 The comparison changes 512 results among 29,725 existing cases. In cll-ebnf, 26 texts now reject, one tree changes, and 394 verdicts change from `resolved` to `unique`. In bpfk, 23 rejection positions move, and 14 verdicts change from `unique` to `resolved`, alongside the 54 new acceptances. No experimental or Zantufa result changes.

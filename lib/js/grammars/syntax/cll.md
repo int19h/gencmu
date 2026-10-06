@@ -2,7 +2,7 @@
 
 This document opens the syntax stage, the last stage of the [CLL](../dialects/cll-ebnf.md) and [BPFK](../dialects/bpfk.md) dialects. It is also the base of the syntax of the [experimental](../dialects/experimental.md) dialect. A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar.
 
-This document is the grammar of Lojban as chapter 21 of *The Complete Lojban Language* (CLL) prints it, in the notation that the book uses. That notation is EBNF (Extended Backus-Naur Form). This grammar departs from the printed one where "Differences from the printed CLL grammar" at the end says.
+This document gives the grammar of Lojban from chapter 21 of *The Complete Lojban Language* (CLL), edition 1.1. It uses the notation of that book. That notation is EBNF (Extended Backus-Naur Form). This grammar departs from the printed one where "Differences from the printed CLL grammar" at the end says.
 
 A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. The terminals of this grammar are selma'o. A terminal matches an input token by tag. A tag marks a token by name, phoneme or character.
 
@@ -22,7 +22,7 @@ The stages before it make the word stream that it reads. The forms stage ([forms
 
 [The notation document](../../docs/notation.md) explains the notation. Two of its points matter here. First, an elided terminator takes its `#` with it, so an elided `[+X #]` leaves no free-modifier slot (see `#` below) at that point. Second, when omitted terminators leave a text with more than one parse, the stage chooses the parse as "Choosing among parses" after the grammar says.
 
-CLL writes repetition as `x ...`, and the notation writes it with braces. Point 7 of CLL 21.2's notation calls `...` "optional repetition of the construct to the left". So CLL's `x ...` is `{x}` here, one `x` and optionally more, and CLL's `[x] ...` or `[x ...]` is `[{x}]`, which allows none.
+CLL writes repetition as `x ...`, and the notation writes it with braces. Point 7 of CLL 1.1 section 21.2's notation calls `...` "optional repetition of the construct to the left". So CLL's `x ...` is `{x}` here, one `x` and optionally more, and CLL's `[x] ...` or `[x ...]` is `[{x}]`, which allows none.
 
 Where CLL writes `x [s x] ...` and no grouping is at stake, this grammar writes `{x \ s}`. That is a list of `x` separated by `s`. These read the same words as the printed rules. Where the grouping matters, the next paragraph says what the rule writes instead.
 
@@ -34,7 +34,7 @@ This document writes the grammar literately: each block of rules follows the pro
 
 A rule sets the grammar up. This document does not say how the stage chooses among parses. CLL's rule that a terminator can be elided "if no grammatical ambiguity results" has more than one reading (see "Choosing among parses"). So each dialect that uses this grammar names its own reading after this document. The cll-ebnf and bpfk dialects do so in their pipeline documents. The experimental layer (a document that changes earlier rules) names its reading itself.
 
-CLL marks a terminator as elidable by writing it between slashes, `/KU/`, or `/KU#/` when its free-modifier slot goes with it. Here each is an elidable optional, marked in its place: `[+KU]`, or `[+KU #]`. An absent one shows in the parse tree as that terminator, elided. Every terminator between slashes in the printed grammar is marked so, and no other optional is. `#` is a free-modifier slot that "appears in many places" (CLL 21.2, point 9): any number of free modifiers, as CLL's EBNF defines it. This document defines `free`, a single free modifier, under "Free modifiers, vocatives and indicators".
+CLL marks a terminator as elidable by writing it between slashes, `/KU/`, or `/KU#/` when its free-modifier slot goes with it. Here each is an elidable optional, marked in its place: `[+KU]`, or `[+KU #]`. An absent one shows in the parse tree as that terminator, elided. Every terminator between slashes in the printed grammar is marked so, and no other optional is. Point 9 of CLL 1.1 section 21.2 defines `#` as a slot for any number of free modifiers. It "appears in many places". This document defines `free`, a single free modifier, under "Free modifiers, vocatives and indicators".
 
 ```jbogenbau
 %rule #
@@ -482,7 +482,7 @@ Operators have their own connectives and grouping, in the same shape as selbri. 
 
 As in `selbri-4`, its plain connective is `plain-joik-jek`. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the group `ke pi'i ke'e` through `joik [stag] KE`. `operator-1` gives the guhek forethought and the `bo` forms. `operator-2` is a simple operator or a `ke ... ke'e` group.
 
-The `bo` form joins two operators by a jek or joik with `bo`, as in `li pa su'i je bo pi'i re` (rule 371 of the printed grammar). CLL 14.17 says that jeks and joiks with `bo` are not allowed for operators. But chapter 21 prints the form, and CLL 14.18 says that operators can have a tense in their logical connectives, as tanru units can. A jek takes a tense only in the `bo` form, as in `li pa su'i je pu bo pi'i re`. This grammar follows chapter 21 and keeps the form. The official parser accepts it too.
+Rule 371 of the printed grammar joins two operators by a jek or joik with `bo`. An example is `li pa su'i je bo pi'i re`. CLL 14.17 says that jeks and joiks with `bo` are not allowed for operators. But CLL 1.1 chapter 21 prints the form. CLL 14.18 says that operators can have a tense in their logical connectives, as tanru units can. A jek takes a tense only in the `bo` form, as in `li pa su'i je pu bo pi'i re`. This grammar follows CLL 1.1 chapter 21 and keeps the form. The official parser accepts it too.
 
 A simple `mex-operator` is a VUhU word, possibly converted by `se` or negated by `na'e`. It can also be an operator made from a mekso through `ma'o`, or a selbri used as an operator through `na'u`. `te'u` closes these last two.
 
@@ -706,7 +706,7 @@ These rules allow more than some of CLL's prose and more than the lexer of the o
 
 ## Free modifiers, vocatives and indicators
 
-A free modifier can stand wherever the grammar writes `#`. CLL 6.11 allows free modifiers after many constructions. Point 9 of CLL 21.2 defines `#` as a construct that "appears in many places". The forms are these:
+A free modifier can stand wherever the grammar writes `#`. CLL 6.11 allows free modifiers after many constructions. Point 9 of CLL 1.1 section 21.2 defines `#` as a construct that "appears in many places". The forms are these:
 
 - A `sei ... se'u` discursive bridi, `sei mi cusku`
 - A `soi ... se'u` reciprocity marker
@@ -783,9 +783,9 @@ For example, `le sutra tavla` has two parses. One is a statement with the descri
 
 `late-elision` takes the parse that elides a terminator later, so `le sutra tavla` is a fragment. A speaker who means the statement says `le sutra cu tavla` or `le sutra ku tavla`.
 
-Note 10 of CLL 21.2 says that an elidable terminator "may be omitted (without change of meaning) if no grammatical ambiguity results". It does not say which parse a text has when the grammar allows more than one, so the ranking is a choice of this grammar's dialects. Nor does the note say how to check that no ambiguity results, so `elision-only` is a choice too. Both are chosen to fit the conventions of CLL. CLL does not state them.
+Note 10 of CLL 1.1 section 21.2 says that an elidable terminator "may be omitted (without change of meaning) if no grammatical ambiguity results". The note does not choose a parse when the grammar allows several. Each dialect chooses its ranking. Nor does the note say how to check that no ambiguity results, so `elision-only` is a choice too. Both are chosen to fit the conventions of CLL. CLL does not state them.
 
-CLL gives advice about boundaries that preserve an intended reading. A complete parse can force such a boundary without a written terminator. Where nothing forces the boundary, the grammar gives the reading that CLL warns about. General advice does not override the elision principle of CLL 21.2 note 10.
+CLL gives advice about boundaries that preserve an intended reading. A complete parse can force such a boundary without a written terminator. Where nothing forces the boundary, the grammar gives the reading that CLL warns about. General advice does not override the elision principle of CLL 1.1 section 21.2 note 10.
 
 CLL 6.2 warns about a description before a selbri. In `le broda brode gi'e brodi`, the whole text forces the description to end before `brode`.
 
@@ -809,7 +809,7 @@ The indivisible-number rule follows these CLL requirements in both dialects:
 - CLL 18.6, after example 18.32, requires `boi` between adjacent numbers. CLL 18.16 shows reverse Polish examples 18.110 through 18.112 with the required `boi` boundaries. Both dialects reject `li fu'a pa re su'i du li ci` and accept `li fu'a pa boi re su'i du li ci`.
 - CLL 18.6, after example 18.34, requires `boi` between the function name and its operand. Both dialects reject `li zy du li ma'o fy. xy.` and accept `li zy du li ma'o fy. boi xy.`.
 
-The shared elision policy follows CLL's general advice where the whole text determines the intended boundary. It disagrees with no specific text of CLL. CLL 8.6 and 8.7 describe merged readings that cannot complete the outer description. CLL 14.14, 18.11, and 18.17 describe the official parser's left-to-right reading. It does not override number and letter boundaries. The maintainer approves this interpretation of CLL 21.2 note 10 for both dialects.
+The shared elision policy follows CLL's general advice where the whole text determines the intended boundary. It disagrees with no specific text of CLL. CLL 8.6 and 8.7 describe merged readings that cannot complete the outer description. CLL 14.14, 18.11, and 18.17 describe the official parser's left-to-right reading. It does not override number and letter boundaries. The maintainer approves this interpretation of CLL 1.1 section 21.2 note 10 for both dialects.
 
 ## Differences from the printed CLL grammar
 
@@ -823,7 +823,7 @@ Earlier stages also depart from CLL. [The word stream](../words/stream.md) lists
 
 [The indicator stage](../indicators/cll.md) permits several FUhE groups and several BAhE words. Printed rules 411 and 1100 each allow only one. [The word forms](../words/cll.md) and [CLL word stream](../words/cll-stream.md) describe their choices and extensions, including `y` as a vowel. These documents and this section together describe the dialect's departures.
 
-1. Printed rule 972 reads `[NAhE] (time [space] | space [time]) & CAhA [KI]`. CLL 21.2 ranks `...` above `&`, and `&` above `|`. It gives no precedence between juxtaposition and `&`. This grammar follows its notation and ranks juxtaposition higher.
+1. Printed rule 972 reads `[NAhE] (time [space] | space [time]) & CAhA [KI]`. CLL 1.1 section 21.2 ranks `...` above `&`, and `&` above `|`. It gives no precedence between juxtaposition and `&`. This grammar follows its notation and ranks juxtaposition higher.
 
    That precedence attaches `[NAhE]` only to the time and space branch, and `[KI]` only to the CAhA branch. The repair instead surrounds the combination with those optionals. It reads `[NAhE] ((time [space] | space [time]) & CAhA) [KI]`. Item 8 further narrows the time and space branch.
 

@@ -20,7 +20,7 @@ The stage reads an indicator run as far as it goes, so the stage is greedy. Wher
 
 CLL 13.9 states the exception before the general attachment rule. Its first rule says: "At the beginning of a text, indicators modify everything following them indefinitely". Its second covers "every other place in an utterance", where the indicator "attaches to the word immediately to its left".
 
-CLL 21.2 writes `LU text`, and its `text` rule permits initial indicators. This stage reads "text" in CLL 13.9 as that grammar rule. So indicators after `lu` begin the quoted text and stay in the stream.
+CLL 1.1 section 21.2 writes `LU text`, and its `text` rule permits initial indicators. This stage reads "text" in CLL 13.9 as that grammar rule. So indicators after `lu` begin the quoted text and stay in the stream.
 
 CLL 19.8 says that an attitudinal "Normally" applies to the preceding word. CLL 19.16 gives the general rule that UI and CAI mark the previous word. That general statement does not override the text-initial exception of CLL 13.9.
 
@@ -28,11 +28,11 @@ A quotation must hold any text, including one that begins with an indicator. Att
 
 CLL 13.9 states: "If the word that an indicator (or group) attaches to is itself a cmavo which governs a grammatical structure". It then says: "then the indicator construct pertains to the referent of the entire structure". That sentence describes meaning, and a quotation refers to its quoted text. It does not require attachment to `lu`.
 
-A quoted text starts as a whole text does. CLL 21.2 lets `text` start with names or indicators, but not both. Both CLL dialects reject `ui .djan. mi klama` and `lu ui .djan. mi klama li'u` for that reason.
+A quoted text starts as a whole text does. CLL 1.1 section 21.2 lets `text` start with names or indicators, but not both. Both CLL dialects reject `ui .djan. mi klama` and `lu ui .djan. mi klama li'u` for that reason.
 
 Experimental with `cbm` and Zantufa reject those texts under their own name-as-predicate rules. The [TO name probes](../../tests/corpus/adhoc.jsonl) record those policies as `adhoc.indicators.opener.to-ui-name.experimental` and `adhoc.indicators.opener.to-ui-name.zantufa`.
 
-CLL 21.2 also writes `TO text`, so that rule alone does not separate TO from LU. CLL 19.12 example 19.67 uses `to'isa'a` and says that `sa'a` marks the whole bracketed remark. The BPFK section "Digressives" defines `to'i` as "Equivalent to {to sa'a}". These sources support the maintainer's decision that indicators after `to` and `to'i` attach to the opener. Indicators after `tu'e` also attach to that opener under CLL 19.8 and 13.9.
+CLL 1.1 section 21.2 also writes `TO text`, so that rule alone does not separate TO from LU. CLL 19.12 example 19.67 uses `to'isa'a` and says that `sa'a` marks the whole bracketed remark. The BPFK section "Digressives" defines `to'i` as "Equivalent to {to sa'a}". These sources support the maintainer's decision that indicators after `to` and `to'i` attach to the opener. Indicators after `tu'e` also attach to that opener under CLL 19.8 and 13.9.
 
 The official parser differs after `lu` because its preprocessor absorbs following indicators into the preceding token. On lojban-list, Cyril Slobin reported this for `lu .ue la djan. klama li'u` on October 1, 1995. John Cowan replied on October 2, 1995, under the subject "Parser bug - or my?". He wrote: "Yes; the parser is in error here, and you are correct."
 
@@ -89,7 +89,7 @@ An item hands on a word with its preceding `ba'e` run and following indicator ru
 
 A `le'u` outside any quote is still a word. But the stage reads it as `LEhU` and not also as a plain word, so that it has one reading.
 
-A `bahe-run` is one or more `ba'e`, so `mi ba'e ba'e klama` is a text. Rule 1100 of CLL 21.2, `word = [BAhE] any-word [indicators]`, allows only one. This stage departs from it there and follows CLL 19.16, which says that "Multiple BAhE cmavo may be used in succession".
+A `bahe-run` is one or more `ba'e`, so `mi ba'e ba'e klama` is a text. Rule 1100 of CLL 1.1 section 21.2, `word = [BAhE] any-word [indicators]`, allows only one. This stage departs from it there and follows CLL 19.16, which says that "Multiple BAhE cmavo may be used in succession".
 
 ## Indicator runs
 
@@ -150,7 +150,7 @@ A `ba'e` before an indicator marks the indicator and goes with it. So does a `ba
 
 The stage reads an indicator run as far as it goes: `broda ui nai` attaches both words to `broda`. Because the stage is greedy, `nai` is part of the run and not the next word of the syntax. A `ba'e` is a word of BAhE, which the CLL lexicon gives only to `ba'e` and `za'e`.
 
-CLL's sources do not agree on `fu'e`. The EBNF of CLL 21.2 (its grammar in Extended Backus-Naur Form) reads `indicators = [FUhE] indicator ...`, so an indicator must follow a `fu'e`. The magic-word list of CLL 19.16 says that `fu'e` is "the same as UI". The YACC preamble is the official parser's steps before its grammar. Step 4e of that preamble, printed in CLL 1.0, absorbs every `fu'e` after a word, and so does the official parser.
+CLL's sources do not agree on `fu'e`. CLL 1.1 section 21.2 prints the EBNF rule `indicators = [FUhE] indicator ...`. An indicator must therefore follow a `fu'e`. The magic-word list of CLL 19.16 says that `fu'e` is "the same as UI". The YACC preamble is the official parser's steps before its grammar. Step 4e of that preamble, printed in CLL 1.0, absorbs every `fu'e` after a word, and so does the official parser.
 
 This stage follows CLL 19.8, which gives the meaning of `fu'e`: "Placing fu'e in front of an attitudinal disconnects it from what precedes it". So a `fu'e` stands directly in front of an indicator, and the stage rejects a `fu'e` that has no indicator after it.
 
