@@ -2,7 +2,7 @@
 
 This document is the family part of the forms stage in the [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) dialects. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). A family is a set of word forms that dialects use. The loader stitches this document in after [forms.md](forms.md). The experimental dialect stitches [experimental.md](experimental.md) after it, and the Zantufa dialect stitches [zantufa.md](zantufa.md). [The notation document](../../docs/notation.md) explains jbogenbau, the notation of these grammars.
 
-The document gives the word-form grammar that the definition effort of the Logical Language Group approved. That grammar is a parsing expression grammar (PEG), the morphology part of `camxes.peg` in the ilmentufa repository, at commit 778ea13. The 1.3 editions of *The Complete Lojban Language* print the same grammar as appendix A2.
+The document gives the word-form grammar that the definition effort of the Logical Language Group approved. That grammar is a parsing expression grammar (PEG), the morphology part of `camxes.peg` in the ilmentufa repository, at commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg). [CLL 1.3.4](https://github.com/int19h/cll/blob/v1.3.4/chapters/a02.xml) prints that grammar in appendix A2.
 
 The prose uses these Lojban terms for words:
 
