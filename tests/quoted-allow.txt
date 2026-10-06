@@ -107,4 +107,4 @@ zu'a nu'i la'u lo mitre be li mu # grammars/syntax/cll.md = term adhoc.syntax.fi
 tag termset # grammars/syntax/cll.md:275,847 # These are names of grammar rules in an alternative, not Lojban words.
 gi'a brodi # grammars/syntax/cll.md:192 = words adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti.bpfk
 pu ku # grammars/syntax/cll.md:211 = term adhoc.syntax.final.gek-term.3.cll-ebnf adhoc.syntax.final.gek-term.4.bpfk
-na'e ke # grammars/syntax/cll.md:116 = words adhoc.syntax.final.r2-negation.2.cll-ebnf adhoc.syntax.final.r2-negation.4.bpfk
+na'e ke # grammars/syntax/cll.md:116 = words adhoc.syntax.final.negation-scope.2.cll-ebnf adhoc.syntax.final.negation-scope.4.bpfk

@@ -249,7 +249,7 @@ For CLL source examples, `cll.NUMBER.ANCHOR` uses the CLL 1.1 display number and
 
 Unnumbered illustrations keep their inherited numeric fixture labels. Their reasons state that those labels are not example numbers in the local CLL 1.1 rendering.
 
-The number in `adhoc.syntax.final.errata.*` names its original candidate position. A missing position reused an existing corpus record or repeated the text of another erratum. Those records carry the erratum reasons, and `core.txt` includes their identifiers.
+Numeric suffixes in `adhoc.syntax.final.errata.*`, `adhoc.syntax.final.errata-controls.*`, `adhoc.syntax.final.elision-unforced.*`, and `adhoc.syntax.final.negation-scope.*` name their original candidate positions. A missing position reused an existing corpus record or repeated the text of another erratum. The reused records explain their cases, and `core.txt` includes their identifiers. New identifiers describe their content rather than a review round.
 
 ## Quoted texts: `quoted-allow.txt`
 
