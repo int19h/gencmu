@@ -8,7 +8,7 @@ The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&o
 
 The executable baseline is `camxes.peg` at ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg).
 
-A rafsi is a word form used inside compounds. A brivla is a predicate word. The working morphology lets a non-borrowing brivla stand whole before `'y` inside a compound, as in `klama'ybroda`. Neither [CLL 1.1 chapter 4](https://github.com/int19h/cll/blob/v1.1-2016-08-26-html/chapters/04.xml) nor [CLL 1.3.4 chapter 4](https://github.com/int19h/cll/blob/v1.3.4/chapters/04.xml) teaches that form.
+A rafsi is a word form used inside compounds. A brivla is a predicate word. The working morphology has extended rafsi. One kind lets a non-borrowing brivla stand whole before `'y` inside a compound, as in `klama'ybroda`. Neither [CLL 1.1 chapter 4](https://github.com/int19h/cll/blob/v1.1-2016-08-26-html/chapters/04.xml) nor [CLL 1.3.4 chapter 4](https://github.com/int19h/cll/blob/v1.3.4/chapters/04.xml) teaches that form.
 
 [CLL 1.3.4 section 4.16](https://github.com/int19h/cll/blob/v1.3.4/chapters/04.xml#L6131-L6186) already teaches the borrowing form, as in `spageti'ykukte`.
 
