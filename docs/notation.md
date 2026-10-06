@@ -102,7 +102,7 @@ The operators of a body are those of CLL, except for repetition and elidable ter
 
 `&` binds tighter than `|`. Parentheses, brackets and braces each delimit what they hold, so they need no precedence.
 
-`#` is the free-modifier slot, which CLL writes after almost every word. A free modifier is a word or phrase that stands almost anywhere. A vocative is an example.
+`#` is shorthand for an optional list of free modifiers (CLL 21.2, point 9). This construct appears in many places. A free modifier is a word or phrase that stands almost anywhere. A vocative is an example.
 
 `#` is not an operator but a rule, whose name is `#` and not a word. The grammar defines it like any other rule. The syntax grammars define it as `[{free}]`, zero or more free modifiers, as CLL's own EBNF does with `[free ...]`. Its constituent is a node of the tree like that of any rule, so the free modifiers in one slot are grouped under it.
 

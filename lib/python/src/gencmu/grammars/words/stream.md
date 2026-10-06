@@ -576,7 +576,7 @@ The dialects keep six established departures from CLL 19. Items 2 and 4 differ i
 
 The [proposal's BU page](https://mw.lojban.org/papri/bu) lets SA BU reach inside a letteral. Its main page marks this interpretation controversial. These dialects instead keep the letteral opaque. SA ZEI likewise finds no ZEI inside a compound.
 
-The proposal's ZEI paragraph writes "ZEI+BU grabs back to the last ZEI". That is a typo for SA+ZEI, and the page's discussion records the unclear wording. This grammar permits no such search inside a compound.
+The proposal's ZEI paragraph writes "ZEI+BU grabs back to the last ZEI". The maintainer reads "ZEI+BU" as a typo for "SA+ZEI". The page's discussion records the unclear wording. This grammar permits no such search inside a compound.
 
 The proposal also exposes a completed LOhU quote's LEhU ending to SA. These dialects expose only the opening class. A constructor keeps the unopened-quote fault. `le'u bu` still fails, and `le'u bu si` is empty.
 
