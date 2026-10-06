@@ -1,6 +1,6 @@
 # Word forms
 
-This document opens the forms stage. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). The forms stage is the second stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the phonemes that the phoneme stage emitted.
+This document opens the forms stage. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). The forms stage is the second stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the phonemes that the phoneme stage emitted.
 
 The stage divides the text into its source words and tags each word with its class. A token is one unit that a stage reads or emits. A tag marks a token by name, phoneme or character. The stage hands the words to the word stage ([stream.md](stream.md)), where the magic words act on them. [The notation document](../../docs/notation.md) explains the notation.
 
@@ -21,7 +21,7 @@ The text is runs and pauses. A run is a stretch of text with no pause inside. Th
 
 Every pause rule of CLL 4.9 and 4.2 holds within one run. A pause satisfies each of them, so two words with a pause between them never constrain each other.
 
-A lookahead tests following input without consuming it. The approved word forms look past the end of a word only as far as the next pause. This stage reads each run on its own, except for two lookaheads. A prolonged y run tests whether BU follows across one pause. In Zantufa, a second lookahead applies before a quoted form. There, a `ra'oi` before a pause changes how the stage divides the next run ([zantufa.md](zantufa.md)).
+A lookahead tests following input without consuming it. The BPFK word forms look past the end of a word only as far as the next pause. This stage reads each run on its own, except for two lookaheads. A prolonged y run tests whether BU follows across one pause. In Zantufa, a second lookahead applies before a quoted form. There, a `ra'oi` before a pause changes how the stage divides the next run ([zantufa.md](zantufa.md)).
 
 A run is a sequence of words, or it is unread. An unread run is one that the pipeline did not read as words, and it carries the tag `UNREAD`. A run is unread when the phoneme stage already left it unread, because it has a character that no script reads. A run of phonemes that divides into no words is also unread.
 
@@ -93,7 +93,7 @@ The stage reads the words of a run from the left. Each word after the first can 
 - `final-stress`, `initial-stress` and `stress-guard`: The word's last or first syllable is stressed, or the word is a brivla. A word with either of the other two cannot directly follow a word with `final-stress` (4.2, rule 5).
 - `open-stress` and `uncounted`: `open-stress` marks a brivla whose stress is not marked, and `uncounted` marks a word with no counted syllable. CLL 3.9 counts a brivla's syllables to the next pause, so only words with no counted syllable can follow it in its run. The run carries `open-stress` on through them.
 
-The approved word forms set only `onset` and `continued`, with the meaning that the PEG gives them. The PEG is the parsing expression grammar of the approved forms. [bpfk.md](bpfk.md) translates it. Every word is `continued`, and a word that does not begin with a nucleus is `onset`, a name included. Their words look past their own ends, as the words of the PEG do, and decide the rest themselves.
+The BPFK word forms set only `onset` and `continued`, with the meaning that the PEG gives them. The PEG is the parsing expression grammar of the BPFK word forms. [bpfk.md](bpfk.md) translates it. Every word is `continued`, and a word that does not begin with a nucleus is `onset`, a name included. Their words look past their own ends, as the words of the PEG do, and decide the rest themselves.
 
 ```jbogenbau
 %rule run-words
@@ -110,7 +110,7 @@ The approved word forms set only `onset` and `continued`, with the meaning that 
   ~open-stress ⊈ tags($r) ∨ ~uncounted ⊆ tags($v)
 ```
 
-A join permits two words without a pause. This document states the joins so that no two joins apply to the same pair. For example, in the CLL family, a word tagged `cy` never carries `continued`. So only the `Cy` rule joins two `Cy` letters there, and the general join, a continued word followed by an onset, never follows one. The approved word forms tag no word `cy`. They join a `Cy`-shaped word such as `fy` by the general join, so `fyno` is `fy` and `no`.
+A join permits two words without a pause. This document states the joins so that no two joins apply to the same pair. For example, in the CLL family, a word tagged `cy` never carries `continued`. So only the `Cy` rule joins two `Cy` letters there, and the general join, a continued word followed by an onset, never follows one. The BPFK word forms tag no word `cy`. They join a `Cy`-shaped word such as `fy` by the general join, so `fyno` is `fy` and `no`.
 
 The first condition of `run-words` follows from the second. Each join of the second needs one of four tags on the words before: `continued`, `cy`, `name-intro` or `open-stress`. The first condition stays because it uses only `$r`.
 
@@ -189,7 +189,7 @@ A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on
   | $h(hesitation-shape) <~hesitation ∪ tags($h)>
 ```
 
-Hesitation is `y` of any length. It is a source word of its own here, because the pause rules hold for it as for any word. It begins with a vowel, so a pause comes before it, unless the family gives it `onset`. The approved word forms read `kyyykerlo` as `ky`, `yy` and `kerlo`, because the first `y` of `yy` is not a nucleus there.
+Hesitation is `y` of any length. It is a source word of its own here, because the pause rules hold for it as for any word. It begins with a vowel, so a pause comes before it, unless the family gives it `onset`. The BPFK word forms read `kyyykerlo` as `ky`, `yy` and `kerlo`, because the first `y` of `yy` is not a nucleus there.
 
 Hesitation needs no pause after it, as the Magic Words proposal says. The word stage drops it, or reads it as the base of the letter word `.y bu`. Two letters `y` never form one syllable, so a comma between them changes nothing, and `y,y` is hesitation as `yy` is (CLL 3.3).
 

@@ -1,14 +1,18 @@
-# The approved word forms
+# CLL syntax with BPFK word forms
 
-This dialect is the CLL dialect with the word-form grammar that the definition effort (the BPFK, a committee of the Lojban community) approved. That grammar replaces the grammar of chapter 4. [CLL 1.3.4](https://github.com/int19h/cll/blob/v1.3.4/chapters/a02.xml) prints that grammar in appendix A2. [`../words/bpfk.md`](../words/bpfk.md) translates that grammar rule by rule.
+CLL is *The Complete Lojban Language*. The BPFK is a Lojban committee for language definitions. This dialect combines CLL syntax with the BPFK working morphology, the grammar of word forms. That morphology uses a parsing expression grammar (PEG).
+
+[CLL 1.3.4](https://github.com/int19h/cll/blob/v1.3.4/chapters/a02.xml) prints that grammar in appendix A2. [`../words/bpfk.md`](../words/bpfk.md) translates that grammar rule by rule.
+
+The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&oldid=109606) defers morphology. The [Formal Grammar section](https://mw.lojban.org/index.php?title=BPFK_Section:_Formal_Grammar&oldid=111787) proposes replacing YACC with a PEG. [CLL 1.3.4, appendix A3.1](https://github.com/int19h/cll/blob/v1.3.4/chapters/a03.xml) keeps EBNF and YACC as the official syntax. It describes camxes PEG syntax as practice without ratification.
 
 The executable baseline is `camxes.peg` at ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg).
 
-The approved grammar differs from chapter 4 in several ways. A rafsi is a shortened word form used inside compounds. A brivla is a predicate word. For example, the approved grammar has the extended rafsi, which let a brivla or a borrowing stand inside a compound before a y-hyphen. It also lets a `Cy` letter word stand before another word without a pause, so `fyno` is `fy no`. CLL 4.9 rule 6 asks for a pause there.
+The working morphology differs from chapter 4 in several ways. A rafsi is a shortened word form used inside compounds. A brivla is a predicate word. For example, the working morphology has the extended rafsi, which let a brivla or a borrowing stand inside a compound before a y-hyphen. It also lets a `Cy` letter word stand before another word without a pause, so `fyno` is `fy no`. CLL 4.9 rule 6 asks for a pause there.
 
-The syntax of the dialect is the CLL grammar. Both CLL dialects use the same policy for elided terminators. Their numbers and letter strings are indivisible.
+This dialect follows CLL 1.1 where recorded BPFK decisions do not supersede it. It uses the [Magic Words stream](../words/stream.md) and the shared CLL indicator stage. Both CLL dialects use `late-elision elision-only` for omitted terminators. Their numbers and letter strings are indivisible. The project choices below define further differences from camxes-std.
 
-A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../phonemes/latin.md`](../phonemes/latin.md). The approved grammar reads part of these conventions too. The phoneme stage also reads gencmu's Cyrillic and zbalermorna. The indicator stage is the indicator stage of the [cll-ebnf](cll-ebnf.md) dialect.
+A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../phonemes/latin.md`](../phonemes/latin.md). The working morphology reads part of these conventions too. The phoneme stage also reads gencmu's Cyrillic and zbalermorna. The indicator stage is the indicator stage of the [cll-ebnf](cll-ebnf.md) dialect.
 
 CLL 21.2 writes `LU text`, whose initial indicators modify what follows under the text-initial exception of CLL 13.9. Indicators after `lu` therefore begin quoted content. CLL 19.12 example 19.67 gives `sa'a` scope over the whole bracketed remark. The BPFK section "Digressives" defines `to'i` as "Equivalent to {to sa'a}". These sources support attachment after `to` and `to'i` to the opener.
 
@@ -59,7 +63,7 @@ The Magic Words proposal names these boundaries but leaves their survival unspec
   ```jbogenbau
   %include "../words/forms.md"
   ```
-- [Approved word forms](../words/bpfk.md)
+- [BPFK word forms](../words/bpfk.md)
   ```jbogenbau
   %include "../words/bpfk.md"
   ```

@@ -2,7 +2,7 @@
 
 This dialect extends the Lojban of *The Complete Lojban Language* (CLL) with constructs that entered use after CLL appeared in print. A selbri is the predicate of a sentence. A sumti is an argument of a predicate. A cmavo is a particle, a short structure word. Examples of such constructs are `cu` before a bare selbri, connected sumti with `je`, and the experimental cmavo. The syntax is [`../syntax/experimental.md`](../syntax/experimental.md), which says what it adds to CLL's.
 
-A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. The phoneme stage is the phoneme stage of the approved-word-forms dialect ([`bpfk.md`](bpfk.md)). The forms stage reads the approved word forms of the definition effort ([`../words/bpfk.md`](../words/bpfk.md)). A selma'o is a word class of cmavo. A lexicon gives the experimental cmavo their selma'o.
+A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. The phoneme stage is the phoneme stage of the bpfk dialect ([`bpfk.md`](bpfk.md)). The forms stage reads the BPFK word forms of the definition effort ([`../words/bpfk.md`](../words/bpfk.md)). A selma'o is a word class of cmavo. A lexicon gives the experimental cmavo their selma'o.
 
 camxes-exp is the experimental PEG grammar. A PEG commits to the first matching alternative. camxes-exp reads the same word forms with a few changes, such as the consonant pair `mz`, which [`../words/experimental.md`](../words/experimental.md) makes. The indicator stage is the cll-ebnf dialect's ([`cll-ebnf.md`](cll-ebnf.md)) with a layer that reads indicators as camxes-exp does. A layer is a document that changes earlier rules.
 
@@ -51,7 +51,7 @@ The dialect also turns on two features of the syntax, because camxes-exp has no 
   ```jbogenbau
   %include "../words/forms.md"
   ```
-- [Approved word forms](../words/bpfk.md)
+- [BPFK word forms](../words/bpfk.md)
   ```jbogenbau
   %include "../words/bpfk.md"
   ```

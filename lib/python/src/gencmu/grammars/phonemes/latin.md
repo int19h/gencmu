@@ -1,8 +1,8 @@
 # Latin conventions
 
-This document adds to [latin-strict.md](latin-strict.md) the conventions that Lojban texts use beyond CLL chapter 3. CLL is *The Complete Lojban Language*. Both documents belong to the phoneme stage, the first stage of the pipeline. The dialects of the [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read them, after the rules of latin-strict.md. The [CLL](../dialects/cll-ebnf.md) dialect does not. [The notation document](../../docs/notation.md) explains the notation.
+This document adds to [latin-strict.md](latin-strict.md) the conventions that Lojban texts use beyond CLL chapter 3. CLL is *The Complete Lojban Language*. Both documents belong to the phoneme stage, the first stage of the pipeline. The dialects of the [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read them, after the rules of latin-strict.md. The [CLL](../dialects/cll-ebnf.md) dialect does not. [The notation document](../../docs/notation.md) explains the notation.
 
-Most conventions here read text that CLL does not. Two of them instead change how the stage reads a text that latin-strict.md also reads. These two are the comma between two vowels, which the approved grammar ignores, and a capital run. A capital run has multiple vowel groups with only capital vowels. The approved grammar is the word-form grammar that the Lojban definition effort approved. The conventions are these:
+Most conventions here read text that CLL does not. Two of them instead change how the stage reads a text that latin-strict.md also reads. These two are the comma between two vowels, which the working morphology ignores, and a capital run. A capital run has multiple vowel groups with only capital vowels. The working morphology is the word-form grammar that [bpfk.md](../words/bpfk.md) translates. The conventions are these:
 
 - Punctuation other than the period and the comma is a pause.
 - A comma between two vowels is nothing, as it is elsewhere.
@@ -13,7 +13,7 @@ Most conventions here read text that CLL does not. Two of them instead change ho
 
 ## Punctuation
 
-The approved grammar reads the question mark and the exclamation mark as pauses, like the period and whitespace. Its PEG, or parsing expression grammar, calls them `space_char`. This grammar also reads as a pause any other character that is neither a letter of some script, a digit, a mark nor a comma. That is a rule of gencmu. Texts on the web put quotation marks, brackets and dashes around words. The approved grammar rejects `mi "klama"`, and this grammar reads it as `mi klama`.
+The working morphology reads the question mark and the exclamation mark as pauses, like the period and whitespace. Its PEG, or parsing expression grammar, calls them `space_char`. This grammar also reads as a pause any other character that is neither a letter of some script, a digit, a mark nor a comma. That is a rule of gencmu. Texts on the web put quotation marks, brackets and dashes around words. The working morphology rejects `mi "klama"`, and this grammar reads it as `mi klama`.
 
 A character token carries only its character tag. So the rule `other-char` names the characters that are no letter, mark, digit or whitespace. A letter is a character of the Unicode property `L`. A mark is one of `Mn`, or the stress mark or the shorthand of [zbalermorna.md](zbalermorna.md). A digit is `0` to `9`, and whitespace is a character of the property White_Space. A punctuation character is such a character that no rule of `any-lojban-char` or `core-char` reads by itself.
 
@@ -21,7 +21,7 @@ A pause token covers its core, from its first to its last whitespace character o
 
 Punctuation between two letters, with no whitespace, is a pause token of its own, as in `klama!do`. So is a text of nothing but punctuation. Commas can stand inside such a pause and at its edges. The token runs from the first punctuation character of the pause to the last. A comma at an edge belongs to no token, as next to a pause of whitespace. So `jy?,sai` is `jy` and `sai`.
 
-The approved grammar reads `jy?,sai` so too, because each of its letter rules skips the commas before the letter. Punctuation next to the first or the last word of the text belongs to no token.
+The working morphology reads `jy?,sai` so too, because each of its letter rules skips the commas before the letter. Punctuation next to the first or the last word of the text belongs to no token.
 
 The phoneme stage cannot know that a pause stands in a quote. So punctuation between two whitespace characters is part of a pause even there, and `zoi gy. !!! .gy.` quotes nothing. camxes-std (the reference PEG parser) reads it so too, because it reads `!` as a space.
 
@@ -78,7 +78,7 @@ The phoneme stage cannot know that a pause stands in a quote. So punctuation bet
 
 ## The comma
 
-The approved grammar ignores a comma before a letter (`comma*` in each letter rule of its PEG). So a comma between two vowels is no syllable break here: it is nothing, as a comma is between other letters. The vowels on either side are one vowel group, as if they stood side by side. `me,iin` is `meiin`, and the Cyrillic `ма,и` is `ma'i`, as `маи` is. This document redefines `letters-after-vowel` without the `syllable-break` of latin-strict.md. So nothing reads `syllable-break` in these dialects.
+The working morphology ignores a comma before a letter (`comma*` in each letter rule of its PEG). So a comma between two vowels is no syllable break here: it is nothing, as a comma is between other letters. The vowels on either side are one vowel group, as if they stood side by side. `me,iin` is `meiin`, and the Cyrillic `ма,и` is `ma'i`, as `маи` is. This document redefines `letters-after-vowel` without the `syllable-break` of latin-strict.md. So nothing reads `syllable-break` in these dialects.
 
 ```jbogenbau
 %redefine-rule letters-after-vowel
@@ -94,7 +94,7 @@ The approved grammar ignores a comma before a letter (`comma*` in each letter ru
 
 ## The apostrophe
 
-Texts write the apostrophe as the letter `h`, which CLL does not use. The names of selma'o (classes of Lojban particles), such as KOhA, write it so, and the approved grammar reads it so (`h <- comma* ['h] &nucleus` in its PEG).
+Texts write the apostrophe as the letter `h`, which CLL does not use. The names of selma'o (classes of Lojban particles), such as KOhA, write the apostrophe this way. The working morphology also reads `h` as an apostrophe (`h <- comma* ['h] &nucleus` in its PEG).
 
 ```jbogenbau
 %extend-rule apostrophe
@@ -195,7 +195,7 @@ A vowel with an acute or a grave accent, precomposed or combining, is the stress
 
 ## Digits
 
-The approved grammar reads a digit as a member of PA, the number word it stands for, and lets a digit stand inside a name. This grammar emits a digit as the letters of its word, so `2` is `re`. CLL does not write digits. A period between two digits is the decimal point, `pi`. `items` says that no pause stands there, and the decimal point needs a digit before it, so `la .djan.2mei` has a pause after `djan`.
+The working morphology reads a digit as a member of PA, the number word it stands for, and lets a digit stand inside a name. This grammar emits a digit as the letters of its word, so `2` is `re`. CLL does not write digits. A period between two digits is the decimal point, `pi`. `items` says that no pause stands there, and the decimal point needs a digit before it, so `la .djan.2mei` has a pause after `djan`.
 
 ```jbogenbau
 %redefine-rule items
