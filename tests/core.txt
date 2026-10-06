@@ -3009,3 +3009,7 @@ adhoc.camxes-exp.indicators.fuhe-with-attitudinal-nai.experimental
 adhoc.camxes-exp.indicators.fuhe-after-ui-without-indicator-rejected.experimental
 adhoc.camxes-exp.indicators.consecutive-fuhe-rejected.experimental
 adhoc.camxes-exp.indicators.attitudinal-nai-then-bare-nai.experimental
+adhoc.indicators.nai.fuhe-after-nai.cll-ebnf
+adhoc.indicators.nai.daho-after-nai.cll-ebnf
+adhoc.indicators.nai.fuhe-after-nai.bpfk
+adhoc.indicators.nai.daho-after-nai.bpfk
