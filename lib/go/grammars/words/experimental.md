@@ -1,8 +1,8 @@
 # Experimental word forms
 
-The BPFK is a Lojban committee for language definitions. CLL is *The Complete Lojban Language*.
+This document is part of the forms stage in the [experimental](../dialects/experimental.md) dialect. The forms stage is the second stage of the pipeline. It divides the phonemes of the text into words. The loader stitches this document into the stage after [bpfk.md](bpfk.md).
 
-This document is part of the forms stage in the [experimental](../dialects/experimental.md) dialect. The forms stage is the second stage of the pipeline. It divides the phonemes of the text into words. The loader stitches this document into the stage after [bpfk.md](bpfk.md). camxes-exp, the experimental PEG (parsing expression grammar), reads the BPFK working word forms, with a few changes. This document makes the same changes to the translation in [bpfk.md](bpfk.md).
+camxes-exp, the experimental PEG (parsing expression grammar), reads the working word forms of the BPFK (a Lojban committee), with a few changes. This document makes the same changes to the translation in [bpfk.md](bpfk.md).
 
 Each rule here has the name of the camxes-exp rule that it translates, and its comment gives that rule, as in bpfk.md. The [Zantufa](../dialects/zantufa.md) dialect makes only the first change, in [zantufa.md](zantufa.md). [The notation document](../../docs/notation.md) explains the notation.
 
@@ -15,7 +15,7 @@ The prose uses these Lojban terms for words:
 
 ## The pair mz
 
-CLL 1.1 section 3.6 forbids the consonant pair `mz`. The working morphology, the word-form grammar that bpfk.md translates, forbids it too: its letter rule for `m` refuses a following `z`. The letter rule for `m` in camxes-exp refuses only another `m` among the consonants. So camxes-exp accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`.
+*The Complete Lojban Language* (CLL), edition 1.1, section 3.6, forbids the consonant pair `mz`. The working morphology, the word-form grammar that bpfk.md translates, forbids it too: its letter rule for `m` refuses a following `z`. The letter rule for `m` in camxes-exp refuses only another `m` among the consonants. So camxes-exp accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`.
 
 ```jbogenbau
 %redefine-rule m              (* m <- comma* [mM] !h !glide !m *)

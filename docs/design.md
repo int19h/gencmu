@@ -1,7 +1,5 @@
 # gencmu: design
 
-The BPFK is a Lojban committee for language definitions.
-
 Status: implemented. If the implementation shows that a decision is wrong, the same change corrects this document.
 
 ## What gencmu is

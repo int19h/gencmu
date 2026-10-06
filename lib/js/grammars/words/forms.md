@@ -1,7 +1,5 @@
 # Word forms
 
-The BPFK is a Lojban committee for language definitions. CLL is *The Complete Lojban Language*.
-
 This document opens the forms stage. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). The forms stage is the second stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the phonemes that the phoneme stage emitted.
 
 The stage divides the text into its source words and tags each word with its class. A token is one unit that a stage reads or emits. A tag marks a token by name, phoneme or character. The stage hands the words to the word stage ([stream.md](stream.md)), where the magic words act on them. [The notation document](../../docs/notation.md) explains the notation.
@@ -19,11 +17,11 @@ The `cll-ebnf` dialect stitches [shapes.md](shapes.md) and [cll.md](cll.md) as i
 
 ## Runs
 
-The text is runs and pauses. A run is a stretch of text with no pause inside. The phoneme stage emits each pause as one `PAUSE` token. The phoneme stage decides what counts as a pause. In CLL's orthography, a pause is a space or a period. In the conventions that the other dialects read, other punctuation is a pause too.
+The text is runs and pauses. A run is a stretch of text with no pause inside. The phoneme stage emits each pause as one `PAUSE` token. The phoneme stage decides what counts as a pause. In the orthography of *The Complete Lojban Language* (CLL), a pause is a space or a period. In the conventions that the other dialects read, other punctuation is a pause too.
 
 Every pause rule of CLL 4.9 and 4.2 holds within one run. A pause satisfies each of them, so two words with a pause between them never constrain each other.
 
-A lookahead tests following input without consuming it. The BPFK word forms look past the end of a word only as far as the next pause. This stage reads each run on its own, except for two lookaheads. A prolonged y run tests whether BU follows across one pause. In Zantufa, a second lookahead applies before a quoted form. There, a `ra'oi` before a pause changes how the stage divides the next run ([zantufa.md](zantufa.md)).
+A lookahead tests following input without consuming it. The word forms of the BPFK (a Lojban committee) look past the end of a word only as far as the next pause. This stage reads each run on its own, except for two lookaheads. A prolonged y run tests whether BU follows across one pause. In Zantufa, a second lookahead applies before a quoted form. There, a `ra'oi` before a pause changes how the stage divides the next run ([zantufa.md](zantufa.md)).
 
 A run is a sequence of words, or it is unread. An unread run is one that the pipeline did not read as words, and it carries the tag `UNREAD`. A run is unread when the phoneme stage already left it unread, because it has a character that no script reads. A run of phonemes that divides into no words is also unread.
 

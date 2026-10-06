@@ -1,7 +1,5 @@
 # Zantufa word forms
 
-The BPFK is a Lojban committee for language definitions. CLL is *The Complete Lojban Language*.
-
 This document is part of the forms stage in the [Zantufa](../dialects/zantufa.md) dialect. The forms stage is the second stage of the pipeline. It divides the phonemes of the text into words. The loader stitches this document into the stage after [bpfk.md](bpfk.md).
 
 The prose uses these Lojban terms for words:
@@ -11,7 +9,7 @@ The prose uses these Lojban terms for words:
 - A lujvo is a compound word.
 - A rafsi is a shortened word form used inside compounds.
 
-Zantufa 1.9999 reads the BPFK working word forms, with three changes. This document makes them:
+Zantufa 1.9999 reads the working word forms of the BPFK (a Lojban committee), with three changes. This document makes them:
 
 - It permits the consonant pair `mz`.
 - It reads `ie'o` as hesitation, as it reads `y`.
@@ -19,7 +17,7 @@ Zantufa 1.9999 reads the BPFK working word forms, with three changes. This docum
 
 The rule `m` has the name of the Zantufa rule that it translates, and its comment gives that rule, as in bpfk.md. Where another rule states a Zantufa rule, its comment gives that rule. The rest are rules of [forms.md](forms.md) that this document changes, or rules that support them. [The notation document](../../docs/notation.md) explains the notation.
 
-CLL 1.1 section 3.6 forbids the consonant pair `mz`. The working morphology, the word-form grammar that bpfk.md translates, forbids it too: its letter rule for `m` refuses a following `z`. The letter rule for `m` in Zantufa refuses only another `m` among the consonants, as the rule of camxes-exp (the experimental camxes parser) does. So Zantufa accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`. The other changes that camxes-exp makes to the word forms, in [experimental.md](experimental.md), are not Zantufa's.
+*The Complete Lojban Language* (CLL), edition 1.1, section 3.6, forbids the consonant pair `mz`. The working morphology, the word-form grammar that bpfk.md translates, forbids it too: its letter rule for `m` refuses a following `z`. The letter rule for `m` in Zantufa refuses only another `m` among the consonants, as the rule of camxes-exp (the experimental camxes parser) does. So Zantufa accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`. The other changes that camxes-exp makes to the word forms, in [experimental.md](experimental.md), are not Zantufa's.
 
 ```jbogenbau
 %redefine-rule m              (* m <- [mM] !h !glide !m *)

@@ -1,7 +1,5 @@
 # The word stream
 
-CLL is *The Complete Lojban Language*.
-
 This document defines the word stage of cll-ebnf, bpfk, experimental, and Zantufa. A stage reads the tokens from the previous stage and emits tokens for the next stage.
 
 The [forms stage](forms.md) supplies source words. This stage applies quotes, compounds, erasers, hesitation, and FAhO. The [notation document](../../docs/notation.md) defines the rules below.
@@ -565,7 +563,7 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
 
 The dialects follow the [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) with the departures below. The maintainer chooses opaque units where that proposal exposes internal markers.
 
-CLL 19.13 describes erasure, 19.14 describes hesitation, and 19.15 describes FAhO. CLL 19.16 describes interactions among these words. These sections do not specify one complete processing order.
+CLL 19.13 describes erasure, 19.14 describes hesitation, and 19.15 describes FAhO. CLL is *The Complete Lojban Language*. CLL 19.16 describes interactions among these words. These sections do not specify one complete processing order.
 
 The dialects keep six established departures from CLL 19. Items 2 and 4 differ in Zantufa. There ZEI erases, and hesitation attached to a word has class Y ([zantufa-stream.md](zantufa-stream.md)).
 

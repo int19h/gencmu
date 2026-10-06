@@ -1,8 +1,6 @@
 # The experimental indicators
 
-CLL is *The Complete Lojban Language*.
-
-This document is a layer (a document that changes earlier rules) over [the indicator stage of CLL](cll.md). A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. The [experimental](../dialects/experimental.md) dialect stitches this layer after the CLL document, that is, it reads the two as one grammar.
+This document is a layer (a document that changes earlier rules) over [the indicator stage of *The Complete Lojban Language* (CLL)](cll.md). A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. The [experimental](../dialects/experimental.md) dialect stitches this layer after the CLL document, that is, it reads the two as one grammar.
 
 This layer adds bare NAI indicators and changes leading runs. It keeps the CLL stage's flat attachment. [The notation document](../../docs/notation.md) explains the notation.
 

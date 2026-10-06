@@ -22,7 +22,7 @@
 # node tools/quoted-texts.js checks it.
 
 # Parts of texts that the sentences make claims about.
-ke brode ke'e bo brodi # grammars/syntax/cll.md:211,591 = selbri-5-not-ke-group adhoc.syntax.joik-ke-group-then-bo adhoc.syntax.joik-ke-group-then-bo.bpfk
+ke brode ke'e bo brodi # grammars/syntax/cll.md:209,589 = selbri-5-not-ke-group adhoc.syntax.joik-ke-group-then-bo adhoc.syntax.joik-ke-group-then-bo.bpfk
 se se broda # grammars/syntax/cll.md = tanru-unit-2 adhoc.syntax.se-se-unit adhoc.syntax.se-se-unit.bpfk
 na'e se broda # grammars/syntax/cll.md = tanru-unit-2 adhoc.syntax.nahe-se-unit adhoc.syntax.nahe-se-unit.bpfk
 pa xy. # grammars/syntax/cll.md = number adhoc.syntax.number-then-lerfu adhoc.syntax.number-then-lerfu.bpfk
@@ -64,12 +64,12 @@ a kru,a # grammars/words/cll.md # the reading that akru,a does not have; akru,a 
 terms zo'u # grammars/syntax/cll.md # notation: a rule name before the cmavo
 .i ja nai # grammars/syntax/cll.md # a connective between sentences
 .i joi # grammars/syntax/cll.md # a connective between sentences
-.i bo # grammars/syntax/cll.md:83,87 # a part of the pinned text quoted after it on its line
-gi'e ke # grammars/syntax/cll.md:205,848 # the words of one token of the official parser's lexer
-joi ke # grammars/syntax/cll.md:211,841 # the words of one token of the official parser's lexer
+.i bo # grammars/syntax/cll.md:81,85 # a part of the pinned text quoted after it on its line
+gi'e ke # grammars/syntax/cll.md:203,846 # the words of one token of the official parser's lexer
+joi ke # grammars/syntax/cll.md:209,839 # the words of one token of the official parser's lexer
 ca lo nu broda # grammars/syntax/cll.md # the shape of a tense with its sumti
 fi mi # grammars/syntax/cll.md # the shape of a place marker with its sumti
-pu ku # grammars/syntax/cll.md:268 # the shape of a tense with an elided sumti
+pu ku # grammars/syntax/cll.md:266 # the shape of a tense with an elided sumti
 na ku # grammars/syntax/cll.md # the shape of a negation as a term
 mi ce'e do # grammars/syntax/cll.md # the shape of a termset
 nu'i gek terms nu'u gik terms nu'u # grammars/syntax/cll.md # notation: rule names between the cmavo
@@ -78,7 +78,7 @@ mi .e do # grammars/syntax/cll.md # the shape of an afterthought sumti connectio
 mi joi do # grammars/syntax/cll.md # the shape of a joik sumti connection
 ge mi gi do # grammars/syntax/cll.md # the shape of a forethought sumti connection
 re lo gerku # grammars/syntax/cll.md # the shape of an outer quantifier
-na'e bo # grammars/syntax/cll.md:310,503 # the shape of a NAhE sumti
+na'e bo # grammars/syntax/cll.md:308,501 # the shape of a NAhE sumti
 le mi zdani # grammars/syntax/cll.md # the shape of a possessive inner sumti
 lo re lo gerku # grammars/syntax/cll.md # the shape of a quantifier and a sumti after a descriptor
 mi goi ko'a # grammars/syntax/cll.md # the shape of a goi clause
@@ -104,11 +104,11 @@ ia ie ii io iu ua ue ui uo uu # grammars/words/shapes.md # notation: the rising 
 
 zu'a nu'i la djordj. la'u lo mitre be li mu # grammars/syntax/cll.md = term adhoc.syntax.tag-termset.1.cll-ebnf adhoc.syntax.tag-termset.9.bpfk
 zu'a nu'i la'u lo mitre be li mu # grammars/syntax/cll.md = term adhoc.syntax.tag-termset.2.cll-ebnf adhoc.syntax.tag-termset.10.bpfk
-tag termset # grammars/syntax/cll.md:279,853 # These are names of grammar rules in an alternative, not Lojban words.
-gi'a brodi # grammars/syntax/cll.md:196 = words adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti.bpfk
-pu ku # grammars/syntax/cll.md:215 = term adhoc.syntax.gek-term.3.cll-ebnf adhoc.syntax.gek-term.4.bpfk
-na'e ke # grammars/syntax/cll.md:120 = words adhoc.syntax.negation-scope.2.cll-ebnf adhoc.syntax.negation-scope.4.bpfk
-nu'u fa'u # grammars/syntax/cll.md:112 = words adhoc.syntax.errata.5.cll-ebnf adhoc.syntax.errata.6.bpfk
-pe'e fa'u # grammars/syntax/cll.md:112 # The words of the wiki's alternative correction, rather than a complete text.
-ractu du # grammars/syntax/cll.md:128 = words corpus.camxes.1112 adhoc.syntax.errata-controls.19.bpfk
-kanla viska # grammars/syntax/cll.md:802 = words adhoc.syntax.elision-unforced.3.cll-ebnf adhoc.syntax.elision-unforced.4.bpfk
+tag termset # grammars/syntax/cll.md:277,851 # These are names of grammar rules in an alternative, not Lojban words.
+gi'a brodi # grammars/syntax/cll.md:194 = words adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti.bpfk
+pu ku # grammars/syntax/cll.md:213 = term adhoc.syntax.gek-term.3.cll-ebnf adhoc.syntax.gek-term.4.bpfk
+na'e ke # grammars/syntax/cll.md:118 = words adhoc.syntax.negation-scope.2.cll-ebnf adhoc.syntax.negation-scope.4.bpfk
+nu'u fa'u # grammars/syntax/cll.md:110 = words adhoc.syntax.errata.5.cll-ebnf adhoc.syntax.errata.6.bpfk
+pe'e fa'u # grammars/syntax/cll.md:110 # The words of the wiki's alternative correction, rather than a complete text.
+ractu du # grammars/syntax/cll.md:126 = words corpus.camxes.1112 adhoc.syntax.errata-controls.19.bpfk
+kanla viska # grammars/syntax/cll.md:800 = words adhoc.syntax.elision-unforced.3.cll-ebnf adhoc.syntax.elision-unforced.4.bpfk

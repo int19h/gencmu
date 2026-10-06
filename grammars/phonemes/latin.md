@@ -1,7 +1,5 @@
 # Latin conventions
 
-The BPFK is a Lojban committee for language definitions.
-
 This document adds to [latin-strict.md](latin-strict.md) the conventions that Lojban texts use beyond CLL 1.1 chapter 3. CLL is *The Complete Lojban Language*. Both documents belong to the phoneme stage, the first stage of the pipeline. The dialects of the [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read them, after the rules of latin-strict.md. The [CLL](../dialects/cll-ebnf.md) dialect does not. [The notation document](../../docs/notation.md) explains the notation.
 
 Most conventions here read text that CLL does not. Two of them instead change how the stage reads a text that latin-strict.md also reads. These two are the comma between two vowels, which the working morphology ignores, and a capital run. A capital run has multiple vowel groups with only capital vowels. The working morphology is the word-form grammar that [bpfk.md](../words/bpfk.md) translates. The conventions are these:

@@ -1,7 +1,5 @@
 # The gencmu engine
 
-CLL is *The Complete Lojban Language*.
-
 This document is the specification that every gencmu library implements. It says what a result is, not how to compute it. It says how only where the only reasonable way to compute a result is part of what the result is. Where two implementations can differ, this document says which one is right. The cases in `tests/engine/` and `tests/notation/` are part of the specification, and an implementation that disagrees with one of them is wrong. A case that disagrees with this text is a bug in one or the other, and the same change fixes it.
 
 `docs/notation.md` explains the notation to grammar authors, and `grammars/notation/` defines it. `docs/output.md` defines the result's JSON and the renderings.
@@ -417,7 +415,7 @@ An inserted token has no parts. If it has a phoneme tag, it sounds like that pho
 
 An emitted token always has phonemes, possibly the empty string. Only the character tokens of the first stage have none. Two phoneme tags on one emitted token are an error of the grammar that emitted it, whether or not its constituent is an opaque part. The tag set here is the token's tags after the stage's implications (§11).
 
-`phonemes(span)` in a condition is the canonical sound of the span. It joins the phonemes of the span's tokens in order, with no separator. Then it replaces each code point with its simple lowercase mapping, the `lower` entries of `grammars/unicode.txt`. It also removes every comma, `,`, the syllable break of CLL 3.3.
+`phonemes(span)` in a condition is the canonical sound of the span. It joins the phonemes of the span's tokens in order, with no separator. Then it replaces each code point with its simple lowercase mapping, the `lower` entries of `grammars/unicode.txt`. It also removes every comma, `,`, the syllable break of *The Complete Lojban Language* (CLL), section 3.3.
 
 The canonical sound keeps every pause. It does not merge two pauses, and it does not remove a pause at either end. So a stressed `lA` sounds `la`, and `kore,a` sounds `korea`. A token's own `phonemes`, above and in the output, stay as the token has them.
 

@@ -1,8 +1,8 @@
 # Indicators and `ba'e`
 
-The BPFK is a Lojban committee for language definitions. CLL is *The Complete Lojban Language*.
+This document is the indicator stage, the fourth stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar.
 
-This document is the indicator stage, the fourth stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. This stage reads the words that the word stage emitted, and applies `word`, one of CLL 1.1 section 21.2's four non-formal rules. A parser applies this rule before the grammar proper. The rule is `word ≔ [BAhE] any-word [indicators]`.
+This stage reads the words that the word stage emitted, and applies `word`, one of CLL 1.1 section 21.2's four non-formal rules. CLL is *The Complete Lojban Language*. A parser applies this rule before the grammar proper. The rule is `word ≔ [BAhE] any-word [indicators]`.
 
 The indicators are the attitudinals and discursives of UI and CAI with an optional `nai` after each. They are also the cancel `da'o` and the scope marker `fu'o`. A `fu'e` opens a group of them. CLL counts the hesitation `y` among them too, but the word stage drops hesitation, so it never reaches this stage.
 
@@ -34,7 +34,7 @@ A quoted text starts as a whole text does. CLL 1.1 section 21.2 lets `text` star
 
 Experimental with `cbm` and Zantufa reject those texts under their own name-as-predicate rules. The [TO name probes](../../tests/corpus/adhoc.jsonl) record those policies as `adhoc.indicators.opener.to-ui-name.experimental` and `adhoc.indicators.opener.to-ui-name.zantufa`.
 
-CLL 1.1 section 21.2 also writes `TO text`, so that rule alone does not separate TO from LU. CLL 19.12 example 19.67 uses `to'isa'a` and says that `sa'a` marks the whole bracketed remark. The BPFK section "Digressives" defines `to'i` as "Equivalent to {to sa'a}". These sources support the maintainer's decision that indicators after `to` and `to'i` attach to the opener. Indicators after `tu'e` also attach to that opener under CLL 19.8 and 13.9.
+CLL 1.1 section 21.2 also writes `TO text`, so that rule alone does not separate TO from LU. CLL 19.12 example 19.67 uses `to'isa'a` and says that `sa'a` marks the whole bracketed remark. The section "Digressives" of the BPFK (a Lojban committee) defines `to'i` as "Equivalent to {to sa'a}". These sources support the maintainer's decision that indicators after `to` and `to'i` attach to the opener. Indicators after `tu'e` also attach to that opener under CLL 19.8 and 13.9.
 
 The official parser differs after `lu` because its preprocessor absorbs following indicators into the preceding token. On lojban-list, Cyril Slobin reported this for `lu .ue la djan. klama li'u` on October 1, 1995. John Cowan replied on October 2, 1995, under the subject "Parser bug - or my?". He wrote: "Yes; the parser is in error here, and you are correct."
 

@@ -1,12 +1,10 @@
 # The CLL word stream
 
-The BPFK is a Lojban committee for language definitions. CLL is *The Complete Lojban Language*.
-
 A letteral is a letter word of class BY, as [stream.md](stream.md) defines it.
 
 This document is part of the word stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. Each stage reads the tokens that the stage before it emitted, and emits new tokens. The dialect includes this document after [stream.md](stream.md). [The notation document](../../docs/notation.md) explains the notation.
 
-A cmavo is a particle, a short structure word. This document adds the two rules of CLL that the BPFK word forms do not have. One is a warning for a cmavo that uses `y` as a vowel. The other is the pauses around a name that `bu` takes.
+A cmavo is a particle, a short structure word. This document adds two rules of *The Complete Lojban Language* (CLL) that the word forms of the BPFK (a Lojban committee) lack. One is a warning for a cmavo that uses `y` as a vowel. The other is the pauses around a name that `bu` takes.
 
 CLL's word forms admit a cmavo that uses `y` as one more vowel unit, beyond the forms that CLL gives. Examples are `ka'y` and `ky'a` ([cll.md](cll.md)). The forms stage gives each such word the tag `cmavo-warning`. A tag marks a token by name, phoneme or character.
 

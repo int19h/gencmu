@@ -1,7 +1,5 @@
 # The CLL grammar
 
-The BPFK is a Lojban committee for language definitions.
-
 This document opens the syntax stage, the last stage of the [CLL](../dialects/cll-ebnf.md) and [BPFK](../dialects/bpfk.md) dialects. It is also the base of the syntax of the [experimental](../dialects/experimental.md) dialect. A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar.
 
 This document gives the grammar of Lojban from chapter 21 of *The Complete Lojban Language* (CLL), edition 1.1. It uses the notation of that book. That notation is EBNF (Extended Backus-Naur Form). This grammar departs from the printed one where "Differences from the printed CLL grammar" at the end says.

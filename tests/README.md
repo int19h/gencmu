@@ -1,7 +1,5 @@
 # The shared tests
 
-CLL is *The Complete Lojban Language*.
-
 Every gencmu library runs every shared case that its API can express. The Rust library skips two engine cases, as "Engine cases" says. If a case fails in one library and passes in another, there is a bug. The bug is in the library that disagrees with `docs/engine.md`, or in the specification itself.
 
 ## External JSON cases: `json-keys.json`
@@ -247,7 +245,7 @@ The corpus started from a seed: a fixture collection whose verdicts came from an
 
 ## CLL source identities
 
-For CLL source examples, `cll.NUMBER.ANCHOR` uses the CLL 1.1 display number and the XML source anchor. The anchor identifies the source. Suffixes distinguish fixtures for the same source. The `.inherited` suffix retains an older fixture when another case already uses the canonical identifier.
+For examples from *The Complete Lojban Language* (CLL), `cll.NUMBER.ANCHOR` uses the CLL 1.1 display number and the XML source anchor. The anchor identifies the source. Suffixes distinguish fixtures for the same source. The `.inherited` suffix retains an older fixture when another case already uses the canonical identifier.
 
 Unnumbered illustrations keep their inherited numeric fixture labels. Their reasons state that those labels are not example numbers in the local CLL 1.1 rendering.
 

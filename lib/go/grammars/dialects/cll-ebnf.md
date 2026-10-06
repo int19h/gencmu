@@ -1,7 +1,5 @@
 # The CLL dialect, by its printed grammar
 
-The BPFK is a Lojban committee for language definitions.
-
 This dialect is Lojban as *The Complete Lojban Language* (CLL) describes it. The dialect reads the grammar printed in CLL 1.1 chapter 21, and the word forms of its chapters 3 and 4. A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. The dialect gives each cmavo the selma'o of the book's dictionary.
 
 The printed grammar is normative here, with the repairs that [the CLL grammar](../syntax/cll.md) lists. A parse counts when the repaired grammar admits it. The dialect accepts a text that the grammar admits. But the text must not have two readings or more once the syntax stage writes back its elided terminators. Conditions and tags in that parse read the original words, so a written-back terminator is not a written one. The option `elision-only` states this rule, and `docs/engine.md` (§7) gives it exactly.
@@ -92,7 +90,7 @@ The warning `y-cmavo` reports a cmavo that uses `y` as a vowel beyond the forms 
 
 The stage applies CLL's non-formal rule `word = [BAhE] any-word [indicators]`. Indicators attach to the preceding word, and `ba'e` attaches to the following word.
 
-CLL 1.1 section 21.2 writes `LU text`, whose initial indicators modify what follows under the text-initial exception of CLL 13.9. Indicators after `lu` therefore begin quoted content. CLL 19.12 example 19.67 gives `sa'a` scope over the whole bracketed remark. The BPFK section "Digressives" defines `to'i` as "Equivalent to {to sa'a}". These sources support attachment after `to` and `to'i` to the opener.
+CLL 1.1 section 21.2 writes `LU text`, whose initial indicators modify what follows under the text-initial exception of CLL 13.9. Indicators after `lu` therefore begin quoted content. CLL 19.12 example 19.67 gives `sa'a` scope over the whole bracketed remark. The section "Digressives" of the BPFK (a Lojban committee) defines `to'i` as "Equivalent to {to sa'a}". These sources support attachment after `to` and `to'i` to the opener.
 
 The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs. A quoted text takes the same start as a whole text. CLL 1.1 section 21.2 permits initial names or indicators, but not both.
 
