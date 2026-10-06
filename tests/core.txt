@@ -2895,3 +2895,9 @@ corpus.camxes.1799
 adhoc.syntax.final.errata.16.bpfk
 corpus.camxes.1062
 adhoc.syntax.final.errata.18.bpfk
+adhoc.syntax.final.context.1.cll-ebnf
+adhoc.syntax.final.context.2.cll-ebnf
+adhoc.syntax.final.context.3.cll-ebnf
+adhoc.syntax.final.context.4.cll-ebnf
+adhoc.syntax.final.context.5.cll-ebnf
+adhoc.syntax.final.context.6.cll-ebnf
