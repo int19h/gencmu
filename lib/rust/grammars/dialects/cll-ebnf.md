@@ -1,5 +1,7 @@
 # The CLL dialect, by its printed grammar
 
+The BPFK is a Lojban committee for language definitions.
+
 This dialect is Lojban as *The Complete Lojban Language* (CLL) describes it. The dialect reads the grammar printed in CLL 1.1 chapter 21, and the word forms of its chapters 3 and 4. A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. The dialect gives each cmavo the selma'o of the book's dictionary.
 
 The printed grammar is normative here, with the repairs that [the CLL grammar](../syntax/cll.md) lists. A parse counts when the repaired grammar admits it. The dialect accepts a text that the grammar admits. But the text must not have two readings or more once the syntax stage writes back its elided terminators. Conditions and tags in that parse read the original words, so a written-back terminator is not a written one. The option `elision-only` states this rule, and `docs/engine.md` (§7) gives it exactly.
@@ -117,7 +119,7 @@ With `elision-only`, the stage checks the parse that the ranking chose. The chec
 
 `late-elision` and `elision-only` together interpret note 10 of CLL 1.1 section 21.2. That note permits an omitted terminator when no grammatical ambiguity results.
 
-They are chosen to fit CLL's conventions. The note does not specify them. It does not say which parse a text has when the grammar allows more than one, which `late-elision` decides. It does not say how to find that no ambiguity results, which `elision-only` decides by checking one chosen completion. "Choosing among parses" in [the CLL grammar](../syntax/cll.md) separates terminator advice, parser limitations, and boundaries that the whole text forces.
+The dialect chooses `late-elision` and `elision-only` to fit CLL's conventions. The note does not specify them. It does not say which parse a text has when the grammar allows more than one, which `late-elision` decides. It does not say how to find that no ambiguity results, which `elision-only` decides by checking one chosen completion. "Choosing among parses" in [the CLL grammar](../syntax/cll.md) separates terminator advice, parser limitations, and boundaries that the whole text forces.
 
 Under this policy, `le nanmu joi le ninmu cu klama` parses with KU elided at the boundary that CLL 14.14 intends. CLL describes the official parser's failed left-to-right reading. "Choosing among parses" in [the CLL grammar](../syntax/cll.md) explains the same kind of forced boundary in examples 8.48 and 8.62. CLL describes their merged readings without naming the official parser. The elision policy disagrees with no specific text of CLL.
 

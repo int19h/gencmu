@@ -1,5 +1,7 @@
 # The shared tests
 
+CLL is *The Complete Lojban Language*.
+
 Every gencmu library runs every shared case that its API can express. The Rust library skips two engine cases, as "Engine cases" says. If a case fails in one library and passes in another, there is a bug. The bug is in the library that disagrees with `docs/engine.md`, or in the specification itself.
 
 ## External JSON cases: `json-keys.json`

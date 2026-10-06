@@ -4,7 +4,7 @@ CLL is *The Complete Lojban Language*. The BPFK is a Lojban committee for langua
 
 [CLL 1.3.4](https://github.com/int19h/cll/blob/v1.3.4/chapters/a02.xml) prints that grammar in appendix A2. [`../words/bpfk.md`](../words/bpfk.md) translates that grammar rule by rule.
 
-The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&oldid=109606) defers morphology. The [Formal Grammar section](https://mw.lojban.org/index.php?title=BPFK_Section:_Formal_Grammar&oldid=111787) proposes replacing YACC with a PEG. [CLL 1.3.4, appendix A3.1](https://github.com/int19h/cll/blob/v1.3.4/chapters/a03.xml) keeps EBNF and YACC as the official syntax. It describes camxes PEG syntax as practice without ratification.
+The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&oldid=109606) defers morphology. The [Formal Grammar section](https://mw.lojban.org/index.php?title=BPFK_Section:_Formal_Grammar&oldid=111787) proposes replacing YACC with a PEG. [CLL 1.3.4, appendix A3.1](https://github.com/int19h/cll/blob/v1.3.4/chapters/a03.xml) keeps EBNF (Extended Backus-Naur Form) and YACC as the official syntax. It describes camxes PEG syntax as practice without ratification.
 
 The executable baseline is `camxes.peg` at ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg).
 

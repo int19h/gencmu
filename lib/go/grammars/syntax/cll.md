@@ -1,5 +1,7 @@
 # The CLL grammar
 
+The BPFK is a Lojban committee for language definitions.
+
 This document opens the syntax stage, the last stage of the [CLL](../dialects/cll-ebnf.md) and [BPFK](../dialects/bpfk.md) dialects. It is also the base of the syntax of the [experimental](../dialects/experimental.md) dialect. A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar.
 
 This document gives the grammar of Lojban from chapter 21 of *The Complete Lojban Language* (CLL), edition 1.1. It uses the notation of that book. That notation is EBNF (Extended Backus-Naur Form). This grammar departs from the printed one where "Differences from the printed CLL grammar" at the end says.
@@ -181,7 +183,7 @@ To pass the tag up, `selbri`, `selbri-2`, `selbri-6`, `tanru-unit-1`, `bridi-tai
 
 The condition stands in `bridi-tail-1-final`, the form of `bridi-tail` without the `ke` group of tails. It is the printed `bridi-tail-1` with its last plain connection written apart. Only that connection can compete with the `ke` form of `bridi-tail`. Rule 50 reads one `ke` group as the last part of a bridi-tail, followed by one run of tail terms.
 
-So it can read the same words as a plain gihek only in one case. In that case, the last tail is one `ke` group with one run of tail terms. The condition removes the plain parse in that case and in no other. The tails before the last one are in `bridi-tail-1`, which has no condition.
+The `ke` form of `bridi-tail` overlaps a plain gihek only in one case. In that case, the last tail is one `ke` group with one run of tail terms. The condition removes the plain parse in that case and in no other. The tails before the last one are in `bridi-tail-1`, which has no condition.
 
 So `mi broda gi'e ke brode` and `mi broda gi'e ke brode ke'e` each have one parse, the group. In `mi klama gi'e pu ke cadzu ke'e`, `pu` stays on the connective.
 
@@ -212,7 +214,7 @@ A `gek-sentence` joins two subsentences in forethought. The gek can contain a te
 
 CLL 14.18 gives example 14.169, `mi pu ge klama le zarci gi tervecnu lo cidja`. Here `pu` forms a term with its `ku` elided, rather than a tag before the gek-sentence. The official parser needs written `pu ku` there. Both parsers accept `mi pu ku ge klama le zarci gi tervecnu lo cidja`.
 
-Its tail terms follow the whole connection and apply to both sides. In the printed rule, the tag before `ke` is optional, so `ke ga mi klama gi do cadzu ke'e` is a `gek-sentence`. Rule 54 of the YACC grammar requires a tag there, and the official parser rejects that text. This grammar follows the EBNF.
+The gek-sentence's tail terms follow the whole connection and apply to both sides. In the printed rule, the tag before `ke` is optional, so `ke ga mi klama gi do cadzu ke'e` is a `gek-sentence`. Rule 54 of the YACC grammar requires a tag there, and the official parser rejects that text. This grammar follows the EBNF.
 
 ```jbogenbau
 %rule sentence

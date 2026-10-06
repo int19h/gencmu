@@ -1,5 +1,7 @@
 # The gencmu engine
 
+CLL is *The Complete Lojban Language*.
+
 This document is the specification that every gencmu library implements. It says what a result is, not how to compute it. It says how only where the only reasonable way to compute a result is part of what the result is. Where two implementations can differ, this document says which one is right. The cases in `tests/engine/` and `tests/notation/` are part of the specification, and an implementation that disagrees with one of them is wrong. A case that disagrees with this text is a bug in one or the other, and the same change fixes it.
 
 `docs/notation.md` explains the notation to grammar authors, and `grammars/notation/` defines it. `docs/output.md` defines the result's JSON and the renderings.
@@ -21,7 +23,7 @@ The check of §7 adds synthetic tokens to a copy of a stage's input. They are no
 
 The source of one token or more runs from the least source start among them to the greatest source end. An empty source counts as the point where it lies. Tokens usually lie in the order of their sources. Then this source runs from the source start of the first token to the source end of the last token.
 
-But they need not. An emission lists its captures in the order in which they stand (§9, §11). But an inserted token can have its source before the token ahead of it, or after the token behind it. So can a token over a part that read nothing. An empty span of tokens has no such source: its source is given where it is used (§11, §12).
+Tokens need not follow the order of their sources. An emission lists its captures in the order in which they stand (§9, §11). But an inserted token can have its source before the token ahead of it, or after the token behind it. So can a token over a part that read nothing. An empty span of tokens has no such source: its source is given where it is used (§11, §12).
 
 A tag is one of three kinds, and its kind shows in its first character:
 
@@ -216,7 +218,7 @@ A production that a condition false for it removes (§3.6) takes no number, thou
 
 Within a rule, lowering takes its remaining alternatives in order. Each alternative contributes its own productions first, and then its helpers. Its own productions come in the order of its expansions (step 2). For a chain, the base productions come first, one for each expansion of `x`. The recursive ones follow, one for each expansion of the sequence that the recursion adds, in the order of step 2. That sequence is `s x` in a left chain and `x s` in a right chain.
 
-Its helpers come one for each place in the alternative where a helper's `[ ]` or flat `{ }` is written. They come in the order in which those places are written, left to right. A plain optional that holds a capture is expanded in place (step 2) and has no helper and no place of its own. The places written inside it keep their order among the others. So the expansions of such an optional are productions of the rule itself, numbered in the order of step 2. The canonical order *T* of §6 compares them by those numbers.
+Lowering gives each written `[ ]` or flat `{ }` place in the alternative its own helper. They come in the order in which those places are written, left to right. A plain optional that holds a capture is expanded in place (step 2) and has no helper and no place of its own. The places written inside it keep their order among the others. So the expansions of such an optional are productions of the rule itself, numbered in the order of step 2. The canonical order *T* of §6 compares them by those numbers.
 
 The helpers of the places written inside a helper follow that helper's productions at once, depth first, before the next helper of the alternative. A helper of flat braces has its base productions first and then its recursive ones, as a chain does. The places inside `x` come before those inside `s`, since `x` is written first.
 
@@ -232,7 +234,7 @@ An item has a production, a dot position and an origin, the position where the i
 
 Take one production, dot position, origin and input position, and one tag set for each captured part. Then the captures add items only where the span of a captured part can vary. For example, with `t → $l(t) $r(t) | A`, a completed item over one span exists once for each position where `$l` can end. Without the captures, it exists once.
 
-This is the cost of a capture, and the notation sets no limit on their number. A captured part's span before the dot is part of an item's identity. So items that differ only in where a captured part began or ended are not merged. Neither are the summaries of §6 and the states of eligibility above that are kept for each item.
+Captured spans increase the item count, and the notation sets no limit on the number of captures. A captured part's span before the dot is part of an item's identity. So items that differ only in where a captured part began or ended are not merged. Neither are the summaries of §6 and the states of eligibility above that are kept for each item.
 
 Take one production, dot position, origin and input position. Each captured part before the dot can multiply the number of its items by the number of its possible spans. Let N be the length of the input. The factor is up to N + 1 for each end of the part that nothing else fixes. The origin, the input position or a neighbouring captured part can fix an end. Its tag sets can multiply the items again.
 

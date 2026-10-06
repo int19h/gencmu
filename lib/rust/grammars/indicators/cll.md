@@ -1,5 +1,7 @@
 # Indicators and `ba'e`
 
+The BPFK is a Lojban committee for language definitions. CLL is *The Complete Lojban Language*.
+
 This document is the indicator stage, the fourth stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. This stage reads the words that the word stage emitted, and applies `word`, one of CLL 1.1 section 21.2's four non-formal rules. A parser applies this rule before the grammar proper. The rule is `word ≔ [BAhE] any-word [indicators]`.
 
 The indicators are the attitudinals and discursives of UI and CAI with an optional `nai` after each. They are also the cancel `da'o` and the scope marker `fu'o`. A `fu'e` opens a group of them. CLL counts the hesitation `y` among them too, but the word stage drops hesitation, so it never reaches this stage.
@@ -150,7 +152,7 @@ A `ba'e` before an indicator marks the indicator and goes with it. So does a `ba
 
 The stage reads an indicator run as far as it goes: `broda ui nai` attaches both words to `broda`. Because the stage is greedy, `nai` is part of the run and not the next word of the syntax. A `ba'e` is a word of BAhE, which the CLL lexicon gives only to `ba'e` and `za'e`.
 
-CLL's sources do not agree on `fu'e`. CLL 1.1 section 21.2 prints the EBNF rule `indicators = [FUhE] indicator ...`. An indicator must therefore follow a `fu'e`. The magic-word list of CLL 19.16 says that `fu'e` is "the same as UI". The YACC preamble is the official parser's steps before its grammar. Step 4e of that preamble, printed in CLL 1.0, absorbs every `fu'e` after a word, and so does the official parser.
+CLL's sources do not agree on `fu'e`. CLL 1.1 section 21.2 prints the EBNF (Extended Backus-Naur Form) rule `indicators = [FUhE] indicator ...`. An indicator must therefore follow a `fu'e`. The magic-word list of CLL 19.16 says that `fu'e` is "the same as UI". The YACC preamble is the official parser's steps before its grammar. Step 4e of that preamble, printed in CLL 1.0, absorbs every `fu'e` after a word, and so does the official parser.
 
 This stage follows CLL 19.8, which gives the meaning of `fu'e`: "Placing fu'e in front of an attitudinal disconnects it from what precedes it". So a `fu'e` stands directly in front of an indicator, and the stage rejects a `fu'e` that has no indicator after it.
 

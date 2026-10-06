@@ -1,5 +1,7 @@
 # gencmu: design
 
+The BPFK is a Lojban committee for language definitions.
+
 Status: implemented. If the implementation shows that a decision is wrong, the same change corrects this document.
 
 ## What gencmu is
@@ -94,7 +96,7 @@ Following `span` from stage to stage explains any token of a stage's output. The
 
 gencmu's grammars are written in jbogenbau, a notation of its own. `docs/notation.md` explains it for grammar authors. This section gives the summary and the reasons.
 
-A jbogenbau grammar is an attribute grammar (its constituents carry computed values) with EBNF rule bodies. Each rule body is EBNF in the form that CLL (*The Complete Lojban Language*) prints. Each constituent carries one attribute, its set of tags, computed bottom-up from its parts. Conditions over the parts, such as whether a part also parses as another rule, restrict which parses exist, as in a Boolean grammar. A rule can say what its constituents hand to the next stage. So each grammar is a transducer (it reads one token sequence and writes another), and a dialect is a pipeline of them.
+A jbogenbau grammar is an attribute grammar (its constituents carry computed values) with EBNF (Extended Backus-Naur Form) rule bodies. Each rule body is EBNF in the form that CLL (*The Complete Lojban Language*) prints. Each constituent carries one attribute, its set of tags, computed bottom-up from its parts. Conditions over the parts, such as whether a part also parses as another rule, restrict which parses exist, as in a Boolean grammar. A rule can say what its constituents hand to the next stage. So each grammar is a transducer (it reads one token sequence and writes another), and a dialect is a pipeline of them.
 
 The bodies keep the look of CLL's EBNF, because a reader of CLL recognizes that look. Everything around the bodies is spelled with keywords, because symbols there proved opaque.
 
@@ -132,7 +134,7 @@ A stage can also give sounds their classes with a classifier, such as a lexicon.
 
 `%implies UI ∪ CAI ⟹ ~indicator` says that each token that the stage emits with `UI` or `CAI` also carries `indicator`. So a lexicon says once which classes are indicators, and not on every word.
 
-This is what the dialects need. A script document adds its letters to the rules of the phoneme grammar with `%extend-rule`. A word family is a set of word forms that dialects use, such as those of CLL. Its documents add those forms to the stage that divides the text into words. The experimental syntax is a layer over the CLL syntax. It restates the CLL rules that it changes, and adds rules of its own.
+The dialects use these extensions and classifiers. A script document adds its letters to the rules of the phoneme grammar with `%extend-rule`. A word family is a set of word forms that dialects use, such as those of CLL. Its documents add those forms to the stage that divides the text into words. The experimental syntax is a layer over the CLL syntax. It restates the CLL rules that it changes, and adds rules of its own.
 
 The Zantufa syntax is a grammar of its own. Zantufa 1.9999 restates almost every rule of camxes, a PEG grammar of Lojban. So the gencmu grammar translates the Zantufa rules one by one. It uses small rules for the conditions that state the lookaheads and ordered choices of the reference.
 
@@ -558,7 +560,7 @@ Each contains its grammar copy and nothing from outside its directory. CI makes 
 
 ## Diagnostics and debugging
 
-These are the product, not an afterthought:
+The product provides these diagnostics and debugging tools:
 
 - A rejection names the stage, and shows the source line with a caret under the failing character or word. It lists what can continue at that point as grammar terms, grouped by rule, not as a set of tag names.
 - A grammar error carries file, line and column, and names the rule.
@@ -583,7 +585,7 @@ The CLI is `node lib/js/cli.js` (and `npx gencmu` once published). It has these 
 
 The playground is `index.html` with `dist/gencmu.js` and `dist/grammars.js` loaded as classic scripts. So it works from `file://`, where browsers refuse ES modules, and from GitHub Pages alike. Nothing is fetched: the grammars are a JavaScript object in `dist/grammars.js`. The page builds the worker from a `Blob` whose text is the library source and the grammar object. So the worker fetches nothing either.
 
-This was the riskiest part of the design, so it was proved first, with a stub parser. A page started a blob worker from `file://` and got an answer, in current Chrome and Firefox.
+The worker startup was the riskiest part of the design. A stub parser tested that startup first. A page started a blob worker from `file://` and got an answer, in current Chrome and Firefox.
 
 `tools/smoke-playground.js` makes sure that the playground works in headless Chromium and Firefox. Playwright drives the browsers. CI runs the smoke test, and a contributor can run it locally. To run it locally, do these steps:
 
@@ -664,7 +666,7 @@ The Python build backend is the only tool outside the standard library, and only
 
 ## Standard library only
 
-This holds for every target. JavaScript needs nothing beyond the language and, for the CLI, Node's `fs`. Python's standard library has everything, `json` included. Go's has `embed` and `encoding/json`. Rust's has no JSON reader, so the Rust library carries a small one for the files it ships, and it writes JSON by hand. That is a few hundred lines, and the one real cost of the rule.
+The rule against mandatory dependencies holds for every target. JavaScript needs nothing beyond the language and, for the CLI, Node's `fs`. Python's standard library has everything, `json` included. Go's has `embed` and `encoding/json`. Rust's has no JSON reader, so the Rust library carries a small one for the files it ships, and it writes JSON by hand. That is a few hundred lines, and the one real cost of the rule.
 
 The rule covers what building and running need, not the tools that CI runs to make sure that the code is correct. The JavaScript sources carry JSDoc type annotations. In CI, TypeScript makes sure that the annotations are type-correct, with `strict` on. TypeScript is a development dependency of the package, with Node's type definitions for the Node entry point. Nothing runs it to build, test or use the library.
 

@@ -1,5 +1,7 @@
 # Experimental word forms
 
+The BPFK is a Lojban committee for language definitions. CLL is *The Complete Lojban Language*.
+
 This document is part of the forms stage in the [experimental](../dialects/experimental.md) dialect. The forms stage is the second stage of the pipeline. It divides the phonemes of the text into words. The loader stitches this document into the stage after [bpfk.md](bpfk.md). camxes-exp, the experimental PEG (parsing expression grammar), reads the BPFK working word forms, with a few changes. This document makes the same changes to the translation in [bpfk.md](bpfk.md).
 
 Each rule here has the name of the camxes-exp rule that it translates, and its comment gives that rule, as in bpfk.md. The [Zantufa](../dialects/zantufa.md) dialect makes only the first change, in [zantufa.md](zantufa.md). [The notation document](../../docs/notation.md) explains the notation.
@@ -98,7 +100,7 @@ camxes-exp gives the same parse trees with the lookahead and without it. That ho
 
 ## A bare nai
 
-camxes-exp's `indicator` rule takes a NAI word alone, as it takes an attitudinal. So this dialect marks every NAI word `indicator`, as [the experimental lexicon](lexicon-experimental.md) marks the attitudinals. The mark comes from an implication, which the forms stage applies to each word that it emits. The indicator stage then attaches a bare `nai` to the word before it ([the indicators of camxes-exp](../indicators/experimental.md)).
+camxes-exp's `indicator` rule takes a NAI word alone, as it takes an attitudinal. So this dialect marks every NAI word `indicator`, as [the experimental lexicon](lexicon-experimental.md) marks the attitudinals. The mark comes from an implication, which the forms stage applies to each word that it emits. The indicator stage then attaches a bare `nai` to the word before it ([the experimental indicators](../indicators/experimental.md)).
 
 ```jbogenbau
 %implies NAI ⟹ ~indicator

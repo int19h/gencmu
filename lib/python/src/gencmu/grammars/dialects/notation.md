@@ -1,6 +1,6 @@
 # The notation dialect
 
-This is the dialect in which gencmu reads its own grammar documents. A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. This dialect is an ordinary one, and the same engine runs it as runs the Lojban ones. So the notation's definition is the same kind of thing as any grammar it defines.
+The notation dialect lets gencmu read its own grammar documents. A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. This dialect is an ordinary one, and the same engine runs it as runs the Lojban ones. So the notation's definition is the same kind of thing as any grammar it defines.
 
 The libraries do not read these documents to start. Instead, they read the DOM of this dialect from `../notation/bootstrap.json`. A DOM holds the parsed rules and directives. A test in every library loads this pipeline with that DOM. The test compares the result with the bootstrap itself.
 

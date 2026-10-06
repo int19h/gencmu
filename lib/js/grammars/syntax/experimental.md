@@ -48,13 +48,13 @@ The experimental terminators `ku'au` and `ku'oi` are elidable, as CLL's are: the
 
 ## The text and its paragraphs
 
-The layer changes the text in five ways. A `nai` at the start of a text is an indicator, as the indicator stage of the experimental dialect reads it. So `indicators` takes it, like the indicators of camxes-exp. A separate `nai` stands only before a run of names.
+The layer changes the text in five ways. A `nai` at the start of a text is an indicator, as the indicator stage of the experimental dialect reads it. The `indicators` rule takes that bare NAI. A separate `nai` stands only before a run of names.
 
 The second change is that the connective after a text-leading `.i` can be an ek, as in `.i .e do klama`. camxes-exp allows it because its joik takes the words of A. The rule writes the tense before `bo` in a text-leading `.i` as a `tag`. A `stag` is a `tag` in this dialect (see "Tenses and modals"), so the name changes nothing.
 
 The third change is that an ek, a jek or a joik directly after `.i` is always a connective. So `i.e`, `.iji` and `mi klama .i e` read `.i e` or `.i ji` as a connective. Without this rule, these texts tie, because a bare ek is a fragment. The rule `lone-i` is an `.i` that no ek, jek or joik follows directly. It stands in the bare-`.i` positions of `text-1` and `paragraph`, before a statement, a fragment or nothing.
 
-These three are the families that `lone-i` tests. A VUhU can also follow `.i` as a connective, as in `mi klama .i su'i do klama`. It needs no test, because no statement or fragment begins with it. A gihek answer after `.i` stays a fragment, as in `.i gi'e` and `mi klama .i gi'e`. No `.i` connective is a gihek, so these texts cause no tie. CLL and camxes-exp read them in the same way.
+The `lone-i` rule tests these three connective families. A VUhU can also follow `.i` as a connective, as in `mi klama .i su'i do klama`. It needs no test, because no statement or fragment begins with it. A gihek answer after `.i` stays a fragment, as in `.i gi'e` and `mi klama .i gi'e`. No `.i` connective is a gihek, so these texts cause no tie. CLL and camxes-exp read them in the same way.
 
 A bare connective answer stands without `.i`, as `e` or `je` alone. That is CLL's own rule for a jek. A bare jek answers `je'i`, and CLL reads it only in the connective slot before `text-1`. So in CLL, `.ije` is always the connective, and never `.i` before an answer. The layer treats `.i e` as CLL treats `.ije`, and so it matches camxes-exp.
 

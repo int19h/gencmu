@@ -1,6 +1,6 @@
 # jbogenbau: from tokens to a grammar
 
-This is the second stage of the notation dialect, `../dialects/notation.md`. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. The stage reads the tokens that `lexical.md` emitted.
+The syntax stage is the second stage of the notation dialect, `../dialects/notation.md`. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. The stage reads the tokens that `lexical.md` emitted.
 
 The stage builds the tree from which a library reads the grammar's rules and directives. Its rule names matter to that reader: the table in `../../docs/engine.md`, §9, says what each named constituent becomes. `../../docs/notation.md` explains the notation for authors.
 

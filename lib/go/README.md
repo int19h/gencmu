@@ -1,6 +1,6 @@
 # gencmu for Go
 
-This is the Go library of [gencmu](../../README.md), a Lojban parser whose grammars are literate Markdown documents loaded at runtime. It implements [`docs/engine.md`](../../docs/engine.md) from the specification alone, with the standard library only. It embeds the bundled grammars.
+The Go library of [gencmu](../../README.md) parses Lojban. It loads its literate Markdown grammars at runtime. It implements [`docs/engine.md`](../../docs/engine.md) from the specification alone, with the standard library only. It embeds the bundled grammars.
 
 ```go
 import gencmu "github.com/int19h/gencmu/lib/go"

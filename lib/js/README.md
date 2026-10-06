@@ -1,6 +1,6 @@
 # gencmu for JavaScript
 
-This is the JavaScript library of gencmu, a Lojban parser whose grammars are literate documents loaded at runtime. It needs nothing beyond the language, and Node's `fs` for loading grammars from disk.
+The JavaScript library of gencmu parses Lojban. It loads its literate grammar documents at runtime. It needs nothing beyond the language, and Node's `fs` for loading grammars from disk.
 
 ```js
 import { loadDialect } from "gencmu/node";

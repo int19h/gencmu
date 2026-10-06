@@ -1,5 +1,7 @@
 # jbogenbau, the grammar notation
 
+The BPFK is a Lojban committee for language definitions. CLL is *The Complete Lojban Language*.
+
 Every grammar in gencmu is a Markdown document. Its fenced `jbogenbau` blocks, read in order, are one grammar, and the prose between the blocks explains it. This document explains jbogenbau, the notation that those blocks use. The grammars only say what they are about, and refer here for the rest. Two grammars written in jbogenbau itself define it: `grammars/notation/lexical.md` and `grammars/notation/syntax.md`.
 
 A jbogenbau grammar is an attribute grammar with EBNF rule bodies. An attribute grammar is a grammar whose constituents carry computed values. A constituent is a part of the text that one rule matched. EBNF (Extended Backus-Naur Form) is a common notation for the bodies of grammar rules.
@@ -344,7 +346,7 @@ A condition or an item of `%emits` that uses a capture that a production lacks d
 
 A tag term that uses a capture that one of its productions lacks is an error, unless `⟹` (below) guards the use. The reason is that a tag term has no value that can mean "nothing to say". An alternative's own tags serve the productions of that alternative. The tags after `%tags` serve every production. The tags of an emitted item serve every production that has the item.
 
-It is an error to mention a capture that no alternative of the rule, or of the extension, captures. It is also an error to write a condition or an item of `%emits` that applies to no production. Each of these is a mistake, such as a misspelled name.
+A reference to a capture is an error when no alternative of the rule or extension captures that name. It is also an error to write a condition or an item of `%emits` that applies to no production. Each of these is a mistake, such as a misspelled name.
 
 A constant counts in these rules as its value. So where `$E` is empty, `$E ∩ tags($x)` is empty and uses no capture. gencmu makes sure that such a clause meets these rules when it stitches the stage. Only then does the constant have a value.
 

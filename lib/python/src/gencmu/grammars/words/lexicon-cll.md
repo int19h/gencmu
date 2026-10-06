@@ -1,5 +1,7 @@
 # The CLL lexicon
 
+The BPFK is a Lojban committee for language definitions.
+
 This document is the lexicon of the forms stage in the [CLL](../dialects/cll-ebnf.md) and [BPFK](../dialects/bpfk.md) dialects. A lexicon is a list of words, each with its classes. The forms stage is the second stage of the pipeline. It divides the phonemes of the text into words. A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo.
 
 This lexicon holds the cmavo of *The Complete Lojban Language* (CLL), 598 words, each with the selma'o that the dictionary of CLL gives it. This document collapses the numbered subclasses of the dictionary (`UI3a`, `KOhA7`) to the selma'o that the syntax grammar names. Its maintainers edit it by hand in this repository.

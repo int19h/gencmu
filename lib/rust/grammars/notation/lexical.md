@@ -1,6 +1,6 @@
 # jbogenbau: from characters to tokens
 
-This is the first stage of the notation dialect, `../dialects/notation.md`. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. The stage reads the text of a grammar document's `jbogenbau` blocks, one token per character.
+The lexical stage is the first stage of the notation dialect, `../dialects/notation.md`. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. The stage reads the text of a grammar document's `jbogenbau` blocks, one token per character.
 
 The stage hands the notation's tokens to the second stage, `syntax.md`. These tokens are names, strings, tag literals, phoneme tags, character tags, properties, captures, constants, guards, keywords and symbols. The stage drops what carries no meaning: the spaces between tokens, and the comments.
 
