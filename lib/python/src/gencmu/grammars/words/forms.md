@@ -189,9 +189,9 @@ A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on
   | $h(hesitation-shape) <~hesitation ∪ tags($h)>
 ```
 
-Hesitation is `y` of any length. It is a source word of its own here, because the pause rules hold for it as for any word. It begins with a vowel, so a pause comes before it, unless the family gives it `onset`. The forms stage reads `kyyykerlo` as `ky`, `yy` and `kerlo`, because the first `y` of `yy` is not a nucleus there.
+Hesitation is `y` of any length. It is a source word of its own here, because the pause rules hold for it as for any word. It begins with a vowel, so a pause comes before it, unless the family gives it `onset`. In bpfk, the forms stage reads `kyyykerlo` as `ky`, `yy` and `kerlo`. The first `y` of `yy` is not a nucleus there.
 
-camxes-std rejects the whole text `kyyykerlo`. Its [spaces rule](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L1529-L1531) refuses a leading Y token. The shared word stage instead drops the hesitation `yy`.
+camxes-std rejects the whole text `kyyykerlo`. Its [spaces rule](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L1529-L1531) refuses a leading Y token. In bpfk, the word stage instead drops the hesitation `yy`.
 
 Hesitation needs no pause after it, as the Magic Words proposal says. The word stage drops it, or reads it as the base of the letter word `.y bu`. Two letters `y` never form one syllable, so a comma between them changes nothing, and `y,y` is hesitation as `yy` is (CLL 3.3).
 
