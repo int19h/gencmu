@@ -243,6 +243,14 @@ The corpus started from a seed: a fixture collection whose verdicts came from an
 
 `core.txt` lists the ids of the sample that every library runs on each pull request. It holds every case that pins a text that a checked document quotes ("Quoted texts" below). So a change that makes such prose false fails in every library. On a pull request, the JavaScript and Rust libraries also run the whole corpus, and the others run it nightly. To run every case in JavaScript, run `GENCMU_CORPUS=full node --test test/corpus.test.js` in `lib/js/`.
 
+## CLL source identities
+
+For CLL source examples, `cll.NUMBER.ANCHOR` uses the CLL 1.1 display number and the XML source anchor. The anchor identifies the source. Suffixes distinguish fixtures for the same source. The `.inherited` suffix retains an older fixture when another case already uses the canonical identifier.
+
+Unnumbered illustrations keep their inherited numeric fixture labels. Their reasons state that those labels are not example numbers in the local CLL 1.1 rendering.
+
+The number in `adhoc.syntax.final.errata.*` names its original candidate position. A missing position reused an existing corpus record or repeated the text of another erratum. Those records carry the erratum reasons, and `core.txt` includes their identifiers.
+
 ## Quoted texts: `quoted-allow.txt`
 
 A grammar document often says what gencmu does with a Lojban text that it quotes. A corpus case pins that text. Then a grammar change that makes the sentence false fails the case. `node tools/quoted-texts.js` checks that each quoted text has a case or an entry in the allow-list `quoted-allow.txt`. `node tools/sync.js --check` runs the same check.
@@ -278,4 +286,3 @@ The sentence on each line makes its own claim. So when a document quotes a text 
 
 Lines that begin with `#` are comments. An entry that the check does not need is an error, so the list does not keep stale entries.
 
-The numeric suffix in `adhoc.syntax.final.errata.*` names its original candidate position. A missing position reused an existing corpus record or repeated the text of another erratum. Those records carry the erratum reasons, and `core.txt` includes their identifiers.

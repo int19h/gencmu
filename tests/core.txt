@@ -2941,3 +2941,9 @@ adhoc.syntax.final.synth-r2-errata.22.cll-ebnf
 adhoc.syntax.final.synth-r2-errata.23.bpfk
 adhoc.syntax.final.synth-r2-errata.24.bpfk
 corpus.camxes.1411
+adhoc.syntax.final.synth-r2-elision.1.cll-ebnf
+adhoc.syntax.final.synth-r2-elision.2.bpfk
+adhoc.syntax.final.synth-r2-elision.3.cll-ebnf
+adhoc.syntax.final.synth-r2-elision.4.bpfk
+corpus.camxes.1396
+adhoc.syntax.final.synth-r2-elision.6.bpfk
