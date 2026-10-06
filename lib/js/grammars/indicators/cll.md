@@ -93,7 +93,7 @@ A `bahe-run` is one or more `ba'e`, so `mi ba'e ba'e klama` is a text. Rule 1100
 
 ## Indicator runs
 
-An indicator run after a word attaches each of its indicators, `fu'e` included, to the word, each as a token of its own. Each of them carries the `ba'e` run before it as its attachment. A `nai` after an attitudinal attaches to the attitudinal. So `mi ui nai ia klama` hands on `mi` with `ui` and `ia` after it, and `ui` carries `nai` after it. In brackets, that is `([mi {(ui nai) ia}] klama)`.
+An indicator run after a word attaches each of its indicators, `fu'e` included, to the word, each as a token of its own. Each of them carries the `ba'e` run before it as its attachment. A `nai` after an attitudinal attaches to the attitudinal. So `mi ui nai ia klama` hands on `mi` with `ui` and `ia` after it, and `ui` carries `nai` after it. In brackets, that is `([mi {ui nai} ia] klama)`.
 
 The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run before the attitudinal, the attitudinal word, and the `nai`. The `nai` carries its own `ba'e` run before it. So `mi ba'e ui nai klama` gives `ui` with `ba'e` before it and `nai` after it, and `mi ui ba'e nai klama` gives `nai` with `ba'e` before it. The label of `ui` is `ui` in both.
 
