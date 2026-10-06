@@ -31,7 +31,7 @@ Or open `index.html` in a browser, from the clone or from GitHub Pages. This pag
 | name | what it reads |
 | --- | --- |
 | `cll-ebnf` | Lojban as *The Complete Lojban Language* (CLL) describes it, its printed grammar taken as normative |
-| `bpfk` | CLL syntax with the BPFK working PEG word forms, the Magic Words stream, and the shared CLL elision policy |
+| `bpfk` | CLL syntax with BPFK working word forms from a PEG (parsing expression grammar), plus the Magic Words stream and shared CLL elision |
 | `experimental` | CLL with the constructs that came into use after CLL, with camxes-exp, an experimental PEG (parsing expression grammar) parser of Lojban, as its baseline |
 | `zantufa` | Guskant's Zantufa 1.9999, a PEG grammar of Lojban, translated rule by rule |
 | `notation` | jbogenbau, gencmu's grammar notation, in which gencmu reads its own grammar documents |

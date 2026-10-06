@@ -18,6 +18,20 @@ CLL 21.2 writes `LU text`, whose initial indicators modify what follows under th
 
 The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs. A quoted text takes the same start as a whole text. CLL 21.2 permits initial names or indicators, but not both.
 
+## NAI attachment
+
+The shared indicator stage keeps each run flat. Within a run, `nai` attaches only to the UI or CAI directly before it. BAhE can stand between them. CLL 1.1 section 19.16 separates UI and CAI from DAhO and FUhO, which do not absorb `nai`.
+
+This dialect departs from [camxes-std](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L343-L345) on NAI attachment. camxes-std lets UI and CAI clauses recursively take more indicators before their following optional NAI. Repeated NAI can therefore close successive indicator levels. The difference changes both acceptance and negation scope, in attached and leading runs.
+
+In cll-ebnf and bpfk, `mi .e ui da'o nai do` negates `.e`. camxes-std instead negates `ui`.
+
+In cll-ebnf and bpfk, `mi pu ui da'o nai klama` negates `pu`. camxes-std instead negates `ui`.
+
+In cll-ebnf and bpfk, `mi ui ia nai nai klama` fails. camxes-std accepts it and gives each attitudinal its own NAI.
+
+FUhE opens an indicator group. The [indicator document](../indicators/cll.md#indicator-runs) compares the FUhE grouping and NAI rules. The syntax reads any NAI that the indicator stage leaves outside a pair under its own rules.
+
 A feature is a named switch that the grammars test. The dialect turns on `su-boundary`. That feature makes SU stop at the last `ni'o`, `no'i`, `lu`, `tu'e`, `to`, or `to'i`. The maintainer chooses to keep that boundary.
 
 The Magic Words proposal names these boundaries but leaves their survival unspecified. camxes-std, the reference PEG (parsing expression grammar) parser, also stops at these boundaries. Under CLL 19.13, SU erases the whole text.

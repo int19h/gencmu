@@ -156,7 +156,21 @@ This stage follows CLL 19.8, which gives the meaning of `fu'e`: "Placing fu'e in
 
 CLL 19.8 says that FUhO "cancels all in-force attitudinals". This stage infers that several FUhE groups can remain active together. Its `indicator-run` therefore permits each indicator to carry its own `fu'e`. The passage about local attitudinals describes unmarked attitudes, rather than several marked groups.
 
-This choice departs from the printed EBNF, which allows one indicator group after a word. camxes repeats its `indicators <- FUhE_clause? indicator+` rule after a word. The official preprocessor absorbs the indicators before its grammar reads them.
+This choice departs from the printed EBNF, which permits one indicator group after a word. The official preprocessor absorbs indicators before its grammar reads them.
+
+[camxes-std](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L343-L345) repeats `indicators <- FUhE_clause? indicator+` through each word's `post_clause`. This stage and camxes-std require an indicator after FUhE. Both permit further FUhE groups. Their grouping structures differ because camxes-std nests additional groups inside UI or CAI clauses.
+
+camxes-std also lets UI and CAI clauses take further indicators before their following optional NAI. This stage instead keeps the run flat. Within a run, it attaches `nai` only to the UI or CAI directly before it. BAhE can intervene. Leading runs use the same boundary, but keep NAI as a syntax token.
+
+A NAI after DAhO or FUhO stays available to the syntax. CLL 1.1 section 19.16 says that those classes do not absorb `nai`. The syntax reads it under its own rules.
+
+In cll-ebnf and bpfk, `mi .e ui da'o nai do` negates `.e`. camxes-std instead negates `ui`.
+
+In cll-ebnf and bpfk, `mi pu ui da'o nai klama` negates `pu`. camxes-std instead negates `ui`.
+
+In cll-ebnf and bpfk, `mi ui ia nai nai klama` and `mi cai sai nai nai klama` fail. camxes-std accepts both and pairs each NAI with a different attitudinal.
+
+In cll-ebnf and bpfk, `ui ia nai nai mi klama` and `cai sai nai nai mi klama` fail. camxes-std accepts both leading runs too.
 
 The CLL lexicon marks `fu'e` `indicator`, so `unit` never reads it as a word. Under these rules, `mi fu'e ui klama`, `mi fu'e ui nai klama` and `mi ui fu'e ia klama` are texts. The text `mi viska le fu'e .ia blanu zdani fu'o ponse` is one too. The stage rejects `mi fu'e klama`, `mi ui fu'e klama` and `mi fu'e fu'e ui klama`. In each of them, a `fu'e` has no indicator directly after it.
 
