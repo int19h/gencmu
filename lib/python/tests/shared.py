@@ -106,8 +106,8 @@ def _codes(target: Any) -> list[CodeType]:
 
 
 def _within(code: CodeType) -> Iterator[CodeType]:
-    """A code object and every code object defined inside it, such as its
-    comprehensions before Python 3.12 inlined them."""
+    """A code object and every code object inside it, including nested
+    functions and generator expressions."""
     yield code
     for const in code.co_consts:
         if isinstance(const, CodeType):
@@ -117,12 +117,9 @@ def _within(code: CodeType) -> Iterator[CodeType]:
 def calls(target: Any, weight: Weight | None = None) -> Watch:
     """Count each call of a function, of the functions of a class or a
     module, or of a code object (see :func:`code_of`), as one, or as
-    ``weight`` says. The code must not be a generator's, since the fallback
-    before Python 3.12 would count each of its resumptions as a call."""
-    codes = _codes(target)
-    for code in codes:
-        assert not code.co_flags & inspect.CO_GENERATOR, f"{code.co_name} is a generator"
-    return Watch(True, {code: None for code in codes}, weight)
+    ``weight`` says. A generator counts once when its execution starts,
+    rather than at each resumption."""
+    return Watch(True, {code: None for code in _codes(target)}, weight)
 
 
 def steps(target: Any, line: str | None = None, weight: Weight | None = None) -> Watch:
@@ -456,7 +453,7 @@ def _weigh(kind: str, node: ast.AST, frame: FrameType) -> int:
     return len(value)
 
 
-_COMPREHENSIONS = frozenset({"<listcomp>", "<setcomp>", "<dictcomp>", "<genexpr>"})
+_COMPREHENSIONS = frozenset({"<genexpr>"})
 
 # The offset of the first loop instruction of each line of each code
 # object, found once.
@@ -466,7 +463,8 @@ _LOOPS: dict[CodeType, dict[int, int]] = {}
 def _starting(frame: FrameType) -> bool:
     """Whether a frame's line starts its loops, and so makes their
     iterables. A pass of a loop runs from its loop instruction or a jump
-    back after it. A comprehension's own code receives its iterable."""
+    back after it. A generator expression receives its iterable. List,
+    set, and dict comprehensions run inside the enclosing code."""
     code = frame.f_code
     if code.co_name in _COMPREHENSIONS:
         return False
@@ -530,10 +528,8 @@ def count_work(*watches: Watch, budget: int | None = None) -> Iterator[Work]:
     budget, the unit of work past it stops the work with
     :class:`OverBudget`.
 
-    The count watches the code it names alone through sys.monitoring where
-    there is one, from Python 3.12. Before that, it traces every call of
-    the thread, and passes each event on to the trace function that was
-    there before, so that counts nest."""
+    The count watches only the named code through sys.monitoring. Each
+    nested count uses its own monitoring tool."""
     work = Work()
     starts: dict[CodeType, list[Watch]] = {}
     lines: dict[CodeType, list[Watch]] = {}
@@ -583,81 +579,41 @@ def count_work(*watches: Watch, budget: int | None = None) -> Iterator[Work]:
                 return step(code, number, frame)
         return False
 
-    monitoring = getattr(sys, "monitoring", None)
-    if monitoring is not None:
-        tool = next((tool for tool in range(6) if monitoring.get_tool(tool) is None), None)
-        assert tool is not None, "no tool of sys.monitoring is free"
-        events = monitoring.events
-        monitoring.use_tool_id(tool, "gencmu tests: count_work")
-        try:
-            monitoring.register_callback(tool, events.PY_START, lambda code, offset: begin(code, sys._getframe(1)))
-            # A line or a jump that no watch counts is turned off where it
-            # stands, so that the code runs at its own speed between the
-            # steps that count.
-            skip = monitoring.DISABLE
-            monitoring.register_callback(tool, events.LINE, lambda code, number: None if step(code, number, sys._getframe(1)) else skip)
-            # A line event comes only where the line changes, so a loop
-            # that jumps back within one line counts at its jump, as a
-            # trace function's line event would.
-            monitoring.register_callback(
-                tool, events.JUMP, lambda code, source, target: None if looped(code, source, target, sys._getframe(1)) else skip
-            )
-            for code in set(starts) | set(lines):
-                wanted = events.NO_EVENTS
-                if code in starts:
-                    wanted |= events.PY_START
-                if code in lines:
-                    wanted |= events.LINE | events.JUMP
-                monitoring.set_local_events(tool, code, wanted)
-            # The places that an earlier count turned off count again.
-            monitoring.restart_events()
-            yield work
-        finally:
-            monitoring.set_events(tool, events.NO_EVENTS)
-            for code in set(starts) | set(lines):
-                monitoring.set_local_events(tool, code, events.NO_EVENTS)
-            monitoring.free_tool_id(tool)
-        return
-
-    def own(frame: FrameType) -> Any:
-        """This count's tracer of a frame, or None where it counts nothing."""
-        code = frame.f_code
-        if code not in starts and code not in lines:
-            return None
-        if code in starts:
-            begin(code, frame)
-        if code not in lines:
-            return None
-
-        def local(frame: FrameType, event: str, arg: Any) -> Any:
-            if event == "line":
-                step(code, frame.f_lineno, frame)
-            return local
-
-        return local
-
-    def trace(frame: FrameType, event: str, arg: Any) -> Any:
-        # The trace function that was there first, such as an enclosing
-        # count's, still traces, so that counts can nest.
-        mine = own(frame)
-        other = previous(frame, event, arg) if previous is not None else None
-        if other is None or mine is None:
-            return mine or other
-
-        def both(frame: FrameType, event: str, arg: Any) -> Any:
-            nonlocal mine, other
-            mine = mine(frame, event, arg) if mine is not None else None
-            other = other(frame, event, arg) if other is not None else None
-            return both if mine is not None or other is not None else None
-
-        return both
-
-    previous = sys.gettrace()
-    sys.settrace(trace)
+    monitoring = sys.monitoring
+    tool = next((tool for tool in range(6) if monitoring.get_tool(tool) is None), None)
+    assert tool is not None, "no tool of sys.monitoring is free"
+    events = monitoring.events
+    monitoring.use_tool_id(tool, "gencmu tests: count_work")
     try:
+        monitoring.register_callback(tool, events.PY_START, lambda code, offset: begin(code, sys._getframe(1)))
+        # A line or a jump that no watch counts is turned off where it
+        # stands, so that the code runs at its own speed between the
+        # steps that count.
+        skip = monitoring.DISABLE
+        monitoring.register_callback(tool, events.LINE, lambda code, number: None if step(code, number, sys._getframe(1)) else skip)
+        # A line event comes only where the line changes, so a loop
+        # that jumps back within one line counts at its jump, as a
+        # trace function's line event would.
+        monitoring.register_callback(
+            tool, events.JUMP, lambda code, source, target: None if looped(code, source, target, sys._getframe(1)) else skip
+        )
+        for code in set(starts) | set(lines):
+            wanted = events.NO_EVENTS
+            if code in starts:
+                wanted |= events.PY_START
+            if code in lines:
+                wanted |= events.LINE | events.JUMP
+            monitoring.set_local_events(tool, code, wanted)
+        # The places that an earlier count turned off count again.
+        monitoring.restart_events()
         yield work
     finally:
-        sys.settrace(previous)
+        monitoring.set_events(tool, events.NO_EVENTS)
+        for code in set(starts) | set(lines):
+            monitoring.set_local_events(tool, code, events.NO_EVENTS)
+        for event in (events.PY_START, events.LINE, events.JUMP):
+            monitoring.register_callback(tool, event, None)
+        monitoring.free_tool_id(tool)
 
 
 @contextmanager
@@ -734,9 +690,9 @@ def load_case(path: Path) -> dict[str, Any]:
 
 
 def read_json(text: str) -> Any:
-    """A JSON text's value, read with a list for a stack. A result nests as
-    deep as its attachments do, and before Python 3.12 json.loads counts
-    each level against the recursion limit."""
+    """A JSON text's value, read with a list for a stack. A result can nest
+    beyond the depth that json.loads accepts, so the reader keeps open
+    containers in an explicit stack."""
     decoder = json.JSONDecoder()
     # Each open container, and for an object the key that waits for its
     # value.
@@ -806,9 +762,8 @@ def read_json(text: str) -> Any:
 
 def write_json(value: Any) -> str:
     """A value's compact JSON, written with a list for a stack, for the
-    messages of a failed case. A result nests as deep as its attachments
-    do, and before Python 3.12 json.dumps counts each level against the
-    recursion limit."""
+    messages of a failed case. A result can nest beyond the depth that
+    json.dumps accepts, so the writer keeps values in an explicit stack."""
     out: list[str] = []
     # Each entry is text to write, or a value to write.
     stack: list[tuple[bool, Any]] = [(False, value)]

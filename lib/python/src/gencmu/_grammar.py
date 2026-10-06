@@ -437,9 +437,8 @@ class _Constants:
         # walked once, not once for each alternative.
         copies: dict[int, Any] = {}
 
-        # A walk, since each level of a clause's nesting costs a few frames
-        # of the call stack, more than the depth limit of 256 leaves room
-        # for before Python 3.12.
+        # The walk resolves nested clauses without adding a call frame at
+        # each level. It also works when the caller lowers the stack limit.
         def resolve(node: Any) -> Walk:
             if not isinstance(node, (dict, list)):
                 return node
@@ -648,9 +647,8 @@ def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
     # expression its depth times its size.
     tested: dict[int, bool] = {}
 
-    # Walks, since an expression nests as deep as the depth limit of 256,
-    # and each level costs a few frames of the call stack before Python
-    # 3.12.
+    # An explicit stack keeps expression depth independent of the
+    # caller's recursion limit.
     def holds_test(node: Any) -> Walk:
         if not isinstance(node, dict):
             return False

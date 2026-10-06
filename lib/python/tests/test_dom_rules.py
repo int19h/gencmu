@@ -18,6 +18,8 @@ from gencmu._model import Token
 from gencmu._validate import Lowercase
 from gencmu._validate import dom_problem as _dom_problem
 
+from .shared import read_json
+
 DOCUMENT = """```jbogenbau
 %ambiguity-resolution greedy
 %rule text $x('a') ['b'] <~T ∪ tags($x)>
@@ -1119,9 +1121,8 @@ class Constants(unittest.TestCase):
 
     @staticmethod
     def deep_value_json(depth: int) -> str:
-        """A constant's value nested `depth` unions deep, as JSON text: deeper
-        than a walk that recursed could follow, and shallower than json.loads
-        can."""
+        """A constant's value nested `depth` unions deep, as JSON text.
+        The standard decoder can reject this depth before DOM validation."""
         return '{"union":[' * depth + '{"tag":"a"}' + ',{"tag":"B"}]}' * depth
 
     def test_a_precompiled_constant_nested_too_deeply_is_a_miss(self) -> None:
@@ -1133,14 +1134,7 @@ class Constants(unittest.TestCase):
         dom = read_document(CONSTANT_SOURCES["g.md"], "g.md")
         dom["constants"][0]["value"] = "@VALUE@"
         deep = json.dumps(dom).replace('"@VALUE@"', self.deep_value_json(2000))
-        try:
-            parsed = json.loads(deep)
-        except RecursionError:
-            # Before Python 3.12, json.loads cannot follow this depth, and the
-            # loader then treats the whole compiled.json as unreadable.
-            parsed = None
-        if parsed is not None:
-            self.assertEqual(dom_problem(parsed), "nested too deeply")
+        self.assertEqual(dom_problem(read_json(deep)), "nested too deeply")
         bootstrap_hash = fnv1a64(bundled_text("notation/bootstrap.json") or "")
         compiled = (
             f'{{"format":{DOM_FORMAT},"bootstrap":"{bootstrap_hash}",'
@@ -1155,11 +1149,14 @@ class Constants(unittest.TestCase):
         bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")
         bootstrap["stages"][0]["documents"][0]["dom"]["constants"].append({"name": "K", "op": "define", "value": "@VALUE@", "at": [99999, 1]})
         text = json.dumps(bootstrap).replace('"@VALUE@"', self.deep_value_json(2000))
-        # Before Python 3.12, json.loads cannot follow this depth, and the
-        # bootstrap is then an error because it is not JSON.
-        with self.assertRaisesRegex(gencmu.GencmuError, "nested too deeply|is not JSON") as caught:
+        # The standard decoder can reach the DOM depth check or reject the
+        # JSON at its own recursion limit. Both paths reject the bootstrap.
+        with self.assertRaisesRegex(gencmu.GencmuError, "nested too deeply|the bootstrap is not JSON") as caught:
             gencmu.load_dialect_sources({**CONSTANT_SOURCES, "notation/bootstrap.json": text}, "p.md", use_cache=False)
         self.assertEqual(caught.exception.kind, "grammar")
+        self.assertEqual(caught.exception.document, "notation/bootstrap.json")
+        if "the bootstrap is not JSON" in str(caught.exception):
+            self.assertIsInstance(caught.exception.__cause__, RecursionError)
 
     def test_a_precompiled_clause_with_a_constant_waits_for_its_value(self) -> None:
         """A cached DOM whose capture checks wait for a constant's value is

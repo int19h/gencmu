@@ -676,8 +676,7 @@ class Robustness(unittest.TestCase):
     def test_deeply_nested_clauses_need_no_recursion(self) -> None:
         """Constants and tests in clauses nested as deep as engine §9 allows
         resolve on a call stack shallower than the nesting. The test lowers
-        the recursion limit, since before Python 3.12 the default limit
-        was too low for the comprehensions that resolved them."""
+        the recursion limit to expose a walk that recurses with each level."""
         depth = 250
         term = "".join("($K ∪ " if level % 2 == 0 else "($K ∩ " for level in range(depth)) + "$K" + ")" * depth
         # Each level is an optional and a sequence, two levels of depth.
