@@ -22,7 +22,7 @@
 # node tools/quoted-texts.js checks it.
 
 # Parts of texts that the sentences make claims about.
-ke brode ke'e bo brodi # grammars/syntax/cll.md:191,565 = selbri-5-not-ke-group adhoc.syntax.joik-ke-group-then-bo adhoc.syntax.joik-ke-group-then-bo.bpfk
+ke brode ke'e bo brodi # grammars/syntax/cll.md:197,575 = selbri-5-not-ke-group adhoc.syntax.joik-ke-group-then-bo adhoc.syntax.joik-ke-group-then-bo.bpfk
 se se broda # grammars/syntax/cll.md = tanru-unit-2 adhoc.syntax.se-se-unit adhoc.syntax.se-se-unit.bpfk
 na'e se broda # grammars/syntax/cll.md = tanru-unit-2 adhoc.syntax.nahe-se-unit adhoc.syntax.nahe-se-unit.bpfk
 pa xy. # grammars/syntax/cll.md = number adhoc.syntax.number-then-lerfu adhoc.syntax.number-then-lerfu.bpfk
@@ -64,12 +64,12 @@ a kru,a # grammars/words/cll.md # the reading that akru,a does not have; akru,a 
 terms zo'u # grammars/syntax/cll.md # notation: a rule name before the cmavo
 .i ja nai # grammars/syntax/cll.md # a connective between sentences
 .i joi # grammars/syntax/cll.md # a connective between sentences
-.i bo # grammars/syntax/cll.md:77,81 # a part of the pinned text quoted after it on its line
-gi'e ke # grammars/syntax/cll.md:185,812 # the words of one token of the official parser's lexer
-joi ke # grammars/syntax/cll.md:191,805 # the words of one token of the official parser's lexer
+.i bo # grammars/syntax/cll.md:79,83 # a part of the pinned text quoted after it on its line
+gi'e ke # grammars/syntax/cll.md:191,832 # the words of one token of the official parser's lexer
+joi ke # grammars/syntax/cll.md:197,825 # the words of one token of the official parser's lexer
 ca lo nu broda # grammars/syntax/cll.md # the shape of a tense with its sumti
 fi mi # grammars/syntax/cll.md # the shape of a place marker with its sumti
-pu ku # grammars/syntax/cll.md # the shape of a tense with an elided sumti
+pu ku # grammars/syntax/cll.md:254 # the shape of a tense with an elided sumti
 na ku # grammars/syntax/cll.md # the shape of a negation as a term
 mi ce'e do # grammars/syntax/cll.md # the shape of a termset
 nu'i gek terms nu'u gik terms nu'u # grammars/syntax/cll.md # notation: rule names between the cmavo
@@ -78,7 +78,7 @@ mi .e do # grammars/syntax/cll.md # the shape of an afterthought sumti connectio
 mi joi do # grammars/syntax/cll.md # the shape of a joik sumti connection
 ge mi gi do # grammars/syntax/cll.md # the shape of a forethought sumti connection
 re lo gerku # grammars/syntax/cll.md # the shape of an outer quantifier
-na'e bo # grammars/syntax/cll.md:288,477 # the shape of a NAhE sumti
+na'e bo # grammars/syntax/cll.md:296,487 # the shape of a NAhE sumti
 le mi zdani # grammars/syntax/cll.md # the shape of a possessive inner sumti
 lo re lo gerku # grammars/syntax/cll.md # the shape of a quantifier and a sumti after a descriptor
 mi goi ko'a # grammars/syntax/cll.md # the shape of a goi clause
@@ -105,4 +105,6 @@ ia ie ii io iu ua ue ui uo uu # grammars/words/shapes.md # notation: the rising 
 zu'a nu'i la djordj. la'u lo mitre be li mu # grammars/syntax/cll.md = term adhoc.syntax.final.tag-termset.1.cll-ebnf adhoc.syntax.final.tag-termset.9.bpfk
 zu'a nu'i la'u lo mitre be li mu # grammars/syntax/cll.md = term adhoc.syntax.final.tag-termset.2.cll-ebnf adhoc.syntax.final.tag-termset.10.bpfk
 le nanmu joi # grammars/syntax/cll.md # This incomplete prefix names the official parser's assumption in CLL 14.14.
-tag termset # grammars/syntax/cll.md:257,817 # These are names of grammar rules in an alternative, not Lojban words.
+tag termset # grammars/syntax/cll.md:265,837 # These are names of grammar rules in an alternative, not Lojban words.
+gi'a brodi # grammars/syntax/cll.md:182 = words adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti.bpfk
+pu ku # grammars/syntax/cll.md:201 = term adhoc.syntax.final.gek-term.3.cll-ebnf adhoc.syntax.final.gek-term.4.bpfk

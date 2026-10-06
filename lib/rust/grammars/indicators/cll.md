@@ -93,7 +93,7 @@ A `bahe-run` is one or more `ba'e`, so `mi ba'e ba'e klama` is a text. Rule 1100
 
 ## Indicator runs
 
-An indicator run after a word attaches each of its indicators, `fu'e` included, to the word, each as a token of its own. Each of them carries the `ba'e` run before it as its attachment. A `nai` after an attitudinal attaches to the attitudinal. So `mi ui nai ia klama` hands on `mi` with `ui` and `ia` after it, and `ui` carries `nai` after it. In brackets, that is `([mi {ui nai} ia] klama)`.
+An indicator run after a word attaches each of its indicators, `fu'e` included, to the word, each as a token of its own. Each of them carries the `ba'e` run before it as its attachment. A `nai` after an attitudinal attaches to the attitudinal. So `mi ui nai ia klama` hands on `mi` with `ui` and `ia` after it, and `ui` carries `nai` after it. In brackets, that is `([mi {(ui nai) ia}] klama)`.
 
 The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run before the attitudinal, the attitudinal word, and the `nai`. The `nai` carries its own `ba'e` run before it. So `mi ba'e ui nai klama` gives `ui` with `ba'e` before it and `nai` after it, and `mi ui ba'e nai klama` gives `nai` with `ba'e` before it. The label of `ui` is `ui` in both.
 
@@ -154,7 +154,9 @@ CLL's sources do not agree on `fu'e`. The EBNF of CLL 21.2 (its grammar in Exten
 
 This stage follows CLL 19.8, which gives the meaning of `fu'e`: "Placing fu'e in front of an attitudinal disconnects it from what precedes it". So a `fu'e` stands directly in front of an indicator, and the stage rejects a `fu'e` that has no indicator after it.
 
-CLL 19.8 also lets several `fu'e` scopes stand in force at once. It says that "Other attitudinals of more local scope can appear after attitudinals marked by FUhE." So `indicator-run` lets each indicator take its own `fu'e`, and one word can take several such groups. This is the camxes rule `indicators <- FUhE_clause? indicator+`, repeated after a word. The EBNF's rule `word = [BAhE] any-word [indicators]` allows only one group after a word, so this stage departs from the EBNF there. That limit appears to be an oversight, since the YACC parser absorbs the indicators before its grammar reads them.
+CLL 19.8 says that FUhO "cancels all in-force attitudinals". This stage infers that several FUhE groups can remain active together. Its `indicator-run` therefore permits each indicator to carry its own `fu'e`. The passage about local attitudinals describes unmarked attitudes, rather than several marked groups.
+
+This choice departs from the printed EBNF, which allows one indicator group after a word. camxes repeats its `indicators <- FUhE_clause? indicator+` rule after a word. The official preprocessor absorbs the indicators before its grammar reads them.
 
 The CLL lexicon marks `fu'e` `indicator`, so `unit` never reads it as a word. Under these rules, `mi fu'e ui klama`, `mi fu'e ui nai klama` and `mi ui fu'e ia klama` are texts. The text `mi viska le fu'e .ia blanu zdani fu'o ponse` is one too. The stage rejects `mi fu'e klama`, `mi ui fu'e klama` and `mi fu'e fu'e ui klama`. In each of them, a `fu'e` has no indicator directly after it.
 
