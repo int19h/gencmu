@@ -789,7 +789,7 @@ CLL gives advice about boundaries that preserve an intended reading. A complete 
 
 CLL 6.2 warns about a description before a selbri. In `le broda brode gi'e brodi`, the whole text forces the description to end before `brode`.
 
-CLL 8.6 and 8.7 describe failed left-to-right readings after omitted terminators. Both dialects accept `le poi blabi gerku cu klama` and `le le nanmu karce cu blanu`. The whole text forces KUhO and KU exactly where examples 8.48 and 8.62 write them. Merging the selbri leaves the outer description incomplete under printed rules 111 and 112. The official parser rejects both omitted forms.
+CLL 8.6 and 8.7 describe the merged readings that a left-to-right reading of the words gives. Both dialects accept `le poi blabi gerku cu klama` and `le le nanmu karce cu blanu`. The whole text forces KUhO and KU exactly where examples 8.48 and 8.62 write them. Merging the selbri leaves the outer description incomplete under printed rules 111 and 112. The official parser rejects both omitted forms.
 
 CLL 9.5 warns that a non-logical connective can continue the modal's selbri without `fe'u`. Both dialects read `mi fi'o broda joi pu brode` with `fe'u` elided before `joi`. The whole text forces that boundary.
 
@@ -809,7 +809,7 @@ The indivisible-number rule follows these CLL requirements in both dialects:
 - CLL 18.6, after example 18.32, requires `boi` between adjacent numbers. CLL 18.16 shows reverse Polish examples 18.110 through 18.112 with the required `boi` boundaries. Both dialects reject `li fu'a pa re su'i du li ci` and accept `li fu'a pa boi re su'i du li ci`.
 - CLL 18.6, after example 18.34, requires `boi` between the function name and its operand. Both dialects reject `li zy du li ma'o fy. xy.` and accept `li zy du li ma'o fy. boi xy.`.
 
-The shared elision policy follows CLL's general advice where the whole text determines the intended boundary. It disagrees with no specific text of CLL. CLL 8.6, 8.7, 14.14, 18.11, and 18.17 describe the official parser's left-to-right reading. It does not override number and letter boundaries. The maintainer approves this interpretation of CLL 21.2 note 10 for both dialects.
+The shared elision policy follows CLL's general advice where the whole text determines the intended boundary. It disagrees with no specific text of CLL. CLL 8.6 and 8.7 describe merged readings that cannot complete the outer description. CLL 14.14, 18.11, and 18.17 describe the official parser's left-to-right reading. It does not override number and letter boundaries. The maintainer approves this interpretation of CLL 21.2 note 10 for both dialects.
 
 ## Differences from the printed CLL grammar
 
