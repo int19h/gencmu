@@ -122,7 +122,7 @@ The forms stage supplies source words, their lexical classes, and their run boun
 
 The shared reader reads a cmavo, brivla, cmevla, or the y letteral. A cmavo is a particle. A brivla is a predicate word. A cmevla is a name word.
 
-Every cmavo read uses `cmavo-token`. The CLL dialect adds optional word-form warnings there. A word read in the selected derivation keeps its warning even if an eraser later removes the word.
+Every cmavo read uses `cmavo-token`. The dialect of *The Complete Lojban Language* (CLL) adds optional word-form warnings there. A word read in the selected derivation keeps its warning even if an eraser later removes the word.
 
 A failed word stage publishes no warnings from that stage. A successful stage keeps warnings from its selected derivation. Raw quote bodies and the suffix after active `fa'o` supply no word reads.
 
@@ -563,7 +563,7 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
 
 The dialects follow the [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) with the departures below. The maintainer chooses opaque units where that proposal exposes internal markers.
 
-CLL 19.13 describes erasure, 19.14 describes hesitation, and 19.15 describes FAhO. CLL is *The Complete Lojban Language*. CLL 19.16 describes interactions among these words. These sections do not specify one complete processing order.
+CLL 19.13 describes erasure, 19.14 describes hesitation, and 19.15 describes FAhO. CLL 19.16 describes interactions among these words. These sections do not specify one complete processing order.
 
 The dialects keep six established departures from CLL 19. Items 2 and 4 differ in Zantufa. There ZEI erases, and hesitation attached to a word has class Y ([zantufa-stream.md](zantufa-stream.md)).
 
