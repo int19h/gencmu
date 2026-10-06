@@ -102,13 +102,13 @@ l m n r # grammars/words/shapes.md # notation: the consonant letters that are ne
 ai ei oi au # grammars/words/shapes.md # notation: the falling diphthongs
 ia ie ii io iu ua ue ui uo uu # grammars/words/shapes.md # notation: the rising diphthongs
 
-zu'a nu'i la djordj. la'u lo mitre be li mu # grammars/syntax/cll.md = term adhoc.syntax.final.tag-termset.1.cll-ebnf adhoc.syntax.final.tag-termset.9.bpfk
-zu'a nu'i la'u lo mitre be li mu # grammars/syntax/cll.md = term adhoc.syntax.final.tag-termset.2.cll-ebnf adhoc.syntax.final.tag-termset.10.bpfk
+zu'a nu'i la djordj. la'u lo mitre be li mu # grammars/syntax/cll.md = term adhoc.syntax.tag-termset.1.cll-ebnf adhoc.syntax.tag-termset.9.bpfk
+zu'a nu'i la'u lo mitre be li mu # grammars/syntax/cll.md = term adhoc.syntax.tag-termset.2.cll-ebnf adhoc.syntax.tag-termset.10.bpfk
 tag termset # grammars/syntax/cll.md:279,853 # These are names of grammar rules in an alternative, not Lojban words.
 gi'a brodi # grammars/syntax/cll.md:196 = words adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti.bpfk
-pu ku # grammars/syntax/cll.md:215 = term adhoc.syntax.final.gek-term.3.cll-ebnf adhoc.syntax.final.gek-term.4.bpfk
-na'e ke # grammars/syntax/cll.md:120 = words adhoc.syntax.final.negation-scope.2.cll-ebnf adhoc.syntax.final.negation-scope.4.bpfk
-nu'u fa'u # grammars/syntax/cll.md:112 = words adhoc.syntax.final.errata.5.cll-ebnf adhoc.syntax.final.errata.6.bpfk
+pu ku # grammars/syntax/cll.md:215 = term adhoc.syntax.gek-term.3.cll-ebnf adhoc.syntax.gek-term.4.bpfk
+na'e ke # grammars/syntax/cll.md:120 = words adhoc.syntax.negation-scope.2.cll-ebnf adhoc.syntax.negation-scope.4.bpfk
+nu'u fa'u # grammars/syntax/cll.md:112 = words adhoc.syntax.errata.5.cll-ebnf adhoc.syntax.errata.6.bpfk
 pe'e fa'u # grammars/syntax/cll.md:112 # The words of the wiki's alternative correction, rather than a complete text.
-ractu du # grammars/syntax/cll.md:128 = words corpus.camxes.1112 adhoc.syntax.final.errata-controls.19.bpfk
-kanla viska # grammars/syntax/cll.md:802 = words adhoc.syntax.final.elision-unforced.3.cll-ebnf adhoc.syntax.final.elision-unforced.4.bpfk
+ractu du # grammars/syntax/cll.md:128 = words corpus.camxes.1112 adhoc.syntax.errata-controls.19.bpfk
+kanla viska # grammars/syntax/cll.md:802 = words adhoc.syntax.elision-unforced.3.cll-ebnf adhoc.syntax.elision-unforced.4.bpfk
