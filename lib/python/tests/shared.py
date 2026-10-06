@@ -688,9 +688,9 @@ def load_case(path: Path) -> dict[str, Any]:
 
 
 def read_json(text: str) -> Any:
-    """A JSON text's value, read with a list for a stack. A result nests as
-    deep as its attachments do, and before Python 3.12 json.loads counts
-    each level against the recursion limit."""
+    """A JSON text's value, read with a list for a stack. A result can nest
+    beyond the depth that json.loads accepts, so the reader keeps open
+    containers in an explicit stack."""
     decoder = json.JSONDecoder()
     # Each open container, and for an object the key that waits for its
     # value.
@@ -760,9 +760,8 @@ def read_json(text: str) -> Any:
 
 def write_json(value: Any) -> str:
     """A value's compact JSON, written with a list for a stack, for the
-    messages of a failed case. A result nests as deep as its attachments
-    do, and before Python 3.12 json.dumps counts each level against the
-    recursion limit."""
+    messages of a failed case. A result can nest beyond the depth that
+    json.dumps accepts, so the writer keeps values in an explicit stack."""
     out: list[str] = []
     # Each entry is text to write, or a value to write.
     stack: list[tuple[bool, Any]] = [(False, value)]
