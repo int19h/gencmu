@@ -730,12 +730,23 @@ For example, `le sutra tavla` has two parses. One is a statement with the descri
 
 Note 10 of CLL 21.2 says that an elidable terminator "may be omitted (without change of meaning) if no grammatical ambiguity results". It does not say which parse a text has when the grammar allows more than one, so the ranking is a choice of this grammar's dialects. Nor does the note say how to check that no ambiguity results, so `elision-only` is a choice too. Both are chosen to fit the conventions of CLL. CLL does not state them.
 
-In both CLL dialects, this reading accepts some texts that CLL's prose says need a terminator. In each text, a parse of the whole needs the terminator elided where CLL requires it. The text with that terminator written back has one reading. The official parser, which reads one lexeme ahead, rejects them. These passages of CLL say that the terminator is required, and these dialects do not follow them:
+CLL gives advice about boundaries that preserve an intended reading. A complete parse can force such a boundary without a written terminator. General advice does not override the elision principle of CLL 21.2 note 10.
 
-- CLL 14.14, after example 14.112: `le nanmu ku joi le ninmu [ku] cu klama le zarci` needs its first `ku`. Here `le nanmu joi le ninmu cu klama le zarci` parses, since `le` cannot continue a tanru after `joi`.
-- CLL 18.11, after example 18.93: `me'u` is required in `ta me li ny. su'i pa me'u moi le'i mi ratcu`, so that `pa` and `moi` stay apart. Here `ta me li ny. su'i pa moi le'i mi ratcu` parses.
-- CLL 18.17, after example 18.116: `lo'o` is required in `li re su'i re du li vo lo'o .onai lo nalseldjuno namcu`. Here `li re su'i re du li vo .onai lo nalseldjuno namcu` parses.
-- CLL 8.6, on example 8.48: `ku'o` must appear in `le poi blabi ku'o gerku cu klama`. Here `le poi blabi gerku cu klama` parses.
+CLL 6.2 warns about a description before a selbri. In `le broda brode gi'e brodi`, the whole text forces the description to end before `brode`. CLL 8.7 says that the inner `ku` of example 8.62 prevents the possessor's selbri from merging with the outer description. Both dialects read `le le nanmu karce cu blanu` with that same boundary. The merged reading cannot complete the text.
+
+CLL 9.5 warns that a non-logical connective can continue the modal's selbri without `fe'u`. Both dialects read `mi fi'o broda joi pu brode` with `fe'u` elided before `joi`. The whole text forces that boundary.
+
+CLL 6.11 says that `do'u` is rarely needed. CLL 19.12 gives the same advice for `se'u`, except before an outside selbri. Both dialects read `mi coi broda brode gi'e brodi` and `mi sei do broda brode gi'e brodi` with the free modifier ending before `brode`.
+
+Other warnings describe the official parser. CLL 14.14 says that its parsing rules assume another tanru component after `le nanmu joi`. Here `le nanmu joi le ninmu cu klama le zarci` has the intended sumti connection. The official parser rejects it.
+
+CLL 18.11 says that the parser combines `pa` and `moi` in example 18.93 without `me'u`. Here `ta me li ny. su'i pa moi le'i mi ratcu` has `me'u` elided where the example writes it. The official parser rejects it.
+
+CLL 18.17 says that the parser assumes another operand after `.onai` in example 18.116 without `lo'o`. Here `li re su'i re du li vo .onai lo nalseldjuno namcu` retains the example's sumti connection. The official parser rejects it. These parser limitations do not require written terminators in the grammar.
+
+One specific-text claim differs from the whole-text reading:
+
+- CLL 8.6 says that removing `ku'o` from example 8.48 merges the two selbri and produces an ungrammatical sentence. Both dialects accept `le poi blabi gerku cu klama` with separate relative-clause and description selbri. The official parser rejects it.
 
 The indivisible-number rule follows these CLL requirements in both dialects:
 
@@ -743,7 +754,7 @@ The indivisible-number rule follows these CLL requirements in both dialects:
 - CLL 18.6, after example 18.32, requires `boi` between adjacent numbers. CLL 18.16 shows reverse Polish examples 18.110 through 18.112 with the required `boi` boundaries. Both dialects reject `li fu'a pa re su'i du li ci` and accept `li fu'a pa boi re su'i du li ci`.
 - CLL 18.6, after example 18.34, requires `boi` between the function name and its operand. Both dialects reject `li zy du li ma'o fy. xy.` and accept `li zy du li ma'o fy. boi xy.`.
 
-The shared elision policy accepts the texts of the first list, although CLL's prose requires their terminators. It does not override these number and letter boundaries. The maintainer approves this interpretation of CLL 21.2 note 10 for both dialects.
+The shared elision policy follows CLL's general advice where the whole text determines the intended boundary. It differs from CLL 8.6's specific prediction for example 8.48. It does not override number and letter boundaries. The maintainer approves this interpretation of CLL 21.2 note 10 for both dialects.
 
 ## Differences from the printed CLL grammar
 
