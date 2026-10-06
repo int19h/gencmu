@@ -22,7 +22,7 @@ The [indicator document](../indicators/cll.md#quotation-boundaries) explains why
 
 The shared indicator stage keeps each run flat. Within a run, `nai` attaches only to the UI or CAI directly before it. BAhE can stand between them. CLL 1.1 section 19.16 separates UI and CAI from DAhO and FUhO, which do not absorb `nai`.
 
-This dialect departs from [camxes-std](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L343-L345) on NAI attachment. camxes-std lets UI and CAI clauses recursively take more indicators before their following optional NAI. Repeated NAI can therefore close successive indicator levels. The difference changes both acceptance and negation scope, in attached and leading runs.
+This dialect departs from [camxes-std](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L343-L1100) on NAI attachment. camxes-std lets UI and CAI clauses recursively take more indicators before their following optional NAI. Repeated NAI can therefore close successive indicator levels. The difference changes both acceptance and negation scope, in attached and leading runs.
 
 In cll-ebnf and bpfk, `mi .e ui da'o nai do` negates `.e`. camxes-std instead negates `ui`.
 

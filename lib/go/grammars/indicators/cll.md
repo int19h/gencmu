@@ -158,7 +158,9 @@ CLL 19.8 says that FUhO "cancels all in-force attitudinals". This stage infers t
 
 This choice departs from the printed EBNF, which permits one indicator group after a word. The official preprocessor absorbs indicators before its grammar reads them.
 
-[camxes-std](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L343-L345) repeats `indicators <- FUhE_clause? indicator+` through each word's `post_clause`. This stage and camxes-std require an indicator after FUhE. Both permit further FUhE groups. Their grouping structures differ because camxes-std nests additional groups inside UI or CAI clauses.
+In [camxes-std](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L343-L1100), `post_clause` repeats `indicators <- FUhE_clause? indicator+`. This stage and camxes-std require an indicator after FUhE. Both permit further FUhE groups.
+
+camxes-std nests further FUhE groups inside every clause whose post is [`post_clause`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L376). [`UI_post`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L1100), [`CAI_post`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L536), [`DAhO_post`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L588), and [`FUhO_post`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L661) use that rule. [`FUhE_post`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L655) does not use it. This stage keeps those groups flat.
 
 camxes-std also lets UI and CAI clauses take further indicators before their following optional NAI. This stage instead keeps the run flat. Within a run, it attaches `nai` only to the UI or CAI directly before it. BAhE can intervene. Leading runs use the same boundary, but keep NAI as a syntax token.
 

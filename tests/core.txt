@@ -2987,3 +2987,9 @@ adhoc.indicators.nai.fuhe.leading.cll-ebnf
 adhoc.indicators.nai.fuhe.leading.bpfk
 adhoc.indicators.nai.bahe.leading-cai.cll-ebnf
 adhoc.indicators.nai.bahe.leading-cai.bpfk
+adhoc.indicators.fuhe.after-daho.cll-ebnf
+adhoc.indicators.fuhe.after-daho.bpfk
+adhoc.indicators.fuhe.after-fuho.cll-ebnf
+adhoc.indicators.fuhe.after-fuho.bpfk
+adhoc.indicators.fuhe.after-cai.cll-ebnf
+adhoc.indicators.fuhe.after-cai.bpfk
