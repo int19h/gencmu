@@ -165,7 +165,7 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
   $ <~rafsi-form ∪ (¬begins(after($), nonpause-phoneme) ⟹ ~run-final)>
 ```
 
-The BPFK word forms read an odd run of three or more `y` as `y` and the rest. Zantufa's `Y` is `y+`, so its `spaces` read the whole run as one stretch of space. So the stage tags `after-hesitation` a run of `y` that directly follows another run of `y`. 
+The BPFK word forms read an odd run of three or more `y` as `y` and the rest. Zantufa's `Y` is `y+`, so its `spaces` read the whole run as one stretch of space. So the stage tags `after-hesitation` a run of `y` that directly follows another run of `y`.
 
 Before BU, the forms stage separates the final y from the hesitation prefix. The shared word reader joins that final y with BU. Elsewhere, two such runs attached to a word are two Y words, as Zantufa's `cmavo_form` reads them. An `ie'o` is a Y word of its own, and it never joins one.
 
