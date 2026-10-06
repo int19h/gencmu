@@ -2885,8 +2885,6 @@ adhoc.syntax.final.errata.5.cll-ebnf
 adhoc.syntax.final.errata.6.bpfk
 corpus.camxes.1133
 adhoc.syntax.final.errata.8.bpfk
-corpus.camxes.1133
-adhoc.syntax.final.errata.8.bpfk
 adhoc.syntax.final.errata.11.cll-ebnf
 adhoc.syntax.final.errata.12.bpfk
 corpus.camxes.1802
