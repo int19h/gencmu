@@ -113,6 +113,8 @@ Example 18.122 closes an interval with GAhO but supplies no opening GAhO. Rule 8
 
 Examples 16.82 and 16.83 omit KUhO before NAKU. Both parsers keep NAKU inside the relative clause. Their readings disagree with the glosses.
 
+Example 15.55 prints `nake` for the intended `na'e ke` in its seventh text. Both parsers read NA over the whole selbri. The correction applies NAhE only to the grouped first tanru unit, as the paired lujvo requires.
+
 Example 17.36 omits CU after the first sumti. Both parsers read two sumti as a fragment. The gloss instead describes a sentence.
 
 A fragment is what a speaker utters when the utterance is not a sentence (CLL 19.5 and 14.13). It is one of these:

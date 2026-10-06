@@ -2906,3 +2906,7 @@ adhoc.syntax.final.gek-term.4.bpfk
 cll.2.41.c2e10d4
 cll.18.2.c18e2d1
 cll.2.42.c2e10d5
+cll.15.55.c15e4d12.7
+adhoc.syntax.final.r2-negation.2.cll-ebnf
+adhoc.syntax.final.r2-negation.3.bpfk
+adhoc.syntax.final.r2-negation.4.bpfk
