@@ -179,7 +179,7 @@ The JavaScript library also reads each document with the hand-written bootstrap 
 
 A library compares only its own two counts. Counts from different libraries are not compared, since each library makes its items in its own way.
 
-The Python tests need Python 3.12 or later. Their work counters use `sys.monitoring` to watch the selected code. Each nested counter uses a separate monitoring tool. The counters include calls, line steps, loop jumps, and weighted reads by C operations. A budget stops the work before the first unit past it runs.
+The Python tests need Python 3.12 or later. Their work counters use `sys.monitoring` to watch the selected code. Each nested counter uses a separate monitoring tool. Each counter disables its events and unregisters its callbacks before it frees the tool. The counters include calls, line steps, loop jumps, and weighted reads by C operations. A budget stops the work before the first unit past it runs.
 
 ## Query depth cases: `query-depth.json`
 

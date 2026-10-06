@@ -77,3 +77,42 @@ class WorkCount(unittest.TestCase):
             visit([1, 2, 3])
         self.assertEqual(work.count, 3)
         self.assertEqual(effects, [[1, 2, 3]])
+
+    def test_a_freed_tool_can_monitor_other_code_without_stale_callbacks(self) -> None:
+        def visit() -> None:
+            pass
+
+        def unrelated() -> None:
+            for _ in range(3):
+                pass
+
+        monitoring = sys.monitoring
+        events = (monitoring.events.PY_START, monitoring.events.LINE, monitoring.events.JUMP)
+        for budget in (None, 0):
+            with self.subTest(budget=budget):
+                tool = next(tool for tool in range(6) if monitoring.get_tool(tool) is None)
+                if budget is None:
+                    with count_work(calls(visit), steps(visit)):
+                        visit()
+                else:
+                    with self.assertRaises(OverBudget), count_work(calls(visit), steps(visit), budget=budget):
+                        visit()
+                self.assertIsNone(monitoring.get_tool(tool))
+                monitoring.use_tool_id(tool, "gencmu tests: reused tool")
+                try:
+                    self.assertEqual(monitoring.get_events(tool), monitoring.events.NO_EVENTS)
+                    self.assertEqual(monitoring.get_local_events(tool, visit.__code__), monitoring.events.NO_EVENTS)
+                    for event in events:
+                        with self.subTest(event=event):
+                            try:
+                                monitoring.set_local_events(tool, unrelated.__code__, event)
+                                unrelated()
+                            finally:
+                                monitoring.set_local_events(tool, unrelated.__code__, monitoring.events.NO_EVENTS)
+                            self.assertIsNone(monitoring.register_callback(tool, event, None))
+                finally:
+                    monitoring.set_events(tool, monitoring.events.NO_EVENTS)
+                    monitoring.set_local_events(tool, unrelated.__code__, monitoring.events.NO_EVENTS)
+                    for event in events:
+                        monitoring.register_callback(tool, event, None)
+                    monitoring.free_tool_id(tool)

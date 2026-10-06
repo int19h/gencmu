@@ -611,6 +611,8 @@ def count_work(*watches: Watch, budget: int | None = None) -> Iterator[Work]:
         monitoring.set_events(tool, events.NO_EVENTS)
         for code in set(starts) | set(lines):
             monitoring.set_local_events(tool, code, events.NO_EVENTS)
+        for event in (events.PY_START, events.LINE, events.JUMP):
+            monitoring.register_callback(tool, event, None)
         monitoring.free_tool_id(tool)
 
 
