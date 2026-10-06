@@ -101,3 +101,6 @@ p t k f c s x # grammars/words/shapes.md # notation: the unvoiced consonant lett
 l m n r # grammars/words/shapes.md # notation: the consonant letters that are neither voiced nor unvoiced
 ai ei oi au # grammars/words/shapes.md # notation: the falling diphthongs
 ia ie ii io iu ua ue ui uo uu # grammars/words/shapes.md # notation: the rising diphthongs
+
+zu'a nu'i la djordj. la'u lo mitre be li mu # grammars/syntax/cll.md = term adhoc.syntax.final.tag-termset.1.cll-ebnf adhoc.syntax.final.tag-termset.9.bpfk
+zu'a nu'i la'u lo mitre be li mu # grammars/syntax/cll.md = term adhoc.syntax.final.tag-termset.2.cll-ebnf adhoc.syntax.final.tag-termset.10.bpfk
