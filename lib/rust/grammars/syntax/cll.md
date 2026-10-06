@@ -78,7 +78,15 @@ So `A .i je B .i ja C` is `(A and B) or C`, and the tree shows that grouping. Th
 
 `statement-3` is either a sentence or a `tu'e ... tu'u` block. The block makes a whole text-1 act as one sentence, for connection and for a tense before it (CLL 14.8). The block's `tu'u` is elidable and carries its own free-modifier slot.
 
-A prenex belongs to a whole statement. Between two statements, a sentence after `.i` with a connective cannot have its own prenex (rules 12 and 13). Examples are `.ije` and `.i bo`, so `mi klama .i bo naku zo'u do klama` is an error. A `tu'e ... tu'u` block can hold one. CLL 1.1 prints examples 16.77 and 16.78 with a second `zo'u` there. Example 16.77 is `roda zo'u mi prami da .ije naku zo'u do prami da`. Example 16.78 is `su'oda zo'u mi prami da .ije naku zo'u do prami da`. This grammar rejects the printed texts and reads them without that `zo'u`. Then `naku` is a term of the second sentence. The prenex covers the whole statement, so it binds `da` in both sentences. The official parser accepts the printed texts. Its lexer reads `.ije` there as a plain `.i` (rule 10), and a prenex can follow that. Every edition of CLL from 1.2.12 on corrects example 16.77 in this way. These editions keep the `zo'u` of 16.78.
+A prenex belongs to a whole statement. After `.i` with a connective, printed rules 12 and 13 do not allow a separate prenex. This restriction also applies after `.i bo`. A `tu'e ... tu'u` block can hold a prenex.
+
+CLL 1.1 prints examples 16.77 and 16.78 with a second `zo'u` after `.ije`. Example 16.77 is `roda zo'u mi prami da .ije naku zo'u do prami da`. Example 16.78 is `su'oda zo'u mi prami da .ije naku zo'u do prami da`. This grammar rejects both printed texts. Without the second `zo'u`, `naku` forms a term of the second sentence. The initial prenex binds `da` in both sentences.
+
+Every CLL edition from 1.2.12 onward removes that `zo'u` from example 16.77. These editions keep it in example 16.78.
+
+The official parser accepts both printed texts. Its lexer has no `lexer_T_1000` driver, so it never produces `I_JEK_820`. Instead, `.ije` without `bo` becomes `I_819`, the paragraph separator. This separator can contain `i` and a connective, and a prenex can follow it. Thus, `.ije` binds as loosely as bare `.i` in that parser.
+
+In the printed EBNF and this grammar, bare `.i` binds loosest. The next level contains ijek and ijoik connections, which group left. The BO forms bind tightest and group right. `.ije` contains two words, `i` and `je`. This grammar keeps them as two words.
 
 CLL 14.6 prints example 14.27, `la djan. .ije la .alis. klama le zarci`, with a fragment before the sentence connective. This grammar rejects it. Printed rules 10, 12, and 13 allow fragments only beside bare `.i`.
 

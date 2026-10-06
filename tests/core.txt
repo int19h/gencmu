@@ -2871,3 +2871,9 @@ adhoc.syntax.final.elision.20.bpfk
 corpus.camxes.752
 adhoc.syntax.final.fragments.2.bpfk
 cll.14.27.c14e6d3
+adhoc.syntax.final.precedence.1.cll-ebnf
+adhoc.syntax.final.precedence.2.bpfk
+adhoc.syntax.final.precedence.3.cll-ebnf
+adhoc.syntax.final.precedence.4.bpfk
+adhoc.syntax.final.precedence.5.cll-ebnf
+adhoc.syntax.final.precedence.6.bpfk
