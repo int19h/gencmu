@@ -340,7 +340,7 @@ The forms stage divides the text into words. The words stage applies the magic w
 
 ### Rule flags
 
-Rule flags address the tense ties of [issue 159](https://github.com/int19h/gencmu/issues/159). Conditions propagated through `sumti` levels failed to state the grouping once. An atom is one independent grammatical unit. Intended uses are atoms such as `simple-tense-modal`. Broad rules such as `tag` also reward wrappers, nested groups and chains.
+Rule flags address the tense ties of [issue 159](https://github.com/int19h/gencmu/issues/159). The condition approach required propagation through five `sumti` levels and changes to two chains. It still left tense ties. An atom is one independent grammatical unit. Intended uses are atoms such as `simple-tense-modal`. Broad rules such as `tag` also reward wrappers, nested groups and chains.
 
 The rule profile compares token spans, not reading and closing actions. For `r → r B | A`, action comparison can tie a longer outer `r` with a short one. Span comparison prefers the longer outer `r`. Presence and repeated occurrences count because each flagged constituent expresses the declaration. Empty occurrences contribute nothing, so the flag does not reward empty wrappers.
 
@@ -348,7 +348,7 @@ The flag ranks first so an author can state grouping independently of terminator
 
 `elision-only` retains rule flags because they express structural preferences. It rejects an equal or better competitor without replacing the chosen parse. Restored terminators add no width, so writing them back cannot lengthen a flagged constituent.
 
-The maintainer chose `greedy` and parentheses after the keyword. The flag rewards presence and repeated occurrences, so it differs from the directive of the same name. No `lazy` flag exists because reversing the comparison favors absence, which needs a separate design.
+The maintainer chose `greedy` and parentheses after the keyword. The name recalls the preference for later ends. The flag rewards presence and repeated occurrences, so it differs from the directive of the same name. No `lazy` flag exists because reversing the comparison favors absence, which needs a separate design.
 
 ### Ties are errors
 

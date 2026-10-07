@@ -955,7 +955,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 
 - A rule flag other than `greedy` is an error at the flag. A repeated flag is an error at the repeated flag. Parentheses on `%extend-rule` are an error at their opening parenthesis. These examples start at column 1. So `%rule(lazy)`, `%rule(greedy,greedy)` and `%extend-rule(greedy)` report columns 7, 14 and 13, respectively.
 
-  Empty parentheses and arguments fail before the reader reads a tree. Empty parentheses report the closing `)`, column 7 in `%rule()` and column 16 in `%redefine-rule()`. `%rule(greedy(1))` fails the lexical stage at `1`, column 14. An argument made of valid tokens fails the syntax stage at its opening `(`. A supplied notation tree with no `rule-flag` reports its missing part at `rule-flags`, after the extension check.
+  Empty parentheses and arguments fail before the reader reads a tree. Empty parentheses report the closing `)`, column 7 in `%rule()` and column 16 in `%redefine-rule()`. `%rule(greedy(1))` fails the lexical stage at `1`, column 14. A parenthesized argument made of valid tokens fails the syntax stage at its opening `(`. A supplied notation tree with no `rule-flag` reports its missing part at `rule-flags`, after the extension check.
 - A capture that wraps anything but one symbol is an error, `$x((B))`, `$x((A | B))` and `$x([B])` included. A symbol is a reference, a tag literal, a character tag, a phoneme tag, a range, a property or a tested one of these.
 - A capture whose name has a capital is an error. Capture names are all lower case.
 - A constant in a body is an error, reported at the constant. A body names a class of tokens with a rule, such as `%rule digit '0'..'9'`, and never with a constant.
