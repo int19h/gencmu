@@ -831,7 +831,7 @@ The shared elision policy follows CLL's general advice where the whole text dete
 
 This grammar departs from the EBNF printed in CLL in ten places. The first settles a precedence that the printed text leaves open. The next three repair the EBNF's copy of the YACC grammar, the grammar of the official parser for the YACC parser generator. The EBNF uses that grammar as its source and cites its rule numbers. In each case, the YACC grammar has a path that the EBNF omits. The official parser accepts the text.
 
-The fifth adopts an inference from CLL 19.8 about several active FUhE groups. The sixth and seventh use conditions to prefer connective groups when both readings complete. The eighth flags simple tenses to rank their groups leftmost-longest. Each retains the plain reading when only it completes. Item 7 does not force an enclosing construct to close.
+The fifth adopts an inference from CLL 19.8 about several active FUhE groups. The sixth and seventh use conditions to prefer connective groups when both readings complete. They retain the plain reading when only it completes. The eighth flags simple tenses to rank their groups leftmost-longest, and a longer group that cannot complete never wins. Item 7 does not force an enclosing construct to close.
 
 In the nested abstraction under "Bridi-tails", `late-elision` instead keeps the plain reading, unlike the official lexer. The seventh also follows CLL 14.10 and 14.18.
 
