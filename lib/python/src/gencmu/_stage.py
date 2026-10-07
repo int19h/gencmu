@@ -12,7 +12,10 @@ from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._markdown import line_column
 from ._maximal import Maximal
 from ._model import Action, Expected, Node, ParseError, ParseWarning, Range, Restoration, Tags, Token
-from ._rank import Act, Ranker, Ranking, Rope, actions, count_roots, rank
+from ._rank import (
+    Act, Elisions, Ranker, Ranking, Rope, actions, compare_profiles, concat,
+    count_roots, first_difference, leaf, rank, sum_profiles,
+)
 from ._tags import PAUSE, phoneme_of
 from ._unicode import UnicodeTable
 from . import _testing
@@ -799,7 +802,35 @@ class StageRunner:
         watch = hook(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at)) if hook is not None else None
         # Maximality does not apply to the derivations of R, and
         # they rank with no lean (engine §7.7).
+        flagged = any(production.greedy for production in lowered.productions)
+        chosen_profile = ()
+        walk = None
+        if flagged:
+            from ._witness import walk_witness
+            pending = [chosen]
+            while pending:
+                node = pending.pop()
+                if isinstance(node, DRead):
+                    continue
+                if node.production.greedy and node.start < node.end:
+                    chosen_profile = sum_profiles(chosen_profile, ((node.start, node.end, 1),))
+                pending.extend(node.children)
+            walk = walk_witness(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at))
         ranking = _rank_check(forest, watch.marks if watch is not None else None)
+        better = False
+        if flagged and ranking is not None:
+            order = compare_profiles(ranking.profile, chosen_profile)
+            if walk is None or order > 0:
+                ranking = None
+            elif order < 0:
+                better = True
+                restored_rope = None
+                for act in walk.sequence:
+                    restored_rope = concat(restored_rope, leaf(act))
+                ranking.second, ranking.first = ranking.first, restored_rope
+                difference = first_difference(ranking.first, ranking.second, True) or first_difference(ranking.first, ranking.second, False)
+                assert difference is not None
+                ranking.witness = (difference[1], difference[2])
         if watch is not None:
             watch.ranked(ranking)
         if ranking is None:
@@ -813,11 +844,14 @@ class StageRunner:
                 chosen=tree,
                 completion=records,
             )
-        if ranking.verdict != "tie":
+        if ranking.verdict != "tie" and not better:
             return None
         readings = []
         original = Sources(tokens)
         for rope in (ranking.first, ranking.second):
+            if better and rope is ranking.first:
+                readings.append(tree)
+                continue
             reading = Tree(derivation(forest, rope), context.sources, context.tagtab).root
             readings.append(_map_back(reading, synthetic, project, records, record_of, original))
         # The witness, mapped to the stage's input as the readings are: a
@@ -859,6 +893,10 @@ def _rank_check(forest: Forest, marks: dict[int, set[int]] | None = None) -> Ran
     hook's marks of W(D) (tests/README.md)."""
     if not forest.roots:
         return None
+    if any(production.greedy for production in forest.lowered.productions):
+        profiles = Elisions(forest, lean="none")
+        profiles.check, profiles.marks = True, marks
+        return profiles.rank(forest.roots)
     ranker = Ranker(forest, "none")
     ranker.check = True
     ranker.marks = marks

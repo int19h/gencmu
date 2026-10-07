@@ -71,6 +71,7 @@ class Rule:
     alternatives: list[Alternative]
     document: str
     at: tuple[int, int]
+    flags: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -537,7 +538,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
                     raise _error(f"%redefine-rule {name} replaces no rule defined before it", path, at, stage)
                 changes.append(Change("replace", name, path, previous.document))
                 # The rule keeps its place (engine §3, "Numbering").
-                rules[name] = Rule(name, alternatives, path, at)
+                rules[name] = Rule(name, alternatives, path, at, list(rule["flags"]))
             else:
                 if previous is not None:
                     raise _error(
@@ -546,7 +547,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
                         at,
                         stage,
                     )
-                rules[name] = Rule(name, alternatives, path, at)
+                rules[name] = Rule(name, alternatives, path, at, list(rule["flags"]))
         for directive in dom.get("directives", []):
             name = directive["name"]
             args = list(directive.get("args", []))
@@ -707,6 +708,7 @@ class Production:
     terminal: tuple[bool, ...]
     rule_name: str
     helper: bool
+    greedy: bool = False
     elided: str | None = None
     # The test of that terminator, if it is tested; a restored token
     # sounds like the string of its = test (engine §7).
@@ -1042,6 +1044,7 @@ class _Lowerer:
             terminal=terminal,
             rule_name=self.rule_display[lhs],
             helper=alt is None,
+            greedy=alt is not None and "greedy" in self.grammar.rules[self.rule_names[lhs]].flags,
             elided=elided[0] if elided is not None else None,
             elided_test=elided[1] if elided is not None else None,
             tests=tests if any(test is not None for test in tests) else None,

@@ -37,7 +37,7 @@ from ._validate import (
 Dom = dict[str, Any]
 
 _MAPPED = frozenset(
-    """directive argument-word argument-string argument-tag rule definer rule-name body alternative guard alternative-tags
+    """directive argument-word argument-string argument-tag rule definer rule-flags rule-flag rule-name body alternative guard alternative-tags
     choice conjunction sequence primary repetition reference string tag character phoneme name tested test test-operand capture
     group optional empty tags-clause conditions-clause emits-clause opaque-clause emit-item emit-target emit-tags emit-before
     emit-after implication any-of all-of condition comparison comparator negation presence call argument term guarded-term
@@ -397,6 +397,18 @@ class DomBuilder:
         clauses, checked as a whole once it is read (engine §9)."""
         op = _DEFINERS.get(self.text(self.token(self.only(node, "definer"))), "define")
         name = self.text(self.token(self.only(node, "rule-name")))
+        flags: list[str] = []
+        flag_list = self.one(node, "rule-flags")
+        if flag_list is not None:
+            if op == "extend":
+                raise self.fail(flag_list, "%extend-rule accepts no flags")
+            for flag in self.some(flag_list, "rule-flag"):
+                value = self.text(self.token(flag))
+                if value != "greedy":
+                    raise self.fail(flag, f"unknown rule flag {value}")
+                if value in flags:
+                    raise self.fail(flag, f"duplicate rule flag {value}")
+                flags.append(value)
         # The parts of a definition are read in the order written: the body,
         # then its clauses in their fixed order, and the checks of the whole
         # definition last (engine §9).
@@ -410,7 +422,7 @@ class DomBuilder:
         emits_node = self.one(node, "emits-clause")
         emit = self.emission(emits_node) if emits_node is not None else None
         opaque = self.one(node, "opaque-clause") is not None
-        dom: Dom = {"name": name, "op": op}
+        dom: Dom = {"name": name, "op": op, "flags": flags}
         if tags is not None:
             dom["tags"] = tags
         dom["alternatives"] = alternatives
