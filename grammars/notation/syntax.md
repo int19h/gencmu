@@ -83,14 +83,20 @@ An implication is `%implies` and two terms joined by `⟹`. Each term is a union
 
 ## Rules
 
-A rule is a keyword, its name, its alternatives and its clauses, in this order. The keyword says whether the rule defines, redefines or extends the rule. A rule has at most one clause of each kind, and the clauses come in a fixed order. A rule's name is a name, or `#`, the free-modifier slot. Every list separator can also stand first, so an author can put each alternative on a line of its own that starts with `|`.
+A rule is a keyword, optional flags, its name, its alternatives and its clauses, in this order. Flags are names in parentheses. The reader accepts only `greedy` on definitions and redefinitions. It refuses empty lists, duplicates, arguments and flags on extensions. The keyword says whether the rule defines, redefines or extends the rule. A rule has at most one clause of each kind, and the clauses come in a fixed order. A rule's name is a name, or `#`, the free-modifier slot. Every list separator can also stand first, so an author can put each alternative on a line of its own that starts with `|`.
 
 ```jbogenbau
 %rule rule
-  definer rule-name body [tags-clause] [conditions-clause] [emits-clause] [opaque-clause]
+  definer [rule-flags] rule-name body [tags-clause] [conditions-clause] [emits-clause] [opaque-clause]
 
 %rule definer
   ~keyword-rule | ~keyword-redefine-rule | ~keyword-extend-rule
+
+%rule rule-flags
+  '(' {rule-flag \ ','} ')'
+
+%rule rule-flag
+  ~identifier
 
 %rule rule-name
   ~identifier | '#'
