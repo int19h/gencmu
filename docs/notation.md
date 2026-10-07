@@ -10,7 +10,7 @@ Conditions over the parts restrict which parses exist. A condition can also ask 
 
 A token is one unit that a grammar reads or emits. Examples are characters, phonemes and words. A transducer reads tokens and emits another sequence. Each rule can also say what its constituents hand to the next grammar. So a grammar is a transducer. A dialect is a pipeline of these grammars, its stages, defined by one pipeline document.
 
-A grammar is unordered: its alternatives are not ranked. Where a text has more than one parse, one rule makes the choice afterwards. The section "Ambiguity" describes that rule.
+A grammar is unordered: its alternatives are not ranked. Rule flags and the stage ranking choose among complete parses afterwards. The section "Ambiguity" describes these preferences.
 
 ## Rules
 
@@ -20,6 +20,10 @@ A grammar is a sequence of rules, directives (see "Directives"), constants (see 
 %rule sumti-tail
   [sumti-6 [relative-clauses]] sumti-tail-1 | relative-clauses sumti-tail-1
 ```
+
+A rule flag is a preference attached to a rule. `%rule(greedy) NAME` gives the rule the only supported flag, `greedy`. The flag prefers nonempty constituents among complete parses, as "Ambiguity" explains. Spaces around the parentheses and their content have no meaning. By convention, the opening parenthesis follows the keyword directly.
+
+Empty parentheses, duplicate flags, unknown flags and arguments are errors. Parentheses can contain more flags or parameters in future versions.
 
 Line breaks and indentation mean nothing. So a long list of alternatives can put each alternative on a line of its own, and every `|` can also stand first. By convention, authors indent the body by two spaces under the keyword:
 
@@ -240,6 +244,8 @@ A stage reads its input with one grammar. The loader assembles that grammar from
 So `%rule` never quietly replaces a rule. A misspelled name in `%redefine-rule` or `%extend-rule` is an error. So is a reference to a rule that no document defines. A misspelled `%rule` defines a new rule that nothing reads, and the audit (gencmu's report on a grammar) reports it as unreachable.
 
 The alternatives that an extension adds carry the extension's own clauses, not those of the base rule. The clauses of the base rule do not apply to them. So an extension says everything about what it adds. The loader, the part of gencmu that reads the documents, reports every replacement and extension: which document changed which rule. So a reader can see the effect of a dialect on its base in one place.
+
+`%extend-rule` accepts no flags and inherits the stitched rule's flag for every added alternative. `%redefine-rule(greedy)` replaces both the alternatives and the flag. A redefinition without parentheses removes the flag. Unlike clauses, the flag belongs to the whole stitched rule.
 
 The notation has no way to remove a single alternative. A rule is small enough to restate, and a restated rule reads better than a list of deletions.
 
@@ -604,7 +610,13 @@ The first stage reads the text's characters. Each is a token with one tag, its c
 
 ## Ambiguity
 
-A grammar admits every parse that its rules allow. Where a text has more than one parse, the stage's `%ambiguity-resolution` names the rule that ranks them: `greedy`, `lazy` or `late-elision`. A parse is best when no other parse beats it under that rule. If exactly one parse is best, the stage takes it. If two or more are best, they are tied, and the text is ambiguous for this grammar.
+A grammar admits every parse that its rules allow. Rule flags rank complete parses first. The stage's `%ambiguity-resolution` ranks the remaining parses with `greedy`, `lazy` or `late-elision`. A parse is best when neither comparison prefers another parse. The stage takes a sole best parse. Several best parses give an ambiguity error.
+
+A flagged occurrence is one constituent of a rule with `greedy`. A span is the range between two input token boundaries. A profile counts flagged occurrences over each nonempty span. Every named occurrence counts, including unary constituents and each chain level. Anonymous helpers and empty occurrences contribute nothing.
+
+Compare profiles by increasing start and, at each start, decreasing end. At the first span with different counts, prefer the greater count. All flagged rules contribute together, without priority by name or declaration order. Equal spans count separately, so two nested flagged occurrences beat one. An occurrence beats its absence.
+
+The comparison uses actual input tokens. A written terminator adds width, but an omitted terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every profile is zero and the behavior stays the same. Flags do not rank `matches`, `begins` or `tags` queries, or change maximal terminators.
 
 A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later stage runs. The error shows two of the tied parses. The stage shows the first point at which they differ, its witness.
 
@@ -618,13 +630,13 @@ The engine's canonical order (engine §6) orders the ambiguity diagnostics and s
 
 Some constituents are transparent to the comparison. They are the constituents with a single symbol. They are also the helpers that the notation creates for flat `{ }` and for `[ ]` without a capture. So two parses that differ only in such a relabeling do not differ yet. The levels of a chain are constituents of its rule, so a level with more than one symbol is not transparent. Where `greedy` or `lazy` must see where each step of a list ends, the grammar writes a chain or explicit recursion, not flat braces.
 
-Transparency does not merge parses, though. Two parses that differ only there are still two parses. `greedy` and `lazy` tie them. `late-elision` ties them exactly when their counts of elided terminators are equal at every position. For example, `[[X]]` matches the empty text in two ways, and `[A] & [B]` in three.
+Transparency does not merge parses, though. Two parses that differ only there are still two parses. `greedy` and `lazy` tie them when their rule profiles are equal. `late-elision` also requires equal counts of elided terminators at every position. For example, `[[X]]` matches the empty text in two ways, and `[A] & [B]` in three.
 
 The preference is like greedy and lazy quantifiers in a backtracking regular-expression engine. It is unlike the greed of a PEG parser. The preference orders the parses that the grammar already admits, and never commits early. So it never rejects a text by itself, but a tie that it leaves is an error. The earliest difference decides. And it applies to every constituent of the stage, not to one quantifier.
 
 `late-elision` looks only at the terminators that each parse elides ("Elided terminators"). In plain words, at the first place where two parses differ in leaving out a terminator, it takes the parse that reads on. It counts the elided terminators of each parse at each position, from the start of the text. At the first position where the counts differ, the parse with fewer elided terminators there wins.
 
-Two parses with the same counts at every position are tied, whatever else differs. So a stage whose parses elide nothing has a tie wherever its text has more than one parse. A token read under two tags does not decide anything, and neither do two different closes. The name of an elided terminator, and the constituent that it ends, do not count either.
+Two parses with equal rule profiles and equal counts at every position tie, whatever else differs. Without flagged rules, several parses that elide nothing always tie. A token read under two tags does not decide anything, and neither do two different closes. The name of an elided terminator, and the constituent that it ends, do not count either.
 
 For example, the experimental grammar can read `to mi klama` in two ways. One ends the parenthesis `to` after `mi`, with `vau` and `toi` elided there, and `klama` is the main predicate. The other puts `mi klama` inside the parenthesis and elides terminators only at the end. `late-elision` takes the second, because the first leaves out a terminator earlier. `greedy` leaves the two readings tied, so the text is an error under `greedy`. Before ties became errors, the canonical order took the first.
 
@@ -691,9 +703,11 @@ Then the stage parses that input again. Each elidable optional is now either res
 
 In that parse, the grammar reads the text with its terminators written back, but every condition, tag and test of a rule sees the original input. A written-back terminator has no text, no sound and no tags there. So a condition answers as it did for the chosen parse, and the chosen parse is always one reading. A test on a terminal is the one exception: `KU="ku"` reads a written-back `KU` by its sound. A test on a rule, such as `t="ku"`, sees the original input like a condition.
 
-If that parse has exactly one reading, the check passes. With two or more, the ambiguity is not about terminators, and the parse is an error that shows two readings. It never has none. If it does, that is a defect of the library, which it reports as the error `elision-witness-lost`. A tie is an error before the check runs, so the check sees only a text that the rule settled.
+The test retains the rule flags, but applies no stage preference. It counts flagged spans over original tokens through the projection of engine §7.3. Written-back terminators add no width. The restored chosen parse must be the sole reconstruction with an equal or better profile. Another such reconstruction gives an ambiguity error, never a replacement chosen parse.
 
-So the check fails only where one best parse survives, but the text with its terminators written back has two readings. The corpus measured for this decision had no such text, but that is no general guarantee. Historically, under `greedy`, `mi broda joi ke brode ke'e` was one. The CLL grammar now settles it as the official parser does. A plain joik, a joik that does not open its own `ke` group, cannot take a unit that is only a `ke` group.
+With no flagged rule, this requires exactly one reading, as before. Recognition always retains the restored chosen parse. If recognition loses it, the library reports its defect as `elision-witness-lost`. A tie ends the stage before this test.
+
+The test fails when another reconstruction has an equal or better rule profile than the chosen parse. The corpus measured for this decision had no such text, but that is no general guarantee. Historically, under `greedy`, `mi broda joi ke brode ke'e` was one. The CLL grammar now settles it as the official parser does. A plain joik, a joik that does not open its own `ke` group, cannot take a unit that is only a `ke` group.
 
 The grammars that extend CLL are really ambiguous in places. A sumti is an argument of the selbri. A term is a wider kind of argument that includes the sumti. Historically, the experimental grammar read the `mi .e do` of `mi .e do klama` in two ways. It was two sumti joined by `.e`, or two terms joined by it. Its rule that a sumti connection comes before a term connection now settles it.
 
