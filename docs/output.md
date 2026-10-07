@@ -116,7 +116,7 @@ A grammar DOM (document object model) is the parsed form of a grammar document (
 
 `format` is the version of the DOM. It changes whenever the shape of the DOM changes. A library never uses a cached DOM of another version. Format 19 adds `flags` to every rule definition. Format 18 introduced braces and elidable optional markers.
 
-A library rejects cached DOMs and bootstraps with another format. The cache identity also includes the bootstrap hash (engine §8).
+A library skips cached DOMs with another format and rejects bootstraps with another format. The cache identity also includes the bootstrap hash (engine §8).
 
 A rule is `{"name":"sumti","op":"define","flags":[],"tags":TERM,"alternatives":[ALT...],"emit":EMIT,"conditions":[COND...],"opaque":true,"at":[line,column]}`. `op` is `define`, `redefine` or `extend`. `tags`, `emit` and `opaque` are optional. `opaque` is present, and `true`, only for a rule that has `%opaque`. The name of a rule is a name, or `#`.
 

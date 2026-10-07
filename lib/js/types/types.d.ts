@@ -145,6 +145,9 @@ export type WitnessClose = {
      * the number of the production (engine §3)
      */
     production: number;
+    /**
+     * whether the production is a helper's
+     */
     helper: boolean;
     /**
      * the tokens that the production covers
@@ -796,8 +799,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {string} rule the rule of the production; for a helper, the
  *   rule whose alternative introduced it
  * @property {number} production the number of the production (engine §3)
- * @property {boolean} helper
-
+ * @property {boolean} helper whether the production is a helper's
  * @property {Span} span the tokens that the production covers
  */
 /**
