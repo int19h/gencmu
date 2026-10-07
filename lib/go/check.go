@@ -227,11 +227,38 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	}
 	// Maximality does not apply to R, and the check ranks with no
 	// lean (§7.7).
+	var restored *dn
+	var chosenProfile ruleProfile
+	flagged := false
+	for _, rule := range g.rules {
+		flagged = flagged || rule.greedy
+	}
+	if flagged {
+		chosenProfile = derivationProfile(g, d)
+		_, restored = walkWitness(&elisionCheckRun{chosen: d, rec: r, top: top, recon: rc, originalAt: originalAt, recordAt: recordAt})
+		if restored == nil {
+			top = nil
+		}
+	}
 	var res *rankResult
 	rk := newRanker(r, "", nil)
 	rk.check, rk.marks = true, watch.marks
 	if len(top) > 0 && private.loseWitness != "count" {
 		res = rk.rank(top)
+	}
+	if res != nil && flagged {
+		switch c := compareProfiles(res.profile, chosenProfile); {
+		case c > 0:
+			res = nil
+		case c < 0:
+			res.second, res.first = res.first, restored
+			diff := rk.compare(res.first, res.second)
+			if diff.kind == cVisDiff {
+				res.witness = [2]action{diff.va, diff.vb}
+			} else {
+				res.witness = [2]action{diff.wa, diff.wb}
+			}
+		}
 	}
 	if watch.ranked != nil {
 		watch.ranked(res, rk)
@@ -278,7 +305,11 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 		}
 		return root
 	}
-	readings := []*Node{mapTree(over.buildTree(r, res.first)), mapTree(over.buildTree(r, res.second))}
+	first := tree
+	if !flagged || compareProfiles(res.profile, chosenProfile) >= 0 {
+		first = mapTree(over.buildTree(r, res.first))
+	}
+	readings := []*Node{first, mapTree(over.buildTree(r, res.second))}
 	// The witness, mapped to O as the readings are: a read of a synthetic
 	// token is an elided action at its record's position, and a close has
 	// the projection of its span (§7.10).

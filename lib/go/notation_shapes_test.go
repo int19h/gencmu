@@ -120,7 +120,7 @@ func TestNotationShapes(t *testing.T) {
 		var wrappers strings.Builder
 		for i, name := range names {
 			syntax = strings.ReplaceAll(syntax, `{"ref":"`+name+`"}`, `{"ref":"`+name+`-wrapper"}`)
-			fmt.Fprintf(&wrappers, `{"name":"%s-wrapper","op":"define","alternatives":[{"guards":[],"expr":{"ref":"%s"}}],"conditions":[],"at":[%d,1]},`, name, name, 100000+i)
+			fmt.Fprintf(&wrappers, `{"name":"%s-wrapper","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"ref":"%s"}}],"conditions":[],"at":[%d,1]},`, name, name, 100000+i)
 		}
 		return strings.Replace(syntax, `"rules":[`, `"rules":[`+wrappers.String(), 1)
 	})

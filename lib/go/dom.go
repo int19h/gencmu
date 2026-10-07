@@ -8,7 +8,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 18
+const domFormat = 19
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -60,6 +60,7 @@ type domConst struct {
 
 type domRule struct {
 	Name         string
+	Flags        []string
 	Op           string // "define", "redefine" or "extend"
 	Tags         *domTerm
 	Alternatives []*domAlt
@@ -363,6 +364,14 @@ func (r *domRule) writeJSON(w *jsonWriter) {
 	w.str(r.Name)
 	w.raw(`,"op":`)
 	w.str(r.Op)
+	w.raw(`,"flags":[`)
+	for i, flag := range r.Flags {
+		if i > 0 {
+			w.raw(",")
+		}
+		w.str(flag)
+	}
+	w.raw("]")
 	if r.Tags != nil {
 		w.raw(`,"tags":`)
 		r.Tags.writeJSON(w)
@@ -864,6 +873,9 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 	}
 	if r.Op, err = decodeString(o["op"]); err != nil {
 		return nil, err
+	}
+	if r.Flags, err = decodeList(o["flags"], decodeString); err != nil {
+		return nil, fmt.Errorf("a malformed rule flag list")
 	}
 	if r.At, err = decodePosition(o["at"]); err != nil {
 		return nil, fmt.Errorf("a malformed rule")

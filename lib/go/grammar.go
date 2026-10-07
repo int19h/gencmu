@@ -32,10 +32,11 @@ type stitchChange struct {
 }
 
 type sRule struct {
-	name string
-	alts []*sAlt
-	doc  string
-	at   [2]int
+	flags []string
+	name  string
+	alts  []*sAlt
+	doc   string
+	at    [2]int
 }
 
 // sAlt is an alternative with the clauses of the rule statement that wrote
@@ -101,7 +102,7 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 				if existing != nil {
 					return nil, fail(d.path, r.At, "%%rule %s is already defined, in %s; %%redefine-rule replaces a rule", r.Name, existing.doc)
 				}
-				nr := &sRule{name: r.Name, alts: alts, doc: d.path, at: r.At}
+				nr := &sRule{flags: r.Flags, name: r.Name, alts: alts, doc: d.path, at: r.At}
 				g.rules = append(g.rules, nr)
 				g.byName[r.Name] = nr
 			case "redefine":
@@ -112,7 +113,7 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 				}
 				// The replacement keeps the place of the rule it replaces.
 				g.changes = append(g.changes, stitchChange{r.Name, d.path, "replace"})
-				existing.alts, existing.doc, existing.at = alts, d.path, r.At
+				existing.alts, existing.doc, existing.at, existing.flags = alts, d.path, r.At, r.Flags
 			case "extend":
 				if existing == nil {
 					return nil, fail(d.path, r.At, "%%extend-rule %s extends a rule not defined before it", r.Name)

@@ -251,7 +251,7 @@ type domBuilder struct {
 // place.
 var domRules = map[string]bool{
 	"rule-name": true, "body": true, "primary": true, "emit-target": true, "condition": true, "argument": true, "term-atom": true,
-	"directive": true, "rule": true, "definer": true, "alternative": true, "choice": true,
+	"directive": true, "rule": true, "definer": true, "rule-flags": true, "rule-flag": true, "alternative": true, "choice": true,
 	"conjunction": true, "sequence": true, "repetition": true, "reference": true,
 	"string": true, "tag": true, "character": true, "phoneme": true, "name": true,
 	"tested": true, "test": true, "test-operand": true, "capture": true, "group": true, "optional": true,
@@ -581,7 +581,7 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	// The definer, the name, the alternatives and the clauses; the syntax
 	// allows at most one of each clause, in order.
 	definer := b.token(b.only(n, "definer"))
-	r := &domRule{Name: b.text(b.token(b.only(n, "rule-name"))), At: b.at(definer), Conditions: []*domCond{}}
+	r := &domRule{Name: b.text(b.token(b.only(n, "rule-name"))), At: b.at(definer), Conditions: []*domCond{}, Flags: []string{}}
 	switch b.text(definer) {
 	case "%redefine-rule":
 		r.Op = "redefine"
@@ -589,6 +589,21 @@ func (b *domBuilder) rule(n *Node) *domRule {
 		r.Op = "extend"
 	default:
 		r.Op = "define"
+	}
+	if list := one(n, "rule-flags"); list != nil {
+		if r.Op == "extend" {
+			b.fail(list, "%%extend-rule accepts no flags")
+		}
+		for _, flag := range b.some(list, "rule-flag", 1) {
+			name := b.text(b.token(flag))
+			if name != "greedy" {
+				b.fail(flag, "unknown rule flag %s", name)
+			}
+			if len(r.Flags) > 0 {
+				b.fail(flag, "duplicate rule flag %s", name)
+			}
+			r.Flags = append(r.Flags, name)
+		}
 	}
 	// The parts of a definition are read in the order written: the body,
 	// then its clauses in their fixed order, and the checks of the whole

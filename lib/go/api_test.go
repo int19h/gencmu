@@ -684,7 +684,7 @@ func TestMalformedPrecompiled(t *testing.T) {
 	format := strconv.Itoa(domFormat)
 	var doms []string
 	for _, expr := range bad {
-		doms = append(doms, `{"format":`+format+`,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":`+expr+`}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`)
+		doms = append(doms, `{"format":`+format+`,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":`+expr+`}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`)
 	}
 	// Null in the rest of the DOM, where the other libraries refuse it too.
 	good := doms[0][:strings.Index(doms[0], `"expr":`)] + `"expr":{"seq":[{"terminal":"a"},{"terminal":"b"}]}}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[{"name":"K","op":"define","value":{"tag":"X"},"at":[3,1]}],"classifiers":[],"implications":[]}`
@@ -747,7 +747,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 	gText := sources["g.md"]
 	format := strconv.Itoa(domFormat)
 	dom := func(expr string) string {
-		return `{"format":` + format + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
+		return `{"format":` + format + `,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
 	}
 	compiled := func(dom string) map[string]string {
 		src := map[string]string{}
@@ -997,7 +997,7 @@ func TestEmptyCharacterTag(t *testing.T) {
 		t.Fatalf("expected an error at 5:12, got %v", err)
 	}
 	loadBundled()
-	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"terminal":""}}],"conditions":[],"at":[1,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
+	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"terminal":""}}],"conditions":[],"at":[1,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
 	if _, err := decodeDOM([]byte(dom), bundled.uni); err == nil {
 		t.Fatal("a DOM with the terminal \"\" is accepted")
 	}

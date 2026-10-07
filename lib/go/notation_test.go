@@ -546,7 +546,7 @@ func TestFormat17Refused(t *testing.T) {
 		t.Fatal(err)
 	}
 	dom := func(format int, expr string) string {
-		return `{"format":` + strconv.Itoa(format) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
+		return `{"format":` + strconv.Itoa(format) + `,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
 	}
 	entry := func(format int, d string) string {
 		return `{"format":` + strconv.Itoa(format) + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"0","dom":` + d + `}}}`
