@@ -82,9 +82,9 @@ To stitch a stage's items, the loader reads them in order, whatever documents th
 
 When `%extend-rule` extends a rule, each appended alternative carries the extension's own clauses: its rule-level tags, conditions and emission. These clauses apply to the appended alternatives alone, and the base rule's clauses do not apply to them. The earlier alternatives keep their own clauses. So a script document can add letters to a rule without restating its clauses, and its own clauses do not leak into the base rule. A definition is a `%rule`, `%redefine-rule` or `%extend-rule` statement: its alternatives and the clauses written with them. The loader records every replacement and extension.
 
-A rule flag gives a rule a preference. Only `greedy` is supported. `%rule(greedy)` defines a flagged rule, and `%redefine-rule(greedy)` replaces its body and flag. A definition or redefinition without parentheses gives the rule no flags. `%extend-rule` accepts no flags and inherits the stitched rule's flag for all added alternatives. Flags belong to the rule, while clauses belong to each definition.
+A rule flag gives a rule a preference. Only `greedy` is supported. `%rule(greedy)` defines a flagged rule, and `%redefine-rule(greedy)` replaces its body and flag. A `%rule` or `%redefine-rule` without parentheses gives the rule no flags. `%extend-rule` accepts no flags and inherits the stitched rule's flag for all added alternatives. Flags belong to the rule, while clauses belong to each definition.
 
-Parentheses follow the keyword and precede the name. Their only accepted content is `greedy`, with optional surrounding spaces. Empty parentheses, duplicates, unknown flags, arguments and parentheses on `%extend-rule` are errors of the document.
+Parentheses follow the keyword and precede the name. Their only accepted content is `greedy`, with optional surrounding spaces. Empty parentheses, duplicates, unknown flags, arguments and parentheses on `%extend-rule` are errors of the document. Section 9 gives their priority and positions.
 
 The loader collects directives from all the stage's items. `%stage`, `%include` and `%features` shape the pipeline (§13) and do not belong to a stage. The other directive, `%ambiguity-resolution`, belongs to the stage.
 
@@ -140,7 +140,7 @@ This section writes productions as `lhs → symbols`. This is not jbogenbau, the
 
 Lowering turns a grammar, given the set of enabled features, into a context-free grammar of productions. The lowered grammar is what the parser runs. Lowering decides nothing that a user can observe, except through §4-§6 and its errors. For the same features, the stage also resolves its classifiers (§2).
 
-Every production of a named rule records the stitched rule's flags. Productions from extensions, expanded alternatives and recursive chain levels all carry them. Helpers carry no flags. Flags change no recognition, nullability, symbol test or default tag. A flagged unary close stays transparent in the action comparison, but its occurrence contributes to the profile (§6).
+Every production of a named rule records the stitched rule's flags. Productions from extensions, expanded alternatives and recursive chain levels all carry them. Helpers carry no flags. Flags change no recognition, nullability, symbol test or default tag. A close of a flagged production with one symbol does not affect the action comparison. Its occurrence still contributes to the rule profile (§6).
 
 A stage lowers its grammar when a parse gives it the enabled features. So a dialect whose documents read and stitch loads, whatever errors lowering finds for some features. An error that lowering finds is an error of the grammar for the features of that parse. It ends the stage as the stage's result, as other errors found while parsing do. The stage has no verdict, no tree and no output, and no later stage runs.
 
@@ -433,7 +433,9 @@ In the check of §7, `phonemes(span)` and `text(span)` read the projected span, 
 
 ## 6. Choosing a parse
 
-A stage ranks the counted derivations of its input (§4). Rule flags rank them first. The directive (§2), `greedy`, `lazy` or `late-elision`, ranks only derivations with the greatest rule profile, the counts of nonempty flagged spans. A derivation is best when neither comparison prefers another one. The verdict is one of these:
+A stage ranks the counted derivations of its input (§4). A rule profile counts flagged constituents over nonempty spans. Rule flags compare rule profiles first. Of two derivations with different rule profiles, the one with the greater rule profile beats the other. Of two with equal rule profiles, the one that the directive prefers beats the other. A derivation is best if no other derivation beats it.
+
+The directive (§2) is `greedy`, `lazy` or `late-elision`. The verdict is one of these:
 
 - `unique` if the input has one derivation
 - `resolved` if it has several, and exactly one of them is best
@@ -441,13 +443,13 @@ A stage ranks the counted derivations of its input (§4). Rule flags rank them f
 
 Under `unique` and `resolved`, the chosen derivation is the one best derivation. Under `resolved`, it beats every other derivation (below). A tie is an error, and the stage then has no chosen derivation. The production numbers of §3 never decide which derivation a stage chooses.
 
-A rule profile counts flagged constituents over nonempty spans. For N input tokens and boundaries `0 ≤ p < q ≤ N`, `G_D(p,q)` counts D's flagged occurrences over `[p,q)`. Every named occurrence contributes once, however many symbols its production has. Empty occurrences contribute nothing, and helpers carry no flags. All flagged rules contribute together, without priority by name, production number, tags or source.
+For N input tokens, the boundaries are `0 ≤ p < q ≤ N`. `G_D(p,q)` counts D's constituents of flagged rules over `[p,q)`. Every occurrence of a flagged rule contributes once, however many symbols its production has. Empty occurrences contribute nothing, and helpers carry no flags. All flagged rules contribute together, without priority by name, production number, tags or source.
 
-Compare components by increasing p and, within one p, decreasing q. At the first differing count, the greater count wins. Equal vectors give equal profiles. Every two profiles are equal or one of them wins. Distinct derivations can share one profile.
+Compare components by increasing p and, within one p, decreasing q. At the first differing count, the greater count wins. Equal vectors give equal rule profiles. Every two rule profiles are equal or one of them wins. Distinct derivations can share one rule profile.
 
-An occurrence beats absence, and equal spans count separately. With no flagged rule, every profile is zero and behavior stays the same.
+An occurrence beats absence, and equal spans count separately. With no flagged rule, every rule profile is zero, so the directive alone ranks.
 
-The stage retains every derivation with the greatest profile before applying its directive. The total before filtering still determines `unique`. The remaining comparison of actions and elisions applies within that retained forest.
+The stage retains every derivation with the greatest rule profile before applying its directive. The total before filtering still determines `unique`. The remaining comparison of actions and elisions applies within that retained forest.
 
 A derivation is read as its sequence of actions in bottom-up order. An action is a read of a token as a terminal, or a close of a production over a span. Closes of helper productions and of productions with exactly one symbol are transparent. They are part of the sequence, but two sequences never differ at one. The other actions are visible.
 
@@ -471,7 +473,7 @@ Under `greedy` and `lazy`, the stage compares two derivations of the same input 
 
 If the visible sequences are equal, or one is a proper prefix of the other, the two are tied. For the witness below, their first difference is the first pair of differing actions of the whole sequences, transparent ones included. A derivation whose visible sequence is a proper prefix of the other's differs from it where the shorter ends.
 
-Among equal rule profiles, a ranking with no lean compares two derivations in the same way, but rule 2 ties them too. Any two remaining derivations that differ are tied. The test of §7 uses no lean after rule profiles. So do the readings of a tie under `late-elision` (below). A directive cannot name it. In the check, a restoration is a read of its synthetic token and then the close of its empty production (§7.4, §7.7).
+Among equal rule profiles, a ranking with no lean compares two derivations in the same way, but rule 2 ties them too. Any two remaining derivations that differ are tied. The check of §7 uses no lean after rule profiles. So do the readings of a tie under `late-elision` (below). A directive cannot name it. In the check, a restoration is a read of its synthetic token and then the close of its empty production (§7.4, §7.7).
 
 Among equal rule profiles, `late-elision` compares only the elided terminators (§4). Let the input have N tokens. A boundary is a position from 0 to N. The elision vector of a derivation has one component for each boundary. The component at boundary `p` is the number of the derivation's elided terminators at position `p`.
 
@@ -491,7 +493,7 @@ At the first differing pair of projected actions, `read(p)` and `end(N)` beat `e
 
 So under `late-elision`, a token read as two terminals does not stop the comparison, as rule 1 does. Two different closes do not stop it either, as rule 3 does. The preference does not depend on the age, the nesting or the name of a terminator.
 
-The stage puts the derivations in a canonical order, *T*. *T* orders the ambiguity diagnostics and selects the forbidden terminator that a maximality rejection reports (§4). The canonical tie-break keys never turn a tie into an accepted reading. First, *T* puts greater rule profiles before lesser ones. Within an equal profile, `greedy`, `lazy` and no lean compare visible sequences:
+The stage puts the derivations in a canonical order, *T*. *T* orders the ambiguity diagnostics and selects the forbidden terminator that a maximality rejection reports (§4). The canonical tie-break keys never turn a tie into an accepted reading. First, *T* puts greater rule profiles before lesser ones. Within an equal rule profile, `greedy`, `lazy` and no lean compare visible sequences:
 
 - *T* compares them at their first differing visible pair, by rules 1 to 3 where those decide, and otherwise by the canonical keys. The canonical keys put a read before a close. They order two reads by terminal, in code point order. They order two closes by production number, then span start, then span end.
 - If one visible sequence is a proper prefix of the other, the shorter comes first.
@@ -499,9 +501,9 @@ The stage puts the derivations in a canonical order, *T*. *T* orders the ambigui
 
 Within an equal rule profile, `late-elision` compares elision vectors in *T*, the lesser first. It orders two derivations with equal vectors as it does under no lean.
 
-*T* compares profiles, then elision vectors under `late-elision`, then visible sequences and whole sequences. So it is a total order. The first reading, `m`, is its least element, whatever the verdict.
+*T* compares rule profiles, then elision vectors under `late-elision`, then visible sequences and whole sequences. So it is a total order. The first reading, `m`, is its least element, whatever the verdict.
 
-Nothing beats `m`. Under `greedy` and `lazy`, whatever beats a derivation precedes it in *T*. Under `late-elision`, *T* puts greater profiles first and least elision vectors next. So `m` is best.
+Every derivation that beats another precedes it in *T*. This holds for a greater rule profile and for the directive's preference within equal rule profiles. Nothing precedes `m`, so nothing beats it. So `m` is best.
 
 A distinct derivation `d` is tied with `m` when `m` does not beat `d`. So `m` is never tied with itself. Under `greedy` and `lazy`, a best derivation other than `m` is tied with `m`, since its first difference with `m` is a tie. The converse does not hold. Under `late-elision`, the derivations tied with `m` are exactly the other best derivations.
 
@@ -509,7 +511,9 @@ For example, take `text → A C D | p D | B q`, `p → B C` and `q → C D`, ove
 
 Of the distinct derivations tied with `m`, the second reading is the one that diverges from `m` earliest. It has the fewest visible actions before its first visible difference with `m`. A derivation whose visible sequence is a proper prefix or an extension of `m`'s diverges where the shorter ends. One whose visible sequence equals `m`'s diverges last. Several that diverge at the same point are ordered by *T*. That derivation, `t`, is best.
 
-Under `late-elision`, `t` is best because its profile and elision vector equal those of `m`. Under `greedy` and `lazy`, the proof is as follows. Suppose that another derivation beats `t`. It is not `m`, since `m` does not beat `t`.
+Since `m` does not beat `t`, both have the same rule profile. A derivation with a greater rule profile than `t` also precedes `m` in *T*. Nothing precedes `m`, so no such derivation exists.
+
+Under `late-elision`, `t` is best because its rule profile and elision vector equal those of `m`. Under `greedy` and `lazy`, the proof is as follows. Suppose that another derivation beats `t`. It is not `m`, since `m` does not beat `t`.
 
 If it beats `t` before `t` diverges from `m`, it beats `m`, which nothing does. If it beats `t` later, it shares `t`'s divergence from `m`. If it beats `t` just where `t` diverges, it beats `m` there too, or it is tied with `m` there. This is because an action that beats one tied with `m`'s cannot lose to `m`'s. Either way, it is a distinct derivation tied with `m`, diverges no later than `t`, and precedes `t` in *T*.
 
@@ -542,21 +546,21 @@ Under every ranking rule, the verdict needs the total, the number of eligible de
 
 The implementation can keep the total in each summary, or compute it apart with the same rules. Either way, it computes the total before it drops any losing edge. A ranking of the best derivations alone cannot give the total.
 
-A profile composes by addition. An edge adds its children's profiles and its own completed flagged occurrence, if any. Adding a common profile preserves comparison and equality. Each summary retains its greatest profile and every edge that attains it, with the same eligibility and cycle contexts. Counts before filtering remain separate from counts of preferred derivations.
+A rule profile composes by addition. An edge adds its children's rule profiles and its own completed flagged occurrence, if any. Adding a common rule profile preserves comparison and equality. Each summary retains its greatest rule profile and every edge that attains it, with the same eligibility and cycle contexts. Counts before filtering remain separate from counts of preferred derivations.
 
-For `greedy` and `lazy`, the existing action summaries run over the forest of greatest profiles. For `late-elision`, each summary compares one key, the pair of its rule profile and elision vector. Compare the pair by its profile first, with the greater profile preferred. Within an equal profile, prefer the lesser elision vector. The count of preferred derivations and the retained edges follow this pair. Diagnostic selection uses no lean over the retained forest.
+For `greedy` and `lazy`, the action summaries of this section run over the forest of greatest rule profiles. For `late-elision`, each summary compares one key, the pair of its rule profile and elision vector. Compare the pair by its rule profile first, with the greater rule profile preferred. Within an equal rule profile, prefer the lesser elision vector. The count of preferred derivations and the retained edges follow this pair. Diagnostic selection uses no lean over the retained forest.
 
 Under `greedy`, `lazy` and no lean, both `m` and the earliest-diverging tied derivation compose over the retained forest. An implementation keeps, in each summary, its *T*-least derivation and the earliest-diverging derivations tied with it. It keeps several candidates side by side while their order is not yet settled, since what follows decides. Their order is not settled while one's visible sequence is a prefix of another's. It is also not settled while their visible sequences are equal and one whole sequence is a prefix of the other.
 
 One candidate can beat another under `greedy` or `lazy`. Then the loser's tied derivation stays tied with the winner exactly when it diverged from the loser before the point where the winner beat it. One that diverged there is beaten there too. So the number of derivations, which can be exponential, never matters.
 
-Under `late-elision`, elision vectors compose by addition. The vector of a derivation through an edge is the sum, component by component, of the vectors of the derivations of its children. A completed helper of an elidable optional that derives ε at `p` has the vector that is one at `p` and zero elsewhere. Adding one vector to two others keeps their order. Adding a common profile also keeps profile order. So in a best derivation, each child has the best profile and elision pair that its context allows.
+Under `late-elision`, elision vectors compose by addition. The vector of a derivation through an edge is the sum, component by component, of the vectors of the derivations of its children. A completed helper of an elidable optional that derives ε at `p` has the vector that is one at `p` and zero elsewhere. Adding one vector to two others keeps their order. Adding a common rule profile also keeps rule profile order. So in a best derivation, each child has the best rule profile and elision pair that its context allows.
 
-The best count counts derivations attaining this pair. The count stops at two. A `late-elision` summary holds its best profile and elision pair and its best count. Within one edge, the children's profiles and elision vectors add, and their best counts multiply. The edge adds its own completed occurrence and elision, if any. Over one summary's edges, keep the preferred pair or add best counts where the pairs are equal.
+The best count counts derivations attaining this pair. The count stops at two. A `late-elision` summary holds its best rule profile and elision pair and its best count. Within one edge, the children's rule profiles and elision vectors add, and their best counts multiply. The edge adds its own completed occurrence and elision, if any. Over one summary's edges, keep the preferred pair or add best counts where the pairs are equal.
 
-The root compares its items by the same profile and elision pair. A total of two with a best count of one is `resolved`. A best count of two is a tie. This holds also when two items of `text` each have one derivation with the same best pair.
+The root compares its items by the same rule profile and elision pair. A total of two with a best count of one is `resolved`. A best count of two is a tie. This holds also when two items of `text` each have one derivation with the same best pair.
 
-The best derivations form a smaller forest. For each summary, the implementation keeps the edges that attain its best profile and elision pair. Each kept edge leads to the summaries of its children, in their own contexts. The stage finds `m` and `t` by a ranking with no lean over that forest. That ranking keeps the same contexts, so it reaches a child only through the summary that its context allows.
+The best derivations form a smaller forest. For each summary, the implementation keeps the edges that attain its best rule profile and elision pair. Each kept edge leads to the summaries of its children, in their own contexts. The stage finds `m` and `t` by a ranking with no lean over that forest. That ranking keeps the same contexts, so it reaches a child only through the summary that its context allows.
 
 For example, take `text → [A] y [++T] B` and `y → A A | A A B | A [+U]`. On `A A B`, the least prefix before `[++T]` over all edges uses `y → A A` and elides nothing. The maximal terminator forbids `T` after it, because `y → A A B` ends later. The only eligible prefix reads the first `A` alone and uses `y → A [+U]`. A forest of the least edges over all derivations loses the only derivation that counts.
 
@@ -570,7 +574,7 @@ The check runs where the stage's verdict is `resolved` and the check is on. It i
 
 A tie never reaches it, because a tie ends the stage first. It does not run for `unique`. An error of the grammar found while emitting ends the stage before it. A caller can switch the check off for a stage that declares it.
 
-The test asks whether D's restored witness is the sole reconstruction with an equal or better rule profile. It chooses no replacement derivation and tests no other restoration.
+The check asks whether D's restored witness is the sole reading of R with an equal or better rule profile. It chooses no replacement derivation and checks no other restoration.
 
 The check uses the main parse's lowered grammar, features, classifiers, constants and Unicode table. It does not lower the grammar again, and it does not run earlier stages again.
 
@@ -663,7 +667,7 @@ A constituent's tags are its production's tag terms, evaluated over its own capt
 
 A test of a reference reads the reference's projected span and its constituent's tags. `t="s"` compares `s` with the canonical sound of the projected span, and the four tag tests read the constituent's tags. A test of a terminal reads the token that the terminal reads, with its recognition values. This is the one observation that reads a synthetic token's values. Recognition reads them too, to match a terminal and to restore (§7.4). It lets `T="ta"` read a written-back `T="ta"`.
 
-So a terminal and a unary rule over it differ under a test in the check. `T="ta"` reads a synthetic `T` whose saved sound is ta. `t="ta"`, with `t → T`, does not read it, because the projected sound of `t` is empty. `T⊇T` and `t⊇T` differ in the same way.
+So a terminal and a rule with one symbol differ under a test in the check. `T="ta"` reads a synthetic `T` whose saved sound is ta. `t="ta"`, with `t → T`, does not read it, because the projected sound of `t` is empty. `T⊇T` and `t⊇T` differ in the same way.
 
 The difference is deliberate. A test of a reference must read the original input. Otherwise the chosen derivation loses its witness where its span holds a written-back terminator (§7.8).
 
@@ -691,13 +695,13 @@ Cycles are found over spans of R, as §4 says. Two constituents of one rule whos
 
 Maximality does not apply to the derivations of R. A restoration reads a token, so the reconstruction has no elided terminator, and nothing for maximality to forbid. The queries of §7.6 keep their own policy.
 
-The test ranks R's derivations by rule profiles over projected spans `[π(a),π(b))` in O. Empty projected occurrences contribute nothing. Distinct occurrences with equal projected spans count separately. The stage's directive supplies no preference. Within an equal profile, diagnostics use no lean (§6). Elision vectors are all zero.
+The check ranks R's derivations by rule profiles over projected spans `[π(a),π(b))` in O. Empty projected occurrences contribute nothing. Distinct occurrences with equal projected spans count separately. The stage's directive supplies no preference. Within an equal rule profile, diagnostics use no lean (§6). Elision vectors are all zero.
 
 A restoration's read of its synthetic token is a read action, and its close is the close of a helper, which is transparent. Section 7.10 selects the error's readings. The canonical keys never turn a tie into a pass. Derivations whose trees are equal over O are still distinct derivations.
 
 An error of the grammar met while the check recognizes R is the result's error, as one met while emitting is (§11). This includes an error in a competing derivation that only the check reaches. The stage keeps its verdict and warnings, but it has no output.
 
-W(D), the restored witness (§7.8), has profile G_D because each occurrence projects to its original span. The test follows the decision order of §7.10. It first requires W(D) to be a counted derivation. A greatest profile below G_D proves its loss, but a greater profile does not excuse its loss. Without flagged rules, a passing test requires exactly one reconstruction, as before.
+W(D), the restored witness (§7.8), has rule profile G_D because each occurrence projects to its original span. The check follows the decision order of §7.10. A greatest rule profile below G_D proves its loss, but a greater rule profile does not excuse its loss. With no flagged rule, the check passes only when R has exactly one counted reading.
 
 ### 7.8 The witness
 
@@ -722,9 +726,9 @@ So, unless an error of the grammar ends the check, R has at least one derivation
 
 The theorem does not excuse errors. A competing derivation can meet an error of the grammar, such as a `split` with an empty delimiter, that D never met. That error is the result's (§7.7).
 
-### 7.9 A reconstruction with no reading
+### 7.9 A lost witness
 
-A check that ends without an error of the grammar and finds no derivation of R does not hold the witness of §7.8. This is a defect of the library, not a property of the text. The result is an error of kind `grammar` with the code `elision-witness-lost`:
+Suppose that the check ends without an error of the grammar. If W(D) is not among the counted derivations of R, the check loses the witness of §7.8. A chart with no counted derivation of R is one such case. The check can omit the membership test without flags (§7.10). A lost witness is a defect of the library, not a property of the text. The result is an error of kind `grammar` with the code `elision-witness-lost`:
 
 ```json
 {"kind":"grammar","stage":"syntax","code":"elision-witness-lost",
@@ -743,22 +747,22 @@ The error has no `token`, `source`, `line`, `column`, `expected`, `reason` or `r
 
 `ok` is false and `tree` is null. The stage keeps its verdict, `resolved`, and its warnings, but it has no output, and no later stage runs. Both a chart with no completed item of `text` over R and one whose items of `text` have no derivation that counts give this error. An error of the grammar met during the check is never this error.
 
-The message is the same in every library. The engine never passes a check whose witness is lost, and it never shows D's tree as a reading of R in its place.
+The message is the same in every library. The engine never passes a check after it detects a lost witness. It never shows D's tree as a reading of R in its place.
 
 ### 7.10 Readings
 
-The test makes these decisions in order:
+The check makes these decisions in order. With no flagged rule, a library can omit the membership test in step 1 because §7.8 proves that W(D) counts. It still reports a forest with no counted derivation as `elision-witness-lost`.
 
-1. If W(D) is not a counted derivation, report `elision-witness-lost` (§7.9). A greatest profile below G_D proves this loss. A greater profile does not replace W(D).
-2. Otherwise, if the greatest profile exceeds G_D, report `ambiguous` with reason `elision-only` and `ok` false. The first reading is W(D). The second is the no-lean canonical first derivation with the greatest profile.
+1. If W(D) is not a counted derivation, report `elision-witness-lost` (§7.9). A greatest rule profile below G_D proves this loss. A greater rule profile does not replace W(D).
+2. Otherwise, if the greatest rule profile exceeds G_D, report `ambiguous` with reason `elision-only` and `ok` false. The first reading is W(D). The second is the no-lean canonical first derivation with the greatest rule profile.
 3. Otherwise, if several derivations attain G_D, report the same ambiguity error. The readings are the no-lean canonical pair from that retained forest (§6).
-4. Otherwise, the test passes.
+4. Otherwise, the check passes and preserves the main result.
 
-A better reconstruction never replaces D. Each reading is a tree over O, and the error carries their action witness.
+A reading with a greater rule profile never replaces D. In either ambiguity outcome, each reading is a tree over O, and the error carries their action witness.
 
-The result's `tree` is null. The stage keeps its verdict, output and warnings, since it accepted its input and chose its derivation. The error has no `token` or `source`.
+In either ambiguity outcome, the result's `tree` is null. The stage keeps its verdict, output and warnings, since it accepted its input and chose its derivation. The error has no `token` or `source`. Section 7.9 gives the result fields for witness loss.
 
-The two readings are two derivations of R, but they can be equal as trees over O. For example, one reading can restore an optional. The other reading can read the same synthetic token as a bare terminal, in a production with the same tree. So the error also has a witness, as a tie has (§6). It is the pair of actions at the first difference between the two derivations of R, visible if there is one, mapped to O:
+In either ambiguity outcome, the two readings are two derivations of R, but they can be equal as trees over O. For example, one reading can restore an optional. The other reading can read the same synthetic token as a bare terminal, in a production with the same tree. So the error also has a witness, as a tie has (§6). It is the pair of actions at the first difference between the two derivations of R, visible if there is one, mapped to O:
 
 - A read of an original token is a read of that token's index in O.
 - A read of a synthetic token is an `elided` action of its record's terminal at the record's position in O.
@@ -927,7 +931,7 @@ A document can hold several errors. The reader reports one, and every reader cho
    - An `&`: more than 16 items, at the `&` construct, that is, at its first item. This comes before any of its items, since the bound is its own form. So an `&` of 17 items is an error at its first item, whatever error a later item holds.
    - Braces: first two markers, at the second, or a marker after the separator, at that marker. Then a chain that is not the whole expression of its alternative, at its `{`. Last, the item and the separator. So `A {$c(B) ... \ S}` is an error at the `{`, although its marker follows the capture.
 3. The names that a production reads twice come after the whole expression of the alternative, by the rule below, and before the alternative's own tags.
-4. A definition is checked in the order in which it is written. Its alternatives come first, each with its guards, its expression and then its own tags. Then come its clauses, in their fixed order: `%tags`, `%conditions`, `%emits` and `%opaque`.
+4. A definition's header comes before its alternatives. The reader looks up its `definer`, then its `rule-name`, then its optional `rule-flags`, and checks the flags. Its alternatives follow, each with its guards, its expression and then its own tags. Then come its clauses, in their fixed order: `%tags`, `%conditions`, `%emits` and `%opaque`.
 
    Each clause has its own errors. Examples are tags made of the constituent's own tags, a comparison whose sides do not fit, and `$` beside another item of an emission. Such an error stands at the clause, or at the part of it that is wrong. These errors come in the order of the text. The checks of the whole definition below come last, and they stand at the definition.
 5. The bound on nesting is 256 compound nodes. The loader checks it on the DOM of the whole document, after the reader reads every item without an error. So every other error of reading comes before it, in any item. That includes an error inside the deep part, and one in a later item. Among the items too deep, the first decides, as the paragraph of that error says.
@@ -940,6 +944,7 @@ These steps make every reader report the same token for every combination of err
 
 A tree from a bootstrap of another notation can also lack a part that a construct requires (the table of parts above). The reader then reports the missing part at the construct, as soon as it looks the part up. So the order of the lookups decides between a missing part and another error of the same construct. Each construct looks up its parts, and makes its checks, in this order:
 
+- A `rule`: its `definer` and token, then its `rule-name` and token, then its optional `rule-flags`. If flags exist, first reject them on an extension. Then require one or more `rule-flag` parts. Read each flag's token and reject an unknown value, then a repetition, in text order. Only then look up the `body` and its `alternative` parts and read them, followed by the clauses.
 - A `tested`: its `test`, then its `primary` and the one known part of that primary. Then come the checks of the test's place, the symbol, and the test's `test-operand`. So a `tested` with no `test` is an error at the `tested`, whatever its primary holds.
 - A `capture`: the checks of its place (inside braces, inside an elidable optional), then its token and its `primary`. Then come the checks of `$` and of the name. Last come the one known part of the primary, the check that it is one symbol, and that symbol.
 - An `optional`: its `choice`, then its markers, then the form of an elidable optional and the test on its terminator, and then its content. So an `optional` with two markers and no `choice` is an error at the `optional`.
@@ -948,6 +953,9 @@ A tree from a bootstrap of another notation can also lack a part that a construc
 
 The grammar does not state the restrictions below. Each of these is an error of the document. The reader reports it at the first token of the offending construct, unless the item names another place.
 
+- A rule flag other than `greedy` is an error at the flag. A repeated flag is an error at the repeated flag. Parentheses on `%extend-rule` are an error at their opening parenthesis. These examples start at column 1. So `%rule(lazy)`, `%rule(greedy,greedy)` and `%extend-rule(greedy)` report columns 7, 14 and 13, respectively.
+
+  Empty parentheses and arguments fail before the reader reads a tree. Empty parentheses report the closing `)`, column 7 in `%rule()` and column 16 in `%redefine-rule()`. `%rule(greedy(1))` fails the lexical stage at `1`, column 14. An argument made of valid tokens fails the syntax stage at its opening `(`. A supplied notation tree with no `rule-flag` reports its missing part at `rule-flags`, after the extension check.
 - A capture that wraps anything but one symbol is an error, `$x((B))`, `$x((A | B))` and `$x([B])` included. A symbol is a reference, a tag literal, a character tag, a phoneme tag, a range, a property or a tested one of these.
 - A capture whose name has a capital is an error. Capture names are all lower case.
 - A constant in a body is an error, reported at the constant. A body names a class of tokens with a rule, such as `%rule digit '0'..'9'`, and never with a constant.

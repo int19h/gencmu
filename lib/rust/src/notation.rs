@@ -309,8 +309,8 @@ impl<'a> Reader<'a> {
     }
 
     fn rule(&self, node: &'a Node) -> R<RuleDef> {
-        let name_token = self.token(self.one(node, "rule-name")?)?;
         let definer = self.token(self.one(node, "definer")?)?;
+        let name_token = self.token(self.one(node, "rule-name")?)?;
         let op = match self.text(definer) {
             "%redefine-rule" => Op::Redefine,
             "%extend-rule" => Op::Extend,

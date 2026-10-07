@@ -120,7 +120,7 @@ A library skips cached DOMs with another format and rejects bootstraps with anot
 
 A rule is `{"name":"sumti","op":"define","flags":[],"tags":TERM,"alternatives":[ALT...],"emit":EMIT,"conditions":[COND...],"opaque":true,"at":[line,column]}`. `op` is `define`, `redefine` or `extend`. `tags`, `emit` and `opaque` are optional. `opaque` is present, and `true`, only for a rule that has `%opaque`. The name of a rule is a name, or `#`.
 
-`flags` is `[]` or `["greedy"]`. An extension always has `[]` in the document DOM, but inherits the stitched rule's flag (engine §2). Unknown values, duplicate flags and flags on extensions are errors. A definition or redefinition with `[]` gives the stitched rule no flags.
+`flags` is `[]` or `["greedy"]`. An extension always has `[]` in the document DOM, but inherits the stitched rule's flag (engine §2). Unknown values, duplicate flags and flags on extensions are errors. An item with `op: "define"` or `op: "redefine"` and `flags: []` gives the stitched rule no flags.
 
 An alternative is `{"guards":[GUARD...],"expr":EXPR,"tags":TERM}`, with `tags` optional. A guard is `{"feature":"cbm","kind":"gate","negated":false}` for `cbm?`, with `"negated":true` for `¬cbm?`, or `{"feature":"y-cmavo","kind":"warning","negated":false}` for `y-cmavo!`. A guard's feature is a name, and a guard has no member but these three.
 

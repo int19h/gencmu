@@ -3999,6 +3999,7 @@
    * @property {string} rule
    * @property {string} document
    * @property {string} previous
+   * @property {{from: string[], to: string[]}} [flagChange]
    */
 
   /**
@@ -4122,7 +4123,12 @@
           if (!previous) {
             throw new GencmuError("grammar", `${path}:${at.line}: %redefine-rule ${rule.name} replaces no rule defined before it`, at);
           }
-          this.changes.push({ kind: "replaced", rule: rule.name, document: path, previous: previous.document });
+          /** @type {RuleChange} */
+          const change = { kind: "replaced", rule: rule.name, document: path, previous: previous.document };
+          if (previous.flags.join(",") !== rule.flags.join(",")) {
+            change.flagChange = { from: previous.flags.slice(), to: rule.flags.slice() };
+          }
+          this.changes.push(change);
           this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives, flags: rule.flags });
         } else {
           const base = previous;
@@ -7729,7 +7735,7 @@
    * @import { Token } from "./tokens.js"
    * @import { Dialect } from "./dialect.js"
    * @import { TraceEvent } from "./earley.js"
-   * @import { StitchedAlternative } from "./grammar.js"
+   * @import { StitchedAlternative, RuleChange } from "./grammar.js"
    */
 
   // ---- Where in the text --------------------------------------------------
@@ -8215,7 +8221,7 @@
    * @property {string} resolution
    * @property {number} rules
    * @property {string[]} unreachable rules no derivation of `text` can reach
-   * @property {{kind: string, rule: string, document: string, previous: string}[]} changes
+   * @property {RuleChange[]} changes
    * @property {{rule: string, document: string}[]} idleErasures rules that emit `ε` although nothing
    *   under them could emit and no token could cover them
    * @property {Membership[]} memberships every membership of a key in a class
@@ -8520,7 +8526,11 @@
     for (const stage of stages) {
       const lines = [`${stage.name}: ${stage.rules} rules, ${stage.resolution}`];
       if (stage.unreachable.length) lines.push(`  unreachable from text: ${stage.unreachable.join(", ")}`);
-      for (const change of stage.changes) lines.push(`  ${change.rule} ${change.kind} by ${change.document} (defined in ${change.previous})`);
+      for (const change of stage.changes) {
+        const flags = change.flagChange;
+        const note = flags ? ` (flags changed from ${flags.from.join(", ") || "none"} to ${flags.to.join(", ") || "none"})` : "";
+        lines.push(`  ${change.rule} ${change.kind} by ${change.document} (defined in ${change.previous})${note}`);
+      }
       for (const idle of stage.idleErasures) lines.push(`  ${idle.rule} in ${idle.document} emits ε, although nothing under it could emit and no token could cover it`);
       // A classifier: how many memberships its entries make, and each one that
       // a gate guards or that more than one entry touches, with every place

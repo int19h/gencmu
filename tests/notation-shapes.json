@@ -389,6 +389,81 @@
         "line": 3,
         "column": 12
       }
+    },
+    {
+      "description": "A missing definer precedes an unknown flag (engine §9).",
+      "find": "{\"name\":\"rule\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"definer\"},{\"optional\":{\"ref\":\"rule-flags\"}},{\"ref\":\"rule-name\"},{\"ref\":\"body\"},{\"optional\":{\"ref\":\"tags-clause\"}},{\"optional\":{\"ref\":\"conditions-clause\"}},{\"optional\":{\"ref\":\"emits-clause\"}},{\"optional\":{\"ref\":\"opaque-clause\"}}]}}],\"conditions\":[],\"at\":[89,1]}",
+      "replace": "{\"name\":\"rule\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"keyword-rule\"},{\"optional\":{\"ref\":\"rule-flags\"}},{\"ref\":\"rule-name\"},{\"ref\":\"body\"}]}}],\"conditions\":[],\"at\":[89,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule(lazy) text A\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 1
+      }
+    },
+    {
+      "description": "A missing rule-name precedes an unknown flag (engine §9).",
+      "find": "{\"name\":\"rule\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"definer\"},{\"optional\":{\"ref\":\"rule-flags\"}},{\"ref\":\"rule-name\"},{\"ref\":\"body\"},{\"optional\":{\"ref\":\"tags-clause\"}},{\"optional\":{\"ref\":\"conditions-clause\"}},{\"optional\":{\"ref\":\"emits-clause\"}},{\"optional\":{\"ref\":\"opaque-clause\"}}]}}],\"conditions\":[],\"at\":[89,1]}",
+      "replace": "{\"name\":\"rule\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"definer\"},{\"optional\":{\"ref\":\"rule-flags\"}},{\"terminal\":\"identifier\"},{\"ref\":\"body\"}]}}],\"conditions\":[],\"at\":[89,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule(lazy) text A\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 1
+      }
+    },
+    {
+      "description": "An unknown flag precedes a missing body (engine §9).",
+      "find": "{\"name\":\"rule\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"definer\"},{\"optional\":{\"ref\":\"rule-flags\"}},{\"ref\":\"rule-name\"},{\"ref\":\"body\"},{\"optional\":{\"ref\":\"tags-clause\"}},{\"optional\":{\"ref\":\"conditions-clause\"}},{\"optional\":{\"ref\":\"emits-clause\"}},{\"optional\":{\"ref\":\"opaque-clause\"}}]}}],\"conditions\":[],\"at\":[89,1]}",
+      "replace": "{\"name\":\"rule\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"definer\"},{\"optional\":{\"ref\":\"rule-flags\"}},{\"ref\":\"rule-name\"}]}}],\"conditions\":[],\"at\":[89,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule(lazy) text\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 7
+      }
+    },
+    {
+      "description": "A missing rule-flag precedes a repeated capture in a supplied notation tree (engine §9).",
+      "find": "{\"name\":\"rule-flags\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'('\"},{\"repeat\":{\"ref\":\"rule-flag\"},\"separator\":{\"terminal\":\"','\"}},{\"terminal\":\"')'\"}]}}],\"conditions\":[],\"at\":[95,1]}",
+      "replace": "{\"name\":\"rule-flags\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"'('\"},{\"terminal\":\"')'\"}]}}],\"conditions\":[],\"at\":[95,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule() text $x(A) $x(A)\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 6
+      }
+    },
+    {
+      "description": "A definer without its token precedes a missing rule-name (engine §9).",
+      "find": "{\"name\":\"rule\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"definer\"},{\"optional\":{\"ref\":\"rule-flags\"}},{\"ref\":\"rule-name\"},{\"ref\":\"body\"},{\"optional\":{\"ref\":\"tags-clause\"}},{\"optional\":{\"ref\":\"conditions-clause\"}},{\"optional\":{\"ref\":\"emits-clause\"}},{\"optional\":{\"ref\":\"opaque-clause\"}}]}}],\"conditions\":[],\"at\":[89,1]},{\"name\":\"definer\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"keyword-rule\"}},{\"guards\":[],\"expr\":{\"terminal\":\"keyword-redefine-rule\"}},{\"guards\":[],\"expr\":{\"terminal\":\"keyword-extend-rule\"}}],\"conditions\":[],\"at\":[92,1]}",
+      "replace": "{\"name\":\"rule\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"terminal\":\"keyword-rule\"},{\"ref\":\"definer\"},{\"terminal\":\"identifier\"},{\"ref\":\"body\"}]}}],\"conditions\":[],\"at\":[89,1]},{\"name\":\"definer\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"rule-name\"}}],\"conditions\":[],\"at\":[92,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule wrong text A\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 7
+      }
     }
   ]
 }

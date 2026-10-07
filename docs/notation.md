@@ -21,9 +21,19 @@ A grammar is a sequence of rules, directives (see "Directives"), constants (see 
   [sumti-6 [relative-clauses]] sumti-tail-1 | relative-clauses sumti-tail-1
 ```
 
-A span is a range of input tokens. A profile counts flagged constituents over each nonempty span.
+`%rule(greedy) NAME` gives the rule the only supported flag, `greedy`. It prefers complete parses where this rule's constituents start early and end late. A parse with a nonempty flagged constituent beats one without any. "Ambiguity" gives the full comparison.
 
-`%rule(greedy) NAME` gives the rule the only supported flag, `greedy`. The flag compares span profiles, while the stage directive `greedy` compares a read with a close. "Ambiguity" explains both comparisons. Spaces around the parentheses and their content have no meaning. By convention, the opening parenthesis follows the keyword directly.
+The flag compares constituents' boundaries, while the stage directive `greedy` prefers reading another token to closing a constituent. For example:
+
+```jbogenbau
+%ambiguity-resolution greedy
+%rule text r | r 'b'
+%rule(greedy) r 'a' 'b' | 'a'
+```
+
+On `ab`, the stage chooses `r` over both tokens. Without the flag, the directive `greedy` leaves the two parses tied.
+
+Spaces around the parentheses and their content have no meaning. By convention, the opening parenthesis follows the keyword directly.
 
 Empty parentheses, duplicate flags, unknown flags and arguments are errors. Parentheses can contain more flags or parameters in future versions.
 
@@ -247,7 +257,7 @@ So `%rule` never quietly replaces a rule. A misspelled name in `%redefine-rule` 
 
 The alternatives that an extension adds carry the extension's own clauses, not those of the base rule. The clauses of the base rule do not apply to them. So an extension says everything about what it adds. The loader, the part of gencmu that reads the documents, reports every replacement and extension: which document changed which rule. So a reader can see the effect of a dialect on its base in one place.
 
-`%extend-rule` accepts no flags and inherits the stitched rule's flag for every added alternative. `%redefine-rule(greedy)` replaces both the alternatives and the flag. A redefinition without parentheses removes the flag. Unlike clauses, the flag belongs to the whole stitched rule.
+`%extend-rule` accepts no flags and inherits the stitched rule's flag for every added alternative. `%redefine-rule(greedy)` replaces both the alternatives and the flag. A redefinition without parentheses removes the flag. The printed audit report names a flag change alongside the replacement. Unlike clauses, the flag belongs to the whole stitched rule.
 
 The notation has no way to remove a single alternative. A rule is small enough to restate, and a restated rule reads better than a list of deletions.
 
@@ -612,15 +622,24 @@ The first stage reads the text's characters. Each is a token with one tag, its c
 
 ## Ambiguity
 
-A grammar admits every parse that its rules allow. Rule flags rank complete parses first. The stage's `%ambiguity-resolution` ranks the remaining parses with `greedy`, `lazy` or `late-elision`. A parse is best when neither comparison prefers another parse. The stage takes a sole best parse. Several best parses give an ambiguity error.
+A grammar admits every parse that its rules allow. A flagged occurrence is a flagged rule's constituent. A span is the range between two input token boundaries. A rule profile counts flagged occurrences over each nonempty span.
 
-A flagged occurrence is a flagged rule's constituent. A span is the range between two input token boundaries. A profile counts flagged occurrences over each nonempty span. Every named occurrence counts, including a constituent with one symbol and each chain level. The unnamed constituents of flat braces and plain optionals contribute nothing. Empty occurrences also contribute nothing.
+Every occurrence of a flagged rule counts, including a constituent with one symbol and each chain level. The unnamed constituents of flat braces and of optionals contribute nothing. This includes elidable optionals. Empty occurrences also contribute nothing.
 
-The flag `greedy` compares span profiles, while the stage directive `greedy` compares a read with a close.
+Compare two rule profiles as lists of spans:
 
-Compare profiles by increasing start and, at each start, decreasing end. At the first span with different counts, prefer the greater count. All flagged rules contribute together, without priority by name or declaration order. Equal spans count separately, so two nested flagged occurrences beat one. An occurrence beats its absence.
+1. List each flagged occurrence's nonempty span by increasing start, then decreasing end.
+2. Keep duplicate spans, including those from nested occurrences.
+3. Compare the lists from the front.
+4. At the first different entry, prefer the earlier start, then the later end.
+5. After an equal prefix, prefer the longer list.
+6. If the lists are equal, use the stage directive.
 
-The comparison uses actual input tokens. A written terminator adds width, but an omitted terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every profile is zero and the behavior stays the same. Flags do not rank `matches`, `begins` or `tags` queries, or change maximal terminators.
+All flagged rules contribute together, without priority by name or declaration order. Two nested flagged occurrences over one span contribute twice, so two such occurrences beat one.
+
+A parse with a greater rule profile beats one with a lesser rule profile (engine §6). Among equal rule profiles, a parse beats another if the stage directive prefers it. A parse is best if no other parse beats it. The stage takes a sole best parse. If two or more parses are best, they are tied.
+
+The comparison uses actual input tokens. A written terminator adds width, but an omitted terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every rule profile is zero, so the directive alone ranks. Flags do not rank `matches`, `begins` or `tags` queries, or change maximal terminators.
 
 A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later stage runs. The error shows two of the tied parses. The stage shows the first point at which they differ, its witness.
 
@@ -699,7 +718,7 @@ A rejection names a forbidden terminator only when maximality removes every main
 
 `[++T]` is for a construct that a reader closes as late as it can, such as a parenthesis. In Zantufa, `so to mi klama` can close the parenthesis `to` after `mi`, with `toi` elided, and leave `klama` as the selbri. The reference parser reads `to mi klama` as one parenthesis. No `toi` is written, so written-terminator priority cannot decide. With `TOI` maximal, the `to` cannot close before `klama`, because a longer parenthesis exists.
 
-CLL's own rule is narrower: a terminator can be elided only if no ambiguity results. CLL says nothing of the other ambiguities of its EBNF. `elision-only` is one reading of that rule. It tests only the parse that the ranking chose, and CLL does not say how to choose that parse.
+CLL's own rule is narrower: a terminator can be elided only if no ambiguity results. CLL says nothing of the other ambiguities of its EBNF. The `elision-only` check is one reading of that rule. It examines only the parse that the ranking chose, and CLL does not say how to choose that parse.
 
 With `elision-only`, after the stage chooses one of several parses, it writes the elided terminators of that parse back into the input. A terminator with an `=` test sounds like the test's string there. So an elidable terminator has no test or an `=` test. Any other test on it is an error of the document, which the reader reports.
 
@@ -709,11 +728,11 @@ In that parse, the grammar reads the text with its terminators written back, but
 
 A reconstruction is a second parse with terminators restored. These are the omitted terminators of the chosen parse. A projected span contains a constituent's original input tokens. Each written-back terminator adds no token (engine §7.3).
 
-The test retains the rule flags, but applies no stage preference. It counts flagged occurrences over projected spans. The restored chosen parse must be the sole reconstruction with an equal or better profile. Another such reconstruction gives an ambiguity error, never a replacement chosen parse.
+The check retains the rule flags, but applies no stage preference. It counts flagged occurrences over projected spans. The restored chosen parse must be the sole reading of the reconstructed input with an equal or better rule profile. Another such reading gives an ambiguity error, never a replacement chosen parse.
 
-With no flagged rule, this requires exactly one reading, as before. Recognition always retains the restored chosen parse. If recognition loses it, the library reports its defect as `elision-witness-lost`. A tie ends the stage before this test.
+With no flagged rule, the check requires exactly one reading. Recognition always retains the restored chosen parse. If the check detects its loss, the library reports its defect as `elision-witness-lost` (engine §7.9). A tie ends the stage before this check.
 
-The test fails when another reconstruction has an equal or better rule profile than the chosen parse. The corpus measured for this decision had no such text, but that is no general guarantee. Historically, under `greedy`, `mi broda joi ke brode ke'e` was one. The CLL grammar now settles it as the official parser does. A plain joik, a joik that does not open its own `ke` group, cannot take a unit that is only a `ke` group.
+The measured corpus had no text that failed this check, but that is no general guarantee. Historically, under `greedy`, `mi broda joi ke brode ke'e` was one. The CLL grammar now settles it as the official parser does. A plain joik, a joik that does not open its own `ke` group, cannot take a unit that is only a `ke` group.
 
 The grammars that extend CLL are really ambiguous in places. A sumti is an argument of the selbri. A term is a wider kind of argument that includes the sumti. Historically, the experimental grammar read the `mi .e do` of `mi .e do klama` in two ways. It was two sumti joined by `.e`, or two terms joined by it. Its rule that a sumti connection comes before a term connection now settles it.
 

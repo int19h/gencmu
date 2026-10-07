@@ -71,7 +71,7 @@ The four libraries implement one specification, `docs/engine.md`. It was written
 3. The recognizer is an Earley parser (a standard algorithm for any context-free grammar). Its items, the partial matches that it keeps, record the span and the identity of the tag set of each captured part. The parser evaluates each condition as soon as it reads the last capture of that condition. With `from` and `after`, a condition can look past its constituent to the end of the input. A PEG (parsing expression grammar, which tries alternatives in order) has a lookahead that does the same.
 
    Nested parses for `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` share their memo (a cache of answers) with the parse that started them. The memo key is the kind of query, the rule, and either the content of a short span or the position of a long span. A nested parse asked about its own span, as the same rule, is a grammar error. A nested parse never leaves out an elidable optional that the same construct can read whole as written (see "Nested queries and elided terminators" below).
-4. The engine chooses a parse in two steps. First, rule flags compare profiles, the counts of flagged constituents over each span of input. The rule that `%ambiguity-resolution` declares then ranks the parses that share the greatest profile. `greedy` and `lazy` compare those parses at their first difference, as sequences of bottom-up actions. `late-elision` compares only where they elide terminators. This part also covers the verdicts unique, resolved and tie, the error of a tie and its witness, and the `elision-only` check (see "Ambiguity" below).
+4. The engine chooses a parse in two steps. A rule flag declares a preference for one rule. A rule profile counts the grammar's flagged constituents over each nonempty input span. First, rule flags compare rule profiles. The stage directive then ranks parses with the greatest rule profile. Its `greedy` and `lazy` comparisons use bottom-up actions, while `late-elision` compares omissions (see "Ambiguity" below).
 5. The stage emits the tokens of the next stage. Each token has its text, its phonemes, its label and its source range. The label is what the renderings for people show. A token can also carry attachments, tokens that belong to it and that no later stage reads.
 6. The pipeline runs the stages in order, and stops at the first rejection or error.
 
@@ -100,7 +100,7 @@ The bodies keep the look of CLL's EBNF, because a reader of CLL recognizes that 
 
 A grammar document is Markdown. Its fenced `jbogenbau` blocks, in order, are the grammar, and the prose between them explains it. The loader finds only the fences by lines, as Markdown requires. Inside a block, line breaks and indentation mean nothing.
 
-A rule is a keyword, its name and its body, followed by its clauses. Each clause is a keyword and what it says. A rule ends where the next item begins: a rule, a directive, a constant, a classifier or an implication. So a rule needs no terminator, and nothing is recognized by its position on a line:
+A rule is a keyword, its optional flags, its name and its body, followed by its clauses. Each clause is a keyword and what it says. A rule ends where the next item begins: a rule, a directive, a constant, a classifier or an implication. So a rule needs no terminator, and nothing is recognized by its position on a line:
 
 ```jbogenbau
 %rule term-connective
@@ -121,6 +121,8 @@ A rule is a keyword, its name and its body, followed by its clauses. Each clause
 Every binary operator except the difference, `∖`, can also stand first, as a no-op, so that a list can put one item on each line. These operators are `|` and `&` in bodies, `∪` and `∩` in terms, and `∧` and `∨` in conditions. The commas of a clause's list can stand first too.
 
 A stage reads its input with one grammar. The loader assembles that grammar from one or more documents, read in order. `%rule` defines a rule, and is an error if a rule of that name exists. `%redefine-rule` replaces a rule defined before it in the stage, and is an error if none was. `%extend-rule` adds alternatives to a rule defined before it, and is an error if none was.
+
+`%rule(greedy)` and `%redefine-rule(greedy)` declare the `greedy` flag. Extensions inherit it, while a redefinition without parentheses removes it.
 
 So an accidental override never passes silently, and a replacement says so where it is made. A misspelled name in a replacement, an extension or a reference is an error. A misspelled `%rule` defines a rule that nothing reads, and the audit (see "Diagnostics and debugging") reports it. The loader also reports every replacement and extension: which document changed which rule. So a reader can see the effect of a dialect on its base in one place.
 
@@ -314,7 +316,7 @@ A document can be included in several stages, and an included document can hold 
 
 ## Ambiguity
 
-A grammar admits every parse that its rules allow. A span is a range of input tokens. A profile counts flagged occurrences over nonempty spans. Rule flags compare these profiles first (notation, "Ambiguity"). The stage's `%ambiguity-resolution` ranks parses that share the greatest profile with `greedy`, `lazy` or `late-elision`. A parse is best when neither comparison prefers another parse.
+A grammar admits every parse that its rules allow. Rule flags compare rule profiles first (notation, "Ambiguity"). A parse with a greater rule profile beats one with a lesser rule profile (engine §6). Among equal rule profiles, a parse beats another if the stage directive prefers it. A parse is best if no other parse beats it.
 
 A text with one parse has the verdict `unique`. If a text has several parses and exactly one is best, the stage chooses it, and the verdict is `resolved`. If two or more are best, the verdict is `tie`.
 
@@ -335,6 +337,18 @@ The count composes by addition over the packed forest, the shared graph of all p
 Before this decision, the syntax grammars were greedy, and that was how an elided terminator was placed. That is the historical baseline. The syntax grammars now declare `late-elision` ("Migration to late-elision" below).
 
 The forms stage divides the text into words. The words stage applies the magic words, such as `si`, which act on other words. Both stages are lazy. The word forms divide a run in one way only, so the choice matters only in the words stage. In that stage, a magic word acts on what exists when it is read.
+
+### Rule flags
+
+Rule flags address the tense ties of [issue 159](https://github.com/int19h/gencmu/issues/159). Conditions propagated through `sumti` levels failed to state the grouping once. An atom is one independent grammatical unit. Intended uses are atoms such as `simple-tense-modal`. Broad rules such as `tag` also reward wrappers, nested groups and chains.
+
+The rule profile compares token spans, not reading and closing actions. For `r → r B | A`, action comparison can tie a longer outer `r` with a short one. Span comparison prefers the longer outer `r`. Presence and repeated occurrences count because each flagged constituent expresses the declaration. Empty occurrences contribute nothing, so the flag does not reward empty wrappers.
+
+The flag ranks first so an author can state grouping independently of terminator policy. Equal rule profiles leave the directive to decide. Extensions inherit the flag, while redefinitions replace it with their own declaration. This gives one authoritative declaration for the whole rule.
+
+`elision-only` retains rule flags because they express structural preferences. It rejects an equal or better competitor without replacing the chosen parse. Restored terminators add no width, so writing them back cannot lengthen a flagged constituent.
+
+The maintainer chose `greedy` and parentheses after the keyword. The flag rewards presence and repeated occurrences, so it differs from the directive of the same name. No `lazy` flag exists because reversing the comparison favors absence, which needs a separate design.
 
 ### Ties are errors
 

@@ -2,6 +2,7 @@ import type { Condition, ParseResult, Span, StageReport, Argument, Production } 
 import type { Token } from "./tokens.js";
 import type { Dialect } from "./dialect.js";
 import type { TraceEvent } from "./earley.js";
+import type { RuleChange } from "./grammar.js";
 export type LineIndex = {
     characters: string[];
     breaks: number[];
@@ -93,12 +94,7 @@ export type StageAudit = {
      * rules no derivation of `text` can reach
      */
     unreachable: string[];
-    changes: {
-        kind: string;
-        rule: string;
-        document: string;
-        previous: string;
-    }[];
+    changes: RuleChange[];
     /**
      * rules that emit `ε` although nothing
      * under them could emit and no token could cover them
