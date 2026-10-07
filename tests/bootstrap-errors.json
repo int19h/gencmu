@@ -18,14 +18,14 @@
     },
     {
       "description": "Missing bootstrap stages",
-      "bootstrap": "{\"format\":19,\"stages\":[]}",
+      "bootstrap": "{\"format\":20,\"stages\":[]}",
       "line": null,
       "column": null,
       "stage": null
     },
     {
       "description": "Malformed bootstrap stage",
-      "bootstrap": "{\"format\":19,\"stages\":[null]}",
+      "bootstrap": "{\"format\":20,\"stages\":[null]}",
       "line": null,
       "column": null,
       "stage": null
@@ -186,7 +186,7 @@
     },
     {
       "description": "Nullable item in bootstrap braces",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"embedded.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"empty\"}}}],\"conditions\":[],\"at\":[40,2],\"flags\":[]},{\"name\":\"empty\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}}],\"conditions\":[],\"at\":[41,2],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[1,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"embedded.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"empty\"}}}],\"conditions\":[],\"at\":[40,2],\"flags\":[]},{\"name\":\"empty\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}}],\"conditions\":[],\"at\":[41,2],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[1,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
       "context": "embedded.md",
       "message": "an item of braces",
       "line": 40,
@@ -195,7 +195,7 @@
     },
     {
       "description": "Bootstrap chain beside another alternative",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"embedded.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"A\"},\"chain\":\"left\"}},{\"guards\":[],\"expr\":{\"ref\":\"B\"}}],\"conditions\":[],\"at\":[40,2],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[1,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"embedded.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"A\"},\"chain\":\"left\"}},{\"guards\":[],\"expr\":{\"ref\":\"B\"}}],\"conditions\":[],\"at\":[40,2],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[1,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
       "context": "embedded.md",
       "message": "chain",
       "line": 40,
@@ -204,7 +204,7 @@
     },
     {
       "description": "Conflicting bootstrap classifier entries",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"embedded.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[40,2],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[1,1]}],\"constants\":[],\"classifiers\":[{\"name\":\"letters\",\"entries\":[{\"guards\":[],\"keys\":[\"a\"],\"op\":\"\\u2208\",\"class\":\"A\",\"at\":[50,3]},{\"guards\":[],\"keys\":[\"a\"],\"op\":\"\\u2208\",\"class\":\"A\",\"at\":[51,4]}],\"at\":[49,1]}],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"embedded.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[40,2],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[1,1]}],\"constants\":[],\"classifiers\":[{\"name\":\"letters\",\"entries\":[{\"guards\":[],\"keys\":[\"a\"],\"op\":\"\\u2208\",\"class\":\"A\",\"at\":[50,3]},{\"guards\":[],\"keys\":[\"a\"],\"op\":\"\\u2208\",\"class\":\"A\",\"at\":[51,4]}],\"at\":[49,1]}],\"implications\":[]}}]}]}",
       "context": "embedded.md",
       "message": "already in",
       "stage": "lexical",
@@ -213,7 +213,7 @@
     },
     {
       "description": "Feature roles conflict within a bootstrap stage",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"gate\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"gate\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]},{\"name\":\"warning\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"warning\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[5,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"gate\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"gate\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]},{\"name\":\"warning\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"warning\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[5,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
       "stage": "lexical",
       "line": 5,
       "column": 1,
@@ -222,7 +222,7 @@
     },
     {
       "description": "Feature roles conflict across bootstrap stages",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"unused\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"gate\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"syntax\",\"documents\":[{\"path\":\"syntax.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"unused\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"warning\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"unused\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"gate\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"syntax\",\"documents\":[{\"path\":\"syntax.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"unused\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"warning\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
       "stage": "syntax",
       "line": 4,
       "column": 1,
@@ -231,7 +231,7 @@
     },
     {
       "description": "Bootstrap classifier gate conflicts with a rule warning",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"unused\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"warning\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[{\"name\":\"letters\",\"entries\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"gate\",\"negated\":false}],\"keys\":[\"a\"],\"op\":\"\\u2208\",\"class\":\"A\",\"at\":[6,1]}],\"at\":[5,1]}],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"unused\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"warning\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[{\"name\":\"letters\",\"entries\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"gate\",\"negated\":false}],\"keys\":[\"a\"],\"op\":\"\\u2208\",\"class\":\"A\",\"at\":[6,1]}],\"at\":[5,1]}],\"implications\":[]}}]}]}",
       "stage": "lexical",
       "line": 6,
       "column": 1,
@@ -240,7 +240,7 @@
     },
     {
       "description": "Duplicate bootstrap stage names",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
       "stage": null,
       "line": null,
       "column": null,
@@ -248,35 +248,35 @@
     },
     {
       "description": "Empty bootstrap stage name",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
       "stage": null,
       "line": null,
       "column": null
     },
     {
       "description": "Invalid bootstrap stage name",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"not a name\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"not a name\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
       "stage": null,
       "line": null,
       "column": null
     },
     {
       "description": "Empty bootstrap document list",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":[]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":[]}]}",
       "stage": null,
       "line": null,
       "column": null
     },
     {
       "description": "Null bootstrap document list",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":null}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":null}]}",
       "stage": null,
       "line": null,
       "column": null
     },
     {
       "description": "Include directive remains in a bootstrap run",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]},{\"name\":\"include\",\"args\":[\"other.md\"],\"at\":[3,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]},{\"name\":\"include\",\"args\":[\"other.md\"],\"at\":[3,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
       "stage": "lexical",
       "line": 3,
       "column": 1,
@@ -284,7 +284,7 @@
     },
     {
       "description": "Stage directive remains in a bootstrap run",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]},{\"name\":\"stage\",\"args\":[\"other\"],\"at\":[3,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]},{\"name\":\"stage\",\"args\":[\"other\"],\"at\":[3,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
       "stage": "lexical",
       "line": 3,
       "column": 1,
@@ -292,7 +292,7 @@
     },
     {
       "description": "Features directive remains in a bootstrap run",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]},{\"name\":\"features\",\"args\":[\"f\"],\"at\":[3,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]},{\"name\":\"features\",\"args\":[\"f\"],\"at\":[3,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
       "stage": "lexical",
       "line": 3,
       "column": 1,
@@ -300,7 +300,7 @@
     },
     {
       "description": "Undefined bootstrap constant",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"tags\":{\"const\":\"MISSING\",\"at\":[3,20]},\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"tags\":{\"const\":\"MISSING\",\"at\":[3,20]},\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
       "stage": "lexical",
       "line": 3,
       "column": 20,
@@ -308,7 +308,7 @@
     },
     {
       "description": "Undefined bootstrap query rule",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[{\"begins\":{\"call\":\"after\",\"args\":[{\"capture\":\"\"}]},\"rule\":\"missing\"}],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[{\"begins\":{\"call\":\"after\",\"args\":[{\"capture\":\"\"}]},\"rule\":\"missing\"}],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
       "stage": "lexical",
       "line": 3,
       "column": 1,
@@ -316,7 +316,7 @@
     },
     {
       "description": "Bootstrap redefinition lacks an earlier rule",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"redefine\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"redefine\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
       "stage": "lexical",
       "line": 3,
       "column": 1,
@@ -324,7 +324,7 @@
     },
     {
       "description": "Bootstrap extension lacks an earlier rule",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"extend\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"extend\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
       "stage": "lexical",
       "line": 3,
       "column": 1,
@@ -332,7 +332,7 @@
     },
     {
       "description": "Unknown bootstrap classifier",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"tags\":{\"call\":\"classify\",\"args\":[{\"call\":\"text\",\"args\":[{\"capture\":\"\"}]},{\"classifier\":\"missing\"}]},\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"tags\":{\"call\":\"classify\",\"args\":[{\"call\":\"text\",\"args\":[{\"capture\":\"\"}]},{\"classifier\":\"missing\"}]},\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
       "stage": "lexical",
       "line": 3,
       "column": 1,
@@ -340,7 +340,7 @@
     },
     {
       "description": "Bootstrap feature validation precedes lowering",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"empty\"}}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"empty\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"syntax\",\"documents\":[{\"path\":\"syntax.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"unused\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"warning\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"later\",\"documents\":[{\"path\":\"later.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"unused\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"gate\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"empty\"}}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"empty\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"syntax\",\"documents\":[{\"path\":\"syntax.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"unused\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"warning\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"later\",\"documents\":[{\"path\":\"later.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"unused\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"gate\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
       "stage": "later",
       "line": 4,
       "column": 1,
@@ -349,7 +349,7 @@
     },
     {
       "description": "Later bootstrap stitching precedes earlier lowering",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"empty\"}}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"empty\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"syntax\",\"documents\":[{\"path\":\"syntax.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"missing\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"empty\"}}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"empty\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"syntax\",\"documents\":[{\"path\":\"syntax.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"missing\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
       "stage": "syntax",
       "line": 3,
       "column": 1,
@@ -357,21 +357,21 @@
     },
     {
       "description": "All bootstrap schemas precede stitching",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"missing\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"syntax\",\"documents\":[{\"path\":\"syntax.md\",\"dom\":null}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"missing\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"syntax\",\"documents\":[{\"path\":\"syntax.md\",\"dom\":null}]}]}",
       "stage": null,
       "line": null,
       "column": null
     },
     {
       "description": "All bootstrap schemas precede lowering",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"empty\"}}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"empty\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"syntax\",\"documents\":[{\"path\":\"syntax.md\",\"dom\":null}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"empty\"}}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"empty\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"syntax\",\"documents\":[{\"path\":\"syntax.md\",\"dom\":null}]}]}",
       "stage": null,
       "line": null,
       "column": null
     },
     {
       "description": "Bootstrap stage contains no rules",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"empty.md\",\"dom\":{\"format\":19,\"rules\":[],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"empty.md\",\"dom\":{\"format\":20,\"rules\":[],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
       "message": "no rules",
       "stage": "lexical",
       "line": null,
@@ -379,7 +379,7 @@
     },
     {
       "description": "All bootstrap stages require rules before stitching",
-      "bootstrap": "{\"format\":19,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"syntax.md\",\"dom\":{\"format\":19,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"missing\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"syntax\",\"documents\":[{\"path\":\"empty.md\",\"dom\":{\"format\":19,\"rules\":[],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":20,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"syntax.md\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"missing\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"syntax\",\"documents\":[{\"path\":\"empty.md\",\"dom\":{\"format\":20,\"rules\":[],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
       "message": "no rules",
       "stage": "syntax",
       "line": null,
@@ -404,7 +404,7 @@
     {
       "description": "Duplicate rule flags",
       "find": "\"flags\":[]",
-      "replace": "\"flags\":[\"greedy\",\"greedy\"]",
+      "replace": "\"flags\":[\"leftmost-longest\",\"leftmost-longest\"]",
       "line": null,
       "column": null,
       "stage": null
@@ -412,7 +412,7 @@
     {
       "description": "Malformed rule flags",
       "find": "\"flags\":[]",
-      "replace": "\"flags\":\"greedy\"",
+      "replace": "\"flags\":\"leftmost-longest\"",
       "line": null,
       "column": null,
       "stage": null
@@ -420,15 +420,39 @@
     {
       "description": "Flags on an extension",
       "find": "\"op\":\"define\",\"flags\":[]",
-      "replace": "\"op\":\"extend\",\"flags\":[\"greedy\"]",
+      "replace": "\"op\":\"extend\",\"flags\":[\"leftmost-longest\"]",
       "line": null,
       "column": null,
       "stage": null
     },
     {
       "description": "Previous bootstrap format",
-      "find": "\"format\":19",
+      "find": "\"format\":20",
       "replace": "\"format\":18",
+      "line": null,
+      "column": null,
+      "stage": null
+    },
+    {
+      "description": "The former rule flag spelling is invalid in a DOM",
+      "find": "\"flags\":[]",
+      "replace": "\"flags\":[\"greedy\"]",
+      "line": null,
+      "column": null,
+      "stage": null
+    },
+    {
+      "description": "Format 19 bootstrap is unsupported",
+      "find": "\"format\":20",
+      "replace": "\"format\":19",
+      "line": null,
+      "column": null,
+      "stage": null
+    },
+    {
+      "description": "Format 19 document DOM is unsupported",
+      "find": "\"dom\":{\"format\":20",
+      "replace": "\"dom\":{\"format\":19",
       "line": null,
       "column": null,
       "stage": null

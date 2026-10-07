@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%classifier lexicon\n  \"mi\" \"do\" ∈ KOhA\n  f? ¬g? \"u\\u{27}i\"\n    ∉ ~UI\n%classifier empty\n%rule text $w(W) <classify(phonemes($w), lexicon)>\n```\n",
   "expect": {
     "dom": {
-      "format": 19,
+      "format": 20,
       "rules": [
         {
           "name": "text",

@@ -1,6 +1,6 @@
 {
-  "description": "Two better reconstructions retain the chosen witness in the diagnostic pair (engine §7).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text r [+T] 'b' | r | 'a' [+U] 'b'\n%rule(greedy) r 'a' | 'a' T 'b' | 'a' T 'b'",
+  "description": "A better reconstruction takes precedence over an equal companion of the chosen witness (engine §7).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text r [+T] 'b' | r | r T 'b' | 'a' [+U] 'b'\n%rule(leftmost-longest) r 'a' | 'a' T 'b'",
   "input": "ab",
   "expect": {
     "result": {

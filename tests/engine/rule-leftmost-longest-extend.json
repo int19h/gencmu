@@ -1,6 +1,6 @@
 {
-  "description": "The rule profile ranks before the stage preference, even when the longer span omits a terminator (engine §6, §7).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text r | r 'b'\n%rule(greedy) r 'a' [+T] 'b' | 'a'",
+  "description": "An extension inherits the stitched flag for its added alternatives (engine §2, §6).",
+  "grammar": "%ambiguity-resolution lazy\n%rule text r | r 'b'\n%rule(leftmost-longest) r 'a'\n%extend-rule r 'a' 'b'",
   "input": "ab",
   "expect": {
     "result": {

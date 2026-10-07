@@ -255,7 +255,7 @@ pub(crate) struct LRule {
     /// The rule's name, or for a helper the name of the rule that owns it.
     pub name: String,
     pub helper: bool,
-    pub greedy: bool,
+    pub leftmost_longest: bool,
     pub prods: Vec<u32>,
     /// For the helper of an elidable optional, `[+T …]` or `[++T …]`: its
     /// terminator `T` (§3.8, §12).
@@ -855,7 +855,7 @@ pub(crate) fn lower(
         .map(|rule| LRule {
             name: rule.name.clone(),
             helper: false,
-            greedy: rule.flags.iter().any(|flag| flag == "greedy"),
+            leftmost_longest: rule.flags.iter().any(|flag| flag == "leftmost-longest"),
             prods: Vec::new(),
             elided: None,
             elided_test: None,
@@ -866,7 +866,7 @@ pub(crate) fn lower(
         rules.push(LRule {
             name: grammar.rules[helper.owner as usize].name.clone(),
             helper: true,
-            greedy: false,
+            leftmost_longest: false,
             prods: Vec::new(),
             elided: helper.elided.as_ref().map(|(name, _)| name.clone()),
             elided_test: helper.elided.as_ref().and_then(|(_, test)| *test),

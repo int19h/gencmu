@@ -404,7 +404,7 @@ class DomBuilder:
                 raise self.fail(flag_list, "%extend-rule accepts no flags")
             for flag in self.some(flag_list, "rule-flag"):
                 value = self.text(self.token(flag))
-                if value != "greedy":
+                if value != "leftmost-longest":
                     raise self.fail(flag, f"unknown rule flag {value}")
                 if value in flags:
                     raise self.fail(flag, f"duplicate rule flag {value}")

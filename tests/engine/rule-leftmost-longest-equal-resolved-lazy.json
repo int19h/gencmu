@@ -1,6 +1,6 @@
 {
   "description": "Equal profiles retain the resolving stage preference (engine §6).",
-  "grammar": "%ambiguity-resolution lazy\n%rule text r\n%rule(greedy) r a 'c' | 'a' b\n%rule a 'a' 'b'\n%rule b 'b' 'c'",
+  "grammar": "%ambiguity-resolution lazy\n%rule text r\n%rule(leftmost-longest) r a 'c' | 'a' b\n%rule a 'a' 'b'\n%rule b 'b' 'c'",
   "input": "abc",
   "expect": {
     "result": {

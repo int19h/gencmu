@@ -333,7 +333,7 @@ def dom_of(rules: list[list[list[Any]]], names: list[str], lean: str) -> dict[st
 
 def flagged_productions(lowered: Any, definitions: list[dict[str, Any]]) -> frozenset[int]:
     """Select named productions from the source's flag assignments."""
-    names = {definition["name"] for definition in definitions if "greedy" in definition["flags"]}
+    names = {definition["name"] for definition in definitions if "leftmost-longest" in definition["flags"]}
     return frozenset(p.id for p in lowered.productions if not p.helper and lowered.rule_names[p.lhs] in names)
 
 
@@ -419,7 +419,7 @@ def random_sugared(rng: random.Random) -> dict[str, Any]:
             for _ in range(rng.randint(1, 2)):
                 items = [random_expression(rng, count) for _ in range(rng.choice([1, 1, 2]))]
                 alternatives.append({"guards": [], "expr": items[0] if len(items) == 1 else {"seq": items}})
-        rules.append({"name": names[number], "op": "define", "flags": ["greedy"] if rng.random() < 0.35 else [], "alternatives": alternatives, "conditions": [], "at": [number + 1, 1]})
+        rules.append({"name": names[number], "op": "define", "flags": ["leftmost-longest"] if rng.random() < 0.35 else [], "alternatives": alternatives, "conditions": [], "at": [number + 1, 1]})
     return {
         "format": DOM_FORMAT,
         "rules": rules,
@@ -448,7 +448,7 @@ def random_eliding(rng: random.Random) -> dict[str, Any]:
         for _ in range(rng.randint(1, 3)):
             items = [item() for _ in range(rng.choice([1, 2, 2, 3]))]
             alternatives.append({"guards": [], "expr": items[0] if len(items) == 1 else {"seq": items}})
-        rules.append({"name": names[number], "op": "define", "flags": ["greedy"] if rng.random() < 0.35 else [], "alternatives": alternatives, "conditions": [], "at": [number + 1, 1]})
+        rules.append({"name": names[number], "op": "define", "flags": ["leftmost-longest"] if rng.random() < 0.35 else [], "alternatives": alternatives, "conditions": [], "at": [number + 1, 1]})
     return {
         "format": DOM_FORMAT,
         "rules": rules,
@@ -619,7 +619,7 @@ def random_rules_grammar(rng: random.Random) -> tuple[dict[str, Any], str, bool,
     dom_rules = [
         {
             "name": name,
-            "op": "define", "flags": ["greedy"] if rng.random() < 0.35 else [],
+            "op": "define", "flags": ["leftmost-longest"] if rng.random() < 0.35 else [],
             "alternatives": alternatives(count),
             "conditions": [],
             "at": [number + 3, 1],
@@ -779,7 +779,7 @@ class RankingProperty(unittest.TestCase):
             productions = productions_of(rules)
             dom = dom_of(rules, names, "greedy")
             for definition in dom["rules"]:
-                definition["flags"] = ["greedy"] if rng.random() < 0.35 else []
+                definition["flags"] = ["leftmost-longest"] if rng.random() < 0.35 else []
             lowered = lower(stitch("main", [("g.md", dom)], _unicode_table(_resources().unicode)), frozenset())
             flagged = flagged_productions(lowered, dom["rules"])
             for _ in range(4):

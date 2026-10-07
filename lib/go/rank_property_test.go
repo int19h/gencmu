@@ -132,7 +132,7 @@ func (g *genGrammar) grammar() *domDoc {
 	for _, name := range g.rules {
 		r := &domRule{Name: name, Op: "define"}
 		if g.r.Intn(100) < 35 {
-			r.Flags = []string{"greedy"}
+			r.Flags = []string{"leftmost-longest"}
 		}
 		// Now and then a rule is a chain, whose levels are its own nodes
 		// (engine §3.3).
@@ -246,7 +246,7 @@ func domText(d *domDoc) string {
 		}
 		flag := ""
 		if len(r.Flags) > 0 {
-			flag = "(greedy)"
+			flag = "(leftmost-longest)"
 		}
 		fmt.Fprintf(&b, "%%rule%s %s\n  %s\n", flag, r.Name, strings.Join(alts, " | "))
 	}

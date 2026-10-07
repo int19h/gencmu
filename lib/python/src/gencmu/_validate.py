@@ -29,7 +29,7 @@ class Lowercase(Protocol):
     def is_mark(self, code: int) -> bool: ...
 
 
-FORMAT = 19
+FORMAT = 20
 """The version of the DOM's shape (docs/output.md)."""
 
 CONSTANT_NAME = re.compile(r"[A-Z][A-Za-z0-9-]*")
@@ -430,7 +430,7 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
             or not _is_one_of(rule.get("op"), {"define", "redefine", "extend"})
             or not isinstance(rule.get("flags"), list)
             or len(rule["flags"]) > 1
-            or any(flag != "greedy" for flag in rule["flags"])
+            or any(flag != "leftmost-longest" for flag in rule["flags"])
             or (rule["op"] == "extend" and bool(rule["flags"]))
             or not _items(rule.get("alternatives"), 1)
             or not isinstance(rule.get("conditions"), list)

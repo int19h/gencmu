@@ -8,7 +8,7 @@ use crate::tags::{character_code, is_name, is_tag};
 use crate::unicode::{is_property_name, Unicode};
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 19;
+pub const DOM_FORMAT: i64 = 20;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -952,7 +952,7 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
             || !rule.get("name").and_then(Json::as_str).is_some_and(is_rule_name)
             || !matches!(rule.get("op").and_then(Json::as_str), Some("define" | "redefine" | "extend"))
             || !rule.get("flags").and_then(Json::as_array).is_some_and(|flags| {
-                flags.len() <= 1 && flags.iter().all(|flag| flag.as_str() == Some("greedy"))
+                flags.len() <= 1 && flags.iter().all(|flag| flag.as_str() == Some("leftmost-longest"))
                     && (rule.get("op").and_then(Json::as_str) != Some("extend") || flags.is_empty())
             })
             || !alternatives.is_some_and(|alternatives| !alternatives.is_empty())

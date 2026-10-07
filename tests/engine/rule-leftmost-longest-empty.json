@@ -1,6 +1,6 @@
 {
   "description": "Empty flagged occurrences contribute nothing and do not settle an empty-input tie (engine §6).",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text r | ε\n%rule(greedy) r ε",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text r | ε\n%rule(leftmost-longest) r ε",
   "input": "",
   "expect": {
     "result": {

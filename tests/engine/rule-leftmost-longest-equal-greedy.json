@@ -1,6 +1,6 @@
 {
   "description": "Equal profiles from different flagged rules leave a tie for the stage preference (engine §6).",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text r | s\n%rule(greedy) r 'a'\n%rule(greedy) s 'a'",
+  "grammar": "%ambiguity-resolution greedy\n%rule text r | s\n%rule(leftmost-longest) r 'a'\n%rule(leftmost-longest) s 'a'",
   "input": "a",
   "expect": {
     "result": {

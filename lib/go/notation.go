@@ -596,7 +596,7 @@ func (b *domBuilder) rule(n *Node) *domRule {
 		}
 		for _, flag := range b.some(list, "rule-flag", 1) {
 			name := b.text(b.token(flag))
-			if name != "greedy" {
+			if name != "leftmost-longest" {
 				b.fail(flag, "unknown rule flag %s", name)
 			}
 			if len(r.Flags) > 0 {

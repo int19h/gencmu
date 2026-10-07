@@ -64,13 +64,13 @@ type lcond struct {
 }
 
 type lrule struct {
-	greedy   bool
-	name     string
-	helper   bool
-	owner    string
-	prods    []*production
-	nullable bool
-	scc      int // the index of its same-span cycle class, or -1 if it can never lie below itself
+	leftmostLongest bool
+	name            string
+	helper          bool
+	owner           string
+	prods           []*production
+	nullable        bool
+	scc             int // the index of its same-span cycle class, or -1 if it can never lie below itself
 }
 
 type lowered struct {
@@ -207,7 +207,7 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 	lw := &lowerer{g: g, l: l, features: features, terms: map[*domTerm]*termLowering{}, condsOf: map[condsKey]*condLowering{}, emits: map[*domEmit]*emitSplit{}, warnings: map[*sAlt][]string{}}
 	for _, r := range g.rules {
 		l.byName[r.name] = int32(len(l.rules))
-		l.rules = append(l.rules, &lrule{greedy: len(r.flags) > 0, name: r.name, owner: r.name, scc: -1})
+		l.rules = append(l.rules, &lrule{leftmostLongest: len(r.flags) > 0, name: r.name, owner: r.name, scc: -1})
 	}
 	for _, r := range g.rules {
 		if lw.lowerRule(r); l.fault != "" {

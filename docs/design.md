@@ -122,7 +122,7 @@ Every binary operator except the difference, `∖`, can also stand first, as a n
 
 A stage reads its input with one grammar. The loader assembles that grammar from one or more documents, read in order. `%rule` defines a rule, and is an error if a rule of that name exists. `%redefine-rule` replaces a rule defined before it in the stage, and is an error if none was. `%extend-rule` adds alternatives to a rule defined before it, and is an error if none was.
 
-`%rule(greedy)` and `%redefine-rule(greedy)` declare the `greedy` flag. Extensions inherit it, while a redefinition without parentheses removes it.
+`%rule(leftmost-longest)` and `%redefine-rule(leftmost-longest)` declare the `leftmost-longest` flag. Extensions inherit it, while a redefinition without parentheses removes it.
 
 So an accidental override never passes silently, and a replacement says so where it is made. A misspelled name in a replacement, an extension or a reference is an error. A misspelled `%rule` defines a rule that nothing reads, and the audit (see "Diagnostics and debugging") reports it. The loader also reports every replacement and extension: which document changed which rule. So a reader can see the effect of a dialect on its base in one place.
 
@@ -320,13 +320,14 @@ A grammar admits every parse that its rules allow. Rule flags compare rule profi
 
 A text with one parse has the verdict `unique`. If a text has several parses and exactly one is best, the stage chooses it, and the verdict is `resolved`. If two or more are best, the verdict is `tie`.
 
-`greedy` and `lazy` treat each parse as the sequence of steps that a bottom-up reader takes. A step reads the next token or closes a constituent. The engine compares the parses at the first step where two of them differ:
+`greedy` and `lazy` treat each parse as the sequence of actions that a bottom-up reader takes. An action reads the next token or closes a constituent. Visible actions exclude closes of helpers and productions with one symbol. Among equal best rule profiles, the engine compares parses at the first differing visible action:
 
 - If both read the same token under two tags, they are tied.
-- If one reads and the other closes, the rule decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
+- `greedy` prefers reading another token to closing a constituent at the first differing visible action and ties other differences.
+- `lazy` prefers closing a constituent to reading another token at the first differing visible action and ties other differences.
 - If both close different constituents, they are tied.
 
-The preference is like greedy and lazy quantifiers in a backtracking regular-expression engine, and not like the greed of a PEG. The preference orders the parses that the grammar already admits, and never commits. It rejects a text only by leaving a tie. The earliest difference dominates. And the preference applies to every constituent of the stage, not to one quantifier.
+Greedy and lazy quantifiers suggest an analogy, not the same matching procedure. A quantifier controls repetition in a regular expression. These directives compare complete parses at the first differing visible action, without source-order priority or early commitment. A tie that the directive leaves is an error. The directive applies throughout the stage.
 
 Among equal rule profiles, `late-elision` compares the terminators that each parse elides. It counts them at each position between tokens, and compares the counts from the start of the text. These counts are the parse's elision vector. At the first position where the counts differ, the parse with fewer elided terminators wins. In plain words, at the first place where two readings differ in leaving out a terminator, it prefers the reading that reads on. Two parses with equal rule profiles and the same elision counts tie, whatever else differs.
 
@@ -348,7 +349,9 @@ The flag ranks first so an author can state grouping independently of terminator
 
 `elision-only` retains rule flags because they express structural preferences. It rejects an equal or better competitor without replacing the chosen parse. Restored terminators add no width, so writing them back cannot lengthen a flagged constituent.
 
-The maintainer chose `greedy` and parentheses after the keyword. The name recalls the preference for later ends. The flag rewards presence and repeated occurrences, so it differs from the directive of the same name. No `lazy` flag exists because reversing the comparison favors absence, which needs a separate design.
+With only `simple-tense-modal` flagged, `pu va ca gi` groups as `pu va` then `ca gi`, as the official parser does. This motivating case does not equate the flag with the official lexer's procedure. The flag also differs from POSIX subexpression semantics in pooling rules, counting repeated occurrences and ignoring empty occurrences.
+
+The maintainer chose `leftmost-longest` and parentheses after the keyword. The name states the priorities of earlier starts and later ends at one start. No `lazy` flag exists because reversing the comparison favors absence, which needs a separate design.
 
 ### Ties are errors
 

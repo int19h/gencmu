@@ -802,7 +802,7 @@ class StageRunner:
         watch = hook(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at)) if hook is not None else None
         # Maximality does not apply to the derivations of R, and
         # they rank with no lean (engine §7.7).
-        flagged = any(production.greedy for production in lowered.productions)
+        flagged = any(production.leftmost_longest for production in lowered.productions)
         chosen_profile = ()
         walk = None
         if flagged:
@@ -812,7 +812,7 @@ class StageRunner:
                 node = pending.pop()
                 if isinstance(node, DRead):
                     continue
-                if node.production.greedy and node.start < node.end:
+                if node.production.leftmost_longest and node.start < node.end:
                     chosen_profile = sum_profiles(chosen_profile, ((node.start, node.end, 1),))
                 pending.extend(node.children)
             walk = walk_witness(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at))
@@ -894,7 +894,7 @@ def _rank_check(forest: Forest, marks: dict[int, set[int]] | None = None) -> Ran
     hook's marks of W(D) (tests/README.md)."""
     if not forest.roots:
         return None
-    if any(production.greedy for production in forest.lowered.productions):
+    if any(production.leftmost_longest for production in forest.lowered.productions):
         profiles = Elisions(forest, lean="none")
         profiles.check, profiles.marks = True, marks
         return profiles.rank(forest.roots)

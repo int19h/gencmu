@@ -866,7 +866,7 @@ impl<'c> Ranker<'c> {
             fsets: vec![Vec::new()],
             fset_index: FxMap::default(),
             maximal,
-            elisions: (late || g.rules.iter().any(|rule| rule.greedy)).then(|| Elisions {
+            elisions: (late || g.rules.iter().any(|rule| rule.leftmost_longest)).then(|| Elisions {
                 count_elisions: late,
                 vectors: Vectors::new(),
                 summaries: FxMap::default(),
@@ -1254,7 +1254,7 @@ impl<'c> Ranker<'c> {
                     vector
                 };
                 let mut profile = body.profile.clone();
-                if g.rules[production.rule as usize].greedy {
+                if g.rules[production.rule as usize].leftmost_longest {
                     let origin = self.dag.chart.sets[set as usize].items[index as usize].origin;
                     let (p, q) = self
                         .dag
@@ -1634,7 +1634,7 @@ pub(crate) fn tree_profile(g: &Lowered, tree: &crate::tree::ITree) -> Profile {
     let mut profile = Vec::new();
     for node in &tree.nodes {
         if let crate::tree::IKind::Close { prod, start, end, .. } = node.kind {
-            if start < end && g.rules[g.prods[prod as usize].rule as usize].greedy {
+            if start < end && g.rules[g.prods[prod as usize].rule as usize].leftmost_longest {
                 profile = sum_profiles(&profile, &[(start, end, Nat::ONE)]);
             }
         }

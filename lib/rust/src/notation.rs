@@ -323,7 +323,7 @@ impl<'a> Reader<'a> {
             }
             for flag in self.some(list, "rule-flag", 1)? {
                 let name = self.text(self.token(flag)?);
-                if name != "greedy" {
+                if name != "leftmost-longest" {
                     return Err(self.error(flag, format!("unknown rule flag {name}")));
                 }
                 if flags.iter().any(|known| known == name) {

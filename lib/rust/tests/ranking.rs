@@ -88,7 +88,7 @@ struct Source {
     rules: Vec<Vec<(Vec<Item>, Option<&'static str>)>>,
     /// The rules written as chains, whose alternatives are not used.
     chains: Vec<Option<Chain>>,
-    greedy: Vec<bool>,
+    leftmost_longest: Vec<bool>,
     lean: Lean,
     elision_only: bool,
     /// Whether every generated elidable optional uses `[++T]` (§4).
@@ -214,8 +214,8 @@ fn generate(rng: &mut Rng) -> (Source, Input) {
             _ => None,
         });
     }
-    let greedy = (0..rule_count).map(|_| rng.chance(35)).collect();
-    let source = Source { rules, chains, greedy, lean, elision_only, maximal };
+    let leftmost_longest = (0..rule_count).map(|_| rng.chance(35)).collect();
+    let source = Source { rules, chains, leftmost_longest, lean, elision_only, maximal };
     let grammar = lower(&source);
     // Most inputs are sentences of the grammar, so that most cases parse.
     // Now and then the input is empty.
@@ -392,7 +392,7 @@ fn grammar_text(source: &Source) -> String {
         Sym::N(n) => RULES[*n],
     };
     for (rule, alternatives) in source.rules.iter().enumerate() {
-        let flag = if source.greedy[rule] { "(greedy)" } else { "" };
+        let flag = if source.leftmost_longest[rule] { "(leftmost-longest)" } else { "" };
         if let Some(chain) = source.chains[rule] {
             let (item, separator) = (name(&chain.item), name(&chain.separator));
             let body = if chain.left {
@@ -441,7 +441,7 @@ fn grammar_dom(source: &Source) -> String {
     let first_rule_line = 3;
     let mut rules = Vec::new();
     for (rule, alternatives) in source.rules.iter().enumerate() {
-        let flags = if source.greedy[rule] { "[\"greedy\"]" } else { "[]" };
+        let flags = if source.leftmost_longest[rule] { "[\"leftmost-longest\"]" } else { "[]" };
         if let Some(chain) = source.chains[rule] {
             let direction = if chain.left { "left" } else { "right" };
             rules.push(format!(
@@ -1072,7 +1072,7 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
             for act in acts {
                 if let Act::Close { prod, start, end, .. } = act {
                     let rule = grammar.prods[*prod].rule;
-                    if source.greedy.get(rule).copied().unwrap_or(false) && start < end {
+                    if source.leftmost_longest.get(rule).copied().unwrap_or(false) && start < end {
                         counts[*start][*end] += 1;
                     }
                 }

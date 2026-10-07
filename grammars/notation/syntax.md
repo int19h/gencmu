@@ -83,7 +83,7 @@ An implication is `%implies` and two terms joined by `⟹`. Each term is a union
 
 ## Rules
 
-A rule is a keyword, optional flags, its name, its alternatives and its clauses, in this order. Flags are names in parentheses. The reader accepts only `greedy` on definitions and redefinitions. It refuses empty lists, duplicates, arguments and flags on extensions. The keyword says whether the rule defines, redefines or extends the rule. A rule has at most one clause of each kind, and the clauses come in a fixed order. A rule's name is a name, or `#`, the free-modifier slot. Every list separator can also stand first, so an author can put each alternative on a line of its own that starts with `|`.
+A rule has a keyword, optional flags, name, alternatives and clauses, in that order. Flags are names in parentheses, and only `leftmost-longest` is accepted on definitions and redefinitions. Empty lists, duplicates, arguments and flags on extensions are errors. The keyword defines, redefines or extends a rule. A rule's name is a name or `#`, the free-modifier slot, and each clause occurs at most once in a fixed order. Every separator can stand first, so each alternative can start its own line with `|`.
 
 ```jbogenbau
 %rule rule

@@ -903,7 +903,7 @@ impl Dialect {
         let rooted = chart.accepts(g.start, tokens.len()) && loss != Some(witness::Loss::Roots);
         // A test that watches the check marks W(D)'s links before the check
         // ranks (tests/README.md).
-        let flagged = g.rules.iter().any(|rule| rule.greedy);
+        let flagged = g.rules.iter().any(|rule| rule.leftmost_longest);
         let chosen_profile = if flagged { tree_profile(g, chosen) } else { Vec::new() };
         let walk = if witness::watched() || flagged {
             let empty = shared.tags.set(Vec::new());

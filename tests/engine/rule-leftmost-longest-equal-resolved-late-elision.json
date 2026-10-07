@@ -1,6 +1,6 @@
 {
   "description": "Equal profiles retain the resolving stage preference (engine §6).",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text r\n%rule(greedy) r 'a' [+T] 'b' | 'a' 'b'",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text r\n%rule(leftmost-longest) r 'a' [+T] 'b' | 'a' 'b'",
   "input": "ab",
   "expect": {
     "result": {

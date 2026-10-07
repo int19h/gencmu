@@ -82,9 +82,9 @@ To stitch a stage's items, the loader reads them in order, whatever documents th
 
 When `%extend-rule` extends a rule, each appended alternative carries the extension's own clauses: its rule-level tags, conditions and emission. These clauses apply to the appended alternatives alone, and the base rule's clauses do not apply to them. The earlier alternatives keep their own clauses. So a script document can add letters to a rule without restating its clauses, and its own clauses do not leak into the base rule. A definition is a `%rule`, `%redefine-rule` or `%extend-rule` statement: its alternatives and the clauses written with them. The loader records every replacement and extension.
 
-A rule flag gives a rule a preference. Only `greedy` is supported. `%rule(greedy)` defines a flagged rule, and `%redefine-rule(greedy)` replaces its body and flag. A `%rule` or `%redefine-rule` without parentheses gives the rule no flags. `%extend-rule` accepts no flags and inherits the stitched rule's flag for all added alternatives. Flags belong to the rule, while clauses belong to each definition.
+A rule flag gives a rule a preference. Only `leftmost-longest` is supported. `%rule(leftmost-longest)` defines a flagged rule, and `%redefine-rule(leftmost-longest)` replaces its body and flag. A `%rule` or `%redefine-rule` without parentheses gives the rule no flags. `%extend-rule` accepts no flags and inherits the stitched rule's flag for all added alternatives. Flags belong to the rule, while clauses belong to each definition.
 
-Parentheses follow the keyword and precede the name. Their only accepted content is `greedy`, with optional surrounding spaces. Empty parentheses, duplicates, unknown flags, arguments and parentheses on `%extend-rule` are errors of the document. Section 9 gives their priority and positions.
+Parentheses follow the keyword and precede the name. Their only accepted content is `leftmost-longest`, with optional surrounding spaces. Empty parentheses, duplicates, unknown flags, arguments and parentheses on `%extend-rule` are errors of the document. Section 9 gives their priority and positions.
 
 The loader collects directives from all the stage's items. `%stage`, `%include` and `%features` shape the pipeline (§13) and do not belong to a stage. The other directive, `%ambiguity-resolution`, belongs to the stage.
 
@@ -433,7 +433,11 @@ In the check of §7, `phonemes(span)` and `text(span)` read the projected span, 
 
 ## 6. Choosing a parse
 
-A stage ranks the counted derivations of its input (§4). A rule profile counts flagged constituents over nonempty spans. Rule flags compare rule profiles first. Of two derivations with different rule profiles, the one with the greater rule profile beats the other. Of two with equal rule profiles, the one that the directive prefers beats the other. A derivation is best if no other derivation beats it.
+A stage ranks the counted derivations of its input (§4). A flagged span is a flagged constituent's span. A rule profile counts flagged constituents over nonempty spans. `leftmost-longest` compares complete parses by nonempty flagged-span counts, with earlier starts first, longer spans next, and larger counts preferred at the first difference.
+
+All flagged rules contribute together, without priority by name or declaration order. Equal spans count separately, including nested occurrences. Every nonempty repetition counts, as does each chain level and each constituent with one symbol. Empty occurrences contribute nothing, and helpers carry no flags. The flag ranks before the stage directive.
+
+Of two derivations with different rule profiles, the one with the greater rule profile beats the other. Of two with equal rule profiles, the one that the directive prefers beats the other. A derivation is best if no other derivation beats it.
 
 The directive (§2) is `greedy`, `lazy` or `late-elision`. The verdict is one of these:
 
@@ -953,9 +957,9 @@ A tree from a bootstrap of another notation can also lack a part that a construc
 
 The grammar does not state the restrictions below. Each of these is an error of the document. The reader reports it at the first token of the offending construct, unless the item names another place.
 
-- A rule flag other than `greedy` is an error at the flag. A repeated flag is an error at the repeated flag. Parentheses on `%extend-rule` are an error at their opening parenthesis. These examples start at column 1. So `%rule(lazy)`, `%rule(greedy,greedy)` and `%extend-rule(greedy)` report columns 7, 14 and 13, respectively.
+- A rule flag other than `leftmost-longest` is an error at the flag. A repeated flag is an error at the repeated flag. Parentheses on `%extend-rule` are an error at their opening parenthesis. These examples start at column 1. So `%rule(lazy)`, `%rule(leftmost-longest,leftmost-longest)` and `%extend-rule(leftmost-longest)` report columns 7, 24 and 13, respectively.
 
-  Empty parentheses and arguments fail before the reader reads a tree. Empty parentheses report the closing `)`, column 7 in `%rule()` and column 16 in `%redefine-rule()`. `%rule(greedy(1))` fails the lexical stage at `1`, column 14. A parenthesized argument made of valid tokens fails the syntax stage at its opening `(`. A supplied notation tree with no `rule-flag` reports its missing part at `rule-flags`, after the extension check.
+  Empty parentheses and arguments fail before the reader reads a tree. Empty parentheses report the closing `)`, column 7 in `%rule()` and column 16 in `%redefine-rule()`. `%rule(leftmost-longest(1))` fails the lexical stage at `1`, column 24. A parenthesized argument made of valid tokens fails the syntax stage at its opening `(`. A supplied notation tree with no `rule-flag` reports its missing part at `rule-flags`, after the extension check.
 - A capture that wraps anything but one symbol is an error, `$x((B))`, `$x((A | B))` and `$x([B])` included. A symbol is a reference, a tag literal, a character tag, a phoneme tag, a range, a property or a tested one of these.
 - A capture whose name has a capital is an error. Capture names are all lower case.
 - A constant in a body is an error, reported at the constant. A body names a class of tokens with a rule, such as `%rule digit '0'..'9'`, and never with a constant.
@@ -1042,7 +1046,7 @@ A document's items are its rules, its directives, its constant definitions, its 
 A DOM is malformed in each of these cases, whether it is read, cached or in the bootstrap:
 
 - Two of its items share a position.
-- A rule lacks `flags`, or its value is neither `[]` nor `["greedy"]`. An `extend` rule must have `[]`.
+- A rule lacks `flags`, or its value is neither `[]` nor `["leftmost-longest"]`. An `extend` rule must have `[]`.
 - It has an expression, a term or a condition with members of two forms, or with a member that its form lacks (`docs/output.md`).
 - It has a `ref` that is not a name or `#`.
 - It has a `repeat` with a `chain` other than `left` or `right`, or with a `chain` that is not the whole `expr` of an alternative. A `repeat` with a `min` member is malformed too, since the form has no such member.

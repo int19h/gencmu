@@ -1,6 +1,6 @@
 {
   "description": "Two nested flagged occurrences over the same span count twice and beat one occurrence (engine §6).",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text r | s\n%rule(greedy) r t\n%rule(greedy) t 'a'\n%rule(greedy) s 'a'",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text r | s\n%rule(leftmost-longest) r t\n%rule(leftmost-longest) t 'a'\n%rule(leftmost-longest) s 'a'",
   "input": "a",
   "expect": {
     "result": {

@@ -1,0 +1,10 @@
+{
+  "description": "The former rule flag spelling is an unknown flag (engine §2).",
+  "document": "```jbogenbau\n%rule(greedy) text A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 7
+    }
+  }
+}

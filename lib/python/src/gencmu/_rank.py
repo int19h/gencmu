@@ -1043,7 +1043,7 @@ class Elisions(Summaries):
             project = forest.project
             if project is not None:
                 start, end = project[start], project[end]
-            if production.greedy and start < end:
+            if production.leftmost_longest and start < end:
                 profile = sum_profiles(profile, ((start, end, 1),))
             # A restoration elides nothing (engine §7.7).
             if self.elided[forest.prod[item]] and forest.edges[item][0][1] != RESTORE:
@@ -1163,7 +1163,7 @@ def rank(forest: Forest, lean: str, maximal: Maximal | None = None) -> Ranking |
     input has no derivation that counts."""
     if not forest.roots:
         return None
-    if lean == "late-elision" or any(production.greedy for production in forest.lowered.productions):
+    if lean == "late-elision" or any(production.leftmost_longest for production in forest.lowered.productions):
         return Elisions(forest, maximal, lean).rank(forest.roots)
     return Ranker(forest, lean, maximal).rank(forest.roots)
 

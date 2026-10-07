@@ -1,10 +1,10 @@
 {
   "description": "Invalid rule flags are errors of the document (engine §2).",
-  "document": "```jbogenbau\n%rule(greedy,greedy) text A\n```\n",
+  "document": "```jbogenbau\n%rule(leftmost-longest(1)) text A\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 14
+      "column": 24
     }
   }
 }

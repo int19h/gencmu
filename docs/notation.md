@@ -21,17 +21,19 @@ A grammar is a sequence of rules, directives (see "Directives"), constants (see 
   [sumti-6 [relative-clauses]] sumti-tail-1 | relative-clauses sumti-tail-1
 ```
 
-`%rule(greedy) NAME` gives the rule the only supported flag, `greedy`. It prefers complete parses where this rule's constituents start early and end late. A parse with a nonempty flagged constituent beats one without any. "Ambiguity" gives the full comparison.
+`%rule(leftmost-longest) NAME` gives the rule the only supported flag, `leftmost-longest`. It prefers earlier starts, then longer nonempty constituents at one start. A parse with a nonempty flagged constituent beats one without any. "Ambiguity" gives the full comparison.
 
-The flag compares constituents' boundaries, while the stage directive `greedy` prefers reading another token to closing a constituent. For example:
+For example:
 
 ```jbogenbau
 %ambiguity-resolution greedy
 %rule text r | r 'b'
-%rule(greedy) r 'a' 'b' | 'a'
+%rule(leftmost-longest) r 'a' 'b' | 'a'
 ```
 
 On `ab`, the stage chooses `r` over both tokens. Without the flag, the directive `greedy` leaves the two parses tied.
+
+For a tense example, flagging only `simple-tense-modal` groups `pu va ca gi` as `pu va` then `ca gi`. The official parser gives that grouping. This example does not define the official lexer's procedure.
 
 Spaces around the parentheses and their content have no meaning. By convention, the opening parenthesis follows the keyword directly.
 
@@ -257,7 +259,7 @@ So `%rule` never quietly replaces a rule. A misspelled name in `%redefine-rule` 
 
 The alternatives that an extension adds carry the extension's own clauses, not those of the base rule. The clauses of the base rule do not apply to them. So an extension says everything about what it adds. The loader, the part of gencmu that reads the documents, reports every replacement and extension: which document changed which rule. So a reader can see the effect of a dialect on its base in one place.
 
-`%extend-rule` accepts no flags and inherits the stitched rule's flag for every added alternative. `%redefine-rule(greedy)` replaces both the alternatives and the flag. A redefinition without parentheses removes the flag. The printed audit report names a flag change alongside the replacement. Unlike clauses, the flag belongs to the whole stitched rule.
+`%extend-rule` accepts no flags and inherits the stitched rule's flag for every added alternative. `%redefine-rule(leftmost-longest)` replaces both the alternatives and the flag. A redefinition without parentheses removes the flag. The printed audit report names a flag change alongside the replacement. Unlike clauses, the flag belongs to the whole stitched rule.
 
 The notation has no way to remove a single alternative. A rule is small enough to restate, and a restated rule reads better than a list of deletions.
 
@@ -622,9 +624,11 @@ The first stage reads the text's characters. Each is a token with one tag, its c
 
 ## Ambiguity
 
-A grammar admits every parse that its rules allow. A flagged occurrence is a flagged rule's constituent. A span is the range between two input token boundaries. A rule profile counts flagged occurrences over each nonempty span.
+A grammar admits every parse that its rules allow. A flagged occurrence is a flagged rule's constituent. A span is the range between two input token boundaries. A flagged span is a flagged occurrence's span. A rule profile counts flagged occurrences over each nonempty span.
 
-Every occurrence of a flagged rule counts, including a constituent with one symbol and each chain level. The unnamed constituents of flat braces and of optionals contribute nothing. This includes elidable optionals. Empty occurrences also contribute nothing.
+`leftmost-longest` compares complete parses by nonempty flagged-span counts, with earlier starts first, longer spans next, and larger counts preferred at the first difference.
+
+All flagged rules contribute together, without priority by name or declaration order. Equal spans count separately, including nested occurrences. Every nonempty repetition counts, as does each chain level and each constituent with one symbol. Empty occurrences contribute nothing. The unnamed constituents of flat braces and of optionals contribute nothing, including elidable optionals. The flag ranks before the stage directive.
 
 Compare two rule profiles as lists of spans:
 
@@ -635,7 +639,7 @@ Compare two rule profiles as lists of spans:
 5. After an equal prefix, prefer the longer list.
 6. If the lists are equal, use the stage directive.
 
-All flagged rules contribute together, without priority by name or declaration order. Two nested flagged occurrences over one span contribute twice, so two such occurrences beat one.
+Two nested flagged occurrences over one span contribute twice, so two such occurrences beat one. This differs from POSIX subexpression semantics in pooling rules, counting repeated occurrences and ignoring empty occurrences.
 
 A parse with a greater rule profile beats one with a lesser rule profile (engine §6). Among equal rule profiles, a parse beats another if the stage directive prefers it. A parse is best if no other parse beats it. The stage takes a sole best parse. If two or more parses are best, they are tied.
 
@@ -645,19 +649,20 @@ A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later 
 
 The engine's canonical order (engine §6) orders the ambiguity diagnostics and selects the forbidden terminator that a maximality rejection reports. Among its keys are the numbers of the productions, which follow the order of a rule's alternatives. The canonical tie-break keys never turn a tie into an accepted reading.
 
-`greedy` and `lazy` treat each parse as the sequence of steps that a bottom-up reader takes. A step reads the next token or closes a constituent. gencmu compares the parses at the first step where two of them differ:
+`greedy` and `lazy` treat each parse as the sequence of actions that a bottom-up reader takes. An action reads the next token or closes a constituent. Some closes are transparent and do not participate in the comparison (below). All other actions are visible. Among equal best rule profiles, gencmu compares the parses at the first differing visible action:
 
 - If both read the same token under two tags, they are tied.
-- If one reads and the other closes, the rule decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
+- `greedy` prefers reading another token to closing a constituent at the first differing visible action and ties other differences.
+- `lazy` prefers closing a constituent to reading another token at the first differing visible action and ties other differences.
 - If both close different constituents, they are tied.
 
 Some constituents are transparent to the comparison. They are the constituents with a single symbol. They are also the helpers that the notation creates for flat `{ }` and for `[ ]` without a capture. So two parses that differ only in such a relabeling do not differ yet. The levels of a chain are constituents of its rule, so a level with more than one symbol is not transparent. Where `greedy` or `lazy` must see where each step of a list ends, the grammar writes a chain or explicit recursion, not flat braces.
 
 Transparency does not merge parses, though. Two parses that differ only there are still two parses. `greedy` and `lazy` tie them when their rule profiles are equal. `late-elision` also requires equal counts of elided terminators at every position. For example, `[[X]]` matches the empty text in two ways, and `[A] & [B]` in three.
 
-The preference is like greedy and lazy quantifiers in a backtracking regular-expression engine. It is unlike the greed of a PEG parser. The preference orders the parses that the grammar already admits, and never commits early. So it never rejects a text by itself, but a tie that it leaves is an error. The earliest difference decides. The stage directive applies to every constituent of the stage.
+Greedy and lazy quantifiers suggest an analogy, not the same matching procedure. A quantifier controls repetition in a regular expression. These directives compare complete parses at the first differing visible action, without source-order priority or early commitment. A tie that the directive leaves is an error. The directive applies throughout the stage.
 
-Among equal rule profiles, `late-elision` compares the terminators that each parse elides ("Elided terminators"). In plain words, at the first place where two parses differ in leaving out a terminator, it takes the parse that reads on. It counts the elided terminators of each parse at each position, from the start of the text. At the first position where the counts differ, the parse with fewer elided terminators there wins.
+Among equal best rule profiles, `late-elision` prefers fewer omitted terminators at the earliest input boundary where their counts differ. "Elided terminators" explains omissions. The directive counts them at each boundary, from the start of the text.
 
 Two parses with equal rule profiles and equal counts at every position tie, whatever else differs. Without flagged rules, several parses that elide nothing always tie. A token read under two tags does not decide anything, and neither do two different closes. The name of an elided terminator, and the constituent that it ends, do not count either.
 

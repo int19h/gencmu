@@ -1,6 +1,6 @@
 {
   "description": "An unflagged redefinition removes the preference and restores the stage tie (engine §2, §6).",
-  "grammar": "%ambiguity-resolution lazy\n%rule text r | r 'b'\n%rule(greedy) r 'a'\n%redefine-rule r 'a' | 'a' 'b'",
+  "grammar": "%ambiguity-resolution lazy\n%rule text r | r 'b'\n%rule(leftmost-longest) r 'a'\n%redefine-rule r 'a' | 'a' 'b'",
   "input": "ab",
   "expect": {
     "result": {

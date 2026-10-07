@@ -271,7 +271,7 @@ func newRanker(rec *recognizer, rule string, mx *maximal) *ranker {
 		rk.leaves = map[int32]*elSeq{}
 	}
 	for _, r := range rec.g.rules {
-		rk.profiles = rk.profiles || r.greedy
+		rk.profiles = rk.profiles || r.leftmostLongest
 	}
 	return rk
 }
@@ -1065,7 +1065,7 @@ func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 			continue
 		}
 		profile := e.profile
-		if rk.rec.g.rules[s.rule].greedy {
+		if rk.rec.g.rules[s.rule].leftmostLongest {
 			a, b := s.start, s.end
 			if rc := rk.rec.recon; rc != nil {
 				a, b = int32(rc.project[a]), int32(rc.project[b])
@@ -1479,7 +1479,7 @@ func derivationProfile(g *lowered, d *dn) ruleProfile {
 		if n == nil {
 			continue
 		}
-		if n.kind == dClose && g.rules[n.prod.lhs].greedy && n.start < n.end {
+		if n.kind == dClose && g.rules[n.prod.lhs].leftmostLongest && n.start < n.end {
 			out = sumProfiles(out, ruleProfile{{n.start, n.end, countOne}})
 		}
 		stack = append(stack, n.a, n.b)

@@ -2068,7 +2068,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 19;
+  const DOM_FORMAT = 20;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
@@ -2303,7 +2303,7 @@
     }
     for (const rule of dom.rules) {
       if (!isDomObject(rule) || typeof rule.name !== "string" || !(DOM_NAME.test(rule.name) || rule.name === "#") || !["define", "redefine", "extend"].includes(/** @type {string} */ (rule.op)) ||
-          !Array.isArray(rule.flags) || rule.flags.length > 1 || !rule.flags.every((flag) => flag === "greedy") ||
+          !Array.isArray(rule.flags) || rule.flags.length > 1 || !rule.flags.every((flag) => flag === "leftmost-longest") ||
           (rule.op === "extend" && rule.flags.length !== 0) || !Array.isArray(rule.alternatives) || rule.alternatives.length === 0 || !Array.isArray(rule.conditions) || !isDomPosition(rule.at) ||
           (rule.opaque !== undefined && rule.opaque !== true)) {
         return "a malformed rule";
@@ -9242,7 +9242,7 @@
             total = Math.min(2, before.total * child.total);
             if (guarded) permitted = !(/** @type {Maximal} */ (maximal)).forbids(edge.child, current.production.rhs[current.dot - 1].test);
           }
-          if (current.dot === current.production.rhs.length && current.production.flags.includes("greedy")) {
+          if (current.dot === current.production.rhs.length && current.production.flags.includes("leftmost-longest")) {
             const p = this.profileProject?.[current.origin] ?? current.origin;
             const q = this.profileProject?.[current.end] ?? current.end;
             if (p < q) profile = sumProfiles(profile, [[p, q, 1]]);
@@ -9641,7 +9641,7 @@
         if (hooks.work) countWork(hooks.work, "groups");
         if (seen.has(item)) continue;
         seen.add(item);
-        if (item.production.flags.includes("greedy")) this.profiles = true;
+        if (item.production.flags.includes("leftmost-longest")) this.profiles = true;
         for (const edge of item.edges) {
           if (hooks.work) countWork(hooks.work, "groups");
           if (edge.kind === "seed" || edge.kind === "restore") continue;
@@ -10090,7 +10090,7 @@
     const pending = [root];
     for (let node = pending.pop(); node; node = pending.pop()) {
       if ("read" in node) continue;
-      if (node.production.flags.includes("greedy") && node.start < node.end) {
+      if (node.production.flags.includes("leftmost-longest") && node.start < node.end) {
         profile = sumProfiles(profile, [[node.start, node.end, 1]]);
       }
       for (const child of node.children) pending.push(child);
@@ -10655,7 +10655,7 @@
       // A test that watches the check marks W(D)'s edges before the check
       // ranks (tests/README.md).
       const run = { chosen, chart, roots, synthetic, originalAt, recordAt };
-      const flagged = lowered.productions.some((production) => production.flags.includes("greedy"));
+      const flagged = lowered.productions.some((production) => production.flags.includes("leftmost-longest"));
       const walk = flagged ? walkWitness(run) : null;
       const watch = hooks.elisionCheck ? hooks.elisionCheck(run) : null;
       // The check's ranker: no lean, and cycles over spans of R (engine §7.7).
@@ -11811,7 +11811,7 @@
         if (rule.op === "extend") fail("%extend-rule accepts no flags", flags);
         for (const flag of some(flags, "rule-flag")) {
           const name = text(token(flag));
-          if (name !== "greedy") fail(`unknown rule flag ${name}`, flag);
+          if (name !== "leftmost-longest") fail(`unknown rule flag ${name}`, flag);
           if (rule.flags.includes(name)) fail(`duplicate rule flag ${name}`, flag);
           rule.flags.push(name);
         }

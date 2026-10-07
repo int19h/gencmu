@@ -1,10 +1,10 @@
 {
   "description": "A duplicate flag precedes a repeated capture (engine §9).",
-  "document": "```jbogenbau\n%rule(greedy,greedy) text $x(A) $x(A)\n```\n",
+  "document": "```jbogenbau\n%rule(leftmost-longest,leftmost-longest) text $x(A) $x(A)\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 14
+      "column": 24
     }
   }
 }

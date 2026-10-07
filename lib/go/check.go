@@ -232,7 +232,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	var chosenProfile ruleProfile
 	flagged := false
 	for _, rule := range g.rules {
-		flagged = flagged || rule.greedy
+		flagged = flagged || rule.leftmostLongest
 	}
 	if flagged {
 		chosenProfile = derivationProfile(g, d)

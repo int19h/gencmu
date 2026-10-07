@@ -708,7 +708,7 @@ class Production:
     terminal: tuple[bool, ...]
     rule_name: str
     helper: bool
-    greedy: bool = False
+    leftmost_longest: bool = False
     elided: str | None = None
     # The test of that terminator, if it is tested; a restored token
     # sounds like the string of its = test (engine §7).
@@ -1044,7 +1044,7 @@ class _Lowerer:
             terminal=terminal,
             rule_name=self.rule_display[lhs],
             helper=alt is None,
-            greedy=alt is not None and "greedy" in self.grammar.rules[self.rule_names[lhs]].flags,
+            leftmost_longest=alt is not None and "leftmost-longest" in self.grammar.rules[self.rule_names[lhs]].flags,
             elided=elided[0] if elided is not None else None,
             elided_test=elided[1] if elided is not None else None,
             tests=tests if any(test is not None for test in tests) else None,
