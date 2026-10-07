@@ -82,7 +82,7 @@ To stitch a stage's items, the loader reads them in order, whatever documents th
 
 When `%extend-rule` extends a rule, each appended alternative carries the extension's own clauses: its rule-level tags, conditions and emission. These clauses apply to the appended alternatives alone, and the base rule's clauses do not apply to them. The earlier alternatives keep their own clauses. So a script document can add letters to a rule without restating its clauses, and its own clauses do not leak into the base rule. A definition is a `%rule`, `%redefine-rule` or `%extend-rule` statement: its alternatives and the clauses written with them. The loader records every replacement and extension.
 
-A rule also has flags, with `greedy` as the only supported flag. `%rule(greedy)` defines a flagged rule, and `%redefine-rule(greedy)` replaces its body and flag. A definition or redefinition without parentheses gives the rule no flags. `%extend-rule` accepts no flags and inherits the stitched rule's flag for all added alternatives. Flags belong to the rule, while clauses belong to each definition.
+A rule flag gives a rule a preference. Only `greedy` is supported. `%rule(greedy)` defines a flagged rule, and `%redefine-rule(greedy)` replaces its body and flag. A definition or redefinition without parentheses gives the rule no flags. `%extend-rule` accepts no flags and inherits the stitched rule's flag for all added alternatives. Flags belong to the rule, while clauses belong to each definition.
 
 Parentheses follow the keyword and precede the name. Their only accepted content is `greedy`, with optional surrounding spaces. Empty parentheses, duplicates, unknown flags, arguments and parentheses on `%extend-rule` are errors of the document.
 
@@ -441,7 +441,7 @@ A stage ranks the counted derivations of its input (§4). Rule flags rank them f
 
 Under `unique` and `resolved`, the chosen derivation is the one best derivation. Under `resolved`, it beats every other derivation (below). A tie is an error, and the stage then has no chosen derivation. The production numbers of §3 never decide which derivation a stage chooses.
 
-A rule profile counts nonempty flagged occurrences over input token spans. For N input tokens and boundaries `0 ≤ p < q ≤ N`, `G_D(p,q)` counts D's flagged occurrences over `[p,q)`. Every named occurrence contributes once, regardless of arity. Empty occurrences contribute nothing, and helpers carry no flags. All flagged rules contribute together, without priority by name, production number, tags or source.
+A rule profile counts flagged constituents over nonempty spans. For N input tokens and boundaries `0 ≤ p < q ≤ N`, `G_D(p,q)` counts D's flagged occurrences over `[p,q)`. Every named occurrence contributes once, regardless of arity. Empty occurrences contribute nothing, and helpers carry no flags. All flagged rules contribute together, without priority by name, production number, tags or source.
 
 Compare components by increasing p and, within one p, decreasing q. At the first differing count, the greater count wins. Equal vectors give equal profiles. This is a total order on profiles, although distinct derivations can share one profile. An occurrence beats absence, and equal spans count separately. With no flagged rule, every profile is zero and behavior stays the same.
 

@@ -10,7 +10,7 @@ Conditions over the parts restrict which parses exist. A condition can also ask 
 
 A token is one unit that a grammar reads or emits. Examples are characters, phonemes and words. A transducer reads tokens and emits another sequence. Each rule can also say what its constituents hand to the next grammar. So a grammar is a transducer. A dialect is a pipeline of these grammars, its stages, defined by one pipeline document.
 
-A grammar is unordered: its alternatives are not ranked. Rule flags and the stage ranking choose among complete parses afterwards. The section "Ambiguity" describes these preferences.
+A grammar is unordered: its alternatives are not ranked. A rule flag gives a rule a preference. Rule flags and the stage ranking choose among complete parses afterwards. The section "Ambiguity" describes these preferences.
 
 ## Rules
 
@@ -21,7 +21,7 @@ A grammar is a sequence of rules, directives (see "Directives"), constants (see 
   [sumti-6 [relative-clauses]] sumti-tail-1 | relative-clauses sumti-tail-1
 ```
 
-A rule flag is a preference attached to a rule. `%rule(greedy) NAME` gives the rule the only supported flag, `greedy`. The flag prefers nonempty constituents among complete parses, as "Ambiguity" explains. Spaces around the parentheses and their content have no meaning. By convention, the opening parenthesis follows the keyword directly.
+`%rule(greedy) NAME` gives the rule the only supported flag, `greedy`. The flag prefers nonempty constituents among complete parses, as "Ambiguity" explains. Spaces around the parentheses and their content have no meaning. By convention, the opening parenthesis follows the keyword directly.
 
 Empty parentheses, duplicate flags, unknown flags and arguments are errors. Parentheses can contain more flags or parameters in future versions.
 
