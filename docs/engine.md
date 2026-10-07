@@ -451,7 +451,7 @@ For N input tokens, the pairs of boundaries are `0 ≤ p < q ≤ N`. `G_D(p,q)` 
 
 Compare components by increasing p and, within one p, decreasing q. At the first differing count, the greater count wins. Equal vectors give equal rule profiles. Every two rule profiles are equal or one of them wins. Distinct derivations can share one rule profile.
 
-Only a flagged occurrence makes a component nonzero. A sparse map stores only nonzero components. A shared sorted list of spans is another representation. With no flagged rule, one shared zero profile serves every derivation.
+Only a flagged occurrence makes a component nonzero. A sparse map stores only nonzero components. A shared sorted list with one entry per occurrence is another representation, since equal spans count separately. With no flagged rule, one shared zero profile serves every derivation.
 
 An occurrence beats absence, and equal spans count separately. With no flagged rule, every rule profile is zero, so the directive alone ranks.
 
