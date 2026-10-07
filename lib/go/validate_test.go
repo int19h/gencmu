@@ -16,7 +16,7 @@ func TestDOMRules(t *testing.T) {
 	const good = `{"seq":[{"terminal":"a"},{"terminal":"b"}]}`
 	format := `"format":` + strconv.Itoa(domFormat)
 	rule := func(fields string) string {
-		return `{` + format + `,"rules":[{"name":"text","op":"define",` + fields + `,"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
+		return `{` + format + `,"rules":[{"name":"text","op":"define","flags":[],` + fields + `,"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
 	}
 	guarded := func(guard string) string {
 		return rule(`"alternatives":[{"guards":[` + guard + `],"expr":` + good + `}],"conditions":[]`)
