@@ -7735,7 +7735,7 @@
    * @import { Token } from "./tokens.js"
    * @import { Dialect } from "./dialect.js"
    * @import { TraceEvent } from "./earley.js"
-   * @import { StitchedAlternative, RuleChange } from "./grammar.js"
+   * @import { StitchedAlternative } from "./grammar.js"
    */
 
   // ---- Where in the text --------------------------------------------------
@@ -8221,7 +8221,8 @@
    * @property {string} resolution
    * @property {number} rules
    * @property {string[]} unreachable rules no derivation of `text` can reach
-   * @property {RuleChange[]} changes
+   * @property {{kind: string, rule: string, document: string, previous: string,
+   *   flagChange?: {from: string[], to: string[]}}[]} changes
    * @property {{rule: string, document: string}[]} idleErasures rules that emit `ε` although nothing
    *   under them could emit and no token could cover them
    * @property {Membership[]} memberships every membership of a key in a class
