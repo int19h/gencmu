@@ -433,7 +433,7 @@ In the check of §7, `phonemes(span)` and `text(span)` read the projected span, 
 
 ## 6. Choosing a parse
 
-A stage ranks the counted derivations of its input (§4). Rule flags rank them first. The directive (§2), `greedy`, `lazy` or `late-elision`, ranks only derivations with the greatest rule profile. A derivation is best when neither comparison prefers another one. The verdict is one of these:
+A stage ranks the counted derivations of its input (§4). Rule flags rank them first. The directive (§2), `greedy`, `lazy` or `late-elision`, ranks only derivations with the greatest rule profile, the counts of nonempty flagged spans. A derivation is best when neither comparison prefers another one. The verdict is one of these:
 
 - `unique` if the input has one derivation
 - `resolved` if it has several, and exactly one of them is best
@@ -469,7 +469,7 @@ Under `greedy` and `lazy`, the stage compares two derivations of the same input 
 
 If the visible sequences are equal, or one is a proper prefix of the other, the two are tied. For the witness below, their first difference is the first pair of differing actions of the whole sequences, transparent ones included. A derivation whose visible sequence is a proper prefix of the other's differs from it where the shorter ends.
 
-A ranking with no lean compares two derivations in the same way, but rule 2 ties them too. So under no lean, any two derivations that differ are tied. The test of §7 uses no lean after rule profiles. So do the readings of a tie under `late-elision` (below). A directive cannot name it. In the check, a restoration is a read of its synthetic token and then the close of its empty production (§7.4, §7.7).
+Among equal rule profiles, a ranking with no lean compares two derivations in the same way, but rule 2 ties them too. Any two remaining derivations that differ are tied. The test of §7 uses no lean after rule profiles. So do the readings of a tie under `late-elision` (below). A directive cannot name it. In the check, a restoration is a read of its synthetic token and then the close of its empty production (§7.4, §7.7).
 
 Among equal rule profiles, `late-elision` compares only the elided terminators (§4). Let the input have N tokens. A boundary is a position from 0 to N. The elision vector of a derivation has one component for each boundary. The component at boundary `p` is the number of the derivation's elided terminators at position `p`.
 
@@ -477,7 +477,7 @@ The vector counts each elided terminator once, whatever its terminal, its consti
 
 The markers of §3.8 alone decide what counts. They also decide which empty optionals become `elided` nodes (§12), what maximality forbids (§4) and what §7 restores. An optional that is not elidable (§3.8), such as an optional separator, can still be empty. Its absence counts nothing and leaves no node. The ranking knows no particular terminal, so a grammar that wants a separator not to count writes it as a plain optional, `[CU #]`.
 
-Under `late-elision`, one derivation beats another when its elision vector is less. The stage compares two vectors from boundary 0 to boundary N. At the first boundary where they differ, the vector with the smaller count is less. Derivations with equal rule profiles and equal elision vectors tie, even where their trees differ. Without flagged rules, several derivations that elide nothing always tie.
+Among equal rule profiles, `late-elision` prefers a derivation whose elision vector is less. The stage compares two vectors from boundary 0 to boundary N. At the first boundary where they differ, the vector with the smaller count is less. Derivations with equal rule profiles and equal elision vectors tie, even where their trees differ. Without flagged rules, several derivations that elide nothing always tie.
 
 The same comparison can be read as actions. Project a derivation's sequence of actions in this way:
 

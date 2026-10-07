@@ -441,7 +441,7 @@ fn grammar_dom(source: &Source) -> String {
         if let Some(chain) = source.chains[rule] {
             let direction = if chain.left { "left" } else { "right" };
             rules.push(format!(
-                "{{\"name\":\"{}\",\"op\":\"define\",\"alternatives\":[{{\"guards\":[],\"expr\":{{\"repeat\":{},\"separator\":{},\"chain\":\"{direction}\"}}}}],\"conditions\":[],\"at\":[{},1]}}",
+                "{{\"name\":\"{}\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{{\"guards\":[],\"expr\":{{\"repeat\":{},\"separator\":{},\"chain\":\"{direction}\"}}}}],\"conditions\":[],\"at\":[{},1]}}",
                 RULES[rule],
                 reference(&chain.item),
                 reference(&chain.separator),
@@ -486,7 +486,7 @@ fn grammar_dom(source: &Source) -> String {
             })
             .collect();
         rules.push(format!(
-            "{{\"name\":\"{}\",\"op\":\"define\",\"alternatives\":[{}],\"conditions\":[],\"at\":[{},1]}}",
+            "{{\"name\":\"{}\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{}],\"conditions\":[],\"at\":[{},1]}}",
             RULES[rule],
             alternatives.join(","),
             rule + first_rule_line
