@@ -27,15 +27,13 @@ se se broda # grammars/syntax/cll.md = tanru-unit-2 adhoc.syntax.se-se-unit adho
 na'e se broda # grammars/syntax/cll.md = tanru-unit-2 adhoc.syntax.nahe-se-unit adhoc.syntax.nahe-se-unit.bpfk
 pa xy. # grammars/syntax/cll.md = number adhoc.syntax.number-then-lerfu adhoc.syntax.number-then-lerfu.bpfk
 ci su'i vo pi'i mu # grammars/syntax/cll.md = mex-chain adhoc.syntax.mex-chain-left-grouping adhoc.syntax.mex-chain-left-grouping.bpfk
-pu va # grammars/syntax/cll.md = simple-tense-modal adhoc.syntax.time-before-space-jai adhoc.syntax.time-before-space-jai.bpfk
+va pu # grammars/syntax/cll.md:657,674 = simple-tense-modal adhoc.syntax.space-time-single-tense adhoc.syntax.space-time-single-tense.bpfk
+pu va # grammars/syntax/cll.md:657,683 = simple-tense-modal adhoc.syntax.tag-stag-gek.sumti-time-space adhoc.syntax.tag-stag-gek.sumti-time-space.bpfk
 pu ka'e # grammars/syntax/cll.md = simple-tense-modal adhoc.syntax.simple-tense-modal-time-caha adhoc.syntax.simple-tense-modal-time-caha.bpfk
 ba za ki # grammars/syntax/cll.md = simple-tense-modal adhoc.syntax.simple-tense-modal-time-space-ki adhoc.syntax.simple-tense-modal-time-space-ki.bpfk
 na'e ka'e # grammars/syntax/cll.md = simple-tense-modal adhoc.syntax.simple-tense-modal-nahe-kahe adhoc.syntax.simple-tense-modal-nahe-kahe.bpfk
 pu ki # grammars/syntax/cll.md = simple-tense-modal adhoc.syntax.simple-tense-modal-time-ki adhoc.syntax.simple-tense-modal-time-ki.bpfk
 na'e ca'a # grammars/syntax/cll.md = simple-tense-modal adhoc.syntax.simple-tense-modal-nahe-caha adhoc.syntax.simple-tense-modal-nahe-caha.bpfk
-fe'e di'i # grammars/syntax/cll.md = term adhoc.syntax.space-fehe-then-time-contour adhoc.syntax.space-fehe-then-time-contour.bpfk
-lo va pu broda # grammars/syntax/cll.md = reject adhoc.syntax.space-before-time-description adhoc.syntax.space-before-time-description.bpfk
-pu gi do gi la djan # grammars/syntax/cll.md = sumti adhoc.syntax.space-before-time-forethought-sumti adhoc.syntax.space-before-time-forethought-sumti.bpfk
 se farvi # grammars/dialects/cll-ebnf.md = selbri corpus.camxes.12997
 fy no # grammars/dialects/bpfk.md = words adhoc.words.cy.cy-before-number-needs-pause.bpfk
 se farvi # grammars/dialects/bpfk.md = selbri corpus.camxes.12997.bpfk
@@ -51,8 +49,6 @@ ke cadzu ke'e # grammars/syntax/cll.md # the selbri of the reading that the gihe
 bo brodi # grammars/syntax/cll.md # the words after a ke group that the ke form cannot take, no constituent
 ke pi'i ke'e # grammars/syntax/cll.md # the operator group that the joik form reads together with its joik, so no rule spans it alone
 le sutra # grammars/syntax/cll.md # the description of the parse of le sutra tavla that the ranking rejects
-va pu # grammars/syntax/cll.md # the one tense that the printed rule reads
-fe'e di'i co'a # grammars/syntax/cll.md # the one tense that the official parser reads
 
 doi bu # grammars/words/bpfk.md # the PEG's reading, which the word stage does not share
 ba jy kla # grammars/words/bpfk.md # the split that CVCy_lujvo prevents; bajykla has its own case
@@ -65,8 +61,8 @@ terms zo'u # grammars/syntax/cll.md # notation: a rule name before the cmavo
 .i ja nai # grammars/syntax/cll.md # a connective between sentences
 .i joi # grammars/syntax/cll.md # a connective between sentences
 .i bo # grammars/syntax/cll.md:81,85 # a part of the pinned text quoted after it on its line
-gi'e ke # grammars/syntax/cll.md:203,846 # the words of one token of the official parser's lexer
-joi ke # grammars/syntax/cll.md:209,839 # the words of one token of the official parser's lexer
+gi'e ke # grammars/syntax/cll.md:203,859 # the words of one token of the official parser's lexer
+joi ke # grammars/syntax/cll.md:209,852 # the words of one token of the official parser's lexer
 ca lo nu broda # grammars/syntax/cll.md # the shape of a tense with its sumti
 fi mi # grammars/syntax/cll.md # the shape of a place marker with its sumti
 pu ku # grammars/syntax/cll.md:266 # the shape of a tense with an elided sumti
@@ -104,11 +100,13 @@ ia ie ii io iu ua ue ui uo uu # grammars/words/shapes.md # notation: the rising 
 
 zu'a nu'i la djordj. la'u lo mitre be li mu # grammars/syntax/cll.md = term adhoc.syntax.tag-termset.1.cll-ebnf adhoc.syntax.tag-termset.9.bpfk
 zu'a nu'i la'u lo mitre be li mu # grammars/syntax/cll.md = term adhoc.syntax.tag-termset.2.cll-ebnf adhoc.syntax.tag-termset.10.bpfk
-tag termset # grammars/syntax/cll.md:277,851 # These are names of grammar rules in an alternative, not Lojban words.
+tag termset # grammars/syntax/cll.md:277,865 # These are names of grammar rules in an alternative, not Lojban words.
 gi'a brodi # grammars/syntax/cll.md:194 = words adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti.bpfk
 pu ku # grammars/syntax/cll.md:213 = term adhoc.syntax.gek-term.3.cll-ebnf adhoc.syntax.gek-term.4.bpfk
 na'e ke # grammars/syntax/cll.md:118 = words adhoc.syntax.negation-scope.2.cll-ebnf adhoc.syntax.negation-scope.4.bpfk
 nu'u fa'u # grammars/syntax/cll.md:110 = words adhoc.syntax.errata.5.cll-ebnf adhoc.syntax.errata.6.bpfk
 pe'e fa'u # grammars/syntax/cll.md:110 # The words of the wiki's alternative correction, rather than a complete text.
 ractu du # grammars/syntax/cll.md:126 = words corpus.camxes.1112 adhoc.syntax.errata-controls.19.bpfk
-kanla viska # grammars/syntax/cll.md:800 = words adhoc.syntax.elision-unforced.3.cll-ebnf adhoc.syntax.elision-unforced.4.bpfk
+kanla viska # grammars/syntax/cll.md:813 = words adhoc.syntax.elision-unforced.3.cll-ebnf adhoc.syntax.elision-unforced.4.bpfk
+pu ca gi # grammars/syntax/cll.md:683 = gek adhoc.syntax.tag-stag-gek.sumti-time-time adhoc.syntax.tag-stag-gek.sumti-time-time.bpfk
+ca gi # grammars/syntax/cll.md:683 = gek adhoc.syntax.leftmost-longest.sumti-time-space-time adhoc.syntax.leftmost-longest.sumti-time-space-time.bpfk
