@@ -105,7 +105,7 @@ The [indicator document](../indicators/cll.md#quotation-boundaries) explains why
   %include "../syntax/cll.md"
   ```
 
-The stage reads CLL 1.1 chapter 21, with selma'o as its terminals. The grammar's [simple tense-modals](../syntax/cll.md#tenses-and-modals) are the forms of `simple-tense-modal`. Their `leftmost-longest` flag prefers the earliest group, then the longest one at that start. This dialect chooses among the remaining parses here:
+The stage uses the grammar of CLL 1.1 chapter 21, with selma'o as its terminals. The grammar's [simple tense-modals](../syntax/cll.md#tenses-and-modals) are the forms of `simple-tense-modal`. Their `leftmost-longest` flag prefers the earliest group, then the longest one at that start. This dialect chooses among the remaining parses here:
 
 ```jbogenbau
 %ambiguity-resolution late-elision elision-only
@@ -117,7 +117,7 @@ Among parses with equal flagged groups, `late-elision` prefers the parse that om
 
 `late-elision` and `elision-only` together interpret note 10 of CLL 1.1 section 21.2. That note permits an omitted terminator when no grammatical ambiguity results.
 
-The dialect chooses `late-elision` and `elision-only` to fit CLL's conventions. Note 10 does not specify them. It does not say which parse a text has when the grammar allows more than one. Nor does it say how to find that no ambiguity results. `elision-only` tests one completion, as the preceding paragraph describes. "Choosing among parses" in [the CLL grammar](../syntax/cll.md) separates terminator advice, parser limitations, and boundaries that the whole text forces.
+The dialect chooses `late-elision` and `elision-only` to fit CLL's conventions. Note 10 does not specify them. It does not say which parse a text has when the grammar allows more than one. Nor does it say how to find that no ambiguity results. `elision-only` tests one completion, as described above. "Choosing among parses" in [the CLL grammar](../syntax/cll.md) separates terminator advice, parser limitations, and boundaries that the whole text forces.
 
 Under this policy, `le nanmu joi le ninmu cu klama` parses with KU elided at the boundary that CLL 14.14 intends. CLL describes the official parser's failed left-to-right reading. "Choosing among parses" in [the CLL grammar](../syntax/cll.md) explains the same kind of forced boundary in examples 8.48 and 8.62. CLL describes their merged readings without naming the official parser. The elision policy disagrees with no specific text of CLL.
 
