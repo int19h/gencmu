@@ -816,11 +816,12 @@ class StageRunner:
                     chosen_profile = sum_profiles(chosen_profile, ((node.start, node.end, 1),))
                 pending.extend(node.children)
             walk = walk_witness(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at))
-        ranking = _rank_check(forest, watch.marks if watch is not None else None)
+        marks = walk.marks if walk is not None else watch.marks if watch is not None else None
+        ranking = _rank_check(forest, marks)
         better = False
         if flagged and ranking is not None:
             order = compare_profiles(ranking.profile, chosen_profile)
-            if walk is None or order > 0:
+            if walk is None or ranking.witness_counted is not True or order > 0:
                 ranking = None
             elif order < 0:
                 better = True

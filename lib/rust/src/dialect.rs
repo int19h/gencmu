@@ -937,6 +937,7 @@ impl Dialect {
                 .rank()
                 .filter(|ranking| {
                     loss != Some(witness::Loss::Count)
+                        && (!flagged || ranking.witness_counted == Some(true))
                         && compare_profiles(&ranking.profile, &chosen_profile) != std::cmp::Ordering::Greater
                 })
                 .map(|mut ranking| {

@@ -10087,6 +10087,167 @@
     return profile;
   }
 
+  // ---- witness.js
+  /**
+   * The restored chosen derivation's matched edge indices and action sequence.
+   * @typedef {object} Walk
+   * @property {Map<import("./types.js").Item, Set<number>>} marks
+   * @property {import("./types.js").Action[]} sequence
+   */
+
+  /**
+   * Finds the restored chosen derivation before ranking.
+   * The walk matches productions, spans and token provenance.
+   * It returns matched edges and the witness's actions.
+   * A missing witness gives null.
+   * @param {import("./testing.js").ElisionCheckRun} run
+   * @returns {Walk | null}
+   */
+  function walkWitness(run) {
+    const { chosen, chart, roots, synthetic, originalAt, recordAt } = run;
+    // Visit children before parents and record each reconstructed span.
+    // Reads consume original tokens, and omissions consume synthetic tokens.
+    /** @type {import("./types.js").Derivation[]} */
+    const order = [];
+    /** @type {Map<import("./types.js").Derivation, [number, number]>} */
+    const spans = new Map();
+    /** @param {import("./types.js").Derivation} node */
+    const spanOf = (node) => {
+      const span = spans.get(node);
+      if (!span) throw new Error("a witness node has no reconstructed span");
+      return span;
+    };
+    let cursor = 0;
+    let records = 0;
+    const stack = [{ node: chosen, next: 0, start: 0 }];
+    while (stack.length > 0) {
+      const frame = stack[stack.length - 1];
+      const node = frame.node;
+      if (frame.next === 0) frame.start = cursor;
+      if ("read" in node) {
+        const at = originalAt[node.read.token];
+        if (at !== cursor || synthetic[at]) return null;
+        cursor++;
+        spans.set(node, [at, at + 1]);
+        order.push(node);
+        stack.pop();
+        continue;
+      }
+      if (witnessElided(node)) {
+        const at = recordAt[records++];
+        if (at !== cursor || !synthetic[at]) return null;
+        cursor++;
+        spans.set(node, [at, at + 1]);
+        order.push(node);
+        stack.pop();
+        continue;
+      }
+      if (frame.next < node.children.length) {
+        stack.push({ node: node.children[frame.next++], next: 0, start: cursor });
+        continue;
+      }
+      spans.set(node, [frame.start, cursor]);
+      order.push(node);
+      stack.pop();
+    }
+    if (records !== recordAt.length || cursor !== synthetic.length) return null;
+
+    // The items of each set by production, dot and origin, made on demand.
+    /** @type {Map<number, Map<string, import("./types.js").Item[]>>} */
+    const indexes = new Map();
+    /** @param {number} position
+     * @param {import("./types.js").Production} production
+     * @param {number} dot
+     * @param {number} origin */
+    const itemsAt = (position, production, dot, origin) => {
+      let index = indexes.get(position);
+      if (!index) {
+        index = new Map();
+        for (const item of chart.setAt(position).items) {
+          const key = `${item.production.id}:${item.dot}:${item.origin}`;
+          const list = index.get(key);
+          if (list) list.push(item);
+          else index.set(key, [item]);
+        }
+        indexes.set(position, index);
+      }
+      return index.get(`${production.id}:${dot}:${origin}`) || [];
+    };
+
+    // Record exact items for each rule node and matched edge indices.
+    // Edge indices stay valid when an item creates new edge objects.
+    /** @type {Map<import("./types.js").Derivation, Set<import("./types.js").Item>>} */
+    const found = new Map();
+    /** @type {Map<import("./types.js").Item, Set<number>>} */
+    const marks = new Map();
+    /** @type {(item: import("./types.js").Item, matched: (edge: import("./types.js").Edge) => boolean) => boolean} */
+    const mark = (item, matched) => {
+      let any = false;
+      item.edges.forEach((edge, index) => {
+        if (!matched(edge)) return;
+        let kept = marks.get(item);
+        if (!kept) marks.set(item, (kept = new Set()));
+        kept.add(index);
+        any = true;
+      });
+      return any;
+    };
+    for (const node of order) {
+      if ("read" in node) continue;
+      const [start, end] = spanOf(node);
+      if (witnessElided(node)) {
+        const restorations = itemsAt(end, node.production, 0, start).filter((item) => item.restores && item.origin === start);
+        for (const item of restorations) mark(item, (edge) => edge.kind === "restore");
+        found.set(node, new Set(restorations));
+        continue;
+      }
+      const production = node.production;
+      let current = new Set(itemsAt(start, production, 0, start).filter((item) => item.previous === null && !item.restores));
+      for (const item of current) mark(item, (edge) => edge.kind === "seed");
+      node.children.forEach((child, index) => {
+        const [, childEnd] = spanOf(child);
+        const next = new Set();
+        for (const item of itemsAt(childEnd, production, index + 1, start)) {
+          const matched = mark(item, (edge) => {
+            if (!("previous" in edge) || !current.has(edge.previous)) return false;
+            if ("read" in child) return edge.kind === "scan" && edge.token === spanOf(child)[0] && edge.terminal === child.read.terminal;
+            return edge.kind === "complete" && found.get(child)?.has(edge.child) === true;
+          });
+          if (matched) next.add(item);
+        }
+        current = next;
+      });
+      found.set(node, current);
+    }
+    const top = found.get(chosen);
+    if (!top || !roots.some((item) => top.has(item))) return null;
+    // Build actions after visiting each node's children, without ranking.
+    // Each restoration reads its synthetic token and closes over it.
+    /** @type {import("./types.js").Action[]} */
+    const sequence = [];
+    for (const node of order) {
+      const [start, end] = spanOf(node);
+      if ("read" in node) {
+        sequence.push({ kind: "read", token: start, terminal: node.read.terminal });
+        continue;
+      }
+      if (witnessElided(node)) sequence.push({ kind: "read", token: start, terminal: /** @type {string} */ (node.production.elided) });
+      const item = /** @type {import("./types.js").Item} */ ([...(found.get(node) || [])][0]);
+      sequence.push({ kind: "close", item: item ?? /** @type {any} */ ({ production: node.production, origin: start, end }) });
+    }
+    return { marks, sequence };
+  }
+
+  /**
+   * Whether a node of a derivation is an elided terminator: the empty
+   * production of an elidable optional's helper.
+   * @param {import("./types.js").Derivation} node
+   * @returns {boolean}
+   */
+  function witnessElided(node) {
+    return !("read" in node) && node.production.helper && node.production.elided !== null && node.production.rhs.length === 0 && node.children.length === 0;
+  }
+
   // ---- maximal.js
   // Maximal terminators (engine §4): an elided terminator is forbidden
   // where its constituent, the node before it, could have been longer.
@@ -10191,6 +10352,7 @@
   // ---- stage.js
   // Running one stage: recognition, the choice of a parse, the result tree
   // (engine §12), emission (engine §11) and elision-only (engine §7).
+
 
 
 
@@ -10481,25 +10643,32 @@
         ? maximalRule(chart, lowered) : null;
       // A test that watches the check marks W(D)'s edges before the check
       // ranks (tests/README.md).
-      const watch = hooks.elisionCheck ? hooks.elisionCheck({ chosen, chart, roots, synthetic, originalAt, recordAt }) : null;
+      const run = { chosen, chart, roots, synthetic, originalAt, recordAt };
+      const flagged = lowered.productions.some((production) => production.flags.includes("greedy"));
+      const walk = flagged ? walkWitness(run) : null;
+      const watch = hooks.elisionCheck ? hooks.elisionCheck(run) : null;
       // The check's ranker: no lean, and cycles over spans of R (engine §7.7).
       const ranker = new Ranker(restored, "none", maximal, fault("F19") ? project : null);
       ranker.profileProject = project;
       ranker.check = true;
-      ranker.marks = watch ? watch.marks : null;
+      ranker.marks = flagged ? walk?.marks ?? null : watch?.marks ?? null;
       let ranking = roots.length === 0 ? null : ranker.rank(roots);
-      if (fault("lost:count")) ranking = null;
-      if (watch) watch.ranked({ ranking, counted: ranking !== null && ranking.witnessCounted === true });
+      if (fault("lost:count") || (flagged && (!walk || ranking?.witnessCounted !== true))) ranking = null;
       if (fault("F23")) {
         // A fault leaves the main grammar in the mode of the check.
         for (const [name, productions] of lowered.byLhs) {
           lowered.byLhs.set(name, productions.filter((production) => !(production.rhs.length === 0 && production.helper && production.elided !== null)));
         }
       }
-      if (ranking === null) return old ? { kind: "pass" } : { kind: "lost", completion: records };
+      if (ranking === null) {
+        if (watch) watch.ranked({ ranking: null, counted: false });
+        return old ? { kind: "pass" } : { kind: "lost", completion: records };
+      }
       const profileOrder = ranker.profiles ? compareProfiles(ranking.profile, derivationProfile(chosen)) : 0;
-      if (profileOrder > 0) return { kind: "lost", completion: records };
-      if (profileOrder === 0 && ranking.verdict !== "tie") return { kind: "pass" };
+      if (profileOrder > 0) {
+        if (watch) watch.ranked({ ranking: null, counted: false });
+        return { kind: "lost", completion: records };
+      }
       const better = profileOrder < 0;
       if (better) {
         const restoredWitness = witnessRope(chosen);
@@ -10508,6 +10677,8 @@
         ranking = { ...ranking, second: ranking.first, first: restoredWitness,
           witness: difference ? [difference.left, difference.right] : null };
       }
+      if (watch) watch.ranked({ ranking, counted: ranking.witnessCounted === true });
+      if (profileOrder === 0 && ranking.verdict !== "tie") return { kind: "pass" };
       // The readings, mapped to the stage's input (engine §7.10).
       const original = new Sources(tokens);
       /** @type {Map<string, TagSet>} */

@@ -131,6 +131,9 @@ func (g *genGrammar) grammar() *domDoc {
 	d.Directives = []*domDirective{{Name: "ambiguity-resolution", Args: args}}
 	for _, name := range g.rules {
 		r := &domRule{Name: name, Op: "define"}
+		if g.r.Intn(100) < 35 {
+			r.Flags = []string{"greedy"}
+		}
 		// Now and then a rule is a chain, whose levels are its own nodes
 		// (engine §3.3).
 		if name != "text" {
@@ -241,7 +244,11 @@ func domText(d *domDoc) string {
 			}
 			alts = append(alts, text)
 		}
-		fmt.Fprintf(&b, "%%rule %s\n  %s\n", r.Name, strings.Join(alts, " | "))
+		flag := ""
+		if len(r.Flags) > 0 {
+			flag = "(greedy)"
+		}
+		fmt.Fprintf(&b, "%%rule%s %s\n  %s\n", flag, r.Name, strings.Join(alts, " | "))
 	}
 	return b.String()
 }
@@ -407,6 +414,7 @@ func visibleOnly(as []action) []action {
 
 type bderiv struct {
 	whole, vis []action
+	profile    []int
 	// elisions is the elision vector (engine §6), as the positions of the
 	// derivation's elided terminators in text order.
 	elisions []int32
@@ -505,15 +513,49 @@ type bruteResult struct {
 	witness [2]action
 }
 
-// bruteRank ranks every derivation by the definitions. Under late-elision,
-// one derivation beats another by its elision vector alone, and T orders
-// equal vectors as no lean does, which rk then has (engine §6).
+// The oracle counts named closes in a dense span matrix.
+// It reads flag assignments from the generated source definitions.
+func bruteProfile(whole []action, n int, flags map[string]bool) []int {
+	counts := make([][]int, n+1)
+	for i := range counts {
+		counts[i] = make([]int, n+1)
+	}
+	for _, a := range whole {
+		if !a.read && !a.prod.helper && flags[a.prod.ruleName] && a.start < a.end {
+			counts[a.start][a.end]++
+		}
+	}
+	var profile []int
+	for start := 0; start < n; start++ {
+		for end := n; end > start; end-- {
+			profile = append(profile, counts[start][end])
+		}
+	}
+	return profile
+}
+
+func compareBruteProfiles(left, right []int) int {
+	for i := range left {
+		if left[i] > right[i] {
+			return -1
+		}
+		if left[i] < right[i] {
+			return 1
+		}
+	}
+	return 0
+}
+
+// bruteRank compares profiles first and then the stage preference.
 func bruteRank(rk *ranker, ds []bderiv) (*bruteResult, error) {
 	if len(ds) == 0 {
 		return nil, nil
 	}
 	late := rk.elisions
 	tFirst := func(x, y bderiv) bool {
+		if c := compareBruteProfiles(x.profile, y.profile); c != 0 {
+			return c < 0
+		}
 		if late {
 			if c := compareVectors(x.elisions, y.elisions); c != 0 {
 				return c < 0
@@ -531,6 +573,9 @@ func bruteRank(rk *ranker, ds []bderiv) (*bruteResult, error) {
 	t, tdiv := -1, 0
 	for i := range ds {
 		if i == m {
+			continue
+		}
+		if compareBruteProfiles(ds[m].profile, ds[i].profile) != 0 {
 			continue
 		}
 		if late && compareVectors(ds[m].elisions, ds[i].elisions) != 0 {
@@ -710,10 +755,14 @@ func TestRankingProperty(t *testing.T) {
 		if top := rec.accepted(lg.byName["text"]); len(top) > 0 {
 			got = rk.rank(top)
 		}
+		flags := map[string]bool{}
+		for _, definition := range dom.Rules {
+			flags[definition.Name] = len(definition.Flags) > 0
+		}
 		var ds []bderiv
 		for _, tr := range trees {
 			w := bnodeActions(tr, nil)
-			ds = append(ds, bderiv{whole: w, vis: visibleOnly(w), elisions: elisionsOf(w)})
+			ds = append(ds, bderiv{whole: w, vis: visibleOnly(w), elisions: elisionsOf(w), profile: bruteProfile(w, n, flags)})
 		}
 		want, werr := bruteRank(rk, ds)
 		if printDerivations {

@@ -228,6 +228,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	// Maximality does not apply to R, and the check ranks with no
 	// lean (§7.7).
 	var restored *dn
+	marks := watch.marks
 	var chosenProfile ruleProfile
 	flagged := false
 	for _, rule := range g.rules {
@@ -235,16 +236,19 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	}
 	if flagged {
 		chosenProfile = derivationProfile(g, d)
-		_, restored = walkWitness(&elisionCheckRun{chosen: d, rec: r, top: top, recon: rc, originalAt: originalAt, recordAt: recordAt})
+		marks, restored = walkWitness(&elisionCheckRun{chosen: d, rec: r, top: top, recon: rc, originalAt: originalAt, recordAt: recordAt})
 		if restored == nil {
 			top = nil
 		}
 	}
 	var res *rankResult
 	rk := newRanker(r, "", nil)
-	rk.check, rk.marks = true, watch.marks
+	rk.check, rk.marks = true, marks
 	if len(top) > 0 && private.loseWitness != "count" {
 		res = rk.rank(top)
+	}
+	if res != nil && flagged && !res.witnessCounted {
+		res = nil
 	}
 	if res != nil && flagged {
 		switch c := compareProfiles(res.profile, chosenProfile); {

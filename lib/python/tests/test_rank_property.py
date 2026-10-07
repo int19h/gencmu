@@ -113,6 +113,7 @@ def reference(
     lean: str,
     budget: int,
     elided: frozenset[int] = frozenset(),
+    flagged: frozenset[int] = frozenset(),
 ) -> dict[str, Any] | None:
     """Every derivation of the start rule, rule 0, and the ranking's answers
     from the definitions. A production is its rule, its symbols (a string
@@ -168,18 +169,29 @@ def reference(
                 results.extend(a + b for a in left for b in rest)
         return results
 
-    return ranked(derive(0, 0, n, frozenset()), lean, elided, n)
+    return ranked(derive(0, 0, n, frozenset()), lean, elided, n, flagged)
 
 
-def ranked(derivations: list[tuple[Any, ...]], lean: str, elided: frozenset[int], n: int) -> dict[str, Any]:
+def ranked(derivations: list[tuple[Any, ...]], lean: str, elided: frozenset[int], n: int, flagged: frozenset[int] = frozenset()) -> dict[str, Any]:
     """The ranking's answers over every derivation that counts of an input
     of ``n`` tokens, from the definitions of engine §6."""
     if not derivations:
         return {"verdict": None}
+    total = len(derivations)
+
+    def profile(sequence: tuple[Any, ...]) -> tuple[int, ...]:
+        # Count spans directly without the library's profile operations.
+        counts: dict[tuple[int, int], int] = {}
+        for action in sequence:
+            if action[0] == "c" and action[1] in flagged and action[2] < action[3]:
+                span = (action[2], action[3])
+                counts[span] = counts.get(span, 0) + 1
+        return tuple(counts.get((start, end), 0) for start in range(n) for end in range(n, start, -1))
+
+    greatest = max(profile(sequence) for sequence in derivations)
+    derivations = [sequence for sequence in derivations if profile(sequence) == greatest]
     if lean == "late-elision":
-        # One derivation beats another by its elision vector alone, and T
-        # orders equal vectors as no lean does (engine §6). So the readings
-        # are those of no lean over the derivations of the least vector.
+        # Equal profiles use elision vectors, then no lean for diagnostics.
         def vector(sequence: tuple[Any, ...]) -> tuple[int, ...]:
             counts = [0] * (n + 1)
             for action in sequence:
@@ -190,10 +202,13 @@ def ranked(derivations: list[tuple[Any, ...]], lean: str, elided: frozenset[int]
         least = min(vector(sequence) for sequence in derivations)
         best = [sequence for sequence in derivations if vector(sequence) == least]
         found = answers(best, "none")
-        if len(derivations) > 1 and found["verdict"] == "unique":
+        if total > 1 and found["verdict"] == "unique":
             found["verdict"] = "resolved"
         return found
-    return answers(derivations, lean)
+    found = answers(derivations, lean)
+    if total > 1 and found["verdict"] == "unique":
+        found["verdict"] = "resolved"
+    return found
 
 
 def answers(derivations: list[tuple[Any, ...]], lean: str) -> dict[str, Any]:
@@ -316,6 +331,12 @@ def dom_of(rules: list[list[list[Any]]], names: list[str], lean: str) -> dict[st
     }
 
 
+def flagged_productions(lowered: Any, definitions: list[dict[str, Any]]) -> frozenset[int]:
+    """Select named productions from the source's flag assignments."""
+    names = {definition["name"] for definition in definitions if "greedy" in definition["flags"]}
+    return frozenset(p.id for p in lowered.productions if not p.helper and lowered.rule_names[p.lhs] in names)
+
+
 def library(lowered: Any, tokens: list[frozenset[str]], lean: str) -> dict[str, Any]:
     text = " ".join("x" for _ in tokens)
     token_list = [Token("x", tags, (index, index + 1), (2 * index, 2 * index + 1)) for index, tags in enumerate(tokens)]
@@ -398,7 +419,7 @@ def random_sugared(rng: random.Random) -> dict[str, Any]:
             for _ in range(rng.randint(1, 2)):
                 items = [random_expression(rng, count) for _ in range(rng.choice([1, 1, 2]))]
                 alternatives.append({"guards": [], "expr": items[0] if len(items) == 1 else {"seq": items}})
-        rules.append({"name": names[number], "op": "define", "flags": [], "alternatives": alternatives, "conditions": [], "at": [number + 1, 1]})
+        rules.append({"name": names[number], "op": "define", "flags": ["greedy"] if rng.random() < 0.35 else [], "alternatives": alternatives, "conditions": [], "at": [number + 1, 1]})
     return {
         "format": DOM_FORMAT,
         "rules": rules,
@@ -427,7 +448,7 @@ def random_eliding(rng: random.Random) -> dict[str, Any]:
         for _ in range(rng.randint(1, 3)):
             items = [item() for _ in range(rng.choice([1, 2, 2, 3]))]
             alternatives.append({"guards": [], "expr": items[0] if len(items) == 1 else {"seq": items}})
-        rules.append({"name": names[number], "op": "define", "flags": [], "alternatives": alternatives, "conditions": [], "at": [number + 1, 1]})
+        rules.append({"name": names[number], "op": "define", "flags": ["greedy"] if rng.random() < 0.35 else [], "alternatives": alternatives, "conditions": [], "at": [number + 1, 1]})
     return {
         "format": DOM_FORMAT,
         "rules": rules,
@@ -598,7 +619,7 @@ def random_rules_grammar(rng: random.Random) -> tuple[dict[str, Any], str, bool,
     dom_rules = [
         {
             "name": name,
-            "op": "define", "flags": [],
+            "op": "define", "flags": ["greedy"] if rng.random() < 0.35 else [],
             "alternatives": alternatives(count),
             "conditions": [],
             "at": [number + 3, 1],
@@ -724,7 +745,7 @@ class RankingProperty(unittest.TestCase):
             if len(derivations) > 200:
                 continue
             elided = frozenset(p.id for p in lowered.productions if p.helper and p.elided is not None and not p.rhs)
-            expected = ranked(derivations, lean, elided, len(tokens))
+            expected = ranked(derivations, lean, elided, len(tokens), flagged_productions(lowered, dom["rules"]))
             where = f"seed {30_000_000 + seed + number}, {lean}{' maximal' if maximal else ''}: {dom['rules']} over {specs}"
             found = library_ranking(forest, lean, Maximal(forest, context) if maximal else None)
             self.assertEqual(found, expected, where)
@@ -756,12 +777,16 @@ class RankingProperty(unittest.TestCase):
             rng = random.Random(seed + number)
             rules, names = random_grammar(rng)
             productions = productions_of(rules)
-            lowered = lower(stitch("main", [("g.md", dom_of(rules, names, "greedy"))], _unicode_table(_resources().unicode)), frozenset())
+            dom = dom_of(rules, names, "greedy")
+            for definition in dom["rules"]:
+                definition["flags"] = ["greedy"] if rng.random() < 0.35 else []
+            lowered = lower(stitch("main", [("g.md", dom)], _unicode_table(_resources().unicode)), frozenset())
+            flagged = flagged_productions(lowered, dom["rules"])
             for _ in range(4):
                 tokens = random_tokens(rules, rng)
                 for lean in ("greedy", "lazy", "none"):
                     try:
-                        expected = reference(productions, len(rules), tokens, lean, 20000)
+                        expected = reference(productions, len(rules), tokens, lean, 20000, flagged=flagged)
                     except Budget:
                         skipped += 1
                         continue
@@ -786,7 +811,8 @@ class RankingProperty(unittest.TestCase):
         for number in range(cases):
             rng = random.Random(10_000_000 + seed + number)
             try:
-                lowered = lower(stitch("main", [("g.md", random_sugared(rng))], _unicode_table(_resources().unicode)), frozenset())
+                dom = random_sugared(rng)
+                lowered = lower(stitch("main", [("g.md", dom)], _unicode_table(_resources().unicode)), frozenset())
             except gencmu.GencmuError:
                 # A grammar that repeats an item that can be empty is an
                 # error of lowering (engine §3.3), and the round is skipped.
@@ -795,11 +821,12 @@ class RankingProperty(unittest.TestCase):
             plain_rules: list[list[list[Any]]] = [[] for _ in lowered.rule_names]
             for lhs, rhs, _ in productions:
                 plain_rules[lhs].append(list(rhs))
+            flagged = flagged_productions(lowered, dom["rules"])
             for _ in range(4):
                 tokens = random_tokens(plain_rules, rng)
                 for lean in ("greedy", "lazy", "none"):
                     try:
-                        expected = reference(productions, len(lowered.rule_names), tokens, lean, 20000)
+                        expected = reference(productions, len(lowered.rule_names), tokens, lean, 20000, flagged=flagged)
                     except Budget:
                         skipped += 1
                         continue
@@ -823,7 +850,8 @@ class RankingProperty(unittest.TestCase):
         for number in range(cases):
             rng = random.Random(20_000_000 + seed + number)
             try:
-                lowered = lower(stitch("main", [("g.md", random_eliding(rng))], _unicode_table(_resources().unicode)), frozenset())
+                dom = random_eliding(rng)
+                lowered = lower(stitch("main", [("g.md", dom)], _unicode_table(_resources().unicode)), frozenset())
             except gencmu.GencmuError:
                 # An item of braces that can be empty (engine §3.3).
                 continue
@@ -832,10 +860,11 @@ class RankingProperty(unittest.TestCase):
             plain_rules: list[list[list[Any]]] = [[] for _ in lowered.rule_names]
             for lhs, rhs, _ in productions:
                 plain_rules[lhs].append(list(rhs))
+            flagged = flagged_productions(lowered, dom["rules"])
             for _ in range(4):
                 tokens = random_tokens(plain_rules, rng)
                 try:
-                    expected = reference(productions, len(lowered.rule_names), tokens, "late-elision", 20000, elided)
+                    expected = reference(productions, len(lowered.rule_names), tokens, "late-elision", 20000, elided, flagged)
                 except Budget:
                     skipped += 1
                     continue
