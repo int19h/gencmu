@@ -949,17 +949,16 @@ impl Dialect {
                         ranking.witness = Some(ranker.pair_witness(w, ranking.first));
                         ranking.first = w;
                     }
-                    // The witness hook's two channels (tests/README.md): the count
-                    // counted W(D), and on a tie neither reading comes after W(D)
-                    // in the order T, unless the first is W(D).
+                    // The witness hook tracks recognition and diagnostic order.
+                    // It counts W(D) before profile filtering.
+                    // On a tie, both readings precede W(D) unless the first is W(D).
                     let keeps = match walk.as_ref().and_then(|walk| walk.as_ref()) {
                         Some(walk) if ranking.witness_counted == Some(true) => match ranking.second {
                             Some(second) if ranking.verdict == RankVerdict::Tie || better => {
                                 let w = ranker.derivation(&walk.sequence);
-                                // W(D) is not after the first in T; where the first
-                                // is not W(D), W(D) is not before the second by
-                                // the criterion that picks it (§6): divergence from
-                                // the first, then T.
+                                // W(D) does not follow the first reading in T.
+                                // If the first differs from W(D), compare W(D) with the second.
+                                // Use divergence from the first and then T (§6).
                                 !ranker.before(w, ranking.first)
                                     && (!ranker.before(ranking.first, w)
                                         || !ranker.second_before(ranking.first, w, second))

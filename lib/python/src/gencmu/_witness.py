@@ -11,8 +11,7 @@ from ._stage import DNode, DRead
 
 
 class Walk(NamedTuple):
-    """W(D) as the walk finds it: for each item of W(D), the indices of the
-    edges that W(D) uses, and W(D)'s actions in order."""
+    """Matched edge indices for each witness item, plus its action sequence."""
 
     marks: dict[int, set[int]]
     sequence: list[Act]
@@ -28,21 +27,21 @@ def is_elided(node: DNode | DRead) -> bool:
 
 
 def walk_witness(run: _testing.CheckRun) -> Walk | None:
-    """The walk: W(D) in the chart of the check, before the check ranks.
-    For each node of W(D), from the leaves up, a completed item of the
-    node's production over the node's span of R that has an edge whose
-    children are the items of the node's children. A read is of the
-    original token that D reads, found by its provenance. An elided
-    terminator of D is the restoration of its helper over its own synthetic
-    token. The walk marks the edges that it matched, by their index, and
-    builds W(D)'s actions in order. It pins the shape of W(D), not its
-    tags, which the cases pin. ``None`` where the chart does not hold
-    W(D)."""
+    """Find the restored chosen derivation W(D) before ranking.
+
+    Match each production, span and child in the reconstruction chart.
+    Original reads match their token provenance.
+    Each omitted terminator matches its helper's synthetic token.
+    Return matched edges and the witness's action sequence.
+    A missing witness gives None.
+    Tests compare the chosen tree's tags separately.
+    """
     forest = run.forest
     synthetic = run.synthetic
-    # The nodes of D in post-order, each with its span in R. A cursor walks
-    # the leaves of D left to right: a read takes the original token, an
-    # elided terminator its record's synthetic token, in order.
+    # Visit each node after its children and record its reconstructed span.
+    # A cursor visits leaves from left to right.
+    # Reads consume original tokens.
+    # Omitted terminators consume their records' synthetic tokens.
     order: list[DNode | DRead] = []
     spans: dict[int, tuple[int, int]] = {}
     cursor = 0
@@ -105,8 +104,7 @@ def walk_witness(run: _testing.CheckRun) -> Walk | None:
             found_items.append(item)
     edges = forest.edges
 
-    # For each rule node of W(D), the items that derive it exactly; and for
-    # each item found, the indices of the edges that the walk matched.
+    # Record exact items for each rule node and matched edges for each item.
     found: dict[int, set[int]] = {}
     marks: dict[int, set[int]] = {}
 
@@ -146,10 +144,10 @@ def walk_witness(run: _testing.CheckRun) -> Walk | None:
     top = found[id(run.chosen)]
     if not any(root in top for root in forest.roots):
         return None
-    # W(D)'s actions, in the order in which the ranking builds a sequence:
-    # reads and closes in post-order, over the tokens of R and the spans of
-    # the items found. A restoration reads its synthetic token, and then
-    # closes over it. Nothing is ranked to build it.
+    # Build the witness's actions after visiting each node's children.
+    # Use reconstruction tokens and the spans of matched items.
+    # Each restoration reads its synthetic token and closes over it.
+    # This step does not rank derivations.
     sequence: list[Act] = []
     for node in order:
         start, end = spans[id(node)]

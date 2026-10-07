@@ -1,21 +1,20 @@
 package gencmu
 
-// walkWitness finds W(D) in a check's chart before the check ranks: for
-// each node of W(D), from the leaves up, a completed item of the node's
-// production over the node's span of R with a link whose children are the
-// items of the node's children. A read is of the original token that D
-// reads, found by its provenance. An elided terminator of D is the
-// restoration of its helper over its own synthetic token. It gives the
-// links that it matched, for each item, and W(D) as a derivation for the
-// order T, or nil where the chart does not hold W(D). The walk pins the
-// shape of W(D), not its tags, which the cases pin.
+// walkWitness finds the restored chosen derivation W(D) before ranking.
+// It matches each production, span and child in the reconstruction chart.
+// Original reads match their token provenance.
+// Each omitted terminator matches its helper's synthetic token.
+// The result holds matched links and W(D) in the ranking's form.
+// A missing witness gives nil.
+// The walk preserves the chosen tree's shape.
+// Tests compare its tags separately.
 func walkWitness(run *elisionCheckRun) (map[*item]map[link]bool, *dn) {
 	rc := run.recon
-	// The nodes of W(D) in post-order, each with its span in R. The ranking
-	// shares a derivation among the places where it occurs, so a node is
-	// one place of a derivation in D. A cursor walks the leaves of D left to
-	// right: a read takes its original token, an elided terminator its
-	// record's synthetic token, in order.
+	// Visit each occurrence in W(D) after its children.
+	// Shared nodes can represent several occurrences in the chosen tree.
+	// A cursor visits leaves from left to right.
+	// Reads consume original tokens.
+	// Omitted terminators consume their records' synthetic tokens.
 	type wnode struct {
 		d          *dn
 		kids       []*wnode
@@ -116,8 +115,7 @@ func walkWitness(run *elisionCheckRun) (map[*item]map[link]bool, *dn) {
 		return index[where{k, p, int32(dot), int32(origin)}]
 	}
 
-	// For each close of W(D), the items that derive it exactly; and for
-	// each item found, the links that the walk matched.
+	// Record exact items for each close and matched links for each item.
 	found := map[*wnode]map[*item]bool{}
 	marks := map[*item]map[link]bool{}
 	keep := func(it *item, l link) {
@@ -200,9 +198,8 @@ func walkWitness(run *elisionCheckRun) (map[*item]map[link]bool, *dn) {
 	if !held {
 		return nil, nil
 	}
-	// W(D) as a derivation of the ranking's own kind: reads and closes in
-	// post-order, over the tokens of R and the spans of the items found. A
-	// restoration reads its synthetic token, and then closes over it.
+	// Build W(D) in the ranking's form over reconstruction tokens and spans.
+	// Each restoration reads its synthetic token and closes over it.
 	built := map[*wnode]*dn{}
 	for _, w := range order {
 		switch {
