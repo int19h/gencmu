@@ -21,7 +21,9 @@ A grammar is a sequence of rules, directives (see "Directives"), constants (see 
   [sumti-6 [relative-clauses]] sumti-tail-1 | relative-clauses sumti-tail-1
 ```
 
-`%rule(greedy) NAME` gives the rule the only supported flag, `greedy`. The flag prefers nonempty constituents among complete parses, as "Ambiguity" explains. Spaces around the parentheses and their content have no meaning. By convention, the opening parenthesis follows the keyword directly.
+A span is a range of input tokens. A profile counts flagged constituents over each nonempty span.
+
+`%rule(greedy) NAME` gives the rule the only supported flag, `greedy`. The flag compares span profiles, while the stage directive `greedy` compares a read with a close. "Ambiguity" explains both comparisons. Spaces around the parentheses and their content have no meaning. By convention, the opening parenthesis follows the keyword directly.
 
 Empty parentheses, duplicate flags, unknown flags and arguments are errors. Parentheses can contain more flags or parameters in future versions.
 
@@ -563,7 +565,7 @@ An inserted token with a phoneme tag has that phoneme as its label, or a space f
 
 A directive is a keyword and its operands. By convention each stands in a block of its own, after prose that says why the grammar needs it. Two directives can share a line.
 
-- `%ambiguity-resolution` says how the stage chooses among parses. Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` can follow it. The retired operand `maximal` is an error. "Ambiguity" and "Elided terminators" explain it. Every stage must say it exactly once, in any of its documents.
+- `%ambiguity-resolution` ranks parses that share the greatest rule profile, as "Ambiguity" explains. Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` can follow it. The retired operand `maximal` is an error. "Ambiguity" and "Elided terminators" explain it. Every stage must say it exactly once, in any of its documents.
 - No directive names the elidable terminators. Each elidable optional is marked in its place, as `[+KU]` or `[++TOI]` (see "Elided terminators"). `%elidable` is not a directive. A document that writes it is an error, which the reader reports at the keyword.
 - `%stage NAME`, `%include "PATH"` and `%features NAME…` build a pipeline, as the next section says.
 
@@ -612,7 +614,9 @@ The first stage reads the text's characters. Each is a token with one tag, its c
 
 A grammar admits every parse that its rules allow. Rule flags rank complete parses first. The stage's `%ambiguity-resolution` ranks the remaining parses with `greedy`, `lazy` or `late-elision`. A parse is best when neither comparison prefers another parse. The stage takes a sole best parse. Several best parses give an ambiguity error.
 
-A flagged occurrence is one constituent of a rule with `greedy`. A span is the range between two input token boundaries. A profile counts flagged occurrences over each nonempty span. Every named occurrence counts, including unary constituents and each chain level. Anonymous helpers and empty occurrences contribute nothing.
+A flagged occurrence is one constituent of a rule with `greedy`. A span is the range between two input token boundaries. A profile counts flagged occurrences over each nonempty span. Every named occurrence counts, including a constituent with one symbol and each chain level. The unnamed constituents of flat braces and plain optionals contribute nothing. Empty occurrences also contribute nothing.
+
+The flag `greedy` compares span profiles, while the stage directive `greedy` compares a read with a close.
 
 Compare profiles by increasing start and, at each start, decreasing end. At the first span with different counts, prefer the greater count. All flagged rules contribute together, without priority by name or declaration order. Equal spans count separately, so two nested flagged occurrences beat one. An occurrence beats its absence.
 
@@ -632,9 +636,9 @@ Some constituents are transparent to the comparison. They are the constituents w
 
 Transparency does not merge parses, though. Two parses that differ only there are still two parses. `greedy` and `lazy` tie them when their rule profiles are equal. `late-elision` also requires equal counts of elided terminators at every position. For example, `[[X]]` matches the empty text in two ways, and `[A] & [B]` in three.
 
-The preference is like greedy and lazy quantifiers in a backtracking regular-expression engine. It is unlike the greed of a PEG parser. The preference orders the parses that the grammar already admits, and never commits early. So it never rejects a text by itself, but a tie that it leaves is an error. The earliest difference decides. And it applies to every constituent of the stage, not to one quantifier.
+The preference is like greedy and lazy quantifiers in a backtracking regular-expression engine. It is unlike the greed of a PEG parser. The preference orders the parses that the grammar already admits, and never commits early. So it never rejects a text by itself, but a tie that it leaves is an error. The earliest difference decides. The stage directive applies to every constituent of the stage.
 
-`late-elision` looks only at the terminators that each parse elides ("Elided terminators"). In plain words, at the first place where two parses differ in leaving out a terminator, it takes the parse that reads on. It counts the elided terminators of each parse at each position, from the start of the text. At the first position where the counts differ, the parse with fewer elided terminators there wins.
+Among equal rule profiles, `late-elision` compares the terminators that each parse elides ("Elided terminators"). In plain words, at the first place where two parses differ in leaving out a terminator, it takes the parse that reads on. It counts the elided terminators of each parse at each position, from the start of the text. At the first position where the counts differ, the parse with fewer elided terminators there wins.
 
 Two parses with equal rule profiles and equal counts at every position tie, whatever else differs. Without flagged rules, several parses that elide nothing always tie. A token read under two tags does not decide anything, and neither do two different closes. The name of an elided terminator, and the constituent that it ends, do not count either.
 
@@ -703,7 +707,9 @@ Then the stage parses that input again. Each elidable optional is now either res
 
 In that parse, the grammar reads the text with its terminators written back, but every condition, tag and test of a rule sees the original input. A written-back terminator has no text, no sound and no tags there. So a condition answers as it did for the chosen parse, and the chosen parse is always one reading. A test on a terminal is the one exception: `KU="ku"` reads a written-back `KU` by its sound. A test on a rule, such as `t="ku"`, sees the original input like a condition.
 
-The test retains the rule flags, but applies no stage preference. It counts flagged spans over original tokens through the projection of engine §7.3. Written-back terminators add no width. The restored chosen parse must be the sole reconstruction with an equal or better profile. Another such reconstruction gives an ambiguity error, never a replacement chosen parse.
+A reconstruction is a second parse with terminators restored. These are the omitted terminators of the chosen parse. A projected span contains a constituent's original input tokens. Each written-back terminator adds no token (engine §7.3).
+
+The test retains the rule flags, but applies no stage preference. It counts flagged occurrences over projected spans. The restored chosen parse must be the sole reconstruction with an equal or better profile. Another such reconstruction gives an ambiguity error, never a replacement chosen parse.
 
 With no flagged rule, this requires exactly one reading, as before. Recognition always retains the restored chosen parse. If recognition loses it, the library reports its defect as `elision-witness-lost`. A tie ends the stage before this test.
 
