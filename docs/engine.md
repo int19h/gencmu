@@ -813,7 +813,7 @@ The notation's syntax grammar names its constituents so that the reader can read
 | `classifier-entry` | an entry: gates from its `guard`s, as an alternative reads them. Keys from its `classifier-key`s, each the decoded string, in order. Operator from its `classifier-operator`, `∈` or `∉`. Class from its `classifier-class`: the name, or the name after `~` |
 | `implication-declaration` | an implication: `if` from the `union` before `⟹` and `then` from the `union` after it, each read as a `term` is |
 | `constant-definition` | a constant: `define` or `redefine` from its `constant-definer`, a token tagged `keyword-const` or `keyword-redefine-const`. Name from its `constant-reference` without `$`. Value from its `term` |
-| `rule` | a rule: `define`, `redefine` or `extend` from its `definer`, a token tagged `keyword-rule`, `keyword-redefine-rule` or `keyword-extend-rule`. Name from its `rule-name`, a name or `#`. Alternatives from its `body`. Tags from its `tags-clause`. Conditions from its `conditions-clause`. Emission from its `emits-clause`. `opaque` true if it has an `opaque-clause` |
+| `rule` | a rule: `define`, `redefine` or `extend` from its `definer`, a token tagged `keyword-rule`, `keyword-redefine-rule` or `keyword-extend-rule`. Name from its `rule-name`, a name or `#`. Flags from its optional `rule-flags`, or `[]` without it. Alternatives from its `body`. Tags from its `tags-clause`. Conditions from its `conditions-clause`. Emission from its `emits-clause`. `opaque` true if it has an `opaque-clause` |
 | `alternative` | guards from its `guard`s: a gate from `f?` or `¬f?`, a warning from `f!`. Expression from its `conjunction`, tags from `alternative-tags` |
 | `choice` | `choice` of its `conjunction`s, or the one conjunction itself |
 | `conjunction` | `and` of its `sequence`s, or the one sequence itself |
@@ -858,7 +858,7 @@ A rule with any other name makes no node of the DOM. The reader reads its childr
 
 The reader knows 67 rules of the syntax grammar, grouped here by what they read.
 
-For items, they are `directive`, `argument-word`, `argument-string`, `argument-tag`, `classifier`, `classifier-name`, `classifier-entry`, `classifier-key`, `classifier-operator`, `classifier-class`, `implication-declaration`, `constant-definition`, `constant-definer` and `constant-reference`. For definitions, they are `rule`, `definer`, `rule-name`, `body`, `alternative`, `guard` and `alternative-tags`. For expressions, they are `choice`, `conjunction`, `sequence`, `primary`, `repetition`, `reference`, `tag`, `character`, `phoneme`, `range`, `property`, `tested`, `test`, `test-operand`, `capture`, `group`, `optional` and `empty`. For clauses, they are `tags-clause`, `conditions-clause`, `emits-clause`, `opaque-clause`, `emit-item`, `emit-target`, `emit-tags`, `emit-before` and `emit-after`. For conditions, they are `implication`, `any-of`, `all-of`, `condition`, `comparison`, `comparator`, `negation`, `presence`, `call` and `argument`. For terms, they are `term`, `guarded-term`, `union`, `intersection`, `term-atom`, `string`, `name`, `empty-set` and `capture-reference`.
+For items, they are `directive`, `argument-word`, `argument-string`, `argument-tag`, `classifier`, `classifier-name`, `classifier-entry`, `classifier-key`, `classifier-operator`, `classifier-class`, `implication-declaration`, `constant-definition`, `constant-definer` and `constant-reference`. For definitions, they are `rule`, `definer`, `rule-flags`, `rule-flag`, `rule-name`, `body`, `alternative`, `guard` and `alternative-tags`. For expressions, they are `choice`, `conjunction`, `sequence`, `primary`, `repetition`, `reference`, `tag`, `character`, `phoneme`, `range`, `property`, `tested`, `test`, `test-operand`, `capture`, `group`, `optional` and `empty`. For clauses, they are `tags-clause`, `conditions-clause`, `emits-clause`, `opaque-clause`, `emit-item`, `emit-target`, `emit-tags`, `emit-before` and `emit-after`. For conditions, they are `implication`, `any-of`, `all-of`, `condition`, `comparison`, `comparator`, `negation`, `presence`, `call` and `argument`. For terms, they are `term`, `guarded-term`, `union`, `intersection`, `term-atom`, `string`, `name`, `empty-set` and `capture-reference`.
 
 Any other rule is a wrapper. A node's parts are its children, with each wrapper replaced by its own parts, at any depth, in order. The reader reads only the parts of a node. So a bootstrap can wrap a known rule in rules of its own, and the reader reads the same DOM.
 
@@ -868,13 +868,14 @@ A node must have the parts that the reader reads from it. A node without one is 
 | --- | --- |
 | the root | no part. Each known part is an item: a `directive`, a `rule`, a `constant-definition`, a `classifier` or an `implication-declaration`. Any other known part is an error |
 | `directive` | a token, its keyword. Its operands are its `argument-word`, `argument-string` and `argument-tag` parts |
-| `argument-word`, `argument-string`, `classifier-name`, `classifier-key`, `classifier-operator`, `classifier-class`, `constant-definer`, `constant-reference`, `definer`, `rule-name`, `guard`, `reference`, `tag`, `character`, `phoneme`, `property`, `string`, `name`, `presence`, `capture-reference`, `comparator`, `call` | a token. For a `call`, it is the function's name, and the `argument` parts are its arguments |
+| `argument-word`, `argument-string`, `classifier-name`, `classifier-key`, `classifier-operator`, `classifier-class`, `constant-definer`, `constant-reference`, `definer`, `rule-flag`, `rule-name`, `guard`, `reference`, `tag`, `character`, `phoneme`, `property`, `string`, `name`, `presence`, `capture-reference`, `comparator`, `call` | a token. For a `call`, it is the function's name, and the `argument` parts are its arguments |
 | `argument-tag`, `emit-target` | a first part that is a token, a `range` or a `property` |
 | `classifier` | a `classifier-name` |
 | `classifier-entry` | one or more `classifier-key`, a `classifier-operator` and a `classifier-class` |
 | `implication-declaration`, `comparison` | two `union`. A `comparison` also needs a `comparator` |
 | `constant-definition` | a `constant-definer`, a `constant-reference` and a `term` |
-| `rule` | a `definer`, a `rule-name` and a `body` |
+| `rule` | a `definer`, an optional `rule-flags`, a `rule-name` and a `body` |
+| `rule-flags` | one or more `rule-flag` |
 | `body` | one or more `alternative` |
 | `alternative` | a `conjunction` |
 | `choice`, `conjunction`, `sequence` | one or more `conjunction`, `sequence` and `primary` in turn |

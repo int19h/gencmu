@@ -26,6 +26,7 @@ export type StitchedRule = {
     document: string;
     at: ErrorLocation;
     alternatives: StitchedAlternative[];
+    flags: string[];
 };
 export type RuleChange = {
     kind: "replaced" | "extended";

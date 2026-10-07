@@ -2068,7 +2068,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 18;
+  const DOM_FORMAT = 19;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
@@ -2303,7 +2303,8 @@
     }
     for (const rule of dom.rules) {
       if (!isDomObject(rule) || typeof rule.name !== "string" || !(DOM_NAME.test(rule.name) || rule.name === "#") || !["define", "redefine", "extend"].includes(/** @type {string} */ (rule.op)) ||
-          !Array.isArray(rule.alternatives) || rule.alternatives.length === 0 || !Array.isArray(rule.conditions) || !isDomPosition(rule.at) ||
+          !Array.isArray(rule.flags) || rule.flags.length > 1 || !rule.flags.every((flag) => flag === "greedy") ||
+          (rule.op === "extend" && rule.flags.length !== 0) || !Array.isArray(rule.alternatives) || rule.alternatives.length === 0 || !Array.isArray(rule.conditions) || !isDomPosition(rule.at) ||
           (rule.opaque !== undefined && rule.opaque !== true)) {
         return "a malformed rule";
       }
@@ -3988,6 +3989,7 @@
    * @property {string} document
    * @property {ErrorLocation} at
    * @property {StitchedAlternative[]} alternatives
+   * @property {string[]} flags
    */
 
   /**
@@ -4115,13 +4117,13 @@
           if (previous) {
             throw new GencmuError("grammar", `${path}:${at.line}: %rule ${rule.name} is already defined, in ${previous.document}; %redefine-rule replaces a rule`, at);
           }
-          this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives });
+          this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives, flags: rule.flags });
         } else if (rule.op === "redefine") {
           if (!previous) {
             throw new GencmuError("grammar", `${path}:${at.line}: %redefine-rule ${rule.name} replaces no rule defined before it`, at);
           }
           this.changes.push({ kind: "replaced", rule: rule.name, document: path, previous: previous.document });
-          this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives });
+          this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives, flags: rule.flags });
         } else {
           const base = previous;
           if (!base) {
@@ -4864,6 +4866,7 @@
             lhs: helper.name,
             rhs: sequence.map((item) => item.symbol),
             helper: true,
+            flags: [],
             owner: rule.name,
             elided: helper.elided,
             elidedTest: helper.elidedTest,
@@ -4963,6 +4966,7 @@
         lhs: rule.name,
         rhs: sequence.map((item) => item.symbol),
         helper: false,
+        flags: rule.flags,
         owner: rule.name,
         elided: null,
         elidedTest: null,
@@ -8707,6 +8711,7 @@
    * @property {Rope} first
    * @property {Rope | null} second
    * @property {[Action | null, Action | null] | null} witness
+   * @property {RuleProfile} profile
    * @property {boolean | null} witnessCounted with the witness hook's marks,
    *   whether the count counted W(D); null without marks
    */
@@ -9057,6 +9062,9 @@
       // Under late-elision, the readings come from a ranking with no lean
       // over the forest of the best derivations (engine §6).
       this.elisions = lean === "late-elision";
+      this.profiles = false;
+      /** @type {number[] | null} */
+      this.profileProject = null;
       /** @type {Lean} */
       this.lean = this.elisions ? "none" : lean;
       this.maximal = maximal;
@@ -9124,7 +9132,7 @@
         const guarded = maximal !== null && maximal.guards(current);
         // Under late-elision, only the edges that attain the least vector of
         // the item in its context (engine §6).
-        const summary = this.elisions ? this.summaryAt(current, key) : null;
+        const summary = this.elisions || this.profiles ? this.summaryAt(current, key) : null;
         /** @type {Candidate[]} */
         let all = [];
         /** @type {Candidate[]} */
@@ -9172,7 +9180,7 @@
           }
         });
         return { all, allowed: guarded ? allowed : all };
-      }, { all: [], allowed: [] }, this.elisions ? (current, key) => this.keptEdges(current, key) : null);
+      }, { all: [], allowed: [] }, this.elisions || this.profiles ? (current, key) => this.keptEdges(current, key) : null);
     }
 
     // Under late-elision, an item's summaries in one context (engine §6).
@@ -9194,19 +9202,22 @@
         current.edges.forEach((edge, index) => {
           /** @type {ElisionSeq} */
           let vector;
+          /** @type {RuleProfile} */
+          let profile = [];
           let least;
           let total;
           let permitted = true;
           if (edge.kind === "seed" || edge.kind === "restore") {
             // The helper of an elidable optional that derives ε elides its
             // terminator where it is empty. A restoration elides nothing.
-            vector = edge.kind === "seed" && isElided(current) ? this.elisionLeaf(current.origin) : NO_ELISIONS;
+            vector = this.elisions && edge.kind === "seed" && isElided(current) ? this.elisionLeaf(current.origin) : NO_ELISIONS;
             least = 1;
             total = 1;
           } else if (edge.kind === "scan") {
             const before = dependency(edge.previous).all;
             if (before.total === 0) return;
             vector = /** @type {ElisionSeq} */ (before.vector);
+            profile = before.profile;
             least = before.least;
             total = before.total;
           } else {
@@ -9215,12 +9226,18 @@
             const child = dependency(edge.child).all;
             if (before.total === 0 || child.total === 0) return;
             vector = concatElisions(/** @type {ElisionSeq} */ (before.vector), /** @type {ElisionSeq} */ (child.vector));
+            profile = sumProfiles(before.profile, child.profile);
             least = Math.min(2, before.least * child.least);
             total = Math.min(2, before.total * child.total);
             if (guarded) permitted = !(/** @type {Maximal} */ (maximal)).forbids(edge.child, current.production.rhs[current.dot - 1].test);
           }
-          addEdge(all, index, vector, least, total);
-          if (guarded && permitted) addEdge(allowed, index, vector, least, total);
+          if (current.dot === current.production.rhs.length && current.production.flags.includes("greedy")) {
+            const p = this.profileProject?.[current.origin] ?? current.origin;
+            const q = this.profileProject?.[current.end] ?? current.end;
+            if (p < q) profile = sumProfiles(profile, [[p, q, 1]]);
+          }
+          addEdge(all, index, vector, least, total, profile);
+          if (guarded && permitted) addEdge(allowed, index, vector, least, total, profile);
         });
         return { all, allowed };
       }, { all: noDerivation(), allowed: noDerivation() });
@@ -9613,6 +9630,7 @@
         if (hooks.work) countWork(hooks.work, "groups");
         if (seen.has(item)) continue;
         seen.add(item);
+        if (item.production.flags.includes("greedy")) this.profiles = true;
         for (const edge of item.edges) {
           if (hooks.work) countWork(hooks.work, "groups");
           if (edge.kind === "seed" || edge.kind === "restore") continue;
@@ -9700,15 +9718,22 @@
       let count;
       let ranked = roots;
       let tied = false;
+      /** @type {RuleProfile} */
+      let profile = [];
       /** @type {boolean | null} */
       let witnessCounted = null;
-      if (this.elisions) {
+      if (this.elisions || this.profiles) {
         // Every complete item of `text` is an edge of one root (engine §6).
         const root = noDerivation();
         roots.forEach((item, index) => {
           const summary = this.elisionSummary(item).all;
-          if (summary.total > 0) addEdge(root, index, /** @type {ElisionSeq} */ (summary.vector), summary.least, summary.total);
+          if (summary.total > 0) addEdge(root, index, /** @type {ElisionSeq} */ (summary.vector), summary.least, summary.total, summary.profile);
         });
+        if (this.marks !== null) {
+          const marks = this.marks;
+          witnessCounted = roots.some((item) => marks.has(item) && this.countOf(item).w);
+        }
+        profile = root.profile;
         count = root.total;
         tied = root.least === 2;
         ranked = roots.filter((_, index) => root.kept.has(index));
@@ -9753,7 +9778,7 @@
         if (!difference || !difference.left || !difference.right) difference = firstDifference(main.seq, second, false);
         witness = difference ? [difference.left, difference.right] : null;
       }
-      return { verdict, first: main.seq, second, witness, witnessCounted };
+      return { verdict, first: main.seq, second, witness, witnessCounted, profile };
     }
   }
 
@@ -9841,6 +9866,7 @@
    * the least vector.
    * @typedef {object} ElisionSummary
    * @property {ElisionSeq | null} vector null when there is no derivation
+   * @property {RuleProfile} profile
    * @property {number} least
    * @property {number} total
    * @property {Set<number>} kept
@@ -9851,7 +9877,7 @@
 
   /** @returns {ElisionSummary} */
   function noDerivation() {
-    return { vector: null, least: 0, total: 0, kept: new Set() };
+    return { vector: null, profile: [], least: 0, total: 0, kept: new Set() };
   }
 
   /**
@@ -9874,12 +9900,14 @@
    * @param {ElisionSeq} vector
    * @param {number} least
    * @param {number} total
+   * @param {RuleProfile} [profile]
    */
-  function addEdge(summary, index, vector, least, total) {
+  function addEdge(summary, index, vector, least, total, profile = []) {
     summary.total = Math.min(2, summary.total + total);
-    const order = summary.vector === null ? -1 : compareElisions(vector, summary.vector);
+    const order = summary.vector === null ? -1 : compareProfiles(profile, summary.profile) || compareElisions(vector, summary.vector);
     if (order < 0) {
       summary.vector = vector;
+      summary.profile = profile;
       summary.least = least;
       summary.kept = new Set([index]);
     } else if (order === 0) {
@@ -9988,6 +10016,76 @@
   // Exposed for the property test, which checks the ranking against an
   // enumeration of every derivation.
   const internals = { actions, firstDifference, totalOrder, decide, visible, concat, leaf, concatElisions };
+
+  /** @typedef {[number, number, Count][]} RuleProfile */
+
+  /**
+   * Compares sparse span counts in start order and reverse end order.
+   * A negative result means that the left profile wins.
+   * @param {RuleProfile} left
+   * @param {RuleProfile} right
+   * @returns {number}
+   */
+  function compareProfiles(left, right) {
+    for (let i = 0; i < Math.max(left.length, right.length); i++) {
+      const a = left[i];
+      const b = right[i];
+      if (!a) return 1;
+      if (!b) return -1;
+      const span = a[0] - b[0] || b[1] - a[1];
+      if (span) return span;
+      if (a[2] > b[2]) return -1;
+      if (a[2] < b[2]) return 1;
+    }
+    return 0;
+  }
+
+  /**
+   * Adds profiles without expanding repeated occurrences.
+   * @param {RuleProfile} left
+   * @param {RuleProfile} right
+   * @returns {RuleProfile}
+   */
+  function sumProfiles(left, right) {
+    if (!left.length) return right;
+    if (!right.length) return left;
+    /** @type {RuleProfile} */
+    const result = [];
+    let i = 0;
+    let j = 0;
+    while (i < left.length || j < right.length) {
+      const a = left[i];
+      const b = right[j];
+      const order = !a ? 1 : !b ? -1 : a[0] - b[0] || b[1] - a[1];
+      if (order < 0) result.push(left[i++]);
+      else if (order > 0) result.push(right[j++]);
+      else {
+        result.push([a[0], a[1], add(a[2], b[2])]);
+        i++;
+        j++;
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Counts every completed flagged occurrence in a chosen derivation.
+   * @param {Derivation} root
+   * @returns {RuleProfile}
+   */
+  function derivationProfile(root) {
+    /** @type {RuleProfile} */
+    let profile = [];
+    const pending = [root];
+    for (let node = pending.pop(); node; node = pending.pop()) {
+      if ("read" in node) continue;
+      if (node.production.flags.includes("greedy") && node.start < node.end) {
+        profile = sumProfiles(profile, [[node.start, node.end, 1]]);
+      }
+      for (const child of node.children) pending.push(child);
+    }
+    return profile;
+  }
 
   // ---- maximal.js
   // Maximal terminators (engine §4): an elided terminator is forbidden
@@ -10386,6 +10484,7 @@
       const watch = hooks.elisionCheck ? hooks.elisionCheck({ chosen, chart, roots, synthetic, originalAt, recordAt }) : null;
       // The check's ranker: no lean, and cycles over spans of R (engine §7.7).
       const ranker = new Ranker(restored, "none", maximal, fault("F19") ? project : null);
+      ranker.profileProject = project;
       ranker.check = true;
       ranker.marks = watch ? watch.marks : null;
       let ranking = roots.length === 0 ? null : ranker.rank(roots);
@@ -10398,7 +10497,17 @@
         }
       }
       if (ranking === null) return old ? { kind: "pass" } : { kind: "lost", completion: records };
-      if (ranking.verdict !== "tie") return { kind: "pass" };
+      const profileOrder = ranker.profiles ? compareProfiles(ranking.profile, derivationProfile(chosen)) : 0;
+      if (profileOrder > 0) return { kind: "lost", completion: records };
+      if (profileOrder === 0 && ranking.verdict !== "tie") return { kind: "pass" };
+      const better = profileOrder < 0;
+      if (better) {
+        const restoredWitness = witnessRope(chosen);
+        let difference = firstDifference(restoredWitness, ranking.first, true);
+        if (!difference?.left || !difference.right) difference = firstDifference(restoredWitness, ranking.first, false);
+        ranking = { ...ranking, second: ranking.first, first: restoredWitness,
+          witness: difference ? [difference.left, difference.right] : null };
+      }
       // The readings, mapped to the stage's input (engine §7.10).
       const original = new Sources(tokens);
       /** @type {Map<string, TagSet>} */
@@ -10462,7 +10571,7 @@
       /** @type {ElisionCheck} */
       const result = {
         kind: "ambiguous",
-        readings: ropes.map((rope) => remap(resultTree(derivationTree(rope), r)[0])),
+        readings: ropes.map((rope, index) => better && index === 0 ? tree : remap(resultTree(derivationTree(rope), r)[0])),
         witness: [mapAction(witness[0]), mapAction(witness[1])],
       };
       // A competing reading gives no warning (engine §7.10), unless a fault
@@ -11227,6 +11336,37 @@
 
 
 
+  /**
+   * Builds the restored witness actions in leaf order (engine §7.8).
+   * The witness keeps each production and gives each omission one token.
+   * @param {Derivation} chosen
+   * @returns {import("./types.js").Rope}
+   */
+  function witnessRope(chosen) {
+    /** @type {Action[]} */
+    const sequence = [];
+    let cursor = 0;
+    const stack = [{ node: chosen, next: 0, start: 0 }];
+    while (stack.length) {
+      const frame = stack[stack.length - 1];
+      const node = frame.node;
+      if ("read" in node) {
+        sequence.push({ ...node.read, token: cursor++ });
+        stack.pop();
+      } else if (node.production.helper && node.production.elided !== null && !node.children.length) {
+        sequence.push({ kind: "read", terminal: node.production.elided, token: cursor++ });
+        sequence.push({ kind: "close", item: Object.assign(Object.create(Object.getPrototypeOf(node.item)), node.item, { origin: frame.start, end: cursor, restores: true }) });
+        stack.pop();
+      } else if (frame.next < node.children.length) {
+        stack.push({ node: node.children[frame.next++], next: 0, start: cursor });
+      } else {
+        sequence.push({ kind: "close", item: Object.assign(Object.create(Object.getPrototypeOf(node.item)), node.item, { origin: frame.start, end: cursor }) });
+        stack.pop();
+      }
+    }
+    return ropeOf(sequence);
+  }
+
   // ---- reader.js
   // From the notation's syntax tree to a grammar DOM (engine §9).
 
@@ -11483,6 +11623,17 @@
       const keyword = text(token(only(node, "definer")));
       /** @type {Partial<DomRule>} */
       const rule = { name: text(token(only(node, "rule-name"))), op: keyword === "%extend-rule" ? "extend" : keyword === "%redefine-rule" ? "redefine" : "define" };
+      const flags = one(node, "rule-flags");
+      rule.flags = [];
+      if (flags) {
+        if (rule.op === "extend") fail("%extend-rule accepts no flags", flags);
+        for (const flag of some(flags, "rule-flag")) {
+          const name = text(token(flag));
+          if (name !== "greedy") fail(`unknown rule flag ${name}`, flag);
+          if (rule.flags.includes(name)) fail(`duplicate rule flag ${name}`, flag);
+          rule.flags.push(name);
+        }
+      }
       // The parts of a definition are read in the order written: the body,
       // then its clauses in their fixed order, and the checks of the whole
       // definition last (engine §9).
@@ -12228,7 +12379,7 @@
   // §9). Every other rule is a wrapper, and the reader reads its parts in its
   // place.
   const NAMED = new Set([
-    "directive", "argument-word", "argument-string", "rule", "definer", "rule-name", "body", "alternative", "guard", "alternative-tags",
+    "directive", "argument-word", "argument-string", "rule", "definer", "rule-flags", "rule-flag", "rule-name", "body", "alternative", "guard", "alternative-tags",
     "conjunction", "sequence", "primary", "repetition", "reference", "string", "phoneme", "tested", "test", "test-operand", "capture", "group", "optional",
     "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "opaque-clause", "emit-item", "emit-target", "emit-tags", "emit-before", "emit-after",
     "implication", "any-of", "all-of", "condition", "comparison", "comparator", "negation", "presence",
@@ -13506,6 +13657,7 @@
    * @typedef {object} DomRule
    * @property {string} name
    * @property {"define" | "redefine" | "extend"} op
+   * @property {string[]} flags
    * @property {Term} [tags]
    * @property {DomAlternative[]} alternatives
    * @property {Emission} [emit]
@@ -13647,6 +13799,7 @@
    * @property {string} lhs
    * @property {GrammarSymbol[]} rhs
    * @property {boolean} helper
+   * @property {string[]} flags
    * @property {string} owner the rule the production was lowered from
    * @property {string | null} elided the terminator an empty helper stands for
    * @property {SymbolTest | null} elidedTest the test of that terminator, an

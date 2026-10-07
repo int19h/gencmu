@@ -1,0 +1,51 @@
+{
+  "description": "A better reconstruction reports the restored chosen reading first, without replacing it (engine §7).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text r [+T] 'b' | r | 'a' [+U] 'b'\n%rule(greedy) r 'a' | 'a' T 'b'",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "elision-only",
+        "readings": [
+          {
+            "children": [
+              {
+                "rule": "r",
+                "span": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "kind": "elided",
+                "terminal": "T"
+              },
+              {
+                "kind": "token"
+              }
+            ]
+          },
+          {
+            "children": [
+              {
+                "rule": "r",
+                "span": [
+                  0,
+                  2
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
+  }
+}

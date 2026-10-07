@@ -1,0 +1,20 @@
+{
+  "description": "Equal profiles from different flagged rules leave a tie for the stage preference (engine §6).",
+  "grammar": "%ambiguity-resolution lazy\n%rule text r | s\n%rule(greedy) r 'a'\n%rule(greedy) s 'a'",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "verdict": "tie"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "tie"
+      }
+    },
+    "error": "ambiguous"
+  }
+}

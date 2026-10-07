@@ -1,0 +1,26 @@
+{
+  "description": "A flagged redefinition gives every replacement alternative the preference (engine §2, §6).",
+  "grammar": "%ambiguity-resolution lazy\n%rule text r | r 'b'\n%rule r 'a'\n%redefine-rule(greedy) r 'a' | 'a' 'b'",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r",
+            "span": [
+              0,
+              2
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

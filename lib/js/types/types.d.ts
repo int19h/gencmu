@@ -145,9 +145,6 @@ export type WitnessClose = {
      * the number of the production (engine §3)
      */
     production: number;
-    /**
-     * whether the production is a helper's
-     */
     helper: boolean;
     /**
      * the tokens that the production covers
@@ -295,6 +292,7 @@ export type DomDirective = {
 export type DomRule = {
     name: string;
     op: "define" | "redefine" | "extend";
+    flags: string[];
     tags?: Term;
     alternatives: DomAlternative[];
     emit?: Emission;
@@ -471,6 +469,7 @@ export type Production = {
     lhs: string;
     rhs: GrammarSymbol[];
     helper: boolean;
+    flags: string[];
     /**
      * the rule the production was lowered from
      */
@@ -797,7 +796,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {string} rule the rule of the production; for a helper, the
  *   rule whose alternative introduced it
  * @property {number} production the number of the production (engine §3)
- * @property {boolean} helper whether the production is a helper's
+ * @property {boolean} helper
+
  * @property {Span} span the tokens that the production covers
  */
 /**
@@ -910,6 +910,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} DomRule
  * @property {string} name
  * @property {"define" | "redefine" | "extend"} op
+ * @property {string[]} flags
  * @property {Term} [tags]
  * @property {DomAlternative[]} alternatives
  * @property {Emission} [emit]
@@ -1031,6 +1032,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {string} lhs
  * @property {GrammarSymbol[]} rhs
  * @property {boolean} helper
+ * @property {string[]} flags
  * @property {string} owner the rule the production was lowered from
  * @property {string | null} elided the terminator an empty helper stands for
  * @property {SymbolTest | null} elidedTest the test of that terminator, an

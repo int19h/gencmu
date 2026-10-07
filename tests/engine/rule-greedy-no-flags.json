@@ -1,0 +1,29 @@
+{
+  "description": "Without flags, late-elision still selects the reading with no omitted terminator (engine §6).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text r | r 'b'\n%rule r 'a' [+T] 'b' | 'a'",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r",
+            "span": [
+              0,
+              1
+            ]
+          },
+          {
+            "kind": "token"
+          }
+        ]
+      }
+    }
+  }
+}

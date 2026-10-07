@@ -1,0 +1,29 @@
+{
+  "description": "A disabled alternative contributes no flagged occurrence (engine §3, §6).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text r | r 'b'\n%rule(greedy) r 'a' | enabled? 'a' 'b'",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r",
+            "span": [
+              0,
+              1
+            ]
+          },
+          {
+            "kind": "token"
+          }
+        ]
+      }
+    }
+  }
+}

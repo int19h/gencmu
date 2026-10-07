@@ -1,0 +1,7 @@
+{
+  "description": "Invalid rule flags are errors of the document (engine §2).",
+  "document": "```jbogenbau\n%rule(greedy,greedy) text A\n```\n",
+  "expect": {
+    "error": {}
+  }
+}

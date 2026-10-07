@@ -1,0 +1,27 @@
+{
+  "description": "Definitions expose their flags in the DOM (engine §2).",
+  "document": "```jbogenbau\n%rule ( greedy ) text A\n%extend-rule text B\n%redefine-rule(greedy) text C\n%redefine-rule text D\n```\n",
+  "expect": {
+    "dom": {
+      "format": 19,
+      "rules": [
+        {
+          "flags": [
+            "greedy"
+          ]
+        },
+        {
+          "flags": []
+        },
+        {
+          "flags": [
+            "greedy"
+          ]
+        },
+        {
+          "flags": []
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "description": "Every recursive chain level contributes its flagged span, including unary base levels (engine §3, §6).",
+  "grammar": "%ambiguity-resolution lazy\n%rule text r | r 'b'\n%rule(greedy) r {... 'a' | 'b'}",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r",
+            "span": [
+              0,
+              2
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
