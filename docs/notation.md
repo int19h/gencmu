@@ -614,7 +614,7 @@ The first stage reads the text's characters. Each is a token with one tag, its c
 
 A grammar admits every parse that its rules allow. Rule flags rank complete parses first. The stage's `%ambiguity-resolution` ranks the remaining parses with `greedy`, `lazy` or `late-elision`. A parse is best when neither comparison prefers another parse. The stage takes a sole best parse. Several best parses give an ambiguity error.
 
-A flagged occurrence is one constituent of a rule with `greedy`. A span is the range between two input token boundaries. A profile counts flagged occurrences over each nonempty span. Every named occurrence counts, including a constituent with one symbol and each chain level. The unnamed constituents of flat braces and plain optionals contribute nothing. Empty occurrences also contribute nothing.
+A flagged occurrence is a flagged rule's constituent. A span is the range between two input token boundaries. A profile counts flagged occurrences over each nonempty span. Every named occurrence counts, including a constituent with one symbol and each chain level. The unnamed constituents of flat braces and plain optionals contribute nothing. Empty occurrences also contribute nothing.
 
 The flag `greedy` compares span profiles, while the stage directive `greedy` compares a read with a close.
 
