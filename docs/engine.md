@@ -433,7 +433,7 @@ In the check of §7, `phonemes(span)` and `text(span)` read the projected span, 
 
 ## 6. Choosing a parse
 
-A stage ranks the counted derivations of its input (§4). A flagged span is a flagged constituent's span. A rule profile counts flagged constituents over nonempty spans. `leftmost-longest` compares complete parses by nonempty flagged-span counts, with earlier starts first, longer spans next, and larger counts preferred at the first difference.
+A stage ranks the counted derivations of its input (§4). A flagged occurrence is a flagged rule's constituent. A flagged span is a flagged occurrence's span. A rule profile counts flagged occurrences over nonempty spans. `leftmost-longest` compares complete parses by nonempty flagged-span counts, with earlier starts first, longer spans next, and larger counts preferred at the first difference.
 
 All flagged rules contribute together, without priority by name, declaration order, production number, tags or source. Equal spans count separately, including nested occurrences. Each nonempty occurrence of a flagged rule counts, including each named chain level and each constituent with one symbol. Empty occurrences contribute nothing, and helpers carry no flags. The flag ranks before the stage directive.
 
@@ -447,9 +447,11 @@ The directive (§2) is `greedy`, `lazy` or `late-elision`. The verdict is one of
 
 Under `unique` and `resolved`, the chosen derivation is the one best derivation. Under `resolved`, it beats every other derivation (below). A tie is an error, and the stage then has no chosen derivation. The production numbers of §3 never decide which derivation a stage chooses.
 
-For N input tokens, the boundaries are `0 ≤ p < q ≤ N`. `G_D(p,q)` counts D's constituents of flagged rules over `[p,q)`. Every occurrence of a flagged rule contributes once, however many symbols its production has.
+For N input tokens, the pairs of boundaries are `0 ≤ p < q ≤ N`. `G_D(p,q)` counts D's flagged occurrences over `[p,q)`. Every flagged occurrence contributes once, however many symbols its production has.
 
 Compare components by increasing p and, within one p, decreasing q. At the first differing count, the greater count wins. Equal vectors give equal rule profiles. Every two rule profiles are equal or one of them wins. Distinct derivations can share one rule profile.
+
+Only a flagged occurrence makes a component nonzero. A sparse map stores only nonzero components. A shared sorted list of spans is another representation. With no flagged rule, one shared zero profile serves every derivation.
 
 An occurrence beats absence, and equal spans count separately. With no flagged rule, every rule profile is zero, so the directive alone ranks.
 
@@ -578,7 +580,7 @@ The check runs where the stage's verdict is `resolved` and the check is on. It i
 
 A tie never reaches it, because a tie ends the stage first. It does not run for `unique`. An error of the grammar found while emitting ends the stage before it. A caller can switch the check off for a stage that declares it.
 
-The check asks whether D's restored witness is the sole reading of R with an equal or better rule profile. It chooses no replacement derivation and checks no other restoration.
+The check follows the decision order of §7.10. It chooses no replacement derivation and checks no other restoration.
 
 The check uses the main parse's lowered grammar, features, classifiers, constants and Unicode table. It does not lower the grammar again, and it does not run earlier stages again.
 
@@ -705,7 +707,7 @@ A restoration's read of its synthetic token is a read action, and its close is t
 
 An error of the grammar met while the check recognizes R is the result's error, as one met while emitting is (§11). This includes an error in a competing derivation that only the check reaches. The stage keeps its verdict and warnings, but it has no output.
 
-W(D), the restored witness (§7.8), has rule profile G_D because each occurrence projects to its original span. The check follows the decision order of §7.10. A greatest rule profile below G_D proves the loss of W(D), but a greater rule profile does not excuse that loss. With no flagged rule, the check passes only when R has exactly one counted reading.
+W(D), the restored witness (§7.8), has rule profile G_D because each occurrence projects to its original span. Section 7.10 gives the decisions for witness loss and competing readings.
 
 ### 7.8 The witness
 
@@ -732,7 +734,7 @@ The theorem does not excuse errors. A competing derivation can meet an error of 
 
 ### 7.9 A lost witness
 
-Suppose that the check ends without an error of the grammar. If W(D) is not among the counted derivations of R, the check loses the witness of §7.8. A chart with no counted derivation of R is one such case. The check can omit the membership test without flags (§7.10). A lost witness is a defect of the library, not a property of the text. The result is an error of kind `grammar` with the code `elision-witness-lost`:
+Section 7.10 defines when the check loses its witness. A lost witness is a defect of the library, not a property of the text. The result is an error of kind `grammar` with the code `elision-witness-lost`:
 
 ```json
 {"kind":"grammar","stage":"syntax","code":"elision-witness-lost",
@@ -749,13 +751,13 @@ The stage's name stands for `syntax` in `stage` and in `message`. `chosen` is D'
 
 The error has no `token`, `source`, `line`, `column`, `expected`, `reason` or `readings`.
 
-`ok` is false and `tree` is null. The stage keeps its verdict, `resolved`, and its warnings, but it has no output, and no later stage runs. Both a chart with no completed item of `text` over R and one whose items of `text` have no derivation that counts give this error. An error of the grammar met during the check is never this error.
+`ok` is false and `tree` is null. The stage keeps its verdict, `resolved`, and its warnings, but it has no output, and no later stage runs. An error of the grammar met during the check is never this error.
 
-The message is the same in every library. The engine never passes a check after it detects a lost witness. It never shows D's tree as a reading of R in its place.
+The message is the same in every library. Section 7.10 gives witness loss priority over every passing or ambiguity outcome.
 
 ### 7.10 Readings
 
-The check makes these decisions in order. With no flagged rule, a library can omit the membership test in step 1 because §7.8 proves that W(D) counts. It still reports a forest with no counted derivation as `elision-witness-lost`.
+If the check ends without an error of the grammar, it makes these decisions in order. With no flagged rule, a library can omit the membership test in step 1 because §7.8 proves that W(D) counts. It still reports a forest with no counted derivation as `elision-witness-lost`.
 
 1. If W(D) is not a counted derivation, report `elision-witness-lost` (§7.9). A greatest rule profile below G_D proves this loss. A greater rule profile does not replace W(D).
 2. Otherwise, if the greatest rule profile exceeds G_D, report `ambiguous` with reason `elision-only` and `ok` false. The first reading is W(D). The second is the no-lean canonical first derivation with the greatest rule profile.

@@ -59,6 +59,15 @@ pub(crate) struct StitchedRule {
     pub document: Arc<str>,
 }
 
+/// The flags before and after a replacement that changes them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FlagChange {
+    /// The replaced rule's flags.
+    pub from: Vec<String>,
+    /// The replacement rule's flags.
+    pub to: Vec<String>,
+}
+
 /// One replacement or extension the loader recorded (engine §2).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Change {
@@ -71,6 +80,8 @@ pub struct Change {
     pub extension: bool,
     /// The document that made the change.
     pub document: String,
+    /// The flags before and after the replacement, only if they differ.
+    pub flag_change: Option<FlagChange>,
 }
 
 #[derive(Debug, Clone)]
@@ -269,12 +280,16 @@ pub(crate) fn stitch(
                     };
                     // The replacement keeps the place of the rule it
                     // replaces (§3, "Numbering").
+                    let previous_flags = &grammar.rules[index].flags;
+                    let flag_change = (previous_flags != &rule.flags)
+                        .then(|| FlagChange { from: previous_flags.clone(), to: rule.flags.clone() });
                     grammar.rules[index] = stitched();
                     grammar.changes.push(Change {
                         stage: stage.to_string(),
                         rule: rule.name.clone(),
                         extension: false,
                         document: document.to_string(),
+                        flag_change,
                     });
                 }
                 Op::Extend => {
@@ -290,6 +305,7 @@ pub(crate) fn stitch(
                         rule: rule.name.clone(),
                         extension: true,
                         document: document.to_string(),
+                        flag_change: None,
                     });
                 }
             }

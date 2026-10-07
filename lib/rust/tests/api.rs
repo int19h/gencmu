@@ -40,6 +40,26 @@ fn no_auto() -> ParseOptions {
 }
 
 #[test]
+fn replacements_record_flag_changes() {
+    let dialect = gencmu::load_dialect_sources(
+        &single("%ambiguity-resolution greedy\n%rule(leftmost-longest) text A\n%extend-rule text B\n%redefine-rule text C\n%redefine-rule(leftmost-longest) text D\n%redefine-rule(leftmost-longest) text E\n%redefine-rule text F\n%redefine-rule text G"),
+        "p.md",
+    )
+    .unwrap();
+    let flag = vec!["leftmost-longest".to_string()];
+    let removed = gencmu::FlagChange { from: flag.clone(), to: vec![] };
+    let added = gencmu::FlagChange { from: vec![], to: flag };
+    assert_eq!(
+        dialect.changes().iter().map(|change| change.flag_change.clone()).collect::<Vec<_>>(),
+        vec![None, Some(removed.clone()), Some(added), None, Some(removed), None]
+    );
+    for (index, change) in dialect.changes().iter().enumerate() {
+        assert_eq!((&*change.stage, &*change.rule, &*change.document), ("main", "text", "g.md"));
+        assert_eq!(change.extension, index == 0);
+    }
+}
+
+#[test]
 fn a_bundled_dialect_loads_by_name() {
     let dialect = gencmu::load_dialect("notation").expect("the notation dialect");
     assert_eq!(dialect.stage_names(), ["lexical", "syntax"]);

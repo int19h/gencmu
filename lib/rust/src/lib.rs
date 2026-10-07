@@ -66,7 +66,7 @@ mod work;
 pub use dialect::{Dialect, Feature, InputToken, ParseOptions};
 pub use dom::FeatureKind;
 pub use error::{Error, ErrorKind};
-pub use grammar::Change;
+pub use grammar::{Change, FlagChange};
 pub use loader::{load_dialect, load_dialect_file, load_dialect_sources};
 pub use output::{node_to_json, to_brackets, to_json};
 pub use result::{

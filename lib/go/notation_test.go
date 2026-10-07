@@ -540,7 +540,7 @@ func TestUnicodeTable(t *testing.T) {
 
 // A precompiled DOM of format 17 is never used: compiled.json of that
 // format is a miss, and so is a DOM of that shape, a repeat with min, in a
-// file of format 18.
+// file of the current format.
 func TestFormat17Refused(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)

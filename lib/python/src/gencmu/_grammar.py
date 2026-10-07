@@ -75,6 +75,14 @@ class Rule:
 
 
 @dataclass
+class FlagChange:
+    """The flags before and after a replacement that changes them."""
+
+    from_flags: list[str]
+    to_flags: list[str]
+
+
+@dataclass
 class Change:
     """A replacement or extension the loader records (engine §2)."""
 
@@ -82,6 +90,7 @@ class Change:
     rule: str
     document: str
     previous: str
+    flag_change: FlagChange | None = None
 
 
 @dataclass(frozen=True)
@@ -536,7 +545,9 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
             elif op == "redefine":
                 if previous is None:
                     raise _error(f"%redefine-rule {name} replaces no rule defined before it", path, at, stage)
-                changes.append(Change("replace", name, path, previous.document))
+                flags = list(rule["flags"])
+                flag_change = FlagChange(previous.flags.copy(), flags.copy()) if previous.flags != flags else None
+                changes.append(Change("replace", name, path, previous.document, flag_change))
                 # The rule keeps its place (engine §3, "Numbering").
                 rules[name] = Rule(name, alternatives, path, at, list(rule["flags"]))
             else:

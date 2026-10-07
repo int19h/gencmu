@@ -14,14 +14,14 @@ A grammar is unordered: its alternatives are not ranked. A rule flag gives a rul
 
 ## Rules
 
-A grammar is a sequence of rules, directives (see "Directives"), constants (see "Constants"), classifiers (see "Classifiers") and implications (see "Implications"). Each one begins with a keyword, which is a word after `%`, and ends where the next one begins. A rule is `%rule`, its name, and its body:
+A grammar is a sequence of rules, directives (see "Directives"), constants (see "Constants"), classifiers (see "Classifiers") and implications (see "Implications"). Each one begins with a keyword, which is a word after `%`, and ends where the next one begins. A rule is `%rule`, its optional flags, its name, and its body:
 
 ```jbogenbau
 %rule sumti-tail
   [sumti-6 [relative-clauses]] sumti-tail-1 | relative-clauses sumti-tail-1
 ```
 
-`%rule(leftmost-longest) NAME` gives the rule the only supported flag, `leftmost-longest`. It prefers earlier starts, then longer nonempty constituents at one start. A parse with a nonempty flagged constituent beats one without any. "Ambiguity" gives the full comparison.
+`%rule(leftmost-longest) NAME` gives the rule the only supported flag, `leftmost-longest`. A flagged occurrence is a flagged rule's constituent. The flag prefers earlier starts, then longer nonempty occurrences at one start. A parse with a nonempty flagged occurrence beats one without any. "Ambiguity" gives the full comparison.
 
 For example:
 
@@ -31,7 +31,7 @@ For example:
 %rule(leftmost-longest) r 'a' 'b' | 'a'
 ```
 
-On `ab`, the stage chooses `r` over both tokens. Without the flag, the directive `greedy` leaves the two parses tied.
+On `ab`, the stage chooses the parse where `r` spans both tokens. Without the flag, the directive `greedy` leaves the two parses tied.
 
 For a tense example, flagging only `simple-tense-modal` groups `pu va ca gi` as `pu va` then `ca gi`. The official parser gives that grouping. This example does not define the official lexer's procedure.
 
@@ -624,7 +624,7 @@ The first stage reads the text's characters. Each is a token with one tag, its c
 
 ## Ambiguity
 
-A grammar admits every parse that its rules allow. A flagged occurrence is a flagged rule's constituent. A span is the range between two input token boundaries. A flagged span is a flagged occurrence's span. A rule profile counts flagged occurrences over each nonempty span.
+A grammar admits every parse that its rules allow. A span is the range between two input token boundaries. A flagged span is a flagged occurrence's span. A rule profile counts flagged occurrences over each nonempty span.
 
 `leftmost-longest` compares complete parses by nonempty flagged-span counts, with earlier starts first, longer spans next, and larger counts preferred at the first difference.
 
@@ -740,6 +740,6 @@ The measured corpus had no text that failed this check, but that is no general g
 
 The grammars that extend CLL are really ambiguous in places. A sumti is an argument of the selbri. A term is a wider kind of argument that includes the sumti. Historically, the experimental grammar read the `mi .e do` of `mi .e do klama` in two ways. It was two sumti joined by `.e`, or two terms joined by it. Its rule that a sumti connection comes before a term connection now settles it.
 
-`late-elision` does not make `elision-only` redundant. Written-back terminators can let another alternative match, or let a test on a terminal match. So the check can find two readings where the ranking found one best parse.
+`late-elision` does not make `elision-only` redundant. Written-back terminators can let another alternative match, or let a test on a terminal match. So the check can find a second reading that the rule flags do not rank below the chosen parse.
 
 The grammars that extend CLL do not declare `elision-only`. A caller can switch `elision-only` on for a parse, to find ambiguities that are not about terminators in the text that it supplies. Their conditions and tags were not reviewed for the check, as the CLL grammar's were. So a second reading that the check reports there can come from a condition that reads a written-back terminator otherwise than a written one. A caller can also switch it off, to loosen a grammar that declares it.

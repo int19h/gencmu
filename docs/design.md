@@ -71,7 +71,7 @@ The four libraries implement one specification, `docs/engine.md`. It was written
 3. The recognizer is an Earley parser (a standard algorithm for any context-free grammar). Its items, the partial matches that it keeps, record the span and the identity of the tag set of each captured part. The parser evaluates each condition as soon as it reads the last capture of that condition. With `from` and `after`, a condition can look past its constituent to the end of the input. A PEG (parsing expression grammar, which tries alternatives in order) has a lookahead that does the same.
 
    Nested parses for `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` share their memo (a cache of answers) with the parse that started them. The memo key is the kind of query, the rule, and either the content of a short span or the position of a long span. A nested parse asked about its own span, as the same rule, is a grammar error. A nested parse never leaves out an elidable optional that the same construct can read whole as written (see "Nested queries and elided terminators" below).
-4. The engine chooses a parse in two steps. A rule flag declares a preference for one rule. A rule profile counts the grammar's flagged constituents over each nonempty input span. First, rule flags compare rule profiles. The stage directive then ranks parses with the greatest rule profile. Its `greedy` and `lazy` comparisons use bottom-up actions, while `late-elision` compares omissions (see "Ambiguity" below).
+4. A flagged occurrence is a flagged rule's constituent. A rule profile counts flagged occurrences over each nonempty input span. Rule flags compare rule profiles first. The stage directive then ranks parses with the greatest rule profile. Its `greedy` and `lazy` comparisons use bottom-up actions, while `late-elision` compares elided terminators (see "Ambiguity" below).
 5. The stage emits the tokens of the next stage. Each token has its text, its phonemes, its label and its source range. The label is what the renderings for people show. A token can also carry attachments, tokens that belong to it and that no later stage reads.
 6. The pipeline runs the stages in order, and stops at the first rejection or error.
 
@@ -340,15 +340,17 @@ The forms stage divides the text into words. The words stage applies the magic w
 
 ### Rule flags
 
-Rule flags address the tense ties of [issue 159](https://github.com/int19h/gencmu/issues/159). The condition approach required propagation through five `sumti` levels and changes to two chains. It still left tense ties. An atom is one independent grammatical unit. Intended uses are atoms such as `simple-tense-modal`. Broad rules such as `tag` also reward wrappers, nested groups and chains.
+Rule flags address the tense ties of [issue 159](https://github.com/int19h/gencmu/issues/159). An earlier approach used a condition on `term`. It required propagation through five `sumti` levels and changes to two chains. It still left tense ties.
 
-The rule profile compares token spans, not reading and closing actions. For `r → r B | A`, action comparison can tie a longer outer `r` with a short one. Span comparison prefers the longer outer `r`. Presence and repeated occurrences count because each flagged constituent expresses the declaration. Empty occurrences contribute nothing, so the flag does not reward empty wrappers.
+An atom is one independent grammatical unit. Intended uses are atoms such as `simple-tense-modal`. Flagging a broad rule such as `tag` counts its wrappers, nested groups and chain levels too. In measurement that gave the wrong grouping.
+
+The rule profile compares token spans, not reading and closing actions. For `r → r B | A`, action comparison can tie a longer outer `r` with a short one. Span comparison prefers the longer outer `r`. Presence and repeated occurrences count because each flagged occurrence expresses the declaration. Empty occurrences contribute nothing, so the flag does not reward empty wrappers.
 
 The flag ranks first so an author can state grouping independently of terminator policy. Equal rule profiles leave the directive to decide. Extensions inherit the flag, while redefinitions replace it with their own declaration. This gives one authoritative declaration for the whole rule.
 
-`elision-only` retains rule flags because they express structural preferences. If another reading has an equal or greater rule profile, the check reports ambiguity without replacing the chosen parse. Restored terminators add no width, so writing them back cannot lengthen a flagged constituent.
+`elision-only` retains rule flags because they express structural preferences. If another reading has an equal or greater rule profile, the check reports ambiguity without replacing the chosen parse. Restored terminators add no width, so writing them back cannot lengthen a flagged occurrence.
 
-With only `simple-tense-modal` flagged, `pu va ca gi` groups as `pu va` then `ca gi`, as the official parser does. This motivating case does not equate the flag with the official lexer's procedure. Engine §6 defines the flag's comparison, rather than POSIX subexpression semantics. For example, the flag pools occurrences across all flagged rules, counts nested and repeated occurrences, and ignores empty occurrences.
+With only `simple-tense-modal` flagged, `pu va ca gi` groups as `pu va` then `ca gi`, as the official parser does. This motivating case does not equate the flag with the official lexer's procedure. The notation's "Ambiguity" section explains the differences from POSIX subexpression semantics.
 
 The maintainer chose `leftmost-longest` and parentheses after the keyword. The name states the priorities of earlier starts and later ends at one start. No `lazy` flag exists because reversing the comparison favors absence, which needs a separate design.
 
@@ -583,7 +585,7 @@ The product provides these diagnostics and debugging tools:
 - A tie shows the two derivations side by side from the first difference.
 - Stage inspection shows the tokens that every stage emitted, with their tags.
 - The trace shows, for one position, which items the recognizer predicted, advanced, completed and dropped, and which condition dropped them. This is the tool for "why does my grammar not accept this".
-- The audit reports undefined and unreachable rules, every rule that a later document replaced or extended, and `%emits ε` that changes nothing. Such an `%emits ε` is over text that can never emit a token or be covered by one. The audit data lists every membership change, with its key, class, gates and document. The printed report shows the gated memberships and those that more than one entry changes. A condition that applies to no alternative is not an audit finding. It is an error of the grammar.
+- The audit reports undefined and unreachable rules, every rule that a later document replaced or extended, and `%emits ε` that changes nothing. It names a replacement that adds or removes a rule flag, with the flags before and after. Such an `%emits ε` is over text that can never emit a token or be covered by one. The audit data lists every membership change, with its key, class, gates and document. The printed report shows the gated memberships and those that more than one entry changes. A condition that applies to no alternative is a grammar error, not an audit finding.
 
 ## CLI and playground
 
@@ -592,7 +594,7 @@ The CLI is `node lib/js/cli.js` (and `npx gencmu` once published). It has these 
 - `parse`, to parse a text, with options that include `--dialect`, `--feature` and `--no-feature`, `--until`, `--format brackets|tree|json|canonical|tokens` and `--trace`
 - `dialects`, to list the bundled dialects
 - `features`, to list a dialect's features
-- `audit`, to report the undefined, unreachable, replaced and extended rules of a dialect
+- `audit`, to report the undefined, unreachable, replaced and extended rules of a dialect, including replacements that add or remove rule flags
 - `stitch`, to print a dialect's pipeline as one jbogenbau text, with each classifier's entries as written
 - `test`, to check a grammar author's own file of corpus-format cases against a dialect. It compares each case as the library's corpus runner does, with the same code. It checks the cases, not the engine, so it runs none of the engine's self-checks, such as the witness hook of `elision-only`
 - `help`, to list the commands and every option

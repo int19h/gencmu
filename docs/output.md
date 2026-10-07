@@ -114,7 +114,9 @@ A grammar DOM (document object model) is the parsed form of a grammar document (
 {"format":20,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
 ```
 
-`format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version. Format 20 names the rule flag `leftmost-longest`. Format 19 introduced `flags` on every rule definition. Format 18 introduced braces and elidable optional markers.
+`format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version. Format 20 brings rule flags: `flags` on every rule definition, and the flag `leftmost-longest`. Format 18 brought braces and elidable optional markers.
+
+An unreleased format covers all its changes together. Format 19 was never released, so rule flags use format 20 throughout.
 
 A library skips cached DOMs with another format and rejects bootstraps with another format. The cache identity also includes the bootstrap hash (engine §8).
 
