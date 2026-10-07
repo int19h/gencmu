@@ -180,6 +180,7 @@ pub(crate) struct Ranking {
     /// With the witness hook's marks, whether the count counted W(D): the
     /// root has the bit (tests/README.md).
     pub witness_counted: Option<bool>,
+    pub profile: Profile,
 }
 
 /// Elision vectors (§6), each kept as the positions of its elided
@@ -366,16 +367,17 @@ impl Vectors {
 #[derive(Debug, Clone)]
 struct Least {
     vector: u32,
+    profile: Profile,
     least: u8,
     total: u8,
     kept: Vec<u32>,
 }
 
 impl Least {
-    const NONE: Least = Least { vector: NO_ELISIONS, least: 0, total: 0, kept: Vec::new() };
+    const NONE: Least = Least { vector: NO_ELISIONS, profile: Vec::new(), least: 0, total: 0, kept: Vec::new() };
 
     fn one(vector: u32) -> Least {
-        Least { vector, least: 1, total: 1, kept: vec![0] }
+        Least { vector, profile: Vec::new(), least: 1, total: 1, kept: vec![0] }
     }
 
     /// Adds the derivations of the edge `index`. The total counts every
@@ -386,10 +388,15 @@ impl Least {
             return;
         }
         self.total = self.total.saturating_add(edge.total).min(2);
-        let order = if self.least == 0 { Ordering::Less } else { vectors.compare(edge.vector, self.vector) };
+        let order = if self.least == 0 {
+            Ordering::Less
+        } else {
+            compare_profiles(&edge.profile, &self.profile).then_with(|| vectors.compare(edge.vector, self.vector))
+        };
         match order {
             Ordering::Less => {
                 self.vector = edge.vector;
+                self.profile = edge.profile.clone();
                 self.least = edge.least;
                 self.kept = vec![index];
             }
@@ -441,6 +448,7 @@ impl Summary {
 
 /// What `late-elision` keeps beside the entries.
 struct Elisions {
+    count_elisions: bool,
     vectors: Vectors,
     summaries: FxMap<Key, Summary>,
 }
@@ -858,7 +866,11 @@ impl<'c> Ranker<'c> {
             fsets: vec![Vec::new()],
             fset_index: FxMap::default(),
             maximal,
-            elisions: late.then(|| Elisions { vectors: Vectors::new(), summaries: FxMap::default() }),
+            elisions: (late || g.rules.iter().any(|rule| rule.greedy)).then(|| Elisions {
+                count_elisions: late,
+                vectors: Vectors::new(),
+                summaries: FxMap::default(),
+            }),
             marks: None,
             check: false,
         };
@@ -891,17 +903,37 @@ impl<'c> Ranker<'c> {
     /// W(D)'s actions as a derivation of the ranking's own, to compare with
     /// its readings in the order T.
     pub(crate) fn derivation(&mut self, sequence: &[WitnessAct]) -> u32 {
-        let mut x = EMPTY;
+        let mut stack = Vec::new();
         for act in sequence {
-            x = match *act {
+            match *act {
                 WitnessAct::Read { tok, terminal } => {
-                    let read = self.dag.push(DNode::Read { tok, terminal }, Nat::ONE, Nat::ONE);
-                    self.dag.seq(x, read)
+                    stack.push(self.dag.push(DNode::Read { tok, terminal }, Nat::ONE, Nat::ONE));
                 }
-                WitnessAct::Close { set, index } => self.dag.close(x, set, index),
-            };
+                WitnessAct::Close { set, index } => {
+                    let item = self.item(set, index);
+                    let arity = self.dag.g.prods[item.prod as usize].syms.len();
+                    let arity = if arity == 0 && item.origin != set { 1 } else { arity };
+                    let children = stack.split_off(stack.len() - arity);
+                    let mut body = EMPTY;
+                    for child in children {
+                        body = self.dag.seq(body, child);
+                    }
+                    stack.push(self.dag.close(body, set, index));
+                }
+            }
         }
-        x
+        assert_eq!(stack.len(), 1, "a restored witness has one root");
+        stack[0]
+    }
+
+    pub(crate) fn pair_witness(&self, a: u32, b: u32) -> (Act, Act) {
+        match self.dag.first_difference(a, b, true) {
+            Diff::At { a, b, .. } => (a, b),
+            _ => match self.dag.first_difference(a, b, false) {
+                Diff::At { a, b, .. } => (a, b),
+                _ => unreachable!("two different derivations differ"),
+            },
+        }
     }
 
     /// Whether `a` comes before `b` in the order T.
@@ -1215,13 +1247,24 @@ impl<'c> Ranker<'c> {
                     return plain(Least::NONE);
                 }
                 let (least, total, vector) = (body.least, body.total, body.vector);
-                let vector = if elides {
+                let vector = if elides && elisions.count_elisions {
                     let one = elisions.vectors.one(set);
                     elisions.vectors.join(vector, one)
                 } else {
                     vector
                 };
-                plain(Least { vector, least, total, kept: vec![0] })
+                let mut profile = body.profile.clone();
+                if g.rules[production.rule as usize].greedy {
+                    let origin = self.dag.chart.sets[set as usize].items[index as usize].origin;
+                    let (p, q) = self
+                        .dag
+                        .projection
+                        .map_or((origin, set), |(_, project)| (project[origin as usize], project[set as usize]));
+                    if p < q {
+                        profile = sum_profiles(&profile, &[(p, q, Nat::ONE)]);
+                    }
+                }
+                plain(Least { vector, profile, least, total, kept: vec![0] })
             }
             Deps::Links(links) => {
                 let Node::Item { set, index } = node else { unreachable!("an item") };
@@ -1242,7 +1285,8 @@ impl<'c> Ranker<'c> {
                     let least = left.least.saturating_mul(right.least).min(2);
                     let total = left.total.saturating_mul(right.total).min(2);
                     let vector = elisions.vectors.join(vector_left, vector_right);
-                    let edge = Least { vector, least, total, kept: Vec::new() };
+                    let profile = sum_profiles(&left.profile, &right.profile);
+                    let edge = Least { vector, profile, least, total, kept: Vec::new() };
                     all.add(&elisions.vectors, index, &edge);
                     if guarded && permitted {
                         allowed.add(&elisions.vectors, index, &edge);
@@ -1438,7 +1482,21 @@ impl<'c> Ranker<'c> {
             return None;
         }
         let result = result.clone();
-        let witness_counted = self.marks.map(|_| result.w);
+        let witness_counted = self.marks.map(|_| {
+            if self.elisions.is_none() {
+                return result.w;
+            }
+            // The witness hook counts recognition before profile filtering.
+            let summaries = self.elisions.take();
+            let memo = std::mem::take(&mut self.memo);
+            let results = std::mem::take(&mut self.results);
+            self.traverse(root, Pass::Entries);
+            let counted = self.results[self.memo[&root] as usize].w;
+            self.elisions = summaries;
+            self.memo = memo;
+            self.results = results;
+            counted
+        });
         let mut chosen = result.entries[0].x;
         for entry in &result.entries[1..] {
             if self.dag.before(entry.x, chosen) {
@@ -1486,7 +1544,7 @@ impl<'c> Ranker<'c> {
         // second one exactly when the least count is two. A disagreement is
         // a defect of the library, and like its other broken invariants it
         // panics, in release builds too, rather than pick a verdict.
-        if let Some((_, least)) = counts {
+        if let Some((_, least)) = counts.filter(|_| self.dag.lean == Lean::Neither) {
             assert_eq!(
                 least >= 2,
                 tied.is_some(),
@@ -1508,7 +1566,9 @@ impl<'c> Ranker<'c> {
                 _ => unreachable!("two different derivations differ"),
             },
         });
-        Some(Ranking { verdict, first: chosen, second, witness, witness_counted })
+        let profile =
+            self.elisions.as_ref().map_or_else(Vec::new, |summaries| summaries.summaries[&root].all.profile.clone());
+        Some(Ranking { verdict, first: chosen, second, witness, witness_counted, profile })
     }
 }
 
@@ -1523,6 +1583,63 @@ pub(crate) fn restored_terminal(g: &Lowered, prod: u32) -> u32 {
             _ => None,
         })
         .expect("an elidable optional begins with its terminal")
+}
+
+/// Sparse span counts in increasing start and decreasing end order.
+pub(crate) type Profile = Vec<(u32, u32, Nat)>;
+
+fn span_order(a: &(u32, u32, Nat), b: &(u32, u32, Nat)) -> Ordering {
+    a.0.cmp(&b.0).then_with(|| b.1.cmp(&a.1))
+}
+
+pub(crate) fn compare_profiles(left: &Profile, right: &Profile) -> Ordering {
+    for (a, b) in left.iter().zip(right) {
+        let order = span_order(a, b).then_with(|| b.2.cmp(&a.2));
+        if order != Ordering::Equal {
+            return order;
+        }
+    }
+    right.len().cmp(&left.len())
+}
+
+fn sum_profiles(left: &[(u32, u32, Nat)], right: &[(u32, u32, Nat)]) -> Profile {
+    let mut result = Vec::with_capacity(left.len() + right.len());
+    let (mut i, mut j) = (0, 0);
+    while i < left.len() || j < right.len() {
+        let order = match (left.get(i), right.get(j)) {
+            (Some(a), Some(b)) => span_order(a, b),
+            (Some(_), None) => Ordering::Less,
+            _ => Ordering::Greater,
+        };
+        match order {
+            Ordering::Less => {
+                result.push(left[i].clone());
+                i += 1;
+            }
+            Ordering::Greater => {
+                result.push(right[j].clone());
+                j += 1;
+            }
+            Ordering::Equal => {
+                result.push((left[i].0, left[i].1, left[i].2.add(&right[j].2)));
+                i += 1;
+                j += 1;
+            }
+        }
+    }
+    result
+}
+
+pub(crate) fn tree_profile(g: &Lowered, tree: &crate::tree::ITree) -> Profile {
+    let mut profile = Vec::new();
+    for node in &tree.nodes {
+        if let crate::tree::IKind::Close { prod, start, end, .. } = node.kind {
+            if start < end && g.rules[g.prods[prod as usize].rule as usize].greedy {
+                profile = sum_profiles(&profile, &[(start, end, Nat::ONE)]);
+            }
+        }
+    }
+    profile
 }
 
 #[cfg(test)]

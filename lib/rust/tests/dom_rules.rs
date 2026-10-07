@@ -11,7 +11,7 @@ const DOCUMENT: &str = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text '
 /// `rule` added and the text rule's alternative and emission as given.
 fn dom(text_alternative: &str, text_extra: &str, rule: &str, format: i64, directive_args: &str) -> String {
     let mut rules = format!(
-        r#"{{"name":"text","op":"define","alternatives":[{text_alternative}]{text_extra},"conditions":[],"at":[3,1]}}"#
+        r#"{{"name":"text","op":"define","flags":[],"alternatives":[{text_alternative}]{text_extra},"conditions":[],"at":[3,1]}}"#
     );
     if !rule.is_empty() {
         rules.push(',');
@@ -35,7 +35,7 @@ fn with_alternative(alternative: &str) -> String {
 /// A DOM like the document's, but accepting "b", with `directive` added
 /// after its `%ambiguity-resolution`.
 fn with_directive(directive: &str) -> String {
-    let rule = r#"{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"terminal":"b"}}],"conditions":[],"at":[3,1]}"#;
+    let rule = r#"{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"terminal":"b"}}],"conditions":[],"at":[3,1]}"#;
     format!(
         r#"{{"format":{DOM_FORMAT},"rules":[{rule}],"directives":[{{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}},{directive}],"constants":[],"classifiers":[],"implications":[]}}"#
     )
@@ -48,7 +48,7 @@ fn with_emission(emission: &str) -> String {
 
 fn with_condition(condition: &str) -> String {
     let rule = format!(
-        r#"{{"name":"x","op":"define","alternatives":[{{"guards":[],"expr":{{"capture":"w","expr":{{"terminal":"b"}}}}}}],"conditions":[{condition}],"at":[4,1]}}"#
+        r#"{{"name":"x","op":"define","flags":[],"alternatives":[{{"guards":[],"expr":{{"capture":"w","expr":{{"terminal":"b"}}}}}}],"conditions":[{condition}],"at":[4,1]}}"#
     );
     with_rule(&rule)
 }
@@ -107,7 +107,7 @@ fn a_well_formed_dom_is_used() {
     // `#` is a rule's name, and `$` may be read by a condition, and by a
     // tag term through another rule.
     let hash = with_rule(
-        r##"{"name":"#","op":"define","alternatives":[{"guards":[],"expr":{"empty":true}}],"conditions":[],"at":[4,1]}"##,
+        r##"{"name":"#","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"empty":true}}],"conditions":[],"at":[4,1]}"##,
     );
     assert!(!document_was_read(&hash));
     // The pipeline directives with their operands (§9).
@@ -137,9 +137,9 @@ fn a_well_formed_dom_is_used() {
     assert!(!document_was_read(&with_condition(not_begins)));
     assert!(!document_was_read(&with_tags(r#"{"call":"tags","args":[{"call":"from","args":[{"capture":"x"}]}]}"#)));
     // A condition and an emission that serve some alternatives only.
-    let some = r#"{"name":"x","op":"define","alternatives":[{"guards":[],"expr":{"capture":"w","expr":{"terminal":"b"}}},{"guards":[],"expr":{"terminal":"c"}}],"emit":{"items":[{"capture":"w"},{"capture":""}]},"conditions":[{"op":"=","left":{"call":"text","args":[{"capture":"w"}]},"right":{"string":"b"}}],"at":[4,1]}"#;
+    let some = r#"{"name":"x","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"capture":"w","expr":{"terminal":"b"}}},{"guards":[],"expr":{"terminal":"c"}}],"emit":{"items":[{"capture":"w"},{"capture":""}]},"conditions":[{"op":"=","left":{"call":"text","args":[{"capture":"w"}]},"right":{"string":"b"}}],"at":[4,1]}"#;
     assert!(document_was_read(&with_rule(some)), "$ with a capture is malformed");
-    let some = r#"{"name":"x","op":"define","alternatives":[{"guards":[],"expr":{"seq":[{"capture":"w","expr":{"terminal":"b"}},{"terminal":"c"}]}},{"guards":[],"expr":{"terminal":"c"}}],"emit":{"items":[{"capture":"w"},{"insert":"T"}]},"conditions":[{"op":"=","left":{"call":"text","args":[{"capture":"w"}]},"right":{"string":"b"}}],"at":[4,1]}"#;
+    let some = r#"{"name":"x","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"w","expr":{"terminal":"b"}},{"terminal":"c"}]}},{"guards":[],"expr":{"terminal":"c"}}],"emit":{"items":[{"capture":"w"},{"insert":"T"}]},"conditions":[{"op":"=","left":{"call":"text","args":[{"capture":"w"}]},"right":{"string":"b"}}],"at":[4,1]}"#;
     assert!(!document_was_read(&with_rule(some)));
     // Tags of the three kinds, set difference, ⊈ and ∈ in a set of strings
     // (engine §1, §10).
@@ -384,7 +384,7 @@ fn every_malformed_dom_is_a_cache_miss() {
         (
             "a rule name that is not a name",
             with_rule(
-                r#"{"name":"9x","op":"define","alternatives":[{"guards":[],"expr":{"terminal":"b"}}],"conditions":[],"at":[4,1]}"#,
+                r#"{"name":"9x","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"terminal":"b"}}],"conditions":[],"at":[4,1]}"#,
             ),
         ),
         (
@@ -393,11 +393,14 @@ fn every_malformed_dom_is_a_cache_miss() {
                 r#"{"name":"x","op":"replace","alternatives":[{"guards":[],"expr":{"terminal":"b"}}],"conditions":[],"at":[4,1]}"#,
             ),
         ),
-        ("no alternatives", with_rule(r#"{"name":"x","op":"define","alternatives":[],"conditions":[],"at":[4,1]}"#)),
+        (
+            "no alternatives",
+            with_rule(r#"{"name":"x","op":"define","flags":[],"alternatives":[],"conditions":[],"at":[4,1]}"#),
+        ),
         (
             "a malformed position",
             with_rule(
-                r#"{"name":"x","op":"define","alternatives":[{"guards":[],"expr":{"terminal":"b"}}],"conditions":[],"at":[4]}"#,
+                r#"{"name":"x","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"terminal":"b"}}],"conditions":[],"at":[4]}"#,
             ),
         ),
         (
@@ -452,7 +455,7 @@ fn every_malformed_dom_is_a_cache_miss() {
         (
             "a rule name of two hashes",
             with_rule(
-                r###"{"name":"##","op":"define","alternatives":[{"guards":[],"expr":{"terminal":"b"}}],"conditions":[],"at":[4,1]}"###,
+                r###"{"name":"##","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"terminal":"b"}}],"conditions":[],"at":[4,1]}"###,
             ),
         ),
         ("$ with an inserted tag", with_emission(r#"{"items":[{"capture":""},{"insert":"X"}]}"#)),
@@ -614,25 +617,25 @@ fn every_malformed_dom_is_a_cache_miss() {
         (
             "a condition that applies to no alternative",
             with_rule(
-                r#"{"name":"x","op":"define","alternatives":[{"guards":[],"expr":{"capture":"w","expr":{"terminal":"b"}}},{"guards":[],"expr":{"capture":"v","expr":{"terminal":"c"}}}],"conditions":[{"all":[{"op":"=","left":{"call":"text","args":[{"capture":"w"}]},"right":{"string":"b"}},{"op":"=","left":{"call":"text","args":[{"capture":"v"}]},"right":{"string":"c"}}]}],"at":[4,1]}"#,
+                r#"{"name":"x","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"capture":"w","expr":{"terminal":"b"}}},{"guards":[],"expr":{"capture":"v","expr":{"terminal":"c"}}}],"conditions":[{"all":[{"op":"=","left":{"call":"text","args":[{"capture":"w"}]},"right":{"string":"b"}},{"op":"=","left":{"call":"text","args":[{"capture":"v"}]},"right":{"string":"c"}}]}],"at":[4,1]}"#,
             ),
         ),
         (
             "an unguarded tag term",
             with_rule(
-                r#"{"name":"x","op":"define","tags":{"call":"tags","args":[{"capture":"w"}]},"alternatives":[{"guards":[],"expr":{"capture":"w","expr":{"terminal":"b"}}},{"guards":[],"expr":{"terminal":"c"}}],"conditions":[],"at":[4,1]}"#,
+                r#"{"name":"x","op":"define","flags":[],"tags":{"call":"tags","args":[{"capture":"w"}]},"alternatives":[{"guards":[],"expr":{"capture":"w","expr":{"terminal":"b"}}},{"guards":[],"expr":{"terminal":"c"}}],"conditions":[],"at":[4,1]}"#,
             ),
         ),
         (
             "an inserted tag whose anchor an alternative lacks",
             with_rule(
-                r#"{"name":"x","op":"define","alternatives":[{"guards":[],"expr":{"seq":[{"capture":"w","expr":{"terminal":"b"}},{"capture":"v","expr":{"terminal":"c"}}]}},{"guards":[],"expr":{"capture":"w","expr":{"terminal":"b"}}}],"emit":{"items":[{"capture":"w"},{"insert":"T"},{"capture":"v"}]},"conditions":[],"at":[4,1]}"#,
+                r#"{"name":"x","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"w","expr":{"terminal":"b"}},{"capture":"v","expr":{"terminal":"c"}}]}},{"guards":[],"expr":{"capture":"w","expr":{"terminal":"b"}}}],"emit":{"items":[{"capture":"w"},{"insert":"T"},{"capture":"v"}]},"conditions":[],"at":[4,1]}"#,
             ),
         ),
         (
             "an alternative left nothing to emit",
             with_rule(
-                r#"{"name":"x","op":"define","alternatives":[{"guards":[],"expr":{"capture":"w","expr":{"terminal":"b"}}},{"guards":[],"expr":{"terminal":"c"}}],"emit":{"items":[{"capture":"w"}]},"conditions":[],"at":[4,1]}"#,
+                r#"{"name":"x","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"capture":"w","expr":{"terminal":"b"}}},{"guards":[],"expr":{"terminal":"c"}}],"emit":{"items":[{"capture":"w"}]},"conditions":[],"at":[4,1]}"#,
             ),
         ),
         ("captures listed out of order", with_emission(r#"{"items":[{"capture":"y"},{"capture":"x"}]}"#)),
@@ -697,7 +700,7 @@ fn every_malformed_dom_is_a_cache_miss() {
         (
             "two rules at one position",
             with_rule(
-                r#"{"name":"x","op":"define","alternatives":[{"guards":[],"expr":{"terminal":"b"}}],"conditions":[],"at":[3,1]}"#,
+                r#"{"name":"x","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"terminal":"b"}}],"conditions":[],"at":[3,1]}"#,
             ),
         ),
     ];
@@ -811,7 +814,7 @@ fn a_document_nested_too_deeply_is_an_error_at_its_rule() {
 fn with_constants(constants: &str, condition: &str) -> String {
     let conditions = if condition.is_empty() { String::new() } else { condition.to_string() };
     let rule = format!(
-        r#"{{"name":"text","op":"define","alternatives":[{{"guards":[],"expr":{{"capture":"x","expr":{{"terminal":"b"}}}}}}],"conditions":[{conditions}],"at":[3,1]}}"#
+        r#"{{"name":"text","op":"define","flags":[],"alternatives":[{{"guards":[],"expr":{{"capture":"x","expr":{{"terminal":"b"}}}}}}],"conditions":[{conditions}],"at":[3,1]}}"#
     );
     format!(
         r#"{{"format":{DOM_FORMAT},"rules":[{rule}],"directives":[{{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}}],"constants":[{constants}],"classifiers":[],"implications":[]}}"#
@@ -1058,7 +1061,7 @@ fn a_precompiled_clause_with_a_constant_waits_for_its_value() {
 fn with_classifiers(tags: &str, classifiers: &str, implications: &str) -> String {
     let tags = if tags.is_empty() { String::new() } else { format!(r#","tags":{tags}"#) };
     let rule = format!(
-        r#"{{"name":"text","op":"define","alternatives":[{{"guards":[],"expr":{{"capture":"x","expr":{{"terminal":"b"}}}}{tags}}}],"conditions":[],"at":[3,1]}}"#
+        r#"{{"name":"text","op":"define","flags":[],"alternatives":[{{"guards":[],"expr":{{"capture":"x","expr":{{"terminal":"b"}}}}{tags}}}],"conditions":[],"at":[3,1]}}"#
     );
     format!(
         r#"{{"format":{DOM_FORMAT},"rules":[{rule}],"directives":[{{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}}],"constants":[],"classifiers":[{classifiers}],"implications":[{implications}]}}"#
@@ -1265,7 +1268,7 @@ fn with_mixed(expr: &str, condition: &str) -> String {
 /// alternatives.
 fn with_mixed_emission(expr: &str, condition: &str, emission: &str) -> String {
     with_rule(&format!(
-        r#"{{"name":"x","op":"define","alternatives":[{{"guards":[],"expr":{expr}}}]{emission},"conditions":[{condition}],"at":[4,1]}}"#
+        r#"{{"name":"x","op":"define","flags":[],"alternatives":[{{"guards":[],"expr":{expr}}}]{emission},"conditions":[{condition}],"at":[4,1]}}"#
     ))
 }
 
@@ -1332,7 +1335,7 @@ fn a_guard_of_an_alternative_has_three_members() {
 /// one alternative's expression is `expr`.
 fn expression_problem(expr: &str) -> Option<String> {
     let dom = format!(
-        r#"{{"format":{DOM_FORMAT},"rules":[{{"name":"text","op":"define","alternatives":[{{"guards":[],"expr":{expr}}}],"conditions":[],"at":[1,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[]}}"#
+        r#"{{"format":{DOM_FORMAT},"rules":[{{"name":"text","op":"define","flags":[],"alternatives":[{{"guards":[],"expr":{expr}}}],"conditions":[],"at":[1,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[]}}"#
     );
     gencmu::tools::check_dom(&dom).expect("the bundled tables")
 }

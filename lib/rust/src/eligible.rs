@@ -741,14 +741,14 @@ mod tests {
         let text_line = 3;
         let mut lines = Vec::new();
         let mut rules = vec![format!(
-            r#"{{"name":"text","op":"define","alternatives":[{{"guards":[],"expr":{{"ref":"A"}}}}],"conditions":[],"at":[{text_line},1]}}"#
+            r#"{{"name":"text","op":"define","flags":[],"alternatives":[{{"guards":[],"expr":{{"ref":"A"}}}}],"conditions":[],"at":[{text_line},1]}}"#
         )];
         for (line, rule) in RULES.iter().enumerate() {
             let (first, second) = (body(rng, marks), body(rng, marks));
             lines.push(format!("%rule {rule} {} | {}", first.0, second.0));
             let alternatives = [first.1, second.1].map(|expr| format!(r#"{{"guards":[],"expr":{expr}}}"#)).join(",");
             rules.push(format!(
-                r#"{{"name":"{rule}","op":"define","alternatives":[{alternatives}],"conditions":[],"at":[{},1]}}"#,
+                r#"{{"name":"{rule}","op":"define","flags":[],"alternatives":[{alternatives}],"conditions":[],"at":[{},1]}}"#,
                 line + text_line + 1
             ));
         }

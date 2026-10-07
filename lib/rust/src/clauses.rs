@@ -1714,6 +1714,7 @@ mod tests {
             RuleDef {
                 name: "r".into(),
                 op: Op::Define,
+                flags: Vec::new(),
                 tags: Some(tags),
                 alternatives: vec![Alternative { guards: Vec::new(), expr, tags: None }],
                 emit: Some(emit),

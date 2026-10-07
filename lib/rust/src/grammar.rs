@@ -53,6 +53,7 @@ pub(crate) struct StitchedAlternative {
 
 #[derive(Debug, Clone)]
 pub(crate) struct StitchedRule {
+    pub flags: Vec<String>,
     pub name: String,
     pub alternatives: Vec<StitchedAlternative>,
     pub document: Arc<str>,
@@ -244,6 +245,7 @@ pub(crate) fn stitch(
                 .collect();
             let error = |message: String| Err(located(message, document, rule.at));
             let stitched = || StitchedRule {
+                flags: rule.flags.clone(),
                 name: rule.name.clone(),
                 alternatives: alternatives.clone(),
                 document: document.clone(),
@@ -998,6 +1000,7 @@ mod tests {
             let rule = RuleDef {
                 name: "text".into(),
                 op: Op::Define,
+                flags: Vec::new(),
                 tags: None,
                 alternatives: (0..n)
                     .map(|_| Alternative { guards: Vec::new(), expr: Expr::Terminal("A".into()), tags: None })

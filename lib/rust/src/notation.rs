@@ -316,6 +316,22 @@ impl<'a> Reader<'a> {
             "%extend-rule" => Op::Extend,
             _ => Op::Define,
         };
+        let mut flags = Vec::new();
+        if let Some(list) = Self::rules(node, "rule-flags").next() {
+            if op == Op::Extend {
+                return Err(self.error(list, "%extend-rule accepts no flags"));
+            }
+            for flag in self.some(list, "rule-flag", 1)? {
+                let name = self.text(self.token(flag)?);
+                if name != "greedy" {
+                    return Err(self.error(flag, format!("unknown rule flag {name}")));
+                }
+                if flags.iter().any(|known| known == name) {
+                    return Err(self.error(flag, format!("duplicate rule flag {name}")));
+                }
+                flags.push(name.to_string());
+            }
+        }
         // The parts of a definition are read in the order written: the
         // body, then its clauses in their fixed order, and the checks of the
         // whole definition last (§9).
@@ -341,6 +357,7 @@ impl<'a> Reader<'a> {
         let mut rule = RuleDef {
             name: self.text(name_token).to_string(),
             op,
+            flags,
             tags,
             alternatives,
             emit,
@@ -1682,7 +1699,7 @@ fn first_of_rule<'n>(node: &'n Node, name: &str) -> Option<&'n Node> {
 /// The rules of the notation's syntax grammar that the reader knows (engine
 /// §9). Every other rule is a wrapper, and the reader reads its parts in
 /// its place.
-const KNOWN: [&str; 67] = [
+const KNOWN: [&str; 69] = [
     "directive",
     "argument-word",
     "argument-string",
@@ -1699,6 +1716,8 @@ const KNOWN: [&str; 67] = [
     "constant-reference",
     "rule",
     "definer",
+    "rule-flags",
+    "rule-flag",
     "rule-name",
     "body",
     "alternative",
