@@ -461,6 +461,7 @@ class SharedClauses(Linear):
             rule = {
                 "name": "text",
                 "op": "define",
+                "flags": [],
                 "tags": {"union": [*({"tag": f"y{index}"} for index in range(n)), {"const": "K", "at": [2, 1]}]},
                 "alternatives": [{"guards": [], "expr": {"ref": "A"}} for _ in range(n)],
                 "conditions": [
