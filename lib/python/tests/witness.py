@@ -76,5 +76,3 @@ def second_order(first: Rope | None, left: Rope | None, right: Rope | None) -> i
     if a != b:
         return -1 if a < b else 1
     return compare(left, right, "none").order
-
-
