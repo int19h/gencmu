@@ -628,7 +628,7 @@ A grammar admits every parse that its rules allow. A flagged occurrence is a fla
 
 `leftmost-longest` compares complete parses by nonempty flagged-span counts, with earlier starts first, longer spans next, and larger counts preferred at the first difference.
 
-All flagged rules contribute together, without priority by name or declaration order. Equal spans count separately, including nested occurrences. Every nonempty repetition counts, as does each chain level and each constituent with one symbol. Empty occurrences contribute nothing. The unnamed constituents of flat braces and of optionals contribute nothing, including elidable optionals. The flag ranks before the stage directive.
+All flagged rules contribute together, without priority by name or declaration order. Equal spans count separately, including nested occurrences. Each nonempty occurrence of a flagged rule counts, including each named chain level and each constituent with one symbol. Empty occurrences contribute nothing. The unnamed constituents of flat braces and of optionals contribute nothing, including elidable optionals. The flag ranks before the stage directive.
 
 Compare two rule profiles as lists of spans:
 
@@ -639,21 +639,20 @@ Compare two rule profiles as lists of spans:
 5. After an equal prefix, prefer the longer list.
 6. If the lists are equal, use the stage directive.
 
-Two nested flagged occurrences over one span contribute twice, so two such occurrences beat one. This differs from POSIX subexpression semantics in pooling rules, counting repeated occurrences and ignoring empty occurrences.
+Two nested flagged occurrences over one span contribute twice, so two such occurrences beat one. This document defines the flag's comparison, rather than POSIX subexpression semantics. For example, the flag pools occurrences across all flagged rules, counts nested and repeated occurrences, and ignores empty occurrences.
 
 A parse with a greater rule profile beats one with a lesser rule profile (engine §6). Among equal rule profiles, a parse beats another if the stage directive prefers it. A parse is best if no other parse beats it. The stage takes a sole best parse. If two or more parses are best, they are tied.
 
-The comparison uses actual input tokens. A written terminator adds width, but an omitted terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every rule profile is zero, so the directive alone ranks. Flags do not rank `matches`, `begins` or `tags` queries, or change maximal terminators.
+The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every rule profile is zero, so the directive alone ranks. Flags do not rank `matches`, `begins` or `tags` queries, or change maximal terminators.
 
 A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later stage runs. The error shows two of the tied parses. The stage shows the first point at which they differ, its witness.
 
 The engine's canonical order (engine §6) orders the ambiguity diagnostics and selects the forbidden terminator that a maximality rejection reports. Among its keys are the numbers of the productions, which follow the order of a rule's alternatives. The canonical tie-break keys never turn a tie into an accepted reading.
 
-`greedy` and `lazy` treat each parse as the sequence of actions that a bottom-up reader takes. An action reads the next token or closes a constituent. Some closes are transparent and do not participate in the comparison (below). All other actions are visible. Among equal best rule profiles, gencmu compares the parses at the first differing visible action:
+`greedy` and `lazy` treat each parse as the sequence of actions that a bottom-up reader takes. An action reads the next token or closes a constituent. Some closes are transparent and do not participate in the comparison (below). All other actions are visible. The stage compares parses with the greatest rule profile at their first differing visible action:
 
 - If both read the same token under two tags, they are tied.
-- `greedy` prefers reading another token to closing a constituent at the first differing visible action and ties other differences.
-- `lazy` prefers closing a constituent to reading another token at the first differing visible action and ties other differences.
+- If one reads and the other closes, the directive decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
 - If both close different constituents, they are tied.
 
 Some constituents are transparent to the comparison. They are the constituents with a single symbol. They are also the helpers that the notation creates for flat `{ }` and for `[ ]` without a capture. So two parses that differ only in such a relabeling do not differ yet. The levels of a chain are constituents of its rule, so a level with more than one symbol is not transparent. Where `greedy` or `lazy` must see where each step of a list ends, the grammar writes a chain or explicit recursion, not flat braces.
@@ -662,7 +661,7 @@ Transparency does not merge parses, though. Two parses that differ only there ar
 
 Greedy and lazy quantifiers suggest an analogy, not the same matching procedure. A quantifier controls repetition in a regular expression. These directives compare complete parses at the first differing visible action, without source-order priority or early commitment. A tie that the directive leaves is an error. The directive applies throughout the stage.
 
-Among equal best rule profiles, `late-elision` prefers fewer omitted terminators at the earliest input boundary where their counts differ. "Elided terminators" explains omissions. The directive counts them at each boundary, from the start of the text.
+Among parses with the greatest rule profile, `late-elision` compares the terminators that each parse elides ("Elided terminators"). In plain words, at the first place where two parses differ in leaving out a terminator, it takes the parse that reads on. It counts the elided terminators of each parse at each input boundary, from the start of the text. At the first boundary where the counts differ, the parse with fewer elided terminators there wins.
 
 Two parses with equal rule profiles and equal counts at every position tie, whatever else differs. Without flagged rules, several parses that elide nothing always tie. A token read under two tags does not decide anything, and neither do two different closes. The name of an elided terminator, and the constituent that it ends, do not count either.
 

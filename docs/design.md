@@ -320,16 +320,15 @@ A grammar admits every parse that its rules allow. Rule flags compare rule profi
 
 A text with one parse has the verdict `unique`. If a text has several parses and exactly one is best, the stage chooses it, and the verdict is `resolved`. If two or more are best, the verdict is `tie`.
 
-`greedy` and `lazy` treat each parse as the sequence of actions that a bottom-up reader takes. An action reads the next token or closes a constituent. Visible actions exclude closes of helpers and productions with one symbol. Among equal best rule profiles, the engine compares parses at the first differing visible action:
+`greedy` and `lazy` treat each parse as the sequence of actions that a bottom-up reader takes. An action reads the next token or closes a constituent. Visible actions exclude closes of helpers and productions with one symbol. The stage compares parses with the greatest rule profile at their first differing visible action:
 
 - If both read the same token under two tags, they are tied.
-- `greedy` prefers reading another token to closing a constituent at the first differing visible action and ties other differences.
-- `lazy` prefers closing a constituent to reading another token at the first differing visible action and ties other differences.
+- If one reads and the other closes, the directive decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
 - If both close different constituents, they are tied.
 
 Greedy and lazy quantifiers suggest an analogy, not the same matching procedure. A quantifier controls repetition in a regular expression. These directives compare complete parses at the first differing visible action, without source-order priority or early commitment. A tie that the directive leaves is an error. The directive applies throughout the stage.
 
-Among equal rule profiles, `late-elision` compares the terminators that each parse elides. It counts them at each position between tokens, and compares the counts from the start of the text. These counts are the parse's elision vector. At the first position where the counts differ, the parse with fewer elided terminators wins. In plain words, at the first place where two readings differ in leaving out a terminator, it prefers the reading that reads on. Two parses with equal rule profiles and the same elision counts tie, whatever else differs.
+Among parses with the greatest rule profile, `late-elision` compares the terminators that each parse elides. In plain words, at the first place where two parses differ in leaving out a terminator, it takes the parse that reads on. It counts the elided terminators of each parse at each input boundary, from the start of the text. These counts are the parse's elision vector. At the first boundary where the counts differ, the parse with fewer elided terminators there wins. Two parses with equal rule profiles and the same elision counts tie, whatever else differs.
 
 The reason for `late-elision` is that `greedy` decides more than CLL asks. CLL leaves one choice to the parser, the place of an elided terminator. `greedy` also decides every other choice of read against close, such as where a free modifier attaches. So it can hide an ambiguity of the grammar behind a preference that no rule states. `late-elision` decides only the place of elided terminators. Parses with equal rule profiles and equal counts at every position remain tied, and the grammar settles them with its rules.
 
@@ -347,15 +346,15 @@ The rule profile compares token spans, not reading and closing actions. For `r โ
 
 The flag ranks first so an author can state grouping independently of terminator policy. Equal rule profiles leave the directive to decide. Extensions inherit the flag, while redefinitions replace it with their own declaration. This gives one authoritative declaration for the whole rule.
 
-`elision-only` retains rule flags because they express structural preferences. It rejects an equal or better competitor without replacing the chosen parse. Restored terminators add no width, so writing them back cannot lengthen a flagged constituent.
+`elision-only` retains rule flags because they express structural preferences. If another reading has an equal or greater rule profile, the check reports ambiguity without replacing the chosen parse. Restored terminators add no width, so writing them back cannot lengthen a flagged constituent.
 
-With only `simple-tense-modal` flagged, `pu va ca gi` groups as `pu va` then `ca gi`, as the official parser does. This motivating case does not equate the flag with the official lexer's procedure. The flag also differs from POSIX subexpression semantics in pooling rules, counting repeated occurrences and ignoring empty occurrences.
+With only `simple-tense-modal` flagged, `pu va ca gi` groups as `pu va` then `ca gi`, as the official parser does. This motivating case does not equate the flag with the official lexer's procedure. This document defines the flag's comparison, rather than POSIX subexpression semantics. For example, the flag pools occurrences across all flagged rules, counts nested and repeated occurrences, and ignores empty occurrences.
 
 The maintainer chose `leftmost-longest` and parentheses after the keyword. The name states the priorities of earlier starts and later ends at one start. No `lazy` flag exists because reversing the comparison favors absence, which needs a separate design.
 
 ### Ties are errors
 
-A tie is an error of kind `ambiguous`, with the reason `tie`. The stage emits nothing, and no later stage runs. The error shows two of the best parses, and the stage shows the witness, the pair of steps at their first difference. A tied stage gives no warnings, since it has no chosen parse.
+A tie is an error of kind `ambiguous`, with the reason `tie`. The stage emits nothing, and no later stage runs. The error shows two of the best parses, and the stage shows the witness, the pair of actions at their first difference. A tied stage gives no warnings, since it has no chosen parse.
 
 Before this decision, a tie was a successful parse. The canonical order of engine ยง6 then chose one of the tied parses. Among its keys are the numbers of the productions, which follow the order in which an author writes alternatives. So a text got an accepted reading that no rule of the grammar stated.
 

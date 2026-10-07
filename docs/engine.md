@@ -435,7 +435,7 @@ In the check of §7, `phonemes(span)` and `text(span)` read the projected span, 
 
 A stage ranks the counted derivations of its input (§4). A flagged span is a flagged constituent's span. A rule profile counts flagged constituents over nonempty spans. `leftmost-longest` compares complete parses by nonempty flagged-span counts, with earlier starts first, longer spans next, and larger counts preferred at the first difference.
 
-All flagged rules contribute together, without priority by name or declaration order. Equal spans count separately, including nested occurrences. Every nonempty repetition counts, as does each chain level and each constituent with one symbol. Empty occurrences contribute nothing, and helpers carry no flags. The flag ranks before the stage directive.
+All flagged rules contribute together, without priority by name, declaration order, production number, tags or source. Equal spans count separately, including nested occurrences. Each nonempty occurrence of a flagged rule counts, including each named chain level and each constituent with one symbol. Empty occurrences contribute nothing, and helpers carry no flags. The flag ranks before the stage directive.
 
 Of two derivations with different rule profiles, the one with the greater rule profile beats the other. Of two with equal rule profiles, the one that the directive prefers beats the other. A derivation is best if no other derivation beats it.
 
@@ -447,7 +447,7 @@ The directive (§2) is `greedy`, `lazy` or `late-elision`. The verdict is one of
 
 Under `unique` and `resolved`, the chosen derivation is the one best derivation. Under `resolved`, it beats every other derivation (below). A tie is an error, and the stage then has no chosen derivation. The production numbers of §3 never decide which derivation a stage chooses.
 
-For N input tokens, the boundaries are `0 ≤ p < q ≤ N`. `G_D(p,q)` counts D's constituents of flagged rules over `[p,q)`. Every occurrence of a flagged rule contributes once, however many symbols its production has. Empty occurrences contribute nothing, and helpers carry no flags. All flagged rules contribute together, without priority by name, production number, tags or source.
+For N input tokens, the boundaries are `0 ≤ p < q ≤ N`. `G_D(p,q)` counts D's constituents of flagged rules over `[p,q)`. Every occurrence of a flagged rule contributes once, however many symbols its production has.
 
 Compare components by increasing p and, within one p, decreasing q. At the first differing count, the greater count wins. Equal vectors give equal rule profiles. Every two rule profiles are equal or one of them wins. Distinct derivations can share one rule profile.
 
@@ -705,7 +705,7 @@ A restoration's read of its synthetic token is a read action, and its close is t
 
 An error of the grammar met while the check recognizes R is the result's error, as one met while emitting is (§11). This includes an error in a competing derivation that only the check reaches. The stage keeps its verdict and warnings, but it has no output.
 
-W(D), the restored witness (§7.8), has rule profile G_D because each occurrence projects to its original span. The check follows the decision order of §7.10. A greatest rule profile below G_D proves its loss, but a greater rule profile does not excuse its loss. With no flagged rule, the check passes only when R has exactly one counted reading.
+W(D), the restored witness (§7.8), has rule profile G_D because each occurrence projects to its original span. The check follows the decision order of §7.10. A greatest rule profile below G_D proves the loss of W(D), but a greater rule profile does not excuse that loss. With no flagged rule, the check passes only when R has exactly one counted reading.
 
 ### 7.8 The witness
 
