@@ -3119,3 +3119,5 @@ adhoc.syntax.leftmost-longest.triple-free.bpfk
 adhoc.syntax.leftmost-longest.triple-nai.bpfk
 adhoc.syntax.leftmost-longest.triple-kaha.bpfk
 adhoc.syntax.leftmost-longest.triple-ki.bpfk
+adhoc.syntax.leftmost-longest.sumti-time-contour
+adhoc.syntax.leftmost-longest.sumti-time-contour.bpfk

@@ -125,13 +125,11 @@ The Magic Words proposal names these boundaries but leaves their survival unspec
   %include "../syntax/cll.md"
   ```
 
-A rule flag is a named parsing preference. The CLL grammar flags simple tenses for leftmost-longest grouping. This dialect uses `late-elision` for the remaining choices and applies `elision-only` after choosing among several parses.
+The stage uses the [cll-ebnf ranking and check](cll-ebnf.md#stage-5-syntax). The grammar's [simple tense-modals](../syntax/cll.md#tenses-and-modals) are the forms of `simple-tense-modal`. Their `leftmost-longest` flag prefers the earliest group, then the longest one at that start. `late-elision` ranks the remaining choices, and `elision-only` runs only when ranking selects one of several parses. The check restores that parse's omitted terminators and parses the restored text again. Another reading of the restored text that the flag does not rank below that parse makes the original text an error.
 
 ```jbogenbau
 %ambiguity-resolution late-elision elision-only
 ```
-
-The stage uses the same ranking and check as the cll-ebnf dialect. The `leftmost-longest` rule flag ranks simple tenses before `late-elision` compares omitted terminators. The `elision-only` check restores the chosen parse's omitted terminators. Another reading that the flag does not rank below the chosen parse makes the text an error. [The notation document](../../docs/notation.md#elided-terminators) defines this check.
 
 A constituent can end wherever a parse of the whole text needs it. Numbers and letter strings cannot split before a continuation unit. The CLL grammar states that rule separately, under "Numbers, lerfu strings and mekso".
 
