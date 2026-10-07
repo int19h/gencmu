@@ -760,7 +760,7 @@ class PrecompiledDomRules(unittest.TestCase):
             body = {"seq": [{"capture": "b", "expr": {"ref": "B"}}, {"capture": "x", "expr": {"ref": "A"}}, {"capture": "a", "expr": {"ref": "C"}}]}
             return {
                 "format": DOM_FORMAT,
-                "rules": [{"name": "text", "op": "define", "alternatives": [{"guards": [], "expr": body}], "emit": {"items": items}, "conditions": [], "at": [1, 1]}],
+                "rules": [{"name": "text", "op": "define", "flags": [], "alternatives": [{"guards": [], "expr": body}], "emit": {"items": items}, "conditions": [], "at": [1, 1]}],
                 "directives": [],
                 "constants": [],
                 "classifiers": [],
@@ -863,7 +863,7 @@ class CharacterClassLoading(unittest.TestCase):
             # document.
             bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")
             expr = {"seq": [{"range": ["'a'", "'z'"]}, {"property": "L"}]}
-            added = {"name": "unused-rule", "op": "define", "alternatives": [{"guards": [], "expr": expr}], "conditions": [], "at": [100000, 1]}
+            added = {"name": "unused-rule", "op": "define", "flags": [], "alternatives": [{"guards": [], "expr": expr}], "conditions": [], "at": [100000, 1]}
             if change is not None:
                 change({"rules": [added]})
             bootstrap["stages"][0]["documents"][0]["dom"]["rules"].insert(0, added)
@@ -1011,7 +1011,7 @@ class MixedFormLoading(unittest.TestCase):
             bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")
             expr = {"seq": [{"capture": "x", "expr": {"ref": "A"}}, {"ref": "B"}]}
             condition = {"op": "=", "left": {"call": "text", "args": [{"capture": "x"}]}, "right": {"string": "ok"}}
-            added = {"name": "unused-rule", "op": "define", "alternatives": [{"guards": [], "expr": expr}], "conditions": [condition], "at": [100000, 1]}
+            added = {"name": "unused-rule", "op": "define", "flags": [], "alternatives": [{"guards": [], "expr": expr}], "conditions": [condition], "at": [100000, 1]}
             if change is not None:
                 change({"rules": [added]})
             bootstrap["stages"][0]["documents"][0]["dom"]["rules"].insert(0, added)
@@ -1045,7 +1045,7 @@ class Constants(unittest.TestCase):
     def text(constants: list[Dom], conditions: list[Dom] | None = None) -> Dom:
         return {
             "format": DOM_FORMAT,
-            "rules": [{"name": "text", "op": "define", "alternatives": [{"guards": [], "expr": {"ref": "A"}}], "conditions": conditions or [], "at": [9, 1]}],
+            "rules": [{"name": "text", "op": "define", "flags": [], "alternatives": [{"guards": [], "expr": {"ref": "A"}}], "conditions": conditions or [], "at": [9, 1]}],
             "directives": [],
             "constants": constants,
             "classifiers": [],
@@ -1288,7 +1288,7 @@ class Classifiers(unittest.TestCase):
             alternative = {"guards": [], "expr": {"capture": "w", "expr": {"ref": "W"}}, "tags": {"call": "classify", "args": args}}
             return {
                 **self.dom([]),
-                "rules": [{"name": "text", "op": "define", "alternatives": [alternative], "conditions": [], "at": [1, 1]}],
+                "rules": [{"name": "text", "op": "define", "flags": [], "alternatives": [alternative], "conditions": [], "at": [1, 1]}],
             }
 
         sound = {"call": "phonemes", "args": [{"capture": "w"}]}
@@ -1364,7 +1364,7 @@ class Classifiers(unittest.TestCase):
             guards = [part] if slot == "alternative" else []
             alternative = {"guards": guards, "expr": {"capture": "x", "expr": {"ref": "A"}}}
             conditions = [part] if slot == "condition" else []
-            return {"name": name, "op": "define", "alternatives": [alternative], "conditions": conditions, "at": at or [3, 1]}
+            return {"name": name, "op": "define", "flags": [], "alternatives": [alternative], "conditions": conditions, "at": at or [3, 1]}
 
         def classifier(part: Dom, at: list[int]) -> Dom:
             guards = [part] if slot == "entry" else []

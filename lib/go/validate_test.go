@@ -16,7 +16,7 @@ func TestDOMRules(t *testing.T) {
 	const good = `{"seq":[{"terminal":"a"},{"terminal":"b"}]}`
 	format := `"format":` + strconv.Itoa(domFormat)
 	rule := func(fields string) string {
-		return `{` + format + `,"rules":[{"name":"text","op":"define",` + fields + `,"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
+		return `{` + format + `,"rules":[{"name":"text","op":"define","flags":[],` + fields + `,"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
 	}
 	guarded := func(guard string) string {
 		return rule(`"alternatives":[{"guards":[` + guard + `],"expr":` + good + `}],"conditions":[]`)
@@ -553,7 +553,7 @@ func TestBootstrapMalformedClassifier(t *testing.T) {
 // (engine §9). Elsewhere a bootstrap is an error of the grammar.
 func TestBootstrapMisplacedClassifier(t *testing.T) {
 	rule := func(condition string) string {
-		return `{"name":"misplaced-classifier","op":"define","alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"conditions":[` + condition + `],"at":[9999,1]}`
+		return `{"name":"misplaced-classifier","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"conditions":[` + condition + `],"at":[9999,1]}`
 	}
 	if err := bootstrapError(t, "rules", rule(`{"op":"∈","left":{"string":"a"},"right":{"call":"split","args":[{"string":"a.b"},{"string":"."}]}}`)); err != nil {
 		t.Fatalf("a well-formed rule: %v", err)
@@ -575,7 +575,7 @@ func TestDeepConstant(t *testing.T) {
 	deep := strings.Repeat(`{"union":[`, 2000) + `{"tag":"a"}` + strings.Repeat(`,{"tag":"B"}]}`, 2000)
 	k := `{"name":"K","op":"define","value":` + deep + `,"at":[9999,1]}`
 	src := oneStage("%ambiguity-resolution greedy\n%rule text 'a' 'b'")
-	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"seq":[{"terminal":"a"},{"terminal":"b"}]}}],"conditions":[],"at":[4,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[` + k + `],"classifiers":[],"implications":[]}`
+	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"seq":[{"terminal":"a"},{"terminal":"b"}]}}],"conditions":[],"at":[4,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[` + k + `],"classifiers":[],"implications":[]}`
 	if _, err := decodeDOM(json.RawMessage(dom), bundled.uni); err == nil || !strings.Contains(err.Error(), "nested more than 256 deep") {
 		t.Fatalf("a deep constant: expected the nesting error, got %v", err)
 	}
@@ -678,7 +678,7 @@ func TestGuardFeatureName(t *testing.T) {
 		return `{"name":"lex","entries":[{"guards":[` + guard + `],"keys":["mi"],"op":"∈","class":"KOhA","at":[` + at + `,3]}],"at":[` + at + `,1]}`
 	}
 	rule := func(guard, name string, line int) string {
-		return `{"name":"` + name + `","op":"define","alternatives":[{"guards":[` + guard + `],"expr":{"seq":[{"terminal":"a"},{"terminal":"b"}]}}],"conditions":[],"at":[` + strconv.Itoa(line) + `,1]}`
+		return `{"name":"` + name + `","op":"define","flags":[],"alternatives":[{"guards":[` + guard + `],"expr":{"seq":[{"terminal":"a"},{"terminal":"b"}]}}],"conditions":[],"at":[` + strconv.Itoa(line) + `,1]}`
 	}
 	// features is the dialect's features, each as name:kind, when its
 	// compiled.json holds a DOM of the document with rules and classifiers.
@@ -750,7 +750,7 @@ func TestMixedForms(t *testing.T) {
 		if emit != "" {
 			emit = `,"emit":` + emit
 		}
-		return `{"name":"` + name + `","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}]` + emit + `,"conditions":[` + condition + `],"at":[` + strconv.Itoa(line) + `,1]}`
+		return `{"name":"` + name + `","op":"define","flags":[],"alternatives":[{"guards":[],"expr":` + expr + `}]` + emit + `,"conditions":[` + condition + `],"at":[` + strconv.Itoa(line) + `,1]}`
 	}
 	seq := func(first, second string) string { return `{"seq":[` + first + `,` + second + `]}` }
 	parse := func(dom string) bool {
@@ -832,7 +832,7 @@ func TestMixedForms(t *testing.T) {
 // A bootstrap with a guard of another member is an error of the grammar.
 func TestBootstrapGuardMembers(t *testing.T) {
 	rule := func(guard string) string {
-		return `{"name":"guarded-rule","op":"define","alternatives":[{"guards":[` + guard + `],"expr":{"ref":"A"}}],"conditions":[],"at":[9999,1]}`
+		return `{"name":"guarded-rule","op":"define","flags":[],"alternatives":[{"guards":[` + guard + `],"expr":{"ref":"A"}}],"conditions":[],"at":[9999,1]}`
 	}
 	if err := bootstrapError(t, "rules", rule(`{"feature":"f","kind":"gate","negated":false}`)); err != nil {
 		t.Fatalf("a well-formed guard: %v", err)

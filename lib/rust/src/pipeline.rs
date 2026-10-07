@@ -315,6 +315,7 @@ mod tests {
             let rule = |index: usize| RuleDef {
                 name: "text".into(),
                 op: Op::Define,
+                flags: Vec::new(),
                 tags: None,
                 alternatives: vec![Alternative { guards: Vec::new(), expr: Expr::Empty, tags: None }],
                 emit: None,

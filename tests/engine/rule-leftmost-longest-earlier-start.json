@@ -1,0 +1,25 @@
+{
+  "description": "A flagged occurrence at an earlier start beats one at a later start (engine §6).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text r 'b' | 'a' s\n%rule(leftmost-longest) r 'a'\n%rule(leftmost-longest) s 'b'",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r"
+          },
+          {
+            "kind": "token"
+          }
+        ]
+      }
+    }
+  }
+}

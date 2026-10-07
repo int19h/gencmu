@@ -111,14 +111,18 @@ The test uses notation operators and canonical output tags, with spaces only aro
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
 
 ```
-{"format":18,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
+{"format":20,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
 ```
 
-`format` is the version of the DOM. It changes whenever the shape of the DOM changes. A library never uses a cached DOM of another version. Format 18 brings braces: `repeat` without `min`, with `separator` and `chain`. It brings the markers of elidable optionals, `elidable` and `maximal` on an `optional`. It also removes the `elidable` directive.
+`format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version. Format 20 brings rule flags: `flags` on every rule definition, and the flag `leftmost-longest`. Format 18 brought braces and elidable optional markers.
 
-Format 18 was never released with only some of these, so it stays 18 for all of them. A DOM of format 18 that still holds an `elidable` directive is malformed. Every such DOM was read with an earlier bootstrap, so its cache entry misses anyway (engine §8).
+An unreleased format covers all its changes together. Format 19 was never released, so rule flags use format 20 throughout.
 
-A rule is `{"name":"sumti","op":"define","tags":TERM,"alternatives":[ALT...],"emit":EMIT,"conditions":[COND...],"opaque":true,"at":[line,column]}`. `op` is `define`, `redefine` or `extend`. `tags`, `emit` and `opaque` are optional. `opaque` is present, and `true`, only for a rule that has `%opaque`. The name of a rule is a name, or `#`.
+A library skips cached DOMs with another format and rejects bootstraps with another format. The cache identity also includes the bootstrap hash (engine §8).
+
+A rule is `{"name":"sumti","op":"define","flags":[],"tags":TERM,"alternatives":[ALT...],"emit":EMIT,"conditions":[COND...],"opaque":true,"at":[line,column]}`. `op` is `define`, `redefine` or `extend`. `tags`, `emit` and `opaque` are optional. `opaque` is present, and `true`, only for a rule that has `%opaque`. The name of a rule is a name, or `#`.
+
+`flags` is `[]` or `["leftmost-longest"]`. An extension always has `[]` in the document DOM, but inherits the stitched rule's flag (engine §2). Unknown values, duplicate flags and flags on extensions are errors. An item with `op: "define"` or `op: "redefine"` and `flags: []` gives the stitched rule no flags.
 
 An alternative is `{"guards":[GUARD...],"expr":EXPR,"tags":TERM}`, with `tags` optional. A guard is `{"feature":"cbm","kind":"gate","negated":false}` for `cbm?`, with `"negated":true` for `¬cbm?`, or `{"feature":"y-cmavo","kind":"warning","negated":false}` for `y-cmavo!`. A guard's feature is a name, and a guard has no member but these three.
 
@@ -192,7 +196,7 @@ A directive has no `maximal` member, and one with that member is malformed (engi
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":18,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":20,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
 
 A precompiled DOM holds the document's constants, classifiers and implications as the document writes them. The loader gives the constants their values when it stitches a stage, and a stage resolves a classifier for the features of a parse. So one precompiled DOM serves every stage, dialect and set of features that uses the document (engine §2, §8).
 

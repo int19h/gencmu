@@ -71,7 +71,7 @@ The four libraries implement one specification, `docs/engine.md`. It was written
 3. The recognizer is an Earley parser (a standard algorithm for any context-free grammar). Its items, the partial matches that it keeps, record the span and the identity of the tag set of each captured part. The parser evaluates each condition as soon as it reads the last capture of that condition. With `from` and `after`, a condition can look past its constituent to the end of the input. A PEG (parsing expression grammar, which tries alternatives in order) has a lookahead that does the same.
 
    Nested parses for `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` share their memo (a cache of answers) with the parse that started them. The memo key is the kind of query, the rule, and either the content of a short span or the position of a long span. A nested parse asked about its own span, as the same rule, is a grammar error. A nested parse never leaves out an elidable optional that the same construct can read whole as written (see "Nested queries and elided terminators" below).
-4. The engine chooses a parse by the rule that the grammar's `%ambiguity-resolution` declares. `greedy` and `lazy` compare parses at their first difference, as sequences of bottom-up actions. `late-elision` compares only where the parses elide terminators. This part also covers the verdicts unique, resolved and tie, the error of a tie and its witness, and the `elision-only` check (see "Ambiguity" below).
+4. A rule flag declares a preference for one rule. A flagged occurrence is a flagged rule's constituent. A rule profile counts flagged occurrences over each nonempty input span. Rule flags compare rule profiles first. The stage directive then ranks parses with the greatest rule profile. Its `greedy` and `lazy` comparisons use bottom-up actions, while `late-elision` compares elided terminators (see "Ambiguity" below).
 5. The stage emits the tokens of the next stage. Each token has its text, its phonemes, its label and its source range. The label is what the renderings for people show. A token can also carry attachments, tokens that belong to it and that no later stage reads.
 6. The pipeline runs the stages in order, and stops at the first rejection or error.
 
@@ -100,7 +100,7 @@ The bodies keep the look of CLL's EBNF, because a reader of CLL recognizes that 
 
 A grammar document is Markdown. Its fenced `jbogenbau` blocks, in order, are the grammar, and the prose between them explains it. The loader finds only the fences by lines, as Markdown requires. Inside a block, line breaks and indentation mean nothing.
 
-A rule is a keyword, its name and its body, followed by its clauses. Each clause is a keyword and what it says. A rule ends where the next item begins: a rule, a directive, a constant, a classifier or an implication. So a rule needs no terminator, and nothing is recognized by its position on a line:
+A rule is a keyword, its optional flags, its name and its body, followed by its clauses. Each clause is a keyword and what it says. A rule ends where the next item begins: a rule, a directive, a constant, a classifier or an implication. So a rule needs no terminator, and nothing is recognized by its position on a line:
 
 ```jbogenbau
 %rule term-connective
@@ -121,6 +121,8 @@ A rule is a keyword, its name and its body, followed by its clauses. Each clause
 Every binary operator except the difference, `∖`, can also stand first, as a no-op, so that a list can put one item on each line. These operators are `|` and `&` in bodies, `∪` and `∩` in terms, and `∧` and `∨` in conditions. The commas of a clause's list can stand first too.
 
 A stage reads its input with one grammar. The loader assembles that grammar from one or more documents, read in order. `%rule` defines a rule, and is an error if a rule of that name exists. `%redefine-rule` replaces a rule defined before it in the stage, and is an error if none was. `%extend-rule` adds alternatives to a rule defined before it, and is an error if none was.
+
+`%rule(leftmost-longest)` and `%redefine-rule(leftmost-longest)` declare the `leftmost-longest` flag. Extensions inherit it, while a redefinition without parentheses removes it.
 
 So an accidental override never passes silently, and a replacement says so where it is made. A misspelled name in a replacement, an extension or a reference is an error. A misspelled `%rule` defines a rule that nothing reads, and the audit (see "Diagnostics and debugging") reports it. The loader also reports every replacement and extension: which document changed which rule. So a reader can see the effect of a dialect on its base in one place.
 
@@ -183,7 +185,7 @@ A tag term is an error unless it is guarded, as in `($c ⟹ classify(phonemes($c
 
 Directives are keywords too, and can stand in any block.
 
-`%ambiguity-resolution` says how the stage chooses among parses (see "Ambiguity"). Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` can follow it. The notation retires stage-wide `maximal`. Every stage must have exactly one, in any of its documents. A stage with none or two is a load error that names the stage.
+`%ambiguity-resolution` says how the stage chooses among the parses that share the greatest rule profile (see "Ambiguity"). Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` can follow it. The notation retires stage-wide `maximal`. Every stage must have exactly one, in any of its documents. A stage with none or two is a load error that names the stage.
 
 No directive lists the elidable terminators. An absent elidable optional, `[+KU]`, appears in the tree as its terminator, elided at that point. `elision-only` restores these terminators. `[++TOI]` also makes its terminator maximal (see "Maximal terminators").
 
@@ -314,19 +316,21 @@ A document can be included in several stages, and an included document can hold 
 
 ## Ambiguity
 
-A grammar admits every parse that its rules allow. Where a text has more than one parse, the stage's `%ambiguity-resolution` names the rule that ranks the parses: `greedy`, `lazy` or `late-elision`. A parse is best when no other parse beats it under that rule. A text with one parse has the verdict `unique`. If a text has several parses and exactly one is best, the stage chooses it, and the verdict is `resolved`. If two or more are best, the verdict is `tie`.
+A grammar admits every parse that its rules allow. Rule flags compare rule profiles first (notation, "Ambiguity"). A parse with a greater rule profile beats one with a lesser rule profile (engine §6). Among equal rule profiles, a parse beats another if the stage directive prefers it. A parse is best if no other parse beats it.
 
-`greedy` and `lazy` treat each parse as the sequence of steps that a bottom-up reader takes. A step reads the next token or closes a constituent. The engine compares the parses at the first step where two of them differ:
+A text with one parse has the verdict `unique`. If a text has several parses and exactly one is best, the stage chooses it, and the verdict is `resolved`. If two or more are best, the verdict is `tie`.
+
+`greedy` and `lazy` treat each parse as the sequence of actions that a bottom-up reader takes. An action reads the next token or closes a constituent. Visible actions exclude closes of helpers and productions with one symbol. The stage compares parses with the greatest rule profile at their first differing visible action:
 
 - If both read the same token under two tags, they are tied.
-- If one reads and the other closes, the rule decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
+- If one reads and the other closes, the directive decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
 - If both close different constituents, they are tied.
 
-The preference is like greedy and lazy quantifiers in a backtracking regular-expression engine, and not like the greed of a PEG. The preference orders the parses that the grammar already admits, and never commits. It rejects a text only by leaving a tie. The earliest difference dominates. And the preference applies to every constituent of the stage, not to one quantifier.
+Greedy and lazy quantifiers suggest an analogy, not the same matching procedure. A quantifier controls repetition in a regular expression. These directives compare complete parses at the first differing visible action, without source-order priority or early commitment. A tie that the directive leaves is an error. The directive applies throughout the stage.
 
-`late-elision` compares only the terminators that each parse elides. It counts them at each position between tokens, and compares the counts from the start of the text. These counts are the parse's elision vector. At the first position where the counts differ, the parse with fewer elided terminators wins. In plain words, at the first place where two readings differ in leaving out a terminator, it prefers the reading that reads on. Two parses with the same counts are tied, whatever else differs.
+Among parses with the greatest rule profile, `late-elision` compares the terminators that each parse elides. In plain words, at the first place where two parses differ in leaving out a terminator, it takes the parse that reads on. It counts the elided terminators of each parse at each input boundary, from the start of the text. These counts are the parse's elision vector. At the first boundary where the counts differ, the parse with fewer elided terminators there wins. Two parses with equal rule profiles and the same elision counts tie, whatever else differs.
 
-The reason for `late-elision` is that `greedy` decides more than CLL asks. CLL leaves one choice to the parser, the place of an elided terminator. `greedy` also decides every other choice of read against close, such as where a free modifier attaches. So it can hide an ambiguity of the grammar behind a preference that no rule states. `late-elision` decides only the place of elided terminators. Parses with equal counts at every position remain tied, and the grammar settles them with its rules.
+The reason for `late-elision` is that `greedy` decides more than CLL asks. CLL leaves one choice to the parser, the place of an elided terminator. `greedy` also decides every other choice of read against close, such as where a free modifier attaches. So it can hide an ambiguity of the grammar behind a preference that no rule states. `late-elision` decides only the place of elided terminators. Parses with equal rule profiles and equal counts at every position remain tied, and the grammar settles them with its rules.
 
 The count composes by addition over the packed forest, the shared graph of all parses. So the engine never enumerates the parses (engine §6). It does not depend on the name of a terminator, its depth or the constituent that it ends. "Close an older construct as late as possible" describes some of its results, but the count has no record of which construct is older. It can trade an early elision of one terminator for an early elision of another.
 
@@ -334,9 +338,25 @@ Before this decision, the syntax grammars were greedy, and that was how an elide
 
 The forms stage divides the text into words. The words stage applies the magic words, such as `si`, which act on other words. Both stages are lazy. The word forms divide a run in one way only, so the choice matters only in the words stage. In that stage, a magic word acts on what exists when it is read.
 
+### Rule flags
+
+Rule flags address the tense ties of [issue 159](https://github.com/int19h/gencmu/issues/159). An earlier approach used a condition on `term`. It required propagation through five `sumti` levels and changes to two chains. It still left tense ties.
+
+An atom is one independent grammatical unit. Intended uses are atoms such as `simple-tense-modal`. Flagging a broad rule such as `tag` counts its wrappers, nested groups and chain levels too. In measurement that gave the wrong grouping.
+
+The rule profile compares token spans, not reading and closing actions. For `r → r B | A`, action comparison can tie a longer outer `r` with a short one. Span comparison prefers the longer outer `r`. Presence and repeated occurrences count because each flagged occurrence expresses the declaration. Empty occurrences contribute nothing, so the flag does not reward empty wrappers.
+
+The flag ranks first so an author can state grouping independently of terminator policy. Equal rule profiles leave the directive to decide. Extensions inherit the flag, while redefinitions replace it with their own declaration. This gives one authoritative declaration for the whole rule.
+
+`elision-only` retains rule flags because they express structural preferences. If another reading has an equal or greater rule profile, the check reports ambiguity without replacing the chosen parse. Restored terminators add no width, so writing them back cannot lengthen a flagged occurrence.
+
+With only `simple-tense-modal` flagged, `pu va ca gi` groups as `pu va` then `ca gi`, as the official parser does. This motivating case does not equate the flag with the official lexer's procedure. The notation's "Ambiguity" section explains the differences from POSIX subexpression semantics.
+
+The maintainer chose `leftmost-longest` and parentheses after the keyword. The name states the priorities of earlier starts and later ends at one start. No `lazy` flag exists because reversing the comparison favors absence, which needs a separate design.
+
 ### Ties are errors
 
-A tie is an error of kind `ambiguous`, with the reason `tie`. The stage emits nothing, and no later stage runs. The error shows two of the best parses, and the stage shows the witness, the pair of steps at their first difference. A tied stage gives no warnings, since it has no chosen parse.
+A tie is an error of kind `ambiguous`, with the reason `tie`. The stage emits nothing, and no later stage runs. The error shows two of the best parses, and the stage shows the witness, the pair of actions at their first difference. A tied stage gives no warnings, since it has no chosen parse.
 
 Before this decision, a tie was a successful parse. The canonical order of engine §6 then chose one of the tied parses. Among its keys are the numbers of the productions, which follow the order in which an author writes alternatives. So a text got an accepted reading that no rule of the grammar stated.
 
@@ -352,9 +372,9 @@ CLL's own rule is narrower. It says only that a terminator can be elided if no a
 
 1. Take the `elided` nodes of the chosen tree in the order of its leaves, left to right. This order follows the chosen derivation, also where several nodes stand at one point. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries the tag of that terminator and, for a terminator with an `=` test, the test's string as its sound. The engine marks it synthetic.
 2. Parse the new token sequence with the same grammar, in a mode where each elidable optional is restored or written. Every condition, tag and test of a rule reads the original input through a projection that leaves the synthetic tokens out. A test on a terminal reads the written-back terminator's tag and sound. A query parses the original input with the grammar as it is.
-3. Rank that forest with no lean. If it has exactly one derivation, the check passes. The chosen parse always has its own derivation there, so the forest is never empty. An empty forest is a defect of the library, the error `elision-witness-lost`.
+3. Decide as engine §7.10 lists, in order. If the chosen parse has no derivation in that forest, the library has a defect, the error `elision-witness-lost`. Otherwise, a derivation with a greater rule profile, or another derivation with an equal one, makes the text ambiguous. Otherwise the check passes.
 
-   With two or more derivations, the ambiguity is not about terminators. The result is an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries the first and the second reading of that ranking, shown over the original input.
+   The ambiguity is then not about terminators. The result is an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries the two readings that engine §7.10 names, shown over the original input.
 
 The stage ranks, then emits, and then runs the check. A tie ends the stage before emission and before the check. So a stage reports at most one `ambiguous` error, and a tie comes first. A stage that fails the check keeps its output, but no later stage runs.
 
@@ -565,7 +585,7 @@ The product provides these diagnostics and debugging tools:
 - A tie shows the two derivations side by side from the first difference.
 - Stage inspection shows the tokens that every stage emitted, with their tags.
 - The trace shows, for one position, which items the recognizer predicted, advanced, completed and dropped, and which condition dropped them. This is the tool for "why does my grammar not accept this".
-- The audit reports undefined and unreachable rules, every rule that a later document replaced or extended, and `%emits ε` that changes nothing. Such an `%emits ε` is over text that can never emit a token or be covered by one. The audit data lists every membership change, with its key, class, gates and document. The printed report shows the gated memberships and those that more than one entry changes. A condition that applies to no alternative is not an audit finding. It is an error of the grammar.
+- The audit reports undefined and unreachable rules, every rule that a later document replaced or extended, and `%emits ε` that changes nothing. Such an `%emits ε` is over text that can never emit a token or be covered by one. The audit names a replacement that adds or removes a rule flag, with the flags before and after. The audit data lists every membership change, with its key, class, gates and document. The printed report shows the gated memberships and those that more than one entry changes. A condition that applies to no alternative is a grammar error, not an audit finding.
 
 ## CLI and playground
 
@@ -574,7 +594,7 @@ The CLI is `node lib/js/cli.js` (and `npx gencmu` once published). It has these 
 - `parse`, to parse a text, with options that include `--dialect`, `--feature` and `--no-feature`, `--until`, `--format brackets|tree|json|canonical|tokens` and `--trace`
 - `dialects`, to list the bundled dialects
 - `features`, to list a dialect's features
-- `audit`, to report the undefined, unreachable, replaced and extended rules of a dialect
+- `audit`, to report the undefined, unreachable, replaced and extended rules of a dialect, including replacements that add or remove rule flags
 - `stitch`, to print a dialect's pipeline as one jbogenbau text, with each classifier's entries as written
 - `test`, to check a grammar author's own file of corpus-format cases against a dialect. It compares each case as the library's corpus runner does, with the same code. It checks the cases, not the engine, so it runs none of the engine's self-checks, such as the witness hook of `elision-only`
 - `help`, to list the commands and every option

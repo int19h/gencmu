@@ -88,6 +88,7 @@ struct Source {
     rules: Vec<Vec<(Vec<Item>, Option<&'static str>)>>,
     /// The rules written as chains, whose alternatives are not used.
     chains: Vec<Option<Chain>>,
+    leftmost_longest: Vec<bool>,
     lean: Lean,
     elision_only: bool,
     /// Whether every generated elidable optional uses `[++T]` (§4).
@@ -213,7 +214,8 @@ fn generate(rng: &mut Rng) -> (Source, Input) {
             _ => None,
         });
     }
-    let source = Source { rules, chains, lean, elision_only, maximal };
+    let leftmost_longest = (0..rule_count).map(|_| rng.chance(35)).collect();
+    let source = Source { rules, chains, leftmost_longest, lean, elision_only, maximal };
     let grammar = lower(&source);
     // Most inputs are sentences of the grammar, so that most cases parse.
     // Now and then the input is empty.
@@ -390,6 +392,7 @@ fn grammar_text(source: &Source) -> String {
         Sym::N(n) => RULES[*n],
     };
     for (rule, alternatives) in source.rules.iter().enumerate() {
+        let flag = if source.leftmost_longest[rule] { "(leftmost-longest)" } else { "" };
         if let Some(chain) = source.chains[rule] {
             let (item, separator) = (name(&chain.item), name(&chain.separator));
             let body = if chain.left {
@@ -397,7 +400,7 @@ fn grammar_text(source: &Source) -> String {
             } else {
                 format!("{{{item} ... \\ {separator}}}")
             };
-            text.push_str(&format!("%rule {} {body}\n", RULES[rule]));
+            text.push_str(&format!("%rule{flag} {} {body}\n", RULES[rule]));
             continue;
         }
         let bodies: Vec<String> = alternatives
@@ -423,7 +426,7 @@ fn grammar_text(source: &Source) -> String {
                 body.join(" ")
             })
             .collect();
-        text.push_str(&format!("%rule {} {}\n", RULES[rule], bodies.join(" | ")));
+        text.push_str(&format!("%rule{flag} {} {}\n", RULES[rule], bodies.join(" | ")));
     }
     text
 }
@@ -438,10 +441,11 @@ fn grammar_dom(source: &Source) -> String {
     let first_rule_line = 3;
     let mut rules = Vec::new();
     for (rule, alternatives) in source.rules.iter().enumerate() {
+        let flags = if source.leftmost_longest[rule] { "[\"leftmost-longest\"]" } else { "[]" };
         if let Some(chain) = source.chains[rule] {
             let direction = if chain.left { "left" } else { "right" };
             rules.push(format!(
-                "{{\"name\":\"{}\",\"op\":\"define\",\"alternatives\":[{{\"guards\":[],\"expr\":{{\"repeat\":{},\"separator\":{},\"chain\":\"{direction}\"}}}}],\"conditions\":[],\"at\":[{},1]}}",
+                "{{\"name\":\"{}\",\"op\":\"define\",\"flags\":{flags},\"alternatives\":[{{\"guards\":[],\"expr\":{{\"repeat\":{},\"separator\":{},\"chain\":\"{direction}\"}}}}],\"conditions\":[],\"at\":[{},1]}}",
                 RULES[rule],
                 reference(&chain.item),
                 reference(&chain.separator),
@@ -486,7 +490,7 @@ fn grammar_dom(source: &Source) -> String {
             })
             .collect();
         rules.push(format!(
-            "{{\"name\":\"{}\",\"op\":\"define\",\"alternatives\":[{}],\"conditions\":[],\"at\":[{},1]}}",
+            "{{\"name\":\"{}\",\"op\":\"define\",\"flags\":{flags},\"alternatives\":[{}],\"conditions\":[],\"at\":[{},1]}}",
             RULES[rule],
             alternatives.join(","),
             rule + first_rule_line
@@ -762,12 +766,15 @@ struct Ranked {
     full: Vec<Vec<Act>>,
     /// Each derivation's elision vector, as a count for each boundary.
     vectors: Vec<Vec<usize>>,
+    profiles: Vec<Vec<usize>>,
 }
 
 impl Ranked {
-    /// The order T: is `a` before `b`? Under late-elision, the lesser
-    /// vector first, and then as with no lean.
+    /// T compares profiles first, then elision vectors or actions.
     fn before(&self, lean: Lean, a: usize, b: usize) -> bool {
+        if self.profiles[a] != self.profiles[b] {
+            return self.profiles[a] > self.profiles[b];
+        }
         if lean == Lean::LateElision {
             return match self.vectors[a].cmp(&self.vectors[b]) {
                 std::cmp::Ordering::Equal => self.before(Lean::Neither, a, b),
@@ -786,6 +793,9 @@ impl Ranked {
     }
 
     fn beats(&self, lean: Lean, a: usize, b: usize) -> bool {
+        if self.profiles[a] != self.profiles[b] {
+            return self.profiles[a] > self.profiles[b];
+        }
         if lean == Lean::LateElision {
             return self.vectors[a] < self.vectors[b];
         }
@@ -799,6 +809,9 @@ impl Ranked {
     }
 
     fn tied(&self, lean: Lean, a: usize, b: usize) -> bool {
+        if self.profiles[a] != self.profiles[b] {
+            return false;
+        }
         if lean == Lean::LateElision {
             return a != b && self.vectors[a] == self.vectors[b];
         }
@@ -1051,7 +1064,25 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
             counts
         })
         .collect();
-    let ranked = Ranked { visible, full, vectors };
+    // Count spans directly from source flags, without library profile operations.
+    let profiles = full
+        .iter()
+        .map(|acts| {
+            let mut counts = vec![vec![0; tokens.len() + 1]; tokens.len() + 1];
+            for act in acts {
+                if let Act::Close { prod, start, end, .. } = act {
+                    let rule = grammar.prods[*prod].rule;
+                    if source.leftmost_longest.get(rule).copied().unwrap_or(false) && start < end {
+                        counts[*start][*end] += 1;
+                    }
+                }
+            }
+            (0..tokens.len())
+                .flat_map(|start| ((start + 1)..=tokens.len()).rev().map(|end| counts[start][end]).collect::<Vec<_>>())
+                .collect()
+        })
+        .collect();
+    let ranked = Ranked { visible, full, vectors, profiles };
 
     let document = format!("```jbogenbau\n{text}```\n");
     let dom = grammar_dom(&source);

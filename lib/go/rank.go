@@ -235,6 +235,7 @@ type ranker struct {
 	// derivations tie. Under late-elision it is "", and elisions is set.
 	lean     string
 	elisions bool
+	profiles bool
 	maximal  *maximal // the maximal terminators, if there are any (engine §4)
 	items    map[*item]*itemRank
 	syms     map[*symNode]*itemRank
@@ -268,6 +269,9 @@ func newRanker(rec *recognizer, rule string, mx *maximal) *ranker {
 		// the best derivations (engine §6).
 		rk.lean, rk.elisions = "", true
 		rk.leaves = map[int32]*elSeq{}
+	}
+	for _, r := range rec.g.rules {
+		rk.profiles = rk.profiles || r.leftmostLongest
 	}
 	return rk
 }
@@ -483,8 +487,9 @@ type cand struct {
 }
 
 type entry struct {
-	cands []*cand
-	count int // derivations, up to 2: the total of engine §6
+	profile ruleProfile
+	cands   []*cand
+	count   int // derivations, up to 2: the total of engine §6
 	// Under late-elision, vec is the least elision vector of the
 	// derivations, and least the number of them that attain it, up to 2.
 	// cands then holds only derivations that attain vec.
@@ -829,6 +834,7 @@ func (rk *ranker) startItem(it *item, f forbidden) (rankFrame, *entry) {
 // linkVal is the summary of one link: its derivations, and under
 // late-elision their least vector and how many attain it.
 type linkVal struct {
+	profile     ruleProfile
 	prev, child *entry
 	permitted   bool
 	vec         *elSeq
@@ -935,10 +941,11 @@ func (fr *itemFrame) summarize(rk *ranker, l link) {
 		v.permitted, fr.forbade = false, true
 	}
 	count := prev.count * child.count
-	if rk.elisions {
+	if rk.elisions || rk.profiles {
 		// An edge's vector is the sum of its children's, and its least
 		// count their product (engine §6).
 		v.vec, v.least = concatElisions(prev.vec, child.vec), min(prev.least*child.least, 2)
+		v.profile = sumProfiles(prev.profile, child.profile)
 	}
 	// The link is W(D)'s where it is marked, and its predecessor and
 	// child are W(D)'s. A predicted predecessor and a read are.
@@ -946,10 +953,10 @@ func (fr *itemFrame) summarize(rk *ranker, l link) {
 	// Faults of the check skip the last of two or more links, in the
 	// count or in the candidates (tests/README.md).
 	if !rk.skips("lost:context", "links", i, len(it.links)) {
-		fr.all.add(v.vec, v.least, count)
+		fr.all.add(v.profile, v.vec, v.least, count)
 		fr.allW = fr.allW || w
 		if v.permitted {
-			fr.allowed.add(v.vec, v.least, count)
+			fr.allowed.add(v.profile, v.vec, v.least, count)
 			fr.allowedW = fr.allowedW || w
 		}
 	}
@@ -964,8 +971,8 @@ func (fr *itemFrame) finish(rk *ranker) *entry {
 	// least vector of the summary give them.
 	var cands, permitted []*cand
 	for _, v := range fr.vals {
-		inAll := !rk.elisions || compareElisions(v.vec, fr.all.vec) == 0
-		inAllowed := v.permitted && (!rk.elisions || compareElisions(v.vec, fr.allowed.vec) == 0)
+		inAll := !(rk.elisions || rk.profiles) || compareScore(v.profile, v.vec, fr.all.profile, fr.all.vec) == 0
+		inAllowed := v.permitted && (!(rk.elisions || rk.profiles) || compareScore(v.profile, v.vec, fr.allowed.profile, fr.allowed.vec) == 0)
 		if !inAll && !(fr.forbade && inAllowed) {
 			continue
 		}
@@ -979,7 +986,7 @@ func (fr *itemFrame) finish(rk *ranker) *entry {
 	}
 	var e *entry
 	if fr.all.total > 0 {
-		e = &entry{count: fr.all.total, vec: fr.all.vec, least: fr.all.least, w: fr.allW}
+		e = &entry{count: fr.all.total, profile: fr.all.profile, vec: fr.all.vec, least: fr.all.least, w: fr.allW}
 		// Where maximal forbids none of the links, an elided terminator may
 		// follow every derivation. Otherwise it may follow the candidates of
 		// the links maximal permits, copied before merging changes them.
@@ -988,7 +995,7 @@ func (fr *itemFrame) finish(rk *ranker) *entry {
 			for i, c := range permitted {
 				forks[i] = c.fork()
 			}
-			e.allowed = &entry{cands: rk.merge(forks), count: fr.allowed.total, vec: fr.allowed.vec, least: fr.allowed.least, w: fr.allowedW}
+			e.allowed = &entry{cands: rk.merge(forks), count: fr.allowed.total, profile: fr.allowed.profile, vec: fr.allowed.vec, least: fr.allowed.least, w: fr.allowedW}
 		}
 		e.cands = rk.merge(cands)
 	}
@@ -1020,9 +1027,10 @@ func (rk *ranker) startSym(s *symNode, f forbidden) (rankFrame, *entry) {
 
 // edgeVal is the value of one completed item, an edge of a constituent.
 type edgeVal struct {
-	it  *item
-	e   *entry
-	vec *elSeq
+	profile ruleProfile
+	it      *item
+	e       *entry
+	vec     *elSeq
 }
 
 // symFrame ranks a constituent's completed items in turn.
@@ -1056,6 +1064,16 @@ func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 		if e == nil || e.count == 0 {
 			continue
 		}
+		profile := e.profile
+		if rk.rec.g.rules[s.rule].leftmostLongest {
+			a, b := s.start, s.end
+			if rc := rk.rec.recon; rc != nil {
+				a, b = int32(rc.project[a]), int32(rc.project[b])
+			}
+			if a < b {
+				profile = sumProfiles(profile, ruleProfile{{a, b, countOne}})
+			}
+		}
 		vec := e.vec
 		if rk.elisions && c.prod.restoration() && !c.restores {
 			// The helper of an elidable optional that derives ε elides its
@@ -1065,16 +1083,16 @@ func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 		// Faults of the check skip the last of two or more completed
 		// items, in the count or in the candidates (tests/README.md).
 		if !rk.skips("lost:context", "items", fr.i, len(s.items)) {
-			fr.sum.add(vec, e.least, e.count)
+			fr.sum.add(profile, vec, e.least, e.count)
 			fr.w = fr.w || e.w
 		}
 		if !rk.skips("lost:select", "items", fr.i, len(s.items)) {
-			fr.vals = append(fr.vals, edgeVal{it: c, e: e, vec: vec})
+			fr.vals = append(fr.vals, edgeVal{it: c, e: e, vec: vec, profile: profile})
 		}
 	}
 	var cands []*cand
 	for _, v := range fr.vals {
-		if rk.elisions && compareElisions(v.vec, fr.sum.vec) != 0 {
+		if (rk.elisions || rk.profiles) && compareScore(v.profile, v.vec, fr.sum.profile, fr.sum.vec) != 0 {
 			continue
 		}
 		c := v.it
@@ -1086,7 +1104,7 @@ func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 	}
 	var e *entry
 	if fr.sum.total > 0 {
-		e = &entry{cands: rk.merge(cands), count: fr.sum.total, vec: fr.sum.vec, least: fr.sum.least, w: fr.w}
+		e = &entry{cands: rk.merge(cands), count: fr.sum.total, profile: fr.sum.profile, vec: fr.sum.vec, least: fr.sum.least, w: fr.w}
 	}
 	fr.slot.state, fr.slot.e = 2, e
 	return nil, e
@@ -1150,6 +1168,7 @@ func (rk *ranker) prepare(top []*symNode) {
 // reading, m, which is the chosen derivation unless the verdict is a tie,
 // and for a tie the second reading, t, and the witness (engine §6).
 type rankResult struct {
+	profile ruleProfile
 	verdict string
 	first   *dn
 	second  *dn // nil unless the verdict is a tie
@@ -1176,7 +1195,7 @@ func (rk *ranker) rank(top []*symNode) *rankResult {
 		if e == nil || e.count == 0 {
 			continue
 		}
-		root.add(e.vec, e.least, e.count)
+		root.add(e.profile, e.vec, e.least, e.count)
 		counted = counted || e.w
 		vals = append(vals, rootVal{e: e, vec: e.vec})
 	}
@@ -1185,13 +1204,13 @@ func (rk *ranker) rank(top []*symNode) *rankResult {
 	}
 	var cands []*cand
 	for _, v := range vals {
-		if rk.elisions && compareElisions(v.vec, root.vec) != 0 {
+		if (rk.elisions || rk.profiles) && compareScore(v.e.profile, v.vec, root.profile, root.vec) != 0 {
 			continue
 		}
 		cands = append(cands, v.e.cands...)
 	}
 	m := rk.finish(rk.merge(cands))
-	res := &rankResult{first: m.d, witnessCounted: rk.marks != nil && counted}
+	res := &rankResult{profile: root.profile, first: m.d, witnessCounted: rk.marks != nil && counted}
 	switch {
 	case root.total == 1:
 		res.verdict = VerdictUnique
@@ -1222,21 +1241,22 @@ func (rk *ranker) rank(top []*symNode) *rankResult {
 // root in one context (engine §6): their total, and under late-elision the
 // least vector and the number of derivations that attain it, each up to 2.
 type summary struct {
-	total int
-	vec   *elSeq
-	least int
+	profile ruleProfile
+	total   int
+	vec     *elSeq
+	least   int
 }
 
 // add adds an edge's derivations. The total counts every edge, losing ones
 // included; the least count counts only those that attain the least vector.
 // Outside late-elision every vector is empty, so least follows total.
-func (s *summary) add(vec *elSeq, least, total int) {
+func (s *summary) add(profile ruleProfile, vec *elSeq, least, total int) {
 	if total == 0 {
 		return
 	}
-	switch c := compareElisions(vec, s.vec); {
+	switch c := compareScore(profile, vec, s.profile, s.vec); {
 	case s.total == 0 || c < 0:
-		s.vec, s.least = vec, least
+		s.vec, s.least, s.profile = vec, least, profile
 	case c == 0:
 		s.least = min(s.least+least, 2)
 	}
@@ -1379,4 +1399,90 @@ func (w *runWalk) runSize() count {
 		return w.rest
 	}
 	return w.st[len(w.st)-1].size
+}
+
+// ruleProfile stores nonempty spans with exact occurrence counts.
+type profileSpan struct {
+	start, end int32
+	count      count
+}
+type ruleProfile []profileSpan
+
+func spanOrder(a, b profileSpan) int {
+	if a.start < b.start || (a.start == b.start && a.end > b.end) {
+		return -1
+	}
+	if a.start == b.start && a.end == b.end {
+		return 0
+	}
+	return 1
+}
+
+func compareProfiles(a, b ruleProfile) int {
+	for i := 0; i < len(a) && i < len(b); i++ {
+		if c := spanOrder(a[i], b[i]); c != 0 {
+			return c
+		}
+		if c := a[i].count.cmp(b[i].count); c != 0 {
+			return -c
+		}
+	}
+	if len(a) > len(b) {
+		return -1
+	}
+	if len(a) < len(b) {
+		return 1
+	}
+	return 0
+}
+
+func sumProfiles(a, b ruleProfile) ruleProfile {
+	if len(a) == 0 {
+		return b
+	}
+	if len(b) == 0 {
+		return a
+	}
+	out := make(ruleProfile, 0, len(a)+len(b))
+	i, j := 0, 0
+	for i < len(a) && j < len(b) {
+		switch c := spanOrder(a[i], b[j]); {
+		case c < 0:
+			out = append(out, a[i])
+			i++
+		case c > 0:
+			out = append(out, b[j])
+			j++
+		default:
+			out = append(out, profileSpan{a[i].start, a[i].end, a[i].count.add(b[j].count)})
+			i++
+			j++
+		}
+	}
+	out = append(out, a[i:]...)
+	return append(out, b[j:]...)
+}
+
+func compareScore(a ruleProfile, av *elSeq, b ruleProfile, bv *elSeq) int {
+	if c := compareProfiles(a, b); c != 0 {
+		return c
+	}
+	return compareElisions(av, bv)
+}
+
+func derivationProfile(g *lowered, d *dn) ruleProfile {
+	var out ruleProfile
+	stack := []*dn{d}
+	for len(stack) > 0 {
+		n := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if n == nil {
+			continue
+		}
+		if n.kind == dClose && g.rules[n.prod.lhs].leftmostLongest && n.start < n.end {
+			out = sumProfiles(out, ruleProfile{{n.start, n.end, countOne}})
+		}
+		stack = append(stack, n.a, n.b)
+	}
+	return out
 }

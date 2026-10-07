@@ -20,6 +20,7 @@ export type Ranking = {
     first: Rope;
     second: Rope | null;
     witness: [Action | null, Action | null] | null;
+    profile: RuleProfile;
     /**
      * with the witness hook's marks,
      * whether the count counted W(D); null without marks
@@ -79,7 +80,7 @@ declare function visible(action: Action): boolean;
  * @param {boolean} onlyVisible
  * @returns {Difference | null}
  */
-declare function firstDifference(left: Rope, right: Rope, onlyVisible: boolean): Difference | null;
+export declare function firstDifference(left: Rope, right: Rope, onlyVisible: boolean): Difference | null;
 /**
  * @param {{left: Action, right: Action}} difference
  * @param {Lean} lean
@@ -102,6 +103,9 @@ export declare class Ranker {
     /** @type {(left: Item, right: Item) => boolean} */
     sameSpan: (left: Item, right: Item) => boolean;
     elisions: boolean;
+    profiles: boolean;
+    /** @type {number[] | null} */
+    profileProject: number[] | null;
     /** @type {Lean} */
     lean: Lean;
     maximal: Maximal | null;
@@ -287,6 +291,7 @@ export type ElisionSummary = {
      * null when there is no derivation
      */
     vector: ElisionSeq | null;
+    profile: RuleProfile;
     least: number;
     total: number;
     kept: Set<number>;
@@ -317,4 +322,20 @@ export declare const internals: {
     leaf: typeof leaf;
     concatElisions: typeof concatElisions;
 };
+export type RuleProfile = [number, number, Count][];
+/** @typedef {[number, number, Count][]} RuleProfile */
+/**
+ * Compares sparse span counts in start order and reverse end order.
+ * A negative result means that the left profile wins.
+ * @param {RuleProfile} left
+ * @param {RuleProfile} right
+ * @returns {number}
+ */
+export declare function compareProfiles(left: RuleProfile, right: RuleProfile): number;
+/**
+ * Counts every completed flagged occurrence in a chosen derivation.
+ * @param {Derivation} root
+ * @returns {RuleProfile}
+ */
+export declare function derivationProfile(root: Derivation): RuleProfile;
 export {};

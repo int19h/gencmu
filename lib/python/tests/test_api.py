@@ -119,6 +119,21 @@ def elided_tokens() -> tuple[list[gencmu.Token], str]:
 
 
 class Loaders(unittest.TestCase):
+    def test_replacements_record_flag_changes(self) -> None:
+        from gencmu._grammar import FlagChange
+
+        dialect = gencmu.load_dialect_sources({
+            "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
+            "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule(leftmost-longest) text A\n%extend-rule text B\n%redefine-rule text C\n%redefine-rule(leftmost-longest) text D\n%redefine-rule(leftmost-longest) text E\n%redefine-rule text F\n%redefine-rule text G\n```\n",
+        }, "p.md")
+        changes = dialect.grammars[0].changes
+        removed = FlagChange(["leftmost-longest"], [])
+        added = FlagChange([], ["leftmost-longest"])
+        self.assertEqual([change.flag_change for change in changes], [None, removed, added, None, removed, None])
+        for index, change in enumerate(changes):
+            self.assertEqual((change.rule, change.document, change.previous), ("text", "g.md", "g.md"))
+            self.assertEqual(change.kind, "extend" if index == 0 else "replace")
+
     def test_bundled(self) -> None:
         dialect = gencmu.load_dialect("notation")
         self.assertEqual(dialect.stage_names, ["lexical", "syntax"])

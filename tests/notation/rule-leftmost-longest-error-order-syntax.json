@@ -1,0 +1,10 @@
+{
+  "description": "Syntax errors precede unknown flags (engine §9).",
+  "document": "```jbogenbau\n%rule(lazy(a)) text A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

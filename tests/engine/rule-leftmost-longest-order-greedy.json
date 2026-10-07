@@ -1,0 +1,26 @@
+{
+  "description": "The rule profile ranks before the stage preference, even when the longer span omits a terminator (engine §6, §7).",
+  "grammar": "%ambiguity-resolution greedy elision-only\n%rule text r | r 'b'\n%rule(leftmost-longest) r 'a' [+T] 'b' | 'a'",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r",
+            "span": [
+              0,
+              2
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

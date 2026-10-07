@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -31,6 +32,25 @@ func oneStage(grammar string) map[string]string {
 	return map[string]string{
 		"p.md": "# A dialect\n\n- [The grammar](g.md)\n  " + strings.ReplaceAll(block("%stage main", `%include "g.md"`), "\n", "\n  "),
 		"g.md": "# A grammar\n\n```jbogenbau\n" + grammar + "\n```\n",
+	}
+}
+
+func TestReplacementsRecordFlagChanges(t *testing.T) {
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule(leftmost-longest) text A\n%extend-rule text B\n%redefine-rule text C\n%redefine-rule(leftmost-longest) text D\n%redefine-rule(leftmost-longest) text E\n%redefine-rule text F\n%redefine-rule text G"))
+	changes := d.stages[0].changes
+	if len(changes) != 6 {
+		t.Fatalf("got %d changes, want 6", len(changes))
+	}
+	flag := []string{"leftmost-longest"}
+	want := []*flagChange{nil, {from: flag}, {to: flag}, nil, {from: flag}, nil}
+	for i, change := range changes {
+		if change.rule != "text" || change.document != "g.md" || (change.op == "extend") != (i == 0) {
+			t.Fatalf("change %d: %+v", i, change)
+		}
+		got := change.flagChange
+		if (got == nil) != (want[i] == nil) || got != nil && (!slices.Equal(got.from, want[i].from) || !slices.Equal(got.to, want[i].to)) {
+			t.Fatalf("flag change %d: got %+v, want %+v", i, got, want[i])
+		}
 	}
 }
 
@@ -684,7 +704,7 @@ func TestMalformedPrecompiled(t *testing.T) {
 	format := strconv.Itoa(domFormat)
 	var doms []string
 	for _, expr := range bad {
-		doms = append(doms, `{"format":`+format+`,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":`+expr+`}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`)
+		doms = append(doms, `{"format":`+format+`,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":`+expr+`}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`)
 	}
 	// Null in the rest of the DOM, where the other libraries refuse it too.
 	good := doms[0][:strings.Index(doms[0], `"expr":`)] + `"expr":{"seq":[{"terminal":"a"},{"terminal":"b"}]}}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[{"name":"K","op":"define","value":{"tag":"X"},"at":[3,1]}],"classifiers":[],"implications":[]}`
@@ -747,7 +767,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 	gText := sources["g.md"]
 	format := strconv.Itoa(domFormat)
 	dom := func(expr string) string {
-		return `{"format":` + format + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
+		return `{"format":` + format + `,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
 	}
 	compiled := func(dom string) map[string]string {
 		src := map[string]string{}
@@ -997,7 +1017,7 @@ func TestEmptyCharacterTag(t *testing.T) {
 		t.Fatalf("expected an error at 5:12, got %v", err)
 	}
 	loadBundled()
-	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"terminal":""}}],"conditions":[],"at":[1,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
+	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"terminal":""}}],"conditions":[],"at":[1,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
 	if _, err := decodeDOM([]byte(dom), bundled.uni); err == nil {
 		t.Fatal("a DOM with the terminal \"\" is accepted")
 	}

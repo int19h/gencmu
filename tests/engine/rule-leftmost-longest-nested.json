@@ -1,0 +1,27 @@
+{
+  "description": "Two nested flagged occurrences over the same span count twice and beat one occurrence (engine §6).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text r | s\n%rule(leftmost-longest) r t\n%rule(leftmost-longest) t 'a'\n%rule(leftmost-longest) s 'a'",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r",
+            "children": [
+              {
+                "rule": "t"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

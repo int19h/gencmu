@@ -255,6 +255,7 @@ pub(crate) struct LRule {
     /// The rule's name, or for a helper the name of the rule that owns it.
     pub name: String,
     pub helper: bool,
+    pub leftmost_longest: bool,
     pub prods: Vec<u32>,
     /// For the helper of an elidable optional, `[+T …]` or `[++T …]`: its
     /// terminator `T` (§3.8, §12).
@@ -854,6 +855,7 @@ pub(crate) fn lower(
         .map(|rule| LRule {
             name: rule.name.clone(),
             helper: false,
+            leftmost_longest: rule.flags.iter().any(|flag| flag == "leftmost-longest"),
             prods: Vec::new(),
             elided: None,
             elided_test: None,
@@ -864,6 +866,7 @@ pub(crate) fn lower(
         rules.push(LRule {
             name: grammar.rules[helper.owner as usize].name.clone(),
             helper: true,
+            leftmost_longest: false,
             prods: Vec::new(),
             elided: helper.elided.as_ref().map(|(name, _)| name.clone()),
             elided_test: helper.elided.as_ref().and_then(|(_, test)| *test),
@@ -1465,6 +1468,7 @@ mod tests {
             let rule = |name: String, alternatives: Vec<Expr>| RuleDef {
                 name,
                 op: Op::Define,
+                flags: Vec::new(),
                 tags: None,
                 alternatives: alternatives
                     .into_iter()
@@ -1539,6 +1543,7 @@ mod tests {
         RuleDef {
             name: "text".into(),
             op: Op::Define,
+            flags: Vec::new(),
             tags: Some(Term::Union(guards.collect())),
             alternatives: vec![Alternative { guards: Vec::new(), expr: Expr::Choice(captures.collect()), tags: None }],
             emit: None,

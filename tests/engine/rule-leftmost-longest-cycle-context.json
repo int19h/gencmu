@@ -1,0 +1,27 @@
+{
+  "description": "Profiles retain cycle contexts and count every original derivation before ranking (engine §4, §6).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text b | a\n%rule(leftmost-longest) a b\n%rule b a | 'a'",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "a",
+            "children": [
+              {
+                "rule": "b"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "description": "Empty flagged occurrences contribute nothing and do not settle an empty-input tie (engine §6).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text r | ε\n%rule(leftmost-longest) r ε",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "verdict": "tie"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "tie"
+      }
+    },
+    "error": "ambiguous"
+  }
+}

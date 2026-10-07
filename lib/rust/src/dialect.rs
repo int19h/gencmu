@@ -10,7 +10,7 @@ use crate::error::Error;
 use crate::grammar::{Change, ClassifierTables, Lean, StageGrammar};
 use crate::lower::{lower, Lowered, Prod, Sym, SymbolTest, TestOp};
 use crate::maximal::Maximal;
-use crate::rank::{Act, Ranker, Verdict as RankVerdict};
+use crate::rank::{compare_profiles, tree_profile, Act, Ranker, Verdict as RankVerdict};
 use crate::recent::Recent;
 use crate::result::{
     Action, AmbiguityReason, ErrorCode, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Restoration,
@@ -903,7 +903,9 @@ impl Dialect {
         let rooted = chart.accepts(g.start, tokens.len()) && loss != Some(witness::Loss::Roots);
         // A test that watches the check marks W(D)'s links before the check
         // ranks (tests/README.md).
-        let walk = if witness::watched() {
+        let flagged = g.rules.iter().any(|rule| rule.leftmost_longest);
+        let chosen_profile = if flagged { tree_profile(g, chosen) } else { Vec::new() };
+        let walk = if witness::watched() || flagged {
             let empty = shared.tags.set(Vec::new());
             let forest = CheckForest {
                 g,
@@ -925,42 +927,59 @@ impl Dialect {
         };
         // Maximality does not apply to the derivations of R, and
         // the ranking has no lean (§7.7).
+        let rooted = rooted && (!flagged || walk.as_ref().is_some_and(|walk| walk.is_some()));
         let ranking = if rooted {
             let marks = walk.as_ref().and_then(|walk| walk.as_ref()).map(|walk| &walk.marks);
             let mut ranker = Ranker::new(g, &chart, &tokens, shared, Lean::Neither, None)
                 .observing(input, &recon.project)
                 .checking(marks);
-            ranker.rank().filter(|_| loss != Some(witness::Loss::Count)).map(|ranking| {
-                // The witness hook's two channels (tests/README.md): the count
-                // counted W(D), and on a tie neither reading comes after W(D)
-                // in the order T, unless the first is W(D).
-                let keeps = match walk.as_ref().and_then(|walk| walk.as_ref()) {
-                    Some(walk) if ranking.witness_counted == Some(true) => match ranking.second {
-                        Some(second) if ranking.verdict == RankVerdict::Tie => {
-                            let w = ranker.derivation(&walk.sequence);
-                            // W(D) is not after the first in T; where the first
-                            // is not W(D), W(D) is not before the second by
-                            // the criterion that picks it (§6): divergence from
-                            // the first, then T.
-                            !ranker.before(w, ranking.first)
-                                && (!ranker.before(ranking.first, w) || !ranker.second_before(ranking.first, w, second))
-                        }
-                        _ => true,
-                    },
-                    _ => false,
-                };
-                let readings = match (ranking.verdict, ranking.second) {
-                    (RankVerdict::Tie, Some(second)) => {
-                        Some((build(&ranker, ranking.first), build(&ranker, second), ranking.witness))
+            ranker
+                .rank()
+                .filter(|ranking| {
+                    loss != Some(witness::Loss::Count)
+                        && (!flagged || ranking.witness_counted == Some(true))
+                        && compare_profiles(&ranking.profile, &chosen_profile) != std::cmp::Ordering::Greater
+                })
+                .map(|mut ranking| {
+                    let better = compare_profiles(&ranking.profile, &chosen_profile) == std::cmp::Ordering::Less;
+                    if better {
+                        let w = ranker.derivation(
+                            &walk.as_ref().and_then(|walk| walk.as_ref()).expect("a restored witness").sequence,
+                        );
+                        ranking.second = Some(ranking.first);
+                        ranking.witness = Some(ranker.pair_witness(w, ranking.first));
+                        ranking.first = w;
                     }
-                    _ => None,
-                };
-                (ranking, readings, keeps)
-            })
+                    // The witness hook tracks recognition and diagnostic order.
+                    // It counts W(D) before profile filtering.
+                    // On a tie, both readings precede W(D) unless the first is W(D).
+                    let keeps = match walk.as_ref().and_then(|walk| walk.as_ref()) {
+                        Some(walk) if ranking.witness_counted == Some(true) => match ranking.second {
+                            Some(second) if ranking.verdict == RankVerdict::Tie || better => {
+                                let w = ranker.derivation(&walk.sequence);
+                                // W(D) does not follow the first reading in T.
+                                // If the first differs from W(D), compare W(D) with the second.
+                                // Use divergence from the first and then T (§6).
+                                !ranker.before(w, ranking.first)
+                                    && (!ranker.before(ranking.first, w)
+                                        || !ranker.second_before(ranking.first, w, second))
+                            }
+                            _ => true,
+                        },
+                        _ => false,
+                    };
+                    let readings = match (ranking.verdict, ranking.second) {
+                        (_, Some(second)) if ranking.verdict == RankVerdict::Tie || better => {
+                            Some((build(&ranker, ranking.first), build(&ranker, second), ranking.witness))
+                        }
+                        _ => None,
+                    };
+                    (ranking, readings, keeps)
+                })
         } else {
             None
         };
-        if walk.is_some() {
+        if witness::watched() {
             witness::record(&self.stages[index].name, ranking.as_ref().is_some_and(|(_, _, keeps)| *keeps));
         }
         let Some((_, readings, _)) = ranking else {

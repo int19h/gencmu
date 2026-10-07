@@ -93,7 +93,7 @@ class NotationShapes(unittest.TestCase):
             for name in NAMES:
                 syntax = syntax.replace(f'{{"ref":"{name}"}}', f'{{"ref":"{name}-wrapper"}}')
             wrappers = "".join(
-                f'{{"name":"{name}-wrapper","op":"define","alternatives":[{{"guards":[],"expr":{{"ref":"{name}"}}}}],'
+                f'{{"name":"{name}-wrapper","op":"define","flags":[],"alternatives":[{{"guards":[],"expr":{{"ref":"{name}"}}}}],'
                 f'"conditions":[],"at":[{100000 + index},1]}},'
                 for index, name in enumerate(NAMES)
             )

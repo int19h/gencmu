@@ -26,12 +26,17 @@ export type StitchedRule = {
     document: string;
     at: ErrorLocation;
     alternatives: StitchedAlternative[];
+    flags: string[];
 };
 export type RuleChange = {
     kind: "replaced" | "extended";
     rule: string;
     document: string;
     previous: string;
+    flagChange?: {
+        from: string[];
+        to: string[];
+    };
 };
 export type SequenceItem = {
     symbol: import("./types.js").GrammarSymbol;

@@ -1,5 +1,7 @@
 package gencmu
 
+import "slices"
+
 // A stage's grammar: its documents stitched into one set of rules,
 // directives, constants, classifiers and implications (engine §2).
 type stageGrammar struct {
@@ -29,13 +31,20 @@ type stageGrammar struct {
 // extended.
 type stitchChange struct {
 	rule, document, op string
+	flagChange         *flagChange
+}
+
+// flagChange holds the flags before and after a replacement that changes them.
+type flagChange struct {
+	from, to []string
 }
 
 type sRule struct {
-	name string
-	alts []*sAlt
-	doc  string
-	at   [2]int
+	flags []string
+	name  string
+	alts  []*sAlt
+	doc   string
+	at    [2]int
 }
 
 // sAlt is an alternative with the clauses of the rule statement that wrote
@@ -101,7 +110,7 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 				if existing != nil {
 					return nil, fail(d.path, r.At, "%%rule %s is already defined, in %s; %%redefine-rule replaces a rule", r.Name, existing.doc)
 				}
-				nr := &sRule{name: r.Name, alts: alts, doc: d.path, at: r.At}
+				nr := &sRule{flags: r.Flags, name: r.Name, alts: alts, doc: d.path, at: r.At}
 				g.rules = append(g.rules, nr)
 				g.byName[r.Name] = nr
 			case "redefine":
@@ -111,13 +120,17 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 					return nil, fail(d.path, r.At, "%%redefine-rule %s replaces no rule defined before it", r.Name)
 				}
 				// The replacement keeps the place of the rule it replaces.
-				g.changes = append(g.changes, stitchChange{r.Name, d.path, "replace"})
-				existing.alts, existing.doc, existing.at = alts, d.path, r.At
+				change := stitchChange{rule: r.Name, document: d.path, op: "replace"}
+				if !slices.Equal(existing.flags, r.Flags) {
+					change.flagChange = &flagChange{from: slices.Clone(existing.flags), to: slices.Clone(r.Flags)}
+				}
+				g.changes = append(g.changes, change)
+				existing.alts, existing.doc, existing.at, existing.flags = alts, d.path, r.At, r.Flags
 			case "extend":
 				if existing == nil {
 					return nil, fail(d.path, r.At, "%%extend-rule %s extends a rule not defined before it", r.Name)
 				}
-				g.changes = append(g.changes, stitchChange{r.Name, d.path, "extend"})
+				g.changes = append(g.changes, stitchChange{rule: r.Name, document: d.path, op: "extend"})
 				existing.alts = append(existing.alts, alts...)
 			default:
 				return nil, fail(d.path, r.At, "unknown rule operator %q", r.Op)

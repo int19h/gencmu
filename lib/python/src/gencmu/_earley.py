@@ -200,6 +200,7 @@ class Forest:
     roots: list[int]
     furthest: int
     expected: dict[str, set[str]]
+    project: list[int] | None = None
 
 
 @dataclass
@@ -1199,7 +1200,7 @@ class Parser:
                 expected.setdefault(written_symbol(terminal, test), set()).add(production.rule_name)
         # The forest's tokens are those the parse read, before its furthest
         # set.
-        return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected)
+        return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected, context.project)
 
 
 def reading_last(lowered: Lowered) -> list[int]:

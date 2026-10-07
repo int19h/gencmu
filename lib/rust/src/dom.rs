@@ -8,7 +8,7 @@ use crate::tags::{character_code, is_name, is_tag};
 use crate::unicode::{is_property_name, Unicode};
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 18;
+pub const DOM_FORMAT: i64 = 20;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -86,6 +86,7 @@ pub(crate) enum Op {
 pub(crate) struct RuleDef {
     pub name: String,
     pub op: Op,
+    pub flags: Vec<String>,
     pub tags: Option<Term>,
     pub alternatives: Vec<Alternative>,
     pub emit: Option<Vec<EmitItem>>,
@@ -371,6 +372,10 @@ fn rule_from_json(value: &Json) -> R<RuleDef> {
     Ok(RuleDef {
         name: string(value, "name")?,
         op,
+        flags: array(value, "flags")?
+            .iter()
+            .map(|flag| flag.as_str().map(str::to_string).ok_or_else(|| "a malformed rule flag".to_string()))
+            .collect::<R<Vec<_>>>()?,
         tags: value.get("tags").map(term_from_json).transpose()?,
         alternatives: array(value, "alternatives")?
             .iter()
@@ -946,6 +951,10 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
         if !is_object(rule)
             || !rule.get("name").and_then(Json::as_str).is_some_and(is_rule_name)
             || !matches!(rule.get("op").and_then(Json::as_str), Some("define" | "redefine" | "extend"))
+            || !rule.get("flags").and_then(Json::as_array).is_some_and(|flags| {
+                flags.len() <= 1 && flags.iter().all(|flag| flag.as_str() == Some("leftmost-longest"))
+                    && (rule.get("op").and_then(Json::as_str) != Some("extend") || flags.is_empty())
+            })
             || !alternatives.is_some_and(|alternatives| !alternatives.is_empty())
             || conditions.is_none()
             || !is_position(rule.get("at"))
@@ -1524,6 +1533,14 @@ fn write_rule(out: &mut String, rule: &RuleDef) {
         Op::Redefine => ",\"op\":\"redefine\"",
         Op::Extend => ",\"op\":\"extend\"",
     });
+    out.push_str(",\"flags\":[");
+    for (index, flag) in rule.flags.iter().enumerate() {
+        if index > 0 {
+            out.push(',');
+        }
+        write_str(out, flag);
+    }
+    out.push(']');
     if let Some(tags) = &rule.tags {
         out.push_str(",\"tags\":");
         write_term(out, tags);

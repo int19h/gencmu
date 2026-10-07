@@ -166,7 +166,7 @@ def random_dom(rng: random.Random) -> dict[str, Any]:
     return {
         "format": DOM_FORMAT,
         "rules": [
-            {"name": name, "op": "define", "alternatives": [{"guards": [], "expr": expr} for expr in alternatives], "conditions": [], "at": [number + 3, 1]}
+            {"name": name, "op": "define", "flags": [], "alternatives": [{"guards": [], "expr": expr} for expr in alternatives], "conditions": [], "at": [number + 3, 1]}
             for number, (name, alternatives) in enumerate(definitions)
         ],
         "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],

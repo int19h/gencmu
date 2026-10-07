@@ -1,0 +1,75 @@
+{
+  "description": "Equal profiles retain the resolving stage preference (engine §6).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text r\n%rule(leftmost-longest) r 'a' [+T] 'b' | 'a' 'b'",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "format": 9,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved",
+          "output": []
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          2
+        ],
+        "source": [
+          0,
+          2
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "r",
+            "span": [
+              0,
+              2
+            ],
+            "source": [
+              0,
+              2
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "'a'",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "'b'",
+                "token": 1,
+                "span": [
+                  1,
+                  2
+                ],
+                "source": [
+                  1,
+                  2
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "error": null
+    }
+  }
+}

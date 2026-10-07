@@ -98,6 +98,10 @@ export type StageAudit = {
         rule: string;
         document: string;
         previous: string;
+        flagChange?: {
+            from: string[];
+            to: string[];
+        };
     }[];
     /**
      * rules that emit `ε` although nothing

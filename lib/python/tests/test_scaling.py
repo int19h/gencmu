@@ -397,7 +397,7 @@ def emitting_rule(n: int) -> dict[str, Any]:
     items.extend({"capture": f"c{index}"} for index in range(n))
     return {
         "name": "text",
-        "op": "define",
+        "op": "define", "flags": [],
         "alternatives": [{"guards": [], "expr": {"seq": [{"capture": f"c{index}", "expr": {"ref": "A"}} for index in range(n)]}}],
         "emit": {"items": items},
         "conditions": [],
@@ -461,6 +461,7 @@ class SharedClauses(Linear):
             rule = {
                 "name": "text",
                 "op": "define",
+                "flags": [],
                 "tags": {"union": [*({"tag": f"y{index}"} for index in range(n)), {"const": "K", "at": [2, 1]}]},
                 "alternatives": [{"guards": [], "expr": {"ref": "A"}} for _ in range(n)],
                 "conditions": [
@@ -469,7 +470,7 @@ class SharedClauses(Linear):
                 "at": [3, 1],
             }
             dom = {
-                "format": 18,
+                "format": 20,
                 "rules": [rule],
                 "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
                 "constants": [{"name": "K", "op": "define", "value": {"tag": "K"}, "at": [2, 1]}],
@@ -490,9 +491,9 @@ class SharedClauses(Linear):
             expr: dict[str, Any] = {"seq": [{"test": "=", "value": {"string": "a"}, "expr": {"ref": "A"}} for _ in range(n)]}
             for _ in range(n):
                 expr = {"optional": expr}
-            rule = {"name": "text", "op": "define", "alternatives": [{"guards": [], "expr": expr}], "conditions": [], "at": [2, 1]}
+            rule = {"name": "text", "op": "define", "flags": [], "alternatives": [{"guards": [], "expr": expr}], "conditions": [], "at": [2, 1]}
             dom = {
-                "format": 18,
+                "format": 20,
                 "rules": [rule],
                 "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
                 "constants": [],
@@ -568,14 +569,14 @@ class GuardedClauses(Linear):
     def documents(n: int, clause: Callable[[int], dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
         rule = {
             "name": "text",
-            "op": "define",
+            "op": "define", "flags": [],
             "alternatives": [{"guards": [], "expr": {"capture": f"c{index}", "expr": {"terminal": "A"}}} for index in range(n)],
             "conditions": [],
             "at": [3, 1],
             **clause(n),
         }
         dom = {
-            "format": 18,
+            "format": 20,
             "rules": [rule],
             "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
             "constants": [{"name": "K", "op": "define", "value": {"tag": "k"}, "at": [2, 1]}],
@@ -685,8 +686,8 @@ class Classifiers(Linear):
 
 def pipeline_dom(directives: list[dict[str, Any]], rules: int = 0) -> dict[str, Any]:
     return {
-        "format": 18,
-        "rules": [{"name": "text", "op": "define", "alternatives": [], "conditions": [], "at": [line + 1, 9]} for line in range(len(directives), len(directives) + rules)],
+        "format": 20,
+        "rules": [{"name": "text", "op": "define", "flags": [], "alternatives": [], "conditions": [], "at": [line + 1, 9]} for line in range(len(directives), len(directives) + rules)],
         "directives": [{**directive, "at": [line + 1, 1]} for line, directive in enumerate(directives)],
         "constants": [],
         "classifiers": [],

@@ -352,6 +352,17 @@ class Parser {
   *rule() {
     const start = this.index;
     const children = [this.leaf("definer")];
+    if (this.is("(")) {
+      const at = this.index;
+      const flags = [this.tok()];
+      flags.push(this.is("identifier") ? this.leaf("rule-flag") : this.fail("expected a rule flag"));
+      while (this.is(",")) {
+        flags.push(this.tok());
+        flags.push(this.is("identifier") ? this.leaf("rule-flag") : this.fail("expected a rule flag"));
+      }
+      flags.push(this.expect(")"));
+      children.push(this.node("rule-flags", at, flags));
+    }
     children.push(this.is("identifier") || this.is("#") ? this.leaf("rule-name") : this.fail("expected a rule's name"));
     children.push((yield this.body()));
     if (this.is("%tags")) {

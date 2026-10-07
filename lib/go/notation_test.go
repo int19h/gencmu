@@ -540,13 +540,13 @@ func TestUnicodeTable(t *testing.T) {
 
 // A precompiled DOM of format 17 is never used: compiled.json of that
 // format is a miss, and so is a DOM of that shape, a repeat with min, in a
-// file of format 18.
+// file of the current format.
 func TestFormat17Refused(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
 	dom := func(format int, expr string) string {
-		return `{"format":` + strconv.Itoa(format) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
+		return `{"format":` + strconv.Itoa(format) + `,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
 	}
 	entry := func(format int, d string) string {
 		return `{"format":` + strconv.Itoa(format) + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"0","dom":` + d + `}}}`

@@ -295,6 +295,7 @@ export type DomDirective = {
 export type DomRule = {
     name: string;
     op: "define" | "redefine" | "extend";
+    flags: string[];
     tags?: Term;
     alternatives: DomAlternative[];
     emit?: Emission;
@@ -471,6 +472,7 @@ export type Production = {
     lhs: string;
     rhs: GrammarSymbol[];
     helper: boolean;
+    flags: string[];
     /**
      * the rule the production was lowered from
      */
@@ -910,6 +912,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} DomRule
  * @property {string} name
  * @property {"define" | "redefine" | "extend"} op
+ * @property {string[]} flags
  * @property {Term} [tags]
  * @property {DomAlternative[]} alternatives
  * @property {Emission} [emit]
@@ -1031,6 +1034,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {string} lhs
  * @property {GrammarSymbol[]} rhs
  * @property {boolean} helper
+ * @property {string[]} flags
  * @property {string} owner the rule the production was lowered from
  * @property {string | null} elided the terminator an empty helper stands for
  * @property {SymbolTest | null} elidedTest the test of that terminator, an

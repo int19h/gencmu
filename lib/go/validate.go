@@ -115,6 +115,9 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		if r == nil || !(domName.MatchString(r.Name) || r.Name == "#") || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || len(r.Alternatives) == 0 {
 			return &domProblem{message: "a malformed rule"}
 		}
+		if len(r.Flags) > 1 || (len(r.Flags) == 1 && (r.Flags[0] != "leftmost-longest" || r.Op == "extend")) {
+			return &domProblem{message: "a malformed rule flag list"}
+		}
 		c := &domChecker{rule: r, label: "rule " + r.Name, uni: uni}
 		c.constituentTags(r.Tags)
 		c.emission(r.Emit)

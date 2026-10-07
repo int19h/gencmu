@@ -1,0 +1,10 @@
+{
+  "description": "Invalid rule flags are errors of the document (engine §2).",
+  "document": "```jbogenbau\n%rule(lazy) text A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 7
+    }
+  }
+}
