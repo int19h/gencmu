@@ -71,7 +71,7 @@ The four libraries implement one specification, `docs/engine.md`. It was written
 3. The recognizer is an Earley parser (a standard algorithm for any context-free grammar). Its items, the partial matches that it keeps, record the span and the identity of the tag set of each captured part. The parser evaluates each condition as soon as it reads the last capture of that condition. With `from` and `after`, a condition can look past its constituent to the end of the input. A PEG (parsing expression grammar, which tries alternatives in order) has a lookahead that does the same.
 
    Nested parses for `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` share their memo (a cache of answers) with the parse that started them. The memo key is the kind of query, the rule, and either the content of a short span or the position of a long span. A nested parse asked about its own span, as the same rule, is a grammar error. A nested parse never leaves out an elidable optional that the same construct can read whole as written (see "Nested queries and elided terminators" below).
-4. The engine chooses a parse by the rule that the grammar's `%ambiguity-resolution` declares. `greedy` and `lazy` compare parses at their first difference, as sequences of bottom-up actions. `late-elision` compares only where the parses elide terminators. This part also covers the verdicts unique, resolved and tie, the error of a tie and its witness, and the `elision-only` check (see "Ambiguity" below).
+4. The engine chooses a parse in two steps. First, rule flags compare profiles, the counts of flagged constituents over each span of input. The rule that `%ambiguity-resolution` declares then ranks the parses that share the greatest profile. `greedy` and `lazy` compare those parses at their first difference, as sequences of bottom-up actions. `late-elision` compares only where they elide terminators. This part also covers the verdicts unique, resolved and tie, the error of a tie and its witness, and the `elision-only` check (see "Ambiguity" below).
 5. The stage emits the tokens of the next stage. Each token has its text, its phonemes, its label and its source range. The label is what the renderings for people show. A token can also carry attachments, tokens that belong to it and that no later stage reads.
 6. The pipeline runs the stages in order, and stops at the first rejection or error.
 
@@ -183,7 +183,7 @@ A tag term is an error unless it is guarded, as in `($c ⟹ classify(phonemes($c
 
 Directives are keywords too, and can stand in any block.
 
-`%ambiguity-resolution` says how the stage chooses among parses (see "Ambiguity"). Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` can follow it. The notation retires stage-wide `maximal`. Every stage must have exactly one, in any of its documents. A stage with none or two is a load error that names the stage.
+`%ambiguity-resolution` says how the stage chooses among the parses that share the greatest rule profile (see "Ambiguity"). Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` can follow it. The notation retires stage-wide `maximal`. Every stage must have exactly one, in any of its documents. A stage with none or two is a load error that names the stage.
 
 No directive lists the elidable terminators. An absent elidable optional, `[+KU]`, appears in the tree as its terminator, elided at that point. `elision-only` restores these terminators. `[++TOI]` also makes its terminator maximal (see "Maximal terminators").
 
@@ -354,9 +354,9 @@ CLL's own rule is narrower. It says only that a terminator can be elided if no a
 
 1. Take the `elided` nodes of the chosen tree in the order of its leaves, left to right. This order follows the chosen derivation, also where several nodes stand at one point. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries the tag of that terminator and, for a terminator with an `=` test, the test's string as its sound. The engine marks it synthetic.
 2. Parse the new token sequence with the same grammar, in a mode where each elidable optional is restored or written. Every condition, tag and test of a rule reads the original input through a projection that leaves the synthetic tokens out. A test on a terminal reads the written-back terminator's tag and sound. A query parses the original input with the grammar as it is.
-3. Rank that forest with no lean. If it has exactly one derivation, the check passes. The chosen parse always has its own derivation there, so the forest is never empty. An empty forest is a defect of the library, the error `elision-witness-lost`.
+3. Decide as engine §7.10 lists, in order. If the chosen parse has no derivation in that forest, the library has a defect, the error `elision-witness-lost`. Otherwise, a derivation with a greater rule profile, or another derivation with an equal one, makes the text ambiguous. Otherwise the check passes.
 
-   With two or more derivations, the ambiguity is not about terminators. The result is an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries the first and the second reading of that ranking, shown over the original input.
+   The ambiguity is then not about terminators. The result is an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries the two readings that engine §7.10 names, shown over the original input.
 
 The stage ranks, then emits, and then runs the check. A tie ends the stage before emission and before the check. So a stage reports at most one `ambiguous` error, and a tie comes first. A stage that fails the check keeps its output, but no later stage runs.
 
