@@ -67,7 +67,7 @@ class CheckWatch:
 elision_check: Callable[[CheckRun], CheckWatch] | None = None
 
 # Every fault that ``faults`` takes, for the tests that run each one.
-FAULTS = ("reprocess", "again", "route3", "restore", "rank-restoration", "lost:context", "lost:select")
+FAULTS = ("omission", "reprocess", "again", "route3", "restore", "rank-restoration", "lost:context", "lost:select")
 
 faults: set[str] = set()
 
@@ -84,3 +84,11 @@ def fault(name: str, site: str = "") -> bool:
         return False
     hits.add(f"{name}@{site}" if site else name)
     return True
+
+
+work: dict[str, int] | None = None
+
+
+def count(name: str) -> None:
+    if work is not None:
+        work[name] = work.get(name, 0) + 1

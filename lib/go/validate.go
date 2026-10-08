@@ -441,7 +441,7 @@ func elidableHead(e *domExpr) *domExpr {
 	isTerminal := func(n *domExpr) bool {
 		return n != nil && ((n.Kind == exRef && constName.MatchString(n.Name)) || (n.Kind == exTerminal && domName.MatchString(n.Name)))
 	}
-	if isTerminal(head) || (head.Kind == exTest && head.Op == "=" && isTerminal(head.Inner)) {
+	if isTerminal(head) || (head.Kind == exTest && testOps[head.Op] && isTerminal(head.Inner)) {
 		return head
 	}
 	return nil
@@ -933,6 +933,27 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 	}
 	switch t.Kind {
 	case tmString, tmCapture, tmEmptySet:
+	case tmPattern:
+		msg := patternProblem(t.Pattern, depth+1, func(p *domPattern, d int) string {
+			c.term(p.Value, d+1, false)
+			if openPart(p.Value) != nil {
+				return "a pattern test requires a closed operand"
+			}
+			ty, f := termTypeIn(p.Value, nil)
+			if f != nil {
+				return f.problem
+			}
+			if msg := testTypeProblem(p.Op, ty); msg != "" {
+				return msg
+			}
+			if isSoundTest(p.Op) && p.Value.Kind == tmString {
+				return soundProblem(p.Value.Str, c.uni)
+			}
+			return ""
+		})
+		if msg != "" {
+			c.fail("%s", msg)
+		}
 	case tmConst:
 		if !constName.MatchString(t.Str) {
 			c.fail("a malformed constant $%s", t.Str)
@@ -1022,7 +1043,7 @@ func (c *domChecker) condition(d *domCond, depth int) {
 	switch d.Kind {
 	case cdCompare:
 		switch d.Op {
-		case "=", "≠", "∈", "∉", "⊆", "⊈":
+		case "=", "≠", "∈", "∉", "⊆", "⊈", "≅", "≇":
 		default:
 			c.fail("an unknown comparison %q", d.Op)
 			return
@@ -1031,7 +1052,11 @@ func (c *domChecker) condition(d *domCond, depth int) {
 			c.fail("a comparison without two terms")
 			return
 		}
-		c.term(d.Left, depth+1, false)
+		if (d.Op == "≅" || d.Op == "≇") && d.Left.Kind != tmCapture {
+			c.fail("a tree comparison requires a bare capture")
+			return
+		}
+		c.term(d.Left, depth+1, d.Op == "≅" || d.Op == "≇")
 		c.term(d.Right, depth+1, false)
 	case cdMatches, cdBegins:
 		if !isSpanShape(d.Span) || d.Rule == "" {
@@ -1097,6 +1122,9 @@ func readsOwnTags(t *domTerm) bool {
 		p := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		if p.c != nil {
+			if p.c.Kind == cdCompare && (p.c.Op == "≅" || p.c.Op == "≇") {
+				continue
+			}
 			// matches() and begins() parse the tokens again, initial()
 			// reads where they begin, and a presence test reads no tags.
 			switch p.c.Kind {
@@ -1208,9 +1236,10 @@ const (
 	tySpan
 	tySet
 	tyAny
+	tyPattern
 )
 
-var typeNames = map[termType]string{tyString: "a string", tyStrings: "a set of strings", tyTags: "a tag set", tySpan: "a span", tySet: "a set", tyAny: "a value"}
+var typeNames = map[termType]string{tyPattern: "a tree pattern", tyString: "a string", tyStrings: "a set of strings", tyTags: "a tag set", tySpan: "a span", tySet: "a set", tyAny: "a value"}
 
 const spanNotValue = "a span is not a value: tags($x) is the tag set of $x"
 
@@ -1261,7 +1290,7 @@ func joinedType(types []termType, op string) (termType, string) {
 		}
 	}
 	for _, t := range types {
-		if t != tyAny && !isSetType(t) {
+		if t != tyAny && t != tyPattern && !isSetType(t) {
 			return 0, fmt.Sprintf("%s joins sets, not %s", op, typeNames[t])
 		}
 	}
@@ -1289,6 +1318,18 @@ func joinedType(types []termType, op string) (termType, string) {
 // comparator, or "". A side of type tyAny fits, and the loader checks it
 // again (engine §9).
 func comparisonProblem(op string, left, right termType) string {
+	if op == "≅" || op == "≇" {
+		if left != tySpan {
+			return "a tree comparison requires a bare capture on its left"
+		}
+		if right != tyPattern && right != tySet && right != tyAny {
+			return "a tree comparison requires a tree pattern on its right"
+		}
+		return ""
+	}
+	if left == tyPattern || right == tyPattern {
+		return "tree patterns use ≅ or ≇"
+	}
 	if left == tySpan || right == tySpan {
 		return spanNotValue
 	}
@@ -1433,6 +1474,27 @@ func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFau
 		w.readerSteps.add("reader steps")
 	}
 	switch t.Kind {
+	case tmPattern:
+		var fault *typeFault
+		walkPattern(t.Pattern, func(p *domPattern) {
+			if fault != nil {
+				return
+			}
+			if p.Kind == "constant" {
+				if msg := expectedProblem(ct.of(p.Name), tyPattern); msg != "" {
+					fault = &typeFault{msg, &domTerm{Kind: tmConst, Str: p.Name, At: p.At}}
+				}
+			}
+			if p.Kind == "test" {
+				ty, f := termTypeMemo(p.Value, ct, memo)
+				if f != nil {
+					fault = f
+				} else if msg := testTypeProblem(p.Op, ty); msg != "" {
+					fault = &typeFault{msg, p.Value}
+				}
+			}
+		})
+		return tyPattern, fault
 	case tmString:
 		return tyString, nil
 	case tmTag, tmRange:
@@ -1662,6 +1724,14 @@ func openPart(t *domTerm) *domTerm {
 		if t.Str != "split" && t.Str != "tag" {
 			return t
 		}
+	case tmPattern:
+		var found *domTerm
+		walkPattern(t.Pattern, func(p *domPattern) {
+			if found == nil && p.Value != nil {
+				found = openPart(p.Value)
+			}
+		})
+		return found
 	case tmUnion, tmIntersection, tmDifference:
 	default:
 		return nil

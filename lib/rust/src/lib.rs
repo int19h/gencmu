@@ -53,6 +53,7 @@ mod maximal;
 mod nat;
 mod notation;
 mod output;
+mod patterns;
 mod pipeline;
 mod rank;
 mod recent;

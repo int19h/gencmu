@@ -11,6 +11,14 @@ use std::cell::RefCell;
 /// What a counter counts.
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum Work {
+    /// Interned finite structural observations.
+    StructuralStates,
+    /// Computed structural transitions, excluding cached transitions.
+    StructuralTransitions,
+    /// Distinct packed recognition edges.
+    PackedEdges,
+    /// Stored ranking summaries.
+    SummaryContexts,
     /// The items that the recognizer makes, in parses and nested parses.
     Items,
     /// The lookups of an item in the index of its set, which the recognizer

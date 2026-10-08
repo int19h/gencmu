@@ -1,0 +1,1247 @@
+[
+  {
+    "description": "A terminal atom is a pattern.",
+    "pattern": {
+      "terminal": "A",
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A rule atom is a pattern.",
+    "pattern": {
+      "name": "sumti",
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A constant atom retains its source position.",
+    "pattern": {
+      "constant": "P",
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "An optional consumes an ordinary child sequence.",
+    "pattern": {
+      "children": {
+        "optional": {
+          "node": {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
+          }
+        }
+      }
+    },
+    "malformed": false
+  },
+  {
+    "description": "A separated repeat consumes child sequences.",
+    "pattern": {
+      "children": {
+        "repeat": {
+          "node": {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
+          }
+        },
+        "separator": {
+          "node": {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
+          }
+        }
+      }
+    },
+    "malformed": false
+  },
+  {
+    "description": "A sibling ellipsis accepts an empty gap.",
+    "pattern": {
+      "children": {
+        "siblings": true
+      }
+    },
+    "malformed": false
+  },
+  {
+    "description": "A terminal atom accepts no extra field.",
+    "pattern": {
+      "terminal": "A",
+      "at": [
+        1,
+        1
+      ],
+      "extra": true
+    },
+    "malformed": true
+  },
+  {
+    "description": "A terminal atom requires a source position.",
+    "pattern": {
+      "terminal": "A"
+    },
+    "malformed": true
+  },
+  {
+    "description": "A rule atom cannot contain a terminal name.",
+    "pattern": {
+      "name": "A",
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A terminal atom requires an uppercase name.",
+    "pattern": {
+      "terminal": "a",
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A sequence requires two items.",
+    "pattern": {
+      "children": {
+        "sequence": [
+          {
+            "node": {
+              "terminal": "A",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "A union requires two predicates.",
+    "pattern": {
+      "union": [
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A difference requires exactly two predicates.",
+    "pattern": {
+      "difference": [
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        },
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        },
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A path requires a known direction.",
+    "pattern": {
+      "path": "middle",
+      "pattern": {
+        "terminal": "A",
+        "at": [
+          1,
+          1
+        ]
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "An optional requires a nonempty written body.",
+    "pattern": {
+      "children": {
+        "optional": {}
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "A sibling ellipsis must be true.",
+    "pattern": {
+      "children": {
+        "siblings": false
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "A repeat item cannot be a sibling ellipsis.",
+    "pattern": {
+      "children": {
+        "repeat": {
+          "siblings": true
+        }
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "A repeat separator cannot contain a sibling ellipsis.",
+    "pattern": {
+      "children": {
+        "repeat": {
+          "node": {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
+          }
+        },
+        "separator": {
+          "optional": {
+            "siblings": true
+          }
+        }
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "A repeat rejects chain fields.",
+    "pattern": {
+      "children": {
+        "repeat": {
+          "node": {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
+          }
+        },
+        "chain": "left"
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "A sound test uses a terminal atom.",
+    "pattern": {
+      "test": "=",
+      "value": {
+        "string": ""
+      },
+      "expr": {
+        "terminal": "A",
+        "at": [
+          1,
+          1
+        ]
+      }
+    },
+    "malformed": false
+  },
+  {
+    "description": "A sound test rejects a rule atom.",
+    "pattern": {
+      "test": "=",
+      "value": {
+        "string": ""
+      },
+      "expr": {
+        "name": "sumti",
+        "at": [
+          1,
+          1
+        ]
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "A sound test requires a string.",
+    "pattern": {
+      "test": "=",
+      "value": {
+        "tag": "A"
+      },
+      "expr": {
+        "terminal": "A",
+        "at": [
+          1,
+          1
+        ]
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "A tag test requires a tag set.",
+    "pattern": {
+      "test": "⊇",
+      "value": {
+        "string": ""
+      },
+      "expr": {
+        "terminal": "A",
+        "at": [
+          1,
+          1
+        ]
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "A test operand cannot hold a capture.",
+    "pattern": {
+      "test": "⊇",
+      "value": {
+        "call": "tags",
+        "args": [
+          {
+            "capture": "x"
+          }
+        ]
+      },
+      "expr": {
+        "terminal": "A",
+        "at": [
+          1,
+          1
+        ]
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "A terminal pattern accepts the tag comparator ⊇.",
+    "pattern": {
+      "test": "⊇",
+      "value": {
+        "emptySet": true
+      },
+      "expr": {
+        "terminal": "A",
+        "at": [
+          1,
+          1
+        ]
+      }
+    },
+    "malformed": false
+  },
+  {
+    "description": "A terminal pattern accepts the tag comparator ⊉.",
+    "pattern": {
+      "test": "⊉",
+      "value": {
+        "emptySet": true
+      },
+      "expr": {
+        "terminal": "A",
+        "at": [
+          1,
+          1
+        ]
+      }
+    },
+    "malformed": false
+  },
+  {
+    "description": "A terminal pattern accepts the tag comparator ∩=∅.",
+    "pattern": {
+      "test": "∩=∅",
+      "value": {
+        "emptySet": true
+      },
+      "expr": {
+        "terminal": "A",
+        "at": [
+          1,
+          1
+        ]
+      }
+    },
+    "malformed": false
+  },
+  {
+    "description": "A terminal pattern accepts the tag comparator ∩≠∅.",
+    "pattern": {
+      "test": "∩≠∅",
+      "value": {
+        "emptySet": true
+      },
+      "expr": {
+        "terminal": "A",
+        "at": [
+          1,
+          1
+        ]
+      }
+    },
+    "malformed": false
+  },
+  {
+    "description": "A tree comparison requires one bare capture.",
+    "condition": {
+      "op": "≅",
+      "left": {
+        "capture": "x"
+      },
+      "right": {
+        "pattern": {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      }
+    },
+    "malformed": false
+  },
+  {
+    "description": "A tree comparison requires one bare capture.",
+    "condition": {
+      "op": "≅",
+      "left": {
+        "call": "head",
+        "args": [
+          {
+            "capture": "x"
+          }
+        ]
+      },
+      "right": {
+        "pattern": {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "A tree comparison requires one bare capture.",
+    "condition": {
+      "op": "≅",
+      "left": {
+        "capture": "x",
+        "extra": true
+      },
+      "right": {
+        "pattern": {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "An elidable terminator accepts the comparator =.",
+    "expr": {
+      "optional": {
+        "test": "=",
+        "value": {
+          "string": ""
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator =.",
+    "expr": {
+      "optional": {
+        "test": "=",
+        "value": {
+          "string": "t"
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ≠.",
+    "expr": {
+      "optional": {
+        "test": "≠",
+        "value": {
+          "string": ""
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ≠.",
+    "expr": {
+      "optional": {
+        "test": "≠",
+        "value": {
+          "string": "t"
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ⊇.",
+    "expr": {
+      "optional": {
+        "test": "⊇",
+        "value": {
+          "emptySet": true
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ⊇.",
+    "expr": {
+      "optional": {
+        "test": "⊇",
+        "value": {
+          "tag": "T"
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ⊇.",
+    "expr": {
+      "optional": {
+        "test": "⊇",
+        "value": {
+          "tag": "U"
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ⊇.",
+    "expr": {
+      "optional": {
+        "test": "⊇",
+        "value": {
+          "union": [
+            {
+              "tag": "T"
+            },
+            {
+              "tag": "U"
+            }
+          ]
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ⊉.",
+    "expr": {
+      "optional": {
+        "test": "⊉",
+        "value": {
+          "emptySet": true
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ⊉.",
+    "expr": {
+      "optional": {
+        "test": "⊉",
+        "value": {
+          "tag": "T"
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ⊉.",
+    "expr": {
+      "optional": {
+        "test": "⊉",
+        "value": {
+          "tag": "U"
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ⊉.",
+    "expr": {
+      "optional": {
+        "test": "⊉",
+        "value": {
+          "union": [
+            {
+              "tag": "T"
+            },
+            {
+              "tag": "U"
+            }
+          ]
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ∩=∅.",
+    "expr": {
+      "optional": {
+        "test": "∩=∅",
+        "value": {
+          "emptySet": true
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ∩=∅.",
+    "expr": {
+      "optional": {
+        "test": "∩=∅",
+        "value": {
+          "tag": "T"
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ∩=∅.",
+    "expr": {
+      "optional": {
+        "test": "∩=∅",
+        "value": {
+          "tag": "U"
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ∩=∅.",
+    "expr": {
+      "optional": {
+        "test": "∩=∅",
+        "value": {
+          "union": [
+            {
+              "tag": "T"
+            },
+            {
+              "tag": "U"
+            }
+          ]
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ∩≠∅.",
+    "expr": {
+      "optional": {
+        "test": "∩≠∅",
+        "value": {
+          "emptySet": true
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ∩≠∅.",
+    "expr": {
+      "optional": {
+        "test": "∩≠∅",
+        "value": {
+          "tag": "T"
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ∩≠∅.",
+    "expr": {
+      "optional": {
+        "test": "∩≠∅",
+        "value": {
+          "tag": "U"
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ∩≠∅.",
+    "expr": {
+      "optional": {
+        "test": "∩≠∅",
+        "value": {
+          "union": [
+            {
+              "tag": "T"
+            },
+            {
+              "tag": "U"
+            }
+          ]
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator =.",
+    "expr": {
+      "optional": {
+        "test": "=",
+        "value": {
+          "string": ""
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true,
+      "maximal": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator =.",
+    "expr": {
+      "optional": {
+        "test": "=",
+        "value": {
+          "string": "t"
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true,
+      "maximal": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ≠.",
+    "expr": {
+      "optional": {
+        "test": "≠",
+        "value": {
+          "string": ""
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true,
+      "maximal": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ≠.",
+    "expr": {
+      "optional": {
+        "test": "≠",
+        "value": {
+          "string": "t"
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true,
+      "maximal": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ⊇.",
+    "expr": {
+      "optional": {
+        "test": "⊇",
+        "value": {
+          "emptySet": true
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true,
+      "maximal": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ⊇.",
+    "expr": {
+      "optional": {
+        "test": "⊇",
+        "value": {
+          "tag": "T"
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true,
+      "maximal": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ⊇.",
+    "expr": {
+      "optional": {
+        "test": "⊇",
+        "value": {
+          "tag": "U"
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true,
+      "maximal": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ⊇.",
+    "expr": {
+      "optional": {
+        "test": "⊇",
+        "value": {
+          "union": [
+            {
+              "tag": "T"
+            },
+            {
+              "tag": "U"
+            }
+          ]
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true,
+      "maximal": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ⊉.",
+    "expr": {
+      "optional": {
+        "test": "⊉",
+        "value": {
+          "emptySet": true
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true,
+      "maximal": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ⊉.",
+    "expr": {
+      "optional": {
+        "test": "⊉",
+        "value": {
+          "tag": "T"
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true,
+      "maximal": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ⊉.",
+    "expr": {
+      "optional": {
+        "test": "⊉",
+        "value": {
+          "tag": "U"
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true,
+      "maximal": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ⊉.",
+    "expr": {
+      "optional": {
+        "test": "⊉",
+        "value": {
+          "union": [
+            {
+              "tag": "T"
+            },
+            {
+              "tag": "U"
+            }
+          ]
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true,
+      "maximal": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ∩=∅.",
+    "expr": {
+      "optional": {
+        "test": "∩=∅",
+        "value": {
+          "emptySet": true
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true,
+      "maximal": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ∩=∅.",
+    "expr": {
+      "optional": {
+        "test": "∩=∅",
+        "value": {
+          "tag": "T"
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true,
+      "maximal": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ∩=∅.",
+    "expr": {
+      "optional": {
+        "test": "∩=∅",
+        "value": {
+          "tag": "U"
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true,
+      "maximal": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ∩=∅.",
+    "expr": {
+      "optional": {
+        "test": "∩=∅",
+        "value": {
+          "union": [
+            {
+              "tag": "T"
+            },
+            {
+              "tag": "U"
+            }
+          ]
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true,
+      "maximal": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ∩≠∅.",
+    "expr": {
+      "optional": {
+        "test": "∩≠∅",
+        "value": {
+          "emptySet": true
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true,
+      "maximal": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ∩≠∅.",
+    "expr": {
+      "optional": {
+        "test": "∩≠∅",
+        "value": {
+          "tag": "T"
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true,
+      "maximal": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ∩≠∅.",
+    "expr": {
+      "optional": {
+        "test": "∩≠∅",
+        "value": {
+          "tag": "U"
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true,
+      "maximal": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ∩≠∅.",
+    "expr": {
+      "optional": {
+        "test": "∩≠∅",
+        "value": {
+          "union": [
+            {
+              "tag": "T"
+            },
+            {
+              "tag": "U"
+            }
+          ]
+        },
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true,
+      "maximal": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "A pattern separator must be a children expression: None.",
+    "pattern": {
+      "children": {
+        "repeat": {
+          "node": {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
+          }
+        },
+        "separator": null
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "A pattern separator must be a children expression: ''.",
+    "pattern": {
+      "children": {
+        "repeat": {
+          "node": {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
+          }
+        },
+        "separator": ""
+      }
+    },
+    "malformed": true
+  }
+]

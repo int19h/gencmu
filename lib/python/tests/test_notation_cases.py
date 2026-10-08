@@ -28,11 +28,9 @@ class NotationCases(unittest.TestCase):
                         read_document(case["document"], path.name)
                     error = caught.exception
                     self.assertEqual(error.kind, "grammar")
-                    self.assertEqual(
-                        (error.line, error.column),
-                        (expect["error"]["line"], expect["error"]["column"]),
-                        f"{path.name}: {error}",
-                    )
+                    for key in ("line", "column"):
+                        if key in expect["error"]:
+                            self.assertEqual(getattr(error, key), expect["error"][key], f"{path.name}: {error}")
 
 
 class NotationTies(unittest.TestCase):

@@ -3,6 +3,7 @@ package gencmu
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 // A stage's constants (engine §2): the loader gives each its value when it
@@ -46,41 +47,162 @@ func (g *stageGrammar) faultError(doc string, node any, item [2]int, message str
 	return g.constError(doc, item, "%s", message)
 }
 
-// addConstant defines or redefines a constant, with the value its term has
-// at this point of the stage (engine §2).
+// constVersion retains the lexical predecessor of each redefinition.
+type constVersion struct {
+	definition   *domConst
+	doc          string
+	previous     int
+	dependencies []int
+	references   []*domTerm
+	value        *constValue
+}
+
 func (g *stageGrammar) addConstant(doc string, k *domConst) *Error {
-	previous := g.constants[k.Name]
-	if k.Op == "define" && previous != nil {
-		return g.constError(doc, k.At, "%%const $%s is already defined in stage %s, in %s; %%redefine-const gives it a new value", k.Name, g.name, previous.doc)
+	if g.constLatest == nil {
+		g.constLatest = map[string]int{}
 	}
-	if k.Op == "redefine" && previous == nil {
+	previous, exists := g.constLatest[k.Name]
+	if k.Op == "define" && exists {
+		return g.constError(doc, k.At, "%%const $%s is already defined in stage %s, in %s; %%redefine-const gives it a new value", k.Name, g.name, g.constVersions[previous].doc)
+	}
+	if k.Op == "redefine" && !exists {
 		return g.constError(doc, k.At, "%%redefine-const $%s gives a value to no constant defined before it in stage %s", k.Name, g.name)
 	}
-	// A reference sees the constants defined before this point.
-	for _, ref := range constRefs(k.Value) {
-		if g.constants[ref.Str] == nil {
-			return g.constError(doc, ref.At, "$%s is not defined before this point of stage %s", ref.Str, g.name)
+	if !exists {
+		previous = -1
+	}
+	g.constLatest[k.Name] = len(g.constVersions)
+	g.constVersions = append(g.constVersions, &constVersion{definition: k, doc: doc, previous: previous})
+	return nil
+}
+func (g *stageGrammar) bindConstants() *Error {
+	for _, v := range g.constVersions {
+		v.references = constRefs(v.definition.Value)
+		for _, r := range v.references {
+			target, ok := g.constLatest[r.Str]
+			if r.Str == v.definition.Name && v.definition.Op == "redefine" {
+				target = v.previous
+				ok = target >= 0
+			}
+			if !ok {
+				return g.constError(v.doc, r.At, "$%s is not defined in stage %s; dependency $%s → $%s", r.Str, g.name, v.definition.Name, r.Str)
+			}
+			v.dependencies = append(v.dependencies, target)
 		}
 	}
-	ty, f := constantValueType(k.Value, k.Op == "redefine", g.constantTypes())
-	if f != nil {
-		return g.faultError(doc, f.node, k.At, f.problem)
-	}
-	if previous != nil {
-		// A redefinition keeps the type, which gives ∅ its kind.
-		if ty == tySet && (previous.value.ty == tyStrings || previous.value.ty == tyTags) {
-			ty = previous.value.ty
+	state := make([]byte, len(g.constVersions))
+	var ordered []int
+	type entry struct{ id, next int }
+	for root := range g.constVersions {
+		if state[root] != 0 {
+			continue
 		}
-		if ty != previous.value.ty {
-			return g.constError(doc, k.At, "%%redefine-const $%s keeps the type of the constant, and cannot make it %s", k.Name, typeNames[ty])
+		state[root] = 1
+		stack := []entry{{root, 0}}
+		for len(stack) > 0 {
+			f := &stack[len(stack)-1]
+			v := g.constVersions[f.id]
+			if f.next < len(v.dependencies) {
+				i := f.next
+				f.next++
+				target := v.dependencies[i]
+				if state[target] == 1 {
+					var names []string
+					for _, e := range stack {
+						names = append(names, "$"+g.constVersions[e.id].definition.Name)
+					}
+					names = append(names, "$"+g.constVersions[target].definition.Name)
+					return g.constError(v.doc, v.references[i].At, "constant dependency cycle: %s", strings.Join(names, " → "))
+				}
+				if state[target] == 0 {
+					state[target] = 1
+					stack = append(stack, entry{target, 0})
+				}
+				continue
+			}
+			state[f.id] = 2
+			ordered = append(ordered, f.id)
+			stack = stack[:len(stack)-1]
 		}
 	}
-	v, err := g.evaluateClosed(doc, k.Value, k.At)
-	if err != nil {
-		return err
+	kinds := map[string]termType{}
+	users := map[string]map[int]bool{}
+	for i, v := range g.constVersions {
+		names := []string{v.definition.Name}
+		for _, r := range v.references {
+			names = append(names, r.Str)
+		}
+		for _, n := range names {
+			if users[n] == nil {
+				users[n] = map[int]bool{}
+			}
+			users[n][i] = true
+		}
 	}
-	v.ty = ty
-	g.constants[k.Name] = &stageConst{value: v, doc: doc}
+	queue := make([]int, len(g.constVersions))
+	queued := map[int]bool{}
+	for i := range queue {
+		queue[i] = i
+		queued[i] = true
+	}
+	ct := func(n string) termType {
+		if ty, ok := kinds[n]; ok {
+			return ty
+		}
+		return tyAny
+	}
+	for at := 0; at < len(queue); at++ {
+		i := queue[at]
+		delete(queued, i)
+		v := g.constVersions[i]
+		k := v.definition
+		ty, f := constantValueType(k.Value, k.Op == "redefine", ct)
+		if f != nil {
+			return g.faultError(v.doc, f.node, k.At, f.problem)
+		}
+		if ty == tyAny || ty == tySet {
+			continue
+		}
+		old, ok := kinds[k.Name]
+		if ok && old != ty {
+			return g.constError(v.doc, k.At, "%%redefine-const $%s keeps the type of the constant, and cannot make it %s", k.Name, typeNames[ty])
+		}
+		if !ok {
+			kinds[k.Name] = ty
+			for u := range users[k.Name] {
+				if !queued[u] {
+					queue = append(queue, u)
+					queued[u] = true
+				}
+			}
+		}
+	}
+	for _, i := range ordered {
+		v := g.constVersions[i]
+		k := v.definition
+		ty, ok := kinds[k.Name]
+		if !ok {
+			return g.constError(v.doc, k.At, "the kind of the value of $%s is not given", k.Name)
+		}
+		g.constants = map[string]*stageConst{}
+		for j, r := range v.references {
+			d := g.constVersions[v.dependencies[j]]
+			g.constants[r.Str] = &stageConst{value: d.value, doc: d.doc}
+		}
+		var value *constValue
+		var err *Error
+		value, err = g.evaluateClosed(v.doc, k.Value, k.At, ty)
+		if err != nil {
+			return err
+		}
+		value.ty = ty
+		v.value = value
+	}
+	g.constants = map[string]*stageConst{}
+	for name, id := range g.constLatest {
+		v := g.constVersions[id]
+		g.constants[name] = &stageConst{value: v.value, doc: v.doc}
+	}
 	return nil
 }
 
@@ -88,7 +210,7 @@ func (g *stageGrammar) addConstant(doc string, k *domConst) *Error {
 // now (engine §2, §10). An empty delimiter or a tag's string that is not a
 // name comes from a constant here, since the reader refuses a literal one,
 // and the error stands at that constant.
-func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int) (*constValue, *Error) {
+func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expected ...termType) (*constValue, *Error) {
 	set := func(part *domTerm) (*tagset, *Error) {
 		v, err := g.evaluateClosed(doc, part, item)
 		if err != nil {
@@ -105,6 +227,9 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int) (*con
 	}
 	in := newInterner()
 	switch t.Kind {
+	case tmPattern:
+		p, err := g.resolvePatternValue(doc, t.Pattern, item)
+		return &constValue{ty: tyPattern, pattern: p}, err
 	case tmString:
 		return &constValue{ty: tyString, s: t.Str}, nil
 	case tmTag:
@@ -112,11 +237,47 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int) (*con
 	case tmRange:
 		return &constValue{ty: tyTags, names: in.fromList(rangeTags(t.Range, g.uni.isMark)).names}, nil
 	case tmEmptySet:
+		if len(expected) > 0 && expected[0] == tyPattern {
+			return &constValue{ty: tyPattern, pattern: emptyPattern()}, nil
+		}
 		return &constValue{ty: tySet}, nil
 	case tmConst:
 		v := *g.constants[t.Str].value
 		return &v, nil
-	case tmUnion:
+	case tmUnion, tmIntersection, tmDifference:
+		ty, _ := termTypeIn(t, g.constantTypes())
+		if ty == tyPattern || len(expected) > 0 && expected[0] == tyPattern {
+			var patterns []*domPattern
+			for _, it := range t.Items {
+				v, err := g.evaluateClosed(doc, it, item, tyPattern)
+				if err != nil {
+					return nil, err
+				}
+				p := v.pattern
+				if v.ty == tySet {
+					p = emptyPattern()
+				}
+				patterns = append(patterns, p)
+			}
+			return &constValue{ty: tyPattern, pattern: &domPattern{Kind: t.Kind, Items: patterns}}, nil
+		}
+		if t.Kind != tmUnion {
+			var out *tagset
+			for i, it := range t.Items {
+				v, err := set(it)
+				if err != nil {
+					return nil, err
+				}
+				if i == 0 {
+					out = in.make(v.names)
+				} else if t.Kind == tmIntersection {
+					out = in.intersection(out, in.make(v.names))
+				} else {
+					out = in.difference(out, in.make(v.names))
+				}
+			}
+			return &constValue{ty: tySet, names: out.names}, nil
+		}
 		// Gathered at once, since a pairwise fold copies the growing union.
 		sets := make([]*tagset, len(t.Items))
 		for i, it := range t.Items {
@@ -127,23 +288,6 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int) (*con
 			sets[i] = in.make(s.names)
 		}
 		return &constValue{ty: tySet, names: in.unionAll(sets).names}, nil
-	case tmIntersection, tmDifference:
-		var out *tagset
-		for i, it := range t.Items {
-			s, err := set(it)
-			if err != nil {
-				return nil, err
-			}
-			switch {
-			case i == 0:
-				out = in.make(s.names)
-			case t.Kind == tmIntersection:
-				out = in.intersection(out, in.make(s.names))
-			default:
-				out = in.difference(out, in.make(s.names))
-			}
-		}
-		return &constValue{ty: tySet, names: out.names}, nil
 	case tmCall:
 		switch t.Str {
 		case "split":
@@ -180,6 +324,9 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int) (*con
 // a delimiter that is not empty, or a name (engine §2, §9, §10). Then it
 // gives every reference its final value.
 func (g *stageGrammar) resolveConstants() *Error {
+	if err := g.bindConstants(); err != nil {
+		return err
+	}
 	types := g.constantTypes()
 	for _, u := range g.constUsers {
 		for _, ref := range constRefs(u.rule) {
@@ -190,9 +337,30 @@ func (g *stageGrammar) resolveConstants() *Error {
 		if f := ruleTypeFault(u.rule, types); f != nil {
 			return g.faultError(u.doc, f.node, u.rule.At, f.problem)
 		}
+		var patternErr *Error
+		scan := func(p clausePart) bool {
+			if patternErr != nil {
+				return false
+			}
+			if p.t != nil && p.t.Kind == tmPattern {
+				_, patternErr = g.evaluateClosed(u.doc, p.t, u.rule.At)
+				return false
+			}
+			return true
+		}
+		for _, c := range u.rule.Conditions {
+			walkClause(clausePart{c: c}, scan)
+		}
+		for _, t := range ruleTagTerms(u.rule) {
+			walkClause(clausePart{t: t}, scan)
+		}
+		if patternErr != nil {
+			return patternErr
+		}
+
 		// The checks that simplification decides, which the reader left to
 		// the loader, now with the constants' values (§9).
-		if msg := definitionProblem(newResolver(g.constants).rule(u.rule)); msg != "" {
+		if msg := definitionProblem(newResolver(g.constants, g.uni).rule(u.rule)); msg != "" {
 			return g.constError(u.doc, u.rule.At, "%s", msg)
 		}
 		// A string constant in a sound test must be a canonical sound (§2,
@@ -229,13 +397,11 @@ func (g *stageGrammar) resolveConstants() *Error {
 			}
 		}
 	}
-	if len(g.constUsers) == 0 {
-		return nil
-	}
+
 	// Each reference holds the final value. The DOM is shared by every
 	// stage and dialect that includes its document, so the clauses are
 	// copied, and a clause that alternatives share stays shared.
-	r := newResolver(g.constants)
+	r := newResolver(g.constants, g.uni)
 	for _, rule := range g.rules {
 		for _, a := range rule.alts {
 			a.ruleTags = r.term(a.ruleTags)
@@ -311,6 +477,7 @@ func closedCalls(rule *domRule) []*domTerm {
 // share costs one walk, not one for each.
 type resolver struct {
 	constants map[string]*stageConst
+	uni       *unicodeTable
 	terms     map[*domTerm]*domTerm
 	conds     map[*domCond]*domCond
 	condLists map[condListKey][]*domCond
@@ -325,8 +492,8 @@ type condListKey struct {
 	n     int
 }
 
-func newResolver(constants map[string]*stageConst) *resolver {
-	return &resolver{constants: constants, terms: map[*domTerm]*domTerm{}, conds: map[*domCond]*domCond{}, condLists: map[condListKey][]*domCond{}, emits: map[*domEmit]*domEmit{}, alts: map[*domAlt]*domAlt{}}
+func newResolver(constants map[string]*stageConst, uni *unicodeTable) *resolver {
+	return &resolver{constants: constants, uni: uni, terms: map[*domTerm]*domTerm{}, conds: map[*domCond]*domCond{}, condLists: map[condListKey][]*domCond{}, emits: map[*domEmit]*domEmit{}, alts: map[*domAlt]*domAlt{}}
 }
 
 // rule copies a rule definition with each reference to a constant holding
@@ -360,6 +527,12 @@ func (r *resolver) term(t *domTerm) *domTerm {
 	if w := work.Load(); w != nil {
 		w.clauseSteps.add("clause steps")
 	}
+	if t.Kind == tmPattern || (t.Kind == tmUnion || t.Kind == tmIntersection || t.Kind == tmDifference) && resolverHasPattern(r, t) {
+		v := r.patternValue(t)
+		copied := &domTerm{Kind: tmPattern, Pattern: v}
+		r.terms[t] = copied
+		return copied
+	}
 	changed := t.Kind == tmConst
 	var items []*domTerm
 	if t.Items != nil {
@@ -378,6 +551,10 @@ func (r *resolver) term(t *domTerm) *domTerm {
 	copied := *t
 	if t.Kind == tmConst {
 		copied.value = r.constants[t.Str].value
+		if copied.value.ty == tyPattern {
+			copied.Kind = tmPattern
+			copied.Pattern = copied.value.pattern
+		}
 	}
 	copied.Items = items
 	copied.Cond = cond
@@ -397,6 +574,9 @@ func (r *resolver) cond(c *domCond) *domCond {
 		w.clauseSteps.add("clause steps")
 	}
 	left, right, span := r.term(c.Left), r.term(c.Right), r.term(c.Span)
+	if (c.Op == "≅" || c.Op == "≇") && right.Kind != tmPattern {
+		right = &domTerm{Kind: tmPattern, Pattern: r.patternValue(c.Right)}
+	}
 	inner := r.cond(c.Inner)
 	items := c.Items
 	if c.Items != nil {

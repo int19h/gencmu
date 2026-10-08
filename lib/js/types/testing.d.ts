@@ -48,6 +48,22 @@ export type ElisionCheckWatch = {
 };
 export type WorkCounts = {
     /**
+     * finite structural states interned
+     */
+    structuralStates: number;
+    /**
+     * structural transitions computed
+     */
+    structuralTransitions: number;
+    /**
+     * distinct packed forest edges
+     */
+    packedEdges: number;
+    /**
+     * summary results stored per traversal
+     */
+    summaryContexts: number;
+    /**
      * the items that the recognizer made
      */
     items: number;
@@ -163,7 +179,7 @@ export type WorkCounts = {
      */
     budget?: Partial<Record<WorkKind, number>>;
 };
-export type WorkKind = "items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text";
+export type WorkKind = "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text";
 /**
  * What the check of engine §7 hands its test hook.
  * @typedef {object} ElisionCheckRun
@@ -191,6 +207,10 @@ export type WorkKind = "items" | "checks" | "scanned" | "candidates" | "captures
 /**
  * The counts of `hooks.work`.
  * @typedef {object} WorkCounts
+ * @property {number} structuralStates finite structural states interned
+ * @property {number} structuralTransitions structural transitions computed
+ * @property {number} packedEdges distinct packed forest edges
+ * @property {number} summaryContexts summary results stored per traversal
  * @property {number} items the items that the recognizer made
  * @property {number} checks the checks of maximality in nested queries
  * @property {number} scanned the items of the chart that those checks
@@ -241,7 +261,7 @@ export type WorkKind = "items" | "checks" | "scanned" | "candidates" | "captures
  * @property {Partial<Record<WorkKind, number>>} [budget] the most of each
  *   count that the work may reach
  */
-/** @typedef {"items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
+/** @typedef {"structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
 /** @type {readonly WorkKind[]} */
 export declare const WORK_KINDS: readonly WorkKind[];
 /**

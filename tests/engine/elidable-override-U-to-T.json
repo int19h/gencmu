@@ -1,0 +1,17 @@
+{
+  "description": "A final constant override changes the omission predicate through a composite constant.",
+  "grammar": "%const $BASE U\n%const $S $BASE ∪ (T ∖ T)\n%redefine-const $BASE T\n%rule text A [+T⊇$S]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

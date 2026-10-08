@@ -98,6 +98,10 @@ impl<'a> Proofs<'a> {
     /// constituent `cap`, if the chart holds it: the advance that the
     /// recognizer made, with its test and its conditions passed.
     fn advanced(&self, item: Item, cap: Cap) -> Option<Place> {
+        if self.chart.machine.is_some() {
+            let next = self.chart.advances.get(&(item, cap))?;
+            return self.chart.sets.get(cap.end as usize)?.find(next).map(|index| (cap.end, index));
+        }
         let production = &self.g.prods[item.prod as usize];
         let dot = item.dot as usize;
         if let Some(test) = self.g.test(item.prod, dot) {
@@ -107,7 +111,8 @@ impl<'a> Proofs<'a> {
             }
         }
         let caps = if production.cap_at[dot].is_some() { self.chart.lookup_caps(item.caps, cap)? } else { item.caps };
-        let next = Item { prod: item.prod, dot: item.dot + 1, origin: item.origin, caps };
+        let next =
+            Item { prod: item.prod, dot: item.dot + 1, origin: item.origin, caps, prefix: 0, structure: u32::MAX };
         let set = cap.end;
         self.chart.sets.get(set as usize)?.find(&next).map(|index| (set, index))
     }
@@ -147,7 +152,12 @@ impl<'a> Proofs<'a> {
     /// The constituent of a completed item at `place`.
     fn cap(&self, place: Place) -> Cap {
         let item = self.item(place);
-        Cap { start: item.origin, end: place.0, tags: self.chart.sets[place.0 as usize].tagset[place.1 as usize] }
+        Cap {
+            start: item.origin,
+            end: place.0,
+            tags: self.chart.sets[place.0 as usize].tagset[place.1 as usize],
+            structure: item.structure,
+        }
     }
 
     /// Whether the elidable optional that comes next after the item at
@@ -207,6 +217,30 @@ impl<'a> Proofs<'a> {
         if item.dot == 0 {
             return vec![(None, None)];
         }
+        if self.chart.machine.is_some() {
+            let mut edges = Vec::new();
+            let production = &self.g.prods[item.prod as usize];
+            for &(pred, cap) in self.chart.links.get(&(set, item)).into_iter().flatten() {
+                let Some(index) = self.chart.sets[cap.start as usize].find(&pred) else {
+                    continue;
+                };
+                let before = (cap.start, index);
+                match production.syms[item.dot as usize - 1] {
+                    Sym::T(_) => edges.push((Some(before), None)),
+                    Sym::N(rule) => {
+                        for &index in
+                            self.chart.sets[set as usize].completed.get(&(rule, cap.start)).into_iter().flatten()
+                        {
+                            let child = (set, index);
+                            if self.cap(child) == cap {
+                                edges.push((Some(before), Some(child)));
+                            }
+                        }
+                    }
+                }
+            }
+            return edges;
+        }
         let production = &self.g.prods[item.prod as usize];
         let position = item.dot as usize - 1;
         let captured = production.cap_at[position].is_some();
@@ -218,7 +252,14 @@ impl<'a> Proofs<'a> {
         } else {
             item.caps
         };
-        let before = Item { prod: item.prod, dot: item.dot - 1, origin: item.origin, caps: before_caps };
+        let before = Item {
+            prod: item.prod,
+            dot: item.dot - 1,
+            origin: item.origin,
+            caps: before_caps,
+            prefix: 0,
+            structure: u32::MAX,
+        };
         let find = |at: u32| self.chart.sets[at as usize].find(&before).map(|index| (at, index));
         match production.syms[position] {
             Sym::T(_) => find(set - 1).map(|before| (Some(before), None)).into_iter().collect(),

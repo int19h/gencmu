@@ -1,0 +1,17 @@
+{
+  "description": "The predecessor keeps lexical bindings to other final names. Type constraints do not create extra value dependencies.",
+  "grammar": "%const $P $Q\n%const $Q $P\n%redefine-const $P @(A)\n%rule text A\n%conditions $ ≅ $P ∧ $ ≅ $Q",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

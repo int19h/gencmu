@@ -1,0 +1,8 @@
+{
+  "description": "The loader rejects an invalid constant dependency or pattern type.",
+  "grammar": "%rule text A\n%conditions @(A) = @(A)",
+  "input": "",
+  "expect": {
+    "error": "grammar"
+  }
+}

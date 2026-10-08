@@ -1,0 +1,15 @@
+{
+  "description": "The loader rejects an invalid closed operand in a rule pattern. It reports the dependency as a grammar error.",
+  "grammar": "%const $S \"A\"\n%rule text A\n%conditions $ ≅ @(A=$S)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

@@ -8,7 +8,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 20
+const domFormat = 21
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -150,6 +150,7 @@ const (
 	tmIf           = "if"
 	tmRange        = "range"
 	tmConst        = "const"
+	tmPattern      = "pattern"
 )
 
 type domTerm struct {
@@ -161,7 +162,8 @@ type domTerm struct {
 	At    [2]int     // const: the position of the reference
 	// value is a constant's final value in its stage, which only a
 	// stitched grammar's copy of the reference holds (engine §2).
-	value *constValue
+	value   *constValue
+	Pattern *domPattern
 }
 
 // isSpanFunction says whether a function gives a span (engine §10).
@@ -490,6 +492,10 @@ func writeRange(w *jsonWriter, r [2]string) {
 
 func (t *domTerm) writeJSON(w *jsonWriter) {
 	switch t.Kind {
+	case tmPattern:
+		w.raw(`{"pattern":`)
+		w.pattern(t.Pattern)
+		w.raw("}")
 	case tmString, tmTag, tmCapture, tmRule, tmClassifier:
 		w.raw("{")
 		w.str(t.Kind)
@@ -1116,7 +1122,7 @@ var exprForms = [][]string{
 
 var termForms = [][]string{
 	{tmUnion}, {tmIntersection}, {tmDifference}, {tmIf, "then"}, {tmCall, "args"},
-	{tmString}, {tmTag}, {tmRange}, {tmEmptySet}, {tmCapture}, {tmRule}, {tmClassifier}, {tmConst, "at"},
+	{tmString}, {tmTag}, {tmRange}, {tmEmptySet}, {tmCapture}, {tmRule}, {tmClassifier}, {tmConst, "at"}, {tmPattern},
 }
 
 var condForms = [][]string{
@@ -1175,6 +1181,10 @@ func decodeTermAt(raw json.RawMessage, depth int) (*domTerm, error) {
 			s, err := decodeString(v)
 			return &domTerm{Kind: k, Str: s}, err
 		}
+	}
+	if v, ok := o[tmPattern]; ok {
+		p, err := decodePattern(v, false, depth+1)
+		return &domTerm{Kind: tmPattern, Pattern: p}, err
 	}
 	if isTrue(o["emptySet"]) {
 		return &domTerm{Kind: tmEmptySet}, nil

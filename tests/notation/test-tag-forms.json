@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule text A⊇B w⊉$C A∩(B ∪ ~c)=∅ A (* c *) ∩ 'a' .. 'z' ≠ ∅ w⊇∅ /a/⊇/a/ 'x'≠\"x\" X=$S\n```\n",
   "expect": {
     "dom": {
-      "format": 20,
+      "format": 21,
       "rules": [
         {
           "alternatives": [

@@ -76,8 +76,8 @@
     },
     {
       "description": "Bootstrap ignores following Format",
-      "find": "\"format\":20",
-      "replace": "\"format\":20,\"Format\":0",
+      "find": "\"format\":21",
+      "replace": "\"format\":21,\"Format\":0",
       "loads": true
     },
     {
@@ -88,8 +88,8 @@
     },
     {
       "description": "Bootstrap uses a later invalid format",
-      "find": "\"format\":20",
-      "replace": "\"format\":20,\"format\":null",
+      "find": "\"format\":21",
+      "replace": "\"format\":21,\"format\":null",
       "loads": false
     },
     {
@@ -208,8 +208,8 @@
     },
     {
       "description": "Bootstrap ignores a 400-digit integer in its manifest",
-      "find": "{\"format\":20",
-      "replace": "{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":20",
+      "find": "{\"format\":21",
+      "replace": "{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":21",
       "loads": true,
       "rustLoads": false,
       "note": "Rust rejects ignored integers outside signed 64-bit range. Sol records this existing limit outside the numbers branch."
@@ -232,8 +232,8 @@
     },
     {
       "description": "Bootstrap ignores a 400-digit integer in its raw DOM",
-      "find": "\"dom\":{\"format\":20",
-      "replace": "\"dom\":{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":20",
+      "find": "\"dom\":{\"format\":21",
+      "replace": "\"dom\":{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":21",
       "loads": true,
       "rustLoads": false,
       "note": "Rust rejects ignored integers outside signed 64-bit range. Sol records this existing limit outside the numbers branch."
@@ -250,32 +250,32 @@
   "compiled": [
     {
       "description": "Compiled cache requires exact manifest format",
-      "find": "\"format\":20",
+      "find": "\"format\":21",
       "replace": "\"Format\":19",
       "cached": false
     },
     {
       "description": "Compiled cache ignores preceding Format at manifest format",
-      "find": "\"format\":20",
-      "replace": "\"Format\":0,\"format\":20",
+      "find": "\"format\":21",
+      "replace": "\"Format\":0,\"format\":21",
       "cached": true
     },
     {
       "description": "Compiled cache ignores following Format at manifest format",
-      "find": "\"format\":20",
-      "replace": "\"format\":20,\"Format\":0",
+      "find": "\"format\":21",
+      "replace": "\"format\":21,\"Format\":0",
       "cached": true
     },
     {
       "description": "Compiled cache replaces an invalid manifest format",
-      "find": "\"format\":20",
-      "replace": "\"format\":null,\"format\":20",
+      "find": "\"format\":21",
+      "replace": "\"format\":null,\"format\":21",
       "cached": true
     },
     {
       "description": "Compiled cache uses the last manifest format",
-      "find": "\"format\":20",
-      "replace": "\"format\":20,\"format\":null",
+      "find": "\"format\":21",
+      "replace": "\"format\":21,\"format\":null",
       "cached": false
     },
     {
@@ -310,32 +310,32 @@
     },
     {
       "description": "Compiled cache requires exact manifest documents",
-      "find": "\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
-      "replace": "\"Documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
+      "find": "\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":21,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
+      "replace": "\"Documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":21,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
       "cached": false
     },
     {
       "description": "Compiled cache ignores preceding Documents at manifest documents",
-      "find": "\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
-      "replace": "\"Documents\":null,\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
+      "find": "\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":21,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
+      "replace": "\"Documents\":null,\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":21,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
       "cached": true
     },
     {
       "description": "Compiled cache ignores following Documents at manifest documents",
-      "find": "\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
-      "replace": "\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}},\"Documents\":null",
+      "find": "\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":21,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
+      "replace": "\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":21,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}},\"Documents\":null",
       "cached": true
     },
     {
       "description": "Compiled cache replaces an invalid manifest documents",
-      "find": "\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
-      "replace": "\"documents\":null,\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
+      "find": "\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":21,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
+      "replace": "\"documents\":null,\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":21,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
       "cached": true
     },
     {
       "description": "Compiled cache uses the last manifest documents",
-      "find": "\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
-      "replace": "\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}},\"documents\":null",
+      "find": "\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":21,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}",
+      "replace": "\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":21,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}},\"documents\":null",
       "cached": false
     },
     {
@@ -370,62 +370,62 @@
     },
     {
       "description": "Compiled cache requires exact entry dom",
-      "find": "\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
-      "replace": "\"Dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
+      "find": "\"dom\":{\"format\":21,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
+      "replace": "\"Dom\":{\"format\":21,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
       "cached": false
     },
     {
       "description": "Compiled cache ignores preceding Dom at entry dom",
-      "find": "\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
-      "replace": "\"Dom\":null,\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
+      "find": "\"dom\":{\"format\":21,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
+      "replace": "\"Dom\":null,\"dom\":{\"format\":21,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
       "cached": true
     },
     {
       "description": "Compiled cache ignores following Dom at entry dom",
-      "find": "\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
-      "replace": "\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"Dom\":null",
+      "find": "\"dom\":{\"format\":21,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
+      "replace": "\"dom\":{\"format\":21,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"Dom\":null",
       "cached": true
     },
     {
       "description": "Compiled cache replaces an invalid entry dom",
-      "find": "\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
-      "replace": "\"dom\":null,\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
+      "find": "\"dom\":{\"format\":21,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
+      "replace": "\"dom\":null,\"dom\":{\"format\":21,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
       "cached": true
     },
     {
       "description": "Compiled cache uses the last entry dom",
-      "find": "\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
-      "replace": "\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"dom\":null",
+      "find": "\"dom\":{\"format\":21,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
+      "replace": "\"dom\":{\"format\":21,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"dom\":null",
       "cached": false
     },
     {
       "description": "Compiled cache requires exact DOM format",
-      "find": "\"dom\":{\"format\":20",
+      "find": "\"dom\":{\"format\":21",
       "replace": "\"dom\":{\"Format\":19",
       "cached": false
     },
     {
       "description": "Compiled cache ignores preceding Format at DOM format",
-      "find": "\"dom\":{\"format\":20",
-      "replace": "\"dom\":{\"Format\":0,\"format\":20",
+      "find": "\"dom\":{\"format\":21",
+      "replace": "\"dom\":{\"Format\":0,\"format\":21",
       "cached": true
     },
     {
       "description": "Compiled cache ignores following Format at DOM format",
-      "find": "\"dom\":{\"format\":20",
-      "replace": "\"dom\":{\"format\":20,\"Format\":0",
+      "find": "\"dom\":{\"format\":21",
+      "replace": "\"dom\":{\"format\":21,\"Format\":0",
       "cached": true
     },
     {
       "description": "Compiled cache replaces an invalid DOM format",
-      "find": "\"dom\":{\"format\":20",
-      "replace": "\"dom\":{\"format\":null,\"format\":20",
+      "find": "\"dom\":{\"format\":21",
+      "replace": "\"dom\":{\"format\":null,\"format\":21",
       "cached": true
     },
     {
       "description": "Compiled cache uses the last DOM format",
-      "find": "\"dom\":{\"format\":20",
-      "replace": "\"dom\":{\"format\":20,\"format\":null",
+      "find": "\"dom\":{\"format\":21",
+      "replace": "\"dom\":{\"format\":21,\"format\":null",
       "cached": false
     },
     {
@@ -580,8 +580,8 @@
     },
     {
       "description": "Compiled ignores a 400-digit integer in its manifest",
-      "find": "{\"format\":20",
-      "replace": "{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":20",
+      "find": "{\"format\":21",
+      "replace": "{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":21",
       "cached": true,
       "rustCached": false,
       "note": "Rust rejects ignored integers outside signed 64-bit range. Sol records this existing limit outside the numbers branch."
@@ -596,8 +596,8 @@
     },
     {
       "description": "Compiled ignores a 400-digit integer in its raw DOM",
-      "find": "\"dom\":{\"format\":20",
-      "replace": "\"dom\":{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":20",
+      "find": "\"dom\":{\"format\":21",
+      "replace": "\"dom\":{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":21",
       "cached": true,
       "rustCached": false,
       "note": "Rust rejects ignored integers outside signed 64-bit range. Sol records this existing limit outside the numbers branch."
@@ -630,8 +630,56 @@
       "find": "\"g.md\":",
       "replace": "\"\\u0064om\":",
       "cached": true
+    },
+    {
+      "description": "A malformed pattern separator makes the compiled document a cache miss: None.",
+      "find": "\"constants\":[]",
+      "replace": "\"constants\":[{\"name\":\"P\",\"op\":\"define\",\"at\":[1,1],\"value\":{\"pattern\":{\"children\":{\"repeat\":{\"node\":{\"terminal\":\"A\",\"at\":[1,1]}},\"separator\":null}}}}]",
+      "cached": false
+    },
+    {
+      "description": "A malformed pattern separator makes the compiled document a cache miss: ''.",
+      "find": "\"constants\":[]",
+      "replace": "\"constants\":[{\"name\":\"P\",\"op\":\"define\",\"at\":[1,1],\"value\":{\"pattern\":{\"children\":{\"repeat\":{\"node\":{\"terminal\":\"A\",\"at\":[1,1]}},\"separator\":\"\"}}}}]",
+      "cached": false
+    },
+    {
+      "description": "A cached rule tag term reads whole-candidate structure with ≅.",
+      "find": "\"conditions\":[]",
+      "replace": "\"conditions\":[],\"tags\":{\"if\":{\"all\":[{\"op\":\"≅\",\"left\":{\"capture\":\"\"},\"right\":{\"pattern\":{\"name\":\"text\",\"at\":[1,1]}}},{\"op\":\"≇\",\"left\":{\"capture\":\"\"},\"right\":{\"pattern\":{\"name\":\"absent\",\"at\":[1,1]}}}]},\"then\":{\"tag\":\"X\"}}",
+      "cached": true,
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "description": "A cached rule tag term reads whole-candidate structure with ≇.",
+      "find": "\"conditions\":[]",
+      "replace": "\"conditions\":[],\"tags\":{\"if\":{\"all\":[{\"op\":\"≇\",\"left\":{\"capture\":\"\"},\"right\":{\"pattern\":{\"name\":\"other\",\"at\":[1,1]}}},{\"op\":\"≇\",\"left\":{\"capture\":\"\"},\"right\":{\"pattern\":{\"name\":\"absent\",\"at\":[1,1]}}}]},\"then\":{\"tag\":\"X\"}}",
+      "cached": true,
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "description": "A cached alternative tag term reads whole-candidate structure with ≅.",
+      "find": "\"guards\":[]",
+      "replace": "\"guards\":[],\"tags\":{\"if\":{\"all\":[{\"op\":\"≅\",\"left\":{\"capture\":\"\"},\"right\":{\"pattern\":{\"name\":\"text\",\"at\":[1,1]}}},{\"op\":\"≇\",\"left\":{\"capture\":\"\"},\"right\":{\"pattern\":{\"name\":\"absent\",\"at\":[1,1]}}}]},\"then\":{\"tag\":\"X\"}}",
+      "cached": true,
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "description": "A cached alternative tag term reads whole-candidate structure with ≇.",
+      "find": "\"guards\":[]",
+      "replace": "\"guards\":[],\"tags\":{\"if\":{\"all\":[{\"op\":\"≇\",\"left\":{\"capture\":\"\"},\"right\":{\"pattern\":{\"name\":\"other\",\"at\":[1,1]}}},{\"op\":\"≇\",\"left\":{\"capture\":\"\"},\"right\":{\"pattern\":{\"name\":\"absent\",\"at\":[1,1]}}}]},\"then\":{\"tag\":\"X\"}}",
+      "cached": true,
+      "tags": [
+        "X"
+      ]
     }
   ],
   "grammar": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'\n```\n",
-  "cache": "{\"format\":20,\"bootstrap\":\"@bootstrap@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":20,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}"
+  "cache": "{\"format\":21,\"bootstrap\":\"@bootstrap@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":21,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"terminal\":\"'b'\"}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}"
 }

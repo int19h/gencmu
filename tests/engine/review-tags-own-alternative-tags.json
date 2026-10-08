@@ -1,0 +1,15 @@
+{
+  "description": "A tree guard does not permit an actual own-tag read.",
+  "grammar": "%rule text A <(($ ≅ @(A)) ∧ (tags($) = X)) ⟹ X>",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

@@ -1,7 +1,7 @@
 import type { GrammarDom } from "./types.js";
 export declare const CAPTURE_NAME: RegExp;
 export declare const DOM_MAX_DEPTH = 256;
-export declare const DOM_FORMAT = 20;
+export declare const DOM_FORMAT = 21;
 export declare const CONSTANT_NAME: RegExp;
 export declare const CLASSIFIER_NAME: RegExp;
 export declare const TEST_OPS: Set<string>;
@@ -312,7 +312,7 @@ export declare function definitionProblem(rule: any): string | null;
  * @returns {string[]}
  */
 export declare function attachmentsOf(item: any): string[];
-export type TermType = "string" | "strings" | "tags" | "span" | "set" | "any";
+export type TermType = "string" | "strings" | "tags" | "span" | "pattern" | "set" | "any";
 export type ConstantTypes = (name: string) => TermType;
 /**
  * The kind of sets joined by ∪, ∩ or ∖, or why they cannot be joined: each
@@ -341,10 +341,10 @@ export declare function comparisonProblem(op: string, left: TermType, right: Ter
  * null. A set of open kind takes the kind it is given, and a constant of
  * unknown type fits.
  * @param {TermType} type
- * @param {"string" | "tags"} expected
+ * @param {"string" | "tags" | "pattern"} expected
  * @returns {string | null}
  */
-export declare function expectedProblem(type: TermType, expected: "string" | "tags"): string | null;
+export declare function expectedProblem(type: TermType, expected: "string" | "tags" | "pattern"): string | null;
 export type TypeFault = {
     problem: string;
     node: any;

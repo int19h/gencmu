@@ -11,6 +11,7 @@ from ._markdown import GrammarText
 from ._model import Node, Token
 from ._tags import character_tag
 from ._trampoline import Walk, run
+from ._patterns import pattern_problem
 from ._types import (
     comparison_problem,
     Memo as TypeMemo,
@@ -43,7 +44,7 @@ _MAPPED = frozenset(
     emit-after implication any-of all-of condition comparison comparator negation presence call argument term guarded-term
     union intersection term-atom empty-set capture-reference range property constant-definition constant-definer
     constant-reference classifier classifier-name classifier-entry classifier-key classifier-operator classifier-class
-    implication-declaration""".split()
+    implication-declaration tree-comparison pattern-literal pattern-union pattern-intersection pattern-sequence pattern-item pattern-atom pattern-brackets pattern-repeat pattern-path pattern-separator""".split()
 )
 """The rules of the notation's syntax grammar that the reader knows (engine
 §9). Every other rule is a wrapper, and the reader reads its parts in its
@@ -65,10 +66,10 @@ _PRIMARIES = frozenset(
         "constant-reference",
     ]
 )
-_CONDITIONS = frozenset(["comparison", "call", "negation", "presence", "implication"])
+_CONDITIONS = frozenset(["tree-comparison", "comparison", "call", "negation", "presence", "implication"])
 _TERMS = frozenset(["union", "guarded-term"])
 _ATOMS = frozenset(
-    ["string", "tag", "character", "phoneme", "range", "property", "name", "empty-set", "term", "call", "capture-reference", "constant-reference"]
+    ["string", "tag", "character", "phoneme", "range", "property", "name", "empty-set", "term", "call", "capture-reference", "constant-reference", "pattern-literal"]
 )
 """What a primary, a condition, a term and a term atom hold: the one rule
 among their parts is one of these (engine §9)."""
@@ -621,9 +622,7 @@ class DomBuilder:
             if not is_terminal(self.known_of(self.only(head, "primary"), _PRIMARIES)):
                 raise self.fail(node, form)
             test_node = self.only(head, "test")
-            comparator = "".join(self.text(kid) for kid in self.kids(test_node) if kid.kind == "token")
-            if comparator != "=":
-                raise self.fail(test_node, "the terminator of an elidable optional takes no test but =, since elision-only restores it with its sound")
+
         elif not is_terminal(head):
             raise self.fail(node, form)
         self.marked += 1
@@ -822,6 +821,21 @@ class DomBuilder:
         return (yield self._simple_condition(node))
 
     def _simple_condition(self, node: Node) -> Walk:
+        if node.rule == "tree-comparison":
+            left = {"capture":self.text(self.token(self.only(node, "capture-reference")))[1:]}
+            op = next(self.text(kid) for kid in self.kids(node) if kid.kind == "token" and self.text(kid) in ("≅", "≇"))
+            operand = self.only(node, "union")
+            name = self._first_of_rule(operand, "name")
+            if name is not None and self._first_of_rule(operand, "pattern-literal") is None and len(self.some(operand, "intersection")) == 1:
+                text = self.text(self.token(name))
+                raise self.fail(name, f"tree comparison requires a pattern; write @({text}), not {text}")
+            right = yield self._term(operand)
+            kind, problem = term_type(right, memo=self.types)
+            if problem is None:
+                problem = comparison_problem(op, "span", kind)
+            if problem is not None:
+                raise self.fail(node, problem)
+            return {"op":op, "left":left, "right":right}
         if node.rule == "comparison":
             terms = self.some(node, "union", 2)
             op = self.text(self.token(self.only(node, "comparator")))
@@ -925,10 +939,112 @@ class DomBuilder:
         if problem is not None:
             raise self.fail(node, problem)
 
+    @staticmethod
+    def _pattern_node(children: Dom) -> Dom:
+        return children["node"] if "node" in children else {"children":children}
+
+    def _pattern(self, node: Node) -> Walk:
+        kind = node.rule
+        children: list[Node] = []
+        if kind == "pattern-union":
+            children = self.some(node, "pattern-intersection")
+        elif kind == "pattern-intersection":
+            children = self.some(node, "pattern-sequence")
+        elif kind == "pattern-sequence":
+            children = self.some(node, "pattern-item")
+        elif kind == "pattern-item":
+            children = [kid for kid in self.kids(node) if kid.kind != "token"]
+        elif kind in ("pattern-brackets", "pattern-repeat"):
+            children = self.some(node, "pattern-union")
+        elif kind == "pattern-path":
+            children = self.some(node, "pattern-atom")
+        elif kind == "pattern-atom":
+            first = self.kids(node)[0]
+            if first.kind == "token" and self.text(first) == "(":
+                children = self.some(node, "pattern-union")
+            elif first.rule == "pattern-literal":
+                children = self.some(first, "pattern-union")
+        else:
+            raise self.fail(node, f"unexpected {kind} in a pattern")
+        parts: list[Dom] = []
+        for child in children:
+            parts.append((yield self._pattern(child)))
+        result: Dom
+        if kind in ("pattern-union", "pattern-intersection"):
+            if len(parts) == 1:
+                result = parts[0]
+            else:
+                pattern = self._pattern_node(parts[0])
+                ops = [self.text(kid) for kid in self.kids(node) if kid.kind == "token"]
+                for i, part in enumerate(parts[1:]):
+                    op = "intersection" if kind == "pattern-intersection" else "difference" if i < len(ops) and ops[i] == "∖" else "union"
+                    pattern = {op:[pattern, self._pattern_node(part)]}
+                    problem = pattern_problem(pattern)
+                    if problem is not None:
+                        raise self.fail(node, problem)
+                result = {"node":pattern}
+        elif kind == "pattern-sequence":
+            flat: list[Dom] = []
+            for part in parts:
+                flat.extend(part["sequence"] if "sequence" in part else [part])
+            result = flat[0] if len(flat) == 1 else {"sequence":flat}
+        elif kind == "pattern-item":
+            result = parts[0] if parts else {"siblings":True}
+        elif kind == "pattern-atom":
+            first = self.kids(node)[0]
+            if parts:
+                result = {"node":self._pattern_node(parts[0])} if first.rule == "pattern-literal" else parts[0]
+            elif first.kind == "token":
+                name = self.text(first)
+                pattern = {"terminal" if _is_capital(name) else "name":name, "at":list(self.position(first))}
+                test = self.one(node, "test")
+                if test is not None:
+                    if not _is_capital(name):
+                        raise self.fail(test, "a pattern test requires one terminal atom")
+                    op = "".join(self.text(kid) for kid in self.kids(test) if kid.kind == "token")
+                    operand = self.only(test, "test-operand")
+                    if self._first_of_rule(operand, "pattern-literal") is not None:
+                        raise self.fail(operand, "a symbol test cannot read a pattern")
+                    before = self.closed_for
+                    self.closed_for = "a test's operand"
+                    value = yield self._term(operand)
+                    self.closed_for = before
+                    value_type, problem = term_type(value, memo=self.types)
+                    if problem is None:
+                        problem = test_type_problem(op, value_type)
+                    if problem is not None:
+                        raise self.fail(operand, problem)
+                    if is_sound_test(op) and "string" in value:
+                        problem = sound_problem(value["string"], self.unicode)
+                        if problem is not None:
+                            raise self.fail(operand, problem)
+                    pattern = {"test":op, "value":value, "expr":pattern}
+                result = {"node":pattern}
+            elif first.rule == "constant-reference":
+                result = {"node":{"constant":self.text(self.token(first))[1:], "at":list(self.position(first))}}
+            else:
+                raise self.fail(node, "a malformed pattern atom")
+        elif kind == "pattern-brackets":
+            result = {"optional":parts[0]}
+        elif kind == "pattern-repeat":
+            result = {"repeat":parts[0]}
+            if len(parts) == 2:
+                result["separator"] = parts[1]
+        else:
+            path = {"⋮":"descendant", "⋰":"first", "⋱":"last"}[self.text(self.token(node))]
+            result = {"node":{"path":path, "pattern":self._pattern_node(parts[0])}}
+        problem = pattern_problem(self._pattern_node(result))
+        if problem is not None:
+            raise self.fail(node, problem)
+        return result
+
     def _term(self, node: Node, argument: bool = False) -> Walk:
         """A term; ``argument`` says it is a function's argument, where a
         span or a rule may stand."""
         rule = node.rule
+        if rule == "pattern-literal":
+            children = yield self._pattern(self.only(node, "pattern-union"))
+            return {"pattern":self._pattern_node(children)}
         if rule in ("test-operand", "term-atom"):
             # A test's operand is one term, as a term-atom reads it.
             return (yield self._term(self.known_of(node, _ATOMS), argument))

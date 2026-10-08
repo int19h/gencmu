@@ -1,0 +1,22 @@
+{
+  "description": "A whole-candidate tree guard can define constituent tags.",
+  "grammar": "%rule text A <(($ ≅ @(A)) ∧ ($ ≇ @(B))) ⟹ X>",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "tags": [
+          "X"
+        ]
+      }
+    }
+  }
+}

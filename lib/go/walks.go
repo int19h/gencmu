@@ -16,6 +16,16 @@ type clausePart struct {
 func (p clausePart) children() []clausePart {
 	var out []clausePart
 	if p.t != nil {
+		if p.t.Kind == tmPattern {
+			walkPattern(p.t.Pattern, func(n *domPattern) {
+				if n.Kind == "constant" {
+					out = append(out, clausePart{t: &domTerm{Kind: tmConst, Str: n.Name, At: n.At}})
+				}
+				if n.Value != nil {
+					out = append(out, clausePart{t: n.Value})
+				}
+			})
+		}
 		if p.t.Cond != nil {
 			out = append(out, clausePart{c: p.t.Cond})
 		}

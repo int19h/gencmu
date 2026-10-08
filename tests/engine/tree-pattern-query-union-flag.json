@@ -1,0 +1,17 @@
+{
+  "description": "Queries retain both recognized tag sets. A flag changes selection without removing the rival from the query union.",
+  "grammar": "%rule text $x(A)\n%conditions tags($x, q) = (~a ∪ ~b), matches($x, q), begins($x, q)\n%rule q a | b\n%rule(leftmost-longest) a A\n%tags ~a\n%rule b A\n%tags ~b",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

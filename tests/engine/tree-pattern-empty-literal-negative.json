@@ -1,0 +1,17 @@
+{
+  "description": "A tree comparison gives the empty set its pattern type. The empty pattern matches no candidate.",
+  "grammar": "%rule text A\n%conditions $ ≇ ∅",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -307,10 +307,6 @@ func (f *exprFrame) startOptional(b *domBuilder) readStep {
 		if !isTerminal(b.knownOf(b.only(head, "primary"), primaryRules)) {
 			b.fail(n, form)
 		}
-		testNode := b.only(head, "test")
-		if b.comparator(testNode) != "=" {
-			b.fail(testNode, "the terminator of an elidable optional takes no test but =, since elision-only restores it with its sound")
-		}
 	case !isTerminal(head):
 		b.fail(n, form)
 	}
@@ -515,6 +511,9 @@ func (f *termFrame) start(b *domBuilder) readStep {
 		}
 		f.parts, f.ops = ps, []string{"∩"}
 		return ask(&valueFrame{n: ps[0]})
+	case "pattern-literal":
+		c := b.readPattern(b.only(n, "pattern-union"))
+		return give(&domTerm{Kind: tmPattern, Pattern: patternNode(c)})
 	case "string":
 		return give(&domTerm{Kind: tmString, Str: b.decode(b.token(n))})
 	case "tag", "character", "phoneme":
@@ -756,6 +755,21 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 		case "condition":
 			f.pass = true
 			return ask(&conditionFrame{n: b.knownOf(n, conditionRules)})
+		case "tree-comparison":
+			f.compare = &domCond{Kind: cdCompare, Left: &domTerm{Kind: tmCapture, Str: strings.TrimPrefix(b.text(b.token(b.only(n, "capture-reference"))), "$")}}
+			for _, p := range parts(n) {
+				if p.Kind == KindToken {
+					x := b.text(p)
+					if x == "≅" || x == "≇" {
+						f.compare.Op = x
+					}
+				}
+			}
+			right := b.only(n, "union")
+			if name := firstOfRule(right, "name"); name != nil && firstOfRule(right, "pattern-literal") == nil && len(ofRule(right, "intersection")) == 1 {
+				b.fail(name, "tree comparison requires a pattern; write @(%s), not %s", b.text(b.token(name)), b.text(b.token(name)))
+			}
+			return ask(&valueFrame{n: right})
 		case "comparison":
 			ps := b.some(n, "union", 2)
 			f.compare = &domCond{Kind: cdCompare}
@@ -781,6 +795,12 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 		return give(in)
 	}
 	switch n.Rule {
+	case "tree-comparison":
+		f.compare.Right = in.(*domTerm)
+		if fault := condTypeMemo(f.compare, nil, b.types); fault != nil {
+			b.fail(n, "%s", fault.problem)
+		}
+		return give(f.compare)
 	case "comparison":
 		if f.right != nil {
 			f.compare.Left = in.(*domTerm)

@@ -475,6 +475,7 @@ class Summaries:
             if top in memo:
                 continue
             if ready:
+                _testing.count("summary_contexts")
                 memo[top] = self.compute(top)
                 continue
             stack.append((top, True))

@@ -14,9 +14,10 @@ from __future__ import annotations
 from typing import Any, Callable, Optional, Union
 
 from ._trampoline import Walk, run
+from ._patterns import walk_pattern
 
 TermType = str
-"""``"string"``, ``"strings"``, ``"tags"``, ``"span"``, ``"set"`` or ``"any"``."""
+"""``"string"``, ``"strings"``, ``"tags"``, ``"span"``, ``"pattern"``, ``"set"`` or ``"any"``."""
 
 Found = Union[tuple[TermType, None], tuple[None, str]]
 """A type and no problem, or no type and why the parts do not agree."""
@@ -32,8 +33,8 @@ ConstantTypes = Callable[[str], TermType]
 """The type of each constant by its name, where the loader knows it; the
 reader knows none, and gives every constant the type ``any``."""
 
-_SET_KINDS = frozenset(["strings", "tags", "set"])
-_NAMES = {"string": "a string", "strings": "a set of strings", "tags": "a tag set", "span": "a span", "set": "a set", "any": "a value"}
+_SET_KINDS = frozenset(["strings", "tags", "set", "pattern"])
+_NAMES = {"pattern":"a tree pattern","string": "a string", "strings": "a set of strings", "tags": "a tag set", "span": "a span", "set": "a set", "any": "a value"}
 SPAN_NOT_VALUE = "a span is not a value: tags($x) is the tag set of $x"
 _CALL_STRINGS = {"split": "two strings", "tag": "one string", "classify": "a string and a classifier's name"}
 """The calls whose arguments, but a classifier's name, are strings."""
@@ -79,6 +80,14 @@ def joined_type(types: list[TermType], operator: str) -> Found:
 def comparison_problem(op: str, left: TermType, right: TermType) -> str | None:
     """Why a comparison's two sides do not fit its comparator, or None. A
     side of type ``any`` fits, and the loader checks it again."""
+    if op in ("≅", "≇"):
+        if left != "span":
+            return "a tree comparison requires a bare capture on its left"
+        if right not in ("pattern", "set", "any"):
+            return "a tree comparison requires a tree pattern on its right"
+        return None
+    if "pattern" in (left, right):
+        return "tree patterns use ≅ or ≇"
     if left == "span" or right == "span":
         return SPAN_NOT_VALUE
     if op in ("∈", "∉"):
@@ -151,6 +160,20 @@ def _term_typing(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
 
 
 def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
+    if "pattern" in term:
+        for node, _ in walk_pattern(term["pattern"]):
+            if "constant" in node:
+                problem = expected_problem(constants(node["constant"]), "pattern")
+                if problem is not None:
+                    return None, (problem, {"const":node["constant"], "at":node["at"]})
+            if "test" in node:
+                kind, fault = yield _term_typing(node["value"], constants, memo)
+                if fault is not None:
+                    return None, fault
+                problem = test_type_problem(node["test"], kind)
+                if problem is not None:
+                    return None, (problem, node["value"])
+        return "pattern", None
     if isinstance(term.get("string"), str):
         return "string", None
     if isinstance(term.get("tag"), str) or "range" in term:
@@ -355,6 +378,9 @@ def open_part(term: Any) -> Any:
             continue
         if "capture" in current or "if" in current:
             return current
+        if "pattern" in current:
+            stack.extend(node["value"] for node, _ in walk_pattern(current["pattern"]) if "test" in node)
+            continue
         items: Any = []
         if isinstance(current.get("call"), str):
             if current["call"] not in ("split", "tag"):
@@ -380,7 +406,9 @@ def constants_in(node: Any) -> list[dict[str, Any]]:
         if isinstance(current, list):
             stack.extend(reversed(current))
         elif isinstance(current, dict):
-            if isinstance(current.get("const"), str):
+            if isinstance(current.get("constant"), str):
+                found.append({"const":current["constant"], "at":current["at"]})
+            elif isinstance(current.get("const"), str):
                 found.append(current)
             else:
                 stack.extend(reversed(list(current.values())))

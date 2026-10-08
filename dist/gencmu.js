@@ -136,6 +136,10 @@
   /**
    * The counts of `hooks.work`.
    * @typedef {object} WorkCounts
+   * @property {number} structuralStates finite structural states interned
+   * @property {number} structuralTransitions structural transitions computed
+   * @property {number} packedEdges distinct packed forest edges
+   * @property {number} summaryContexts summary results stored per traversal
    * @property {number} items the items that the recognizer made
    * @property {number} checks the checks of maximality in nested queries
    * @property {number} scanned the items of the chart that those checks
@@ -187,10 +191,10 @@
    *   count that the work may reach
    */
 
-  /** @typedef {"items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
+  /** @typedef {"structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
 
   /** @type {readonly WorkKind[]} */
-  const WORK_KINDS = ["items", "checks", "scanned", "candidates", "captures", "captureSteps", "captureLookups", "edgeChecks", "conditions", "visits", "soundSteps", "tags", "implications", "walkSteps", "lowering", "closures", "clauses", "groups", "traversal", "splice", "text"];
+  const WORK_KINDS = ["structuralStates", "structuralTransitions", "packedEdges", "summaryContexts", "items", "checks", "scanned", "candidates", "captures", "captureSteps", "captureLookups", "edgeChecks", "conditions", "visits", "soundSteps", "tags", "implications", "walkSteps", "lowering", "closures", "clauses", "groups", "traversal", "splice", "text"];
 
   /**
    * Counts of every kind at zero, for a test to set as `hooks.work`.
@@ -1409,6 +1413,250 @@
     return null;
   }
 
+  // ---- patterns.js
+  // Finite observations of structural trees (engine §4.1). A helper carries
+  // a sequence monoid: its relations concatenate without retaining trees.
+
+
+
+  /** @param {any} test @param {string} sound @param {Set<string>} tags @returns {boolean} */
+  function leafTest(test, sound, tags) {
+    const value = test.value;
+    if (test.test === '=') return sound === value.string;
+    if (test.test === '≠') return sound !== value.string;
+    const set = value.set ?? new Set(value.tag ? [value.tag] : []);
+    if (test.test === '⊇') return isSubset(set, tags);
+    if (test.test === '⊉') return !isSubset(set, tags);
+    const overlap = tagIntersection(tags, set).size !== 0;
+    return test.test === '∩≠∅' ? overlap : !overlap;
+  }
+
+  /** @param {any} node @returns {any[]} */
+  function patternParts(node) {
+    if (!node || typeof node !== 'object') return [];
+    if (node.union || node.intersection || node.difference) return node.union ?? node.intersection ?? node.difference;
+    if (node.sequence) return node.sequence;
+    if (node.test) return [node.expr, node.value];
+    return ['pattern','children','node','optional','repeat','separator'].flatMap(key => key in node ? [node[key]] : []);
+  }
+
+  /** @param {any} value @returns {boolean} */
+  function canConsume(value) {
+    const stack = [value];
+    while (stack.length) {
+      const n = stack.pop();
+      if ('node' in n || 'siblings' in n) return true;
+      if (n.sequence) for (const child of n.sequence) stack.push(child);
+      else stack.push(n.optional ?? n.repeat);
+    }
+    return false;
+  }
+
+  /**
+   * Shape only. Term and test typing remains in dom.js. The caller bounds
+   * nesting before calling this walk.
+   * @param {any} root @param {(test: any) => string | null} testFault
+   * @returns {string | null}
+   */
+  function patternProblem(root, testFault) {
+    const stack = [{value:root, children:false, repeated:false, depth:0}];
+    while (stack.length) {
+      const {value:n, children, repeated, depth} = /** @type {any} */ (stack.pop());
+      if (depth > 256) return 'nested too deeply';
+      if (!n || typeof n !== 'object' || Array.isArray(n)) return 'a malformed pattern';
+      const keys = Object.keys(n);
+      const exact = (/** @type {string[]} */ fields) => keys.length === fields.length && fields.every(k => k in n);
+      const push = (/** @type {any} */ value, /** @type {boolean} */ c = false, r = repeated) => stack.push({value,children:c,repeated:r,depth:depth+1});
+      if (children) {
+        if (exact(['node'])) push(n.node);
+        else if (exact(['siblings'])) { if (n.siblings !== true || repeated) return 'a sibling ellipsis cannot be a repeat item or separator'; }
+        else if (exact(['sequence'])) {
+          if (!Array.isArray(n.sequence) || n.sequence.length < 2) return 'a malformed pattern sequence';
+          n.sequence.forEach((/** @type {any} */ x) => push(x,true));
+        } else if (exact(['optional'])) push(n.optional,true);
+        else if (exact(['repeat']) || exact(['repeat','separator'])) {
+          push(n.repeat,true,true);
+          if ('separator' in n) push(n.separator,true,true);
+          // Inspect after validating shapes, below.
+        } else return 'a malformed pattern children expression';
+      } else if (exact(['name','at']) || exact(['terminal','at']) || exact(['constant','at'])) {
+        const key = 'name' in n ? 'name' : 'terminal' in n ? 'terminal' : 'constant';
+        if (typeof n[key] !== 'string' || !Array.isArray(n.at) || n.at.length !== 2 || !n.at.every(Number.isInteger)) return 'a malformed pattern atom';
+        if (key === 'name' && n.name !== '#' && !/^[a-z][A-Za-z0-9-]*$/.test(n.name)) return 'a malformed pattern rule name';
+        if (key !== 'name' && !/^[A-Z][A-Za-z0-9-]*$/.test(n[key])) return 'a malformed pattern terminal or constant';
+      } else if (exact(['test','value','expr'])) {
+        if (!n.expr || !('terminal' in n.expr) || !['=','≠','⊇','⊉','∩=∅','∩≠∅'].includes(n.test)) return 'a pattern test requires one terminal atom';
+        const fault = testFault(n); if (fault) return fault;
+        push(n.expr);
+      } else if (exact(['children'])) push(n.children,true);
+      else if (exact(['path','pattern'])) {
+        if (!['descendant','first','last'].includes(n.path)) return 'a malformed pattern path';
+        push(n.pattern);
+      } else {
+        const key = ['union','intersection','difference'].find(k => exact([k]));
+        if (!key || !Array.isArray(n[key]) || n[key].length < 2 || (key === 'difference' && n[key].length !== 2)) return 'a malformed pattern';
+        n[key].forEach((/** @type {any} */ x) => push(x));
+      }
+    }
+    const todo = [root];
+    while (todo.length) {
+      const n = todo.pop();
+      if (n.repeat && !canConsume(n.repeat)) return 'a pattern repeat cannot match only empty sequences';
+      for (const child of patternParts(n)) todo.push(child);
+    }
+    return null;
+  }
+
+  /** @param {any} root @param {(name:string, at:[number,number]) => any} constant @param {(term:any, test:any) => any} value @returns {any} */
+  function resolvePattern(root, constant, value) {
+    if (root.constant) return constant(root.constant, root.at).pattern;
+    if (root.test) return {...root, value:value(root.value,root)};
+    const result = {...root};
+    for (const key of ['union','intersection','difference','sequence']) if (root[key]) result[key] = root[key].map((/** @type {any} */ n) => resolvePattern(n,constant,value));
+    for (const key of ['pattern','children','node','optional','repeat','separator']) if (root[key]) result[key] = resolvePattern(root[key],constant,value);
+    return result;
+  }
+
+  /** @param {any} value @returns {any} */
+  function patternKey(value) {
+    if (value instanceof Set) return [...value].sort();
+    if (Array.isArray(value)) return value.map(patternKey);
+    if (!value || typeof value !== 'object') return value;
+    return Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'at').map(([key,val]) => [key,patternKey(val)]));
+  }
+
+  class PatternMachine {
+    /** @param {any[]} roots */
+    constructor(roots) {
+      /** @type {any[]} */ this.predicates = [];
+      /** @type {any[]} */ this.machines = [];
+      /** @type {Map<string,number>} */ this.ids = new Map();
+      /** @type {any[]} */ this.states = [];
+      /** @type {Map<string,number>} */ this.stateIds = new Map();
+      /** @type {Map<string,number>} */ this.transitions = new Map();
+      roots.forEach(n => this.compile(n));
+      this.empty = this.intern({count:0, first:0n,last:0n,any:0n, relations:this.machines.map(m => m.epsilon)});
+    }
+    /** @param {any} n @returns {number} */
+    compile(n) {
+      const key = JSON.stringify(patternKey(n));
+      const old = this.ids.get(key); if (old !== undefined) return old;
+      const p = {...n};
+      if (n.path) p.child = this.compile(n.pattern);
+      for (const k of ['union','intersection','difference']) if (n[k]) p.operands = n[k].map((/** @type {any} */ x) => this.compile(x));
+      if (n.children) { const m = this.sequence(n.children); p.machine = this.machines.length; this.machines.push(m); }
+      const id = this.predicates.length;
+      this.predicates.push(p); this.ids.set(key,id); return id;
+    }
+    /** @param {any} body @returns {any} */
+    sequence(body) {
+      /** @type {{from:number,to:number,predicate:number | null}[]} */ const edges=[];
+      let size=0;
+      const state=() => size++;
+      const edge=(/** @type {number} */ from,/** @type {number} */ to,/** @type {number|null} */ predicate=null) => edges.push({from,to,predicate});
+      const build=(/** @type {any} */ n,/** @type {number} */ from,/** @type {number} */ to) => {
+        if (n.node) edge(from,to,this.compile(n.node));
+        else if (n.siblings) { edge(from,to); edge(from,from,-1); }
+        else if (n.sequence) {
+          let a=from;
+          n.sequence.forEach((/** @type {any} */ x,/** @type {number} */ i) => { const b=i===n.sequence.length-1?to:state(); build(x,a,b);a=b; });
+        } else if (n.optional) { edge(from,to); build(n.optional,from,to); }
+        else if (n.repeat) {
+          const a=state(),b=state(); build(n.repeat,from,a); edge(a,to);
+          if (n.separator) build(n.separator,a,b); else edge(a,b);
+          build(n.repeat,b,a);
+        }
+      };
+      const start=state(),end=state(); build(body,start,end);
+      const epsilon=Array.from({length:size},(_,i) => 1n<<BigInt(i));
+      edges.filter(e => e.predicate===null).forEach(e => epsilon[e.from] |= 1n<<BigInt(e.to));
+      for (let k=0;k<size;k++) for (let i=0;i<size;i++) if (epsilon[i] & (1n<<BigInt(k))) epsilon[i] |= epsilon[k];
+      return {size,start,end,edges,epsilon};
+    }
+    /** @param {any} s @returns {number} */
+    intern(s) {
+      const key = `${s.count}/${s.first}/${s.last}/${s.any}/${s.relations.map((/** @type {bigint[]} */ r) => r.join(',')).join(';')}/${s.bits??''}/${s.empty??''}`;
+      const old=this.stateIds.get(key);if(old!==undefined)return old;
+      if (hooks.work) countWork(hooks.work, "structuralStates");
+      const id=this.states.length;this.states.push(s);this.stateIds.set(key,id);return id;
+    }
+    /** @param {bigint[]} a @param {bigint[]} b @returns {bigint[]} */
+    compose(a,b) {
+      return a.map(row => { let out=0n;for(let k=0;k<b.length;k++)if(row&(1n<<BigInt(k)))out|=b[k];return out; });
+    }
+    /** @param {number} left @param {number} right @returns {number} */
+    concat(left,right) {
+      const key=`c${left},${right}`;const old=this.transitions.get(key);if(old!==undefined)return old;
+      const a=this.states[left],b=this.states[right];
+      const id=this.intern({count:Math.min(2,a.count+b.count),first:a.count?a.first:b.first,last:b.count?b.last:a.last,any:a.any|b.any,
+        relations:a.relations.map((/** @type {bigint[]} */ r,/** @type {number} */ i) => this.compose(r,b.relations[i]))});
+      if (hooks.work) countWork(hooks.work, "structuralTransitions");
+      this.transitions.set(key,id);return id;
+    }
+    /** @param {bigint} bits @param {boolean} empty @returns {number} */
+    nodeState(bits,empty) {
+      const relations=this.machines.map(m => {
+        const move=Array.from({length:m.size},() => 0n);
+        m.edges.forEach((/** @type {any} */ e) => { if(e.predicate!==null&&(e.predicate===-1||(bits&(1n<<BigInt(e.predicate)))))move[e.from]|=1n<<BigInt(e.to); });
+        return this.compose(this.compose(m.epsilon,move),m.epsilon);
+      });
+      // A node state retains its own bits even when empty. Its sequence
+      // contribution is empty in that case, so captures retain root names.
+      const zero=this.states[this.empty];
+      return this.intern({bits,empty,count:empty?0:1,first:empty?0n:bits,last:empty?0n:bits,any:empty?0n:bits,relations:empty?zero.relations:relations});
+    }
+    /** @param {string|null} name @param {number} children @param {any} [leaf] @returns {number} */
+    node(name,children,leaf=null) {
+      const key=`n${name}/${children}/${leaf?JSON.stringify([leaf.terminal,leaf.sound,[...leaf.tags].sort()]):''}`;
+      const old=this.transitions.get(key);if(old!==undefined)return old;
+      const s=this.states[children];let bits=0n;
+      this.predicates.forEach((p,i) => {
+        const bit=1n<<BigInt(i);let holds=false;
+        if (p.name) holds=name===p.name;
+        else if(p.terminal) holds=leaf?.terminal===p.terminal;
+        else if(p.test) holds=leaf?.terminal===p.expr.terminal&&leafTest(p,leaf.sound,leaf.tags);
+        else if(p.children) { const m=this.machines[p.machine];holds=!!(s.relations[p.machine][m.start]&(1n<<BigInt(m.end))); }
+        else if(p.path) {
+          holds=!!(bits&(1n<<BigInt(p.child)));
+          const child=p.path==='descendant'?s.any:p.path==='first'?s.first:s.last;
+          holds=holds||!!(child&bit);
+        } else if(p.union) holds=p.operands.some((/** @type {number} */ j) => !!(bits&(1n<<BigInt(j))));
+        else if(p.intersection) holds=p.operands.every((/** @type {number} */ j) => !!(bits&(1n<<BigInt(j))));
+        else if(p.difference) holds=!!(bits&(1n<<BigInt(p.operands[0])))&&! (bits&(1n<<BigInt(p.operands[1])));
+        if ((p.name||p.terminal||p.test||p.children)&&s.count===1) holds=holds||!!(s.first&bit);
+        if(holds)bits|=bit;
+      });
+      const id=this.nodeState(bits,!leaf&&s.count===0);
+      if (hooks.work) countWork(hooks.work, "structuralTransitions");
+      this.transitions.set(key,id);return id;
+    }
+    /** @param {number} state @param {any} pattern @returns {boolean} */
+    matches(state,pattern) {
+      const id=this.ids.get(JSON.stringify(patternKey(pattern)));
+      if(id===undefined)throw new Error('undemanded structural pattern');
+      return !!((this.states[state].bits ?? 0n)&(1n<<BigInt(id)));
+    }
+  }
+
+  /** @param {any} pattern @returns {string} */
+  function patternText(pattern) {
+    /** @type {(n:any) => string} */
+    const value = (n) => n.string !== undefined ? JSON.stringify(n.string) : n.const ? `$${n.const}`
+      : n.tag ? n.tag : n.emptySet ? "∅" : n.set ? [...n.set].join(" ∪ ") || "∅"
+      : n.union ? n.union.map(value).join(" ∪ ") : n.intersection ? n.intersection.map(value).join(" ∩ ")
+      : `(${value(n.difference[0])} ∖ ${value(n.difference[1])})`;
+    /** @type {(n:any) => string} */
+    const node = (n) => n.name ?? n.terminal ?? (n.constant ? `$${n.constant}` :
+      n.test ? `${node(n.expr)}${n.test}(${value(n.value)})` :
+      n.children ? `@(${children(n.children)})` :
+      n.path ? `${n.path === "descendant" ? "⋮" : n.path === "first" ? "⋰" : "⋱"} (${node(n.pattern)})` :
+      `(${(n.union ?? n.intersection ?? n.difference).map(node).join(n.union ? " ∪ " : n.intersection ? " ∩ " : " ∖ ")})`);
+    /** @type {(n:any) => string} */
+    const children = (n) => n.node ? node(n.node) : n.siblings ? "⋯" : n.sequence ? n.sequence.map(children).join(" ")
+      : n.optional ? `[${children(n.optional)}]` : `{${children(n.repeat)}${n.separator ? ` \\ ${children(n.separator)}` : ""}}`;
+    return pattern.children ? `@(${children(pattern.children)})` : `@(${node(pattern)})`;
+  }
+
   // ---- errors.js
   // The one error type the library throws: a grammar that cannot be loaded or
   // run. A text that does not parse is not an error but a result.
@@ -2053,11 +2301,12 @@
 
 
 
+
   /** @import { Argument, GrammarDom, Term } from "./types.js" */
   /** @import { Step } from "./trampoline.js" */
 
   const DOM_FUNCTIONS = new Set(["phonemes", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
-  const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈"]);
+  const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈", "≅", "≇"]);
   const DOM_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
   // The directives of the notation (engine §9).
   const DIRECTIVE_NAMES = new Set(["ambiguity-resolution", "stage", "include", "features"]);
@@ -2068,7 +2317,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 20;
+  const DOM_FORMAT = 21;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
@@ -2215,7 +2464,7 @@
    */
   const EXPRESSION_FORMS = [["seq"], ["choice"], ["and"], ["optional", "elidable?", "maximal?"], ["repeat", "separator?", "chain?"], ["ref"], ["terminal"], ["capture", "expr"],
     ["range"], ["property"], ["test", "value", "expr"], ["empty"]];
-  const TERM_FORMS = [["union"], ["intersection"], ["difference"], ["if", "then"], ["call", "args"], ["string"], ["tag"], ["range"], ["emptySet"], ["capture"], ["const", "at"]];
+  const TERM_FORMS = [["pattern"], ["union"], ["intersection"], ["difference"], ["if", "then"], ["call", "args"], ["string"], ["tag"], ["range"], ["emptySet"], ["capture"], ["const", "at"]];
   const CONDITION_FORMS = [["op", "left", "right"], ["matches", "rule"], ["begins", "rule"], ["initial"], ["not"], ["any"], ["all"], ["captured"], ["if", "then"]];
 
   /**
@@ -2422,6 +2671,15 @@
           // terms stand at its own depth.
           pending.push({ kind: "term", value: item.tags, depth });
         }
+      } else if (kind === "pattern" || kind === "pattern-part") {
+        // Bound every nested pattern and operand before recursive typing.
+        if (depth > DOM_MAX_DEPTH) return "nested too deeply";
+        if (kind === "pattern") {
+          const problem = patternProblem(value, () => null);
+          if (problem) return problem;
+        }
+        if ("test" in value) { tests.push(value); push("term",value.value);push("pattern-part",value.expr); }
+        else for (const child of patternParts(value)) push("pattern-part",child);
       } else if (kind === "condition") {
         // A condition has exactly the members of one form (docs/output.md).
         if (!hasOneForm(value, CONDITION_FORMS)) return "a malformed condition";
@@ -2446,7 +2704,8 @@
           pending.push({ kind: "argument", value: value.initial, depth: next });
         } else {
           if (typeof value.op !== "string" || !DOM_COMPARATORS.has(value.op)) return "a malformed condition";
-          push("term", value.left);
+          if ((value.op === "≅" || value.op === "≇") && (!isDomObject(value.left) || typeof value.left.capture !== "string" || Object.keys(value.left).length !== 1)) return "a tree comparison requires a bare capture";
+          push(value.op === "≅" || value.op === "≇" ? "argument" : "term", value.left);
           push("term", value.right);
         }
       } else {
@@ -2455,7 +2714,9 @@
         // before it is read, and no library reads it one way where another
         // reads it another way.
         if (!hasOneForm(value, TERM_FORMS)) return "a malformed term";
-        if ("if" in value) {
+        if ("pattern" in value) {
+          push("pattern", value.pattern);
+        } else if ("if" in value) {
           if (Object.keys(value).length !== 2 || !("then" in value)) return "a malformed term";
           push("condition", value.if);
           push("term", value.then);
@@ -2589,6 +2850,7 @@
         continue;
       }
       if ("matches" in current || "begins" in current || "initial" in current) continue;
+      if (current.op === "≅" || current.op === "≇") continue;
       const key = ["union", "intersection", "difference", "any", "all"].find((name) => Array.isArray(current[name]));
       if (key) for (const item of /** @type {unknown[]} */ (current[key])) stack.push(item);
       else for (const name of ["left", "right", "not", "if", "then"]) stack.push(current[name]);
@@ -3341,7 +3603,7 @@
     const isTerminal = (node) => isDomObject(node) && Object.keys(node).length === 1 &&
       ((typeof node.ref === "string" && /^[A-Z][A-Za-z0-9-]*$/.test(node.ref)) || (typeof node.terminal === "string" && DOM_NAME.test(node.terminal)));
     if (isTerminal(head)) return head;
-    if (head.test === "=" && isTerminal(head.expr)) return head;
+    if (TEST_OPS.has(/** @type {string} */ (head.test)) && isTerminal(head.expr)) return head;
     return null;
   }
 
@@ -3519,7 +3781,7 @@
    * A term's type: a string, a set of strings, a tag set, a span, a set
    * whose kind nothing has given yet, such as `∅`, or, for a constant that
    * the reader cannot know, any type but a span (engine §9).
-   * @typedef {"string" | "strings" | "tags" | "span" | "set" | "any"} TermType
+   * @typedef {"string" | "strings" | "tags" | "span" | "pattern" | "set" | "any"} TermType
    */
 
   /**
@@ -3528,10 +3790,10 @@
    * @typedef {(name: string) => TermType} ConstantTypes
    */
 
-  const SET_KINDS = new Set(["strings", "tags", "set"]);
+  const SET_KINDS = new Set(["strings", "tags", "pattern", "set"]);
   /** @type {Record<string, string>} */
   const CALL_STRINGS = { split: "two strings", tag: "one string", classify: "a string and a classifier's name" };
-  const TYPE_NAMES = { string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", set: "a set", any: "a value" };
+  const TYPE_NAMES = { string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", pattern: "a pattern", set: "a set", any: "a value" };
   /** @type {ConstantTypes} */
   const UNKNOWN_CONSTANTS = () => "any";
 
@@ -3561,7 +3823,7 @@
     const bad = known.find((type) => !SET_KINDS.has(type));
     if (bad) return { problem: `${operator} joins sets, not ${TYPE_NAMES[bad]}` };
     const kinds = new Set(known.filter((type) => type !== "set"));
-    if (kinds.size > 1) return { problem: `${operator} joins two sets of one kind, not a set of strings and a tag set` };
+    if (kinds.size > 1) return { problem: `${operator} joins two sets of one kind, not different value types` };
     if (kinds.size) return { type: /** @type {TermType} */ ([...kinds][0]) };
     return { type: known.length < types.length ? "any" : "set" };
   }
@@ -3575,6 +3837,11 @@
    * @returns {string | null}
    */
   function comparisonProblem(op, left, right) {
+    if (op === "≅" || op === "≇") {
+      if (left !== "span") return "a tree comparison requires a bare capture";
+      return expectedProblem(right, "pattern");
+    }
+    if (left === "pattern" || right === "pattern") return `${op} cannot compare pattern values`;
     if (left === "span" || right === "span") return "a span is not a value: tags($x) is the tag set of $x";
     if (op === "∈" || op === "∉") {
       if (left !== "string" && left !== "any") return `${op} tests a string, not ${TYPE_NAMES[left]}, in a set of strings; ⊆ and ⊈ compare two sets`;
@@ -3599,11 +3866,11 @@
    * null. A set of open kind takes the kind it is given, and a constant of
    * unknown type fits.
    * @param {TermType} type
-   * @param {"string" | "tags"} expected
+   * @param {"string" | "tags" | "pattern"} expected
    * @returns {string | null}
    */
   function expectedProblem(type, expected) {
-    if (type === expected || type === "any" || (type === "set" && expected === "tags")) return null;
+    if (type === expected || type === "any" || (type === "set" && (expected === "tags" || expected === "pattern"))) return null;
     if (type === "span") return "a span is not a value: tags($x) is the tag set of $x";
     return `${TYPE_NAMES[expected]} is needed here, not ${TYPE_NAMES[type]}`;
   }
@@ -3670,6 +3937,24 @@
    * @returns {Generator<Step, {type: TermType} | TypeFault, any>}
    */
   function* typingOnce(term, constants) {
+    if ("pattern" in term) {
+      const pending = [term.pattern];
+      while (pending.length) {
+        const n = pending.pop();
+        if (n.constant) {
+          const type = constants(n.constant);
+          const problem = expectedProblem(type,"pattern");
+          if (problem) return {problem,node:n};
+        }
+        if (n.test) {
+          const found = yield typing(n.value,constants);
+          if ("problem" in found) return found;
+          const problem = expectedProblem(found.type,isSoundTest(n.test)?"string":"tags");
+          if (problem) return {problem,node:n};
+        } else for (const child of patternParts(n)) pending.push(child);
+      }
+      return {type:"pattern"};
+    }
     if (typeof term.string === "string") return { type: "string" };
     if (typeof term.tag === "string" || "range" in term) return { type: "tags" };
     if (term.emptySet === true) return { type: "set" };
@@ -3930,7 +4215,8 @@
       let children = [];
       if (Array.isArray(current)) children = current;
       else if (isDomObject(current)) {
-        if (typeof current.const === "string") found.push(/** @type {any} */ (current));
+        if (typeof current.constant === "string") found.push(/** @type {any} */ ({const: current.constant, at: current.at}));
+        else if (typeof current.const === "string") found.push(/** @type {any} */ (current));
         else children = Object.values(current);
       }
       for (let index = children.length - 1; index >= 0; index--) stack.push(children[index]);
@@ -3941,6 +4227,7 @@
   // ---- grammar.js
   // A stage's grammar: its documents stitched together (engine §2) and
   // lowered to productions for one set of features (engine §3).
+
 
 
 
@@ -4041,6 +4328,8 @@
       this.unicode = unicode;
       /** @type {Map<string, StageConstant>} */
       this.constants = new Map();
+      /** @type {any[]} */ this.constantVersions = [];
+      /** @type {Map<string, any>} */ this.finalConstants = new Map();
       /**
        * The definitions of rules that use constants, which the loader checks
        * once the constants have their final values.
@@ -4062,6 +4351,7 @@
       /** @type {{path: string, implication: DomImplication}[]} */
       this.implicationItems = [];
       for (const { path, dom } of documents) this.addDocument(path, dom);
+      this.bindConstants();
       this.resolveConstants();
       /** @type {StageImplication[]} */
       this.implications = this.implicationItems.map(({ path, implication }) => this.resolveImplication(path, implication));
@@ -4109,7 +4399,7 @@
      */
     addDocument(path, dom) {
       for (const rule of dom.rules) {
-        if (constantsIn(rule).length > 0) this.constantUsers.push({ path, rule });
+        if (constantsIn(rule).length > 0 || hasPattern(rule)) this.constantUsers.push({ path, rule });
         const at = { document: path, line: rule.at[0], column: rule.at[1] };
         const clauses = { tags: rule.tags, emit: rule.emit, conditions: rule.conditions || [], opaque: rule.opaque === true };
         const alternatives = rule.alternatives.map((alternative) => ({ ...alternative, clauses, document: path, at }));
@@ -4253,31 +4543,94 @@
      * @param {DomConstant} constant
      */
     addConstant(path, constant) {
-      const { name, op, value } = constant;
-      const previous = this.constants.get(name);
+      const { name, op } = constant;
+      const previous = this.finalConstants.get(name);
       if (op === "define" && previous) {
-        throw this.documentError(path, constant.at, `%const $${name} is already defined in stage ${this.stageName}, in ${previous.document}; %redefine-const gives it a new value`);
+        throw this.documentError(path, constant.at, `%const $${name} is already defined in stage ${this.stageName}, in ${previous.path}; %redefine-const gives it a new value`);
       }
       if (op === "redefine" && !previous) {
         throw this.documentError(path, constant.at, `%redefine-const $${name} gives a value to no constant defined before it in stage ${this.stageName}`);
       }
-      // A reference sees the constants defined before this point (engine §2).
-      for (const reference of constantsIn(value)) {
-        if (!this.constants.has(reference.const)) {
-          throw this.documentError(path, reference.at, `$${reference.const} is not defined before this point of stage ${this.stageName}`);
+      const version = { ...constant, path, previous, state: 0 };
+      this.constantVersions.push(version);
+      this.finalConstants.set(name, version);
+    }
+
+    // Every lexical reference binds to the final version, except a name in
+    // its own redefinition, which binds to that definition's predecessor.
+    bindConstants() {
+      for (const version of this.constantVersions) {
+        version.dependencies = [];
+        for (const reference of constantsIn(version.value)) {
+          const target = reference.const === version.name && version.op === "redefine"
+            ? version.previous : this.finalConstants.get(reference.const);
+          if (!target) throw this.documentError(version.path, reference.at,
+            `$${reference.const} is not defined in stage ${this.stageName}; dependency $${version.name} → $${reference.const}`);
+          version.dependencies.push({ target, at: reference.at });
         }
       }
-      const found = constantValueType(value, op === "redefine", (other) => /** @type {StageConstant} */ (this.constants.get(other)).type);
-      if ("problem" in found) throw this.faultError(path, found.node, constant.at, found.problem);
-      let type = found.type;
-      if (previous) {
-        // A redefinition keeps the type, which gives ∅ its kind.
-        if (type === "set" && (previous.type === "strings" || previous.type === "tags")) type = previous.type;
-        if (type !== previous.type) {
-          throw this.documentError(path, constant.at, `%redefine-const $${name} keeps the type of the constant, and cannot make it ${TYPE_PHRASES[type]}`);
+      const ordered = [];
+      for (const root of this.constantVersions) {
+        if (root.state === 2) continue;
+        const stack = [{ version: root, next: 0 }];
+        root.state = 1;
+        while (stack.length) {
+          const frame = stack[stack.length - 1];
+          const version = frame.version;
+          const dependency = version.dependencies[frame.next++];
+          if (dependency) {
+            const target = dependency.target;
+            if (target.state === 1) {
+              const cycle = [...stack.map(f => `$${f.version.name}`), `$${target.name}`].join(" → ");
+              throw this.documentError(version.path, dependency.at, `constant dependency cycle: ${cycle}`);
+            }
+            if (target.state === 0) { target.state = 1; stack.push({ version: target, next: 0 }); }
+            continue;
+          }
+          ordered.push(version);
+          version.state = 2;
+          stack.pop();
         }
       }
-      this.constants.set(name, { value: this.evaluateClosed(path, value, constant.at), type, document: path });
+      // Types are constraints shared by every version of one name. The
+      // work queue propagates a concrete kind without adding value edges.
+      /** @type {Map<string, TermType>} */
+      const kinds = new Map();
+      /** @type {Map<string, Set<any>>} */
+      const users = new Map();
+      for (const version of this.constantVersions) {
+        for (const name of [version.name, ...constantsIn(version.value).map(r => r.const)]) {
+          let used = users.get(name);
+          if (!used) users.set(name, used = new Set());
+          used.add(version);
+        }
+      }
+      const queue = this.constantVersions.slice(), queued = new Set(queue);
+      for (let index = 0; index < queue.length; index++) {
+        const version = queue[index];
+        queued.delete(version);
+        const found = constantValueType(version.value, version.op === "redefine", name => kinds.get(name) ?? "any");
+        if ("problem" in found) throw this.faultError(version.path, found.node, version.at, found.problem);
+        if (found.type === "any" || found.type === "set") continue;
+        const previous = kinds.get(version.name);
+        if (previous && previous !== found.type) throw this.documentError(version.path, version.at,
+          `%redefine-const $${version.name} keeps the type of the constant, and cannot make it ${TYPE_PHRASES[found.type]}`);
+        if (!previous) {
+          kinds.set(version.name, found.type);
+          for (const user of users.get(version.name) ?? []) if (!queued.has(user)) { queued.add(user); queue.push(user); }
+        }
+      }
+      for (const version of ordered) {
+        const type = kinds.get(version.name);
+        if (!type) throw this.documentError(version.path, version.at, `the kind of the value of $${version.name} is not given`);
+        version.type = type;
+        const lookup = (/** @type {string} */ name) => name === version.name && version.op === "redefine"
+          ? version.previous : this.finalConstants.get(name);
+        version.result = this.evaluateClosed(version.path, version.value, version.at, name => lookup(name).result, type);
+      }
+      for (const [name, version] of this.finalConstants) {
+        this.constants.set(name, { value: version.result, type: version.type, document: version.path });
+      }
     }
 
     /**
@@ -4302,24 +4655,46 @@
      * @param {string} path
      * @param {Term} term
      * @param {[number, number]} item the position of the definition
+     * @param {(name:string) => TermValue} [lookup]
+     * @param {TermType} [expected]
      * @returns {TermValue}
      */
-    evaluateClosed(path, term, item) {
+    evaluateClosed(path, term, item, lookup = (name) => /** @type {StageConstant} */ (this.constants.get(name)).value, expected = undefined) {
       /** @type {(term: Term) => Set<string>} */
       const set = (part) => {
-        const value = this.evaluateClosed(path, part, item);
+        const value = this.evaluateClosed(path, part, item, lookup);
         return "set" in value ? value.set : tagSet();
       };
       /** @type {(term: Term) => string} */
       const string = (part) => {
-        const value = this.evaluateClosed(path, part, item);
+        const value = this.evaluateClosed(path, part, item, lookup);
         return "string" in value ? value.string : "";
       };
       if ("string" in term) return { string: term.string };
       if ("tag" in term) return { set: tagSet([term.tag]) };
       if ("range" in term) return { set: rangeTags(term.range, this.unicode) };
-      if ("emptySet" in term) return { set: tagSet() };
-      if ("const" in term) return /** @type {StageConstant} */ (this.constants.get(term.const)).value;
+      if ("emptySet" in term) return expected === "pattern" ? { pattern: { difference: [{ children: { siblings: true } }, { children: { siblings: true } }] } } : { set: tagSet() };
+      if ("const" in term) return lookup(term.const);
+      if ("pattern" in term) return { pattern: resolvePattern(term.pattern, lookup, (value, test) => {
+        const evaluated = this.evaluateClosed(path, value, item, lookup);
+        if (isSoundTest(test.test)) {
+          const wrong = soundProblem("string" in evaluated ? evaluated.string : "", this.unicode);
+          if (wrong) throw this.faultError(path, value, test.expr.at, wrong);
+        }
+        return evaluated;
+      }) };
+      const operation = "union" in term ? "union" : "intersection" in term ? "intersection" : "difference" in term ? "difference" : null;
+      if (operation) {
+        const operands = /** @type {any} */ (term)[operation];
+        let pattern = expected === "pattern";
+        const pending = [...operands];
+        while (!pattern && pending.length) {
+          const part = pending.pop();
+          if ("pattern" in part || ("const" in part && "pattern" in lookup(part.const))) pattern = true;
+          else for (const key of ["union", "intersection", "difference"]) if (part[key]) for (const child of part[key]) pending.push(child);
+        }
+        if (pattern) return { pattern: { [operation]: operands.map((/** @type {Term} */ part) => /** @type {{pattern:any}} */ (this.evaluateClosed(path, part, item, lookup, "pattern")).pattern) } };
+      }
       if ("union" in term) {
         const result = new TagUnion();
         for (const part of term.union) result.add(set(part));
@@ -4346,6 +4721,15 @@
       throw new GencmuError("grammar", `${path}: a constant's value is not a closed term`, { document: path });
     }
 
+    /** @param {any} node @param {string} path @param {[number,number]} at @returns {any} */
+    resolvePatterns(node, path, at) {
+      if (Array.isArray(node)) return node.map(n => this.resolvePatterns(n, path, at));
+      if (!node || typeof node !== "object" || node instanceof Set) return node;
+      if (node.op === "≅" || node.op === "≇") return { ...node,
+        right: this.evaluateClosed(path, node.right, at, undefined, "pattern") };
+      return Object.fromEntries(Object.entries(node).map(([key, value]) => [key, this.resolvePatterns(value, path, at)]));
+    }
+
     /**
      * Gives every constant in a rule its final value, once the stage is
      * stitched, and checks what the reader could not: that each is defined,
@@ -4366,7 +4750,8 @@
         if (fault) throw this.faultError(path, fault.node, rule.at, fault.problem);
         // The checks that simplification decides, which the reader left to
         // the loader, now with the constants' values (engine §9).
-        const problem = definitionProblem(resolveNode(rule, this.constants));
+        const checked = this.resolvePatterns(resolveNode(rule, this.constants), path, rule.at);
+        const problem = definitionProblem(checked);
         if (problem) throw this.documentError(path, rule.at, problem);
         // A string constant in a sound test must be a canonical sound (engine
         // §2, §9); the error stands at the constant.
@@ -4393,8 +4778,8 @@
       // alternatives share stay shared.
       /** @type {Map<object, RuleClauses>} */
       const resolved = new Map();
-      /** @type {<T>(node: T) => T} */
-      const resolve = (node) => /** @type {any} */ (resolveNode(node, this.constants));
+      /** @type {<T>(node: T, path:string, at:[number,number]) => T} */
+      const resolve = (node, path, at) => /** @type {any} */ (this.resolvePatterns(resolveNode(node, this.constants), path, at));
       // Whether the clauses that alternatives share name a constant, found
       // once for each, not again with each alternative.
       /** @type {Map<object, boolean>} */
@@ -4403,14 +4788,14 @@
         rule.alternatives = rule.alternatives.map((alternative) => {
           const { clauses } = alternative;
           let names = naming.get(clauses);
-          if (names === undefined) naming.set(clauses, (names = constantsIn([clauses.tags, clauses.conditions, clauses.emit]).length > 0));
+          if (names === undefined) naming.set(clauses, (names = constantsIn([clauses.tags, clauses.conditions, clauses.emit]).length > 0 || hasPattern(clauses)));
           if (constantsIn(alternative.tags).length === 0 && !names) return alternative;
           let shared = resolved.get(clauses);
           if (!shared) {
-            shared = { ...clauses, tags: resolve(clauses.tags), conditions: resolve(clauses.conditions), emit: resolve(clauses.emit) };
+            shared = { ...clauses, tags: resolve(clauses.tags, alternative.document, [alternative.at.line ?? 0, alternative.at.column ?? 0]), conditions: resolve(clauses.conditions, alternative.document, [alternative.at.line ?? 0, alternative.at.column ?? 0]), emit: resolve(clauses.emit, alternative.document, [alternative.at.line ?? 0, alternative.at.column ?? 0]) };
             resolved.set(clauses, shared);
           }
-          return { ...alternative, tags: resolve(alternative.tags), clauses: shared };
+          return { ...alternative, tags: resolve(alternative.tags, alternative.document, [alternative.at.line ?? 0, alternative.at.column ?? 0]), clauses: shared };
         });
       }
     }
@@ -4427,7 +4812,7 @@
       let found = this.tests.get(test);
       if (!found) {
         const value = this.evaluateClosed(path, test.value, [at.line ?? 0, at.column ?? 0]);
-        const written = writtenTest(test.test, value);
+        const written = writtenTest(test.test, /** @type {{string:string}|{set:Set<string>}} */ (value));
         found = "string" in value ? { op: test.test, sound: value.string, written } : { op: test.test, tags: "set" in value ? value.set : tagSet(), written };
         this.tests.set(test, found);
       }
@@ -4547,7 +4932,20 @@
     if (cache.size > MAX_LOWERED) cache.delete(/** @type {string} */ (cache.keys().next().value));
   }
 
-  const TYPE_PHRASES = { string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", set: "a set", any: "a value" };
+  /** @param {any} node @returns {boolean} */
+  function hasPattern(node) {
+    const stack = [node];
+    while (stack.length) {
+      const value = stack.pop();
+      if (value && typeof value === "object") {
+        if ("pattern" in value || value.op === "≅" || value.op === "≇") return true;
+        for (const child of Object.values(value)) stack.push(child);
+      }
+    }
+    return false;
+  }
+
+  const TYPE_PHRASES = { pattern: "a pattern", string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", set: "a set", any: "a value" };
 
   /**
    * A copy of a clause in which every reference to a constant holds the
@@ -5239,6 +5637,7 @@
 
 
 
+
   /**
    * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, ReadyCondition, Scope, Captured, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
    * @import { Token } from "./tokens.js"
@@ -5307,6 +5706,72 @@
     else index.set(previous, new Set([child]));
   }
 
+  /** @type {WeakMap<object, any[]>} */
+  const patternDemands = new WeakMap();
+  /** @param {any} node @returns {any[]} */
+  function demandedPatterns(node) {
+    const old = patternDemands.get(node);
+    if (old) return old;
+    const seen = new WeakSet();
+    const found = [], stack = [node];
+    while (stack.length) {
+      const value = stack.pop();
+      if (!value || typeof value !== "object" || value instanceof Set || seen.has(value)) continue;
+      seen.add(value);
+      if (value.op === "≅" || value.op === "≇") found.push(value.right.pattern);
+      else for (const child of Object.values(value)) stack.push(child);
+    }
+    patternDemands.set(node, found);
+    return found;
+  }
+
+  /** @param {Production} production @returns {boolean} */
+  function omissionAllowed(production) {
+    const test = production.elidedTest;
+    if (!test) return true;
+    const sound = test.op === "=" ? test.sound : "";
+    return leafTest({ test: test.op, value: test.sound !== undefined ? { string: test.sound } : { set: test.tags } },
+      sound ?? "", new Set([/** @type {string} */ (production.elided)]));
+  }
+
+  /** @param {ParseContext} context @param {string|null} terminal @returns {number} */
+  function omittedState(context, terminal) {
+    return context.patterns ? context.patterns.node(null, context.patterns.empty, { terminal, sound: "", tags: new Set([terminal]) }) : -1;
+  }
+
+  /** @param {ParseContext} context @param {string} terminal @param {number} at @returns {number} */
+  function structuralRead(context, terminal, at) {
+    const machine = context.patterns;
+    if (!machine) return -1;
+    if (context.synthetic?.[at] && !rawObservations(context)) return machine.empty;
+    return machine.node(null, machine.empty, { terminal, sound: canonicalSound(context, at), tags: context.tokens[at].tags });
+  }
+
+  /** @param {ParseContext} context @param {Production} production @param {number} dot @param {number} at @returns {number} */
+  function terminalState(context, production, dot, at) {
+    const machine = context.patterns;
+    if (!machine) return -1;
+    if (context.synthetic?.[at] && !rawObservations(context)) {
+      if (production.helper && production.elided !== null && dot === 0) return omittedState(context, production.elided);
+      return machine.empty;
+    }
+    const token = context.tokens[at];
+    return machine.node(null, machine.empty, { terminal: production.rhs[dot].name, sound: canonicalSound(context, at), tags: token.tags });
+  }
+
+  /** @param {ParseContext} context @param {Production} production @param {number} dot @param {Item|null} previous @param {Item|null} child @param {number} end @returns {{prefix:number,structure:number}} */
+  function structuralStep(context, production, dot, previous, child, end) {
+    const machine = context.patterns;
+    if (!machine) return { prefix: -1, structure: -1 };
+    const prefix = previous ? machine.concat(previous.prefix, child ? child.structure : terminalState(context, production, dot - 1, end - 1)) : machine.empty;
+    let structure = prefix;
+    if (dot === production.rhs.length) {
+      if (!production.helper) structure = machine.node(production.lhs, prefix);
+      else if (production.rhs.length === 0 && production.elided !== null) structure = omittedState(context, production.elided);
+    }
+    return { prefix, structure };
+  }
+
   // What a parse and every nested parse it starts share.
   class ParseContext {
     /**
@@ -5320,6 +5785,8 @@
      */
     constructor(lowered, tokens, sourceText, unicode, interner) {
       this.lowered = lowered;
+      const patterns = demandedPatterns(lowered.productions);
+      this.patterns = patterns.length ? new PatternMachine(patterns) : null;
       this.tokens = tokens;
       /** Where each run of the tokens lies in the text (engine §1). */
       this.sources = new Sources(tokens);
@@ -5434,6 +5901,8 @@
       this.dot = dot;
       this.origin = origin;
       this.slots = slots;
+      this.prefix = -1;
+      this.structure = -1;
       this.tagId = -1;
       this.end = -1;
       this.previous = previous;
@@ -5813,7 +6282,9 @@
     const add = (set, production, dot, origin, slots, previous, child, tagId, strict = false) => {
       // A strict item never completes (engine §7.4).
       if (strict && dot === production.rhs.length) return;
+      const projected = structuralStep(context, production, dot, previous, child, set.position);
       let key = itemKey((production.id * dots + dot) * width + origin - start, slots);
+      if (context.patterns) key = `${key}/${projected.prefix}/${projected.structure}`;
       if (twoItems && strict) key = "strict" + key;
       let item = set.index.get(key);
       if (item) {
@@ -5857,13 +6328,16 @@
           if (children && children.has(child)) return;
           indexEdge(index, previous, child);
         }
+        if (hooks.work) countWork(hooks.work, "packedEdges");
         if (child === null) more.push({ kind: "scan", previous, token: set.position - 1, terminal: production.rhs[dot - 1].name });
         else more.push({ kind: "complete", previous, child });
         return;
       }
       item = new Item(production, dot, origin, slots, previous, child);
+      item.prefix = projected.prefix;
+      item.structure = projected.structure;
       item.strict = strict;
-      if (hooks.work) countWork(hooks.work, "items");
+      if (hooks.work) { countWork(hooks.work, "items"); countWork(hooks.work, "packedEdges"); }
       item.end = set.position;
       const trace = context.trace;
       if (trace && trace.depth === 0 && set.position === trace.position) {
@@ -5905,14 +6379,18 @@
       const test = production.elidedTest;
       if (test && !fault("F11", "restore") && !testHolds(context, test, position, position + 1, token.tags)) return;
       const target = setAt(position + 1);
-      const key = itemKey((production.id * dots) * width + position - start, null);
+      const structure = omittedState(context, production.elided);
+      let key = itemKey((production.id * dots) * width + position - start, null);
+      if (context.patterns) key = `${key}/${context.patterns.empty}/${structure}`;
       // A restoration whose item exists is another way to build it. Each
       // lookup counts, so that a search slower than the index fails a budget.
       if (hooks.work) countWork(hooks.work, "edgeChecks");
       if (target.index.has(key)) return;
       const item = new Item(production, 0, position, null, null, null);
+      item.prefix = context.patterns?.empty ?? -1;
+      item.structure = structure;
       item.restores = true;
-      if (hooks.work) countWork(hooks.work, "items");
+      if (hooks.work) { countWork(hooks.work, "items"); countWork(hooks.work, "packedEdges"); }
       item.end = position + 1;
       // It has the tags of the empty production, none, unless a fault gives
       // it the synthetic token's (F7:restoration).
@@ -5971,6 +6449,7 @@
       const next = set.position < end ? tokens[set.position] : null;
       for (; predictIndex < productions.length; predictIndex++) {
         const production = productions[predictIndex];
+        if (production.helper && production.elided !== null && production.rhs.length === 0 && !fault("omission:skip") && !omissionAllowed(production)) continue;
         // In the reconstruction mode, the empty production of an elidable
         // optional is its restoration, and it never derives the empty
         // sequence. Under the old contract it is not there at all.
@@ -5984,7 +6463,7 @@
         // One scope for the step, which evaluates the tag term at most once
         // (engine §4).
         /** @type {StepScope} */
-        const step = { scope: null };
+        const step = { scope: null, structure: structuralStep(context, production, 0, null, null, set.position).structure };
         // The tag term comes after the conditions (engine §4), unless a
         // fault evaluates it first (order:tags).
         if (production.rhs.length === 0 && fault("order:tags", "predict")) {
@@ -6058,11 +6537,11 @@
         // production that inherits from the terminal (F7:capture).
         const tags = child ? child.tagId
           : context.interner.intern(synthetic !== null && synthetic[from] && !rawObservations(context) && !fault("F7:capture") ? tagSet() : tokens[from].tags);
-        slots = captureAfter(context, slots, captureIndex, from, to, tags);
+        slots = captureAfter(context, slots, captureIndex, from, to, tags, child ? child.structure : terminalState(context, production, item.dot, from));
       }
       if (hooks.work) countWork(hooks.work, "captureLookups");
       /** @type {StepScope} */
-      const step = { scope: null };
+      const step = { scope: null, structure: structuralStep(context, production, item.dot + 1, item, child, to).structure };
       if (item.dot + 1 === production.rhs.length && fault("order:tags", "advance")) {
         if (completeTags(context, production, slots, item.origin, to, step) === HALT) {
           return pause(() => advanceFrom(item, to, slots, step, PART_CONDITIONS, null));
@@ -6634,10 +7113,11 @@
    * @param {number} start
    * @param {number} end
    * @param {number} tags
+   * @param {number} structure
    * @returns {Captured}
    */
-  function captureAfter(context, parent, index, start, end, tags) {
-    const key = (parent === null ? "" : parent.id) + ":" + index + ":" + start + ":" + end + ":" + tags;
+  function captureAfter(context, parent, index, start, end, tags, structure) {
+    const key = (parent === null ? "" : parent.id) + ":" + index + ":" + start + ":" + end + ":" + tags + ":" + structure;
     let found = context.captured.get(key);
     if (!found) {
       // The jumps of a skew-binary list: a sequence jumps to its parent's
@@ -6648,7 +7128,7 @@
       const skip = parent !== null && parent.jump !== null &&
         parent.depth - parent.jump.depth === parent.jump.depth - (parent.jump.jump === null ? 0 : parent.jump.jump.depth);
       const jump = skip ? /** @type {NonNullable<Captured>} */ (/** @type {NonNullable<Captured>} */ (parent).jump).jump : parent;
-      found = { parent, jump, depth, index, start, end, tags, id: context.captured.size };
+      found = { parent, jump, depth, index, start, end, tags, structure, id: context.captured.size };
       context.captured.set(key, found);
       if (hooks.work) countWork(hooks.work, "captures");
     }
@@ -6745,7 +7225,7 @@
       if (hooks.work) countWork(hooks.work, "conditions");
       const { condition, readyAt: at } = conditions[index];
       if (at !== readyAt) continue;
-      const scope = step.scope ??= new ChartScope(context, production, slots, origin, end);
+      const scope = step.scope ??= new ChartScope(context, production, slots, origin, end, step.structure);
       const held = holds(scope.observing, condition, scope);
       if (held === HALT) return pause((/** @type {boolean} */ value) => value ? failedFrom(context, production, conditions, index + 1, readyAt, slots, origin, end, step) : condition);
       if (!held) return condition;
@@ -6764,7 +7244,7 @@
    * @returns {number | Halt}
    */
   function completeTags(context, production, slots, origin, end, step) {
-    const scope = step.scope ??= new ChartScope(context, production, slots, origin, end);
+    const scope = step.scope ??= new ChartScope(context, production, slots, origin, end, step.structure);
     const tags = scope.constituent();
     if (tags === HALT) return pause((/** @type {TagSet} */ value) => context.interner.intern(value));
     return context.interner.intern(tags);
@@ -6775,7 +7255,7 @@
    * between its conditions and its tag term, so that the tag term runs at
    * most once in the step. This saves time only: how many times a step
    * evaluates its tag term is not observable (engine §4).
-   * @typedef {{scope: ChartScope | null}} StepScope
+   * @typedef {{scope: ChartScope | null, structure: number}} StepScope
    */
 
   /** @type {WeakMap<Production, Map<string, number>>} */
@@ -6805,10 +7285,12 @@
      * @param {Captured} slots
      * @param {number} origin
      * @param {number} end
+     * @param {number} structure
      */
-    constructor(context, production, slots, origin, end) {
+    constructor(context, production, slots, origin, end, structure) {
       this.context = context;
       this.production = production;
+      this.structure = structure;
       this.slots = slots;
       this.origin = origin;
       this.end = end;
@@ -6850,6 +7332,8 @@
       if (name === "") {
         const scope = this;
         return {
+          structure: this.structure,
+          patterns: this.context.patterns,
           start: this.origin,
           end: this.end,
           // HALT where the tag term halts, which only evaluate reads.
@@ -6874,7 +7358,7 @@
       let found;
       if (this.parts !== null) found = this.parts[index];
       else found = capturedPart(last, index, this);
-      return { start: found.start, end: found.end, tags: this.context.interner.get(found.tags), space: this.space };
+      return { structure: found.structure, patterns: this.context.patterns, start: found.start, end: found.end, tags: this.context.interner.get(found.tags), space: this.space };
     }
   }
 
@@ -7473,6 +7957,11 @@
       return where.start === where.context.inputStart;
     }
     const comparison = condition;
+    if (comparison.op === "≅" || comparison.op === "≇") {
+      const captured = scope.capture(/** @type {{capture:string}} */ (comparison.left).capture);
+      const matched = /** @type {PatternMachine} */ (captured.patterns).matches(/** @type {number} */ (captured.structure), /** @type {{pattern:any}} */ (comparison.right).pattern);
+      return matched === (comparison.op === "≅");
+    }
     const left = evaluate(context, comparison.left, scope);
     if (left === HALT) return pause((/** @type {TermValue} */ value) => compareWith(context, comparison, value, scope));
     return compareWith(context, comparison, left, scope);
@@ -7707,7 +8196,7 @@
     for (const rule of set.skipped) {
       for (const production of context.lowered.byLhs.get(rule) || []) {
         if (!lookaheadSkips(context, production, next)) continue;
-        const failed = settled(() => failedCondition(context, production, -1, null, position, position, { scope: null }));
+        const failed = settled(() => failedCondition(context, production, -1, null, position, position, { scope: null, structure: structuralStep(context, production, 0, null, null, position).structure }));
         if (failed) continue;
         note(writtenSymbol(production.rhs[0]), production.owner);
       }
@@ -7722,6 +8211,7 @@
   // Diagnostics for people: what went wrong with a text or a grammar, said in
   // the grammar's own terms. The CLI and the playground print these; nothing
   // here changes what a parse computes.
+
 
 
 
@@ -8131,6 +8621,7 @@
     if ("rule" in term) return leaf(term.rule);
     if ("classifier" in term) return leaf(term.classifier);
     if ("string" in term) return leaf(quoted(term.string));
+    if ("pattern" in term) return leaf(patternText(term.pattern));
     // An identifier tag is a bare name with a capital, or ~name. A phoneme
     // or character tag is written as it is.
     if ("tag" in term) return leaf(/^[a-z]/.test(term.tag) ? `~${term.tag}` : term.tag);
@@ -9520,6 +10011,7 @@
       };
       /** @type {(item: Item, key: string, value: T) => void} */
       const store = (item, key, value) => {
+        if (hooks.work) countWork(hooks.work, "summaryContexts");
         if (key === "") {
           memo.plain.set(item, value);
           return;
@@ -11034,11 +11526,11 @@
     }
     /** @param {string} name */
     capture(name) {
-      if (name === "") return { start: this.node.start, end: this.node.end, tags: nodeTags(this.node, this.context) };
+      if (name === "") return { structure: this.node.item.structure, patterns: this.context.patterns, start: this.node.start, end: this.node.end, tags: nodeTags(this.node, this.context) };
       const production = this.node.production;
       const capture = production.captures[/** @type {number} */ (production.captureSlot.get(name))];
       const child = this.node.children[capture.index];
-      return { start: child.start, end: child.end, tags: nodeTags(child, this.context) };
+      return { structure: "read" in child ? structuralRead(this.context, child.read.terminal, child.start) : child.item.structure, patterns: this.context.patterns, start: child.start, end: child.end, tags: nodeTags(child, this.context) };
     }
   }
 
@@ -11558,6 +12050,7 @@
 
 
 
+
   /**
    * @import { Step } from "./trampoline.js"
    * @import { Argument, Comparator, Condition, DomAlternative, DomClassifier, DomConstant, DomDirective, DomEntry, DomImplication, DomRule, EmitItem, Emission, Expr, GrammarDom, Position, ResultNode, RuleNode, Term } from "./types.js"
@@ -11943,7 +12436,6 @@
         if (!isTerminal(knownOf(only(symbol, "primary"), PRIMARIES))) fail(form, node);
         const testNode = only(symbol, "test");
         const comparator = parts(testNode).flatMap((child) => (child.kind === "token" ? [text(child)] : [])).join("");
-        if (comparator !== "=") fail("the terminator of an elidable optional takes no test but =, since elision-only restores it with its sound", testNode);
       } else if (!isTerminal(symbol)) {
         fail(form, node);
       }
@@ -12183,6 +12675,22 @@
           return yield readImplication(inner);
         case "presence":
           return { captured: text(token(inner)).slice(1) };
+        case "tree-comparison": {
+          const leftNode = only(inner,"capture-reference");
+          const rightNode = only(inner,"union");
+          const leaf = firstOfRule(rightNode,"name");
+          // A bare name gets this error before capital-initial tag typing.
+          if (leaf && tokens.slice(rightNode.span[0],rightNode.span[1]).length === 1) {
+            const name = text(token(leaf));
+            fail(`tree comparison requires a pattern; write @(${name}), not ${name}`,leaf);
+          }
+          const op = /** @type {Comparator} */ (text(token(only(inner,"tree-comparator"))));
+          const right = /** @type {Term} */ (yield readTerm(rightNode));
+          const found = termType(right);
+          const problem = "problem" in found ? found.problem : expectedProblem(found.type,"pattern");
+          if (problem) fail(problem,rightNode);
+          return {op,left:{capture:text(token(leftNode)).slice(1)},right};
+        }
         case "comparison": {
           const [left, right] = some(inner, "union", 2);
           const op = /** @type {Comparator} */ (text(token(only(inner, "comparator"))));
@@ -12301,6 +12809,12 @@
         return yield readTerm(inner, argument);
       }
       switch (ruleOf(node)) {
+        case "pattern-literal": {
+          const pattern = asPattern(yield readPattern(only(node,"pattern-union")));
+          const problem = patternProblem(pattern, () => null);
+          if (problem) fail(problem,node);
+          return {pattern};
+        }
         case "string": return { string: decode(token(node)) };
         case "tag": case "character": case "phoneme": return { tag: tagOf(token(node)) };
         case "range": return { range: readRange(node) };
@@ -12324,6 +12838,73 @@
         }
         default: return fail(`unexpected ${ruleOf(node)}`, node);
       }
+    }
+
+    /** @param {any} n @returns {any} */
+    function asPattern(n) { return 'node' in n ? n.node : {children:n}; }
+    /** @param {any[]} items @returns {any} */
+    function sequencePattern(items) {
+      const flat=items.flatMap(n => n.sequence ?? [n]);
+      return flat.length===1 ? flat[0] : {sequence:flat};
+    }
+    /** @param {ResultNode} node @returns {Generator<Step, any, any>} */
+    function* readPattern(node) {
+      const kind=ruleOf(node);
+      if (kind==='pattern-union' || kind==='pattern-intersection') {
+        const nodes=some(node,kind==='pattern-union'?'pattern-intersection':'pattern-sequence');
+        const items=[];for(const child of nodes)items.push(yield readPattern(child));
+        if(items.length===1)return items[0];
+        const operators=parts(node).filter(n=>n.kind==='token').map(n=>text(n));
+        let result=asPattern(items[0]);
+        for(let i=1;i<items.length;i++) {
+          const op=kind==='pattern-intersection'?'intersection':operators[i-1]==='∖'?'difference':'union';
+          result={[op]:[result,asPattern(items[i])]};
+        }
+        return {node:result};
+      }
+      if(kind==='pattern-sequence') {
+        const items=[];for(const child of some(node,'pattern-item'))items.push(yield readPattern(child));
+        return sequencePattern(items);
+      }
+      if(kind==='pattern-item') {
+        const child=parts(node)[0];if(!child)return lacks(node,'pattern item');
+        return child.kind==='token'&&text(child)==='⋯'?{siblings:true}:yield readPattern(child);
+      }
+      if(kind==='pattern-atom') {
+        const inner=parts(node);
+        const first=inner[0];if(!first)return lacks(node,'pattern atom');
+        if(first.kind==='token') {
+          const name=text(first);
+          if(name==='(')return yield readPattern(only(node,'pattern-union'));
+          const expr=isCapital(name)?{terminal:name,at:at(first)}:{name,at:at(first)};
+          const testNode=one(node,'test');
+          if(!testNode)return {node:expr};
+          if(!isCapital(name))return fail('a pattern test requires one terminal atom',testNode);
+          const test=parts(testNode).filter(n=>n.kind==='token').map(n=>text(n)).join('');
+          const operand=only(testNode,'test-operand');
+          const before=closedFor;closedFor="a test's operand";
+          const value=yield readTerm(operand);closedFor=before;
+          const found=termType(value);
+          const problem='problem' in found?found.problem:expectedProblem(found.type,isSoundTest(test)?'string':'tags');
+          if(problem)fail(problem,operand);
+          if(isSoundTest(test)&&'string' in value) { const wrong=soundProblem(value.string,unicode);if(wrong)fail(wrong,operand); }
+          return {node:{test,value,expr}};
+        }
+        if(ruleOf(first)==='constant-reference')return {node:{constant:text(token(first)).slice(1),at:at(first)}};
+        if(ruleOf(first)==='pattern-literal')return {node:asPattern(yield readPattern(only(first,'pattern-union')))};
+        return lacks(node,'pattern atom');
+      }
+      if(kind==='pattern-brackets')return {optional:yield readPattern(only(node,'pattern-union'))};
+      if(kind==='pattern-repeat') {
+        const unions=some(node,'pattern-union');
+        const repeat=yield readPattern(unions[0]);
+        return unions.length===1?{repeat}:{repeat,separator:yield readPattern(unions[1])};
+      }
+      if(kind==='pattern-path') {
+        const written=text(token(node));
+        return {node:{path:written==='⋮'?'descendant':written==='⋰'?'first':'last',pattern:asPattern(yield readPattern(only(node,'pattern-atom')))}};
+      }
+      return fail(`unexpected ${kind} in pattern`,node);
     }
 
     /**
@@ -12551,16 +13132,16 @@
   // What a primary, a condition, a term and a term atom hold: the one rule
   // among their parts is one of these (engine §9).
   const PRIMARIES = new Set(["reference", "tag", "character", "phoneme", "range", "property", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference"]);
-  const CONDITIONS = new Set(["comparison", "call", "negation", "presence", "implication"]);
+  const CONDITIONS = new Set(["tree-comparison", "comparison", "call", "negation", "presence", "implication"]);
   const TERMS = new Set(["union", "guarded-term"]);
-  const ATOMS = new Set(["string", "tag", "character", "phoneme", "range", "property", "name", "empty-set", "term", "call", "capture-reference", "constant-reference"]);
+  const ATOMS = new Set(["pattern-literal", "string", "tag", "character", "phoneme", "range", "property", "name", "empty-set", "term", "call", "capture-reference", "constant-reference"]);
   // The items of a document (engine §9).
   const ITEMS = new Set(["directive", "rule", "constant-definition", "classifier", "implication-declaration"]);
 
   // The rules of the notation's syntax grammar that the reader knows (engine
   // §9). Every other rule is a wrapper, and the reader reads its parts in its
   // place.
-  const NAMED = new Set([
+  const NAMED = new Set(["tree-comparison", "tree-comparator", "pattern-literal", "pattern-union", "pattern-intersection", "pattern-sequence", "pattern-item", "pattern-atom", "pattern-brackets", "pattern-repeat", "pattern-path",
     "directive", "argument-word", "argument-string", "rule", "definer", "rule-flags", "rule-flag", "rule-name", "body", "alternative", "guard", "alternative-tags",
     "conjunction", "sequence", "primary", "repetition", "reference", "string", "phoneme", "tested", "test", "test-operand", "capture", "group", "optional",
     "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "opaque-clause", "emit-item", "emit-target", "emit-tags", "emit-before", "emit-after",
@@ -13864,6 +14445,20 @@
    */
 
   /**
+   * A structural node predicate in a grammar DOM (output §2).
+   * @typedef {{name:string, at:Position} | PatternTerminal | {constant:string, at:Position}
+   *   | {test:TestOp, value:Term, expr:PatternTerminal} | {children:PatternChildren}
+   *   | {union:Pattern[]} | {intersection:Pattern[]} | {difference:[Pattern,Pattern]}
+   *   | {path:"descendant"|"first"|"last", pattern:Pattern}} Pattern
+   */
+  /** @typedef {{terminal:string, at:Position}} PatternTerminal */
+  /**
+   * A pattern expression over sibling nodes.
+   * @typedef {{node:Pattern} | {sequence:PatternChildren[]} | {optional:PatternChildren}
+   *   | {repeat:PatternChildren, separator?:PatternChildren} | {siblings:true}} PatternChildren
+   */
+
+  /**
    * A rule body expression.
    * @typedef {{choice: Expr[]} | {and: Expr[]} | {seq: Expr[]}
    *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
@@ -13901,7 +14496,7 @@
    */
 
   /**
-   * @typedef {"=" | "≠" | "∈" | "∉" | "⊆" | "⊈"} Comparator
+   * @typedef {"=" | "≠" | "∈" | "∉" | "⊆" | "⊈" | "≅" | "≇"} Comparator
    */
 
   /**
@@ -13915,7 +14510,7 @@
    * A term of a condition or a tags clause: a string, a tag literal, the
    * empty set, a set expression, a guarded term, a call, or a span, which
    * only a call's argument can be (engine §10).
-   * @typedef {{string: string} | {tag: string} | {range: [string, string]} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
+   * @typedef {{pattern: Pattern} | {string: string} | {tag: string} | {range: [string, string]} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
    *   | {intersection: Term[]} | {difference: [Term, Term]} | {call: string, args: Argument[]} | {capture: string} | ConstantTerm} Term
    */
 
@@ -14037,7 +14632,7 @@
    * tag set, after the parts before it. A context makes each sequence once,
    * with its number (engine §4). `depth` counts the parts, and `jump` is an
    * earlier sequence that a search for a part can skip to.
-   * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, id: number} | null} Captured
+   * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, structure: number, id: number} | null} Captured
    */
 
   /**
@@ -14050,13 +14645,15 @@
   /**
    * A value a term evaluates to: a string, or a set, of strings or of tags,
    * whose kind the reader has checked (engine §10).
-   * @typedef {{string: string} | {set: Set<string>}} TermValue
+   * @typedef {{pattern: any} | {string: string} | {set: Set<string>}} TermValue
    */
 
   /**
    * A span a term denotes, with the tags of the captured part when it is a
    * whole capture.
    * @typedef {object} SpanValue
+   * @property {number} [structure]
+   * @property {import("./patterns.js").PatternMachine | null} [patterns]
    * @property {number} start
    * @property {number} end
    * @property {TagSet} [tags]

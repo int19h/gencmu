@@ -579,7 +579,7 @@ class Emitter:
         """The tags an emission item's term gives, over the constituent's
         captures and ``$``; no tags at all is an error of the grammar, since
         no terminal could read the token (engine §11)."""
-        bound = self.evaluator.bind(node.production, self.context_caps(node), (node.start, node.end, node.tag))
+        bound = self.evaluator.bind(node.production, self.context_caps(node), (node.start, node.end, node.tag), self.forest.structure[node.item] if self.forest.structure else 0)
         tags = self.evaluator.tags(term, bound)
         if not tags:
             raise _GrammarFault(f"{node.production.rule_name} emits a token with no tags; a rule that emits nothing says %emits ε")

@@ -1,6 +1,6 @@
 {
-  "description": "A constant's value that uses a constant defined only after it is an error of the document, at the reference, so no cycle can arise (engine §2).",
-  "grammar": "%const $B $A ∪ C\n%const $A ~a\n%rule text X",
+  "description": "A constant can reference a later definition. The stage binds that reference to its final value.",
+  "grammar": "%const $B $A \u222a C\n%const $A ~a\n%rule text X\n%conditions $B = (~a \u222a C)",
   "tokens": [
     {
       "text": "x",
@@ -10,11 +10,8 @@
     }
   ],
   "expect": {
-    "error": "grammar",
-    "where": {
-      "document": "main.md",
-      "line": 3,
-      "column": 11
+    "result": {
+      "ok": true
     }
   }
 }

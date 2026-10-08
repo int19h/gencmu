@@ -1,0 +1,17 @@
+{
+  "description": "An identifier-tag literal can name the elidable terminal. Its body and pattern tests observe the same singleton tags.",
+  "grammar": "%rule text A [+~T⊇T]\n%conditions $ ≅ @(A T⊇T)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

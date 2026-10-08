@@ -1,0 +1,11 @@
+{
+  "description": "The structural predicate observes the constructed candidate. Recognition keeps candidates with different answers separate.",
+  "grammar": "%rule text r\n%rule r r\n%conditions $ ≅ @(⋮ r)",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "ok": false
+    },
+    "error": "rejected"
+  }
+}

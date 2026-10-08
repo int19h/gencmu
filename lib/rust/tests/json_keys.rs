@@ -68,5 +68,11 @@ fn shared_json_keys() {
             .unwrap_or_else(|e| panic!("{}: {e}", text(case, "description")));
         assert_eq!(dialect.parse("a", &Default::default()).unwrap().ok, !cached, "{}", text(case, "description"));
         assert_eq!(dialect.parse("b", &Default::default()).unwrap().ok, cached, "{}", text(case, "description"));
+        if let Some(tags) = case.get("tags") {
+            let result = dialect.parse("b", &Default::default()).unwrap();
+            let actual: Vec<_> = result.tree.as_ref().unwrap().tags.iter().cloned().collect();
+            let expected: Vec<_> = tags.array().iter().map(|tag| tag.str().unwrap().to_owned()).collect();
+            assert_eq!(actual, expected, "{}", text(case, "description"));
+        }
     }
 }

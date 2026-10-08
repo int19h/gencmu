@@ -15,7 +15,7 @@ fn run(case: &Value) -> Result<(), String> {
         (Err(error), None, Some(position)) => {
             let line = position.get("line").and_then(Value::number).map(|n| n as usize);
             let column = position.get("column").and_then(Value::number).map(|n| n as usize);
-            if error.line == line && error.column == column {
+            if (line.is_none() || error.line == line) && (column.is_none() || error.column == column) {
                 Ok(())
             } else {
                 Err(format!("the error is at {:?}:{:?}, not {line:?}:{column:?}: {error}", error.line, error.column))
@@ -178,7 +178,6 @@ fn braces_are_read_and_their_misplaced_forms_refused() {
         "%rule text [+KU $c(A)]",
         "%rule text [+(KU) #]",
         "%rule text [+KU | VAU]",
-        "%rule text [+KU≠\"ku\"]",
         "%rule text [$x(A)] $x(B)",
     ] {
         assert!(read(refused).is_err(), "{refused} was read");

@@ -187,7 +187,7 @@ The rules below build the letters of a lujvo from the left, and they place each 
   | /r/ $r(lujvo-rest)
   | /n/ $n(lujvo-rest)
 %conditions
-  ¬matches($r, ccv-rafsi),
+  $r ≇ @(ccv-rafsi),
   ¬begins($r, r-letter),
   begins($n, r-letter)
 

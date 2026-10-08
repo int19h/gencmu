@@ -21,7 +21,7 @@ const (
 // faults lists every fault that privateOptions.fault takes, each with its
 // sites: the places in the code where it is checked, each of which the
 // named cases must enter while it is on.
-var faults = []string{"reprocess", "route3", "restore", "rank-restoration", "lost:context", "lost:select"}
+var faults = []string{"omission", "reprocess", "route3", "restore", "rank-restoration", "lost:context", "lost:select"}
 
 var faultSites = map[string][]string{
 	"lost:context": {"lost:context@links", "lost:context@items"},
@@ -37,6 +37,7 @@ func sitesOf(fault string) []string {
 
 // faultCatches names, for each fault, shared cases that catch it, and how.
 var faultCatches = map[string]map[string]string{
+	"omission":  {"elidable-table-unequal-empty.json": catchBoth},
 	"reprocess": {"reparse-strict-reclose-late.json": catchResult},
 	"route3":    {"reparse-strict-nested-route.json": catchResult, "reparse-synthetic-suffix-empty.json": catchResult},
 	"restore":   {"reparse-incompatible-optional-sound.json": catchResult},

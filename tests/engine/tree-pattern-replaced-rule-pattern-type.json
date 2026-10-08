@@ -1,0 +1,8 @@
+{
+  "description": "The loader rejects an invalid constant dependency or pattern type.",
+  "grammar": "%const $P T\n%rule text A\n%conditions $ ≅ @($P)\n%redefine-rule text B",
+  "input": "",
+  "expect": {
+    "error": "grammar"
+  }
+}

@@ -1420,7 +1420,6 @@ fn an_elidable_optional_and_captures_are_checked_where_they_stand() {
         r#"{"terminal":"/a/"}"#.to_string(),
         r#"{"terminal":"'a'"}"#.to_string(),
         r#"{"range":["'a'","'z'"]}"#.to_string(),
-        format!(r#"{{"test":"≠","value":{{"string":"ku"}},"expr":{ku}}}"#),
         format!(r##"{{"seq":[{{"seq":[{ku},{{"ref":"#"}}]}},{{"ref":"A"}}]}}"##),
         format!(r#"{{"optional":{ku}}}"#),
         r#"{"empty":true}"#.to_string(),

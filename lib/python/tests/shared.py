@@ -676,7 +676,7 @@ def deadline(label: str, seconds: float = CASE_SECONDS) -> Iterator[None]:
 
 
 def cases(kind: str) -> list[Path]:
-    return sorted((SHARED / kind).glob("*.json"))
+    return [p for p in sorted((SHARED / kind).glob("*.json")) if not os.environ.get("GENCMU_CASE_FILTER") or os.environ["GENCMU_CASE_FILTER"] in p.name]
 
 
 def load_json(path: Path) -> Any:
@@ -936,6 +936,11 @@ def case_sources(case: dict[str, Any]) -> tuple[dict[str, str], str]:
             },
             "p.md",
         )
+    if any("../dialects/" in text for text in case["documents"].values()):
+        root = REPOSITORY / "grammars"
+        sources = {p.relative_to(root).as_posix(): p.read_text(encoding="utf-8") for p in root.rglob("*.md")}
+        sources.update({"case/" + name: text for name, text in case["documents"].items()})
+        return sources, "case/" + case["pipeline"]
     return dict(case["documents"]), case["pipeline"]
 
 

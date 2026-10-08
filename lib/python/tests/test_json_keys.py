@@ -36,3 +36,5 @@ class JsonKeys(unittest.TestCase):
                 dialect = gencmu.load_dialect_sources({**case_sources, "compiled.json": cache}, "p.md")
                 self.assertEqual(dialect.parse("a").ok, not item["cached"])
                 self.assertEqual(dialect.parse("b").ok, item["cached"])
+                if "tags" in item:
+                    self.assertEqual(sorted(dialect.parse("b").tree.tags), item["tags"])

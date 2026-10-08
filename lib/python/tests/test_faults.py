@@ -23,6 +23,7 @@ BOTH = "result+hook"
 
 # For each fault, shared engine cases that catch it, and how.
 CATCHES: dict[str, dict[str, str]] = {
+    "omission": {"elidable-table-unequal-empty.json": BOTH},
     "reprocess": {"reparse-strict-reclose-swapped.json": RESULT},
     "again": {"reparse-strict-reclose-swapped.json": RESULT},
     "route3": {"reparse-strict-nested-route.json": RESULT, "reparse-synthetic-suffix-empty.json": RESULT},

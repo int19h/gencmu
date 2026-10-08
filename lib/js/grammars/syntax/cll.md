@@ -173,11 +173,9 @@ The printed grammar lets the tail after a plain gihek begin with `ke`, or with a
 
 The ranking of elided terminators does not settle this. In `mi broda gi'e ke brode`, both parses elide the same terminators at the same places, so they tie. In `mi broda gi'e ke brode ke'e`, the group elides the `vau` of `brode` before `ke'e`, and the tanru parse elides nothing there. So `late-elision` takes the tanru parse.
 
-This grammar states CLL's choice as a condition on the last tail after a plain gihek. The condition reads tags of the tail that the parse built. A tag marks a constituent (see "Tags" in the notation document), and a constituent of one part has the tags of that part. The `ke` alternative of `tanru-unit-2` and the `ke` forms of `gek-sentence` carry the tag `~ke-group`.
+This grammar states the CLL choice as a condition on the last tail after a plain gihek. `$KE-TAIL` tests the structure of that actual tail. A structural pattern describes a node or its children. Patterns pass through single-child wrappers and retain written or omitted terminator nodes.
 
-A tense or modal before the `ke` keeps the tag only where a `stag` can read it. The reason is that the `ke` form of `bridi-tail` takes a `stag` there. So `bridi-tail-2` carries `~ke-group` exactly when the whole tail is one `ke` group. That is a selbri that is one `ke` tanru unit, with its tail terms, or one `ke` group of a `gek-sentence`. A `stag` can come before either.
-
-To pass the tag up, `selbri`, `selbri-2`, `selbri-6`, `tanru-unit-1`, `bridi-tail-2`, `tail-terms` and `gek-sentence` write an optional part as two alternatives. One has the part and one does not. They read the same words in the same way as the printed rules. `selbri-4` passes it through its alternative of one `selbri-5`. The chains `selbri-3` and `selbri-5` pass it through their level of one item, which keeps the tags of that item.
+`$KE-TAIL` describes one KE selbri with its tail terms, or one KE gek-sentence. Its optional leading tag must satisfy `$STAG-TAG`, because the competing group of tails accepts `stag` there. `$STAG-TAG` accepts a constructed tag with no FIhO or free modifiers. Such a tag reads exactly the words that `stag` reads. `$KE-SELBRI` permits that tag before a whole `$KE-UNIT`. `$KE-GEK` permits it before a KE gek-sentence.
 
 The condition stands in `bridi-tail-1-final`, the form of `bridi-tail` without the `ke` group of tails. It is the printed `bridi-tail-1` with its last plain connection written apart. Only that connection can compete with the `ke` form of `bridi-tail`. Rule 50 reads one `ke` group as the last part of a bridi-tail, followed by one run of tail terms.
 
@@ -189,7 +187,7 @@ In `mi broda gi'e ke brode ke'e le zarci`, `le zarci` is in the tail terms of ru
 
 The tree still shows the whole left grouping of plain giheks (CLL 14.10), since `bridi-tail-1` groups to the left. So four tails group as `((A gi'e B) gi'a C) gi'u D`.
 
-The condition needs no lookahead. The last tail has no following gihek in the same bridi-tail. The condition reads that tail's tags and the text of its tail terms. The `elision-only` check writes back elided terminators, but these tests still read the original words.
+The condition needs no lookahead. The last tail has no following gihek in the same bridi-tail. The condition tests that tail's structure and the text of its tail terms. The `elision-only` check writes back elided terminators, but these tests still read the original words.
 
 In `mi klama lo nu broda gi'e ke brode ke'e gi'a brodi`, this grammar keeps plain `gi'e` inside the `nu`. The condition applies only to the last tail, so it leaves this earlier connection alone. `late-elision` then keeps `gi'a brodi` inside the abstraction. The official parser instead uses rule 50's tail group. It closes the `nu` before `gi'a`, which connects to the outer `klama`.
 
@@ -198,7 +196,9 @@ In `mi klama lo nu broda gi'e ke brode ke'e`, the group stays inside the `nu`, a
 - The tail is not the last one, as in `mi broda gi'e ke brode ke'e gi'a brodi` and `mi broda gi'e ke ga brode gi brodi ke'e do gi'a brodi`. The `ke` form must end its bridi-tail.
 - The tail goes on after `ke'e`, as in `mi broda gi'e ke brode ke'e brodi`.
 - A free modifier stands between the gihek and `ke`, as in `mi broda gi'e to do toi ke brode ke'e`. The `ke` form has no slot there. `bridi-tail-1-final` reads this case in its own alternative, through the rule `free-modifiers`, a `#` slot that is not empty.
-- The tail has two runs of tail terms. Its own tail terms end with a written `vau`, and more tail terms follow, as in `mi broda gi'e ke brode ke'e vau do` and `mi broda gi'e ke brode ke'e vau le le brodi brodo ku`. The group has one run of tail terms after `ke'e`, and cannot read two. `tail-terms` carries the tag `~vau-written` when its `vau` is written. The condition reads that tag on the tail and tests that the tail terms after the tail are not empty. The tag term reads the first word of the optional. In the second alternative, that word comes after the terms, and it can belong to what follows `tail-terms`. So the alternative also asks that the optional not be empty. The engine case `tests/engine/reparse-written-observation-guard.json` pins this mechanism in a small grammar. The corpus case `adhoc.syntax.gihek-ke-group-tail-term-vau` pins this guard itself. In `mi broda gi'e ke brode ke'e do vau`, a plain parse takes `do` as the group's tail terms with `vau` elided. It then takes the written `vau` as the next tail terms. Without the guard, that `vau` marks the group's tail terms as written, and the plain parse passes the condition. In the check of `elision-only`, a written-back `vau` is not written.
+- The tail has two runs of tail terms. Its own VAU is written, and separate outer terms follow, as in `mi broda gi'e ke brode ke'e vau do`. Another example is `mi broda gi'e ke brode ke'e vau le le brodi brodo ku`. The group has only one run of tail terms after KEhE. `$KE-TAIL-WITH-VAU` tests the actual `tail-terms` child against `$WRITTEN-VAU`. That pattern requires a written VAU leaf after optional terms.
+
+  The condition also requires nonempty outer tail terms. The corpus case `adhoc.syntax.gihek-ke-group-tail-term-vau` pins this boundary. In `mi broda gi'e ke brode ke'e do vau`, the plain parse omits its own VAU after `do`. Its next tail terms contain the written VAU, which cannot satisfy the pattern on the earlier child. Reconstruction keeps the omitted leaf sound empty.
 
 The lexer of the official parser makes `gi'e ke` one token in all of these but the free modifier, and so it rejects them. This grammar follows the printed grammar there, and accepts them.
 
@@ -215,6 +215,14 @@ CLL 14.18 gives example 14.169, `mi pu ge klama le zarci gi tervecnu lo cidja`. 
 The gek-sentence's tail terms follow the whole connection and apply to both sides. In the printed rule, the tag before `ke` is optional, so `ke ga mi klama gi do cadzu ke'e` is a `gek-sentence`. Rule 54 of the YACC grammar requires a tag there, and the official parser rejects that text. This grammar follows the EBNF.
 
 ```jbogenbau
+%const $STAG-TAG @(tag) ∖ @(⋮ (FIhO ∪ free))
+%const $KE-UNIT @(KE ⋯ KEhE [#])
+%const $KE-SELBRI @([$STAG-TAG] $KE-UNIT)
+%const $KE-GEK @([$STAG-TAG] KE [#] gek-sentence KEhE [#])
+%const $KE-TAIL @($KE-SELBRI tail-terms) ∪ $KE-GEK
+%const $WRITTEN-VAU @([terms] VAU≠"" [#])
+%const $KE-TAIL-WITH-VAU @($KE-SELBRI (tail-terms ∩ $WRITTEN-VAU))
+
 %rule sentence
   [terms [CU #]] bridi-tail
 
@@ -233,29 +241,26 @@ The gek-sentence's tail terms follow the whole connection and apply to both side
   | bridi-tail-1 gihek free-modifiers bridi-tail-2 tail-terms
   | bridi-tail-1 gihek $t(bridi-tail-2) $v(tail-terms)
 %conditions
-  ~ke-group ⊈ tags($t) ∨ (~vau-written ⊆ tags($t) ∧ text($v) ≠ "")
+  $t ≇ $KE-TAIL ∨ ($t ≅ $KE-TAIL-WITH-VAU ∧ text($v) ≠ "")
 
 %rule free-modifiers
   {free}
 
 %rule bridi-tail-2
-  | bridi-tail-3
-  | bridi-tail-3 gihek [stag] BO # bridi-tail-2 tail-terms
+  bridi-tail-3 [gihek [stag] BO # bridi-tail-2 tail-terms]
 
 %rule bridi-tail-3
-  | $s(selbri) $v(tail-terms) <tags($s) ∩ ~ke-group ∪ tags($v) ∩ ~vau-written>
+  | selbri tail-terms
   | gek-sentence
 
 
 %rule gek-sentence
   | gek subsentence gik subsentence tail-terms
-  | KE # gek-sentence [+KEhE #] <~ke-group>
-  | $g(tag) KE # gek-sentence [+KEhE #] <matches($g, stag) ⟹ ~ke-group>
+  | [tag] KE # gek-sentence [+KEhE #]
   | NA # gek-sentence
 
 %rule tail-terms
-  | [+VAU #] <VAU ⊆ tags(head($)) ⟹ ~vau-written>
-  | $m(terms) [+VAU #] <text($) ≠ text($m) ∧ VAU ⊆ tags(head(after($m))) ⟹ ~vau-written>
+  [terms] [+VAU #]
 ```
 
 ## Terms
@@ -403,14 +408,13 @@ Each level of the chain holds its first abstractor. So a single abstractor with 
 
 ```jbogenbau
 %rule selbri
-  | selbri-1
-  | $g(tag) $s(selbri-1) <matches($g, stag) ⟹ tags($s)>
+  [tag] selbri-1
 
 %rule selbri-1
   selbri-2 | NA # selbri
 
 %rule selbri-2
-  selbri-3 | selbri-3 CO # selbri-2
+  selbri-3 [CO # selbri-2]
 
 %rule selbri-3
   {... selbri-4}
@@ -425,18 +429,18 @@ Each level of the chain holds its first abstractor. So a single abstractor with 
   {selbri-6 ... \ (jek | joik) [stag] BO #}
 
 %rule selbri-6
-  tanru-unit | tanru-unit BO # selbri-6 | [NAhE #] guhek selbri gik selbri-6
+  tanru-unit [BO # selbri-6] | [NAhE #] guhek selbri gik selbri-6
 
 %rule tanru-unit
   {tanru-unit-1 \ CEI #}
 
 %rule tanru-unit-1
-  tanru-unit-2 | tanru-unit-2 linkargs
+  tanru-unit-2 [linkargs]
 
 %rule tanru-unit-2
   | BRIVLA #
   | GOhA [RAhO] #
-  | KE # selbri-3 [+KEhE #] <~ke-group>
+  | KE # selbri-3 [+KEhE #]
   | ME # sumti [+MEhU #] [MOI #]
   | (number | lerfu-string) MOI #
   | NUhA # mex-operator
@@ -533,7 +537,7 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
 
 %rule operator-2
   | mex-operator
-  | KE # operator [+KEhE #] <~ke-group>
+  | KE # operator [+KEhE #]
 
 %rule mex-operator
   SE # mex-operator | NAhE # mex-operator | MAhO # mex [+TEhU #] | NAhU # selbri [+TEhU #] | VUhU #
@@ -586,7 +590,11 @@ Each afterthought connective can be negated on either side, `na` before and `nai
 
 The ordinary alternative of `selbri-4` and `operator` joins two units with a plain connective. The other alternative, `joik [stag] KE`, groups with the connective itself. Where both alternatives read the same words, the official parser takes the `ke` group, through its lexer token `JOIK_KE`. Three rules state this choice. `plain-joik-jek` is a jek, or a joik that `ke` does not directly follow.
 
-`joik-before-ke` is a joik that `ke` directly follows. The unit after it cannot be only a `ke` group: `selbri-5-not-ke-group` and `operator-1-not-ke-group` say this. They read the tag `~ke-group` of the unit that the parse built, as `bridi-tail-1-final` does (see "Sentences and bridi-tails"). The `ke` alternatives of `tanru-unit-2` and `operator-2` carry that tag, and a unit of one part passes it up. So the test sees the same elided terminators as the parse. In both CLL dialects, `mi broda joi ke me le le brodi brodo ku me'u ke'e` is the `ke` group too. Its inner `ku` is elided. So the plain reading stays where the unit goes on after its `ke` group, as in `ke brode ke'e bo brodi`. The `ke` form cannot read that unit. A free modifier between the joik and `ke` also leaves only the plain reading, since the `ke` form has no slot there.
+`joik-before-ke` is a joik that `ke` directly follows. The unit after it cannot be only a KE group. `selbri-5-not-ke-group` and `operator-1-not-ke-group` test the constructed unit against `$KE-UNIT`. A single-child path reaches a whole KE group. BO, link arguments or another tanru child after the group stop that match.
+
+In both CLL dialects, `mi broda joi ke me le le brodi brodo ku me'u ke'e` remains the group. Its inner KU is omitted. Omitted terminators inside the group do not change the outer KE constructor.
+
+The plain reading remains when the unit continues after its KE group, as in `ke brode ke'e bo brodi`. The group form cannot read that unit. A free modifier between the joik and KE also leaves only the plain reading, since the group form has no slot there.
 
 The `sumti` and `operand` rules have a joik-plus-`ke` form too. But no unit of their plain alternatives begins with `ke`, so they keep `joik-ek`. A jek has no `ke` form, so the condition does not apply to it.
 
@@ -630,12 +638,12 @@ A gek is a forethought logical connective, a joik used in forethought with `gi`,
 %rule selbri-5-not-ke-group
   $u(selbri-5)
 %conditions
-  ~ke-group ⊈ tags($u)
+  $u ≇ $KE-UNIT
 
 %rule operator-1-not-ke-group
   $u(operator-1)
 %conditions
-  ~ke-group ⊈ tags($u)
+  $u ≇ $KE-UNIT
 
 %rule gek
   [SE] GA [NAI] # | joik GI # | stag gik
@@ -849,10 +857,12 @@ Earlier stages also depart from CLL. [The word stream](../words/stream.md) lists
 3. A `lo'u ... le'u` quote can be empty, `lo'u le'u`. The printed `sumti-6` requires at least one word. YACC rule 436 reads the body of the quote as one token that can be empty.
 4. The free-modifier slot after a `lu ... li'u` quote follows the quote whether or not `li'u` is written, so `lu cy. to toi` is a quote followed by a parenthesis. The printed `sumti-6` writes `/LIhU#/`, which drops the slot with the elided `li'u`. YACC rule 432 (`quote_arg`) attaches free modifiers to the whole quote, and its `LIhU` gap carries none. Every other elidable terminator keeps its slot as printed.
 5. A run can contain several FUhE groups, as in `ui fu'e ia mi klama`. Printed rule 411 permits one group. CLL 19.8 lets local attitudinals coexist with marked attitudes, and FUhO cancels all active attitudes. This grammar infers permission for several FUhE groups. The indicator stage uses the same rule after a word.
-6. In `selbri-4` and `operator`, a plain joik directly before `ke` cannot take a unit that is only a `ke` group (`joik-before-ke`). The condition reads the tag `~ke-group` of the parsed unit, as item 7 does. The printed grammar reads `mi broda joi ke brode ke'e` in two ways. The lexer of the official parser makes `joi ke` one token, `JOIK_KE`, so it reads only the `ke` group joined by `joi`. That lexer also rejects `mi broda joi ke brode ke'e bo brodi`, which has only the plain reading. This grammar keeps the plain reading there, as the printed grammar does.
+6. In `selbri-4` and `operator`, `joik-before-ke` reads a plain joik directly before KE. The following unit cannot be only a KE group. The condition tests `$KE-UNIT` on the parsed unit, as item 7 tests its tail patterns. The printed grammar reads `mi broda joi ke brode ke'e` in two ways. The official lexer makes `joi ke` one token, `JOIK_KE`, so it reads only the group joined by `joi`.
+
+   That lexer also rejects `mi broda joi ke brode ke'e bo brodi`, which has only the plain reading. This grammar keeps the plain reading there, as the printed grammar does.
 7. In `bridi-tail-1-final`, the last tail after a plain gihek cannot be one `ke` group with one run of tail terms. Those are the words that the `ke` form of `bridi-tail` can read as a group of tails.
 
-   `bridi-tail-1-final` is the printed `bridi-tail-1` with its last plain connection written apart, so the condition needs no lookahead. It reads the tags `~ke-group` and `~vau-written` of the parsed tail. It also tests whether tail terms follow the tail. To pass the tags up, seven rules write an optional part as two alternatives, which read the same words in the same way. The chains pass them through their level of one item. Item 6 reads `~ke-group` too.
+   `bridi-tail-1-final` separates the last plain connection of the printed `bridi-tail-1`, so its condition needs no lookahead. `$KE-TAIL` tests the actual last tail. The exception requires its own written VAU and nonempty following tail terms. Item 6 uses `$KE-UNIT` for its constructed unit.
 
    The printed grammar reads `mi broda gi'e ke brode ke'e` in two ways. One is a `ke` group of tails after `gi'e` (rule 50). The other is a plain `gi'e` (rule 51) before a tail whose selbri is a `ke` tanru unit. The elided terminators cannot choose: the two parses tie when `ke'e` is elided at the end, and `late-elision` takes the tanru when `ke'e` is written.
 

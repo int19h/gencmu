@@ -199,7 +199,6 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("elidable phoneme tag", set_expr({"seq": [CAP_X, marked({"terminal": "/a/"})]})),
     ("elidable character tag", set_expr({"seq": [CAP_X, marked({"terminal": "'a'"})]})),
     ("elidable range", set_expr({"seq": [CAP_X, marked({"range": ["'a'", "'z'"]})]})),
-    ("elidable ≠ test", set_expr({"seq": [CAP_X, marked({"test": "≠", "value": {"string": "ku"}, "expr": KU})]})),
     ("elidable sequence first", set_expr({"seq": [CAP_X, marked({"seq": [{"seq": [KU, {"ref": "#"}]}, {"ref": "A"}]})]})),
     ("elidable optional first", set_expr({"seq": [CAP_X, marked({"optional": KU})]})),
     ("elidable ε", set_expr({"seq": [CAP_X, marked({"empty": True})]})),

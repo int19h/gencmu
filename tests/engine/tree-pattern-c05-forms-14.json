@@ -1,0 +1,379 @@
+{
+  "description": "C05 preserves emitted sounds, tags, and source spans. It preserves every named close and terminal read in the complete forms tree.",
+  "pipeline": "pipeline.md",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
+  },
+  "input": "saiCLI",
+  "options": {
+    "until": "forms"
+  },
+  "expect": {
+    "result": {
+      "format": 9,
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "forms",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "saiCLI",
+              "phonemes": "saiclI",
+              "label": "saiclI",
+              "tags": [
+                "UNREAD",
+                "run-final",
+                "run-initial"
+              ],
+              "span": [
+                0,
+                6
+              ],
+              "source": [
+                0,
+                6
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          6
+        ],
+        "source": [
+          0,
+          6
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "runs",
+            "span": [
+              0,
+              6
+            ],
+            "source": [
+              0,
+              6
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "run",
+                "span": [
+                  0,
+                  6
+                ],
+                "source": [
+                  0,
+                  6
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "unread-run",
+                    "span": [
+                      0,
+                      6
+                    ],
+                    "source": [
+                      0,
+                      6
+                    ],
+                    "tags": [],
+                    "children": [
+                      {
+                        "kind": "rule",
+                        "rule": "phoneme-run",
+                        "span": [
+                          0,
+                          6
+                        ],
+                        "source": [
+                          0,
+                          6
+                        ],
+                        "tags": [],
+                        "children": [
+                          {
+                            "kind": "rule",
+                            "rule": "phoneme-run",
+                            "span": [
+                              0,
+                              5
+                            ],
+                            "source": [
+                              0,
+                              5
+                            ],
+                            "tags": [],
+                            "children": [
+                              {
+                                "kind": "rule",
+                                "rule": "phoneme-run",
+                                "span": [
+                                  0,
+                                  4
+                                ],
+                                "source": [
+                                  0,
+                                  4
+                                ],
+                                "tags": [],
+                                "children": [
+                                  {
+                                    "kind": "rule",
+                                    "rule": "phoneme-run",
+                                    "span": [
+                                      0,
+                                      3
+                                    ],
+                                    "source": [
+                                      0,
+                                      3
+                                    ],
+                                    "tags": [],
+                                    "children": [
+                                      {
+                                        "kind": "rule",
+                                        "rule": "phoneme-run",
+                                        "span": [
+                                          0,
+                                          2
+                                        ],
+                                        "source": [
+                                          0,
+                                          2
+                                        ],
+                                        "tags": [],
+                                        "children": [
+                                          {
+                                            "kind": "rule",
+                                            "rule": "phoneme-run",
+                                            "span": [
+                                              0,
+                                              1
+                                            ],
+                                            "source": [
+                                              0,
+                                              1
+                                            ],
+                                            "tags": [
+                                              "/s/"
+                                            ],
+                                            "children": [
+                                              {
+                                                "kind": "rule",
+                                                "rule": "nonpause-phoneme",
+                                                "span": [
+                                                  0,
+                                                  1
+                                                ],
+                                                "source": [
+                                                  0,
+                                                  1
+                                                ],
+                                                "tags": [
+                                                  "/s/"
+                                                ],
+                                                "children": [
+                                                  {
+                                                    "kind": "token",
+                                                    "terminal": "/s/",
+                                                    "token": 0,
+                                                    "span": [
+                                                      0,
+                                                      1
+                                                    ],
+                                                    "source": [
+                                                      0,
+                                                      1
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "kind": "rule",
+                                            "rule": "nonpause-phoneme",
+                                            "span": [
+                                              1,
+                                              2
+                                            ],
+                                            "source": [
+                                              1,
+                                              2
+                                            ],
+                                            "tags": [
+                                              "/a/"
+                                            ],
+                                            "children": [
+                                              {
+                                                "kind": "token",
+                                                "terminal": "/a/",
+                                                "token": 1,
+                                                "span": [
+                                                  1,
+                                                  2
+                                                ],
+                                                "source": [
+                                                  1,
+                                                  2
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "kind": "rule",
+                                        "rule": "nonpause-phoneme",
+                                        "span": [
+                                          2,
+                                          3
+                                        ],
+                                        "source": [
+                                          2,
+                                          3
+                                        ],
+                                        "tags": [
+                                          "/i/"
+                                        ],
+                                        "children": [
+                                          {
+                                            "kind": "token",
+                                            "terminal": "/i/",
+                                            "token": 2,
+                                            "span": [
+                                              2,
+                                              3
+                                            ],
+                                            "source": [
+                                              2,
+                                              3
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "kind": "rule",
+                                    "rule": "nonpause-phoneme",
+                                    "span": [
+                                      3,
+                                      4
+                                    ],
+                                    "source": [
+                                      3,
+                                      4
+                                    ],
+                                    "tags": [
+                                      "/c/"
+                                    ],
+                                    "children": [
+                                      {
+                                        "kind": "token",
+                                        "terminal": "/c/",
+                                        "token": 3,
+                                        "span": [
+                                          3,
+                                          4
+                                        ],
+                                        "source": [
+                                          3,
+                                          4
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "kind": "rule",
+                                "rule": "nonpause-phoneme",
+                                "span": [
+                                  4,
+                                  5
+                                ],
+                                "source": [
+                                  4,
+                                  5
+                                ],
+                                "tags": [
+                                  "/l/"
+                                ],
+                                "children": [
+                                  {
+                                    "kind": "token",
+                                    "terminal": "/l/",
+                                    "token": 4,
+                                    "span": [
+                                      4,
+                                      5
+                                    ],
+                                    "source": [
+                                      4,
+                                      5
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "rule",
+                            "rule": "nonpause-phoneme",
+                            "span": [
+                              5,
+                              6
+                            ],
+                            "source": [
+                              5,
+                              6
+                            ],
+                            "tags": [
+                              "/I/"
+                            ],
+                            "children": [
+                              {
+                                "kind": "token",
+                                "terminal": "/I/",
+                                "token": 5,
+                                "span": [
+                                  5,
+                                  6
+                                ],
+                                "source": [
+                                  5,
+                                  6
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "error": null
+    }
+  }
+}

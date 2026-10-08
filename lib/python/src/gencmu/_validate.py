@@ -17,6 +17,7 @@ from ._clauses import definition_problem, duplicate_captures
 from ._tags import character_of_tag, is_tag
 from ._types import constant_value_problem, expected_problem, is_sound_test, open_part, rule_type_problem, term_type, test_type_problem
 from ._unicode import PROPERTY_NAMES
+from ._patterns import pattern_problem, walk_pattern
 
 
 class Lowercase(Protocol):
@@ -29,7 +30,7 @@ class Lowercase(Protocol):
     def is_mark(self, code: int) -> bool: ...
 
 
-FORMAT = 20
+FORMAT = 21
 """The version of the DOM's shape (docs/output.md)."""
 
 CONSTANT_NAME = re.compile(r"[A-Z][A-Za-z0-9-]*")
@@ -52,7 +53,7 @@ comparison."""
 TOO_DEEP = "nested too deeply"
 
 _FUNCTIONS = {"phonemes", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after", "matches", "begins", "initial"}
-_COMPARATORS = {"=", "≠", "∈", "∉", "⊆", "⊈"}
+_COMPARATORS = {"=", "≠", "∈", "∉", "⊆", "⊈", "≅", "≇"}
 _SPANS = {"head", "tail", "last", "from", "after"}
 _NAME = re.compile(r"[A-Za-z][A-Za-z0-9-]*")
 CAPTURE_NAME = re.compile(r"[a-z][a-z0-9-]*")
@@ -170,6 +171,7 @@ _TERM_FORMS = (
     ("emptySet",),
     ("capture",),
     ("const", "at"),
+    ("pattern",),
 )
 _CONDITION_FORMS = (
     ("op", "left", "right"),
@@ -238,6 +240,8 @@ def term_reads_own_tags(term: Any) -> bool:
         if reads_own_tags(value, argument):
             return True
         if isinstance(value, dict):
+            if value.get("op") in ("≅", "≇"):
+                continue
             for key, inner in value.items():
                 # A call's arguments, a matches(), a begins() and an
                 # initial() are spans, where $ is the constituent's tokens
@@ -677,7 +681,10 @@ def _walk(pending: list[tuple[str, Any, int, int]], unicode: Lowercase, tests: l
             else:
                 if not _is_one_of(value.get("op"), _COMPARATORS):
                     return "a malformed condition"
-                pending.append(("term", value.get("left"), below, own))
+                tree = value.get("op") in ("≅", "≇")
+                if tree and (not isinstance(value.get("left"), dict) or set(value["left"]) != {"capture"}):
+                    return "a tree comparison requires a bare capture"
+                pending.append(("argument" if tree else "term", value.get("left"), below, own))
                 pending.append(("term", value.get("right"), below, own))
         else:
             # A term; an argument is a term where a span may stand.
@@ -685,7 +692,17 @@ def _walk(pending: list[tuple[str, Any, int, int]], unicode: Lowercase, tests: l
                 return "a malformed term"
             if own and reads_own_tags(value, kind == "argument"):
                 return "a tag term that reads the tags it defines"
-            if "union" in value or "intersection" in value or "difference" in value:
+            if "pattern" in value:
+                problem = pattern_problem(value["pattern"], initial_depth=below)
+                if problem is not None:
+                    return problem
+                for node, offset in walk_pattern(value["pattern"]):
+                    if "test" in node:
+                        if open_part(node["value"]) is not None:
+                            return "a pattern test requires a closed operand"
+                        tests.append(node)
+                        pending.append(("term", node["value"], below + offset + 1, False))
+            elif "union" in value or "intersection" in value or "difference" in value:
                 key = "union" if "union" in value else "intersection" if "intersection" in value else "difference"
                 items = value[key]
                 if not _items(items, 2, 2 if key == "difference" else float("inf")):
@@ -775,7 +792,7 @@ def elidable_head(expr: Any) -> Any:
 
     if is_terminal(head):
         return head
-    if head.get("test") == "=" and is_terminal(head.get("expr")):
+    if head.get("test") in ("=", "≠", "⊇", "⊉", "∩=∅", "∩≠∅") and is_terminal(head.get("expr")):
         return head
     return None
 

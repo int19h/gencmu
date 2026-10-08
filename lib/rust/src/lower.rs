@@ -83,6 +83,7 @@ pub(crate) enum CmpOp {
 
 #[derive(Debug, Clone)]
 pub(crate) enum LCond {
+    Tree(Span, bool, crate::patterns::Pattern),
     Cmp(CmpOp, LTerm, LTerm),
     Matches(Span, u32),
     /// `begins(s, R)`: whether a prefix of the span, possibly empty, parses
@@ -685,7 +686,7 @@ impl<'a> Scope<'a> {
             Term::Difference(left, right) => LTerm::Diff(Box::new(self.term(left)?), Box::new(self.term(right)?)),
             // A span is never a value (§10); the reader refuses one. And
             // stitching gives every constant its value (§2).
-            Term::Capture(_) | Term::Const(..) => return Err(Missing),
+            Term::Pattern(_) | Term::Capture(_) | Term::Const(..) => return Err(Missing),
             Term::If(cond, then) => LTerm::If(Box::new(self.cond(cond)?), Box::new(self.term(then)?)),
             Term::Call(name, args) => match (name.as_str(), &args[..]) {
                 ("phonemes", [Arg::Term(span)]) => LTerm::Phonemes(self.span(span)?),
@@ -707,6 +708,9 @@ impl<'a> Scope<'a> {
 
     fn cond(&mut self, cond: &Cond) -> Result<LCond, Missing> {
         Ok(match cond {
+            Cond::Compare(op, left, Term::Pattern(p)) if matches!(op.as_str(), "≅" | "≇") => {
+                LCond::Tree(self.span(left)?, op == "≅", (**p).clone())
+            }
             Cond::Compare(op, left, right) => {
                 let op = match op.as_str() {
                     "=" => CmpOp::Eq,

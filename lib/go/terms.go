@@ -13,7 +13,9 @@ type spanVal struct {
 	tags  *tagset // for a whole capture: the captured part's tags
 	// lazy, for $ of a completing item, gives its tags on first use: the
 	// tag term runs only where a condition reads them (§4).
-	lazy *lazyTags
+	lazy      *lazyTags
+	machine   *patternMachine
+	structure int
 }
 
 // A term's value is a string or a set, of strings or of tags (§10). The
@@ -52,6 +54,7 @@ type lazyTags struct {
 	p           *production
 	caps        itemCaps
 	origin, end int32
+	structure   int
 	tags        *tagset
 }
 
@@ -252,7 +255,7 @@ func (w *walk) fillLazy(s spanVal) bool {
 	case p.tags != nil:
 		f := w.top()
 		f.c, f.t, f.lazy = nil, nil, lz
-		w.push(r.run.evaluator(r.g, r.captureFunc(p, lz.caps, lz.origin, lz.end, nil)), nil, p.tags)
+		w.push(r.run.evaluator(r.g, r.captureFunc(p, lz.caps, lz.origin, lz.end, nil, lz.structure)), nil, p.tags)
 		return true
 	case p.implicit:
 		lz.tags = r.run.ps.in.all[lz.caps.at(p.capSlot[0]).tags]
@@ -461,6 +464,16 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 	ev, c := f.ev, f.c
 	switch c.Kind {
 	case cdCompare:
+		if c.Op == "≅" || c.Op == "≇" {
+			s := w.span(ev, c.Left)
+			p := c.Right.Pattern
+			if c.Right.Kind == tmConst {
+				p = c.Right.value.pattern
+			}
+			holds := s.machine != nil && p != nil && s.machine.matches(s.structure, p)
+			w.endCond(holds == (c.Op == "≅"))
+			return nil
+		}
 		switch f.at {
 		case 0:
 			f.at = 1

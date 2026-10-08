@@ -1,0 +1,17 @@
+{
+  "description": "The Zantufa structural family preserves its constructor and witness during reconstruction. Its independent input queries remain unchanged.",
+  "pipeline": "pipeline.md",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
+  },
+  "input": "ge mi broda gi do zo'u brode",
+  "options": {
+    "elisionOnly": true
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "brackets": "(ge [mi broda] gi [{do zo'u} brode])"
+  }
+}

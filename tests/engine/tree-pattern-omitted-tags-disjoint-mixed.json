@@ -1,0 +1,68 @@
+{
+  "description": "An omitted terminal exposes singleton tags to patterns. The empty helper keeps its empty constituent tags after reconstruction.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text $x(r)\n%conditions tags($x) = ∅, $x ≇ @(A T∩(T ∪ U)=∅) ∨ $x ≅ @(A OTHER OTHER [OTHER])\n%rule r A [+T] | A [+OTHER] [+OTHER] | A [+OTHER] [+OTHER] [+OTHER]\n%tags ∅",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "parses": [
+    {
+      "options": {
+        "elisionOnly": false
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "tree": {
+            "children": [
+              {
+                "rule": "r",
+                "tags": [],
+                "children": [
+                  {
+                    "terminal": "A"
+                  },
+                  {
+                    "kind": "elided",
+                    "terminal": "T"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "options": {
+        "elisionOnly": true
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "tree": {
+            "children": [
+              {
+                "rule": "r",
+                "tags": [],
+                "children": [
+                  {
+                    "terminal": "A"
+                  },
+                  {
+                    "kind": "elided",
+                    "terminal": "T"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

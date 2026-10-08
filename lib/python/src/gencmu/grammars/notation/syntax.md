@@ -248,7 +248,7 @@ The grammar reads a run of conditions joined by `⟹` as one list, and the reade
   ['∧'] {condition \ '∧'}
 
 %rule condition
-  comparison | call | negation | presence | '(' implication ')'
+  comparison | call | negation | presence | '(' implication ')' | tree-comparison
 
 %rule comparison
   union comparator union
@@ -265,7 +265,7 @@ The grammar reads a run of conditions joined by `⟹` as one list, and the reade
 
 ## Terms
 
-A term is a string, a set of strings, a tag set or a span. A range is a tag set, and `..` binds tighter than any other operator, since its two sides are character tags. `∩` binds tighter than `∪` and `∖`, which bind equally and group from the left. A term guarded by a condition, `A ⟹ t`, is `t` where `A` holds and nothing where it does not. It binds looser than `∪`, `∩` and `∖`, so it stands in parentheses inside a larger term. Only a whole tag term can be a guarded term without parentheses.
+A term is a string, a set of strings, a tag set, a span or a tree pattern. A range is a tag set, and `..` binds tighter than any other operator, since its two sides are character tags. `∩` binds tighter than `∪` and `∖`, which bind equally and group from the left. A term guarded by a condition, `A ⟹ t`, is `t` where `A` holds and nothing where it does not. It binds looser than `∪`, `∩` and `∖`, so it stands in parentheses inside a larger term. Only a whole tag term can be a guarded term without parentheses.
 
 Guards in a row, `A ⟹ B ⟹ t`, are one list of conditions before the union, for the reason above. The reader groups them to the right: `A ⟹ (B ⟹ t)`.
 
@@ -286,7 +286,7 @@ A property is not a tag set, but the grammar reads one in a term, so that the re
 
 %rule term-atom
   | string | tag | character | phoneme | range | property | name | empty-set
-  | '(' term ')' | call | capture-reference | constant-reference
+  | '(' term ')' | call | capture-reference | constant-reference | pattern-literal
 
 %rule string
   ~string
@@ -308,4 +308,46 @@ A property is not a tag set, but the grammar reads one in a term, so that the re
 
 %rule constant-reference
   ~constant
+```
+
+## Tree patterns
+
+A tree pattern observes a constructed constituent. A literal starts with the compound token `~pattern-open`, written `@(`, and ends with `)`. The left operand of a tree comparison is a bare capture. Its right operand is a union term with pattern type. The reader reports a bare name there with the specific missing-pattern diagnostic in `../../docs/engine.md`, §10.
+
+Path prefixes take one atom. Parentheses keep sibling grouping, but a nested literal consumes one subtree. Brackets always mean an optional sequence. Braces mean one or more sequences, with an optional separator. The reader rejects tests on rule names, chain syntax and zero-progress repeats. Terminal tests reuse the existing test grammar.
+
+```jbogenbau
+%rule tree-comparison
+  capture-reference tree-comparator union
+
+%rule tree-comparator
+  '≅' | '≇'
+
+%rule pattern-literal
+  ~pattern-open pattern-union ')'
+
+%rule pattern-union
+  {pattern-intersection \ '∪' | '∖'}
+
+%rule pattern-intersection
+  {pattern-sequence \ '∩'}
+
+%rule pattern-sequence
+  {pattern-item}
+
+%rule pattern-item
+  pattern-atom | pattern-brackets | pattern-repeat | pattern-path | '⋯'
+
+%rule pattern-atom
+  ~identifier [test] | '#' | constant-reference | pattern-literal
+  | '(' pattern-union ')'
+
+%rule pattern-brackets
+  '[' pattern-union ']'
+
+%rule pattern-repeat
+  '{' pattern-union ['\\' pattern-union] '}'
+
+%rule pattern-path
+  ('⋮' | '⋰' | '⋱') pattern-atom
 ```

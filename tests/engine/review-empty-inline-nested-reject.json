@@ -1,0 +1,21 @@
+{
+  "description": "An empty compound keeps its contextual pattern type.",
+  "grammar": "%rule text A\n%conditions $ ≅ ((∅ ∪ ∅) ∩ (∅ ∖ ∅))",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

@@ -1,0 +1,683 @@
+{
+  "description": "C05 preserves emitted sounds, tags, and source spans. It preserves every named close and terminal read in the complete forms tree.",
+  "pipeline": "pipeline.md",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
+  },
+  "input": "saircli",
+  "options": {
+    "until": "forms"
+  },
+  "expect": {
+    "result": {
+      "format": 9,
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "forms",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "saircli",
+              "phonemes": "saircli",
+              "label": "saircli",
+              "tags": [
+                "BRIVLA",
+                "fuhivla",
+                "initial-stress",
+                "onset",
+                "open-stress",
+                "run-final",
+                "run-initial",
+                "stress-guard",
+                "word"
+              ],
+              "span": [
+                0,
+                7
+              ],
+              "source": [
+                0,
+                7
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          7
+        ],
+        "source": [
+          0,
+          7
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "runs",
+            "span": [
+              0,
+              7
+            ],
+            "source": [
+              0,
+              7
+            ],
+            "tags": [
+              "BRIVLA",
+              "fuhivla",
+              "initial-stress",
+              "onset",
+              "open-stress",
+              "stress-guard",
+              "word"
+            ],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "run",
+                "span": [
+                  0,
+                  7
+                ],
+                "source": [
+                  0,
+                  7
+                ],
+                "tags": [
+                  "BRIVLA",
+                  "fuhivla",
+                  "initial-stress",
+                  "onset",
+                  "open-stress",
+                  "stress-guard",
+                  "word"
+                ],
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "read-run",
+                    "span": [
+                      0,
+                      7
+                    ],
+                    "source": [
+                      0,
+                      7
+                    ],
+                    "tags": [
+                      "BRIVLA",
+                      "fuhivla",
+                      "initial-stress",
+                      "onset",
+                      "open-stress",
+                      "stress-guard",
+                      "word"
+                    ],
+                    "children": [
+                      {
+                        "kind": "rule",
+                        "rule": "run-words",
+                        "span": [
+                          0,
+                          7
+                        ],
+                        "source": [
+                          0,
+                          7
+                        ],
+                        "tags": [
+                          "BRIVLA",
+                          "fuhivla",
+                          "initial-stress",
+                          "onset",
+                          "open-stress",
+                          "stress-guard",
+                          "word"
+                        ],
+                        "children": [
+                          {
+                            "kind": "rule",
+                            "rule": "first-word",
+                            "span": [
+                              0,
+                              7
+                            ],
+                            "source": [
+                              0,
+                              7
+                            ],
+                            "tags": [
+                              "BRIVLA",
+                              "fuhivla",
+                              "initial-stress",
+                              "onset",
+                              "open-stress",
+                              "stress-guard",
+                              "word"
+                            ],
+                            "children": [
+                              {
+                                "kind": "rule",
+                                "rule": "ordinary-first-word",
+                                "span": [
+                                  0,
+                                  7
+                                ],
+                                "source": [
+                                  0,
+                                  7
+                                ],
+                                "tags": [
+                                  "BRIVLA",
+                                  "fuhivla",
+                                  "initial-stress",
+                                  "onset",
+                                  "open-stress",
+                                  "stress-guard",
+                                  "word"
+                                ],
+                                "children": [
+                                  {
+                                    "kind": "rule",
+                                    "rule": "source-word",
+                                    "span": [
+                                      0,
+                                      7
+                                    ],
+                                    "source": [
+                                      0,
+                                      7
+                                    ],
+                                    "tags": [
+                                      "BRIVLA",
+                                      "fuhivla",
+                                      "initial-stress",
+                                      "onset",
+                                      "open-stress",
+                                      "stress-guard",
+                                      "word"
+                                    ],
+                                    "children": [
+                                      {
+                                        "kind": "rule",
+                                        "rule": "brivla-shape",
+                                        "span": [
+                                          0,
+                                          7
+                                        ],
+                                        "source": [
+                                          0,
+                                          7
+                                        ],
+                                        "tags": [
+                                          "fuhivla",
+                                          "initial-stress",
+                                          "onset",
+                                          "open-stress",
+                                          "stress-guard"
+                                        ],
+                                        "children": [
+                                          {
+                                            "kind": "rule",
+                                            "rule": "brivla-word",
+                                            "span": [
+                                              0,
+                                              7
+                                            ],
+                                            "source": [
+                                              0,
+                                              7
+                                            ],
+                                            "tags": [
+                                              "fuhivla",
+                                              "onset"
+                                            ],
+                                            "children": [
+                                              {
+                                                "kind": "rule",
+                                                "rule": "fuhivla-word",
+                                                "span": [
+                                                  0,
+                                                  7
+                                                ],
+                                                "source": [
+                                                  0,
+                                                  7
+                                                ],
+                                                "tags": [],
+                                                "children": [
+                                                  {
+                                                    "kind": "rule",
+                                                    "rule": "fuhivla-form",
+                                                    "span": [
+                                                      0,
+                                                      7
+                                                    ],
+                                                    "source": [
+                                                      0,
+                                                      7
+                                                    ],
+                                                    "tags": [],
+                                                    "children": [
+                                                      {
+                                                        "kind": "rule",
+                                                        "rule": "consonant",
+                                                        "span": [
+                                                          0,
+                                                          1
+                                                        ],
+                                                        "source": [
+                                                          0,
+                                                          1
+                                                        ],
+                                                        "tags": [
+                                                          "/s/"
+                                                        ],
+                                                        "children": [
+                                                          {
+                                                            "kind": "token",
+                                                            "terminal": "/s/",
+                                                            "token": 0,
+                                                            "span": [
+                                                              0,
+                                                              1
+                                                            ],
+                                                            "source": [
+                                                              0,
+                                                              1
+                                                            ]
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "kind": "rule",
+                                                        "rule": "fuhivla-body",
+                                                        "span": [
+                                                          1,
+                                                          7
+                                                        ],
+                                                        "source": [
+                                                          1,
+                                                          7
+                                                        ],
+                                                        "tags": [],
+                                                        "children": [
+                                                          {
+                                                            "kind": "rule",
+                                                            "rule": "vowel-group",
+                                                            "span": [
+                                                              1,
+                                                              3
+                                                            ],
+                                                            "source": [
+                                                              1,
+                                                              3
+                                                            ],
+                                                            "tags": [],
+                                                            "children": [
+                                                              {
+                                                                "kind": "rule",
+                                                                "rule": "vowel-group",
+                                                                "span": [
+                                                                  1,
+                                                                  2
+                                                                ],
+                                                                "source": [
+                                                                  1,
+                                                                  2
+                                                                ],
+                                                                "tags": [
+                                                                  "/a/"
+                                                                ],
+                                                                "children": [
+                                                                  {
+                                                                    "kind": "rule",
+                                                                    "rule": "vowel",
+                                                                    "span": [
+                                                                      1,
+                                                                      2
+                                                                    ],
+                                                                    "source": [
+                                                                      1,
+                                                                      2
+                                                                    ],
+                                                                    "tags": [
+                                                                      "/a/"
+                                                                    ],
+                                                                    "children": [
+                                                                      {
+                                                                        "kind": "rule",
+                                                                        "rule": "any-a",
+                                                                        "span": [
+                                                                          1,
+                                                                          2
+                                                                        ],
+                                                                        "source": [
+                                                                          1,
+                                                                          2
+                                                                        ],
+                                                                        "tags": [
+                                                                          "/a/"
+                                                                        ],
+                                                                        "children": [
+                                                                          {
+                                                                            "kind": "token",
+                                                                            "terminal": "/a/",
+                                                                            "token": 1,
+                                                                            "span": [
+                                                                              1,
+                                                                              2
+                                                                            ],
+                                                                            "source": [
+                                                                              1,
+                                                                              2
+                                                                            ]
+                                                                          }
+                                                                        ]
+                                                                      }
+                                                                    ]
+                                                                  }
+                                                                ]
+                                                              },
+                                                              {
+                                                                "kind": "rule",
+                                                                "rule": "vowel",
+                                                                "span": [
+                                                                  2,
+                                                                  3
+                                                                ],
+                                                                "source": [
+                                                                  2,
+                                                                  3
+                                                                ],
+                                                                "tags": [
+                                                                  "/i/"
+                                                                ],
+                                                                "children": [
+                                                                  {
+                                                                    "kind": "rule",
+                                                                    "rule": "any-i",
+                                                                    "span": [
+                                                                      2,
+                                                                      3
+                                                                    ],
+                                                                    "source": [
+                                                                      2,
+                                                                      3
+                                                                    ],
+                                                                    "tags": [
+                                                                      "/i/"
+                                                                    ],
+                                                                    "children": [
+                                                                      {
+                                                                        "kind": "token",
+                                                                        "terminal": "/i/",
+                                                                        "token": 2,
+                                                                        "span": [
+                                                                          2,
+                                                                          3
+                                                                        ],
+                                                                        "source": [
+                                                                          2,
+                                                                          3
+                                                                        ]
+                                                                      }
+                                                                    ]
+                                                                  }
+                                                                ]
+                                                              }
+                                                            ]
+                                                          },
+                                                          {
+                                                            "kind": "rule",
+                                                            "rule": "permissible-run",
+                                                            "span": [
+                                                              3,
+                                                              6
+                                                            ],
+                                                            "source": [
+                                                              3,
+                                                              6
+                                                            ],
+                                                            "tags": [],
+                                                            "children": [
+                                                              {
+                                                                "kind": "rule",
+                                                                "rule": "run-l",
+                                                                "span": [
+                                                                  3,
+                                                                  6
+                                                                ],
+                                                                "source": [
+                                                                  3,
+                                                                  6
+                                                                ],
+                                                                "tags": [],
+                                                                "children": [
+                                                                  {
+                                                                    "kind": "rule",
+                                                                    "rule": "run-before-l",
+                                                                    "span": [
+                                                                      3,
+                                                                      5
+                                                                    ],
+                                                                    "source": [
+                                                                      3,
+                                                                      5
+                                                                    ],
+                                                                    "tags": [],
+                                                                    "children": [
+                                                                      {
+                                                                        "kind": "rule",
+                                                                        "rule": "run-c",
+                                                                        "span": [
+                                                                          3,
+                                                                          5
+                                                                        ],
+                                                                        "source": [
+                                                                          3,
+                                                                          5
+                                                                        ],
+                                                                        "tags": [],
+                                                                        "children": [
+                                                                          {
+                                                                            "kind": "rule",
+                                                                            "rule": "run-before-c",
+                                                                            "span": [
+                                                                              3,
+                                                                              4
+                                                                            ],
+                                                                            "source": [
+                                                                              3,
+                                                                              4
+                                                                            ],
+                                                                            "tags": [
+                                                                              "/r/"
+                                                                            ],
+                                                                            "children": [
+                                                                              {
+                                                                                "kind": "rule",
+                                                                                "rule": "run-r",
+                                                                                "span": [
+                                                                                  3,
+                                                                                  4
+                                                                                ],
+                                                                                "source": [
+                                                                                  3,
+                                                                                  4
+                                                                                ],
+                                                                                "tags": [
+                                                                                  "/r/"
+                                                                                ],
+                                                                                "children": [
+                                                                                  {
+                                                                                    "kind": "token",
+                                                                                    "terminal": "/r/",
+                                                                                    "token": 3,
+                                                                                    "span": [
+                                                                                      3,
+                                                                                      4
+                                                                                    ],
+                                                                                    "source": [
+                                                                                      3,
+                                                                                      4
+                                                                                    ]
+                                                                                  }
+                                                                                ]
+                                                                              }
+                                                                            ]
+                                                                          },
+                                                                          {
+                                                                            "kind": "token",
+                                                                            "terminal": "/c/",
+                                                                            "token": 4,
+                                                                            "span": [
+                                                                              4,
+                                                                              5
+                                                                            ],
+                                                                            "source": [
+                                                                              4,
+                                                                              5
+                                                                            ]
+                                                                          }
+                                                                        ]
+                                                                      }
+                                                                    ]
+                                                                  },
+                                                                  {
+                                                                    "kind": "token",
+                                                                    "terminal": "/l/",
+                                                                    "token": 5,
+                                                                    "span": [
+                                                                      5,
+                                                                      6
+                                                                    ],
+                                                                    "source": [
+                                                                      5,
+                                                                      6
+                                                                    ]
+                                                                  }
+                                                                ]
+                                                              }
+                                                            ]
+                                                          },
+                                                          {
+                                                            "kind": "rule",
+                                                            "rule": "fuhivla-body",
+                                                            "span": [
+                                                              6,
+                                                              7
+                                                            ],
+                                                            "source": [
+                                                              6,
+                                                              7
+                                                            ],
+                                                            "tags": [
+                                                              "/i/"
+                                                            ],
+                                                            "children": [
+                                                              {
+                                                                "kind": "rule",
+                                                                "rule": "vowel-group",
+                                                                "span": [
+                                                                  6,
+                                                                  7
+                                                                ],
+                                                                "source": [
+                                                                  6,
+                                                                  7
+                                                                ],
+                                                                "tags": [
+                                                                  "/i/"
+                                                                ],
+                                                                "children": [
+                                                                  {
+                                                                    "kind": "rule",
+                                                                    "rule": "vowel",
+                                                                    "span": [
+                                                                      6,
+                                                                      7
+                                                                    ],
+                                                                    "source": [
+                                                                      6,
+                                                                      7
+                                                                    ],
+                                                                    "tags": [
+                                                                      "/i/"
+                                                                    ],
+                                                                    "children": [
+                                                                      {
+                                                                        "kind": "rule",
+                                                                        "rule": "any-i",
+                                                                        "span": [
+                                                                          6,
+                                                                          7
+                                                                        ],
+                                                                        "source": [
+                                                                          6,
+                                                                          7
+                                                                        ],
+                                                                        "tags": [
+                                                                          "/i/"
+                                                                        ],
+                                                                        "children": [
+                                                                          {
+                                                                            "kind": "token",
+                                                                            "terminal": "/i/",
+                                                                            "token": 6,
+                                                                            "span": [
+                                                                              6,
+                                                                              7
+                                                                            ],
+                                                                            "source": [
+                                                                              6,
+                                                                              7
+                                                                            ]
+                                                                          }
+                                                                        ]
+                                                                      }
+                                                                    ]
+                                                                  }
+                                                                ]
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "error": null
+    }
+  }
+}
