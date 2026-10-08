@@ -135,7 +135,9 @@ A term in a head is a term of a list. There a tense or modal, or a bare `na`, is
 
 The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or VUhU (`bridi-tail-connective`). Each of them can also open a `bo` or `ke` grouping of bridi-tails. So can a bare `gi` with a stag, as in `mi klama gi ba bo tavla`.
 
-Connected bridi-tails group from the left, as in CLL (CLL 14.10), and `bridi-tail-1` keeps the CLL rule's left recursion. After a plain connective, a bridi-tail without a head does not begin with `ke`. And a head there is not a bare stag, such as a tense whose `ku` is elided. Without these limits, `gi'e ke` and `gi'e ba ke` can each open two constructs. camxes-exp states the same limits as a lookahead (a test of the words that follow) after its gihek.
+Connected bridi-tails group from the left, as in CLL (CLL 14.10), and `bridi-tail-1` keeps the CLL rule's left recursion. After a plain connective, a bridi-tail without a head does not begin with `ke`. The head pattern rejects an unclosed listed tag at its end, even inside a term connection. Without these limits, `gi'e ke` and `gi'e ba ke` can each open two constructs. camxes-exp states the same limits as a lookahead (a test of the words that follow) after its gihek.
+
+The same endpoint pattern applies to initial heads, connected heads, and heads after BO. A written KU or a final CU prevents that match. The existing input queries remain separate conditions.
 
 ```jbogenbau
 %redefine-rule sentence
@@ -150,10 +152,14 @@ Connected bridi-tails group from the left, as in CLL (CLL 14.10), and `bridi-tai
   | CU # [{terms \ CU #} [CU #]]
 
 %rule headed-bridi-tail
-  [bridi-tail-head] bridi-tail
+  [$h(bridi-tail-head)] bridi-tail
+%conditions
+  $h ≇ @(⋱ @(tag KU="" [#]))
 
 %rule headed-bridi-tail-2
-  [bridi-tail-head] bridi-tail-2
+  [$h(bridi-tail-head)] bridi-tail-2
+%conditions
+  $h ≇ @(⋱ @(tag KU="" [#]))
 
 %redefine-rule bridi-tail
   bridi-tail-1 [(bridi-tail-connective [stag] | GI stag) KE # headed-bridi-tail [+KEhE] # tail-terms]
@@ -165,7 +171,7 @@ Connected bridi-tails group from the left, as in CLL (CLL 14.10), and `bridi-tai
   | $h(bridi-tail-head) bridi-tail-2
   | bridi-tail-2-not-starting-with-ke
 %conditions
-  ¬matches($h, stag)
+  $h ≇ @(⋱ @(tag KU="" [#]))
 
 %redefine-rule bridi-tail-2
   bridi-tail-3 [(bridi-tail-connective [stag] | GI stag) BO # headed-bridi-tail-2 tail-terms]
@@ -427,13 +433,17 @@ Sumti connectives are ek, joik, jek or VUhU (`sumti-connective`). This change an
 - `lo'oi subsentence ku'au`, a description of a subsentence
 - The single-word quotes `zo'oi`, `la'oi` and `ra'oi`, whose bodies the word stage delimits
 
-A `na'e` alone does not take a whole term that is a tense or modal with its sumti or its `ku`, written or elided. This is because `na'e pu` then matches the rule `tag`. A connected term can still begin with such a term, as in `na'e pu ku .e na ku lu'u`. The inner sumti of a description can be any sumti, a connected one too (`lo mi .e do broda`). It does not begin with a quantifier. camxes-exp reads a quantifier there as the CLL form `quantifier sumti` first, so `lo re mi broda` is `lo re mi` and the selbri `broda`.
+A bare NAhE cannot wrap one tagged term, even when that term omits KU. The pattern tests the actual `tagged-term` constructor. A connected term can begin with such a term, as in `na'e pu ku .e na ku lu'u`. This grammar also accepts `mi na'e pu .e ca lu'u klama`, with both inner KUs omitted. camxes-exp rejects more prefixes through its tag lookahead. This grammar follows its connected-term extension instead.
 
-`quantifier-head` lists the selma'o that can begin a quantifier. A quantifier can also begin with a forethought connective, as in `lo ge pa gi re mi broda`. `quantified-sumti` excludes such an inner sumti as a whole.
+The inner sumti of a description can be any sumti, including a connected one, as in `lo mi .e do broda`. It does not begin with a quantifier. camxes-exp first reads a quantifier there as the CLL form `quantifier sumti`. Thus `lo re mi broda` contains `lo re mi` and the selbri `broda`.
+
+`quantifier-head` lists the selma'o that can begin a quantifier. A quantifier can also begin with a forethought connective, as in `lo ge pa gi re mi broda`. `$QUANTIFIED-SUMTI` tests that actual quantified constructor, with optional relative clauses.
 
 A description can take a forethought sentence in place of a selbri, and so can a quantifier without a descriptor. Examples are `le ga mi klama gi do klama ku` and `re ga mi klama gi do klama ku`. These are camxes-exp's `sumti_tail` and `sumti_5`.
 
 ```jbogenbau
+%const $QUANTIFIED-SUMTI @(quantifier sumti-6 [relative-clauses])
+
 %redefine-rule sumti
   | sumti-1
   | sumti-1 VUhO # [relative-clauses] <~link-extensible-end>
@@ -473,9 +483,9 @@ A description can take a forethought sentence in place of a selbri, and so can a
   | ZOI any-word anything any-word #
   | ZOhOI anything #
 %conditions
-  ¬matches($t, sumti),
-  ¬matches($u, sumti),
-  ¬matches($u, tagged-term)
+  $t ≇ @(sumti),
+  $u ≇ @(sumti),
+  $u ≇ @(tagged-term)
 
 %redefine-rule sumti-tail
   | $s(sumti) sumti-tail-1
@@ -484,10 +494,7 @@ A description can take a forethought sentence in place of a selbri, and so can a
   | gek-sentence
 %conditions
   ¬matches(head($s), quantifier-head),
-  ¬matches($s, quantified-sumti)
-
-%rule quantified-sumti
-  quantifier sumti-6 [relative-clauses]
+  $s ≇ $QUANTIFIED-SUMTI
 
 %rule quantifier-head
   PA | VEI | NIhE | MOhE | PEhO | FUhA
@@ -516,7 +523,7 @@ camxes-exp departs here. It tries the plain connective first, and reads `joi` be
 
 Where only the plain reading parses, the layer keeps it, as camxes-exp does. So `mi broda joi ke brode ke'e bo brodi` joins `broda` to the unit `ke brode ke'e bo brodi`. The official parser of CLL rejects that text.
 
-The test reads the tag `~ke-group` of the parsed unit, as in the CLL grammar. This layer's `ke` alternatives of `tanru-unit-2` and `operator-2` carry it. So that the tag reaches `selbri-5`, this layer's `tanru-unit` writes its optional parts as alternatives, which read the same words in the same way. `selbri-5` is a right chain, and its level of one item keeps the tags of its `selbri-6`.
+The inherited pattern tests the actual KE constructor. Experimental uses `tag` as `stag`, so this layer redefines `$STAG-TAG` accordingly. The composite KE patterns use that final definition. `tanru-unit` uses one repetition with optional relative clauses. Additional children prevent the single-child match, as in the CLL grammar.
 
 A group of preposed linked arguments comes before a whole `tanru-unit-1`, as in camxes-exp. A `be` group attaches to the tanru unit before it, where there is one. So a unit without a group of its own cannot be directly followed by `be` (`tanru-unit-1`). A preposed group stands only where no such unit comes before it, as at the start of a selbri or after a connective.
 
@@ -568,10 +575,10 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
 %rule selbri-6-not-starting-with-ke
   tanru-unit-not-starting-with-ke [BO # selbri-6] | [NAhE #] guhek selbri gik selbri-6
 
+%redefine-const $STAG-TAG @(tag)
+
 %redefine-rule tanru-unit
-  | tanru-unit-1
-  | tanru-unit-1 {CEI # tanru-unit-1} [selbri-relative-clauses]
-  | tanru-unit-1 selbri-relative-clauses
+  {tanru-unit-1 \ CEI #} [selbri-relative-clauses]
 
 %redefine-rule tanru-unit-1
   | $u(tanru-unit-2)
@@ -580,7 +587,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   BE ⊈ tags(head(after($u)))
 
 %redefine-rule tanru-unit-2
-  | KE # selbri-3 [+KEhE] # <~ke-group>
+  | KE # selbri-3 [+KEhE] #
   | BRIVLA #
   | cbm? CMEVLA #
   | GOhA [RAhO] #
@@ -700,7 +707,7 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 
 %redefine-rule operator-2
   | mex-operator
-  | KE # operator [+KEhE] # <~ke-group>
+  | KE # operator [+KEhE] #
 
 %redefine-rule mex-operator
   | SE # mex-operator
@@ -795,13 +802,16 @@ A subscript after a subscript nests. CLL 18.13 says: "By convention, a subscript
 
 Without the rule, the two readings elide the same terminators. camxes-exp nests as well, and camxes-std reads two subscripts of the first `xa`.
 
-Any other free modifier after the mekso of a subscript attaches to the word that the subscript marks. CLL's grammar has no slot of free modifiers after a subscript: `XI # (number | lerfu-string) /BOI/`. So in `mi broda xi pa boi to do toi`, the subscript and the parenthesis both belong to `broda`. The official parser of CLL reads the text in this way. The same holds where `boi` is elided, and after `vei ... ve'o`.
+A non-XI modifier in the subscript operand's final free slot attaches to the marked word. CLL has no free slot after a subscript: `XI # (number | lerfu-string) /BOI/`. In `mi broda xi pa boi to do toi`, the subscript and the parenthesis both belong to `broda`. The official CLL parser reads the text this way too.
 
-The second condition on the `xi` form of `free` states this rule. `mekso-ending-in-free` is a mekso that ends with free modifiers, at least one of them not a subscript. A subscript's mekso cannot be one. Without the rule, the two readings elide the same terminators.
+The second condition on XI tests `$FREE-ENDING` along the actual last-child path. That pattern finds a final free slot with a `$NON-XI-FREE` modifier. A modifier inside a terminated operand stays there, even when its terminator is omitted. An omitted terminator remains a final child and stops the path. A written closer before the modifier leaves it in the exposed final slot.
 
-camxes-exp departs here. It reads the mekso of a subscript as `mex_2`, which ends with its own free modifiers, so the parenthesis goes inside the subscript. That is a side effect of the reuse of `mex_2`, and not a choice that its grammar states.
+camxes-exp reads the operand of a subscript as `mex_2`, with its own final free slot. This grammar excludes that exposed attachment when the modifier belongs to the marked word. It keeps a modifier inside VEI, LAhE, or PEhO when the actual constructor boundary follows that modifier.
 
 ```jbogenbau
+%const $NON-XI-FREE @(free) ∖ @(XI ⋯)
+%const $FREE-ENDING @(⋱ (# ∩ @(⋯ $NON-XI-FREE ⋯)))
+
 %redefine-rule free
   | SEI # [terms [CU #]] selbri [+SEhU]
   | vocative [relative-clauses] selbri [relative-clauses] [+DOhU]
@@ -815,12 +825,7 @@ camxes-exp departs here. It reads the mekso of a subscript as `mex_2`, which end
   | ¬soi-clause? SOI # sumti [sumti] [+SEhU]
 %conditions
   XI ⊈ tags(head(after($m))),
-  ¬matches($m, mekso-ending-in-free)
-
-%rule mekso-ending-in-free
-  mex-2 [{free}] $f(free) [{free}]
-%conditions
-  XI ⊈ tags(head($f))
+  $m ≇ $FREE-ENDING
 
 %rule name-marker
   LE="la" | LE="lai" | LE="la'i"
