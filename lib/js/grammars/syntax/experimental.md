@@ -433,6 +433,8 @@ Sumti connectives are ek, joik, jek or VUhU (`sumti-connective`). This change an
 - `lo'oi subsentence ku'au`, a description of a subsentence
 - The single-word quotes `zo'oi`, `la'oi` and `ra'oi`, whose bodies the word stage delimits
 
+Bare termsets compete with forethought sumti, and late elision chooses sumti, while #131 part B decides whether a stated preference replaces that choice.
+
 A bare NAhE cannot wrap one tagged term, even when that term omits KU. The pattern tests the actual `tagged-term` constructor. A connected term can begin with such a term, as in `na'e pu ku .e na ku lu'u`. This grammar also accepts `mi na'e pu .e ca lu'u klama`, with both inner KUs omitted.
 
 camxes-exp rejects every NAhE operand that begins with a tense or modal, because `na'e pu` matches its `tag`. This grammar rejects only a single tagged term, which that tag reading duplicates. It accepts a connection of terms.

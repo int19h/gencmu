@@ -3121,3 +3121,12 @@ adhoc.syntax.leftmost-longest.triple-kaha.bpfk
 adhoc.syntax.leftmost-longest.triple-ki.bpfk
 adhoc.syntax.leftmost-longest.sumti-time-contour
 adhoc.syntax.leftmost-longest.sumti-time-contour.bpfk
+i131.experimental.bare-termset-01
+i131.experimental.bare-termset-02
+i131.experimental.bare-termset-03
+i131.experimental.bare-termset-04
+i131.experimental.bare-termset-05
+i131.experimental.bare-termset-06
+i131.experimental.bare-termset-07
+i131.experimental.bare-termset-written-nuhu
+i131.experimental.bare-termset-written-nuhu-sentence
