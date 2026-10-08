@@ -258,6 +258,7 @@ var domRules = map[string]bool{
 	"empty": true, "tags-clause": true, "conditions-clause": true, "emits-clause": true,
 	"opaque-clause": true, "emit-item": true, "emit-tags": true, "emit-before": true, "emit-after": true, "implication": true,
 	"any-of": true, "all-of": true, "comparison": true, "negation": true,
+	"tree-comparison": true, "pattern-literal": true, "pattern-union": true, "pattern-intersection": true, "pattern-sequence": true, "pattern-item": true, "pattern-atom": true, "pattern-brackets": true, "pattern-repeat": true, "pattern-path": true, "pattern-separator": true,
 	"presence": true, "call": true, "term": true, "guarded-term": true, "union": true,
 	"intersection": true, "empty-set": true, "capture-reference": true,
 	"alternative-tags": true, "argument-word": true, "argument-string": true, "argument-tag": true, "guard": true,
@@ -398,9 +399,9 @@ func (b *domBuilder) knownOf(n *Node, kinds []string) *Node {
 // among their parts is one of these (engine §9).
 var (
 	primaryRules   = []string{"reference", "tag", "character", "phoneme", "range", "property", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference"}
-	conditionRules = []string{"comparison", "call", "negation", "presence", "implication"}
+	conditionRules = []string{"comparison", "tree-comparison", "call", "negation", "presence", "implication"}
 	termRules      = []string{"union", "guarded-term"}
-	atomRules      = []string{"string", "tag", "character", "phoneme", "range", "property", "name", "empty-set", "term", "call", "capture-reference", "constant-reference"}
+	atomRules      = []string{"string", "tag", "character", "phoneme", "range", "property", "name", "empty-set", "term", "call", "capture-reference", "constant-reference", "pattern-literal"}
 )
 
 func (b *domBuilder) text(n *Node) string {

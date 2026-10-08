@@ -9,6 +9,7 @@ package gencmu
 type capVal struct {
 	start, end int32
 	tags       int32
+	structure  int
 }
 
 // itemKey is an item's identity. A captured part's span and tags are part
@@ -17,11 +18,12 @@ type capVal struct {
 // by the recognizer, 0 for none. The common case of one slot, the implicit
 // capture of a production with one symbol, needs no interning.
 type itemKey struct {
-	prod   *production
-	dot    int32
-	origin int32
-	cap0   capVal
-	more   int32
+	prod              *production
+	dot               int32
+	origin            int32
+	cap0              capVal
+	more              int32
+	prefix, structure int
 }
 
 // capStep is the sequence of the capture slots after the first, extended
@@ -170,6 +172,7 @@ type link struct {
 
 // symNode is every completed item of one rule over one span with one tag set.
 type symNode struct {
+	structure  int
 	rule       int32
 	start, end int32
 	tags       *tagset
@@ -178,6 +181,7 @@ type symNode struct {
 
 type symKey struct {
 	rule, origin, tags int32
+	structure          int
 }
 
 type eset struct {
@@ -201,9 +205,11 @@ const (
 )
 
 type recognizer struct {
-	run     *stageRun
-	g       *lowered
-	base, n int
+	machine       *patternMachine
+	elidableHeads map[int32]string
+	run           *stageRun
+	g             *lowered
+	base, n       int
 	// recon is how the recognition of the check of elision-only reads the
 	// reconstructed input and observes the stage's input (§7.2-§7.5); nil
 	// for every other recognition.
@@ -319,6 +325,7 @@ func (r *recognizer) loop(start int32) {
 
 // begin readies a recognition to predict its start rule in set 0.
 func (r *recognizer) begin(start int32) {
+	r.preparePatterns()
 	if r.beginPredict(r.set(0), start, false) {
 		r.step = step{kind: stepPredict, rule: start}
 	}
@@ -353,7 +360,7 @@ func (r *recognizer) resume() *nestedQuery {
 		case stepEmpties:
 			for ; st.next < len(st.list); st.next++ {
 				c := st.list[st.next]
-				if q := r.advance(st.it, st.k, capVal{c.start, c.end, c.tags.id}, link{prev: st.it, sym: c}, st.it.strict); q != nil {
+				if q := r.advance(st.it, st.k, capVal{c.start, c.end, c.tags.id, c.structure}, link{prev: st.it, sym: c}, st.it.strict); q != nil {
 					return q
 				}
 			}
@@ -371,7 +378,7 @@ func (r *recognizer) resume() *nestedQuery {
 				if st.empty && r.heldBack(w) {
 					continue
 				}
-				if q := r.advance(w, st.k, capVal{st.c.start, st.c.end, st.ts.id}, link{prev: w, sym: st.c}, st.empty && w.strict); q != nil {
+				if q := r.advance(w, st.k, capVal{st.c.start, st.c.end, st.ts.id, st.c.structure}, link{prev: w, sym: st.c}, st.empty && w.strict); q != nil {
 					return q
 				}
 			}
@@ -469,6 +476,9 @@ func (r *recognizer) predictFrom(st *step) *nestedQuery {
 	for ; st.next < len(prods); st.next++ {
 		p := prods[st.next]
 		if !r.pending {
+			if p.restoration() && !r.omissionAllowed(p) {
+				continue
+			}
 			if reading != nil && p.restoration() {
 				r.restore(k, p)
 				continue
@@ -508,6 +518,7 @@ func (r *recognizer) restore(k int, p *production) {
 		return
 	}
 	key := itemKey{prod: p, origin: int32(k)}
+	r.finishStructure(&key)
 	s := r.set(k + 1)
 	if s.index[key] != nil {
 		return
@@ -515,6 +526,7 @@ func (r *recognizer) restore(k int, p *production) {
 	it := &item{itemKey: key, set: int32(k + 1), restores: true, queued: true}
 	it.links = []link{{tok: int32(k), term: term}}
 	if w := work.Load(); w != nil {
+		w.packedEdges.add("packed edges")
 		w.items.add("items")
 	}
 	s.index[key] = it
@@ -554,7 +566,9 @@ func (r *recognizer) predictable(p *production, k int) (bool, *nestedQuery) {
 			// The tag term runs only where a condition reads $'s tags (§4).
 			tags = r.lazyTags(p, caps, int32(k), int32(k))
 		}
-		r.ev = r.run.evaluator(r.g, r.captureFunc(p, caps, int32(k), int32(k), tags))
+		key := itemKey{prod: p}
+		r.finishStructure(&key)
+		r.ev = r.run.evaluator(r.g, r.captureFunc(p, caps, int32(k), int32(k), tags, key.structure))
 		r.pending, r.condAt = true, 0
 		countCondition()
 		r.w.cond(r.ev, p.predictConds[0])
@@ -589,6 +603,7 @@ func (r *recognizer) add(k int, key itemKey, l link, hasLink, strict bool) {
 	if strict && int(key.dot) == len(key.prod.rhs) {
 		return
 	}
+	r.finishStructure(&key)
 	s := r.set(k)
 	it := s.index[key]
 	if it == nil {
@@ -612,6 +627,9 @@ func (r *recognizer) add(k int, key itemKey, l link, hasLink, strict bool) {
 			return
 		}
 		it.links = append(it.links, l)
+		if w := work.Load(); w != nil {
+			w.packedEdges.add("packed edges")
+		}
 	}
 }
 
@@ -694,7 +712,7 @@ func (r *recognizer) process(k int, it *item) bool {
 					}
 					st := &r.step
 					st.kind, st.it, st.k, st.strict = stepTerminal, it, k+1, strict
-					st.cv, st.l = capVal{int32(k), int32(k + 1), tags}, link{prev: it, tok: int32(k), term: sym.id}
+					st.cv, st.l = capVal{int32(k), int32(k + 1), tags, r.terminalStructure(p, int(it.dot), k, sym.id)}, link{prev: it, tok: int32(k), term: sym.id}
 					return true
 				}
 			}
@@ -752,14 +770,14 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 	default:
 		ts = in.empty()
 	}
-	key := symKey{p.lhs, it.origin, ts.id}
+	key := symKey{p.lhs, it.origin, ts.id, it.structure}
 	c := s.syms[key]
 	if c != nil {
 		c.items = append(c.items, it)
 		r.step.kind = stepNext
 		return nil
 	}
-	c = &symNode{rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
+	c = &symNode{structure: it.structure, rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
 	if s.syms == nil {
 		s.syms = map[symKey]*symNode{}
 	}
@@ -809,6 +827,10 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 			r.setCap(&key, slot, cv)
 		}
 		key.dot++
+		if r.machine != nil {
+			key.prefix = r.machine.concat(it.prefix, cv.structure)
+		}
+		r.finishStructure(&key)
 	}
 	// Each condition the walk examines counts before it is looked at, so
 	// a walk wider than the dot's own conditions passes the budget at once.
@@ -836,7 +858,7 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 			if c.whole && whole == nil {
 				whole = r.lazyTags(p, caps, key.origin, int32(k))
 			}
-			r.w.cond(r.run.evaluator(r.g, r.captureFunc(p, caps, key.origin, int32(k), whole)), c.cond)
+			r.w.cond(r.run.evaluator(r.g, r.captureFunc(p, caps, key.origin, int32(k), whole, key.structure)), c.cond)
 		}
 		resuming = false
 		if q := r.w.resume(); q != nil {
@@ -883,7 +905,11 @@ func (r *recognizer) tokenTest(t *symTest, k int) bool {
 // captureFunc gives an item's captures; $ spans [origin, end) and has the
 // tags that whole gives on demand, or none while they are being computed,
 // when a term cannot read them (§9).
-func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32, whole *lazyTags) func(string) (spanVal, bool) {
+func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32, whole *lazyTags, structure ...int) func(string) (spanVal, bool) {
+	state := 0
+	if len(structure) > 0 {
+		state = structure[0]
+	}
 	// In the check of elision-only, every observation reads the projected
 	// span, and the projection comes before any function of it (§7.5).
 	// A capture is found when it is read: the last at once, an earlier one
@@ -895,7 +921,7 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 	return func(name string) (spanVal, bool) {
 		if name == "" {
 			a, b := r.observed(origin, end)
-			return spanVal{a: a, b: b, whole: whole != nil, lazy: whole}, true
+			return spanVal{a: a, b: b, whole: whole != nil, lazy: whole, machine: r.machine, structure: state}, true
 		}
 		slot, ok := p.slotOf[name]
 		if !ok {
@@ -913,7 +939,7 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 			searched += steps + 1
 		}
 		a, b := r.observed(cv.start, cv.end)
-		return spanVal{a: a, b: b, whole: true, tags: r.run.ps.in.all[cv.tags]}, true
+		return spanVal{a: a, b: b, whole: true, tags: r.run.ps.in.all[cv.tags], machine: r.machine, structure: cv.structure}, true
 	}
 }
 
@@ -956,7 +982,7 @@ func (r *recognizer) begun(start int32) bool {
 
 func sortSyms(s []*symNode) {
 	for i := 1; i < len(s); i++ {
-		for j := i; j > 0 && s[j].tags.key < s[j-1].tags.key; j-- {
+		for j := i; j > 0 && (s[j].tags.key < s[j-1].tags.key || s[j].tags.key == s[j-1].tags.key && s[j].structure < s[j-1].structure); j-- {
 			s[j], s[j-1] = s[j-1], s[j]
 		}
 	}

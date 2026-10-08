@@ -5,15 +5,17 @@ import "slices"
 // A stage's grammar: its documents stitched into one set of rules,
 // directives, constants, classifiers and implications (engine §2).
 type stageGrammar struct {
-	name        string
-	uni         *unicodeTable // the loader's table, for the tags of a range in a constant's value
-	constants   map[string]*stageConst
-	constUsers  []constUser
-	rules       []*sRule
-	byName      map[string]*sRule
-	lean        string // the rule of the ranking: "greedy", "lazy" or "late-elision" (engine §6)
-	elisionOnly bool
-	changes     []stitchChange
+	name          string
+	uni           *unicodeTable // the loader's table, for the tags of a range in a constant's value
+	constants     map[string]*stageConst
+	constVersions []*constVersion
+	constLatest   map[string]int
+	constUsers    []constUser
+	rules         []*sRule
+	byName        map[string]*sRule
+	lean          string // the rule of the ranking: "greedy", "lazy" or "late-elision" (engine §6)
+	elisionOnly   bool
+	changes       []stitchChange
 	// classifierSet holds the stage's classifiers, and implications its
 	// implications with their values (engine §2, §11).
 	classifierSet stageClassifiers
@@ -65,9 +67,10 @@ type sAlt struct {
 // constValue is a constant's value (engine §2, §10): a string, or a set of
 // strings or of tags, with its type.
 type constValue struct {
-	ty    termType // tyString, tyStrings or tyTags
-	s     string
-	names []string // a set's members, in code point order, each once
+	ty      termType // tyString, tyStrings or tyTags
+	s       string
+	pattern *domPattern
+	names   []string // a set's members, in code point order, each once
 }
 
 type docDOM struct {
@@ -95,7 +98,7 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 	var ambiguity []*domDirective
 	for _, d := range docs {
 		for _, r := range d.dom.Rules {
-			if len(constRefs(r)) > 0 {
+			if len(constRefs(r)) > 0 || ruleHasPattern(r) {
 				g.constUsers = append(g.constUsers, constUser{doc: d.path, rule: r})
 			}
 			alts := make([]*sAlt, len(r.Alternatives))

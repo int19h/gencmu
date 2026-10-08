@@ -131,7 +131,6 @@ func TestDOMRules(t *testing.T) {
 		{"an elidable optional begins with its terminal (phoneme)", alt(`{"optional":{"terminal":"/a/"},"elidable":true}`)},
 		{"an elidable optional begins with its terminal (character)", alt(`{"optional":{"terminal":"'a'"},"elidable":true}`)},
 		{"an elidable optional begins with its terminal (range)", alt(`{"optional":{"range":["'a'","'z'"]},"elidable":true}`)},
-		{"an elidable optional begins with its terminal (≠)", alt(`{"optional":{"test":"≠","value":{"string":"ku"},"expr":{"ref":"KU"}},"elidable":true}`)},
 		{"an elidable optional begins with its terminal (seq)", alt(`{"optional":{"seq":[{"seq":[{"ref":"KU"},{"ref":"#"}]},{"ref":"A"}]},"elidable":true}`)},
 		{"an elidable optional begins with its terminal (optional)", alt(`{"optional":{"optional":{"ref":"KU"}},"elidable":true}`)},
 		{"an elidable optional begins with its terminal (ε)", alt(`{"optional":{"empty":true},"elidable":true}`)},

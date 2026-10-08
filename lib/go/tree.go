@@ -370,14 +370,14 @@ func (run *stageRun) plan(rec *recognizer, n *dn, inside bool) []emitTask {
 	start, end := rec.base+int(n.start), rec.base+int(n.end)
 	ev := run.evaluator(rec.g, func(name string) (spanVal, bool) {
 		if name == "" {
-			return spanVal{a: start, b: end, whole: true, tags: n.tags}, true
+			return spanVal{a: start, b: end, whole: true, tags: n.tags, machine: rec.machine, structure: n.structure}, true
 		}
 		if w := work.Load(); w != nil {
 			w.emitSteps.add("emit steps")
 		}
 		if i, ok := p.posOf[name]; ok {
 			a, b, tags := run.kidSpan(rec, kids[i])
-			return spanVal{a: a, b: b, whole: true, tags: tags}, true
+			return spanVal{a: a, b: b, whole: true, tags: tags, machine: rec.machine, structure: rec.derivationStructure(kids[i])}, true
 		}
 		return spanVal{}, false
 	})

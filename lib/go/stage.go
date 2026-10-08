@@ -66,11 +66,12 @@ func (ps *parseState) characterTokens() []Token {
 }
 
 type stageRun struct {
-	ps      *parseState
-	name    string
-	grammar *stageGrammar
-	toks    []Token
-	tagsets []*tagset
+	patternMachines map[*lowered]*patternMachine
+	ps              *parseState
+	name            string
+	grammar         *stageGrammar
+	toks            []Token
+	tagsets         []*tagset
 	// inputStart and inputEnd are where the input of the recognition now
 	// running begins and ends; outside one, the stage's input.
 	inputStart, inputEnd int

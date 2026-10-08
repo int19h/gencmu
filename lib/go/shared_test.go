@@ -150,6 +150,35 @@ func caseDialect(c *engineCase, noCache bool) (*Dialect, error) {
 			"main.md":     "```jbogenbau\n" + g + "\n```\n",
 		}, "pipeline.md", noCache)
 	}
+	for _, text := range c.Documents {
+		if strings.Contains(text, `%include "../dialects/`) {
+			documents := map[string]string{}
+			err := filepath.WalkDir("../../grammars", func(path string, entry os.DirEntry, err error) error {
+				if err != nil {
+					return err
+				}
+				if !entry.IsDir() {
+					raw, err := os.ReadFile(path)
+					if err != nil {
+						return err
+					}
+					key, err := filepath.Rel("../../grammars", path)
+					if err != nil {
+						return err
+					}
+					documents[filepath.ToSlash(key)] = string(raw)
+				}
+				return nil
+			})
+			if err != nil {
+				return nil, err
+			}
+			for name, text := range c.Documents {
+				documents["case/"+name] = text
+			}
+			return loadSources(documents, "case/"+c.Pipeline, noCache)
+		}
+	}
 	return loadSources(c.Documents, c.Pipeline, noCache)
 }
 

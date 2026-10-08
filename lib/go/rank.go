@@ -34,6 +34,7 @@ const (
 // dn is a derivation of a constituent (a read or a close) or a partial one
 // (a part: the derivation of an item's children so far).
 type dn struct {
+	structure  int
 	kind       uint8
 	tok        int32 // read: the token, relative to the recognizer's base
 	term       int32
@@ -87,8 +88,11 @@ func partNode(prev, child *dn) *dn {
 	return n
 }
 
-func closeNode(p *production, start, end int32, tags *tagset, kids *dn) *dn {
+func closeNode(p *production, start, end int32, tags *tagset, kids *dn, structure ...int) *dn {
 	n := &dn{kind: dClose, prod: p, start: start, end: end, tags: tags, a: kids}
+	if len(structure) > 0 {
+		n.structure = structure[0]
+	}
 	vis, whole := count{}, countOne
 	if !p.transparent {
 		vis = countOne
@@ -827,6 +831,9 @@ func (rk *ranker) startItem(it *item, f forbidden) (rankFrame, *entry) {
 		return nil, slot.e
 	}
 	slot.state = 1
+	if w := work.Load(); w != nil {
+		w.summaryContexts.add("summary contexts")
+	}
 	mx := rk.maximal
 	return &itemFrame{it: it, f: f, slot: slot, guarded: mx != nil && mx.guards(it), marked: rk.marks[it]}, nil
 }
@@ -1018,6 +1025,9 @@ func (rk *ranker) startSym(s *symNode, f forbidden) (rankFrame, *entry) {
 		return nil, slot.e
 	}
 	slot.state = 1
+	if w := work.Load(); w != nil {
+		w.summaryContexts.add("summary contexts")
+	}
 	inner := f
 	if rk.rec.g.rules[s.rule].scc >= 0 {
 		inner = f.with(s.rule)
@@ -1097,8 +1107,8 @@ func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 		}
 		c := v.it
 		for _, x := range v.e.cands {
-			n := &cand{d: closeNode(c.prod, s.start, s.end, s.tags, x.d)}
-			rk.inherit(n, x, count{}, func(t *dn) *dn { return closeNode(c.prod, s.start, s.end, s.tags, t) }, pastInf)
+			n := &cand{d: closeNode(c.prod, s.start, s.end, s.tags, x.d, s.structure)}
+			rk.inherit(n, x, count{}, func(t *dn) *dn { return closeNode(c.prod, s.start, s.end, s.tags, t, s.structure) }, pastInf)
 			cands = append(cands, n)
 		}
 	}

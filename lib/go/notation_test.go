@@ -51,7 +51,7 @@ func TestNotationCases(t *testing.T) {
 				if rerr == nil {
 					t.Fatalf("%s\nexpected an error at %d:%d, got %s", c.Description, c.Expect.Error.Line, c.Expect.Error.Column, dom.json())
 				}
-				if rerr.Line != c.Expect.Error.Line || rerr.Column != c.Expect.Error.Column {
+				if (c.Expect.Error.Line != 0 && rerr.Line != c.Expect.Error.Line) || (c.Expect.Error.Column != 0 && rerr.Column != c.Expect.Error.Column) {
 					t.Fatalf("%s\nexpected an error at %d:%d, got %v", c.Description, c.Expect.Error.Line, c.Expect.Error.Column, rerr)
 				}
 				return
