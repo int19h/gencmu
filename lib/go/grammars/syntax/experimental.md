@@ -29,7 +29,7 @@ The layer uses two feature guards, which make a part of a rule depend on a featu
 
 Unlike the CLL grammar, this layer writes the free-modifier slot after an elidable terminator outside its brackets: `[+X] #` where CLL has `[+X #]`. So free modifiers can follow an elided terminator. The layer restates many rules below for that reason alone. `free-after-number` and `free-after-lerfu-string` keep a number or lerfu string maximal. After an elided `boi`, they exclude a first free modifier that starts with a word that the number or string can read.
 
-Two directives set up the layer. `%ambiguity-resolution late-elision` says how the stage chooses among parses. It compares only where two parses elide terminators. At the first place where they differ, it takes the parse that reads on, so a terminator is elided as late as the grammar allows. Two parses that elide the same terminators at the same places are tied, and a tie is an error.
+The stage uses `late-elision` after declared rule preferences. At the first differing boundary, it chooses the reading with fewer omitted terminators. Equal omission counts tie when no preference contest decides the readings. A tie is an error.
 
 So `to mi klama` holds `mi klama` in its parenthesis, because the other reading elides `vau` and `toi` after `mi`. In the same way, `lu mi klama` holds `mi klama` in its quote. camxes-exp reads both texts in this way.
 
@@ -262,7 +262,7 @@ A forethought termset needs no `nu'i`, and its two branches can hold different n
 
 The ranking does the same. The first branch of a termset, `termset-branch`, ends in `nu'u`, which the termset elides before `gi`. The sumti elides nothing there, so `late-elision` prefers it. So `ge mi gi do ce'e ti` is the sumti `ge mi gi do` followed by `ce'e ti`. But `broda be ge mi gi do ce'e ti be'o` has a termset, because the single argument of `be` cannot continue with `ce'e ti`.
 
-The layer reads a termset with `nu'i` as `nu'i` with a forethought form wherever it can, as camxes-exp tries that form first. So `nu'i ge mi gi do nu'u` is a termset of two branches, and not `nu'i` around the sumti `ge mi gi do`. The first term inside `nu'i ... nu'u` cannot itself be a bare forethought termset. A bare forethought termset there repeats the `nu'i gek` form.
+The layer prefers `gek-termset-body` to `nuhi-plain-body` over the same words. Thus `nu'i ge mi gi do nu'u` selects the termset with two branches. The first term inside the plain NUhI body cannot itself be a bare forethought termset. That restriction avoids repeating the forethought NUhI form.
 
 The `-not-starting-with-bare-gek` rules state that restriction: they repeat the term rules with only the first term restricted. A chain repeats one item, so it cannot restrict only its first item. These rules write the restricted first item apart. `terms-1-not-starting-with-bare-gek` is left recursion, which groups as the chain `terms-1` does. The other two are a first item and an optional list, flat as `terms` and `terms-2` are.
 
@@ -402,10 +402,7 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 %redefine-rule termset
   (* termset <- gek_termset / NUhI_clause free* gek terms NUhU_elidible free* gik terms NUhU_elidible free* / NUhI_clause free* terms NUhU_elidible free* *)
   | gek termset-branch gik gek-terms [+NUhU] #
-  | NUhI # gek terms [+NUhU] # gik terms [+NUhU] #
-  | NUhI # $t(terms-not-starting-with-bare-gek) [+NUhU] #
-%conditions
-  ¬matches($t, gek-termset-body)
+  | termset-with-nuhi
 
 %rule gek-termset-body
   (* NUhI_clause free* gek terms NUhU_elidible free* gik terms: tried before NUhI_clause free* terms *)
@@ -454,13 +451,16 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
   | soi-clause? soi-term
 
 %rule termset-with-nuhi
-  | NUhI # gek terms [+NUhU] # gik terms [+NUhU] #
-  | NUhI # $t(terms-not-starting-with-bare-gek) [+NUhU] #
-%conditions
-  ¬matches($t, gek-termset-body)
+  | NUhI # gek-termset-body [+NUhU] #
+  | NUhI # nuhi-plain-body [+NUhU] #
+
+%rule nuhi-plain-body
+  terms-not-starting-with-bare-gek
+
+%prefer gek-termset-body > nuhi-plain-body
 ```
 
-<details><summary>Railroad diagrams of the 36 rules from <code>terms-1</code> to <code>termset-with-nuhi</code></summary>
+<details><summary>Railroad diagrams of the 37 rules from <code>terms-1</code> to <code>nuhi-plain-body</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/terms-1.svg" alt="Railroad diagram of the rule terms-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/terms-2.svg" alt="Railroad diagram of the rule terms-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/term.svg" alt="Railroad diagram of the rule term"></p>
@@ -497,6 +497,7 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 <p><img src="../../docs/diagrams/syntax/experimental/listed-term-bo-group-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule listed-term-bo-group-not-starting-with-bare-gek"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/listed-term-3-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule listed-term-3-not-starting-with-bare-gek"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/termset-with-nuhi.svg" alt="Railroad diagram of the rule termset-with-nuhi"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/nuhi-plain-body.svg" alt="Railroad diagram of the rule nuhi-plain-body"></p>
 </details>
 
 ## Sumti
@@ -614,6 +615,8 @@ Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as
 
 Selbri and tanru-unit connectives are joik, jek, ek or VUhU (`selbri-connective`). A bare `fa`, which matches the rule `tag`, can come before a selbri. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`). `me'oi` with the word that it quotes is a tanru unit too (`le me'oi klama cu broda`).
 
+The shared `me-unit` constructor names both ME forms. Its operand rules prefer `me-sumti` to `me-mex` over the same words. The preference compares complete readings, so an unavailable sumti supplies no advantage.
+
 `selbri-4` keeps the left recursion of the CLL rule, and `selbri-5` is a right chain, as in CLL. In the plain form of `selbri-4`, the connective is `plain-selbri-connective`, the CLL rule `plain-joik-jek` with this layer's connectives. As in CLL, a joik directly before `ke` is `joik-before-ke`, and its unit cannot be only a `ke` group. So `mi broda joi ke brode ke'e` joins a `ke` group with `joi`, through `joik [stag] KE`, as the CLL grammar does.
 
 camxes-exp departs here. It tries the plain connective first, and reads `joi` before a tanru unit that begins with `ke`. In this text, both readings group the same words.
@@ -686,8 +689,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | BRIVLA #
   | cbm? CMEVLA #
   | GOhA [RAhO] #
-  | ME # sumti [+MEhU] # [MOI #]
-  | ME # $x(mex) [+MEhU] # [MOI #]
+  | me-unit
   | mex MOI #
   | NUhA # operator
   | SE # tanru-unit-2
@@ -696,8 +698,17 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | abstractor-chain subsentence [+KEI] #
   | linkargs tanru-unit-1
   | MEhOI anything #
-%conditions
-  ¬matches($x, sumti)
+
+
+%rule me-sumti
+  sumti
+%rule me-mex
+  mex
+%prefer me-sumti > me-mex
+
+%rule me-unit
+  | ME # me-sumti [+MEhU] # [MOI #]
+  | ME # me-mex [+MEhU] # [MOI #]
 
 %rule tanru-unit-not-starting-with-ke
   tanru-unit-1-not-starting-with-ke [{CEI # tanru-unit-1}] [selbri-relative-clauses]
@@ -712,8 +723,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | BRIVLA #
   | cbm? CMEVLA #
   | GOhA [RAhO] #
-  | ME # sumti [+MEhU] # [MOI #]
-  | ME # $x(mex) [+MEhU] # [MOI #]
+  | me-unit
   | mex MOI #
   | NUhA # operator
   | SE # tanru-unit-2
@@ -722,8 +732,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | abstractor-chain subsentence [+KEI] #
   | linkargs tanru-unit-1
   | MEhOI anything #
-%conditions
-  ¬matches($x, sumti)
+
 
 %rule selbri-relative-clauses
   | {selbri-relative-clause \ ZIhE # | joik # | jek # | ek #}
@@ -739,7 +748,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   BEI # [term] [links]
 ```
 
-<details><summary>Railroad diagrams of the 20 rules from <code>selbri-4</code> to <code>links</code></summary>
+<details><summary>Railroad diagrams of the 23 rules from <code>selbri-4</code> to <code>links</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-4.svg" alt="Railroad diagram of the rule selbri-4"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/plain-selbri-connective.svg" alt="Railroad diagram of the rule plain-selbri-connective"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-5.svg" alt="Railroad diagram of the rule selbri-5"></p>
@@ -753,6 +762,9 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit.svg" alt="Railroad diagram of the rule tanru-unit"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-1.svg" alt="Railroad diagram of the rule tanru-unit-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-2.svg" alt="Railroad diagram of the rule tanru-unit-2"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/me-sumti.svg" alt="Railroad diagram of the rule me-sumti"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/me-mex.svg" alt="Railroad diagram of the rule me-mex"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/me-unit.svg" alt="Railroad diagram of the rule me-unit"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-not-starting-with-ke.svg" alt="Railroad diagram of the rule tanru-unit-not-starting-with-ke"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-1-not-starting-with-ke.svg" alt="Railroad diagram of the rule tanru-unit-1-not-starting-with-ke"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-2-not-starting-with-ke.svg" alt="Railroad diagram of the rule tanru-unit-2-not-starting-with-ke"></p>
