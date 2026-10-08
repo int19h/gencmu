@@ -22,6 +22,7 @@ pub(crate) enum IKind {
 
 #[derive(Debug, Clone)]
 pub(crate) struct INode {
+    pub structure: u32,
     pub kind: IKind,
     pub children: Vec<u32>,
 }
@@ -40,12 +41,13 @@ pub(crate) fn build(ranker: &Ranker, root: u32) -> ITree {
         let index = nodes.len() as u32;
         match ranker.dag.arena[id as usize] {
             DNode::Read { tok, terminal, .. } => {
-                nodes.push(INode { kind: IKind::Read { tok, terminal }, children: Vec::new() });
+                nodes.push(INode { structure: u32::MAX, kind: IKind::Read { tok, terminal }, children: Vec::new() });
             }
             DNode::Close { body, set, item } => {
                 let it = ranker.item(set, item);
                 let tags = ranker.chart().sets[set as usize].tagset[item as usize];
                 nodes.push(INode {
+                    structure: it.structure,
                     kind: IKind::Close {
                         prod: it.prod,
                         start: it.origin,
@@ -854,6 +856,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                             unreachable!("an emission's constituent")
                         };
                         let frame = Frame {
+                            structure: tree.nodes[owner as usize].structure,
                             caps: Caps::All(caps),
                             prod: *prod,
                             origin: *start,

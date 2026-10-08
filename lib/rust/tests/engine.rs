@@ -12,6 +12,9 @@ fn engine_cases() {
     let mut failures = Vec::new();
     let mut skipped = 0;
     for file in &files {
+        if std::env::var_os("GENCMU_CASE_TRACE").is_some() {
+            eprintln!("case {}", file.display());
+        }
         let text = std::fs::read_to_string(file).expect("a case");
         let case = parse_json(&text).expect("a case is JSON");
         if has_caller_attachments(&case) {

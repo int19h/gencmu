@@ -13,6 +13,7 @@ use crate::dom::{
 };
 use crate::error::Error;
 use crate::fxhash::{FxMap, FxSet};
+use crate::patterns::Pattern;
 use crate::tags::{character_tag, code_of_character_tag, is_name};
 use crate::unicode::Unicode;
 use crate::work::{self, Mutant, Work};
@@ -219,7 +220,8 @@ pub(crate) fn stitch(
     };
     let mut implications: Vec<(&Arc<str>, &ImplicationDef)> = Vec::new();
     let mut resolution: Option<(Arc<str>, (usize, usize))> = None;
-    let mut constants = Constants { stage, unicode, values: HashMap::new() };
+    let mut constants =
+        Constants { stage, unicode, values: HashMap::new(), versions: Vec::new(), latest: HashMap::new() };
     // The definitions of rules that use constants, which are checked once
     // the constants have their final values; a rule that a later one
     // replaces included.
@@ -347,6 +349,7 @@ pub(crate) fn stitch(
         grammar.classifiers.extend(dom.classifiers.iter().map(|classifier| (document.clone(), classifier.clone())));
         implications.extend(dom.implications.iter().map(|implication| (document, implication)));
     }
+    constants.bind()?;
     constants.resolve(&mut grammar, &users)?;
     constants.evaluate_tests(&mut grammar)?;
     grammar.implications = implications
@@ -378,6 +381,7 @@ pub(crate) fn stitch(
 /// of tags.
 #[derive(Debug, Clone, PartialEq)]
 enum Value {
+    Pattern(Pattern),
     Str(String),
     Set(BTreeSet<String>),
 }
@@ -386,14 +390,14 @@ impl Value {
     fn set(self) -> BTreeSet<String> {
         match self {
             Value::Set(set) => set,
-            Value::Str(_) => BTreeSet::new(),
+            Value::Str(_) | Value::Pattern(_) => BTreeSet::new(),
         }
     }
 
     fn string(self) -> String {
         match self {
             Value::Str(text) => text,
-            Value::Set(_) => String::new(),
+            Value::Set(_) | Value::Pattern(_) => String::new(),
         }
     }
 
@@ -401,6 +405,7 @@ impl Value {
     /// constant whose value is the empty set is the empty set (§3.6).
     fn term(&self) -> Term {
         match self {
+            Value::Pattern(p) => Term::Pattern(Box::new(p.clone())),
             Value::Str(text) => Term::Str(text.clone()),
             Value::Set(set) => match set.len() {
                 0 => Term::EmptySet,
@@ -413,6 +418,7 @@ impl Value {
 
 /// A constant of a stage: its value and its type now, and the document of
 /// its last definition.
+#[derive(Clone)]
 struct StageConstant {
     value: Value,
     ty: Type,
@@ -420,7 +426,14 @@ struct StageConstant {
 }
 
 /// The constants of a stage as the loader stitches it (engine §2).
+struct Version {
+    definition: ConstDef,
+    document: Arc<str>,
+    previous: Option<usize>,
+}
 struct Constants<'a> {
+    versions: Vec<Version>,
+    latest: HashMap<String, usize>,
     stage: &'a str,
     unicode: &'a Unicode,
     values: HashMap<String, StageConstant>,
@@ -434,7 +447,7 @@ impl Constants<'_> {
     /// Defines or redefines a constant, with the value its term has at this
     /// point of the stage (engine §2).
     fn add(&mut self, document: &Arc<str>, constant: &ConstDef) -> Result<(), Error> {
-        let ConstDef { name, redefine, value, at } = constant;
+        let ConstDef { name, redefine, at, .. } = constant;
         let previous = self.values.get(name);
         match (previous, redefine) {
             (Some(previous), false) => {
@@ -459,35 +472,160 @@ impl Constants<'_> {
             }
             _ => {}
         }
-        // A reference sees the constants defined before this point.
-        let mut references = Vec::new();
-        constants_in_term(value, &mut references);
-        for (reference, where_) in references {
-            if !self.values.contains_key(reference) {
-                return Err(located(
-                    format!("${reference} is not defined before this point of stage {}", self.stage),
-                    document,
-                    where_,
-                ));
+        let id = self.versions.len();
+        self.versions.push(Version {
+            definition: constant.clone(),
+            document: document.clone(),
+            previous: self.latest.get(name).copied(),
+        });
+        self.latest.insert(name.clone(), id);
+        self.values.insert(
+            name.clone(),
+            StageConstant { value: Value::Set(BTreeSet::new()), ty: Type::Any, document: document.clone() },
+        );
+        Ok(())
+    }
+
+    fn bind(&mut self) -> Result<(), Error> {
+        let mut edges = Vec::new();
+        for version in &self.versions {
+            let mut refs = Vec::new();
+            constants_in_term(&version.definition.value, &mut refs);
+            let mut next = Vec::new();
+            for (name, at) in refs {
+                let target = if name == version.definition.name && version.definition.redefine {
+                    version.previous
+                } else {
+                    self.latest.get(name).copied()
+                };
+                let target = target.ok_or_else(|| {
+                    located(format!("${name} is not defined in stage {}", self.stage), &version.document, at)
+                })?;
+                next.push((target, at));
+            }
+            edges.push(next);
+        }
+        let mut colors = vec![0; self.versions.len()];
+        let mut order = Vec::new();
+        for root in 0..self.versions.len() {
+            if colors[root] != 0 {
+                continue;
+            }
+            colors[root] = 1;
+            let mut stack = vec![(root, 0)];
+            while let Some((id, next)) = stack.last_mut() {
+                if *next == edges[*id].len() {
+                    let id = *id;
+                    colors[id] = 2;
+                    order.push(id);
+                    stack.pop();
+                    continue;
+                }
+                let (child, at) = edges[*id][*next];
+                *next += 1;
+                if colors[child] == 1 {
+                    return Err(located(
+                        format!("constant cycle through ${}", self.versions[child].definition.name),
+                        &self.versions[*id].document,
+                        at,
+                    ));
+                }
+                if colors[child] == 0 {
+                    colors[child] = 1;
+                    stack.push((child, 0));
+                }
             }
         }
-        let mut ty = constant_value_type(value, *redefine, &|other| self.ty(other))
-            .map_err(|fault| fault_error(fault, document, *at))?;
-        if let Some(previous) = previous {
-            // A redefinition keeps the type, which gives ∅ its kind.
-            if ty == Type::Set && matches!(previous.ty, Type::Strings | Type::Tags) {
-                ty = previous.ty;
-            }
-            if ty != previous.ty {
-                return Err(located(
-                    format!("%redefine-const ${name} keeps the type of the constant, and cannot make it {}", ty.name()),
-                    document,
-                    *at,
-                ));
+        let mut kinds: HashMap<String, Type> = HashMap::new();
+        let mut users: HashMap<String, Vec<usize>> = HashMap::new();
+        for (id, version) in self.versions.iter().enumerate() {
+            users.entry(version.definition.name.clone()).or_default().push(id);
+            for &(child, _) in &edges[id] {
+                users.entry(self.versions[child].definition.name.clone()).or_default().push(id);
             }
         }
-        let value = self.evaluate(value, document, *at)?;
-        self.values.insert(name.clone(), StageConstant { value, ty, document: document.clone() });
+        let mut queue: std::collections::VecDeque<usize> = (0..self.versions.len()).collect();
+        let mut queued = vec![true; self.versions.len()];
+        while let Some(id) = queue.pop_front() {
+            queued[id] = false;
+            let v = &self.versions[id];
+            let ty = constant_value_type(&v.definition.value, v.definition.redefine, &|n| {
+                kinds.get(n).copied().unwrap_or(Type::Any)
+            })
+            .map_err(|f| fault_error(f, &v.document, v.definition.at))?;
+            if matches!(ty, Type::Any | Type::Set) {
+                continue;
+            }
+            if let Some(old) = kinds.get(&v.definition.name) {
+                if *old != ty {
+                    return Err(located(
+                        format!(
+                            "%redefine-const ${} keeps the type of the constant, and cannot make it {}",
+                            v.definition.name,
+                            ty.name()
+                        ),
+                        &v.document,
+                        v.definition.at,
+                    ));
+                }
+            } else {
+                kinds.insert(v.definition.name.clone(), ty);
+                for &user in &users[&v.definition.name] {
+                    if !queued[user] {
+                        queue.push_back(user);
+                        queued[user] = true;
+                    }
+                }
+            }
+        }
+        let mut values: Vec<Option<Value>> = vec![None; self.versions.len()];
+        for id in order {
+            let v = &self.versions[id];
+            let kind = *kinds.get(&v.definition.name).ok_or_else(|| {
+                located("the kind of the set that the constant holds is not given".into(), &v.document, v.definition.at)
+            })?;
+            let mut refs = Vec::new();
+            constants_in_term(&v.definition.value, &mut refs);
+            self.values = refs
+                .into_iter()
+                .zip(edges[id].iter())
+                .map(|((name, _), (child, _))| {
+                    (
+                        name.to_owned(),
+                        StageConstant {
+                            value: values[*child].clone().unwrap(),
+                            ty: kinds[name],
+                            document: self.versions[*child].document.clone(),
+                        },
+                    )
+                })
+                .collect();
+            let value = if kind == Type::Pattern
+                && term_type_in(&v.definition.value, &|n| kinds[n])
+                    .map_err(|f| fault_error(f, &v.document, v.definition.at))?
+                    == Type::Set
+            {
+                let p = Pattern::Terminal("EMPTY".into(), (0, 0));
+                Value::Pattern(Pattern::Difference(Box::new(p.clone()), Box::new(p)))
+            } else {
+                self.evaluate(&v.definition.value, &v.document, v.definition.at)?
+            };
+            values[id] = Some(value);
+        }
+        self.values = self
+            .latest
+            .iter()
+            .map(|(name, &id)| {
+                (
+                    name.clone(),
+                    StageConstant {
+                        value: values[id].clone().unwrap(),
+                        ty: kinds[name],
+                        document: self.versions[id].document.clone(),
+                    },
+                )
+            })
+            .collect();
         Ok(())
     }
 
@@ -496,9 +634,69 @@ impl Constants<'_> {
     /// comes from a constant here, since the reader refuses a literal one,
     /// and the error stands at that constant.
     fn evaluate(&self, term: &Term, document: &str, item: (usize, usize)) -> Result<Value, Error> {
-        let set = |part: &Term| self.evaluate(part, document, item).map(Value::set);
-        let string = |part: &Term| self.evaluate(part, document, item).map(Value::string);
+        if self.is_pattern(term) {
+            return self.evaluate_pattern_value(term, document, item);
+        }
+        self.evaluate_plain(term, document, item)
+    }
+    fn is_pattern(&self, term: &Term) -> bool {
+        let mut todo = vec![term];
+        while let Some(t) = todo.pop() {
+            match t {
+                Term::Pattern(_) => return true,
+                Term::Const(n, _) if self.ty(n) == Type::Pattern => return true,
+                Term::Union(xs) | Term::Intersection(xs) => todo.extend(xs),
+                Term::Difference(a, b) => {
+                    todo.push(a);
+                    todo.push(b);
+                }
+                _ => {}
+            }
+        }
+        false
+    }
+    fn evaluate_pattern_value(&self, term: &Term, document: &str, item: (usize, usize)) -> Result<Value, Error> {
+        let pattern = match term {
+            Term::Pattern(p) => p.map_values(
+                &|n, at| match &self.values[n].value {
+                    Value::Pattern(p) => Ok(p.clone()),
+                    _ => Err(located("a pattern is needed here".into(), document, at)),
+                },
+                &|v, op| {
+                    let result = self.evaluate(v, document, item)?;
+                    if is_sound_test(op) {
+                        if let Some(problem) = sound_problem(&result.clone().string(), self.unicode) {
+                            return Err(located(problem.into(), document, first_constant(v).unwrap_or(item)));
+                        }
+                    }
+                    Ok(result.term())
+                },
+            )?,
+            Term::Const(n, _) => match &self.values[n].value {
+                Value::Pattern(p) => p.clone(),
+                _ => unreachable!(),
+            },
+            Term::Union(xs) | Term::Intersection(xs) => {
+                let ps = xs.iter().map(|x| self.evaluate_pattern(x, document, item)).collect::<Result<Vec<_>, _>>()?;
+                if matches!(term, Term::Union(_)) {
+                    Pattern::Union(ps)
+                } else {
+                    Pattern::Intersection(ps)
+                }
+            }
+            Term::Difference(a, b) => Pattern::Difference(
+                Box::new(self.evaluate_pattern(a, document, item)?),
+                Box::new(self.evaluate_pattern(b, document, item)?),
+            ),
+            _ => unreachable!(),
+        };
+        Ok(Value::Pattern(pattern))
+    }
+    fn evaluate_plain(&self, term: &Term, document: &str, item: (usize, usize)) -> Result<Value, Error> {
+        let set = |part: &Term| self.evaluate_plain(part, document, item).map(Value::set);
+        let string = |part: &Term| self.evaluate_plain(part, document, item).map(Value::string);
         Ok(match term {
+            Term::Pattern(_) => unreachable!(),
             Term::Str(text) => Value::Str(text.clone()),
             Term::Tag(tag) => Value::Set(BTreeSet::from([tag.clone()])),
             Term::Range(start, end) => {
@@ -563,6 +761,17 @@ impl Constants<'_> {
         })
     }
 
+    fn evaluate_pattern(&self, t: &Term, document: &str, at: (usize, usize)) -> Result<Pattern, Error> {
+        match self.evaluate(t, document, at)? {
+            Value::Pattern(p) => Ok(p),
+            Value::Set(s) if s.is_empty() => {
+                let p = Pattern::Terminal("EMPTY".into(), (0, 0));
+                Ok(Pattern::Difference(Box::new(p.clone()), Box::new(p)))
+            }
+            _ => Err(located("a pattern is needed here".into(), document, at)),
+        }
+    }
+
     /// An implication's two sides, with the constants' final values: closed
     /// terms whose type is a tag set (engine §2, §9). An undefined constant
     /// stands at its reference, and a side of another type at its first
@@ -606,6 +815,60 @@ impl Constants<'_> {
             if let Some(fault) = rule_type_fault(rule, &|name| self.ty(name)) {
                 return Err(fault_error(fault, document, rule.at));
             }
+            enum Part<'a> {
+                Term(&'a Term),
+                Cond(&'a Cond),
+            }
+            let mut todo: Vec<Part> = rule.conditions.iter().map(Part::Cond).collect();
+            todo.extend(rule.tags.iter().map(Part::Term));
+            todo.extend(rule.alternatives.iter().filter_map(|a| a.tags.as_ref()).map(Part::Term));
+            for item in rule.emit.iter().flatten() {
+                if let EmitItem::Capture(_, Some(t), ..) = item {
+                    todo.push(Part::Term(t));
+                }
+            }
+            while let Some(part) = todo.pop() {
+                match part {
+                    Part::Term(t) => match t {
+                        Term::Pattern(_) => {
+                            self.evaluate_pattern(t, document, rule.at)?;
+                        }
+                        Term::Union(xs) | Term::Intersection(xs) => todo.extend(xs.iter().map(Part::Term)),
+                        Term::Difference(a, b) => {
+                            todo.push(Part::Term(a));
+                            todo.push(Part::Term(b));
+                        }
+                        Term::If(c, t) => {
+                            todo.push(Part::Cond(c));
+                            todo.push(Part::Term(t));
+                        }
+                        Term::Call(_, xs) => todo.extend(xs.iter().filter_map(|x| {
+                            if let Arg::Term(t) = x {
+                                Some(Part::Term(t))
+                            } else {
+                                None
+                            }
+                        })),
+                        _ => {}
+                    },
+                    Part::Cond(c) => match c {
+                        Cond::Compare(op, a, b) => {
+                            if matches!(op.as_str(), "≅" | "≇") {
+                                self.evaluate_pattern(b, document, rule.at)?;
+                            }
+                            todo.push(Part::Term(a));
+                            todo.push(Part::Term(b));
+                        }
+                        Cond::Any(xs) | Cond::All(xs) => todo.extend(xs.iter().map(Part::Cond)),
+                        Cond::Not(c) => todo.push(Part::Cond(c)),
+                        Cond::If(a, b) => {
+                            todo.push(Part::Cond(a));
+                            todo.push(Part::Cond(b));
+                        }
+                        _ => {}
+                    },
+                }
+            }
             // The checks that simplification decides, which the reader left
             // to the loader, now with the constants' values (§9).
             if let Some(problem) = definition_problem(&self.substitute_rule(rule)) {
@@ -637,7 +900,7 @@ impl Constants<'_> {
                 };
                 let seen = match &self.values[argument.0].value {
                     Value::Str(text) => text.as_str(),
-                    Value::Set(_) => "",
+                    Value::Set(_) | Value::Pattern(_) => "",
                 };
                 if call == "split" && seen.is_empty() {
                     return Err(located("split has an empty delimiter".to_string(), document, argument.1));
@@ -646,9 +909,6 @@ impl Constants<'_> {
                     return Err(located(format!("tag({seen:?}): the string is not a name"), document, argument.1));
                 }
             }
-        }
-        if users.is_empty() {
-            return Ok(());
         }
         // Each reference holds the final value. Shared clauses are
         // substituted once, and the alternatives that share them share the
@@ -732,6 +992,10 @@ impl Constants<'_> {
     }
 
     fn substitute_term(&self, term: &mut Term) {
+        if self.is_pattern(term) {
+            *term = Term::Pattern(Box::new(self.evaluate_pattern(term, "", (0, 0)).expect("checked pattern")));
+            return;
+        }
         match term {
             Term::Const(name, _) => *term = self.values[name.as_str()].value.term(),
             Term::Union(items) | Term::Intersection(items) => {
@@ -752,14 +1016,19 @@ impl Constants<'_> {
                     }
                 }
             }
-            Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Capture(_) => {}
+            Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Capture(_) => {}
         }
     }
 
     fn substitute_cond(&self, cond: &mut Cond) {
         work::count(Work::Stitched, 1);
         match cond {
-            Cond::Compare(_, left, right) => {
+            Cond::Compare(op, left, right) => {
+                if matches!(op.as_str(), "≅" | "≇") {
+                    *right =
+                        Term::Pattern(Box::new(self.evaluate_pattern(right, "", (0, 0)).expect("checked pattern")));
+                    return;
+                }
                 self.substitute_term(left);
                 self.substitute_term(right);
             }
@@ -808,7 +1077,13 @@ fn calls_in_rule<'r>(rule: &'r RuleDef, out: &mut Vec<(&'r str, &'r [Arg])>) {
                 cond(c, out);
                 term(then, out);
             }
-            Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Capture(_) | Term::Const(..) => {}
+            Term::Pattern(_)
+            | Term::Str(_)
+            | Term::Tag(_)
+            | Term::Range(..)
+            | Term::EmptySet
+            | Term::Capture(_)
+            | Term::Const(..) => {}
         }
     }
     fn cond<'r>(c: &'r Cond, out: &mut Vec<(&'r str, &'r [Arg])>) {
@@ -918,7 +1193,7 @@ fn check_span(term: &Term) -> Result<(), String> {
 fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
     match term {
         // Stitching has checked every constant (engine §2).
-        Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Const(..) => Ok(()),
+        Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Const(..) => Ok(()),
         Term::Union(items) | Term::Intersection(items) => {
             for item in items {
                 check_term(grammar, item)?;
@@ -969,7 +1244,7 @@ fn check_cond(grammar: &StageGrammar, cond: &Cond) -> Result<(), String> {
     work::count(Work::Stitched, 1);
     match cond {
         Cond::Compare(op, left, right) => {
-            if !matches!(op.as_str(), "=" | "≠" | "∈" | "∉" | "⊆" | "⊈") {
+            if !matches!(op.as_str(), "=" | "≠" | "∈" | "∉" | "⊆" | "⊈" | "≅" | "≇") {
                 return Err(format!("an unknown comparison {op}"));
             }
             check_term(grammar, left)?;

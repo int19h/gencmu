@@ -91,6 +91,7 @@ enum Node {
         set: u32,
         tags: u32,
         test: u32,
+        structure: u32,
     },
 }
 
@@ -1010,6 +1011,35 @@ impl<'c> Ranker<'c> {
                 if item.dot == 0 {
                     return Deps::Leaf;
                 }
+                if self.dag.chart.machine.is_some() {
+                    let g = self.dag.g;
+                    let p = &g.prods[item.prod as usize];
+                    let position = item.dot as usize - 1;
+                    let mut links = Vec::new();
+                    for &(before, cap) in self.dag.chart.links.get(&(set, item)).into_iter().flatten() {
+                        let m = cap.start;
+                        let Some(index) = self.dag.chart.sets[m as usize].find(&before) else {
+                            continue;
+                        };
+                        let pred = (Node::Item { set: m, index }, if m == set { fset } else { 0 });
+                        let child = match p.syms[position] {
+                            Sym::T(terminal) => (Node::Read { tok: m, terminal }, 0),
+                            Sym::N(rule) => (
+                                Node::Group {
+                                    rule,
+                                    origin: m,
+                                    set,
+                                    tags: cap.tags,
+                                    test: p.test(position).unwrap_or(NO_TEST),
+                                    structure: cap.structure,
+                                },
+                                if m == item.origin { fset } else { 0 },
+                            ),
+                        };
+                        links.push((pred, child));
+                    }
+                    return Deps::Links(links);
+                }
                 let production = &self.dag.g.prods[item.prod as usize];
                 let position = item.dot as usize - 1;
                 let captured = production.cap_at[position].is_some();
@@ -1021,7 +1051,14 @@ impl<'c> Ranker<'c> {
                 } else {
                     item.caps
                 };
-                let pred = Item { prod: item.prod, dot: item.dot - 1, origin: item.origin, caps: previous };
+                let pred = Item {
+                    prod: item.prod,
+                    dot: item.dot - 1,
+                    origin: item.origin,
+                    caps: previous,
+                    prefix: 0,
+                    structure: u32::MAX,
+                };
                 let mut links = Vec::new();
                 let same = |m: u32, fset: u32| if m == set { fset } else { 0 };
                 // The predecessors are rebuilt from completed spans, so a
@@ -1068,7 +1105,14 @@ impl<'c> Ranker<'c> {
                             let m = cap.start;
                             if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| holds(m, cap.tags))
                             {
-                                let child = Node::Group { rule, origin: m, set, tags: cap.tags, test: NO_TEST };
+                                let child = Node::Group {
+                                    rule,
+                                    origin: m,
+                                    set,
+                                    tags: cap.tags,
+                                    test: NO_TEST,
+                                    structure: cap.structure,
+                                };
                                 let child_fset = if m == item.origin { fset } else { 0 };
                                 links.push(((Node::Item { set: m, index: p }, same(m, fset)), (child, child_fset)));
                             }
@@ -1084,7 +1128,8 @@ impl<'c> Ranker<'c> {
                                         items.iter().any(|&index| holds(m, eset.tagset[index as usize]))
                                     });
                                 if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| passes) {
-                                    let child = Node::Group { rule, origin: m, set, tags: ANY, test: test_id };
+                                    let child =
+                                        Node::Group { rule, origin: m, set, tags: ANY, test: test_id, structure: ANY };
                                     let child_fset = if m == item.origin { fset } else { 0 };
                                     links.push(((Node::Item { set: m, index: p }, same(m, fset)), (child, child_fset)));
                                 }
@@ -1103,7 +1148,7 @@ impl<'c> Ranker<'c> {
                 let inner = self.fset_with(fset, rule);
                 Deps::Close(Some((Node::Item { set, index }, inner)))
             }
-            Node::Group { rule, origin, set, tags, test } => {
+            Node::Group { rule, origin, set, tags, test, structure } => {
                 let eset = &self.dag.chart.sets[set as usize];
                 // A fault applies no test in the check (tests/README.md).
                 let no_tests = self.dag.projection.is_some() && witness::fault_at(Fault::RankerTests, "group");
@@ -1116,7 +1161,10 @@ impl<'c> Ranker<'c> {
                     .map(|items| {
                         items
                             .iter()
-                            .filter(|&&index| tags == ANY || eset.tagset[index as usize] == tags)
+                            .filter(|&&index| {
+                                (tags == ANY || eset.tagset[index as usize] == tags)
+                                    && (structure == ANY || eset.items[index as usize].structure == structure)
+                            })
                             .filter(|&&index| {
                                 test.map_or(true, |test| {
                                     test_holds(test, span, unicode, tag_table, eset.tagset[index as usize])
@@ -1169,6 +1217,7 @@ impl<'c> Ranker<'c> {
                 }
                 Pass::Entries => {
                     let result = self.compute(key, deps);
+                    work::count(Work::SummaryContexts, 1);
                     self.results.push(result);
                     self.memo.insert(key, (self.results.len() - 1) as u32);
                 }
@@ -1465,7 +1514,8 @@ impl<'c> Ranker<'c> {
         let n = (self.dag.chart.sets.len() - 1) as u32;
         // Every completed item of the start rule over the whole input is an
         // edge of one root (§6).
-        let root = (Node::Group { rule: self.dag.g.start, origin: 0, set: n, tags: ANY, test: NO_TEST }, 0);
+        let root =
+            (Node::Group { rule: self.dag.g.start, origin: 0, set: n, tags: ANY, test: NO_TEST, structure: ANY }, 0);
         // Under late-elision, the total and the least count of the root,
         // before the forest is cut down to the best derivations.
         let counts = if self.elisions.is_some() {

@@ -59,7 +59,8 @@ fn list_catches() {
 }
 
 /// For each fault, shared engine cases that catch it, and how.
-const CATCHES: [(Fault, &[(&str, Catch)]); 8] = [
+const CATCHES: [(Fault, &[(&str, Catch)]); 9] = [
+    (Fault::Omission, &[("elidable-table-unequal-empty.json", Catch::Both)]),
     (Fault::RankerTests, &[("reparse-tested-rebuilt-derivations.json", Catch::Result)]),
     (Fault::ReferenceSpan, &[("reparse-original-rule-test.json", Catch::Both)]),
     (Fault::Reprocess, &[("reparse-strict-reclose-late.json", Catch::Result)]),

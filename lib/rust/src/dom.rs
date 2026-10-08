@@ -8,7 +8,7 @@ use crate::tags::{character_code, is_name, is_tag};
 use crate::unicode::{is_property_name, Unicode};
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 20;
+pub const DOM_FORMAT: i64 = 21;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -174,6 +174,7 @@ pub(crate) enum Chain {
 /// expected. The capture named `""` is `$`, the whole constituent.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Term {
+    Pattern(Box<crate::patterns::Pattern>),
     /// A string, decoded.
     Str(String),
     /// A tag literal: the set of one tag, in its canonical spelling.
@@ -455,9 +456,10 @@ fn range_from_json(value: &Json) -> R<(String, String)> {
     }
 }
 
-fn term_from_json(value: &Json) -> R<Term> {
+pub(crate) fn term_from_json(value: &Json) -> R<Term> {
     let list = |key: &str| -> R<Vec<Term>> { array(value, key)?.iter().map(term_from_json).collect() };
     Ok(match first_key(value)? {
+        "pattern" => Term::Pattern(Box::new(crate::patterns::Pattern::from_json(field(value, "pattern")?)?)),
         "string" => Term::Str(string(value, "string")?),
         "tag" => Term::Tag(string(value, "tag")?),
         "range" => {
@@ -576,7 +578,8 @@ const EXPR_FORMS: [&[&str]; 12] = [
 
 /// The forms of a term, each as its members (docs/output.md). The first
 /// member names the form.
-const TERM_FORMS: [&[&str]; 11] = [
+const TERM_FORMS: [&[&str]; 12] = [
+    &["pattern"],
     &["union"],
     &["intersection"],
     &["difference"],
@@ -785,7 +788,9 @@ fn elidable_head_json(expr: &Json) -> Option<&Json> {
     if is_terminal(head) {
         return Some(head);
     }
-    (head.get("test").and_then(Json::as_str) == Some("=") && head.get("expr").is_some_and(is_terminal)).then_some(head)
+    (head.get("test").and_then(Json::as_str).is_some_and(|op| TEST_OPS.contains(&op))
+        && head.get("expr").is_some_and(is_terminal))
+    .then_some(head)
 }
 
 /// What is wrong with a test's value (engine §9), or `None`: it must be a
@@ -830,6 +835,7 @@ enum Kind {
     /// tags the term defines either.
     TagCondition,
     Emission,
+    Pattern,
 }
 
 /// Why a JSON value is not a DOM the reader could have produced (engine
@@ -1014,10 +1020,27 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                 Kind::Term | Kind::TagTerm | Kind::Argument => "a malformed term",
                 Kind::Condition | Kind::TagCondition => "a malformed condition",
                 Kind::Emission => "a malformed emission",
+                Kind::Pattern => "a malformed pattern",
             });
         }
         let next = depth + 1;
         match kind {
+            Kind::Pattern => {
+                if let Some(test_value) = value.get("value") {
+                    pending.push((Kind::Term, test_value, next));
+                    tests.push(value);
+                }
+                for key in ["pattern", "children", "node", "optional", "repeat", "separator", "expr"] {
+                    if let Some(child) = value.get(key) {
+                        pending.push((Kind::Pattern, child, next));
+                    }
+                }
+                for key in ["union", "intersection", "difference", "sequence"] {
+                    if let Some(xs) = value.get(key).and_then(Json::as_array) {
+                        pending.extend(xs.iter().map(|x| (Kind::Pattern, x, next)));
+                    }
+                }
+            }
             Kind::Expr { whole, sealed } => {
                 // An expression has exactly the members of one form
                 // (docs/output.md).
@@ -1226,13 +1249,22 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     }
                     pending.push((Kind::Argument, span, next));
                 } else {
-                    if !matches!(value.get("op").and_then(Json::as_str), Some("=" | "≠" | "∈" | "∉" | "⊆" | "⊈"))
-                    {
+                    if !matches!(
+                        value.get("op").and_then(Json::as_str),
+                        Some("=" | "≠" | "∈" | "∉" | "⊆" | "⊈" | "≅" | "≇")
+                    ) {
                         return Some("a malformed condition");
                     }
                     match (value.get("left"), value.get("right")) {
                         (Some(left), Some(right)) => {
-                            pending.push((terms, left, next));
+                            if matches!(value.get("op").and_then(Json::as_str), Some("≅" | "≇")) {
+                                if !matches!(left.as_object(),Some([(k,Json::Str(_))]) if k=="capture") {
+                                    return Some("a tree comparison reads one bare capture");
+                                }
+                                pending.push((Kind::Argument, left, next));
+                            } else {
+                                pending.push((terms, left, next));
+                            }
                             pending.push((terms, right, next));
                         }
                         _ => return Some("a malformed condition"),
@@ -1250,7 +1282,9 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     return Some("a tag term that reads the tags it defines");
                 }
                 let inner = if own { Kind::TagTerm } else { Kind::Term };
-                if let Some(cond) = value.get("if") {
+                if let Some(pattern) = value.get("pattern") {
+                    pending.push((Kind::Pattern, pattern, next));
+                } else if let Some(cond) = value.get("if") {
                     let Some(then) = value.get("then").filter(|_| value.as_object().map_or(0, <[_]>::len) == 2) else {
                         return Some("a malformed term");
                     };
@@ -1318,6 +1352,24 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     return Some("a malformed term");
                 }
             }
+        }
+    }
+    // Pattern conversion starts only after the complete DOM is bounded.
+    let mut nodes = vec![dom];
+    while let Some(node) = nodes.pop() {
+        match node {
+            Json::Obj(members) => {
+                if let Some(pattern) = node.get("pattern") {
+                    if node.as_object().is_some_and(|xs| xs.len() == 1)
+                        && crate::patterns::Pattern::from_json(pattern).is_err()
+                    {
+                        return Some("a malformed pattern");
+                    }
+                }
+                nodes.extend(members.iter().map(|(_, v)| v));
+            }
+            Json::Arr(xs) => nodes.extend(xs),
+            _ => {}
         }
     }
     // The walks below recurse, so they run only once the nesting is
@@ -1389,19 +1441,25 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
 /// term, and no call but `split` and `tag` of closed terms. The shape of
 /// the term need not be checked.
 fn is_closed_json(term: &Json) -> bool {
-    if !is_object(term) {
-        return true;
+    let mut todo = vec![term];
+    while let Some(node) = todo.pop() {
+        match node {
+            Json::Obj(xs) => {
+                if has(node, "capture") || has(node, "if") {
+                    return false;
+                }
+                if let Some(call) = node.get("call") {
+                    if !matches!(call.as_str(), Some("split" | "tag")) {
+                        return false;
+                    }
+                }
+                todo.extend(xs.iter().map(|(_, x)| x));
+            }
+            Json::Arr(xs) => todo.extend(xs),
+            _ => {}
+        }
     }
-    if has(term, "capture") || has(term, "if") {
-        return false;
-    }
-    if let Some(call) = term.get("call") {
-        return matches!(call.as_str(), Some("split" | "tag"))
-            && term.get("args").and_then(Json::as_array).unwrap_or(&[]).iter().all(is_closed_json);
-    }
-    ["union", "intersection", "difference"]
-        .iter()
-        .all(|key| term.get(key).and_then(Json::as_array).unwrap_or(&[]).iter().all(is_closed_json))
+    true
 }
 
 /// What is wrong with a call of `split` or `tag` whose argument the reader
@@ -1710,8 +1768,13 @@ fn write_range(out: &mut String, start: &str, end: &str) {
     out.push_str("]}");
 }
 
-fn write_term(out: &mut String, term: &Term) {
+pub(crate) fn write_term(out: &mut String, term: &Term) {
     match term {
+        Term::Pattern(p) => {
+            out.push_str("{\"pattern\":");
+            p.write(out);
+            out.push('}');
+        }
         Term::Str(text) => {
             out.push_str("{\"string\":");
             write_str(out, text);
@@ -1836,6 +1899,7 @@ fn write_cond(out: &mut String, cond: &Cond) {
 /// type the reader cannot know, any type but a span (engine §9).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Type {
+    Pattern,
     String,
     Strings,
     Tags,
@@ -1847,6 +1911,7 @@ pub(crate) enum Type {
 impl Type {
     pub(crate) fn name(self) -> &'static str {
         match self {
+            Type::Pattern => "a pattern",
             Type::String => "a string",
             Type::Strings => "a set of strings",
             Type::Tags => "a tag set",
@@ -1898,6 +1963,7 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>)
         crate::work::count(crate::work::Work::Walked, 1);
         match part {
             Nested::Term(term) => match term {
+                Term::Pattern(p) => p.constants(out),
                 Term::Const(name, at) => out.push((name, *at)),
                 Term::Union(items) | Term::Intersection(items) => stack.extend(items.iter().rev().map(Nested::Term)),
                 Term::Difference(left, right) => stack.extend([Nested::Term(right), Nested::Term(left)]),
@@ -1979,8 +2045,13 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                     Arg::Term(term) => Some((Nested::Term(term), below)),
                     Arg::Rule(_) | Arg::Classifier(_) => None,
                 })),
-                Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Capture(_) | Term::Const(..) => {
-                }
+                Term::Pattern(_)
+                | Term::Str(_)
+                | Term::Tag(_)
+                | Term::Range(..)
+                | Term::EmptySet
+                | Term::Capture(_)
+                | Term::Const(..) => {}
             },
             Nested::Cond(cond) => match cond {
                 Cond::Any(items) | Cond::All(items) => {
@@ -2071,7 +2142,7 @@ pub(crate) fn constants_in_rule(rule: &RuleDef) -> Vec<(&str, (usize, usize))> {
     out
 }
 
-fn first_constant_in_term(term: &Term) -> Option<(usize, usize)> {
+pub(crate) fn first_constant_in_term(term: &Term) -> Option<(usize, usize)> {
     let mut out = Vec::new();
     constants_in_term(term, &mut out);
     out.first().map(|&(_, at)| at)
@@ -2105,6 +2176,13 @@ pub(crate) fn joined_type(types: &[Type], operator: &str) -> Result<Type, String
     if let Some(bad) = types.iter().find(|&&ty| ty == Type::String) {
         return Err(format!("{operator} joins sets, not {}", bad.name()));
     }
+    let patterns = types.contains(&Type::Pattern);
+    if patterns {
+        if types.iter().any(|t| !matches!(t, Type::Pattern | Type::Set | Type::Any)) {
+            return Err(format!("{operator} joins sets of one kind, not patterns and another set"));
+        }
+        return Ok(Type::Pattern);
+    }
     let strings = types.contains(&Type::Strings);
     let tags = types.contains(&Type::Tags);
     match (strings, tags) {
@@ -2119,6 +2197,16 @@ pub(crate) fn joined_type(types: &[Type], operator: &str) -> Result<Type, String
 /// Why a comparison's two sides do not fit its comparator, or `None`. A
 /// side of type `Any` fits, and the loader checks it again (engine §9).
 pub(crate) fn comparison_problem(op: &str, left: Type, right: Type) -> Option<String> {
+    if matches!(op, "≅" | "≇") {
+        return if left != Type::Span {
+            Some("a tree comparison reads one bare capture".into())
+        } else {
+            expected_problem(right, Type::Pattern)
+        };
+    }
+    if left == Type::Pattern || right == Type::Pattern {
+        return Some("patterns use ≅ or ≇ for tree comparisons".into());
+    }
     if left == Type::Span || right == Type::Span {
         return Some(SPAN_NOT_VALUE.to_string());
     }
@@ -2156,7 +2244,10 @@ pub(crate) fn comparison_problem(op: &str, left: Type, right: Type) -> Option<St
 /// tag set, is needed, or `None`. A set of open kind takes the kind it is
 /// given, and a constant of unknown type fits.
 pub(crate) fn expected_problem(ty: Type, expected: Type) -> Option<String> {
-    if ty == expected || ty == Type::Any || (ty == Type::Set && expected == Type::Tags) {
+    if ty == expected
+        || ty == Type::Any
+        || (ty == Type::Set && matches!(expected, Type::Tags | Type::Pattern | Type::Strings))
+    {
         None
     } else if ty == Type::Span {
         Some(SPAN_NOT_VALUE.to_string())
@@ -2185,6 +2276,10 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
         joined_type(&types, operator).map_err(|problem| Fault::in_term(problem, term))
     };
     match term {
+        Term::Pattern(p) => match p.type_fault(constants) {
+            Some(f) => Err(f),
+            None => Ok(Type::Pattern),
+        },
         Term::Str(_) => Ok(Type::String),
         Term::Tag(_) | Term::Range(..) => Ok(Type::Tags),
         Term::EmptySet => Ok(Type::Set),
@@ -2376,7 +2471,13 @@ impl Term {
                 stack.push(Dropping::Cond(std::mem::replace(&mut **cond, Cond::Captured(String::new()))));
                 stack.push(Dropping::Term(std::mem::replace(&mut **then, Term::EmptySet)));
             }
-            Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Capture(_) | Term::Const(..) => {}
+            Term::Pattern(_)
+            | Term::Str(_)
+            | Term::Tag(_)
+            | Term::Range(..)
+            | Term::EmptySet
+            | Term::Capture(_)
+            | Term::Const(..) => {}
         }
     }
 }

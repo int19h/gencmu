@@ -482,6 +482,9 @@ pub fn case_files(directory: &str) -> Vec<PathBuf> {
         .filter(|path| path.extension().is_some_and(|extension| extension == "json"))
         .collect();
     files.sort();
+    if let Ok(filter) = std::env::var("GENCMU_CASE_FILTER") {
+        files.retain(|p| p.file_name().unwrap().to_string_lossy().contains(&filter));
+    }
     files
 }
 
@@ -502,7 +505,30 @@ pub fn case_documents(case: &Value) -> (BTreeMap<String, String>, String) {
     for (path, text) in case.get("documents").map(Value::object).unwrap_or(&[]) {
         documents.insert(path.clone(), text.str().expect("a document").to_string());
     }
-    (documents, case.get("pipeline").and_then(Value::str).expect("a pipeline").to_string())
+    let pipeline = case.get("pipeline").and_then(Value::str).expect("a pipeline").to_string();
+    if documents.values().any(|d| d.contains("%include \"../dialects/")) {
+        let root = repository().join("grammars");
+        let mut bundled = BTreeMap::new();
+        let mut pending = vec![root.clone()];
+        while let Some(dir) = pending.pop() {
+            for entry in std::fs::read_dir(dir).expect("bundled grammars") {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    pending.push(path);
+                } else {
+                    bundled.insert(
+                        path.strip_prefix(&root).unwrap().to_string_lossy().to_string(),
+                        std::fs::read_to_string(path).expect("a grammar resource"),
+                    );
+                }
+            }
+        }
+        for (path, text) in documents {
+            bundled.insert(format!("case/{path}"), text);
+        }
+        return (bundled, format!("case/{pipeline}"));
+    }
+    (documents, pipeline)
 }
 
 /// The names of a list of features, `features` or `withoutFeatures`, in an

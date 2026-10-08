@@ -36,9 +36,11 @@ pub struct ElisionCheckRun {
 
 /// A fault of this library's own paths in the check of `elision-only`,
 /// which a test turns on to show that the shared cases catch it
-/// (tests/README.md). Each applies only while the check runs.
+/// (tests/README.md). The omission fault also affects the original recognition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Fault {
+    /// The recognizer admits an omission without its restoration predicate.
+    Omission,
     /// The ranker, which rebuilds the links of the check's derivations from
     /// completed spans, applies no symbol test to them.
     RankerTests,
@@ -66,7 +68,8 @@ pub enum Fault {
 
 impl Fault {
     /// Every fault, for the tests that run each one.
-    pub const ALL: [Fault; 8] = [
+    pub const ALL: [Fault; 9] = [
+        Fault::Omission,
         Fault::RankerTests,
         Fault::ReferenceSpan,
         Fault::Reprocess,
@@ -82,7 +85,7 @@ impl Fault {
     pub fn sites(self) -> &'static [&'static str] {
         match self {
             Fault::RankerTests | Fault::ReferenceSpan | Fault::LostContext | Fault::LostSelect => &["links", "group"],
-            Fault::Reprocess | Fault::Route3 | Fault::RankRestoration | Fault::Restore => &[""],
+            Fault::Omission | Fault::Reprocess | Fault::Route3 | Fault::RankRestoration | Fault::Restore => &[""],
         }
     }
 }
@@ -322,16 +325,92 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
         if elided(&node.kind) {
             // The restoration: the empty production's item from `start`,
             // in the set after it.
-            found[index as usize] = at(end, Item { prod, dot: 0, origin: start, caps: 0 }).into_iter().collect();
+            found[index as usize] = if forest.chart.machine.is_some() {
+                forest.chart.sets[end as usize]
+                    .items
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, item)| item.prod == prod && item.dot == 0 && item.origin == start && item.caps == 0)
+                    .map(|(i, _)| i as u32)
+                    .collect()
+            } else {
+                at(end, Item { prod, dot: 0, origin: start, caps: 0, prefix: 0, structure: u32::MAX })
+                    .into_iter()
+                    .collect()
+            };
             marks.items.extend(found[index as usize].iter().map(|&item| (end, item)));
             continue;
         }
         let production = &g.prods[prod as usize];
-        let mut current: Vec<Item> = at(start, Item { prod, dot: 0, origin: start, caps: 0 })
-            .map(|_| Item { prod, dot: 0, origin: start, caps: 0 })
-            .into_iter()
-            .collect();
-        marks.items.extend(at(start, Item { prod, dot: 0, origin: start, caps: 0 }).map(|item| (start, item)));
+        if forest.chart.machine.is_some() {
+            let mut current: Vec<Item> = forest.chart.sets[start as usize]
+                .items
+                .iter()
+                .filter(|item| item.prod == prod && item.dot == 0 && item.origin == start && item.caps == 0)
+                .copied()
+                .collect();
+            for &item in &current {
+                if let Some(i) = at(start, item) {
+                    marks.items.insert((start, i));
+                }
+            }
+            for (position, &child) in node.children.iter().enumerate() {
+                let (from, to) = spans[child as usize];
+                let mut next = Vec::new();
+                for &item in &current {
+                    let mut caps = Vec::new();
+                    match (&chosen.nodes[child as usize].kind, production.syms[position]) {
+                        (IKind::Read { tok, terminal }, Sym::T(symbol)) if *terminal == symbol => {
+                            let rule = &g.rules[production.rule as usize];
+                            let omitted = forest.synthetic[from as usize]
+                                && position == 0
+                                && rule.helper
+                                && rule.elided.is_some();
+                            if let Some(&structure) = forest.chart.terminal_states.get(&(from, symbol, omitted)) {
+                                let token = &forest.tokens[forest.original_at[*tok as usize] as usize];
+                                let tags = if forest.synthetic[from as usize] { forest.empty } else { token.tags };
+                                caps.push(Cap { start: from, end: to, tags, structure });
+                            }
+                        }
+                        (IKind::Close { .. }, Sym::N(_)) => {
+                            for &i in &found[child as usize] {
+                                let set = &forest.chart.sets[to as usize];
+                                caps.push(Cap {
+                                    start: from,
+                                    end: to,
+                                    tags: set.tagset[i as usize],
+                                    structure: set.items[i as usize].structure,
+                                });
+                            }
+                        }
+                        _ => {}
+                    }
+                    for cap in caps {
+                        if let Some(&advanced) = forest.chart.advances.get(&(item, cap)) {
+                            if let Some(i) = at(to, advanced) {
+                                if !next.contains(&advanced) {
+                                    next.push(advanced);
+                                }
+                                marks.items.insert((to, i));
+                                marks.links.insert((to, i, from));
+                            }
+                        }
+                    }
+                }
+                current = next;
+            }
+            found[index as usize] = current.into_iter().filter_map(|item| at(end, item)).collect();
+            continue;
+        }
+        let mut current: Vec<Item> =
+            at(start, Item { prod, dot: 0, origin: start, caps: 0, prefix: 0, structure: u32::MAX })
+                .map(|_| Item { prod, dot: 0, origin: start, caps: 0, prefix: 0, structure: u32::MAX })
+                .into_iter()
+                .collect();
+        marks.items.extend(
+            at(start, Item { prod, dot: 0, origin: start, caps: 0, prefix: 0, structure: u32::MAX })
+                .map(|item| (start, item)),
+        );
         for (position, &child) in node.children.iter().enumerate() {
             let (from, to) = spans[child as usize];
             let test = g.test(prod, position);
@@ -375,16 +454,27 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                             Sym::T(_) if forest.synthetic[from as usize] => forest.empty,
                             _ => tags,
                         };
-                        let Some(caps) = forest.chart.lookup_caps(item.caps, Cap { start: from, end: to, tags }) else {
+                        let Some(caps) = forest
+                            .chart
+                            .lookup_caps(item.caps, Cap { start: from, end: to, tags, structure: u32::MAX })
+                        else {
                             continue;
                         };
-                        let advanced = Item { prod, dot: item.dot + 1, origin: start, caps };
+                        let advanced =
+                            Item { prod, dot: item.dot + 1, origin: start, caps, prefix: 0, structure: u32::MAX };
                         if at(to, advanced).is_some() && !next.contains(&advanced) {
                             next.push(advanced);
                         }
                     }
                 } else if !own.is_empty() {
-                    let advanced = Item { prod, dot: item.dot + 1, origin: start, caps: item.caps };
+                    let advanced = Item {
+                        prod,
+                        dot: item.dot + 1,
+                        origin: start,
+                        caps: item.caps,
+                        prefix: 0,
+                        structure: u32::MAX,
+                    };
                     if at(to, advanced).is_some() && !next.contains(&advanced) {
                         next.push(advanced);
                     }
