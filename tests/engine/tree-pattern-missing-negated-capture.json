@@ -1,0 +1,18 @@
+{
+  "description": "A comparison on an absent capture disappears during lowering. Negation does not change that capture rule.",
+  "grammar": "%rule text [$x(A)] B\n%conditions $x ≇ @(A)",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

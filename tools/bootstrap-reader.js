@@ -24,7 +24,7 @@ const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.tx
 // The symbols of one character; `..`, `...`, `++` and `¬` have rules of
 // their own in the lexer.
 const SYMBOLS = new Set(["+", "|", "&", "(", ")", "[", "]", "{", "}", "\\", "<", ">", "#", "ε", ",", "∧", "∨", "⟹", "=", "≠",
-  "∈", "∉", "⊆", "⊈", "⊇", "⊉", "∪", "∩", "∖", "∅"]);
+  "∈", "∉", "⊆", "⊈", "⊇", "⊉", "∪", "∩", "∖", "∅", "≅", "≇", "⋯", "⋮", "⋰", "⋱"]);
 
 const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%tags", "%conditions", "%emits", "%opaque",
   "%ambiguity-resolution", "%stage", "%include", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
@@ -96,6 +96,10 @@ function lex(text, positions) {
     /** @type {[number, string | null][]} */
     const found = [];
     let reach = i;
+    if (c === "@") {
+      reach = i + 1;
+      if (chars[i + 1] === "(") found.push([i + 2, "pattern-open"]);
+    }
     // A whole name with a prefix (`$`, `%`, `~`).
     const prefixed = (from, kindOf) => {
       if (!isLetter(chars[from])) return;
@@ -192,7 +196,7 @@ const COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈"]);
 const TEST_COMPARATORS = new Set(["=", "≠", "⊇", "⊉"]);
 // What may follow a term in parentheses that begins a comparison, and not
 // conditions in parentheses: a comparator, or more of the term.
-const AFTER_TERM = new Set([...COMPARATORS, "∪", "∩", "∖"]);
+const AFTER_TERM = new Set(["≅", "≇", ...COMPARATORS, "∪", "∩", "∖"]);
 const PRIMARY_STARTS = new Set(["identifier", "tag", "character", "property", "phoneme", "capture", "constant", "(", "[", "{", "#", "ε"]);
 
 // A recursive descent parser of the notation's syntax grammar
@@ -582,6 +586,11 @@ class Parser {
         }));
         if (grouped) return grouped;
       }
+      if (kind === "capture" && (this.is("≅", 1) || this.is("≇", 1))) {
+        const left = this.leaf("capture-reference");
+        const op = this.leaf("tree-comparator");
+        return this.node("condition", start, [this.node("tree-comparison", start, [left, op, (yield this.union())])]);
+      }
       if (kind === "capture" && !AFTER_TERM.has(this.kindAt(1))) return this.node("condition", start, [this.leaf("presence")]);
       if (kind === "identifier" && this.is("(", 1)) {
         const call = (yield this.attempt(function* () {
@@ -640,6 +649,7 @@ class Parser {
   *termAtom() {
     const start = this.index;
     switch (this.kindAt()) {
+      case "pattern-open": return this.node("term-atom", start, [(yield this.patternLiteral())]);
       case "string": case "tag": case "character": case "phoneme": case "property": return this.node("term-atom", start, [this.atomSymbol()]);
       case "identifier": return this.node("term-atom", start, [this.is("(", 1) ? (yield this.call()) : this.leaf("name")]);
       case "∅": return this.node("term-atom", start, [this.leaf("empty-set")]);
@@ -648,6 +658,63 @@ class Parser {
       case "constant": return this.node("term-atom", start, [this.leaf("constant-reference")]);
       default: return this.fail("expected a term");
     }
+  }
+
+  *patternLiteral() {
+    const start = this.index;
+    return this.node("pattern-literal", start, [this.expect("pattern-open"), (yield this.patternUnion()), this.expect(")")]);
+  }
+
+  *patternUnion() {
+    const start = this.index, children = [(yield this.patternIntersection())];
+    while (this.is("∪") || this.is("∖")) children.push(this.tok(), (yield this.patternIntersection()));
+    return this.node("pattern-union", start, children);
+  }
+
+  *patternIntersection() {
+    const start = this.index, children = [(yield this.patternSequence())];
+    while (this.is("∩")) children.push(this.tok(), (yield this.patternSequence()));
+    return this.node("pattern-intersection", start, children);
+  }
+
+  *patternSequence() {
+    const start = this.index, children = [];
+    do { children.push((yield this.patternItem())); }
+    while (["identifier", "#", "constant", "pattern-open", "(", "[", "{", "⋯", "⋮", "⋰", "⋱"].includes(this.kindAt()));
+    return this.node("pattern-sequence", start, children);
+  }
+
+  *patternItem() {
+    const start = this.index;
+    let child;
+    if (this.is("⋯")) child = this.tok();
+    else if (this.is("⋮") || this.is("⋰") || this.is("⋱")) child = this.node("pattern-path", start, [this.tok(), (yield this.patternAtom())]);
+    else if (this.is("[")) child = this.node("pattern-brackets", start, [this.tok(), (yield this.patternUnion()), this.expect("]")]);
+    else if (this.is("{")) {
+      const children = [this.tok(), (yield this.patternUnion())];
+      if (this.is("\\")) children.push(this.tok(), (yield this.patternUnion()));
+      children.push(this.expect("}"));
+      child = this.node("pattern-repeat", start, children);
+    } else child = (yield this.patternAtom());
+    return this.node("pattern-item", start, [child]);
+  }
+
+  *patternAtom() {
+    const start = this.index;
+    let children;
+    if (this.is("identifier")) {
+      children = [this.tok()];
+      if (TEST_COMPARATORS.has(this.kindAt())) children.push((yield this.test()));
+      else if (this.is("∩")) {
+        const test = (yield this.attempt(function* () { return (yield this.test()); }));
+        if (test) children.push(test);
+      }
+    } else if (this.is("#")) children = [this.tok()];
+    else if (this.is("constant")) children = [this.leaf("constant-reference")];
+    else if (this.is("pattern-open")) children = [(yield this.patternLiteral())];
+    else if (this.is("(")) children = [this.tok(), (yield this.patternUnion()), this.expect(")")];
+    else return this.fail("expected a pattern atom");
+    return this.node("pattern-atom", start, children);
   }
 
   *call() {

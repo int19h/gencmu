@@ -1,10 +1,42 @@
 {
-  "description": "A test other than = on the terminator of a marked optional is an error at the test, since elision-only restores the terminator with its sound (engine §9).",
+  "description": "An inequality test on an elidable terminator is legal. Its omission tests an empty sound.",
   "document": "```jbogenbau\n%rule a [+KU≠\"ku\"]\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 13
+    "dom": {
+      "format": 21,
+      "rules": [
+        {
+          "name": "a",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "optional": {
+                  "test": "≠",
+                  "value": {
+                    "string": "ku"
+                  },
+                  "expr": {
+                    "ref": "KU"
+                  }
+                },
+                "elidable": true
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

@@ -1,6 +1,6 @@
 {
-  "description": "A tag test on the terminal of an elidable optional is an error of the document too, at the test (engine §3.8, §9).",
-  "grammar": "%rule text A\n%rule other B [+KU⊇~ku]",
+  "description": "A tag test on an elidable terminator is legal. An inert omission in an unused rule does not affect recognition.",
+  "grammar": "%rule text A\n%rule other B [+KU\u2287~ku]",
   "tokens": [
     {
       "text": "a",
@@ -10,11 +10,8 @@
     }
   ],
   "expect": {
-    "error": "grammar",
-    "where": {
-      "document": "main.md",
-      "line": 4,
-      "column": 19
+    "result": {
+      "ok": true
     }
   }
 }

@@ -1,0 +1,24 @@
+{
+  "description": "An inert omission leaves the written route available. A written terminal can pass the nonempty sound test.",
+  "grammar": "%rule text A [+T≠\"\"]\n%conditions $ ≅ @(A T≠\"\")",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ],
+      "phonemes": "t"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

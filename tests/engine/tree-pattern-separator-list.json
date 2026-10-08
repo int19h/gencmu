@@ -1,0 +1,46 @@
+{
+  "description": "The structural predicate observes the constructed candidate. Recognition keeps candidates with different answers separate.",
+  "grammar": "%rule text A B A B A\n%conditions $ ≅ @({A \\ B})",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

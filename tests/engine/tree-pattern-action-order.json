@@ -1,0 +1,47 @@
+{
+  "description": "Pattern-equivalent trees retain distinct visible closes. Lazy ordering keeps the tie between those action sequences.",
+  "grammar": "%ambiguity-resolution lazy\n%rule text r | s\n%conditions $ ≅ @(A)\n%rule r A [B]\n%rule s A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "ambiguous",
+        "reason": "tie"
+      },
+      "stages": [
+        {
+          "verdict": "tie",
+          "witness": [
+            {
+              "close": {
+                "rule": "s",
+                "span": [
+                  0,
+                  1
+                ]
+              }
+            },
+            {
+              "close": {
+                "rule": "r",
+                "span": [
+                  1,
+                  1
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "error": "ambiguous"
+  }
+}

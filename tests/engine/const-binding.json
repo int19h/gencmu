@@ -1,6 +1,6 @@
 {
-  "description": "A reference in a constant's value sees the value at that point of the stage, and a rule sees the final value: after $A is ~a, $B is $A and $A is redefined as ~b, $B is ~a and $A is ~b (engine §2).",
-  "grammar": "%const $A ~a\n%const $B $A\n%redefine-const $A ~b\n%rule text $x(X)\n%conditions $B = ~a, $A = ~b",
+  "description": "References in constants use final stage definitions. Both $B and the rule observe the final value of $A.",
+  "grammar": "%const $A ~a\n%const $B $A\n%redefine-const $A ~b\n%rule text $x(X)\n%conditions $B = ~b, $A = ~b",
   "tokens": [
     {
       "text": "x",

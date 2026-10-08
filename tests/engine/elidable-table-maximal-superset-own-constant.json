@@ -1,0 +1,56 @@
+{
+  "description": "The omission tests its restoration value. The fallback routes force reconstruction and preserve the projected omitted marker.",
+  "grammar": "%ambiguity-resolution late-elision\n%const $S T\n%rule text A [++T⊇$S] | A [+OTHER] [+OTHER] | A [+OTHER] [+OTHER] [+OTHER]\n%conditions $ ≅ @(A T=\"\") ∨ $ ≅ @(A OTHER OTHER [OTHER])",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "parses": [
+    {
+      "options": {
+        "elisionOnly": false
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "tree": {
+            "children": [
+              {
+                "terminal": "A"
+              },
+              {
+                "kind": "elided",
+                "terminal": "T"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "options": {
+        "elisionOnly": true
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "tree": {
+            "children": [
+              {
+                "terminal": "A"
+              },
+              {
+                "kind": "elided",
+                "terminal": "T"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

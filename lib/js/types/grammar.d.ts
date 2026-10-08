@@ -61,6 +61,8 @@ export declare class Grammar {
     };
     /** @type {Map<string, StageConstant>} */
     constants: Map<string, StageConstant>;
+    /** @type {any[]} */ constantVersions: any[];
+    /** @type {Map<string, any>} */ finalConstants: Map<string, any>;
     /**
      * The definitions of rules that use constants, which the loader checks
      * once the constants have their final values.
@@ -172,6 +174,7 @@ export declare class Grammar {
      * @param {DomConstant} constant
      */
     addConstant(path: string, constant: DomConstant): void;
+    bindConstants(): void;
     /**
      * The error for a construct whose types disagree: at its first constant,
      * which the loader alone could type, or else at the item (engine §9).
@@ -190,9 +193,13 @@ export declare class Grammar {
      * @param {string} path
      * @param {Term} term
      * @param {[number, number]} item the position of the definition
+     * @param {(name:string) => TermValue} [lookup]
+     * @param {TermType} [expected]
      * @returns {TermValue}
      */
-    evaluateClosed(path: string, term: Term, item: [number, number]): TermValue;
+    evaluateClosed(path: string, term: Term, item: [number, number], lookup?: (name: string) => TermValue, expected?: TermType): TermValue;
+    /** @param {any} node @param {string} path @param {[number,number]} at @returns {any} */
+    resolvePatterns(node: any, path: string, at: [number, number]): any;
     /**
      * Gives every constant in a rule its final value, once the stage is
      * stitched, and checks what the reader could not: that each is defined,

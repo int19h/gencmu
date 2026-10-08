@@ -134,6 +134,83 @@
       "(q [t r])",
       "(q s)",
       "rejected"
+    ],
+    "tree-comparison": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
+    ],
+    "tree-comparator": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
+    ],
+    "pattern-literal": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
+    ],
+    "pattern-union": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
+    ],
+    "pattern-intersection": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
+    ],
+    "pattern-sequence": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
+    ],
+    "pattern-item": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
+    ],
+    "pattern-atom": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
+    ],
+    "pattern-brackets": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
+    ],
+    "pattern-repeat": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
+    ],
+    "pattern-path": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
     ]
   },
   "extraParts": [

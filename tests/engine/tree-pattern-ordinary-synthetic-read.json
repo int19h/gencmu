@@ -1,0 +1,36 @@
+{
+  "description": "A bare terminal can read a synthetic token. Its structural contribution disappears, so it cannot satisfy an omitted marker predicate.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text r\n%rule r A [+T] | A T | A [+OTHER] [+OTHER]\n%conditions $ ≅ @(A T=\"\") ∨ $ ≅ @(A OTHER OTHER)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "elisionOnly": true
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "rule": "r",
+            "children": [
+              {
+                "terminal": "A"
+              },
+              {
+                "kind": "elided",
+                "terminal": "T"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

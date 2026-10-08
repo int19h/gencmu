@@ -1,0 +1,24 @@
+{
+  "description": "An inert singleton omission leaves the written route available. The original token carries both terminal and operand tags.",
+  "grammar": "%rule text A [+T⊇U]\n%conditions $ ≅ @(A T⊇U)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T",
+        "U"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

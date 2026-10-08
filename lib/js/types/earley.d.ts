@@ -1,3 +1,4 @@
+import { PatternMachine } from "./patterns.js";
 import { Sources } from "./tokens.js";
 import type { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Captured, SpanValue, SymbolTest, TagSet, TermValue } from "./types.js";
 import type { Token } from "./tokens.js";
@@ -50,8 +51,11 @@ export declare class TagInterner {
      */
     get(id: number): TagSet;
 }
+/** @param {ParseContext} context @param {string} terminal @param {number} at @returns {number} */
+export declare function structuralRead(context: ParseContext, terminal: string, at: number): number;
 export declare class ParseContext {
     lowered: LoweredGrammar;
+    patterns: PatternMachine | null;
     tokens: Token[];
     /** Where each run of the tokens lies in the text (engine §1). */
     sources: Sources;
@@ -195,6 +199,8 @@ export declare class Item {
     dot: number;
     origin: number;
     slots: Captured;
+    prefix: number;
+    structure: number;
     tagId: number;
     end: number;
     previous: Item | null;
@@ -393,11 +399,13 @@ export declare function testHolds(context: ParseContext, test: SymbolTest, from:
 export declare function rootItems(chart: Chart, rule: string): Item[];
 export type StepScope = {
     scope: ChartScope | null;
+    structure: number;
 };
 /** @implements {Scope} */
 declare class ChartScope implements Scope {
     context: ParseContext;
     production: Production;
+    structure: number;
     slots: Captured;
     origin: number;
     end: number;
@@ -417,8 +425,9 @@ declare class ChartScope implements Scope {
      * @param {Captured} slots
      * @param {number} origin
      * @param {number} end
+     * @param {number} structure
      */
-    constructor(context: ParseContext, production: Production, slots: Captured, origin: number, end: number);
+    constructor(context: ParseContext, production: Production, slots: Captured, origin: number, end: number, structure: number);
     /**
      * The constituent's tags, from its production's tag term, evaluated at
      * most once, or HALT where the term halts for a nested parse.

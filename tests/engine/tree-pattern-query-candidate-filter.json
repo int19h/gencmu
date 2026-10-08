@@ -1,0 +1,17 @@
+{
+  "description": "A structural condition removes the rejected candidate from a query. The query union contains only the surviving candidate tags.",
+  "grammar": "%rule text $x(A)\n%conditions tags($x, q) = ~a\n%rule q $x(a) | $x(b)\n%conditions $x ≅ @(a)\n%rule a A\n%tags ~a\n%rule b A\n%tags ~b",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

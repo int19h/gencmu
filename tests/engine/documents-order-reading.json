@@ -1,8 +1,8 @@
 {
-  "description": "The documents of a pipeline are read in the order that it includes them, and the first error of reading stands: a.md's, although b.md has one too (engine §8, §9).",
+  "description": "The first document has a sound test with an invalid uppercase value. Its reading error precedes the second document capture error.",
   "documents": {
     "p.md": "```jbogenbau\n%stage main\n%include \"a.md\"\n%include \"b.md\"\n```\n",
-    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n%rule x [+KU≠\"k\"]\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n%rule x [+KU=\"K\"]\n```\n",
     "b.md": "```jbogenbau\n%rule y $x(A) $x(B)\n```\n"
   },
   "pipeline": "p.md",
@@ -19,7 +19,7 @@
     "where": {
       "document": "a.md",
       "line": 4,
-      "column": 13
+      "column": 14
     }
   }
 }

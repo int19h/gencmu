@@ -1,0 +1,18 @@
+{
+  "description": "The structural predicate observes the constructed candidate. Recognition keeps candidates with different answers separate.",
+  "grammar": "%rule text outer\n%conditions $ ≅ @(outer) ∧ $ ≅ @(A)\n%rule outer inner\n%rule inner A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

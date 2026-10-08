@@ -320,6 +320,44 @@ export type Guard = {
      */
     negated: boolean;
 };
+export type Pattern = {
+    name: string;
+    at: Position;
+} | PatternTerminal | {
+    constant: string;
+    at: Position;
+} | {
+    test: TestOp;
+    value: Term;
+    expr: PatternTerminal;
+} | {
+    children: PatternChildren;
+} | {
+    union: Pattern[];
+} | {
+    intersection: Pattern[];
+} | {
+    difference: [Pattern, Pattern];
+} | {
+    path: "descendant" | "first" | "last";
+    pattern: Pattern;
+};
+export type PatternTerminal = {
+    terminal: string;
+    at: Position;
+};
+export type PatternChildren = {
+    node: Pattern;
+} | {
+    sequence: PatternChildren[];
+} | {
+    optional: PatternChildren;
+} | {
+    repeat: PatternChildren;
+    separator?: PatternChildren;
+} | {
+    siblings: true;
+};
 export type Expr = {
     choice: Expr[];
 } | {
@@ -372,7 +410,7 @@ export type EmitItem = {
     before?: string[];
     after?: string[];
 };
-export type Comparator = "=" | "≠" | "∈" | "∉" | "⊆" | "⊈";
+export type Comparator = "=" | "≠" | "∈" | "∉" | "⊆" | "⊈" | "≅" | "≇";
 export type Condition = {
     any: Condition[];
 } | {
@@ -398,6 +436,8 @@ export type Condition = {
     right: Term;
 };
 export type Term = {
+    pattern: Pattern;
+} | {
     string: string;
 } | {
     tag: string;
@@ -558,6 +598,7 @@ export type Captured = {
     start: number;
     end: number;
     tags: number;
+    structure: number;
     id: number;
 } | null;
 export type Edge = {
@@ -577,11 +618,15 @@ export type Edge = {
     terminal: string;
 };
 export type TermValue = {
+    pattern: any;
+} | {
     string: string;
 } | {
     set: Set<string>;
 };
 export type SpanValue = {
+    structure?: number;
+    patterns?: import("./patterns.js").PatternMachine | null;
     start: number;
     end: number;
     tags?: TagSet;
@@ -934,6 +979,19 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {boolean} negated always false for a warning
  */
 /**
+ * A structural node predicate in a grammar DOM (output §2).
+ * @typedef {{name:string, at:Position} | PatternTerminal | {constant:string, at:Position}
+ *   | {test:TestOp, value:Term, expr:PatternTerminal} | {children:PatternChildren}
+ *   | {union:Pattern[]} | {intersection:Pattern[]} | {difference:[Pattern,Pattern]}
+ *   | {path:"descendant"|"first"|"last", pattern:Pattern}} Pattern
+ */
+/** @typedef {{terminal:string, at:Position}} PatternTerminal */
+/**
+ * A pattern expression over sibling nodes.
+ * @typedef {{node:Pattern} | {sequence:PatternChildren[]} | {optional:PatternChildren}
+ *   | {repeat:PatternChildren, separator?:PatternChildren} | {siblings:true}} PatternChildren
+ */
+/**
  * A rule body expression.
  * @typedef {{choice: Expr[]} | {and: Expr[]} | {seq: Expr[]}
  *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
@@ -966,7 +1024,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {string[]} [after]
  */
 /**
- * @typedef {"=" | "≠" | "∈" | "∉" | "⊆" | "⊈"} Comparator
+ * @typedef {"=" | "≠" | "∈" | "∉" | "⊆" | "⊈" | "≅" | "≇"} Comparator
  */
 /**
  * A condition.
@@ -978,7 +1036,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * A term of a condition or a tags clause: a string, a tag literal, the
  * empty set, a set expression, a guarded term, a call, or a span, which
  * only a call's argument can be (engine §10).
- * @typedef {{string: string} | {tag: string} | {range: [string, string]} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
+ * @typedef {{pattern: Pattern} | {string: string} | {tag: string} | {range: [string, string]} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
  *   | {intersection: Term[]} | {difference: [Term, Term]} | {call: string, args: Argument[]} | {capture: string} | ConstantTerm} Term
  */
 /**
@@ -1086,7 +1144,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * tag set, after the parts before it. A context makes each sequence once,
  * with its number (engine §4). `depth` counts the parts, and `jump` is an
  * earlier sequence that a search for a part can skip to.
- * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, id: number} | null} Captured
+ * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, structure: number, id: number} | null} Captured
  */
 /**
  * How an item was built.
@@ -1097,12 +1155,14 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * A value a term evaluates to: a string, or a set, of strings or of tags,
  * whose kind the reader has checked (engine §10).
- * @typedef {{string: string} | {set: Set<string>}} TermValue
+ * @typedef {{pattern: any} | {string: string} | {set: Set<string>}} TermValue
  */
 /**
  * A span a term denotes, with the tags of the captured part when it is a
  * whole capture.
  * @typedef {object} SpanValue
+ * @property {number} [structure]
+ * @property {import("./patterns.js").PatternMachine | null} [patterns]
  * @property {number} start
  * @property {number} end
  * @property {TagSet} [tags]

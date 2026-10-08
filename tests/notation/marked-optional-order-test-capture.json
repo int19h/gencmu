@@ -1,10 +1,10 @@
 {
-  "description": "With several defects, the test on the terminator comes after the form and before what the optional holds: the error is at the ≠, before the capture (engine §9).",
+  "description": "The terminator test is legal. The capture inside the elidable optional causes the error.",
   "document": "```jbogenbau\n%rule a [+KU≠\"ku\" $x(A)]\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 13
+      "column": 19
     }
   }
 }

@@ -248,7 +248,7 @@ The grammar reads a run of conditions joined by `⟹` as one list, and the reade
   ['∧'] {condition \ '∧'}
 
 %rule condition
-  comparison | call | negation | presence | '(' implication ')'
+  comparison | call | negation | presence | '(' implication ')' | tree-comparison
 
 %rule comparison
   union comparator union
@@ -286,7 +286,7 @@ A property is not a tag set, but the grammar reads one in a term, so that the re
 
 %rule term-atom
   | string | tag | character | phoneme | range | property | name | empty-set
-  | '(' term ')' | call | capture-reference | constant-reference
+  | '(' term ')' | call | capture-reference | constant-reference | pattern-literal
 
 %rule string
   ~string
@@ -317,12 +317,6 @@ A tree pattern observes a constructed constituent. A literal starts with the com
 Path prefixes take one atom. Parentheses keep sibling grouping, but a nested literal consumes one subtree. Brackets always mean an optional sequence. Braces mean one or more sequences, with an optional separator. The reader rejects tests on rule names, chain syntax and zero-progress repeats. Terminal tests reuse the existing test grammar.
 
 ```jbogenbau
-%extend-rule term-atom
-  pattern-literal
-
-%extend-rule condition
-  tree-comparison
-
 %rule tree-comparison
   capture-reference tree-comparator union
 

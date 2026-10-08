@@ -1,0 +1,25 @@
+{
+  "description": "A repeat of an optional remains productive because its nonempty route consumes one child.",
+  "document": "```jbogenbau\n%const $P @({[A]})\n```\n",
+  "expect": {
+    "dom": {
+      "constants": [
+        {
+          "value": {
+            "pattern": {
+              "children": {
+                "repeat": {
+                  "optional": {
+                    "node": {
+                      "terminal": "A"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
