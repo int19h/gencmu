@@ -1,0 +1,17 @@
+{
+  "description": "The Zantufa structural family preserves its constructor and witness during reconstruction. Its independent input queries remain unchanged.",
+  "pipeline": "pipeline.md",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
+  },
+  "input": "mi pe'o se su'i pa re ku'e roi klama",
+  "options": {
+    "elisionOnly": true
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "brackets": "(mi [{(pe'o [se su'i] [pa re] ku'e) roi} klama])"
+  }
+}

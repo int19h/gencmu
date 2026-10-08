@@ -108,6 +108,10 @@ A statement can take terms after it, which `i'au` can introduce (`statement-term
 
 The lookaheads of the reference's fragments are conditions here. A `gek` or `joik` fragment does not begin terms. A `na` fragment has no terms or `ku` after it. And a terms fragment has no mekso after it. A mekso fragment is not also a terms fragment, because the reference tries terms first. It has no sumti or selbri after it, because Zantufa reads such a mekso as the quantifier of a term first.
 
+A structural pattern describes constructed nodes. The statement patterns require every earlier branch to be a whole sentence and the last branch to start with a sentence. A prenex or TUhE blocks that final first-child path. A statement link in an earlier branch prevents the whole-sentence match. Links after the last sentence can continue outside the forethought connection.
+
+`$BARE-NA-FRAGMENT` describes one NA clause with its own omitted KU and VAU. Written boundaries or added terms prevent that exact match. The condition excludes only this duplicate terms fragment.
+
 ```jbogenbau
 %rule statement-terms
   (* statement_terms <- statement IAU_elidible terms? *)
@@ -133,7 +137,7 @@ The lookaheads of the reference's fragments are conditions here. A `gek` or `joi
   (* gek_statement <- gek statement (gik statement)+ GIhI_elidible *)
   gek $a(gek-branches) gik $l(statement) [+GIhI #]
 %conditions
-  ¬matches($a, sentence-branches) ∨ ¬matches($l, sentence-continued)
+  $a ≇ @({sentence \ gik}) ∨ $l ≇ @(⋰ sentence)
 
 %rule gek-branches
   (* statement (gik statement)*: every branch but the last. Zantufa's sentence comes first in statement_3, and it
@@ -141,14 +145,7 @@ The lookaheads of the reference's fragments are conditions here. A `gek` or `joi
      statement_1 and statement_2 after it, which then continue the statement outside the forethought *)
   {statement \ gik}
 
-%rule sentence-branches
-  {sentence \ gik}
-
-%rule sentence-continued
-  sentence [{statement-link}]
-
-%rule statement-link
-  I # joik statement-2 | I # [joik] [tag] BO # statement-3
+%const $BARE-NA-FRAGMENT @(@(na-clause KU="") VAU="")
 
 %rule fragment
   (* fragment <- prenex / !terms gek / !terms joik / ek / gihek / NA_clause !terms !KU
@@ -170,7 +167,7 @@ The lookaheads of the reference's fragments are conditions here. A `gek` or `joi
   ¬begins(after($n), terms),
   ¬begins(after($n), ku-word),
   ¬begins(after($t), mex),
-  ¬matches($t, na-clause),
+  $t ≇ $BARE-NA-FRAGMENT,
   ¬matches($m, terms-vau),
   ¬begins(after($m), sumti-5),
   ¬begins(after($m), selbri)
@@ -627,6 +624,8 @@ The operand after a run of operators is greedy too. The reference's `mex_1?` aft
 
 `mex-forethought` does not translate two parts of the reference's rule. Its lookahead `!(lerfu_string BOI_elidible)` never fails before an operator, because no operator begins with a lerfu word. And its `mex_forethought?` after `mex_2+` adds nothing, because `mex_2+` already reads a forethought mekso as one of its parts.
 
+The connective operator pattern excludes an initial SE constructor. That SE can instead modify the surrounding operator. Initial NA or GAhO prevents this exact transformation. The separate following-CU condition remains in place.
+
 ```jbogenbau
 %rule quantifier
   (* quantifier <- !sumti_5 !selbri mex relative_clauses? *)
@@ -684,7 +683,7 @@ The operand after a run of operators is greedy too. The reference's `mex_1?` aft
   | $j(joik-ek)
 %conditions
   ¬begins(after($j), cu-word),
-  ¬matches($j, se-operator),
+  $j ≇ @(SE ⋯),
   ¬matches($s, mex),
   ¬matches($u, mex),
   ¬matches($u, selbri)
@@ -700,9 +699,6 @@ The operand after a run of operators is greedy too. The reference's `mex_1?` aft
 
 %rule cu-word
   CU
-
-%rule se-operator
-  SE # operator
 
 %rule operand
   (* operand <- number BOI_elidible / lerfu_string BOI_elidible / VEI_clause mex VEhO_elidible
@@ -769,6 +765,8 @@ The operand after a run of operators is greedy too. The reference's `mex_1?` aft
 
 A tense or modal (the rule `tag`) is a run of `tcita-selci` joined by joiks. Each is a modal, a ROI word with an optional mekso before it, `fi'o` with a selbri, or one of these after `na'e` or `se`. The grammar reads a tense or modal whole. Where the words after a `tcita-selci` can begin another one, the grammar reads that one, not a joik. And a tense or modal in a term or before a selbri never leaves a `tcita-selci` after it.
 
+The mekso prefix pattern tests an actual NAhE or SE constructor over an operand or operator. That prefix can move to the modal. NAhE BO is a different constructor because BO cannot begin the remaining modal. Its LUhU boundary remains part of that operand. An outer NAhE can still move while an inner NAhE BO stays intact.
+
 ```jbogenbau
 %rule tag
   (* tag <- tcita_selci+ (joik tcita_selci+)* *)
@@ -790,10 +788,8 @@ A tense or modal (the rule `tag`) is a run of `tcita-selci` joined by joiks. Eac
   | $m(mex) ROI #
   | FIhO # selbri [+FEhU #]
 %conditions
-  $m ⟹ ¬matches($, nahe-se-tcita-selci)
+  $m ≇ @(⋰ ((NAhE ∪ SE) [#] (operand ∪ operator)))
 
-%rule nahe-se-tcita-selci
-  (NAhE # | SE #) tcita-selci
 ```
 
 ## Free modifiers
