@@ -804,7 +804,7 @@ Without the rule, the two readings elide the same terminators. camxes-exp nests 
 
 A non-XI modifier in the subscript operand's final free slot attaches to the marked word. CLL has no free slot after a subscript: `XI # (number | lerfu-string) /BOI/`. In `mi broda xi pa boi to do toi`, the subscript and the parenthesis both belong to `broda`. The official CLL parser reads the text this way too.
 
-The second condition on XI tests `$FREE-ENDING` along the actual last-child path. That pattern finds a final free slot with a `$NON-XI-FREE` modifier. A modifier inside a terminated operand stays there, even when its terminator is omitted. An omitted terminator remains a final child and stops the path. A written closer before the modifier leaves it in the exposed final slot.
+The second condition on XI tests `$FREE-ENDING` along the actual last-child path. That pattern finds a final free slot with a `$NON-XI-FREE` modifier. A modifier inside a terminated operand stays there, even when its terminator is omitted. An omitted closer stops the path only when no later child remains. A nonempty free slot after the closer remains the exposed final slot, as in `[+VEhO] #` or `[+BOI] #`. A written closer before the modifier leaves it in the exposed final slot.
 
 camxes-exp reads the operand of a subscript as `mex_2`, with its own final free slot. This grammar excludes that exposed attachment when the modifier belongs to the marked word. It keeps a modifier inside VEI, LAhE, or PEhO when the actual constructor boundary follows that modifier.
 

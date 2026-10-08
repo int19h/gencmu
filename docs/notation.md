@@ -307,7 +307,7 @@ A structurally empty node contains no terminal read or omitted marker. Parent se
 
 A primitive predicate first tests the current node, then can follow its sole structural child. This single-child transparency repeats only while exactly one child exists. A branching node stops it. A child-sequence predicate uses the same search, and tests each visited node's complete ordered children.
 
-Thus `@(sumti)` accepts a sumti or its unary wrappers. It rejects a connection, a tag followed by a sumti, and a sumti beside an omitted terminator. Set operations combine each predicate's complete answer on the same candidate. `P ∖ Q` requires P to hold and Q to fail throughout Q's permitted unary search.
+Thus `@(sumti)` accepts a sumti or its unary wrappers. It rejects a connection, a tag followed by a sumti, and a sumti beside an omitted terminator. Set operations combine each predicate's complete answer on the same candidate. `P ∖ Q` means P holds and the whole predicate Q fails on the same candidate.
 
 ### Pattern forms and binding
 
