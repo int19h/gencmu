@@ -27,7 +27,7 @@ const SYMBOLS = new Set(["+", "|", "&", "(", ")", "[", "]", "{", "}", "\\", "<",
   "∈", "∉", "⊆", "⊈", "⊇", "⊉", "∪", "∩", "∖", "∅", "≅", "≇", "⋯", "⋮", "⋰", "⋱"]);
 
 const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%tags", "%conditions", "%emits", "%opaque",
-  "%ambiguity-resolution", "%stage", "%include", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
+  "%ambiguity-resolution", "%prefer", "%stage", "%include", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
 
 // A syntax error: the text cannot be read as the notation at all, which the
 // reader reports before any other error (engine §9).
@@ -285,6 +285,7 @@ class Parser {
     while (this.peek()) {
       const kind = this.kindAt();
       if (DIRECTIVES.has(kind)) children.push((yield this.directive()));
+      else if (kind === "%prefer") children.push(this.preference());
       else if (RULE_KEYWORDS.has(kind)) children.push((yield this.rule()));
       else if (CONSTANT_KEYWORDS.has(kind)) children.push((yield this.constantDefinition()));
       else if (kind === "%classifier") children.push(this.classifier());
@@ -307,6 +308,17 @@ class Parser {
       } else break;
     }
     return this.node("directive", start, children);
+  }
+
+  preference() {
+    const start = this.index;
+    const children = [this.tok()];
+    if (this.kindAt() !== "identifier" && this.kindAt() !== "#") this.fail("expected a preference rule");
+    children.push(this.leaf("reference"));
+    children.push(this.expect(">"));
+    if (this.kindAt() !== "identifier" && this.kindAt() !== "#") this.fail("expected a preference rule");
+    children.push(this.leaf("reference"));
+    return this.node("prefer-directive", start, children);
   }
 
   // A tag, phoneme or character token, a range, or a property: as a token

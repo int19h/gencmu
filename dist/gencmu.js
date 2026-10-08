@@ -2309,7 +2309,7 @@
   const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈", "≅", "≇"]);
   const DOM_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
   // The directives of the notation (engine §9).
-  const DIRECTIVE_NAMES = new Set(["ambiguity-resolution", "stage", "include", "features"]);
+  const DIRECTIVE_NAMES = new Set(["ambiguity-resolution", "prefer", "stage", "include", "features"]);
   // A capture's name is all lower case (engine §9).
   const CAPTURE_NAME = /^[a-z][a-z0-9-]*$/;
   // The nesting the notation allows (engine §9): deeper than any grammar a
@@ -2497,13 +2497,13 @@
     for (const directive of dom.directives) {
       if (!isDomObject(directive) || typeof directive.name !== "string" || !Array.isArray(directive.args) ||
           !directive.args.every((arg) => typeof arg === "string") || !isDomPosition(directive.at)) return "a malformed directive";
-      // No directive has a maximal member, and the notation has four
-      // directives; %elidable is none of them (engine §9).
+      // No directive has a maximal member; %elidable is not a directive.
       if ("maximal" in directive || !DIRECTIVE_NAMES.has(directive.name) ||
           (directive.name === "ambiguity-resolution" && directive.args.includes("maximal"))) return "a malformed directive";
       // The operands the notation's syntax allows these directives (engine §9).
       const args = /** @type {string[]} */ (directive.args);
       if ((directive.name === "stage" && !(args.length === 1 && DOM_NAME.test(args[0]))) ||
+          (directive.name === "prefer" && !(args.length === 2 && args.every((arg) => arg === "#" || DOM_NAME.test(arg)))) ||
           (directive.name === "include" && args.length !== 1) ||
           (directive.name === "features" && !(args.length > 0 && args.every((arg) => DOM_NAME.test(arg))))) return "a malformed directive";
     }
@@ -12176,7 +12176,11 @@
     let marked = 0;
     for (const item of parts(tree)) {
       if (item.kind === "rule" && !ITEMS.has(item.rule)) fail(`the notation gives a ${item.rule} where an item stands`, item);
-      if (ruleOf(item) === "directive") {
+      if (ruleOf(item) === "prefer-directive") {
+        const references = parts(item).filter((child) => ruleOf(child) === "reference");
+        if (references.length !== 2) fail("%prefer takes two rule names separated by >", item);
+        directives.push({ name: "prefer", args: references.map((child) => text(token(child))), at: at(item) });
+      } else if (ruleOf(item) === "directive") {
         const name = text(token(item)).slice(1);
         const operands = parts(item).filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag");
         const problem = operandProblem(name, operands.map((child) => operandKind(child)));
@@ -13136,12 +13140,12 @@
   const TERMS = new Set(["union", "guarded-term"]);
   const ATOMS = new Set(["pattern-literal", "string", "tag", "character", "phoneme", "range", "property", "name", "empty-set", "term", "call", "capture-reference", "constant-reference"]);
   // The items of a document (engine §9).
-  const ITEMS = new Set(["directive", "rule", "constant-definition", "classifier", "implication-declaration"]);
+  const ITEMS = new Set(["directive", "prefer-directive", "rule", "constant-definition", "classifier", "implication-declaration"]);
 
   // The rules of the notation's syntax grammar that the reader knows (engine
   // §9). Every other rule is a wrapper, and the reader reads its parts in its
   // place.
-  const NAMED = new Set(["tree-comparison", "tree-comparator", "pattern-literal", "pattern-union", "pattern-intersection", "pattern-sequence", "pattern-item", "pattern-atom", "pattern-brackets", "pattern-repeat", "pattern-path",
+  const NAMED = new Set(["prefer-directive", "tree-comparison", "tree-comparator", "pattern-literal", "pattern-union", "pattern-intersection", "pattern-sequence", "pattern-item", "pattern-atom", "pattern-brackets", "pattern-repeat", "pattern-path",
     "directive", "argument-word", "argument-string", "rule", "definer", "rule-flags", "rule-flag", "rule-name", "body", "alternative", "guard", "alternative-tags",
     "conjunction", "sequence", "primary", "repetition", "reference", "string", "phoneme", "tested", "test", "test-operand", "capture", "group", "optional",
     "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "opaque-clause", "emit-item", "emit-target", "emit-tags", "emit-before", "emit-after",
@@ -13168,7 +13172,6 @@
       current = child;
     }
   }
-
 
   // ---- markdown.js
   // The one thing read from Markdown by code rather than by grammar: the
