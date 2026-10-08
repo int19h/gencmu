@@ -1,0 +1,40 @@
+{
+  "description": "The written-VAU exception observes its own named tail child and implies the complete KE tail pattern.",
+  "grammar": "%const $STAG-TAG @(tag) ∖ @(⋮ (FIhO ∪ free))\n%const $KE-UNIT @(KE ⋯ KEhE [#])\n%const $KE-SELBRI @([$STAG-TAG] $KE-UNIT)\n%const $KE-GEK @([$STAG-TAG] KE [#] gek-sentence KEhE [#])\n%const $KE-TAIL @($KE-SELBRI tail-terms) ∪ $KE-GEK\n%const $WRITTEN-VAU @([terms] VAU≠\"\" [#])\n%const $KE-TAIL-WITH-VAU @($KE-SELBRI (tail-terms ∩ $WRITTEN-VAU))\n\n%rule text $t(candidate)\n%conditions $t ≅ $KE-TAIL-WITH-VAU ∧ $t ≇ $KE-TAIL\n%rule candidate selbri tail-terms\n%rule selbri unit\n%rule unit KE BRIVLA [+KEhE]\n%rule tail-terms [terms] [+VAU]\n%rule terms TERM\n%rule other-candidate selbri other-tail\n%rule other-tail [terms] [+VAU]",
+  "tokens": [
+    {
+      "text": "ke",
+      "tags": [
+        "KE"
+      ],
+      "phonemes": "ke"
+    },
+    {
+      "text": "broda",
+      "tags": [
+        "BRIVLA"
+      ],
+      "phonemes": "broda"
+    },
+    {
+      "text": "ke'e",
+      "tags": [
+        "KEhE"
+      ],
+      "phonemes": "ke'e"
+    },
+    {
+      "text": "vau",
+      "tags": [
+        "VAU"
+      ],
+      "phonemes": "vau"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false
+    },
+    "error": "rejected"
+  }
+}
