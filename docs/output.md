@@ -111,12 +111,12 @@ The test uses notation operators and canonical output tags, with spaces only aro
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
 
 ```
-{"format":20,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
+{"format":21,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
 ```
 
-`format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version. Format 20 brings rule flags: `flags` on every rule definition, and the flag `leftmost-longest`. Format 18 brought braces and elidable optional markers.
+`format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version. Format 21 adds pattern values and tree comparisons. It also permits all six tests on elidable terminators. Format 20 brought rule flags: `flags` on every rule definition, and the flag `leftmost-longest`. Format 18 brought braces and elidable optional markers.
 
-An unreleased format covers all its changes together. Format 19 was never released, so rule flags use format 20 throughout.
+An unreleased format covers all its changes together. Format 21 covers every pattern change, including bootstrap and cache envelopes.
 
 A library skips cached DOMs with another format and rejects bootstraps with another format. The cache identity also includes the bootstrap hash (engine §8).
 
@@ -146,13 +146,13 @@ An expression has no member but those of its one form.
 
 An `optional` with `"elidable":true` is an elidable optional (engine §3.8): `[+KU #]` is `{"optional":{"seq":[{"ref":"KU"},{"ref":"#"}]},"elidable":true}`. `[++TOI #]` also has `"maximal":true`, after `elidable`. A plain optional has neither member. Each member, where present, is `true`, and `maximal` never stands without `elidable`.
 
-The `expr` of an elidable optional is its terminal, or a `seq` whose first expression is its terminal. The terminal is a `ref` whose name begins with `A` to `Z`, or a `terminal` whose tag is a name. It can also be a `test` with the comparator `=` of one of these. The notation also forbids a group at the head, as in `[+(KU) #]`. The reader checks that on the written text (engine §9), and the DOM does not record it.
+The `expr` of an elidable optional is its terminal, or a `seq` whose first expression is its terminal. The terminal is a `ref` whose name begins with `A` to `Z`, or a `terminal` whose tag is a name. It can also be any existing `test` around one of these terminals. The notation also forbids a group at the head, as in `[+(KU) #]`. The reader checks that on the written text (engine §9), and the DOM does not record it.
 
 No capture stands inside an elidable optional or a `repeat`, at any depth. A capture can stand anywhere else in an alternative's `expr` (engine §3.5).
 
 A tested symbol has no member but `test`, `value` and `expr`. `test` is its comparator: `=`, `≠`, `⊇`, `⊉`, `∩=∅` or `∩≠∅`. Its `expr` is a `ref` other than `#`, a `terminal`, a `range` or a `property`, with no other member. Its `value` is a closed term (engine §10), a string for `=` and `≠` and a tag set for the other four. A string there holds no comma and no code point that the lowercase mapping changes (engine §9). A capture's `expr` is a `ref`, a `terminal`, a `range`, a `property` or a tested symbol.
 
-A term is `{"string":"s"}`, `{"tag":"KOhA"}`, `{"range":["'a'","'z'"]}`, `{"emptySet":true}`, `{"const":"SU-STOPS","at":[line,column]}`, `{"union":[TERM...]}`, `{"intersection":[TERM...]}`, `{"difference":[TERM,TERM]}`, `{"if":COND,"then":TERM}` or `{"call":"phonemes","args":[ARG...]}`. `string` holds the decoded string. `tag` holds one tag in its canonical spelling, from a tag literal, a bare name with a capital, a phoneme tag or a character tag. `range` is as in an expression. `difference` has exactly two parts, and `a ∖ b ∖ c` nests the first difference in the second.
+A term is `{"pattern":PATTERN}`, `{"string":"s"}`, `{"tag":"KOhA"}`, `{"range":["'a'","'z'"]}`, `{"emptySet":true}`, `{"const":"SU-STOPS","at":[line,column]}`, `{"union":[TERM...]}`, `{"intersection":[TERM...]}`, `{"difference":[TERM,TERM]}`, `{"if":COND,"then":TERM}` or `{"call":"phonemes","args":[ARG...]}`. `string` holds the decoded string. `tag` holds one tag in its canonical spelling, from a tag literal, a bare name with a capital, a phoneme tag or a character tag. `range` is as in an expression. `difference` has exactly two parts, and `a ∖ b ∖ c` nests the first difference in the second.
 
 `const` is a reference to a constant, by its name without `$`. Its `at` is the line and column of the reference, where the loader reports an error of the constant (engine §2). A term has no member but those of its one form.
 
@@ -160,7 +160,7 @@ An argument is a span or a term. For `tags`, `matches` and `begins`, an argument
 
 A condition is one of these forms:
 
-- `{"op":"=","left":TERM,"right":TERM}`, with `op` one of `=`, `≠`, `∈`, `∉`, `⊆`, `⊈`, and with `left` and `right` of types that agree as engine §10 says
+- `{"op":"=","left":TERM,"right":TERM}` uses `=`, `≠`, `∈`, `∉`, `⊆`, `⊈`, `≅` or `≇`. Operand types follow engine §10.
 - `{"matches":SPAN,"rule":"r"}`
 - `{"begins":SPAN,"rule":"r"}`
 - `{"initial":SPAN}`
@@ -194,9 +194,59 @@ A directive has no `maximal` member, and one with that member is malformed (engi
 
 `rules`, `directives`, `constants`, `classifiers` and `implications` each keep the order in which the document has them. `at` is the line and column of an item's first token. So the order of all of a document's items is the order of their positions. No two items of a DOM share a position (engine §9).
 
+### Pattern values
+
+PATTERN tests one structural tree. CHILDREN consumes an ordered sequence of sibling trees. A pattern term has exactly one member, `pattern`, whose value is a PATTERN. Pattern types can also use `const`, `union`, `intersection`, `difference` and contextual `emptySet` terms. Mixed pattern and tag-set operations are malformed.
+
+PATTERN has exactly one of these forms:
+
+```text
+{"name":"sumti","at":[line,column]}
+{"terminal":"KEhE","at":[line,column]}
+{"test":"≠","value":{"string":""},"expr":{"terminal":"KEhE","at":[line,column]}}
+{"constant":"KE-UNIT","at":[line,column]}
+{"children":CHILDREN}
+{"union":[PATTERN...]}
+{"intersection":[PATTERN...]}
+{"difference":[PATTERN,PATTERN]}
+{"path":"descendant","pattern":PATTERN}
+{"path":"first","pattern":PATTERN}
+{"path":"last","pattern":PATTERN}
+```
+
+CHILDREN has exactly one of these forms:
+
+```text
+{"node":PATTERN}
+{"sequence":[CHILDREN...]}
+{"optional":CHILDREN}
+{"repeat":CHILDREN}
+{"repeat":CHILDREN,"separator":CHILDREN}
+{"siblings":true}
+```
+
+A capital-initial name becomes `terminal`, including KEhE, GIhI and NUhI. Other names become `name`, including `#`. A tested terminal uses the existing six comparators and their closed operands. Its `expr` must be one `terminal` atom. Constants remain unresolved expressions in document DOMs. The stage binder resolves their version graph (§2).
+
+At the literal root, a sequence becomes `children`. A nested literal inside a sequence instead becomes one `node` item. Plain parentheses preserve sibling grouping. Thus `@(A (B C))` has three children, while `@(A @(B C))` has two. A single node predicate remains that predicate. An optional or repeat always becomes a `children` predicate.
+
+Set operators combine PATTERN values. A sequence operand becomes `children` before a set operation or path. A set expression within a sequence consumes one child through `node`. Every bracket becomes `optional`, including `[T]` and `[(T)]`. No `boundary`, `written` or `omitted` pattern form exists.
+
+Union and intersection require at least two operands. Difference requires exactly two. A sequence requires at least two parts. `siblings` must be true. Optional and repeat require nonempty written bodies. A repeat body that only matches empty sequences is malformed. A sibling ellipsis cannot serve as a repeat item or separator.
+
+A tree comparison uses the existing `op`, `left` and `right` members:
+
+```json
+{"op":"≅","left":{"capture":"x"},"right":{"pattern":{"name":"sumti","at":[1,9]}}}
+{"op":"≇","left":{"capture":""},"right":{"const":"KE-UNIT","at":[1,7]}}
+```
+
+These operators require a bare capture on the left and a pattern term on the right. Pattern equality and implicit string conversion are malformed. Text, cached DOMs and supplied DOMs use the same grouping, field, arity and type restrictions. Resolution covers patterns in replaced definitions too.
+
+Structural states and omission predicates are derived engine state. They add no serialized members. An omitted leaf's singleton pattern tags derive from its terminal name. An elided output node retains `sound` only for equality, including explicit empty equality. Inequality and tag tests add no saved sound or synthetic-token fields.
+
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":20,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":21,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
 
 A precompiled DOM holds the document's constants, classifiers and implications as the document writes them. The loader gives the constants their values when it stitches a stage, and a stage resolves a classifier for the features of a parse. So one precompiled DOM serves every stage, dialect and set of features that uses the document (engine §2, §8).
 
@@ -209,6 +259,8 @@ A token node reads an input token of the last stage, and that token can have att
 A hollow rule node, such as an empty slot for a free modifier, has no token and no elided node below it. No rendering shows a hollow rule node. Brackets drop it as an empty node, and the tree and the display JSON leave it out. But the tree and the display JSON always show the root. So the tree renders a hollow tree, such as that of the empty text, as the rule name of the root alone. The display JSON renders it as `{"text": []}`, and brackets render it as nothing.
 
 ### Brackets
+
+A named rule with two or more visible children adds a bracket group. Empty children disappear, and one visible child collapses. Apply these rules after the choice to show or hide elided markers. Pattern normalization never changes public output grouping.
 
 Brackets write the tree of the final stage as nested groups:
 

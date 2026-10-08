@@ -104,7 +104,7 @@ So a stressed `lA`, a Cyrillic `ла` and a zbalermorna `la` all match `LE="la"`
 
 A test belongs to its one symbol, so every item of `{UI="ui"}` must sound like `ui`. A capture can wrap a tested symbol, as in `$l(LE="la")`. A test follows only a reference other than `#`, or a terminal. So a test after a group, an optional, braces, a capture, `ε`, `#` or another test is an error, such as `(LE NU)="lonu"`. Spaces and comments can stand between a symbol and its test, and inside the test. The grammars write a test without them.
 
-A test holds or fails as a condition does, and a span with no tokens is no exception. So `X=""` and `X≠"la"` hold for a rule that matches no tokens, and `X⊇∅` always holds. An elidable optional can hold its terminator with an `=` test, as in `[+KU="ku"]`. Any other test on that terminator is an error (see "Elided terminators").
+A test holds or fails as a condition does, and a span with no tokens is no exception. So `X=""` and `X≠"la"` hold for a rule that matches no tokens, and `X⊇∅` always holds. An elidable optional can carry any existing test on its terminator. The test controls its written and elided routes (see "Elided terminators").
 
 A test does not replace a class. `zo la` quotes a word that sounds `la` but has only the tag `word`, so `LE="la"` does not match it. A condition that only compares one capture's tags with a set can often be a test in the body. For example, `$c(cmavo)` with the condition `tags($c) ∩ UI = ∅` says what `cmavo∩UI=∅` says.
 
@@ -277,15 +277,77 @@ A constant names a value that several rules use, such as a list of classes. Its 
 
 The first line is a constant of the word stage, in `grammars/words/stream.md`. The last line is how the Zantufa word stream adds its magic words, in `grammars/words/zantufa-stream.md`. The other dialects keep LOhAI and LEhAI out of `$MAGIC-WORDS`, because the experimental dialect reads a bare marker of these as a plain word. No bundled grammar defines `$PAUSE`. It shows a string value.
 
-The value is a string, a set of strings or a tag set, never a span. It is a closed term: it uses no capture and no span. So it holds only strings, tag literals, ranges, `∅` and other constants, joined by `∪`, `∩` and `∖`. `split` and `tag` of such terms are closed too (see "Conditions"). A call of `phonemes`, `text`, `tags`, `classes` or `classify`, a capture and a guarded term are errors in a value. The value of `classify` depends on the features, and the value of a constant does not.
+The value is a string, a set of strings, a tag set or a tree pattern, never a span. It is a closed term: it uses no capture and no span. It holds strings, tag literals, ranges, patterns, `∅` and other constants, joined by `∪`, `∩` and `∖`. `split` and `tag` of such terms are closed too (see "Conditions"). A call of `phonemes`, `text`, `tags`, `classes` or `classify`, a capture and a guarded term are errors in a value. The value of `classify` depends on the features, and the value of a constant does not.
 
 Inside a `%redefine-const`, the constant's own name is its value before the redefinition. So one redefinition can extend a set with `∪`, narrow it with `∩` or `∖`, or replace it. A redefinition keeps the type of the value, so a set cannot become a string. That type also gives `∅` its kind. So `%redefine-const $A ∅` makes a set empty, but `%const $E ∅` is an error.
 
-A constant in a value has the value that it has at that point of the stage. It is an error to use a constant before its `%const`. So after `%const $A ~a`, `%const $B $A` and `%redefine-const $A ~b`, `$B` is `~a`. A constant in a rule has the final value of the stage, wherever the rule stands. So a document can use a constant that a later document redefines.
+Every constant reference uses its name's final definition in the stitched stage. Other names can refer forward. After `%const $A ~a`, `%const $B $A` and `%redefine-const $A ~b`, both final values are `~b`.
+
+Inside `%redefine-const $X EXPR`, `$X` denotes X's immediately previous definition. This exception applies throughout EXPR, including nested patterns. It does not pass through another constant. A previous definition's other names still use their final definitions.
+
+Each declaration creates a version, an immutable definition of one constant. The loader resolves lexical self-references to the preceding version and all other references to final versions. It rejects unknown names, dependency cycles and type changes across every definition, including replaced definitions. A cycle error names its dependency path and source positions.
 
 A constant stands wherever a value of its type can, in tag terms and in conditions. It cannot stand in a body. A body names a class of tokens with a rule, such as `%rule digit '0'..'9'`. A constant that the stage never defines is an error. That holds in a rule that a later `%redefine-rule` replaces too.
 
 The loader gives the constants their values when it stitches each stage. So a document that several dialects include takes the values of each dialect. The error for a constant stands at the reference to it, or at the definition that is wrong.
+
+## Tree patterns
+
+A tree pattern is a predicate on one constructed constituent. A pattern literal is `@(BODY)`. `$x ≅ PATTERN` tests the captured constituent, and `$ ≅ PATTERN` tests the enclosing candidate. `≇` negates that answer after the ordinary missing-capture simplification. Patterns never recognize the captured text again or inspect another reading.
+
+The left operand must be a bare capture. The right operand must have pattern type. For `$x ≅ NAME`, report at NAME: `tree comparison requires a pattern; write @(NAME), not NAME`. Substitute the actual name, including capital-initial terminals. The same diagnostic applies to `≇`, before a generic parse or type error.
+
+### The structural tree
+
+Patterns observe named rules, terminal reads and omitted terminators before output transparency or `%opaque`. Generated helpers for optionals and flat repetitions contribute their children in order. Named chain levels remain named nodes. An absent ordinary optional contributes no child.
+
+A terminal leaf records the terminal that read it, rather than every tag on its token. An omitted T contributes one leaf labeled T, with empty sound and pattern tags `{T}`. Its empty span does not remove it. This leaf adds no tags to the empty helper or the enclosing constituent.
+
+A structurally empty node contains no terminal read or omitted marker. Parent sequences remove such named children, including empty `#` nodes and empty wrappers. A direct capture of an empty named rule retains its named root for a root-name test.
+
+A primitive predicate first tests the current node, then can follow its sole structural child. This single-child transparency repeats only while exactly one child exists. A branching node stops it. A child-sequence predicate uses the same search, and tests each visited node's complete ordered children.
+
+Thus `@(sumti)` accepts a sumti or its unary wrappers. It rejects a connection, a tag followed by a sumti, and a sumti beside an omitted terminator. Set operations combine each predicate's complete answer on the same candidate. `P ∖ Q` requires P to hold and Q to fail throughout Q's permitted unary search.
+
+### Pattern forms and binding
+
+| Form | Meaning |
+| --- | --- |
+| `@(sumti)` | A rule named sumti through single-child wrappers |
+| `@(KEhE)` | A KEhE leaf, written or omitted |
+| `@(KEhE="")` | A KEhE leaf with empty sound |
+| `@(KEhE≠"")` | A KEhE leaf with nonempty sound |
+| `@([KEhE])` | Zero or one KEhE child |
+| `@(KE ⋯ KEhE)` | A complete child sequence with required endpoints |
+| `@(A B)` | Two children, each with its own unary search |
+| `@(A ⋯ B ⋯ C)` | Ordered children with arbitrary sibling gaps |
+| `@(⋮ P)` | P at an endpoint of any downward path |
+| `@(⋰ P)` | P at an endpoint of the first-child path |
+| `@(⋱ P)` | P at an endpoint of the last-child path |
+| `@(P ∪ Q)` | Either predicate on the candidate |
+| `@(P ∩ Q)` | Both predicates on the candidate |
+| `@(P ∖ Q)` | P holds and Q fails |
+| `@({P})` | A complete sequence of one or more P children |
+| `@({P \ S})` | One or more P children separated by S |
+| `@([P Q])` | An optional sequence of those two children |
+
+A capital-initial name denotes a terminal, including KEhE, GIhI and NUhI. Other names, including `#`, denote named rules. A constant denotes its pattern value. A nested literal denotes one predicate on a subtree.
+
+Juxtaposition describes a complete child sequence. A single node predicate instead tests the current node. An optional or repetition always describes a child sequence. Brackets keep their ordinary optional meaning, including `[T]`, `[(T)]` and `[#]`. They never mean an omitted terminal.
+
+`⋯` consumes zero or more siblings at one level. It never descends. Multiple sibling gaps are legal, including empty gaps. Each path permits zero or more edges and can stop before a leaf. First and last children follow helper flattening and empty-child removal. An omitted final terminator stops a last-child path unless its endpoint predicate accepts that leaf.
+
+Binding is primary, path prefix, sequence, intersection, then union or difference, from strongest to weakest. Intersection associates left. Union and difference share precedence and associate left. A path prefix takes exactly one primary. Chained prefixes and optional operands require parentheses or a nested literal.
+
+`@(⋰ A B)` tests two children, the first through `⋰ A`. `@(⋰ (A B))` searches for a node with children A and B. `@(⋰ NAhE ∪ SE)` puts only NAhE under the path. `@(⋰ (NAhE ∪ SE))` puts both alternatives under it.
+
+Plain parentheses preserve sibling grouping without a subtree boundary. `@(A (B C))` therefore has three children. `@(A @(B C))` has two children. At a path or set boundary, a sequence becomes one child-sequence predicate. A set expression within a sequence consumes one child.
+
+One existing symbol test can follow a terminal atom. Its sound or tags must belong to the same matched leaf. Written leaves use their original token's sound and tags. Omitted T leaves use empty sound and `{T}`, including during reconstruction. A written token with empty canonical sound also satisfies `T=""`.
+
+All six symbol tests keep their closed operand types. Tests on rule predicates remain unsupported. `∩` with a test operand and `=∅` or `≠∅` forms a terminal test. Otherwise it intersects pattern predicates. Pattern set operations cannot mix patterns with tag sets. `∅` takes pattern type from its context, but an untyped `%const $EMPTY ∅` remains an error.
+
+Patterns reject `&`, `|`, captures, emissions, alternative tags, feature guards, elision markers, chain repetitions and direct chained path prefixes. Braces keep one-or-more sequence behavior and their separator syntax. A repeat body that only matches empty sequences is an error. A sibling ellipsis cannot be a repeat item or separator. Patterns cannot contain recursive constants.
 
 ## Classifiers
 
@@ -397,7 +459,7 @@ Each condition of the list applies to the productions that capture everything it
 
 Within one condition of the list, `∧` and `∨` join conditions, and `∧` binds tighter. `⟹` binds looser than both, and groups to the right. Parentheses group, and `¬` negates the condition after it. The parser evaluates a condition joined with `∧` only when it can evaluate all its parts. So two conditions about different parts are better as two items of the list. The parser then evaluates each one as early as it can.
 
-A term of a condition has one of four types: a span, a string, a set of strings or a tag set. No value turns into another. So a string is never a tag, and a span never stands for its tags.
+A condition term has five types: a span, a string, a set of strings, a tag set or a tree pattern. No value turns into another. So a string is never a tag, and a span never stands for its tags.
 
 The first type is the span, a sequence of tokens. A capture `$x` is a span, the tokens that the captured part covers, and `$` is the tokens that the whole constituent covers. `head($x)` is its first token, `tail($x)` the rest, and `last($x)` the last.
 
@@ -685,7 +747,7 @@ A grammar marks each terminator that can be elided where it writes it. An elidab
 
 - The terminator `T` stands directly after the marker, as written, with no parentheses around it. So `[+(KU) #]`, `[+((KU)) #]`, `[+(KU #)]` and `[+(KU #) A]` are errors, although parentheses make no node elsewhere. One spelling for each marked optional keeps every reader's check the same, and the check reads the written text, before parentheses are dropped.
 - `T` is an identifier tag: a bare name that begins with a capital, or `~name`. So `[+KU]` and `[+~KU]` mark the same terminator. A phoneme tag, a character tag, a range, a property, a rule and `#` cannot be the terminator.
-- `T` can have an `=` test, as in `[+KU="ku"]`. Any other test on `T` is an error, because `elision-only` restores `T` with the sound of its test (below). A test on a later item is no error.
+- `T` can carry any existing symbol test. A test on a later item remains an ordinary test.
 - The rest is a sequence of any primaries, or nothing. A choice or `&` in the rest stands in parentheses, as in `[+KU (A | B)]`. A `|` or `&` that joins `T` to something else is an error, because some reading of the optional then does not begin with `T`. So `[+KU | VAU]` is an error.
 - No capture stands inside an elidable optional, at any depth (see "Captures").
 - `[++T rest]` is the same, but its terminator is also maximal (below).
@@ -724,7 +786,21 @@ A rejection names a forbidden terminator only when maximality removes every main
 
 CLL's own rule is narrower: a terminator can be elided only if no ambiguity results. CLL says nothing of the other ambiguities of its EBNF. The `elision-only` check is one reading of that rule. It examines only the parse that the ranking chose, and CLL does not say how to choose that parse.
 
-With `elision-only`, after the stage chooses one of several parses, it writes the elided terminators of that parse back into the input. A terminator with an `=` test sounds like the test's string there. So an elidable terminator has no test or an `=` test. Any other test on it is an error of the document, which the reader reports.
+With `elision-only`, the stage restores the chosen parse's omitted terminators. Equality saves its string as the restoration sound. Every other test uses empty restoration sound and exactly the terminator tag.
+
+An omission exists only when its test passes on this restoration value. A failed omission creates no marker or restoration record. Written tokens still use their own sound and tags. All well-typed tests are legal, even when either route cannot succeed. An inert route, one that cannot succeed, causes no special error or warning.
+
+| Test on T | Omission succeeds when | Restoration sound |
+| --- | --- | --- |
+| No test | Always | Empty |
+| `T=s` | Always | s |
+| `T≠s` | s is nonempty | Empty |
+| `T⊇S` | `S ⊆ {T}` | Empty |
+| `T⊉S` | `S ⊈ {T}` | Empty |
+| `T∩S=∅` | `T ∉ S` | Empty |
+| `T∩S≠∅` | `T ∈ S` | Empty |
+
+Here S is the evaluated tag set, and s is the evaluated canonical string. The same rules apply to `+`, `++` and identifier-tag literals. `[+T≠""]` never omits T, but accepts a written T with nonempty sound. `[+T⊇U]` cannot omit T when U differs from T, but a written token with both tags passes.
 
 Then the stage parses that input again. Each elidable optional is now either restored or written. In the chosen parse's own reading, an optional that it left out is restored: it reads only its written-back terminator. Another reading can start an optional from a written-back terminator and read more after it, where the rest of the optional reads something.
 

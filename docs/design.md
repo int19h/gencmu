@@ -94,7 +94,9 @@ Following `span` from stage to stage explains any token of a stage's output. The
 
 gencmu's grammars are written in jbogenbau, a notation of its own. `docs/notation.md` explains it for grammar authors. This section gives the summary and the reasons.
 
-A jbogenbau grammar is an attribute grammar (its constituents carry computed values) with EBNF (Extended Backus-Naur Form) rule bodies. Each rule body is EBNF in the form that CLL (*The Complete Lojban Language*) prints. Each constituent carries one attribute, its set of tags, computed bottom-up from its parts. Conditions over the parts, such as whether a part also parses as another rule, restrict which parses exist, as in a Boolean grammar. A rule can say what its constituents hand to the next stage. So each grammar is a transducer (it reads one token sequence and writes another), and a dialect is a pipeline of them.
+A jbogenbau grammar is an attribute grammar (its constituents carry computed values) with EBNF (Extended Backus-Naur Form) rule bodies. Each rule body is EBNF in the form that CLL (*The Complete Lojban Language*) prints. Each constituent carries tags computed from its parts. Demanded tree patterns also contribute finite structural observations during recognition.
+
+Conditions over the parts, such as whether a part also parses as another rule, restrict which parses exist, as in a Boolean grammar. A rule can say what its constituents hand to the next stage. So each grammar is a transducer (it reads one token sequence and writes another), and a dialect is a pipeline of them.
 
 The bodies keep the look of CLL's EBNF, because a reader of CLL recognizes that look. Everything around the bodies is spelled with keywords, because symbols there proved opaque.
 
@@ -648,6 +650,20 @@ The tools list the repository's documents in one way (`tools/documents.js`). In 
 - an indented code block, such as a paragraph indented too far in a list item, and an HTML block, since either can hide prose
 
 The check of quoted texts relies on this rule, since it gives each text the line of its code span (`tools/quoted-texts.js`).
+
+## Structural pattern implementation
+
+A tree pattern tests a constructed constituent without recognizing its words again. The grammar uses `@(…)` values and `≅` or `≇` conditions. Single-child transparency reaches an identity through unary wrappers. Branching nodes and omitted terminator leaves preserve constructor boundaries. Ordinary optional brackets retain their usual meaning.
+
+All constant references use final stage definitions. A redefinition's own lexical name instead uses its immediately preceding definition. A graph of immutable versions permits forward references and detects cycles, including cycles through replaced definitions. Composite patterns therefore observe dialect overrides without copied declarations.
+
+The recognizer compiles demanded patterns into finite structural states. Items retain prefix states, and captures retain completed states alongside spans and tags. Packed edges keep correlated answers for one candidate. Equal observation states still retain distinct derivations. Summary contexts retain eligibility and same-span cycle exclusion. A structural-state change does not bypass rule-and-span cycle exclusion.
+
+Reconstruction observes each candidate's structure projected onto original tokens. Restored helpers contribute omitted markers, while ordinary synthetic reads contribute no observable leaf. Pattern sound remains empty on omitted markers. Body tests instead read synthetic recognition values. Every omission must pass its test on its canonical restoration value before recognition admits it. This rule preserves the witness for inequality and tag tests without inventing sound or tags.
+
+Grammar DOM format 21 stores pattern expressions and unresolved constants. Structural states remain internal. Parse-result format 9 remains unchanged because patterns introduce no new result members. Preference declarations, complete-reading relations and cycle diagnostics belong to a later implementation.
+
+Measurements record structural states, chart items, packed edges and summary contexts alongside elapsed time and peak memory. Increasing list length, unary depth, nested omissions and independent ambiguous children expose product-state growth. Finite sharing can still require exponentially many states.
 
 ## Tests
 
