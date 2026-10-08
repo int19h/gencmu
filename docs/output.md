@@ -94,7 +94,9 @@ An error has one of these forms:
 
   For a defect found while parsing, the error has `stage` and no position. An example of such a defect is a nested parse asked about its own span as the same rule. An error that lowering finds for the features of the parse is one too (engine §3). An item of braces that can match no tokens is such an error. Its message begins with the document, line and column of the definition at fault, since the error's position members are for the stage's input.
 
-  A defect found by the check of `elision-only` can have the member `code` with the value `elision-witness-lost` (engine §7.9). Such an error also has `chosen`, the chosen tree. It has `completion`, the terminators written back. Each of them is `{"terminal":T,"at":N,"source":[S,S]}`, with `"sound":"..."` last for a tested terminator. The members stand in the order `kind`, `stage`, `code`, `message`, `chosen`, `completion`. Any other error has no `code`.
+  A defect found by the check of `elision-only` can have the member `code` with the value `elision-witness-lost` (engine §7.9). Such an error also has `chosen`, the chosen tree. It has `completion`, the terminators written back.
+
+  Each of them is `{"terminal":T,"at":N,"source":[S,S]}`. Only a terminator with an equality test adds `"sound":"..."` last, including an empty equality operand. The members stand in the order `kind`, `stage`, `code`, `message`, `chosen`, `completion`. Any other error has no `code`.
 
 For example, `text → [[X]]` on the empty input ties, and both readings are `{"kind":"rule","rule":"text","span":[0,0],"source":[0,0],"tags":[],"children":[]}`. The stage's witness names two different productions of the helpers. A nullable `&`, such as `[A] & [B]`, gives such a tie in the same way, with three derivations.
 
@@ -260,7 +262,7 @@ A hollow rule node, such as an empty slot for a free modifier, has no token and 
 
 ### Brackets
 
-A named rule with two or more visible children adds a bracket group. Empty children disappear, and one visible child collapses. Apply these rules after the choice to show or hide elided markers. Pattern normalization never changes public output grouping.
+Apply these rules after the choice to show or hide elided markers. Tree patterns do not change bracket grouping.
 
 Brackets write the tree of the final stage as nested groups:
 

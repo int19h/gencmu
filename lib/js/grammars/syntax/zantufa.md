@@ -108,7 +108,7 @@ A statement can take terms after it, which `i'au` can introduce (`statement-term
 
 The lookaheads of the reference's fragments are conditions here. A `gek` or `joik` fragment does not begin terms. A `na` fragment has no terms or `ku` after it. And a terms fragment has no mekso after it. A mekso fragment is not also a terms fragment, because the reference tries terms first. It has no sumti or selbri after it, because Zantufa reads such a mekso as the quantifier of a term first.
 
-A structural pattern describes constructed nodes. The statement patterns require every earlier branch to be a whole sentence and the last branch to start with a sentence. A prenex or TUhE blocks that final first-child path. A statement link in an earlier branch prevents the whole-sentence match. Links after the last sentence can continue outside the forethought connection.
+A structural pattern describes constructed nodes. Suppose every earlier branch is a whole sentence and the last branch starts with a sentence. Then the condition removes `gek-statement`, because Zantufa's sentence reads those words first. A prenex or TUhE blocks that final first-child path. A statement link in an earlier branch prevents the whole-sentence match. Links after the last sentence can continue outside the forethought connection.
 
 `$BARE-NA-FRAGMENT` describes one NA clause with its own omitted KU and VAU. Written boundaries or added terms prevent that exact match. The condition excludes only this duplicate terms fragment.
 
@@ -624,7 +624,7 @@ The operand after a run of operators is greedy too. The reference's `mex_1?` aft
 
 `mex-forethought` does not translate two parts of the reference's rule. Its lookahead `!(lerfu_string BOI_elidible)` never fails before an operator, because no operator begins with a lerfu word. And its `mex_forethought?` after `mex_2+` adds nothing, because `mex_2+` already reads a forethought mekso as one of its parts.
 
-The connective operator pattern excludes an initial SE constructor. That SE can instead modify the surrounding operator. Initial NA or GAhO prevents this exact transformation. The separate following-CU condition remains in place.
+The condition removes a connective operator whose first word is SE. The alternative `SE # operator` reads that SE instead. Initial NA or GAhO prevents this exact transformation. The separate following-CU condition remains in place.
 
 ```jbogenbau
 %rule quantifier
@@ -789,7 +789,6 @@ The mekso prefix pattern tests an actual NAhE or SE constructor over an operand 
   | FIhO # selbri [+FEhU #]
 %conditions
   $m ≇ @(⋰ ((NAhE ∪ SE) [#] (operand ∪ operator)))
-
 ```
 
 ## Free modifiers

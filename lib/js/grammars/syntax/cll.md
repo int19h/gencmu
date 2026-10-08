@@ -175,7 +175,7 @@ The ranking of elided terminators does not settle this. In `mi broda gi'e ke bro
 
 This grammar states the CLL choice as a condition on the last tail after a plain gihek. `$KE-TAIL` tests the structure of that actual tail. A structural pattern describes a node or its children. Patterns pass through single-child wrappers and retain written or omitted terminator nodes.
 
-`$KE-TAIL` describes one KE selbri with its tail terms, or one KE gek-sentence. Its optional leading tag must satisfy `$STAG-TAG`, because the competing group of tails accepts `stag` there. `$STAG-TAG` excludes FIhO and free modifiers from a constructed tag. `$KE-SELBRI` permits that tag before a whole `$KE-UNIT`. `$KE-GEK` permits it before a KE gek-sentence.
+`$KE-TAIL` describes one KE selbri with its tail terms, or one KE gek-sentence. Its optional leading tag must satisfy `$STAG-TAG`, because the competing group of tails accepts `stag` there. `$STAG-TAG` accepts a constructed tag with no FIhO or free modifiers. Such a tag reads exactly the words that `stag` reads. `$KE-SELBRI` permits that tag before a whole `$KE-UNIT`. `$KE-GEK` permits it before a KE gek-sentence.
 
 The condition stands in `bridi-tail-1-final`, the form of `bridi-tail` without the `ke` group of tails. It is the printed `bridi-tail-1` with its last plain connection written apart. Only that connection can compete with the `ke` form of `bridi-tail`. Rule 50 reads one `ke` group as the last part of a bridi-tail, followed by one run of tail terms.
 
@@ -590,7 +590,9 @@ Each afterthought connective can be negated on either side, `na` before and `nai
 
 The ordinary alternative of `selbri-4` and `operator` joins two units with a plain connective. The other alternative, `joik [stag] KE`, groups with the connective itself. Where both alternatives read the same words, the official parser takes the `ke` group, through its lexer token `JOIK_KE`. Three rules state this choice. `plain-joik-jek` is a jek, or a joik that `ke` does not directly follow.
 
-`joik-before-ke` is a joik that `ke` directly follows. `selbri-5-not-ke-group` and `operator-1-not-ke-group` test the constructed unit against `$KE-UNIT`. A single-child path reaches a whole KE group. Added BO, link arguments, or another tanru child stops that match. In both CLL dialects, `mi broda joi ke me le le brodi brodo ku me'u ke'e` remains the group. Its inner KU is omitted.
+`joik-before-ke` is a joik that `ke` directly follows. The unit after it cannot be only a KE group. `selbri-5-not-ke-group` and `operator-1-not-ke-group` test the constructed unit against `$KE-UNIT`. A single-child path reaches a whole KE group. BO, link arguments or another tanru child after the group stop that match.
+
+In both CLL dialects, `mi broda joi ke me le le brodi brodo ku me'u ke'e` remains the group. Its inner KU is omitted. Omitted terminators inside the group do not change the outer KE constructor.
 
 The plain reading remains when the unit continues after its KE group, as in `ke brode ke'e bo brodi`. The group form cannot read that unit. A free modifier between the joik and KE also leaves only the plain reading, since the group form has no slot there.
 
@@ -860,7 +862,7 @@ Earlier stages also depart from CLL. [The word stream](../words/stream.md) lists
    That lexer also rejects `mi broda joi ke brode ke'e bo brodi`, which has only the plain reading. This grammar keeps the plain reading there, as the printed grammar does.
 7. In `bridi-tail-1-final`, the last tail after a plain gihek cannot be one `ke` group with one run of tail terms. Those are the words that the `ke` form of `bridi-tail` can read as a group of tails.
 
-   `bridi-tail-1-final` separates the last plain connection of the printed `bridi-tail-1`, so its condition needs no lookahead. `$KE-TAIL` tests the actual last tail. The exception requires its own written VAU and nonempty following tail terms. The seven affected rules retain their printed optional forms. Item 6 uses `$KE-UNIT` for its constructed unit.
+   `bridi-tail-1-final` separates the last plain connection of the printed `bridi-tail-1`, so its condition needs no lookahead. `$KE-TAIL` tests the actual last tail. The exception requires its own written VAU and nonempty following tail terms. Item 6 uses `$KE-UNIT` for its constructed unit.
 
    The printed grammar reads `mi broda gi'e ke brode ke'e` in two ways. One is a `ke` group of tails after `gi'e` (rule 50). The other is a plain `gi'e` (rule 51) before a tail whose selbri is a `ke` tanru unit. The elided terminators cannot choose: the two parses tie when `ke'e` is elided at the end, and `late-elision` takes the tanru when `ke'e` is written.
 

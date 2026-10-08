@@ -299,7 +299,7 @@ The left operand must be a bare capture. The right operand must have pattern typ
 
 ### The structural tree
 
-Patterns observe named rules, terminal reads and omitted terminators before output transparency or `%opaque`. Generated helpers for optionals and flat repetitions contribute their children in order. Named chain levels remain named nodes. An absent ordinary optional contributes no child.
+Patterns observe named rules, terminal reads and omitted terminators before bracket output collapses one-child nodes, and before `%opaque`. Generated helpers for optionals and flat repetitions contribute their children in order. Named chain levels remain named nodes. An absent ordinary optional contributes no child.
 
 A terminal leaf records the terminal that read it, rather than every tag on its token. An omitted T contributes one leaf labeled T, with empty sound and pattern tags `{T}`. Its empty span does not remove it. This leaf adds no tags to the empty helper or the enclosing constituent.
 
@@ -335,7 +335,9 @@ A capital-initial name denotes a terminal, including KEhE, GIhI and NUhI. Other 
 
 Juxtaposition describes a complete child sequence. A single node predicate instead tests the current node. An optional or repetition always describes a child sequence. Brackets keep their ordinary optional meaning, including `[T]`, `[(T)]` and `[#]`. They never mean an omitted terminal.
 
-`⋯` consumes zero or more siblings at one level. It never descends. Multiple sibling gaps are legal, including empty gaps. Each path permits zero or more edges and can stop before a leaf. First and last children follow helper flattening and empty-child removal. An omitted final terminator stops a last-child path unless its endpoint predicate accepts that leaf.
+`⋯` consumes zero or more siblings at one level. It never descends. Multiple sibling gaps are legal, including empty gaps. Each path permits zero or more edges and can stop before a leaf. First and last children follow helper flattening and empty-child removal.
+
+An omitted terminator is a child like a written one. When it is the last child, a last-child path reaches it and never passes it to an earlier sibling.
 
 Binding is primary, path prefix, sequence, intersection, then union or difference, from strongest to weakest. Intersection associates left. Union and difference share precedence and associate left. A path prefix takes exactly one primary. Chained prefixes and optional operands require parentheses or a nested literal.
 

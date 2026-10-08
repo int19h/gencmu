@@ -433,7 +433,9 @@ Sumti connectives are ek, joik, jek or VUhU (`sumti-connective`). This change an
 - `lo'oi subsentence ku'au`, a description of a subsentence
 - The single-word quotes `zo'oi`, `la'oi` and `ra'oi`, whose bodies the word stage delimits
 
-A bare NAhE cannot wrap one tagged term, even when that term omits KU. The pattern tests the actual `tagged-term` constructor. A connected term can begin with such a term, as in `na'e pu ku .e na ku lu'u`. This grammar also accepts `mi na'e pu .e ca lu'u klama`, with both inner KUs omitted. camxes-exp rejects more prefixes through its tag lookahead. This grammar follows its connected-term extension instead.
+A bare NAhE cannot wrap one tagged term, even when that term omits KU. The pattern tests the actual `tagged-term` constructor. A connected term can begin with such a term, as in `na'e pu ku .e na ku lu'u`. This grammar also accepts `mi na'e pu .e ca lu'u klama`, with both inner KUs omitted.
+
+camxes-exp rejects every NAhE operand that begins with a tense or modal, because `na'e pu` matches its `tag`. This grammar rejects only a single tagged term, which that tag reading duplicates. It accepts a connection of terms.
 
 The inner sumti of a description can be any sumti, including a connected one, as in `lo mi .e do broda`. It does not begin with a quantifier. camxes-exp first reads a quantifier there as the CLL form `quantifier sumti`. Thus `lo re mi broda` contains `lo re mi` and the selbri `broda`.
 
@@ -523,7 +525,7 @@ camxes-exp departs here. It tries the plain connective first, and reads `joi` be
 
 Where only the plain reading parses, the layer keeps it, as camxes-exp does. So `mi broda joi ke brode ke'e bo brodi` joins `broda` to the unit `ke brode ke'e bo brodi`. The official parser of CLL rejects that text.
 
-The inherited pattern tests the actual KE constructor. Experimental uses `tag` as `stag`, so this layer redefines `$STAG-TAG` accordingly. The composite KE patterns use that final definition. `tanru-unit` uses one repetition with optional relative clauses. Additional children prevent the single-child match, as in the CLL grammar.
+The inherited `$KE-UNIT` pattern tests the actual KE constructor. `tanru-unit` uses one repetition with optional relative clauses. Additional children prevent the single-child match, as in the CLL grammar.
 
 A group of preposed linked arguments comes before a whole `tanru-unit-1`, as in camxes-exp. A `be` group attaches to the tanru unit before it, where there is one. So a unit without a group of its own cannot be directly followed by `be` (`tanru-unit-1`). A preposed group stands only where no such unit comes before it, as at the start of a selbri or after a connective.
 
@@ -574,8 +576,6 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
 
 %rule selbri-6-not-starting-with-ke
   tanru-unit-not-starting-with-ke [BO # selbri-6] | [NAhE #] guhek selbri gik selbri-6
-
-%redefine-const $STAG-TAG @(tag)
 
 %redefine-rule tanru-unit
   {tanru-unit-1 \ CEI #} [selbri-relative-clauses]

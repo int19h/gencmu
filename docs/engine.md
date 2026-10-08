@@ -903,9 +903,11 @@ The notation's syntax grammar names its constituents so that the reader can read
 
 A rule with any other name makes no node of the DOM. The reader reads its children in its place.
 
-The reader knows 69 rules of the syntax grammar, grouped here by what they read.
+The reader knows 80 rules of the syntax grammar, grouped here by what they read.
 
-For items, they are `directive`, `argument-word`, `argument-string`, `argument-tag`, `classifier`, `classifier-name`, `classifier-entry`, `classifier-key`, `classifier-operator`, `classifier-class`, `implication-declaration`, `constant-definition`, `constant-definer` and `constant-reference`. For definitions, they are `rule`, `definer`, `rule-flags`, `rule-flag`, `rule-name`, `body`, `alternative`, `guard` and `alternative-tags`. For expressions, they are `choice`, `conjunction`, `sequence`, `primary`, `repetition`, `reference`, `tag`, `character`, `phoneme`, `range`, `property`, `tested`, `test`, `test-operand`, `capture`, `group`, `optional` and `empty`. For clauses, they are `tags-clause`, `conditions-clause`, `emits-clause`, `opaque-clause`, `emit-item`, `emit-target`, `emit-tags`, `emit-before` and `emit-after`. For conditions, they are `implication`, `any-of`, `all-of`, `condition`, `comparison`, `comparator`, `negation`, `presence`, `call` and `argument`. For terms, they are `term`, `guarded-term`, `union`, `intersection`, `term-atom`, `string`, `name`, `empty-set` and `capture-reference`.
+For items, they are `directive`, `argument-word`, `argument-string`, `argument-tag`, `classifier`, `classifier-name`, `classifier-entry`, `classifier-key`, `classifier-operator`, `classifier-class`, `implication-declaration`, `constant-definition`, `constant-definer` and `constant-reference`. For definitions, they are `rule`, `definer`, `rule-flags`, `rule-flag`, `rule-name`, `body`, `alternative`, `guard` and `alternative-tags`. For expressions, they are `choice`, `conjunction`, `sequence`, `primary`, `repetition`, `reference`, `tag`, `character`, `phoneme`, `range`, `property`, `tested`, `test`, `test-operand`, `capture`, `group`, `optional` and `empty`. For clauses, they are `tags-clause`, `conditions-clause`, `emits-clause`, `opaque-clause`, `emit-item`, `emit-target`, `emit-tags`, `emit-before` and `emit-after`. For conditions, they are `implication`, `any-of`, `all-of`, `condition`, `comparison`, `comparator`, `tree-comparison`, `tree-comparator`, `negation`, `presence`, `call` and `argument`. For terms, they are `term`, `guarded-term`, `union`, `intersection`, `term-atom`, `string`, `name`, `empty-set` and `capture-reference`.
+
+For patterns, they are `pattern-literal`, `pattern-union`, `pattern-intersection`, `pattern-sequence`, `pattern-item`, `pattern-atom`, `pattern-brackets`, `pattern-repeat` and `pattern-path`.
 
 Any other rule is a wrapper. A node's parts are its children, with each wrapper replaced by its own parts, at any depth, in order. The reader reads only the parts of a node. So a bootstrap can wrap a known rule in rules of its own, and the reader reads the same DOM.
 
@@ -941,13 +943,14 @@ A node must have the parts that the reader reads from it. A node without one is 
 | `implication` | one or more `any-of` |
 | `any-of` | one or more `all-of` |
 | `all-of` | one or more `condition` |
-| `condition` | one known part: a `comparison`, `call`, `negation`, `presence` or `implication` |
+| `condition` | one known part: a `comparison`, `tree-comparison`, `call`, `negation`, `presence` or `implication` |
 | `negation` | a `condition` |
 | `argument` | a `union` |
 | `term` | one known part: a `union` or a `guarded-term` |
 | `union` | one or more `intersection` |
 | `intersection` | one or more `term-atom` |
-| `term-atom`, `test-operand` | one known part: a `string`, `tag`, `character`, `phoneme`, `range`, `property`, `name`, `empty-set`, `term`, `call`, `capture-reference` or `constant-reference` |
+| `term-atom` | one known part: a `string`, `tag`, `character`, `phoneme`, `range`, `property`, `name`, `empty-set`, `term`, `call`, `capture-reference`, `constant-reference` or `pattern-literal` |
+| `test-operand` | one known part: a `string`, `tag`, `character`, `phoneme`, `range`, `property`, `name`, `empty-set`, `term`, `call`, `capture-reference` or `constant-reference` |
 
 The other known rules need no part.
 
@@ -961,7 +964,7 @@ A document can hold several errors. The reader reports one, and every reader cho
 2. Within an alternative's expression, the reader checks each construct when it reaches it, in the order of the text. It checks a construct's own form before what it holds. So it reports the first error of the first construct in the text that has one, with these steps for each construct:
    - A tested primary: a test that does not follow a reference other than `#` or a terminal. It stands at the test, before anything that the primary holds. So `{$c(B)}="b"` and `[+KU $x(A)]="a"` are errors at the test.
    - A capture: first a capture inside braces, then one inside an elidable optional, then `$` that wraps something. Then come a name that is not all lower case and a capture that wraps anything but one symbol. Each stands at the capture, before what it wraps.
-   - An optional: first two markers, at the second. Then an elidable optional that is not of the form below, at its `[`. Then a test other than `=` on its terminator, at the test. Last, what it holds. So `[+KU | $x(A)]` is an error at the `[`, and `[+KU≠"ku" $x(A)]` at the `≠`.
+   - An optional: first two markers, at the second. Then an elidable optional that is not of the form below, at its `[`. Last, what it holds through the ordinary symbol-test rules. So `[+KU | $x(A)]` is an error at the `[`, and `[+KU≠"ku" $x(A)]` at the `$x`. The same order applies to `++`.
    - An `&`: more than 16 items, at the `&` construct, that is, at its first item. This comes before any of its items, since the bound is its own form. So an `&` of 17 items is an error at its first item, whatever error a later item holds.
    - Braces: first two markers, at the second, or a marker after the separator, at that marker. Then a chain that is not the whole expression of its alternative, at its `{`. Last, the item and the separator. So `A {$c(B) ... \ S}` is an error at the `{`, although its marker follows the capture.
 3. The names that a production reads twice come after the whole expression of the alternative, by the rule below, and before the alternative's own tags.

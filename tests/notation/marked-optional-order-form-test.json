@@ -1,6 +1,6 @@
 {
-  "description": "With several defects, the form comes before the test on the terminator: the error is at the [ (engine §9).",
-  "document": "```jbogenbau\n%rule a [+KU≠\"ku\" | A]\n```\n",
+  "description": "The marked optional has a choice and tests a noncanonical sound. Its form error comes first, at the [ (engine §9).",
+  "document": "```jbogenbau\n%rule a [+KU=\"K\" | A]\n```\n",
   "expect": {
     "error": {
       "line": 2,
