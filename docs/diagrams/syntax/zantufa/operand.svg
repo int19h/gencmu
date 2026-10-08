@@ -2,7 +2,6 @@
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="58.8" lengthAdjust="spacingAndGlyphs">operand</text>
-<text class="label" x="88.8" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
 <path d="M10 64v16m4 -16v16M14 72h6"/>
 <path d="M20 72h20"/>
 <g class="rule"><rect x="40" y="60" width="67" height="24" rx="0"/><text x="73.5" y="77" textLength="50.4" lengthAdjust="spacingAndGlyphs">number</text></g>
@@ -46,31 +45,31 @@
 <path d="M90 252h10"/>
 <g class="rule"><rect x="100" y="240" width="25" height="24" rx="0"/><text x="112.5" y="257" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
 <path d="M125 252h10"/>
-<g class="rule"><rect x="135" y="240" width="67" height="24" rx="0"/><text x="168.5" y="257" textLength="50.4" lengthAdjust="spacingAndGlyphs">selbri</text></g>
-<path d="M202 252h10"/>
-<path d="M212 252h20"/>
-<g class="terminal"><rect x="232" y="240" width="50" height="24" rx="12"/><text x="257" y="257" textLength="33.6" lengthAdjust="spacingAndGlyphs">TEhU</text></g>
-<path d="M282 252h10"/>
-<g class="rule"><rect x="292" y="240" width="25" height="24" rx="0"/><text x="304.5" y="257" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M317 252H337"/>
-<path d="M212 252a10 10 0 0 0 10 -10V240a10 10 0 0 1 10 -10H317a10 10 0 0 1 10 10V242a10 10 0 0 0 10 10"/>
-<text class="label" x="236" y="225" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
-<path d="M337 252H430a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="135" y="240" width="109" height="24" rx="0"/><text x="189.5" y="257" textLength="92.4" lengthAdjust="spacingAndGlyphs">mohe-selbri</text></g>
+<path d="M244 252h10"/>
+<path d="M254 252h20"/>
+<g class="terminal"><rect x="274" y="240" width="50" height="24" rx="12"/><text x="299" y="257" textLength="33.6" lengthAdjust="spacingAndGlyphs">TEhU</text></g>
+<path d="M324 252h10"/>
+<g class="rule"><rect x="334" y="240" width="25" height="24" rx="0"/><text x="346.5" y="257" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M359 252H379"/>
+<path d="M254 252a10 10 0 0 0 10 -10V240a10 10 0 0 1 10 -10H359a10 10 0 0 1 10 10V242a10 10 0 0 0 10 10"/>
+<text class="label" x="278" y="225" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M379 252H430a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
 <path d="M20 72a10 10 0 0 1 10 10V302a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="300" width="50" height="24" rx="12"/><text x="65" y="317" textLength="33.6" lengthAdjust="spacingAndGlyphs">MOhE</text></g>
 <path d="M90 312h10"/>
 <g class="rule"><rect x="100" y="300" width="25" height="24" rx="0"/><text x="112.5" y="317" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
 <path d="M125 312h10"/>
-<g class="rule"><rect x="135" y="300" width="58" height="24" rx="0"/><text x="164" y="317" textLength="42" lengthAdjust="spacingAndGlyphs">sumti</text></g>
-<path d="M193 312h10"/>
-<path d="M203 312h20"/>
-<g class="terminal"><rect x="223" y="300" width="50" height="24" rx="12"/><text x="248" y="317" textLength="33.6" lengthAdjust="spacingAndGlyphs">TEhU</text></g>
-<path d="M273 312h10"/>
-<g class="rule"><rect x="283" y="300" width="25" height="24" rx="0"/><text x="295.5" y="317" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M308 312H328"/>
-<path d="M203 312a10 10 0 0 0 10 -10V300a10 10 0 0 1 10 -10H308a10 10 0 0 1 10 10V302a10 10 0 0 0 10 10"/>
-<text class="label" x="227" y="285" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
-<path d="M328 312H430a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="135" y="300" width="100" height="24" rx="0"/><text x="185" y="317" textLength="84" lengthAdjust="spacingAndGlyphs">mohe-sumti</text></g>
+<path d="M235 312h10"/>
+<path d="M245 312h20"/>
+<g class="terminal"><rect x="265" y="300" width="50" height="24" rx="12"/><text x="290" y="317" textLength="33.6" lengthAdjust="spacingAndGlyphs">TEhU</text></g>
+<path d="M315 312h10"/>
+<g class="rule"><rect x="325" y="300" width="25" height="24" rx="0"/><text x="337.5" y="317" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M350 312H370"/>
+<path d="M245 312a10 10 0 0 0 10 -10V300a10 10 0 0 1 10 -10H350a10 10 0 0 1 10 10V302a10 10 0 0 0 10 10"/>
+<text class="label" x="269" y="285" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M370 312H430a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
 <path d="M20 72a10 10 0 0 1 10 10V362a10 10 0 0 0 10 10"/>
 <path d="M40 372h20"/>
 <g class="terminal"><rect x="60" y="360" width="50" height="24" rx="12"/><text x="85" y="377" textLength="33.6" lengthAdjust="spacingAndGlyphs">LAhE</text></g>
