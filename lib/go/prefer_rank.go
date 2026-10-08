@@ -124,6 +124,39 @@ func preferenceContests(p *preferences, a, b occurrenceCounts) PreferenceConflic
 	order(out.Reverse)
 	return out
 }
+
+// reconstructionConflict describes the finalized diagnostic pair over original spans.
+func (rk *ranker) reconstructionConflict(first, second *dn) *PreferenceConflict {
+	if rk.preferences == nil || len(rk.preferences.paths) == 0 {
+		return nil
+	}
+	occurrences := func(root *dn) occurrenceCounts {
+		out := occurrenceCounts{}
+		stack := []*dn{root}
+		for len(stack) > 0 {
+			n := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			if n == nil {
+				continue
+			}
+			if n.kind == dClose && !n.prod.helper && rk.preferences.paths[n.prod.ruleName] != nil {
+				p, q := rk.preferencePosition(n.start), rk.preferencePosition(n.end)
+				if p < q {
+					key := preferenceOccurrence{n.prod.ruleName, p, q}
+					out[key] = out[key].add(countOne)
+				}
+			}
+			stack = append(stack, n.a, n.b)
+		}
+		return out
+	}
+	c := preferenceContests(rk.preferences, occurrences(first), occurrences(second))
+	if len(c.Forward) > 0 && len(c.Reverse) > 0 {
+		return &c
+	}
+	return nil
+}
+
 func preferenceDirectedCycle(edges []map[int]preferenceReason) []int {
 	done := map[int]bool{}
 	type frame struct {

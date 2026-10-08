@@ -47,6 +47,20 @@ def contests(preferences, a, b):
     key = lambda c: (*c['span'], c['higher'], c['lower'], tuple(c['path']))
     return {'forward': sorted(forward, key=key), 'reverse': sorted(reverse, key=key)}
 
+def occurrences_of_rope(rope, lowered, project):
+    occurrences = {}
+    for act in actions(rope):
+        if act.read:
+            continue
+        production = lowered.productions[act.production]
+        if production.helper or production.rule_name not in lowered.grammar.preferences.names:
+            continue
+        p, q = project[act.start], project[act.end]
+        if p < q:
+            key = (production.rule_name, p, q)
+            occurrences[key] = occurrences.get(key, 0) + 1
+    return occurrences
+
 def directed_cycle(edges):
     color = [0] * len(edges)
     for start in range(len(edges)):

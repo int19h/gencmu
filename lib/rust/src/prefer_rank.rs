@@ -104,6 +104,42 @@ fn contests(prefs: &crate::preferences::Preferences, a: &Occurrences, b: &Occurr
     reverse.sort_by(order);
     PreferenceConflict { forward, reverse }
 }
+
+impl Ranker<'_> {
+    /// Describe the finalized reconstruction pair over original spans.
+    pub(crate) fn reconstruction_conflict(&self, first: u32, second: u32) -> Option<PreferenceConflict> {
+        let prefs = &self.dag.g.preferences;
+        if prefs.paths.is_empty() {
+            return None;
+        }
+        let occurrences = |root| {
+            let mut out = Occurrences::new();
+            let mut stack = vec![root];
+            while let Some(id) = stack.pop() {
+                match self.dag.arena[id as usize] {
+                    DNode::Empty | DNode::Read { .. } => {}
+                    DNode::Seq { left, right } => stack.extend([left, right]),
+                    DNode::Close { body, set, item } => {
+                        let item = self.item(set, item);
+                        let prod = &self.dag.g.prods[item.prod as usize];
+                        let rule = &self.dag.g.rules[prod.rule as usize];
+                        let p = self.projected(item.origin);
+                        let q = self.projected(set);
+                        if !rule.helper && prefs.paths.contains_key(&rule.name) && p < q {
+                            let n = out.entry((rule.name.clone(), p, q)).or_insert(Nat::ZERO);
+                            *n = n.add(&Nat::ONE);
+                        }
+                        stack.push(body);
+                    }
+                }
+            }
+            out
+        };
+        let c = contests(prefs, &occurrences(first), &occurrences(second));
+        (!c.forward.is_empty() && !c.reverse.is_empty()).then_some(c)
+    }
+}
+
 fn preference_cycle(edges: &[BTreeMap<usize, RankReason>]) -> Option<Vec<usize>> {
     let mut done = BTreeSet::new();
     for start in 0..edges.len() {

@@ -263,6 +263,9 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 			better = profileOrder < 0 || res.slow && res.verdict != VerdictTie && restored != nil && rk.compare(restored, res.first).kind != cIdentical
 			if better {
 				res.second, res.first = res.first, restored
+				if len(res.cycle) == 0 {
+					res.conflict = rk.reconstructionConflict(res.first, res.second)
+				}
 				diff := rk.compare(res.first, res.second)
 				if diff.kind == cVisDiff {
 					res.witness = [2]action{diff.va, diff.vb}

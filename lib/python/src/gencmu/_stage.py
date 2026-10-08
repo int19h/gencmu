@@ -843,6 +843,12 @@ class StageRunner:
                 difference = first_difference(ranking.first, ranking.second, True) or first_difference(ranking.first, ranking.second, False)
                 assert difference is not None
                 ranking.witness = (difference[1], difference[2])
+                if ranking.cycle is None and lowered.grammar.preferences.names:
+                    from ._prefer_rank import contests, occurrences_of_rope
+                    conflict = contests(lowered.grammar.preferences,
+                                        occurrences_of_rope(ranking.first, lowered, project),
+                                        occurrences_of_rope(ranking.second, lowered, project))
+                    ranking.conflict = conflict if conflict['forward'] and conflict['reverse'] else None
         if watch is not None:
             watch.ranked(ranking)
         if ranking is None:
@@ -913,6 +919,7 @@ class StageRunner:
             stage=self.name,
             reason="elision-only",
             readings=readings,
+            conflict=ranking.conflict,
             witness=(mapped(ranking.witness[0]), mapped(ranking.witness[1])),
         )
 

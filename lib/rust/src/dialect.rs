@@ -982,6 +982,10 @@ impl Dialect {
                         ranking.second = Some(ranking.first);
                         ranking.witness = Some(ranker.pair_witness(w, ranking.first));
                         ranking.first = w;
+                        if ranking.cycle.is_empty() {
+                            ranking.conflict =
+                                ranker.reconstruction_conflict(w, ranking.second.expect("a competing reading"));
+                        }
                     }
                     // The witness hook tracks recognition and diagnostic order.
                     // It counts W(D) before profile filtering.
