@@ -21,6 +21,10 @@ export type Ranking = {
     second: Rope | null;
     witness: [Action | null, Action | null] | null;
     profile: RuleProfile;
+    cycle?: import("./prefer-rank.js").CycleEdge[];
+    readings?: Rope[];
+    conflict?: import("./prefer-rank.js").PreferenceConflict;
+    slow?: boolean;
     /**
      * with the witness hook's marks,
      * whether the count counted W(D); null without marks
@@ -332,6 +336,13 @@ export type RuleProfile = [number, number, Count][];
  * @returns {number}
  */
 export declare function compareProfiles(left: RuleProfile, right: RuleProfile): number;
+/**
+ * Adds profiles without expanding repeated occurrences.
+ * @param {RuleProfile} left
+ * @param {RuleProfile} right
+ * @returns {RuleProfile}
+ */
+export declare function sumProfiles(left: RuleProfile, right: RuleProfile): RuleProfile;
 /**
  * Counts every completed flagged occurrence in a chosen derivation.
  * @param {Derivation} root

@@ -1,0 +1,400 @@
+{
+  "description": "Complete action sequences preserve the specified no-elision comparison cycle.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text favored | disfavored | neutral\n%rule favored A B C D\n%rule disfavored early C D\n%rule early A B\n%rule neutral middle D\n%rule middle A B C\n%prefer disfavored > favored",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    },
+    {
+      "text": "d",
+      "tags": [
+        "D"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 10,
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie"
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              4
+            ],
+            "source": [
+              0,
+              7
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "favored",
+                "span": [
+                  0,
+                  4
+                ],
+                "source": [
+                  0,
+                  7
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "B",
+                    "token": 1,
+                    "span": [
+                      1,
+                      2
+                    ],
+                    "source": [
+                      2,
+                      3
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "C",
+                    "token": 2,
+                    "span": [
+                      2,
+                      3
+                    ],
+                    "source": [
+                      4,
+                      5
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "D",
+                    "token": 3,
+                    "span": [
+                      3,
+                      4
+                    ],
+                    "source": [
+                      6,
+                      7
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              4
+            ],
+            "source": [
+              0,
+              7
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "neutral",
+                "span": [
+                  0,
+                  4
+                ],
+                "source": [
+                  0,
+                  7
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "middle",
+                    "span": [
+                      0,
+                      3
+                    ],
+                    "source": [
+                      0,
+                      5
+                    ],
+                    "tags": [],
+                    "children": [
+                      {
+                        "kind": "token",
+                        "terminal": "A",
+                        "token": 0,
+                        "span": [
+                          0,
+                          1
+                        ],
+                        "source": [
+                          0,
+                          1
+                        ]
+                      },
+                      {
+                        "kind": "token",
+                        "terminal": "B",
+                        "token": 1,
+                        "span": [
+                          1,
+                          2
+                        ],
+                        "source": [
+                          2,
+                          3
+                        ]
+                      },
+                      {
+                        "kind": "token",
+                        "terminal": "C",
+                        "token": 2,
+                        "span": [
+                          2,
+                          3
+                        ],
+                        "source": [
+                          4,
+                          5
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "D",
+                    "token": 3,
+                    "span": [
+                      3,
+                      4
+                    ],
+                    "source": [
+                      6,
+                      7
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              4
+            ],
+            "source": [
+              0,
+              7
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "disfavored",
+                "span": [
+                  0,
+                  4
+                ],
+                "source": [
+                  0,
+                  7
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "early",
+                    "span": [
+                      0,
+                      2
+                    ],
+                    "source": [
+                      0,
+                      3
+                    ],
+                    "tags": [],
+                    "children": [
+                      {
+                        "kind": "token",
+                        "terminal": "A",
+                        "token": 0,
+                        "span": [
+                          0,
+                          1
+                        ],
+                        "source": [
+                          0,
+                          1
+                        ]
+                      },
+                      {
+                        "kind": "token",
+                        "terminal": "B",
+                        "token": 1,
+                        "span": [
+                          1,
+                          2
+                        ],
+                        "source": [
+                          2,
+                          3
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "C",
+                    "token": 2,
+                    "span": [
+                      2,
+                      3
+                    ],
+                    "source": [
+                      4,
+                      5
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "D",
+                    "token": 3,
+                    "span": [
+                      3,
+                      4
+                    ],
+                    "source": [
+                      6,
+                      7
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "cycle": [
+          {
+            "from": 0,
+            "to": 1,
+            "basis": "stage",
+            "directive": "greedy",
+            "witness": [
+              {
+                "read": {
+                  "token": 3,
+                  "terminal": "D"
+                }
+              },
+              {
+                "close": {
+                  "rule": "middle",
+                  "production": 7,
+                  "span": [
+                    0,
+                    3
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "from": 1,
+            "to": 2,
+            "basis": "stage",
+            "directive": "greedy",
+            "witness": [
+              {
+                "read": {
+                  "token": 2,
+                  "terminal": "C"
+                }
+              },
+              {
+                "close": {
+                  "rule": "early",
+                  "production": 5,
+                  "span": [
+                    0,
+                    2
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "from": 2,
+            "to": 0,
+            "basis": "prefer",
+            "contests": [
+              {
+                "span": [
+                  0,
+                  4
+                ],
+                "higher": "disfavored",
+                "lower": "favored",
+                "path": [
+                  "disfavored",
+                  "favored"
+                ],
+                "residualCounts": [
+                  "1",
+                  "1"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
+  }
+}

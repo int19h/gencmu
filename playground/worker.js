@@ -175,6 +175,8 @@
       const readings = (stage.error && stage.error.readings) || [];
       const brackets = (node) => node ? gencmu.nodeBrackets(node, tokens, { showElided: true }) : "";
       const tree = (node) => node ? gencmu.nodeTree(node, tokens, result.text) : "";
+      if (stage.error?.cycle) return { stage: stage.name, cycle: true, summary: gencmu.explainError(result),
+        readings: readings.map((node) => ({ brackets: brackets(node), tree: tree(node) })) };
       return {
         stage: stage.name,
         summary: cut < 0 ? text : text.slice(0, cut),

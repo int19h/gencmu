@@ -1,0 +1,92 @@
+{
+  "description": "The opener query keeps shorter endpoints beside the explicit initial-space exclusion.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text $x(S) S X\n%conditions ~short ⊆ tags($x,q), ¬begins(head($),no-space)\n%rule q a | b\n%rule a S S\n%rule b S <~short>\n%rule no-space X\n%prefer a > b",
+  "tokens": [
+    {
+      "text": " ",
+      "tags": [
+        "S"
+      ]
+    },
+    {
+      "text": " ",
+      "tags": [
+        "S"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 10,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": []
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          3
+        ],
+        "source": [
+          0,
+          5
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "S",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "S",
+            "token": 1,
+            "span": [
+              1,
+              2
+            ],
+            "source": [
+              2,
+              3
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "X",
+            "token": 2,
+            "span": [
+              2,
+              3
+            ],
+            "source": [
+              4,
+              5
+            ]
+          }
+        ]
+      },
+      "error": null
+    }
+  }
+}

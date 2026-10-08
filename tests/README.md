@@ -57,7 +57,7 @@ Every runner also checks these invariants on each canonical result that a case g
 - An error of kind `ambiguous` has no member `token` and no member `source`.
 - No stage has a member `tied`.
 - A stage whose verdict is `tie` has no member `output`, and it is the last stage of the result.
-- Such a result has `ok` false, `tree` null, and an error of kind `ambiguous` with the reason `tie`, that stage's name and two readings.
+- Such a result has `ok` false and `tree` null. Its error has kind `ambiguous`, reason `tie`, and that stage's name. It contains two readings or a complete cycle certificate.
 - No result has an error with the code `elision-witness-lost`. Engine §7.8 proves that a check that meets no error of the grammar finds W(D). §7.9 gives this error only where a check finds no derivation of R at all. So no grammar can give it, and it is a defect of the library, whatever the case expects.
 
 A library's own tests lose the witness on purpose, through a private switch, and call the engine directly, not through the runner. They check the form of the error: it has the kind `grammar`, a `stage`, `chosen` and `completion`, and no `token`, `source`, `line`, `column`, `expected`, `reason` or `readings`. Its stage has the verdict `resolved` and no `output`, and it is the last stage of the result. A library's own tests also show that an ordinary error of the grammar in the check has no `code`.
@@ -74,7 +74,11 @@ The hook asks about the check's own ranking because any other question is a stan
 
 The walk pins the shape of W(D), not its tags. The tags follow from the derivation, and the cases pin them. A runner fails a case, or a corpus case, whose answer is no.
 
+For preference reconstruction, the count channel proves witness membership independently of selection. Cycle representatives retain their own canonical order. The result reports the concrete witness first, even when it falls outside the cycle.
+
 A pattern matches a result that has members beyond its own. So the invariants, and not the patterns, say that a tied stage has no output.
+
+`expect.loadWarnings` matches the ordered loader diagnostics. These warnings describe construction sites and rival containment. They belong to the loaded dialect, separate from parse warnings.
 
 `expect.brackets` is the bracket rendering, with elided terminators hidden. `expect.warnings` is the list of warnings of the result, compared whole. So `[]` says that there are no warnings. `expect.features` is the list of features of the dialect (`docs/api.md`), compared whole. Each feature is written as `{"name":..., "kind":..., "default":...}`.
 

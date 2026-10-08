@@ -1,0 +1,10 @@
+{
+  "description": "The preference directive uses its dedicated two-name syntax.",
+  "document": "```jbogenbau\n%prefer a >\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 12
+    }
+  }
+}

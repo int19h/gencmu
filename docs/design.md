@@ -682,7 +682,7 @@ The recognizer compiles demanded patterns into finite structural states. Items r
 
 Reconstruction observes each candidate's structure projected onto original tokens. Restored helpers contribute omitted markers, while ordinary synthetic reads contribute no observable leaf. Pattern sound remains empty on omitted markers. Body tests instead read synthetic recognition values. Every omission must pass its test on its canonical restoration value before recognition admits it. This rule preserves the witness for inequality and tag tests without inventing sound or tags.
 
-Grammar DOM format 21 stores pattern expressions and unresolved constants. Structural states remain internal. Parse-result format 9 remains unchanged because patterns introduce no new result members. Preference declarations, complete-reading relations and cycle diagnostics belong to a later implementation.
+Grammar DOM format 21 stores pattern expressions, unresolved constants and preference directives. Structural states remain internal. Parse-result format 10 adds complete cycle certificates and opposing-contest diagnostics.
 
 Measurements record structural states, chart items, packed edges and summary contexts alongside elapsed time and peak memory. Increasing list length, unary depth, nested omissions and independent ambiguous children expose product-state growth. Finite sharing can still require exponentially many states.
 

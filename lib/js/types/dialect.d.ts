@@ -79,6 +79,7 @@ export declare class Dialect {
     stages: Stage[];
     loader: Loader;
     declared: string[];
+    loadWarnings: import("./preferences.js").LoadWarning[];
     /** @type {Feature[]} the dialect's features, with their kinds and defaults */
     features: Feature[];
     /**

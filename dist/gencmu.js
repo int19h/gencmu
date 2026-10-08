@@ -226,8 +226,8 @@
     if (most !== undefined && counted > most) throw new WorkBudget(`${counted} ${kind}, past the budget of ${most}`);
   }
 
-  /** @type {{elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null}} */
-  const hooks = { elisionCheck: null, work: null };
+  /** @type {{elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null, preferenceRanking: ((statistics: import("./prefer-rank.js").PreferenceRanker["statistics"]) => void) | null}} */
+  const hooks = { elisionCheck: null, work: null, preferenceRanking: null };
 
   /**
    * Whether a fault is on, at one of its sites. A fault that is on counts the
@@ -709,6 +709,9 @@
    * @property {import("./types.js").Expectation[]} [expected]
    * @property {NodeJson[]} [readings]
    * @property {ActionJson[]} [witness]
+   * @property {CycleEdgeJson[]} [cycle]
+   * @property {import("./prefer-rank.js").PreferenceConflict} [conflict]
+   * @property {number} [chosenReading]
    * @property {string} [document]
    * @property {string} message
    * @property {NodeJson} [chosen]
@@ -751,7 +754,9 @@
    * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | string[] | null}} DisplayValue
    */
 
-  const RESULT_FORMAT = 9;
+  /** @typedef {Omit<import("./types.js").PreferenceCycleEdge, "witness"> & {witness?: [ActionJson | null, ActionJson | null]}} CycleEdgeJson */
+
+  const RESULT_FORMAT = 10;
 
   /**
    * A token in the result JSON. An attached token has no span, and a list of
@@ -850,6 +855,12 @@
     if (error.column !== undefined) result.column = error.column;
     if (error.expected !== undefined) result.expected = error.expected;
     if (error.readings !== undefined) result.readings = error.readings.map(nodeJson);
+    if (error.cycle !== undefined) result.cycle = error.cycle.map((edge) => {
+      const { witness, ...fields } = edge;
+      return witness ? { ...fields, witness: [witness[0] ? actionJson(witness[0]) : null, witness[1] ? actionJson(witness[1]) : null] } : fields;
+    });
+    if (error.conflict !== undefined) result.conflict = error.conflict;
+    if (error.chosenReading !== undefined) result.chosenReading = error.chosenReading;
     // Only an error of elision-only has a witness (docs/output.md).
     if (error.witness !== undefined && error.reason === "elision-only") result.witness = error.witness.map(actionJson);
     if (error.document !== undefined) result.document = error.document;
@@ -1338,7 +1349,6 @@
   function finalInput(result) {
     return result.stages[result.stages.length - 1].input || [];
   }
-
 
   // ---- cases.js
   // Corpus cases (tests/README.md, "Corpus cases"): what a result gives in a
@@ -2101,6 +2111,188 @@
       }
     }
     return witnesses.filter((witness) => eligible[at(witness)]);
+  }
+
+  // ---- preferences.js
+  // Stage-wide preference declarations and conservative authoring diagnostics.
+
+
+
+  /** @typedef {{document: string, at: [number, number], rule: string, alternative: number, path: string}} ReferenceSite */
+  /** @typedef {{kind: string, stage: string, rule?: string, higher?: string, lower?: string, container?: string, contained?: string, references: ReferenceSite[], message: string}} LoadWarning */
+  /** @typedef {{higher: string, lower: string, at: import("./types.js").ErrorLocation}} PreferenceDeclaration */
+
+  class Preferences {
+    /** @param {string} stage @param {Map<string, import("./grammar.js").StitchedRule>} rules @param {PreferenceDeclaration[]} declarations */
+    constructor(stage, rules, declarations) {
+      /** @type {Map<string, Map<string, string[]>>} */
+      this.paths = new Map();
+      /** @type {Map<string, Set<string>>} */
+      const edges = new Map();
+      for (const { higher, lower, at } of declarations) {
+        for (const name of [higher, lower]) {
+          if (/^[A-Z]/.test(name) || !rules.has(name)) throw new GencmuError("grammar", `%prefer requires an existing rule: ${name}`, at);
+          if (!edges.has(name)) edges.set(name, new Set());
+        }
+        if (higher === lower) throw new GencmuError("grammar", `%prefer cannot prefer ${higher} to itself`, at);
+        required(edges, higher).add(lower);
+      }
+      this.names = new Set(edges.keys());
+      // Breadth-first traversal gives shortest paths, with code point ties.
+      for (const start of [...edges.keys()].sort(compareCodePoints)) {
+        const found = new Map();
+        const queue = [[start]];
+        for (let i = 0; i < queue.length; i++) {
+          const path = queue[i];
+          for (const next of [...required(edges, path[path.length - 1])].sort(compareCodePoints)) {
+            if (next === start) {
+              const cycle = [...path, next];
+              const locations = cycle.slice(1).map((name, j) => {
+                const edge = /** @type {PreferenceDeclaration} */ (declarations.find((entry) => entry.higher === cycle[j] && entry.lower === name));
+                return `${edge.at.document}:${edge.at.line}:${edge.at.column}`;
+              });
+              throw new GencmuError("grammar", `preference cycle: ${cycle.join(" > ")} (${locations.join(", ")})`, /** @type {PreferenceDeclaration} */ (declarations.find((d) => d.higher === start)).at);
+            }
+            if (!found.has(next)) {
+              const reached = [...path, next];
+              found.set(next, reached);
+              queue.push(reached);
+            }
+          }
+        }
+        this.paths.set(start, found);
+      }
+      /** @type {LoadWarning[]} */
+      this.warnings = [];
+      if (this.names.size === 0) return;
+      /** @type {Map<string, ReferenceSite[]>} */
+      const sites = new Map([...this.names].map((name) => [name, []]));
+      const restorable = new Set();
+      for (const rule of rules.values()) rule.alternatives.forEach((alternative, index) => {
+        visit(alternative.expr, "", (expr, path) => {
+          if (expr.ref && sites.has(expr.ref)) required(sites, expr.ref).push(site(rule.name, alternative, index, path));
+          if (expr.elidable) {
+            let head = expr.optional;
+            if (head.seq) head = head.seq[0];
+            if (head.test) head = head.expr;
+            if (head.ref || head.terminal) restorable.add(head.ref || head.terminal);
+          }
+        });
+      });
+      for (const name of [...sites.keys()].sort(compareCodePoints)) {
+        const references = required(sites, name).sort(siteOrder);
+        if (references.length > 1) this.warnings.push({ kind: "prefer-multiple-references", stage, rule: name, references,
+          message: `Preference rule ${name} has several written construction sites.` });
+      }
+      // Facts are [nullable, productive, nonempty]. Restorable terminal reads
+      // remain productive and nonempty as well as projectably nullable.
+      const facts = new Map([...rules.keys()].map((name) => [name, [false, false, false]]));
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const rule of rules.values()) {
+          const value = alternatives(rule.alternatives.map((a) => properties(a.expr, facts, restorable)));
+          const before = required(facts, rule.name);
+          for (let i = 0; i < 3; i++) if (value[i] && !before[i]) { before[i] = true; changed = true; }
+        }
+      }
+      /** @type {Map<string, {to: string, site: ReferenceSite}[]>} */
+      const containment = new Map();
+      for (const rule of rules.values()) {
+        /** @type {{to: string, site: ReferenceSite}[]} */
+        const children = [];
+        rule.alternatives.forEach((alternative, index) => {
+          containedReferences(alternative.expr, "", facts, restorable, (name, path) => {
+            children.push({ to: name, site: site(rule.name, alternative, index, path) });
+          });
+        });
+        containment.set(rule.name, children.sort((a, b) => siteOrder(a.site, b.site)));
+      }
+      for (const [higher, lowerPaths] of this.paths) for (const lower of lowerPaths.keys()) {
+        for (const [container, contained] of [[higher, lower], [lower, higher]]) {
+          if (!required(facts, contained)[2]) continue;
+          const references = containmentPath(container, contained, containment);
+          if (references) this.warnings.push({ kind: "prefer-same-span-containment", stage, higher, lower, container, contained, references,
+            message: `Rule ${container} can contain rival ${contained} over the same original words.` });
+        }
+      }
+      this.warnings.sort((a, b) => {
+        for (const key of /** @type {(keyof Omit<LoadWarning, "references" | "message" | "stage">)[]} */ (["kind", "rule", "higher", "lower", "container", "contained"])) {
+          const order = compareCodePoints(a[key] || "", b[key] || "");
+          if (order) return order;
+        }
+        return 0;
+      });
+    }
+  }
+
+  /** @param {any} expr @param {string} path @param {(expr: any, path: string) => void} call */
+  function visit(expr, path, call) {
+    call(expr, path);
+    for (const key of ["seq", "choice", "and"]) if (expr[key]) expr[key].forEach((/** @type {any} */ child, /** @type {number} */ i) => visit(child, `${path}/${key}/${i}`, call));
+    for (const key of ["expr", "optional", "repeat", "separator"]) if (expr[key]) visit(expr[key], `${path}/${key}`, call);
+  }
+
+  /** @param {string} rule @param {import("./grammar.js").StitchedAlternative} alternative @param {number} index @param {string} path @returns {ReferenceSite} */
+  function site(rule, alternative, index, path) {
+    return { document: alternative.document, at: [/** @type {number} */ (alternative.at.line), /** @type {number} */ (alternative.at.column)], rule, alternative: index, path };
+  }
+  /** @param {ReferenceSite} a @param {ReferenceSite} b */
+  function siteOrder(a, b) {
+    // The traversal insertion order resolves expression paths. Numeric array
+    // indices must not sort lexically (10 before 2).
+    return compareCodePoints(a.rule, b.rule) || a.alternative - b.alternative;
+  }
+  /** @param {boolean[][]} values */
+  function alternatives(values) { return [0, 1, 2].map((i) => values.some((value) => value[i])); }
+  /** @param {any} expr @param {Map<string, boolean[]>} facts @param {Set<string>} restorable @returns {boolean[]} */
+  function properties(expr, facts, restorable) {
+    if (expr.expr) return properties(expr.expr, facts, restorable);
+    if (expr.empty) return [true, true, false];
+    if (expr.ref && !/^[A-Z]/.test(expr.ref)) return facts.get(expr.ref) || [false, false, false];
+    if (expr.ref || expr.terminal || expr.range || expr.property) return [restorable.has(expr.ref || expr.terminal), true, true];
+    if (expr.optional) { const v = properties(expr.optional, facts, restorable); return [true, true, v[2]]; }
+    if (expr.repeat) {
+      const body = properties(expr.repeat, facts, restorable);
+      const sep = expr.separator ? properties(expr.separator, facts, restorable) : [true, true, false];
+      return [body[0], body[1], body[2] || (body[1] && sep[1] && sep[2])];
+    }
+    if (expr.choice || expr.and) return alternatives((expr.choice || expr.and).map((/** @type {any} */ e) => properties(e, facts, restorable)));
+    /** @type {boolean[][]} */
+    const parts = expr.seq.map((/** @type {any} */ e) => properties(e, facts, restorable));
+    return [parts.every((v) => v[0]), parts.every((v) => v[1]), parts.every((v) => v[1]) && parts.some((v) => v[2])];
+  }
+  /** @param {any} expr @param {string} path @param {Map<string, boolean[]>} facts @param {Set<string>} restorable @param {(name: string, path: string) => void} call */
+  function containedReferences(expr, path, facts, restorable, call) {
+    if (expr.ref && !/^[A-Z]/.test(expr.ref)) { call(expr.ref, path); return; }
+    if (expr.expr) return containedReferences(expr.expr, `${path}/expr`, facts, restorable, call);
+    if (expr.optional) return containedReferences(expr.optional, `${path}/optional`, facts, restorable, call);
+    if (expr.repeat) {
+      containedReferences(expr.repeat, `${path}/repeat`, facts, restorable, call);
+      if (expr.separator && properties(expr.repeat, facts, restorable)[0]) containedReferences(expr.separator, `${path}/separator`, facts, restorable, call);
+    }
+    for (const key of ["seq", "choice", "and"]) if (expr[key]) expr[key].forEach((/** @type {any} */ child, /** @type {number} */ i, /** @type {any[]} */ children) => {
+      if (key !== "seq" || children.every((other, j) => j === i || properties(other, facts, restorable)[0])) containedReferences(child, `${path}/${key}/${i}`, facts, restorable, call);
+    });
+  }
+  /** @param {string} from @param {string} to @param {Map<string, {to: string, site: ReferenceSite}[]>} edges @returns {ReferenceSite[] | null} */
+  function containmentPath(from, to, edges) {
+    const seen = new Set([from]);
+    /** @type {{name: string, path: ReferenceSite[]}[]} */
+    const queue = [{ name: from, path: [] }];
+    for (let i = 0; i < queue.length; i++) for (const edge of edges.get(queue[i].name) || []) {
+      const path = [...queue[i].path, edge.site];
+      if (edge.to === to) return path;
+      if (!seen.has(edge.to)) { seen.add(edge.to); queue.push({ name: edge.to, path }); }
+    }
+    return null;
+  }
+
+  /** @template K, V @param {Map<K, V>} map @param {K} key @returns {V} */
+  function required(map, key) {
+    const value = map.get(key);
+    if (value === undefined) throw new Error(`Missing preference graph entry: ${key}`);
+    return value;
   }
 
   // ---- unicode.js
@@ -4234,6 +4426,7 @@
 
 
 
+
   /**
    * @import { Condition, ConstantTerm, DomAlternative, DomClassifier, DomConstant, DomImplication, DomRule, Emission, ErrorLocation, Expr, GrammarDom, Guard, LoweredGrammar, Production, Resolution, SymbolTest, TagSet, Term, TermValue, TestOp } from "./types.js"
    * @import { TermType } from "./dom.js"
@@ -4342,6 +4535,8 @@
       this.changes = [];
       /** @type {Resolution | null} */
       this.resolution = null;
+      /** @type {import("./preferences.js").PreferenceDeclaration[]} */
+      this.preferenceDeclarations = [];
       /**
        * The stage's `%classifier` items in stitching order, each with its
        * document (engine §2).
@@ -4376,6 +4571,8 @@
         throw new GencmuError("grammar", `stage ${stageName} has no %ambiguity-resolution`, { stage: stageName });
       }
       this.checkReferences();
+      this.preferences = new Preferences(stageName, this.rules, this.preferenceDeclarations);
+      this.loadWarnings = this.preferences.warnings;
       /**
        * The features that gate an alternative or an entry of a classifier.
        * Only these change a lowered grammar. A warning keeps its alternative
@@ -4437,6 +4634,11 @@
       for (const directive of dom.directives) {
         const at = { document: path, line: directive.at[0], column: directive.at[1] };
         switch (directive.name) {
+          case "prefer": {
+            if (directive.args.length !== 2) throw new GencmuError("grammar", "%prefer takes two rule names separated by >", at);
+            this.preferenceDeclarations.push({ higher: directive.args[0], lower: directive.args[1], at });
+            break;
+          }
           case "ambiguity-resolution": {
             if (this.resolution) {
               throw new GencmuError("grammar", `${path}:${at.line}: stage ${this.stageName} has a second %ambiguity-resolution`, at);
@@ -5110,6 +5312,7 @@
         byLhs: this.byLhs,
         maximalHelpers: this.maximalHelpers,
         resolution: /** @type {Resolution} */ (this.grammar.resolution),
+        preferences: this.grammar.preferences,
       };
     }
 
@@ -8339,6 +8542,21 @@
         lines.push("What could have come there, by the rule that would have read it:");
         for (const rule of [...byRule.keys()].sort(compareCodePoints)) lines.push(`  ${rule}: ${byRule.get(rule).join(", ")}`);
       }
+    } else if (error.kind === "ambiguous" && error.cycle) {
+      const report = result.stages.find((stage) => stage.name === error.stage);
+      const tokens = report?.input || [];
+      lines.push(`The ${error.stage} stage has a comparison cycle (${error.reason}).`);
+      for (const [index, reading] of (error.readings || []).entries()) lines.push(`  Reading ${index}: ${nodeBrackets(reading, tokens, { showElided: true })}`);
+      for (const edge of error.cycle) {
+        lines.push(`  Reading ${edge.from} beats reading ${edge.to}:`);
+        if (edge.basis === "prefer") for (const contest of edge.contests || []) {
+          lines.push(`    ${contest.higher} > ${contest.lower} over tokens ${contest.span[0]} to ${contest.span[1]} (${contest.path.join(" > ")}).`);
+        } else if (edge.counts) lines.push(`    ${edge.directive} at boundary ${edge.boundary}: ${edge.counts[0]} against ${edge.counts[1]} omissions.`);
+        else {
+          lines.push(`    ${edge.directive} compares the first differing actions.`);
+          for (const action of edge.witness || []) lines.push(`    ${action ? describeAction(action, tokens) : "The action sequence ends."}`);
+        }
+      }
     } else if (error.kind === "ambiguous" && error.reason === "tie") {
       // A tie is explained where its two readings first differ.
       const report = result.stages.find((stage) => stage.name === error.stage);
@@ -8459,7 +8677,7 @@
   function explainTies(result) {
     const blocks = [];
     for (const stage of result.stages) {
-      if (stage.verdict !== "tie") continue;
+      if (stage.verdict !== "tie" || !stage.witness) continue;
       const tokens = stage.input || [];
       const [first, second] = stage.witness;
       // A tie in a stage has no written-back terminator, so its actions are
@@ -9214,6 +9432,10 @@
    * @property {Rope | null} second
    * @property {[Action | null, Action | null] | null} witness
    * @property {RuleProfile} profile
+   * @property {import("./prefer-rank.js").CycleEdge[]} [cycle]
+   * @property {Rope[]} [readings]
+   * @property {import("./prefer-rank.js").PreferenceConflict} [conflict]
+   * @property {boolean} [slow]
    * @property {boolean | null} witnessCounted with the witness hook's marks,
    *   whether the count counted W(D); null without marks
    */
@@ -10590,6 +10812,345 @@
     return profile;
   }
 
+  // ---- prefer-rank.js
+  // Lossless complete-reading ranking when preferences can participate.
+
+
+
+
+  /** @import { Item, Rope, Lean, Action, Token } from "./types.js" */
+  /** @import { Candidate, RuleProfile, Ranking } from "./rank.js" */
+  /** @typedef {{profile: RuleProfile, occurrences: Map<string, bigint>, elisions: Map<number, bigint>, candidates: Candidate[], count: number}} Signature */
+  /** @typedef {Map<string, Signature>} SignatureSet */
+  /** @typedef {{all: SignatureSet, allowed: SignatureSet}} SignatureSummary */
+  /** @typedef {{span: [number, number], higher: string, lower: string, path: string[], residualCounts: [string, string]}} Contest */
+  /** @typedef {{basis: "prefer", contests: Contest[]} | {basis: "stage", directive: string, boundary?: number, counts?: [string, string], witness?: [Action | null, Action | null]}} EdgeReason */
+  /** @typedef {EdgeReason & {from: number, to: number}} CycleEdge */
+  /** @typedef {{forward: Contest[], reverse: Contest[]}} PreferenceConflict */
+  /** @typedef {Ranking & {cycle?: CycleEdge[], readings?: Rope[], conflict?: PreferenceConflict, slow?: boolean}} PreferenceRanking */
+
+  const { concat: prefConcat, actions: prefActions, decide: prefDecide } = internals;
+  /** @type {Rope} */
+  const PREFERENCE_EMPTY = { empty: true, size: 0 };
+
+  class PreferenceRanker extends Ranker {
+    /** @param {Token[]} tokens @param {Lean} lean @param {import("./preferences.js").Preferences} preferences @param {import("./maximal.js").Maximal | null} [maximal] @param {number[] | null} [cycleProject] */
+    constructor(tokens, lean, preferences, maximal = null, cycleProject = null) {
+      super(tokens, lean, maximal, cycleProject);
+      this.preferences = preferences;
+      this.stageLean = lean;
+      /** @type {{plain: Map<Item, SignatureSummary>, contextual: Map<Item, Map<string, SignatureSummary>>}} */
+      this.signatureMemo = { plain: new Map(), contextual: new Map() };
+      this.statistics = { slow: false, forestItems: 0, forestEdges: 0, contexts: 0, signatures: 0, largestSet: 0, comparisons: 0 };
+    }
+
+    /** @override @param {Item[]} roots @returns {PreferenceRanking | null} */
+    rank(roots) {
+      try { return this.rankComplete(roots); }
+      finally { if (this.preferences.names.size) hooks.preferenceRanking?.(this.statistics); }
+    }
+
+    /** @param {Item[]} roots @returns {PreferenceRanking | null} */
+    rankComplete(roots) {
+      if (!this.possibleContest(roots)) return super.rank(roots);
+      this.statistics.slow = true;
+      this.groupRules(roots);
+      /** @type {SignatureSet} */
+      const root = new Map();
+      for (const item of roots) for (const signature of this.signatures(item).all.values()) {
+        const close = this.closeLeaf(item);
+        this.storeSignature(root, { ...signature, candidates: signature.candidates.map((entry) => this.extend(entry, close)) });
+      }
+      this.statistics.contexts++;
+      this.statistics.signatures += root.size;
+      this.statistics.largestSet = Math.max(this.statistics.largestSet, root.size);
+      if (root.size === 0) return null;
+      const all = [...root.values()];
+      const count = Math.min(2, all.reduce((n, entry) => n + entry.count, 0));
+      let profile = all[0].profile;
+      for (const entry of all) if (compareProfiles(entry.profile, profile) < 0) profile = entry.profile;
+      // Every class keeps its canonical first and earliest-diverging second
+      // through the original action-summary machinery. No class is ranked
+      // against another before this complete root comparison.
+      const best = all.filter((entry) => compareProfiles(entry.profile, profile) === 0).map((entry) => {
+        /** @type {Candidate[]} */
+        let kept = [];
+        for (const candidate of entry.candidates) kept = this.keep(kept, candidate);
+        kept.sort((a, b) => totalOrder(a.seq, b.seq, this.lean));
+        let canonical = kept[0];
+        for (const candidate of kept.slice(1)) {
+          const difference = firstDifference(canonical.seq, candidate.seq, true);
+          const at = difference?.index ?? Infinity;
+          canonical = this.offer(canonical, candidate.seq, at);
+          for (const alt of candidate.alts) canonical = this.offer(canonical, alt, at < candidate.at ? at : candidate.at);
+        }
+        return { ...entry, canonical };
+      });
+      best.sort((a, b) => this.canonicalOrder(a, b));
+      const incoming = new Uint8Array(best.length);
+      /** @type {Map<number, EdgeReason>[]} */
+      const edges = best.map(() => new Map());
+      for (let i = 0; i < best.length; i++) for (let j = i + 1; j < best.length; j++) {
+        this.statistics.comparisons++;
+        const pair = this.compare(best[i], best[j]);
+        if (pair.order === 0) continue;
+        const from = pair.order < 0 ? i : j;
+        const to = pair.order < 0 ? j : i;
+        const directed = pair.order < 0 ? pair : this.compare(best[j], best[i]);
+        incoming[to] = 1;
+        edges[from].set(to, /** @type {EdgeReason} */ (directed.reason));
+      }
+      const cycle = directedCycle(edges);
+      const marks = this.marks;
+      const witnessCounted = marks === null ? null : roots.some((item) => marks.has(item) && this.countOf(item).w);
+      const base = { profile, witnessCounted, slow: true };
+      if (cycle) {
+        const readings = cycle.map((index) => best[index].canonical.seq);
+        return { ...base, verdict: "tie", first: readings[0], second: null, witness: null, readings,
+          cycle: cycle.map((index, i) => ({ from: i, to: (i + 1) % cycle.length, .../** @type {EdgeReason} */ (edges[index].get(cycle[(i + 1) % cycle.length])) })) };
+      }
+      const survivors = best.filter((_, i) => !incoming[i]);
+      const first = survivors[0].canonical.seq;
+      const alternatives = survivors.flatMap((entry, i) => [...(i === 0 ? [] : [entry.canonical.seq]), ...entry.canonical.alts]);
+      if (alternatives.length === 0) return { ...base, verdict: count === 1 ? "unique" : "resolved", first, second: null, witness: null };
+      // E and L are equal within a class. Across surviving classes, use T
+      // only after the earliest visible divergence criterion.
+      alternatives.sort((a, b) => {
+        const da = firstDifference(first, a, true)?.index ?? Infinity;
+        const db = firstDifference(first, b, true)?.index ?? Infinity;
+        if (da < db) return -1;
+        if (da > db) return 1;
+        const sa = survivors.find((s) => s.canonical.seq === a || s.canonical.alts.includes(a));
+        const sb = survivors.find((s) => s.canonical.seq === b || s.canonical.alts.includes(b));
+        if (!sa || !sb) throw new Error("A preference witness lacks its signature.");
+        return (this.stageLean === "late-elision" ? compareVectors(sa.elisions, sb.elisions).order : 0) || totalOrder(a, b, this.lean);
+      });
+      const second = alternatives[0];
+      const secondSignature = survivors.find((entry) => entry.canonical.seq === second || entry.canonical.alts.includes(second));
+      if (!secondSignature) throw new Error("The second preference witness lacks its signature.");
+      const conflict = compareOccurrences(this.preferences, survivors[0].occurrences, secondSignature.occurrences);
+      /** @type {PreferenceRanking} */
+      const result = { ...base, verdict: /** @type {const} */ ("tie"), first, second, witness: actionWitness(first, second) };
+      if (conflict.forward.length && conflict.reverse.length) result.conflict = conflict;
+      return result;
+    }
+
+    /** @param {Item[]} roots */
+    possibleContest(roots) {
+      if (this.preferences.names.size === 0) return false;
+      const seen = new Set();
+      const inventory = new Map();
+      const stack = roots.slice();
+      let possible = false;
+      while (stack.length) {
+        const item = /** @type {Item} */ (stack.pop());
+        if (seen.has(item)) continue;
+        seen.add(item);
+        this.statistics.forestItems++;
+        this.statistics.forestEdges += item.edges.length;
+        const p = this.profileProject?.[item.origin] ?? item.origin;
+        const q = this.profileProject?.[item.end] ?? item.end;
+        const name = item.production.lhs;
+        if (!item.production.helper && item.dot === item.production.rhs.length && p < q && this.preferences.names.has(name)) {
+          const key = `${p},${q}`;
+          const names = inventory.get(key) || new Set();
+          for (const other of names) if (this.preferences.paths.get(name)?.has(other) || this.preferences.paths.get(other)?.has(name)) possible = true;
+          names.add(name);
+          inventory.set(key, names);
+        }
+        for (const edge of item.edges) {
+          if (edge.kind === "scan" || edge.kind === "complete") stack.push(edge.previous);
+          if (edge.kind === "complete") stack.push(edge.child);
+        }
+      }
+      return possible;
+    }
+
+    /** @param {Candidate} entry @param {Rope} action @returns {Candidate} */
+    extend(entry, action) { return { ...entry, seq: prefConcat(entry.seq, action), alts: entry.alts.map((alt) => prefConcat(alt, action)) }; }
+
+    /** @param {Item} item @returns {SignatureSummary} */
+    signatures(item) {
+      return this.traverse(item, this.signatureMemo, (current, dependency) => {
+        const guarded = this.maximal !== null && this.maximal.guards(current);
+        /** @type {SignatureSet} */
+        const all = new Map();
+        const allowed = guarded ? new Map() : all;
+        for (const edge of current.edges) {
+          /** @type {Signature[]} */
+          let produced = [];
+          let permitted = true;
+          if (edge.kind === "seed" || edge.kind === "restore") {
+            const elisions = new Map();
+            if (edge.kind === "seed" && current.production.elided !== null && current.production.rhs.length === 0) elisions.set(current.origin, 1n);
+            produced = [{ profile: [], occurrences: new Map(), elisions, count: 1,
+              candidates: [{ seq: edge.kind === "restore" ? this.readLeaf(edge.token, edge.terminal) : PREFERENCE_EMPTY, alts: [], at: Infinity }] }];
+          } else if (edge.kind === "scan") {
+            const read = this.readLeaf(edge.token, edge.terminal);
+            produced = [...dependency(edge.previous).all.values()].map((s) => ({ ...s, candidates: s.candidates.map((/** @type {Candidate} */ c) => this.extend(c, read)) }));
+          } else {
+            const before = this.maximal !== null && this.maximal.elided(edge.child) ? dependency(edge.previous).allowed : dependency(edge.previous).all;
+            const close = this.closeLeaf(edge.child);
+            for (const x of before.values()) for (const y of dependency(edge.child).all.values()) {
+              /** @type {Candidate[]} */
+              const candidates = [];
+              for (const a of x.candidates) for (const b of y.candidates) {
+                const child = this.extend(b, close);
+                /** @type {Candidate} */
+                let candidate = { seq: prefConcat(a.seq, child.seq), alts: [], at: Infinity };
+                for (const alt of a.alts) candidate = this.offer(candidate, prefConcat(alt, child.seq), a.at);
+                for (const alt of child.alts) candidate = this.offer(candidate, prefConcat(a.seq, alt), addCount(a.seq.size, child.at));
+                candidates.push(candidate);
+              }
+              produced.push({ profile: sumProfiles(x.profile, y.profile), occurrences: sumMap(x.occurrences, y.occurrences),
+                elisions: sumMap(x.elisions, y.elisions), candidates, count: Math.min(2, x.count * y.count) });
+            }
+            if (guarded) permitted = !/** @type {import("./maximal.js").Maximal} */ (this.maximal).forbids(edge.child, current.production.rhs[current.dot - 1].test);
+          }
+          const complete = current.dot === current.production.rhs.length;
+          const p = this.profileProject?.[current.origin] ?? current.origin;
+          const q = this.profileProject?.[current.end] ?? current.end;
+          for (let signature of produced) {
+            if (complete && !current.production.helper && p < q) {
+              if (current.production.flags.includes("leftmost-longest")) signature = { ...signature, profile: sumProfiles(signature.profile, [[p, q, 1]]) };
+              if (this.preferences.names.has(current.production.lhs)) {
+                const occurrences = new Map(signature.occurrences);
+                const key = JSON.stringify([current.production.lhs, p, q]);
+                occurrences.set(key, (occurrences.get(key) || 0n) + 1n);
+                signature = { ...signature, occurrences };
+              }
+            }
+            this.storeSignature(all, signature);
+            if (guarded && permitted) this.storeSignature(allowed, signature);
+          }
+        }
+        this.statistics.contexts++;
+        this.statistics.signatures += all.size;
+        this.statistics.largestSet = Math.max(this.statistics.largestSet, all.size, allowed.size);
+        return { all, allowed };
+      }, { all: new Map(), allowed: new Map() });
+    }
+
+    /** @param {SignatureSet} set @param {Signature} signature */
+    storeSignature(set, signature) {
+      const actionKey = this.stageLean === "late-elision" || this.stageLean === "none" ? null
+        : [...prefActions(signature.candidates[0].seq)].filter((a) => internals.visible(a)).map((a) => a.kind === "read" ? ["r", a.token, a.terminal] : ["c", a.item.production.id, a.item.origin, a.item.end]);
+      const key = JSON.stringify([signature.profile.map(([p, q, n]) => [p, q, String(n)]), mapKey(signature.occurrences),
+        this.stageLean === "late-elision" ? mapKey(signature.elisions) : null, actionKey]);
+      const previous = set.get(key);
+      if (!previous) { set.set(key, { ...signature, candidates: signature.candidates.slice() }); return; }
+      previous.count = Math.min(2, previous.count + signature.count);
+      for (const candidate of signature.candidates) previous.candidates = this.keep(previous.candidates, candidate);
+    }
+
+    /** @param {Signature & {canonical: Candidate}} a @param {Signature & {canonical: Candidate}} b */
+    canonicalOrder(a, b) {
+      return (this.stageLean === "late-elision" ? compareVectors(a.elisions, b.elisions).order : 0) || totalOrder(a.canonical.seq, b.canonical.seq, this.lean);
+    }
+
+    /** @param {Signature & {canonical: Candidate}} a @param {Signature & {canonical: Candidate}} b @returns {{order: number, reason?: EdgeReason}} */
+    compare(a, b) {
+      const contests = compareOccurrences(this.preferences, a.occurrences, b.occurrences);
+      if (contests.forward.length && contests.reverse.length) return { order: 0 };
+      if (contests.forward.length) return { order: -1, reason: { basis: "prefer", contests: contests.forward } };
+      if (contests.reverse.length) return { order: 1 };
+      if (this.stageLean === "late-elision") {
+        const compared = compareVectors(a.elisions, b.elisions);
+        return compared.order === 0 ? compared : { ...compared, reason: { basis: "stage", directive: "late-elision", boundary: compared.boundary, counts: compared.counts } };
+      }
+      const difference = firstDifference(a.canonical.seq, b.canonical.seq, true);
+      if (!difference?.left || !difference.right) return { order: 0 };
+      const order = prefDecide({ left: difference.left, right: difference.right }, this.stageLean);
+      return { order, reason: { basis: "stage", directive: this.stageLean, witness: [difference.left, difference.right] } };
+    }
+  }
+
+  /** @template K @param {Map<K, bigint>} a @param {Map<K, bigint>} b @returns {Map<K, bigint>} */
+  function sumMap(a, b) { const result = new Map(a); for (const [key, count] of b) result.set(key, (result.get(key) || 0n) + count); return result; }
+  /** @param {number | bigint} a @param {number | bigint} b */
+  function addCount(a, b) { if (a === Infinity || b === Infinity) return Infinity; const n = BigInt(a) + BigInt(b); return n <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(n) : n; }
+  /** @param {Map<any, bigint>} map */
+  function mapKey(map) { return [...map].map(([key, n]) => [key, String(n)]).sort((a, b) => compareCodePoints(String(a[0]), String(b[0]))); }
+  /** @param {Map<number, bigint>} a @param {Map<number, bigint>} b @returns {{order: number, boundary?: number, counts?: [string, string]}} */
+  function compareVectors(a, b) {
+    for (const p of [...new Set([...a.keys(), ...b.keys()])].sort((x, y) => x - y)) {
+      const x = a.get(p) || 0n, y = b.get(p) || 0n;
+      if (x !== y) return { order: x < y ? -1 : 1, boundary: p, counts: [String(x), String(y)] };
+    }
+    return { order: 0 };
+  }
+
+  /** @param {import("./preferences.js").Preferences} preferences @param {Map<string, bigint>} a @param {Map<string, bigint>} b @returns {PreferenceConflict} */
+  function compareOccurrences(preferences, a, b) {
+    const left = new Map(), right = new Map();
+    for (const key of new Set([...a.keys(), ...b.keys()])) {
+      const delta = (a.get(key) || 0n) - (b.get(key) || 0n);
+      if (delta > 0n) left.set(key, delta);
+      if (delta < 0n) right.set(key, -delta);
+    }
+    /** @type {Contest[]} */
+    const forward = [];
+    /** @type {Contest[]} */
+    const reverse = [];
+    for (const [x, xn] of left) for (const [y, yn] of right) {
+      const [xr, xp, xq] = JSON.parse(x), [yr, yp, yq] = JSON.parse(y);
+      if (xp !== yp || xq !== yq) continue;
+      const path = preferences.paths.get(xr)?.get(yr);
+      const back = preferences.paths.get(yr)?.get(xr);
+      if (path) forward.push({ span: [xp, xq], higher: xr, lower: yr, path, residualCounts: [String(xn), String(yn)] });
+      if (back) reverse.push({ span: [xp, xq], higher: yr, lower: xr, path: back, residualCounts: [String(yn), String(xn)] });
+    }
+    /** @param {Contest} x @param {Contest} y */
+    const order = (x, y) => x.span[0] - y.span[0] || x.span[1] - y.span[1] || compareCodePoints(x.higher, y.higher) || compareCodePoints(x.lower, y.lower);
+    return { forward: forward.sort(order), reverse: reverse.sort(order) };
+  }
+
+  /** @param {Map<number, EdgeReason>[]} edges @returns {number[] | null} */
+  function directedCycle(edges) {
+    const done = new Set();
+    for (let start = 0; start < edges.length; start++) {
+      if (done.has(start)) continue;
+      const stack = [{ vertex: start, targets: [...edges[start].keys()].sort((a, b) => a - b)[Symbol.iterator]() }];
+      const active = new Map([[start, 0]]);
+      while (stack.length) {
+        const frame = stack[stack.length - 1], next = frame.targets.next();
+        if (next.done) { done.add(frame.vertex); active.delete(frame.vertex); stack.pop(); continue; }
+        if (active.has(next.value)) {
+          const cycle = stack.slice(active.get(next.value)).map((f) => f.vertex);
+          let least = 0;
+          for (let i = 1; i < cycle.length; i++) if (cycle[i] < cycle[least]) least = i;
+          return [...cycle.slice(least), ...cycle.slice(0, least)];
+        }
+        if (!done.has(next.value)) {
+          active.set(next.value, stack.length);
+          stack.push({ vertex: next.value, targets: [...edges[next.value].keys()].sort((a, b) => a - b)[Symbol.iterator]() });
+        }
+      }
+    }
+    return null;
+  }
+
+  /** @param {Rope} first @param {Rope} second @returns {[Action | null, Action | null] | null} */
+  function actionWitness(first, second) {
+    let difference = firstDifference(first, second, true);
+    if (!difference?.left || !difference.right) difference = firstDifference(first, second, false);
+    return difference ? [difference.left, difference.right] : null;
+  }
+
+  /** @param {Rope} rope @param {import("./preferences.js").Preferences} preferences @param {number[]} project @returns {Map<string, bigint>} */
+  function occurrencesOfRope(rope, preferences, project) {
+    const occurrences = new Map();
+    for (const action of prefActions(rope)) {
+      if (action.kind !== "close" || action.item.production.helper || !preferences.names.has(action.item.production.lhs)) continue;
+      const { origin, end, production } = action.item;
+      const p = project[origin], q = project[end];
+      if (p >= q) continue;
+      const key = JSON.stringify([production.lhs, p, q]);
+      occurrences.set(key, (occurrences.get(key) || 0n) + 1n);
+    }
+    return occurrences;
+  }
+
   // ---- witness.js
   /**
    * The restored chosen derivation's matched edge indices and action sequence.
@@ -10866,6 +11427,7 @@
 
 
 
+
   /**
    * @import { Action, Derivation, DerivationRule, ElidedNode, EmitItem, ResultNode, Scope, Span, StageReport, TagSet } from "./types.js"
    * @import { Grammar } from "./grammar.js"
@@ -10926,7 +11488,7 @@
       // Maximal terminators before
       // the ranking (engine §4).
       const maximal = lowered.maximalHelpers.size > 0 ? maximalRule(chart, lowered) : null;
-      const ranking = roots.length === 0 ? null : new Ranker(tokens, resolution.lean, maximal).rank(roots);
+      const ranking = roots.length === 0 ? null : new PreferenceRanker(tokens, resolution.lean, lowered.preferences, maximal).rank(roots);
       if (ranking === null) {
         // A text that maximal leaves with no derivation is rejected at the
         // first terminator it forbids in the first reading, m, of the ranking
@@ -10945,6 +11507,14 @@
         return report;
       }
       if (ranking.verdict === "tie") {
+        if (ranking.cycle) {
+          Object.assign(report, { verdict: "tie" });
+          report.error = { kind: "ambiguous", stage: this.name, reason: "tie",
+            readings: /** @type {import("./types.js").Rope[]} */ (ranking.readings).map((rope) => resultTree(derivationTree(rope), context)[0]),
+            cycle: ranking.cycle.map((edge) => mapCycleEdge(edge, plainAction)),
+            message: `The ${this.name} stage has a comparison cycle.` };
+          return report;
+        }
         // A tie is an error: the stage keeps its verdict and witness, has no
         // chosen tree, no output and no warnings, and the error holds the
         // first and the second reading (engine §6). A tie always has a second
@@ -10960,6 +11530,7 @@
           stage: this.name,
           reason: "tie",
           readings,
+          ...(ranking.conflict ? { conflict: ranking.conflict } : {}),
           message: `the ${this.name} stage's text has two best readings, a tie`,
         };
         return report;
@@ -11027,7 +11598,9 @@
             stage: this.name,
             reason: "elision-only",
             readings: check.readings,
-            witness: check.witness,
+            ...(check.witness ? { witness: check.witness } : {}),
+            ...(check.cycle ? { cycle: check.cycle, chosenReading: 0 } : {}),
+            ...(check.conflict ? { conflict: check.conflict } : {}),
             message: `the ${this.name} stage's text is ambiguous with every elided terminator written out`,
           };
         }
@@ -11148,15 +11721,16 @@
       // ranks (tests/README.md).
       const run = { chosen, chart, roots, synthetic, originalAt, recordAt };
       const flagged = lowered.productions.some((production) => production.flags.includes("leftmost-longest"));
-      const walk = flagged ? walkWitness(run) : null;
+      const protectWitness = flagged || lowered.preferences.names.size > 0;
+      const walk = protectWitness ? walkWitness(run) : null;
       const watch = hooks.elisionCheck ? hooks.elisionCheck(run) : null;
       // The check's ranker: no lean, and cycles over spans of R (engine §7.7).
-      const ranker = new Ranker(restored, "none", maximal, fault("F19") ? project : null);
+      const ranker = new PreferenceRanker(restored, "none", lowered.preferences, maximal, fault("F19") ? project : null);
       ranker.profileProject = project;
       ranker.check = true;
-      ranker.marks = flagged ? walk?.marks ?? null : watch?.marks ?? null;
+      ranker.marks = protectWitness ? walk?.marks ?? null : watch?.marks ?? null;
       let ranking = roots.length === 0 ? null : ranker.rank(roots);
-      if (fault("lost:count") || (flagged && (!walk || ranking?.witnessCounted !== true))) ranking = null;
+      if (fault("lost:count") || (protectWitness && (!walk || ranking?.witnessCounted !== true))) ranking = null;
       if (fault("F23")) {
         // A fault leaves the main grammar in the mode of the check.
         for (const [name, productions] of lowered.byLhs) {
@@ -11172,16 +11746,17 @@
         if (watch) watch.ranked({ ranking: null, counted: false });
         return { kind: "lost", completion: records };
       }
-      const better = profileOrder < 0;
+      const restoredWitness = walk ? ropeOf(walk.sequence) : witnessRope(chosen);
+      const witnessWins = firstDifference(restoredWitness, ranking.first, false) === null;
+      const better = profileOrder < 0 || (ranking.slow && ranking.verdict !== "tie" && !witnessWins);
       if (better) {
-        const restoredWitness = witnessRope(chosen);
         let difference = firstDifference(restoredWitness, ranking.first, true);
         if (!difference?.left || !difference.right) difference = firstDifference(restoredWitness, ranking.first, false);
         ranking = { ...ranking, second: ranking.first, first: restoredWitness,
           witness: difference ? [difference.left, difference.right] : null };
       }
       if (watch) watch.ranked({ ranking, counted: ranking.witnessCounted === true });
-      if (profileOrder === 0 && ranking.verdict !== "tie") return { kind: "pass" };
+      if (!better && profileOrder === 0 && ranking.verdict !== "tie") return { kind: "pass" };
       // The readings, mapped to the stage's input (engine §7.10).
       const original = new Sources(tokens);
       /** @type {Map<string, TagSet>} */
@@ -11242,12 +11817,26 @@
         return { kind: "close", rule: production.owner, production: production.id, helper: production.helper, span: [project[origin], project[end]] };
       };
       const witness = /** @type {[Action | null, Action | null]} */ (ranking.witness);
+      if (ranking.cycle) {
+        const ropes = [restoredWitness];
+        const indices = /** @type {import("./types.js").Rope[]} */ (ranking.readings).map((rope) => {
+          if (firstDifference(restoredWitness, rope, false) === null) return 0;
+          ropes.push(rope);
+          return ropes.length - 1;
+        });
+        return { kind: "ambiguous", readings: ropes.map((rope) => remap(resultTree(derivationTree(rope), r)[0])),
+          cycle: ranking.cycle.map((edge) => ({ ...mapCycleEdge(edge, (action) => action === null ? null : mapAction(action)), from: indices[edge.from], to: indices[edge.to] })) };
+      }
       /** @type {ElisionCheck} */
       const result = {
         kind: "ambiguous",
         readings: ropes.map((rope, index) => better && index === 0 ? tree : remap(resultTree(derivationTree(rope), r)[0])),
         witness: [mapAction(witness[0]), mapAction(witness[1])],
       };
+      if (ranking.slow) {
+        const conflict = compareOccurrences(lowered.preferences, occurrencesOfRope(ropes[0], lowered.preferences, project), occurrencesOfRope(ropes[1], lowered.preferences, project));
+        if (conflict.forward.length && conflict.reverse.length) result.conflict = conflict;
+      }
       // A competing reading gives no warning (engine §7.10), unless a fault
       // takes its warnings (F22).
       if (fault("F22")) result.competitorWarnings = warningsOf(derivationTree(ropes[1]), r, features, this.name);
@@ -11264,7 +11853,7 @@
 
   /**
    * What the check of engine §7 found: one reading, two, or none.
-   * @typedef {({kind: "pass"} | {kind: "ambiguous", readings: ResultNode[], witness: import("./types.js").Witness} | {kind: "lost", completion: RestorationRecord[]})
+   * @typedef {({kind: "pass"} | {kind: "ambiguous", readings: ResultNode[], witness?: import("./types.js").Witness, cycle?: import("./types.js").PreferenceCycleEdge[], conflict?: import("./prefer-rank.js").PreferenceConflict} | {kind: "lost", completion: RestorationRecord[]})
    *   & {competitorWarnings?: import("./types.js").ParseWarning[]}} ElisionCheck
    */
 
@@ -11512,6 +12101,21 @@
       return { kind: "close", rule: production.owner, production: production.id, helper: production.helper, span: [origin, end] };
     };
     return [plain(actions[0]), plain(actions[1])];
+  }
+
+  /** @param {Action | null} action @returns {import("./types.js").WitnessAction | null} */
+  function plainAction(action) {
+    if (action === null) return null;
+    if (action.kind === "read") return { kind: "read", token: action.token, terminal: action.terminal };
+    const { production, origin, end } = action.item;
+    return { kind: "close", rule: production.owner, production: production.id, helper: production.helper, span: [origin, end] };
+  }
+
+  /** @param {import("./prefer-rank.js").CycleEdge} edge @param {(action: Action | null) => import("./types.js").WitnessAction | null} map @returns {import("./types.js").PreferenceCycleEdge} */
+  function mapCycleEdge(edge, map) {
+    if (edge.basis === "prefer") return { ...edge };
+    if (edge.witness) return { ...edge, witness: [map(edge.witness[0]), map(edge.witness[1])] };
+    return { ...edge, witness: undefined };
   }
 
   /** @implements {Scope} */
@@ -12178,8 +12782,8 @@
       if (item.kind === "rule" && !ITEMS.has(item.rule)) fail(`the notation gives a ${item.rule} where an item stands`, item);
       if (ruleOf(item) === "prefer-directive") {
         const references = parts(item).filter((child) => ruleOf(child) === "reference");
-        if (references.length !== 2) fail("%prefer takes two rule names separated by >", item);
-        directives.push({ name: "prefer", args: references.map((child) => text(token(child))), at: at(item) });
+        if (references.length < 2) fail("%prefer takes two rule names separated by >", item);
+        directives.push({ name: "prefer", args: references.slice(0, 2).map((child) => text(token(child))), at: at(item) });
       } else if (ruleOf(item) === "directive") {
         const name = text(token(item)).slice(1);
         const operands = parts(item).filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag");
@@ -13729,6 +14333,7 @@
       this.stages = stages;
       this.loader = loader;
       this.declared = declared;
+      this.loadWarnings = stages.flatMap((stage) => stage.grammar.loadWarnings);
       /** @type {Feature[]} the dialect's features, with their kinds and defaults */
       this.features = dialectFeatures(path, stages, declared);
     }
@@ -14183,6 +14788,7 @@
    */
 
   /** @typedef {TokenNode | ElidedNode | RuleNode} ResultNode */
+  /** @typedef {{from: number, to: number, basis: "prefer" | "stage", contests?: import("./prefer-rank.js").Contest[], directive?: string, boundary?: number, counts?: [string, string], witness?: [WitnessAction | null, WitnessAction | null]}} PreferenceCycleEdge */
 
   /**
    * A terminal a rejected stage could have read, and the rules that could
@@ -14211,6 +14817,9 @@
    * @property {number} [column]
    * @property {Expectation[]} [expected]
    * @property {ResultNode[]} [readings]
+   * @property {PreferenceCycleEdge[]} [cycle]
+   * @property {import("./prefer-rank.js").PreferenceConflict} [conflict]
+   * @property {number} [chosenReading]
    * @property {Witness} [witness] for an error of elision-only, where its
    *   two readings first differ (engine §7.10)
    * @property {string} [document]
@@ -14254,7 +14863,7 @@
    */
 
   /**
-   * @typedef {StageReportBase & {verdict: "tie", witness: Witness}} TiedStageReport
+   * @typedef {StageReportBase & {verdict: "tie", witness: Witness | null}} TiedStageReport
    */
 
   /**
@@ -14616,6 +15225,7 @@
    *   optionals written [++T x], whose terminators are maximal (engine §3.8,
    *   §4)
    * @property {Resolution} resolution
+   * @property {import("./preferences.js").Preferences} preferences
    * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
    *   of the stage, resolved for these features: each key's classes (engine
    *   §2)

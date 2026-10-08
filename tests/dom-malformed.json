@@ -178,5 +178,122 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "A preference directive requires exactly two rule names.",
+    "directive": {
+      "name": "prefer",
+      "args": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A preference directive requires exactly two rule names.",
+    "directive": {
+      "name": "prefer",
+      "args": [
+        "a"
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A preference directive requires exactly two rule names.",
+    "directive": {
+      "name": "prefer",
+      "args": [
+        "a",
+        "b",
+        "c"
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A document DOM accepts names that stage loading rejects as terminals.",
+    "directive": {
+      "name": "prefer",
+      "args": [
+        "A",
+        "b"
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A document DOM accepts names that stage loading rejects as terminals.",
+    "directive": {
+      "name": "prefer",
+      "args": [
+        "a",
+        "B"
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A preference directive requires exactly two rule names.",
+    "directive": {
+      "name": "prefer",
+      "args": [
+        "a",
+        1
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A preference directive requires exactly two rule names.",
+    "directive": {
+      "name": "prefer",
+      "args": [
+        "a",
+        null
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A preference directive accepts two rule names.",
+    "directive": {
+      "name": "prefer",
+      "args": [
+        "a",
+        "#"
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
   }
 ]

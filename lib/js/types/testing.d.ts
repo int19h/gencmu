@@ -284,10 +284,11 @@ export declare class WorkBudget extends Error {
  * @param {number} [steps]
  */
 export declare function countWork(work: WorkCounts, kind: WorkKind, steps?: number): void;
-/** @type {{elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null}} */
+/** @type {{elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null, preferenceRanking: ((statistics: import("./prefer-rank.js").PreferenceRanker["statistics"]) => void) | null}} */
 export declare const hooks: {
     elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null;
     work: WorkCounts | null;
+    preferenceRanking: ((statistics: import("./prefer-rank.js").PreferenceRanker["statistics"]) => void) | null;
 };
 /**
  * Whether a fault is on, at one of its sites. A fault that is on counts the

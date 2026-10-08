@@ -68,7 +68,9 @@ export type ElisionCheck = ({
 } | {
     kind: "ambiguous";
     readings: ResultNode[];
-    witness: import("./types.js").Witness;
+    witness?: import("./types.js").Witness;
+    cycle?: import("./types.js").PreferenceCycleEdge[];
+    conflict?: import("./prefer-rank.js").PreferenceConflict;
 } | {
     kind: "lost";
     completion: RestorationRecord[];

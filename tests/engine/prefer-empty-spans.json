@@ -1,0 +1,48 @@
+{
+  "description": "Empty named occurrences supply no preference contest.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text a | b\n%rule a [+Y]\n%rule b ε\n%prefer a > b",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "format": 10,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved",
+          "output": []
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          0
+        ],
+        "source": [
+          0,
+          0
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "b",
+            "span": [
+              0,
+              0
+            ],
+            "source": [
+              0,
+              0
+            ],
+            "tags": [],
+            "children": []
+          }
+        ]
+      },
+      "error": null
+    }
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "description": "An unavailable preferred reading supplies no advantage.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text b [+Y] [+Y] | n [+Y]\n%rule a Z\n%rule b X\n%rule n X\n%prefer a > b",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 10,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved",
+          "output": []
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "n",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [
+              "X"
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "X",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "elided",
+            "terminal": "Y",
+            "span": [
+              1,
+              1
+            ],
+            "source": [
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "error": null
+    }
+  }
+}

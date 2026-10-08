@@ -1,0 +1,15 @@
+{
+  "description": "Preference diagnostics count original construction sites and conservative same-span paths.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text a a | b\n%redefine-rule text a | b\n%rule a X\n%rule b X\n%prefer a > b",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "loadWarnings": []
+  }
+}

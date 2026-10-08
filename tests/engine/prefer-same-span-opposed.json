@@ -1,0 +1,229 @@
+{
+  "description": "Opposed nested names over the same words tie.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text a | c\n%rule a d [+Y]\n%rule d X\n%rule c b\n%rule b X\n%prefer a > b\n%prefer c > d",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 10,
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie",
+          "witness": [
+            {
+              "close": {
+                "rule": "b",
+                "production": 7,
+                "span": [
+                  0,
+                  1
+                ]
+              }
+            },
+            {
+              "close": {
+                "rule": "d",
+                "production": 5,
+                "span": [
+                  0,
+                  1
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [
+              "X"
+            ],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "c",
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": [
+                  "X"
+                ],
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "b",
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ],
+                    "tags": [
+                      "X"
+                    ],
+                    "children": [
+                      {
+                        "kind": "token",
+                        "terminal": "X",
+                        "token": 0,
+                        "span": [
+                          0,
+                          1
+                        ],
+                        "source": [
+                          0,
+                          1
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "a",
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "d",
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ],
+                    "tags": [
+                      "X"
+                    ],
+                    "children": [
+                      {
+                        "kind": "token",
+                        "terminal": "X",
+                        "token": 0,
+                        "span": [
+                          0,
+                          1
+                        ],
+                        "source": [
+                          0,
+                          1
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "elided",
+                    "terminal": "Y",
+                    "span": [
+                      1,
+                      1
+                    ],
+                    "source": [
+                      1,
+                      1
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "conflict": {
+          "forward": [
+            {
+              "span": [
+                0,
+                1
+              ],
+              "higher": "c",
+              "lower": "d",
+              "path": [
+                "c",
+                "d"
+              ],
+              "residualCounts": [
+                "1",
+                "1"
+              ]
+            }
+          ],
+          "reverse": [
+            {
+              "span": [
+                0,
+                1
+              ],
+              "higher": "a",
+              "lower": "b",
+              "path": [
+                "a",
+                "b"
+              ],
+              "residualCounts": [
+                "1",
+                "1"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "error": "ambiguous"
+  }
+}

@@ -5,7 +5,7 @@
   "expect": {
     "error": "grammar",
     "result": {
-      "format": 9,
+      "format": 10,
       "ok": false,
       "stages": [
         {

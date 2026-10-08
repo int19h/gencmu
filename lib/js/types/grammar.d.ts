@@ -1,3 +1,4 @@
+import { Preferences } from "./preferences.js";
 import { GencmuError } from "./errors.js";
 import type { Condition, DomAlternative, DomClassifier, DomConstant, DomImplication, DomRule, Emission, ErrorLocation, GrammarDom, LoweredGrammar, Resolution, SymbolTest, TagSet, Term, TermValue, TestOp } from "./types.js";
 import type { TermType } from "./dom.js";
@@ -78,6 +79,8 @@ export declare class Grammar {
     changes: RuleChange[];
     /** @type {Resolution | null} */
     resolution: Resolution | null;
+    /** @type {import("./preferences.js").PreferenceDeclaration[]} */
+    preferenceDeclarations: import("./preferences.js").PreferenceDeclaration[];
     /**
      * The stage's `%classifier` items in stitching order, each with its
      * document (engine §2).
@@ -111,6 +114,8 @@ export declare class Grammar {
      * @type {WeakMap<object, SymbolTest>}
      */
     tests: WeakMap<object, SymbolTest>;
+    preferences: Preferences;
+    loadWarnings: import("./preferences.js").LoadWarning[];
     /**
      * The features that gate an alternative or an entry of a classifier.
      * Only these change a lowered grammar. A warning keeps its alternative

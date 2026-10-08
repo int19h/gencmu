@@ -1,0 +1,26 @@
+{
+  "description": "The preference directive uses its dedicated two-name syntax.",
+  "document": "```jbogenbau\n%prefer A > b\n```\n",
+  "expect": {
+    "dom": {
+      "format": 21,
+      "rules": [],
+      "directives": [
+        {
+          "name": "prefer",
+          "args": [
+            "A",
+            "b"
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    }
+  }
+}

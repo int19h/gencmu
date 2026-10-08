@@ -44,6 +44,16 @@ export type RuleNode = {
     children: ResultNode[];
 };
 export type ResultNode = TokenNode | ElidedNode | RuleNode;
+export type PreferenceCycleEdge = {
+    from: number;
+    to: number;
+    basis: "prefer" | "stage";
+    contests?: import("./prefer-rank.js").Contest[];
+    directive?: string;
+    boundary?: number;
+    counts?: [string, string];
+    witness?: [WitnessAction | null, WitnessAction | null];
+};
 export type Expectation = {
     terminal: string;
     rules: string[];
@@ -76,6 +86,9 @@ export type ParseError = {
     column?: number;
     expected?: Expectation[];
     readings?: ResultNode[];
+    cycle?: PreferenceCycleEdge[];
+    conflict?: import("./prefer-rank.js").PreferenceConflict;
+    chosenReading?: number;
     /**
      * for an error of elision-only, where its
      * two readings first differ (engine §7.10)
@@ -103,7 +116,7 @@ export type CloseAction = {
 export type StageReport = TiedStageReport | SettledStageReport;
 export type TiedStageReport = StageReportBase & {
     verdict: "tie";
-    witness: Witness;
+    witness: Witness | null;
 };
 export type SettledStageReport = StageReportBase & {
     verdict: "unique" | "resolved" | null;
@@ -574,6 +587,7 @@ export type LoweredGrammar = {
      */
     maximalHelpers: Set<string>;
     resolution: Resolution;
+    preferences: import("./preferences.js").Preferences;
     /**
      * each classifier
      * of the stage, resolved for these features: each key's classes (engine
@@ -745,6 +759,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {ResultNode[]} children
  */
 /** @typedef {TokenNode | ElidedNode | RuleNode} ResultNode */
+/** @typedef {{from: number, to: number, basis: "prefer" | "stage", contests?: import("./prefer-rank.js").Contest[], directive?: string, boundary?: number, counts?: [string, string], witness?: [WitnessAction | null, WitnessAction | null]}} PreferenceCycleEdge */
 /**
  * A terminal a rejected stage could have read, and the rules that could
  * have read it.
@@ -771,6 +786,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {number} [column]
  * @property {Expectation[]} [expected]
  * @property {ResultNode[]} [readings]
+ * @property {PreferenceCycleEdge[]} [cycle]
+ * @property {import("./prefer-rank.js").PreferenceConflict} [conflict]
+ * @property {number} [chosenReading]
  * @property {Witness} [witness] for an error of elision-only, where its
  *   two readings first differ (engine §7.10)
  * @property {string} [document]
@@ -808,7 +826,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {TiedStageReport | SettledStageReport} StageReport
  */
 /**
- * @typedef {StageReportBase & {verdict: "tie", witness: Witness}} TiedStageReport
+ * @typedef {StageReportBase & {verdict: "tie", witness: Witness | null}} TiedStageReport
  */
 /**
  * @typedef {StageReportBase & {verdict: "unique" | "resolved" | null, witness: null}} SettledStageReport
@@ -1127,6 +1145,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  *   optionals written [++T x], whose terminators are maximal (engine §3.8,
  *   §4)
  * @property {Resolution} resolution
+ * @property {import("./preferences.js").Preferences} preferences
  * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
  *   of the stage, resolved for these features: each key's classes (engine
  *   §2)
