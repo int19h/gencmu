@@ -502,6 +502,7 @@ The predicates are:
 - `=` and `≠` compare two strings, two sets of strings or two tag sets. Any other pair is an error.
 - `∈` and `∉` test whether a string is in a set of strings.
 - `⊆` and `⊈` test whether one set is in another of the same kind. So `~indicator ⊆ tags($i)` says that `$i` carries the mark `indicator`, and `~indicator ⊈ tags($i)` says that it does not.
+- `≅` holds when a bare capture, or `$`, matches a tree pattern (see "Tree patterns"). `≇` holds when it does not. Any other pair is an error.
 - `$x` holds when the production has the capture `x`.
 - `matches(span, rule)` holds when the span parses as the named rule.
 - `begins(span, rule)` holds when some prefix of the span parses as the rule. The empty prefix counts.

@@ -245,7 +245,7 @@ The rule for `...`, the marker of a chain, tags it `ellipsis`, and `..`, which j
   $
 ```
 
-The compound token `@(` opens a tree pattern. The comparators `≅` and `≇` test a constructed constituent. `⋯` marks a sibling gap. `⋮`, `⋰` and `⋱` mark descendant, first-child and last-child paths. These symbols retain their character tags.
+The compound token `@(` opens a tree pattern. The comparators `≅` and `≇` test a constructed constituent. `⋯` marks a sibling gap. `⋮`, `⋰` and `⋱` mark descendant, first-child and last-child paths. The six one-character symbols keep their character tags. The rule tags `@(` `pattern-open`.
 
 ## Layout
 

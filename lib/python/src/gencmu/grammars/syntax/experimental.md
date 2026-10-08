@@ -137,7 +137,7 @@ The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or
 
 Connected bridi-tails group from the left, as in CLL (CLL 14.10), and `bridi-tail-1` keeps the CLL rule's left recursion. After a plain connective, a bridi-tail without a head does not begin with `ke`. The head pattern rejects an unclosed listed tag at its end, even inside a term connection. Without these limits, `gi'e ke` and `gi'e ba ke` can each open two constructs. camxes-exp states the same limits as a lookahead (a test of the words that follow) after its gihek.
 
-The same endpoint pattern applies to initial heads, connected heads, and heads after BO. A written KU or a final CU prevents that match. The existing input queries remain separate conditions.
+The same endpoint pattern applies to an initial head, a head after `ke`, a connected head, and a head after `bo`. A written KU or a final CU prevents that match. The existing input queries remain separate conditions.
 
 ```jbogenbau
 %redefine-rule sentence
