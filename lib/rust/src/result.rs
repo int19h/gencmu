@@ -425,8 +425,8 @@ pub struct ParseError {
     pub column: Option<usize>,
     /// For a rejection, what could have been read next.
     pub expected: Vec<Expected>,
-    /// For an ambiguity, the two readings: the first and the second
-    /// reading of the tie, or of the ranking of the `elision-only` check.
+    /// The canonical readings of an ambiguity, including every cycle vertex.
+    /// A reconstruction cycle also includes the chosen derivation at index zero.
     pub readings: Vec<Node>,
     /// For an error of `elision-only`, the pair of actions where its two
     /// readings first differ, over the stage's input (engine §7.10). A
@@ -439,6 +439,12 @@ pub struct ParseError {
     /// For `ErrorCode::ElisionWitnessLost`, the terminators that the check
     /// wrote back, in their order of insertion; empty for any other error.
     pub completion: Vec<Restoration>,
+    /// The directed cycle of complete readings, if one exists.
+    pub cycle: Vec<CycleEdge>,
+    /// Opposed preference contests in an ordinary two-reading tie.
+    pub conflict: Option<PreferenceConflict>,
+    /// The chosen reading's index for a reconstructed cycle.
+    pub chosen_reading: Option<usize>,
 }
 
 impl fmt::Display for ParseError {
@@ -486,4 +492,57 @@ pub struct ParseResult {
     /// The warnings of every stage run, in stage order, whether or not the
     /// result is `ok`; empty when there are none.
     pub warnings: Vec<Warning>,
+}
+
+/// One same-span preference contest after cancellation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PreferenceContest {
+    /// The original input span.
+    pub span: Range<usize>,
+    /// The higher rule.
+    pub higher: String,
+    /// The lower rule.
+    pub lower: String,
+    /// The shortest preference path, with code point ties.
+    pub path: Vec<String>,
+    /// The exact positive residual occurrence counts.
+    pub residual_counts: [String; 2],
+}
+/// Opposed preference contests between two complete readings.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PreferenceConflict {
+    /// Contests that favor the first reading.
+    pub forward: Vec<PreferenceContest>,
+    /// Contests that favor the second reading.
+    pub reverse: Vec<PreferenceContest>,
+}
+/// Why one complete reading defeats another on a cycle.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PreferenceReason {
+    /// Every preference contest favors the first reading.
+    Prefer {
+        /// The same-span contests.
+        contests: Vec<PreferenceContest>,
+    },
+    /// The stage directive decides a pair without preference contests.
+    Stage {
+        /// The stage directive.
+        directive: String,
+        /// The first differing boundary under late elision.
+        boundary: Option<usize>,
+        /// The exact elision counts at that boundary.
+        counts: Option<[String; 2]>,
+        /// The first differing actions under lazy or greedy ranking.
+        witness: Option<[Option<Action>; 2]>,
+    },
+}
+/// One directed edge of a complete-reading cycle.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CycleEdge {
+    /// The winning reading's index.
+    pub from: usize,
+    /// The losing reading's index.
+    pub to: usize,
+    /// The reason for the edge.
+    pub reason: PreferenceReason,
 }

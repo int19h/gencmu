@@ -664,7 +664,7 @@ pub fn run_engine_case(case: &Value) -> Result<(), String> {
 }
 
 /// The members of `expect` that only a loaded dialect can meet.
-const AFTER_LOAD: [&str; 4] = ["result", "brackets", "warnings", "features"];
+const AFTER_LOAD: [&str; 5] = ["result", "brackets", "warnings", "features", "loadWarnings"];
 
 /// Holds the error of a dialect that did not load to `expect`. The error is
 /// the whole outcome, so a case that expects anything that only a loaded
@@ -718,7 +718,7 @@ pub fn result_problems(json: &Value) -> Vec<String> {
             || field("kind") != Some("ambiguous")
             || field("reason") != Some("tie")
             || field("stage") != Some(name)
-            || !matches!(readings, Some(Value::Array(readings)) if readings.len() == 2)
+            || !matches!(readings, Some(Value::Array(readings)) if readings.len() == 2 || error.and_then(|e| e.get("cycle")).is_some())
         {
             problems
                 .push(format!("the tied stage {name} lacks its error of kind ambiguous, reason tie and two readings"));
@@ -758,6 +758,9 @@ pub fn result_problems(json: &Value) -> Vec<String> {
                 problems.push(format!("an ambiguous error has the member {member}"));
             }
         }
+    }
+    if let Some(error) = json.get("error").filter(|e| e.get("cycle").is_some()) {
+        cycle_problems(error, stages, &mut problems);
     }
     problems
 }
@@ -815,6 +818,28 @@ fn check_parse(dialect: &gencmu::Dialect, case: &Value, run: &Value, expect: &Va
     if let Some(expected) = expect.get("features") {
         let found = Value::Array(dialect.features().iter().map(feature_value).collect());
         if let Err(problem) = same(expected, &found, "features") {
+            let _ = writeln!(problems, "{problem}");
+        }
+    }
+    if let Some(expected) = expect.get("loadWarnings") {
+        let text = format!(
+            "[{}]",
+            dialect
+                .load_warnings()
+                .into_iter()
+                .map(|mut w| {
+                    if case.get("grammar").is_some() {
+                        for s in &mut w.references {
+                            s.document = format!("case/{}", s.document);
+                        }
+                    }
+                    w.to_json()
+                })
+                .collect::<Vec<_>>()
+                .join(",")
+        );
+        let found = parse_json(&text).expect("load warnings are JSON");
+        if let Err(problem) = matches(expected, &found, "loadWarnings") {
             let _ = writeln!(problems, "{problem}");
         }
     }
@@ -1133,3 +1158,89 @@ pub fn try_position_of(text: &str, needle: &str) -> Result<(usize, usize), Strin
 pub fn position_of(text: &str, needle: &str) -> (usize, usize) {
     try_position_of(text, needle).unwrap_or_else(|error| panic!("{error}"))
 }
+
+fn cycle_problems(error: &Value, stages: &[Value], problems: &mut Vec<String>) {
+    let readings = error.get("readings").map_or(&[][..], Value::array);
+    let cycle = error.get("cycle").map_or(&[][..], Value::array);
+    if readings.len() < 3 {
+        problems.push("a cycle needs at least three readings".into());
+    }
+    if cycle.len() < 3 {
+        problems.push("a cycle needs at least three edges".into());
+    }
+    let mut vertices = std::collections::BTreeSet::new();
+    let natural = |v: Option<&Value>| v.and_then(Value::number).filter(|n| *n >= 0.0 && n.fract() == 0.0);
+    let digits = |v: &Value, positive: bool| {
+        v.str().is_some_and(|s| {
+            !s.is_empty() && s.bytes().all(|c| c.is_ascii_digit()) && (s == "0" && !positive || !s.starts_with('0'))
+        })
+    };
+    for (i, e) in cycle.iter().enumerate() {
+        let from = natural(e.get("from"));
+        let to = natural(e.get("to"));
+        if from.is_none()
+            || to.is_none()
+            || from.unwrap_or(0.0) >= readings.len() as f64
+            || to.unwrap_or(0.0) >= readings.len() as f64
+        {
+            problems.push("a cycle index is out of range".into());
+        }
+        if e.get("to") != cycle[(i + 1) % cycle.len()].get("from") {
+            problems.push("cycle edges do not connect".into());
+        }
+        if !vertices.insert(from.unwrap_or(-1.0) as i64) {
+            problems.push("a cycle repeats a vertex".into());
+        }
+        match e.get("basis").and_then(Value::str) {
+            Some("prefer") => {
+                if e.get("contests").map_or(true, |v| v.array().is_empty()) {
+                    problems.push("a preference edge lacks contests".into());
+                }
+            }
+            Some("stage") => {
+                let ok = match e.get("directive").and_then(Value::str) {
+                    Some("late-elision") => {
+                        natural(e.get("boundary")).is_some() && e.get("counts").is_some_and(|v| v.array().len() == 2)
+                    }
+                    Some("lazy" | "greedy") => e.get("witness").is_some_and(|v| v.array().len() == 2),
+                    _ => false,
+                };
+                if !ok {
+                    problems.push("a stage edge lacks its directive witness".into());
+                }
+            }
+            _ => problems.push("a cycle edge lacks its reason".into()),
+        }
+        for c in e.get("counts").map_or(&[][..], Value::array) {
+            if !digits(c, false) {
+                problems.push("a cycle count is not an exact integer string".into());
+            }
+        }
+        for c in e.get("contests").map_or(&[][..], Value::array) {
+            let span = c.get("span").map_or(&[][..], Value::array);
+            let path = c.get("path").map_or(&[][..], Value::array);
+            let counts = c.get("residualCounts").map_or(&[][..], Value::array);
+            if span.len() != 2
+                || span[0].number() >= span[1].number()
+                || path.len() < 2
+                || path.first() != c.get("higher")
+                || path.last() != c.get("lower")
+                || counts.len() != 2
+            {
+                problems.push("a preference contest is malformed".into());
+            }
+            for n in counts {
+                if !digits(n, true) {
+                    problems.push("a residual count is not a positive integer string".into());
+                }
+            }
+        }
+    }
+    if error.get("witness").is_some() || stages.iter().any(|s| s.get("witness").is_some()) {
+        problems.push("a cycle has a pairwise witness".into());
+    }
+    if error.get("reason").and_then(Value::str) == Some("elision-only")
+        && error.get("chosenReading").and_then(Value::number) != Some(0.0)
+    {
+        problems.push("a reconstruction cycle lacks its chosen reading index".into());
+    }

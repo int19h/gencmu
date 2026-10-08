@@ -55,6 +55,8 @@ mod notation;
 mod output;
 mod patterns;
 mod pipeline;
+mod preference_stats;
+mod preferences;
 mod rank;
 mod recent;
 mod result;
@@ -70,9 +72,11 @@ pub use error::{Error, ErrorKind};
 pub use grammar::{Change, FlagChange};
 pub use loader::{load_dialect, load_dialect_file, load_dialect_sources};
 pub use output::{node_to_json, to_brackets, to_json};
+pub use preferences::{LoadWarning, ReferenceSite};
 pub use result::{
-    Action, AmbiguityReason, Attachment, ErrorCode, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult,
-    Restoration, Stage, Tags, Token, Verdict, Warning,
+    Action, AmbiguityReason, Attachment, CycleEdge, ErrorCode, Expected, Node, NodeKind, ParseError, ParseErrorKind,
+    ParseResult, PreferenceConflict, PreferenceContest, PreferenceReason, Restoration, Stage, Tags, Token, Verdict,
+    Warning,
 };
 
 /// Helpers for tests and tools: reading one grammar document to its DOM,
@@ -82,6 +86,7 @@ pub mod tools {
     pub use crate::dom::DOM_FORMAT;
     pub use crate::json::fnv1a64;
     pub use crate::loader::{bootstrap_hash, check_dom, read_grammar_document, splice_bundled_pipeline};
+    pub use crate::preference_stats::{with_preference_statistics, PreferenceStatistics};
 
     /// The test hook of the check of `elision-only` (tests/README.md): the
     /// checks that ran in a parse, each with whether its forest kept the

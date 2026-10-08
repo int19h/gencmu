@@ -10,7 +10,7 @@ use crate::result::{
 };
 
 /// The version of the shape of the result (docs/output.md).
-pub const RESULT_FORMAT: u32 = 9;
+pub const RESULT_FORMAT: u32 = 10;
 
 fn write_range(out: &mut String, range: &Range<usize>) {
     out.push('[');
@@ -333,6 +333,27 @@ fn write_error(out: &mut String, error: &ParseError) {
                 write_node(out, reading);
             }
             out.push(']');
+            if !error.cycle.is_empty() {
+                out.push_str(",\"cycle\":[");
+                for (i, e) in error.cycle.iter().enumerate() {
+                    if i > 0 {
+                        out.push(',');
+                    }
+                    write_cycle_edge(out, e);
+                }
+                out.push(']');
+            }
+            if let Some(c) = &error.conflict {
+                out.push_str(",\"conflict\":{\"forward\":");
+                write_contests(out, &c.forward);
+                out.push_str(",\"reverse\":");
+                write_contests(out, &c.reverse);
+                out.push('}');
+            }
+            if let Some(index) = error.chosen_reading {
+                out.push_str(",\"chosenReading\":");
+                out.push_str(&index.to_string());
+            }
             if let Some([first, second]) = &error.witness {
                 out.push_str(",\"witness\":[");
                 write_action(out, first);
@@ -592,4 +613,72 @@ pub fn to_brackets(result: &ParseResult, show_elided: bool) -> String {
         (Some(tree), Some(stage)) => brackets(tree, &stage.input, show_elided),
         _ => String::new(),
     }
+}
+
+fn write_strings(out: &mut String, xs: &[String]) {
+    out.push('[');
+    for (i, s) in xs.iter().enumerate() {
+        if i > 0 {
+            out.push(',');
+        }
+        write_str(out, s);
+    }
+    out.push(']');
+}
+fn write_contests(out: &mut String, cs: &[crate::result::PreferenceContest]) {
+    out.push('[');
+    for (i, c) in cs.iter().enumerate() {
+        if i > 0 {
+            out.push(',');
+        }
+        out.push_str("{\"span\":");
+        write_range(out, &c.span);
+        out.push_str(",\"higher\":");
+        write_str(out, &c.higher);
+        out.push_str(",\"lower\":");
+        write_str(out, &c.lower);
+        out.push_str(",\"path\":");
+        write_strings(out, &c.path);
+        out.push_str(",\"residualCounts\":");
+        write_strings(out, &c.residual_counts);
+        out.push('}');
+    }
+    out.push(']');
+}
+fn write_cycle_edge(out: &mut String, e: &crate::result::CycleEdge) {
+    use crate::result::PreferenceReason;
+    out.push_str(&format!("{{\"from\":{},\"to\":{}", e.from, e.to));
+    match &e.reason {
+        PreferenceReason::Prefer { contests } => {
+            out.push_str(",\"basis\":\"prefer\",\"contests\":");
+            write_contests(out, contests);
+        }
+        PreferenceReason::Stage { directive, boundary, counts, witness } => {
+            out.push_str(",\"basis\":\"stage\",\"directive\":");
+            write_str(out, directive);
+            if let Some(b) = boundary {
+                out.push_str(",\"boundary\":");
+                out.push_str(&b.to_string());
+            }
+            if let Some(c) = counts {
+                out.push_str(",\"counts\":");
+                write_strings(out, c);
+            }
+            if let Some(w) = witness {
+                out.push_str(",\"witness\":[");
+                for (i, a) in w.iter().enumerate() {
+                    if i > 0 {
+                        out.push(',');
+                    }
+                    if let Some(a) = a {
+                        write_action(out, a);
+                    } else {
+                        out.push_str("null");
+                    }
+                }
+                out.push(']');
+            }
+        }
+    }
+    out.push('}');
 }

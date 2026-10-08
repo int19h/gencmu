@@ -35,6 +35,24 @@ impl Nat {
         }
     }
 
+    pub(crate) fn decimal(&self) -> String {
+        if let Nat::Small(n) = self {
+            return n.to_string();
+        }
+        let mut limbs = self.limbs();
+        let mut digits = Vec::new();
+        while limbs.iter().any(|n| *n != 0) {
+            let mut carry = 0u128;
+            for n in limbs.iter_mut().rev() {
+                let total = (carry << 64) | u128::from(*n);
+                *n = (total / 10) as u64;
+                carry = total % 10;
+            }
+            digits.push((b'0' + carry as u8) as char);
+        }
+        digits.iter().rev().collect()
+    }
+
     fn limbs(&self) -> Vec<u64> {
         match self {
             Nat::Small(n) => vec![*n],

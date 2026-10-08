@@ -250,6 +250,10 @@ pub(crate) fn line_column(text: &[char], offset: usize) -> (usize, usize) {
 }
 
 impl Dialect {
+    /// The authoring warnings of all stages, in stage order.
+    pub fn load_warnings(&self) -> Vec<crate::preferences::LoadWarning> {
+        self.stages.iter().flat_map(|s| s.preferences.warnings.iter().cloned()).collect()
+    }
     /// A dialect of stitched stages, whose pipeline's `%features` turns
     /// on `declared`; a feature used both as a gate and as a warning is an
     /// error of the dialect (engine §13).
@@ -552,6 +556,9 @@ impl Dialect {
             message,
             chosen: None,
             completion: Vec::new(),
+            cycle: Vec::new(),
+            conflict: None,
+            chosen_reading: None,
             witness: None,
         }
     }
@@ -602,12 +609,13 @@ impl Dialect {
             ranker.rank().map(|ranking| {
                 let first = build(&ranker, ranking.first);
                 let second = ranking.second.map(|second| build(&ranker, second));
-                (ranking, first, second)
+                let cycle_readings = ranking.readings.iter().map(|&d| build(&ranker, d)).collect::<Vec<_>>();
+                (ranking, first, second, cycle_readings)
             })
         } else {
             None
         };
-        let Some((ranking, chosen, second)) = ranked else {
+        let Some((ranking, chosen, second, cycle_readings)) = ranked else {
             // A text that `maximal` leaves with no derivation is rejected at
             // the first terminator it forbids in the first reading of the
             // ranking without `maximal`, whatever its verdict (§4).
@@ -639,9 +647,20 @@ impl Dialect {
         // chosen tree, no output and no warnings, and the error holds the
         // first and the second reading (§6).
         if ranking.verdict == RankVerdict::Tie {
-            let second = second.expect("a tie has a second reading");
-            let readings = vec![public_tree(&chosen, &context), public_tree(&second, &context)];
-            let error = self.tie(index, readings);
+            let readings = if ranking.cycle.is_empty() {
+                vec![
+                    public_tree(&chosen, &context),
+                    public_tree(&second.expect("a tie has a second reading"), &context),
+                ]
+            } else {
+                cycle_readings.iter().map(|t| public_tree(t, &context)).collect()
+            };
+            let mut error = self.tie(index, readings);
+            error.conflict = ranking.conflict;
+            if !ranking.cycle.is_empty() {
+                error.message = format!("The {} stage has a comparison cycle.", grammar.name);
+                error.cycle = ranking.cycle.iter().map(|e| public_edge(e, |a| action(&lowered, a))).collect();
+            }
             run.stages.push(stage);
             return Err(Box::new(error));
         }
@@ -718,6 +737,9 @@ impl Dialect {
                         ),
                         chosen: Some(tree),
                         completion,
+                        cycle: Vec::new(),
+                        conflict: None,
+                        chosen_reading: None,
                         witness: None,
                     };
                     run.stages.push(stage);
@@ -765,6 +787,9 @@ impl Dialect {
             message: format!("stage {stage} has two best readings of its text, a tie"),
             chosen: None,
             completion: Vec::new(),
+            cycle: Vec::new(),
+            conflict: None,
+            chosen_reading: None,
             witness: None,
         }
     }
@@ -804,6 +829,9 @@ impl Dialect {
             message,
             chosen: None,
             completion: Vec::new(),
+            cycle: Vec::new(),
+            conflict: None,
+            chosen_reading: None,
             witness: None,
         }
     }
@@ -905,7 +933,8 @@ impl Dialect {
         // ranks (tests/README.md).
         let flagged = g.rules.iter().any(|rule| rule.leftmost_longest);
         let chosen_profile = if flagged { tree_profile(g, chosen) } else { Vec::new() };
-        let walk = if witness::watched() || flagged {
+        let protect = flagged || !g.preferences.paths.is_empty();
+        let walk = if witness::watched() || protect {
             let empty = shared.tags.set(Vec::new());
             let forest = CheckForest {
                 g,
@@ -927,7 +956,7 @@ impl Dialect {
         };
         // Maximality does not apply to the derivations of R, and
         // the ranking has no lean (§7.7).
-        let rooted = rooted && (!flagged || walk.as_ref().is_some_and(|walk| walk.is_some()));
+        let rooted = rooted && (!protect || walk.as_ref().is_some_and(|walk| walk.is_some()));
         let ranking = if rooted {
             let marks = walk.as_ref().and_then(|walk| walk.as_ref()).map(|walk| &walk.marks);
             let mut ranker = Ranker::new(g, &chart, &tokens, shared, Lean::Neither, None)
@@ -937,11 +966,15 @@ impl Dialect {
                 .rank()
                 .filter(|ranking| {
                     loss != Some(witness::Loss::Count)
-                        && (!flagged || ranking.witness_counted == Some(true))
+                        && (!protect || ranking.witness_counted == Some(true))
                         && compare_profiles(&ranking.profile, &chosen_profile) != std::cmp::Ordering::Greater
                 })
                 .map(|mut ranking| {
-                    let better = compare_profiles(&ranking.profile, &chosen_profile) == std::cmp::Ordering::Less;
+                    let w = walk.as_ref().and_then(|w| w.as_ref()).map(|w| ranker.derivation(&w.sequence));
+                    let better = compare_profiles(&ranking.profile, &chosen_profile) == std::cmp::Ordering::Less
+                        || (ranking.slow
+                            && ranking.verdict != RankVerdict::Tie
+                            && w.is_some_and(|w| !ranker.same_derivation(w, ranking.first)));
                     if better {
                         let w = ranker.derivation(
                             &walk.as_ref().and_then(|walk| walk.as_ref()).expect("a restored witness").sequence,
@@ -954,6 +987,7 @@ impl Dialect {
                     // It counts W(D) before profile filtering.
                     // On a tie, both readings precede W(D) unless the first is W(D).
                     let keeps = match walk.as_ref().and_then(|walk| walk.as_ref()) {
+                        Some(_) if ranking.witness_counted == Some(true) && ranking.slow => true,
                         Some(walk) if ranking.witness_counted == Some(true) => match ranking.second {
                             Some(second) if ranking.verdict == RankVerdict::Tie || better => {
                                 let w = ranker.derivation(&walk.sequence);
@@ -968,11 +1002,37 @@ impl Dialect {
                         },
                         _ => false,
                     };
-                    let readings = match (ranking.verdict, ranking.second) {
-                        (_, Some(second)) if ranking.verdict == RankVerdict::Tie || better => {
-                            Some((build(&ranker, ranking.first), build(&ranker, second), ranking.witness))
+                    let readings = if !ranking.cycle.is_empty() {
+                        let w = w.expect("a restored witness");
+                        let mut ids = vec![w];
+                        let indices: Vec<_> = ranking
+                            .readings
+                            .iter()
+                            .map(|&d| {
+                                if ranker.same_derivation(w, d) {
+                                    0
+                                } else {
+                                    ids.push(d);
+                                    ids.len() - 1
+                                }
+                            })
+                            .collect();
+                        let mut edges = ranking.cycle.clone();
+                        for e in &mut edges {
+                            e.from = indices[e.from];
+                            e.to = indices[e.to];
                         }
-                        _ => None,
+                        Some((ids.into_iter().map(|d| build(&ranker, d)).collect::<Vec<_>>(), None, edges, true))
+                    } else {
+                        match (ranking.verdict, ranking.second) {
+                            (_, Some(second)) if ranking.verdict == RankVerdict::Tie || better => Some((
+                                vec![build(&ranker, ranking.first), build(&ranker, second)],
+                                ranking.witness,
+                                Vec::new(),
+                                false,
+                            )),
+                            _ => None,
+                        }
                     };
                     (ranking, readings, keeps)
                 })
@@ -982,10 +1042,10 @@ impl Dialect {
         if witness::watched() {
             witness::record(&self.stages[index].name, ranking.as_ref().is_some_and(|(_, _, keeps)| *keeps));
         }
-        let Some((_, readings, _)) = ranking else {
+        let Some((ranking, readings, _)) = ranking else {
             return Ok(Check::Lost(records));
         };
-        let Some((first, second, difference)) = readings else {
+        let Some((trees, difference, cycle, is_cycle)) = readings else {
             return Ok(Check::Pass);
         };
         // The witness, mapped to the stage's input as the readings are: a
@@ -1010,7 +1070,7 @@ impl Dialect {
         let tag_set = |set: u32| shared.tags.to_set(set);
         let map = ReadingMap { project: &recon.project, record_of: &record_of, records: &records };
         let context = TreeContext { g, tokens: input, tag_map: &tag_set, reading: Some(&map) };
-        let readings = vec![public_tree(&first, &context), public_tree(&second, &context)];
+        let readings = trees.iter().map(|t| public_tree(t, &context)).collect();
         let stage = &self.stages[index].name;
         Ok(Check::Ambiguous(Box::new(ParseError {
             kind: ParseErrorKind::Ambiguous,
@@ -1029,6 +1089,7 @@ impl Dialect {
             ),
             chosen: None,
             completion: Vec::new(),
+            cycle: cycle.iter().map(|e| public_edge(e, mapped)).collect(), conflict: ranking.conflict, chosen_reading: is_cycle.then_some(0),
             witness,
         })))
     }
@@ -1173,6 +1234,21 @@ fn has_sa_su(tree: &Node) -> bool {
 
 /// For the tests inside the crate: a stage's grammar lowered with no
 /// features on.
+fn public_edge(e: &crate::rank::RankEdge, map: impl Fn(Act) -> Action) -> crate::result::CycleEdge {
+    use crate::rank::RankReason;
+    use crate::result::{CycleEdge, PreferenceReason};
+    let reason = match &e.reason {
+        RankReason::Prefer(contests) => PreferenceReason::Prefer { contests: contests.clone() },
+        RankReason::Stage { directive, boundary, counts, witness } => PreferenceReason::Stage {
+            directive: (*directive).into(),
+            boundary: boundary.map(|b| b as usize),
+            counts: counts.clone(),
+            witness: witness.map(|[a, b]| [a.map(&map), b.map(&map)]),
+        },
+    };
+    CycleEdge { from: e.from, to: e.to, reason }
+}
+
 #[cfg(test)]
 impl Dialect {
     pub(crate) fn lowered_stage(&self, stage: usize) -> Arc<Lowered> {

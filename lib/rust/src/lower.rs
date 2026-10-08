@@ -305,6 +305,7 @@ impl Prod {
 
 #[derive(Debug, Clone)]
 pub(crate) struct Lowered {
+    pub preferences: Arc<crate::preferences::Preferences>,
     pub rules: Vec<LRule>,
     pub prods: Vec<Prod>,
     pub terminals: Vec<String>,
@@ -1134,6 +1135,7 @@ pub(crate) fn lower(
     let tests = std::mem::take(&mut lowerer.tests);
     let elides = rules.iter().any(|rule| rule.elided.is_some());
     Ok(Lowered {
+        preferences: grammar.preferences.clone(),
         start: grammar.index["text"] as u32,
         elides,
         rules,

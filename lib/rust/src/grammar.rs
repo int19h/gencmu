@@ -92,6 +92,7 @@ pub(crate) struct StageGrammar {
     pub index: HashMap<String, usize>,
     pub lean: Lean,
     pub elision_only: bool,
+    pub preferences: Arc<crate::preferences::Preferences>,
     /// Whether an elided terminator is forbidden where its constituent
     /// could have been longer (engine §4).
     pub changes: Vec<Change>,
@@ -214,10 +215,12 @@ pub(crate) fn stitch(
         index: HashMap::new(),
         lean: Lean::Greedy,
         elision_only: false,
+        preferences: Arc::new(crate::preferences::Preferences::default()),
         changes: Vec::new(),
         classifiers: Vec::new(),
         implications: Arc::from(Vec::new()),
     };
+    let mut preferences = Vec::new();
     let mut implications: Vec<(&Arc<str>, &ImplicationDef)> = Vec::new();
     let mut resolution: Option<(Arc<str>, (usize, usize))> = None;
     let mut constants =
@@ -315,6 +318,17 @@ pub(crate) fn stitch(
         for directive in &dom.directives {
             let here = |message: String| located(message, document, directive.at);
             match directive.name.as_str() {
+                "prefer" => {
+                    if directive.args.len() != 2 {
+                        return Err(here("%prefer takes exactly two rule names".into()));
+                    }
+                    preferences.push(crate::preferences::Declaration {
+                        higher: directive.args[0].clone(),
+                        lower: directive.args[1].clone(),
+                        document: document.clone(),
+                        at: directive.at,
+                    });
+                }
                 "ambiguity-resolution" => {
                     if resolution.is_some() {
                         return Err(here(format!("stage {stage} has two %ambiguity-resolution directives")));
@@ -374,6 +388,7 @@ pub(crate) fn stitch(
             })?;
         }
     }
+    grammar.preferences = Arc::new(crate::preferences::Preferences::new(&grammar, &preferences)?);
     Ok(grammar)
 }
 
@@ -1370,6 +1385,7 @@ mod tests {
                 index: HashMap::new(),
                 lean: Lean::Greedy,
                 elision_only: false,
+                preferences: Arc::new(crate::preferences::Preferences::default()),
                 changes: Vec::new(),
                 classifiers: vec![(Arc::from("d.md"), ClassifierDef { name: "c".into(), entries, at: (0, 0) })],
                 implications: Arc::from(Vec::new()),

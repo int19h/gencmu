@@ -17,6 +17,10 @@
 //! follows them. Derivations are kept as a shared DAG, so comparing two of
 //! them walks only where they differ.
 
+#[path = "prefer_rank.rs"]
+mod prefer;
+pub(crate) use prefer::{RankEdge, RankReason};
+
 use crate::fxhash::FxMap;
 use std::cmp::Ordering;
 
@@ -43,7 +47,7 @@ pub(crate) enum DNode {
 }
 
 /// An action of a derivation's sequence (§6).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Act {
     Read { tok: u32, terminal: u32 },
     Close { prod: u32, start: u32, end: u32, visible: bool },
@@ -172,7 +176,7 @@ enum Rel {
 
 /// The outcome of ranking a stage's forest: the verdict, the first
 /// reading `m`, which is the chosen derivation unless the verdict is a tie,
-/// and for a tie the second reading `t` and the witness (§6).
+/// and for a tie the second reading and witness, or the complete cycle (§6).
 pub(crate) struct Ranking {
     pub verdict: Verdict,
     pub first: u32,
@@ -182,6 +186,10 @@ pub(crate) struct Ranking {
     /// root has the bit (tests/README.md).
     pub witness_counted: Option<bool>,
     pub profile: Profile,
+    pub slow: bool,
+    pub readings: Vec<u32>,
+    pub cycle: Vec<RankEdge>,
+    pub conflict: Option<crate::result::PreferenceConflict>,
 }
 
 /// Elision vectors (§6), each kept as the positions of its elided
@@ -497,6 +505,8 @@ pub(crate) struct Ranker<'c> {
     /// Whether this is the ranker of the check of `elision-only`, which only
     /// its faults read.
     check: bool,
+    stage_lean: Lean,
+    statistics: crate::preference_stats::PreferenceStatistics,
 }
 
 impl<'c> Dag<'c> {
@@ -845,6 +855,7 @@ impl<'c> Ranker<'c> {
     ) -> Ranker<'c> {
         // Under late-elision, the readings come from a ranking with no lean
         // over the forest of the best derivations (§6).
+        let stage_lean = lean;
         let late = lean == Lean::LateElision;
         let lean = if late { Lean::Neither } else { lean };
         let mut dag = Dag {
@@ -874,6 +885,8 @@ impl<'c> Ranker<'c> {
             }),
             marks: None,
             check: false,
+            stage_lean,
+            statistics: crate::preference_stats::PreferenceStatistics::default(),
         };
         ranker.fset_index.insert(Vec::new(), 0);
         ranker
@@ -935,6 +948,10 @@ impl<'c> Ranker<'c> {
                 _ => unreachable!("two different derivations differ"),
             },
         }
+    }
+
+    pub(crate) fn same_derivation(&self, a: u32, b: u32) -> bool {
+        matches!(self.dag.first_difference(a, b, false), Diff::Equal)
     }
 
     /// Whether `a` comes before `b` in the order T.
@@ -1511,11 +1528,22 @@ impl<'c> Ranker<'c> {
     /// Ranks the derivations of the start rule over the whole input; `None`
     /// if it has none (every one is cyclic).
     pub(crate) fn rank(&mut self) -> Option<Ranking> {
+        let ranked = self.rank_inner();
+        if !self.dag.g.preferences.paths.is_empty() {
+            crate::preference_stats::record(&self.statistics);
+        }
+        ranked
+    }
+
+    fn rank_inner(&mut self) -> Option<Ranking> {
         let n = (self.dag.chart.sets.len() - 1) as u32;
         // Every completed item of the start rule over the whole input is an
         // edge of one root (§6).
         let root =
             (Node::Group { rule: self.dag.g.start, origin: 0, set: n, tags: ANY, test: NO_TEST, structure: ANY }, 0);
+        if self.possible_contest(root) {
+            return self.rank_preferences(root);
+        }
         // Under late-elision, the total and the least count of the root,
         // before the forest is cut down to the best derivations.
         let counts = if self.elisions.is_some() {
@@ -1618,7 +1646,18 @@ impl<'c> Ranker<'c> {
         });
         let profile =
             self.elisions.as_ref().map_or_else(Vec::new, |summaries| summaries.summaries[&root].all.profile.clone());
-        Some(Ranking { verdict, first: chosen, second, witness, witness_counted, profile })
+        Some(Ranking {
+            verdict,
+            first: chosen,
+            second,
+            witness,
+            witness_counted,
+            profile,
+            slow: false,
+            readings: Vec::new(),
+            cycle: Vec::new(),
+            conflict: None,
+        })
     }
 }
 

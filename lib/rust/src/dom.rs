@@ -871,6 +871,7 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
         // The notation has four directives, and `%elidable` is none of them
         // (engine §9).
         let operands_ok = match directive.get("name").and_then(Json::as_str) {
+            Some("prefer") => args.len() == 2 && args.iter().all(|arg| is_rule_name(arg)),
             Some("stage") => args.len() == 1 && args.iter().all(is_name),
             Some("include") => args.len() == 1,
             Some("features") => !args.is_empty() && args.iter().all(is_name),
