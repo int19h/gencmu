@@ -262,7 +262,7 @@ A hollow rule node, such as an empty slot for a free modifier, has no token and 
 
 ### Brackets
 
-Brackets write the tree of the final stage as nested groups. The renderer applies the rules below after it decides whether to show elided terminators. Tree patterns do not change bracket grouping:
+Tree patterns do not change bracket grouping. The renderer applies the rules below after it decides whether to show elided terminators. Brackets write the tree of the final stage as nested groups:
 
 1. The label of a token node is the label of its token (engine §5). So a pause shows as a space, and an opaque part shows its text. A label can itself be empty, as for a `zoi` quote of nothing, and the renderer keeps it. The label of an elided node is empty, unless elided terminators are shown. In that case, the label is the terminal in lower case between `⟨` and `⟩`.
 2. A token node whose token has attachments renders as a group. Its members are the token's before-attachments, the token's label, and its after-attachments, in that order. Each attachment renders in the same way: as its label, or as a group if it has attachments of its own.
