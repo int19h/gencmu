@@ -1122,6 +1122,9 @@ func readsOwnTags(t *domTerm) bool {
 		p := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		if p.c != nil {
+			if p.c.Kind == cdCompare && (p.c.Op == "≅" || p.c.Op == "≇") {
+				continue
+			}
 			// matches() and begins() parse the tokens again, initial()
 			// reads where they begin, and a presence test reads no tags.
 			switch p.c.Kind {

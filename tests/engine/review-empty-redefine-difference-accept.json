@@ -1,0 +1,17 @@
+{
+  "description": "An empty compound keeps its contextual pattern type.",
+  "grammar": "%const $P @(A)\n%redefine-const $P ∅ ∖ ∅\n%rule text A\n%conditions $ ≇ $P",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

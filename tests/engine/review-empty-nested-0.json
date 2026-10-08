@@ -1,0 +1,17 @@
+{
+  "description": "Nested empty operands take the surrounding pattern type.",
+  "grammar": "%rule text A\n%conditions $ ≅ (@(A) ∪ (∅ ∩ ∅))",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

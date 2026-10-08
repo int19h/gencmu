@@ -240,6 +240,8 @@ def term_reads_own_tags(term: Any) -> bool:
         if reads_own_tags(value, argument):
             return True
         if isinstance(value, dict):
+            if value.get("op") in ("≅", "≇"):
+                continue
             for key, inner in value.items():
                 # A call's arguments, a matches(), a begins() and an
                 # initial() are spans, where $ is the constituent's tokens

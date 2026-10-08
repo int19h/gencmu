@@ -1,0 +1,17 @@
+{
+  "description": "Empty tag-set compounds keep their tag-set context.",
+  "grammar": "%const $T A\n%redefine-const $T (∅ ∪ ∅) ∩ (∅ ∖ ∅)\n%rule text A\n%conditions $T = ∅, (∅ ∪ ∅) = (A ∖ A)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

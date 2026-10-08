@@ -1044,8 +1044,8 @@ class Parser:
             # $ is bound for an empty production, whose span is empty at j.
             # Its tag term runs only where a condition reads $'s tags (engine
             # §4).
-            whole = (j, j, lazy_tag(production, NO_CAPS, j, j)) if not production.rhs else None
             structure = completed_structure(production, 0, 0)
+            whole = (j, j, lazy_tag(production, NO_CAPS, j, j, structure)) if not production.rhs else None
             bound = evaluator.bind(production, NO_CAPS, whole, structure)
             for condition in production.conds_predict:
                 if not (yield evaluator.walk_condition(condition, bound)):

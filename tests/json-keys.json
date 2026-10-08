@@ -630,6 +630,54 @@
       "find": "\"g.md\":",
       "replace": "\"\\u0064om\":",
       "cached": true
+    },
+    {
+      "description": "A malformed pattern separator makes the compiled document a cache miss: None.",
+      "find": "\"constants\":[]",
+      "replace": "\"constants\":[{\"name\":\"P\",\"op\":\"define\",\"at\":[1,1],\"value\":{\"pattern\":{\"children\":{\"repeat\":{\"node\":{\"terminal\":\"A\",\"at\":[1,1]}},\"separator\":null}}}}]",
+      "cached": false
+    },
+    {
+      "description": "A malformed pattern separator makes the compiled document a cache miss: ''.",
+      "find": "\"constants\":[]",
+      "replace": "\"constants\":[{\"name\":\"P\",\"op\":\"define\",\"at\":[1,1],\"value\":{\"pattern\":{\"children\":{\"repeat\":{\"node\":{\"terminal\":\"A\",\"at\":[1,1]}},\"separator\":\"\"}}}}]",
+      "cached": false
+    },
+    {
+      "description": "A cached rule tag term reads whole-candidate structure with ≅.",
+      "find": "\"conditions\":[]",
+      "replace": "\"conditions\":[],\"tags\":{\"if\":{\"all\":[{\"op\":\"≅\",\"left\":{\"capture\":\"\"},\"right\":{\"pattern\":{\"name\":\"text\",\"at\":[1,1]}}},{\"op\":\"≇\",\"left\":{\"capture\":\"\"},\"right\":{\"pattern\":{\"name\":\"absent\",\"at\":[1,1]}}}]},\"then\":{\"tag\":\"X\"}}",
+      "cached": true,
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "description": "A cached rule tag term reads whole-candidate structure with ≇.",
+      "find": "\"conditions\":[]",
+      "replace": "\"conditions\":[],\"tags\":{\"if\":{\"all\":[{\"op\":\"≇\",\"left\":{\"capture\":\"\"},\"right\":{\"pattern\":{\"name\":\"other\",\"at\":[1,1]}}},{\"op\":\"≇\",\"left\":{\"capture\":\"\"},\"right\":{\"pattern\":{\"name\":\"absent\",\"at\":[1,1]}}}]},\"then\":{\"tag\":\"X\"}}",
+      "cached": true,
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "description": "A cached alternative tag term reads whole-candidate structure with ≅.",
+      "find": "\"guards\":[]",
+      "replace": "\"guards\":[],\"tags\":{\"if\":{\"all\":[{\"op\":\"≅\",\"left\":{\"capture\":\"\"},\"right\":{\"pattern\":{\"name\":\"text\",\"at\":[1,1]}}},{\"op\":\"≇\",\"left\":{\"capture\":\"\"},\"right\":{\"pattern\":{\"name\":\"absent\",\"at\":[1,1]}}}]},\"then\":{\"tag\":\"X\"}}",
+      "cached": true,
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "description": "A cached alternative tag term reads whole-candidate structure with ≇.",
+      "find": "\"guards\":[]",
+      "replace": "\"guards\":[],\"tags\":{\"if\":{\"all\":[{\"op\":\"≇\",\"left\":{\"capture\":\"\"},\"right\":{\"pattern\":{\"name\":\"other\",\"at\":[1,1]}}},{\"op\":\"≇\",\"left\":{\"capture\":\"\"},\"right\":{\"pattern\":{\"name\":\"absent\",\"at\":[1,1]}}}]},\"then\":{\"tag\":\"X\"}}",
+      "cached": true,
+      "tags": [
+        "X"
+      ]
     }
   ],
   "grammar": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'\n```\n",

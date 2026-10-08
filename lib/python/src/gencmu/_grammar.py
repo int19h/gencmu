@@ -350,7 +350,7 @@ class _Constants:
             self.values = {}
             for reference, (target, _) in zip(constants_in(version["value"]), version["dependencies"]):
                 self.values[reference["const"]] = target["result"]
-            value = {"pattern":empty_pattern()} if kind == "pattern" and "emptySet" in version["value"] else run(self._closed(version["path"], version["value"], version["at"]))
+            value = run(self._closed(version["path"], version["value"], version["at"], kind))
             version["result"] = _Constant(value, kind, version["path"])
         self.values = {name:version["result"] for name, version in self.latest.items()}
 
@@ -390,18 +390,18 @@ class _Constants:
             result["value"] = {"string":value} if isinstance(value, str) else {"set":value}
         return result
 
-    def _closed(self, path: str, term: Dom, item: Any) -> Walk:
+    def _closed(self, path: str, term: Dom, item: Any, expected: str = "any") -> Walk:
         """The value of a closed term, with the constants' values now
         (engine §2, §10). An empty delimiter or a tag's string that is not a
         name comes from a constant here, since the reader refuses a literal
         one, and the error stands at that constant."""
         if "pattern" in term:
             return {"pattern":(yield self._closed_pattern(path, term["pattern"], item))}
-        if self._is_pattern(term) and any(key in term for key in ("union", "intersection", "difference")):
+        if (expected == "pattern" or self._is_pattern(term)) and any(key in term for key in ("union", "intersection", "difference")):
             key = next(key for key in ("union", "intersection", "difference") if key in term)
             patterns = []
             for part in term[key]:
-                value = yield self._closed(path, part, item)
+                value = yield self._closed(path, part, item, "pattern")
                 patterns.append(value["pattern"] if isinstance(value, dict) else empty_pattern())
             return {"pattern":{key:patterns}}
         if "string" in term:
@@ -411,7 +411,7 @@ class _Constants:
         if "range" in term:
             return range_tags(term["range"], self.unicode)
         if "emptySet" in term:
-            return EMPTY
+            return {"pattern":empty_pattern()} if expected == "pattern" else EMPTY
         if "const" in term:
             return self.values[term["const"]].value
         if "union" in term:
@@ -536,8 +536,8 @@ class _Constants:
         if isinstance(node.get("const"), str):
             constant = self.values[node["const"]]
             return constant.value if constant.type == "pattern" else {"const": node["const"], "at": node["at"], "value": constant.value}
-        if node.get("op") in ("≅", "≇") and node["right"].get("emptySet"):
-            return {**node, "right":{"pattern":empty_pattern()}}
+        if node.get("op") in ("≅", "≇"):
+            return {**node, "right":(yield self._closed("", node["right"], None, "pattern"))}
         copy: dict[str, Any] = {}
         for key, value in node.items():
             copy[key] = yield self.with_values(value)
@@ -572,8 +572,8 @@ class _Constants:
             elif isinstance(node.get("const"), str):
                 constant = self.values[node["const"]]
                 copy = constant.value if constant.type == "pattern" else {"const": node["const"], "at": node["at"], "value": constant.value}
-            elif node.get("op") in ("≅", "≇") and node["right"].get("emptySet"):
-                copy = {**node, "right":{"pattern":empty_pattern()}}
+            elif node.get("op") in ("≅", "≇"):
+                copy = {**node, "right":(yield self._closed("", node["right"], None, "pattern"))}
             else:
                 values: dict[str, Any] = {}
                 for key, value in node.items():

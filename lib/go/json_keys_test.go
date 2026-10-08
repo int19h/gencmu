@@ -29,11 +29,12 @@ func TestSharedJSONKeys(t *testing.T) {
 			Loads       bool   `json:"loads"`
 		} `json:"bootstrap"`
 		Compiled []struct {
-			Description string `json:"description"`
-			Find        string `json:"find"`
-			Replace     string `json:"replace"`
-			Cached      bool   `json:"cached"`
-			Document    string `json:"document"`
+			Description string   `json:"description"`
+			Find        string   `json:"find"`
+			Replace     string   `json:"replace"`
+			Cached      bool     `json:"cached"`
+			Document    string   `json:"document"`
+			Tags        []string `json:"tags"`
 		} `json:"compiled"`
 		Grammar string `json:"grammar"`
 		Cache   string `json:"cache"`
@@ -110,6 +111,9 @@ func TestSharedJSONKeys(t *testing.T) {
 			}
 			if a.OK == item.Cached || b.OK != item.Cached {
 				t.Fatalf("cached=%v: a=%v b=%v", item.Cached, a.OK, b.OK)
+			}
+			if item.Tags != nil && !equalJSON(b.Tree.Tags, item.Tags) {
+				t.Fatalf("tags: got %v, want %v", b.Tree.Tags, item.Tags)
 			}
 		})
 	}

@@ -191,11 +191,7 @@ func (g *stageGrammar) bindConstants() *Error {
 		}
 		var value *constValue
 		var err *Error
-		if ty == tyPattern && k.Value.Kind == tmEmptySet {
-			value = &constValue{ty: tyPattern, pattern: emptyPattern()}
-		} else {
-			value, err = g.evaluateClosed(v.doc, k.Value, k.At)
-		}
+		value, err = g.evaluateClosed(v.doc, k.Value, k.At, ty)
 		if err != nil {
 			return err
 		}
@@ -214,7 +210,7 @@ func (g *stageGrammar) bindConstants() *Error {
 // now (engine §2, §10). An empty delimiter or a tag's string that is not a
 // name comes from a constant here, since the reader refuses a literal one,
 // and the error stands at that constant.
-func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int) (*constValue, *Error) {
+func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expected ...termType) (*constValue, *Error) {
 	set := func(part *domTerm) (*tagset, *Error) {
 		v, err := g.evaluateClosed(doc, part, item)
 		if err != nil {
@@ -241,16 +237,19 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int) (*con
 	case tmRange:
 		return &constValue{ty: tyTags, names: in.fromList(rangeTags(t.Range, g.uni.isMark)).names}, nil
 	case tmEmptySet:
+		if len(expected) > 0 && expected[0] == tyPattern {
+			return &constValue{ty: tyPattern, pattern: emptyPattern()}, nil
+		}
 		return &constValue{ty: tySet}, nil
 	case tmConst:
 		v := *g.constants[t.Str].value
 		return &v, nil
 	case tmUnion, tmIntersection, tmDifference:
 		ty, _ := termTypeIn(t, g.constantTypes())
-		if ty == tyPattern {
+		if ty == tyPattern || len(expected) > 0 && expected[0] == tyPattern {
 			var patterns []*domPattern
 			for _, it := range t.Items {
-				v, err := g.evaluateClosed(doc, it, item)
+				v, err := g.evaluateClosed(doc, it, item, tyPattern)
 				if err != nil {
 					return nil, err
 				}
@@ -575,8 +574,8 @@ func (r *resolver) cond(c *domCond) *domCond {
 		w.clauseSteps.add("clause steps")
 	}
 	left, right, span := r.term(c.Left), r.term(c.Right), r.term(c.Span)
-	if (c.Op == "≅" || c.Op == "≇") && right.Kind == tmEmptySet {
-		right = &domTerm{Kind: tmPattern, Pattern: emptyPattern()}
+	if (c.Op == "≅" || c.Op == "≇") && right.Kind != tmPattern {
+		right = &domTerm{Kind: tmPattern, Pattern: r.patternValue(c.Right)}
 	}
 	inner := r.cond(c.Inner)
 	items := c.Items

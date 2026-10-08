@@ -1,0 +1,22 @@
+{
+  "description": "A lazy tag read uses the completed candidate structure.",
+  "grammar": "%rule text A <($ ≅ @(text)) ⟹ X>\n%conditions tags($) = X",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "tags": [
+          "X"
+        ]
+      }
+    }
+  }
+}

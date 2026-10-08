@@ -562,12 +562,12 @@ func (r *recognizer) predictable(p *production, k int) (bool, *nestedQuery) {
 		}
 		var caps itemCaps
 		var tags *lazyTags
-		if len(p.rhs) == 0 {
-			// The tag term runs only where a condition reads $'s tags (§4).
-			tags = r.lazyTags(p, caps, int32(k), int32(k))
-		}
 		key := itemKey{prod: p}
 		r.finishStructure(&key)
+		if len(p.rhs) == 0 {
+			// The tag term runs only where a condition reads $'s tags (§4).
+			tags = r.lazyTags(p, caps, int32(k), int32(k), key.structure)
+		}
 		r.ev = r.run.evaluator(r.g, r.captureFunc(p, caps, int32(k), int32(k), tags, key.structure))
 		r.pending, r.condAt = true, 0
 		countCondition()
@@ -758,7 +758,7 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 	case p.tags != nil:
 		if !r.pending {
 			r.pending = true
-			r.w.term(r.run.evaluator(r.g, r.captureFunc(p, r.caps(&it.itemKey), it.origin, int32(k), nil)), p.tags)
+			r.w.term(r.run.evaluator(r.g, r.captureFunc(p, r.caps(&it.itemKey), it.origin, int32(k), nil, it.structure)), p.tags)
 		}
 		if q := r.w.resume(); q != nil {
 			return q
@@ -856,7 +856,7 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 			// condition reads them (§4).
 			caps := r.caps(&key)
 			if c.whole && whole == nil {
-				whole = r.lazyTags(p, caps, key.origin, int32(k))
+				whole = r.lazyTags(p, caps, key.origin, int32(k), key.structure)
 			}
 			r.w.cond(r.run.evaluator(r.g, r.captureFunc(p, caps, key.origin, int32(k), whole, key.structure)), c.cond)
 		}
@@ -945,8 +945,8 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 
 // lazyTags is the constituent tags of a completing item, which the walk
 // that first reads them computes, and the same set after that (§4).
-func (r *recognizer) lazyTags(p *production, caps itemCaps, origin, end int32) *lazyTags {
-	return &lazyTags{r: r, p: p, caps: caps, origin: origin, end: end}
+func (r *recognizer) lazyTags(p *production, caps itemCaps, origin, end int32, structure int) *lazyTags {
+	return &lazyTags{r: r, p: p, caps: caps, origin: origin, end: end, structure: structure}
 }
 
 // accepted lists the completed start-rule constituents over the whole input.

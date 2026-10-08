@@ -524,9 +524,31 @@ impl Constants<'_> {
                 let (child, at) = edges[*id][*next];
                 *next += 1;
                 if colors[child] == 1 {
+                    let closing = *id;
+                    let start = stack.iter().position(|(id, _)| *id == child).expect("an active dependency");
+                    let cycle: Vec<_> =
+                        stack[start..].iter().map(|(id, _)| *id).chain(std::iter::once(child)).collect();
+                    let ambiguous = cycle.iter().any(|id| {
+                        self.versions.iter().filter(|v| v.definition.name == self.versions[*id].definition.name).count()
+                            > 1
+                    });
+                    let path = cycle
+                        .iter()
+                        .map(|id| {
+                            let version = &self.versions[*id];
+                            let name = &version.definition.name;
+                            if ambiguous {
+                                let (line, column) = version.definition.at;
+                                format!("${name} [{}:{line}:{column}]", version.document)
+                            } else {
+                                format!("${name}")
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" → ");
                     return Err(located(
-                        format!("constant cycle through ${}", self.versions[child].definition.name),
-                        &self.versions[*id].document,
+                        format!("constant dependency cycle: {path}"),
+                        &self.versions[closing].document,
                         at,
                     ));
                 }

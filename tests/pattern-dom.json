@@ -1207,5 +1207,41 @@
       "maximal": true
     },
     "malformed": false
+  },
+  {
+    "description": "A pattern separator must be a children expression: None.",
+    "pattern": {
+      "children": {
+        "repeat": {
+          "node": {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
+          }
+        },
+        "separator": null
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "A pattern separator must be a children expression: ''.",
+    "pattern": {
+      "children": {
+        "repeat": {
+          "node": {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
+          }
+        },
+        "separator": ""
+      }
+    },
+    "malformed": true
   }
 ]

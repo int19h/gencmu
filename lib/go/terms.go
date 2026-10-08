@@ -54,6 +54,7 @@ type lazyTags struct {
 	p           *production
 	caps        itemCaps
 	origin, end int32
+	structure   int
 	tags        *tagset
 }
 
@@ -254,7 +255,7 @@ func (w *walk) fillLazy(s spanVal) bool {
 	case p.tags != nil:
 		f := w.top()
 		f.c, f.t, f.lazy = nil, nil, lz
-		w.push(r.run.evaluator(r.g, r.captureFunc(p, lz.caps, lz.origin, lz.end, nil)), nil, p.tags)
+		w.push(r.run.evaluator(r.g, r.captureFunc(p, lz.caps, lz.origin, lz.end, nil, lz.structure)), nil, p.tags)
 		return true
 	case p.implicit:
 		lz.tags = r.run.ps.in.all[lz.caps.at(p.capSlot[0]).tags]

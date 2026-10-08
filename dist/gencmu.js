@@ -1476,7 +1476,7 @@
         } else if (exact(['optional'])) push(n.optional,true);
         else if (exact(['repeat']) || exact(['repeat','separator'])) {
           push(n.repeat,true,true);
-          if (n.separator) push(n.separator,true,true);
+          if ('separator' in n) push(n.separator,true,true);
           // Inspect after validating shapes, below.
         } else return 'a malformed pattern children expression';
       } else if (exact(['name','at']) || exact(['terminal','at']) || exact(['constant','at'])) {
@@ -2850,6 +2850,7 @@
         continue;
       }
       if ("matches" in current || "begins" in current || "initial" in current) continue;
+      if (current.op === "≅" || current.op === "≇") continue;
       const key = ["union", "intersection", "difference", "any", "all"].find((name) => Array.isArray(current[name]));
       if (key) for (const item of /** @type {unknown[]} */ (current[key])) stack.push(item);
       else for (const name of ["left", "right", "not", "if", "then"]) stack.push(current[name]);

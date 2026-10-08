@@ -2048,7 +2048,11 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
                 }
             },
             Part::Cond(cond) => match cond {
-                Cond::Compare(_, left, right) => stack.extend([Part::Term(left), Part::Term(right)]),
+                Cond::Compare(op, left, right) => {
+                    if !matches!(op.as_str(), "≅" | "≇") {
+                        stack.extend([Part::Term(left), Part::Term(right)]);
+                    }
+                }
                 Cond::Not(inner) => stack.push(Part::Cond(inner)),
                 Cond::Any(items) | Cond::All(items) => stack.extend(items.iter().map(Part::Cond)),
                 Cond::If(antecedent, consequent) => stack.extend([Part::Cond(antecedent), Part::Cond(consequent)]),
