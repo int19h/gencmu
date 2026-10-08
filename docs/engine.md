@@ -86,7 +86,7 @@ A rule flag gives a rule a preference. Only `leftmost-longest` is supported. `%r
 
 Parentheses follow the keyword and precede the name. Their only accepted content is `leftmost-longest`, with optional surrounding spaces. Empty parentheses, duplicates, unknown flags, arguments and parentheses on `%extend-rule` are errors of the document. Section 9 gives their priority and positions.
 
-The loader collects directives from all the stage's items. `%stage`, `%include` and `%features` shape the pipeline (§13) and do not belong to a stage. The other directive, `%ambiguity-resolution`, belongs to the stage.
+The loader collects directives from all the stage's items. `%stage`, `%include` and `%features` shape the pipeline (§13) and do not belong to a stage. `%ambiguity-resolution` and `%prefer` belong to the stage.
 
 A stage also has constants. A constant is a named value that terms and conditions use (§10). Its name is `$` and a name (§9) that begins with `A` to `Z`, such as `$SU-STOPS`. By convention, the whole name is in capitals.
 
@@ -135,6 +135,26 @@ A reference other than `#`, or a terminal, can carry one test on its own span, a
 - `X∩t=∅` and `X∩t≠∅`: The own tags of `X` include no tag of `t`, or they include one at least.
 
 The first two are sound tests, and the other four are tag tests. `s` is a closed term (§10) whose type is a string, and `t` is a closed term whose type is a tag set. The own tags of a terminal are the tags of its token. The own tags of a reference are the tags of its completed constituent (§4).
+
+### 2.1 Preference declarations and loading diagnostics
+
+`%prefer A > B` has exactly two rule names and one separator. Both rules must exist after stitching, and neither name can begin with a capital. The loader rejects self-preferences and directed declaration cycles. It reports the cycle's rules and declaration positions. Identical edges collapse into one edge, without declaration priority.
+
+After final name resolution, the loader counts written reference sites for every declared preference rule. A site identifies its enclosing rule, final alternative index and expression path. Captures, tests, optionals, repetitions and separators each retain their actual references. Explicit recursion counts, but generated recursion does not. All surviving alternatives count, including extensions, feature-gated alternatives and unreachable rules. Replaced alternatives, query arguments, pattern names, declarations and implicit root invocations do not count.
+
+Several sites produce one `prefer-multiple-references` warning per rule and stage. Sites sort by enclosing rule, alternative index and expression traversal order. Output defines their source locations and JSON Pointers. A JSON Pointer identifies a path through an object's members.
+
+The loader forms a conservative context-free skeleton from surviving bodies. It ignores guards, conditions and tests, and expands optionals and repetitions. Least fixed points determine nullability, productivity and the ability to derive a nonempty token sequence. Nullability means the ability to consume no tokens. Productivity means the ability to derive a finite token sequence.
+
+Projected nullability also treats every terminal declared elidable anywhere in the stage as zero-width. This includes compulsory prefixes that reconstruction can supply synthetically. For each production, a containment edge reaches a child rule when every other symbol can consume no original words. Each edge retains its source reference.
+
+For every graph-comparable preference pair, the loader tests containment in both directions. A nonempty containment path to a rule with a nonempty derivation produces a `prefer-same-span-containment` warning. Emit one warning per `(higher,lower,container,contained)` tuple. Select the shortest source-reference path, then reference-site order. Collapse generated helper steps into their original source-reference steps.
+
+Both warnings describe possibilities and never alter ranking or recognition. The bundled dialects require zero preference warnings. The loaded dialect exposes an ordered `loadWarnings` collection. Cached and uncached document loads recompute identical diagnostics from final stitched definitions.
+
+Publish warnings only after the whole dialect loads successfully. The CLI prints them to stderr once per load. Parsing and reconstruction do not repeat them.
+
+Warnings sort by stage order, kind and the name fields defined in output. Name comparisons use code point order. Loading diagnostics stay outside document DOMs, cache envelopes and parse warnings (§12).
 
 ## 3. Lowering
 
@@ -453,6 +473,8 @@ In the check of §7, `phonemes(span)` and `text(span)` read the projected span, 
 
 ## 6. Choosing a parse
 
+Section 6.1 defines ranking when the root forest contains a possible preference contest. The original ranker below applies unchanged when no such contest exists. Canonical order T remains independent of preference edges.
+
 A stage ranks the counted derivations of its input (§4). A flagged occurrence is a flagged rule's constituent. A flagged span is a flagged occurrence's span. A rule profile counts flagged occurrences over nonempty spans. `leftmost-longest` compares complete parses by nonempty flagged-span counts, with earlier starts first, longer spans next, and larger counts preferred at the first difference.
 
 All flagged rules contribute together, without priority by name, declaration order, production number, tags or source. Equal spans count separately, including nested occurrences. Each nonempty occurrence of a flagged rule counts, including each named chain level and each constituent with one symbol. Empty occurrences contribute nothing, and helpers carry no flags. The flag ranks before the stage directive.
@@ -596,6 +618,49 @@ Structural state forms part of each summary's item identity. Eligibility and sam
 
 For k independent Boolean observations, a product can contain up to `2^k` states. Sequence prefixes and captures add further factors. Finite sharing does not imply constant memory use. Measurements must record states, items, packed edges, summary contexts, elapsed time and peak memory. Use increasingly long lists, unary chains, nested omissions and independent ambiguous children.
 
+### 6.1 Complete-reading preferences
+
+The declaration graph points from each higher rule to its lower rival. A nonempty path defines strict reachability `A ≻ B`. The graph has no directed cycle (§2.1). Complete readings can nevertheless form a comparison cycle.
+
+First retain the globally greatest `leftmost-longest` profiles L. For each retained derivation D, form `P_D(rule,p,q)`, a multiset of named preference-rule occurrences. A multiset stores occurrence counts. Count each completed named occurrence over the nonempty stage-token interval `[p,q)`. Helpers and empty intervals contribute nothing. Equal source ranges and equal spellings do not establish equal token intervals.
+
+Compare two flag-best readings X and Y as follows:
+
+1. Cancel the smaller count at each identical `(rule,p,q)` coordinate from both multisets.
+2. Compare every residual rule on X with every residual rule on Y at each identical span.
+3. Record each direction supplied by graph reachability.
+4. If all recorded directions favor one reading, that reading wins.
+5. If both directions occur, the pair ties without stage fallback.
+6. If no direction occurs, apply the stage directive's existing comparison.
+
+One opposing contest suffices for a tie. Multiplicity affects cancellation, but repeated witnesses do not cast additional votes. No earlier, longer, deeper or first-declared contest takes priority. A source, middle rule or sink against an unrelated reading receives no automatic advantage.
+
+Build every strict edge among flag-best complete signatures. Any directed cycle produces `tie`, even when another reading beats every cycle member. A conflicting pair alone contributes no edge. Without a cycle, retain vertices with no incoming edge. One concrete surviving derivation wins. Several survivors give an ordinary tie.
+
+Count all eligible noncyclic derivations before ranking, capped at two, to distinguish `unique` from `resolved`.
+
+A signature is the complete information needed for pair comparison. For late elision, it contains `(L,P,E)`, with E the existing omission vector. Greedy and lazy signatures retain full visible action sequences beside L and P. Diagnostics also retain original production identities and transparent actions. Pattern normalization does not normalize ranking actions.
+
+Inspect the whole root-reachable forest before preference or elision pruning. Collect possible named occurrences and their nonempty spans. Conservative extra occurrences are safe. If no span contains two distinct comparable names, run the original ranker unchanged. A child cannot independently use this fast path when another part of the root forest contains a contest.
+
+Otherwise, retain every distinct lossless signature in each full item, eligibility and same-span cycle context. Preserve structural state, tags and captures. Keep `all` and `allowed` summaries distinct. Combine child signature sets by Cartesian product, the set of all child combinations. Add each edge's contributions.
+
+A completed named rule adds its occurrence. Prefix edges add no completion.
+
+Strictly worse L profiles can be removed within substitutable full states under the existing flag proof. Preference and elision never justify local pruning. Identical signatures can share packed witness edges and a concrete derivation count capped at two. Distinct tied signatures must remain distinct because their comparisons with a third signature can differ.
+
+For an identical admissible context C, adding its occurrence multiset to X and Y preserves their residual multisets after cancellation. L comparison also survives common addition. With no contest, late-elision comparison survives common addition too. This composition proof preserves pair directions, but does not justify local pruning under a nontransitive relation.
+
+At the root, retain globally best L signatures and compare every pair. Detect every cyclic component, including dominated components. Choose a deterministic simple cycle using canonical T order and depth-first traversal. Stop at the first edge to the active traversal stack. Rotate that cycle to its least T representative, without reversing it. Diagnostics report every cycle member and each strict edge's reason.
+
+For an acyclic tie, use the T-least surviving derivation and the surviving derivation that diverges earliest from it. Break equal divergence positions by T. Diagnostic ordering never resolves an incomparable pair. Two concrete derivations can share a signature and still prove a tie.
+
+Losslessness follows by induction over admissible edges. Every complete derivation contributes one retained product, and every retained product represents an admissible derivation in that context. Identical signatures compare identically against every other signature. A signature cycle therefore lifts to a concrete derivation cycle. Without a cycle, indegree-zero classes contain exactly the unbeaten derivations.
+
+Finite eligible forests terminate under existing cycle exclusion. Exponential time and memory remain accepted costs. With F forest edges, largest signature set S and K flag-best root signatures, binary products require `O(F S²)` combinations. Signature arithmetic adds its own size factor. Root ranking requires `O(K²)` pair comparisons and linear graph traversal. Resource exhaustion reports a resource failure, never an invented winner or tie.
+
+Measure forest size, summary contexts, retained signatures, largest signature sets, pair comparisons, elapsed time and peak memory. Compare fast-path results directly with the original ranker. Keep query recognition independent of every ranking change.
+
 ## 7. Elision-only
 
 ### 7.1 When the check runs
@@ -729,7 +794,9 @@ Cycles are found over spans of R, as §4 says. Two constituents of one rule whos
 
 Maximality does not apply to the derivations of R. A restoration reads a token, so the reconstruction has no elided terminator, and nothing for maximality to forbid. The queries of §7.6 keep their own policy.
 
-The check ranks R's derivations by rule profiles over projected spans `[π(a),π(b))` in O. Empty projected occurrences contribute nothing. Distinct occurrences with equal projected spans count separately. The stage's directive supplies no preference. Within an equal rule profile, diagnostics use no lean (§6). Elision vectors are all zero.
+The check ranks R's derivations by rule profiles over projected spans `[π(a),π(b))` in O. It then applies §6.1's relation to projected preference occurrences. Empty projected occurrences contribute nothing. Distinct occurrences with equal projected spans count separately. Cancel only after projection, because distinct R spans can coincide in O.
+
+The stage fallback has no lean. Elision vectors are all zero. The whole-forest fast path uses the entire projected reconstruction forest.
 
 A restoration's read of its synthetic token is a read action, and its close is the close of a helper, which is transparent. Section 7.10 selects the error's readings. The canonical keys never turn a tie into a pass. Derivations whose trees are equal over O are still distinct derivations.
 
@@ -785,18 +852,25 @@ The message is the same in every library. Section 7.10 gives witness loss priori
 
 ### 7.10 Readings
 
-If the check ends without an error of the grammar, it makes these decisions in order. With no flagged rule, a library can omit the membership test in step 1 because §7.8 proves that W(D) counts. It still reports a forest with no counted derivation as `elision-witness-lost`.
+If the check ends without an error of the grammar, it makes these decisions in order. Witness membership tests the actual concrete derivation. Equal signatures or projected trees do not establish membership.
 
 1. If W(D) is not a counted derivation, report `elision-witness-lost` (§7.9). A greatest rule profile below G_D proves this loss. A greater rule profile does not replace W(D).
-2. Otherwise, if the greatest rule profile exceeds G_D, report `ambiguous` with reason `elision-only` and `ok` false. The first reading is W(D). The second is the no-lean canonical first derivation with the greatest rule profile.
-3. Otherwise, if several derivations attain G_D, report the same ambiguity error. The readings are the no-lean canonical pair from that retained forest (§6).
-4. Otherwise, the check passes and preserves the main result.
+2. Rank all flag-best reconstruction readings by §6.1, with no-lean stage fallback.
+3. If any comparison cycle exists, report `ambiguous` with reason `elision-only` and the cycle certificate defined in output.
+4. If W(D) is the sole selected derivation, preserve the main result.
+5. Otherwise, report the existing two-reading `elision-only` ambiguity. Add `conflict` when the reported pair has opposing preference contests.
 
-A reading with a greater rule profile never replaces D. In either ambiguity outcome, each reading is a tree over O, and the error carries their action witness.
+A present defeated witness is not a lost witness. A cycle remains an error when W(D) is unbeaten outside that cycle. The restored witness preserves its original L and P by projection and multiset addition. Its presence does not prove that reconstruction selects it.
 
-In either ambiguity outcome, the result's `tree` is null. The stage keeps its verdict, output and warnings, since it accepted its input and chose its derivation. The error has no `token` or `source`. Section 7.9 gives the result fields for witness loss.
+For a cycle, select concrete canonical representatives in R and fix the rotated cycle order first. Initialize `readings` with remapped W(D) and `chosenReading: 0`. Append each fixed cycle representative unless it is exactly W(D). Assign indices by concrete derivation identity, then remap every cycle edge through those indices. Do not rotate again to start at the witness.
 
-In either ambiguity outcome, the two readings are two derivations of R, but they can be equal as trees over O. For example, one reading can restore an optional. The other reading can read the same synthetic token as a bare terminal, in a production with the same tree. So the error also has a witness, as a tie has (§6). It is the pair of actions at the first difference between the two derivations of R, visible if there is one, mapped to O:
+If W(D) lies outside the cycle, no edge touches index 0. Distinct R derivations can display equal trees.
+
+A competing reading never replaces D. Every reported reading is a tree over O. Ordinary ambiguities carry an action witness. Cycles carry their certificate instead.
+
+In every ambiguity outcome, the result's `tree` is null. The stage keeps its verdict, output and warnings, since it accepted its input and chose its derivation. The error has no `token` or `source`. Section 7.9 gives the result fields for witness loss.
+
+In a non-cycle ambiguity, the two readings are two derivations of R, but they can be equal as trees over O. For example, one reading can restore an optional. The other reading can read the same synthetic token as a bare terminal, in a production with the same tree. So the error also has a witness, as a tie has (§6). It is the pair of actions at the first difference between the two derivations of R, visible if there is one, mapped to O:
 
 - A read of an original token is a read of that token's index in O.
 - A read of a synthetic token is an `elided` action of its record's terminal at the record's position in O.
@@ -855,6 +929,7 @@ The notation's syntax grammar names its constituents so that the reader can read
 
 | rule | DOM |
 | --- | --- |
+| `prefer-directive` | a `prefer` directive with the names of its first two `reference` parts, in preferred-first order |
 | `directive` | a directive: name from its keyword without `%`, arguments in order. An `argument-word` gives its name, an `argument-string` the decoded string, and an `argument-tag` of `~name` the name |
 | `classifier` | a classifier: name from its `classifier-name`, a name. Entries from its `classifier-entry`s, in order |
 | `classifier-entry` | an entry: gates from its `guard`s, as an alternative reads them. Keys from its `classifier-key`s, each the decoded string, in order. Operator from its `classifier-operator`, `∈` or `∉`. Class from its `classifier-class`: the name, or the name after `~` |
@@ -903,9 +978,9 @@ The notation's syntax grammar names its constituents so that the reader can read
 
 A rule with any other name makes no node of the DOM. The reader reads its children in its place.
 
-The reader knows 80 rules of the syntax grammar, grouped here by what they read.
+The reader knows 81 rules of the syntax grammar, grouped here by what they read.
 
-For items, they are `directive`, `argument-word`, `argument-string`, `argument-tag`, `classifier`, `classifier-name`, `classifier-entry`, `classifier-key`, `classifier-operator`, `classifier-class`, `implication-declaration`, `constant-definition`, `constant-definer` and `constant-reference`. For definitions, they are `rule`, `definer`, `rule-flags`, `rule-flag`, `rule-name`, `body`, `alternative`, `guard` and `alternative-tags`. For expressions, they are `choice`, `conjunction`, `sequence`, `primary`, `repetition`, `reference`, `tag`, `character`, `phoneme`, `range`, `property`, `tested`, `test`, `test-operand`, `capture`, `group`, `optional` and `empty`. For clauses, they are `tags-clause`, `conditions-clause`, `emits-clause`, `opaque-clause`, `emit-item`, `emit-target`, `emit-tags`, `emit-before` and `emit-after`. For conditions, they are `implication`, `any-of`, `all-of`, `condition`, `comparison`, `comparator`, `tree-comparison`, `tree-comparator`, `negation`, `presence`, `call` and `argument`. For terms, they are `term`, `guarded-term`, `union`, `intersection`, `term-atom`, `string`, `name`, `empty-set` and `capture-reference`.
+For items, they are `directive`, `prefer-directive`, `argument-word`, `argument-string`, `argument-tag`, `classifier`, `classifier-name`, `classifier-entry`, `classifier-key`, `classifier-operator`, `classifier-class`, `implication-declaration`, `constant-definition`, `constant-definer` and `constant-reference`. For definitions, they are `rule`, `definer`, `rule-flags`, `rule-flag`, `rule-name`, `body`, `alternative`, `guard` and `alternative-tags`. For expressions, they are `choice`, `conjunction`, `sequence`, `primary`, `repetition`, `reference`, `tag`, `character`, `phoneme`, `range`, `property`, `tested`, `test`, `test-operand`, `capture`, `group`, `optional` and `empty`. For clauses, they are `tags-clause`, `conditions-clause`, `emits-clause`, `opaque-clause`, `emit-item`, `emit-target`, `emit-tags`, `emit-before` and `emit-after`. For conditions, they are `implication`, `any-of`, `all-of`, `condition`, `comparison`, `comparator`, `tree-comparison`, `tree-comparator`, `negation`, `presence`, `call` and `argument`. For terms, they are `term`, `guarded-term`, `union`, `intersection`, `term-atom`, `string`, `name`, `empty-set` and `capture-reference`.
 
 For patterns, they are `pattern-literal`, `pattern-union`, `pattern-intersection`, `pattern-sequence`, `pattern-item`, `pattern-atom`, `pattern-brackets`, `pattern-repeat` and `pattern-path`.
 
@@ -915,7 +990,8 @@ A node must have the parts that the reader reads from it. A node without one is 
 
 | rule | parts |
 | --- | --- |
-| the root | no part. Each known part is an item: a `directive`, a `rule`, a `constant-definition`, a `classifier` or an `implication-declaration`. Any other known part is an error |
+| the root | no part. Each known part is an item: a `directive`, a `prefer-directive`, a `rule`, a `constant-definition`, a `classifier` or an `implication-declaration`. Any other known part is an error |
+| `prefer-directive` | two `reference` parts, read in preferred-first order |
 | `directive` | a token, its keyword. Its operands are its `argument-word`, `argument-string` and `argument-tag` parts |
 | `argument-word`, `argument-string`, `classifier-name`, `classifier-key`, `classifier-operator`, `classifier-class`, `constant-definer`, `constant-reference`, `definer`, `rule-flag`, `rule-name`, `guard`, `reference`, `tag`, `character`, `phoneme`, `property`, `string`, `name`, `presence`, `capture-reference`, `comparator`, `call` | a token. For a `call`, it is the function's name, and the `argument` parts are its arguments |
 | `argument-tag`, `emit-target` | a first part that is a token, a `range` or a `property` |
@@ -1052,7 +1128,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A capture other than `$` named twice in one emission, as an item or as an attachment, is an error. So an attachment capture is never an item of its own.
 - A rule's or an alternative's tag term that reads the tags that it defines is an error: `tags($)` or `classes($)` in it. `tags(head($))` and the like read the tokens' tags, not the constituent's, and are allowed, as is `tags($, R)`.
 - An unknown directive or keyword is an error. The syntax grammar already refuses it.
-- A directive with the wrong operands is an error, reported at the directive. `%stage` takes one name, `%include` one string, and `%features` one or more names. `%ambiguity-resolution` takes a ranking name and optionally `elision-only`. The retired operand `maximal` is an error. `%elidable` is no directive, and the syntax grammar refuses it as an unknown keyword.
+- A directive with the wrong operands is an error, reported at the directive. `%stage` takes one name, `%include` one string, and `%features` one or more names. `%prefer` takes two rule names separated by `>`. `%ambiguity-resolution` takes a ranking name and optionally `elision-only`. The retired operand `maximal` is an error. `%elidable` is no directive, and the syntax grammar refuses it as an unknown keyword.
 
 Once the reader reads a definition (§2), it makes sure that the whole definition meets its requirements. These checks are about the productions of the definition's alternatives, the expansions of §3.2 with the captures of §3.5. Gates do not matter here, so every alternative counts. Two expansions of one alternative that read the same captures in the same order are one case for these checks. So the reader can decide them over the distinct sequences of captures that the expansions read, without listing the expansions.
 
@@ -1086,8 +1162,8 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has a capture that the reader refuses. That is one that wraps anything but a symbol, or one inside a `repeat` or inside an elidable `optional`. It is also a name that some expansion of an alternative holds twice (above), or a name that is not all lower case.
 - It has an emission with a member other than `items`.
 - It has a guard of an alternative whose feature is not a name, or that has a member other than its feature, its kind and whether it is negated.
-- It has a directive whose name is not `ambiguity-resolution`, `stage`, `include` or `features`. So a directive named `elidable` is malformed.
-- It has an `ambiguity-resolution`, `stage`, `include` or `features` directive whose operands the reader refuses.
+- It has a directive whose name is not `ambiguity-resolution`, `prefer`, `stage`, `include` or `features`. So a directive named `elidable` is malformed.
+- It has an `ambiguity-resolution`, `prefer`, `stage`, `include` or `features` directive whose operands the reader refuses.
 - It has a `maximal` member on a directive. No directive has that member.
 - It has a test that the reader refuses. That is a test after anything but a reference other than `#` or a terminal, or an unknown comparator. It is also a value that is not a closed term of the right type. It is also a string that holds a comma or that the lowercase mapping of the canonical sound changes.
 - It has a `terminal`, a `tag` or an inserted tag that is not a tag in its canonical spelling (§1).
@@ -1265,6 +1341,8 @@ The attachment lists follow the order of the derivation and of the emission. Tha
 A stage whose verdict is `tie` emits nothing (§6), at whichever stage it is. This holds even where the tied derivations emit the same tokens. A tie is a property of the grammar, and the grammar is the place to settle it. The engine never emits one tied derivation in place of the others.
 
 ## 12. The tree
+
+Warnings in this section are parse warnings. Loading diagnostics belong to §2.1 and the loaded dialect API.
 
 The result's tree comes from the chosen derivation, and each reading of an `ambiguous` error comes from its own derivation (§6, §7). The engine builds a tree from a derivation as follows:
 

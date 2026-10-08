@@ -13,10 +13,10 @@ Libraries write object keys in the order that this document gives. They write no
 ### A parse result
 
 ```
-{"format":9,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
+{"format":10,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
 ```
 
-`format` is the version of the shape of the result, 9. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one warning (engine §12, §13).
+`format` is the version of the shape of the result, 10. Format 10 adds cycle and conflict certificates. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one parse warning (engine §12, §13).
 
 A stage has one of these forms:
 
@@ -25,7 +25,7 @@ A stage has one of these forms:
 {"name":"syntax","verdict":"tie","witness":[ACTION,ACTION]}
 ```
 
-`verdict` is `unique`, `resolved`, `tie`, or `null` for a stage that rejected. `witness` is present only for `tie`. It is the pair of actions at the first visible difference between the two readings of the tie (engine §6). The action of the first reading comes first.
+`verdict` is `unique`, `resolved`, `tie`, or `null` for a stage that rejected. `witness` is present only for an ordinary `tie`. A cycle tie omits it. It is the pair of actions at the first visible difference between the two readings of the tie (engine §6). The action of the first reading comes first.
 
 If there is no visible difference, it is the pair at their first difference. That is the first pair of differing actions of the whole sequences, transparent ones included. A derivation whose visible sequence is a proper prefix of the other's differs from it where the shorter ends.
 
@@ -87,7 +87,7 @@ An error has one of these forms:
 `kind` is one of these values:
 
 - `rejected`: The grammar of the stage does not accept its input.
-- `ambiguous` (engine §6, §7): The error has `stage`, `reason`, `"readings":[NODE,NODE]` and `message`, and no position. `message` is free, and the shared tests do not compare it. `reason` says which of two cases the error is:
+- `ambiguous` (engine §6, §7): The error has `stage`, `reason`, `readings` and `message`, and no position. Ordinary errors have two readings. Cycle errors use the certificate below. `message` is free, and the shared tests do not compare it. `reason` says which of two cases the error is:
   - `tie`: The ranking of the stage has two or more best derivations (engine §6). The stage's verdict is `tie`, and it has no output. The readings are the first and the second reading of the tie, over the stage's input as the stage read it. They are two derivations, but they can be equal as `NODE` values. The engine counts derivations. It merges neither those that differ only at transparent closes nor those with equal trees (engine §6). The stage's witness then names the actions where they differ.
   - `elision-only`: The stage chose one derivation, but its text stays ambiguous with its elided terminators written back (engine §7). The stage's verdict is `resolved`, and it keeps its output. The readings hold the written-back terminators as elided nodes (engine §7.10). One can be a restored optional's terminator. One can also be a terminator that a reading reads on the written route of an optional, or as a bare terminal. So the two readings can be equal as `NODE` values, as a tie's can. The error also has `"witness":[ACTION,ACTION]` after its readings. It holds the actions at the first difference between the two derivations, visible if there is one, mapped to the stage's input (engine §7.10). Over that input, the two actions can be equal too. The stage itself has no witness.
 - `grammar`: A grammar failed to load, or the parser found a defect while parsing. For a grammar that failed to load, the error has `document`, `line` and `column` where known. A tie in a stage of the notation dialect has the `document` and no `line` or `column` (engine §8).
@@ -108,6 +108,49 @@ A mistake of the caller is not a result. It is an error of kind `usage` (engine 
 
 The test uses notation operators and canonical output tags, with spaces only around `∪`. A string stands between double quotes, with a backslash before each `\` and `"` in it. A tag set is `∅`, or its one tag, or its tags joined by ` ∪ ` in parentheses. Its tags are in code point order, each in its canonical spelling (engine §1). A constant is written as its value. So `KOhA⊇(UI ∪ word)`, `KOhA∩'a'=∅` and `LE≠"lo"` are written forms.
 
+### Preference ambiguity certificates
+
+An ordinary tie retains its two readings and action witness. A cycle tie reports all readings in one simple directed cycle. Its stage has `verdict: "tie"`, no output and no pairwise `witness`. Its error retains `kind: "ambiguous"` and `reason: "tie"`, with this additional member:
+
+```json
+{"cycle":[
+  {"from":0,"to":1,"basis":"prefer","contests":[
+    {"span":[0,1],"higher":"a","lower":"b","path":["a","b"],"residualCounts":["1","1"]}
+  ]},
+  {"from":1,"to":2,"basis":"stage","directive":"late-elision","boundary":1,"counts":["0","1"]},
+  {"from":2,"to":0,"basis":"stage","directive":"late-elision","boundary":1,"counts":["1","2"]}
+]}
+```
+
+Indices refer to the error's `readings` array. Each edge is a strict win, and consecutive edges connect. The last edge returns to the first source, which need not be index 0. A cycle contains at least three distinct concrete derivations. Equal displayed trees do not establish derivation identity.
+
+A preference edge lists every distinct residual comparable rule pair and span that favors its source. `residualCounts` holds positive higher and lower multiplicities after cancellation. `path` follows actual declaration edges. Select the shortest path, then code point order. Sort contests by span start, span end, higher name and lower name. Display order gives no ranking priority.
+
+A late-elision edge reports the earliest differing boundary and source-first counts. The source count is smaller, earlier counts agree, and no residual preference contest exists. A greedy or lazy edge instead has `basis: "stage"`, its `directive` and `witness: [ACTION,ACTION]`. The decisive visible actions appear in source-first order. Either action can be null when its sequence ends. Cycle edges never use a flag reason because the graph contains only flag-best readings.
+
+All `residualCounts` and cycle edge `counts` use exact integers serialized as base-10 strings without leading zeros. Other indices and node fields retain their existing types.
+
+An acyclic two-reading tie adds `conflict: {"forward":[CONTEST...],"reverse":[CONTEST...]}` when its pair has opposing contests. `forward` favors reading 0, and `reverse` favors reading 1. Both arrays contain every distinct witness in that direction, in the contest order above. Equal-stage ties omit `conflict`.
+
+Canonical T order determines cycle representatives and traversal (engine §6.1). Rotate the selected directed cycle to its least T representative. This ordering selects diagnostics only.
+
+A reconstruction cycle retains `reason: "elision-only"`, the original `resolved` verdict and output, and the existing result-tree behavior. Its error has `chosenReading: 0`. Select and rotate the concrete cycle in R before constructing `readings`. Initialize that array with remapped W(D). Append each cycle representative unless it is exactly W(D), then remap all edge indices. Never rotate again to start at W(D).
+
+A witness outside the cycle remains index 0 without incident edges.
+
+For a fixed cycle `[C0,C1,C2]`, these are the required numbering cases:
+
+| Witness | Readings | Edges |
+| --- | --- | --- |
+| Outside | `[W,C0,C1,C2]` | `1→2`, `2→3`, `3→1` |
+| Exactly C0 | `[C0,C1,C2]` | `0→1`, `1→2`, `2→0` |
+| Exactly C1 | `[C1,C0,C2]` | `1→0`, `0→2`, `2→1` |
+| Exactly C2 | `[C2,C0,C1]` | `1→2`, `2→0`, `0→1` |
+
+Map reconstruction trees, spans, boundaries and action witnesses onto original input O. Preserve concrete R identities internally. Equal signatures do not identify W(D) with a selected representative. A non-cycle reconstruction error retains the existing two-reading contract and adds `conflict` only for an opposing pair.
+
+Libraries expose every cycle reading and edge. The text CLI prints every reading and directed reason. Shared fixtures reject malformed cycles and out-of-range reading indices.
+
 ### A grammar DOM
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
@@ -118,7 +161,7 @@ A grammar DOM (document object model) is the parsed form of a grammar document (
 
 `format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version. Format 21 adds pattern values and tree comparisons. It also permits all six tests on elidable terminators. Format 20 brought rule flags: `flags` on every rule definition, and the flag `leftmost-longest`. Format 18 brought braces and elidable optional markers.
 
-An unreleased format covers all its changes together. Format 21 covers every pattern change, including bootstrap and cache envelopes.
+An unreleased format covers all its changes together. Format 21 covers patterns and preference directives, including bootstrap and cache envelopes.
 
 A library skips cached DOMs with another format and rejects bootstraps with another format. The cache identity also includes the bootstrap hash (engine §8).
 
@@ -188,7 +231,7 @@ An implication is `{"if":TERM,"then":TERM,"at":[line,column]}`, for `%implies A 
 
 A classifier and an implication have no member but those shown.
 
-A directive is `{"name":"features","args":["cbm"],"at":[line,column]}`. The name is the keyword without `%`: `ambiguity-resolution`, `stage`, `include` or `features`. A directive of any other name is malformed, `elidable` included (engine §9). An argument is a name, or, for `include`, the decoded string: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
+A directive is `{"name":"features","args":["cbm"],"at":[line,column]}`. The name is the keyword without `%`: `ambiguity-resolution`, `prefer`, `stage`, `include` or `features`. A directive of any other name is malformed, `elidable` included (engine §9). An argument is a name, or, for `include`, the decoded string: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
 
 `ambiguity-resolution` takes a ranking name and optionally `elision-only`. The retired operand `maximal` in `args` is an error.
 
@@ -246,6 +289,40 @@ These operators require a bare capture on the left and a pattern term on the rig
 
 Structural states and omission predicates are derived engine state. They add no serialized members. An omitted leaf's singleton pattern tags derive from its terminal name. An elided output node retains `sound` only for equality, including explicit empty equality. Inequality and tag tests add no saved sound or synthetic-token fields.
 
+### Preference directives and loading diagnostics
+
+`%prefer me-sumti > me-mex` produces this ordinary directive object:
+
+```json
+{"name":"prefer","args":["me-sumti","me-mex"],"at":[1,1]}
+```
+
+The preferred name comes first. The reader requires `>` without storing it as an argument. The loader requires exactly two existing rules with names that are not capital-initial. Directives stitch with other stage directives. No top-level preference array exists.
+
+The loaded dialect exposes `loadWarnings`, separate from parse warnings. Libraries leave presentation to callers. The CLI writes warnings to stderr once per dialect load. Repeated parses do not emit them again. Cached and uncached loads recompute the same ordered collection.
+
+```json
+{"kind":"prefer-multiple-references","stage":"syntax","rule":"me-sumti","references":[
+  {"document":"syntax/experimental.md","at":[10,1],"rule":"caller-a","alternative":0,"path":"/seq/2"},
+  {"document":"syntax/experimental.md","at":[20,1],"rule":"caller-b","alternative":0,"path":"/expr"}
+],"message":"..."}
+```
+
+`document` and `at` identify the surviving source definition that supplied the alternative. `at` is that definition's position, not the reference token's position. `rule` names the final enclosing rule. `alternative` is its zero-based final alternative index. `path` is a JSON Pointer relative to that alternative's `expr`, ending at the referenced `ref` object. An empty pointer denotes a whole-expression reference.
+
+Captures and tests continue through `expr`. Traverse sequence and choice arrays in order, and repetition items before separators.
+
+```json
+{"kind":"prefer-same-span-containment","stage":"syntax","higher":"a","lower":"b",
+ "container":"a","contained":"b","references":[
+   {"document":"syntax/example.md","at":[10,1],"rule":"a","alternative":0,"path":""}
+ ],"message":"..."}
+```
+
+Containment references follow the source-reference path. Nullable siblings need no separate path entry. Select the shortest source-reference path, then reference-site order (engine §2.1). `message` is descriptive text and conformance fixtures do not compare it.
+
+Sort warnings by stage order and kind in code point order. Multiple-reference warnings then sort by rule name. Containment warnings sort by higher, lower, container and contained names. Site ordering follows engine §2.1. Loading diagnostics have no input span, chosen derivation or feature-warning guard. Keep them outside document DOMs, cached envelopes and parse-result warnings.
+
 ### Precompiled DOMs
 
 `grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":21,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
@@ -256,11 +333,15 @@ A precompiled DOM holds the document's constants, classifiers and implications a
 
 The renderings are for people. The CLI and the playground implement all three renderings. Every library implements brackets, and the corpus tests compare brackets. Every rendering shows a token by its label.
 
-A token node reads an input token of the last stage, and that token can have attachments (engine §11). Every rendering shows them with the token node. The readings of an `ambiguous` error read the same tokens as each other, so they show the same attachments.
+A token node reads an input token of the last stage, and that token can have attachments (engine §11). Every rendering shows them with the token node. All readings of an `ambiguous` error read the same tokens, so they show the same attachments.
 
 A hollow rule node, such as an empty slot for a free modifier, has no token and no elided node below it. No rendering shows a hollow rule node. Brackets drop it as an empty node, and the tree and the display JSON leave it out. But the tree and the display JSON always show the root. So the tree renders a hollow tree, such as that of the empty text, as the rule name of the root alone. The display JSON renders it as `{"text": []}`, and brackets render it as nothing.
 
 ### Brackets
+
+A named wrapper with several visible children adds a group. Empty children disappear, and one visible child collapses. Apply this after elided-marker visibility. Preference membership grants no rendering exemption. The experimental `gek-termset-body` groups its forethought body inside NUhI. Shared `me-unit` remains bracket-neutral.
+
+Wrapper normalization is an analysis technique, not public output behavior.
 
 Tree patterns do not change bracket grouping. The renderer applies the rules below after it decides whether to show elided terminators. Brackets write the tree of the final stage as nested groups:
 

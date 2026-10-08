@@ -646,6 +646,34 @@ A directive is a keyword and its operands. By convention each stands in a block 
 - No directive names the elidable terminators. Each elidable optional is marked in its place, as `[+KU]` or `[++TOI]` (see "Elided terminators"). `%elidable` is not a directive. A document that writes it is an error, which the reader reports at the keyword.
 - `%stage NAME`, `%include "PATH"` and `%features NAME…` build a pipeline, as the next section says.
 
+### Narrow preferences
+
+`%prefer A > B` declares that rule A precedes rule B in a same-span contest. Both names must denote rules in the final stitched stage. Terminal names, self-preferences and directed declaration cycles are errors. Duplicate edges collapse into one edge. A cycle diagnostic names its rules and declaration positions.
+
+```jbogenbau
+%rule me-sumti
+  sumti
+%rule me-mex
+  mex
+%prefer me-sumti > me-mex
+```
+
+A wrapper is an ordinary rule dedicated to one contested position. Dedicated names keep a preference local to its intended position. The engine permits other bodies and callers. Every declared name participates through graph reachability, including middle rules and sinks. A path from A through B to C compares A with C.
+
+The loader warns when a declared rule has several written reference sites. Each reference in a surviving alternative counts once, including captures, tests, separators, repetitions and explicit recursion. Mutually exclusive guards and unreachable rules still count. Replaced alternatives, generated references, query arguments and pattern names do not count.
+
+The loader also warns about possible same-span containment between comparable rivals. It ignores guards, conditions and tests for this conservative analysis. Nullable siblings and terminals that reconstruction can restore permit same-span paths. Containment can cancel the intended contest. Neither warning changes recognition or ranking. The loaded dialect exposes both warning kinds through `loadWarnings` (output, "Loading diagnostics").
+
+Preferences rank only complete eligible noncyclic readings after `leftmost-longest`. They change no tags, nullability, maximality or nested-query answers. A preferred prefix that cannot complete supplies no advantage.
+
+For each pair, cancel shared rule occurrences at each identical nonempty stage-token span. Keep multiplicities, the counts of repeated occurrences. Compare every residual comparable pair at every span. If all contests favor one reading, that reading wins. If contests favor both readings, the pair ties without the stage directive. If no contest remains, the stage directive decides.
+
+No span, rule name or declaration position takes priority in this comparison. Equal source ranges do not establish equal stage-token spans. Empty spans contribute nothing. Shared ancestors cancel, even when their descendants span the same words.
+
+The engine compares all flag-best complete readings. Any directed comparison cycle causes a tie, including a cycle beneath an otherwise unbeaten reading. The error reports one whole cycle and each edge's reason. Without a cycle, a sole unbeaten derivation wins. Several unbeaten derivations give an ordinary two-reading tie.
+
+Reconstruction uses the same relation over projected original spans. Its stage fallback has no lean. A present restored witness can lose or participate in a tie. Engine §6.1 and §7.10 define these outcomes.
+
 ## Pipelines
 
 A pipeline document, which is Markdown too, defines a dialect. Each stage is a heading, followed by the list of its documents. Prose then says what the stage receives, does and hands on. Three directives in `jbogenbau` blocks say what the pipeline is made of:
@@ -689,6 +717,8 @@ The first stage reads the text's characters. Each is a token with one tag, its c
 
 ## Ambiguity
 
+The stage fallback below applies only when cancellation leaves no preference contest. The narrow-preference section defines conflicting contests and global cycle handling.
+
 A grammar admits every parse that its rules allow. A span is the range between two input token boundaries. A flagged span is a flagged occurrence's span. A rule profile counts flagged occurrences over each nonempty span.
 
 `leftmost-longest` compares complete parses by nonempty flagged-span counts, with earlier starts first, longer spans next, and larger counts preferred at the first difference.
@@ -702,15 +732,15 @@ Compare two rule profiles as lists of spans:
 3. Compare the lists from the front.
 4. At the first different entry, prefer the earlier start, then the later end.
 5. After an equal prefix, prefer the longer list.
-6. If the lists are equal, use the stage directive.
+6. If the lists are equal, compare narrow preferences before stage fallback.
 
 Two nested flagged occurrences over one span contribute twice, so two such occurrences beat one. This document defines the flag's comparison, rather than POSIX subexpression semantics. For example, the flag pools occurrences across all flagged rules, counts nested and repeated occurrences, and ignores empty occurrences.
 
-A parse with a greater rule profile beats one with a lesser rule profile (engine §6). Among equal rule profiles, a parse beats another if the stage directive prefers it. A parse is best if no other parse beats it. The stage takes a sole best parse. If two or more parses are best, they are tied.
+A parse with a greater rule profile beats one with a lesser rule profile (engine §6). Among equal rule profiles, narrow preferences apply before stage fallback. A parse is best if no other parse beats it. Any comparison cycle gives a tie. Otherwise, the stage takes a sole best parse. Several best parses give an ordinary tie.
 
-The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every rule profile is zero, so the directive alone ranks. Flags do not rank `matches`, `begins` or `tags` queries, or change maximal terminators.
+The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every rule profile is zero. Narrow preferences still apply before the stage directive. Flags do not rank `matches`, `begins` or `tags` queries, or change maximal terminators.
 
-A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later stage runs. The error shows two of the tied parses. The stage shows the first point at which they differ, its witness.
+A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later stage runs. An ordinary error shows two tied parses and their action witness. A cycle error shows a whole cycle and each directed reason.
 
 The engine's canonical order (engine §6) orders the ambiguity diagnostics and selects the forbidden terminator that a maximality rejection reports. Among its keys are the numbers of the productions, which follow the order of a rule's alternatives. The canonical tie-break keys never turn a tie into an accepted reading.
 

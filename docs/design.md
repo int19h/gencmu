@@ -319,9 +319,11 @@ A document can be included in several stages, and an included document can hold 
 
 ## Ambiguity
 
-A grammar admits every parse that its rules allow. Rule flags compare rule profiles first (notation, "Ambiguity"). A parse with a greater rule profile beats one with a lesser rule profile (engine §6). Among equal rule profiles, a parse beats another if the stage directive prefers it. A parse is best if no other parse beats it.
+Narrow preferences compare complete readings after rule flags. The existing stage directive applies only when cancellation leaves no residual preference contest. Any comparison cycle gives a tie, including a cycle beneath an unbeaten reading. Engine §6.1 defines the relation and exact forest strategy.
 
-A text with one parse has the verdict `unique`. If a text has several parses and exactly one is best, the stage chooses it, and the verdict is `resolved`. If two or more are best, the verdict is `tie`.
+A grammar admits every parse that its rules allow. Rule flags compare rule profiles first (notation, "Ambiguity"). A parse with a greater rule profile beats one with a lesser rule profile (engine §6). Among equal rule profiles, narrow preferences apply before stage fallback. A parse is best if no other parse beats it.
+
+A text with one parse has the verdict `unique`. If a text has several parses and exactly one is best, the stage chooses it, and the verdict is `resolved`. Several best parses or any comparison cycle give `tie`.
 
 `greedy` and `lazy` treat each parse as the sequence of actions that a bottom-up reader takes. An action reads the next token or closes a constituent. Visible actions exclude closes of helpers and productions with one symbol. The stage compares parses with the greatest rule profile at their first differing visible action:
 
@@ -375,9 +377,9 @@ CLL's own rule is narrower. It says only that a terminator can be elided if no a
 
 1. Take the `elided` nodes of the chosen tree in the order of its leaves, left to right. This order follows the chosen derivation, also where several nodes stand at one point. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries the tag of that terminator and, for a terminator with an `=` test, the test's string as its sound. The engine marks it synthetic.
 2. Parse the new token sequence with the same grammar, in a mode where each elidable optional is restored or written. Every condition, tag and test of a rule reads the original input through a projection that leaves the synthetic tokens out. A test on a terminal reads the written-back terminator's tag and sound. A query parses the original input with the grammar as it is.
-3. Decide as engine §7.10 lists, in order. If the chosen parse has no derivation in that forest, the library has a defect, the error `elision-witness-lost`. Otherwise, a derivation with a greater rule profile, or another derivation with an equal one, makes the text ambiguous. Otherwise the check passes.
+3. Decide as engine §7.10 lists, in order. If the chosen parse has no derivation in that forest, the library has a defect, the error `elision-witness-lost`. Rank complete reconstructed readings under the same preferences, with no-lean stage fallback. The test passes only when the restored witness is the sole selected derivation and no comparison cycle exists.
 
-   The ambiguity is then not about terminators. The result is an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries the two readings that engine §7.10 names, shown over the original input.
+   The ambiguity is then not about terminators. The result is an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries the readings that engine §7.10 names, shown over the original input. A cycle error includes its complete directed certificate.
 
 The stage ranks, then emits, and then runs the check. A tie ends the stage before emission and before the check. So a stage reports at most one `ambiguous` error, and a tie comes first. A stage that fails the check keeps its output, but no later stage runs.
 
@@ -772,3 +774,17 @@ The conditions on `number` and `lerfu-string` test the completed run once, where
 The Rust corpus comparison gives bpfk 54 new acceptances under the shared elision policy. The cll-ebnf dialect already accepts 52 of those texts. Two texts hold digits that its word forms reject at the words stage. Both dialects accept example 8.48 without `ku'o`, despite the requirement in CLL 8.6. The maintainer approves that policy as an interpretation of CLL 1.1 section 21.2 note 10. The number and letter boundaries separately follow CLL 17.9 and 18.6.
 
 The comparison changes 512 results among 29,725 existing cases. In cll-ebnf, 26 texts now reject, one tree changes, and 394 verdicts change from `resolved` to `unique`. In bpfk, 23 rejection positions move, and 14 verdicts change from `unique` to `resolved`, alongside the 54 new acceptances. No experimental or Zantufa result changes.
+
+## Narrow preference design
+
+`%prefer A > B` declares a directed relation between named rules at a contested position. Dedicated ordinary wrappers make that position readable. The loader rejects declaration cycles and warns about multiple construction sites or possible same-span rival containment. These warnings expose authoring risks without changing recognition. Every bundled dialect must load without either warning.
+
+Ranking first retains the greatest `leftmost-longest` profile. It cancels shared named occurrences before comparing every residual comparable pair over identical nonempty stage-token spans. Agreement gives a strict win. Opposing directions give a tie. No contest leaves the existing stage directive to decide.
+
+Every flag-best reading participates in cycle detection, including globally losing readings. Output format 10 reports a whole concrete cycle and each strict edge's reason.
+
+The whole-forest fast path runs the existing ranker when no comparable pair shares a span. The exact slow path retains every distinct complete signature until root comparison. Late elision retains `(L,P,E)`. Greedy and lazy also retain complete visible actions and original identities for diagnostics. Local preference pruning and local elision pruning can hide required cycles. Exponential time and memory remain accepted costs.
+
+Reconstruction preserves concrete witness membership independently of ranking. It projects occurrence multisets onto original spans before cancellation and uses no-lean stage fallback. A present witness can lose or coexist with a dominated cycle. Such outcomes report `elision-only`, while an absent witness remains `elision-witness-lost`. Engine §7.10 defines concrete cycle numbering.
+
+Experimental preferences cover NUhI bodies and shared ME operands. Zantufa preferences cover fragments, ME, MOI scope, MAhO and MOhE. Named wrappers follow the ordinary bracket rules. The forethought `gek-termset-body` adds its intended visible group. Input-lookahead changes and grouped-content migration remain outside this work.
