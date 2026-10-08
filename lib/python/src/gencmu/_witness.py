@@ -107,6 +107,7 @@ def walk_witness(run: _testing.CheckRun) -> Walk | None:
     # Record exact items for each rule node and matched edges for each item.
     found: dict[int, set[int]] = {}
     marks: dict[int, set[int]] = {}
+    steps = {}
 
     def mark(item: int, index: int) -> None:
         marks.setdefault(item, set()).add(index)
@@ -114,6 +115,7 @@ def walk_witness(run: _testing.CheckRun) -> Walk | None:
     for node in order:
         if isinstance(node, DRead):
             continue
+        steps[id(node)] = {}
         start, end = spans[id(node)]
         production = node.production.id
         if is_elided(node):
@@ -137,6 +139,7 @@ def walk_witness(run: _testing.CheckRun) -> Walk | None:
                     else:
                         matched = kind == 2 and a in found[id(child)]
                     if matched:
+                        steps[id(node)].setdefault(item, edge)
                         following.add(item)
                         mark(item, number)
             current = following
@@ -144,6 +147,17 @@ def walk_witness(run: _testing.CheckRun) -> Walk | None:
     top = found[id(run.chosen)]
     if not any(root in top for root in forest.roots):
         return None
+    # Bind the exact child states of one coherent restored derivation.
+    bound = {}
+    pending = [(run.chosen, next(root for root in forest.roots if root in top))]
+    while pending:
+        node, item = pending.pop()
+        bound[id(node)] = item
+        for child in reversed(node.children):
+            pred, kind, a, b = steps[id(node)][item]
+            if isinstance(child, DNode):
+                pending.append((child, a))
+            item = pred
     # Build the witness's actions after visiting each node's children.
     # Use reconstruction tokens and the spans of matched items.
     # Each restoration reads its synthetic token and closes over it.
@@ -157,6 +171,6 @@ def walk_witness(run: _testing.CheckRun) -> Walk | None:
         production = node.production
         if is_elided(node):
             sequence.append(Act(True, token=start, terminal=production.elided or ""))
-        item = min(found[id(node)])
+        item = bound[id(node)]
         sequence.append(Act(False, item=item, production=production.id, start=start, end=end, visible=not production.transparent))
     return Walk(marks, sequence)

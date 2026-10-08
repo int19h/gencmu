@@ -15,6 +15,7 @@ import inspect
 import json
 import linecache
 import os
+import re
 from pathlib import Path
 import re
 import signal
@@ -887,9 +888,65 @@ def result_problems(value: dict[str, Any]) -> list[str]:
             or error.get("reason") != "tie"
             or error.get("stage") != stage["name"]
             or not isinstance(error.get("readings"), list)
-            or len(error["readings"]) != 2
+            or ("cycle" not in error and len(error["readings"]) != 2)
         ):
             problems.append(f"the tied stage {stage['name']} lacks its error of kind ambiguous, reason tie and two readings")
+    if isinstance(error, dict) and "cycle" in error:
+        problems.extend(cycle_problems(error, stages))
+    return problems
+
+
+def cycle_problems(error, stages):
+    problems = []
+    readings, cycle = error.get("readings"), error.get("cycle")
+    if not isinstance(readings, list) or len(readings) < 3:
+        problems.append("a cycle needs at least three readings")
+    if not isinstance(cycle, list) or len(cycle) < 3:
+        problems.append("a cycle needs at least three edges")
+    else:
+        vertices = set()
+        def natural(x): return type(x) is int and x >= 0
+        for i, edge in enumerate(cycle):
+            if not isinstance(edge, dict):
+                problems.append("a cycle edge is not an object")
+                continue
+            source, target = edge.get("from"), edge.get("to")
+            if not natural(source) or not natural(target) or source >= len(readings or []) or target >= len(readings or []):
+                problems.append("a cycle index is out of range")
+            next_edge = cycle[(i + 1) % len(cycle)]
+            if not isinstance(next_edge, dict) or target != next_edge.get("from"):
+                problems.append("cycle edges do not connect")
+            if source in vertices: problems.append("a cycle repeats a vertex")
+            vertices.add(source)
+            if edge.get("basis") == "prefer":
+                if not isinstance(edge.get("contests"), list) or not edge["contests"]:
+                    problems.append("a preference edge lacks contests")
+            elif edge.get("basis") == "stage":
+                directive = edge.get("directive")
+                if directive == "late-elision":
+                    if not natural(edge.get("boundary")) or not isinstance(edge.get("counts"), list) or len(edge["counts"]) != 2:
+                        problems.append("a late-elision edge lacks its boundary or counts")
+                elif directive in ("greedy", "lazy"):
+                    if not isinstance(edge.get("witness"), list) or len(edge["witness"]) != 2:
+                        problems.append("a stage edge lacks its action pair")
+                else: problems.append("a stage edge lacks its directive")
+            else: problems.append("a cycle edge lacks its reason")
+            for count in edge.get("counts", []):
+                if not isinstance(count, str) or re.fullmatch(r"0|[1-9][0-9]*", count) is None:
+                    problems.append("a cycle count is not an exact integer string")
+            for contest in edge.get("contests", []):
+                span, path, counts = contest.get("span"), contest.get("path"), contest.get("residualCounts")
+                if (not isinstance(span, list) or len(span) != 2 or not all(natural(p) for p in span) or span[0] >= span[1]
+                    or not isinstance(path, list) or len(path) < 2 or path[0] != contest.get("higher") or path[-1] != contest.get("lower")
+                    or not isinstance(counts, list) or len(counts) != 2):
+                    problems.append("a preference contest is malformed")
+                for count in counts or []:
+                    if not isinstance(count, str) or re.fullmatch(r"[1-9][0-9]*", count) is None:
+                        problems.append("a residual count is not a positive integer string")
+    if "witness" in error or any("witness" in stage for stage in stages):
+        problems.append("a cycle has a pairwise witness")
+    if error.get("reason") == "elision-only" and error.get("chosenReading") != 0:
+        problems.append("a reconstruction cycle lacks its chosen reading index")
     return problems
 
 
@@ -977,7 +1034,16 @@ def load_case_dialect(case: dict[str, Any], use_cache: bool = True) -> tuple[gen
     """An engine case's loaded dialect, or the error of its load."""
     sources, pipeline = case_sources(case)
     try:
-        return gencmu.load_dialect_sources(sources, pipeline, use_cache=use_cache), None
+        dialect = gencmu.load_dialect_sources(sources, pipeline, use_cache=use_cache)
+        if "loadWarnings" in case.get("expect", {}):
+            warnings = dialect.load_warnings
+            if "grammar" in case:
+                for warning in warnings:
+                    for reference in warning["references"]:
+                        reference["document"] = "case/" + reference["document"]
+            problem = mismatch(case["expect"]["loadWarnings"], warnings, "loadWarnings")
+            if problem is not None: raise AssertionError(problem)
+        return dialect, None
     except gencmu.GencmuError as error:
         return None, error
 

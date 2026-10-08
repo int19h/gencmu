@@ -4,6 +4,7 @@ notation (engine §8), and running the pipeline (engine §13)."""
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 import os
 import re
 import threading
@@ -499,6 +500,11 @@ class Dialect:
                 # An error lowering finds is a result of the parses that
                 # meet it (engine §3.3, §13), not an error of the load.
                 pass
+
+    @property
+    def load_warnings(self) -> list[dict[str, Any]]:
+        """Source authoring warnings in stage order."""
+        return deepcopy([warning for grammar in self.grammars for warning in grammar.preferences.warnings])
 
     @property
     def stage_names(self) -> list[str]:

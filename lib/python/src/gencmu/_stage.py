@@ -731,6 +731,12 @@ class StageRunner:
         and no warnings. The error holds the first and the second reading
         (engine §6)."""
         lowered = self.lowered
+        if ranking.cycle is not None:
+            readings = [Tree(derivation(forest, rope), context.sources, context.tagtab).root for rope in ranking.readings]
+            return StageOutcome(verdict="tie", error=ParseError(
+                "ambiguous", f"stage {self.name}: the flag-best readings contain a comparison cycle",
+                stage=self.name, reason="tie", readings=readings,
+                cycle=_public_cycle(ranking.cycle, lambda act: _action(act, lowered))))
         # Neither action of a witness is ever missing (engine §6, §7.10).
         if ranking.witness is None or ranking.witness[0] is None or ranking.witness[1] is None:
             raise RuntimeError("the witness of a ranking lacks an action")
@@ -741,6 +747,7 @@ class StageRunner:
             stage=self.name,
             reason="tie",
             readings=readings,
+            conflict=ranking.conflict,
         )
         witness = (_action(ranking.witness[0], lowered), _action(ranking.witness[1], lowered))
         return StageOutcome(verdict="tie", witness=witness, error=error)
@@ -750,10 +757,12 @@ class StageRunner:
         derivation's elided terminators back into the stage's input as
         synthetic tokens and recognizes that input, R, with the main
         lowering in the reconstruction mode. Every observation reads the
-        stage's input through the projection π. The check passes where R has
-        one derivation, and gives two readings where it has more. With none,
-        the witness of the chosen derivation is lost. ``main`` is the main
-        parse's context, whose memo the check's queries share; ``chosen`` is
+        stage's input through the projection π. Flags and preferences compare complete readings.
+        The check passes when W(D) wins or R has one reading.
+        An ordinary tie gives two diagnostic readings.
+        A comparison cycle gives its full cycle and W(D).
+        A missing witness is an engine defect. ``main`` is the main
+        parse's context, whose memo the check's queries share. ``chosen`` is
         D and ``tree`` its tree."""
         tokens = self.tokens
         # The restoration records, in the order of the tree's leaves (engine
@@ -805,7 +814,8 @@ class StageRunner:
         flagged = any(production.leftmost_longest for production in lowered.productions)
         chosen_profile = ()
         walk = None
-        if flagged:
+        protected = flagged or bool(lowered.grammar.preferences.names)
+        if protected:
             from ._witness import walk_witness
             pending = [chosen]
             while pending:
@@ -819,15 +829,16 @@ class StageRunner:
         marks = walk.marks if walk is not None else watch.marks if watch is not None else None
         ranking = _rank_check(forest, marks)
         better = False
-        if flagged and ranking is not None:
+        if protected and ranking is not None:
             order = compare_profiles(ranking.profile, chosen_profile)
             if walk is None or ranking.witness_counted is not True or order > 0:
                 ranking = None
-            elif order < 0:
-                better = True
+            else:
                 restored_rope = None
                 for act in walk.sequence:
                     restored_rope = concat(restored_rope, leaf(act))
+                better = order < 0 or (ranking.slow and ranking.verdict != "tie" and first_difference(restored_rope, ranking.first, False) is not None)
+            if better:
                 ranking.second, ranking.first = ranking.first, restored_rope
                 difference = first_difference(ranking.first, ranking.second, True) or first_difference(ranking.first, ranking.second, False)
                 assert difference is not None
@@ -847,6 +858,31 @@ class StageRunner:
             )
         if ranking.verdict != "tie" and not better:
             return None
+        if ranking.cycle is not None:
+            def mapped(act):
+                if act.read and synthetic[act.token]:
+                    return Action("elided", terminal=act.terminal, at=project[act.token])
+                if act.read:
+                    return Action("read", token=project[act.token], terminal=act.terminal)
+                production = lowered.productions[act.production]
+                return Action("close", rule=production.rule_name, production=production.id,
+                              span=(project[act.start], project[act.end]))
+            identities = [restored_rope]
+            indices = []
+            for rope in ranking.readings:
+                if first_difference(restored_rope, rope, False) is None:
+                    indices.append(0)
+                else:
+                    indices.append(len(identities))
+                    identities.append(rope)
+            original = Sources(tokens)
+            readings = [_map_back(Tree(derivation(forest, rope), context.sources, context.tagtab).root,
+                                  synthetic, project, records, record_of, original) for rope in identities]
+            cycle = _public_cycle(ranking.cycle, mapped)
+            for edge in cycle:
+                edge["from"], edge["to"] = indices[edge["from"]], indices[edge["to"]]
+            return ParseError("ambiguous", f"stage {self.name}: the text is ambiguous even with every elided terminator written",
+                              stage=self.name, reason="elision-only", readings=readings, cycle=cycle, chosen_reading=0)
         readings = []
         original = Sources(tokens)
         for rope in (ranking.first, ranking.second):
@@ -888,20 +924,18 @@ def _reconstruct(context: StageContext) -> Forest:
 
 
 def _rank_check(forest: Forest, marks: dict[int, set[int]] | None = None) -> Ranking | None:
-    """The ranking of the check's derivations with no lean and no
-    maximality (engine §7.7); ``None`` where R has no derivation that
-    counts. ``marks``, where a test watches the check, are the witness
-    hook's marks of W(D) (tests/README.md)."""
-    if not forest.roots:
-        return None
-    if any(production.leftmost_longest for production in forest.lowered.productions):
-        profiles = Elisions(forest, lean="none")
-        profiles.check, profiles.marks = True, marks
-        return profiles.rank(forest.roots)
-    ranker = Ranker(forest, "none")
-    ranker.check = True
-    ranker.marks = marks
-    return ranker.rank(forest.roots)
+    """Rank reconstruction with no stage policy or maximality."""
+    return rank(forest, "none", marks=marks, check=True)
+
+
+def _public_cycle(cycle, mapped):
+    out = []
+    for edge in cycle:
+        public = dict(edge)
+        if "witness" in public:
+            public["witness"] = [mapped(act) if act is not None else None for act in public["witness"]]
+        out.append(public)
+    return out
 
 
 def _map_back(

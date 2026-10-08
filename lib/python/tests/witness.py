@@ -51,7 +51,7 @@ def keeps(walk: Walk, ranking: Ranking | None) -> bool:
     the first, then T."""
     if ranking is None or not ranking.witness_counted:
         return False
-    if ranking.verdict != "tie":
+    if ranking.slow or ranking.verdict != "tie":
         return True
     w: Rope | None = None
     for act in walk.sequence:

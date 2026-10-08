@@ -34,7 +34,7 @@ from .shared import (
 
 
 # The members of `expect` that only a loaded dialect can meet.
-AFTER_LOAD = ("result", "brackets", "warnings", "features")
+AFTER_LOAD = ("result", "brackets", "warnings", "features", "loadWarnings")
 
 
 class EngineCases(unittest.TestCase):

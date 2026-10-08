@@ -60,7 +60,7 @@ CAPTURE_NAME = re.compile(r"[a-z][a-z0-9-]*")
 """A capture's name is all lower case (engine §9)."""
 _WHOLE = ""
 """The capture name of ``$``, the whole constituent (engine §3.5)."""
-_DIRECTIVE_NAMES = frozenset(["ambiguity-resolution", "stage", "include", "features"])
+_DIRECTIVE_NAMES = frozenset(["ambiguity-resolution", "stage", "include", "features", "prefer"])
 """The directives of the notation (engine §9)."""
 _TERMINAL_NAME = re.compile(r"[A-Z][A-Za-z0-9-]*")
 """A reference that names a terminal begins with a capital (engine §2)."""
@@ -374,6 +374,7 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
         name, args = directive["name"], directive["args"]
         if (
             (name == "stage" and not (len(args) == 1 and _NAME.fullmatch(args[0])))
+            or (name == "prefer" and not (len(args) == 2 and all(arg == "#" or _NAME.fullmatch(arg) for arg in args)))
             or (name == "include" and len(args) != 1)
             or (name == "features" and not (args and all(_NAME.fullmatch(arg) for arg in args)))
         ):

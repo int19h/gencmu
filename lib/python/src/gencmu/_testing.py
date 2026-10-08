@@ -28,6 +28,7 @@ specified:
 
 from __future__ import annotations
 
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable
 
@@ -92,3 +93,6 @@ work: dict[str, int] | None = None
 def count(name: str) -> None:
     if work is not None:
         work[name] = work.get(name, 0) + 1
+
+
+preference_ranking: ContextVar = ContextVar("preference_ranking", default=None)

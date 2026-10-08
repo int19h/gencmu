@@ -27,6 +27,7 @@ from ._tags import (
 )
 from ._trampoline import Walk, run
 from ._patterns import empty_pattern, walk_pattern
+from ._preferences import Preferences
 from ._types import (
     TermType,
     constant_value_type,
@@ -138,6 +139,7 @@ class Grammar:
     # The rule of the ranking, one of RANKING_RULES (engine §6).
     lean: str
     elision_only: bool
+    preferences: Preferences | None = None
     changes: list[Change] = field(default_factory=list)
     # The stage's %classifier items in stitching order, each with its
     # document (engine §2).
@@ -621,6 +623,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
     constants = _Constants(stage, unicode)
     changes: list[Change] = []
     resolutions: list[tuple[list[str], str, Any]] = []
+    preferences = []
     classifier_items: list[tuple[str, Dom]] = []
     implication_items: list[tuple[str, Dom]] = []
     for path, dom in documents:
@@ -676,6 +679,10 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
             at = directive.get("at")
             if name == "ambiguity-resolution":
                 resolutions.append((args, path, at))
+            elif name == "prefer":
+                if len(args) != 2:
+                    raise _error("%prefer takes exactly two rule names", path, at, stage)
+                preferences.append((args[0], args[1], path, at))
             else:
                 raise _error(f"an unknown directive %{name}", path, at, stage)
         for constant in dom.get("constants", []):
@@ -749,6 +756,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
         rules,
         args[0],
         elision_only,
+        Preferences(stage, rules, preferences),
         changes,
         classifier_items=classifier_items,
         implications=implications,

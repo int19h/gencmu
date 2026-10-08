@@ -1135,12 +1135,13 @@ class Elisions(Summaries):
 
 class Ranking:
     """The outcome of a ranking (engine §6): its verdict, its first reading
-    ``m``, and for a tie its second reading ``t`` and the witness, the pair
-    of actions where the two first differ. ``witness_counted``, with the
+    ``m``, and for an ordinary tie its second reading ``t`` and first differing actions.
+    A comparison cycle holds every cycle reading and each directed reason.
+    ``witness_counted``, with the
     witness hook's marks, says whether the count counted W(D)
     (tests/README.md); ``None`` without marks."""
 
-    __slots__ = ("verdict", "first", "second", "witness", "witness_counted", "profile")
+    __slots__ = ("verdict", "first", "second", "witness", "witness_counted", "profile", "slow", "readings", "cycle", "conflict")
 
     def __init__(
         self,
@@ -1150,6 +1151,10 @@ class Ranking:
         witness: tuple[Act | None, Act | None] | None,
         witness_counted: bool | None = None,
     ) -> None:
+        self.slow = False
+        self.readings = None
+        self.cycle = None
+        self.conflict = None
         self.profile: Profile = ()
         self.verdict = verdict
         self.first = first
@@ -1158,15 +1163,28 @@ class Ranking:
         self.witness_counted = witness_counted
 
 
-def rank(forest: Forest, lean: str, maximal: Maximal | None = None) -> Ranking | None:
+def rank(forest: Forest, lean: str, maximal: Maximal | None = None, marks=None, check=False) -> Ranking | None:
+    preferences = forest.lowered.grammar.preferences
+    if preferences is not None and preferences.names:
+        from ._prefer_rank import PreferenceRanker
+        ranker = PreferenceRanker(forest, lean, preferences, maximal)
+        ranker.marks, ranker.check = marks, check
+        return ranker.rank(forest.roots)
+    return rank_original(forest, lean, maximal, marks, check)
+
+
+def rank_original(forest: Forest, lean: str, maximal: Maximal | None = None, marks=None, check=False) -> Ranking | None:
     """Rank a forest's derivations by a rule of the ranking, ``greedy``,
     ``lazy`` or ``late-elision``, or by no lean, ``none``; ``None`` if the
     input has no derivation that counts."""
     if not forest.roots:
         return None
     if lean == "late-elision" or any(production.leftmost_longest for production in forest.lowered.productions):
-        return Elisions(forest, maximal, lean).rank(forest.roots)
-    return Ranker(forest, lean, maximal).rank(forest.roots)
+        ranker = Elisions(forest, maximal, lean)
+    else:
+        ranker = Ranker(forest, lean, maximal)
+    ranker.marks, ranker.check = marks, check
+    return ranker.rank(forest.roots)
 
 
 def count_roots(forest: Forest, roots: list[int]) -> list[int]:
