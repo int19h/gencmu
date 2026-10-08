@@ -26,6 +26,7 @@ from ._tags import (
     written_test,
 )
 from ._trampoline import Walk, run
+from ._patterns import empty_pattern, walk_pattern
 from ._types import (
     TermType,
     constant_value_type,
@@ -247,14 +248,18 @@ class _Constant:
 
 
 class _Constants:
-    """The constants of a stage as the loader stitches it (engine §2): each
-    definition takes the values of the constants at its point of the
-    stitching order, and the rules take their final values."""
+    """The final constant graph of a stage (engine §2).
+
+    A reference takes the final definition. A redefinition's own name
+    takes its previous definition.
+    """
 
     def __init__(self, stage: str, unicode: Lowercase) -> None:
         self.stage = stage
         self.unicode = unicode
         self.values: dict[str, _Constant] = {}
+        self.versions: list[Dom] = []
+        self.latest: dict[str, Dom] = {}
         # The definitions of rules that use constants, which the loader
         # checks once the constants have their final values.
         self.users: list[tuple[str, Dom]] = []
@@ -270,47 +275,135 @@ class _Constants:
         return _error(problem, path, found[0]["at"] if found else item, self.stage)
 
     def add(self, path: str, constant: Dom) -> None:
-        """Defines or redefines a constant, with the value its term has at
-        this point of the stage (engine §2)."""
-        name, op, value, at = constant["name"], constant["op"], constant["value"], constant["at"]
-        previous = self.values.get(name)
+        name, op, at = constant["name"], constant["op"], constant["at"]
+        previous = self.latest.get(name)
         if op == "define" and previous is not None:
-            raise _error(
-                f"%const ${name} is already defined in stage {self.stage}, in {previous.document}; "
-                "%redefine-const gives it a new value",
-                path,
-                at,
-                self.stage,
-            )
+            raise _error(f"%const ${name} is already defined in stage {self.stage}, in {previous['path']}; %redefine-const gives it a new value", path, at, self.stage)
         if op == "redefine" and previous is None:
             raise _error(f"%redefine-const ${name} gives a value to no constant defined before it in stage {self.stage}", path, at, self.stage)
-        # A reference sees the constants defined before this point (engine §2).
-        for reference in constants_in(value):
-            if reference["const"] not in self.values:
-                raise _error(
-                    f"${reference['const']} is not defined before this point of stage {self.stage}", path, reference["at"], self.stage
-                )
-        kind, fault = constant_value_type(value, op == "redefine", self.type_of)
-        if fault is not None:
-            raise self.fault_error(path, fault[1], at, fault[0])
-        if previous is not None:
-            # A redefinition keeps the type, which gives ∅ its kind.
-            if kind == "set" and previous.type in ("strings", "tags"):
-                kind = previous.type
-            if kind != previous.type:
-                raise _error(
-                    f"%redefine-const ${name} keeps the type of the constant, and cannot make it {type_name(kind)}",  # type: ignore[arg-type]
-                    path,
-                    at,
-                    self.stage,
-                )
-        self.values[name] = _Constant(run(self._closed(path, value, at)), kind, path)  # type: ignore[arg-type]
+        version = {**constant, "path":path, "previous":previous, "state":0}
+        self.versions.append(version)
+        self.latest[name] = version
+
+    def bind(self) -> None:
+        for version in self.versions:
+            dependencies = []
+            for reference in constants_in(version["value"]):
+                name = reference["const"]
+                target = version["previous"] if name == version["name"] and version["op"] == "redefine" else self.latest.get(name)
+                if target is None:
+                    raise _error(f"${name} is not defined in stage {self.stage}; dependency ${version['name']} → ${name}", version["path"], reference["at"], self.stage)
+                dependencies.append((target, reference["at"]))
+            version["dependencies"] = dependencies
+        ordered = []
+        for root in self.versions:
+            if root["state"] == 2:
+                continue
+            root["state"] = 1
+            stack = [(root, 0)]
+            while stack:
+                version, index = stack[-1]
+                if index < len(version["dependencies"]):
+                    target, at = version["dependencies"][index]
+                    stack[-1] = (version, index + 1)
+                    if target["state"] == 1:
+                        cycle = " → ".join(["$" + v["name"] for v, _ in stack] + ["$" + target["name"]])
+                        raise _error("constant dependency cycle: " + cycle, version["path"], at, self.stage)
+                    if target["state"] == 0:
+                        target["state"] = 1
+                        stack.append((target, 0))
+                    continue
+                version["state"] = 2
+                ordered.append(version)
+                stack.pop()
+        kinds: dict[str, str] = {}
+        users: dict[str, set[int]] = {}
+        for index, version in enumerate(self.versions):
+            for name in [version["name"]] + [r["const"] for r in constants_in(version["value"])]:
+                users.setdefault(name, set()).add(index)
+        queue = list(range(len(self.versions)))
+        queued = set(queue)
+        index = 0
+        while index < len(queue):
+            at = queue[index]
+            index += 1
+            queued.discard(at)
+            version = self.versions[at]
+            kind, fault = constant_value_type(version["value"], version["op"] == "redefine", lambda name: kinds.get(name, "any"))
+            if fault is not None:
+                raise self.fault_error(version["path"], fault[1], version["at"], fault[0])
+            if kind in ("any", "set"):
+                continue
+            previous = kinds.get(version["name"])
+            if previous is not None and previous != kind:
+                raise _error(f"%redefine-const ${version['name']} keeps the type of the constant, and cannot make it {type_name(kind)}", version["path"], version["at"], self.stage)
+            if previous is None:
+                kinds[version["name"]] = kind
+                for user in sorted(users[version["name"]]):
+                    if user not in queued:
+                        queued.add(user)
+                        queue.append(user)
+        for version in ordered:
+            kind = kinds.get(version["name"])
+            if kind is None:
+                raise _error(f"the kind of the value of ${version['name']} is not given", version["path"], version["at"], self.stage)
+            self.values = {}
+            for reference, (target, _) in zip(constants_in(version["value"]), version["dependencies"]):
+                self.values[reference["const"]] = target["result"]
+            value = {"pattern":empty_pattern()} if kind == "pattern" and "emptySet" in version["value"] else run(self._closed(version["path"], version["value"], version["at"]))
+            version["result"] = _Constant(value, kind, version["path"])
+        self.values = {name:version["result"] for name, version in self.latest.items()}
+
+    def _is_pattern(self, term: Dom) -> bool:
+        stack = [term]
+        while stack:
+            node = stack.pop()
+            if "pattern" in node:
+                return True
+            if "const" in node:
+                if self.values[node["const"]].type == "pattern":
+                    return True
+            else:
+                for key in ("union", "intersection", "difference"):
+                    if key in node:
+                        stack.extend(node[key])
+        return False
+
+    def _closed_pattern(self, path: str, root: Dom, at: Any) -> Walk:
+        if "constant" in root:
+            return self.values[root["constant"]].value["pattern"]
+        result = dict(root)
+        for key in ("union", "intersection", "difference", "sequence"):
+            if key in root:
+                result[key] = []
+                for child in root[key]:
+                    result[key].append((yield self._closed_pattern(path, child, at)))
+        for key in ("pattern", "children", "node", "optional", "repeat", "separator"):
+            if key in root:
+                result[key] = yield self._closed_pattern(path, root[key], at)
+        if "test" in root:
+            value = yield self._closed(path, root["value"], at)
+            if is_sound_test(root["test"]):
+                problem = sound_problem(value, self.unicode)
+                if problem is not None:
+                    raise self.fault_error(path, root["value"], at, problem)
+            result["value"] = {"string":value} if isinstance(value, str) else {"set":value}
+        return result
 
     def _closed(self, path: str, term: Dom, item: Any) -> Walk:
         """The value of a closed term, with the constants' values now
         (engine §2, §10). An empty delimiter or a tag's string that is not a
         name comes from a constant here, since the reader refuses a literal
         one, and the error stands at that constant."""
+        if "pattern" in term:
+            return {"pattern":(yield self._closed_pattern(path, term["pattern"], item))}
+        if self._is_pattern(term) and any(key in term for key in ("union", "intersection", "difference")):
+            key = next(key for key in ("union", "intersection", "difference") if key in term)
+            patterns = []
+            for part in term[key]:
+                value = yield self._closed(path, part, item)
+                patterns.append(value["pattern"] if isinstance(value, dict) else empty_pattern())
+            return {"pattern":{key:patterns}}
         if "string" in term:
             return term["string"]
         if "tag" in term:
@@ -380,6 +473,16 @@ class _Constants:
             fault = rule_type_fault(rule, self.type_of)
             if fault is not None:
                 raise self.fault_error(path, fault[1], rule["at"], fault[0])
+            pending = [rule]
+            while pending:
+                node = pending.pop()
+                if isinstance(node, list):
+                    pending.extend(node)
+                elif isinstance(node, dict):
+                    if "pattern" in node:
+                        run(self._closed(path, node, rule["at"]))
+                    else:
+                        pending.extend(node.values())
             # The checks that simplification decides, which the reader left
             # to the loader, now with the constants' values (engine §9).
             problem = definition_problem(run(self.with_values(rule)))
@@ -428,8 +531,13 @@ class _Constants:
             return items
         if not isinstance(node, dict):
             return node
+        if "pattern" in node or self._is_pattern(node) and any(key in node for key in ("union", "intersection", "difference")):
+            return (yield self._closed("", node, None))
         if isinstance(node.get("const"), str):
-            return {"const": node["const"], "at": node["at"], "value": self.values[node["const"]].value}
+            constant = self.values[node["const"]]
+            return constant.value if constant.type == "pattern" else {"const": node["const"], "at": node["at"], "value": constant.value}
+        if node.get("op") in ("≅", "≇") and node["right"].get("emptySet"):
+            return {**node, "right":{"pattern":empty_pattern()}}
         copy: dict[str, Any] = {}
         for key, value in node.items():
             copy[key] = yield self.with_values(value)
@@ -440,8 +548,6 @@ class _Constants:
         final value, in copies of the clauses: the documents' DOMs are
         shared by every stage and dialect that includes them. Clauses that
         alternatives share stay shared."""
-        if not self.users:
-            return
         # Each node's copy, or the node itself where it holds no constant,
         # by identity: the rule-level clauses that alternatives share are
         # walked once, not once for each alternative.
@@ -461,8 +567,13 @@ class _Constants:
                 for item in node:
                     items.append((yield resolve(item)))
                 copy = node if all(item is old for item, old in zip(items, node)) else items
+            elif "pattern" in node or self._is_pattern(node) and any(key in node for key in ("union", "intersection", "difference")):
+                copy = yield self._closed("", node, None)
             elif isinstance(node.get("const"), str):
-                copy = {"const": node["const"], "at": node["at"], "value": self.values[node["const"]].value}
+                constant = self.values[node["const"]]
+                copy = constant.value if constant.type == "pattern" else {"const": node["const"], "at": node["at"], "value": constant.value}
+            elif node.get("op") in ("≅", "≇") and node["right"].get("emptySet"):
+                copy = {**node, "right":{"pattern":empty_pattern()}}
             else:
                 values: dict[str, Any] = {}
                 for key, value in node.items():
@@ -514,7 +625,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
     implication_items: list[tuple[str, Dom]] = []
     for path, dom in documents:
         for rule in dom.get("rules", []):
-            if constants_in(rule):
+            if constants_in(rule) or _rule_has_pattern(rule):
                 constants.users.append((path, rule))
             name = rule["name"]
             at: tuple[int, int] = (int(rule.get("at", (0, 0))[0]), int(rule.get("at", (0, 0))[1]))
@@ -571,6 +682,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
             constants.add(path, constant)
         classifier_items.extend((path, classifier) for classifier in dom.get("classifiers", []))
         implication_items.extend((path, implication) for implication in dom.get("implications", []))
+    constants.bind()
     constants.check()
     constants.resolve(rules)
     _resolve_tests(rules, constants)
@@ -1296,3 +1408,16 @@ def lower(grammar: Grammar, features: frozenset[str]) -> Lowered:
     lowered.classifiers = classifiers
     lowered.implications = grammar.implications
     return lowered
+
+
+def _rule_has_pattern(root: Any) -> bool:
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, list):
+            stack.extend(node)
+        elif isinstance(node, dict):
+            if "pattern" in node or node.get("op") in ("≅", "≇"):
+                return True
+            stack.extend(node.values())
+    return False

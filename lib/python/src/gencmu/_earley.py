@@ -17,6 +17,7 @@ from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._model import Range, Tags, Token
 from ._tags import EMPTY, Gathered, TagTable, code_of_character_tag, difference, intersection, is_class, is_name, range_tags, split_string
 from ._trampoline import Walk, run
+from ._patterns import PatternMachine, observation_machine
 from ._unicode import UnicodeTable
 
 SEED = (-1, 0, 0, 0)
@@ -44,7 +45,7 @@ class Caps:
 
     __slots__ = ("parent", "part", "size", "jump")
 
-    def __init__(self, parent: Caps | None, part: tuple[int, int, int] | None) -> None:
+    def __init__(self, parent: Caps | None, part: tuple[int, ...] | None) -> None:
         self.parent = parent
         self.part = part
         self.size = 0 if parent is None else parent.size + 1
@@ -58,12 +59,12 @@ class Caps:
     def __len__(self) -> int:
         return self.size
 
-    def __getitem__(self, slot: int) -> tuple[int, int, int]:
+    def __getitem__(self, slot: int) -> tuple[int, ...]:
         """One slot's part, the last in constant time and an earlier one by
         the jumps; ``parts`` reads them all in one walk."""
         return self.find(slot)[0]
 
-    def find(self, slot: int) -> tuple[tuple[int, int, int], int]:
+    def find(self, slot: int) -> tuple[tuple[int, ...], int]:
         """One slot's part, with the steps the search took, which tell
         :class:`Bound` when one walk of every part would cost less."""
         if not 0 <= slot < self.size:
@@ -77,9 +78,9 @@ class Caps:
         assert found.part is not None
         return found.part, steps
 
-    def parts(self) -> list[tuple[int, int, int]]:
+    def parts(self) -> list[tuple[int, ...]]:
         """Every slot's part, in slot order, read in one walk."""
-        out: list[tuple[int, int, int]] = []
+        out: list[tuple[int, ...]] = []
         found: Caps | None = self
         while found is not None and found.part is not None:
             out.append(found.part)
@@ -95,7 +96,7 @@ class Bound:
     part comes from one walk, so a term that reads them all walks them
     about twice at most. ``$`` is the whole constituent where it is known."""
 
-    __slots__ = ("production", "caps", "base", "project", "whole", "found", "all", "searched")
+    __slots__ = ("production", "caps", "base", "project", "whole", "found", "all", "searched", "machine", "structure")
 
     def __init__(
         self,
@@ -104,17 +105,21 @@ class Bound:
         base: int,
         project: list[int] | None,
         whole: tuple[int, int, int | Callable[[], Walk] | None] | None,
+        machine: PatternMachine | None = None,
+        structure: int = 0,
     ) -> None:
         self.production = production
         self.caps = caps
         self.base = base
         self.project = project
         self.whole = whole
-        self.found: dict[str, tuple[int, int, int] | None] = {}
-        self.all: list[tuple[int, int, int]] | None = None
+        self.machine = machine
+        self.structure = structure
+        self.found: dict[str, tuple[int, ...] | None] = {}
+        self.all: list[tuple[int, ...]] | None = None
         self.searched = 0
 
-    def get(self, name: str) -> tuple[int, int, int] | None:
+    def get(self, name: str) -> tuple[int, ...] | None:
         if name == WHOLE:
             whole = self.whole
             if whole is None:
@@ -125,7 +130,7 @@ class Bound:
         if name in self.found:
             return self.found[name]
         position = self.production.captures.get(name)
-        result: tuple[int, int, int] | None = None
+        result: tuple[int, ...] | None = None
         if position is not None:
             slot = self.production.slots[position]
             caps = self.caps
@@ -133,9 +138,10 @@ class Bound:
                 if self.all is None and self.searched * 2 >= len(caps):
                     self.all = caps.parts()
                 if self.all is not None:
-                    start, end, tag = self.all[slot]
+                    start, end, tag = self.all[slot][:3]
                 else:
-                    (start, end, tag), steps = caps.find(slot)
+                    part, steps = caps.find(slot)
+                    start, end, tag = part[:3]
                     self.searched += steps + 1
                 if self.project is None:
                     result = (start + self.base, end + self.base, tag)
@@ -145,6 +151,18 @@ class Bound:
                     result = (self.project[start], self.project[end], tag)
         self.found[name] = result
         return result
+
+    def observation(self, name: str) -> int:
+        if name == WHOLE:
+            return self.structure
+        position = self.production.captures.get(name)
+        if position is None:
+            return 0
+        slot = self.production.slots[position]
+        if not 0 <= slot < len(self.caps):
+            return 0
+        part = self.caps[slot]
+        return part[3] if len(part) > 3 else 0
 
 
 NO_CAPS = Caps(None, None)
@@ -201,6 +219,8 @@ class Forest:
     furthest: int
     expected: dict[str, set[str]]
     project: list[int] | None = None
+    structure: list[int] = field(default_factory=list)
+    machine: PatternMachine | None = None
 
 
 @dataclass
@@ -302,11 +322,13 @@ class StageContext:
     synthetic: list[bool] | None = None
     project: list[int] | None = None
     observed: StageContext | None = None
+    machine: PatternMachine | None = field(init=False, default=None)
 
     def __post_init__(self) -> None:
         self.token_tags = [self.tagtab.intern(token.tags) for token in self.tokens]
         self.sources = Sources(self.tokens)
         self.sounds = [None] * len(self.tokens)
+        self.machine = self.observed.machine if self.observed is not None else observation_machine(self.lowered)
 
     def carries(self, terminal: str, tag_id: int) -> bool:
         """Whether a tag set holds a character tag of a range or a property,
@@ -525,12 +547,12 @@ class Evaluator:
         # §7.3, §7.5). None elsewhere.
         self.project = project
 
-    def bind(self, production: Production, caps: Caps, whole: tuple[int, int, int | Callable[[], Walk] | None] | None = None) -> Bound:
+    def bind(self, production: Production, caps: Caps, whole: tuple[int, int, int | Callable[[], Walk] | None] | None = None, structure: int = 0) -> Bound:
         """The captures of an item, and ``$`` when ``whole`` gives the
         constituent's span and tag set (``None`` while its tag set is being
         computed, when no term may read it). Each capture is found when it
         is first read, not all of them at once."""
-        return Bound(production, caps, self.base, self.project, whole)
+        return Bound(production, caps, self.base, self.project, whole, self.context.machine, structure)
 
     def _span(self, dom: Any, bound: Bound) -> Walk:
         if isinstance(dom, dict):
@@ -677,6 +699,10 @@ class Evaluator:
     def walk_condition(self, dom: Any, bound: Bound) -> Walk:
         if "op" in dom:
             op = dom["op"]
+            if op in ("≅", "≇"):
+                machine = bound.machine
+                holds = machine is not None and machine.matches(bound.observation(dom["left"]["capture"]), dom["right"]["pattern"])
+                return holds == (op == "≅")
             left = yield self.walk_value(dom["left"], bound)
             right = yield self.walk_value(dom["right"], bound)
             if op in ("=", "≠"):
@@ -797,9 +823,13 @@ class Parser:
         origin: list[int] = []
         end: list[int] = []
         caps: list[Caps] = []
+        prefixes: list[int] = []
+        structures: list[int] = []
+        machine = context.machine
+        elidable_heads = {p.lhs:p.elided for p in productions if p.elided is not None} if machine is not None else {}
         # The interned captured parts, each by the parts it extends and the
         # part it adds.
-        extended: dict[tuple[Caps, tuple[int, int, int]], Caps] = {}
+        extended: dict[tuple[Caps, tuple[int, ...]], Caps] = {}
         edges: list[list[tuple[Any, ...]]] = []
         edge_sets = EdgeSets()
         tag: dict[int, int] = {}
@@ -822,8 +852,36 @@ class Parser:
         restorations: list[int] = []
         agenda: list[int] = []
 
-        def add(production: int, position: int, start: int, captured: Caps, at: int, edge: tuple[Any, ...], strict_step: bool = False) -> None:
-            key = (production, position, start, captured)
+        def completed_structure(production: Production, position: int, prefix: int) -> int:
+            if machine is None or position != len(production.rhs):
+                return 0
+            if production.elided is not None:
+                return machine.node(None, machine.empty, (production.elided, "", frozenset((production.elided,))))
+            if production.helper:
+                return prefix
+            return machine.node(production.rule_name, prefix)
+
+        def terminal_structure(production: Production, position: int, token: int, terminal: str) -> int:
+            if machine is None:
+                return 0
+            if recon and synthetic[token]:
+                if position == 0 and elidable_heads.get(production.lhs) == terminal:
+                    return machine.node(None, machine.empty, (terminal, "", frozenset((terminal,))))
+                return machine.empty
+            original = base + token if not recon else project[token]
+            source = context if not recon else observed
+            return machine.node(None, machine.empty, (terminal, source.sound(original), source.tokens[original].tags))
+
+        def omission_allowed(production: Production) -> bool:
+            if _testing.fault("omission") or production.elided_test is None:
+                return True
+            test = production.elided_test
+            sound = test.sound if test.op == "=" else ""
+            return test.holds(sound, frozenset((production.elided,)))
+
+        def add(production: int, position: int, start: int, captured: Caps, at: int, edge: tuple[Any, ...], strict_step: bool = False, prefix: int = 0) -> None:
+            structure = completed_structure(productions[production], position, prefix)
+            key = (production, position, start, captured) + ((prefix, structure) if machine is not None else ())
             found = sets[at].get(key)
             if found is None:
                 found = len(prod)
@@ -833,7 +891,11 @@ class Parser:
                 origin.append(start)
                 end.append(at)
                 caps.append(captured)
+                prefixes.append(prefix)
+                structures.append(structure)
                 edges.append([edge])
+                if edge != SEED:
+                    _testing.count("packed_edges")
                 if recon:
                     strict.append(strict_step)
                     processed.append(False)
@@ -855,6 +917,7 @@ class Parser:
                         agenda.append(found)
             else:
                 edges[found].append(edge)
+                _testing.count("packed_edges")
 
         def constituent_tag(production: Production, captured: Caps) -> int:
             """The tag set of a completed item whose production has no tag
@@ -863,13 +926,13 @@ class Parser:
                 return captured[production.slots[0]][2]
             return tagtab.empty
 
-        def term_tag(production: Production, captured: Caps, start: int, at: int) -> Walk:
+        def term_tag(production: Production, captured: Caps, start: int, at: int, structure: int = 0) -> Walk:
             """The tag set of a completed item from its production's tag
             term, which can ask nested parses (engine §4)."""
-            bound = evaluator.bind(production, captured, (start, at, None))
+            bound = evaluator.bind(production, captured, (start, at, None), structure)
             return tagtab.intern(_as_set((yield evaluator.walk_value(production.tags_term, bound))))
 
-        def lazy_tag(production: Production, captured: Caps, start: int, at: int) -> Callable[[], Walk]:
+        def lazy_tag(production: Production, captured: Caps, start: int, at: int, structure: int = 0) -> Callable[[], Walk]:
             """The walk of the tag set of a completing item, computed on
             first use (engine §4)."""
             memo: list[int] = []
@@ -879,13 +942,13 @@ class Parser:
                     if production.tags_term is None:
                         memo.append(constituent_tag(production, captured))
                     else:
-                        memo.append((yield term_tag(production, captured, start, at)))
+                        memo.append((yield term_tag(production, captured, start, at, structure)))
                 return memo[0]
 
             return tag
 
         def advance(
-            item: int, part: tuple[int, int, int], at: int, edge: tuple[Any, ...], strict_step: bool = False, read_tag: int = -1
+            item: int, part: tuple[int, ...], at: int, edge: tuple[Any, ...], strict_step: bool = False, read_tag: int = -1
         ) -> Walk | None:
             """Advances an item over a part. Where the advance makes
             conditions ready, it gives the walk that evaluates them and then
@@ -922,6 +985,12 @@ class Parser:
                         holds = context.test_holds(test, base + part[0], base + part[1], part[2])
                     if not holds:
                         return None
+            part_structure = 0
+            prefix = 0
+            if machine is not None:
+                part_structure = structures[edge[2]] if edge[1] == 2 else terminal_structure(production, position, edge[2], edge[3])
+                prefix = machine.concat(prefixes[item], part_structure)
+                part = (*part[:3], part_structure)
             captured = caps[item]
             if production.slots[position] >= 0:
                 step = (captured, part)
@@ -931,8 +1000,8 @@ class Parser:
                 captured = found
             conditions = production.conds_at.get(position)
             if conditions:
-                return checked(production, position, origin[item], captured, at, edge, strict_step, conditions)
-            add(production.id, position + 1, origin[item], captured, at, edge, strict_step)
+                return checked(production, position, origin[item], captured, at, edge, strict_step, conditions, prefix)
+            add(production.id, position + 1, origin[item], captured, at, edge, strict_step, prefix)
             return None
 
         def checked(
@@ -944,19 +1013,21 @@ class Parser:
             edge: tuple[Any, ...],
             strict_step: bool,
             conditions: list[Any],
+            prefix: int,
         ) -> Walk:
             """The conditions that an advance makes ready, in written order,
             and then the item, if they all hold. Once the constituent is
             complete, $ has its tags, and the tag term runs only where a
             condition reads them (engine §4)."""
             if production.whole_ready and position + 1 == len(production.rhs):
-                bound = evaluator.bind(production, captured, (start, at, lazy_tag(production, captured, start, at)))
+                structure = completed_structure(production, position + 1, prefix)
+                bound = evaluator.bind(production, captured, (start, at, lazy_tag(production, captured, start, at, structure)), structure)
             else:
                 bound = evaluator.bind(production, captured)
             for condition in conditions:
                 if not (yield evaluator.walk_condition(condition, bound)):
                     return
-            add(production.id, position + 1, start, captured, at, edge, strict_step)
+            add(production.id, position + 1, start, captured, at, edge, strict_step, prefix)
 
         # A production whose first symbol is a terminal the next token lacks
         # is not predicted, since its item could never advance; a rejection
@@ -974,7 +1045,8 @@ class Parser:
             # Its tag term runs only where a condition reads $'s tags (engine
             # §4).
             whole = (j, j, lazy_tag(production, NO_CAPS, j, j)) if not production.rhs else None
-            bound = evaluator.bind(production, NO_CAPS, whole)
+            structure = completed_structure(production, 0, 0)
+            bound = evaluator.bind(production, NO_CAPS, whole, structure)
             for condition in production.conds_predict:
                 if not (yield evaluator.walk_condition(condition, bound)):
                     return False
@@ -1013,6 +1085,8 @@ class Parser:
             conditions can ask nested parses."""
             for number in not_terminal_first[rule]:
                 production = productions[number]
+                if production.elided is not None and not omission_allowed(production):
+                    continue
                 if recon:
                     if not production.rhs and production.helper and production.elided is not None:
                         # The empty production of an elidable optional is its
@@ -1113,7 +1187,7 @@ class Parser:
                 if production.tags_term is None:
                     tag[item] = constituent_tag(production, caps[item])
                 else:
-                    tag[item] = yield term_tag(production, caps[item], start, j)
+                    tag[item] = yield term_tag(production, caps[item], start, j, structures[item])
                 lhs = production.lhs
                 part = (start, j, tag[item])
                 if start == j:
@@ -1200,7 +1274,7 @@ class Parser:
                 expected.setdefault(written_symbol(terminal, test), set()).add(production.rule_name)
         # The forest's tokens are those the parse read, before its furthest
         # set.
-        return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected, context.project)
+        return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected, context.project, structures, machine)
 
 
 def reading_last(lowered: Lowered) -> list[int]:
