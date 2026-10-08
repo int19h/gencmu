@@ -29,7 +29,7 @@ The layer uses two feature guards, which make a part of a rule depend on a featu
 
 Unlike the CLL grammar, this layer writes the free-modifier slot after an elidable terminator outside its brackets: `[+X] #` where CLL has `[+X #]`. So free modifiers can follow an elided terminator. The layer restates many rules below for that reason alone. `free-after-number` and `free-after-lerfu-string` keep a number or lerfu string maximal. After an elided `boi`, they exclude a first free modifier that starts with a word that the number or string can read.
 
-The stage uses `late-elision` after declared rule preferences. At the first differing boundary, it chooses the reading with fewer omitted terminators. Equal omission counts tie when no preference contest decides the readings. A tie is an error.
+The stage uses `late-elision` after declared rule preferences. When no preference contest remains, it chooses the reading with fewer omitted terminators at the first differing boundary. Opposing preference contests tie, as do equal omission counts when no contest remains. A tie is an error.
 
 So `to mi klama` holds `mi klama` in its parenthesis, because the other reading elides `vau` and `toi` after `mi`. In the same way, `lu mi klama` holds `mi klama` in its quote. camxes-exp reads both texts in this way.
 
@@ -1021,6 +1021,6 @@ camxes-exp reads the operand of a subscript as `mex_2`, with its own final free 
 
 ## Choosing among parses
 
-Where a text has more than one parse, the stage chooses by the rule of [the notation document](../../docs/notation.md) under "Ambiguity" and "Elided terminators". The layer declares the `late-elision` resolution. It counts the elided terminators of each parse at each place between words. At the first place where the counts differ, the parse with fewer elided terminators wins. Two parses with the same counts at every place are tied, and the stage reports the tie.
+Where a text has more than one parse, the stage chooses by the rule of [the notation document](../../docs/notation.md) under "Ambiguity" and "Elided terminators". Declared rule preferences precede the layer's `late-elision` resolution. `late-elision` counts the elided terminators of each parse at each place between words. When no preference contest remains, fewer elided terminators win at the first place where the counts differ. Opposing preference contests tie, as do equal omission counts when no contest remains. The stage reports a tie.
 
 For example, `le sutra tavla` has two parses. One is a statement with the description `le sutra`, whose `ku` is elided before `tavla`, and the selbri `tavla`. The other is a fragment, the single description `le sutra tavla`, whose `ku` is elided at the end. `late-elision` takes the fragment, as in the CLL grammar.

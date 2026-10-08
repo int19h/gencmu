@@ -25,7 +25,7 @@ The word stage reads the magic words, the words such as `si` that act on other w
 
 [The notation document](../../docs/notation.md) explains the notation. A lookahead of the reference, such as `!terms`, is a condition with `begins`. The terminals of this grammar (the symbols that each match one input token) are selma'o. A tag marks a token by name, phoneme or character. The rules `any-word` and `anything` match tokens tagged `word` and `quoted-text`, respectively. The word stage puts these tags on the words of a quote and on a unit that a quote hands on whole.
 
-The stage uses `late-elision` after declared rule preferences. At the first differing boundary, it chooses the reading with fewer omitted terminators. Equal omission counts tie when no preference contest decides the readings. A tie is an error.
+The stage uses `late-elision` after declared rule preferences. When no preference contest remains, it chooses the reading with fewer omitted terminators at the first differing boundary. Opposing preference contests tie, as do equal omission counts when no contest remains. A tie is an error.
 
 A PEG repetition reads as far as it can, and late elision usually selects the same reading. Dedicated rule preferences settle the replaced choices over the same words. Other conditions still restrict construction and following words. Each terminator marked `_elidible` in the reference is elidable here, with an optional such as `[+KU]`. The separators `cu` and `i'au` remain ordinary optionals.
 
@@ -39,7 +39,7 @@ These texts showed the problem, and each now has Zantufa's reading. In `so to re
 
 The reference writes `CU_elidible`, but `cu` is a separator. It stands between the terms and the bridi-tail, and it closes neither of them. The grammar of *The Complete Lojban Language* (CLL) does not make `cu` elidable either. So `[CU #]` is a plain optional here, with no marker. A written `cu` parses as before, and a sentence can still omit it. Maximal terminators and `elision-only` do not treat `cu` as a terminator.
 
-An absent `cu` makes no elided node in the tree, and the ranking does not count it. This matters. If `cu` is elidable, an absent `cu` is an elision before the bridi-tail, and so an early one. The ranking then prefers a reading that closes a parenthesis, a quote or a `jai` early, and begins the bridi-tail later. With an elidable `cu`, `to na cafne` closes the parenthesis after `na`. Zantufa holds `na cafne` in the parenthesis, and so does this grammar.
+An absent `cu` makes no elided node in the tree, and the ranking does not count it. This matters. If `cu` is elidable, an absent `cu` is an elision before the bridi-tail, and so an early one. When no preference contest remains, the ranking favors a reading that closes a parenthesis, quote or `jai` early and begins the bridi-tail later. With an elidable `cu`, `to na cafne` closes the parenthesis after `na`. Zantufa holds `na cafne` in the parenthesis, and so does this grammar.
 
 The same holds for `i'au`. The reference writes `IAU_elidible` between a statement and the terms after it (`statement-terms`). There `i'au` separates the terms from the statement, and it closes nothing. So `[IAU #]` is a plain optional too, and an absent `i'au` makes no elided node.
 
@@ -121,7 +121,7 @@ The [indicator document](../indicators/cll.md#quotation-boundaries) explains the
 
 A statement can take terms after it, which `i'au` can introduce (`statement-terms`). A forethought connection of statements has any number of `gi` branches and an optional `gi'i`. `.i` with a connective, or with a connective or a tense or modal and `bo`, joins a statement to the one before it. So a text cannot begin that way.
 
-The fragment conditions preserve the reference's lookaheads. A `gek` or `joik` fragment cannot begin terms. A `na` fragment cannot have terms or `ku` after it. A terms fragment cannot have a following mex, the grammar's mathematical expression. The preference `terms-vau > fragment-mex` selects terms when both complete readings use the same words. A mex fragment cannot have a following sumti or selbri.
+The fragment conditions preserve the reference's lookaheads. A `gek` or `joik` fragment cannot begin terms. A `na` fragment cannot have terms or `ku` after it. A terms fragment cannot have a following mex, the grammar's mathematical expression. The preference `terms-vau > fragment-mex` selects terms only when `terms-vau` and `fragment-mex` cover one span, an interval of input tokens. A mex fragment cannot have a following sumti or selbri.
 
 A structural pattern describes constructed nodes. Suppose every earlier branch is a whole sentence and the last branch starts with a sentence. Then the condition removes `gek-statement`, because Zantufa's sentence reads those words first. A prenex or TUhE blocks that final first-child path. A statement link in an earlier branch prevents the whole-sentence match. Links after the last sentence can continue outside the forethought connection.
 

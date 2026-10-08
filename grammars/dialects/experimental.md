@@ -109,7 +109,7 @@ The dialect also turns on two features of the syntax, because camxes-exp has no 
   %include "../syntax/experimental.md"
   ```
 
-The experimental grammar ranks with `late-elision`, as CLL's does: it elides each terminator as late as the grammar allows. But it does not declare `elision-only`, the rule that a terminator can be elided only if no ambiguity results. The grammar has ambiguities that are not about terminators. For example, two sumti joined by an afterthought connective are also two terms joined in the same way, as in `mi .e do klama`. Rules of the grammar settle them, and the grammar lists them.
+The experimental grammar ranks with declared rule preferences before `late-elision`. Only when no preference contest remains does `late-elision` place omitted terminators as late as the grammar allows. But it does not declare `elision-only`, the rule that a terminator can be elided only if no ambiguity results. The grammar has ambiguities that are not about terminators. For example, two sumti joined by an afterthought connective are also two terms joined in the same way, as in `mi .e do klama`. Rules of the grammar settle them, and the grammar lists them.
 
 ## Where it reads texts differently from camxes-exp
 
