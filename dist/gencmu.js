@@ -1417,7 +1417,7 @@
   // Finite observations of structural trees (engine §4.1). A helper carries
   // a sequence monoid: its relations concatenate without retaining trees.
 
-  import { isSubset, tagIntersection } from './tags.js';
+
 
   /** @param {any} test @param {string} sound @param {Set<string>} tags @returns {boolean} */
   function leafTest(test, sound, tags) {
