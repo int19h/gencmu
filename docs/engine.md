@@ -238,7 +238,7 @@ Before predicting an empty elidable production, the recognizer requires its omis
 
 The parser is an Earley recognizer, a parser for any context-free grammar, over the lowered grammar. The set of items that it produces specifies it, and any algorithm that produces that set is correct. The recognizer builds one set of items for each position in the input.
 
-An item has a production, dot position, origin and structural prefix state. Each capture before the dot retains its span, tag set and completed structural state. Completed items also retain their constituent's structural state. Two items merge only when all these values agree. Their proof edges remain distinct.
+An item has a production, dot position, origin and structural prefix state (§4.1). Each capture before the dot retains its span, tag set and completed structural state. Completed items also retain their constituent's structural state. Two items merge only when all these values agree. Their proof edges remain distinct.
 
 Fix a production, dot position, origin, input position and structural prefix state. Fix every captured part's tag set and structural state. Captures then add items only where their spans can vary. For example, with `t → $l(t) $r(t) | A`, a completed item over one span exists once for each position where `$l` can end. Without the captures, it exists once.
 
@@ -693,7 +693,7 @@ The projection comes first, then the function. So `head(s)` is the first origina
 
 A capture whose span holds only synthetic tokens is present, and `$x` holds as a condition. Its text and sound are empty, and the union of its tokens' tags is empty. It still has its constituent's own tags. So `tags($x)` can hold `~mark` while `tags(head($x))` is empty.
 
-A constituent's tags are its production's tag terms, evaluated over its own captures (§4). A synthetic token gives a constituent no tag. A capture of a terminal that read a synthetic token has no tags. A production that inherits from one symbol (§3.7) inherits none from such a terminal. A restoration has none, as its empty production has none. A tag term can still give a constituent tags of its own, such as `<~ke-group>`, also where its span projects to empty.
+A constituent's tags are its production's tag terms, evaluated over its own captures (§4). A synthetic token gives a constituent no tag. A capture of a terminal that read a synthetic token has no tags. A production that inherits from one symbol (§3.7) inherits none from such a terminal. A restoration has none, as its empty production has none. A tag term can still give a constituent tags of its own, such as `<~mark>`, also where its span projects to empty.
 
 A test of a reference reads the reference's projected span and its constituent's tags. `t="s"` compares `s` with the canonical sound of the projected span, and the four tag tests read the constituent's tags. A test of a terminal reads the token that the terminal reads, with its recognition values. This is the one observation that reads a synthetic token's values. Recognition reads them too, to match a terminal and to restore (§7.4). It lets `T="ta"` read a written-back `T="ta"`.
 
