@@ -398,6 +398,20 @@ func (d *Dialect) StageNames() []string {
 	return out
 }
 
+// LoadWarnings lists source authoring warnings in stage order.
+func (d *Dialect) LoadWarnings() []LoadWarning {
+	out := []LoadWarning{}
+	for _, s := range d.stages {
+		if s.preferences != nil {
+			for _, w := range s.preferences.warnings {
+				w.References = append([]ReferenceSite{}, w.References...)
+				out = append(out, w)
+			}
+		}
+	}
+	return out
+}
+
 // Features lists the dialect's features in code point order of their names
 // (engine §13): each a gate or a warning, and on by default when the
 // pipeline's %features turns it on.

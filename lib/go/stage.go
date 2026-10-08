@@ -278,10 +278,18 @@ func (run *stageRun) run(g *lowered, elisionOnly bool) (out stageOutcome) {
 		// A tie is an error. The stage keeps its verdict and witness, and it
 		// has no chosen tree, no output and no warnings. The error holds the
 		// first and the second reading (§6).
+		if len(res.cycle) > 0 {
+			readings := []*Node{}
+			for _, d := range res.readings {
+				readings = append(readings, run.buildTree(rec, d))
+			}
+			out.err = &ParseError{Kind: ErrorAmbiguous, Stage: run.name, Reason: ReasonTie, Readings: readings, Cycle: publicPreferenceEdges(res.cycle, func(a action) Action { return run.actions(rec, [2]action{a, a})[0] }), Message: "The " + run.name + " stage has a comparison cycle."}
+			return out
+		}
 		out.stage.Witness = run.actions(rec, res.witness)
 		out.err = &ParseError{Kind: ErrorAmbiguous, Stage: run.name, Reason: ReasonTie,
-			Readings: []*Node{run.buildTree(rec, res.first), run.buildTree(rec, res.second)},
-			Message:  "stage " + run.name + ": the text is ambiguous: it has two best readings, a tie"}
+			Readings: []*Node{run.buildTree(rec, res.first), run.buildTree(rec, res.second)}, Conflict: res.conflict,
+			Message: "stage " + run.name + ": the text is ambiguous: it has two best readings, a tie"}
 		return out
 	}
 	out.tree = run.buildTree(rec, res.first)

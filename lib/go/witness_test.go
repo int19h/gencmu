@@ -54,7 +54,7 @@ func keeps(res *rankResult, rk *ranker, w *dn) bool {
 	if res == nil || !res.witnessCounted {
 		return false
 	}
-	if res.verdict != VerdictTie {
+	if res.slow || res.verdict != VerdictTie {
 		return true
 	}
 	first := rk.compare(res.first, w)

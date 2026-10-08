@@ -6,7 +6,7 @@ import (
 )
 
 // resultFormat is the version of docs/output.md.
-const resultFormat = 9
+const resultFormat = 10
 
 // MarshalResult writes the canonical JSON of a result (docs/output.md).
 func MarshalResult(result *ParseResult) ([]byte, error) {
@@ -64,7 +64,7 @@ func writeStage(w *jsonWriter, s *Stage) {
 	} else {
 		w.str(s.Verdict)
 	}
-	if s.Verdict == VerdictTie {
+	if s.Verdict == VerdictTie && len(s.Witness) > 0 {
 		w.raw(`,"witness":[`)
 		for i, a := range s.Witness {
 			if i > 0 {
@@ -328,6 +328,27 @@ func writeError(w *jsonWriter, e *ParseError) {
 			writeNode(w, r)
 		}
 		w.raw("]")
+		if len(e.Cycle) > 0 {
+			w.raw(`,"cycle":[`)
+			for i, edge := range e.Cycle {
+				if i > 0 {
+					w.raw(",")
+				}
+				writePreferenceEdge(w, edge)
+			}
+			w.raw("]")
+		}
+		if e.Conflict != nil {
+			w.raw(`,"conflict":{"forward":`)
+			writePreferenceContests(w, e.Conflict.Forward)
+			w.raw(`,"reverse":`)
+			writePreferenceContests(w, e.Conflict.Reverse)
+			w.raw("}")
+		}
+		if e.ChosenReading != nil {
+			w.raw(`,"chosenReading":`)
+			w.int(*e.ChosenReading)
+		}
 		if len(e.Witness) > 0 {
 			w.raw(`,"witness":[`)
 			for i, a := range e.Witness {
@@ -513,4 +534,84 @@ func Brackets(result *ParseResult, options BracketOptions) string {
 		}
 	}
 	return b.String()
+}
+
+func publicPreferenceEdges(edges []preferenceEdge, mapAction func(action) Action) []CycleEdge {
+	out := make([]CycleEdge, len(edges))
+	for i, e := range edges {
+		r := e.reason
+		edge := CycleEdge{From: e.from, To: e.to, Basis: r.basis, Contests: r.contests, Directive: r.directive}
+		if r.boundary != nil {
+			p := int(*r.boundary)
+			edge.Boundary = &p
+			edge.Counts = []string{r.counts[0], r.counts[1]}
+		}
+		if r.witness != nil {
+			edge.Witness = []Action{mapAction(r.witness[0]), mapAction(r.witness[1])}
+		}
+		out[i] = edge
+	}
+	return out
+}
+func writePreferenceStrings(w *jsonWriter, xs []string) {
+	w.raw("[")
+	for i, s := range xs {
+		if i > 0 {
+			w.raw(",")
+		}
+		w.str(s)
+	}
+	w.raw("]")
+}
+func writePreferenceContests(w *jsonWriter, cs []PreferenceContest) {
+	w.raw("[")
+	for i, c := range cs {
+		if i > 0 {
+			w.raw(",")
+		}
+		w.raw(`{"span":`)
+		w.pair(c.Span)
+		w.raw(`,"higher":`)
+		w.str(c.Higher)
+		w.raw(`,"lower":`)
+		w.str(c.Lower)
+		w.raw(`,"path":`)
+		writePreferenceStrings(w, c.Path)
+		w.raw(`,"residualCounts":`)
+		writePreferenceStrings(w, c.ResidualCounts[:])
+		w.raw("}")
+	}
+	w.raw("]")
+}
+func writePreferenceEdge(w *jsonWriter, e CycleEdge) {
+	w.raw(`{"from":`)
+	w.int(e.From)
+	w.raw(`,"to":`)
+	w.int(e.To)
+	w.raw(`,"basis":`)
+	w.str(e.Basis)
+	if e.Basis == "prefer" {
+		w.raw(`,"contests":`)
+		writePreferenceContests(w, e.Contests)
+	} else {
+		w.raw(`,"directive":`)
+		w.str(e.Directive)
+		if e.Boundary != nil {
+			w.raw(`,"boundary":`)
+			w.int(*e.Boundary)
+			w.raw(`,"counts":`)
+			writePreferenceStrings(w, e.Counts)
+		}
+		if e.Witness != nil {
+			w.raw(`,"witness":[`)
+			for i, a := range e.Witness {
+				if i > 0 {
+					w.raw(",")
+				}
+				writeAction(w, a)
+			}
+			w.raw("]")
+		}
+	}
+	w.raw("}")
 }

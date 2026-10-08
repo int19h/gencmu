@@ -251,7 +251,7 @@ type domBuilder struct {
 // place.
 var domRules = map[string]bool{
 	"rule-name": true, "body": true, "primary": true, "emit-target": true, "condition": true, "argument": true, "term-atom": true,
-	"directive": true, "rule": true, "definer": true, "rule-flags": true, "rule-flag": true, "alternative": true, "choice": true,
+	"directive": true, "prefer-directive": true, "rule": true, "definer": true, "rule-flags": true, "rule-flag": true, "alternative": true, "choice": true,
 	"conjunction": true, "sequence": true, "repetition": true, "reference": true,
 	"string": true, "tag": true, "character": true, "phoneme": true, "name": true,
 	"tested": true, "test": true, "test-operand": true, "capture": true, "group": true, "optional": true,
@@ -420,7 +420,7 @@ func (b *domBuilder) document(root *Node) *domDoc {
 	d := &domDoc{Rules: []*domRule{}, Directives: []*domDirective{}, Constants: []*domConst{}, Classifiers: []*domClassifier{}, Implications: []*domImplication{}}
 	for _, c := range ruleParts(root) {
 		switch c.Rule {
-		case "rule", "constant-definition", "classifier", "implication-declaration", "directive":
+		case "rule", "constant-definition", "classifier", "implication-declaration", "directive", "prefer-directive":
 		default:
 			b.fail(c, "the notation gives a %s where an item stands", c.Rule)
 		}
@@ -433,6 +433,15 @@ func (b *domBuilder) document(root *Node) *domDoc {
 			d.Classifiers = append(d.Classifiers, b.classifier(c))
 		case "implication-declaration":
 			d.Implications = append(d.Implications, b.implicationDeclaration(c))
+		case "prefer-directive":
+			keyword := b.token(c)
+			dir := &domDirective{Name: "prefer", Args: []string{}, At: b.at(keyword)}
+			for _, p := range ruleParts(c) {
+				if p.Rule == "reference" && len(dir.Args) < 2 {
+					dir.Args = append(dir.Args, b.text(b.token(p)))
+				}
+			}
+			d.Directives = append(d.Directives, dir)
 		case "directive":
 			keyword := b.token(c)
 			ps := parts(c)
@@ -983,6 +992,10 @@ func operandProblem(name string, kinds []string) string {
 		}
 	}
 	switch name {
+	case "prefer":
+		if len(kinds) != 2 || !names {
+			return "%prefer takes exactly two rule names"
+		}
 	case "stage":
 		if len(kinds) != 1 || !names {
 			return "%stage takes one name"

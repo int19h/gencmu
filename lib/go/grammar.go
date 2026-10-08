@@ -5,6 +5,7 @@ import "slices"
 // A stage's grammar: its documents stitched into one set of rules,
 // directives, constants, classifiers and implications (engine §2).
 type stageGrammar struct {
+	preferences   *preferences
 	name          string
 	uni           *unicodeTable // the loader's table, for the tags of a range in a constant's value
 	constants     map[string]*stageConst
@@ -89,6 +90,7 @@ func isTerminalName(name string) bool {
 func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, *Error) {
 	g := &stageGrammar{name: stageName, uni: uni, constants: map[string]*stageConst{}, byName: map[string]*sRule{}}
 	g.classifierSet.names = map[string]bool{}
+	var preferences []preferenceDeclaration
 	var implications []implicationItem
 	fail := func(doc string, at [2]int, format string, args ...any) *Error {
 		e := grammarError(doc, at, format, args...)
@@ -141,6 +143,11 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 		}
 		for _, dir := range d.dom.Directives {
 			switch dir.Name {
+			case "prefer":
+				if len(dir.Args) != 2 {
+					return nil, fail(d.path, dir.At, "%%prefer takes exactly two rule names")
+				}
+				preferences = append(preferences, preferenceDeclaration{dir.Args[0], dir.Args[1], d.path, dir.At})
 			case "ambiguity-resolution":
 				ambiguity = append(ambiguity, dir)
 				if len(ambiguity) > 1 {
@@ -227,6 +234,11 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 	// The guards of an entry are all gates (engine §2).
 	g.classifierSet.gates = guardNames(entries)
 	g.guarded = guardNames(append(guards, entries...))
+	var err *Error
+	g.preferences, err = newPreferences(g, preferences)
+	if err != nil {
+		return nil, err
+	}
 	return g, nil
 }
 

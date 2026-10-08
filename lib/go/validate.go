@@ -272,6 +272,8 @@ func implicationSideFault(side *domTerm, ct constTypes) *typeFault {
 // %features one or more names. %elidable is no directive.
 func directiveOperandsOK(dir *domDirective) bool {
 	switch dir.Name {
+	case "prefer":
+		return len(dir.Args) == 2 && (dir.Args[0] == "#" || domName.MatchString(dir.Args[0])) && (dir.Args[1] == "#" || domName.MatchString(dir.Args[1]))
 	case "stage":
 		return len(dir.Args) == 1 && domName.MatchString(dir.Args[0])
 	case "include":

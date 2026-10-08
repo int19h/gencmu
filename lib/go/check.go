@@ -105,6 +105,7 @@ type elisionWatch struct {
 // which a parse takes through an unexported field of ParseOptions, so that
 // no caller can set them and parses that run at once keep them apart.
 type privateOptions struct {
+	preferenceRanking func(preferenceStatistics)
 	// elisionCheck, when set, receives each check of elision-only that
 	// recognized R and met no error of the grammar, before it ranks, for
 	// the witness test of tests/README.md. It gives back the marks of
@@ -234,8 +235,11 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	for _, rule := range g.rules {
 		flagged = flagged || rule.leftmostLongest
 	}
+	protect := flagged || g.stage != nil && g.stage.preferences != nil && len(g.stage.preferences.paths) > 0
 	if flagged {
 		chosenProfile = derivationProfile(g, d)
+	}
+	if protect {
 		marks, restored = walkWitness(&elisionCheckRun{chosen: d, rec: r, top: top, recon: rc, originalAt: originalAt, recordAt: recordAt})
 		if restored == nil {
 			top = nil
@@ -247,20 +251,24 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	if len(top) > 0 && private.loseWitness != "count" {
 		res = rk.rank(top)
 	}
-	if res != nil && flagged && !res.witnessCounted {
+	if res != nil && protect && !res.witnessCounted {
 		res = nil
 	}
-	if res != nil && flagged {
-		switch c := compareProfiles(res.profile, chosenProfile); {
-		case c > 0:
+	better := false
+	if res != nil {
+		profileOrder := compareProfiles(res.profile, chosenProfile)
+		if profileOrder > 0 {
 			res = nil
-		case c < 0:
-			res.second, res.first = res.first, restored
-			diff := rk.compare(res.first, res.second)
-			if diff.kind == cVisDiff {
-				res.witness = [2]action{diff.va, diff.vb}
-			} else {
-				res.witness = [2]action{diff.wa, diff.wb}
+		} else {
+			better = profileOrder < 0 || res.slow && res.verdict != VerdictTie && restored != nil && rk.compare(restored, res.first).kind != cIdentical
+			if better {
+				res.second, res.first = res.first, restored
+				diff := rk.compare(res.first, res.second)
+				if diff.kind == cVisDiff {
+					res.witness = [2]action{diff.va, diff.vb}
+				} else {
+					res.witness = [2]action{diff.wa, diff.wb}
+				}
 			}
 		}
 	}
@@ -277,7 +285,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 			Message: "the " + run.name + " stage could not reconstruct its chosen derivation for elision-only",
 			Chosen:  tree, Completion: records}
 	}
-	if res.second == nil {
+	if res.second == nil && len(res.cycle) == 0 {
 		return nil
 	}
 	// The readings, mapped to O (§7.10).
@@ -309,28 +317,53 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 		}
 		return root
 	}
-	first := tree
-	if !flagged || compareProfiles(res.profile, chosenProfile) >= 0 {
-		first = mapTree(over.buildTree(r, res.first))
-	}
-	readings := []*Node{first, mapTree(over.buildTree(r, res.second))}
 	// The witness, mapped to O as the readings are: a read of a synthetic
 	// token is an elided action at its record's position, and a close has
 	// the projection of its span (§7.10).
-	witness := make([]Action, 2)
-	for i, a := range res.witness {
+	mapped := func(a action) Action {
 		switch {
 		case a.read && rc.synthetic[a.tok]:
-			witness[i] = Action{Elided: &ElidedAction{At: rc.project[a.tok], Terminal: g.terminals[a.term]}}
+			return Action{Elided: &ElidedAction{At: rc.project[a.tok], Terminal: g.terminals[a.term]}}
 		case a.read:
-			witness[i] = Action{Read: &ReadAction{Token: rc.project[a.tok], Terminal: g.terminals[a.term]}}
+			return Action{Read: &ReadAction{Token: rc.project[a.tok], Terminal: g.terminals[a.term]}}
 		case a.prod != nil:
-			witness[i] = Action{Close: &CloseAction{Rule: a.prod.ruleName, Production: a.prod.num, Span: [2]int{rc.project[a.start], rc.project[a.end]}}}
-		default:
-			// Neither action is ever missing (engine §6, §7.10).
+			return Action{Close: &CloseAction{Rule: a.prod.ruleName, Production: a.prod.num, Span: [2]int{rc.project[a.start], rc.project[a.end]}}}
+		}
+		return Action{}
+	}
+	if len(res.cycle) > 0 {
+		ids := []*dn{restored}
+		indices := make([]int, len(res.readings))
+		for i, d := range res.readings {
+			if rk.compare(restored, d).kind != cIdentical {
+				ids = append(ids, d)
+				indices[i] = len(ids) - 1
+			}
+		}
+		readings := []*Node{}
+		for _, d := range ids {
+			readings = append(readings, mapTree(over.buildTree(r, d)))
+		}
+		edges := publicPreferenceEdges(res.cycle, mapped)
+		for i := range edges {
+			edges[i].From = indices[edges[i].From]
+			edges[i].To = indices[edges[i].To]
+		}
+		chosen := 0
+		return &ParseError{Kind: ErrorAmbiguous, Stage: run.name, Reason: ReasonElisionOnly, Readings: readings, Cycle: edges, ChosenReading: &chosen, Message: "stage " + run.name + ": the text is ambiguous even with every elided terminator written"}
+	}
+	first := tree
+	if !better {
+		first = mapTree(over.buildTree(r, res.first))
+	}
+	readings := []*Node{first, mapTree(over.buildTree(r, res.second))}
+	witness := make([]Action, 2)
+	for i, a := range res.witness {
+		witness[i] = mapped(a)
+		if !a.read && a.prod == nil {
 			panic("gencmu: the witness of the check of elision-only lacks an action")
 		}
 	}
-	return &ParseError{Kind: ErrorAmbiguous, Stage: run.name, Reason: ReasonElisionOnly, Readings: readings, Witness: witness,
+	return &ParseError{Kind: ErrorAmbiguous, Stage: run.name, Reason: ReasonElisionOnly, Readings: readings, Witness: witness, Conflict: res.conflict,
 		Message: "stage " + run.name + ": the text is ambiguous even with every elided terminator written"}
 }

@@ -234,7 +234,11 @@ func (r cmpRes) flip() cmpRes {
 }
 
 type ranker struct {
-	rec *recognizer
+	stageLean    string
+	preferences  *preferences
+	prefContexts map[string]forbidden
+	statistics   preferenceStatistics
+	rec          *recognizer
 	// lean is greedy, lazy, or "" for no lean, where any two differing
 	// derivations tie. Under late-elision it is "", and elisions is set.
 	lean     string
@@ -267,7 +271,10 @@ func (rk *ranker) skips(fault, site string, i, n int) bool {
 // newRanker ranks under the rule of a directive, greedy, lazy or
 // late-elision, or under no lean for "".
 func newRanker(rec *recognizer, rule string, mx *maximal) *ranker {
-	rk := &ranker{rec: rec, lean: rule, maximal: mx, items: map[*item]*itemRank{}, syms: map[*symNode]*itemRank{}, marked: map[*item]bool{}}
+	rk := &ranker{rec: rec, stageLean: rule, lean: rule, maximal: mx, items: map[*item]*itemRank{}, syms: map[*symNode]*itemRank{}, marked: map[*item]bool{}}
+	if rec.g.stage != nil {
+		rk.preferences = rec.g.stage.preferences
+	}
 	if rule == "late-elision" {
 		// The readings come from a ranking with no lean over the forest of
 		// the best derivations (engine §6).
@@ -1178,11 +1185,15 @@ func (rk *ranker) prepare(top []*symNode) {
 // reading, m, which is the chosen derivation unless the verdict is a tie,
 // and for a tie the second reading, t, and the witness (engine §6).
 type rankResult struct {
-	profile ruleProfile
-	verdict string
-	first   *dn
-	second  *dn // nil unless the verdict is a tie
-	witness [2]action
+	slow     bool
+	readings []*dn
+	cycle    []preferenceEdge
+	conflict *PreferenceConflict
+	profile  ruleProfile
+	verdict  string
+	first    *dn
+	second   *dn // nil unless the verdict is a tie
+	witness  [2]action
 	// witnessCounted, with the witness hook's marks, says whether the count
 	// counted W(D): a root has the bit (tests/README.md).
 	witnessCounted bool
@@ -1192,6 +1203,19 @@ type rankResult struct {
 // text that spans it, combined as the edges of one root (engine §6). It is
 // nil when every derivation is cyclic.
 func (rk *ranker) rank(top []*symNode) *rankResult {
+	if rk.preferences != nil && len(rk.preferences.paths) > 0 {
+		defer func() {
+			if private := rk.rec.run.ps.private; private != nil && private.preferenceRanking != nil {
+				private.preferenceRanking(rk.statistics)
+			}
+		}()
+		if rk.possiblePreferenceContest(top) {
+			return rk.rankPreferences(top)
+		}
+	}
+	return rk.rankOriginal(top)
+}
+func (rk *ranker) rankOriginal(top []*symNode) *rankResult {
 	rk.prepare(top)
 	type rootVal struct {
 		e   *entry

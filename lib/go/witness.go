@@ -117,6 +117,7 @@ func walkWitness(run *elisionCheckRun) (map[*item]map[link]bool, *dn) {
 
 	// Record exact items for each close and matched links for each item.
 	found := map[*wnode]map[*item]bool{}
+	steps := map[*wnode]map[*item]link{}
 	marks := map[*item]map[link]bool{}
 	keep := func(it *item, l link) {
 		if marks[it] == nil {
@@ -126,6 +127,7 @@ func walkWitness(run *elisionCheckRun) (map[*item]map[link]bool, *dn) {
 	}
 	for _, w := range order {
 		n := w.d
+		steps[w] = map[*item]link{}
 		if n.kind == dRead {
 			continue
 		}
@@ -178,6 +180,9 @@ func walkWitness(run *elisionCheckRun) (map[*item]map[link]bool, *dn) {
 						}
 					}
 					if ok {
+						if !next[it] {
+							steps[w][it] = l
+						}
 						next[it] = true
 						keep(it, l)
 					}
@@ -187,16 +192,46 @@ func walkWitness(run *elisionCheckRun) (map[*item]map[link]bool, *dn) {
 		}
 		found[w] = current
 	}
-	held := false
+	// Bind one coherent reconstruction to its actual constituent states.
+	type bound struct {
+		w   *wnode
+		sym *symNode
+		it  *item
+	}
+	var pending []bound
 	for _, s := range run.top {
 		for _, it := range s.items {
 			if found[root][it] {
-				held = true
+				pending = []bound{{root, s, it}}
+				break
 			}
 		}
+		if len(pending) > 0 {
+			break
+		}
 	}
-	if !held {
+	if len(pending) == 0 {
 		return nil, nil
+	}
+	states := map[*wnode]*symNode{}
+	for len(pending) > 0 {
+		b := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		states[b.w] = b.sym
+		it := b.it
+		for i := len(b.w.kids) - 1; i >= 0; i-- {
+			k := b.w.kids[i]
+			l := steps[b.w][it]
+			if k.d.kind != dRead {
+				for _, child := range l.sym.items {
+					if found[k][child] {
+						pending = append(pending, bound{k, l.sym, child})
+						break
+					}
+				}
+			}
+			it = l.prev
+		}
 	}
 	// Build W(D) in the ranking's form over reconstruction tokens and spans.
 	// Each restoration reads its synthetic token and closes over it.
@@ -207,13 +242,13 @@ func walkWitness(run *elisionCheckRun) (map[*item]map[link]bool, *dn) {
 			built[w] = readNode(int32(w.end-1), w.d.term)
 		case elided(w.d):
 			read := readNode(int32(w.end-1), run.rec.g.termID[w.d.prod.elided])
-			built[w] = closeNode(w.d.prod, int32(w.end-1), int32(w.end), nil, partNode(nil, read))
+			built[w] = closeNode(w.d.prod, int32(w.end-1), int32(w.end), states[w].tags, partNode(nil, read), states[w].structure)
 		default:
 			var kids *dn
 			for _, k := range w.kids {
 				kids = partNode(kids, built[k])
 			}
-			built[w] = closeNode(w.d.prod, int32(w.start), int32(w.end), nil, kids)
+			built[w] = closeNode(w.d.prod, int32(w.start), int32(w.end), states[w].tags, kids, states[w].structure)
 		}
 	}
 	return marks, built[root]
