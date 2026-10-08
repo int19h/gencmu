@@ -11493,7 +11493,7 @@
         // A text that maximal leaves with no derivation is rejected at the
         // first terminator it forbids in the first reading, m, of the ranking
         // without maximal, whatever its verdict (engine §4).
-        const rejection = (maximal && roots.length > 0 && forbiddenTerminator(new Ranker(tokens, resolution.lean).rank(roots), maximal))
+        const rejection = (maximal && roots.length > 0 && forbiddenTerminator(new PreferenceRanker(tokens, resolution.lean, lowered.preferences).rank(roots), maximal))
           || rejectionOf(chart);
         report.error = {
           kind: "rejected",
