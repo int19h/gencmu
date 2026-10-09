@@ -36,6 +36,7 @@ docs/
   engine.md                the engine specification, for implementers
   api.md                   the library API, per language
   output.md                the output formats, defined exactly
+  diagrams/                railroad diagrams of the grammars' rules, generated
 tests/
   engine/                  small grammars with expected parses: the engine spec as tests
   notation/                small grammar documents with their expected DOMs and errors
@@ -650,6 +651,29 @@ The tools list the repository's documents in one way (`tools/documents.js`). In 
 - an indented code block, such as a paragraph indented too far in a list item, and an HTML block, since either can hide prose
 
 The check of quoted texts relies on this rule, since it gives each text the line of its code span (`tools/quoted-texts.js`).
+
+## Railroad diagrams
+
+A railroad diagram draws a grammar rule as a track. A reader follows the track from left to right, and each path along it is one way to read the rule.
+
+`node tools/sync.js` draws one diagram for each rule of each grammar document (`tools/railroad.js`). It reads the rules from the document's DOM, as the libraries read them. It writes each diagram as an SVG file under `docs/diagrams/`. Each grammar document also gets a page there, which shows its diagrams under the headings of its sections. Each grammar document links to its page under its title, and `tools/sync.js --check` fails without that link. The packages do not ship these files.
+
+The diagrams draw the notation in this way:
+
+- A square box is a rule, and a rounded box is a terminal. A test stands in the box of its symbol, as the notation writes it, such as `LE="la"`.
+- A sequence runs from left to right. A sequence too wide for the page continues on the next row. The track runs back under the row before it.
+- A choice puts its first branch on the track and its other branches below it. The alternatives of a rule are a choice.
+- An optional has a bypass over its content. The bypass of an elidable optional has the label "elided", or "elided, maximal" for `[++T ...]`.
+- Braces loop back under their item, and a separator stands on the loop. So `[{x}]` is a bypass over a loop.
+- A chain reads the same words as a list, so it has the same drawing. A label under the loop says "left chain" or "right chain".
+- `A & B & C` is the choice of the item where the subsequence begins, with every later item optional. So `A & B` is `A [B]` or `B`.
+- The guards of an alternative stand over the start of its track, such as `¬cbm?` or `y-cmavo!`. `ε` is a bare track.
+
+A diagram leaves out the captures, the tag terms and the clauses. A capture only names a part for the clauses, and changes nothing that the rule reads. Tags, emission and `%opaque` say what the parts mean, not which tokens the rule reads. A condition can reject a reading that the diagram shows. So a diagram shows what a rule reads before its conditions. The page names the clauses that a rule has. It also gives the rule's flag, and says when a rule replaces or extends another.
+
+The SVG has fixed sizes and no fonts to measure. Each text is drawn at the width that its characters are given. So the same DOM always gives the same file. Each diagram has a white background, so it reads in a dark theme too.
+
+GitHub also renders railroad diagrams written in Mermaid, a beta diagram type since Mermaid 11.16. That type has no separators, labels or rows. GitHub draws each diagram in a frame of its own, with a Mermaid version that it can change at any time. Other viewers of Markdown often do not draw Mermaid at all. An SVG file shows wherever an image does.
 
 ## Structural pattern implementation
 
