@@ -115,7 +115,7 @@ The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run be
   | indicator-run [fuhe] indicator | indicator-run [fuhe] attitudinal-nai
 
 %rule indicator
-  | $i(~word) | $b(bahe-run) $i(~word)
+  [$b(bahe-run)] $i(~word)
 %tags
   tags($i)
 %conditions
@@ -125,7 +125,7 @@ The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run be
   ($b) $i
 
 %rule fuhe
-  | $i(~word) | $b(bahe-run) $i(~word)
+  [$b(bahe-run)] $i(~word)
 %tags
   tags($i)
 %conditions
@@ -134,7 +134,7 @@ The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run be
   ($b) $i
 
 %rule attitudinal-nai
-  | $u(attitudinal) $n(nai) | $b(bahe-run) $u(attitudinal) $n(nai)
+  [$b(bahe-run)] $u(attitudinal) $n(nai)
 %tags
   tags($u)
 %emits
@@ -148,7 +148,7 @@ The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run be
   classes($i) ∩ (UI ∪ CAI) ≠ ∅
 
 %rule nai
-  | $m(~word⊇NAI) | $b(bahe-run) $m(~word⊇NAI)
+  [$b(bahe-run)] $m(~word⊇NAI)
 %tags
   tags($m)
 %emits
