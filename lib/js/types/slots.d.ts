@@ -13,6 +13,30 @@ export type AdmissionMask = {
 /** @typedef {{item: import("./types.js").Item, index: number, edge: Extract<import("./types.js").Edge, {kind:"complete"}>, label: string}} SlotCandidate */
 /** @typedef {{all: Set<number>, allowed: Set<number>}} AdmissionMask */
 export declare class SlotAdmission {
+    forest: {
+        chart: {
+            start: number;
+            end: number;
+            setAt: (position: number) => import("./earley.js").ChartSet;
+            furthest: number;
+            context: import("./earley.js").ParseContext;
+            sets: {
+                position: number;
+                index: Map<number | string, import("./earley.js").Item>;
+                queue: import("./earley.js").Item[];
+                head: number;
+                waiting: Map<string, import("./earley.js").Item[]>;
+                nullable: Map<string, import("./earley.js").Item[]>;
+                predicted: Map<string, boolean>;
+                skipped: string[];
+                items: import("./slot-forest.js").Item[];
+            }[];
+        };
+        plain: Map<import("./types.js").Item, import("./types.js").Item>;
+        helpers: Set<string>;
+        routeMasks: Map<import("./types.js").Item, import("./slot-forest.js").RouteMask>;
+        rawIndices: WeakMap<import("./types.js").Edge, number>;
+    } | null;
     preferences: import("./preferences.js").Preferences;
     maximal: import("./maximal.js").Maximal | null;
     /** @type {Map<string,SlotCandidate[]>} */

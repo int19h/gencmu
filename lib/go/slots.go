@@ -41,81 +41,107 @@ func newSlotAdmission(rk *ranker) *slotAdmission {
 	a := &slotAdmission{rk: rk, groups: map[string]*slotGroup{}, at: map[*item]map[int]*slotGroup{}, masks: map[slotCountKey]slotMask{}, counts: map[slotCountKey]slotCount{}, contexts: map[string]forbidden{"": nil}}
 	g := rk.rec.g
 	prefs := g.stage.preferences
+	var items []*item
 	for _, set := range rk.rec.sets {
 		if set == nil {
 			continue
 		}
 		for _, it := range set.index {
 			a.stats.chartFacts++
-			pos := int(it.dot) - 1
-			if pos < 0 || pos >= len(it.prod.rhs) {
+			items = append(items, it)
+		}
+	}
+	if rk.views != nil {
+		items = rk.views.items
+	}
+	for _, it := range items {
+		var scope *slotScope
+		if rk.views != nil {
+			scope = rk.views.itemScopes[it]
+		}
+		if scope != nil && scope.blocked || g.rules[it.prod.lhs].helper && scope == nil {
+			continue
+		}
+		pos := int(it.dot) - 1
+		if pos < 0 || pos >= len(it.prod.rhs) {
+			continue
+		}
+		s := it.prod.rhs[pos]
+		if s.term || g.rules[s.id].helper {
+			continue
+		}
+		label := g.rules[s.id].name
+		component, ok := prefs.labels[label]
+		if !ok {
+			continue
+		}
+		v := prefs.variants[label]
+		role := "root"
+		if path, ok := v.paths[it.prod.slot.path]; ok {
+			role = path
+		}
+		var prefix []string
+		for i, s := range it.prod.rhs[:pos] {
+			prefix = append(prefix, slotSymbolRole(s, v, g)+"/"+slotTestKey(it.prod.testAt(i)))
+		}
+		for index, edge := range it.links {
+			if edge.sym == nil {
 				continue
 			}
-			s := it.prod.rhs[pos]
-			if s.term || g.rules[s.id].helper {
-				continue
-			}
-			label := g.rules[s.id].name
-			component, ok := prefs.labels[label]
-			if !ok {
-				continue
-			}
-			v := prefs.variants[label]
-			role := "root"
-			if path, ok := v.paths[it.prod.slot.path]; ok {
-				role = path
-			}
-			var prefix []string
-			for i, s := range it.prod.rhs[:pos] {
-				prefix = append(prefix, slotSymbolRole(s, v, g)+"/"+slotTestKey(it.prod.testAt(i)))
-			}
-			for index, edge := range it.links {
-				if edge.sym == nil {
-					continue
-				}
-				state := rk.rec.machine.empty
-				strict, restores := false, false
-				var captures []string
-				if edge.prev != nil {
-					before := edge.prev
-					state = before.prefix
-					strict, restores = before.strict, before.restores
-					caps := rk.rec.caps(&before.itemKey)
-					for i := 0; i < int(before.dot); i++ {
-						if slot := before.prod.capSlot[i]; slot >= 0 {
-							n := before.prod.capName[i]
-							r, ok := v.roles[n]
-							if !ok {
-								r = n
-							}
-							captures = append(captures, fmt.Sprintf("%q/%v", r, caps.at(slot)))
+			state := rk.rec.machine.empty
+			strict, restores := false, false
+			var captures []string
+			if edge.prev != nil {
+				before := edge.prev
+				state = before.prefix
+				strict, restores = before.strict, before.restores
+				caps := rk.rec.caps(&before.itemKey)
+				for i := 0; i < int(before.dot); i++ {
+					if slot := before.prod.capSlot[i]; slot >= 0 {
+						n := before.prod.capName[i]
+						r, ok := v.roles[n]
+						if !ok {
+							r = n
 						}
+						captures = append(captures, fmt.Sprintf("%q/%v", r, caps.at(slot)))
 					}
 				}
-				key := fmt.Sprintf("%d/%q/%q/%d/%d/%q/%t/%t/%d/%d", component, role, prefix, it.origin, state, captures, strict, restores, edge.sym.start, edge.sym.end)
-				group := a.groups[key]
-				if group == nil {
-					group = &slotGroup{maxima: map[string]slotLabels{}}
-					a.groups[key] = group
-				}
-				group.candidates = append(group.candidates, slotCandidate{it, index, label, group})
-				if a.at[it] == nil {
-					a.at[it] = map[int]*slotGroup{}
-				}
-				a.at[it][index] = group
-				a.stats.candidateEdges++
 			}
+			ancestry := ""
+			if rk.views != nil {
+				ancestry = rk.views.ancestry(scope, v, rk)
+			}
+			key := fmt.Sprintf("%d/%q/%q/%q/%d/%d/%q/%t/%t/%d/%d", component, ancestry, role, prefix, it.origin, state, captures, strict, restores, edge.sym.start, edge.sym.end)
+			group := a.groups[key]
+			if group == nil {
+				group = &slotGroup{maxima: map[string]slotLabels{}}
+				a.groups[key] = group
+			}
+			group.candidates = append(group.candidates, slotCandidate{it, index, label, group})
+			if a.at[it] == nil {
+				a.at[it] = map[int]*slotGroup{}
+			}
+			a.at[it][index] = group
+			a.stats.candidateEdges++
 		}
 	}
 	a.stats.groups = len(a.groups)
 	return a
 }
 func (a *slotAdmission) key(it *item, sym *symNode, f forbidden) slotCountKey {
-	cut := sym != nil && f.has(sym.rule)
+	var scope *slotScope
+	if a.rk.views != nil {
+		if sym != nil {
+			scope = a.rk.views.symScopes[sym]
+		} else {
+			scope = a.rk.views.itemScopes[it]
+		}
+	}
+	cut := sym != nil && f.has(sym.rule) || scope != nil && scope.blocked
 	if sym != nil {
-		f = a.rk.restrict(f, sym.rule)
+		f = a.rk.slotContext(f, sym.rule, scope)
 	} else {
-		f = a.rk.restrict(f, it.prod.lhs)
+		f = a.rk.slotContext(f, it.prod.lhs, scope)
 	}
 	context := f.key()
 	a.contexts[context] = f
@@ -149,6 +175,11 @@ func (a *slotAdmission) availabilityKey(it *item, context string) string {
 	parent := int32(-1)
 	if int(it.dot) == len(it.prod.rhs) {
 		parent = it.prod.lhs
+		if a.rk.views != nil {
+			if scope := a.rk.views.itemScopes[it]; scope != nil {
+				parent = scope.frames[0].parent.prod.lhs
+			}
+		}
 	}
 	return fmt.Sprintf("%s/%d", context, parent)
 }
@@ -159,7 +190,7 @@ func (a *slotAdmission) dependencies(key slotCountKey) []slotCountKey {
 	f := a.contexts[key.context]
 	out := []slotCountKey{}
 	if s := key.sym; s != nil {
-		if a.rk.rec.g.rules[s.rule].scc >= 0 {
+		if a.rk.rec.g.rules[s.rule].scc >= 0 && (a.rk.views == nil || a.rk.views.symScopes[s] == nil) {
 			f = f.with(s.rule)
 		}
 		for _, it := range s.items {
@@ -219,6 +250,11 @@ func (a *slotAdmission) edgeCount(it *item, edge link, f forbidden) (slotCount, 
 func (a *slotAdmission) admit(key slotCountKey) {
 	choices := a.at[key.it]
 	if choices == nil {
+		if a.rk.views != nil {
+			if mask, ok := a.rk.views.routes[key.it]; ok {
+				a.masks[key] = mask
+			}
+		}
 		return
 	}
 	context := a.availabilityKey(key.it, key.context)
@@ -271,7 +307,7 @@ func (a *slotAdmission) compute(key slotCountKey) slotCount {
 	rk := a.rk
 	if s := key.sym; s != nil {
 		f := a.contexts[key.context]
-		if rk.rec.g.rules[s.rule].scc >= 0 {
+		if rk.rec.g.rules[s.rule].scc >= 0 && (rk.views == nil || rk.views.symScopes[s] == nil) {
 			f = f.with(s.rule)
 		}
 		var out slotCount
@@ -288,7 +324,7 @@ func (a *slotAdmission) compute(key slotCountKey) slotCount {
 	}
 	it := key.it
 	if it.dot == 0 && !it.restores {
-		_, w := rk.marks[it]
+		w := rk.slotMarks(it) != nil
 		return slotCount{1, 1, w, w}
 	}
 	if it.restores && rk.rec.run.ps.fault("rank-restoration") {
@@ -304,7 +340,7 @@ func (a *slotAdmission) compute(key slotCountKey) slotCount {
 		}
 		l, r, permit := a.edgeCount(it, edge, f)
 		ways := min(l.all*r.all, 2)
-		w := rk.marks[it][edge] && (edge.prev == nil || l.w) && (edge.sym == nil || r.w)
+		w := rk.slotMarks(it)[edge] && (edge.prev == nil || l.w) && (edge.sym == nil || r.w)
 		if !filtered || mask.all[index] {
 			out.all = min(out.all+ways, 2)
 			out.w = out.w || ways > 0 && w
@@ -351,6 +387,10 @@ func (a *slotAdmission) prepare(key slotCountKey) {
 }
 func (a *slotAdmission) mask(it *item, f forbidden) (slotMask, bool) {
 	if a.at[it] == nil {
+		if a.rk.views != nil {
+			mask, ok := a.rk.views.routes[it]
+			return mask, ok
+		}
 		return slotMask{}, false
 	}
 	key := a.key(it, nil, f)

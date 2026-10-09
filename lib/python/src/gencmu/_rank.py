@@ -393,6 +393,9 @@ class Summaries:
         below it over its span (engine §6). So ancestors outside that group
         cause no difference of context. Different sets of ancestors within
         the group can still need different summaries of the item."""
+        scope = getattr(self.forest,"slot_scopes",())[item] if hasattr(self.forest,"slot_scopes") else None
+        if scope is not None and self.productions[self.forest.prod[item]].helper:
+            return frozenset(rule for rule in forbidden if rule not in self.forest.slot_helpers)
         if not forbidden or not self.sensitive(item):
             return self.empty
         groups = self.groups()
@@ -416,7 +419,8 @@ class Summaries:
         """The key of a completed item's derivations before its close: its
         own rule joins the context of its children over its span."""
         _, item, context = key
-        return self.partial_key(item, context | {self.rule(item)})
+        scope = getattr(self.forest,"slot_scopes",())[item] if hasattr(self.forest,"slot_scopes") else None
+        return self.partial_key(item, context if scope is not None and self.productions[self.forest.prod[item]].helper else context | {self.rule(item)})
 
     def all_steps(self, key: Key) -> list[Step]:
         """The edges of a partial key's item that its context allows."""
@@ -425,6 +429,10 @@ class Summaries:
             return found
         _, item, context = key
         forest = self.forest
+        scope = forest.slot_scopes[item] if hasattr(forest,"slot_scopes") else None
+        if scope is not None and scope["blocked"]:
+            self.steps_memo[key] = []
+            return []
         start, end = forest.origin[item], forest.end[item]
         found = []
         for index, (pred, kind, a, b) in enumerate(forest.edges[item]):
@@ -569,7 +577,7 @@ class Ranker(Summaries):
             found = leaf(
                 Act(
                     False,
-                    item=item,
+                    item=forest.slot_original[item] if hasattr(forest,"slot_original") else item,
                     production=production.id,
                     start=forest.origin[item],
                     end=forest.end[item],
@@ -1172,7 +1180,11 @@ def rank(forest: Forest, lean: str, maximal: Maximal | None = None, marks=None, 
     admission = None
     if not unfiltered and preferences is not None and preferences.names:
         from ._slots import SlotAdmission
+        raw_facts = len(forest.prod)
+        from ._slot_views import helper_forest
+        forest,maximal,marks = helper_forest(forest,preferences,maximal,marks)
         admission = SlotAdmission(forest,preferences,maximal,check)
+        admission.stats["chart_facts"] = raw_facts
         admission.prepare()
     result = rank_original(forest,lean,maximal,marks,check,admission)
     callback = _testing.slot_admission.get()

@@ -1,0 +1,43 @@
+{
+  "description": "A repetition retains the written maximality channel. Ineligible a cannot suppress eligible b.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text {a} [++T] Y | {b} [++T] Y\n%rule a X | X Y\n%tags ∅\n%rule b X\n%tags ∅\n%prefer a > b",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "b"
+          },
+          {
+            "kind": "elided",
+            "terminal": "T"
+          },
+          {
+            "terminal": "Y"
+          }
+        ]
+      }
+    }
+  }
+}

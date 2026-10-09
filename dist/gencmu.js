@@ -2170,6 +2170,8 @@
       this.ruleVariants = new Map();
       /** @type {Map<import("./grammar.js").StitchedAlternative,Map<number,SlotVariant>>} */
       this.sourceVariants = new Map();
+      this.helperExpressions = new Map();
+      this.hasHelperSlots = false;
       if (this.names.size === 0) return;
       /** @type {Map<string, RankedReference[]>} */
       const sites = new Map([...this.names].map(name => [name, []]));
@@ -2261,6 +2263,8 @@
     /** @param {import("./types.js").Production[]} productions */
     validate(productions) {
       if (!this.names.size) return;
+      this.helperExpressions = new Map(productions.filter(p=>p.helper).map(p=>[p.lhs,p.writtenExpression]));
+      this.hasHelperSlots = productions.some(p=>p.helper && p.rhs.some(s=>this.names.has(s.name)));
       const unsafe = new Set(), users = new Map();
       /** @type {(name: string) => void} */
       const mark = name => { unsafe.add(name); };
@@ -2286,31 +2290,35 @@
         for (const p of productions) {
           const variant = this.variant(p, component);
           if (!variant || variant.component !== component) continue;
-          const hole = p.rhs.findIndex(symbol => component.names.has(symbol.name));
+          const hole = p.rhs.findIndex(symbol => component.names.has(symbol.name) || slotContainsDeep(this.helperExpressions.get(symbol.name) ?? {}, variant.reference.expression));
           const direct = hole !== -1;
+          const boundary = hole < 0 ? false : component.names.has(p.rhs[hole].name) || slotEndsAtHole(this.helperExpressions.get(p.rhs[hole].name), variant.reference.expression);
           const holeNames = new Set(p.captures.filter(capture => capture.index === hole).map(capture => capture.name));
           // The implicit unary capture also reads the private constituent tags.
-          const privateNames = new Set([...variant.holeNames, ...holeNames]);
+          const actualHole = direct && component.names.has(p.rhs[hole].name);
+          const privateNames = new Set([...variant.holeNames, ...(actualHole ? holeNames : [])]);
+          const privateTags = new Set([...privateNames, ...(direct && unsafe.has(p.rhs[hole].name) ? holeNames : [])]);
           /** @type {(value: any) => any} */
           const normalize = value => slotCanonical(value, variant.roles, p, hole);
           /** @type {(condition: import("./types.js").ReadyCondition) => boolean} */
-          const ready = condition => condition.readyAt <= hole && direct;
+          const ready = condition => direct && (condition.readyAt < hole || condition.readyAt === hole && boundary);
           const commonConditions = [];
           const candidateGates = [];
           for (const condition of p.conditions) {
             if (slotStructuralRead(condition.condition, privateNames) && !ready(condition)) this.fail("prefer-slot-continuation", variant.reference.expression.ref,
               {parent:component.parent, references:component.references, expression:normalize(condition.condition)}, "A private hole pattern requires a ready condition gate.");
-            if (slotTagRead(condition.condition, privateNames) && !ready(condition)) this.requireEmpty(component, unsafe, condition.condition, productions);
+            if (slotTagRead(condition.condition, privateTags) && !ready(condition)) this.requireEmpty(component, unsafe, condition.condition, productions);
             if (ready(condition)) candidateGates.push(normalize(condition.condition));
             else commonConditions.push(normalize(condition.condition));
           }
           for (const term of p.writtenTags ?? []) {
             if (slotStructuralRead(term, privateNames)) this.fail("prefer-slot-continuation", variant.reference.expression.ref,
               {parent:component.parent, references:component.references, expression:normalize(term)}, "A tag term cannot read private hole structure.");
-            if (slotTagRead(term, privateNames)) this.requireEmpty(component, unsafe, term, productions);
+            if (slotTagRead(term, privateTags)) this.requireEmpty(component, unsafe, term, productions);
           }
-          if (!p.writtenTags?.length && p.rhs.length === 1 && direct) this.requireEmpty(component, unsafe, {inherit: true}, productions);
+          if (!p.helper && !p.writtenTags?.length && p.rhs.length === 1 && direct && (component.names.has(p.rhs[hole].name) || unsafe.has(p.rhs[hole].name))) this.requireEmpty(component, unsafe, {inherit: true}, productions);
           const key = JSON.stringify({
+            role:p.helper ? variant.paths.get(/** @type {object} */ (p.writtenExpression)) : "written-parent",
             symbols:p.rhs.map((symbol,index) => index === hole ? {hole:true} : {name:symbol.role ?? symbol.name, terminal:symbol.terminal, test:normalize(symbol.test)}),
             captures:p.captures.filter(capture => capture.index !== hole && capture.name !== "\u0000child").map(capture => ({name:variant.roles.get(capture.name), index:capture.index})),
           });
@@ -2319,7 +2327,7 @@
           if (previous !== undefined && previous !== signature) this.fail("prefer-slot-template", variant.reference.expression.ref,
             {parent:component.parent, references:component.references, expression:"clauses"}, "The effective parent tag, emission or continuation clauses differ.");
           signatures.set(key, signature);
-          gates.push({p, variant, commonConditions, candidateGates, normalize, hole, key});
+          if (direct) gates.push({p, variant, commonConditions, candidateGates, normalize, hole, key});
         }
         // A condition that differs across variants cannot remain after the hole.
         const byTemplate = new Map();
@@ -2338,6 +2346,10 @@
       for (const symbol of p.rhs) {
         const variant = this.ruleVariants.get(symbol.name);
         if (variant?.component === component) return variant;
+      }
+      for (const reference of component.references) if (reference.source === p.source) {
+        const variant = this.ruleVariants.get(reference.expression.ref);
+        if (p.rhs.some(symbol => slotContainsDeep(this.helperExpressions.get(symbol.name) ?? {}, reference.expression))) return variant;
       }
       return p.source && this.sourceVariants.get(p.source)?.get(component.id);
     }
@@ -2456,6 +2468,17 @@
       }
     }
     throw new Error("An unsafe tag source requires an inheritance path.");
+  }
+
+  /** @param {any} expr @param {any} reference @returns {boolean} */
+  function slotEndsAtHole(expr, reference) {
+   if (expr === reference) return true;
+   if (!expr) return false;
+   if (expr.expr) return slotEndsAtHole(expr.expr, reference);
+   if (expr.optional) return slotEndsAtHole(expr.optional, reference);
+   if (expr.seq) return slotEndsAtHole(expr.seq.at(-1), reference);
+   if (expr.choice) return expr.choice.some((/** @type {any} */ child)=>slotEndsAtHole(child, reference));
+   return false;
   }
 
   // ---- unicode.js
@@ -5471,6 +5494,7 @@
       this.validation = false;
       /** @type {Map<string, string>} */
       this.helperRoles = new Map();
+      this.helperExpressions = new Map();
       // The helpers of the optionals written [++T x], whose terminators are
       // maximal (engine §3.8, §4).
       /** @type {Set<string>} */
@@ -5554,7 +5578,7 @@
           const selected = this.grammar.preferences.ruleVariants.get(symbol.name);
           if (selected) componentRoles.set(selected.component.id, selected.roles);
         }
-        Object.assign(production, {source, componentRoles, role: this.helperRoles.get(fields.lhs) ?? fields.lhs});
+        Object.assign(production, {source, componentRoles, writtenExpression: fields.helper ? this.helperExpressions.get(fields.lhs) : source?.expr, role: this.helperRoles.get(fields.lhs) ?? fields.lhs});
       }
       this.productions.push(production);
       let same = this.byLhs.get(production.lhs);
@@ -5900,7 +5924,8 @@
      */
     helper(where, build, elided) {
       const name = `${where.rule.name}·${this.helperCount++}`;
-      const variant = this.grammar.preferences?.variants.get(where.alternative);
+      const variant = [...(this.grammar.preferences?.ruleVariants.values() ?? [])].find(v => v.reference.source === where.alternative && this.helperExpression && v.paths.has(this.helperExpression));
+      if (this.grammar.preferences?.names.size && this.helperExpression) this.helperExpressions.set(name, this.helperExpression);
       if (variant && this.helperExpression) {
         this.helperRoles ??= new Map();
         this.helperRoles.set(name, `${where.rule.name}:${variant.paths.get(this.helperExpression)}`);
@@ -10351,7 +10376,7 @@
       const marks = this.marks;
       return this.traverse(item, this.counts, (current, dependency, key) => {
         const guarded = maximal !== null && maximal.guards(current);
-        const marked = marks === null ? undefined : marks.get(current);
+        const marked = marks === null ? undefined : marks.get(current.slotOriginal ?? current);
         const edges = current.edges;
         const admitted = this.admission?.compute(current, dependency, key);
         let all = 0;
@@ -10379,7 +10404,7 @@
             ways = (maximal !== null && maximal.elided(edge.child) ? before.allowed : before.all) * child.all;
             edgeW = before.w && child.w;
           }
-          if ((!admitted || admitted.all.has(index)) && marked !== undefined && ways > 0 && edgeW && marked.has(index)) w = true;
+          if ((!admitted || admitted.all.has(index)) && marked !== undefined && ways > 0 && edgeW && marked.has(this.admission?.forest?.rawIndices.get(edge) ?? index)) w = true;
           if (!admitted || admitted.all.has(index)) all = Math.min(2, all + ways);
           if ((!admitted || admitted.allowed.has(index)) && guarded && (edge.kind !== "complete" || !(/** @type {Maximal} */ (maximal)).forbids(edge.child, current.production.rhs[current.dot - 1].test))) allowed = Math.min(2, allowed + ways);
           // The count is capped and only grows, so the loop can stop at two,
@@ -10461,6 +10486,12 @@
       /** @type {(frame: Frame, item: Item) => TraversalContext} */
       const contextBelow = (frame, item) => {
         if (!this.sameSpan(frame.item, item)) return EMPTY_CONTEXT;
+        if(item.slotScope && item.production.helper){
+          const helpers=/** @type {NonNullable<import("./slots.js").SlotAdmission["forest"]>} */ (this.admission?.forest).helpers;
+          const kept=new Set([...frame.context].filter(key=>!helpers.has(key.slice(1))));
+          if(complete(frame.item)&&!frame.item.production.helper)kept.add(ruleKey(frame.item));
+          return kept.size?kept:EMPTY_CONTEXT;
+        }
         const own = group(item.production.lhs);
         if (own === undefined) return EMPTY_CONTEXT;
         /** @type {TraversalContext} */
@@ -10509,6 +10540,7 @@
         if (hooks.work) countWork(hooks.work, "traversal");
         const frame = stack[stack.length - 1];
         if (!frame.started) {
+          if(frame.item.slotScope?.blocked){deliver(cut);continue;}
           if (complete(frame.item) && frame.context.has(ruleKey(frame.item))) {
             deliver(cut);
             continue;
@@ -10645,6 +10677,8 @@
      * @returns {Ranking | null} null when every derivation is cyclic
      */
     rank(roots) {
+      const forest = this.admission?.forest;
+      if (forest) roots = roots.map(item => /** @type {Item} */ (forest.plain.get(item)));
       this.groupRules(this.admission ? [...roots, ...this.admission.at.keys()] : roots);
       if (this.admission) for (const root of roots) this.countOf(root);
       let count;
@@ -10663,7 +10697,7 @@
         });
         if (this.marks !== null) {
           const marks = this.marks;
-          witnessCounted = roots.some((item) => marks.has(item) && this.countOf(item).w);
+          witnessCounted = roots.some((item) => marks.has(item.slotOriginal ?? item) && this.countOf(item).w);
         }
         profile = root.profile;
         count = root.total;
@@ -10675,7 +10709,7 @@
         // have it (tests/README.md).
         if (this.marks !== null) {
           const marks = this.marks;
-          witnessCounted = roots.some((item) => marks.has(item) && this.countOf(item).w);
+          witnessCounted = roots.some((item) => marks.has(item.slotOriginal ?? item) && this.countOf(item).w);
         }
       }
       /** @type {Candidate[]} */
@@ -11020,7 +11054,127 @@
     return profile;
   }
 
+  // ---- slot-forest.js
+  // A ranking view carries the written invocation across generated helpers.
+  // Recognition keeps the original chart and its completion tables.
+  /** @typedef {import("./types.js").Item} Item */
+  /** @typedef {{id:number,frames:Item[],bounds:{carrier:Item,restricted:boolean}[],blocked:boolean}} SlotScope */
+  /** @typedef {{all:Set<number>,allowed:Set<number>}} RouteMask */
+  /** @param {import("./earley.js").Chart} chart @param {import("./preferences.js").Preferences} preferences @param {import("./maximal.js").Maximal|null} maximal */
+  function helperSlotForest(chart, preferences, maximal) {
+    const lowered = chart.context.lowered;
+    const helpers = new Set(lowered.productions.filter(p => p.helper).map(p => p.lhs));
+    const users = new Map();
+    for (const p of lowered.productions) if (p.helper) for (const s of p.rhs) {
+      const list = users.get(s.name) ?? [];
+      list.push(p.lhs);
+      users.set(s.name, list);
+    }
+    const wrapped = new Set(), pending = [...preferences.names];
+    for (let at = 0; at < pending.length; at++) for (const name of users.get(pending[at]) ?? []) {
+      if (!wrapped.has(name)) { wrapped.add(name); pending.push(name); }
+    }
+    if (!wrapped.size) return null;
+    const sets = chart.sets.map(set => set ? {...set, items: /** @type {Item[]} */ ([])} : set);
+    /** @type {Map<Item,Item>} */
+    const plain = new Map();
+    /** @type {Map<SlotScope,Map<Item,Item>>} */
+    const scoped = new Map();
+    /** @type {Map<string,SlotScope>} */
+    const scopes = new Map();
+    /** @type {Item[]} */
+    const queue = [];
+    /** @type {Map<Item,RouteMask>} */
+    const routeMasks = new Map();
+    /** @type {WeakMap<import("./types.js").Edge,number>} */
+    const rawIndices = new WeakMap();
+    let nextScope = 0, nextSource = 0;
+    /** @type {WeakMap<Item,number>} */
+    const sourceIds = new WeakMap();
+    /** @param {Item} item */
+    const id = item => {
+      let found = sourceIds.get(item);
+      if (found === undefined) sourceIds.set(item, found = nextSource++);
+      return found;
+    };
+    /** @param {Item} raw @param {SlotScope|null} [scope] @returns {Item} */
+    const view = (raw, scope = null) => {
+      let map = plain;
+      if (scope) {
+        const found = scoped.get(scope);
+        if (found) map = found;
+        else { map = new Map(); scoped.set(scope, map); }
+      }
+      const old = map.get(raw);
+      if (old) return old;
+      const item = Object.assign(Object.create(Object.getPrototypeOf(raw)), raw, {slotOriginal:raw, slotScope:scope});
+      Object.defineProperty(item, "edges", {value:[], writable:true});
+      map.set(raw, item);
+      sets[raw.end].items.push(item);
+      queue.push(item);
+      return item;
+    };
+    /** @param {Item} before @param {Item} carrier @param {SlotScope|null} outer @param {boolean} restricted @param {boolean} guarded @returns {SlotScope} */
+    const scopeFor = (before, carrier, outer, restricted, guarded) => {
+      // A flat repetition consumes another item within the same invocation.
+      if (outer && before.production.lhs === carrier.production.lhs) return outer;
+      const key = JSON.stringify([outer?.id ?? -1, id(before), id(carrier), restricted]);
+      const old = scopes.get(key);
+      if (old) return old;
+      const scope = {id:nextScope++, frames:[...(outer?.frames ?? []), before],
+        bounds:[...(outer?.bounds ?? []), {carrier, restricted}],
+        blocked:!!outer?.blocked || !!(restricted && guarded && maximal?.forbids(carrier, before.production.rhs[before.dot].test))};
+      scopes.set(key, scope);
+      return scope;
+    };
+    for (const set of chart.sets) if (set) for (const raw of set.items) view(raw);
+    for (let at = 0; at < queue.length; at++) {
+      const item = queue[at], raw = /** @type {Item} */ (item.slotOriginal), scope = item.slotScope ?? null;
+      const all = new Set(), allowed = new Set();
+      let routed = false;
+      /** @param {import("./types.js").Edge} next @param {number} channel @param {number} index */
+      const append = (next, channel, index) => {
+        const number = item.edges.length;
+        item.edges.push(next);
+        rawIndices.set(next, index);
+        if (channel !== 1) all.add(number);
+        if (channel !== 0) allowed.add(number);
+      };
+      for (const [index, edge] of raw.edges.entries()) {
+        if (edge.kind === "seed" || edge.kind === "restore") { append(edge, 2, index); continue; }
+        const previous = view(edge.previous, scope);
+        if (edge.kind === "scan") { append({...edge, previous}, 2, index); continue; }
+        const child = edge.child;
+        const carries = child.production.helper && wrapped.has(child.production.lhs) && (!raw.production.helper || scope);
+        if (!carries) { append({...edge, previous, child:view(child)}, 2, index); continue; }
+        const guarded = !!maximal?.guards(raw);
+        const inner = scopeFor(edge.previous, child, scope, false, guarded);
+        append({...edge, previous, child:view(child, inner)}, guarded ? 0 : 2, index);
+        if (guarded) {
+          routed = true;
+          const eligible = scopeFor(edge.previous, child, scope, true, true);
+          append({...edge, previous, child:view(child, eligible)}, 1, index);
+        }
+      }
+      if (routed) routeMasks.set(item, {all, allowed});
+    }
+    return {chart:{...chart, sets}, plain, helpers, routeMasks, rawIndices};
+  }
+
+  /** @param {Item} item @param {import("./preferences.js").SlotVariant} variant */
+  function helperPrefixKey(item, variant) {
+    const captures = [];
+    for (let part = item.slots; part; part = part.parent) {
+      const capture = item.production.captures[part.index];
+      captures.push([variant.roles.get(capture?.name ?? "") ?? capture?.name, part.start, part.end, part.tags, part.structure]);
+    }
+    captures.reverse();
+    return [item.production.helper ? variant.paths.get(/** @type {object} */ (item.production.writtenExpression)) : "written-parent", item.origin,
+      item.production.rhs.slice(0, item.dot).map(s => [s.role ?? s.name, s.terminal, s.test]), item.prefix, captures, item.strict, item.restores];
+  }
+
   // ---- slots.js
+
   // Slot admission over raw packed edges. Counts supply finite eligible child
   // proofs before any flag or omission ranking chooses a reading.
   /** @typedef {{item: import("./types.js").Item, index: number, edge: Extract<import("./types.js").Edge, {kind:"complete"}>, label: string}} SlotCandidate */
@@ -11028,6 +11182,9 @@
   class SlotAdmission {
     /** @param {import("./earley.js").Chart} chart @param {import("./preferences.js").Preferences} preferences @param {import("./maximal.js").Maximal | null} maximal */
     constructor(chart, preferences, maximal) {
+      this.forest = preferences.hasHelperSlots ? helperSlotForest(chart,preferences,maximal) : null;
+      const originalChart=chart;
+      chart=this.forest?.chart??chart;
       this.preferences = preferences;
       this.maximal = maximal;
       /** @type {Map<string,SlotCandidate[]>} */
@@ -11040,10 +11197,11 @@
       this.maxima = new Map();
       this.stats = {chartFacts:0, groups:0, candidateEdges:0, retainedEdges:0};
       if (!preferences.names.size) return;
-      for (const set of chart.sets) if (set) for (const item of set.items) {
+      for (const set of chart.sets) if (set) for (const raw of set.items) {
+        const item = /** @type {import("./types.js").Item} */ (raw);
         this.stats.chartFacts++;
         const symbol = item.production.rhs[item.dot - 1];
-        if (!symbol?.slot) continue;
+        if (!symbol?.slot || item.production.helper && !item.slotScope) continue;
         for (const [index, edge] of item.edges.entries()) {
           if (edge.kind !== 'complete') continue;
           const previous = edge.previous;
@@ -11053,7 +11211,10 @@
             captures.push([(previous.production.componentRoles?.get(symbol.slot.id) ?? previous.production.slotRoles)?.get(capture?.name ?? "") ?? capture?.name, part.start, part.end, part.tags, part.structure]);
           }
           captures.reverse();
-          const key = JSON.stringify([symbol.slot.id, item.production.role, item.origin,
+          const variant=/** @type {import("./preferences.js").SlotVariant} */ (preferences.ruleVariants.get(symbol.name));
+          const scope=item.slotScope;
+          const ancestry=scope?[scope.frames.map(frame=>helperPrefixKey(frame,variant)),scope.bounds.map(({carrier,restricted})=>[variant.paths.get(/** @type {object} */ (carrier.production.writtenExpression)),carrier.origin,carrier.end,restricted])]:null;
+          const key = JSON.stringify([symbol.slot.id, ancestry, item.production.role, item.origin,
             previous.production.rhs.slice(0, previous.dot).map(s => [s.role ?? s.name, s.terminal, s.test]),
             previous.prefix, captures, previous.strict, previous.restores, edge.child.origin, edge.child.end]);
           let group = this.groups.get(key);
@@ -11066,11 +11227,12 @@
         }
       }
       this.stats.groups = this.groups.size;
+      if (this.forest) this.stats.chartFacts=originalChart.sets.reduce((sum,set)=>sum+(set?.items.length??0),0);
     }
 
     /** @param {import("./types.js").Item} item @param {string} context */
     availabilityKey(item, context) {
-      return JSON.stringify([context, item.complete ? item.production.lhs : null]);
+      return JSON.stringify([context, item.complete ? item.slotScope?.frames[0].production.lhs ?? item.production.lhs : null]);
     }
 
     /** @param {import("./types.js").Item} item @param {string} context */
@@ -11084,7 +11246,7 @@
     /** @param {import("./types.js").Item} item @param {(item: import("./types.js").Item) => {all:number,allowed:number}} dependency @param {string} context */
     compute(item, dependency, context) {
       const choices = this.at.get(item);
-      if (!choices) return null;
+      if (!choices) return this.forest?.routeMasks.get(item) ?? null;
       const maximal = this.maximal;
       const mask = {all:new Set(), allowed:new Set()};
       const key = this.availabilityKey(item, context);
@@ -11122,7 +11284,7 @@
 
     /** @param {import("./types.js").Item} item @param {string} context */
     mask(item, context) {
-      if (!this.at.has(item)) return null;
+      if (!this.at.has(item)) return this.forest?.routeMasks.get(item) ?? null;
       const found = context === '' ? this.masks.plain.get(item) : this.masks.contextual.get(item)?.get(context);
       if (!found) throw new Error('Slot admission requires eligible child facts before ranking.');
       return found;
@@ -15156,6 +15318,7 @@
    * @property {import("./grammar.js").StitchedAlternative} [source]
    * @property {Map<string, string>} [slotRoles]
    * @property {Map<number,Map<string,string>>} [componentRoles]
+   * @property {Expr} [writtenExpression]
    * @property {string} [role]
    * @property {Term[]} [writtenTags]
    * @property {{alternative: Term | null, definition: Term | null}} [writtenTagClauses]
@@ -15295,7 +15458,7 @@
    */
 
   /** @typedef {import("./tokens.js").Token} Token */
-  /** @typedef {import("./earley.js").Item} Item */
+  /** @typedef {import("./earley.js").Item & {slotOriginal?: import("./earley.js").Item, slotScope?: import("./slot-forest.js").SlotScope | null}} Item */
   /** @typedef {import("./earley.js").ParseContext} ParseContext */
 
 

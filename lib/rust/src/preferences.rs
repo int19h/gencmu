@@ -185,9 +185,15 @@ impl Preferences {
                     source,
                     roles: BTreeMap::new(),
                     paths: FxMap::default(),
+                    carriers: FxMap::default(),
                     hole_names: BTreeSet::new(),
                 };
                 let body = normalize_expr(&alt.alternative.expr, name, "", &mut variant);
+                visit(&alt.alternative.expr, "", &mut |expr, _| {
+                    if contains(expr, name) {
+                        variant.carriers.insert(expr as *const Expr as usize, ends_at_hole(expr, name));
+                    }
+                });
                 let body = canonical_expr(&body);
                 if common.as_ref().is_some_and(|old| old != &body) {
                     return Err(prefs.fail(
@@ -254,7 +260,19 @@ impl Preferences {
                 }
             }
         }
-        source.and_then(|s| self.variants.values().find(|v| v.source == s && v.component == component))
+        source.and_then(|s| {
+            self.variants
+                .values()
+                .find(|v| {
+                    v.source == s
+                        && v.component == component
+                        && syms.iter().any(|sym| match sym {
+                            Sym::N(r) => helper_path(g, *r).is_some_and(|path| v.carriers.contains_key(&path)),
+                            _ => false,
+                        })
+                })
+                .or_else(|| self.variants.values().find(|v| v.source == s && v.component == component))
+        })
     }
     pub fn validate(&self, g: &Lowered) -> Result<(), Error> {
         let mut unsafe_tags = FxSet::default();
@@ -309,9 +327,28 @@ impl Preferences {
             for p in &g.prods {
                 let slot = p.slot.as_ref().expect("slot validation");
                 let Some(v) = self.variant(p.slot.as_ref().map(|s| s.source), component, &p.syms, g) else { continue };
-                let hole=p.syms.iter().position(|s|matches!(s,Sym::N(r) if !g.rules[*r as usize].helper && c.names.contains(&g.rules[*r as usize].name)));
+                let hole = p.syms.iter().position(|s| match s {
+                    Sym::N(r) => {
+                        c.names.contains(&g.rules[*r as usize].name)
+                            || helper_path(g, *r).is_some_and(|path| v.carriers.contains_key(&path))
+                    }
+                    _ => false,
+                });
+                let actual = hole.is_some_and(|h| match p.syms[h] {
+                    Sym::N(r) => !g.rules[r as usize].helper,
+                    _ => false,
+                });
+                let boundary = hole.is_some_and(|h| {
+                    actual
+                        || match p.syms[h] {
+                            Sym::N(r) => {
+                                helper_path(g, r).and_then(|path| v.carriers.get(&path)).copied().unwrap_or(false)
+                            }
+                            _ => false,
+                        }
+                });
                 let mut private = v.hole_names.clone();
-                if let Some(h) = hole {
+                if let Some(h) = hole.filter(|_| actual) {
                     for (name, &pos) in slot.names.iter().zip(&p.cap_pos) {
                         if pos == h {
                             if let Some(n) = name {
@@ -320,9 +357,21 @@ impl Preferences {
                         }
                     }
                 }
+                let mut private_tags = private.clone();
+                if let Some(h) = hole {
+                    if matches!(p.syms[h], Sym::N(r) if unsafe_tags.contains(&r)) {
+                        for (name, &pos) in slot.names.iter().zip(&p.cap_pos) {
+                            if pos == h {
+                                if let Some(n) = name {
+                                    private_tags.insert(n.clone());
+                                }
+                            }
+                        }
+                    }
+                }
                 let mut common_conditions = vec![];
                 for (condition, ready) in &slot.conditions {
-                    let ready = hole.is_some_and(|h| *ready <= h + 1);
+                    let ready = hole.is_some_and(|h| *ready < h + 1 || *ready == h + 1 && boundary);
                     if structural_read(condition, &private) && !ready {
                         return Err(self.fail(
                             "prefer-slot-continuation",
@@ -331,7 +380,7 @@ impl Preferences {
                             &format!("private hole pattern requires a ready condition gate: {condition:?}"),
                         ));
                     }
-                    if tag_read_cond(condition, &private) && !ready {
+                    if tag_read_cond(condition, &private_tags) && !ready {
                         require_empty(&format!("{condition:?}"))?;
                     }
                     if !ready {
@@ -347,11 +396,16 @@ impl Preferences {
                             &format!("tag term reads private hole structure: {term:?}"),
                         ));
                     }
-                    if tag_read(term, &private) {
+                    if tag_read(term, &private_tags) {
                         require_empty(&format!("{term:?}"))?;
                     }
                 }
-                if slot.tags.is_empty() && p.syms.len() == 1 && hole.is_some() {
+                if !g.rules[p.rule as usize].helper
+                    && slot.tags.is_empty()
+                    && p.syms.len() == 1
+                    && hole.is_some()
+                    && matches!(p.syms[0], Sym::N(r) if actual || unsafe_tags.contains(&r))
+                {
                     require_empty("default inheritance")?;
                 }
                 let syms = p
@@ -393,7 +447,8 @@ impl Preferences {
                     .filter(|(_, pos)| Some(**pos) != hole)
                     .filter_map(|(n, pos)| n.as_ref().map(|n| (v.roles.get(n).unwrap_or(n), pos)))
                     .collect::<Vec<_>>();
-                let key = format!("{syms:?}/{captures:?}");
+                let role = slot.path.and_then(|path| v.paths.get(&path));
+                let key = format!("{role:?}/{syms:?}/{captures:?}");
                 let clauses = format!(
                     "{:?}/{:?}",
                     slot.tag_clauses.each_ref().map(|t| t.as_ref().map(|t| canonical_term(t, &v.roles))),
@@ -411,7 +466,7 @@ impl Preferences {
                             "effective parent tag or emission clauses differ",
                         ));
                     }
-                    if conds != &conditions {
+                    if hole.is_some() && conds != &conditions {
                         return Err(self.fail(
                             "prefer-slot-continuation",
                             first,
@@ -438,6 +493,7 @@ pub(crate) struct Variant {
     pub roles: BTreeMap<String, String>,
     pub paths: FxMap<usize, String>,
     pub hole_names: BTreeSet<String>,
+    pub carriers: FxMap<usize, bool>,
 }
 fn visit(expr: &Expr, path: &str, call: &mut impl FnMut(&Expr, &str)) {
     call(expr, path);
@@ -758,4 +814,20 @@ fn inheritance_path(g: &Lowered, start: u32, unsafe_tags: &FxSet<u32>) -> Vec<St
         }
     }
     unreachable!("an unsafe tag source has an inheritance path")
+}
+
+fn helper_path(g: &Lowered, rule: u32) -> Option<usize> {
+    if !g.rules[rule as usize].helper {
+        return None;
+    }
+    g.prods[g.rules[rule as usize].prods[0] as usize].slot.as_ref()?.path
+}
+fn ends_at_hole(expr: &Expr, name: &str) -> bool {
+    match expr {
+        Expr::Ref(n) => n == name,
+        Expr::Capture(_, x) | Expr::Tested(_, _, x) | Expr::Optional(x, _) => ends_at_hole(x, name),
+        Expr::Seq(xs) => xs.last().is_some_and(|x| ends_at_hole(x, name)),
+        Expr::Choice(xs) => xs.iter().any(|x| ends_at_hole(x, name)),
+        _ => false,
+    }
 }

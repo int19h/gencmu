@@ -513,6 +513,7 @@ export type Production = {
     source?: import("./grammar.js").StitchedAlternative;
     slotRoles?: Map<string, string>;
     componentRoles?: Map<number, Map<string, string>>;
+    writtenExpression?: Expr;
     role?: string;
     writtenTags?: Term[];
     writtenTagClauses?: {
@@ -692,7 +693,10 @@ export type DerivationRule = {
     end: number;
 };
 export type Token = import("./tokens.js").Token;
-export type Item = import("./earley.js").Item;
+export type Item = import("./earley.js").Item & {
+    slotOriginal?: import("./earley.js").Item;
+    slotScope?: import("./slot-forest.js").SlotScope | null;
+};
 export type ParseContext = import("./earley.js").ParseContext;
 /**
  * A tag set: tags in their canonical spelling (engine §1), which have no
@@ -1105,6 +1109,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {import("./grammar.js").StitchedAlternative} [source]
  * @property {Map<string, string>} [slotRoles]
  * @property {Map<number,Map<string,string>>} [componentRoles]
+ * @property {Expr} [writtenExpression]
  * @property {string} [role]
  * @property {Term[]} [writtenTags]
  * @property {{alternative: Term | null, definition: Term | null}} [writtenTagClauses]
@@ -1230,6 +1235,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {number} end
  */
 /** @typedef {import("./tokens.js").Token} Token */
-/** @typedef {import("./earley.js").Item} Item */
+/** @typedef {import("./earley.js").Item & {slotOriginal?: import("./earley.js").Item, slotScope?: import("./slot-forest.js").SlotScope | null}} Item */
 /** @typedef {import("./earley.js").ParseContext} ParseContext */
 export {};

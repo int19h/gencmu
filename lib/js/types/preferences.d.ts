@@ -61,6 +61,8 @@ export declare class Preferences {
     ruleVariants: Map<string, SlotVariant>;
     /** @type {Map<import("./grammar.js").StitchedAlternative,Map<number,SlotVariant>>} */
     sourceVariants: Map<import("./grammar.js").StitchedAlternative, Map<number, SlotVariant>>;
+    helperExpressions: Map<any, any>;
+    hasHelperSlots: boolean;
     /** @param {string} stage @param {Map<string, import("./grammar.js").StitchedRule>} rules @param {PreferenceDeclaration[]} declarations */
     constructor(stage: string, rules: Map<string, import("./grammar.js").StitchedRule>, declarations: PreferenceDeclaration[]);
     /** @param {string} code @param {string} name @param {any} fields @param {string} message @returns {never} */

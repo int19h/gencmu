@@ -16,6 +16,9 @@ class SlotAdmission(Summaries):
         lowered = forest.lowered
         for item,edges in enumerate(forest.edges):
             production = self.productions[forest.prod[item]]
+            scope = forest.slot_scopes[item] if hasattr(forest,"slot_scopes") else None
+            if production.helper and scope is None:
+                continue
             position = forest.dot[item]-1
             if position<0 or position>=len(production.rhs) or production.terminal[position]:
                 continue
@@ -31,7 +34,8 @@ class SlotAdmission(Summaries):
                 before = self.productions[forest.prod[previous]]
                 captures = tuple((variant['roles'].get(name,name),forest.caps[previous][before.slots[pos]]) for name,pos in sorted(before.captures.items(),key=lambda part:part[1]) if pos<forest.dot[previous])
                 restores = any(edge[1]==RESTORE for edge in forest.edges[previous])
-                key = (variant['component'],role,prefix,forest.origin[item],forest.prefix[previous],captures,forest.strict[previous] if forest.strict else False,restores,forest.origin[child],forest.end[child])
+                from ._slot_views import ancestry
+                key = (variant['component'],ancestry(forest,scope,variant),role,prefix,forest.origin[item],forest.prefix[previous],captures,forest.strict[previous] if forest.strict else False,restores,forest.origin[child],forest.end[child])
                 group = self.slot_groups.setdefault(key,[])
                 group.append((item,index,label))
                 self.at.setdefault(item,{})[index] = key
@@ -41,7 +45,9 @@ class SlotAdmission(Summaries):
     def availability_key(self,key,group):
         _,item,context = key
         production = self.productions[self.forest.prod[item]]
-        return (group,context,production.lhs if self.forest.dot[item]==len(production.rhs) else None)
+        scope = self.forest.slot_scopes[item] if hasattr(self.forest,"slot_scopes") else None
+        parent = self.productions[self.forest.prod[scope["frames"][0]]].lhs if scope is not None else production.lhs
+        return (group,context,parent if self.forest.dot[item]==len(production.rhs) else None)
 
     def dependencies(self,key):
         if key[0]==0:
@@ -72,7 +78,7 @@ class SlotAdmission(Summaries):
     def admit(self,key):
         choices = self.at.get(key[1])
         if choices is None:
-            return None
+            return getattr(self.forest,"slot_routes",{}).get(key[1])
         all_,allowed = set(),set()
         for index,group in choices.items():
             context = self.availability_key(key,group)
@@ -119,7 +125,7 @@ class SlotAdmission(Summaries):
 
     def mask(self,key):
         if key[1] not in self.at:
-            return None
+            return getattr(self.forest,"slot_routes",{}).get(key[1])
         self.solve(key)
         return self.masks[key]
 

@@ -253,6 +253,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	if preferred {
 		raw := newRanker(r, "", nil)
 		raw.admission = nil
+		raw.views = nil
 		raw.check, raw.marks = true, marks
 		rawRes := raw.rank(top)
 		rawCounted = rawRes != nil && rawRes.witnessCounted

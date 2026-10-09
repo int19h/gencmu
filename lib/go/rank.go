@@ -258,6 +258,7 @@ type ranker struct {
 	// check says that this ranks the check of elision-only, which only its
 	// faults read.
 	check bool
+	views *slotViews
 }
 
 // skips says whether a fault of the check skips this alternative: the last
@@ -284,6 +285,7 @@ func newRanker(rec *recognizer, rule string, mx *maximal) *ranker {
 		rk.profiles = rk.profiles || r.leftmostLongest
 	}
 	if rk.preferences != nil && len(rk.preferences.paths) > 0 {
+		rk.views = newSlotViews(rk)
 		rk.admission = newSlotAdmission(rk)
 	}
 	return rk
@@ -820,10 +822,13 @@ func (rk *ranker) symVal(s *symNode, f forbidden) *entry {
 // A restoration (engine §7.4) has one link, a read of its synthetic token,
 // and its close follows (§7.7).
 func (rk *ranker) startItem(it *item, f forbidden) (rankFrame, *entry) {
+	if rk.views != nil && rk.views.itemScopes[it] != nil && rk.views.itemScopes[it].blocked {
+		return nil, nil
+	}
 	if it.dot == 0 && !it.restores {
 		// A predicted item of W(D), such as an empty production's, is
 		// W(D)'s (tests/README.md).
-		if _, ok := rk.marks[it]; ok {
+		if rk.slotMarks(it) != nil {
 			return nil, markedUnitEntry
 		}
 		return nil, unitEntry
@@ -831,7 +836,11 @@ func (rk *ranker) startItem(it *item, f forbidden) (rankFrame, *entry) {
 	if it.restores && rk.rec.run.ps.fault("rank-restoration") {
 		return nil, nil
 	}
-	f = rk.restrict(f, it.prod.lhs)
+	var scope *slotScope
+	if rk.views != nil {
+		scope = rk.views.itemScopes[it]
+	}
+	f = rk.slotContext(f, it.prod.lhs, scope)
 	slot := memoSlotFor(rk.itemMemo(it), f)
 	switch slot.state {
 	case 1:
@@ -844,7 +853,7 @@ func (rk *ranker) startItem(it *item, f forbidden) (rankFrame, *entry) {
 		w.summaryContexts.add("summary contexts")
 	}
 	mx := rk.maximal
-	return &itemFrame{it: it, f: f, slot: slot, guarded: mx != nil && mx.guards(it), marked: rk.marks[it]}, nil
+	return &itemFrame{it: it, f: f, slot: slot, guarded: mx != nil && mx.guards(it), marked: rk.slotMarks(it)}, nil
 }
 
 // linkVal is the summary of one link: its derivations, and under
@@ -1032,10 +1041,17 @@ func (fr *itemFrame) finish(rk *ranker) *entry {
 // startSym gives a constituent's value where it is known without its
 // items, and otherwise a frame that ranks them.
 func (rk *ranker) startSym(s *symNode, f forbidden) (rankFrame, *entry) {
+	var scope *slotScope
+	if rk.views != nil {
+		scope = rk.views.symScopes[s]
+	}
+	if scope != nil && scope.blocked {
+		return nil, nil
+	}
 	if f.has(s.rule) {
 		return nil, nil
 	}
-	f = rk.restrict(f, s.rule)
+	f = rk.slotContext(f, s.rule, scope)
 	slot := memoSlotFor(rk.symMemo(s), f)
 	switch slot.state {
 	case 1:
@@ -1048,7 +1064,7 @@ func (rk *ranker) startSym(s *symNode, f forbidden) (rankFrame, *entry) {
 		w.summaryContexts.add("summary contexts")
 	}
 	inner := f
-	if rk.rec.g.rules[s.rule].scc >= 0 {
+	if rk.rec.g.rules[s.rule].scc >= 0 && scope == nil {
 		inner = f.with(s.rule)
 	}
 	return &symFrame{s: s, inner: inner, slot: slot}, nil
@@ -1211,6 +1227,13 @@ type rankResult struct {
 // text that spans it, combined as the edges of one root (engine §6). It is
 // nil when every derivation is cyclic.
 func (rk *ranker) rank(top []*symNode) *rankResult {
+	if rk.admission != nil && rk.views != nil {
+		mapped := make([]*symNode, len(top))
+		for i, s := range top {
+			mapped[i] = rk.views.plainSyms[s]
+		}
+		top = mapped
+	}
 	if rk.admission != nil {
 		rk.admission.prepareRoots(top)
 		defer func() {

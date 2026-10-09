@@ -161,8 +161,13 @@ func newPreferences(g *stageGrammar, ds []preferenceDeclaration) (*preferences, 
 		common := ""
 		for _, n := range sortedPreferenceNames(names) {
 			s := sites[n][0]
-			v := &slotVariant{component: component, source: s.source, roles: map[string]string{}, paths: map[*domExpr]string{}, holeNames: map[string]bool{}}
+			v := &slotVariant{component: component, source: s.source, roles: map[string]string{}, paths: map[*domExpr]string{}, holeNames: map[string]bool{}, carriers: map[*domExpr]bool{}}
 			body := slotNormalize(s.source.alt.Expr, n, "", v)
+			walkPreferenceExpr(s.source.alt.Expr, func(expr *domExpr, _ string) {
+				if slotContains(expr, n) {
+					v.carriers[expr] = slotEndsAtHole(expr, n)
+				}
+			})
 			var w jsonWriter
 			body.writeJSON(&w)
 			key := string(w.buf)
@@ -229,6 +234,7 @@ type slotVariant struct {
 	roles     map[string]string
 	paths     map[*domExpr]string
 	holeNames map[string]bool
+	carriers  map[*domExpr]bool
 }
 
 func (p *preferences) fail(code, name string, refs []ReferenceSite, detail string) *Error {
@@ -479,6 +485,18 @@ func (p *preferences) variant(source *sAlt, component int, rhs []symbol, g *lowe
 	for _, name := range sortedPreferenceNames(p.variants) {
 		v := p.variants[name]
 		if v.source == source && v.component == component {
+			for _, s := range rhs {
+				if !s.term && g.rules[s.id].helper {
+					if _, ok := v.carriers[slotHelperPath(s.id, g)]; ok {
+						return v
+					}
+				}
+			}
+		}
+	}
+	for _, name := range sortedPreferenceNames(p.variants) {
+		v := p.variants[name]
+		if v.source == source && v.component == component {
 			return v
 		}
 	}
@@ -559,17 +577,27 @@ func (p *preferences) validate(g *lowered) *Error {
 			}
 			hole := -1
 			for i, s := range prod.rhs {
-				if !s.term && !g.rules[s.id].helper && c.names[g.rules[s.id].name] {
+				_, carrier := v.carriers[slotHelperPath(s.id, g)]
+				if !s.term && (c.names[g.rules[s.id].name] || carrier) {
 					hole = i
 					break
 				}
 			}
+			actual := hole >= 0 && !g.rules[prod.rhs[hole].id].helper
+			boundary := actual || hole >= 0 && v.carriers[slotHelperPath(prod.rhs[hole].id, g)]
 			private := map[string]bool{}
 			for n := range v.holeNames {
 				private[n] = true
 			}
-			if hole >= 0 && prod.capName[hole] != "" {
+			if actual && prod.capName[hole] != "" {
 				private[prod.capName[hole]] = true
+			}
+			privateTags := map[string]bool{}
+			for n := range private {
+				privateTags[n] = true
+			}
+			if hole >= 0 && unsafe[prod.rhs[hole].id] && prod.capName[hole] != "" {
+				privateTags[prod.capName[hole]] = true
 			}
 			var common []string
 			allConds := append([]lcond{}, prod.conds...)
@@ -577,11 +605,11 @@ func (p *preferences) validate(g *lowered) *Error {
 				allConds = append(allConds, lcond{cond: cond})
 			}
 			for _, cond := range allConds {
-				ready := hole >= 0 && cond.trigger <= hole+1
+				ready := hole >= 0 && (cond.trigger < hole+1 || cond.trigger == hole+1 && boundary)
 				if slotStructureRead(nil, cond.cond, private) && !ready {
 					return p.fail("prefer-slot-continuation", first, c.references, "private hole pattern requires a ready condition gate: "+slotCondKey(cond.cond, v.roles))
 				}
-				if slotTagRead(nil, cond.cond, private) && !ready {
+				if slotTagRead(nil, cond.cond, privateTags) && !ready {
 					if e := requireEmpty(slotCondKey(cond.cond, v.roles)); e != nil {
 						return e
 					}
@@ -594,13 +622,13 @@ func (p *preferences) validate(g *lowered) *Error {
 				if slotStructureRead(t, nil, private) {
 					return p.fail("prefer-slot-continuation", first, c.references, "tag term reads private hole structure: "+slotTermKey(t, v.roles))
 				}
-				if slotTagRead(t, nil, private) {
+				if slotTagRead(t, nil, privateTags) {
 					if e := requireEmpty(slotTermKey(t, v.roles)); e != nil {
 						return e
 					}
 				}
 			}
-			if len(prod.slot.tags) == 0 && len(prod.rhs) == 1 && hole >= 0 {
+			if !g.rules[prod.lhs].helper && len(prod.slot.tags) == 0 && len(prod.rhs) == 1 && hole >= 0 && (actual || unsafe[prod.rhs[hole].id]) {
 				if e := requireEmpty("default inheritance"); e != nil {
 					return e
 				}
@@ -616,7 +644,11 @@ func (p *preferences) validate(g *lowered) *Error {
 					}
 				}
 			}
-			key := fmt.Sprintf("%q/%q", syms, caps)
+			role := "written-parent"
+			if g.rules[prod.lhs].helper {
+				role = v.paths[prod.slot.path]
+			}
+			key := fmt.Sprintf("%q/%q/%q", role, syms, caps)
 			tagClauses := [2]string{}
 			for i, term := range prod.slot.tagClauses {
 				if term != nil {
@@ -629,7 +661,7 @@ func (p *preferences) validate(g *lowered) *Error {
 				if old.body != body {
 					return p.fail("prefer-slot-template", first, c.references, "effective parent tag or emission clauses differ")
 				}
-				if old.conditions != conditions {
+				if hole >= 0 && old.conditions != conditions {
 					return p.fail("prefer-slot-continuation", first, c.references, "differing conditions must be ready at the ranked hole boundary")
 				}
 			}
@@ -692,4 +724,31 @@ func slotInheritancePath(g *lowered, start int32, unsafe map[int32]bool) []strin
 		}
 	}
 	panic("gencmu: an unsafe tag source lacks an inheritance path")
+}
+
+func slotHelperPath(rule int32, g *lowered) *domExpr {
+	if rule < 0 || int(rule) >= len(g.rules) || !g.rules[rule].helper || len(g.rules[rule].prods) == 0 {
+		return nil
+	}
+	return g.rules[rule].prods[0].slot.path
+}
+func slotEndsAtHole(e *domExpr, name string) bool {
+	if e == nil {
+		return false
+	}
+	switch e.Kind {
+	case exRef:
+		return e.Name == name
+	case exCapture, exTest, exOptional:
+		return slotEndsAtHole(e.Inner, name)
+	case exSeq:
+		return len(e.Items) > 0 && slotEndsAtHole(e.Items[len(e.Items)-1], name)
+	case exChoice:
+		for _, child := range e.Items {
+			if slotEndsAtHole(child, name) {
+				return true
+			}
+		}
+	}
+	return false
 }

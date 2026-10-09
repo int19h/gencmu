@@ -91,8 +91,9 @@ class Preferences:
             common = None
             for name in sorted(names):
                 ref = sites[name][0]
-                variant = {'component': component, 'source': ref['source'], 'roles': {}, 'paths': {}, 'hole_names': set()}
+                variant = {'component': component, 'source': ref['source'], 'roles': {}, 'paths': {}, 'hole_names': set(), 'carriers': {}}
                 body = normalize(ref['source'].expr, ref['expr'], '', variant)
+                variant['carriers'] = {id(expr): ends_at_hole(expr,ref['expr']) for expr,_ in visit(ref['source'].expr) if contains(expr,ref['expr'])}
                 key = canonical(body)
                 if common is not None and key != common:
                     self.fail('prefer-slot-template', name, refs, 'parent bodies differ outside the ranked hole')
@@ -121,7 +122,8 @@ class Preferences:
                 if found is not None and found['component'] == component:
                     return found
         source = production.slot.source if production.slot is not None else None
-        return next((v for v in self.variants.values() if v['source'] is source and v['component'] == component), None)
+        variants = [v for v in self.variants.values() if v['source'] is source and v['component'] == component]
+        return next((v for v in variants if any(not t and helper_path(lowered,s) in v['carriers'] for t,s in zip(production.terminal,production.rhs))),variants[0] if variants else None)
 
     def validate(self, lowered):
         unsafe, users = set(), {}
@@ -153,35 +155,39 @@ class Preferences:
                 variant = self.variant(p, component, lowered)
                 if variant is None:
                     continue
-                hole = next((i for i,(terminal,symbol) in enumerate(zip(p.terminal,p.rhs)) if not terminal and lowered.rule_names[symbol] in c['names']), -1)
-                private = variant['hole_names'] | {name for name,position in p.captures.items() if position == hole}
+                hole = next((i for i,(terminal,symbol) in enumerate(zip(p.terminal,p.rhs)) if not terminal and (lowered.rule_names[symbol] in c['names'] or helper_path(lowered,symbol) in variant['carriers'])), -1)
+                actual = hole >= 0 and lowered.rule_names[p.rhs[hole]] in c['names']
+                boundary = actual or hole >= 0 and variant['carriers'].get(helper_path(lowered,p.rhs[hole]),False)
+                names = {name for name,position in p.captures.items() if position == hole}
+                private = variant['hole_names'] | (names if actual else set())
+                private_tags = private | (names if hole >= 0 and p.rhs[hole] in unsafe else set())
                 roles = variant['roles']
                 common = []
                 conditions = [(cond, index) for index,conds in p.conds_at.items() for cond in conds] + [(cond,-1) for cond in p.conds_predict]
                 for cond, index in conditions:
-                    ready = hole >= 0 and index <= hole
+                    ready = hole >= 0 and (index < hole or index == hole and boundary)
                     if structural_read(cond,private) and not ready:
                         self.fail('prefer-slot-continuation', first, c['refs'], 'private hole pattern requires a ready condition gate: '+canonical(cond,roles))
-                    if tag_read(cond,private) and not ready:
+                    if tag_read(cond,private_tags) and not ready:
                         require_empty(canonical(cond,roles))
                     if not ready:
                         common.append(canonical(cond,roles))
                 for term in p.slot.tags:
                     if structural_read(term, private):
                         self.fail('prefer-slot-continuation', first, c['refs'], 'tag term reads private hole structure: '+canonical(term,roles))
-                    if tag_read(term, private):
+                    if tag_read(term, private_tags):
                         require_empty(canonical(term,roles))
-                if not p.slot.tags and len(p.rhs) == 1 and hole >= 0:
+                if not p.helper and not p.slot.tags and len(p.rhs) == 1 and hole >= 0 and (actual or p.rhs[hole] in unsafe):
                     require_empty('default inheritance')
                 symbols = [('hole',) if i == hole else (symbol_role(symbol, terminal, variant, lowered),p.tests[i] if p.tests else None) for i,(terminal,symbol) in enumerate(zip(p.terminal,p.rhs))]
                 captures = [(roles.get(name,name), index) for name,index in p.captures.items() if index != hole and name != '\u0000']
-                key = (tuple(symbols), tuple(captures))
+                key = (variant['paths'].get(p.slot.path) if p.helper else 'written-parent',tuple(symbols), tuple(captures))
                 signature = ([None if t is None else canonical(t,roles) for t in p.slot.tag_clauses],canonical(p.emit,roles))
                 previous = signatures.get(key)
                 if previous is not None:
                     if previous[0] != signature:
                         self.fail('prefer-slot-template', first, c['refs'], 'effective parent tag or emission clauses differ')
-                    if previous[1] != common:
+                    if hole >= 0 and previous[1] != common:
                         self.fail('prefer-slot-continuation', first, c['refs'], 'differing conditions must be ready at the ranked hole boundary')
                 signatures[key] = (signature,common)
 
@@ -305,3 +311,24 @@ def inheritance_path(lowered, start, unsafe):
                     paths.append((location,previous))
                     pending.append((p.rhs[0],len(paths)-1,False))
     raise RuntimeError('an unsafe tag source lacks an inheritance path')
+
+def helper_path(lowered, rule):
+    indices = lowered.rule_productions[rule]
+    if not indices:
+        return None
+    production = lowered.productions[indices[0]]
+    return production.slot.path if production.helper else None
+
+
+def ends_at_hole(expr, target):
+    if expr is target:
+        return True
+    if 'expr' in expr:
+        return ends_at_hole(expr['expr'],target)
+    if 'optional' in expr:
+        return ends_at_hole(expr['optional'],target)
+    if 'seq' in expr:
+        return bool(expr['seq']) and ends_at_hole(expr['seq'][-1],target)
+    if 'choice' in expr:
+        return any(ends_at_hole(child,target) for child in expr['choice'])
+    return False

@@ -1,0 +1,35 @@
+{
+  "description": "A nested retains the written enclosing-rule context. Cyclic a cannot suppress finite b.",
+  "grammar": "%rule text slot\n%rule slot [[a]] | [[b]]\n%rule a slot\n%rule b X\n%tags ∅\n%prefer a > b",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "slot",
+            "children": [
+              {
+                "rule": "b"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
