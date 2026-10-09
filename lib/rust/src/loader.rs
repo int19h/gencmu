@@ -200,20 +200,24 @@ impl Context {
             .clone()
     }
 
-    fn document(&self, path: &str, text: &str) -> Result<Dom, Error> {
-        if let Some(mut dom) = self.compiled.lookup(path, &fnv1a64(text), &self.unicode) {
-            if dom.rules.iter().any(|r| r.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr))) {
-                let grammar = grammar_text(text)?;
-                let options =
-                    ParseOptions { until: Some("lexical".into()), auto_features: false, ..ParseOptions::default() };
-                let result = self.notation.parse_chars(grammar.chars.clone(), &options)?;
-                if let Some(tokens) = result.stages.last().and_then(|stage| stage.output.as_ref()) {
-                    crate::ranked::restore_locations(&mut dom, tokens, &|at| grammar.position(at));
-                }
+    fn document(&self, path: &str, text: &str, diagnostic: bool) -> Result<Dom, Error> {
+        let mut dom = if let Some(dom) = self.compiled.lookup(path, &fnv1a64(text), &self.unicode) {
+            dom
+        } else {
+            read_document_mode(&self.notation, text, true).map_err(|error| error.in_document(path))?
+        };
+        if diagnostic {
+            #[cfg(test)]
+            LOCATION_RECOVERIES.with(|count| count.set(count.get() + 1));
+            let grammar = grammar_text(text)?;
+            let options =
+                ParseOptions { until: Some("lexical".into()), auto_features: false, ..ParseOptions::default() };
+            let result = self.notation.parse_chars(grammar.chars.clone(), &options)?;
+            if let Some(tokens) = result.stages.last().and_then(|stage| stage.output.as_ref()) {
+                crate::ranked::restore_locations(&mut dom, tokens, &|at| grammar.position(at));
             }
-            return Ok(dom);
         }
-        read_document_mode(&self.notation, text, true).map_err(|error| error.in_document(path))
+        Ok(dom)
     }
 }
 
@@ -276,9 +280,8 @@ fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom
         unicode: &notation.unicode,
         closed_for: Default::default(),
     };
-    let mut dom = reader.document(tree)?;
+    let dom = reader.document(tree)?;
     check_read(&dom, &notation.unicode)?;
-    crate::ranked::restore_locations(&mut dom, &stage.input, &position);
     Ok(dom)
 }
 
@@ -445,6 +448,7 @@ struct Reading<'a> {
     context: &'a Context,
     sources: &'a dyn Sources,
     read: HashMap<String, Arc<Dom>>,
+    diagnostic_document: Option<&'a str>,
 }
 
 impl Documents for Reading<'_> {
@@ -455,7 +459,7 @@ impl Documents for Reading<'_> {
         let Some(text) = self.sources.read(path)? else {
             return Ok(None);
         };
-        let dom = Arc::new(self.context.document(path, &text)?);
+        let dom = Arc::new(self.context.document(path, &text, self.diagnostic_document == Some(path))?);
         self.read.insert(path.to_string(), dom.clone());
         Ok(Some(dom))
     }
@@ -467,11 +471,30 @@ impl Documents for Reading<'_> {
 
 /// Splices the pipeline document at `path` (engine §13).
 fn splice_pipeline(context: &Context, sources: &dyn Sources, path: &str) -> Result<Spliced, Error> {
-    splice(path, &mut Reading { context, sources, read: HashMap::new() })
+    splice(path, &mut Reading { context, sources, read: HashMap::new(), diagnostic_document: None })
 }
 
 fn load(context: &Context, sources: &dyn Sources, pipeline_path: &str) -> Result<Dialect, Error> {
-    let pipeline = splice_pipeline(context, sources, pipeline_path)?;
+    match load_mode(context, sources, pipeline_path, None) {
+        Err(error)
+            if error.code.as_deref().is_some_and(|code| code.starts_with("ranked-choice-"))
+                && error.group.as_ref().is_some_and(|group| group.at.is_none() && group.document.is_some()) =>
+        {
+            // Retry only a failed load, with locations for its diagnostic document.
+            let document = error.group.as_ref().and_then(|group| group.document.as_deref());
+            load_mode(context, sources, pipeline_path, document)
+        }
+        result => result,
+    }
+}
+
+fn load_mode(
+    context: &Context,
+    sources: &dyn Sources,
+    pipeline_path: &str,
+    diagnostic_document: Option<&str>,
+) -> Result<Dialect, Error> {
+    let pipeline = splice(pipeline_path, &mut Reading { context, sources, read: HashMap::new(), diagnostic_document })?;
     let mut stages = Vec::new();
     for stage in pipeline.stages {
         let documents: Vec<(Arc<str>, Arc<Dom>)> =
@@ -772,5 +795,36 @@ mod tests {
                 .join()
                 .expect("a stop at the budget");
         }
+    }
+}
+
+#[cfg(test)]
+thread_local! {
+    static LOCATION_RECOVERIES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+mod ranked_location_tests {
+    use super::*;
+
+    #[test]
+    fn valid_cached_ranked_grammar_never_recovers_locations() {
+        let bundled = Context::bundled().unwrap();
+        let pipeline = "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n";
+        let grammar =
+            "```jbogenbau\n%ambiguity-resolution late-elision\n%rule text Q (a ≻ b) Z\n%rule a X Y\n%rule b X Y\n```\n";
+        let sources = MapSources { map: [("p.md".into(), pipeline.into()), ("g.md".into(), grammar.into())].into() };
+        let mut compiled = Compiled::default();
+        for (path, text) in &sources.map {
+            let dom = read_document(&bundled.notation, text).unwrap();
+            assert!(dom.rules.iter().all(|rule| rule.alternatives.iter().all(|alt| alt.ranked_locations.is_empty())));
+            compiled.by_path.insert(path.clone(), (fnv1a64(text), Arc::new(json::parse(&dom_to_json(&dom)).unwrap())));
+        }
+        let context = Context { unicode: bundled.unicode.clone(), notation: bundled.notation.clone(), compiled };
+        LOCATION_RECOVERIES.with(|count| count.set(0));
+        for _ in 0..2 {
+            load(&context, &sources, "p.md").unwrap();
+        }
+        LOCATION_RECOVERIES.with(|count| assert_eq!(count.get(), 0, "source-location recovery ran"));
     }
 }

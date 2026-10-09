@@ -86,3 +86,42 @@ func TestRankedSyntaxAndRetirement(t *testing.T) {
 		t.Fatal(e)
 	}
 }
+
+func TestValidRankedCacheSkipsLocationRecovery(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	sources := oneStage("%ambiguity-resolution late-elision\n%rule text Q (a ≻ b) Z\n%rule a X Y\n%rule b X Y")
+	documents := map[string]json.RawMessage{}
+	for path, text := range sources {
+		dom, err := bundled.reader.read(text, path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, rule := range dom.Rules {
+			for _, alternative := range rule.Alternatives {
+				if len(alternative.rankedLocations) != 0 {
+					t.Fatal("fresh source-location recovery ran")
+				}
+			}
+		}
+		documents[fnv1a64(text)] = dom.json()
+	}
+	l := &loader{uni: bundled.uni, reader: bundled.reader, compiled: documents, read: func(path string) (string, bool) { text, ok := sources[path]; return text, ok }}
+	for i := 0; i < 2; i++ {
+		if _, err := l.dialect("p.md"); err != nil {
+			t.Fatal(err)
+		}
+		dom, err := l.document("g.md")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, rule := range dom.Rules {
+			for _, alternative := range rule.Alternatives {
+				if len(alternative.rankedLocations) != 0 {
+					t.Fatal("source-location recovery ran")
+				}
+			}
+		}
+	}
+}

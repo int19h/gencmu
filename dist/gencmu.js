@@ -4307,17 +4307,6 @@
     if (index === separators.length) for (const {expr,at} of locations) rankedLocations.set(expr,at);
   }
 
-  /** @param {import("./types.js").GrammarDom} dom */
-  function hasRankedGroups(dom) {
-    const pending = dom.rules.flatMap(rule => rule.alternatives.map(alternative => alternative.expr));
-    while (pending.length) {
-      const expr = pending.pop();
-      if (expr && "ranked" in expr) return true;
-      for (const [child] of rankedExpressionChildren(expr)) pending.push(child);
-    }
-    return false;
-  }
-
   /** @param {{text:string}[]} tokens @param {number} at */
   function rankedSyntaxFailure(tokens,at) {
     if (tokens[at]?.text === "≻" || tokens[at-1]?.text === "≻") return true;
@@ -14479,11 +14468,6 @@
       let dom;
       if (entry && entry.hash === hash) {
         dom = entry.dom;
-        if (hasRankedGroups(dom)) {
-          const {text:body,positions} = extractGrammarText(text,path);
-          const lexical = this.notation.parse(body,{features:new Set(),until:"lexical"});
-          if (lexical.ok) restoreRankedLocations(dom,/** @type {Token[]} */ (lexical.stages[0].output),token => positions[token.source[0]] ?? [1,1]);
-        }
       }
       else dom = this.readDocument(text, path, true);
       this.cache.set(key, dom);
@@ -14531,8 +14515,22 @@
      */
     dialect(path) {
       const pipeline = this.pipeline(path);
-      const stages = pipeline.stages.map((stage) => new Stage(stage.name, new Grammar(stage.name, stage.documents, this.unicode)));
-      return new Dialect(path, stages, this, pipeline.features);
+      const build = () => {
+        const stages = pipeline.stages.map((stage) => new Stage(stage.name, new Grammar(stage.name, stage.documents, this.unicode)));
+        return new Dialect(path, stages, this, pipeline.features);
+      };
+      try { return build(); } catch (error) {
+        if (!(error instanceof GencmuError) || !error.code?.startsWith("ranked-choice-") || !error.group?.document || error.group.at) throw error;
+        // Only a diagnostic needs locations absent from a cached DOM.
+        const document = error.group.document;
+        const text = this.need(document);
+        const dom = this.documentDom(document);
+        const {text:body,positions} = extractGrammarText(text,document);
+        const lexical = this.notation.parse(body,{features:new Set(),until:"lexical"});
+        if (lexical.ok) restoreRankedLocations(dom,/** @type {Token[]} */ (lexical.stages[0].output),token => positions[token.source[0]] ?? [1,1]);
+        // Rebuild from the same written DOMs to retain every diagnostic field.
+        return build();
+      }
     }
 
     /**

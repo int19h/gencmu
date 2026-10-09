@@ -471,16 +471,6 @@ func containsRanked(expr *domExpr) bool {
 	}
 	return false
 }
-func domHasRanked(dom *domDoc) bool {
-	for _, rule := range dom.Rules {
-		for _, alt := range rule.Alternatives {
-			if containsRanked(alt.Expr) {
-				return true
-			}
-		}
-	}
-	return false
-}
 func restoreRankedLocations(dom *domDoc, tokens []Token, position func(int) [2]int) {
 	separators := [][2]int{}
 	for _, token := range tokens {

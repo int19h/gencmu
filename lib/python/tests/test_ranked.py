@@ -2,8 +2,9 @@
 from __future__ import annotations
 import json
 import unittest
+from unittest.mock import patch
 from gencmu import GencmuError, _testing, load_dialect_sources
-from gencmu._dialect import bundled_text, _reader, _resources
+from gencmu._dialect import bundled_text, _reader, _resources, NotationReader
 from gencmu._hash import fnv1a64
 from .shared import load_case_dialect, parse_case
 
@@ -36,6 +37,16 @@ class Ranked(unittest.TestCase):
             self.assertEqual(stats[0]['groups'], length)
             self.assertEqual(stats[0]['candidate_edges'], 2 * length)
             self.assertEqual(stats[0]['retained_edges'], length)
+
+    def test_valid_cached_grammar_never_recovers_locations(self):
+        texts = sources('%ambiguity-resolution late-elision\n%rule text Q (a ≻ b) Z\n%rule a X Y\n%rule b X Y')
+        found = _resources()
+        reader = _reader(found.bootstrap, found.unicode)
+        dom = reader.read(texts['g.md'], 'g.md', True)
+        with patch.object(NotationReader, 'located', side_effect=AssertionError('source-location recovery ran')), patch('gencmu._ranked.restore_locations', side_effect=AssertionError('source-location recovery ran')):
+            load_dialect_sources(texts, 'p.md', use_cache=False)
+            for _ in range(2):
+                load_dialect_sources(cached_sources(texts, dom), 'p.md')
 
     def test_cached_dom_preserves_original_diagnostic(self):
         texts = sources('%const $K ~k\n%ambiguity-resolution late-elision\n%rule text Q (($x(a) ≻ b) ≻ c) Z\n%tags $x ⟹ (tags($x) ∪ $K)\n%rule a X Y\n%rule b U V\n%rule c R S')

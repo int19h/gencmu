@@ -81,11 +81,12 @@ func readCompiled(text, bootstrapHash string) map[string]json.RawMessage {
 
 // loader reads a pipeline and its documents from one source of files.
 type loader struct {
-	read     func(p string) (string, bool)
-	uni      *unicodeTable
-	reader   *notationReader
-	compiled map[string]json.RawMessage
-	noCache  bool
+	read               func(p string) (string, bool)
+	uni                *unicodeTable
+	reader             *notationReader
+	compiled           map[string]json.RawMessage
+	noCache            bool
+	diagnosticDocument string
 	// fromDisk is set when read decodes files, not strings the caller
 	// supplies: bytes that are not valid UTF-8 are then a grammar error of
 	// the document, not a usage error (engine §1).
@@ -109,14 +110,18 @@ func (l *loader) document(p string) (*domDoc, *Error) {
 	if !l.noCache {
 		if raw, ok := l.compiled[fnv1a64(text)]; ok {
 			if dom, err := decodeDOM(raw, l.uni); err == nil {
-				if domHasRanked(dom) {
+				if p == l.diagnosticDocument {
 					l.reader.restoreLocations(text, dom)
 				}
 				return dom, nil
 			}
 		}
 	}
-	return l.reader.readMode(text, p, true)
+	dom, err := l.reader.readMode(text, p, true)
+	if err == nil && p == l.diagnosticDocument {
+		l.reader.restoreLocations(text, dom)
+	}
+	return dom, err
 }
 
 // utf8Problem says why a string is not valid UTF-8, which engine §1 makes
@@ -150,6 +155,17 @@ func (l *loader) dialect(pipelinePath string) (d *Dialect, err error) {
 }
 
 func (l *loader) load(pipelinePath string) (*Dialect, error) {
+	d, err := l.loadMode(pipelinePath)
+	if failure, ok := err.(*Error); ok && strings.HasPrefix(failure.Code, "ranked-choice-") && failure.Group != nil && failure.Group.At == nil && failure.Group.Document != "" {
+		// Retry only a failed load, with locations for its diagnostic document.
+		diagnostic := *l
+		diagnostic.diagnosticDocument = failure.Group.Document
+		return diagnostic.loadMode(pipelinePath)
+	}
+	return d, err
+}
+
+func (l *loader) loadMode(pipelinePath string) (*Dialect, error) {
 	p, perr := l.pipeline(pipelinePath)
 	if perr != nil {
 		return nil, perr

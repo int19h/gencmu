@@ -289,8 +289,7 @@ class NotationReader:
         # that breaks them.
         problem = dom_problem(dom, self.unicode, defer_emission)
         if problem is None:
-            from ._ranked import restore_locations
-            return restore_locations(dom, tokens, grammar_text.position)
+            return dom
         # Each rule, constant definition and implication alone, in the
         # order of the document.
         items = (
@@ -400,24 +399,38 @@ class _Loader:
         if self.use_cache:
             found = self.compiled.get(text_hash)
             if found is not None:
-                return self.reader.located(found, text, path)
+                return found
             with _lock:
                 found = self.reader.doms.get(key)
             if found is not None:
-                return self.reader.located(found, text, path)
+                return found
         dom = self.reader.read(text, path, True)
         with _lock:
             self.reader.doms.put(key, dom, len(text))
         return dom
 
-    def pipeline(self, pipeline_path: str) -> Pipeline:
+    def pipeline(self, pipeline_path: str, diagnostic_document: str | None = None) -> Pipeline:
         """The stages of the pipeline document at ``pipeline_path``, each a
         list of runs of one document's items, and the features the pipeline
         turns on (engine §13)."""
-        return splice_pipeline(pipeline_path, lambda path: None if self.lookup(path) is None else self.dom(path))
+        def document(path):
+            if self.lookup(path) is None:
+                return None
+            dom = self.dom(path)
+            return self.reader.located(dom, self.text(path), path) if path == diagnostic_document else dom
+        return splice_pipeline(pipeline_path, document)
 
     def load(self, pipeline_path: str) -> Dialect:
-        pipeline = self.pipeline(pipeline_path)
+        try:
+            return self._load(pipeline_path)
+        except GencmuError as error:
+            if not error.code or not error.code.startswith('ranked-choice-') or not error.group or 'at' in error.group or not error.group.get('document'):
+                raise
+            # Retry only a failed load, with locations for its diagnostic document.
+            return self._load(pipeline_path, error.group['document'])
+
+    def _load(self, pipeline_path: str, diagnostic_document: str | None = None) -> Dialect:
+        pipeline = self.pipeline(pipeline_path, diagnostic_document)
         stages: list[Grammar] = []
         for stage in pipeline.stages:
             try:

@@ -207,7 +207,6 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (do
 		}
 		return nil, e
 	}
-	restoreRankedLocations(dom, toks, gt.at)
 	return dom, nil
 }
 
