@@ -1,37 +1,39 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="463" height="154" viewBox="0 0 463 154" role="img" aria-label="Railroad diagram of the rule termset-with-nuhi">
-<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<svg xmlns="http://www.w3.org/2000/svg" width="741" height="168" viewBox="0 0 741 168" role="img" aria-label="Railroad diagram of the rule termset-with-nuhi">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}.rank-frame{fill:none;stroke:#777;stroke-width:1;stroke-dasharray:3 3}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="142.8" lengthAdjust="spacingAndGlyphs">termset-with-nuhi</text>
 <path d="M10 64v16m4 -16v16M14 72h6"/>
-<path d="M20 72h20"/>
-<g class="terminal"><rect x="40" y="60" width="50" height="24" rx="12"/><text x="65" y="77" textLength="33.6" lengthAdjust="spacingAndGlyphs">NUhI</text></g>
-<path d="M90 72h10"/>
-<g class="rule"><rect x="100" y="60" width="25" height="24" rx="0"/><text x="112.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M125 72h10"/>
-<g class="rule"><rect x="135" y="60" width="151" height="24" rx="0"/><text x="210.5" y="77" textLength="134.4" lengthAdjust="spacingAndGlyphs">gek-termset-body</text></g>
-<path d="M286 72h10"/>
-<path d="M296 72h20"/>
-<g class="terminal"><rect x="316" y="60" width="50" height="24" rx="12"/><text x="341" y="77" textLength="33.6" lengthAdjust="spacingAndGlyphs">NUhU</text></g>
-<path d="M366 72H388"/>
-<path d="M296 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H368a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
-<text class="label" x="320" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
-<path d="M388 72h10"/>
-<g class="rule"><rect x="398" y="60" width="25" height="24" rx="0"/><text x="410.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M423 72H443"/>
-<path d="M20 72a10 10 0 0 1 10 10V122a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="120" width="50" height="24" rx="12"/><text x="65" y="137" textLength="33.6" lengthAdjust="spacingAndGlyphs">NUhI</text></g>
-<path d="M90 132h10"/>
-<g class="rule"><rect x="100" y="120" width="25" height="24" rx="0"/><text x="112.5" y="137" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M125 132h10"/>
-<g class="rule"><rect x="135" y="120" width="142" height="24" rx="0"/><text x="206" y="137" textLength="126" lengthAdjust="spacingAndGlyphs">nuhi-plain-body</text></g>
-<path d="M277 132h10"/>
-<path d="M287 132h20"/>
-<g class="terminal"><rect x="307" y="120" width="50" height="24" rx="12"/><text x="332" y="137" textLength="33.6" lengthAdjust="spacingAndGlyphs">NUhU</text></g>
-<path d="M357 132H379"/>
-<path d="M287 132a10 10 0 0 0 10 -10V120a10 10 0 0 1 10 -10H359a10 10 0 0 1 10 10V122a10 10 0 0 0 10 10"/>
-<text class="label" x="311" y="105" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
-<path d="M379 132h10"/>
-<g class="rule"><rect x="389" y="120" width="25" height="24" rx="0"/><text x="401.5" y="137" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M414 132H423a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
-<path d="M443 72h6m0 -8v16m4 -16v16"/>
+<g class="terminal"><rect x="20" y="60" width="50" height="24" rx="12"/><text x="45" y="77" textLength="33.6" lengthAdjust="spacingAndGlyphs">NUhI</text></g>
+<path d="M70 72h10"/>
+<g class="rule"><rect x="80" y="60" width="25" height="24" rx="0"/><text x="92.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M105 72h10"/>
+<path d="M115 72h88"/>
+<text class="label" x="119" y="67" textLength="79.2" lengthAdjust="spacingAndGlyphs">≻ same span</text>
+<path d="M203 72h10"/>
+<g class="ranked-choice"><rect class="rank-frame" x="218" y="51" width="361" height="76" rx="4"/>
+<path d="M213 72h10"/>
+<path d="M223 72h20"/>
+<path d="M243 72h16"/>
+<text class="label" x="247" y="67" textLength="7.2" lengthAdjust="spacingAndGlyphs">1</text>
+<path d="M259 72h10"/>
+<g class="rule"><rect x="269" y="60" width="151" height="24" rx="0"/><text x="344.5" y="77" textLength="134.4" lengthAdjust="spacingAndGlyphs">gek-termset-body</text></g>
+<path d="M420 72H574"/>
+<path d="M223 72a10 10 0 0 1 10 10V100a10 10 0 0 0 10 10"/>
+<path d="M243 110h16"/>
+<text class="label" x="247" y="105" textLength="7.2" lengthAdjust="spacingAndGlyphs">2</text>
+<path d="M259 110h10"/>
+<g class="rule"><rect x="269" y="98" width="285" height="24" rx="0"/><text x="411.5" y="115" textLength="268.8" lengthAdjust="spacingAndGlyphs">terms-not-starting-with-bare-gek</text></g>
+<path d="M554 110H554a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<path d="M574 72h10"/>
+</g>
+<path d="M584 72h10"/>
+<path d="M594 72h20"/>
+<g class="terminal"><rect x="614" y="60" width="50" height="24" rx="12"/><text x="639" y="77" textLength="33.6" lengthAdjust="spacingAndGlyphs">NUhU</text></g>
+<path d="M664 72H686"/>
+<path d="M594 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H666a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
+<text class="label" x="618" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M686 72h10"/>
+<g class="rule"><rect x="696" y="60" width="25" height="24" rx="0"/><text x="708.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M721 72h6m0 -8v16m4 -16v16"/>
+<text class="label" x="10" y="154" textLength="468" lengthAdjust="spacingAndGlyphs">Only a qualified option over the same span removes lower options.</text>
 </svg>
