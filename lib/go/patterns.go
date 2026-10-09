@@ -773,7 +773,9 @@ func (b *domBuilder) readPattern(root *Node) *domPattern {
 		case "pattern-repeat":
 			result = &domPattern{Kind: "repeat", Items: xs}
 		case "pattern-path":
-			name := map[string]string{"⋮": "descendant", "⋰": "first", "⋱": "last"}[b.text(b.token(n))]
+			// The direct operator token can follow the named atom.
+			operator := b.text(b.token(n))
+			name := map[string]string{"⋮": "descendant", "⋰": "first", "⋱": "last"}[operator]
 			result = patternChildren(&domPattern{Kind: "path", Name: name, Items: []*domPattern{patternNode(xs[0])}})
 		}
 		if msg := patternProblem(patternNode(result), 0, nil); msg != "" {

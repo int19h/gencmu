@@ -1,0 +1,57 @@
+{
+  "description": "First-path follows one primary and last-path precedes one primary, before sequence and set binding.",
+  "document": "```jbogenbau\n%const $P @(A ⋰ ⋱ B ∪ C ⋰ ∩ ⋱ D)\n```\n",
+  "expect": {
+    "dom": {
+      "constants": [
+        {
+          "name": "P",
+          "value": {
+            "pattern": {
+              "union": [
+                {
+                  "children": {
+                    "sequence": [
+                      {
+                        "node": {
+                          "path": "first",
+                          "pattern": {
+                            "terminal": "A"
+                          }
+                        }
+                      },
+                      {
+                        "node": {
+                          "path": "last",
+                          "pattern": {
+                            "terminal": "B"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "intersection": [
+                    {
+                      "path": "first",
+                      "pattern": {
+                        "terminal": "C"
+                      }
+                    },
+                    {
+                      "path": "last",
+                      "pattern": {
+                        "terminal": "D"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

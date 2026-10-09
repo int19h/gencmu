@@ -692,7 +692,7 @@ class Parser {
   *patternSequence() {
     const start = this.index, children = [];
     do { children.push((yield this.patternItem())); }
-    while (["identifier", "#", "constant", "pattern-open", "(", "[", "{", "⋯", "⋮", "⋰", "⋱"].includes(this.kindAt()));
+    while (["identifier", "#", "constant", "pattern-open", "(", "[", "{", "⋯", "⋮", "⋱"].includes(this.kindAt()));
     return this.node("pattern-sequence", start, children);
   }
 
@@ -700,14 +700,17 @@ class Parser {
     const start = this.index;
     let child;
     if (this.is("⋯")) child = this.tok();
-    else if (this.is("⋮") || this.is("⋰") || this.is("⋱")) child = this.node("pattern-path", start, [this.tok(), (yield this.patternAtom())]);
+    else if (this.is("⋮") || this.is("⋱")) child = this.node("pattern-path", start, [this.tok(), (yield this.patternAtom())]);
     else if (this.is("[")) child = this.node("pattern-brackets", start, [this.tok(), (yield this.patternUnion()), this.expect("]")]);
     else if (this.is("{")) {
       const children = [this.tok(), (yield this.patternUnion())];
       if (this.is("\\")) children.push(this.tok(), (yield this.patternUnion()));
       children.push(this.expect("}"));
       child = this.node("pattern-repeat", start, children);
-    } else child = (yield this.patternAtom());
+    } else {
+      child = (yield this.patternAtom());
+      if (this.is("⋰")) child = this.node("pattern-path", start, [child, this.tok()]);
+    }
     return this.node("pattern-item", start, [child]);
   }
 

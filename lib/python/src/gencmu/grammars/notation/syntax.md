@@ -413,7 +413,9 @@ A property is not a tag set, but the grammar reads one in a term, so that the re
 
 A tree pattern observes a constructed constituent. A literal starts with the compound token `~pattern-open`, written `@(`, and ends with `)`. The left operand of a tree comparison is a bare capture. Its right operand is a union term with pattern type. The reader reports a bare name there with the specific missing-pattern diagnostic in `../../docs/engine.md`, §10.
 
-Path prefixes take one atom. Parentheses keep sibling grouping, but a nested literal consumes one subtree. Brackets always mean an optional sequence. Braces mean one or more sequences, with an optional separator. The reader rejects tests on rule names, chain syntax and zero-progress repeats. Terminal tests reuse the existing test grammar.
+First-path `⋰` follows one atom. Descendant `⋮` and last-path `⋱` precede one atom. Parentheses keep sibling grouping, but a nested literal consumes one subtree. Brackets always mean an optional sequence. Braces mean one or more sequences, with an optional separator. The reader rejects tests on rule names, chain syntax and zero-progress repeats.
+
+Terminal tests reuse the existing test grammar.
 
 ```jbogenbau
 %rule tree-comparison
@@ -448,7 +450,7 @@ Path prefixes take one atom. Parentheses keep sibling grouping, but a nested lit
   '{' pattern-union ['\\' pattern-union] '}'
 
 %rule pattern-path
-  ('⋮' | '⋰' | '⋱') pattern-atom
+  ('⋮' | '⋱') pattern-atom | pattern-atom '⋰'
 ```
 
 <details><summary>Railroad diagrams of the 11 rules from <code>tree-comparison</code> to <code>pattern-path</code></summary>

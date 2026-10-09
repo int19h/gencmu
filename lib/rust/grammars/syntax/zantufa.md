@@ -152,7 +152,7 @@ A structural pattern describes constructed nodes. Suppose every earlier branch i
   (* gek_statement <- gek statement (gik statement)+ GIhI_elidible *)
   gek $a(gek-branches) gik $l(statement) [+GIhI #]
 %conditions
-  $a ≇ @({sentence \ gik}) ∨ $l ≇ @(⋰ sentence)
+  $a ≇ @({sentence \ gik}) ∨ $l ≇ @(sentence ⋰)
 
 %rule gek-branches
   (* statement (gik statement)*: every branch but the last. Zantufa's sentence comes first in statement_3, and it
@@ -963,7 +963,7 @@ The mekso prefix pattern tests an actual NAhE or SE constructor over an operand 
   | $m(mex) ROI #
   | FIhO # selbri [+FEhU #]
 %conditions
-  $m ≇ @(⋰ ((NAhE ∪ SE) [#] (operand ∪ operator)))
+  $m ≇ @(((NAhE ∪ SE) [#] (operand ∪ operator)) ⋰)
 ```
 
 <details><summary>Railroad diagrams of <code>tag</code>, <code>tag-link</code> and <code>tcita-selci</code></summary>

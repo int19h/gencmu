@@ -1153,9 +1153,10 @@ impl<'a> Reader<'a> {
                     C::Repeat(Box::new(item), xs.next().map(Box::new))
                 }
                 "pattern-path" => {
-                    let op = self.text(self.token(node)?);
+                    // The direct operator token can follow the named atom.
+                    let operator = self.text(self.token(node)?);
                     C::Node(Box::new(P::Path(
-                        match op {
+                        match operator {
                             "⋮" => "descendant",
                             "⋰" => "first",
                             _ => "last",

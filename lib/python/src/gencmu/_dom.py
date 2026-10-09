@@ -1034,7 +1034,9 @@ class DomBuilder:
             if len(parts) == 2:
                 result["separator"] = parts[1]
         else:
-            path = {"⋮":"descendant", "⋰":"first", "⋱":"last"}[self.text(self.token(node))]
+            # The direct operator token can follow the named atom.
+            operator = self.text(self.token(node))
+            path = {"⋮":"descendant", "⋰":"first", "⋱":"last"}[operator]
             result = {"node":{"path":path, "pattern":self._pattern_node(parts[0])}}
         problem = pattern_problem(self._pattern_node(result))
         if problem is not None:

@@ -1659,7 +1659,7 @@
     const node = (n) => n.name ?? n.terminal ?? (n.constant ? `$${n.constant}` :
       n.test ? `${node(n.expr)}${n.test}(${value(n.value)})` :
       n.children ? `@(${children(n.children)})` :
-      n.path ? `${n.path === "descendant" ? "⋮" : n.path === "first" ? "⋰" : "⋱"} (${node(n.pattern)})` :
+      n.path ? n.path === "first" ? `(${node(n.pattern)}) ⋰` : `${n.path === "descendant" ? "⋮" : "⋱"} (${node(n.pattern)})` :
       `(${(n.union ?? n.intersection ?? n.difference).map(node).join(n.union ? " ∪ " : n.intersection ? " ∩ " : " ∖ ")})`);
     /** @type {(n:any) => string} */
     const children = (n) => n.node ? node(n.node) : n.siblings ? "⋯" : n.sequence ? n.sequence.map(children).join(" ")
@@ -13509,8 +13509,9 @@
         return unions.length===1?{repeat}:{repeat,separator:yield readPattern(unions[1])};
       }
       if(kind==='pattern-path') {
-        const written=text(token(node));
-        return {node:{path:written==='⋮'?'descendant':written==='⋰'?'first':'last',pattern:asPattern(yield readPattern(only(node,'pattern-atom')))}};
+        // The operator is a direct token, before or after the named atom.
+        const operator=text(token(node));
+        return {node:{path:operator==='⋮'?'descendant':operator==='⋰'?'first':'last',pattern:asPattern(yield readPattern(only(node,'pattern-atom')))}};
       }
       return fail(`unexpected ${kind} in pattern`,node);
     }
