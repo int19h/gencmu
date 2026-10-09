@@ -14,6 +14,8 @@
 // same DOM always gives the same file.
 import { formatTerm } from "../lib/js/src/diagnostics.js";
 import { leafTest } from "../lib/js/src/patterns.js";
+import { Grammar } from "../lib/js/src/grammar.js";
+import { DOM_FORMAT } from "../lib/js/src/dom.js";
 
 /** The width, in pixels, beyond which a sequence continues on a new row. */
 export const MAX_WIDTH = 800;
@@ -430,30 +432,57 @@ export function testedElisions(rule) {
 }
 
 /**
+ * Whether a term refers to a constant anywhere in it.
+ * @param {unknown} term
+ * @returns {boolean}
+ */
+function holdsConstant(term) {
+  if (!term || typeof term !== "object") return false;
+  if (Array.isArray(term)) return term.some(holdsConstant);
+  return "const" in term || Object.values(term).some(holdsConstant);
+}
+
+/**
  * What the omission predicate of the engine gives for each elidable optional
  * whose terminator has a test (engine §3.8), in every stage of the given
- * pipelines that reads its document. A constant takes its value in each
- * stage, so a document that several dialects read can give each a
- * different answer. The predicate tests the omitted terminator: the sound of
- * an `=` test, or no sound, and the tag set of the terminator alone.
- * @param {{pipeline: (path: string) => {stages: {documents: {path: string, dom: any}[]}[]}, dialect: (path: string) => {stages: {grammar: any}[]}}} loader
+ * pipelines that reads its document. The predicate tests the omitted
+ * terminator: the sound of an `=` test, or no sound, and the tag set of the
+ * terminator alone. So the answer depends only on the test's value. That
+ * value is a closed term, which holds no classify, capture or guard
+ * (docs/notation.md, "Constants"). Only a constant in it takes a value from
+ * the stage, so only then does this load the dialect: a constant can have
+ * another value in each stage that reads the document. Any other value is
+ * the same in every stage, and is evaluated once, with no stage. With no
+ * such optional in `documents`, this reads nothing at all.
+ * @param {{unicode: any, pipeline: (path: string) => {stages: {documents: {path: string, dom: any}[]}[]}, dialect: (path: string) => {stages: {grammar: any}[]}}} loader
  * @param {string[]} pipelines the pipeline documents' paths
+ * @param {Map<string, {rules: any[]}>} documents the DOM of each grammar
+ *   document, by its path under grammars/
  * @returns {Map<string, Map<number, Set<boolean>[]>>} by document, then by
  *   the index of the rule: one set of answers for each of its
  *   testedElisions, in order
  */
-export function elisionOutcomes(loader, pipelines) {
+export function elisionOutcomes(loader, pipelines, documents) {
   /** @type {Map<string, Map<number, Set<boolean>[]>>} */
   const outcomes = new Map();
+  const tested = [...documents].filter(([, dom]) => dom.rules.some((/** @type {any} */ rule) => testedElisions(rule).length > 0)).map(([document]) => document);
+  if (tested.length === 0) return outcomes;
+  const candidates = new Set(tested);
+  // The grammar of no stage, for a value without constants: a stage needs
+  // a rule text and its ambiguity resolution, and it holds nothing else.
+  // Its Unicode table, for a range, is the one that every stage shares.
+  const stageless = new Grammar("diagrams", [{ path: "diagrams", dom: { format: DOM_FORMAT, rules: [{ name: "text", op: "define", flags: [], alternatives: [{ guards: [], expr: { empty: true } }], conditions: [], at: [1, 1] }], directives: [{ name: "ambiguity-resolution", args: ["greedy"], at: [1, 1] }], constants: [], classifiers: [], implications: [] } }], loader.unicode);
   for (const pipeline of pipelines) {
     const { stages } = loader.pipeline(pipeline);
-    const dialect = loader.dialect(pipeline);
+    /** @type {{stages: {grammar: any}[]} | null} */
+    let dialect = null;
     stages.forEach((stage, index) => {
-      const grammar = dialect.stages[index].grammar;
       for (const { path: document, dom } of stage.documents) {
+        if (!candidates.has(document)) continue;
         dom.rules.forEach((/** @type {any} */ rule, /** @type {number} */ ruleIndex) => {
           testedElisions(rule).forEach((optional, ordinal) => {
             const first = "seq" in optional.optional ? optional.optional.seq[0] : optional.optional;
+            const grammar = holdsConstant(first.value) ? (dialect ??= loader.dialect(pipeline)).stages[index].grammar : stageless;
             const test = grammar.symbolTest(first, document, { document, line: rule.at[0], column: rule.at[1] });
             const terminal = "terminal" in first.expr ? first.expr.terminal : first.expr.ref;
             const held = leafTest({ test: test.op, value: test.sound !== undefined ? { string: test.sound } : { set: test.tags } }, test.op === "=" ? test.sound : "", new Set([terminal]));

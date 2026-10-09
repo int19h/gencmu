@@ -125,13 +125,18 @@ let bootstrapText = settle(fs.readFileSync(bootstrapPath, "utf8"));
 const diagrams = new Map();
 let moved = false;
 const reader = loaderWith(bootstrapText);
-// Whether a test on an elided terminator allows its omission, in each
-// stage of each dialect that reads the document.
-const outcomes = elisionOutcomes(reader, grammarFiles().filter((file) => file.startsWith("dialects/") && file.endsWith(".md")));
+/** @type {Map<string, {text: string, dom: any}>} each grammar document as this pass reads it */
+const read = new Map();
 for (const file of grammarFiles()) {
   if (!file.endsWith(".md")) continue;
   const text = fs.readFileSync(path.join(grammars, file), "utf8");
-  const dom = extractGrammarText(text, file).blocks === 0 ? { rules: [] } : reader.readDocument(text, file);
+  read.set(file, { text, dom: extractGrammarText(text, file).blocks === 0 ? { rules: [] } : reader.readDocument(text, file) });
+}
+// Whether a test on an elided terminator allows its omission, in each
+// stage of each dialect that reads the document. With no such test, this
+// costs nothing.
+const outcomes = elisionOutcomes(reader, grammarFiles().filter((file) => file.startsWith("dialects/") && file.endsWith(".md")), new Map([...read].map(([file, { dom }]) => [file, dom])));
+for (const [file, { text, dom }] of read) {
   const { text: next, files } = withDiagrams(file, text, dom, outcomes.get(file));
   for (const [relative, svg] of files) diagrams.set(relative, svg);
   if (next === text) continue;
@@ -157,15 +162,18 @@ if (strays.length) {
   process.exit(1);
 }
 
-// The precompiled DOMs, read with the engine and the bootstrap.
-const loader = loaderWith(bootstrapText);
+// The precompiled DOMs, read with the engine and the bootstrap. Where the
+// pass of the diagrams changed neither a document nor the bootstrap, its
+// DOM is the one that pass read.
+const loader = moved ? loaderWith(bootstrapText) : reader;
 const documents = {};
 for (const file of grammarFiles()) {
   if (!file.endsWith(".md")) continue;
   const text = fs.readFileSync(path.join(grammars, file), "utf8");
   // A document holds grammar when the reader finds a block in it.
   if (extractGrammarText(text, file).blocks === 0) continue;
-  documents[file] = { hash: fnv1a64(text), dom: loader.readDocument(text, file) };
+  const earlier = read.get(file);
+  documents[file] = { hash: fnv1a64(text), dom: !moved && earlier && earlier.text === text ? earlier.dom : loader.readDocument(text, file) };
 }
 const compiled = { format: DOM_FORMAT, bootstrap: loader.bootstrapHash, documents };
 
