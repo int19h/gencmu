@@ -1,6 +1,6 @@
 # Cyrillic orthography
 
-This document adds gencmu's Cyrillic orthography to the phoneme stage, the first stage of the pipeline. It is the default Cyrillic of the dialects of the [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). It has no frame of its own. It uses the shared text, pause and run rules. It adds its letters to the rules of [latin-strict.md](latin-strict.md) and [latin.md](latin.md), so a text can mix scripts. [Railroad diagrams](../../docs/diagrams/phonemes/cyrillic.md) draw each rule of this document.
+This document adds gencmu's Cyrillic orthography to the phoneme stage, the first stage of the pipeline. It is the default Cyrillic of the dialects of the [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). It has no frame of its own. It uses the shared text, pause and run rules. It adds its letters to the rules of [latin-strict.md](latin-strict.md) and [latin.md](latin.md), so a text can mix scripts.
 
 A dialect that lists neither this document nor [cyrillic-cll.md](cyrillic-cll.md) reads a Cyrillic letter as foreign. [The notation document](../../docs/notation.md) explains the notation.
 
@@ -46,6 +46,10 @@ The consonants are those of *The Complete Lojban Language* (CLL), section 3.12. 
   'ӏ' | 'Ӏ'
 ```
 
+<details><summary>Railroad diagram of <code>cyrillic-consonant</code></summary><img src="../../docs/diagrams/phonemes/cyrillic/cyrillic-consonant.svg" alt="Railroad diagram of the rule cyrillic-consonant"></details>
+<details><summary>Railroad diagram of <code>cyrillic-apostrophe</code></summary><img src="../../docs/diagrams/phonemes/cyrillic/cyrillic-apostrophe.svg" alt="Railroad diagram of the rule cyrillic-apostrophe"></details>
+<details><summary>Railroad diagram of <code>cyrillic-period</code></summary><img src="../../docs/diagrams/phonemes/cyrillic/cyrillic-period.svg" alt="Railroad diagram of the rule cyrillic-period"></details>
+
 The orthography has no apostrophe between vowels. Two adjacent vowel letters are two syllables, so `аи` is `a'i`. The orthography writes a diphthong with the short forms `й` and `ў`, so `ай` is `ai`. This is where the orthography differs from CLL 3.12, which writes a diphthong as a vowel pair, as the Latin orthography does.
 
 So a full vowel letter carries the tag `syllabic`, which the vowel-group rules of [latin-strict.md](latin-strict.md) read. The stage inserts an apostrophe between adjacent syllabic vowels. `й`, `ј` and `ў`, the glides, carry no such tag, and they join the vowel beside them into a diphthong.
@@ -90,6 +94,10 @@ A capital full vowel letter, or a combining accent after one, marks stress, as i
   $
 ```
 
+<details><summary>Railroad diagram of <code>cyrillic-plain-vowel</code></summary><img src="../../docs/diagrams/phonemes/cyrillic/cyrillic-plain-vowel.svg" alt="Railroad diagram of the rule cyrillic-plain-vowel"></details>
+<details><summary>Railroad diagram of <code>cyrillic-stressed-vowel</code></summary><img src="../../docs/diagrams/phonemes/cyrillic/cyrillic-stressed-vowel.svg" alt="Railroad diagram of the rule cyrillic-stressed-vowel"></details>
+<details><summary>Railroad diagram of <code>cyrillic-folded-vowel</code></summary><img src="../../docs/diagrams/phonemes/cyrillic/cyrillic-folded-vowel.svg" alt="Railroad diagram of the rule cyrillic-folded-vowel"></details>
+
 The script is gencmu's own reading of Cyrillic. [cyrillic-cll.md](cyrillic-cll.md) reads CLL's, which writes a diphthong as a vowel pair. The two read the same letters differently, so a dialect or a caller chooses one with the feature `cll-cyrillic`. A feature is a named switch that the grammars test. The letters of this document apply while `cll-cyrillic` is off.
 
 ```jbogenbau
@@ -111,3 +119,10 @@ The script is gencmu's own reading of Cyrillic. [cyrillic-cll.md](cyrillic-cll.m
 %extend-rule folded-vowel
   ¬cll-cyrillic? cyrillic-folded-vowel
 ```
+
+<details><summary>Railroad diagram of <code>consonant</code></summary><img src="../../docs/diagrams/phonemes/cyrillic/consonant.svg" alt="Railroad diagram of the rule consonant"></details>
+<details><summary>Railroad diagram of <code>apostrophe</code></summary><img src="../../docs/diagrams/phonemes/cyrillic/apostrophe.svg" alt="Railroad diagram of the rule apostrophe"></details>
+<details><summary>Railroad diagram of <code>core-char</code></summary><img src="../../docs/diagrams/phonemes/cyrillic/core-char.svg" alt="Railroad diagram of the rule core-char"></details>
+<details><summary>Railroad diagram of <code>plain-vowel</code></summary><img src="../../docs/diagrams/phonemes/cyrillic/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></details>
+<details><summary>Railroad diagram of <code>stressed-vowel</code></summary><img src="../../docs/diagrams/phonemes/cyrillic/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></details>
+<details><summary>Railroad diagram of <code>folded-vowel</code></summary><img src="../../docs/diagrams/phonemes/cyrillic/folded-vowel.svg" alt="Railroad diagram of the rule folded-vowel"></details>

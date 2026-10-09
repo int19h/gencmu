@@ -1,6 +1,6 @@
 # The word stream
 
-This document defines the word stage of cll-ebnf, bpfk, experimental, and Zantufa. A stage reads the tokens from the previous stage and emits tokens for the next stage. [Railroad diagrams](../../docs/diagrams/words/stream.md) draw each rule of this document.
+This document defines the word stage of cll-ebnf, bpfk, experimental, and Zantufa. A stage reads the tokens from the previous stage and emits tokens for the next stage.
 
 The [forms stage](forms.md) supplies source words. This stage applies quotes, compounds, erasers, hesitation, and FAhO. The [notation document](../../docs/notation.md) defines the rules below.
 
@@ -116,6 +116,23 @@ The rule `empty` reads a prefix that leaves no units. Its first three alternativ
   ¬begins(after($), read-word)
 ```
 
+<details><summary>Railroad diagram of <code>text</code></summary><img src="../../docs/diagrams/words/stream/text.svg" alt="Railroad diagram of the rule text"></details>
+<details><summary>Railroad diagram of <code>text-start</code></summary><img src="../../docs/diagrams/words/stream/text-start.svg" alt="Railroad diagram of the rule text-start"></details>
+<details><summary>Railroad diagram of <code>empty</code></summary><img src="../../docs/diagrams/words/stream/empty.svg" alt="Railroad diagram of the rule empty"></details>
+<details><summary>Railroad diagram of <code>su-cleared</code></summary><img src="../../docs/diagrams/words/stream/su-cleared.svg" alt="Railroad diagram of the rule su-cleared"></details>
+<details><summary>Railroad diagram of <code>stream</code></summary><img src="../../docs/diagrams/words/stream/stream.svg" alt="Railroad diagram of the rule stream"></details>
+<details><summary>Railroad diagram of <code>unit</code></summary><img src="../../docs/diagrams/words/stream/unit.svg" alt="Railroad diagram of the rule unit"></details>
+<details><summary>Railroad diagram of <code>spacing</code></summary><img src="../../docs/diagrams/words/stream/spacing.svg" alt="Railroad diagram of the rule spacing"></details>
+<details><summary>Railroad diagram of <code>skipped</code></summary><img src="../../docs/diagrams/words/stream/skipped.svg" alt="Railroad diagram of the rule skipped"></details>
+<details><summary>Railroad diagram of <code>erasures</code></summary><img src="../../docs/diagrams/words/stream/erasures.svg" alt="Railroad diagram of the rule erasures"></details>
+<details><summary>Railroad diagram of <code>erasure</code></summary><img src="../../docs/diagrams/words/stream/erasure.svg" alt="Railroad diagram of the rule erasure"></details>
+<details><summary>Railroad diagram of <code>fault-unit</code></summary><img src="../../docs/diagrams/words/stream/fault-unit.svg" alt="Railroad diagram of the rule fault-unit"></details>
+<details><summary>Railroad diagram of <code>hesitation</code></summary><img src="../../docs/diagrams/words/stream/hesitation.svg" alt="Railroad diagram of the rule hesitation"></details>
+<details><summary>Railroad diagram of <code>y-run</code></summary><img src="../../docs/diagrams/words/stream/y-run.svg" alt="Railroad diagram of the rule y-run"></details>
+<details><summary>Railroad diagram of <code>faho-group</code></summary><img src="../../docs/diagrams/words/stream/faho-group.svg" alt="Railroad diagram of the rule faho-group"></details>
+<details><summary>Railroad diagram of <code>faho-word</code></summary><img src="../../docs/diagrams/words/stream/faho-word.svg" alt="Railroad diagram of the rule faho-word"></details>
+<details><summary>Railroad diagram of <code>sa-tail</code></summary><img src="../../docs/diagrams/words/stream/sa-tail.svg" alt="Railroad diagram of the rule sa-tail"></details>
+
 ## Words
 
 The forms stage supplies source words, their lexical classes, and their run boundaries. A run is a stretch without a pause. This stage does not divide ordinary runs again.
@@ -162,6 +179,11 @@ The feature `sa-su` enables the two long-range erasers. Without that feature, SA
   $c(~cmavo) <tags($c)>
 
 ```
+
+<details><summary>Railroad diagram of <code>read-word</code></summary><img src="../../docs/diagrams/words/stream/read-word.svg" alt="Railroad diagram of the rule read-word"></details>
+<details><summary>Railroad diagram of <code>y-bu-word</code></summary><img src="../../docs/diagrams/words/stream/y-bu-word.svg" alt="Railroad diagram of the rule y-bu-word"></details>
+<details><summary>Railroad diagram of <code>word</code></summary><img src="../../docs/diagrams/words/stream/word.svg" alt="Railroad diagram of the rule word"></details>
+<details><summary>Railroad diagram of <code>cmavo-token</code></summary><img src="../../docs/diagrams/words/stream/cmavo-token.svg" alt="Railroad diagram of the rule cmavo-token"></details>
 
 ## Quotes
 
@@ -304,6 +326,25 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
 
 ```
 
+<details><summary>Railroad diagram of <code>quote</code></summary><img src="../../docs/diagrams/words/stream/quote.svg" alt="Railroad diagram of the rule quote"></details>
+<details><summary>Railroad diagram of <code>quoted-word</code></summary><img src="../../docs/diagrams/words/stream/quoted-word.svg" alt="Railroad diagram of the rule quoted-word"></details>
+<details><summary>Railroad diagram of <code>word-quote-marker</code></summary><img src="../../docs/diagrams/words/stream/word-quote-marker.svg" alt="Railroad diagram of the rule word-quote-marker"></details>
+<details><summary>Railroad diagram of <code>single-word-quote</code></summary><img src="../../docs/diagrams/words/stream/single-word-quote.svg" alt="Railroad diagram of the rule single-word-quote"></details>
+<details><summary>Railroad diagram of <code>single-marker</code></summary><img src="../../docs/diagrams/words/stream/single-marker.svg" alt="Railroad diagram of the rule single-marker"></details>
+<details><summary>Railroad diagram of <code>zoi-y-quote</code></summary><img src="../../docs/diagrams/words/stream/zoi-y-quote.svg" alt="Railroad diagram of the rule zoi-y-quote"></details>
+<details><summary>Railroad diagram of <code>zoi-quote</code></summary><img src="../../docs/diagrams/words/stream/zoi-quote.svg" alt="Railroad diagram of the rule zoi-quote"></details>
+<details><summary>Railroad diagram of <code>delimiter</code></summary><img src="../../docs/diagrams/words/stream/delimiter.svg" alt="Railroad diagram of the rule delimiter"></details>
+<details><summary>Railroad diagram of <code>delimiter-gap</code></summary><img src="../../docs/diagrams/words/stream/delimiter-gap.svg" alt="Railroad diagram of the rule delimiter-gap"></details>
+<details><summary>Railroad diagram of <code>delimiter-hesitations</code></summary><img src="../../docs/diagrams/words/stream/delimiter-hesitations.svg" alt="Railroad diagram of the rule delimiter-hesitations"></details>
+<details><summary>Railroad diagram of <code>delimiter-hesitation</code></summary><img src="../../docs/diagrams/words/stream/delimiter-hesitation.svg" alt="Railroad diagram of the rule delimiter-hesitation"></details>
+<details><summary>Railroad diagram of <code>y-key</code></summary><img src="../../docs/diagrams/words/stream/y-key.svg" alt="Railroad diagram of the rule y-key"></details>
+<details><summary>Railroad diagram of <code>raw-close</code></summary><img src="../../docs/diagrams/words/stream/raw-close.svg" alt="Railroad diagram of the rule raw-close"></details>
+<details><summary>Railroad diagram of <code>raw-run</code></summary><img src="../../docs/diagrams/words/stream/raw-run.svg" alt="Railroad diagram of the rule raw-run"></details>
+<details><summary>Railroad diagram of <code>raw-run-parts</code></summary><img src="../../docs/diagrams/words/stream/raw-run-parts.svg" alt="Railroad diagram of the rule raw-run-parts"></details>
+<details><summary>Railroad diagram of <code>matched-close-token</code></summary><img src="../../docs/diagrams/words/stream/matched-close-token.svg" alt="Railroad diagram of the rule matched-close-token"></details>
+<details><summary>Railroad diagram of <code>raw-y-close</code></summary><img src="../../docs/diagrams/words/stream/raw-y-close.svg" alt="Railroad diagram of the rule raw-y-close"></details>
+<details><summary>Railroad diagram of <code>raw-y-base</code></summary><img src="../../docs/diagrams/words/stream/raw-y-base.svg" alt="Railroad diagram of the rule raw-y-base"></details>
+
 The raw rule rejoins every piece of one y run. A drawn-out raw run retains its extra y sounds and cannot close a ybu delimiter. Zantufa's [`ie'o` exception](zantufa.md) keeps each `ie'o` separate from adjacent hesitation.
 
 ```jbogenbau
@@ -393,6 +434,26 @@ The raw rule rejoins every piece of one y run. A drawn-out raw run retains its e
   ~word | ~hesitation | UNREAD
 ```
 
+<details><summary>Railroad diagram of <code>raw-y-key</code></summary><img src="../../docs/diagrams/words/stream/raw-y-key.svg" alt="Railroad diagram of the rule raw-y-key"></details>
+<details><summary>Railroad diagram of <code>raw-y-letter</code></summary><img src="../../docs/diagrams/words/stream/raw-y-letter.svg" alt="Railroad diagram of the rule raw-y-letter"></details>
+<details><summary>Railroad diagram of <code>zohoi-hesitation</code></summary><img src="../../docs/diagrams/words/stream/zohoi-hesitation.svg" alt="Railroad diagram of the rule zohoi-hesitation"></details>
+<details><summary>Railroad diagram of <code>zohoi-hesitations</code></summary><img src="../../docs/diagrams/words/stream/zohoi-hesitations.svg" alt="Railroad diagram of the rule zohoi-hesitations"></details>
+<details><summary>Railroad diagram of <code>body-with-y-close</code></summary><img src="../../docs/diagrams/words/stream/body-with-y-close.svg" alt="Railroad diagram of the rule body-with-y-close"></details>
+<details><summary>Railroad diagram of <code>empty-zoi-body</code></summary><img src="../../docs/diagrams/words/stream/empty-zoi-body.svg" alt="Railroad diagram of the rule empty-zoi-body"></details>
+<details><summary>Railroad diagram of <code>zoi-marker</code></summary><img src="../../docs/diagrams/words/stream/zoi-marker.svg" alt="Railroad diagram of the rule zoi-marker"></details>
+<details><summary>Railroad diagram of <code>lohu-quote</code></summary><img src="../../docs/diagrams/words/stream/lohu-quote.svg" alt="Railroad diagram of the rule lohu-quote"></details>
+<details><summary>Railroad diagram of <code>lohu-marker</code></summary><img src="../../docs/diagrams/words/stream/lohu-marker.svg" alt="Railroad diagram of the rule lohu-marker"></details>
+<details><summary>Railroad diagram of <code>lehu-marker</code></summary><img src="../../docs/diagrams/words/stream/lehu-marker.svg" alt="Railroad diagram of the rule lehu-marker"></details>
+<details><summary>Railroad diagram of <code>lohu-stream</code></summary><img src="../../docs/diagrams/words/stream/lohu-stream.svg" alt="Railroad diagram of the rule lohu-stream"></details>
+<details><summary>Railroad diagram of <code>lohu-element</code></summary><img src="../../docs/diagrams/words/stream/lohu-element.svg" alt="Railroad diagram of the rule lohu-element"></details>
+<details><summary>Railroad diagram of <code>lohu-word</code></summary><img src="../../docs/diagrams/words/stream/lohu-word.svg" alt="Railroad diagram of the rule lohu-word"></details>
+<details><summary>Railroad diagram of <code>quote-gap</code></summary><img src="../../docs/diagrams/words/stream/quote-gap.svg" alt="Railroad diagram of the rule quote-gap"></details>
+<details><summary>Railroad diagram of <code>hesitations</code></summary><img src="../../docs/diagrams/words/stream/hesitations.svg" alt="Railroad diagram of the rule hesitations"></details>
+<details><summary>Railroad diagram of <code>raw-tokens</code></summary><img src="../../docs/diagrams/words/stream/raw-tokens.svg" alt="Railroad diagram of the rule raw-tokens"></details>
+<details><summary>Railroad diagram of <code>zohoi-payload</code></summary><img src="../../docs/diagrams/words/stream/zohoi-payload.svg" alt="Railroad diagram of the rule zohoi-payload"></details>
+<details><summary>Railroad diagram of <code>any-token</code></summary><img src="../../docs/diagrams/words/stream/any-token.svg" alt="Railroad diagram of the rule any-token"></details>
+<details><summary>Railroad diagram of <code>payload-token</code></summary><img src="../../docs/diagrams/words/stream/payload-token.svg" alt="Railroad diagram of the rule payload-token"></details>
+
 ## Compounds
 
 BU takes the preceding live unit and forms one letteral. ZEI takes that unit and the next word as read, then forms one BRIVLA unit.
@@ -431,6 +492,11 @@ The CLL dialect requires pauses around a direct name base of BU. It tests the so
   ZEI ⊆ classes($q)
 ```
 
+<details><summary>Railroad diagram of <code>lerfu-word</code></summary><img src="../../docs/diagrams/words/stream/lerfu-word.svg" alt="Railroad diagram of the rule lerfu-word"></details>
+<details><summary>Railroad diagram of <code>bu-word</code></summary><img src="../../docs/diagrams/words/stream/bu-word.svg" alt="Railroad diagram of the rule bu-word"></details>
+<details><summary>Railroad diagram of <code>zei-compound</code></summary><img src="../../docs/diagrams/words/stream/zei-compound.svg" alt="Railroad diagram of the rule zei-compound"></details>
+<details><summary>Railroad diagram of <code>zei-word</code></summary><img src="../../docs/diagrams/words/stream/zei-word.svg" alt="Railroad diagram of the rule zei-word"></details>
+
 ## Erasure by `si`
 
 SI erases the preceding live unit. Quotes and compounds each count as one unit. A run of SI removes that many units and then does nothing on an empty stream.
@@ -448,6 +514,9 @@ SI skips hesitation and erased regions. It never erases an already executed SA o
 %conditions
   SI ⊆ classes($q)
 ```
+
+<details><summary>Railroad diagram of <code>si-erasure</code></summary><img src="../../docs/diagrams/words/stream/si-erasure.svg" alt="Railroad diagram of the rule si-erasure"></details>
+<details><summary>Railroad diagram of <code>si-word</code></summary><img src="../../docs/diagrams/words/stream/si-word.svg" alt="Railroad diagram of the rule si-word"></details>
 
 ## Erasure by `sa` and `su`
 
@@ -558,6 +627,21 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
 %conditions
   SU ⊆ classes($q)
 ```
+
+<details><summary>Railroad diagram of <code>sa-erasure</code></summary><img src="../../docs/diagrams/words/stream/sa-erasure.svg" alt="Railroad diagram of the rule sa-erasure"></details>
+<details><summary>Railroad diagram of <code>sa-nest</code></summary><img src="../../docs/diagrams/words/stream/sa-nest.svg" alt="Railroad diagram of the rule sa-nest"></details>
+<details><summary>Railroad diagram of <code>sa-open</code></summary><img src="../../docs/diagrams/words/stream/sa-open.svg" alt="Railroad diagram of the rule sa-open"></details>
+<details><summary>Railroad diagram of <code>sa-key</code></summary><img src="../../docs/diagrams/words/stream/sa-key.svg" alt="Railroad diagram of the rule sa-key"></details>
+<details><summary>Railroad diagram of <code>next-word-class</code></summary><img src="../../docs/diagrams/words/stream/next-word-class.svg" alt="Railroad diagram of the rule next-word-class"></details>
+<details><summary>Railroad diagram of <code>sa-word</code></summary><img src="../../docs/diagrams/words/stream/sa-word.svg" alt="Railroad diagram of the rule sa-word"></details>
+<details><summary>Railroad diagram of <code>sa-run</code></summary><img src="../../docs/diagrams/words/stream/sa-run.svg" alt="Railroad diagram of the rule sa-run"></details>
+<details><summary>Railroad diagram of <code>sa-run-twice</code></summary><img src="../../docs/diagrams/words/stream/sa-run-twice.svg" alt="Railroad diagram of the rule sa-run-twice"></details>
+<details><summary>Railroad diagram of <code>sa-wiped</code></summary><img src="../../docs/diagrams/words/stream/sa-wiped.svg" alt="Railroad diagram of the rule sa-wiped"></details>
+<details><summary>Railroad diagram of <code>sa-wipe-core</code></summary><img src="../../docs/diagrams/words/stream/sa-wipe-core.svg" alt="Railroad diagram of the rule sa-wipe-core"></details>
+<details><summary>Railroad diagram of <code>su-survivor</code></summary><img src="../../docs/diagrams/words/stream/su-survivor.svg" alt="Railroad diagram of the rule su-survivor"></details>
+<details><summary>Railroad diagram of <code>su-suffix</code></summary><img src="../../docs/diagrams/words/stream/su-suffix.svg" alt="Railroad diagram of the rule su-suffix"></details>
+<details><summary>Railroad diagram of <code>su-reach</code></summary><img src="../../docs/diagrams/words/stream/su-reach.svg" alt="Railroad diagram of the rule su-reach"></details>
+<details><summary>Railroad diagram of <code>su-word</code></summary><img src="../../docs/diagrams/words/stream/su-word.svg" alt="Railroad diagram of the rule su-word"></details>
 
 ## Departures from CLL, the proposal, and camxes-std
 

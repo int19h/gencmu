@@ -1,6 +1,6 @@
 # Zantufa word forms
 
-This document is part of the forms stage in the [Zantufa](../dialects/zantufa.md) dialect. The forms stage is the second stage of the pipeline. It divides the phonemes of the text into words. The loader stitches this document into the stage after [bpfk.md](bpfk.md). [Railroad diagrams](../../docs/diagrams/words/zantufa.md) draw each rule of this document.
+This document is part of the forms stage in the [Zantufa](../dialects/zantufa.md) dialect. The forms stage is the second stage of the pipeline. It divides the phonemes of the text into words. The loader stitches this document into the stage after [bpfk.md](bpfk.md).
 
 The prose uses these Lojban terms for words:
 
@@ -28,6 +28,8 @@ The rule `m` has the name of the Zantufa rule that it translates, and its commen
   ¬begins(after($c), m)
 ```
 
+<details><summary>Railroad diagram of <code>m</code></summary><img src="../../docs/diagrams/words/zantufa/m.svg" alt="Railroad diagram of the rule m"></details>
+
 Zantufa's Y is `y` and `ie'o`, and its `spaces` read both as space. So `ie'o` is hesitation here, as `y` is. The word stage is the stage after the forms stage. It drops the hesitation where it is space, and reads it as the base of a letter word before `bu`. A Y word attached to a word before it is not space ([zantufa-stream.md](zantufa-stream.md)). It keeps the form of a cmavo, so the pause rules hold for it as for any cmavo.
 
 ```jbogenbau
@@ -42,6 +44,8 @@ Zantufa's Y is `y` and `ie'o`, and its `spaces` read both as space. So `ie'o` is
   Y ⊈ classify(phonemes($c), lexicon),
   Y ⊆ classify(phonemes($y), lexicon)
 ```
+
+<details><summary>Railroad diagram of <code>source-word</code></summary><img src="../../docs/diagrams/words/zantufa/source-word.svg" alt="Railroad diagram of the rule source-word"></details>
 
 `ra'oi` quotes a rafsi or gismu form from the letters after it, and the stage reads the rest of the run as words. The stage tries the forms in the order of Zantufa: `y_rafsi / long_rafsi / y_less_rafsi / gismu`. The forms decide with their stress. So `ra'oi broda` quotes the gismu `broda`, because its `o` is stressed before the pause, but `ra'oi brodami` quotes the rafsi `brod` and leaves `a` and `mi`. The form can follow `ra'oi` directly, as in `ra'oibroda`, or after a pause and any hesitation, as in `ra'oi .y. broda`. A run can hold several such quotes, as `ra'oi brodyra'oibroda` does.
 
@@ -165,6 +169,18 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
   $ <~rafsi-form ∪ (¬begins(after($), nonpause-phoneme) ⟹ ~run-final)>
 ```
 
+<details><summary>Railroad diagram of <code>runs</code></summary><img src="../../docs/diagrams/words/zantufa/runs.svg" alt="Railroad diagram of the rule runs"></details>
+<details><summary>Railroad diagram of <code>read-run</code></summary><img src="../../docs/diagrams/words/zantufa/read-run.svg" alt="Railroad diagram of the rule read-run"></details>
+<details><summary>Railroad diagram of <code>run-words</code></summary><img src="../../docs/diagrams/words/zantufa/run-words.svg" alt="Railroad diagram of the rule run-words"></details>
+<details><summary>Railroad diagram of <code>rahoi-rest</code></summary><img src="../../docs/diagrams/words/zantufa/rahoi-rest.svg" alt="Railroad diagram of the rule rahoi-rest"></details>
+<details><summary>Railroad diagram of <code>rahoi-tail</code></summary><img src="../../docs/diagrams/words/zantufa/rahoi-tail.svg" alt="Railroad diagram of the rule rahoi-tail"></details>
+<details><summary>Railroad diagram of <code>space-hesitation</code></summary><img src="../../docs/diagrams/words/zantufa/space-hesitation.svg" alt="Railroad diagram of the rule space-hesitation"></details>
+<details><summary>Railroad diagram of <code>opener-space</code></summary><img src="../../docs/diagrams/words/zantufa/opener-space.svg" alt="Railroad diagram of the rule opener-space"></details>
+<details><summary>Railroad diagram of <code>space-piece</code></summary><img src="../../docs/diagrams/words/zantufa/space-piece.svg" alt="Railroad diagram of the rule space-piece"></details>
+<details><summary>Railroad diagram of <code>ordinary-space-piece</code></summary><img src="../../docs/diagrams/words/zantufa/ordinary-space-piece.svg" alt="Railroad diagram of the rule ordinary-space-piece"></details>
+<details><summary>Railroad diagram of <code>only-hesitation</code></summary><img src="../../docs/diagrams/words/zantufa/only-hesitation.svg" alt="Railroad diagram of the rule only-hesitation"></details>
+<details><summary>Railroad diagram of <code>rahoi-form</code></summary><img src="../../docs/diagrams/words/zantufa/rahoi-form.svg" alt="Railroad diagram of the rule rahoi-form"></details>
+
 The BPFK word forms read an odd run of three or more `y` as `y` and the rest. Zantufa's `Y` is `y+`, so its `spaces` read the whole run as one stretch of space. So the stage tags `after-hesitation` a run of `y` that directly follows another run of `y`.
 
 Before BU, the forms stage separates the final y from the hesitation prefix. The shared word reader joins that final y with BU. Elsewhere, two such runs attached to a word are two Y words, as Zantufa's `cmavo_form` reads them. An `ie'o` is a Y word of its own, and it never joins one.
@@ -185,3 +201,6 @@ The stage tags `opener-space` a hesitation directly after a text opener, and eac
 %emits
   $ <tags($w) ∪ ~after-hesitation ∪ (¬begins(after($w), nonpause-phoneme) ⟹ ~run-final)>
 ```
+
+<details><summary>Railroad diagram of <code>joined-hesitation</code></summary><img src="../../docs/diagrams/words/zantufa/joined-hesitation.svg" alt="Railroad diagram of the rule joined-hesitation"></details>
+<details><summary>Railroad diagram of <code>ordinary-joined-hesitation</code></summary><img src="../../docs/diagrams/words/zantufa/ordinary-joined-hesitation.svg" alt="Railroad diagram of the rule ordinary-joined-hesitation"></details>

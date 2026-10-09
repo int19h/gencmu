@@ -6,6 +6,7 @@
 // in as a row is seen where GitHub sees it. tools/sync.js --check runs it on
 // every Markdown document of the repository (tools/documents.js).
 import { parseMarkdown, walk } from "./markdown.js";
+import { DIAGRAM_LINE_START } from "./railroad.js";
 
 /** The blocks that hold prose: each stands on one line. */
 export const PROSE = new Set(["paragraph", "heading", "tableRow"]);
@@ -25,7 +26,10 @@ const NAMES = { paragraph: "paragraph", heading: "heading", tableRow: "table row
  * - a fenced block with no closing fence, which takes in the rest of its
  *   container;
  * - an indented code block and an HTML block, which can hide prose: a line
- *   indented too far in a list item becomes code.
+ *   indented too far in a list item becomes code. The one HTML block that
+ *   a document can hold is a run of the lines that tools/sync.js owns,
+ *   each a railroad diagram (tools/railroad.js). sync.js checks their text
+ *   and their place.
  *
  * A list item can hold several paragraphs, each on its own line.
  * @param {string} markdown
@@ -62,7 +66,7 @@ export function proseLineProblems(markdown, file) {
       report(start.line, "this fenced block has no closing fence, so it takes in the rest of its container; close it");
     } else if (node.type === "code" && !(node.data && node.data.fenced)) {
       report(start.line, "an indented code block; use a fenced block, or indent prose in a list item to the item's text");
-    } else if (node.type === "html" && !ancestors.some((block) => PROSE.has(block.type))) {
+    } else if (node.type === "html" && !ancestors.some((block) => PROSE.has(block.type)) && !(ancestors.length === 1 && node.value.split("\n").every((line) => line.startsWith(DIAGRAM_LINE_START)))) {
       report(start.line, "an HTML block; the documents use Markdown only");
     }
   }

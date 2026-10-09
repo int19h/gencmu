@@ -1,6 +1,6 @@
 # BPFK working word forms
 
-This document is the family part of the forms stage in the [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) dialects. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). A family is a set of word forms that dialects use. The loader stitches this document in after [forms.md](forms.md). The experimental dialect stitches [experimental.md](experimental.md) after it, and the Zantufa dialect stitches [zantufa.md](zantufa.md). [The notation document](../../docs/notation.md) explains jbogenbau, the notation of these grammars. [Railroad diagrams](../../docs/diagrams/words/bpfk.md) draw each rule of this document.
+This document is the family part of the forms stage in the [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) dialects. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). A family is a set of word forms that dialects use. The loader stitches this document in after [forms.md](forms.md). The experimental dialect stitches [experimental.md](experimental.md) after it, and the Zantufa dialect stitches [zantufa.md](zantufa.md). [The notation document](../../docs/notation.md) explains jbogenbau, the notation of these grammars.
 
 This document gives the working word-form grammar of the BPFK (a Lojban committee). It translates the morphology part of `camxes.peg`, a parsing expression grammar (PEG). The executable baseline is ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg). [CLL 1.3.4](https://github.com/int19h/cll/blob/v1.3.4/chapters/a02.xml) (*The Complete Lojban Language*) prints that grammar in appendix A2.
 
@@ -85,6 +85,12 @@ A `y` is a nucleus exactly where no nucleus follows it. So the first `y` of a ru
   any-y | any-y y-letters
 ```
 
+<details><summary>Railroad diagram of <code>cmevla-shape</code></summary><img src="../../docs/diagrams/words/bpfk/cmevla-shape.svg" alt="Railroad diagram of the rule cmevla-shape"></details>
+<details><summary>Railroad diagram of <code>cmavo-shape</code></summary><img src="../../docs/diagrams/words/bpfk/cmavo-shape.svg" alt="Railroad diagram of the rule cmavo-shape"></details>
+<details><summary>Railroad diagram of <code>brivla-shape</code></summary><img src="../../docs/diagrams/words/bpfk/brivla-shape.svg" alt="Railroad diagram of the rule brivla-shape"></details>
+<details><summary>Railroad diagram of <code>y-run</code></summary><img src="../../docs/diagrams/words/bpfk/y-run.svg" alt="Railroad diagram of the rule y-run"></details>
+<details><summary>Railroad diagram of <code>y-letters</code></summary><img src="../../docs/diagrams/words/bpfk/y-letters.svg" alt="Railroad diagram of the rule y-letters"></details>
+
 The PEG's `lojban_word` is what `post_word` looks for after a word.
 
 ```jbogenbau
@@ -129,6 +135,14 @@ The PEG's `lojban_word` is what `post_word` looks for after a word.
 %rule nothing                 (* the empty text: the empty alternative of an optional or a repetition, and what EOF tests *)
   ε
 ```
+
+<details><summary>Railroad diagram of <code>lojban-word</code></summary><img src="../../docs/diagrams/words/bpfk/lojban-word.svg" alt="Railroad diagram of the rule lojban-word"></details>
+<details><summary>Railroad diagram of <code>brivla-word</code></summary><img src="../../docs/diagrams/words/bpfk/brivla-word.svg" alt="Railroad diagram of the rule brivla-word"></details>
+<details><summary>Railroad diagram of <code>lujvo</code></summary><img src="../../docs/diagrams/words/bpfk/lujvo.svg" alt="Railroad diagram of the rule lujvo"></details>
+<details><summary>Railroad diagram of <code>post-word</code></summary><img src="../../docs/diagrams/words/bpfk/post-word.svg" alt="Railroad diagram of the rule post-word"></details>
+<details><summary>Railroad diagram of <code>pause</code></summary><img src="../../docs/diagrams/words/bpfk/pause.svg" alt="Railroad diagram of the rule pause"></details>
+<details><summary>Railroad diagram of <code>end-of-text</code></summary><img src="../../docs/diagrams/words/bpfk/end-of-text.svg" alt="Railroad diagram of the rule end-of-text"></details>
+<details><summary>Railroad diagram of <code>nothing</code></summary><img src="../../docs/diagrams/words/bpfk/nothing.svg" alt="Railroad diagram of the rule nothing"></details>
 
 ## Cmevla
 
@@ -178,6 +192,14 @@ A name is a run of letters that ends in a consonant and is followed by a pause. 
   ¬begins(from($n), any-syllable)
 ```
 
+<details><summary>Railroad diagram of <code>cmevla</code></summary><img src="../../docs/diagrams/words/bpfk/cmevla.svg" alt="Railroad diagram of the rule cmevla"></details>
+<details><summary>Railroad diagram of <code>zifcme</code></summary><img src="../../docs/diagrams/words/bpfk/zifcme.svg" alt="Railroad diagram of the rule zifcme"></details>
+<details><summary>Railroad diagram of <code>zifcme-sounds</code></summary><img src="../../docs/diagrams/words/bpfk/zifcme-sounds.svg" alt="Railroad diagram of the rule zifcme-sounds"></details>
+<details><summary>Railroad diagram of <code>zifcme-sound</code></summary><img src="../../docs/diagrams/words/bpfk/zifcme-sound.svg" alt="Railroad diagram of the rule zifcme-sound"></details>
+<details><summary>Railroad diagram of <code>jbocme</code></summary><img src="../../docs/diagrams/words/bpfk/jbocme.svg" alt="Railroad diagram of the rule jbocme"></details>
+<details><summary>Railroad diagram of <code>any-syllables</code></summary><img src="../../docs/diagrams/words/bpfk/any-syllables.svg" alt="Railroad diagram of the rule any-syllables"></details>
+<details><summary>Railroad diagram of <code>more-any-syllables</code></summary><img src="../../docs/diagrams/words/bpfk/more-any-syllables.svg" alt="Railroad diagram of the rule more-any-syllables"></details>
+
 ## Cmavo
 
 A cmavo is not the start of a name, and not the start of a lujvo that begins with a CVC rafsi and a y-hyphen. Its form is an onset and nuclei joined by apostrophes, or a run of `y`. A pause or another word follows it. `CVCy_lujvo` is what keeps `bajykla` one lujvo, and not `ba jy kla`.
@@ -216,6 +238,13 @@ A cmavo is not the start of a name, and not the start of a lujvo that begins wit
   nucleus h
 ```
 
+<details><summary>Railroad diagram of <code>cmavo</code></summary><img src="../../docs/diagrams/words/bpfk/cmavo.svg" alt="Railroad diagram of the rule cmavo"></details>
+<details><summary>Railroad diagram of <code>cvcy-lujvo</code></summary><img src="../../docs/diagrams/words/bpfk/cvcy-lujvo.svg" alt="Railroad diagram of the rule cvcy-lujvo"></details>
+<details><summary>Railroad diagram of <code>cmavo-form</code></summary><img src="../../docs/diagrams/words/bpfk/cmavo-form.svg" alt="Railroad diagram of the rule cmavo-form"></details>
+<details><summary>Railroad diagram of <code>cmavo-form-with-onset</code></summary><img src="../../docs/diagrams/words/bpfk/cmavo-form-with-onset.svg" alt="Railroad diagram of the rule cmavo-form-with-onset"></details>
+<details><summary>Railroad diagram of <code>nucleus-h-pairs</code></summary><img src="../../docs/diagrams/words/bpfk/nucleus-h-pairs.svg" alt="Railroad diagram of the rule nucleus-h-pairs"></details>
+<details><summary>Railroad diagram of <code>nucleus-h-pair</code></summary><img src="../../docs/diagrams/words/bpfk/nucleus-h-pair.svg" alt="Railroad diagram of the rule nucleus-h-pair"></details>
+
 The last nucleus of a cmavo is unstressed, or it is not followed by a consonant cluster. So `MIklama` is not `mI klama`. The second alternative of the PEG's choice applies where the first does not begin: where a nucleus begins, that is where it is stressed.
 
 ```jbogenbau
@@ -236,6 +265,10 @@ The last nucleus of a cmavo is unstressed, or it is not followed by a consonant 
 %conditions
   ¬begins(from($n), y)
 ```
+
+<details><summary>Railroad diagram of <code>cmavo-last-nucleus</code></summary><img src="../../docs/diagrams/words/bpfk/cmavo-last-nucleus.svg" alt="Railroad diagram of the rule cmavo-last-nucleus"></details>
+<details><summary>Railroad diagram of <code>ys</code></summary><img src="../../docs/diagrams/words/bpfk/ys.svg" alt="Railroad diagram of the rule ys"></details>
+<details><summary>Railroad diagram of <code>more-ys</code></summary><img src="../../docs/diagrams/words/bpfk/more-ys.svg" alt="Railroad diagram of the rule more-ys"></details>
 
 ## Brivla
 
@@ -276,6 +309,11 @@ A brivla is not a cmavo. It is any number of rafsi followed by a core. The core 
   ¬begins(from($l), stressed-y-rafsi)
 ```
 
+<details><summary>Railroad diagram of <code>brivla</code></summary><img src="../../docs/diagrams/words/bpfk/brivla.svg" alt="Railroad diagram of the rule brivla"></details>
+<details><summary>Railroad diagram of <code>initial-rafsis</code></summary><img src="../../docs/diagrams/words/bpfk/initial-rafsis.svg" alt="Railroad diagram of the rule initial-rafsis"></details>
+<details><summary>Railroad diagram of <code>brivla-core</code></summary><img src="../../docs/diagrams/words/bpfk/brivla-core.svg" alt="Railroad diagram of the rule brivla-core"></details>
+<details><summary>Railroad diagram of <code>stressed-initial-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/stressed-initial-rafsi.svg" alt="Railroad diagram of the rule stressed-initial-rafsi"></details>
+
 A rafsi without a y-hyphen stands before the core only where neither it nor the part after it begins an extended rafsi or a borrowing. So `spageti'ybroda` begins with the extended rafsi `spageti'y`, and `selspageti` is one borrowing.
 
 ```jbogenbau
@@ -293,6 +331,9 @@ A rafsi without a y-hyphen stands before the core only where neither it nor the 
 %rule any-extended-rafsi      (* any_extended_rafsi <- fuhivla / extended_rafsi / stressed_extended_rafsi; only a lookahead *)
   fuhivla | extended-rafsi | stressed-extended-rafsi
 ```
+
+<details><summary>Railroad diagram of <code>initial-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/initial-rafsi.svg" alt="Railroad diagram of the rule initial-rafsi"></details>
+<details><summary>Railroad diagram of <code>any-extended-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/any-extended-rafsi.svg" alt="Railroad diagram of the rule any-extended-rafsi"></details>
 
 ## Borrowings and extended rafsi
 
@@ -365,6 +406,19 @@ An extended rafsi lets a brivla or a borrowing, whole or cut short, stand before
   ¬begins(from($c), rafsi-string)
 ```
 
+<details><summary>Railroad diagram of <code>fuhivla</code></summary><img src="../../docs/diagrams/words/bpfk/fuhivla.svg" alt="Railroad diagram of the rule fuhivla"></details>
+<details><summary>Railroad diagram of <code>stressed-extended-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/stressed-extended-rafsi.svg" alt="Railroad diagram of the rule stressed-extended-rafsi"></details>
+<details><summary>Railroad diagram of <code>extended-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/extended-rafsi.svg" alt="Railroad diagram of the rule extended-rafsi"></details>
+<details><summary>Railroad diagram of <code>stressed-brivla-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/stressed-brivla-rafsi.svg" alt="Railroad diagram of the rule stressed-brivla-rafsi"></details>
+<details><summary>Railroad diagram of <code>brivla-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/brivla-rafsi.svg" alt="Railroad diagram of the rule brivla-rafsi"></details>
+<details><summary>Railroad diagram of <code>two-syllables</code></summary><img src="../../docs/diagrams/words/bpfk/two-syllables.svg" alt="Railroad diagram of the rule two-syllables"></details>
+<details><summary>Railroad diagram of <code>stressed-fuhivla-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/stressed-fuhivla-rafsi.svg" alt="Railroad diagram of the rule stressed-fuhivla-rafsi"></details>
+<details><summary>Railroad diagram of <code>fuhivla-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/fuhivla-rafsi.svg" alt="Railroad diagram of the rule fuhivla-rafsi"></details>
+<details><summary>Railroad diagram of <code>fuhivla-head</code></summary><img src="../../docs/diagrams/words/bpfk/fuhivla-head.svg" alt="Railroad diagram of the rule fuhivla-head"></details>
+<details><summary>Railroad diagram of <code>brivla-head</code></summary><img src="../../docs/diagrams/words/bpfk/brivla-head.svg" alt="Railroad diagram of the rule brivla-head"></details>
+<details><summary>Railroad diagram of <code>unstressed-syllables</code></summary><img src="../../docs/diagrams/words/bpfk/unstressed-syllables.svg" alt="Railroad diagram of the rule unstressed-syllables"></details>
+<details><summary>Railroad diagram of <code>slinkuhi</code></summary><img src="../../docs/diagrams/words/bpfk/slinkuhi.svg" alt="Railroad diagram of the rule slinkuhi"></details>
+
 The slinku'i test and a borrowing's head look for a string of rafsi. That is any number of rafsi without a y-hyphen, and then a part that can end a lujvo or that has a y-hyphen. The PEG uses it only in lookaheads.
 
 ```jbogenbau
@@ -393,6 +447,11 @@ The slinku'i test and a borrowing's head look for a string of rafsi. That is any
 %conditions
   ¬begins(from($n), stressed-y-less-rafsi)
 ```
+
+<details><summary>Railroad diagram of <code>rafsi-string</code></summary><img src="../../docs/diagrams/words/bpfk/rafsi-string.svg" alt="Railroad diagram of the rule rafsi-string"></details>
+<details><summary>Railroad diagram of <code>y-less-rafsis</code></summary><img src="../../docs/diagrams/words/bpfk/y-less-rafsis.svg" alt="Railroad diagram of the rule y-less-rafsis"></details>
+<details><summary>Railroad diagram of <code>rafsi-string-end</code></summary><img src="../../docs/diagrams/words/bpfk/rafsi-string-end.svg" alt="Railroad diagram of the rule rafsi-string-end"></details>
+<details><summary>Railroad diagram of <code>stressed-y-less-rafsi-opt</code></summary><img src="../../docs/diagrams/words/bpfk/stressed-y-less-rafsi-opt.svg" alt="Railroad diagram of the rule stressed-y-less-rafsi-opt"></details>
 
 ## Rafsi
 
@@ -470,6 +529,22 @@ The core of a brivla ends it, and a pause or another word follows it. Its final 
   cvc-rafsi | ccv-rafsi | cvv-rafsi
 ```
 
+<details><summary>Railroad diagram of <code>gismu</code></summary><img src="../../docs/diagrams/words/bpfk/gismu.svg" alt="Railroad diagram of the rule gismu"></details>
+<details><summary>Railroad diagram of <code>gismu-start</code></summary><img src="../../docs/diagrams/words/bpfk/gismu-start.svg" alt="Railroad diagram of the rule gismu-start"></details>
+<details><summary>Railroad diagram of <code>cvv-final-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/cvv-final-rafsi.svg" alt="Railroad diagram of the rule cvv-final-rafsi"></details>
+<details><summary>Railroad diagram of <code>short-final-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/short-final-rafsi.svg" alt="Railroad diagram of the rule short-final-rafsi"></details>
+<details><summary>Railroad diagram of <code>short-final-body</code></summary><img src="../../docs/diagrams/words/bpfk/short-final-body.svg" alt="Railroad diagram of the rule short-final-body"></details>
+<details><summary>Railroad diagram of <code>stressed-y-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/stressed-y-rafsi.svg" alt="Railroad diagram of the rule stressed-y-rafsi"></details>
+<details><summary>Railroad diagram of <code>stressed-y-less-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/stressed-y-less-rafsi.svg" alt="Railroad diagram of the rule stressed-y-less-rafsi"></details>
+<details><summary>Railroad diagram of <code>stressed-long-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/stressed-long-rafsi.svg" alt="Railroad diagram of the rule stressed-long-rafsi"></details>
+<details><summary>Railroad diagram of <code>stressed-cvc-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/stressed-cvc-rafsi.svg" alt="Railroad diagram of the rule stressed-cvc-rafsi"></details>
+<details><summary>Railroad diagram of <code>stressed-ccv-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/stressed-ccv-rafsi.svg" alt="Railroad diagram of the rule stressed-ccv-rafsi"></details>
+<details><summary>Railroad diagram of <code>stressed-cvv-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/stressed-cvv-rafsi.svg" alt="Railroad diagram of the rule stressed-cvv-rafsi"></details>
+<details><summary>Railroad diagram of <code>stressed-cvv-body</code></summary><img src="../../docs/diagrams/words/bpfk/stressed-cvv-body.svg" alt="Railroad diagram of the rule stressed-cvv-body"></details>
+<details><summary>Railroad diagram of <code>y-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/y-rafsi.svg" alt="Railroad diagram of the rule y-rafsi"></details>
+<details><summary>Railroad diagram of <code>y-less-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/y-less-rafsi.svg" alt="Railroad diagram of the rule y-less-rafsi"></details>
+<details><summary>Railroad diagram of <code>y-less-rafsi-body</code></summary><img src="../../docs/diagrams/words/bpfk/y-less-rafsi-body.svg" alt="Railroad diagram of the rule y-less-rafsi-body"></details>
+
 A rafsi followed by `'y` is a `hy_rafsi`. The PEG uses it only to end a string of rafsi, so it builds no lujvo.
 
 ```jbogenbau
@@ -527,6 +602,20 @@ A rafsi followed by `'y` is a `hy_rafsi`. The PEG uses it only to end a string o
 %conditions
   ¬begins(from($n), r-hyphen)
 ```
+
+<details><summary>Railroad diagram of <code>hy-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/hy-rafsi.svg" alt="Railroad diagram of the rule hy-rafsi"></details>
+<details><summary>Railroad diagram of <code>hy-rafsi-body</code></summary><img src="../../docs/diagrams/words/bpfk/hy-rafsi-body.svg" alt="Railroad diagram of the rule hy-rafsi-body"></details>
+<details><summary>Railroad diagram of <code>long-rafsi-vowel</code></summary><img src="../../docs/diagrams/words/bpfk/long-rafsi-vowel.svg" alt="Railroad diagram of the rule long-rafsi-vowel"></details>
+<details><summary>Railroad diagram of <code>stressed-hy-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/stressed-hy-rafsi.svg" alt="Railroad diagram of the rule stressed-hy-rafsi"></details>
+<details><summary>Railroad diagram of <code>stressed-hy-rafsi-body</code></summary><img src="../../docs/diagrams/words/bpfk/stressed-hy-rafsi-body.svg" alt="Railroad diagram of the rule stressed-hy-rafsi-body"></details>
+<details><summary>Railroad diagram of <code>long-rafsi-stressed-vowel</code></summary><img src="../../docs/diagrams/words/bpfk/long-rafsi-stressed-vowel.svg" alt="Railroad diagram of the rule long-rafsi-stressed-vowel"></details>
+<details><summary>Railroad diagram of <code>long-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/long-rafsi.svg" alt="Railroad diagram of the rule long-rafsi"></details>
+<details><summary>Railroad diagram of <code>cvc-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/cvc-rafsi.svg" alt="Railroad diagram of the rule cvc-rafsi"></details>
+<details><summary>Railroad diagram of <code>ccv-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/ccv-rafsi.svg" alt="Railroad diagram of the rule ccv-rafsi"></details>
+<details><summary>Railroad diagram of <code>cvv-rafsi</code></summary><img src="../../docs/diagrams/words/bpfk/cvv-rafsi.svg" alt="Railroad diagram of the rule cvv-rafsi"></details>
+<details><summary>Railroad diagram of <code>cvv-body</code></summary><img src="../../docs/diagrams/words/bpfk/cvv-body.svg" alt="Railroad diagram of the rule cvv-body"></details>
+<details><summary>Railroad diagram of <code>r-hyphen</code></summary><img src="../../docs/diagrams/words/bpfk/r-hyphen.svg" alt="Railroad diagram of the rule r-hyphen"></details>
+<details><summary>Railroad diagram of <code>r-hyphen-opt</code></summary><img src="../../docs/diagrams/words/bpfk/r-hyphen-opt.svg" alt="Railroad diagram of the rule r-hyphen-opt"></details>
 
 ## Syllables and stress
 
@@ -611,6 +700,20 @@ So an unmarked brivla is stressed on its penultimate syllable, and a pause must 
 %rule stress-mark             (* [AEIOU], a letter and not a vowel rule *)
   /A/ | /E/ | /I/ | /O/ | /U/
 ```
+
+<details><summary>Railroad diagram of <code>final-syllable</code></summary><img src="../../docs/diagrams/words/bpfk/final-syllable.svg" alt="Railroad diagram of the rule final-syllable"></details>
+<details><summary>Railroad diagram of <code>stressed-syllable</code></summary><img src="../../docs/diagrams/words/bpfk/stressed-syllable.svg" alt="Railroad diagram of the rule stressed-syllable"></details>
+<details><summary>Railroad diagram of <code>stressed-diphthong</code></summary><img src="../../docs/diagrams/words/bpfk/stressed-diphthong.svg" alt="Railroad diagram of the rule stressed-diphthong"></details>
+<details><summary>Railroad diagram of <code>stressed-vowel</code></summary><img src="../../docs/diagrams/words/bpfk/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></details>
+<details><summary>Railroad diagram of <code>unstressed-syllable</code></summary><img src="../../docs/diagrams/words/bpfk/unstressed-syllable.svg" alt="Railroad diagram of the rule unstressed-syllable"></details>
+<details><summary>Railroad diagram of <code>unstressed-plain-syllable</code></summary><img src="../../docs/diagrams/words/bpfk/unstressed-plain-syllable.svg" alt="Railroad diagram of the rule unstressed-plain-syllable"></details>
+<details><summary>Railroad diagram of <code>unstressed-diphthong</code></summary><img src="../../docs/diagrams/words/bpfk/unstressed-diphthong.svg" alt="Railroad diagram of the rule unstressed-diphthong"></details>
+<details><summary>Railroad diagram of <code>unstressed-vowel</code></summary><img src="../../docs/diagrams/words/bpfk/unstressed-vowel.svg" alt="Railroad diagram of the rule unstressed-vowel"></details>
+<details><summary>Railroad diagram of <code>stress</code></summary><img src="../../docs/diagrams/words/bpfk/stress.svg" alt="Railroad diagram of the rule stress"></details>
+<details><summary>Railroad diagram of <code>stress-onsets</code></summary><img src="../../docs/diagrams/words/bpfk/stress-onsets.svg" alt="Railroad diagram of the rule stress-onsets"></details>
+<details><summary>Railroad diagram of <code>stress-onset</code></summary><img src="../../docs/diagrams/words/bpfk/stress-onset.svg" alt="Railroad diagram of the rule stress-onset"></details>
+<details><summary>Railroad diagram of <code>stressed</code></summary><img src="../../docs/diagrams/words/bpfk/stressed.svg" alt="Railroad diagram of the rule stressed"></details>
+<details><summary>Railroad diagram of <code>stress-mark</code></summary><img src="../../docs/diagrams/words/bpfk/stress-mark.svg" alt="Railroad diagram of the rule stress-mark"></details>
 
 A syllable is an onset, a nucleus and an optional coda. A consonantal syllable is a consonant before a syllabic consonant, and a coda. A coda is a consonant before another syllable, or at most a syllabic consonant and a consonant before a pause.
 
@@ -712,6 +815,24 @@ A syllable is an onset, a nucleus and an optional coda. A consonantal syllable i
   a | e | i | o | u
 ```
 
+<details><summary>Railroad diagram of <code>any-syllable</code></summary><img src="../../docs/diagrams/words/bpfk/any-syllable.svg" alt="Railroad diagram of the rule any-syllable"></details>
+<details><summary>Railroad diagram of <code>onset-nucleus-coda</code></summary><img src="../../docs/diagrams/words/bpfk/onset-nucleus-coda.svg" alt="Railroad diagram of the rule onset-nucleus-coda"></details>
+<details><summary>Railroad diagram of <code>syllable</code></summary><img src="../../docs/diagrams/words/bpfk/syllable.svg" alt="Railroad diagram of the rule syllable"></details>
+<details><summary>Railroad diagram of <code>consonantal-syllable</code></summary><img src="../../docs/diagrams/words/bpfk/consonantal-syllable.svg" alt="Railroad diagram of the rule consonantal-syllable"></details>
+<details><summary>Railroad diagram of <code>consonantal-syllables</code></summary><img src="../../docs/diagrams/words/bpfk/consonantal-syllables.svg" alt="Railroad diagram of the rule consonantal-syllables"></details>
+<details><summary>Railroad diagram of <code>coda</code></summary><img src="../../docs/diagrams/words/bpfk/coda.svg" alt="Railroad diagram of the rule coda"></details>
+<details><summary>Railroad diagram of <code>coda-before-syllable</code></summary><img src="../../docs/diagrams/words/bpfk/coda-before-syllable.svg" alt="Railroad diagram of the rule coda-before-syllable"></details>
+<details><summary>Railroad diagram of <code>coda-before-pause</code></summary><img src="../../docs/diagrams/words/bpfk/coda-before-pause.svg" alt="Railroad diagram of the rule coda-before-pause"></details>
+<details><summary>Railroad diagram of <code>coda-opt</code></summary><img src="../../docs/diagrams/words/bpfk/coda-opt.svg" alt="Railroad diagram of the rule coda-opt"></details>
+<details><summary>Railroad diagram of <code>onset</code></summary><img src="../../docs/diagrams/words/bpfk/onset.svg" alt="Railroad diagram of the rule onset"></details>
+<details><summary>Railroad diagram of <code>nucleus</code></summary><img src="../../docs/diagrams/words/bpfk/nucleus.svg" alt="Railroad diagram of the rule nucleus"></details>
+<details><summary>Railroad diagram of <code>glide</code></summary><img src="../../docs/diagrams/words/bpfk/glide.svg" alt="Railroad diagram of the rule glide"></details>
+<details><summary>Railroad diagram of <code>i-or-u</code></summary><img src="../../docs/diagrams/words/bpfk/i-or-u.svg" alt="Railroad diagram of the rule i-or-u"></details>
+<details><summary>Railroad diagram of <code>diphthong</code></summary><img src="../../docs/diagrams/words/bpfk/diphthong.svg" alt="Railroad diagram of the rule diphthong"></details>
+<details><summary>Railroad diagram of <code>diphthong-letters</code></summary><img src="../../docs/diagrams/words/bpfk/diphthong-letters.svg" alt="Railroad diagram of the rule diphthong-letters"></details>
+<details><summary>Railroad diagram of <code>vowel</code></summary><img src="../../docs/diagrams/words/bpfk/vowel.svg" alt="Railroad diagram of the rule vowel"></details>
+<details><summary>Railroad diagram of <code>vowel-letter</code></summary><img src="../../docs/diagrams/words/bpfk/vowel-letter.svg" alt="Railroad diagram of the rule vowel-letter"></details>
+
 ## Letters
 
 A vowel letter is plain or capital. A `y` is not followed by a nucleus, unless that nucleus is another `y`. An apostrophe is followed by a nucleus.
@@ -747,6 +868,15 @@ A vowel letter is plain or capital. A `y` is not followed by a nucleus, unless t
 %conditions
   begins(after($h), nucleus)
 ```
+
+<details><summary>Railroad diagram of <code>a</code></summary><img src="../../docs/diagrams/words/bpfk/a.svg" alt="Railroad diagram of the rule a"></details>
+<details><summary>Railroad diagram of <code>e</code></summary><img src="../../docs/diagrams/words/bpfk/e.svg" alt="Railroad diagram of the rule e"></details>
+<details><summary>Railroad diagram of <code>i</code></summary><img src="../../docs/diagrams/words/bpfk/i.svg" alt="Railroad diagram of the rule i"></details>
+<details><summary>Railroad diagram of <code>o</code></summary><img src="../../docs/diagrams/words/bpfk/o.svg" alt="Railroad diagram of the rule o"></details>
+<details><summary>Railroad diagram of <code>u</code></summary><img src="../../docs/diagrams/words/bpfk/u.svg" alt="Railroad diagram of the rule u"></details>
+<details><summary>Railroad diagram of <code>y</code></summary><img src="../../docs/diagrams/words/bpfk/y.svg" alt="Railroad diagram of the rule y"></details>
+<details><summary>Railroad diagram of <code>non-y-nucleus</code></summary><img src="../../docs/diagrams/words/bpfk/non-y-nucleus.svg" alt="Railroad diagram of the rule non-y-nucleus"></details>
+<details><summary>Railroad diagram of <code>h</code></summary><img src="../../docs/diagrams/words/bpfk/h.svg" alt="Railroad diagram of the rule h"></details>
 
 ## Consonants
 
@@ -812,6 +942,20 @@ An initial pair is two consonants that can begin a word. `initial` says which: a
 %rule unvoiced                (* unvoiced <- c / f / k / p / s / t / x *)
   c | f | k | p | s | t | x
 ```
+
+<details><summary>Railroad diagram of <code>cluster</code></summary><img src="../../docs/diagrams/words/bpfk/cluster.svg" alt="Railroad diagram of the rule cluster"></details>
+<details><summary>Railroad diagram of <code>initial-pair</code></summary><img src="../../docs/diagrams/words/bpfk/initial-pair.svg" alt="Railroad diagram of the rule initial-pair"></details>
+<details><summary>Railroad diagram of <code>initial</code></summary><img src="../../docs/diagrams/words/bpfk/initial.svg" alt="Railroad diagram of the rule initial"></details>
+<details><summary>Railroad diagram of <code>initial-parts</code></summary><img src="../../docs/diagrams/words/bpfk/initial-parts.svg" alt="Railroad diagram of the rule initial-parts"></details>
+<details><summary>Railroad diagram of <code>affricate</code></summary><img src="../../docs/diagrams/words/bpfk/affricate.svg" alt="Railroad diagram of the rule affricate"></details>
+<details><summary>Railroad diagram of <code>liquid</code></summary><img src="../../docs/diagrams/words/bpfk/liquid.svg" alt="Railroad diagram of the rule liquid"></details>
+<details><summary>Railroad diagram of <code>other</code></summary><img src="../../docs/diagrams/words/bpfk/other.svg" alt="Railroad diagram of the rule other"></details>
+<details><summary>Railroad diagram of <code>sibilant</code></summary><img src="../../docs/diagrams/words/bpfk/sibilant.svg" alt="Railroad diagram of the rule sibilant"></details>
+<details><summary>Railroad diagram of <code>j-or-z</code></summary><img src="../../docs/diagrams/words/bpfk/j-or-z.svg" alt="Railroad diagram of the rule j-or-z"></details>
+<details><summary>Railroad diagram of <code>consonant</code></summary><img src="../../docs/diagrams/words/bpfk/consonant.svg" alt="Railroad diagram of the rule consonant"></details>
+<details><summary>Railroad diagram of <code>syllabic</code></summary><img src="../../docs/diagrams/words/bpfk/syllabic.svg" alt="Railroad diagram of the rule syllabic"></details>
+<details><summary>Railroad diagram of <code>voiced</code></summary><img src="../../docs/diagrams/words/bpfk/voiced.svg" alt="Railroad diagram of the rule voiced"></details>
+<details><summary>Railroad diagram of <code>unvoiced</code></summary><img src="../../docs/diagrams/words/bpfk/unvoiced.svg" alt="Railroad diagram of the rule unvoiced"></details>
 
 Each consonant letter refuses a following apostrophe that begins a syllable, a glide, or the same consonant. Each letter also refuses consonants of the other voicing, and some letters refuse other letters, as CLL 1.1 section 3.6 says. The BPFK approved the consonant-glide-vowel ban on December 27, 2014 ([CLL 1.3.4, appendix A3.3](https://github.com/int19h/cll/blob/v1.3.4/chapters/a03.xml)).
 
@@ -959,6 +1103,24 @@ Each consonant letter refuses a following apostrophe that begins a syllable, a g
   ¬begins(after($c), voiced)
 ```
 
+<details><summary>Railroad diagram of <code>l</code></summary><img src="../../docs/diagrams/words/bpfk/l.svg" alt="Railroad diagram of the rule l"></details>
+<details><summary>Railroad diagram of <code>m</code></summary><img src="../../docs/diagrams/words/bpfk/m.svg" alt="Railroad diagram of the rule m"></details>
+<details><summary>Railroad diagram of <code>n</code></summary><img src="../../docs/diagrams/words/bpfk/n.svg" alt="Railroad diagram of the rule n"></details>
+<details><summary>Railroad diagram of <code>r</code></summary><img src="../../docs/diagrams/words/bpfk/r.svg" alt="Railroad diagram of the rule r"></details>
+<details><summary>Railroad diagram of <code>b</code></summary><img src="../../docs/diagrams/words/bpfk/b.svg" alt="Railroad diagram of the rule b"></details>
+<details><summary>Railroad diagram of <code>d</code></summary><img src="../../docs/diagrams/words/bpfk/d.svg" alt="Railroad diagram of the rule d"></details>
+<details><summary>Railroad diagram of <code>g</code></summary><img src="../../docs/diagrams/words/bpfk/g.svg" alt="Railroad diagram of the rule g"></details>
+<details><summary>Railroad diagram of <code>v</code></summary><img src="../../docs/diagrams/words/bpfk/v.svg" alt="Railroad diagram of the rule v"></details>
+<details><summary>Railroad diagram of <code>j</code></summary><img src="../../docs/diagrams/words/bpfk/j.svg" alt="Railroad diagram of the rule j"></details>
+<details><summary>Railroad diagram of <code>z</code></summary><img src="../../docs/diagrams/words/bpfk/z.svg" alt="Railroad diagram of the rule z"></details>
+<details><summary>Railroad diagram of <code>s</code></summary><img src="../../docs/diagrams/words/bpfk/s.svg" alt="Railroad diagram of the rule s"></details>
+<details><summary>Railroad diagram of <code>c</code></summary><img src="../../docs/diagrams/words/bpfk/c.svg" alt="Railroad diagram of the rule c"></details>
+<details><summary>Railroad diagram of <code>x</code></summary><img src="../../docs/diagrams/words/bpfk/x.svg" alt="Railroad diagram of the rule x"></details>
+<details><summary>Railroad diagram of <code>k</code></summary><img src="../../docs/diagrams/words/bpfk/k.svg" alt="Railroad diagram of the rule k"></details>
+<details><summary>Railroad diagram of <code>f</code></summary><img src="../../docs/diagrams/words/bpfk/f.svg" alt="Railroad diagram of the rule f"></details>
+<details><summary>Railroad diagram of <code>p</code></summary><img src="../../docs/diagrams/words/bpfk/p.svg" alt="Railroad diagram of the rule p"></details>
+<details><summary>Railroad diagram of <code>t</code></summary><img src="../../docs/diagrams/words/bpfk/t.svg" alt="Railroad diagram of the rule t"></details>
+
 ## Greedy optionals
 
 Each optional of the PEG is a rule that reads the optional part wherever it begins.
@@ -1006,3 +1168,11 @@ Each optional of the PEG is a rule that reads the optional part wherever it begi
 %conditions
   ¬begins(from($n), liquid)
 ```
+
+<details><summary>Railroad diagram of <code>h-opt</code></summary><img src="../../docs/diagrams/words/bpfk/h-opt.svg" alt="Railroad diagram of the rule h-opt"></details>
+<details><summary>Railroad diagram of <code>y-opt</code></summary><img src="../../docs/diagrams/words/bpfk/y-opt.svg" alt="Railroad diagram of the rule y-opt"></details>
+<details><summary>Railroad diagram of <code>syllabic-opt</code></summary><img src="../../docs/diagrams/words/bpfk/syllabic-opt.svg" alt="Railroad diagram of the rule syllabic-opt"></details>
+<details><summary>Railroad diagram of <code>consonant-opt</code></summary><img src="../../docs/diagrams/words/bpfk/consonant-opt.svg" alt="Railroad diagram of the rule consonant-opt"></details>
+<details><summary>Railroad diagram of <code>sibilant-opt</code></summary><img src="../../docs/diagrams/words/bpfk/sibilant-opt.svg" alt="Railroad diagram of the rule sibilant-opt"></details>
+<details><summary>Railroad diagram of <code>other-opt</code></summary><img src="../../docs/diagrams/words/bpfk/other-opt.svg" alt="Railroad diagram of the rule other-opt"></details>
+<details><summary>Railroad diagram of <code>liquid-opt</code></summary><img src="../../docs/diagrams/words/bpfk/liquid-opt.svg" alt="Railroad diagram of the rule liquid-opt"></details>

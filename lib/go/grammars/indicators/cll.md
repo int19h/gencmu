@@ -1,6 +1,6 @@
 # Indicators and `ba'e`
 
-This document is the indicator stage, the fourth stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. [Railroad diagrams](../../docs/diagrams/indicators/cll.md) draw each rule of this document.
+This document is the indicator stage, the fourth stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar.
 
 This stage reads the words that the word stage emitted, and applies `word`, one of CLL 1.1 section 21.2's four non-formal rules. CLL is *The Complete Lojban Language*. A parser applies this rule before the grammar proper. The rule is `word ≔ [BAhE] any-word [indicators]`.
 
@@ -64,6 +64,9 @@ A leading indicator run also stays in the stream at the start of the whole text.
   classes(last($p)) ∩ $QUOTE-OPENERS ≠ ∅
 ```
 
+<details><summary>Railroad diagram of <code>text</code></summary><img src="../../docs/diagrams/indicators/cll/text.svg" alt="Railroad diagram of the rule text"></details>
+<details><summary>Railroad diagram of <code>item-run</code></summary><img src="../../docs/diagrams/indicators/cll/item-run.svg" alt="Railroad diagram of the rule item-run"></details>
+
 An item hands on a word with its preceding `ba'e` run and following indicator run attached. A quotation opener takes no following indicators, as above.
 
 ```jbogenbau
@@ -88,6 +91,11 @@ An item hands on a word with its preceding `ba'e` run and following indicator ru
 %emits
   $
 ```
+
+<details><summary>Railroad diagram of <code>item</code></summary><img src="../../docs/diagrams/indicators/cll/item.svg" alt="Railroad diagram of the rule item"></details>
+<details><summary>Railroad diagram of <code>unit</code></summary><img src="../../docs/diagrams/indicators/cll/unit.svg" alt="Railroad diagram of the rule unit"></details>
+<details><summary>Railroad diagram of <code>bahe-run</code></summary><img src="../../docs/diagrams/indicators/cll/bahe-run.svg" alt="Railroad diagram of the rule bahe-run"></details>
+<details><summary>Railroad diagram of <code>bahe</code></summary><img src="../../docs/diagrams/indicators/cll/bahe.svg" alt="Railroad diagram of the rule bahe"></details>
 
 A `le'u` outside any quote is still a word. But the stage reads it as `LEhU` and not also as a plain word, so that it has one reading.
 
@@ -146,6 +154,13 @@ The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run be
   ($b) $m
 ```
 
+<details><summary>Railroad diagram of <code>indicator-run</code></summary><img src="../../docs/diagrams/indicators/cll/indicator-run.svg" alt="Railroad diagram of the rule indicator-run"></details>
+<details><summary>Railroad diagram of <code>indicator</code></summary><img src="../../docs/diagrams/indicators/cll/indicator.svg" alt="Railroad diagram of the rule indicator"></details>
+<details><summary>Railroad diagram of <code>fuhe</code></summary><img src="../../docs/diagrams/indicators/cll/fuhe.svg" alt="Railroad diagram of the rule fuhe"></details>
+<details><summary>Railroad diagram of <code>attitudinal-nai</code></summary><img src="../../docs/diagrams/indicators/cll/attitudinal-nai.svg" alt="Railroad diagram of the rule attitudinal-nai"></details>
+<details><summary>Railroad diagram of <code>attitudinal</code></summary><img src="../../docs/diagrams/indicators/cll/attitudinal.svg" alt="Railroad diagram of the rule attitudinal"></details>
+<details><summary>Railroad diagram of <code>nai</code></summary><img src="../../docs/diagrams/indicators/cll/nai.svg" alt="Railroad diagram of the rule nai"></details>
+
 After a leading run (see "Leading runs"), a `nai` belongs to the last indicator of the run when that is an attitudinal. The stage is greedy, so it reads the `nai` into the run before it starts the next item. So `iu nai` is one run, not `iu` followed by a text that begins with `nai`. The same holds when a `ba'e` stands before the `nai`, as in `iu ba'e nai`.
 
 A `ba'e` before an indicator marks the indicator and goes with it. So does a `ba'e` before the `nai` of an attitudinal. `ba'e` "marks the following word but does not change its meaning", as the Magic Words proposal says. A cmavo is a particle, a short structure word. Also, "One NAI can follow any UI or CAI cmavo". So `mi .e .ui ba'e nai do` negates the `.ui` and leaves the `.e` as it is.
@@ -199,3 +214,6 @@ The reason is that the syntax reads this run. A `nai` nested under its attitudin
 %emits
   ($b) $u, ($c) $m
 ```
+
+<details><summary>Railroad diagram of <code>leading</code></summary><img src="../../docs/diagrams/indicators/cll/leading.svg" alt="Railroad diagram of the rule leading"></details>
+<details><summary>Railroad diagram of <code>leading-attitudinal-nai</code></summary><img src="../../docs/diagrams/indicators/cll/leading-attitudinal-nai.svg" alt="Railroad diagram of the rule leading-attitudinal-nai"></details>

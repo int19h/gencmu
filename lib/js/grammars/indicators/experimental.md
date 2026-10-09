@@ -1,6 +1,6 @@
 # The experimental indicators
 
-This document is a layer (a document that changes earlier rules) over [the indicator stage of *The Complete Lojban Language* (CLL)](cll.md). A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. The [experimental](../dialects/experimental.md) dialect stitches this layer after the CLL document, that is, it reads the two as one grammar. [Railroad diagrams](../../docs/diagrams/indicators/experimental.md) draw each rule of this document.
+This document is a layer (a document that changes earlier rules) over [the indicator stage of *The Complete Lojban Language* (CLL)](cll.md). A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. The [experimental](../dialects/experimental.md) dialect stitches this layer after the CLL document, that is, it reads the two as one grammar.
 
 This layer adds bare NAI indicators and changes leading runs. It keeps the CLL stage's flat attachment. [The notation document](../../docs/notation.md) explains the notation.
 
@@ -38,3 +38,6 @@ Indicators after `lu` begin the quoted text, as in camxes-exp. The CLL document 
 %conditions
   NAI ⊈ tags($i) ∨ classes(last($r)) ∩ (UI ∪ CAI) = ∅
 ```
+
+<details><summary>Railroad diagram of <code>leading</code></summary><img src="../../docs/diagrams/indicators/experimental/leading.svg" alt="Railroad diagram of the rule leading"></details>
+<details><summary>Railroad diagram of <code>indicator-run</code></summary><img src="../../docs/diagrams/indicators/experimental/indicator-run.svg" alt="Railroad diagram of the rule indicator-run"></details>

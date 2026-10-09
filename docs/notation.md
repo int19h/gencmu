@@ -822,3 +822,20 @@ The grammars that extend CLL are really ambiguous in places. A sumti is an argum
 `late-elision` does not make `elision-only` redundant. Written-back terminators can let another alternative match, or let a test on a terminal match. So the check can find a second reading that the rule flags do not rank below the chosen parse.
 
 The grammars that extend CLL do not declare `elision-only`. A caller can switch `elision-only` on for a parse, to find ambiguities that are not about terminators in the text that it supplies. Their conditions and tags were not reviewed for the check, as the CLL grammar's were. So a second reading that the check reports there can come from a condition that reads a written-back terminator otherwise than a written one. A caller can also switch it off, to loosen a grammar that declares it.
+
+## Railroad diagrams
+
+Each bundled grammar document shows a railroad diagram of each of its rules. A railroad diagram draws a rule as a track. A reader follows the track from left to right, and each path along it is one way to read the rule. Under each block of rules stands one collapsed diagram for each rule of the block, which opens on a click. `tools/sync.js` draws them, as "Railroad diagrams" in [the design document](design.md#railroad-diagrams) says.
+
+The diagrams draw the notation in this way:
+
+- A square box is a rule, and a rounded box is a terminal. A test stands in the box of its symbol, as the notation writes it, such as `LE="la"`.
+- A sequence runs from left to right. A sequence too wide for the page continues on the next row. The track runs back under the row before it.
+- A choice puts its first branch on the track and its other branches below it. The alternatives of a rule are a choice.
+- An optional has a bypass over its content. The bypass of an elidable optional has the label "elided", or "elided, maximal" for `[++T ...]`.
+- Braces loop back under their item, and a separator stands on the loop. So `[{x}]` is a bypass over a loop.
+- A chain reads the same words as a list, so it has the same drawing. A label under the loop says "left chain" or "right chain".
+- `A & B & C` is the choice of the item where the subsequence begins, with every later item optional. So `A & B` is `A [B]` or `B`.
+- The guards of an alternative stand over the start of its track, such as `¬cbm?` or `y-cmavo!`. `ε` is a bare track.
+
+A diagram shows only what a rule reads. It leaves out the captures, the tag terms, the clauses and the rule's flag. A capture only names a part for the clauses, and changes nothing that the rule reads. Tags, emission and `%opaque` say what the parts mean, not which tokens the rule reads. A condition can reject a reading that the diagram shows. So a diagram shows what a rule reads before its conditions. The diagram of an `%extend-rule` shows only the alternatives that it adds.

@@ -1,6 +1,6 @@
 # Word shapes
 
-This document is part of the forms stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). [Railroad diagrams](../../docs/diagrams/words/shapes.md) draw each rule of this document.
+This document is part of the forms stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)).
 
 The document holds the sounds of the word forms in *The Complete Lojban Language* (CLL). These are the consonants and their pairs, the vowels and diphthongs, and the stress. The loader stitches it into the stage after [forms.md](forms.md) and before [cll.md](cll.md), which builds the words from these parts. The other dialects read the word forms of the BPFK (a Lojban committee) in [bpfk.md](bpfk.md) instead, and use nothing here. [The notation document](../../docs/notation.md) explains the notation.
 
@@ -101,6 +101,31 @@ CLL 3.7 lists the 48 pairs that can begin a word. A longer cluster can begin a b
 %rule has-n-affricate
   [consonants] n-affricate [consonants]
 ```
+
+<details><summary>Railroad diagram of <code>consonant</code></summary><img src="../../docs/diagrams/words/shapes/consonant.svg" alt="Railroad diagram of the rule consonant"></details>
+<details><summary>Railroad diagram of <code>initial-pair</code></summary><img src="../../docs/diagrams/words/shapes/initial-pair.svg" alt="Railroad diagram of the rule initial-pair"></details>
+<details><summary>Railroad diagram of <code>consonant-pair</code></summary><img src="../../docs/diagrams/words/shapes/consonant-pair.svg" alt="Railroad diagram of the rule consonant-pair"></details>
+<details><summary>Railroad diagram of <code>after-b</code></summary><img src="../../docs/diagrams/words/shapes/after-b.svg" alt="Railroad diagram of the rule after-b"></details>
+<details><summary>Railroad diagram of <code>after-d</code></summary><img src="../../docs/diagrams/words/shapes/after-d.svg" alt="Railroad diagram of the rule after-d"></details>
+<details><summary>Railroad diagram of <code>after-g</code></summary><img src="../../docs/diagrams/words/shapes/after-g.svg" alt="Railroad diagram of the rule after-g"></details>
+<details><summary>Railroad diagram of <code>after-v</code></summary><img src="../../docs/diagrams/words/shapes/after-v.svg" alt="Railroad diagram of the rule after-v"></details>
+<details><summary>Railroad diagram of <code>after-j</code></summary><img src="../../docs/diagrams/words/shapes/after-j.svg" alt="Railroad diagram of the rule after-j"></details>
+<details><summary>Railroad diagram of <code>after-z</code></summary><img src="../../docs/diagrams/words/shapes/after-z.svg" alt="Railroad diagram of the rule after-z"></details>
+<details><summary>Railroad diagram of <code>after-c</code></summary><img src="../../docs/diagrams/words/shapes/after-c.svg" alt="Railroad diagram of the rule after-c"></details>
+<details><summary>Railroad diagram of <code>after-s</code></summary><img src="../../docs/diagrams/words/shapes/after-s.svg" alt="Railroad diagram of the rule after-s"></details>
+<details><summary>Railroad diagram of <code>after-x</code></summary><img src="../../docs/diagrams/words/shapes/after-x.svg" alt="Railroad diagram of the rule after-x"></details>
+<details><summary>Railroad diagram of <code>after-k</code></summary><img src="../../docs/diagrams/words/shapes/after-k.svg" alt="Railroad diagram of the rule after-k"></details>
+<details><summary>Railroad diagram of <code>after-f</code></summary><img src="../../docs/diagrams/words/shapes/after-f.svg" alt="Railroad diagram of the rule after-f"></details>
+<details><summary>Railroad diagram of <code>after-p</code></summary><img src="../../docs/diagrams/words/shapes/after-p.svg" alt="Railroad diagram of the rule after-p"></details>
+<details><summary>Railroad diagram of <code>after-t</code></summary><img src="../../docs/diagrams/words/shapes/after-t.svg" alt="Railroad diagram of the rule after-t"></details>
+<details><summary>Railroad diagram of <code>after-l</code></summary><img src="../../docs/diagrams/words/shapes/after-l.svg" alt="Railroad diagram of the rule after-l"></details>
+<details><summary>Railroad diagram of <code>after-r</code></summary><img src="../../docs/diagrams/words/shapes/after-r.svg" alt="Railroad diagram of the rule after-r"></details>
+<details><summary>Railroad diagram of <code>after-m</code></summary><img src="../../docs/diagrams/words/shapes/after-m.svg" alt="Railroad diagram of the rule after-m"></details>
+<details><summary>Railroad diagram of <code>after-n</code></summary><img src="../../docs/diagrams/words/shapes/after-n.svg" alt="Railroad diagram of the rule after-n"></details>
+<details><summary>Railroad diagram of <code>initial-cluster</code></summary><img src="../../docs/diagrams/words/shapes/initial-cluster.svg" alt="Railroad diagram of the rule initial-cluster"></details>
+<details><summary>Railroad diagram of <code>n-affricate</code></summary><img src="../../docs/diagrams/words/shapes/n-affricate.svg" alt="Railroad diagram of the rule n-affricate"></details>
+<details><summary>Railroad diagram of <code>consonants</code></summary><img src="../../docs/diagrams/words/shapes/consonants.svg" alt="Railroad diagram of the rule consonants"></details>
+<details><summary>Railroad diagram of <code>has-n-affricate</code></summary><img src="../../docs/diagrams/words/shapes/has-n-affricate.svg" alt="Railroad diagram of the rule has-n-affricate"></details>
 
 A permissible run is a run of consonants whose adjacent pairs are all permissible. A name can have such a run anywhere (CLL 3.7), and so can the middle of a borrowing (CLL 4.7). A run that ends in a consonant C is C alone. Or it is a run that ends in a consonant that can precede C, followed by C. So `.tlaiv.` and `.ekstcat.` are names, but `.djeimz.` and `.bobb.` are not.
 
@@ -215,6 +240,42 @@ A permissible run is a run of consonants whose adjacent pairs are all permissibl
 %rule run-before-z
   run-b | run-d | run-g | run-l | run-n | run-r | run-v
 ```
+
+<details><summary>Railroad diagram of <code>permissible-run</code></summary><img src="../../docs/diagrams/words/shapes/permissible-run.svg" alt="Railroad diagram of the rule permissible-run"></details>
+<details><summary>Railroad diagram of <code>run-b</code></summary><img src="../../docs/diagrams/words/shapes/run-b.svg" alt="Railroad diagram of the rule run-b"></details>
+<details><summary>Railroad diagram of <code>run-c</code></summary><img src="../../docs/diagrams/words/shapes/run-c.svg" alt="Railroad diagram of the rule run-c"></details>
+<details><summary>Railroad diagram of <code>run-d</code></summary><img src="../../docs/diagrams/words/shapes/run-d.svg" alt="Railroad diagram of the rule run-d"></details>
+<details><summary>Railroad diagram of <code>run-f</code></summary><img src="../../docs/diagrams/words/shapes/run-f.svg" alt="Railroad diagram of the rule run-f"></details>
+<details><summary>Railroad diagram of <code>run-g</code></summary><img src="../../docs/diagrams/words/shapes/run-g.svg" alt="Railroad diagram of the rule run-g"></details>
+<details><summary>Railroad diagram of <code>run-j</code></summary><img src="../../docs/diagrams/words/shapes/run-j.svg" alt="Railroad diagram of the rule run-j"></details>
+<details><summary>Railroad diagram of <code>run-k</code></summary><img src="../../docs/diagrams/words/shapes/run-k.svg" alt="Railroad diagram of the rule run-k"></details>
+<details><summary>Railroad diagram of <code>run-l</code></summary><img src="../../docs/diagrams/words/shapes/run-l.svg" alt="Railroad diagram of the rule run-l"></details>
+<details><summary>Railroad diagram of <code>run-m</code></summary><img src="../../docs/diagrams/words/shapes/run-m.svg" alt="Railroad diagram of the rule run-m"></details>
+<details><summary>Railroad diagram of <code>run-n</code></summary><img src="../../docs/diagrams/words/shapes/run-n.svg" alt="Railroad diagram of the rule run-n"></details>
+<details><summary>Railroad diagram of <code>run-p</code></summary><img src="../../docs/diagrams/words/shapes/run-p.svg" alt="Railroad diagram of the rule run-p"></details>
+<details><summary>Railroad diagram of <code>run-r</code></summary><img src="../../docs/diagrams/words/shapes/run-r.svg" alt="Railroad diagram of the rule run-r"></details>
+<details><summary>Railroad diagram of <code>run-s</code></summary><img src="../../docs/diagrams/words/shapes/run-s.svg" alt="Railroad diagram of the rule run-s"></details>
+<details><summary>Railroad diagram of <code>run-t</code></summary><img src="../../docs/diagrams/words/shapes/run-t.svg" alt="Railroad diagram of the rule run-t"></details>
+<details><summary>Railroad diagram of <code>run-v</code></summary><img src="../../docs/diagrams/words/shapes/run-v.svg" alt="Railroad diagram of the rule run-v"></details>
+<details><summary>Railroad diagram of <code>run-x</code></summary><img src="../../docs/diagrams/words/shapes/run-x.svg" alt="Railroad diagram of the rule run-x"></details>
+<details><summary>Railroad diagram of <code>run-z</code></summary><img src="../../docs/diagrams/words/shapes/run-z.svg" alt="Railroad diagram of the rule run-z"></details>
+<details><summary>Railroad diagram of <code>run-before-b</code></summary><img src="../../docs/diagrams/words/shapes/run-before-b.svg" alt="Railroad diagram of the rule run-before-b"></details>
+<details><summary>Railroad diagram of <code>run-before-c</code></summary><img src="../../docs/diagrams/words/shapes/run-before-c.svg" alt="Railroad diagram of the rule run-before-c"></details>
+<details><summary>Railroad diagram of <code>run-before-d</code></summary><img src="../../docs/diagrams/words/shapes/run-before-d.svg" alt="Railroad diagram of the rule run-before-d"></details>
+<details><summary>Railroad diagram of <code>run-before-f</code></summary><img src="../../docs/diagrams/words/shapes/run-before-f.svg" alt="Railroad diagram of the rule run-before-f"></details>
+<details><summary>Railroad diagram of <code>run-before-g</code></summary><img src="../../docs/diagrams/words/shapes/run-before-g.svg" alt="Railroad diagram of the rule run-before-g"></details>
+<details><summary>Railroad diagram of <code>run-before-j</code></summary><img src="../../docs/diagrams/words/shapes/run-before-j.svg" alt="Railroad diagram of the rule run-before-j"></details>
+<details><summary>Railroad diagram of <code>run-before-k</code></summary><img src="../../docs/diagrams/words/shapes/run-before-k.svg" alt="Railroad diagram of the rule run-before-k"></details>
+<details><summary>Railroad diagram of <code>run-before-l</code></summary><img src="../../docs/diagrams/words/shapes/run-before-l.svg" alt="Railroad diagram of the rule run-before-l"></details>
+<details><summary>Railroad diagram of <code>run-before-m</code></summary><img src="../../docs/diagrams/words/shapes/run-before-m.svg" alt="Railroad diagram of the rule run-before-m"></details>
+<details><summary>Railroad diagram of <code>run-before-n</code></summary><img src="../../docs/diagrams/words/shapes/run-before-n.svg" alt="Railroad diagram of the rule run-before-n"></details>
+<details><summary>Railroad diagram of <code>run-before-p</code></summary><img src="../../docs/diagrams/words/shapes/run-before-p.svg" alt="Railroad diagram of the rule run-before-p"></details>
+<details><summary>Railroad diagram of <code>run-before-r</code></summary><img src="../../docs/diagrams/words/shapes/run-before-r.svg" alt="Railroad diagram of the rule run-before-r"></details>
+<details><summary>Railroad diagram of <code>run-before-s</code></summary><img src="../../docs/diagrams/words/shapes/run-before-s.svg" alt="Railroad diagram of the rule run-before-s"></details>
+<details><summary>Railroad diagram of <code>run-before-t</code></summary><img src="../../docs/diagrams/words/shapes/run-before-t.svg" alt="Railroad diagram of the rule run-before-t"></details>
+<details><summary>Railroad diagram of <code>run-before-v</code></summary><img src="../../docs/diagrams/words/shapes/run-before-v.svg" alt="Railroad diagram of the rule run-before-v"></details>
+<details><summary>Railroad diagram of <code>run-before-x</code></summary><img src="../../docs/diagrams/words/shapes/run-before-x.svg" alt="Railroad diagram of the rule run-before-x"></details>
+<details><summary>Railroad diagram of <code>run-before-z</code></summary><img src="../../docs/diagrams/words/shapes/run-before-z.svg" alt="Railroad diagram of the rule run-before-z"></details>
 
 ```jbogenbau
 %rule long-initial-run
@@ -340,6 +401,21 @@ A permissible run is a run of consonants whose adjacent pairs are all permissibl
   | initial-run-d /z/
 ```
 
+<details><summary>Railroad diagram of <code>long-initial-run</code></summary><img src="../../docs/diagrams/words/shapes/long-initial-run.svg" alt="Railroad diagram of the rule long-initial-run"></details>
+<details><summary>Railroad diagram of <code>initial-run-b</code></summary><img src="../../docs/diagrams/words/shapes/initial-run-b.svg" alt="Railroad diagram of the rule initial-run-b"></details>
+<details><summary>Railroad diagram of <code>initial-run-c</code></summary><img src="../../docs/diagrams/words/shapes/initial-run-c.svg" alt="Railroad diagram of the rule initial-run-c"></details>
+<details><summary>Railroad diagram of <code>initial-run-d</code></summary><img src="../../docs/diagrams/words/shapes/initial-run-d.svg" alt="Railroad diagram of the rule initial-run-d"></details>
+<details><summary>Railroad diagram of <code>initial-run-f</code></summary><img src="../../docs/diagrams/words/shapes/initial-run-f.svg" alt="Railroad diagram of the rule initial-run-f"></details>
+<details><summary>Railroad diagram of <code>initial-run-g</code></summary><img src="../../docs/diagrams/words/shapes/initial-run-g.svg" alt="Railroad diagram of the rule initial-run-g"></details>
+<details><summary>Railroad diagram of <code>initial-run-j</code></summary><img src="../../docs/diagrams/words/shapes/initial-run-j.svg" alt="Railroad diagram of the rule initial-run-j"></details>
+<details><summary>Railroad diagram of <code>initial-run-k</code></summary><img src="../../docs/diagrams/words/shapes/initial-run-k.svg" alt="Railroad diagram of the rule initial-run-k"></details>
+<details><summary>Railroad diagram of <code>initial-run-m</code></summary><img src="../../docs/diagrams/words/shapes/initial-run-m.svg" alt="Railroad diagram of the rule initial-run-m"></details>
+<details><summary>Railroad diagram of <code>initial-run-p</code></summary><img src="../../docs/diagrams/words/shapes/initial-run-p.svg" alt="Railroad diagram of the rule initial-run-p"></details>
+<details><summary>Railroad diagram of <code>initial-run-s</code></summary><img src="../../docs/diagrams/words/shapes/initial-run-s.svg" alt="Railroad diagram of the rule initial-run-s"></details>
+<details><summary>Railroad diagram of <code>initial-run-t</code></summary><img src="../../docs/diagrams/words/shapes/initial-run-t.svg" alt="Railroad diagram of the rule initial-run-t"></details>
+<details><summary>Railroad diagram of <code>initial-run-v</code></summary><img src="../../docs/diagrams/words/shapes/initial-run-v.svg" alt="Railroad diagram of the rule initial-run-v"></details>
+<details><summary>Railroad diagram of <code>initial-run-z</code></summary><img src="../../docs/diagrams/words/shapes/initial-run-z.svg" alt="Railroad diagram of the rule initial-run-z"></details>
+
 ## Vowels
 
 A vowel of a word form is one of `a e i o u`, in either case. `y` is not one of them. It is a hyphen in a compound word (lujvo), a vowel of a name, a letter of a few particles (cmavo), and hesitation. A capital vowel marks stress, and nothing else about the word changes with the case of a letter.
@@ -401,6 +477,24 @@ A vowel letter is either phoneme, plain or stressed, since the stress of a cmavo
   [any-letters] capital-letter [any-letters]
 ```
 
+<details><summary>Railroad diagram of <code>vowel</code></summary><img src="../../docs/diagrams/words/shapes/vowel.svg" alt="Railroad diagram of the rule vowel"></details>
+<details><summary>Railroad diagram of <code>any-a</code></summary><img src="../../docs/diagrams/words/shapes/any-a.svg" alt="Railroad diagram of the rule any-a"></details>
+<details><summary>Railroad diagram of <code>any-e</code></summary><img src="../../docs/diagrams/words/shapes/any-e.svg" alt="Railroad diagram of the rule any-e"></details>
+<details><summary>Railroad diagram of <code>any-i</code></summary><img src="../../docs/diagrams/words/shapes/any-i.svg" alt="Railroad diagram of the rule any-i"></details>
+<details><summary>Railroad diagram of <code>any-o</code></summary><img src="../../docs/diagrams/words/shapes/any-o.svg" alt="Railroad diagram of the rule any-o"></details>
+<details><summary>Railroad diagram of <code>any-u</code></summary><img src="../../docs/diagrams/words/shapes/any-u.svg" alt="Railroad diagram of the rule any-u"></details>
+<details><summary>Railroad diagram of <code>capital-vowel</code></summary><img src="../../docs/diagrams/words/shapes/capital-vowel.svg" alt="Railroad diagram of the rule capital-vowel"></details>
+<details><summary>Railroad diagram of <code>capital-letter</code></summary><img src="../../docs/diagrams/words/shapes/capital-letter.svg" alt="Railroad diagram of the rule capital-letter"></details>
+<details><summary>Railroad diagram of <code>i-or-u</code></summary><img src="../../docs/diagrams/words/shapes/i-or-u.svg" alt="Railroad diagram of the rule i-or-u"></details>
+<details><summary>Railroad diagram of <code>e-or-o</code></summary><img src="../../docs/diagrams/words/shapes/e-or-o.svg" alt="Railroad diagram of the rule e-or-o"></details>
+<details><summary>Railroad diagram of <code>falling-diphthong</code></summary><img src="../../docs/diagrams/words/shapes/falling-diphthong.svg" alt="Railroad diagram of the rule falling-diphthong"></details>
+<details><summary>Railroad diagram of <code>rising-diphthong</code></summary><img src="../../docs/diagrams/words/shapes/rising-diphthong.svg" alt="Railroad diagram of the rule rising-diphthong"></details>
+<details><summary>Railroad diagram of <code>y-diphthong</code></summary><img src="../../docs/diagrams/words/shapes/y-diphthong.svg" alt="Railroad diagram of the rule y-diphthong"></details>
+<details><summary>Railroad diagram of <code>r-letter</code></summary><img src="../../docs/diagrams/words/shapes/r-letter.svg" alt="Railroad diagram of the rule r-letter"></details>
+<details><summary>Railroad diagram of <code>any-letters</code></summary><img src="../../docs/diagrams/words/shapes/any-letters.svg" alt="Railroad diagram of the rule any-letters"></details>
+<details><summary>Railroad diagram of <code>any-letter</code></summary><img src="../../docs/diagrams/words/shapes/any-letter.svg" alt="Railroad diagram of the rule any-letter"></details>
+<details><summary>Railroad diagram of <code>stress-mark</code></summary><img src="../../docs/diagrams/words/shapes/stress-mark.svg" alt="Railroad diagram of the rule stress-mark"></details>
+
 ## Syllables and stress
 
 A run of vowels with no apostrophe or comma in it divides into syllables from the left (CLL 3.5). At each point, the next two vowels are one syllable if they form a diphthong that the word allows. Otherwise the next vowel is a syllable alone. So `briau` is `bria-u`, and `.meiin.` is `mei-in`. A name or a borrowing can have two vowels that form no diphthong, each its own syllable, as in the `korea` of `bangrkorea`.
@@ -453,6 +547,10 @@ So a brivla with marked stress has `s2`, and one without any capital vowel has `
   falling-diphthong | rising-diphthong
 ```
 
+<details><summary>Railroad diagram of <code>brivla-scan</code></summary><img src="../../docs/diagrams/words/shapes/brivla-scan.svg" alt="Railroad diagram of the rule brivla-scan"></details>
+<details><summary>Railroad diagram of <code>brivla-item</code></summary><img src="../../docs/diagrams/words/shapes/brivla-item.svg" alt="Railroad diagram of the rule brivla-item"></details>
+<details><summary>Railroad diagram of <code>brivla-diphthong</code></summary><img src="../../docs/diagrams/words/shapes/brivla-diphthong.svg" alt="Railroad diagram of the rule brivla-diphthong"></details>
+
 A cmavo or a name can have capital vowels on any of its syllables, `Y` included (CLL 3.9 lets their stress fall anywhere). A name with no capital vowel is stressed on its penultimate counted syllable if it has two or more. It is stressed on its only counted syllable if it has one, and nowhere if it has none. `name-scan` reads a name as `brivla-scan` reads a brivla, with the diphthongs a name allows. A `y` is a nucleus of its own, and never the first letter of a diphthong. Its tags are:
 
 - `n0` to `n3` and `single-end`, as above
@@ -500,3 +598,7 @@ The forms stage uses the stress on the first syllable of a name, for CLL 4.2's p
 %rule name-vowel
   vowel | any-y
 ```
+
+<details><summary>Railroad diagram of <code>name-scan</code></summary><img src="../../docs/diagrams/words/shapes/name-scan.svg" alt="Railroad diagram of the rule name-scan"></details>
+<details><summary>Railroad diagram of <code>name-item</code></summary><img src="../../docs/diagrams/words/shapes/name-item.svg" alt="Railroad diagram of the rule name-item"></details>
+<details><summary>Railroad diagram of <code>name-vowel</code></summary><img src="../../docs/diagrams/words/shapes/name-vowel.svg" alt="Railroad diagram of the rule name-vowel"></details>

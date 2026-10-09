@@ -1,8 +1,9 @@
 // Railroad diagrams of the grammar documents' rules (docs/design.md,
 // "Railroad diagrams"). tools/sync.js writes one SVG file for each rule of
-// each grammar document, and one Markdown page for each document that shows
-// them, under docs/diagrams/. The drawing comes from the document's DOM, as
-// the libraries' reader gives it, so a diagram shows what gencmu reads.
+// each grammar document under docs/diagrams/, and shows each one in the
+// document, under the block that states the rule (withDiagrams). The
+// drawing comes from the document's DOM, as the libraries' reader gives it,
+// so a diagram shows what gencmu reads.
 //
 // The layout follows the usual railroad conventions. A track enters every
 // piece at its left and leaves at its right. A choice hangs its other
@@ -425,55 +426,27 @@ export function ruleSvg(rule) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escape(`Railroad diagram of the rule ${rule.name}`)}">\n<style>${STYLE}</style>\n<rect width="100%" height="100%" fill="#fff"/>\n${out.join("\n")}\n</svg>\n`;
 }
 
-// ---- The diagram pages ------------------------------------------------------
+// ---- The diagrams in the grammar documents ---------------------------------
 
-/** Where the diagrams of the grammar documents go. */
+/** Where the SVG files of the grammar documents' diagrams go. */
 export const DIAGRAMS = "docs/diagrams";
 
 /**
- * The headings of a Markdown document outside its fenced blocks, each with
- * its line (counted from 1), level and text. The grammar documents write
- * ATX headings only (docs/design.md, "Documents").
- * @param {string} markdown
- * @returns {{line: number, level: number, text: string}[]}
+ * How a generated line begins. tools/sync.js owns every line outside a
+ * fenced block that begins so, and no line that a person writes does: the
+ * documents hold no other HTML (tools/prose-lines.js).
  */
-export function headings(markdown) {
-  const result = [];
-  /** @type {string | null} */
-  let fence = null;
-  markdown.split(/\r\n|\n|\r/).forEach((line, index) => {
-    const marker = /^ {0,3}(`{3,}|~{3,})/.exec(line);
-    if (fence !== null) {
-      if (marker && marker[1][0] === fence[0] && marker[1].length >= fence.length && line.trim() === marker[1]) fence = null;
-      return;
-    }
-    if (marker) {
-      fence = marker[1];
-      return;
-    }
-    const heading = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/.exec(line);
-    if (heading) result.push({ line: index + 1, level: heading[1].length, text: heading[2] ?? "" });
-  });
-  return result;
-}
+export const DIAGRAM_LINE_START = "<details><summary>Railroad diagram of ";
 
 /**
- * The anchor that GitHub gives a heading: its text without markup and
- * punctuation, in lower case, with hyphens for spaces. A repeated anchor
- * takes -1, -2 and so on, in the order of the document.
- * @param {string[]} texts the texts of all the document's headings, in order
- * @returns {string[]}
+ * The generated line of a rule: a collapsed `<details>` element that shows
+ * the rule's SVG file.
+ * @param {string} name the rule's name
+ * @param {string} source the SVG file, relative to the document
+ * @returns {string}
  */
-export function anchors(texts) {
-  /** @type {Map<string, number>} */
-  const seen = new Map();
-  return texts.map((text) => {
-    const plain = text.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/[`*]/g, "");
-    const base = plain.toLowerCase().replace(/[^\p{L}\p{M}\p{N}\p{Pc} -]/gu, "").replace(/ /g, "-");
-    const count = seen.get(base) ?? 0;
-    seen.set(base, count + 1);
-    return count ? `${base}-${count}` : base;
-  });
+export function diagramLine(name, source) {
+  return `${DIAGRAM_LINE_START}<code>${escape(name)}</code></summary><img src="${escape(source)}" alt="Railroad diagram of the rule ${escape(name)}"></details>`;
 }
 
 /**
@@ -498,85 +471,118 @@ export function diagramNames(rules) {
 }
 
 /**
- * The page of a grammar document's diagrams, and its directory, from the
- * document's path under grammars/, such as `syntax/cll.md`.
+ * The directory of a grammar document's SVG files, from the document's
+ * path under grammars/, such as `syntax/cll.md`.
  * @param {string} file
  */
-export function diagramPaths(file) {
-  const stem = file.replace(/\.md$/, "");
-  return { page: `${DIAGRAMS}/${stem}.md`, directory: `${DIAGRAMS}/${stem}` };
-}
+export const diagramDirectory = (file) => `${DIAGRAMS}/${file.replace(/\.md$/, "")}`;
 
 /**
- * What the diagram of a rule leaves out, and how the rule is stated, as a
- * sentence or two for the page. Empty when there is nothing to say.
- * @param {any} rule
- * @returns {string}
+ * The fenced blocks of a Markdown document, found as the libraries' reader
+ * finds them (lib/js/src/markdown.js): the lines of each block's opening
+ * and closing fences, counted from 0, and whether it is a grammar block. A
+ * block with no closing fence ends after the last line.
+ * @param {string[]} lines
+ * @returns {{start: number, end: number, grammar: boolean}[]}
  */
-export function ruleNote(rule) {
-  const sentences = [];
-  if (rule.op === "redefine") sentences.push("`%redefine-rule` replaces a rule of an earlier document.");
-  if (rule.op === "extend") sentences.push("`%extend-rule` adds these alternatives to a rule of an earlier document.");
-  if (rule.flags.length) sentences.push(`Its flag is ${rule.flags.map((/** @type {string} */ flag) => `\`${flag}\``).join(" and ")}.`);
-  const left = [];
-  if (rule.tags !== undefined || rule.alternatives.some((/** @type {any} */ alternative) => alternative.tags !== undefined)) left.push("tags");
-  if (rule.conditions.length) left.push("conditions");
-  if (rule.emit !== undefined) left.push("emission");
-  if (rule.opaque) left.push("`%opaque`");
-  if (left.length) sentences.push(`The diagram leaves out its ${left.length > 1 ? `${left.slice(0, -1).join(", ")} and ${left[left.length - 1]}` : left[0]}.`);
-  return sentences.join(" ");
+export function fencedBlocks(lines) {
+  const blocks = [];
+  /** @type {{start: number, fence: string, grammar: boolean} | null} */
+  let open = null;
+  lines.forEach((line, index) => {
+    if (open === null) {
+      // A backtick fence's info string has no backtick (CommonMark).
+      const fence = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+      if (fence && !(fence[1][0] === "`" && fence[2].includes("`"))) open = { start: index, fence: fence[1], grammar: fence[2].trim() === "jbogenbau" };
+      return;
+    }
+    const close = /^ {0,3}(`{3,}|~{3,})\s*$/.exec(line);
+    if (close && close[1][0] === open.fence[0] && close[1].length >= open.fence.length) {
+      blocks.push({ start: open.start, end: index, grammar: open.grammar });
+      open = null;
+    }
+  });
+  if (open) blocks.push({ start: open.start, end: lines.length, grammar: open.grammar });
+  return blocks;
 }
 
 /**
- * The diagrams of one grammar document: a page that shows each rule under
- * the heading of the document's section that states it, and the SVG file of
- * each rule, by its path in the repository.
+ * A grammar document with the diagrams of its rules in place, and the SVG
+ * file of each rule by its path in the repository. After each grammar
+ * block that states rules come a blank line and one generated line for
+ * each of those rules, in their order.
+ *
+ * The generated lines are the lines outside fenced blocks that begin with
+ * DIAGRAM_LINE_START. This removes them all, and the blank line before each
+ * run of them, then writes them again. So the diagram of a rule that is gone
+ * goes too, and every other line stays as it is.
  * @param {string} file the document's path under grammars/
  * @param {string} markdown the document
  * @param {{rules: any[]}} dom the document's DOM
- * @returns {Map<string, string>} each generated file's path and text
+ * @returns {{text: string, lines: (number | null)[], files: Map<string, string>}}
+ *   the document; the line where each line of `markdown` now stands, by its
+ *   line number (both counted from 1), or null for a generated line; and
+ *   the SVG files
  */
-export function documentDiagrams(file, markdown, dom) {
-  const { page, directory } = diagramPaths(file);
-  const files = new Map();
-  if (dom.rules.length === 0) return files;
-  const depth = page.split("/").length - 1;
-  const source = `${"../".repeat(depth)}grammars/${file}`;
-  const local = directory.slice(directory.lastIndexOf("/") + 1);
-  const found = headings(markdown);
-  const slugs = anchors(found.map((heading) => heading.text));
-  const title = found.find((heading) => heading.level === 1)?.text ?? file;
-  const lines = [
-    `# ${title}: railroad diagrams`,
-    "",
-    `These are the rules of [${title}](${source}), one diagram for each rule, in the order of the document.`,
-    "",
-    "`node tools/sync.js` writes this page and the diagrams from the document, so edit the document instead.",
-    "",
-    `[Railroad diagrams](${"../".repeat(depth - 1)}design.md#railroad-diagrams) in the design document explains how to read them.`,
-  ];
+export function withDiagrams(file, markdown, dom) {
+  const lines = markdown.split("\n");
+  const blocks = fencedBlocks(lines);
+  const inside = new Array(lines.length).fill(false);
+  for (const { start, end } of blocks) inside.fill(true, start, end + 1);
+  const generated = lines.map((line, index) => !inside[index] && line.startsWith(DIAGRAM_LINE_START));
+  const keep = generated.map((line) => !line);
+  for (let first = 0; first < lines.length; first++) {
+    if (!generated[first] || (first > 0 && generated[first - 1])) continue;
+    let last = first;
+    while (last + 1 < lines.length && generated[last + 1]) last++;
+    // The blank line before a run goes when a blank line, the start or the
+    // end of the document stands on the run's other side, so the run
+    // leaves one blank line behind it, and joins no two blocks.
+    const blankAfter = last + 1 === lines.length || lines[last + 1] === "";
+    const blankBefore = first < 2 || (lines[first - 2] === "" && keep[first - 2]);
+    if (first > 0 && lines[first - 1] === "" && (blankAfter || blankBefore)) keep[first - 1] = false;
+  }
+
+  // The generated lines after each grammar block, by the line of its
+  // closing fence. The rules come in the order of the document, and so do
+  // the blocks.
+  const directory = diagramDirectory(file);
+  const up = "../".repeat(file.split("/").length);
   const names = diagramNames(dom.rules);
-  let section = -2;
-  // The section of a rule is the last heading before its line. The rules
-  // come in the order of the document, so one pass over the headings finds
-  // every rule's.
-  let at = -1;
+  const grammarBlocks = blocks.filter((block) => block.grammar);
+  /** @type {Map<number, string[]>} */
+  const after = new Map();
+  const files = new Map();
+  let at = 0;
   dom.rules.forEach((rule, index) => {
-    while (at + 1 < found.length && found[at + 1].line < rule.at[0]) at++;
-    if (at !== section) {
-      section = at;
-      const heading = at >= 0 ? found[at] : null;
-      // The rules before the first section stand under the document's
-      // title, its introduction.
-      if (heading && heading.level > 1) lines.push("", `## ${heading.text}`, "", `These rules are in [this section of the document](${source}#${slugs[at]}).`);
-      else lines.push("", "## Introduction", "", `These rules are in [the introduction of the document](${source}).`);
-    }
-    lines.push("", `### \`${rule.name}\``);
-    const note = ruleNote(rule);
-    if (note) lines.push("", note);
-    lines.push("", `![The rule ${rule.name}](${local}/${names[index]}.svg)`);
-    files.set(`${directory}/${names[index]}.svg`, ruleSvg(rule));
+    const line = rule.at[0] - 1;
+    while (at < grammarBlocks.length && grammarBlocks[at].end < line) at++;
+    const block = grammarBlocks[at];
+    if (!block || !(block.start < line)) throw new Error(`${file}:${rule.at[0]}: the rule ${rule.name} stands in no jbogenbau block`);
+    // The generated lines stand at the top level, so a block of rules in a
+    // list item, which indents its fences, would end the list.
+    if (/^ /.test(lines[block.start])) throw new Error(`${file}:${block.start + 1}: a jbogenbau block with rules is indented, as in a list item; put it at the top level, where its railroad diagrams can follow it`);
+    const svg = `${directory}/${names[index]}.svg`;
+    files.set(svg, ruleSvg(rule));
+    if (!after.has(block.end)) after.set(block.end, []);
+    /** @type {string[]} */ (after.get(block.end)).push(diagramLine(rule.name, up + svg));
   });
-  files.set(page, lines.join("\n") + "\n");
-  return files;
+
+  const out = [];
+  /** @type {(number | null)[]} */
+  const moved = [null];
+  for (let index = 0; index < lines.length; index++) {
+    moved.push(keep[index] ? out.length + 1 : null);
+    if (!keep[index]) continue;
+    out.push(lines[index]);
+    const diagrams = after.get(index);
+    if (!diagrams) continue;
+    out.push("");
+    for (const diagram of diagrams) out.push(diagram);
+    // An HTML block runs to the next blank line, so one follows it.
+    let next = index + 1;
+    while (next < lines.length && !keep[next]) next++;
+    if (next < lines.length && lines[next] !== "") out.push("");
+  }
+  return { text: out.join("\n"), lines: moved, files };
 }

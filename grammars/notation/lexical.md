@@ -1,6 +1,6 @@
 # jbogenbau: from characters to tokens
 
-The lexical stage is the first stage of the notation dialect, `../dialects/notation.md`. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. The stage reads the text of a grammar document's `jbogenbau` blocks, one token per character. [Railroad diagrams](../../docs/diagrams/notation/lexical.md) draw each rule of this document.
+The lexical stage is the first stage of the notation dialect, `../dialects/notation.md`. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. The stage reads the text of a grammar document's `jbogenbau` blocks, one token per character.
 
 The stage hands the notation's tokens to the second stage, `syntax.md`. These tokens are names, strings, tag literals, phoneme tags, character tags, properties, captures, constants, guards, keywords and symbols. The stage drops what carries no meaning: the spaces between tokens, and the comments.
 
@@ -28,6 +28,9 @@ A text is any number of pieces, each a token or layout. The rule is written as l
   | word | string | tag-literal | phoneme | character-tag | property
   | capture | constant | guard | keyword | symbol | negation | layout
 ```
+
+<details><summary>Railroad diagram of <code>text</code></summary><img src="../../docs/diagrams/notation/lexical/text.svg" alt="Railroad diagram of the rule text"></details>
+<details><summary>Railroad diagram of <code>piece</code></summary><img src="../../docs/diagrams/notation/lexical/piece.svg" alt="Railroad diagram of the rule piece"></details>
 
 ## Names and tag literals
 
@@ -73,6 +76,16 @@ The name in a token is a whole run of name characters, which `whole-name` reads.
 %rule digit
   '0'..'9'
 ```
+
+<details><summary>Railroad diagram of <code>word</code></summary><img src="../../docs/diagrams/notation/lexical/word.svg" alt="Railroad diagram of the rule word"></details>
+<details><summary>Railroad diagram of <code>tag-literal</code></summary><img src="../../docs/diagrams/notation/lexical/tag-literal.svg" alt="Railroad diagram of the rule tag-literal"></details>
+<details><summary>Railroad diagram of <code>whole-name</code></summary><img src="../../docs/diagrams/notation/lexical/whole-name.svg" alt="Railroad diagram of the rule whole-name"></details>
+<details><summary>Railroad diagram of <code>name</code></summary><img src="../../docs/diagrams/notation/lexical/name.svg" alt="Railroad diagram of the rule name"></details>
+<details><summary>Railroad diagram of <code>lower-name</code></summary><img src="../../docs/diagrams/notation/lexical/lower-name.svg" alt="Railroad diagram of the rule lower-name"></details>
+<details><summary>Railroad diagram of <code>upper-name</code></summary><img src="../../docs/diagrams/notation/lexical/upper-name.svg" alt="Railroad diagram of the rule upper-name"></details>
+<details><summary>Railroad diagram of <code>name-character</code></summary><img src="../../docs/diagrams/notation/lexical/name-character.svg" alt="Railroad diagram of the rule name-character"></details>
+<details><summary>Railroad diagram of <code>letter</code></summary><img src="../../docs/diagrams/notation/lexical/letter.svg" alt="Railroad diagram of the rule letter"></details>
+<details><summary>Railroad diagram of <code>digit</code></summary><img src="../../docs/diagrams/notation/lexical/digit.svg" alt="Railroad diagram of the rule digit"></details>
 
 ## Strings, character tags, properties and phoneme tags
 
@@ -137,6 +150,15 @@ A property is a quote, `\p`, and anything up to the next quote that no backslash
   '\p{Any}'
 ```
 
+<details><summary>Railroad diagram of <code>string</code></summary><img src="../../docs/diagrams/notation/lexical/string.svg" alt="Railroad diagram of the rule string"></details>
+<details><summary>Railroad diagram of <code>string-part</code></summary><img src="../../docs/diagrams/notation/lexical/string-part.svg" alt="Railroad diagram of the rule string-part"></details>
+<details><summary>Railroad diagram of <code>character-tag</code></summary><img src="../../docs/diagrams/notation/lexical/character-tag.svg" alt="Railroad diagram of the rule character-tag"></details>
+<details><summary>Railroad diagram of <code>character-tag-first</code></summary><img src="../../docs/diagrams/notation/lexical/character-tag-first.svg" alt="Railroad diagram of the rule character-tag-first"></details>
+<details><summary>Railroad diagram of <code>character-tag-part</code></summary><img src="../../docs/diagrams/notation/lexical/character-tag-part.svg" alt="Railroad diagram of the rule character-tag-part"></details>
+<details><summary>Railroad diagram of <code>property</code></summary><img src="../../docs/diagrams/notation/lexical/property.svg" alt="Railroad diagram of the rule property"></details>
+<details><summary>Railroad diagram of <code>phoneme</code></summary><img src="../../docs/diagrams/notation/lexical/phoneme.svg" alt="Railroad diagram of the rule phoneme"></details>
+<details><summary>Railroad diagram of <code>character</code></summary><img src="../../docs/diagrams/notation/lexical/character.svg" alt="Railroad diagram of the rule character"></details>
+
 ## Captures, constants, guards and keywords
 
 A capture is `$` and a name that begins with a lower-case letter, or `$` alone for the whole constituent. A constant is `$` and a name that begins with a capital, such as `$SU-STOPS`. The stage tags it `constant`.
@@ -179,6 +201,11 @@ A `¬` directly before a guard belongs to the guard. Anywhere else, `¬` is a sy
 %emits
   $
 ```
+
+<details><summary>Railroad diagram of <code>capture</code></summary><img src="../../docs/diagrams/notation/lexical/capture.svg" alt="Railroad diagram of the rule capture"></details>
+<details><summary>Railroad diagram of <code>constant</code></summary><img src="../../docs/diagrams/notation/lexical/constant.svg" alt="Railroad diagram of the rule constant"></details>
+<details><summary>Railroad diagram of <code>guard</code></summary><img src="../../docs/diagrams/notation/lexical/guard.svg" alt="Railroad diagram of the rule guard"></details>
+<details><summary>Railroad diagram of <code>negation</code></summary><img src="../../docs/diagrams/notation/lexical/negation.svg" alt="Railroad diagram of the rule negation"></details>
 
 A keyword is `%` and a name. The stage tags each keyword that the notation knows with its own identifier, such as `keyword-rule` for `%rule`. So the second stage names each keyword it knows and has no other. Any other `%` and name is one token tagged `keyword`, which the second stage never reads. So an unknown keyword is an error at that token. Each capture, constant, guard and keyword is one token, so the second stage sees `$first` as one thing.
 
@@ -226,6 +253,8 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
   $
 ```
 
+<details><summary>Railroad diagram of <code>keyword</code></summary><img src="../../docs/diagrams/notation/lexical/keyword.svg" alt="Railroad diagram of the rule keyword"></details>
+
 ## Symbols
 
 Every other token is a symbol. A symbol of one character keeps the character tag of its one character, such as `'|'`. `⊇` and `⊉` stand only in a test in a body, such as `UI⊇~indicator`. Braces, `{` and `}`, hold a repetition, and a backslash, `\`, separates its item from its separator. A backslash inside a string, a character tag or a property belongs to that token, so it is a symbol only outside them.
@@ -244,6 +273,8 @@ The rule for `...`, the marker of a chain, tags it `ellipsis`, and `..`, which j
 %emits
   $
 ```
+
+<details><summary>Railroad diagram of <code>symbol</code></summary><img src="../../docs/diagrams/notation/lexical/symbol.svg" alt="Railroad diagram of the rule symbol"></details>
 
 The compound token `@(` opens a tree pattern. The comparators `≅` and `≇` test a constructed constituent. `⋯` marks a sibling gap. `⋮`, `⋰` and `⋱` mark descendant, first-child and last-child paths. The six one-character symbols keep their character tags. The rule tags `@(` `pattern-open`.
 
@@ -272,3 +303,9 @@ Spaces, tabs and line breaks separate tokens and mean nothing else. A comment ru
 %rule stars
   '*' | stars '*'
 ```
+
+<details><summary>Railroad diagram of <code>layout</code></summary><img src="../../docs/diagrams/notation/lexical/layout.svg" alt="Railroad diagram of the rule layout"></details>
+<details><summary>Railroad diagram of <code>space</code></summary><img src="../../docs/diagrams/notation/lexical/space.svg" alt="Railroad diagram of the rule space"></details>
+<details><summary>Railroad diagram of <code>comment</code></summary><img src="../../docs/diagrams/notation/lexical/comment.svg" alt="Railroad diagram of the rule comment"></details>
+<details><summary>Railroad diagram of <code>comment-part</code></summary><img src="../../docs/diagrams/notation/lexical/comment-part.svg" alt="Railroad diagram of the rule comment-part"></details>
+<details><summary>Railroad diagram of <code>stars</code></summary><img src="../../docs/diagrams/notation/lexical/stars.svg" alt="Railroad diagram of the rule stars"></details>

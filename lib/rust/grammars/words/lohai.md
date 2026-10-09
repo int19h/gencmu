@@ -1,6 +1,6 @@
 # Replacement quotes
 
-A letteral is a letter word of class BY, as [stream.md](stream.md) defines it. [Railroad diagrams](../../docs/diagrams/words/lohai.md) draw each rule of this document.
+A letteral is a letter word of class BY, as [stream.md](stream.md) defines it.
 
 This document is part of the word stage of the [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) dialects, after [the word stream](stream.md). A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. Each stage reads the tokens that the stage before it emitted, and emits new tokens. [The notation document](../../docs/notation.md) explains the notation.
 
@@ -57,3 +57,12 @@ In the experimental dialect, a marker that opens no quote is an ordinary word. [
 %emits
   $
 ```
+
+<details><summary>Railroad diagram of <code>quote</code></summary><img src="../../docs/diagrams/words/lohai/quote.svg" alt="Railroad diagram of the rule quote"></details>
+<details><summary>Railroad diagram of <code>lohai-quote</code></summary><img src="../../docs/diagrams/words/lohai/lohai-quote.svg" alt="Railroad diagram of the rule lohai-quote"></details>
+<details><summary>Railroad diagram of <code>lohai-run</code></summary><img src="../../docs/diagrams/words/lohai/lohai-run.svg" alt="Railroad diagram of the rule lohai-run"></details>
+<details><summary>Railroad diagram of <code>lohai-stream</code></summary><img src="../../docs/diagrams/words/lohai/lohai-stream.svg" alt="Railroad diagram of the rule lohai-stream"></details>
+<details><summary>Railroad diagram of <code>lohai-element</code></summary><img src="../../docs/diagrams/words/lohai/lohai-element.svg" alt="Railroad diagram of the rule lohai-element"></details>
+<details><summary>Railroad diagram of <code>lohai-word</code></summary><img src="../../docs/diagrams/words/lohai/lohai-word.svg" alt="Railroad diagram of the rule lohai-word"></details>
+<details><summary>Railroad diagram of <code>lohai-marker</code></summary><img src="../../docs/diagrams/words/lohai/lohai-marker.svg" alt="Railroad diagram of the rule lohai-marker"></details>
+<details><summary>Railroad diagram of <code>lehai-marker</code></summary><img src="../../docs/diagrams/words/lohai/lehai-marker.svg" alt="Railroad diagram of the rule lehai-marker"></details>

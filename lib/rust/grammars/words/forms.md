@@ -1,6 +1,6 @@
 # Word forms
 
-This document opens the forms stage. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). The forms stage is the second stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the phonemes that the phoneme stage emitted. [Railroad diagrams](../../docs/diagrams/words/forms.md) draw each rule of this document.
+This document opens the forms stage. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). The forms stage is the second stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the phonemes that the phoneme stage emitted.
 
 The stage divides the text into its source words and tags each word with its class. A token is one unit that a stage reads or emits. A tag marks a token by name, phoneme or character. The stage hands the words to the word stage ([stream.md](stream.md)), where the magic words act on them. [The notation document](../../docs/notation.md) explains the notation.
 
@@ -74,6 +74,16 @@ A run that divides into words divides in one way only. The word forms of each fa
   | /n/ | /p/ | /r/ | /s/ | /t/ | /v/ | /x/ | /z/
 ```
 
+<details><summary>Railroad diagram of <code>text</code></summary><img src="../../docs/diagrams/words/forms/text.svg" alt="Railroad diagram of the rule text"></details>
+<details><summary>Railroad diagram of <code>runs</code></summary><img src="../../docs/diagrams/words/forms/runs.svg" alt="Railroad diagram of the rule runs"></details>
+<details><summary>Railroad diagram of <code>pause-token</code></summary><img src="../../docs/diagrams/words/forms/pause-token.svg" alt="Railroad diagram of the rule pause-token"></details>
+<details><summary>Railroad diagram of <code>run</code></summary><img src="../../docs/diagrams/words/forms/run.svg" alt="Railroad diagram of the rule run"></details>
+<details><summary>Railroad diagram of <code>read-run</code></summary><img src="../../docs/diagrams/words/forms/read-run.svg" alt="Railroad diagram of the rule read-run"></details>
+<details><summary>Railroad diagram of <code>foreign-run</code></summary><img src="../../docs/diagrams/words/forms/foreign-run.svg" alt="Railroad diagram of the rule foreign-run"></details>
+<details><summary>Railroad diagram of <code>unread-run</code></summary><img src="../../docs/diagrams/words/forms/unread-run.svg" alt="Railroad diagram of the rule unread-run"></details>
+<details><summary>Railroad diagram of <code>phoneme-run</code></summary><img src="../../docs/diagrams/words/forms/phoneme-run.svg" alt="Railroad diagram of the rule phoneme-run"></details>
+<details><summary>Railroad diagram of <code>nonpause-phoneme</code></summary><img src="../../docs/diagrams/words/forms/nonpause-phoneme.svg" alt="Railroad diagram of the rule nonpause-phoneme"></details>
+
 The stage covers every input token. It passes pauses and the unread runs of the phoneme stage through, and combines phonemes into words or unread runs. An unread run of the phoneme stage keeps its phonemes, `?`, and its label, which is its text.
 
 A run of phonemes that divides into no words becomes one `UNREAD` token, which sounds like its phonemes. Its rule is not `%opaque`, so the token keeps those phonemes. So a `zoi` delimiter compares with it exactly as with the same phonemes read as words. The text of the token is what the author wrote.
@@ -109,6 +119,8 @@ The BPFK word forms set only `onset` and `continued`, with the meaning that the 
   ~final-stress ⊈ tags($r) ∨ (~stress-guard ∪ ~initial-stress) ∩ tags($v) = ∅,
   ~open-stress ⊈ tags($r) ∨ ~uncounted ⊆ tags($v)
 ```
+
+<details><summary>Railroad diagram of <code>run-words</code></summary><img src="../../docs/diagrams/words/forms/run-words.svg" alt="Railroad diagram of the rule run-words"></details>
 
 A join permits two words without a pause. This document states the joins so that no two joins apply to the same pair. For example, in the CLL family, a word tagged `cy` never carries `continued`. So only the `Cy` rule joins two `Cy` letters there, and the general join, a continued word followed by an onset, never follows one. The BPFK word forms tag no word `cy`. They join a `Cy`-shaped word such as `fy` by the general join, so `fyno` is `fy` and `no`.
 
@@ -177,6 +189,17 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
 
 ```
 
+<details><summary>Railroad diagram of <code>first-word</code></summary><img src="../../docs/diagrams/words/forms/first-word.svg" alt="Railroad diagram of the rule first-word"></details>
+<details><summary>Railroad diagram of <code>ordinary-first-word</code></summary><img src="../../docs/diagrams/words/forms/ordinary-first-word.svg" alt="Railroad diagram of the rule ordinary-first-word"></details>
+<details><summary>Railroad diagram of <code>later-word</code></summary><img src="../../docs/diagrams/words/forms/later-word.svg" alt="Railroad diagram of the rule later-word"></details>
+<details><summary>Railroad diagram of <code>ordinary-later-word</code></summary><img src="../../docs/diagrams/words/forms/ordinary-later-word.svg" alt="Railroad diagram of the rule ordinary-later-word"></details>
+<details><summary>Railroad diagram of <code>split-first-y</code></summary><img src="../../docs/diagrams/words/forms/split-first-y.svg" alt="Railroad diagram of the rule split-first-y"></details>
+<details><summary>Railroad diagram of <code>split-later-y</code></summary><img src="../../docs/diagrams/words/forms/split-later-y.svg" alt="Railroad diagram of the rule split-later-y"></details>
+<details><summary>Railroad diagram of <code>y-prefix</code></summary><img src="../../docs/diagrams/words/forms/y-prefix.svg" alt="Railroad diagram of the rule y-prefix"></details>
+<details><summary>Railroad diagram of <code>y-atom</code></summary><img src="../../docs/diagrams/words/forms/y-atom.svg" alt="Railroad diagram of the rule y-atom"></details>
+<details><summary>Railroad diagram of <code>bu-form-ahead</code></summary><img src="../../docs/diagrams/words/forms/bu-form-ahead.svg" alt="Railroad diagram of the rule bu-form-ahead"></details>
+<details><summary>Railroad diagram of <code>bu-form</code></summary><img src="../../docs/diagrams/words/forms/bu-form.svg" alt="Railroad diagram of the rule bu-form"></details>
+
 ## Words
 
 A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on with its kind: `word` and `cmavo`, `BRIVLA` or `CMEVLA` for a word, and `hesitation` for hesitation. A cmavo also carries the selma'o that the lexicon gives it: `classify(phonemes($c), lexicon)` looks the cmavo's sound up in the lexicon. A cmavo unknown to the lexicon is still a word, of no class.
@@ -188,6 +211,8 @@ A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on
   | $n(cmevla-shape) <~word ∪ CMEVLA ∪ tags($n)>
   | $h(hesitation-shape) <~hesitation ∪ tags($h)>
 ```
+
+<details><summary>Railroad diagram of <code>source-word</code></summary><img src="../../docs/diagrams/words/forms/source-word.svg" alt="Railroad diagram of the rule source-word"></details>
 
 Hesitation is `y` of any length. It is a source word of its own here, because the pause rules hold for it as for any word. It begins with a vowel, so a pause comes before it, unless the family gives it `onset`. The BPFK word forms read `kyyykerlo` as `ky`, `yy` and `kerlo`. The first `y` of `yy` is not a nucleus there.
 
@@ -203,9 +228,14 @@ Hesitation needs no pause after it, as the Magic Words proposal says. The word s
   any-y | any-y y-run | any-y /,/ y-run
 ```
 
+<details><summary>Railroad diagram of <code>hesitation-shape</code></summary><img src="../../docs/diagrams/words/forms/hesitation-shape.svg" alt="Railroad diagram of the rule hesitation-shape"></details>
+<details><summary>Railroad diagram of <code>y-run</code></summary><img src="../../docs/diagrams/words/forms/y-run.svg" alt="Railroad diagram of the rule y-run"></details>
+
 A `y` here is either phoneme of the letter, plain or stressed.
 
 ```jbogenbau
 %rule any-y
   /y/ | /Y/
 ```
+
+<details><summary>Railroad diagram of <code>any-y</code></summary><img src="../../docs/diagrams/words/forms/any-y.svg" alt="Railroad diagram of the rule any-y"></details>

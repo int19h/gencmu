@@ -36,7 +36,7 @@ docs/
   engine.md                the engine specification, for implementers
   api.md                   the library API, per language
   output.md                the output formats, defined exactly
-  diagrams/                railroad diagrams of the grammars' rules, generated
+  diagrams/                railroad diagrams of the grammars' rules as SVG, generated
 tests/
   engine/                  small grammars with expected parses: the engine spec as tests
   notation/                small grammar documents with their expected DOMs and errors
@@ -650,26 +650,21 @@ The tools list the repository's documents in one way (`tools/documents.js`). In 
 - a fenced block with no closing fence, which takes in the rest of its container
 - an indented code block, such as a paragraph indented too far in a list item, and an HTML block, since either can hide prose
 
+The one HTML block that a document can hold is a run of the generated lines of railroad diagrams, at the top level ("Railroad diagrams").
+
 The check of quoted texts relies on this rule, since it gives each text the line of its code span (`tools/quoted-texts.js`).
 
 ## Railroad diagrams
 
-A railroad diagram draws a grammar rule as a track. A reader follows the track from left to right, and each path along it is one way to read the rule.
+A railroad diagram draws a grammar rule as a track. A reader follows the track from left to right, and each path along it is one way to read the rule. "Railroad diagrams" in [the notation document](notation.md#railroad-diagrams) explains how to read them, and what they leave out.
 
-`node tools/sync.js` draws one diagram for each rule of each grammar document (`tools/railroad.js`). It reads the rules from the document's DOM, as the libraries read them. It writes each diagram as an SVG file under `docs/diagrams/`. Each grammar document also gets a page there, which shows its diagrams under the headings of its sections. Each grammar document links to its page under its title, and `tools/sync.js --check` fails without that link. The packages do not ship these files.
+`node tools/sync.js` draws one diagram for each rule of each grammar document (`tools/railroad.js`). It reads the rules from the document's DOM, as the libraries read them. It writes each diagram as an SVG file under `docs/diagrams/`, in one directory for each document. So the diagram of `sumti` in `grammars/syntax/cll.md` is `docs/diagrams/syntax/cll/sumti.svg`. The packages do not ship these files.
 
-The diagrams draw the notation in this way:
+The grammar document shows its diagrams itself. HTML cannot stand inside a fenced block, so the diagrams follow the block that states their rules. After the block come a blank line and one line for each rule of the block, in the order of the rules. That line is a collapsed `<details>` element, so a reader opens a diagram only when they want it. Its summary names the rule, and its body is an image of the rule's SVG file.
 
-- A square box is a rule, and a rounded box is a terminal. A test stands in the box of its symbol, as the notation writes it, such as `LE="la"`.
-- A sequence runs from left to right. A sequence too wide for the page continues on the next row. The track runs back under the row before it.
-- A choice puts its first branch on the track and its other branches below it. The alternatives of a rule are a choice.
-- An optional has a bypass over its content. The bypass of an elidable optional has the label "elided", or "elided, maximal" for `[++T ...]`.
-- Braces loop back under their item, and a separator stands on the loop. So `[{x}]` is a bypass over a loop.
-- A chain reads the same words as a list, so it has the same drawing. A label under the loop says "left chain" or "right chain".
-- `A & B & C` is the choice of the item where the subsequence begins, with every later item optional. So `A & B` is `A [B]` or `B`.
-- The guards of an alternative stand over the start of its track, such as `¬cbm?` or `y-cmavo!`. `ε` is a bare track.
+`tools/sync.js` owns these generated lines. They are the lines outside fenced blocks that begin with `<details><summary>Railroad diagram of`. Each run removes them all, with the blank line before each run of them, and writes them again from the DOM. So the lines follow a rule that is renamed, added or removed, and every other line of the document stays as it is. `tools/sync.js --check` fails when a generated line is missing, out of date or left over, or stands in a document outside `grammars/`.
 
-A diagram leaves out the captures, the tag terms and the clauses. A capture only names a part for the clauses, and changes nothing that the rule reads. Tags, emission and `%opaque` say what the parts mean, not which tokens the rule reads. A condition can reject a reading that the diagram shows. So a diagram shows what a rule reads before its conditions. The page names the clauses that a rule has. It also gives the rule's flag, and says when a rule replaces or extends another.
+The libraries' reader reads only the fenced `jbogenbau` blocks, so the generated lines change no rule. They move the lines below them, and with them the line of each rule in the DOM. `tests/quoted-allow.txt` names lines of the documents, so `tools/sync.js` renumbers those lines where it moves them. Each package's copy of a grammar document is the same file, generated lines included. Their images do not show inside a package, which holds no diagrams.
 
 The SVG has fixed sizes and no fonts to measure. Each text is drawn at the width that its characters are given. So the same DOM always gives the same file. Each diagram has a white background, so it reads in a dark theme too.
 
