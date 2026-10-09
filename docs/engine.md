@@ -160,7 +160,7 @@ An unmarked unary cycle cannot invent tags in a finite proof. Written terminals 
 
 Follow local unary inheritance from the ranked helper toward its enclosing named parent. If unsafe tags reach that boundary, report `ranked-choice-tags`. A multi-symbol parent or common explicit tag term discards option tags locally. No caller analysis or runtime equality of rival tags excuses unsafe inheritance.
 
-Malformed ranked syntax or DOM reports `ranked-choice-syntax`. Other unrelated reader errors retain their codes or uncoded form. The retired `%prefer` directive reports the ordinary unknown-directive error with a ranked-choice explanation. No inert-rank warning exists.
+Malformed ranked syntax or DOM reports `ranked-choice-syntax`. Other unrelated reader errors retain their codes or uncoded form.
 
 Loading errors carry the structured members defined in `docs/output.md`. Tag errors use the shortest inheritance witness from the group to its tag source. Source traversal order breaks equal-length choices. Helper sites use written expression paths.
 
@@ -322,7 +322,7 @@ The order between steps, between items and between sets is not observable either
 
 `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` each run a nested parse. A nested parse is one recognition over the span's tokens alone, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does.
 
-A query that the check of §7 starts reads the projected span in the stage's input. It uses this lowered grammar in its ordinary mode (§7.6). Its chart is every item, partial or completed, that this recognition holds after it ends. The three functions read raw eligible proof trees, before slot filtering or ranking. Their structural observations still use the sealed leaves of §4.1:
+A query that the check of §7 starts reads the projected span in the stage's input. It uses this lowered grammar in its ordinary mode (§7.6). Its chart is every item, partial or completed, that this recognition holds after it ends. The three functions read raw eligible proof trees, before ranked admission or ranking. Their structural observations still use the sealed leaves of §4.1:
 
 - `matches` holds when a completed item of `rule` spans the tokens and has an eligible proof tree.
 - `begins` holds when a completed item of `rule` has its origin at the span's start, in any set, and has an eligible proof tree. So it covers a prefix of the span, the empty prefix included.
@@ -427,13 +427,13 @@ Maximal terminators apply in the main parse and nested queries. The ranking (§6
 
 Lowering records which helpers belong to maximal terminators (§3.8). The lowered grammar and its cache identity include this information. For each parse that needs them, the engine records the furthest completion of each symbol from each origin. A tested symbol needs its completed items because the furthest completion need not pass its test. A nested parse builds this table from its own chart, once per query. The query's memo keys identify that chart.
 
-A stage recognizes input when a completed `text` item spans it with an eligible noncyclic derivation. Slot filtering preserves this recognition for the sealed grammar. Section 6.1 defines admission before ranking, with raw charts and query answers unchanged.
+A counted derivation is an eligible noncyclic derivation of a completed `text` item that spans the input. With a counted derivation, a stage accepts its input. Ranked admission preserves this recognition for the sealed grammar. Section 6.1 defines admission before ranking, with raw charts and query answers unchanged.
 
 The stage rejects an input whose every completed text derivation is cyclic, as it rejects one with no such item. A stage that accepts its input can still end with a tie, which is an error (§6). A rejected input reports the furthest position that any item reached. It also reports the terminals that the items there can read next, together with the rules that those items belong to (§11). The stage writes a tested terminal with its test, such as `LE="la"` (`docs/output.md`).
 
 An input rejected only because maximality forbids an elided terminator in every derivation that is not cyclic reports that terminator instead. The terminator comes from the first reading, `m`, of the ranking that the stage makes with maximal terminators unrestricted (§6). It is the first elided terminator of that derivation, in the order of the tree's leaves, that maximality forbids. Its position is the position reported, and its terminal, with the rule in whose alternative its optional is written, is the one terminal expected there. If that terminator is tested, the stage writes it with its test there too.
 
-That diagnostic ranking uses the same raw chart and nested-query answers. Recompute slot admission with maximal terminators unrestricted before ranking. Feature gates, ordinary conditions, written priority and cycle exclusion still apply. Keep this admission mode separate from ordinary maximality. The diagnostic never turns rejection into acceptance.
+That diagnostic ranking uses the same raw chart and nested-query answers. Recompute ranked admission with maximal terminators unrestricted before ranking. Feature gates, ordinary conditions, written priority and cycle exclusion still apply. Keep this admission mode separate from ordinary maximality. The diagnostic never turns rejection into acceptance.
 
 This report covers only main derivations that maximality removes. If a nested query's answer makes a condition false, the recognizer does not make that advanced item. If no counted main derivation remains, the ordinary rejection rules apply. An ordinary rejection reports the furthest position and the terminals expected there, and those terminals can include a terminator.
 
@@ -640,7 +640,7 @@ For k independent Boolean observations, a product can contain up to `2^k` states
 
 Retain the raw chart, completion tables, and eligibility information. Admission removes forest choices without removing chart items or changing input queries. A later completion can provide an earlier qualifying option. Nested availability requires admitted finite child proofs.
 
-A slot instance is one written ranked group in one prefix context. Each physical span in that instance has a separate admission group. Its key contains these components:
+An admission instance is one written ranked group in one prefix context. Each physical span in that instance has a separate admission group. Its key contains these components:
 
 | Component | Required equality |
 | --- | --- |
@@ -810,7 +810,7 @@ Cycles are found over spans of R, as §4 says. Two constituents of one rule whos
 
 Maximality does not apply to the derivations of R. A restoration reads a token, so the reconstruction has no elided terminator, and nothing for maximality to forbid. The queries of §7.6 keep their own policy.
 
-Locate raw W(D) before applying slot admission. The filter groups by physical R intervals, including synthetic tokens, with reconstruction eligibility. Equal projected O spans do not establish equal slot intervals. Rank admitted derivations by rule profiles over projected spans `[π(a),π(b))` in O.
+Locate raw W(D) before applying ranked admission. Admission groups options by their physical spans in R, including synthetic tokens. Reconstruction eligibility still applies. Equal projected O spans do not establish equal admission spans. Rank admitted derivations by rule profiles over projected spans `[π(a),π(b))` in O.
 
 No stage directive or diagnostic lean applies. Elision vectors are all zero. A flagged occurrence whose projected span is empty contributes zero weight. Distinct occurrences with equal nonempty projected spans each contribute separately. Reconstruction admission has its own cache and preserves existing restoration, strictness and projection rules.
 
@@ -841,7 +841,7 @@ W(D) is a derivation of R that counts in the raw reconstructed forest. In outlin
 
 So, unless an error of the grammar ends the check, the raw reconstructed forest contains W(D). The argument depends on no corpus, no terminal and no shape of the optional's content. It depends on every observer, every test and every tag rule following §7.5 and §7.6. The strict items of §7.4 do not touch W(D), whose written optionals all start with an original token.
 
-Slot admission can exclude W(D). Section 7.10 then reports W(D) first. Witness loss means only raw absence.
+Ranked admission can exclude W(D). Section 7.10 then reports W(D) first. Witness loss means only raw absence.
 
 The theorem does not excuse errors. A competing derivation can meet an error of the grammar, such as a `split` with an empty delimiter, that D never met. That error is the result's (§7.7).
 
@@ -875,7 +875,7 @@ This policy applies to every grammar, including grammars without ranked groups o
 If recognition ends without a grammar error, decide in this order.
 
 1. Locate W(D) in the raw eligible reconstructed forest. If it is absent, report `elision-witness-lost` (§7.9).
-2. Apply slot filtering without preserving W(D) artificially.
+2. Apply ranked admission without preserving W(D) artificially.
 3. Rank admitted readings by projected rule profiles with no stage lean.
 4. If W(D) is admitted and is the sole best admitted derivation, preserve the main result.
 5. Otherwise, report `ambiguous` with reason `elision-only`, with W(D) first and one competitor second.
@@ -1149,7 +1149,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - An attachment on a `$` item or on an inserted tag is an error, reported at the item. Only a named capture carries attachments. So a constituent never attaches to itself.
 - A capture other than `$` named twice in one emission, as an item or as an attachment, is an error. So an attachment capture is never an item of its own.
 - A rule's or an alternative's tag term that reads the tags that it defines is an error: `tags($)` or `classes($)` in it. `tags(head($))` and the like read the tokens' tags, not the constituent's, and are allowed, as is `tags($, R)`.
-- An unknown directive or keyword is an error. The syntax grammar already refuses it. The retired `%prefer` directive points to ranked choices.
+- An unknown directive or keyword is an error. The syntax grammar already refuses it.
 - A directive with the wrong operands is an error, reported at the directive. `%stage` takes one name, `%include` one string, and `%features` one or more names. `%ambiguity-resolution` takes a ranking name and optionally `elision-only`. The retired operand `maximal` is an error. `%elidable` is no directive, and the syntax grammar refuses it as an unknown keyword.
 
 Once the reader reads a definition (§2), it makes sure that the whole definition meets its requirements. These checks are about the productions of the definition's alternatives, the expansions of §3.2 with the captures of §3.5. Gates do not matter here, so every alternative counts. Two expansions of one alternative that read the same captures in the same order are one case for these checks. So the reader can decide them over the distinct sequences of captures that the expansions read, without listing the expansions.

@@ -423,9 +423,11 @@ Both variants change queries where no terminator is written, so the policy was r
 
 ### Maximal terminators
 
-A former Zantufa fragment condition, `¬matches($m, terms-vau)`, queried an isolated span rather than its constructed reading. The current `so to mi klama` reads `(so [to {mi klama}])`. Ordinary late elision still decides the parenthesis boundary in `so to recap`. In `ro sei ny rere'u basna mutce cusku`, the `sei` closes before `cusku`.
+Before maximal terminators, some Zantufa conditions accepted a nested reading that closed a parenthesis early. `so to recap` closed an empty `to`. In `ro sei ny rere'u basna mutce cusku`, a nested reading closed `sei` before `cusku`.
 
-Written-terminator priority does not settle these texts, because no `toi` or `se'u` is written. A condition cannot say that the content of a construct cannot be longer. An attempt to copy the greed of the reference with conditions rejected 27 texts that the reference accepts.
+With `[++TOI]`, `so to recap` reads `(so [to recap])`, and `so to mi klama` reads `(so [to {mi klama}])`. With `[++SEhU]`, `ro sei ny rere'u basna mutce cusku` holds `cusku` inside `sei`. Both constructs take their complete content, as the reference does.
+
+Written-terminator priority alone cannot settle those boundaries, because neither `toi` nor `se'u` is written. A condition cannot say that the content of a construct cannot be longer. An attempt to copy the greed of the reference with conditions rejected 27 texts that the reference accepts.
 
 Stage-wide `maximal` inside nested parses was measured in two variants ("Nested queries and elided terminators" above). V1 searched the whole stage input and changed 39 jobs, with 31 false ties. V2 searched the query's chart and changed 24 jobs, with 17 false ties. That policy applied to every elidable terminator. This feature lets a grammar select single terminators instead. For those selected constructs, a change to a query with no written terminator is the intent.
 
@@ -663,6 +665,8 @@ A railroad diagram draws a grammar rule as a track. A reader follows the track f
 
 `node tools/sync.js` draws one diagram for each rule of each grammar document (`tools/railroad.js`). It reads the rules from the document's DOM, as the libraries read them. It writes each diagram as an SVG file under `docs/diagrams/`, in one directory for each document. So the diagram of `sumti` in `grammars/syntax/cll.md` is `docs/diagrams/syntax/cll/sumti.svg`. The packages do not ship these files.
 
+A ranked choice numbers its options in preferred order inside a dashed frame. Its shared label is `≻ same span`. Only a qualified option over the same span removes lower options. Ordinary alternatives within an option remain unnumbered. Nested ranked groups receive separate frames.
+
 The grammar document shows its diagrams itself. HTML cannot stand inside a fenced block, so the diagrams follow the block that states their rules. After the block come a blank line and one collapsed `<details>` element, so a reader opens the diagrams only when they want them. Its summary names the rules of the block. A long list gives only the first and the last rule, and the number of rules. The element holds an image of each rule's SVG file, one on each line, in the order of the rules. Each drawing gives its rule's name above its track.
 
 `tools/sync.js` owns these generated elements. An element begins with a line outside fenced blocks that begins with `<details><summary>Railroad diagram`. It goes on through the lines of its images, which begin with `<p><img`, to its line `</details>`. Each run removes every element, with the blank line before it, and writes them again from the DOM. So the elements follow a rule that is renamed, added or removed. Every other line of the document keeps its text and its line ending. `tools/sync.js --check` fails when an element is missing, out of date or left over, or stands in a document outside `grammars/`.
@@ -780,9 +784,9 @@ The comparison changes 512 results among 29,725 existing cases. In cll-ebnf, 26 
 
 An isolated reparse can disagree with the constituent that the parent actually builds. Queries about one span lose its surrounding prefix, eligibility channel, and ready gates. They cannot establish an actual replacement at that written position.
 
-The earlier complete-reading preference relation also produced comparison cycles. Ordinary elision ranking supplied some directions, and local category preferences supplied others. Accepted texts then became ties across all seven families. A local filter avoids that combined relation.
+A preference relation over complete readings combines with elision ranking into comparison cycles. A prototype of that relation turned accepted texts into ties in all seven contested families. A local filter avoids that combined relation.
 
-An inline ranked choice states its position and category order together. It requires one common prefix and suffix because the author writes them once. It needs no dedicated wrapper, reference count, template correspondence, or capture-role matching.
+An inline ranked choice states its position and category order together. It requires one common prefix and suffix because the author writes them once.
 
 Every option supplies its actual qualified constituent or sequence. A failed higher gate leaves lower options available. One seal hides each completed option's children from outside patterns. Ready private conditions still observe their real captured constituents.
 
@@ -794,11 +798,9 @@ The exact group key, tag closure, and algorithm belong to engine §2.1 and §6.1
 
 Reconstruction first locates the restored chosen derivation before filtering. Filtering compares spans that include restored terminators. It ranks admitted readings by projected profiles without a stage directive. Filtering can exclude the restored derivation and cause an `elision-only` ambiguity. The error reports that derivation first and the best admitted competitor second. Only its absence before filtering reports `elision-witness-lost` ([engine §7](engine.md#7-elision-only)).
 
-Experimental ranks NUhI bodies and shared ME operands. Zantufa ranks fragments, ME, whole MOI constructions, MAhO, and MOhE. The MOI group also includes SE because SE can begin a mekso through an operator. FA and JAI cannot begin those mekso forms.
+Experimental ranks NUhI bodies, shared ME operands, and mekso-MOI before SE conversion. Zantufa ranks fragments, ME, whole MOI constructions, MAhO, and MOhE. In Zantufa, SE can begin a mekso through an operator, so the MOI group also includes it. FA and JAI cannot begin those mekso forms.
 
-The migration removes twelve unary wrappers and two sequence wrappers. Late elision makes their action boundaries irrelevant to the bundled ranking. Existing named parents preserve bracket grouping. `gek-termset-body`, `termset-with-nuhi`, `me-unit`, and `terms-vau` remain for structure, reuse, or capture.
-
-A railroad diagram numbers options in preferred order inside a ranked frame. Its shared label is `≻ same span`. Only a qualified option over the same span removes lower options. Ordinary alternatives within an option remain unnumbered. Nested ranked groups receive separate frames.
+The ranked choices need no new wrapper rules. The new `me-unit` names the shared experimental ME construction. `gek-termset-body`, `termset-with-nuhi`, and `terms-vau` keep their bracket groups, reuse, or capture. The Zantufa group replaces the `mex-moi` rule.
 
 Sealing remains an authoring limit. An outside pattern that needs hidden option structure requires an unranked position or an earlier local condition. Sequence captures remain unsupported, so the fragment keeps its readable compound name `terms-vau`.
 

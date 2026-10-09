@@ -49,7 +49,7 @@ Line breaks and indentation mean nothing. So a long list of alternatives can put
   | VUhU #
 ```
 
-The same is true of every other separator of the notation. These are `&` in bodies, `∪` and `∩` in terms, `∧` and `∨` in conditions, and the commas of a clause's list. `∖` in terms and `\` in braces are not separators of this kind, so neither can stand first. A tag term is a term that gives a set of tags.
+These separators can also stand first: `&` in bodies, `∪` and `∩` in terms, `∧` and `∨` in conditions, and commas in clause lists. `∖` in terms, `\` in braces, and `≻` in ranked choices cannot stand first. A tag term is a term that gives a set of tags.
 
 A body can be followed by clauses. A clause is a keyword and what it says. A body has at most one clause of each kind, and the clauses come in this order:
 
@@ -204,6 +204,60 @@ A right chain is not the same as an optional suffix. In a rule `r`, the body `x 
 - Where `s` begins with an elidable optional `[+T]`, the two place `[+T]` differently. In the suffix, it starts the optional's content, so it has no constituent. In the chain, it follows `x`, and the rules of "Elided terminators" decide its constituent.
 
 Where the suffix is plain and `s` does not begin with an elidable optional, the two group the words in the same way. The tags of a level of one item can still differ, as the second difference says.
+
+## Ranked choices
+
+The parses that survive ranked filtering are admitted.
+
+A ranked choice writes its preferred option first: `(a ≻ b ≻ c)`. Each option can contain a sequence. Parentheses delimit a ranked choice inside a larger expression.
+
+A span is the range between two input token boundaries. A prefix context is recognition state before the group. Only options of the same group in the same prefix context compete ([engine §6.1](engine.md#61-ranked-admission-before-ranking)).
+
+A lower option disappears where an earlier option qualifies over the same span. Qualification requires its tests and ready conditions to pass. A condition is ready when every capture that it reads is bound. A failing higher option removes nothing.
+
+Earlier options also outrank later options when intervening options are absent. An ordinary choice inside an option gives its branches equal rank. Different spans still compete through the ordinary stage ranking.
+
+```jbogenbau
+%rule me-unit
+  ME # (sumti ≻ mex) [+MEhU] # [MOI #]
+```
+
+Binding, from strongest to weakest, is primary expressions, sequence, `&`, then choice. At a choice level, the separator is either `|` or `≻`. Mixing them at that level is a reader error. Parentheses start a new level.
+
+| Text | Meaning |
+| --- | --- |
+| `a b ≻ c d` | Rank the sequence `a b` above `c d`. |
+| `(a ≻ b) c` | Rank the child before the common suffix `c`. |
+| `a & b ≻ c` | Rank the conjunction above `c`. |
+| `a ≻ (b \| c)` | Rank `a` above either lower branch. The lower branches share one rank. |
+| `(a \| b) ≻ c` | Either higher branch removes `c` over the same span. |
+| `(a ≻ b) \| c` | Keep `c` outside the ranked group. |
+| `a ≻ (b ≻ c)` | Give the inner expression its own group and seal. |
+| `[a ≻ b]` | Keep the absent optional route outside the ranked group. |
+| `{(a ≻ b)}` | Repeat ranked items under the existing nonnullability rule. |
+| `(ε ≻ a)` | Compare empty options only against other empty options. |
+
+Thus `a | b ≻ c` and `a ≻ b | c` require parentheses. A whole rule body can be `a ≻ b`. A leading `|` starts the ordinary alternative list, so `| a ≻ b` also requires parentheses.
+
+Every ranked expression needs at least two nonempty written operands. `ε` supplies an explicit empty operand. Each operand is a complete conjunction expression. `≻` has no operator meaning inside strings, conditions, or tree patterns.
+
+Optionals and repetitions accept ranked content in their existing expression positions. A repetition separator can contain a ranked group too. Ranking does not permit nullable repetition items or change the required leading terminal of an elidable optional.
+
+Ranked options have no local guard, tag clause, or emission clause. Ordinary alternative guards and trailing tags apply to the whole expression. A named rule can express a feature-dependent category.
+
+Captures inside a ranked choice belong to that choice. They can serve only conditions ready before that choice closes. They cannot feed later conditions, tag terms, or explicit emission items. No capture can wrap a sequence or a ranked choice.
+
+The whole-parent `$` becomes ready only when its named alternative completes. A final ranked group can reach that point. Any remaining element, including an empty optional, delays that readiness.
+
+Outside patterns see one seal for the whole ranked choice, even when its completed option is empty. They cannot inspect its names, children, or option. Descendant, first-path, last-path, and sole-child walks stop there.
+
+Internal named rules and ready conditions on their captures retain their own pattern views. The seal changes no output tree, omission, action, or captured constituent. An author who needs that hidden structure outside the choice cannot rank that position.
+
+The choice must discard its returned tags locally or return a provably empty set. A common explicit tag term can replace inheritance. The loader applies the closure in engine §2.1. A private capture cannot supply that common term.
+
+`begins`, `matches`, and two-argument `tags` inspect readings allowed by recognition before ranked filtering ([engine §4](engine.md#4-recognition)). `tags(span, rule)` remains a union over those readings.
+
+After admission, flagged profiles precede the stage directive. With no flagged rule, every profile is zero, so the stage directive alone ranks the admitted parses.
 
 ## Feature guards
 
@@ -647,60 +701,6 @@ A directive is a keyword and its operands. By convention each stands in a block 
 - No directive names the elidable terminators. Each elidable optional is marked in its place, as `[+KU]` or `[++TOI]` (see "Elided terminators"). `%elidable` is not a directive. A document that writes it is an error, which the reader reports at the keyword.
 - `%stage NAME`, `%include "PATH"` and `%features NAME…` build a pipeline, as the next section says.
 
-### Ranked choices
-
-A ranked choice writes its preferred option first: `(a ≻ b ≻ c)`. Each option can contain a sequence. Parentheses delimit a ranked choice inside a larger expression.
-
-A span is the range between two input token boundaries. A prefix context is recognition state before the group. Only options of the same group in the same prefix context compete ([engine §6.1](engine.md#61-ranked-admission-before-ranking)).
-
-A lower option disappears where an earlier option qualifies over the same span. Qualification requires its tests and ready conditions to pass. A condition is ready when every capture that it reads is bound. A failing higher option removes nothing.
-
-Earlier options also outrank later options when intervening options are absent. An ordinary choice inside an option gives its branches equal rank. Different spans still compete through the ordinary stage ranking.
-
-```jbogenbau
-%rule me-unit
-  ME # (sumti ≻ mex) [+MEhU] # [MOI #]
-```
-
-Binding, from strongest to weakest, is primary expressions, sequence, `&`, then choice. At a choice level, the separator is either `|` or `≻`. Mixing them at that level is a reader error. Parentheses start a new level.
-
-| Text | Meaning |
-| --- | --- |
-| `a b ≻ c d` | Rank the sequence `a b` above `c d`. |
-| `(a ≻ b) c` | Rank the child before the common suffix `c`. |
-| `a & b ≻ c` | Rank the conjunction above `c`. |
-| `a ≻ (b \| c)` | Rank `a` above either lower branch. The lower branches share one rank. |
-| `(a \| b) ≻ c` | Either higher branch removes `c` over the same span. |
-| `(a ≻ b) \| c` | Keep `c` outside the ranked group. |
-| `a ≻ (b ≻ c)` | Give the inner expression its own group and seal. |
-| `[a ≻ b]` | Keep the absent optional route outside the ranked group. |
-| `{(a ≻ b)}` | Repeat ranked items under the existing nonnullability rule. |
-| `(ε ≻ a)` | Compare empty candidates only against other empty candidates. |
-
-Thus `a | b ≻ c` and `a ≻ b | c` require parentheses. A whole rule body can be `a ≻ b`. A leading `|` starts the ordinary alternative list, so `| a ≻ b` also requires parentheses.
-
-Every ranked expression needs at least two nonempty written operands. `ε` supplies an explicit empty operand. Each operand is a complete conjunction expression. `≻` has no operator meaning inside strings, conditions, or tree patterns.
-
-Optionals and repetitions accept ranked content in their existing expression positions. A repetition separator can contain a ranked group too. Ranking does not permit nullable repetition items or change the required leading terminal of an elidable optional.
-
-Ranked options have no local guard, tag clause, or emission clause. Ordinary alternative guards and trailing tags apply to the whole expression. A named rule can express a feature-dependent category.
-
-Captures inside a ranked choice belong to that choice. They can serve only conditions ready before that choice closes. They cannot feed later conditions, tag terms, or explicit emission items. Existing restrictions on capture syntax still apply.
-
-The whole-parent `$` becomes ready only when its named alternative completes. A final ranked group can reach that point. Any remaining element, including an empty optional, delays that readiness. A private capture cannot wrap a sequence or the ranked group itself.
-
-Outside patterns see one seal for the whole ranked choice, even when its completed option is empty. They cannot inspect its names, children, or option. Descendant, first-path, last-path, and sole-child walks stop there.
-
-Internal named rules and ready conditions on their captures retain their own pattern views. The seal changes no output tree, omission, action, or captured constituent. An author who needs that hidden structure outside the choice cannot rank that position.
-
-The choice must discard its returned tags locally or return a provably empty set. A common explicit tag term can replace inheritance. The loader applies the closure in engine §2.1. A private capture cannot supply that common term.
-
-`begins`, `matches`, and two-argument `tags` inspect readings allowed by recognition before ranked filtering ([engine §4](engine.md#4-recognition)). `tags(span, rule)` remains a union over those readings.
-
-After admission, flagged profiles precede the stage directive. With no flagged rule, every profile is zero, so the stage directive alone ranks the admitted derivations.
-
-The reader rejects the retired `%prefer` directive as unknown and points to ranked choices. The group itself states the written position and its option order.
-
 ## Pipelines
 
 A pipeline document, which is Markdown too, defines a dialect. Each stage is a heading, followed by the list of its documents. Prose then says what the stage receives, does and hands on. Three directives in `jbogenbau` blocks say what the pipeline is made of:
@@ -744,15 +744,15 @@ The first stage reads the text's characters. Each is a token with one tag, its c
 
 ## Ambiguity
 
-Ranked choices filter eligible derivations before the ranking below.
+Ranked choices filter parses before the ranking below.
 
-Filtering only removes derivations and never adds one. The remaining derivations are admitted. A tie can become `resolved` or `unique`, and `resolved` can become `unique` or a tie. Filtering never changes a unique result.
+Filtering only removes parses and never adds one. Compared with the same grammar without this filtering, a tie can become `resolved` or `unique`. A `resolved` result can become `unique` or a tie. Filtering never changes a unique result.
 
 A migration that adds ranked choices can change grammar rules and seals. A uniquely parsed text can get a different tree after that migration.
 
 A newly resolved result reaches emission and the enabled elision-only check. A newly tied result reaches neither, has no chosen tree, output or warnings, and stops later stages.
 
-After admission, a grammar ranks every admitted parse. A flagged span is a flagged occurrence's span. A rule profile counts flagged occurrences over each nonempty span.
+A grammar ranks every admitted parse. A flagged span is a flagged occurrence's span. A rule profile counts flagged occurrences over each nonempty span.
 
 `leftmost-longest` compares complete parses by nonempty flagged-span counts, with earlier starts first, longer spans next, and larger counts preferred at the first difference.
 
@@ -771,7 +771,7 @@ Two nested flagged occurrences over one span contribute twice, so two such occur
 
 A parse with a greater rule profile beats one with a lesser rule profile (engine §6). Among equal rule profiles, the stage directive applies. A parse is best if no other admitted parse beats it. The stage takes a sole best parse. Several best parses give a tie.
 
-The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every rule profile is zero, so the stage directive alone ranks the admitted derivations. Flags do not rank `matches`, `begins` or `tags` queries, or change maximal terminators.
+The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every rule profile is zero, so the stage directive alone ranks the admitted parses. Flags do not rank `matches`, `begins` or `tags` queries, or change maximal terminators.
 
 A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later stage runs. The error shows two tied parses and their action witness.
 
@@ -897,6 +897,7 @@ The diagrams draw the notation in this way:
 - A square box is a rule, and a rounded box is a terminal. A test stands in the box of its symbol, as the notation writes it, such as `LE="la"`.
 - A sequence runs from left to right. A sequence too wide for the page continues on the next row. The track runs back under the row before it.
 - A choice puts its first branch on the track and its other branches below it. The alternatives of a rule are a choice.
+- A ranked choice draws its options in a dashed frame, numbered from 1 in preferred order. The label `≻ same span` precedes the frame. Ordinary branches inside an option are unnumbered, and a nested ranked choice has its own frame. A note under the rule repeats the filter rule.
 - An optional has a bypass over its content. The bypass of an elidable optional has the label "elided", or "elided, maximal" for `[++T ...]`.
 - A test on an elided terminator also tests the omitted terminator, as "Elided terminators" says. Where the test forbids the omission, the diagram has no bypass. Where the dialects that read the document disagree, the label adds "where its test allows".
 - Braces loop back under their item, and a separator stands on the loop. So `[{x}]` is a bypass over a loop.
