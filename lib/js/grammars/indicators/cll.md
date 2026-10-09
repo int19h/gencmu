@@ -72,8 +72,7 @@ An item hands on a word with its preceding `ba'e` run and following indicator ru
 
 ```jbogenbau
 %rule item
-  | $w(unit) | $b(bahe-run) $w(unit)
-  | $w(unit) $a(indicator-run) | $b(bahe-run) $w(unit) $a(indicator-run)
+  [$b(bahe-run)] $w(unit) [$a(indicator-run)]
 %tags
   tags($w)
 %conditions
@@ -213,8 +212,7 @@ The reason is that the syntax reads this run. A `nai` nested under its attitudin
   | leading [fuhe] indicator | leading [fuhe] leading-attitudinal-nai
 
 %rule leading-attitudinal-nai
-  | $u(attitudinal) $m(~word⊇NAI) | $b(bahe-run) $u(attitudinal) $m(~word⊇NAI)
-  | $u(attitudinal) $c(bahe-run) $m(~word⊇NAI) | $b(bahe-run) $u(attitudinal) $c(bahe-run) $m(~word⊇NAI)
+  [$b(bahe-run)] $u(attitudinal) [$c(bahe-run)] $m(~word⊇NAI)
 %emits
   ($b) $u, ($c) $m
 ```
