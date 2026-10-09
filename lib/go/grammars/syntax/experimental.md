@@ -29,7 +29,7 @@ The layer uses two feature guards, which make a part of a rule depend on a featu
 
 Unlike the CLL grammar, this layer writes the free-modifier slot after an elidable terminator outside its brackets: `[+X] #` where CLL has `[+X #]`. So free modifiers can follow an elided terminator. The layer restates many rules below for that reason alone. `free-after-number` and `free-after-lerfu-string` keep a number or lerfu string maximal. After an elided `boi`, they exclude a first free modifier that starts with a word that the number or string can read.
 
-The stage uses `late-elision` after declared rule preferences. When no preference contest remains, it chooses the reading with fewer omitted terminators at the first differing boundary. Opposing preference contests tie, as do equal omission counts when no contest remains. A tie is an error.
+A slot is one child position in a common parent template. A declared preference filters that slot before ranking. The stage ranks admitted derivations by `leftmost-longest`, then `late-elision`. Fewer omitted terminators win at the first differing boundary. Equal best counts tie, and a tie is an error.
 
 So `to mi klama` holds `mi klama` in its parenthesis, because the other reading elides `vau` and `toi` after `mi`. In the same way, `lu mi klama` holds `mi klama` in its quote. camxes-exp reads both texts in this way.
 
@@ -262,7 +262,9 @@ A forethought termset needs no `nu'i`, and its two branches can hold different n
 
 The ranking does the same. The first branch of a termset, `termset-branch`, ends in `nu'u`, which the termset elides before `gi`. The sumti elides nothing there, so `late-elision` prefers it. So `ge mi gi do ce'e ti` is the sumti `ge mi gi do` followed by `ce'e ti`. But `broda be ge mi gi do ce'e ti be'o` has a termset, because the single argument of `be` cannot continue with `ce'e ti`.
 
-The layer prefers `gek-termset-body` to `nuhi-plain-body` over the same words. Thus `nu'i ge mi gi do nu'u` selects the termset with two branches. The first term inside the plain NUhI body cannot itself be a bare forethought termset. That restriction avoids repeating the forethought NUhI form.
+In the NUhI body slot, an eligible `gek-termset-body` excludes `nuhi-plain-body` over the same interval. Thus `nu'i ge mi gi do nu'u` selects the termset with two branches. In `nu'i ge mi gi do ko'a klama`, the second branch contains `do ko'a`. The first term inside the plain NUhI body cannot itself be a bare forethought termset. That restriction avoids repeating the forethought NUhI form.
+
+NIhE retains `[+TEhU]`, so its shorter selbri can supply a forethought termset body. In `nu'i ge ni'e broda brode gi re mi nu'u klama`, the first branch contains `ni'e broda` and `brode`. The second branch contains `re mi`. In `nu'i ge ni'e broda brode gi re mi ko'a klama`, the second branch also contains `ko'a`. camxes-exp instead greedily reads `broda brode` inside NIhE and takes the plain body. This difference follows the dialect's existing policy of revisiting inner choices.
 
 The `-not-starting-with-bare-gek` rules state that restriction: they repeat the term rules with only the first term restricted. A chain repeats one item, so it cannot restrict only its first item. These rules write the restricted first item apart. `terms-1-not-starting-with-bare-gek` is left recursion, which groups as the chain `terms-1` does. The other two are a first item and an optional list, flat as `terms` and `terms-2` are.
 
@@ -615,7 +617,11 @@ Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as
 
 Selbri and tanru-unit connectives are joik, jek, ek or VUhU (`selbri-connective`). A bare `fa`, which matches the rule `tag`, can come before a selbri. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`). `me'oi` with the word that it quotes is a tanru unit too (`le me'oi klama cu broda`).
 
-The shared `me-unit` constructor names both ME forms. Its operand rules prefer `me-sumti` to `me-mex` over the same words. The preference compares complete readings, so an unavailable sumti supplies no advantage.
+The shared `me-unit` constructor contains one operand slot. A qualified `me-sumti` excludes `me-mex` over the same interval there. A sumti that fails this construction removes nothing.
+
+In `me my moi`, ME takes a sumti here and a mex in camxes-exp. The dialect accepts `me my su'i pa` with a mex operand, while camxes-exp rejects it. These readings follow the existing ME policy.
+
+In `mi me la'e ge my gi ny su'i zy moi`, ME takes the complete sumti operand. Its LAhE holds the forethought sumti and the following connection. camxes-exp takes a mex because its sumti lookahead prevents that sumti operand.
 
 `selbri-4` keeps the left recursion of the CLL rule, and `selbri-5` is a right chain, as in CLL. In the plain form of `selbri-4`, the connective is `plain-selbri-connective`, the CLL rule `plain-joik-jek` with this layer's connectives. As in CLL, a joik directly before `ke` is `joik-before-ke`, and its unit cannot be only a `ke` group. So `mi broda joi ke brode ke'e` joins a `ke` group with `joi`, through `joik [stag] KE`, as the CLL grammar does.
 
@@ -1021,6 +1027,6 @@ camxes-exp reads the operand of a subscript as `mex_2`, with its own final free 
 
 ## Choosing among parses
 
-Where a text has more than one parse, the stage chooses by the rule of [the notation document](../../docs/notation.md) under "Ambiguity" and "Elided terminators". Declared rule preferences precede the layer's `late-elision` resolution. `late-elision` counts the elided terminators of each parse at each place between words. When no preference contest remains, fewer elided terminators win at the first place where the counts differ. Opposing preference contests tie, as do equal omission counts when no contest remains. The stage reports a tie.
+Where a text has more than one parse, the stage chooses by the rule of [the notation document](../../docs/notation.md) under "Ambiguity" and "Elided terminators". Declared slot filters run before `leftmost-longest` and the layer's `late-elision` resolution. `late-elision` counts the omitted terminators of each admitted derivation at each boundary. Fewer omitted terminators win at the first differing boundary. Equal best counts tie. The stage reports a tie.
 
 For example, `le sutra tavla` has two parses. One is a statement with the description `le sutra`, whose `ku` is elided before `tavla`, and the selbri `tavla`. The other is a fragment, the single description `le sutra tavla`, whose `ku` is elided at the end. `late-elision` takes the fragment, as in the CLL grammar.

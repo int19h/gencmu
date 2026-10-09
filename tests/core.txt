@@ -3130,3 +3130,10 @@ i131.experimental.bare-termset-06
 i131.experimental.bare-termset-07
 i131.experimental.bare-termset-written-nuhu
 i131.experimental.bare-termset-written-nuhu-sentence
+i131.slot.experimental.nuhi-cycle
+i131.slot.experimental.me-cycle
+i131.slot.experimental.nuhi-nihe-written
+i131.slot.experimental.nuhi-nihe-omitted
+i131.slot.experimental.nuhi-plain
+i131.slot.experimental.me-sumti
+i131.slot.experimental.me-mex
