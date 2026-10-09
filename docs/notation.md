@@ -387,7 +387,7 @@ The audit data lists every membership change, with its key, class, gates and doc
 An implication says that some tags bring other tags with them:
 
 ```jbogenbau
-%implies UI ∪ CAI ∪ Y ∪ DAhO ∪ FUhE ∪ FUhO ⟹ ~indicator
+%implies UI ∪ CAI ∪ DAhO ∪ FUhE ∪ FUhO ⟹ ~indicator
 ```
 
 `%implies A ⟹ B` says that each token that the stage emits with a tag of `A` also carries every tag of `B`. `A` and `B` are tag sets. Each is a closed term, as a constant's value is (see "Constants"). A constant in them has its final value, as in a rule.

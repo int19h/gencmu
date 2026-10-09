@@ -117,12 +117,6 @@ In the working morphology, a short rafsi without a y-hyphen cannot stand where a
 <p><img src="../../docs/diagrams/words/experimental/any-fuhivla-rafsi.svg" alt="Railroad diagram of the rule any-fuhivla-rafsi"></p>
 </details>
 
-## Glides
-
-camxes-exp also adds `!glide` to its rule `glide <- (i / u) &nucleus`. That changes no reading, so this document leaves the rule as [bpfk.md](bpfk.md) has it. An `i` or `u` is a glide only where a nucleus follows it. It is a vowel, and so a nucleus, only where no nucleus follows it. So the nucleus after a glide never begins with another glide.
-
-camxes-exp gives the same parse trees with the lookahead and without it. That holds on every string of up to six letters from `i`, `u`, `a`, `e`, `o`, `y`, `'`, `k`, `s` and a period.
-
 ## A bare nai
 
 camxes-exp's `indicator` rule takes a NAI word alone, as it takes an attitudinal. So this dialect marks every NAI word `indicator`, as [the experimental lexicon](lexicon-experimental.md) marks the attitudinals. The mark comes from an implication, which the forms stage applies to each word that it emits. The indicator stage then attaches a bare `nai` to the word before it ([the experimental indicators](../indicators/experimental.md)).
