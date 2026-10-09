@@ -53,8 +53,7 @@ A leading indicator run also stays in the stream at the start of the whole text.
 
 ```jbogenbau
 %rule text
-  | ε | item-run | item-run bahe-run | leading | leading bahe-run | bahe-run
-  | leading item-run | leading item-run bahe-run
+  [leading] [item-run] [bahe-run]
 
 %rule item-run
   | item
