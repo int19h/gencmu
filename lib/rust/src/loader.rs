@@ -198,12 +198,15 @@ impl Context {
         if let Some(dom) = self.compiled.lookup(path, &fnv1a64(text), &self.unicode) {
             return Ok(dom);
         }
-        read_document(&self.notation, text).map_err(|error| error.in_document(path))
+        read_document_mode(&self.notation, text, true).map_err(|error| error.in_document(path))
     }
 }
 
 /// Reads a grammar document through the notation dialect (engine §8, §9).
 pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error> {
+    read_document_mode(notation, text, false)
+}
+fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom, Error> {
     let grammar = grammar_text(text)?;
     let options = ParseOptions { auto_features: false, ..ParseOptions::default() };
     let result = notation.parse_chars(grammar.chars.clone(), &options)?;
@@ -235,6 +238,7 @@ pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error
     // on the caller's thread (engine §9).
     let position = |index: usize| grammar.position(index);
     let reader = Reader {
+        defer_emission: defer,
         tokens: &stage.input,
         captures: Default::default(),
         braces: Default::default(),

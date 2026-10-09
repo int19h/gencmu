@@ -561,6 +561,9 @@ impl Machine {
             })
             .collect()
     }
+    pub(crate) fn sealed(&mut self) -> u32 {
+        self.node(None, self.empty, Some(("", "", &[])))
+    }
     pub(crate) fn concat(&mut self, left: u32, right: u32) -> u32 {
         let key = format!("c{left},{right}");
         if let Some(&id) = self.transitions.get(&key) {

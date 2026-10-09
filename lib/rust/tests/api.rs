@@ -436,7 +436,7 @@ fn results_outlive_the_dialect_and_cross_threads() {
         dialect.parse(&text, &ParseOptions::default()).unwrap()
     };
     let json = std::thread::spawn(move || gencmu::to_json(&result)).join().unwrap();
-    assert!(json.starts_with("{\"format\":10,\"ok\":true"));
+    assert!(json.starts_with("{\"format\":11,\"ok\":true"));
 
     let dialect = std::sync::Arc::new(gencmu::load_dialect("notation").unwrap());
     let threads: Vec<_> = (0..4)
@@ -1003,9 +1003,6 @@ fn the_witness_lost_error_writes_its_members_in_order() {
         witness: None,
         message: "the syntax stage could not reconstruct its chosen derivation for elision-only".to_string(),
         chosen: Some(chosen),
-        cycle: Vec::new(),
-        conflict: None,
-        chosen_reading: None,
         completion: vec![
             Restoration { terminal: "KU".to_string(), at: 3, source: 9..9, sound: None },
             Restoration { terminal: "VAU".to_string(), at: 5, source: 16..16, sound: Some("vau".to_string()) },
@@ -1016,7 +1013,7 @@ fn the_witness_lost_error_writes_its_members_in_order() {
     assert_eq!(
         gencmu::to_json(&result),
         concat!(
-            r#"{"format":10,"ok":false,"stages":[],"tree":null,"error":{"kind":"grammar","stage":"syntax","code":"elision-witness-lost","#,
+            r#"{"format":11,"ok":false,"stages":[],"tree":null,"error":{"kind":"grammar","stage":"syntax","code":"elision-witness-lost","#,
             r#""message":"the syntax stage could not reconstruct its chosen derivation for elision-only","#,
             r#""chosen":{"kind":"rule","rule":"text","span":[0,0],"source":[0,0],"tags":[],"children":[]},"#,
             r#""completion":[{"terminal":"KU","at":3,"source":[9,9]},{"terminal":"VAU","at":5,"source":[16,16],"sound":"vau"}]}}"#
@@ -1028,46 +1025,32 @@ fn the_witness_lost_error_writes_its_members_in_order() {
 }
 
 #[test]
-fn preferences_keep_every_independent_signature() {
-    let dialect=gencmu::load_dialect_sources(&single("%ambiguity-resolution late-elision\n%rule text {unit}\n%rule unit a | b\n%rule a X\n%rule b X\n%prefer a > b"),"p.md").unwrap();
-    for length in 1..=8 {
+fn slots_grow_with_forest_positions() {
+    let dialect=gencmu::load_dialect_sources(&single("%ambiguity-resolution late-elision\n%rule text {unit}\n%rule unit a | b\n%rule a X\n%tags ∅\n%rule b X\n%tags ∅\n%prefer a > b"),"p.md").unwrap();
+    for length in 1..=32 {
         let tokens =
             vec![
                 gencmu::InputToken { text: "x".into(), tags: ["X".into()].into_iter().collect(), phonemes: None };
                 length
             ];
         let (result, stats) =
-            gencmu::tools::with_preference_statistics(|| dialect.parse_tokens(&tokens, &no_auto()).unwrap());
-        assert_eq!(result.stages[0].verdict, Some(Verdict::Resolved));
-        assert!(stats[0].slow);
-        assert_eq!(stats[0].largest_set, 1 << length);
+            gencmu::tools::with_slot_statistics(|| dialect.parse_tokens(&tokens, &no_auto()).unwrap());
+        assert_eq!(result.stages[0].verdict, Some(Verdict::Unique));
+        assert_eq!(stats[0].groups, length);
+        assert_eq!(stats[0].candidate_edges, 2 * length);
     }
 }
 #[test]
-fn preferences_without_a_possible_contest_use_the_original_ranker() {
-    let text = "%ambiguity-resolution late-elision\n%rule text a | n [+T]\n%rule a X\n%rule b Y\n%rule n X";
-    let original = gencmu::load_dialect_sources(&single(text), "p.md").unwrap();
-    let preferred = gencmu::load_dialect_sources(&single(&format!("{text}\n%prefer a > b")), "p.md").unwrap();
-    let tokens = [gencmu::InputToken { text: "x".into(), tags: ["X".into()].into_iter().collect(), phonemes: None }];
-    let (result, stats) =
-        gencmu::tools::with_preference_statistics(|| preferred.parse_tokens(&tokens, &no_auto()).unwrap());
-    assert!(!stats[0].slow);
-    assert_eq!(gencmu::to_json(&result), gencmu::to_json(&original.parse_tokens(&tokens, &no_auto()).unwrap()));
-}
-#[test]
-fn preferences_and_source_warnings_match_with_a_dom_cache() {
+fn slot_diagnostics_match_with_a_dom_cache() {
     let text = "%ambiguity-resolution late-elision\n%rule text a | b\n%rule a b\n%rule b 'x'\n%prefer a > b";
     let sources = single(text);
     let dom = gencmu::tools::read_grammar_document(&grammar(text)).unwrap();
     let mut cached = sources.clone();
     cached.insert("compiled.json".into(), compiled(text, &dom));
-    let plain = gencmu::load_dialect_sources(&sources, "p.md").unwrap();
-    let cached = gencmu::load_dialect_sources(&cached, "p.md").unwrap();
-    assert_eq!(plain.load_warnings(), cached.load_warnings());
-    assert_eq!(
-        gencmu::to_json(&plain.parse("x", &no_auto()).unwrap()),
-        gencmu::to_json(&cached.parse("x", &no_auto()).unwrap())
-    );
+    let plain = gencmu::load_dialect_sources(&sources, "p.md").unwrap_err();
+    let cached = gencmu::load_dialect_sources(&cached, "p.md").unwrap_err();
+    assert_eq!(plain, cached);
+    assert!(plain.message.starts_with("prefer-slot-multiple-references:"));
 }
 
 #[test]
@@ -1084,4 +1067,13 @@ fn preference_cycle_errors_name_every_edge_location() {
     for line in 9..=11 {
         assert!(error.message.contains(&format!("g.md:{line}:1")), "{}", error.message);
     }
+}
+
+#[test]
+fn tag_closure_diagnostics_follow_written_inheritance_order() {
+    let source="%ambiguity-resolution late-elision\n%rule text a | b\n%rule a u | v\n%rule b X\n%tags ∅\n%rule v V\n%rule u U\n%prefer a > b";
+    let error = gencmu::load_dialect_sources(&single(source), "p.md").unwrap_err();
+    assert!(error.message.starts_with("prefer-slot-tags:"));
+    assert!(error.message.contains("u terminal U"));
+    assert!(!error.message.contains("v terminal V"));
 }

@@ -556,9 +556,6 @@ impl Dialect {
             message,
             chosen: None,
             completion: Vec::new(),
-            cycle: Vec::new(),
-            conflict: None,
-            chosen_reading: None,
             witness: None,
         }
     }
@@ -609,13 +606,12 @@ impl Dialect {
             ranker.rank().map(|ranking| {
                 let first = build(&ranker, ranking.first);
                 let second = ranking.second.map(|second| build(&ranker, second));
-                let cycle_readings = ranking.readings.iter().map(|&d| build(&ranker, d)).collect::<Vec<_>>();
-                (ranking, first, second, cycle_readings)
+                (ranking, first, second)
             })
         } else {
             None
         };
-        let Some((ranking, chosen, second, cycle_readings)) = ranked else {
+        let Some((ranking, chosen, second)) = ranked else {
             // A text that `maximal` leaves with no derivation is rejected at
             // the first terminator it forbids in the first reading of the
             // ranking without `maximal`, whatever its verdict (§4).
@@ -647,20 +643,11 @@ impl Dialect {
         // chosen tree, no output and no warnings, and the error holds the
         // first and the second reading (§6).
         if ranking.verdict == RankVerdict::Tie {
-            let readings = if ranking.cycle.is_empty() {
-                vec![
-                    public_tree(&chosen, &context),
-                    public_tree(&second.expect("a tie has a second reading"), &context),
-                ]
-            } else {
-                cycle_readings.iter().map(|t| public_tree(t, &context)).collect()
-            };
-            let mut error = self.tie(index, readings);
-            error.conflict = ranking.conflict;
-            if !ranking.cycle.is_empty() {
-                error.message = format!("The {} stage has a comparison cycle.", grammar.name);
-                error.cycle = ranking.cycle.iter().map(|e| public_edge(e, |a| action(&lowered, a))).collect();
-            }
+            let readings = vec![
+                public_tree(&chosen, &context),
+                public_tree(&second.expect("a tie has a second reading"), &context),
+            ];
+            let error = self.tie(index, readings);
             run.stages.push(stage);
             return Err(Box::new(error));
         }
@@ -737,9 +724,6 @@ impl Dialect {
                         ),
                         chosen: Some(tree),
                         completion,
-                        cycle: Vec::new(),
-                        conflict: None,
-                        chosen_reading: None,
                         witness: None,
                     };
                     run.stages.push(stage);
@@ -787,9 +771,6 @@ impl Dialect {
             message: format!("stage {stage} has two best readings of its text, a tie"),
             chosen: None,
             completion: Vec::new(),
-            cycle: Vec::new(),
-            conflict: None,
-            chosen_reading: None,
             witness: None,
         }
     }
@@ -829,9 +810,6 @@ impl Dialect {
             message,
             chosen: None,
             completion: Vec::new(),
-            cycle: Vec::new(),
-            conflict: None,
-            chosen_reading: None,
             witness: None,
         }
     }
@@ -962,81 +940,76 @@ impl Dialect {
             let mut ranker = Ranker::new(g, &chart, &tokens, shared, Lean::Neither, None)
                 .observing(input, &recon.project)
                 .checking(marks);
+            let raw_counted = if !g.preferences.paths.is_empty() {
+                Ranker::new(g, &chart, &tokens, shared, Lean::Neither, None)
+                    .unfiltered()
+                    .observing(input, &recon.project)
+                    .checking(marks)
+                    .rank()
+                    .is_some_and(|r| r.witness_counted == Some(true))
+            } else {
+                true
+            };
             ranker
                 .rank()
                 .filter(|ranking| {
                     loss != Some(witness::Loss::Count)
-                        && (!protect || ranking.witness_counted == Some(true))
-                        && compare_profiles(&ranking.profile, &chosen_profile) != std::cmp::Ordering::Greater
+                        && (!protect
+                            || (raw_counted
+                                && (!g.preferences.paths.is_empty() || ranking.witness_counted == Some(true))))
+                        && (!g.preferences.paths.is_empty()
+                            || compare_profiles(&ranking.profile, &chosen_profile) != std::cmp::Ordering::Greater)
                 })
                 .map(|mut ranking| {
-                    let w = walk.as_ref().and_then(|w| w.as_ref()).map(|w| ranker.derivation(&w.sequence));
-                    let better = compare_profiles(&ranking.profile, &chosen_profile) == std::cmp::Ordering::Less
-                        || (ranking.slow
-                            && ranking.verdict != RankVerdict::Tie
-                            && w.is_some_and(|w| !ranker.same_derivation(w, ranking.first)));
-                    if better {
-                        let w = ranker.derivation(
-                            &walk.as_ref().and_then(|walk| walk.as_ref()).expect("a restored witness").sequence,
-                        );
-                        ranking.second = Some(ranking.first);
-                        ranking.witness = Some(ranker.pair_witness(w, ranking.first));
-                        ranking.first = w;
-                        if ranking.cycle.is_empty() {
-                            ranking.conflict =
-                                ranker.reconstruction_conflict(w, ranking.second.expect("a competing reading"));
-                        }
-                    }
-                    // The witness hook tracks recognition and diagnostic order.
-                    // It counts W(D) before profile filtering.
-                    // On a tie, both readings precede W(D) unless the first is W(D).
-                    let keeps = match walk.as_ref().and_then(|walk| walk.as_ref()) {
-                        Some(_) if ranking.witness_counted == Some(true) && ranking.slow => true,
-                        Some(walk) if ranking.witness_counted == Some(true) => match ranking.second {
-                            Some(second) if ranking.verdict == RankVerdict::Tie || better => {
-                                let w = ranker.derivation(&walk.sequence);
-                                // W(D) does not follow the first reading in T.
-                                // If the first differs from W(D), compare W(D) with the second.
-                                // Use divergence from the first and then T (§6).
-                                !ranker.before(w, ranking.first)
-                                    && (!ranker.before(ranking.first, w)
-                                        || !ranker.second_before(ranking.first, w, second))
+                    let excluded = protect && ranking.witness_counted != Some(true);
+                    let better =
+                        excluded || compare_profiles(&ranking.profile, &chosen_profile) == std::cmp::Ordering::Less;
+                    if better || ranking.verdict == RankVerdict::Tie && protect {
+                        let w = ranker
+                            .derivation(&walk.as_ref().and_then(|w| w.as_ref()).expect("a restored witness").sequence);
+                        let competitor = if excluded {
+                            ranking.first
+                        } else {
+                            let mut options = vec![];
+                            if !ranker.same_derivation(w, ranking.first) {
+                                options.push(ranking.first);
                             }
-                            _ => true,
-                        },
-                        _ => false,
-                    };
-                    let readings = if !ranking.cycle.is_empty() {
-                        let w = w.expect("a restored witness");
-                        let mut ids = vec![w];
-                        let indices: Vec<_> = ranking
-                            .readings
-                            .iter()
-                            .map(|&d| {
-                                if ranker.same_derivation(w, d) {
-                                    0
-                                } else {
-                                    ids.push(d);
-                                    ids.len() - 1
+                            if let Some(second) = ranking.second {
+                                if !ranker.same_derivation(w, second) {
+                                    options.push(second);
                                 }
-                            })
-                            .collect();
-                        let mut edges = ranking.cycle.clone();
-                        for e in &mut edges {
-                            e.from = indices[e.from];
-                            e.to = indices[e.to];
-                        }
-                        Some((ids.into_iter().map(|d| build(&ranker, d)).collect::<Vec<_>>(), None, edges, true))
+                            }
+                            let mut best = options[0];
+                            for &other in &options[1..] {
+                                if ranker.second_before(w, other, best) {
+                                    best = other;
+                                }
+                            }
+                            best
+                        };
+                        ranking.first = w;
+                        ranking.second = Some(competitor);
+                        ranking.witness = Some(ranker.pair_witness(w, competitor));
+                    }
+                    let keeps = if !g.preferences.paths.is_empty() {
+                        raw_counted
                     } else {
-                        match (ranking.verdict, ranking.second) {
-                            (_, Some(second)) if ranking.verdict == RankVerdict::Tie || better => Some((
-                                vec![build(&ranker, ranking.first), build(&ranker, second)],
-                                ranking.witness,
-                                Vec::new(),
-                                false,
-                            )),
-                            _ => None,
+                        ranking.witness_counted == Some(true)
+                            && walk.as_ref().and_then(|w| w.as_ref()).is_some_and(|walk| match ranking.second {
+                                Some(second) if ranking.verdict == RankVerdict::Tie || better => {
+                                    let w = ranker.derivation(&walk.sequence);
+                                    !ranker.before(w, ranking.first)
+                                        && (!ranker.before(ranking.first, w)
+                                            || !ranker.second_before(ranking.first, w, second))
+                                }
+                                _ => true,
+                            })
+                    };
+                    let readings = match ranking.second {
+                        Some(second) if ranking.verdict == RankVerdict::Tie || better => {
+                            Some((vec![build(&ranker, ranking.first), build(&ranker, second)], ranking.witness))
                         }
+                        _ => None,
                     };
                     (ranking, readings, keeps)
                 })
@@ -1046,10 +1019,10 @@ impl Dialect {
         if witness::watched() {
             witness::record(&self.stages[index].name, ranking.as_ref().is_some_and(|(_, _, keeps)| *keeps));
         }
-        let Some((ranking, readings, _)) = ranking else {
+        let Some((_ranking, readings, _)) = ranking else {
             return Ok(Check::Lost(records));
         };
-        let Some((trees, difference, cycle, is_cycle)) = readings else {
+        let Some((trees, difference)) = readings else {
             return Ok(Check::Pass);
         };
         // The witness, mapped to the stage's input as the readings are: a
@@ -1093,7 +1066,6 @@ impl Dialect {
             ),
             chosen: None,
             completion: Vec::new(),
-            cycle: cycle.iter().map(|e| public_edge(e, mapped)).collect(), conflict: ranking.conflict, chosen_reading: is_cycle.then_some(0),
             witness,
         })))
     }
@@ -1238,21 +1210,6 @@ fn has_sa_su(tree: &Node) -> bool {
 
 /// For the tests inside the crate: a stage's grammar lowered with no
 /// features on.
-fn public_edge(e: &crate::rank::RankEdge, map: impl Fn(Act) -> Action) -> crate::result::CycleEdge {
-    use crate::rank::RankReason;
-    use crate::result::{CycleEdge, PreferenceReason};
-    let reason = match &e.reason {
-        RankReason::Prefer(contests) => PreferenceReason::Prefer { contests: contests.clone() },
-        RankReason::Stage { directive, boundary, counts, witness } => PreferenceReason::Stage {
-            directive: (*directive).into(),
-            boundary: boundary.map(|b| b as usize),
-            counts: counts.clone(),
-            witness: witness.map(|[a, b]| [a.map(&map), b.map(&map)]),
-        },
-    };
-    CycleEdge { from: e.from, to: e.to, reason }
-}
-
 #[cfg(test)]
 impl Dialect {
     pub(crate) fn lowered_stage(&self, stage: usize) -> Arc<Lowered> {

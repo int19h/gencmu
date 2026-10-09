@@ -17,10 +17,6 @@
 //! follows them. Derivations are kept as a shared DAG, so comparing two of
 //! them walks only where they differ.
 
-#[path = "prefer_rank.rs"]
-mod prefer;
-pub(crate) use prefer::{RankEdge, RankReason};
-
 use crate::fxhash::FxMap;
 use std::cmp::Ordering;
 
@@ -144,11 +140,272 @@ impl NodeResult {
     }
 }
 
+#[derive(Clone)]
 enum Deps {
     Leaf,
     Links(Vec<(Key, Key)>),
     Close(Option<Key>),
     Group(Vec<Key>),
+}
+
+#[derive(Clone)]
+struct SlotCandidate {
+    node: Node,
+    edge: usize,
+    label: String,
+    group: usize,
+}
+#[derive(Default)]
+struct Counts {
+    all: u8,
+    allowed: u8,
+    w: bool,
+    allowed_w: bool,
+}
+type SlotMaxima = (std::collections::BTreeSet<String>, std::collections::BTreeSet<String>);
+struct Admission {
+    groups: Vec<Vec<SlotCandidate>>,
+    at: FxMap<Node, Vec<SlotCandidate>>,
+    counts: FxMap<Key, Counts>,
+    masks: FxMap<Key, (Vec<bool>, Vec<bool>)>,
+    maxima: FxMap<(usize, u32, Option<u32>), SlotMaxima>,
+    stats: crate::slot_stats::SlotStatistics,
+}
+impl Admission {
+    fn new(g: &Lowered, chart: &Chart) -> Self {
+        let mut groups = Vec::<Vec<SlotCandidate>>::new();
+        let mut group_ids = FxMap::<String, usize>::default();
+        let mut at = FxMap::<Node, Vec<SlotCandidate>>::default();
+        let mut stats = crate::slot_stats::SlotStatistics::default();
+        for (end, set) in chart.sets.iter().enumerate() {
+            for (index, item) in set.items.iter().enumerate() {
+                stats.chart_facts += 1;
+                let p = &g.prods[item.prod as usize];
+                let Some(position) = (item.dot as usize).checked_sub(1) else { continue };
+                let Sym::N(rule) = p.syms[position] else { continue };
+                if g.rules[rule as usize].helper {
+                    continue;
+                }
+                let name = &g.rules[rule as usize].name;
+                let Some(&component) = g.preferences.labels.get(name) else { continue };
+                let v = &g.preferences.variants[name];
+                for (edge, (previous, cap)) in chart.links.get(&(end as u32, *item)).into_iter().flatten().enumerate() {
+                    let pp = &g.prods[previous.prod as usize];
+                    let prefix_symbols = pp.syms[..previous.dot as usize]
+                        .iter()
+                        .enumerate()
+                        .map(|(i, s)| match s {
+                            Sym::T(t) => {
+                                format!("T{} {:?}", g.terminals[*t as usize], pp.test(i).map(|x| &g.tests[x as usize]))
+                            }
+                            Sym::N(r) => {
+                                let role = if g.rules[*r as usize].helper {
+                                    g.prods[g.rules[*r as usize].prods[0] as usize]
+                                        .slot
+                                        .as_ref()
+                                        .and_then(|s| s.path)
+                                        .and_then(|id| v.paths.get(&id))
+                                        .cloned()
+                                        .unwrap_or_else(|| format!("helper{r}"))
+                                } else {
+                                    g.rules[*r as usize].name.clone()
+                                };
+                                format!("N{role} {:?}", pp.test(i).map(|x| &g.tests[x as usize]))
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let captures = chart
+                        .caps(previous.caps)
+                        .iter()
+                        .enumerate()
+                        .map(|(i, c)| {
+                            let name = pp.slot.as_ref().expect("a slot parent").names.get(i).and_then(|n| n.as_ref());
+                            let role = name
+                                .map(|n| v.roles.get(n).unwrap_or(n))
+                                .cloned()
+                                .unwrap_or_else(|| format!("implicit{}", pp.cap_pos[i]));
+                            (role, *c)
+                        })
+                        .collect::<Vec<_>>();
+                    let previous_index = chart.sets[cap.start as usize].find(previous).expect("a predecessor");
+                    let role = pp
+                        .slot
+                        .as_ref()
+                        .and_then(|s| s.path)
+                        .and_then(|id| v.paths.get(&id))
+                        .cloned()
+                        .unwrap_or_default();
+                    let key = format!(
+                        "{component}/{role}/{prefix_symbols:?}/{}/{}/{captures:?}/{}/{}/{}",
+                        previous.origin,
+                        previous.prefix,
+                        chart.sets[cap.start as usize].is_strict(previous_index as usize),
+                        cap.start,
+                        cap.end
+                    );
+                    let group = *group_ids.entry(key).or_insert_with(|| {
+                        groups.push(vec![]);
+                        groups.len() - 1
+                    });
+                    let candidate = SlotCandidate {
+                        node: Node::Item { set: end as u32, index: index as u32 },
+                        edge,
+                        label: name.clone(),
+                        group,
+                    };
+                    groups[group].push(candidate.clone());
+                    at.entry(candidate.node).or_default().push(candidate);
+                    stats.candidate_edges += 1;
+                }
+            }
+        }
+        stats.groups = groups.len();
+        Self { groups, at, counts: FxMap::default(), masks: FxMap::default(), maxima: FxMap::default(), stats }
+    }
+}
+impl Ranker<'_> {
+    fn availability_key(&self, key: Key, group: usize) -> (usize, u32, Option<u32>) {
+        let parent = match key.0 {
+            Node::Item { set, index } => {
+                let item = self.item(set, index);
+                let p = &self.dag.g.prods[item.prod as usize];
+                (item.dot as usize == p.syms.len()).then_some(p.rule)
+            }
+            _ => None,
+        };
+        (group, key.1, parent)
+    }
+    fn slot_candidates(&self, key: Key) -> Vec<SlotCandidate> {
+        let Some(a) = &self.admission else { return vec![] };
+        let Some(choices) = a.at.get(&key.0) else { return vec![] };
+        let groups = choices.iter().map(|c| c.group).collect::<std::collections::BTreeSet<_>>();
+        groups
+            .into_iter()
+            .filter(|g| !a.maxima.contains_key(&self.availability_key(key, *g)))
+            .flat_map(|g| a.groups[g].clone())
+            .collect()
+    }
+    fn admit(&mut self, key: Key, deps: &Deps) {
+        let choices = self.admission.as_ref().and_then(|a| a.at.get(&key.0)).cloned();
+        let Some(choices) = choices else { return };
+        let Deps::Links(links) = deps else { unreachable!("a slot advance") };
+        let mut masks = (vec![false; links.len()], vec![false; links.len()]);
+        for choice in choices {
+            let context = self.availability_key(key, choice.group);
+            if !self.admission.as_ref().unwrap().maxima.contains_key(&context) {
+                let mut all = std::collections::BTreeSet::new();
+                let mut allowed = std::collections::BTreeSet::new();
+                let candidates = self.admission.as_ref().unwrap().groups[choice.group].clone();
+                for candidate in candidates {
+                    let Deps::Links(found) = self.deps((candidate.node, key.1)) else { unreachable!() };
+                    let Some(&(pred, child)) = found.get(candidate.edge) else { continue };
+                    let Node::Item { set, index } = candidate.node else { unreachable!() };
+                    let (guarded, test) = self.guard(set, index);
+                    let (elided, permitted) = self.eligibility(child.0, guarded, test);
+                    let a = self.admission.as_ref().unwrap();
+                    let left = &a.counts[&pred];
+                    let right = &a.counts[&child];
+                    let ways = if elided { left.allowed } else { left.all };
+                    if ways > 0 && right.all > 0 {
+                        all.insert(candidate.label.clone());
+                        if permitted {
+                            allowed.insert(candidate.label);
+                        }
+                    }
+                }
+                let maximal = |labels: &std::collections::BTreeSet<String>| {
+                    labels
+                        .iter()
+                        .filter(|n| !labels.iter().any(|h| self.dag.g.preferences.paths[h].contains_key(*n)))
+                        .cloned()
+                        .collect()
+                };
+                let maxima = (maximal(&all), maximal(&allowed));
+                self.admission.as_mut().unwrap().maxima.insert(context, maxima);
+            }
+            let (all, allowed) = &self.admission.as_ref().unwrap().maxima[&context];
+            masks.0[choice.edge] = all.contains(&choice.label);
+            masks.1[choice.edge] = allowed.contains(&choice.label);
+        }
+        let a = self.admission.as_mut().unwrap();
+        a.stats.retained_edges += masks.0.iter().filter(|x| **x).count();
+        a.masks.insert(key, masks);
+    }
+    fn count(&self, key: Key, deps: &Deps) -> Counts {
+        let a = self.admission.as_ref().unwrap();
+        let marks = self.marks;
+        match deps {
+            Deps::Leaf => {
+                let valid = match key.0 {
+                    Node::Item { set, index } if self.item(set, index).origin != set => {
+                        !witness::fault(Fault::RankRestoration)
+                    }
+                    _ => true,
+                };
+                let w = match key.0 {
+                    Node::Read { .. } => true,
+                    Node::Item { set, index } => marks.is_some_and(|m| m.items.contains(&(set, index))),
+                    _ => false,
+                };
+                Counts { all: u8::from(valid), allowed: u8::from(valid), w: valid && w, allowed_w: valid && w }
+            }
+            Deps::Close(None) => Counts::default(),
+            Deps::Close(Some(k)) => {
+                let body = &a.counts[k];
+                Counts { all: body.all, allowed: body.all, w: body.w, allowed_w: body.w }
+            }
+            Deps::Group(members) => {
+                let mut result = Counts::default();
+                for (i, k) in members.iter().enumerate() {
+                    if self.skips(Fault::LostContext, "group", i as u32, members.len()) {
+                        continue;
+                    }
+                    let c = &a.counts[k];
+                    result.all = result.all.saturating_add(c.all).min(2);
+                    result.w |= c.all > 0 && c.w;
+                }
+                result.allowed = result.all;
+                result.allowed_w = result.w;
+                result
+            }
+            Deps::Links(links) => {
+                let Node::Item { set, index } = key.0 else { unreachable!() };
+                let (guarded, test) = self.guard(set, index);
+                let mut result = Counts::default();
+                let mask = a.masks.get(&key);
+                for (i, &(pred, child)) in links.iter().enumerate() {
+                    if self.skips(Fault::LostContext, "links", i as u32, links.len()) {
+                        continue;
+                    }
+                    let (elided, permitted) = self.eligibility(child.0, guarded, test);
+                    let left = &a.counts[&pred];
+                    let right = &a.counts[&child];
+                    let ways = (if elided { left.allowed } else { left.all }).saturating_mul(right.all).min(2);
+                    if mask.map_or(true, |m| m.0[i]) {
+                        result.all = result.all.saturating_add(ways).min(2);
+                        let Node::Item { set: m, .. } = pred.0 else { unreachable!() };
+                        result.w |= ways > 0
+                            && (if elided { left.allowed_w } else { left.w })
+                            && right.w
+                            && marks.is_some_and(|marks| marks.links.contains(&(set, index, m)));
+                    }
+                    if permitted && mask.map_or(true, |m| m.1[i]) {
+                        result.allowed = result.allowed.saturating_add(ways).min(2);
+                        let Node::Item { set: m, .. } = pred.0 else { unreachable!() };
+                        result.allowed_w |= ways > 0
+                            && (if elided { left.allowed_w } else { left.w })
+                            && right.w
+                            && marks.is_some_and(|marks| marks.links.contains(&(set, index, m)));
+                    }
+                }
+                if !guarded {
+                    result.allowed = result.all;
+                    result.allowed_w = result.w;
+                }
+                result
+            }
+        }
+    }
 }
 
 enum Walk {
@@ -176,7 +433,7 @@ enum Rel {
 
 /// The outcome of ranking a stage's forest: the verdict, the first
 /// reading `m`, which is the chosen derivation unless the verdict is a tie,
-/// and for a tie the second reading and witness, or the complete cycle (§6).
+/// and for a tie the second reading and witness (§6).
 pub(crate) struct Ranking {
     pub verdict: Verdict,
     pub first: u32,
@@ -186,10 +443,6 @@ pub(crate) struct Ranking {
     /// root has the bit (tests/README.md).
     pub witness_counted: Option<bool>,
     pub profile: Profile,
-    pub slow: bool,
-    pub readings: Vec<u32>,
-    pub cycle: Vec<RankEdge>,
-    pub conflict: Option<crate::result::PreferenceConflict>,
 }
 
 /// Elision vectors (§6), each kept as the positions of its elided
@@ -464,6 +717,7 @@ struct Elisions {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Pass {
+    Admission,
     Summaries,
     Entries,
 }
@@ -505,8 +759,7 @@ pub(crate) struct Ranker<'c> {
     /// Whether this is the ranker of the check of `elision-only`, which only
     /// its faults read.
     check: bool,
-    stage_lean: Lean,
-    statistics: crate::preference_stats::PreferenceStatistics,
+    admission: Option<Admission>,
 }
 
 impl<'c> Dag<'c> {
@@ -855,7 +1108,6 @@ impl<'c> Ranker<'c> {
     ) -> Ranker<'c> {
         // Under late-elision, the readings come from a ranking with no lean
         // over the forest of the best derivations (§6).
-        let stage_lean = lean;
         let late = lean == Lean::LateElision;
         let lean = if late { Lean::Neither } else { lean };
         let mut dag = Dag {
@@ -885,11 +1137,15 @@ impl<'c> Ranker<'c> {
             }),
             marks: None,
             check: false,
-            stage_lean,
-            statistics: crate::preference_stats::PreferenceStatistics::default(),
+            admission: (!g.preferences.paths.is_empty()).then(|| Admission::new(g, chart)),
         };
         ranker.fset_index.insert(Vec::new(), 0);
         ranker
+    }
+
+    pub(crate) fn unfiltered(mut self) -> Self {
+        self.admission = None;
+        self
     }
 
     /// Ranks the derivations of the reconstructed input of `elision-only`,
@@ -1228,6 +1484,11 @@ impl<'c> Ranker<'c> {
             let (_, deps) = stack.pop().expect("a frame");
             let deps = deps.expect("dependencies");
             match pass {
+                Pass::Admission => {
+                    self.admit(key, &deps);
+                    let counts = self.count(key, &deps);
+                    self.admission.as_mut().expect("admission").counts.insert(key, counts);
+                }
                 Pass::Summaries => {
                     let summary = self.summarize(key, &deps);
                     self.elisions.as_mut().expect("late-elision").summaries.insert(key, summary);
@@ -1244,6 +1505,7 @@ impl<'c> Ranker<'c> {
 
     fn done(&self, pass: Pass, key: &Key) -> bool {
         match pass {
+            Pass::Admission => self.admission.as_ref().is_some_and(|a| a.counts.contains_key(key)),
             Pass::Summaries => self.elisions.as_ref().is_some_and(|elisions| elisions.summaries.contains_key(key)),
             Pass::Entries => self.memo.contains_key(key),
         }
@@ -1252,7 +1514,19 @@ impl<'c> Ranker<'c> {
     /// The nodes that `pass` needs before `key`: every dependency, except
     /// that under late-elision the entries need only those of the edges
     /// that attain a least vector.
-    fn needed(&self, pass: Pass, key: &Key, deps: &Deps) -> Vec<Key> {
+    fn needed(&mut self, pass: Pass, key: &Key, deps: &Deps) -> Vec<Key> {
+        if pass == Pass::Admission {
+            let mut keys = Self::keys(deps);
+            for candidate in self.slot_candidates(*key) {
+                let found = self.deps((candidate.node, key.1));
+                if let Deps::Links(links) = found {
+                    if let Some(&(a, b)) = links.get(candidate.edge) {
+                        keys.extend([a, b]);
+                    }
+                }
+            }
+            return keys;
+        }
         let summary = match (pass, &self.elisions) {
             (Pass::Entries, Some(elisions)) => &elisions.summaries[key],
             _ => return Self::keys(deps),
@@ -1295,7 +1569,9 @@ impl<'c> Ranker<'c> {
 
     /// The summary of a node under late-elision, from those of its
     /// dependencies (§6).
-    fn summarize(&mut self, (node, _): Key, deps: &Deps) -> Summary {
+    fn summarize(&mut self, key: Key, deps: &Deps) -> Summary {
+        let (node, _) = key;
+        let masks = self.admission.as_ref().and_then(|a| a.masks.get(&key)).cloned();
         let plain = |all: Least| Summary { all, allowed: None };
         match deps {
             Deps::Leaf => plain(Least::one(NO_ELISIONS)),
@@ -1353,8 +1629,10 @@ impl<'c> Ranker<'c> {
                     let vector = elisions.vectors.join(vector_left, vector_right);
                     let profile = sum_profiles(&left.profile, &right.profile);
                     let edge = Least { vector, profile, least, total, kept: Vec::new() };
-                    all.add(&elisions.vectors, index, &edge);
-                    if guarded && permitted {
+                    if masks.as_ref().map_or(true, |m| m.0[index as usize]) {
+                        all.add(&elisions.vectors, index, &edge);
+                    }
+                    if guarded && permitted && masks.as_ref().map_or(true, |m| m.1[index as usize]) {
                         allowed.add(&elisions.vectors, index, &edge);
                     }
                 }
@@ -1375,8 +1653,22 @@ impl<'c> Ranker<'c> {
     /// under late-elision, those that attain the least vector (§6), and
     /// otherwise every edge.
     fn kept(&self, key: &Key) -> Option<(Vec<u32>, Option<Vec<u32>>)> {
-        let summary = &self.elisions.as_ref()?.summaries[key];
-        Some((summary.all.kept.clone(), summary.allowed.as_ref().map(|allowed| allowed.kept.clone())))
+        let masks = self.admission.as_ref().and_then(|a| a.masks.get(key));
+        if let Some(summary) = self.elisions.as_ref().map(|e| &e.summaries[key]) {
+            let all = summary.all.kept.iter().copied().filter(|i| masks.map_or(true, |m| m.0[*i as usize])).collect();
+            let allowed = summary
+                .allowed
+                .as_ref()
+                .map(|a| a.kept.iter().copied().filter(|i| masks.map_or(true, |m| m.1[*i as usize])).collect());
+            Some((all, allowed))
+        } else {
+            masks.map(|m| {
+                (
+                    m.0.iter().enumerate().filter_map(|(i, yes)| yes.then_some(i as u32)).collect(),
+                    Some(m.1.iter().enumerate().filter_map(|(i, yes)| yes.then_some(i as u32)).collect()),
+                )
+            })
+        }
     }
 
     fn compute(&mut self, key: Key, deps: Deps) -> NodeResult {
@@ -1529,8 +1821,8 @@ impl<'c> Ranker<'c> {
     /// if it has none (every one is cyclic).
     pub(crate) fn rank(&mut self) -> Option<Ranking> {
         let ranked = self.rank_inner();
-        if !self.dag.g.preferences.paths.is_empty() {
-            crate::preference_stats::record(&self.statistics);
+        if let Some(a) = &self.admission {
+            crate::slot_stats::record(&a.stats);
         }
         ranked
     }
@@ -1541,8 +1833,8 @@ impl<'c> Ranker<'c> {
         // edge of one root (§6).
         let root =
             (Node::Group { rule: self.dag.g.start, origin: 0, set: n, tags: ANY, test: NO_TEST, structure: ANY }, 0);
-        if self.possible_contest(root) {
-            return self.rank_preferences(root);
+        if self.admission.is_some() {
+            self.traverse(root, Pass::Admission);
         }
         // Under late-elision, the total and the least count of the root,
         // before the forest is cut down to the best derivations.
@@ -1646,18 +1938,7 @@ impl<'c> Ranker<'c> {
         });
         let profile =
             self.elisions.as_ref().map_or_else(Vec::new, |summaries| summaries.summaries[&root].all.profile.clone());
-        Some(Ranking {
-            verdict,
-            first: chosen,
-            second,
-            witness,
-            witness_counted,
-            profile,
-            slow: false,
-            readings: Vec::new(),
-            cycle: Vec::new(),
-            conflict: None,
-        })
+        Some(Ranking { verdict, first: chosen, second, witness, witness_counted, profile })
     }
 }
 

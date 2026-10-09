@@ -229,8 +229,12 @@ pub(crate) fn stitch(
     // the constants have their final values; a rule that a later one
     // replaces included.
     let mut users: Vec<(&Arc<str>, &RuleDef)> = Vec::new();
+    let mut deferred = Vec::new();
     for (document, dom) in documents {
         for rule in &dom.rules {
+            if let Some(problem) = &rule.deferred_emission {
+                deferred.push(located(problem.clone(), document, rule.at));
+            }
             if !constants_in_rule(rule).is_empty() {
                 users.push((document, rule));
             }
@@ -364,7 +368,7 @@ pub(crate) fn stitch(
         implications.extend(dom.implications.iter().map(|implication| (document, implication)));
     }
     constants.bind()?;
-    constants.resolve(&mut grammar, &users)?;
+    constants.resolve(&mut grammar, &users, &mut deferred)?;
     constants.evaluate_tests(&mut grammar)?;
     grammar.implications = implications
         .into_iter()
@@ -389,6 +393,14 @@ pub(crate) fn stitch(
         }
     }
     grammar.preferences = Arc::new(crate::preferences::Preferences::new(&grammar, &preferences)?);
+    if !grammar.preferences.paths.is_empty() {
+        let lowered =
+            crate::lower::lower_for_slots(&grammar).map_err(|e| located(e.message, &e.document, (e.line, e.column)))?;
+        grammar.preferences.validate(&lowered)?;
+    }
+    if let Some(error) = deferred.into_iter().next() {
+        return Err(error);
+    }
     Ok(grammar)
 }
 
@@ -842,7 +854,12 @@ impl Constants<'_> {
     /// defined, that the types agree, and that a constant that `split` or
     /// `tag` reads directly is a delimiter that is not empty, or a name
     /// (engine §2, §9, §10).
-    fn resolve(&self, grammar: &mut StageGrammar, users: &[(&Arc<str>, &RuleDef)]) -> Result<(), Error> {
+    fn resolve(
+        &self,
+        grammar: &mut StageGrammar,
+        users: &[(&Arc<str>, &RuleDef)],
+        deferred: &mut Vec<Error>,
+    ) -> Result<(), Error> {
         for &(document, rule) in users {
             for (name, at) in constants_in_rule(rule) {
                 if !self.values.contains_key(name) {
@@ -909,7 +926,11 @@ impl Constants<'_> {
             // The checks that simplification decides, which the reader left
             // to the loader, now with the constants' values (§9).
             if let Some(problem) = definition_problem(&self.substitute_rule(rule)) {
-                return Err(located(problem, document, rule.at));
+                if crate::dom::deferred_emission_problem(&problem) {
+                    deferred.push(located(problem, document, rule.at));
+                } else {
+                    return Err(located(problem, document, rule.at));
+                }
             }
             // A string constant in a sound test must be a canonical sound
             // (§2, §9); the error stands at the constant.
@@ -1326,6 +1347,7 @@ mod tests {
         let dom = |n: usize| {
             let same = || Cond::Compare("=".into(), Term::Const("k".into(), (1, 1)), Term::Str("a".into()));
             let rule = RuleDef {
+                deferred_emission: None,
                 name: "text".into(),
                 op: Op::Define,
                 flags: Vec::new(),

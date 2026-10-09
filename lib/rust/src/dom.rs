@@ -84,6 +84,7 @@ pub(crate) enum Op {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct RuleDef {
+    pub deferred_emission: Option<String>,
     pub name: String,
     pub op: Op,
     pub flags: Vec<String>,
@@ -280,10 +281,13 @@ fn position(value: &Json) -> R<(usize, usize)> {
 }
 
 pub(crate) fn dom_from_json(value: &Json, unicode: &Unicode) -> R<Dom> {
+    dom_from_json_mode(value, unicode, false)
+}
+pub(crate) fn dom_from_json_mode(value: &Json, unicode: &Unicode, defer: bool) -> R<Dom> {
     if let Some(problem) = dom_problem(value, unicode) {
         return Err(problem.to_string());
     }
-    let rules = array(value, "rules")?.iter().map(rule_from_json).collect::<R<Vec<_>>>()?;
+    let mut rules = array(value, "rules")?.iter().map(rule_from_json).collect::<R<Vec<_>>>()?;
     let directives = array(value, "directives")?
         .iter()
         .map(|directive| {
@@ -343,9 +347,13 @@ pub(crate) fn dom_from_json(value: &Json, unicode: &Unicode) -> R<Dom> {
         })
         .collect::<R<Vec<_>>>()?;
     // A definition the reader would refuse (engine §9).
-    for rule in &rules {
+    for rule in &mut rules {
         if let Some(problem) = crate::clauses::definition_problem(rule) {
-            return Err(problem);
+            if defer && deferred_emission_problem(&problem) {
+                rule.deferred_emission = Some(problem);
+            } else {
+                return Err(problem);
+            }
         }
     }
     Ok(Dom { rules, directives, constants, classifiers, implications })
@@ -371,6 +379,7 @@ fn rule_from_json(value: &Json) -> R<RuleDef> {
         other => return Err(format!("an unknown rule op {other:?}")),
     };
     Ok(RuleDef {
+        deferred_emission: None,
         name: string(value, "name")?,
         op,
         flags: array(value, "flags")?
@@ -1698,7 +1707,7 @@ fn write_list<T>(out: &mut String, key: &str, items: &[T], write: fn(&mut String
     out.push_str("]}");
 }
 
-fn write_expr(out: &mut String, expr: &Expr) {
+pub(crate) fn write_expr(out: &mut String, expr: &Expr) {
     match expr {
         Expr::Seq(items) => write_list(out, "seq", items, write_expr),
         Expr::Choice(items) => write_list(out, "choice", items, write_expr),
@@ -1841,7 +1850,7 @@ pub(crate) fn write_term(out: &mut String, term: &Term) {
     }
 }
 
-fn write_cond(out: &mut String, cond: &Cond) {
+pub(crate) fn write_cond(out: &mut String, cond: &Cond) {
     match cond {
         Cond::Compare(op, left, right) => {
             out.push_str("{\"op\":");
@@ -2528,4 +2537,8 @@ impl Drop for Cond {
         self.take_parts(&mut stack);
         drop_parts(stack);
     }
+}
+
+pub(crate) fn deferred_emission_problem(s: &str) -> bool {
+    s.starts_with("%emits of ") && s.ends_with("leaves a production nothing to emit")
 }

@@ -14,6 +14,7 @@ use crate::unicode::Unicode;
 use crate::work::{self, Work};
 
 pub(crate) struct Reader<'a> {
+    pub defer_emission: bool,
     pub tokens: &'a [Token],
     /// The captures of the alternative being read, in the order written,
     /// where an error about one is reported.
@@ -364,6 +365,7 @@ impl<'a> Reader<'a> {
             None => None,
         };
         let mut rule = RuleDef {
+            deferred_emission: None,
             name: self.text(name_token).to_string(),
             op,
             flags,
@@ -377,7 +379,11 @@ impl<'a> Reader<'a> {
         flatten_groups(&mut rule);
         // The definition is checked as a whole once it is read (§9).
         if let Some(problem) = crate::clauses::definition_problem(&rule) {
-            return Err(self.error(definer, problem));
+            if self.defer_emission && crate::dom::deferred_emission_problem(&problem) {
+                rule.deferred_emission = Some(problem);
+            } else {
+                return Err(self.error(definer, problem));
+            }
         }
         Ok(rule)
     }

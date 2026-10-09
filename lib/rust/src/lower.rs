@@ -249,6 +249,17 @@ pub(crate) struct Prod {
     pub warnings: Vec<String>,
     pub document: Option<Arc<str>>,
     pub at: (usize, usize),
+    pub slot: Option<Box<SlotMetadata>>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct SlotMetadata {
+    pub source: (usize, usize),
+    pub path: Option<usize>,
+    pub names: Vec<Option<String>>,
+    pub tags: Vec<Term>,
+    pub conditions: Vec<(Cond, usize)>,
+    pub emit: Option<Vec<EmitItem>>,
 }
 
 #[derive(Debug, Clone)]
@@ -350,6 +361,8 @@ type Sequence = Vec<Item>;
 
 struct HelperDef {
     owner: u32,
+    alternative: usize,
+    expr: usize,
     prods: Vec<Sequence>,
     elided: Option<(String, Option<u32>)>,
     /// Whether the optional is written `[++T …]` (§3.8).
@@ -368,6 +381,7 @@ struct Lowerer<'a> {
     test_index: FxMap<SymbolTest, u32>,
     helpers: Vec<HelperDef>,
     owner: u32,
+    alternative: usize,
     /// For each place of sugar being expanded, and the alternative itself at
     /// the bottom, the helpers of the places written inside it so far.
     places: Vec<Vec<usize>>,
@@ -456,11 +470,25 @@ impl<'a> Lowerer<'a> {
     }
 
     /// Makes the helper of a place whose inside `enter` began.
-    fn helper(&mut self, prods: Vec<Sequence>, elided: Option<(String, Option<u32>)>, maximal: bool) -> Sym {
+    fn helper(
+        &mut self,
+        prods: Vec<Sequence>,
+        elided: Option<(String, Option<u32>)>,
+        maximal: bool,
+        expr: &Expr,
+    ) -> Sym {
         let id = (self.grammar.rules.len() + self.helpers.len()) as u32;
         let children = self.places.pop().expect("a place entered");
         self.places.last_mut().expect("an alternative").push(self.helpers.len());
-        self.helpers.push(HelperDef { owner: self.owner, prods, elided, maximal, children });
+        self.helpers.push(HelperDef {
+            owner: self.owner,
+            alternative: self.alternative,
+            expr: expr as *const Expr as usize,
+            prods,
+            elided,
+            maximal,
+            children,
+        });
         Sym::N(id)
     }
 
@@ -560,14 +588,14 @@ impl<'a> Lowerer<'a> {
                 let elided = (*mark != Mark::Plain).then(|| self.elided_terminal(inner));
                 let mut prods = vec![Vec::new()];
                 prods.extend(body);
-                let sym = self.helper(prods, elided, *mark == Mark::Maximal);
+                let sym = self.helper(prods, elided, *mark == Mark::Maximal, expr);
                 vec![vec![(sym, None, None)]]
             }
             // Flat braces are a helper, `h → x | h s x` (§3.2).
             Expr::Repeat(item, separator, _) => {
                 self.enter();
                 let prods = self.braces(item, separator.as_deref(), None, Chain::Left);
-                let sym = self.helper(prods, None, false);
+                let sym = self.helper(prods, None, false, expr);
                 vec![vec![(sym, None, None)]]
             }
             Expr::Ref(name) => vec![vec![(self.symbol(name, true), None, None)]],
@@ -778,6 +806,17 @@ pub(crate) fn lower(
     features: &BTreeSet<String>,
     classifiers: Arc<ClassifierTables>,
 ) -> Result<Lowered, LowerError> {
+    lower_mode(grammar, features, classifiers, false)
+}
+pub(crate) fn lower_for_slots(grammar: &StageGrammar) -> Result<Lowered, LowerError> {
+    lower_mode(grammar, &BTreeSet::new(), Arc::new(ClassifierTables::default()), true)
+}
+fn lower_mode(
+    grammar: &StageGrammar,
+    features: &BTreeSet<String>,
+    classifiers: Arc<ClassifierTables>,
+    validation: bool,
+) -> Result<Lowered, LowerError> {
     let mut lowerer = Lowerer {
         grammar,
         terminals: Vec::new(),
@@ -787,6 +826,7 @@ pub(crate) fn lower(
         test_index: FxMap::default(),
         helpers: Vec::new(),
         owner: 0,
+        alternative: 0,
         places: Vec::new(),
         written: (Arc::from(""), (0, 0)),
         brace_items: Vec::new(),
@@ -808,16 +848,17 @@ pub(crate) fn lower(
             .alternatives
             .iter()
             .filter(|alternative| {
-                alternative.alternative.guards.iter().all(|guard| {
-                    guard.kind == FeatureKind::Warning || features.contains(&guard.feature) != guard.negated
-                })
+                validation
+                    || alternative.alternative.guards.iter().all(|guard| {
+                        guard.kind == FeatureKind::Warning || features.contains(&guard.feature) != guard.negated
+                    })
             })
             .collect();
         // A chain is the only alternative of its rule that the gates
         // leave (§3.3); a %extend-rule can add another. This is reported
         // before the rule's alternatives are lowered.
         let chain = live.iter().find(|alternative| matches!(alternative.alternative.expr, Expr::Repeat(_, _, Some(_))));
-        if let Some(chain) = chain.filter(|_| live.len() > 1) {
+        if let Some(chain) = chain.filter(|_| !validation && live.len() > 1) {
             return Err(LowerError::at(
                 &grammar.name,
                 &chain.document,
@@ -829,6 +870,8 @@ pub(crate) fn lower(
             ));
         }
         for (number, alternative) in live.iter().enumerate() {
+            lowerer.alternative =
+                rule.alternatives.iter().position(|a| std::ptr::eq(a, *alternative)).expect("a written alternative");
             lowerer.places = vec![Vec::new()];
             lowerer.written = (alternative.document.clone(), alternative.at);
             let own = |sequence| Slot::Own(Pending { rule: index as u32, sequence, source: Some((number, 0)) });
@@ -901,7 +944,7 @@ pub(crate) fn lower(
         syms.iter().all(|sym| matches!(sym, Sym::N(rule) if nullable[*rule as usize]))
     };
     for item in &lowerer.brace_items {
-        if item.expansions.iter().any(|expansion| empty(&nullable, expansion)) {
+        if !validation && item.expansions.iter().any(|expansion| empty(&nullable, expansion)) {
             let name = &grammar.rules[item.owner as usize].name;
             return Err(LowerError::at(
                 &grammar.name,
@@ -956,7 +999,47 @@ pub(crate) fn lower(
             warnings: Vec::new(),
             document: None,
             at: (0, 0),
+            slot: if grammar.preferences.paths.is_empty() {
+                None
+            } else {
+                Some(Box::new(SlotMetadata {
+                    source: if helper {
+                        let h = &lowerer.helpers[pending.rule as usize - user_count];
+                        (owner as usize, h.alternative)
+                    } else {
+                        pending
+                            .source
+                            .map(|(n, _)| {
+                                (
+                                    owner as usize,
+                                    grammar.rules[owner as usize]
+                                        .alternatives
+                                        .iter()
+                                        .position(|a| std::ptr::eq(a, alternatives[owner as usize][n]))
+                                        .unwrap(),
+                                )
+                            })
+                            .expect("a written production")
+                    },
+                    path: helper.then(|| lowerer.helpers[pending.rule as usize - user_count].expr),
+                    names: pending
+                        .sequence
+                        .iter()
+                        .filter_map(|(_, n, _)| n.as_ref().map(|n| Some(n.clone())))
+                        .collect(),
+                    tags: Vec::new(),
+                    conditions: Vec::new(),
+                    emit: None,
+                }))
+            },
         };
+        if helper {
+            if let Some(slot) = &production.slot {
+                let source = &grammar.rules[slot.source.0].alternatives[slot.source.1];
+                production.document = Some(source.document.clone());
+                production.at = source.at;
+            }
+        }
         if let Some((number, _)) = pending.source {
             let alternative = alternatives[pending.rule as usize][number];
             production.document = Some(alternative.document.clone());
@@ -991,6 +1074,9 @@ pub(crate) fn lower(
                     split.simplify(own.iter().copied(), &has).unwrap_or(Term::EmptySet)
                 })
                 .collect();
+            if validation {
+                production.slot.as_mut().expect("slot validation").tags = written.clone();
+            }
             let tags = match written.len() {
                 0 => None,
                 1 => written.into_iter().next(),
@@ -1005,7 +1091,13 @@ pub(crate) fn lower(
                 for cond in &alternative.clauses.conditions {
                     match simplify_cond(cond, &has) {
                         Simple::True => {}
-                        Simple::False => continue 'productions,
+                        Simple::False => {
+                            if validation {
+                                left.push(cond.clone());
+                            } else {
+                                continue 'productions;
+                            }
+                        }
                         Simple::Cond(simple) => left.push(simple),
                     }
                 }
@@ -1015,8 +1107,11 @@ pub(crate) fn lower(
                 let split =
                     cond_splits.entry(conditions as *const Vec<Cond>).or_insert_with(|| CondListSplit::new(conditions));
                 // A condition false for this production removes it.
-                let Some(left) = split.simplify(&own, &has) else { continue 'productions };
-                left
+                match split.simplify(&own, &has) {
+                    Some(left) => left,
+                    None if validation => alternative.clauses.conditions.clone(),
+                    None => continue 'productions,
+                }
             };
             for simple in conditions {
                 scope.last = None;
@@ -1026,6 +1121,9 @@ pub(crate) fn lower(
                     // (§4).
                     let trigger =
                         if scope.whole { production.syms.len() } else { scope.last.map_or(0, |last| last + 1) };
+                    if validation {
+                        production.slot.as_mut().expect("slot validation").conditions.push((simple.clone(), trigger));
+                    }
                     production.conds.push((lowered, trigger));
                 }
             }
@@ -1051,6 +1149,24 @@ pub(crate) fn lower(
                             emit_indexes.entry(items as *const Vec<EmitItem>).or_insert_with(|| EmitIndex::new(items));
                         index.kept(own.iter().copied()).into_iter().map(|at| &items[at]).collect()
                     };
+                    if validation {
+                        production.slot.as_mut().expect("slot validation").emit = Some(
+                            items
+                                .iter()
+                                .map(|item| match item {
+                                    EmitItem::Capture(n, t, a) => EmitItem::Capture(
+                                        n.clone(),
+                                        t.as_ref().map(|t| simplify_value(t, &has)),
+                                        crate::dom::Attachments {
+                                            before: a.before.iter().filter(|n| has(n)).cloned().collect(),
+                                            after: a.after.iter().filter(|n| has(n)).cloned().collect(),
+                                        },
+                                    ),
+                                    _ => (*item).clone(),
+                                })
+                                .collect(),
+                        );
+                    }
                     let mut item_tags = |term: &Option<Term>| {
                         term.as_ref().and_then(|term| scope.term(&simplify_value(term, &has)).ok())
                     };
@@ -1114,6 +1230,9 @@ pub(crate) fn lower(
         if production.tags.is_none() && production.syms.len() == 1 && production.cap_at[0].is_none() {
             production.cap_at[0] = Some(production.cap_pos.len() as u32);
             production.cap_pos.push(0);
+            if let Some(slot) = &mut production.slot {
+                slot.names.push(None);
+            }
         }
         // An item finds the conditions of its dot without a scan of all.
         production.conds.sort_by_key(|&(_, trigger)| trigger);
@@ -1472,6 +1591,7 @@ mod tests {
         let unicode = Unicode::parse(crate::loader::bundled("unicode.txt").expect("the table")).expect("the table");
         {
             let rule = |name: String, alternatives: Vec<Expr>| RuleDef {
+                deferred_emission: None,
                 name,
                 op: Op::Define,
                 flags: Vec::new(),
@@ -1547,6 +1667,7 @@ mod tests {
             Term::If(Box::new(Cond::Captured(format!("c{index}"))), Box::new(Term::Tag(format!("t{index}"))))
         });
         RuleDef {
+            deferred_emission: None,
             name: "text".into(),
             op: Op::Define,
             flags: Vec::new(),

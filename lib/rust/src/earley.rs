@@ -268,7 +268,7 @@ impl ESet {
 
     /// Whether an item is strict, which only the reconstruction mode
     /// records.
-    fn is_strict(&self, index: usize) -> bool {
+    pub(crate) fn is_strict(&self, index: usize) -> bool {
         self.strict.get(index).copied().unwrap_or(false)
     }
 
@@ -1063,7 +1063,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 _ => {}
             }
         }
-        self.shared.machine = if roots.is_empty() { None } else { Some(Rc::new(RefCell::new(Machine::new(&roots)))) };
+        self.shared.machine = if roots.is_empty() && self.g.preferences.paths.is_empty() {
+            None
+        } else {
+            Some(Rc::new(RefCell::new(Machine::new(&roots))))
+        };
         self.shared.pattern_grammar = key;
     }
     fn finish_structure(&self, item: &mut Item) {
@@ -1770,7 +1774,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
         let caps =
             if production.cap_at[item.dot as usize].is_some() { chart.extend_caps(item.caps, cap) } else { item.caps };
-        let prefix = self.shared.machine.as_ref().map_or(0, |m| m.borrow_mut().concat(item.prefix, cap.structure));
+        let prefix = self.shared.machine.as_ref().map_or(0, |m| {
+            let mut m=m.borrow_mut();
+            let ranked=matches!(production.syms[item.dot as usize],Sym::N(rule) if !g.rules[rule as usize].helper && g.preferences.labels.contains_key(&g.rules[rule as usize].name));
+            let child=if ranked{m.sealed()}else{cap.structure};m.concat(item.prefix,child)
+        });
         let mut next =
             Item { prod: item.prod, dot: item.dot + 1, origin: item.origin, caps, prefix, structure: u32::MAX };
         self.finish_structure(&mut next);

@@ -1713,6 +1713,7 @@ mod tests {
                 .chain(names.iter().map(|name| EmitItem::Capture(name.clone(), None, Attachments::default())))
                 .collect();
             RuleDef {
+                deferred_emission: None,
                 name: "r".into(),
                 op: Op::Define,
                 flags: Vec::new(),
