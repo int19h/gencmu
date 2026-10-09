@@ -614,7 +614,11 @@ Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as
 
 Selbri and tanru-unit connectives are joik, jek, ek or VUhU (`selbri-connective`). A bare `fa`, which matches the rule `tag`, can come before a selbri. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`). `me'oi` with the word that it quotes is a tanru unit too (`le me'oi klama cu broda`).
 
-The shared `me-unit` constructor states its operand order once for both tanru-unit paths.
+`me-unit` ranks a sumti operand before a mekso operand, as camxes-exp orders them. A sumti whose tests and conditions pass excludes a mekso over the same span. A sumti that cannot complete the construction excludes nothing.
+
+The whole `mex MOI #` construction outranks an SE conversion over the same span. A mekso can begin with SE through a forethought `gek`, as in `mi se ga pa gi re moi`.
+
+NAhE stays outside this group. Late elision puts `na'e` on `pa moi` in `la djonz. cu na'e pamoi cusku`, because the mekso option omits LUhU earlier.
 
 In `mi me la'e ge my gi ny su'i zy moi`, ME takes the complete sumti operand. Its LAhE holds the forethought sumti and the following connection. camxes-exp takes a mekso because its sumti lookahead prevents that sumti operand.
 
@@ -691,9 +695,8 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | cbm? CMEVLA #
   | GOhA [RAhO] #
   | me-unit
-  | mex MOI #
+  | (mex MOI # ≻ SE # tanru-unit-2)
   | NUhA # operator
-  | SE # tanru-unit-2
   | JAI # [tag] tanru-unit-2
   | NAhE # tanru-unit-2
   | abstractor-chain subsentence [+KEI] #
@@ -717,9 +720,8 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | cbm? CMEVLA #
   | GOhA [RAhO] #
   | me-unit
-  | mex MOI #
+  | (mex MOI # ≻ SE # tanru-unit-2)
   | NUhA # operator
-  | SE # tanru-unit-2
   | JAI # [tag] tanru-unit-2
   | NAhE # tanru-unit-2
   | abstractor-chain subsentence [+KEI] #
@@ -778,7 +780,7 @@ camxes-exp replaces CLL's mekso with its own, and the layer follows it (camxes-e
 - CLL has only the sumti reading of these texts, because a CLL quantifier is a number or a `vei ... ve'o` group. camxes-exp reads the quantifier `ge nai abu gi no` with the selbri `drata`, as in `re prenu`. The layer follows CLL here. A forethought connection of numbers is still a quantifier, as in `lo ge pa gi re mi broda`.
 - `gek-barrier` also changes texts that had only a quantifier reading. Where no sumti reading remains, the layer rejects the text, as CLL does. So `ge abu gi by broda cu klama` is not a text, although camxes-exp reads the quantifier `ge abu gi by` there. In `lo ge by gi re mi broda`, `ge by gi re mi` is now the possessor sumti of the description, with `broda` inside it. camxes-exp reads `ge by gi re` as the quantifier of `mi`.
 - `me` takes a mekso as well as a sumti, a whole mekso takes `moi`, and `nu'a` takes a whole operator.
-- In the [ME operand choice](#selbri-and-tanru), a qualified sumti excludes a mekso over the same span, as camxes-exp orders them. A sumti that cannot complete the construction excludes nothing. In `me my moi`, this dialect takes a sumti, while camxes-exp takes a mekso through its restrictive sumti lookahead. The dialect accepts `me my su'i pa` with a mekso operand, while camxes-exp rejects it after committing to a shorter sumti.
+- The [ME operand choice](#selbri-and-tanru) explains these contrasts. In `me my moi`, this dialect takes a sumti, while camxes-exp takes a mekso through its restrictive sumti lookahead. The dialect accepts `me my su'i pa` with a mekso operand, while camxes-exp rejects it after committing to a shorter sumti.
 
 `mex` is the chain of operators itself, a left chain as in CLL (CLL 18.5). So the CLL rule `mex-chain` is not reached here. A reverse Polish expression is not an infix chain, and stays a flat list. `operator` keeps the left recursion of the CLL rule.
 

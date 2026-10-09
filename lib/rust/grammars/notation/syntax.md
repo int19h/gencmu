@@ -105,7 +105,9 @@ An implication is `%implies` and two terms joined by `⟹`. Each term is a union
 
 ## Rules
 
-A rule has a keyword, optional flags, name, alternatives and clauses, in that order. Flags are names in parentheses, and only `leftmost-longest` is accepted on definitions and redefinitions. Empty lists, duplicates, arguments and flags on extensions are errors. The keyword defines, redefines or extends a rule. A rule's name is a name or `#`, the free-modifier slot, and each clause occurs at most once in a fixed order. Every separator can stand first, so each alternative can start its own line with `|`.
+A rule has a keyword, optional flags, name, alternatives and clauses, in that order. Flags are names in parentheses, and only `leftmost-longest` is accepted on definitions and redefinitions. Empty lists, duplicates, arguments and flags on extensions are errors. The keyword defines, redefines or extends a rule. A rule's name is a name or `#`, the free-modifier slot, and each clause occurs at most once in a fixed order.
+
+`|` can stand first, so each ordinary alternative can start its own line with it. `≻` cannot stand first.
 
 ```jbogenbau
 %rule rule
@@ -157,9 +159,13 @@ A rule has a keyword, optional flags, name, alternatives and clauses, in that or
 <p><img src="../../docs/diagrams/notation/syntax/alternative-tags.svg" alt="Railroad diagram of the rule alternative-tags"></p>
 </details>
 
+A body is a list of ordinary alternatives or one ranked alternative. Guards and tags on a ranked alternative apply to its whole ranked choice.
+
 ## Expressions
 
-`&` joins sequences, and a sequence is one or more primaries. Parentheses group a choice, whose alternatives carry neither guards nor tags. Brackets hold an optional choice, and braces a repetition. A `+` or `++` right after `[` marks an elidable optional (`../../docs/notation.md`, "Elided terminators"). The reader makes sure that its terminator stands first, as written, with no group around it, and that no capture stands inside it. It reads this from the tree, before it drops the groups.
+A choice uses `|` or `≻` at one level, never both. The reader keeps the order of ranked operands.
+
+`&` joins sequences, and a sequence is one or more primaries. Parentheses group an ordinary or ranked choice, whose options carry neither guards nor tags. Brackets hold an optional choice, and braces a repetition. A `+` or `++` right after `[` marks an elidable optional (`../../docs/notation.md`, "Elided terminators"). The reader makes sure that its terminator stands first, as written, with no group around it, and that no capture stands inside it. It reads this from the tree, before it drops the groups.
 
 Inside braces, the item is a choice, and so is the separator after a backslash, if there is one. So `{a | b \ c | d}` separates items `a` or `b` with `c` or `d`. The marker `...` of a chain stands right after `{` for a left chain, or after the item for a right chain. A chain, like a list, can leave out the backslash and the separator, as in `{... x}` and `{x ...}`. The reader reads which of the two it is from where the marker stands among the parts (`../../docs/engine.md`, §9). It refuses a chain that is not the whole expression of its alternative, and a capture inside braces.
 
