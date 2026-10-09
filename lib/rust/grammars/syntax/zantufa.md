@@ -962,8 +962,7 @@ The dialect keeps one odd reading of Zantufa. In `pe'usai doi xod ko jmina`, the
            / vocative sumti? DOhU_elidible / mex_2 MAI_clause / TO_clause text TOI_elidible / xi_clause
            / LOhAI_clause / (UI_clause !BU_clause)+ *)
   | SEI # statement [++SEhU #]
-  | vocative [relative-clauses] selbri [+DOhU #]
-  | vocative [sumti] [+DOhU #]
+  | vocative [sumti | [relative-clauses] selbri] [+DOhU #]
   | mex-2 MAI #
   | TO # parenthesis-text [++TOI #]
   | XI # mex-2

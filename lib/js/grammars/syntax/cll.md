@@ -330,7 +330,7 @@ The terms `zu'a nu'i la djordj. la'u lo mitre be li mu` and `zu'a nu'i la'u lo m
   sumti | (tag | FA #) (sumti | [+KU #]) | termset | tag termset | NA KU #
 
 %rule termset
-  NUhI # gek terms [+NUhU #] gik terms [+NUhU #] | NUhI # terms [+NUhU #]
+  NUhI # (gek terms [+NUhU #] gik terms | terms) [+NUhU #]
 ```
 
 <details><summary>Railroad diagrams of <code>terms</code>, <code>terms-1</code>, <code>terms-2</code>, <code>term</code> and <code>termset</code></summary>
@@ -885,9 +885,7 @@ CLL 19.8 says that FUhO "cancels all in-force attitudinals". This grammar infers
 %rule free
   | SEI # [terms [CU #]] selbri [+SEhU]
   | SOI # sumti [sumti] [+SEhU]
-  | vocative [relative-clauses] selbri [relative-clauses] [+DOhU]
-  | vocative [relative-clauses] {CMEVLA} # [relative-clauses] [+DOhU]
-  | vocative [sumti] [+DOhU]
+  | vocative [sumti | [relative-clauses] (selbri | {CMEVLA} #) [relative-clauses]] [+DOhU]
   | (number | lerfu-string) MAI
   | TO text [+TOI]
   | XI # (number | lerfu-string) [+BOI]
