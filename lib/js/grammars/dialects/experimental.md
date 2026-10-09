@@ -121,6 +121,8 @@ A PEG has ordered choice. Ordered choice keeps the first matching alternative. T
 
 The layer follows camxes-exp's ordered choice where that choice decides what a text means. Where camxes-exp states a lookahead (a test of the words that follow), such as `!selbri` after a tag, the layer follows it. The paragraphs below list the exceptions.
 
+A glide is an `i` or `u` before a nucleus. A nucleus is the vowel center of a syllable. camxes-exp adds `!glide` to its `glide` rule. No nucleus after a glide begins with another glide, so this lookahead changes no parse. The forms stage keeps the BPFK rule without it.
+
 The dialect also accepts two constructs by choice, which camxes-exp rejects. A stag is a tense or modal inside a connective. In a sentence's own terms, camxes-exp requires a stag between a connective and `bo` (`abs_term_2`). This grammar does not, so `fa mi .e bo fe do klama` parses here, as it did before the grammar took camxes-exp's two levels of terms.
 
 In `fa mi .e bo fe do .a fi mi klama`, one connected term precedes `klama`. Within that term, `bo` binds tighter than `.a`.
