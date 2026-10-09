@@ -25,9 +25,9 @@ The word stage reads the magic words, the words such as `si` that act on other w
 
 [The notation document](../../docs/notation.md) explains the notation. A lookahead of the reference, such as `!terms`, is a condition with `begins`. The terminals of this grammar (the symbols that each match one input token) are selma'o. A tag marks a token by name, phoneme or character. The rules `any-word` and `anything` match tokens tagged `word` and `quoted-text`, respectively. The word stage puts these tags on the words of a quote and on a unit that a quote hands on whole.
 
-The stage uses `late-elision` after declared rule preferences. When no preference contest remains, it chooses the reading with fewer omitted terminators at the first differing boundary. Opposing preference contests tie, as do equal omission counts when no contest remains. A tie is an error.
+A slot is one child position in a common parent template. A declared preference filters that slot before ranking. The stage ranks admitted derivations by `leftmost-longest`, then `late-elision`. Fewer omitted terminators win at the first differing boundary. Equal best counts tie, and a tie is an error.
 
-A PEG repetition reads as far as it can, and late elision usually selects the same reading. Dedicated rule preferences settle the replaced choices over the same words. Other conditions still restrict construction and following words. Each terminator marked `_elidible` in the reference is elidable here, with an optional such as `[+KU]`. The separators `cu` and `i'au` remain ordinary optionals.
+A PEG repetition reads as far as it can, and late elision usually selects the same reading. Declared slot filters settle the replaced choices over the same interval in their common parent. Other conditions still restrict construction and following words. Each terminator marked `_elidible` in the reference is elidable here, with an optional such as `[+KU]`. The separators `cu` and `i'au` remain ordinary optionals.
 
 A condition parses the words that it tests, and that nested parse can elide terminators. It follows written-terminator priority ([engine §4](../../docs/engine.md#4-recognition)). So it cannot elide a terminator where the same construct can read on to that terminator as written. A PEG's lookahead reads on in the same way. So `cy to roi toi klama` parses as in Zantufa, with `roi` inside the parenthesis. The condition on a sumti term does not find the tag `cy roi` with an empty parenthesis there.
 
@@ -39,7 +39,7 @@ These texts showed the problem, and each now has Zantufa's reading. In `so to re
 
 The reference writes `CU_elidible`, but `cu` is a separator. It stands between the terms and the bridi-tail, and it closes neither of them. The grammar of *The Complete Lojban Language* (CLL) does not make `cu` elidable either. So `[CU #]` is a plain optional here, with no marker. A written `cu` parses as before, and a sentence can still omit it. Maximal terminators and `elision-only` do not treat `cu` as a terminator.
 
-An absent `cu` makes no elided node in the tree, and the ranking does not count it. This matters. If `cu` is elidable, an absent `cu` is an elision before the bridi-tail, and so an early one. When no preference contest remains, the ranking favors a reading that closes a parenthesis, quote or `jai` early and begins the bridi-tail later. With an elidable `cu`, `to na cafne` closes the parenthesis after `na`. Zantufa holds `na cafne` in the parenthesis, and so does this grammar.
+An absent `cu` makes no elided node in the tree, and the ranking does not count it. This matters. If `cu` is elidable, an absent `cu` is an elision before the bridi-tail, and so an early one. After slot filtering, the ranking favors a reading that closes a parenthesis, quote or `jai` early and begins the bridi-tail later. With an elidable `cu`, `to na cafne` closes the parenthesis after `na`. Zantufa holds `na cafne` in the parenthesis, and so does this grammar.
 
 The same holds for `i'au`. The reference writes `IAU_elidible` between a statement and the terms after it (`statement-terms`). There `i'au` separates the terms from the statement, and it closes nothing. So `[IAU #]` is a plain optional too, and an absent `i'au` makes no elided node.
 
@@ -121,7 +121,9 @@ The [indicator document](../indicators/cll.md#quotation-boundaries) explains the
 
 A statement can take terms after it, which `i'au` can introduce (`statement-terms`). A forethought connection of statements has any number of `gi` branches and an optional `gi'i`. `.i` with a connective, or with a connective or a tense or modal and `bo`, joins a statement to the one before it. So a text cannot begin that way.
 
-The fragment conditions preserve the reference's lookaheads. A `gek` or `joik` fragment cannot begin terms. A `na` fragment cannot have terms or `ku` after it. A terms fragment cannot have a following mex, the grammar's mathematical expression. The preference `terms-vau > fragment-mex` selects terms only when `terms-vau` and `fragment-mex` cover one span, an interval of input tokens. A mex fragment cannot have a following sumti or selbri.
+The fragment conditions preserve the reference's lookaheads. A `gek` or `joik` fragment cannot begin terms. A `na` fragment cannot have terms or `ku` after it. A terms fragment cannot have a following mex, the grammar's mathematical expression. In the fragment slot, an eligible `terms-vau` excludes `fragment-mex` over the same span, an interval of input tokens. A mex fragment cannot have a following sumti or selbri.
+
+In `lu by xi mo'e ke cy moi su'i dy moi li'u klama`, the quote contains a terms fragment. Its long subscript includes both MOI units. The reference selects the same fragment and attachment. The sentence alternative remains outside this slot and competes by ordinary ranking.
 
 A structural pattern describes constructed nodes. Suppose every earlier branch is a whole sentence and the last branch starts with a sentence. Then the condition removes `gek-statement`, because Zantufa's sentence reads those words first. A prenex or TUhE blocks that final first-child path. A statement link in an earlier branch prevents the whole-sentence match. Links after the last sentence can continue outside the forethought connection.
 
@@ -587,13 +589,19 @@ Relative clauses can stand side by side, joined by a joik or by nothing. They fo
 
 A selbri can take a tense, a modal or `na` before it, and relative clauses and `cei` after it. A tanru unit can be a name, because Zantufa reads a name as a selbri. It can also be a quote of GOhOI, MUhOI or LUhEI, such as a `go'oi` quote, or a mekso with `moi`. `me` makes a tanru unit of a sumti, operators, a mekso, or a tense or modal.
 
-Dedicated operand rules state the ME preferences: sumti over mex, then mex over tag. The separate conditions preserve the operator and follower lookaheads. Thus `me su'i pa moi` forms two tanru units, `me su'i` and `pa moi`. A mex after ME cannot precede words that make it a quantifier. A following tanru unit cannot begin with a joik and a `selbri_5`. Those words connect inside the preceding unit.
+The ME operand slot keeps the maximal present categories in this order: sumti, mex, then tag. The separate conditions preserve the operator and follower lookaheads. Thus `me su'i pa moi` forms two tanru units, `me su'i` and `pa moi`. A mex after ME cannot precede words that make it a quantifier. A following tanru unit cannot begin with a joik and a `selbri_5`. Those words connect inside the preceding unit.
+
+In `mi me by xi mo'e ke cy moi su'i dy moi`, the letter sumti excludes its same-slot mex twin. Ordinary elision keeps the long subscript, as the reference does.
+
+In `li ma'o me my su'i pa`, only the mex ME operand completes the surrounding construction. This dialect accepts it. The literal reference rejects it because its earlier sumti choice commits before that continuation.
 
 The reference tries a gek tanru unit before the forms with `se`, `fa` or `na'e` and a tanru unit. A gek can itself begin with `se`, and it can begin with a tag such as `na'e bai`. So `mi se ge klama gi cadzu` has two readings with the same elisions. In one, `se ge` is the gek. In the other, `se` converts the gek tanru unit `ge klama gi cadzu`. The reference takes the first, and a tie here is an error.
 
 So the conditions state the reference's order. `se`, `fa` and `na'e` do not take a tanru unit where the words from them begin a gek tanru unit (`gek-tanru-unit`). And the gek alternative does not begin with `na'e`, because the reference's optional `NAhE_clause` takes it first. So in `na'e bai gi broda gi brode`, `na'e` comes before the gek `bai gi`.
 
-The preference `mex-moi > nahe-tanru-unit` gives NAhE to the mex when both constructors cover the same words. The existing condition still reserves a gek tanru unit.
+In the `tanru-unit-1` slot, an eligible `mex-moi` excludes `nahe-tanru-unit` over the same interval. The existing condition still reserves a gek tanru unit. Thus `mi na'e pa moi` has a unique outer mex-MOI reading.
+
+In `mi na'e mo'e ke by .e cy moi su'i dy moi`, the surviving outer mex includes NAhE and ends at the last MOI. The literal PEG rejects this text after committing inside KE and MOhE. The dialect revisits those inner choices and keeps its existing reading.
 
 A run of `cei` nests to the right. The reference repeats `(CEI_clause selbri)*`, but the selbri after the first `cei` reads every later `cei` first. So in `broda cei brode cei brodi`, the second `cei` is inside the selbri `brode cei brodi`. Here `selbri-1` takes at most one `cei` and the selbri after it. A repetition here gives two readings with the same elisions, and so a tie.
 
@@ -748,7 +756,11 @@ A run of `cei` nests to the right. The reference repeats `(CEI_clause selbri)*`,
 
 ## Mekso
 
-The MAhO operand rules prefer mex over selbri, then selbri over sumti. The MOhE operand rules prefer selbri over sumti. Each pair compares its complete operand over the same words.
+The MAhO operand slot keeps mex over selbri, then selbri over sumti, when qualified categories cover the same interval. The MOhE operand slot keeps a qualified selbri over a sumti on that interval. A failed higher operand removes nothing.
+
+In `li ma'o ke by .e cy jo'u dy pa`, MAhO takes the long mex operand. The final PA lies outside it. Shorter mex operands close TEhU earlier and lose by late elision. The literal PEG rejects this text because its grouped mex commits to an inner choice.
+
+In `li mo'e ke by xi mo'e ke cy moi jo'u dy xi mo'e ke zy moi`, the outer MOhE takes a selbri. The literal reference takes a sumti after its committed selbri attempt fails. This dialect revisits the inner subscript choices, so its selbri completes. The slot filter preserves that existing selbri reading.
 
 Zantufa's mekso is flat: operands and runs of operators alternate, `bo` and `ke` group them, and `bi'e` raises the precedence of the operators after it. Reverse Polish takes `fu'a`, and forethought takes `pe'o` or a bare operator. A quantifier is a mekso that begins no sumti and no selbri, as the reference's lookaheads say. These are prefix tests, as a PEG's are.
 

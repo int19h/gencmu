@@ -3137,3 +3137,16 @@ i131.slot.experimental.nuhi-nihe-omitted
 i131.slot.experimental.nuhi-plain
 i131.slot.experimental.me-sumti
 i131.slot.experimental.me-mex
+i131.slot.zantufa.fragment-cycle
+i131.slot.zantufa.me-cycle
+i131.slot.zantufa.moi-cycle
+i131.slot.zantufa.maho-cycle
+i131.slot.zantufa.mohe-cycle
+i131.slot.zantufa.me-context
+i131.slot.zantufa.moi-simple
+i131.slot.zantufa.maho-written
+i131.slot.zantufa.mohe-selbri
+i131.slot.zantufa.mohe-sumti
+i131.slot.zantufa.fragment-vocative
+i131.slot.zantufa.fragment-free
+i131.slot.zantufa.fragment-mex-guard
