@@ -29,7 +29,7 @@ A run is what stands between two pauses. It is an ordinary run of letters, or a 
 
 ```jbogenbau
 %rule text
-  ε | pause | commas | items | edge-pause items | items edge-pause | edge-pause items edge-pause
+  ε | pause | commas | [edge-pause] items [edge-pause]
 
 %rule edge-pause
   spaced-pause | pause-edge
@@ -57,10 +57,7 @@ CLL 3.3 says that a comma "cannot be pronounced as a pause", so a comma alone be
   spaced-pause
 
 %rule spaced-pause
-  | $c(pause-core)
-  | pause-edge $c(pause-core)
-  | $c(pause-core) pause-edge
-  | pause-edge $c(pause-core) pause-edge
+  [pause-edge] $c(pause-core) [pause-edge]
 %emits
   $c <PAUSE ∪ /./>
 
