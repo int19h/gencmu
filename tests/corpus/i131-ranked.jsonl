@@ -1,0 +1,1 @@
+{"id":"i131.ranked.zantufa.se-moi","text":"mi se su'i pa re moi","dialect":"zantufa","expect":"accept","verdict":"resolved","words":["mi","se","su'i","pa","re","moi"],"brackets":"(mi [{(se su'i) (pa re)} moi])","reason":"The complete mekso with MOI excludes the SE conversion over the same span. Late elision chooses among its admitted proofs."}

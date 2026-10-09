@@ -2,7 +2,7 @@
 
 This document is the syntax of the [Zantufa](../dialects/zantufa.md) dialect. A dialect is a pipeline of stages, defined by one pipeline document. Its reference is Guskant's Zantufa 1.9999, `zantufa-1.9999.peg` in the `gerna_cipra` repository, a PEG (parsing expression grammar). It is a grammar of its own, and it translates the reference rule by rule.
 
-A rule that translates a rule of the reference has that rule's name, written with hyphens, and its comment gives the reference's rule. Each other rule is a part of a reference rule that needs a name of its own, or a rule that a condition tests. The conditions state the reference's lookaheads and ordered choices. A lookahead is a test of the words that follow. An ordered choice is a list of alternatives tried in order.
+A rule that translates a rule of the reference has that rule's name, written with hyphens, and its comment gives the reference's rule. Each other rule is a part of a reference rule that needs a name of its own, or a rule that a condition tests. Conditions and ranked choices state the reference's lookaheads and ordered choices. A lookahead is a test of the words that follow. An ordered choice is a list of alternatives tried in order.
 
 A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. [The Zantufa lexicon](../words/lexicon-zantufa.md) gives each cmavo the selma'o that Zantufa gives it. For example, most tense words are BAI, `ca'a` and `ka'e` are NA, and `je` is JOI. Also, `la` is LE, `ce'e` is BO, and `nai` and `sa` are UI.
 
@@ -25,9 +25,11 @@ The word stage reads the magic words, the words such as `si` that act on other w
 
 [The notation document](../../docs/notation.md) explains the notation. A lookahead of the reference, such as `!terms`, is a condition with `begins`. The terminals of this grammar (the symbols that each match one input token) are selma'o. A tag marks a token by name, phoneme or character. The rules `any-word` and `anything` match tokens tagged `word` and `quoted-text`, respectively. The word stage puts these tags on the words of a quote and on a unit that a quote hands on whole.
 
-A slot is one child position in a common parent template. A declared preference filters that slot before ranking. The stage ranks admitted derivations by `leftmost-longest`, then `late-elision`. Fewer omitted terminators win at the first differing boundary. Equal best counts tie, and a tie is an error.
+A span is a contiguous interval of input tokens. A ranked choice filters alternatives at one written position. An option qualifies when its completed reading passes its recognition rules. A qualified earlier option excludes later options over the same span.
 
-A PEG repetition reads as far as it can, and late elision usually selects the same reading. Declared slot filters settle the replaced choices over the same interval in their common parent. Other conditions still restrict construction and following words. Each terminator marked `_elidible` in the reference is elidable here, with an optional such as `[+KU]`. The separators `cu` and `i'au` remain ordinary optionals.
+A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. No rule carries a `leftmost-longest` flag. The stage ranks admitted derivations by `late-elision`. Fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
+
+The stage does not declare `elision-only`. A PEG repetition reads as far as it can, and late elision usually selects the same reading. Other conditions still restrict construction and following words. Each terminator marked `_elidible` in the reference is elidable here, with an optional such as `[+KU]`. The separators `cu` and `i'au` remain ordinary optionals.
 
 A condition parses the words that it tests, and that nested parse can elide terminators. It follows written-terminator priority ([engine §4](../../docs/engine.md#4-recognition)). So it cannot elide a terminator where the same construct can read on to that terminator as written. A PEG's lookahead reads on in the same way. So `cy to roi toi klama` parses as in Zantufa, with `roi` inside the parenthesis. The condition on a sumti term does not find the tag `cy roi` with an empty parenthesis there.
 
@@ -121,9 +123,13 @@ The [indicator document](../indicators/cll.md#quotation-boundaries) explains the
 
 A statement can take terms after it, which `i'au` can introduce (`statement-terms`). A forethought connection of statements has any number of `gi` branches and an optional `gi'i`. `.i` with a connective, or with a connective or a tense or modal and `bo`, joins a statement to the one before it. So a text cannot begin that way.
 
-The fragment conditions preserve the reference's lookaheads. A `gek` or `joik` fragment cannot begin terms. A `na` fragment cannot have terms or `ku` after it. A terms fragment cannot have a following mex, the grammar's mathematical expression. In the fragment slot, an eligible `terms-vau` excludes `fragment-mex` over the same span, an interval of input tokens. A mex fragment cannot have a following sumti or selbri.
+The fragment conditions preserve the reference's lookaheads. A `gek` or `joik` fragment cannot begin terms. A `na` fragment cannot have terms or `ku` after it. A terms fragment cannot have a following mekso.
 
-In `lu by xi mo'e ke cy moi su'i dy moi li'u klama`, the quote contains a terms fragment. Its long subscript includes both MOI units. The reference selects the same fragment and attachment. The sentence alternative remains outside this slot and competes by ordinary ranking.
+The ranked fragment choice puts `terms-vau` before `mex`. A qualified terms fragment excludes a mekso fragment over the same span. The sentence alternative stays outside this group.
+
+A mekso fragment cannot have a sumti or selbri after it. Zantufa first reads that mekso as the quantifier of a term.
+
+In `lu by xi mo'e ke cy moi su'i dy moi li'u klama`, the quote contains a terms fragment. Its long subscript includes both MOI units. The reference selects the same fragment and attachment. The sentence alternative competes with this fragment by ordinary ranking.
 
 A structural pattern describes constructed nodes. Suppose every earlier branch is a whole sentence and the last branch starts with a sentence. Then the condition removes `gek-statement`, because Zantufa's sentence reads those words first. A prenex or TUhE blocks that final first-child path. A statement link in an earlier branch prevents the whole-sentence match. Links after the last sentence can continue outside the forethought connection.
 
@@ -173,8 +179,7 @@ A structural pattern describes constructed nodes. Suppose every earlier branch i
   | ek
   | gihek
   | $n(na-clause)
-  | $t(terms-vau)
-  | $m(fragment-mex)
+  | ($t(terms-vau) ≻ $m(mex))
   | relative-clauses
   | links
   | linkargs
@@ -198,15 +203,11 @@ A structural pattern describes constructed nodes. Suppose every earlier branch i
 %rule terms-vau
   terms [+VAU #]
 
-%rule fragment-mex
-  mex
-%prefer terms-vau > fragment-mex
-
 %rule ku-word
   KU
 ```
 
-<details><summary>Railroad diagrams of the 13 rules from <code>statement-terms</code> to <code>ku-word</code></summary>
+<details><summary>Railroad diagrams of the 12 rules from <code>statement-terms</code> to <code>ku-word</code></summary>
 <p><img src="../../docs/diagrams/syntax/zantufa/statement-terms.svg" alt="Railroad diagram of the rule statement-terms"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/statement.svg" alt="Railroad diagram of the rule statement"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/statement-1.svg" alt="Railroad diagram of the rule statement-1"></p>
@@ -218,7 +219,6 @@ A structural pattern describes constructed nodes. Suppose every earlier branch i
 <p><img src="../../docs/diagrams/syntax/zantufa/prenex.svg" alt="Railroad diagram of the rule prenex"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/na-clause.svg" alt="Railroad diagram of the rule na-clause"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/terms-vau.svg" alt="Railroad diagram of the rule terms-vau"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/fragment-mex.svg" alt="Railroad diagram of the rule fragment-mex"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/ku-word.svg" alt="Railroad diagram of the rule ku-word"></p>
 </details>
 
@@ -589,19 +589,23 @@ Relative clauses can stand side by side, joined by a joik or by nothing. They fo
 
 A selbri can take a tense, a modal or `na` before it, and relative clauses and `cei` after it. A tanru unit can be a name, because Zantufa reads a name as a selbri. It can also be a quote of GOhOI, MUhOI or LUhEI, such as a `go'oi` quote, or a mekso with `moi`. `me` makes a tanru unit of a sumti, operators, a mekso, or a tense or modal.
 
-The ME operand slot keeps the maximal present categories in this order: sumti, mex, then tag. The separate conditions preserve the operator and follower lookaheads. Thus `me su'i pa moi` forms two tanru units, `me su'i` and `pa moi`. A mex after ME cannot precede words that make it a quantifier. A following tanru unit cannot begin with a joik and a `selbri_5`. Those words connect inside the preceding unit.
+The ME choice ranks sumti, mekso, then `tag`. A qualified earlier operand excludes later operands over the same span. Operators retain their separate alternative and existing prefix conditions.
 
-In `mi me by xi mo'e ke cy moi su'i dy moi`, the letter sumti excludes its same-slot mex twin. Ordinary elision keeps the long subscript, as the reference does.
+The follower conditions retain the existing attachments. Thus `me su'i pa moi` forms two tanru units, `me su'i` and `pa moi`. A mekso after ME cannot precede words that make it a quantifier. A following tanru unit cannot begin with a joik and a `selbri_5`. Those words connect inside the preceding unit.
 
-In `li ma'o me my su'i pa`, only the mex ME operand completes the surrounding construction. This dialect accepts it. The literal reference rejects it because its earlier sumti choice commits before that continuation.
+In `mi me by xi mo'e ke cy moi su'i dy moi`, the letter sumti excludes its competing mekso over the same span. Ordinary elision keeps the long subscript, as the reference does.
+
+In `li ma'o me my su'i pa`, only the mekso ME operand completes the surrounding construction. This dialect accepts it. The literal reference rejects it because its earlier sumti choice commits before that continuation.
 
 The reference tries a gek tanru unit before the forms with `se`, `fa` or `na'e` and a tanru unit. A gek can itself begin with `se`, and it can begin with a tag such as `na'e bai`. So `mi se ge klama gi cadzu` has two readings with the same elisions. In one, `se ge` is the gek. In the other, `se` converts the gek tanru unit `ge klama gi cadzu`. The reference takes the first, and a tie here is an error.
 
 So the conditions state the reference's order. `se`, `fa` and `na'e` do not take a tanru unit where the words from them begin a gek tanru unit (`gek-tanru-unit`). And the gek alternative does not begin with `na'e`, because the reference's optional `NAhE_clause` takes it first. So in `na'e bai gi broda gi brode`, `na'e` comes before the gek `bai gi`.
 
-In the `tanru-unit-1` slot, an eligible `mex-moi` excludes `nahe-tanru-unit` over the same interval. The existing condition still reserves a gek tanru unit. Thus `mi na'e pa moi` has a unique outer mex-MOI reading.
+`mex MOI #` precedes SE and NAhE conversion over the whole tanru unit. A qualified mekso with MOI excludes those conversions over the same span. Their existing conditions still reserve a gek tanru unit. FA and JAI stay outside the group because neither can start a mekso.
 
-In `mi na'e mo'e ke by .e cy moi su'i dy moi`, the surviving outer mex includes NAhE and ends at the last MOI. The literal PEG rejects this text after committing inside KE and MOhE. The dialect revisits those inner choices and keeps its existing reading.
+Thus `mi na'e pa moi` keeps the outer mekso with MOI. The same priority applies to `mi se su'i pa re moi`.
+
+In `mi na'e mo'e ke by .e cy moi su'i dy moi`, the surviving outer mekso includes NAhE and ends at the last MOI. The literal PEG rejects this text after committing inside KE and MOhE. The dialect revisits those inner choices and keeps its existing reading.
 
 A run of `cei` nests to the right. The reference repeats `(CEI_clause selbri)*`, but the selbri after the first `cei` reads every later `cei` first. So in `broda cei brode cei brodi`, the second `cei` is inside the selbri `brode cei brodi`. Here `selbri-1` takes at most one `cei` and the selbri after it. A repetition here gives two readings with the same elisions, and so a tie.
 
@@ -671,14 +675,13 @@ A run of `cei` nests to the right. The reference repeats `(CEI_clause selbri)*`,
   | MUhOI any-word anything any-word #
   | GOhOI any-word #
   | LUhEI text [+LIhAU #]
-  | ME # me-sumti [+MEhU #] [MOI #]
+  | ME # (sumti ≻ $m(mex) ≻ $t(tag)) [+MEhU #] [MOI #]
   | ME # {operator} [+MEhU #] [MOI #]
-  | ME # $m(me-mex) [+MEhU #] [MOI #]
-  | ME # $t(me-tag) [+MEhU #] [MOI #]
-  | mex-moi
-  | ({FA # \ joik} | SE #) $w(tanru-unit-1)
+  | (mex MOI #
+     ≻ SE # $w(tanru-unit-1)
+     ≻ $n(NAhE) # tanru-unit-1)
+  | {FA # \ joik} $w(tanru-unit-1)
   | JAI # [tag] tanru-unit-1
-  | $n(nahe-tanru-unit)
   | {NU # \ joik} statement [+KEI #]
 %conditions
   ¬begins(after($g), gik-term-or-cu),
@@ -698,21 +701,6 @@ A run of `cei` nests to the right. The reference repeats `(CEI_clause selbri)*`,
 %rule nahe-word
   NAhE
 
-%rule me-sumti
-  sumti
-%rule me-mex
-  mex
-%rule me-tag
-  tag
-%prefer me-sumti > me-mex
-%prefer me-mex > me-tag
-
-%rule mex-moi
-  mex MOI #
-%rule nahe-tanru-unit
-  NAhE # tanru-unit-1
-%prefer mex-moi > nahe-tanru-unit
-
 %rule gik-selbris
   {gik selbri-2}
 
@@ -728,7 +716,7 @@ A run of `cei` nests to the right. The reference repeats `(CEI_clause selbri)*`,
   BEI # term [links]
 ```
 
-<details><summary>Railroad diagrams of the 23 rules from <code>selbri</code> to <code>links</code></summary>
+<details><summary>Railroad diagrams of the 18 rules from <code>selbri</code> to <code>links</code></summary>
 <p><img src="../../docs/diagrams/syntax/zantufa/selbri.svg" alt="Railroad diagram of the rule selbri"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/selbri-1.svg" alt="Railroad diagram of the rule selbri-1"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/ke-word.svg" alt="Railroad diagram of the rule ke-word"></p>
@@ -743,11 +731,6 @@ A run of `cei` nests to the right. The reference repeats `(CEI_clause selbri)*`,
 <p><img src="../../docs/diagrams/syntax/zantufa/tanru-unit-1.svg" alt="Railroad diagram of the rule tanru-unit-1"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/gek-tanru-unit.svg" alt="Railroad diagram of the rule gek-tanru-unit"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/nahe-word.svg" alt="Railroad diagram of the rule nahe-word"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/me-sumti.svg" alt="Railroad diagram of the rule me-sumti"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/me-mex.svg" alt="Railroad diagram of the rule me-mex"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/me-tag.svg" alt="Railroad diagram of the rule me-tag"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/mex-moi.svg" alt="Railroad diagram of the rule mex-moi"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/nahe-tanru-unit.svg" alt="Railroad diagram of the rule nahe-tanru-unit"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/gik-selbris.svg" alt="Railroad diagram of the rule gik-selbris"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/gik-term-or-cu.svg" alt="Railroad diagram of the rule gik-term-or-cu"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/linkargs.svg" alt="Railroad diagram of the rule linkargs"></p>
@@ -756,11 +739,11 @@ A run of `cei` nests to the right. The reference repeats `(CEI_clause selbri)*`,
 
 ## Mekso
 
-The MAhO operand slot keeps mex over selbri, then selbri over sumti, when qualified categories cover the same interval. The MOhE operand slot keeps a qualified selbri over a sumti on that interval. A failed higher operand removes nothing.
+The MAhO choice ranks mekso, selbri, then sumti. The MOhE choice ranks selbri before sumti. A qualified earlier operand excludes later operands over the same span. A failed higher operand removes nothing.
 
-In `li ma'o ke by .e cy jo'u dy pa`, MAhO takes the long mex operand. The final PA lies outside it. Shorter mex operands close TEhU earlier and lose by late elision. The literal PEG rejects this text because its grouped mex commits to an inner choice.
+In `li ma'o ke by .e cy jo'u dy pa`, MAhO takes the long mekso operand. The final PA lies outside it. Shorter mekso operands close TEhU earlier and lose by late elision. The literal PEG rejects this text because its grouped mekso commits to an inner choice.
 
-In `li mo'e ke by xi mo'e ke cy moi jo'u dy xi mo'e ke zy moi`, the outer MOhE takes a selbri. The literal reference takes a sumti after its committed selbri attempt fails. This dialect revisits the inner subscript choices, so its selbri completes. The slot filter preserves that existing selbri reading.
+In `li mo'e ke by xi mo'e ke cy moi jo'u dy xi mo'e ke zy moi`, the outer MOhE takes a selbri. The literal reference takes a sumti after its committed selbri attempt fails. This dialect revisits the inner subscript choices, so its selbri completes. The ranked choice preserves that existing selbri reading.
 
 Zantufa's mekso is flat: operands and runs of operators alternate, `bo` and `ke` group them, and `bi'e` raises the precedence of the operators after it. Reverse Polish takes `fu'a`, and forethought takes `pe'o` or a bare operator. A quantifier is a mekso that begins no sumti and no selbri, as the reference's lookaheads say. These are prefix tests, as a PEG's are.
 
@@ -822,23 +805,12 @@ The condition removes a connective operator whose first word is SE. The alternat
                / VUhU_clause / joik_ek !CU *)
   | SE # operator
   | NAhE # operator
-  | MAhO # $m(maho-mex) [+TEhU #]
-  | MAhO # $s(maho-selbri) [+TEhU #]
-  | MAhO # $u(maho-sumti) [+TEhU #]
+  | MAhO # (mex ≻ selbri ≻ sumti) [+TEhU #]
   | VUhU #
   | $j(joik-ek)
 %conditions
   ¬begins(after($j), cu-word),
   $j ≇ @(SE ⋯)
-
-%rule maho-mex
-  mex
-%rule maho-selbri
-  selbri
-%rule maho-sumti
-  sumti
-%prefer maho-mex > maho-selbri
-%prefer maho-selbri > maho-sumti
 
 %rule operators
   (* operator+, which reads every operator that follows *)
@@ -859,15 +831,9 @@ The condition removes a connective operator whose first word is SE. The alternat
   | number [+BOI #]
   | lerfu-string [+BOI #]
   | VEI # mex [+VEhO #]
-  | MOhE # mohe-selbri [+TEhU #]
-  | MOhE # mohe-sumti [+TEhU #]
+  | MOhE # (selbri ≻ sumti) [+TEhU #]
   | (LAhE # | NAhE # BO #) mex [+LUhU #]
   | NAhE # operand
-%rule mohe-selbri
-  selbri
-%rule mohe-sumti
-  sumti
-%prefer mohe-selbri > mohe-sumti
 
 %rule number
   (* number <- PA_clause+;  PA_post <- number_post_clause *)
@@ -882,7 +848,7 @@ The condition removes a connective operator whose first word is SE. The alternat
   BY lerfu-post | LAU # lerfu-word | TEI # lerfu-string FOI #
 ```
 
-<details><summary>Railroad diagrams of the 22 rules from <code>quantifier</code> to <code>lerfu-word</code></summary>
+<details><summary>Railroad diagrams of the 17 rules from <code>quantifier</code> to <code>lerfu-word</code></summary>
 <p><img src="../../docs/diagrams/syntax/zantufa/quantifier.svg" alt="Railroad diagram of the rule quantifier"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/mex.svg" alt="Railroad diagram of the rule mex"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/mex-link.svg" alt="Railroad diagram of the rule mex-link"></p>
@@ -893,15 +859,10 @@ The condition removes a connective operator whose first word is SE. The alternat
 <p><img src="../../docs/diagrams/syntax/zantufa/mex-rp.svg" alt="Railroad diagram of the rule mex-rp"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/mex-forethought.svg" alt="Railroad diagram of the rule mex-forethought"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/operator.svg" alt="Railroad diagram of the rule operator"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/maho-mex.svg" alt="Railroad diagram of the rule maho-mex"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/maho-selbri.svg" alt="Railroad diagram of the rule maho-selbri"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/maho-sumti.svg" alt="Railroad diagram of the rule maho-sumti"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/operators.svg" alt="Railroad diagram of the rule operators"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/operator-run.svg" alt="Railroad diagram of the rule operator-run"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/cu-word.svg" alt="Railroad diagram of the rule cu-word"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/operand.svg" alt="Railroad diagram of the rule operand"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/mohe-selbri.svg" alt="Railroad diagram of the rule mohe-selbri"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/mohe-sumti.svg" alt="Railroad diagram of the rule mohe-sumti"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/number.svg" alt="Railroad diagram of the rule number"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/lerfu-string.svg" alt="Railroad diagram of the rule lerfu-string"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/lerfu-word.svg" alt="Railroad diagram of the rule lerfu-word"></p>

@@ -511,7 +511,7 @@ class StageContext:
             self.memo[key] = NestedAnswer(bool(found_items), gathered.value())
             return
         # A completed item of the rule from the span's start, in any set.
-        productions = self.lowered.productions
+        productions = forest.lowered.productions
         witnesses = [
             item
             for item, (prod, dot, origin) in enumerate(zip(forest.prod, forest.dot, forest.origin))

@@ -3150,3 +3150,4 @@ i131.slot.zantufa.mohe-sumti
 i131.slot.zantufa.fragment-vocative
 i131.slot.zantufa.fragment-free
 i131.slot.zantufa.fragment-mex-guard
+i131.ranked.zantufa.se-moi
