@@ -59,15 +59,16 @@ type domConst struct {
 }
 
 type domRule struct {
-	Name         string
-	Flags        []string
-	Op           string // "define", "redefine" or "extend"
-	Tags         *domTerm
-	Alternatives []*domAlt
-	Emit         *domEmit
-	Conditions   []*domCond
-	Opaque       bool // %opaque: its constituents are opaque parts, which sound ? and show their text (engine §11)
-	At           [2]int
+	deferredEmission string
+	Name             string
+	Flags            []string
+	Op               string // "define", "redefine" or "extend"
+	Tags             *domTerm
+	Alternatives     []*domAlt
+	Emit             *domEmit
+	Conditions       []*domCond
+	Opaque           bool // %opaque: its constituents are opaque parts, which sound ? and show their text (engine §11)
+	At               [2]int
 }
 
 type domAlt struct {

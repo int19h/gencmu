@@ -105,7 +105,7 @@ type elisionWatch struct {
 // which a parse takes through an unexported field of ParseOptions, so that
 // no caller can set them and parses that run at once keep them apart.
 type privateOptions struct {
-	preferenceRanking func(preferenceStatistics)
+	slotAdmission func(slotStatistics)
 	// elisionCheck, when set, receives each check of elision-only that
 	// recognized R and met no error of the grammar, before it ranks, for
 	// the witness test of tests/README.md. It gives back the marks of
@@ -248,25 +248,43 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	var res *rankResult
 	rk := newRanker(r, "", nil)
 	rk.check, rk.marks = true, marks
+	preferred := g.stage != nil && g.stage.preferences != nil && len(g.stage.preferences.paths) > 0
+	rawCounted := true
+	if preferred {
+		raw := newRanker(r, "", nil)
+		raw.admission = nil
+		raw.check, raw.marks = true, marks
+		rawRes := raw.rank(top)
+		rawCounted = rawRes != nil && rawRes.witnessCounted
+		rk.rawWitnessCounted = &rawCounted
+	}
 	if len(top) > 0 && private.loseWitness != "count" {
 		res = rk.rank(top)
 	}
-	if res != nil && protect && !res.witnessCounted {
+	if res != nil && protect && (!rawCounted || !preferred && !res.witnessCounted) {
 		res = nil
 	}
 	better := false
 	if res != nil {
 		profileOrder := compareProfiles(res.profile, chosenProfile)
-		if profileOrder > 0 {
+		if !preferred && profileOrder > 0 {
 			res = nil
 		} else {
-			better = profileOrder < 0 || res.slow && res.verdict != VerdictTie && restored != nil && rk.compare(restored, res.first).kind != cIdentical
-			if better {
-				res.second, res.first = res.first, restored
-				if len(res.cycle) == 0 {
-					res.conflict = rk.reconstructionConflict(res.first, res.second)
+			excluded := protect && !res.witnessCounted
+			better = excluded || profileOrder < 0
+			if better || res.verdict == VerdictTie && protect {
+				var competitor *dn
+				if excluded {
+					competitor = res.first
+				} else {
+					for _, candidate := range []*dn{res.first, res.second} {
+						if candidate != nil && rk.compare(restored, candidate).kind != cIdentical && (competitor == nil || secondBefore(rk, restored, candidate, competitor)) {
+							competitor = candidate
+						}
+					}
 				}
-				diff := rk.compare(res.first, res.second)
+				res.first, res.second = restored, competitor
+				diff := rk.compare(restored, competitor)
 				if diff.kind == cVisDiff {
 					res.witness = [2]action{diff.va, diff.vb}
 				} else {
@@ -288,7 +306,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 			Message: "the " + run.name + " stage could not reconstruct its chosen derivation for elision-only",
 			Chosen:  tree, Completion: records}
 	}
-	if res.second == nil && len(res.cycle) == 0 {
+	if res.second == nil {
 		return nil
 	}
 	// The readings, mapped to O (§7.10).
@@ -334,27 +352,6 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 		}
 		return Action{}
 	}
-	if len(res.cycle) > 0 {
-		ids := []*dn{restored}
-		indices := make([]int, len(res.readings))
-		for i, d := range res.readings {
-			if rk.compare(restored, d).kind != cIdentical {
-				ids = append(ids, d)
-				indices[i] = len(ids) - 1
-			}
-		}
-		readings := []*Node{}
-		for _, d := range ids {
-			readings = append(readings, mapTree(over.buildTree(r, d)))
-		}
-		edges := publicPreferenceEdges(res.cycle, mapped)
-		for i := range edges {
-			edges[i].From = indices[edges[i].From]
-			edges[i].To = indices[edges[i].To]
-		}
-		chosen := 0
-		return &ParseError{Kind: ErrorAmbiguous, Stage: run.name, Reason: ReasonElisionOnly, Readings: readings, Cycle: edges, ChosenReading: &chosen, Message: "stage " + run.name + ": the text is ambiguous even with every elided terminator written"}
-	}
 	first := tree
 	if !better {
 		first = mapTree(over.buildTree(r, res.first))
@@ -367,6 +364,6 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 			panic("gencmu: the witness of the check of elision-only lacks an action")
 		}
 	}
-	return &ParseError{Kind: ErrorAmbiguous, Stage: run.name, Reason: ReasonElisionOnly, Readings: readings, Witness: witness, Conflict: res.conflict,
+	return &ParseError{Kind: ErrorAmbiguous, Stage: run.name, Reason: ReasonElisionOnly, Readings: readings, Witness: witness,
 		Message: "stage " + run.name + ": the text is ambiguous even with every elided terminator written"}
 }

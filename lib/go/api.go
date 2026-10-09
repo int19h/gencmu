@@ -113,7 +113,7 @@ func (l *loader) document(p string) (*domDoc, *Error) {
 			}
 		}
 	}
-	return l.reader.read(text, p)
+	return l.reader.readMode(text, p, true)
 }
 
 // utf8Problem says why a string is not valid UTF-8, which engine §1 makes

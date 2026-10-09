@@ -528,6 +528,8 @@ func patternLeafTest(p *domPattern, sound string, tags *tagset) bool {
 		return len(in.intersection(set, tags).names) == 0
 	}
 }
+func (m *patternMachine) sealed() int { return m.node("", m.empty, "", "", &tagset{}) }
+
 func (m *patternMachine) node(name string, children int, terminal, sound string, tags *tagset) int {
 	leaf := ""
 	if tags != nil {
@@ -895,7 +897,7 @@ func (r *recognizer) preparePatterns() {
 				}
 			}
 		}
-		if len(roots) > 0 {
+		if len(roots) > 0 || r.g.stage != nil && r.g.stage.preferences != nil && len(r.g.stage.preferences.paths) > 0 {
 			r.machine = newPatternMachine(roots)
 		}
 		if run.patternMachines == nil {

@@ -3,7 +3,6 @@ package gencmu
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -66,6 +65,7 @@ type caseOptions struct {
 // caseExpect is what a case expects. Result, Warnings and Features are
 // decoded JSON, nil where the case leaves them out.
 type caseExpect struct {
+	Diagnostic   string  `json:"diagnostic"`
 	LoadWarnings *any    `json:"loadWarnings"`
 	Result       *any    `json:"result"`
 	Brackets     *string `json:"brackets"`
@@ -314,6 +314,9 @@ func checkLoadError(expect *caseExpect, err error) error {
 	} else if w != nil && (e.Document != w.Document || e.Line != w.Line || e.Column != w.Column) {
 		return fmt.Errorf("the load error stands at %s:%d:%d, not at %s:%d:%d: %v", e.Document, e.Line, e.Column, w.Document, w.Line, w.Column, err)
 	}
+	if expect.Diagnostic != "" && !strings.HasPrefix(e.Message, expect.Diagnostic+":") {
+		return fmt.Errorf("the load diagnostic is %s, not %s", e.Message, expect.Diagnostic)
+	}
 	return nil
 }
 
@@ -420,13 +423,18 @@ func resultProblems(got any) []string {
 		e, _ := result["error"].(map[string]any)
 		readings, _ := e["readings"].([]any)
 		tree, hasTree := result["tree"]
-		if result["ok"] != false || !hasTree || tree != nil || e == nil || e["kind"] != ErrorAmbiguous || e["reason"] != ReasonTie || e["stage"] != name || len(readings) != 2 && e["cycle"] == nil {
+		if result["ok"] != false || !hasTree || tree != nil || e == nil || e["kind"] != ErrorAmbiguous || e["reason"] != ReasonTie || e["stage"] != name || len(readings) != 2 {
 			problems = append(problems, "the tied stage "+name+" lacks its error of kind ambiguous, reason tie and two readings")
 		}
 	}
-	if e, _ := result["error"].(map[string]any); e != nil && e["cycle"] != nil {
-		problems = append(problems, cycleProblems(e, stages)...)
+	if e, _ := result["error"].(map[string]any); e != nil {
+		for _, field := range []string{"cycle", "conflict", "chosenReading"} {
+			if _, present := e[field]; present {
+				problems = append(problems, "the result contains obsolete preference output "+field)
+			}
+		}
 	}
+
 	return problems
 }
 
@@ -729,113 +737,4 @@ func TestEngineCaseDeep(t *testing.T) {
 	if err := checkCase(c, true); err != nil {
 		t.Fatalf("%.500v", err)
 	}
-}
-
-func cycleProblems(error map[string]any, stages []any) []string {
-	problems := []string{}
-	readings, _ := error["readings"].([]any)
-	cycle, _ := error["cycle"].([]any)
-	if len(readings) < 3 {
-		problems = append(problems, "a cycle needs at least three readings")
-	}
-	if len(cycle) < 3 {
-		problems = append(problems, "a cycle needs at least three edges")
-	}
-	natural := func(v any) (int, bool) { n, ok := v.(float64); return int(n), ok && n >= 0 && n == math.Trunc(n) }
-	digits := func(v any, positive bool) bool {
-		s, ok := v.(string)
-		if !ok || s == "" || len(s) > 1 && s[0] == '0' || positive && s[0] == '0' {
-			return false
-		}
-		for i := range s {
-			if s[i] < '0' || s[i] > '9' {
-				return false
-			}
-		}
-		return true
-	}
-	vertices := map[int]bool{}
-	for i, x := range cycle {
-		edge, _ := x.(map[string]any)
-		from, fok := natural(edge["from"])
-		to, tok := natural(edge["to"])
-		if !fok || !tok || from >= len(readings) || to >= len(readings) {
-			problems = append(problems, "a cycle index is out of range")
-		}
-		next, _ := cycle[(i+1)%len(cycle)].(map[string]any)
-		nf, nok := natural(next["from"])
-		if !tok || !nok || to != nf {
-			problems = append(problems, "cycle edges do not connect")
-		}
-		if vertices[from] {
-			problems = append(problems, "a cycle repeats a vertex")
-		}
-		vertices[from] = true
-		basis, _ := edge["basis"].(string)
-		contests, _ := edge["contests"].([]any)
-		switch basis {
-		case "prefer":
-			if len(contests) == 0 {
-				problems = append(problems, "a preference edge lacks contests")
-			}
-		case "stage":
-			directive, _ := edge["directive"].(string)
-			counts, _ := edge["counts"].([]any)
-			witness, _ := edge["witness"].([]any)
-			_, boundary := natural(edge["boundary"])
-			if directive == "late-elision" {
-				if !boundary || len(counts) != 2 {
-					problems = append(problems, "a stage edge lacks its directive witness")
-				}
-			} else if (directive != "greedy" && directive != "lazy") || len(witness) != 2 {
-				problems = append(problems, "a stage edge lacks its directive witness")
-			}
-		default:
-			problems = append(problems, "a cycle edge lacks its reason")
-		}
-		counts, _ := edge["counts"].([]any)
-		for _, n := range counts {
-			if !digits(n, false) {
-				problems = append(problems, "a cycle count is not an exact integer string")
-			}
-		}
-		for _, x := range contests {
-			c, _ := x.(map[string]any)
-			span, _ := c["span"].([]any)
-			path, _ := c["path"].([]any)
-			counts, _ := c["residualCounts"].([]any)
-			good := len(span) == 2 && len(path) >= 2 && len(counts) == 2
-			if good {
-				start, sok := natural(span[0])
-				end, eok := natural(span[1])
-				a, aok := path[0].(string)
-				b, bok := path[len(path)-1].(string)
-				higher, _ := c["higher"].(string)
-				lower, _ := c["lower"].(string)
-				good = sok && eok && start < end && aok && bok && a == higher && b == lower
-			}
-			if !good {
-				problems = append(problems, "a preference contest is malformed")
-			}
-			for _, n := range counts {
-				if !digits(n, true) {
-					problems = append(problems, "a residual count is not a positive integer string")
-				}
-			}
-		}
-	}
-	_, hasWitness := error["witness"]
-	for _, s := range stages {
-		stage, _ := s.(map[string]any)
-		if _, ok := stage["witness"]; ok {
-			hasWitness = true
-		}
-	}
-	if hasWitness {
-		problems = append(problems, "a cycle has a pairwise witness")
-	}
-	if error["reason"] == ReasonElisionOnly && error["chosenReading"] != float64(0) {
-		problems = append(problems, "a reconstruction cycle lacks its chosen reading index")
-	}
-	return problems
 }

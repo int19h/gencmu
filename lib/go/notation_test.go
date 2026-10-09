@@ -288,6 +288,25 @@ func sameValue(a, b reflect.Value) bool {
 		if a.Len() != b.Len() {
 			return false
 		}
+
+		if a.Type().Key().Kind() == reflect.Pointer {
+			keys := b.MapKeys()
+			used := make([]bool, len(keys))
+			for _, key := range a.MapKeys() {
+				found := false
+				for i, other := range keys {
+					if !used[i] && sameValue(key, other) && sameValue(a.MapIndex(key), b.MapIndex(other)) {
+						used[i] = true
+						found = true
+						break
+					}
+				}
+				if !found {
+					return false
+				}
+			}
+			return true
+		}
 		for _, k := range a.MapKeys() {
 			v := b.MapIndex(k)
 			if !v.IsValid() || !sameValue(a.MapIndex(k), v) {

@@ -51,10 +51,13 @@ func (log *checkLog) lost() int { return log.bad }
 // does not come after W(D) by the criterion of engine §6 that picks it:
 // divergence from the first, then T.
 func keeps(res *rankResult, rk *ranker, w *dn) bool {
+	if rk.rawWitnessCounted != nil {
+		return res != nil && *rk.rawWitnessCounted
+	}
 	if res == nil || !res.witnessCounted {
 		return false
 	}
-	if res.slow || res.verdict != VerdictTie {
+	if res.verdict != VerdictTie {
 		return true
 	}
 	first := rk.compare(res.first, w)

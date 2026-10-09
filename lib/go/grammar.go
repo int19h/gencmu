@@ -5,18 +5,19 @@ import "slices"
 // A stage's grammar: its documents stitched into one set of rules,
 // directives, constants, classifiers and implications (engine §2).
 type stageGrammar struct {
-	preferences   *preferences
-	name          string
-	uni           *unicodeTable // the loader's table, for the tags of a range in a constant's value
-	constants     map[string]*stageConst
-	constVersions []*constVersion
-	constLatest   map[string]int
-	constUsers    []constUser
-	rules         []*sRule
-	byName        map[string]*sRule
-	lean          string // the rule of the ranking: "greedy", "lazy" or "late-elision" (engine §6)
-	elisionOnly   bool
-	changes       []stitchChange
+	preferences       *preferences
+	deferredEmissions []*Error
+	name              string
+	uni               *unicodeTable // the loader's table, for the tags of a range in a constant's value
+	constants         map[string]*stageConst
+	constVersions     []*constVersion
+	constLatest       map[string]int
+	constUsers        []constUser
+	rules             []*sRule
+	byName            map[string]*sRule
+	lean              string // the rule of the ranking: "greedy", "lazy" or "late-elision" (engine §6)
+	elisionOnly       bool
+	changes           []stitchChange
 	// classifierSet holds the stage's classifiers, and implications its
 	// implications with their values (engine §2, §11).
 	classifierSet stageClassifiers
@@ -100,6 +101,9 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 	var ambiguity []*domDirective
 	for _, d := range docs {
 		for _, r := range d.dom.Rules {
+			if r.deferredEmission != "" && len(constRefs(r)) == 0 && !ruleHasPattern(r) {
+				g.deferredEmissions = append(g.deferredEmissions, fail(d.path, r.At, "%s", r.deferredEmission))
+			}
 			if len(constRefs(r)) > 0 || ruleHasPattern(r) {
 				g.constUsers = append(g.constUsers, constUser{doc: d.path, rule: r})
 			}
@@ -238,6 +242,14 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 	g.preferences, err = newPreferences(g, preferences)
 	if err != nil {
 		return nil, err
+	}
+	if len(g.preferences.paths) > 0 {
+		if err := g.preferences.validate(lowerForSlots(g)); err != nil {
+			return nil, err
+		}
+	}
+	if len(g.deferredEmissions) > 0 {
+		return nil, g.deferredEmissions[0]
 	}
 	return g, nil
 }

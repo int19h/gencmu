@@ -828,7 +828,11 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 		}
 		key.dot++
 		if r.machine != nil {
-			key.prefix = r.machine.concat(it.prefix, cv.structure)
+			structure := cv.structure
+			if sym := p.rhs[pos]; !sym.term && !r.g.rules[sym.id].helper && r.g.stage.preferences.paths[r.g.rules[sym.id].name] != nil {
+				structure = r.machine.sealed()
+			}
+			key.prefix = r.machine.concat(it.prefix, structure)
 		}
 		r.finishStructure(&key)
 	}

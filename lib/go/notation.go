@@ -126,7 +126,10 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 }
 
 // read reads one grammar document into its DOM.
-func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
+func (nr *notationReader) read(text, docPath string) (*domDoc, *Error) {
+	return nr.readMode(text, docPath, false)
+}
+func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (dom *domDoc, err *Error) {
 	gt := extractGrammarText(text)
 	if gt.unclosed != nil {
 		return nil, grammarError(docPath, *gt.unclosed, "a jbogenbau block is never closed")
@@ -165,7 +168,7 @@ func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
 			toks = out.stage.Output
 		}
 	}
-	b := &domBuilder{toks: toks, gt: gt, doc: docPath, uni: nr.uni, types: newTypeMemo()}
+	b := &domBuilder{deferEmission: deferEmission, toks: toks, gt: gt, doc: docPath, uni: nr.uni, types: newTypeMemo()}
 	defer func() {
 		if x := recover(); x != nil {
 			if e, ok := x.(*Error); ok {
@@ -228,6 +231,7 @@ func firstTooDeep(dom *domDoc, uni *unicodeTable, found *domProblem) *domProblem
 }
 
 type domBuilder struct {
+	deferEmission bool
 	// captureNodes holds the notation node of each capture of the
 	// alternative being read, where an error about it is reported.
 	captureNodes map[*domExpr]*Node
@@ -637,7 +641,11 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	flattenGroups(r)
 	// The definition as a whole (§9), reported at the rule.
 	if msg := definitionProblem(r); msg != "" {
-		b.fail(definer, "%s", msg)
+		if b.deferEmission && deferredEmissionProblem(msg) {
+			r.deferredEmission = msg
+		} else {
+			b.fail(definer, "%s", msg)
+		}
 	}
 	return r
 }

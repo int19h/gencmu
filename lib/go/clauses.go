@@ -1,6 +1,9 @@
 package gencmu
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // A rule's clauses against the captures of its alternatives (engine §3.6,
 // §9): simplifying a clause for one production, the captures a clause uses
@@ -748,4 +751,8 @@ func hasIn(caps map[string]int) func(string) bool {
 		_, ok := caps[name]
 		return ok
 	}
+}
+
+func deferredEmissionProblem(message string) bool {
+	return strings.Contains(message, "leaves a production nothing to emit")
 }

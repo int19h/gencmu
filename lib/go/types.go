@@ -152,32 +152,27 @@ type Expected struct {
 // Token and Source are nil when unknown; Line and Column are 0 when unknown.
 // For a rejection they give the position in the text; for a grammar error,
 // the position in Document. An ambiguous error has Readings over the stage input.
-// An ordinary tie has two readings and can include opposed contests in Conflict.
-// A comparison cycle has at least three readings and each directed edge in Cycle.
+// A tie has two readings.
 // An ordinary elision-only error also has Witness, its first differing actions.
-// A cycle under elision-only has ChosenReading equal to zero and no Witness.
 // Code is set only for the grammar error
 // CodeElisionWitnessLost, which also has Chosen, the stage's chosen tree,
 // and Completion, the terminators that the check wrote back (engine §7.9).
 type ParseError struct {
-	Cycle         []CycleEdge
-	Conflict      *PreferenceConflict
-	ChosenReading *int
-	Kind          string
-	Stage         string
-	Code          string
-	Reason        string
-	Token         *int
-	Source        *[2]int
-	Document      string
-	Line          int
-	Column        int
-	Expected      []Expected
-	Readings      []*Node
-	Witness       []Action
-	Message       string
-	Chosen        *Node
-	Completion    []Restoration
+	Kind       string
+	Stage      string
+	Code       string
+	Reason     string
+	Token      *int
+	Source     *[2]int
+	Document   string
+	Line       int
+	Column     int
+	Expected   []Expected
+	Readings   []*Node
+	Witness    []Action
+	Message    string
+	Chosen     *Node
+	Completion []Restoration
 }
 
 // Warning reports a rule node of a stage's chosen tree that an alternative
@@ -218,30 +213,4 @@ type Feature struct {
 	Name    string
 	Kind    string
 	Default bool
-}
-
-// PreferenceContest records one same-span contest after common occurrences cancel.
-type PreferenceContest struct {
-	Span           [2]int    `json:"span"`
-	Higher         string    `json:"higher"`
-	Lower          string    `json:"lower"`
-	Path           []string  `json:"path"`
-	ResidualCounts [2]string `json:"residualCounts"`
-}
-
-// PreferenceConflict records contests that favor opposite complete readings.
-type PreferenceConflict struct {
-	Forward []PreferenceContest `json:"forward"`
-	Reverse []PreferenceContest `json:"reverse"`
-}
-
-// CycleEdge records one comparison edge and its reason.
-type CycleEdge struct {
-	From, To  int
-	Basis     string
-	Contests  []PreferenceContest
-	Directive string
-	Boundary  *int
-	Counts    []string
-	Witness   []Action
 }

@@ -234,11 +234,10 @@ func (r cmpRes) flip() cmpRes {
 }
 
 type ranker struct {
-	stageLean    string
-	preferences  *preferences
-	prefContexts map[string]forbidden
-	statistics   preferenceStatistics
-	rec          *recognizer
+	preferences       *preferences
+	admission         *slotAdmission
+	rawWitnessCounted *bool
+	rec               *recognizer
 	// lean is greedy, lazy, or "" for no lean, where any two differing
 	// derivations tie. Under late-elision it is "", and elisions is set.
 	lean     string
@@ -271,7 +270,7 @@ func (rk *ranker) skips(fault, site string, i, n int) bool {
 // newRanker ranks under the rule of a directive, greedy, lazy or
 // late-elision, or under no lean for "".
 func newRanker(rec *recognizer, rule string, mx *maximal) *ranker {
-	rk := &ranker{rec: rec, stageLean: rule, lean: rule, maximal: mx, items: map[*item]*itemRank{}, syms: map[*symNode]*itemRank{}, marked: map[*item]bool{}}
+	rk := &ranker{rec: rec, lean: rule, maximal: mx, items: map[*item]*itemRank{}, syms: map[*symNode]*itemRank{}, marked: map[*item]bool{}}
 	if rec.g.stage != nil {
 		rk.preferences = rec.g.stage.preferences
 	}
@@ -283,6 +282,9 @@ func newRanker(rec *recognizer, rule string, mx *maximal) *ranker {
 	}
 	for _, r := range rec.g.rules {
 		rk.profiles = rk.profiles || r.leftmostLongest
+	}
+	if rk.preferences != nil && len(rk.preferences.paths) > 0 {
+		rk.admission = newSlotAdmission(rk)
 	}
 	return rk
 }
@@ -851,6 +853,7 @@ type linkVal struct {
 	profile     ruleProfile
 	prev, child *entry
 	permitted   bool
+	admitted    bool
 	vec         *elSeq
 	least       int
 }
@@ -950,7 +953,14 @@ func (fr *itemFrame) summarize(rk *ranker, l link) {
 	if child == nil || child.count == 0 {
 		return
 	}
-	v := linkVal{prev: prev, child: child, permitted: true}
+	v := linkVal{prev: prev, child: child, permitted: true, admitted: true}
+	if rk.admission != nil {
+		if mask, ok := rk.admission.mask(it, fr.f); ok {
+			v.admitted = mask.all[i]
+			v.permitted = mask.allowed[i]
+			fr.forbade = fr.forbade || v.admitted != v.permitted
+		}
+	}
 	if fr.guarded && l.sym != nil && mx.forbids(l.sym.rule, l.sym.start, l.sym.end, it.prod.testAt(int(it.dot)-1)) {
 		v.permitted, fr.forbade = false, true
 	}
@@ -967,8 +977,10 @@ func (fr *itemFrame) summarize(rk *ranker, l link) {
 	// Faults of the check skip the last of two or more links, in the
 	// count or in the candidates (tests/README.md).
 	if !rk.skips("lost:context", "links", i, len(it.links)) {
-		fr.all.add(v.profile, v.vec, v.least, count)
-		fr.allW = fr.allW || w
+		if v.admitted {
+			fr.all.add(v.profile, v.vec, v.least, count)
+			fr.allW = fr.allW || w
+		}
 		if v.permitted {
 			fr.allowed.add(v.profile, v.vec, v.least, count)
 			fr.allowedW = fr.allowedW || w
@@ -985,7 +997,7 @@ func (fr *itemFrame) finish(rk *ranker) *entry {
 	// least vector of the summary give them.
 	var cands, permitted []*cand
 	for _, v := range fr.vals {
-		inAll := !(rk.elisions || rk.profiles) || compareScore(v.profile, v.vec, fr.all.profile, fr.all.vec) == 0
+		inAll := v.admitted && (!(rk.elisions || rk.profiles) || compareScore(v.profile, v.vec, fr.all.profile, fr.all.vec) == 0)
 		inAllowed := v.permitted && (!(rk.elisions || rk.profiles) || compareScore(v.profile, v.vec, fr.allowed.profile, fr.allowed.vec) == 0)
 		if !inAll && !(fr.forbade && inAllowed) {
 			continue
@@ -999,7 +1011,7 @@ func (fr *itemFrame) finish(rk *ranker) *entry {
 		}
 	}
 	var e *entry
-	if fr.all.total > 0 {
+	if fr.all.total > 0 || fr.allowed.total > 0 {
 		e = &entry{count: fr.all.total, profile: fr.all.profile, vec: fr.all.vec, least: fr.all.least, w: fr.allW}
 		// Where maximal forbids none of the links, an elided terminator may
 		// follow every derivation. Otherwise it may follow the candidates of
@@ -1185,15 +1197,11 @@ func (rk *ranker) prepare(top []*symNode) {
 // reading, m, which is the chosen derivation unless the verdict is a tie,
 // and for a tie the second reading, t, and the witness (engine §6).
 type rankResult struct {
-	slow     bool
-	readings []*dn
-	cycle    []preferenceEdge
-	conflict *PreferenceConflict
-	profile  ruleProfile
-	verdict  string
-	first    *dn
-	second   *dn // nil unless the verdict is a tie
-	witness  [2]action
+	profile ruleProfile
+	verdict string
+	first   *dn
+	second  *dn // nil unless the verdict is a tie
+	witness [2]action
 	// witnessCounted, with the witness hook's marks, says whether the count
 	// counted W(D): a root has the bit (tests/README.md).
 	witnessCounted bool
@@ -1203,15 +1211,13 @@ type rankResult struct {
 // text that spans it, combined as the edges of one root (engine §6). It is
 // nil when every derivation is cyclic.
 func (rk *ranker) rank(top []*symNode) *rankResult {
-	if rk.preferences != nil && len(rk.preferences.paths) > 0 {
+	if rk.admission != nil {
+		rk.admission.prepareRoots(top)
 		defer func() {
-			if private := rk.rec.run.ps.private; private != nil && private.preferenceRanking != nil {
-				private.preferenceRanking(rk.statistics)
+			if private := rk.rec.run.ps.private; private != nil && private.slotAdmission != nil {
+				private.slotAdmission(rk.admission.stats)
 			}
 		}()
-		if rk.possiblePreferenceContest(top) {
-			return rk.rankPreferences(top)
-		}
 	}
 	return rk.rankOriginal(top)
 }
@@ -1519,4 +1525,25 @@ func derivationProfile(g *lowered, d *dn) ruleProfile {
 		stack = append(stack, n.a, n.b)
 	}
 	return out
+}
+
+// secondBefore says whether a comes before b as the second reading after
+// first (engine §6): it diverges from first earlier, in visible actions, or
+// at the same point and before b in the order T, as contribute measures it.
+func secondBefore(rk *ranker, first, a, b *dn) bool {
+	div := func(d *dn) count {
+		r := rk.compare(first, d)
+		switch r.kind {
+		case cVisDiff, cAPrefix, cBPrefix:
+			return r.pos
+		}
+		return inf
+	}
+	switch c := div(a).cmp(div(b)); {
+	case c < 0:
+		return true
+	case c > 0:
+		return false
+	}
+	return rk.aFirst(rk.compare(a, b))
 }

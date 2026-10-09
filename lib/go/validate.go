@@ -160,7 +160,7 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		}
 		// The definition as a whole (engine §9, the end), and the types of
 		// its terms and conditions (engine §10).
-		if msg := definitionProblem(r); msg != "" {
+		if msg := definitionProblem(r); msg != "" && msg != r.deferredEmission {
 			return &domProblem{message: msg, rule: r}
 		}
 		if msg := ruleTypeProblem(r); msg != "" {

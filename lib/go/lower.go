@@ -14,7 +14,14 @@ type symbol struct {
 	id   int32 // a terminal's index in lowered.terminals, or a rule's in lowered.rules
 }
 
+type slotMetadata struct {
+	source *sAlt
+	path   *domExpr
+	tags   []*domTerm
+}
+
 type production struct {
+	slot         *slotMetadata
 	num          int
 	lhs          int32
 	rhs          []symbol
@@ -136,13 +143,15 @@ func (p *production) testAt(i int) *symTest {
 }
 
 type lowerer struct {
-	g        *stageGrammar
-	l        *lowered
-	features map[string]bool
-	helpers  int
-	memo     map[*domExpr][][]slot // expansions of one alternative, by place
-	tests    map[*domExpr]*symTest // the tests of that alternative with their values
-	into     *[]*helperNode        // where a new helper goes
+	validation  bool
+	currentExpr *domExpr
+	g           *stageGrammar
+	l           *lowered
+	features    map[string]bool
+	helpers     int
+	memo        map[*domExpr][][]slot // expansions of one alternative, by place
+	tests       map[*domExpr]*symTest // the tests of that alternative with their values
+	into        *[]*helperNode        // where a new helper goes
 	// structural is every production that the gates and the expansion
 	// make, before a false condition removes any (§3.3).
 	structural []structuralProduction
@@ -180,6 +189,7 @@ type braceItem struct {
 // helperNode is the helper of one place where [ ] or flat { } is written,
 // with the helpers of the places written inside it.
 type helperNode struct {
+	path     *domExpr
 	rule     int32
 	bodies   [][]slot
 	elide    string
@@ -190,7 +200,9 @@ type helperNode struct {
 
 // lower lowers a stage's grammar for a set of features. The check of
 // elision-only reads the same productions in a mode of its own (§3.8, §7.4).
-func lower(g *stageGrammar, features map[string]bool) *lowered {
+func lower(g *stageGrammar, features map[string]bool) *lowered { return lowerMode(g, features, false) }
+func lowerForSlots(g *stageGrammar) *lowered                   { return lowerMode(g, nil, true) }
+func lowerMode(g *stageGrammar, features map[string]bool, validation bool) *lowered {
 	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, lean: g.lean, maximalH: map[int32]bool{}}
 	// The stage resolves its classifiers for the same features, before it
 	// lowers its rules; an error there ends the stage as an error of
@@ -204,7 +216,7 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 		return l
 	}
 	l.classifiers = tables.tables
-	lw := &lowerer{g: g, l: l, features: features, terms: map[*domTerm]*termLowering{}, condsOf: map[condsKey]*condLowering{}, emits: map[*domEmit]*emitSplit{}, warnings: map[*sAlt][]string{}}
+	lw := &lowerer{validation: validation, g: g, l: l, features: features, terms: map[*domTerm]*termLowering{}, condsOf: map[condsKey]*condLowering{}, emits: map[*domEmit]*emitSplit{}, warnings: map[*sAlt][]string{}}
 	for _, r := range g.rules {
 		l.byName[r.name] = int32(len(l.rules))
 		l.rules = append(l.rules, &lrule{leftmostLongest: len(r.flags) > 0, name: r.name, owner: r.name, scc: -1})
@@ -216,7 +228,10 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 	}
 	// An item of braces that can match no tokens comes last, once every
 	// rule is lowered (§3.3).
-	if lw.checkBraceItems(); l.fault != "" {
+	if !validation {
+		lw.checkBraceItems()
+	}
+	if l.fault != "" {
 		return l
 	}
 	l.computeCycles()
@@ -290,6 +305,9 @@ func (lw *lowerer) newHelper(owner *sAlt, ownerRule string) int32 {
 // guardsHold says whether an alternative's gates all hold; a warning is not
 // a gate and never drops its alternative (§3.1).
 func (lw *lowerer) guardsHold(a *domAlt) bool {
+	if lw.validation {
+		return true
+	}
 	for _, gd := range a.Guards {
 		if gd.Kind != FeatureWarning && lw.features[gd.Feature] == gd.Negated {
 			return false
@@ -308,7 +326,7 @@ func (lw *lowerer) lowerRule(r *sRule) {
 	// A chain is the only alternative of its rule that the gates leave
 	// (§3.3); a %extend-rule can add another.
 	for _, a := range alts {
-		if isChain(a.alt.Expr) && len(alts) > 1 {
+		if !lw.validation && isChain(a.alt.Expr) && len(alts) > 1 {
 			lw.loweringFault(a, "%s is a chain, which is the whole of its rule, but another alternative stands beside it", r.name)
 			return
 		}
@@ -362,6 +380,9 @@ func (lw *lowerer) lowerRule(r *sRule) {
 				for _, b := range h.bodies {
 					lw.structural = append(lw.structural, structuralProduction{h.rule, symbolsOf(b)})
 					p := lw.newProduction(h.rule, b)
+					if len(lw.g.preferences.paths) > 0 {
+						p.slot = &slotMetadata{source: h.owner, path: h.path}
+					}
 					p.helper = true
 					p.transparent = true
 					p.ruleName = lw.l.rules[h.rule].owner
@@ -491,11 +512,14 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 			lw.condsOf[key] = cl
 		}
 		var ok bool
-		if conds, ok = cl.forProduction(names, has); !ok {
+		if conds, ok = cl.forProduction(names, has); !ok && !lw.validation {
 			return
 		}
 	}
 	p := lw.newProduction(lhs, body)
+	if len(lw.g.preferences.paths) > 0 {
+		p.slot = &slotMetadata{source: a}
+	}
 	p.opaque = a.opaque
 	p.ruleName = lw.l.rules[lhs].name
 	p.doc, p.at = a.doc, a.at
@@ -536,6 +560,9 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 		if t != nil {
 			written = append(written, lw.simplifyTerm(t, names, has))
 		}
+	}
+	if lw.validation {
+		p.slot.tags = written
 	}
 	switch len(written) {
 	case 1:
@@ -685,7 +712,10 @@ func (lw *lowerer) expand(e *domExpr, a *sAlt, ruleName string) [][]slot {
 	if x, ok := lw.memo[e]; ok {
 		return x
 	}
+	outer := lw.currentExpr
+	lw.currentExpr = e
 	x := lw.expandPlace(e, a, ruleName)
+	lw.currentExpr = outer
 	lw.memo[e] = x
 	return x
 }
@@ -694,7 +724,7 @@ func (lw *lowerer) expand(e *domExpr, a *sAlt, ruleName string) [][]slot {
 // the helpers inside it follow it.
 func (lw *lowerer) helper(a *sAlt, ruleName, elide string, elideT *symTest, bodies func(h int32) [][]slot) [][]slot {
 	h := lw.newHelper(a, ruleName)
-	node := &helperNode{rule: h, elide: elide, elideT: elideT, owner: a}
+	node := &helperNode{path: lw.currentExpr, rule: h, elide: elide, elideT: elideT, owner: a}
 	*lw.into = append(*lw.into, node)
 	outer := lw.into
 	lw.into = &node.children
