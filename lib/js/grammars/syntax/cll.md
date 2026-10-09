@@ -326,7 +326,7 @@ The terms `zu'a nu'i la djordj. la'u lo mitre be li mu` and `zu'a nu'i la'u lo m
   sumti | (tag | FA #) (sumti | [+KU #]) | termset | tag termset | NA KU #
 
 %rule termset
-  NUhI # (gek terms [+NUhU #] gik terms | terms) [+NUhU #]
+  NUhI # gek terms [+NUhU #] gik terms [+NUhU #] | NUhI # terms [+NUhU #]
 ```
 
 <details><summary>Railroad diagrams of <code>terms</code>, <code>terms-1</code>, <code>terms-2</code>, <code>term</code> and <code>termset</code></summary>
@@ -967,7 +967,7 @@ The shared elision policy follows CLL's general advice where the whole text dete
 
 ## Differences from the printed CLL grammar
 
-This grammar departs from the EBNF printed in CLL in ten places. The first settles a precedence that the printed text leaves open. The next three repair the EBNF's copy of the YACC grammar, the grammar of the official parser for the YACC parser generator. The EBNF uses that grammar as its source and cites its rule numbers. In each case, the YACC grammar has a path that the EBNF omits. The official parser accepts the text.
+This grammar departs from the EBNF printed in CLL in eleven places. The first settles a precedence that the printed text leaves open. The next three repair the EBNF's copy of the YACC grammar, the grammar of the official parser for the YACC parser generator. The EBNF uses that grammar as its source and cites its rule numbers. In each case, the YACC grammar has a path that the EBNF omits. The official parser accepts the text.
 
 The fifth adopts an inference from CLL 19.8 about several active FUhE groups. The sixth and seventh use conditions to prefer connective groups when both readings complete. They retain the plain reading when only it completes. Item 7 does not force an enclosing construct to close. In the nested abstraction under "Bridi-tails", `late-elision` instead keeps the plain reading, unlike the official lexer. The seventh also follows CLL 14.10 and 14.18.
 
@@ -1002,6 +1002,8 @@ Earlier stages also depart from CLL. [The word stream](../words/stream.md) lists
 9. Numbers and letter strings are indivisible. The printed repetition permits shorter prefixes, but CLL 17.9 and 18.6 require `boi` between adjacent runs. The conditions reject a boundary before another complete continuation unit.
 
 10. In `term`, `tag termset` lets a tense or modal govern a whole termset. Printed rule 83 omits this alternative. CLL 10.25 explicitly allows it, and examples 10.189 and 10.190 give that structure. A written `ku` makes the tag and termset separate terms.
+
+11. This grammar omits printed `any-word {ZEI any-word}` in `tanru-unit-2`, `any-word BU` in `lerfu-word`, and indicator `Y`. The word stage already builds `zei` compounds and `bu` letterals and drops hesitation.
 
 The CLL errata page records the conflict between section 10.25 and printed rule 83 as NOFIX. Cowan writes:
 

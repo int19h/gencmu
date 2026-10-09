@@ -921,10 +921,10 @@ A joik, jek, ek or VUhU connects tenses and modals, and `tag` is a left chain of
   {tense-atom}
 
 %rule tense-atom
-  [NAhE] [SE]
-    (BAI | CAhA | CUhE | KI | ZI | PU | VA | [MOhI] FAhA | ZEhA | VEhA | VIhA
-     | [FEhE] ((number | VEI # mex [+VEhO] #) ROI | TAhE | ZAhO)
-     | FIhO # selbri [+FEhU] | FA) #
+  | [NAhE] [SE] (BAI | CAhA | CUhE | KI | ZI | PU | VA | [MOhI] FAhA | ZEhA | VEhA | VIhA) #
+  | [NAhE] [SE] [FEhE] ((number | VEI # mex [+VEhO] #) ROI | TAhE | ZAhO) #
+  | [NAhE] [SE] FIhO # selbri [+FEhU] #
+  | [NAhE] [SE] FA #
 ```
 
 <details><summary>Railroad diagrams of the 5 rules from <code>tag</code> to <code>tense-atom</code></summary>
