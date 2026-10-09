@@ -1,5 +1,5 @@
 {
-  "description": "The check of elision-only writes back the S that the optional suffix [S r] elides, and y then reads the restored text as well as r, so the text is ambiguous (engine §3.8, §7).",
+  "description": "The chosen r restores S. Reconstruction reports that derivation first and the competing y reading second.",
   "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text r | x | y\n%rule x [+K] A\n%rule y A S\n%rule r A [+S r]",
   "tokens": [
     {
@@ -23,61 +23,6 @@
         "stage": "main",
         "reason": "elision-only",
         "readings": [
-          {
-            "kind": "rule",
-            "rule": "text",
-            "span": [
-              0,
-              1
-            ],
-            "source": [
-              0,
-              1
-            ],
-            "tags": [],
-            "children": [
-              {
-                "kind": "rule",
-                "rule": "y",
-                "span": [
-                  0,
-                  1
-                ],
-                "source": [
-                  0,
-                  1
-                ],
-                "tags": [],
-                "children": [
-                  {
-                    "kind": "token",
-                    "terminal": "A",
-                    "token": 0,
-                    "span": [
-                      0,
-                      1
-                    ],
-                    "source": [
-                      0,
-                      1
-                    ]
-                  },
-                  {
-                    "kind": "elided",
-                    "terminal": "S",
-                    "span": [
-                      1,
-                      1
-                    ],
-                    "source": [
-                      1,
-                      1
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
           {
             "kind": "rule",
             "rule": "text",
@@ -132,6 +77,83 @@
                 ]
               }
             ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "y",
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "elided",
+                    "terminal": "S",
+                    "span": [
+                      1,
+                      1
+                    ],
+                    "source": [
+                      1,
+                      1
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "witness": [
+          {
+            "close": {
+              "rule": "r",
+              "production": 7,
+              "span": [
+                0,
+                1
+              ]
+            }
+          },
+          {
+            "close": {
+              "rule": "y",
+              "production": 6,
+              "span": [
+                0,
+                1
+              ]
+            }
           }
         ]
       }

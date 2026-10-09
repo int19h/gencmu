@@ -42,10 +42,10 @@ var faultCatches = map[string]map[string]string{
 	"route3":    {"reparse-strict-nested-route.json": catchResult, "reparse-synthetic-suffix-empty.json": catchResult},
 	"restore":   {"reparse-incompatible-optional-sound.json": catchResult},
 	"rank-restoration": {"reparse-witness-hook-only.json": catchBoth, "elision-only-passes.json": catchBoth,
-		"reparse-witness-sibling-last.json": catchHook},
-	"lost:context": {"reparse-witness-sibling-first.json": catchHook, "reparse-witness-sibling-last.json": catchHook,
+		"reparse-witness-sibling-last.json": catchBoth},
+	"lost:context": {"reparse-witness-sibling-first.json": catchBoth, "reparse-witness-sibling-last.json": catchBoth,
 		"reparse-strict-later-reading-symbol.json": catchResult},
-	"lost:select": {"reparse-witness-sibling-first.json": catchBoth, "reparse-strict-later-reading-symbol.json": catchResult},
+	"lost:select": {"reparse-witness-sibling-first.json": catchHook, "reparse-strict-later-reading-symbol.json": catchResult},
 }
 
 // catchOf runs a case with a fault on, once checking only the result and

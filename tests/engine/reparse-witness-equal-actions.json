@@ -1,6 +1,6 @@
 {
-  "description": "The two actions of an elision-only witness can be equal over the stage's input, where they are closes of one production whose spans of R differ only in synthetic tokens. The chosen d elides two T, so R is A T T B. x1 and x2 read the two synthetic T as bare terminals: x1's m covers both, and x2's m only the second. The witness closes m over the empty span at position 1 of the stage's input on both sides (engine §7.10).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text x1 | x2 | d | e\n%rule m [q] T\n%rule q T\n%rule x1 A m B\n%rule x2 A T m B\n%rule d A g B\n%rule g [+T] [+T]\n%rule e A [+T] [+T] [+T] B",
+  "description": "The chosen x1 requires q and elides two T. Reconstruction reports x1 first and x2 second. Their m spans contain different synthetic tokens. Both closes use production 3 and map to the same empty span.",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text x1 | x2 | e\n%rule m [q] [+T]\n%tags ($ ≅ @(⋮ q)) ⟹ ~q-present\n%rule q [+T]\n%rule x1 A $m(m) B\n%conditions ~q-present ⊆ tags($m)\n%rule x2 A T m B\n%rule e A [+T] [+T] [+T] B",
   "tokens": [
     {
       "text": "a",
@@ -83,7 +83,9 @@
                       1,
                       1
                     ],
-                    "tags": [],
+                    "tags": [
+                      "q-present"
+                    ],
                     "children": [
                       {
                         "kind": "rule",
@@ -243,7 +245,7 @@
           {
             "close": {
               "rule": "m",
-              "production": 4,
+              "production": 3,
               "span": [
                 1,
                 1
@@ -253,7 +255,7 @@
           {
             "close": {
               "rule": "m",
-              "production": 4,
+              "production": 3,
               "span": [
                 1,
                 1

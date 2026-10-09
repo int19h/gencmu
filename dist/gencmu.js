@@ -11856,8 +11856,7 @@
       // A test that watches the check marks W(D)'s edges before the check
       // ranks (tests/README.md).
       const run = { chosen, chart, roots, synthetic, originalAt, recordAt };
-      const flagged = lowered.productions.some((production) => production.flags.includes("leftmost-longest"));
-      const protectWitness = flagged || lowered.preferences.names.size > 0;
+      const protectWitness = true;
       const walk = protectWitness ? walkWitness(run) : null;
       const watch = hooks.elisionCheck ? hooks.elisionCheck(run) : null;
       // The check's ranker: no lean, and cycles over spans of R (engine §7.7).
@@ -11894,6 +11893,8 @@
       const restoredWitness = walk ? ropeOf(walk.sequence) : witnessRope(chosen);
       const excluded = protectWitness && ranking.witnessCounted !== true;
       const better = excluded || profileOrder < 0;
+      // Observe candidate selection before arranging the diagnostic pair.
+      const selectedRanking = ranking;
       if (better || ranking.verdict === "tie" && protectWitness) {
         const first = ranking.first;
         const second = ranking.second;
@@ -11905,7 +11906,7 @@
         ranking = { ...ranking, second: competitor, first: restoredWitness,
           witness: difference ? [difference.left, difference.right] : null };
       }
-      if (watch) watch.ranked({ ranking, counted: rawRanking?.witnessCounted === true });
+      if (watch) watch.ranked({ ranking: better || ranker.admission ? ranking : selectedRanking, counted: rawRanking?.witnessCounted === true });
       if (!better && profileOrder === 0 && ranking.verdict !== "tie") return { kind: "pass" };
       // The readings, mapped to the stage's input (engine §7.10).
       const original = new Sources(tokens);

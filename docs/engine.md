@@ -849,15 +849,19 @@ The message is the same in every library. Section 7.10 gives witness loss priori
 
 ### 7.10 Readings
 
-If recognition ends without a grammar error, decide in this order. Raw witness membership tests the concrete derivation, not an equal projected tree.
+This policy applies to every grammar, including grammars without `%prefer` or flagged rules. Raw witness membership tests the concrete derivation. A competitor is a best admitted derivation other than W(D).
+
+If recognition ends without a grammar error, decide in this order.
 
 1. Locate W(D) in the raw eligible reconstructed forest. If it is absent, report `elision-witness-lost` (§7.9).
 2. Apply slot filtering without preserving W(D) artificially.
 3. Rank admitted readings by projected rule profiles with no stage lean.
 4. If W(D) is admitted and is the sole selected derivation, preserve the main result.
-5. Otherwise, report `ambiguous` with reason `elision-only`, W(D) first and one deterministic admitted competitor second.
+5. Otherwise, report `ambiguous` with reason `elision-only`, with W(D) first and one competitor second.
 
-If filtering excludes W(D), select the T-first best admitted competitor. If W(D) survives with competitors, use the existing earliest-divergence rule. A smaller filtered best profile does not prove witness loss. Intentional exclusion is an expected ambiguity, not a library defect.
+If filtering excludes W(D), the competitor is the T-first best admitted derivation. If W(D) remains admitted, the competitor is the best admitted derivation that diverges from W(D) earliest. Equal divergence positions use T. Divergence uses visible actions, with transparent differences after every visible position (§6).
+
+A smaller filtered best profile does not prove witness loss. Intentional exclusion gives an expected ambiguity.
 
 A competing reading never replaces D. Both reported trees and their action witness map to O. Distinct reconstructed derivations can display equal trees.
 

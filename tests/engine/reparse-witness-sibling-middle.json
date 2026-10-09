@@ -1,5 +1,5 @@
 {
-  "description": "As reparse-witness-sibling-first, with W(D)'s production A [T] B second of a's three. W(D)'s edge is the middle of three siblings (engine §7.8, tests/README.md).",
+  "description": "The chosen derivation uses the middle sibling. Reconstruction reports it first and the first bare sibling second.",
   "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b\n%rule a A T B | A [+T] B | A T B\n%rule b A [+T] [+T] B",
   "tokens": [
     {
@@ -174,7 +174,7 @@
           {
             "close": {
               "rule": "a",
-              "production": 2,
+              "production": 3,
               "span": [
                 0,
                 2
@@ -184,7 +184,7 @@
           {
             "close": {
               "rule": "a",
-              "production": 3,
+              "production": 2,
               "span": [
                 0,
                 2

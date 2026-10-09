@@ -323,9 +323,7 @@ Slot preferences filter eligible derivations before ranking. An admitted derivat
 
 One admitted derivation gives `unique`. Several admitted derivations with exactly one best give `resolved`. Several best derivations give a tie with two readings and an action witness.
 
-Filtering only removes admitted derivations. A tie can become `resolved` or `unique`, and `resolved` can become `unique` or a tie. A unique result keeps its verdict, but a grammar migration can select its replacement tree. Deletion from a fixed singleton forest also preserves its tree.
-
-A newly resolved result reaches emission and the enabled elision-only check. A newly tied result reaches neither, has no chosen tree, output or warnings, and stops later stages.
+The verdict transitions and their effects on emission and the elision-only check are defined in [Ambiguity](notation.md#ambiguity).
 
 `greedy` and `lazy` treat each parse as the sequence of actions that a bottom-up reader takes. An action reads the next token or closes a constituent. Visible actions exclude closes of helpers and productions with one symbol. The stage compares parses with the greatest rule profile at their first differing visible action:
 
@@ -785,20 +783,18 @@ Parent variants require common prefix and suffix syntax, corresponding captures,
 
 After ready gates, outside patterns see one sealed leaf in place of the hole subtree. Direct hole captures retain their real states only for ready structural gates. Later private tags must be dead or provably empty. A syntactic unary-inheritance closure proves emptiness without caller analysis or a tag-value lattice.
 
-Group completion edges by complete common prefix state, physical interval and existing eligibility, cycle and reconstruction contexts. Normalize parent-variant identities and corresponding capture roles. Exclude private hole results, proof identities, omission vectors, flag profiles and caller demands. Keep maximal present graph labels and every derivation of those labels. Transitivity still applies when a middle label is absent.
+The filter groups completion edges by complete common prefix state, physical interval and existing eligibility, cycle and reconstruction contexts. The group key normalizes parent-variant identities and corresponding capture roles. It excludes private hole results, proof identities, omission vectors, flag profiles and caller demands. The filter keeps maximal present graph labels and every derivation of those labels. Transitivity still applies when a middle label is absent.
 
 Raw charts remain authoritative for queries, maximality and witness reconstruction. Admission masks remain separate. Nested filtering uses finite admitted child proofs. Rejected-maximality diagnostics recompute admission with maximal terminators unrestricted before ordinary ranking.
 
 Every removed candidate has an eligible same-slot replacement. Sealing and independent parent tags preserve its legal continuation. Induction preserves eligible recognition with sealing fixed. Adding seals can change outside pattern answers, and filtering can change successful-parser verdicts or downstream output.
 
-Filtering only removes admitted derivations. A tie can become `resolved` or `unique`, and `resolved` can become `unique` or a tie. A unique result keeps its verdict, but a grammar migration can select its replacement tree. Deletion from a fixed singleton forest also preserves its tree.
-
-A newly resolved result reaches emission and the enabled elision-only check. A newly tied result reaches neither, has no chosen tree, output or warnings, and stops later stages.
+The verdict transitions and their effects on emission and the elision-only check are defined in [Ambiguity](notation.md#ambiguity).
 
 The existing ranker remains the only ranking implementation. It compares rule profiles before the stage directive and retains ordinary ties. Local filtering supplies no complete-reading comparison edges, signatures, cancellation or cycle certificates.
 
-For F stored forest facts and contexts and largest preference component r, sorting groups costs `O(F log F)` comparisons. Selecting graph maxima costs at most `O(F r²)`, plus stored-value comparison work. Tag closure is linear in productions and inheritance edges. Measure loader cost, chart facts, groups, retained edges, time and memory separately.
+For F stored forest facts and contexts and largest preference component r, sorting groups costs `O(F log F)` comparisons. Selecting graph maxima costs at most `O(F r²)`, plus stored-value comparison work. Tag closure is linear in productions and inheritance edges. Measurements report loader cost, chart facts, groups, retained edges, time and memory separately.
 
-Reconstruction first locates raw W(D), then applies its own admission policy over physical reconstructed intervals. Rank admitted readings by projected rule profiles without stage lean. An excluded witness gives ordinary two-reading `elision-only` ambiguity, with W(D) first. Only raw witness absence gives `elision-witness-lost`.
+Reconstruction first locates raw W(D), then applies its own admission policy over physical reconstructed intervals. The ranker compares admitted readings by projected rule profiles without stage lean. An excluded witness gives ordinary two-reading `elision-only` ambiguity, with W(D) first. Only raw witness absence gives `elision-witness-lost`.
 
 Experimental preferences cover NUhI bodies and shared ME operands. Zantufa preferences cover fragments, ME, MOI scope, MAhO and MOhE. Their templates, ready gates and dead or empty tags satisfy the local contract. Named wrappers follow ordinary brackets, including the accepted forethought `gek-termset-body` group. Input lookaheads, experimental KE copies and Zantufa grouped content remain issue #166 work.

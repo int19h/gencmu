@@ -705,7 +705,6 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | linkargs tanru-unit-1
   | MEhOI anything #
 
-
 %rule me-sumti
   sumti
 %rule me-mex
@@ -738,7 +737,6 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | abstractor-chain subsentence [+KEI] #
   | linkargs tanru-unit-1
   | MEhOI anything #
-
 
 %rule selbri-relative-clauses
   | {selbri-relative-clause \ ZIhE # | joik # | jek # | ek #}

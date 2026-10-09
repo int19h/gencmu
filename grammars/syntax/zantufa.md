@@ -39,7 +39,7 @@ These texts showed the problem, and each now has Zantufa's reading. In `so to re
 
 The reference writes `CU_elidible`, but `cu` is a separator. It stands between the terms and the bridi-tail, and it closes neither of them. The grammar of *The Complete Lojban Language* (CLL) does not make `cu` elidable either. So `[CU #]` is a plain optional here, with no marker. A written `cu` parses as before, and a sentence can still omit it. Maximal terminators and `elision-only` do not treat `cu` as a terminator.
 
-An absent `cu` makes no elided node in the tree, and the ranking does not count it. This matters. If `cu` is elidable, an absent `cu` is an elision before the bridi-tail, and so an early one. After slot filtering, the ranking favors a reading that closes a parenthesis, quote or `jai` early and begins the bridi-tail later. With an elidable `cu`, `to na cafne` closes the parenthesis after `na`. Zantufa holds `na cafne` in the parenthesis, and so does this grammar.
+An absent `cu` makes no elided node in the tree, and the ranking does not count it. This matters. If `cu` is elidable, an absent `cu` is an elision before the bridi-tail, and so an early one. The ranking favors a reading that closes a parenthesis, quote or `jai` early and begins the bridi-tail later. With an elidable `cu`, `to na cafne` closes the parenthesis after `na`. Zantufa holds `na cafne` in the parenthesis, and so does this grammar.
 
 The same holds for `i'au`. The reference writes `IAU_elidible` between a statement and the terms after it (`statement-terms`). There `i'au` separates the terms from the statement, and it closes nothing. So `[IAU #]` is a plain optional too, and an absent `i'au` makes no elided node.
 

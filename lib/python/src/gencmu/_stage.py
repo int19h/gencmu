@@ -791,10 +791,9 @@ class StageRunner:
         for index, is_synthetic in enumerate(synthetic):
             project[index + 1] = project[index] + (0 if is_synthetic else 1)
         lowered = self.lowered
-        context = StageContext(lowered, restored, self.text, self.unicode, tagtab=main.tagtab)
+        context = StageContext(lowered, restored, self.text, self.unicode, tagtab=main.tagtab, observed=main)
         context.synthetic = synthetic
         context.project = project
-        context.observed = main
         # The recognition of R is not a query (engine §4, §7.6).
         forest = _reconstruct(context)
         # A test that watches the check marks W(D)'s edges before the check
@@ -803,10 +802,9 @@ class StageRunner:
         watch = hook(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at)) if hook is not None else None
         # Maximality does not apply to the derivations of R, and
         # they rank with no lean (engine §7.7).
-        flagged = any(production.leftmost_longest for production in lowered.productions)
         chosen_profile = ()
         walk = None
-        protected = flagged or bool(lowered.grammar.preferences.names)
+        protected = True
         if protected:
             from ._witness import walk_witness
             pending = [chosen]
@@ -826,6 +824,7 @@ class StageRunner:
             raw_counted = raw is not None and raw.witness_counted is True
         ranking = _rank_check(forest, marks)
         better = False
+        watched_selection = False
         if protected and ranking is not None:
             order = compare_profiles(ranking.profile,chosen_profile)
             if walk is None or not raw_counted or not preferred and (ranking.witness_counted is not True or order>0):
@@ -836,6 +835,9 @@ class StageRunner:
                     restored_rope = concat(restored_rope,leaf(act))
                 excluded = ranking.witness_counted is not True
                 better = excluded or order<0
+                if watch is not None and not better and not preferred:
+                    watch.ranked(ranking)
+                    watched_selection = True
                 if better or ranking.verdict=="tie":
                     from ._rank import second_before
                     if excluded:
@@ -852,7 +854,7 @@ class StageRunner:
                     ranking.witness = (difference[1],difference[2])
                 if preferred:
                     ranking.raw_witness_counted = raw_counted
-        if watch is not None:
+        if watch is not None and not watched_selection:
             watch.ranked(ranking)
         if ranking is None:
             # The witness of the chosen derivation is lost: a defect of the

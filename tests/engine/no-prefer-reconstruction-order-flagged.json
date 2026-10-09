@@ -1,0 +1,49 @@
+{
+  "description": "Every elision-only ambiguity reports the restored chosen b reading first, including grammars without preferences.",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule(leftmost-longest) text a | b\n%rule a X T\n%rule b X [+T] | [+U] X",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "error": {
+        "reason": "elision-only",
+        "readings": [
+          {
+            "children": [
+              {
+                "rule": "b"
+              }
+            ]
+          },
+          {
+            "children": [
+              {
+                "rule": "a"
+              }
+            ]
+          }
+        ],
+        "witness": [
+          {
+            "close": {
+              "rule": "b"
+            }
+          },
+          {
+            "close": {
+              "rule": "a"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

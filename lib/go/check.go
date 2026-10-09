@@ -235,7 +235,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	for _, rule := range g.rules {
 		flagged = flagged || rule.leftmostLongest
 	}
-	protect := flagged || g.stage != nil && g.stage.preferences != nil && len(g.stage.preferences.paths) > 0
+	protect := true
 	if flagged {
 		chosenProfile = derivationProfile(g, d)
 	}
@@ -266,6 +266,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 		res = nil
 	}
 	better := false
+	var selected *rankResult
 	if res != nil {
 		profileOrder := compareProfiles(res.profile, chosenProfile)
 		if !preferred && profileOrder > 0 {
@@ -273,6 +274,10 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 		} else {
 			excluded := protect && !res.witnessCounted
 			better = excluded || profileOrder < 0
+			if watch.ranked != nil && !better && !preferred {
+				copy := *res
+				selected = &copy
+			}
 			if better || res.verdict == VerdictTie && protect {
 				var competitor *dn
 				if excluded {
@@ -295,7 +300,11 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 		}
 	}
 	if watch.ranked != nil {
-		watch.ranked(res, rk)
+		if selected != nil {
+			watch.ranked(selected, rk)
+		} else {
+			watch.ranked(res, rk)
+		}
 	}
 	if res == nil {
 		// The witness of the chosen derivation is lost: a defect of the

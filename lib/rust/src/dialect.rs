@@ -911,7 +911,7 @@ impl Dialect {
         // ranks (tests/README.md).
         let flagged = g.rules.iter().any(|rule| rule.leftmost_longest);
         let chosen_profile = if flagged { tree_profile(g, chosen) } else { Vec::new() };
-        let protect = flagged || !g.preferences.paths.is_empty();
+        let protect = true;
         let walk = if witness::watched() || protect {
             let empty = shared.tags.set(Vec::new());
             let forest = CheckForest {
@@ -964,6 +964,21 @@ impl Dialect {
                     let excluded = protect && ranking.witness_counted != Some(true);
                     let better =
                         excluded || compare_profiles(&ranking.profile, &chosen_profile) == std::cmp::Ordering::Less;
+                    let keeps = if !g.preferences.paths.is_empty() {
+                        raw_counted
+                    } else {
+                        ranking.witness_counted == Some(true)
+                            && (better
+                                || walk.as_ref().and_then(|w| w.as_ref()).is_some_and(|walk| match ranking.second {
+                                    Some(second) if ranking.verdict == RankVerdict::Tie || better => {
+                                        let w = ranker.derivation(&walk.sequence);
+                                        !ranker.before(w, ranking.first)
+                                            && (!ranker.before(ranking.first, w)
+                                                || !ranker.second_before(ranking.first, w, second))
+                                    }
+                                    _ => true,
+                                }))
+                    };
                     if better || ranking.verdict == RankVerdict::Tie && protect {
                         let w = ranker
                             .derivation(&walk.as_ref().and_then(|w| w.as_ref()).expect("a restored witness").sequence);
@@ -991,20 +1006,6 @@ impl Dialect {
                         ranking.second = Some(competitor);
                         ranking.witness = Some(ranker.pair_witness(w, competitor));
                     }
-                    let keeps = if !g.preferences.paths.is_empty() {
-                        raw_counted
-                    } else {
-                        ranking.witness_counted == Some(true)
-                            && walk.as_ref().and_then(|w| w.as_ref()).is_some_and(|walk| match ranking.second {
-                                Some(second) if ranking.verdict == RankVerdict::Tie || better => {
-                                    let w = ranker.derivation(&walk.sequence);
-                                    !ranker.before(w, ranking.first)
-                                        && (!ranker.before(ranking.first, w)
-                                            || !ranker.second_before(ranking.first, w, second))
-                                }
-                                _ => true,
-                            })
-                    };
                     let readings = match ranking.second {
                         Some(second) if ranking.verdict == RankVerdict::Tie || better => {
                             Some((vec![build(&ranker, ranking.first), build(&ranker, second)], ranking.witness))

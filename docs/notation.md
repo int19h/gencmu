@@ -687,9 +687,7 @@ Input queries remain unfiltered. `begins` and `matches` use raw eligible recogni
 
 Filtering preserves eligible recognition with sealing fixed. Adding a seal can change existing outside pattern answers. Filtering does not guarantee an unchanged successful-parser verdict or downstream output.
 
-Filtering only removes admitted derivations. A tie can become `resolved` or `unique`, and `resolved` can become `unique` or a tie. A unique result keeps its verdict, but a grammar migration can select its replacement tree. Deletion from a fixed singleton forest also preserves its tree.
-
-A newly resolved result reaches emission and the enabled elision-only check. A newly tied result reaches neither, has no chosen tree, output or warnings, and stops later stages.
+The verdict transitions and their effects are defined in [Ambiguity](#ambiguity).
 
 Rank admitted derivations by `leftmost-longest`, then the stage directive. Ordinary ambiguity remains possible. Reconstruction uses the same filter over physical reconstructed intervals, with its own eligibility. An excluded raw chosen witness gives ordinary `elision-only` ambiguity, not `elision-witness-lost`.
 
@@ -737,6 +735,10 @@ The first stage reads the text's characters. Each is a token with one tag, its c
 ## Ambiguity
 
 Slot preferences filter eligible derivations before the ranking below. An admitted derivation has only kept slot candidates.
+
+Filtering only removes admitted derivations. A tie can become `resolved` or `unique`, and `resolved` can become `unique` or a tie. Filtering never changes a unique result. A migration that adds `%prefer` also changes the grammar rules. A uniquely parsed text can get a different tree after that migration.
+
+A newly resolved result reaches emission and the enabled elision-only check. A newly tied result reaches neither, has no chosen tree, output or warnings, and stops later stages.
 
 After slot filtering, a grammar ranks every admitted parse. A span is the range between two input token boundaries. A flagged span is a flagged occurrence's span. A rule profile counts flagged occurrences over each nonempty span.
 

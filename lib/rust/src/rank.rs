@@ -177,8 +177,10 @@ impl Admission {
         let mut groups = Vec::<Vec<SlotCandidate>>::new();
         let mut group_ids = FxMap::<String, usize>::default();
         let mut at = FxMap::<Node, Vec<SlotCandidate>>::default();
-        let mut stats = crate::slot_stats::SlotStatistics::default();
-        stats.chart_facts = chart.sets.iter().map(|s| s.items.len()).sum();
+        let mut stats = crate::slot_stats::SlotStatistics {
+            chart_facts: chart.sets.iter().map(|s| s.items.len()).sum(),
+            ..Default::default()
+        };
         for &node in nodes {
             let (raw, scope) = views.map_or((node, 0), |views| views.unpack(node));
             let Node::Item { set: end, index } = raw else { continue };
@@ -195,7 +197,7 @@ impl Admission {
             let name = &g.rules[rule as usize].name;
             let Some(&component) = g.preferences.labels.get(name) else { continue };
             let v = &g.preferences.variants[name];
-            for (edge, (previous, cap)) in chart.links.get(&(end as u32, *item)).into_iter().flatten().enumerate() {
+            for (edge, (previous, cap)) in chart.links.get(&(end, *item)).into_iter().flatten().enumerate() {
                 let pp = &g.prods[previous.prod as usize];
                 let prefix_symbols = pp.syms[..previous.dot as usize]
                     .iter()
