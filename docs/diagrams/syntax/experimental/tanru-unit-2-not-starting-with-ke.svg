@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="487" height="622" viewBox="0 0 487 622" role="img" aria-label="Railroad diagram of the rule tanru-unit-2-not-starting-with-ke">
+<svg xmlns="http://www.w3.org/2000/svg" width="487" height="578" viewBox="0 0 487 578" role="img" aria-label="Railroad diagram of the rule tanru-unit-2-not-starting-with-ke">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="277.2" lengthAdjust="spacingAndGlyphs">tanru-unit-2-not-starting-with-ke</text>
@@ -105,46 +105,36 @@
 <g class="rule"><rect x="219" y="382" width="117" height="24" rx="0"/><text x="277.5" y="399" textLength="100.8" lengthAdjust="spacingAndGlyphs">tanru-unit-2</text></g>
 <path d="M336 394H447a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V418a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="416" width="84" height="24" rx="0"/><text x="82" y="433" textLength="67.2" lengthAdjust="spacingAndGlyphs">any-word</text></g>
-<path d="M124 428h10"/>
-<path d="M134 428h20"/>
-<g class="terminal"><rect x="154" y="416" width="42" height="24" rx="12"/><text x="175" y="433" textLength="25.2" lengthAdjust="spacingAndGlyphs">ZEI</text></g>
-<path d="M196 428h10"/>
-<g class="rule"><rect x="206" y="416" width="84" height="24" rx="0"/><text x="248" y="433" textLength="67.2" lengthAdjust="spacingAndGlyphs">any-word</text></g>
-<path d="M290 428H310"/>
-<path d="M290 428a10 10 0 0 1 10 10V440a10 10 0 0 1 -10 10H154a10 10 0 0 1 -10 -10V438a10 10 0 0 1 10 -10"/>
-<path d="M310 428H447a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V462a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="460" width="50" height="24" rx="12"/><text x="65" y="477" textLength="33.6" lengthAdjust="spacingAndGlyphs">NAhE</text></g>
-<path d="M90 472h10"/>
-<g class="rule"><rect x="100" y="460" width="25" height="24" rx="0"/><text x="112.5" y="477" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M125 472h10"/>
-<g class="rule"><rect x="135" y="460" width="117" height="24" rx="0"/><text x="193.5" y="477" textLength="100.8" lengthAdjust="spacingAndGlyphs">tanru-unit-2</text></g>
-<path d="M252 472H447a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V522a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="520" width="151" height="24" rx="0"/><text x="115.5" y="537" textLength="134.4" lengthAdjust="spacingAndGlyphs">abstractor-chain</text></g>
-<path d="M191 532h10"/>
-<g class="rule"><rect x="201" y="520" width="109" height="24" rx="0"/><text x="255.5" y="537" textLength="92.4" lengthAdjust="spacingAndGlyphs">subsentence</text></g>
-<path d="M310 532h10"/>
-<path d="M320 532h20"/>
-<g class="terminal"><rect x="340" y="520" width="42" height="24" rx="12"/><text x="361" y="537" textLength="25.2" lengthAdjust="spacingAndGlyphs">KEI</text></g>
-<path d="M382 532H412"/>
-<path d="M320 532a10 10 0 0 0 10 -10V520a10 10 0 0 1 10 -10H392a10 10 0 0 1 10 10V522a10 10 0 0 0 10 10"/>
-<text class="label" x="344" y="505" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
-<path d="M412 532h10"/>
-<g class="rule"><rect x="422" y="520" width="25" height="24" rx="0"/><text x="434.5" y="537" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M447 532H447a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V556a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="554" width="84" height="24" rx="0"/><text x="82" y="571" textLength="67.2" lengthAdjust="spacingAndGlyphs">linkargs</text></g>
-<path d="M124 566h10"/>
-<g class="rule"><rect x="134" y="554" width="117" height="24" rx="0"/><text x="192.5" y="571" textLength="100.8" lengthAdjust="spacingAndGlyphs">tanru-unit-1</text></g>
-<path d="M251 566H447a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V590a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="588" width="58" height="24" rx="12"/><text x="69" y="605" textLength="42" lengthAdjust="spacingAndGlyphs">MEhOI</text></g>
-<path d="M98 600h10"/>
-<g class="rule"><rect x="108" y="588" width="84" height="24" rx="0"/><text x="150" y="605" textLength="67.2" lengthAdjust="spacingAndGlyphs">anything</text></g>
-<path d="M192 600h10"/>
-<g class="rule"><rect x="202" y="588" width="25" height="24" rx="0"/><text x="214.5" y="605" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M227 600H447a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="terminal"><rect x="40" y="416" width="50" height="24" rx="12"/><text x="65" y="433" textLength="33.6" lengthAdjust="spacingAndGlyphs">NAhE</text></g>
+<path d="M90 428h10"/>
+<g class="rule"><rect x="100" y="416" width="25" height="24" rx="0"/><text x="112.5" y="433" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M125 428h10"/>
+<g class="rule"><rect x="135" y="416" width="117" height="24" rx="0"/><text x="193.5" y="433" textLength="100.8" lengthAdjust="spacingAndGlyphs">tanru-unit-2</text></g>
+<path d="M252 428H447a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V478a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="476" width="151" height="24" rx="0"/><text x="115.5" y="493" textLength="134.4" lengthAdjust="spacingAndGlyphs">abstractor-chain</text></g>
+<path d="M191 488h10"/>
+<g class="rule"><rect x="201" y="476" width="109" height="24" rx="0"/><text x="255.5" y="493" textLength="92.4" lengthAdjust="spacingAndGlyphs">subsentence</text></g>
+<path d="M310 488h10"/>
+<path d="M320 488h20"/>
+<g class="terminal"><rect x="340" y="476" width="42" height="24" rx="12"/><text x="361" y="493" textLength="25.2" lengthAdjust="spacingAndGlyphs">KEI</text></g>
+<path d="M382 488H412"/>
+<path d="M320 488a10 10 0 0 0 10 -10V476a10 10 0 0 1 10 -10H392a10 10 0 0 1 10 10V478a10 10 0 0 0 10 10"/>
+<text class="label" x="344" y="461" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M412 488h10"/>
+<g class="rule"><rect x="422" y="476" width="25" height="24" rx="0"/><text x="434.5" y="493" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M447 488H447a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V512a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="510" width="84" height="24" rx="0"/><text x="82" y="527" textLength="67.2" lengthAdjust="spacingAndGlyphs">linkargs</text></g>
+<path d="M124 522h10"/>
+<g class="rule"><rect x="134" y="510" width="117" height="24" rx="0"/><text x="192.5" y="527" textLength="100.8" lengthAdjust="spacingAndGlyphs">tanru-unit-1</text></g>
+<path d="M251 522H447a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V546a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="544" width="58" height="24" rx="12"/><text x="69" y="561" textLength="42" lengthAdjust="spacingAndGlyphs">MEhOI</text></g>
+<path d="M98 556h10"/>
+<g class="rule"><rect x="108" y="544" width="84" height="24" rx="0"/><text x="150" y="561" textLength="67.2" lengthAdjust="spacingAndGlyphs">anything</text></g>
+<path d="M192 556h10"/>
+<g class="rule"><rect x="202" y="544" width="25" height="24" rx="0"/><text x="214.5" y="561" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M227 556H447a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M467 46h6m0 -8v16m4 -16v16"/>
 </svg>

@@ -77,7 +77,7 @@ The layer keeps the CLL grammar's connective before the first `.i` of a text (`j
   {[FUhE] indicator}
 
 %redefine-rule indicator
-  UI | CAI | NAI | Y | DAhO | FUhO
+  UI | CAI | NAI | DAhO | FUhO
 
 %redefine-rule text-1
   [{(I (jek | joik | ek) | lone-i) [[tag] BO] #}] [{NIhO} # [I # {NIhO} #]] [paragraphs]
@@ -692,7 +692,6 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | NUhA # operator
   | SE # tanru-unit-2
   | JAI # [tag] tanru-unit-2
-  | any-word {ZEI any-word}
   | NAhE # tanru-unit-2
   | abstractor-chain subsentence [+KEI] #
   | linkargs tanru-unit-1
@@ -719,7 +718,6 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | NUhA # operator
   | SE # tanru-unit-2
   | JAI # [tag] tanru-unit-2
-  | any-word {ZEI any-word}
   | NAhE # tanru-unit-2
   | abstractor-chain subsentence [+KEI] #
   | linkargs tanru-unit-1
@@ -872,20 +870,20 @@ The rules name the two words by their sound, `GA="ga"` and `GA="gu"`, which igno
 
 ```jbogenbau
 %redefine-rule joik
-  [NA] [SE] JOI [NAI] | interval | GAhO interval GAhO
+  [NA] [SE] JOI | interval | GAhO interval GAhO
 
 %redefine-rule gek
-  | [SE] GA [NAI] #
-  | GA="ga" [NAI] # (joik # | jek # | ek # | VUhU #)
+  | [SE] GA #
+  | GA="ga" # (joik # | jek # | ek # | VUhU #)
   | (joik | jek | ek) GI #
   | stag gik
 
 %redefine-rule guhek
-  | [SE] GUhA [NAI] #
-  | GA="gu" [NAI] # (joik # | jek # | ek # | VUhU #)
+  | [SE] GUhA #
+  | GA="gu" # (joik # | jek # | ek # | VUhU #)
 
 %redefine-rule gihek
-  [NA] [SE] (GIhA | GI (JOI | JA | A)) [NAI]
+  [NA] [SE] (GIhA | GI (JOI | JA | A))
 ```
 
 <details><summary>Railroad diagrams of <code>joik</code>, <code>gek</code>, <code>guhek</code> and <code>gihek</code></summary>
