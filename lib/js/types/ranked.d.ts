@@ -36,8 +36,6 @@ export declare function copyRankedLocation(source: object, target: object): void
 export declare function restoreRankedLocations(dom: import("./types.js").GrammarDom, tokens: {
     text: string;
 }[], positionOf: (token: any) => [number, number]): void;
-/** @param {import("./types.js").GrammarDom} dom */
-export declare function hasRankedGroups(dom: import("./types.js").GrammarDom): boolean;
 /** @param {{text:string}[]} tokens @param {number} at */
 export declare function rankedSyntaxFailure(tokens: {
     text: string;

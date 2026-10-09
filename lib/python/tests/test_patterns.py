@@ -61,7 +61,7 @@ class Patterns(unittest.TestCase):
         condition = {"op": "≅", "left": {"capture": "$"}, "right": {"pattern": pattern}}
         production = SimpleNamespace(
             conds_predict=[condition] * 1000, conds_at={}, tags_term=None, emit=None,
-            private_conditions=[], contextual=False,
+            ranked=None, contextual=False,
         )
         lowered = SimpleNamespace(
             productions=[production] * 1000, ranked_helpers={},

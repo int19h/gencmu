@@ -27,7 +27,7 @@ type production struct {
 	ranked       *rankedGroup
 	option       int
 	contextual   bool
-	privateConds []*domCond
+	privateNames map[string]bool
 	parentTags   *domTerm
 	slot         *slotMetadata
 	num          int

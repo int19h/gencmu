@@ -356,8 +356,11 @@ pub(crate) struct RankedRuntime {
     pub options: FxMap<u32, usize>,
     pub contextual: FxSet<u32>,
     pub written: FxMap<u32, String>,
-    pub plans: FxMap<(u32, Vec<String>), RankedPlan>,
+    pub plans: FxMap<RankedPlanKey, RankedPlan>,
+    pub private_names: FxMap<u32, BTreeSet<String>>,
 }
+
+pub(crate) type RankedPlanKey = (u32, Vec<String>, Vec<String>, Vec<String>);
 
 #[derive(Debug, Clone)]
 pub(crate) struct RankedPlan {
@@ -1546,6 +1549,13 @@ fn ranked_runtime(grammar: &StageGrammar, lowered: &Lowered) -> RankedRuntime {
         }
         names
     };
+    for (id, p) in lowered.prods.iter().enumerate() {
+        if let Some((group, _)) = p.slot.as_ref().and_then(|slot| slot.ranked) {
+            runtime
+                .private_names
+                .insert(id as u32, grammar.ranked.groups[group].names.difference(&nested(p)).cloned().collect());
+        }
+    }
     let mut incoming = FxSet::default();
     let mut queue = Vec::new();
     for p in &lowered.prods {
@@ -1557,20 +1567,29 @@ fn ranked_runtime(grammar: &StageGrammar, lowered: &Lowered) -> RankedRuntime {
             continue;
         }
         let names: BTreeSet<String> = slot.names.iter().flatten().cloned().collect();
-        for s in &p.syms {
+        for (index, s) in p.syms.iter().enumerate() {
             if let Sym::N(rule) = s {
                 if runtime.contextual.contains(rule) {
-                    queue.push((*rule, names.clone()));
+                    let available: BTreeSet<String> = slot
+                        .names
+                        .iter()
+                        .enumerate()
+                        .filter(|(at, _)| p.cap_pos[*at] < index)
+                        .filter_map(|(_, name)| name.clone())
+                        .collect();
+                    queue.push((*rule, names.clone(), available, BTreeSet::<String>::new()));
                 }
             }
         }
     }
     let mut at = 0;
     while at < queue.len() {
-        let (rule, prefix) = queue[at].clone();
+        let (rule, prefix, available, known) = queue[at].clone();
         at += 1;
         let declared: Vec<String> = prefix.iter().cloned().collect();
-        if !incoming.insert((rule, declared.clone())) {
+        let ready: Vec<String> = available.iter().cloned().collect();
+        let known_key: Vec<String> = known.iter().cloned().collect();
+        if !incoming.insert((rule, declared.clone(), ready.clone(), known_key.clone())) {
             continue;
         }
         for &id in &lowered.rules[rule as usize].prods {
@@ -1580,7 +1599,7 @@ fn ranked_runtime(grammar: &StageGrammar, lowered: &Lowered) -> RankedRuntime {
             let local: FxMap<String, u32> =
                 slot.names.iter().enumerate().filter_map(|(i, n)| n.as_ref().map(|n| (n.clone(), i as u32))).collect();
             let mut names: FxMap<String, u32> = prefix.iter().map(|name| (name.clone(), u32::MAX)).collect();
-            names.extend(local);
+            names.extend(local.clone());
             let has = |name: &str| name.is_empty() || names.contains_key(name);
             let mut scope =
                 Scope { names: &names, cap_pos: &p.cap_pos, rules: &grammar.index, last: None, whole: false };
@@ -1590,7 +1609,14 @@ fn ranked_runtime(grammar: &StageGrammar, lowered: &Lowered) -> RankedRuntime {
                 for raw in &source.clauses.conditions {
                     let mut reads = BTreeSet::new();
                     crate::ranked::cond_reads(raw, &mut reads);
-                    if reads.is_disjoint(&grammar.ranked.groups[group].names) || !reads.is_disjoint(&nested) {
+                    let own = &grammar.ranked.groups[group].names;
+                    if reads.iter().any(|name| {
+                        source_private[&slot.source].contains(name)
+                            && !(own.contains(name) && !nested.contains(name))
+                            && !known.contains(name)
+                            && !local.contains_key(name)
+                            && !available.contains(name)
+                    }) {
                         continue;
                     }
                     scope.last = None;
@@ -1601,7 +1627,11 @@ fn ranked_runtime(grammar: &StageGrammar, lowered: &Lowered) -> RankedRuntime {
                         Simple::Cond(c) => {
                             let mut required = BTreeSet::new();
                             crate::ranked::cond_reads(&c, &mut required);
-                            if required.iter().any(|name| !has(name)) {
+                            if required.iter().any(|name| {
+                                !has(name)
+                                    || name.is_empty() && !grammar.ranked.groups[group].final_position
+                                    || !name.is_empty() && !available.contains(name) && !local.contains_key(name)
+                            }) {
                                 continue;
                             }
                             scope.cond(&c).expect("a bound ranked condition")
@@ -1633,13 +1663,26 @@ fn ranked_runtime(grammar: &StageGrammar, lowered: &Lowered) -> RankedRuntime {
                 1 => terms.into_iter().next(),
                 _ => Some(LTerm::Union(terms)),
             };
-            runtime.plans.insert((id, declared.clone()), RankedPlan { conditions, whole_tags });
+            runtime.plans.insert(
+                (id, declared.clone(), ready.clone(), known_key.clone()),
+                RankedPlan { conditions, whole_tags },
+            );
             let mut next = prefix.clone();
             next.extend(slot.names.iter().flatten().cloned());
-            for s in &p.syms {
+            for (index, s) in p.syms.iter().enumerate() {
                 if let Sym::N(child) = s {
                     if runtime.contextual.contains(child) {
-                        queue.push((*child, next.clone()));
+                        let mut child_available = available.clone();
+                        child_available.extend(
+                            slot.names
+                                .iter()
+                                .enumerate()
+                                .filter(|(at, _)| p.cap_pos[*at] < index)
+                                .filter_map(|(_, name)| name.clone()),
+                        );
+                        let mut child_known = known.clone();
+                        child_known.extend(runtime.private_names.get(&id).into_iter().flatten().cloned());
+                        queue.push((*child, next.clone(), child_available, child_known));
                     }
                 }
             }

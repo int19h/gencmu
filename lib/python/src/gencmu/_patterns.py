@@ -317,7 +317,8 @@ def observation_machine(lowered: Any) -> PatternMachine | None:
         return PatternMachine(roots) if roots or lowered.ranked_helpers else None
     pending = []
     for production in lowered.productions:
-        pending.extend(production.private_conditions)
+        if production.ranked is not None:
+            pending.extend(production.slot.source.conditions)
         if production.contextual:
             pending.extend((production.slot.source.tags,production.slot.source.rule_tags))
         pending.extend(production.conds_predict)

@@ -886,7 +886,7 @@ class Production:
     ranked: Any = field(default=None,repr=False,compare=False)
     option: int = -1
     contextual: bool = False
-    private_conditions: list = field(default_factory=list,repr=False,compare=False)
+    private_names: set = field(default_factory=set,repr=False,compare=False)
     parent_tags: Any = field(default=None,repr=False,compare=False)
 
     @property

@@ -1,0 +1,22 @@
+{
+  "grammar": "%rule text ($x(X) ≻ Z) Y\n%conditions text($) = \"never\", $x ⟹ (\"a\" ∈ split(text($x), phonemes($)))",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "ranked-choice-continuation"
+  },
+  "description": "Conditions ready at one written boundary run in their written order across helpers, as engine §2.1 requires."
+}

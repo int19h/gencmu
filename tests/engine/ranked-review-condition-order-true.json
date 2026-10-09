@@ -1,0 +1,26 @@
+{
+  "grammar": "%rule text ($x(X) Y ≻ Z W)\n%conditions text($) = \"never\", $x ⟹ (\"a\" ∈ split(text($x), phonemes($)))",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "error": {
+        "kind": "rejected"
+      }
+    }
+  },
+  "description": "Conditions ready at one written boundary run in their written order across helpers, as engine §2.1 requires."
+}

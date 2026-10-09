@@ -4596,8 +4596,6 @@
         // Private conditions run at their lexical boundary, including guards
         // on a capture absent from the selected option.
         p.rankedDeferred = clauses.filter((/** @type {any} */ c) => [...rankedCaptureReads(c)].some(n => names.has(n)));
-        p.conditions = p.conditions.filter((/** @type {any} */ c) => !p.rankedDeferred.some((/** @type {any} */ raw) => [...rankedCaptureReads(raw)].some(n => rankedConditionVariables(c.condition).includes(n)))
-          && !p.rankedDeferred.includes(c.condition));
         // Presence simplification can erase every read, so rebuild these clauses.
         const common = clauses.filter((/** @type {any} */ c) => !p.rankedDeferred.includes(c));
         const present = new Set(['', ...p.captures.map((/** @type {any} */ c) => c.name)]);
@@ -4607,26 +4605,29 @@
       }
       if (p.helper && ranked.groups.some((/** @type {any} */ g) => g.source === p.source)) {
         p.contextual = true;
-        const nested = new Set([...relevant].flatMap((/** @type {any} */ g) => [...privateNames.get(g)]));
-        p.rankedClauses = own ? clauses.filter((/** @type {any} */ c) => {
-          const reads = [...rankedCaptureReads(c)];
-          return reads.some(n => privateNames.get(own).has(n)) && !reads.some(n => nested.has(n));
-        }) : [];
       }
+      p.rankedPrivate = own ? new Set([...privateNames.get(own)].filter(n => ![...relevant].some(g => privateNames.get(g).has(n)))) : new Set();
+      p.sourcePrivate = new Set(ranked.groups.filter((/** @type {any} */ g) => g.source === p.source).flatMap((/** @type {any} */ g) => [...privateNames.get(g)]));
       for (const s of p.rhs) if (groups.has(s.name)) s.slot = groups.get(s.name);
     }
     lowered.ranked = ranked;
   }
 
   /** @param {any[]} clauses @param {Set<string>} present @param {any} production @param {Map<string,any>} [prefix] */
-  function frameConditions(clauses, present, production, prefix = new Map()) {
+  function frameConditions(clauses, present, production, prefix = new Map(), final = true) {
     const positions = new Map(production.captures.map((/** @type {any} */ c) => [c.name,c.index]));
     const result = [];
-    for (const condition of partsFor(prepareConditions(clauses), n => present.has(n), present)) {
-      const reads = rankedConditionVariables(condition);
-      if (!reads.every(n => present.has(n))) continue;
-      const readyAt = reads.reduce((last,n) => Math.max(last,n === '' ? production.rhs.length-1 : prefix.has(n) ? -1 : positions.get(n)), -1);
-      result.push({condition,readyAt});
+    for (const raw of clauses) {
+      if (production.lexicalFrame && [...rankedCaptureReads(raw)].some(n => production.sourcePrivate.has(n)
+        && !production.rankedPrivate.has(n) && !production.lexicalFrame.knownPrivate.has(n) && !positions.has(n) && !prefix.has(n))) continue;
+      for (const condition of partsFor(prepareConditions([raw]), n => present.has(n), present)) {
+        const reads = rankedConditionVariables(condition);
+        if (!reads.every(n => present.has(n))) continue;
+        if (!final && reads.includes('')) continue;
+        if (reads.some(n => n !== '' && !positions.has(n) && !prefix.has(n))) continue;
+        const readyAt = reads.reduce((last,n) => Math.max(last,n === '' ? production.rhs.length-1 : prefix.has(n) ? -1 : positions.get(n)), -1);
+        result.push({condition,readyAt});
+      }
     }
     return result;
   }
@@ -4670,7 +4671,8 @@
         const prefix = outer && context.patterns ? context.patterns.concat(outer.prefix,item.prefix) : item.prefix;
         const inside = !!outer?.inside || !!item.production.rankedGroup;
         const sealPrefix = inside && outer ? outer.sealPrefix : prefix;
-        const frame = {id:next++,key,captures,root,namedOrigin,prefix,inside,sealPrefix,present};
+        const knownPrivate = new Set([...outer?.knownPrivate ?? [],...item.production.rankedPrivate]);
+        const frame = {id:next++,key,captures,root,namedOrigin,prefix,inside,sealPrefix,present,knownPrivate};
         frames.set(key,frame);
         return frame;
       },
@@ -4681,7 +4683,10 @@
         const old = productions.get(key);
         if (old) return old;
         const present = new Set(['',...frame.present,...production.captures.map((/** @type {any} */ c) => c.name)]);
-        const conditions = frameConditions(production.rankedClauses ?? [],present,production,frame.captures);
+        const bound = {...production,lexicalFrame:frame};
+        // Every clause ready at this written boundary runs in source order,
+        // including common clauses and clauses owned by an enclosing group.
+        const conditions = frameConditions(production.rankedGroup ? production.source.clauses.conditions : [],present,bound,frame.captures,production.rankedGroup?.final ?? false);
         /** @type {any[][]} */
         const conditionsAt = Array.from({length:production.rhs.length+1},() => []);
         for (const c of conditions) conditionsAt[c.readyAt+1].push(c);
@@ -15465,7 +15470,6 @@
    * @property {number} [rankedOption]
    * @property {boolean} [contextual]
    * @property {Condition[]} [rankedDeferred]
-   * @property {Condition[]} [rankedClauses]
    * @property {any} [lexicalFrame]
    * @property {Production} [baseProduction]
    * @property {Term[]} [writtenTags]

@@ -15,6 +15,7 @@ class Frame:
     prefix: int
     seal_prefix: int
     inside: bool
+    known_private: set
 
 
 def prepare_ranked(lowered):
@@ -44,7 +45,7 @@ def prepare_ranked(lowered):
                 child = lowered.productions[index]
                 pending.extend(s for terminal,s in zip(child.terminal,child.rhs) if not terminal)
         own = reads(p.ranked.expr)
-        p.private_conditions = [c for c in p.slot.source.conditions if not reads(c).isdisjoint(own) and reads(c).isdisjoint(nested)]
+        p.private_names = own - nested
 
 
 def written_prefix(lowered, p, dot, origin, prefix, caps, restores=False):
@@ -77,7 +78,7 @@ class Frames:
         prefix = self.machine.concat(outer.prefix,prefix) if outer else prefix
         inside = bool(p.ranked or outer and outer.inside)
         seal_prefix = outer.seal_prefix if inside and outer else prefix
-        frame = Frame(len(self.frames)+1,key,captures,present,root,named_origin,prefix,seal_prefix,inside)
+        frame = Frame(len(self.frames)+1,key,captures,present,root,named_origin,prefix,seal_prefix,inside,(outer.known_private if outer else set()) | p.private_names)
         self.frames[key] = frame
         return frame
 
@@ -89,7 +90,11 @@ class Frames:
             return self.productions[key]
         q = replace(p,id=len(self.lowered.productions),base_id=p.id,lexical=frame,conds_predict=[],conds_at={},whole_ready=False)
         present = {''} | frame.present | p.captures.keys()
-        for raw in p.private_conditions:
+        source = p.slot.source
+        private = set().union(*(reads(g.expr) for g in self.lowered.grammar.ranked.groups if g.source is source))
+        for raw in source.conditions if p.ranked is not None else []:
+            if any(n in private and n not in p.private_names and n not in frame.known_private and n not in p.captures and n not in frame.captures for n in reads(raw)):
+                continue
             condition = simplify_condition(raw,present)
             if condition is True:
                 continue
@@ -98,7 +103,11 @@ class Frames:
             names = captures_in(condition)
             if not names<=present:
                 continue
+            if any(n and n not in p.captures and n not in frame.captures for n in names):
+                continue
             if '' in names:
+                if not p.ranked.final:
+                    continue
                 at = len(p.rhs)-1
                 q.whole_ready = True
             else:
@@ -107,8 +116,6 @@ class Frames:
                 q.conds_predict.append(condition)
             else:
                 q.conds_at.setdefault(at,[]).append(condition)
-        source = p.slot.source
-        private = set().union(*(reads(g.expr) for g in self.lowered.grammar.ranked.groups if g.source is source))
         public = {''} | (frame.present-private)
         tags = [simplify_term(t,public) for t in (source.tags,source.rule_tags) if t is not None]
         q.parent_tags = tags[0] if len(tags)==1 else {'union':tags} if tags else {'emptySet':True}

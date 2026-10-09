@@ -898,8 +898,10 @@ func (r *recognizer) preparePatterns() {
 			}
 		}
 		for _, p := range r.g.prods {
-			for _, c := range p.privateConds {
-				walkClause(clausePart{c: c}, scan)
+			if p.ranked != nil {
+				for _, c := range p.slot.source.conds {
+					walkClause(clausePart{c: c}, scan)
+				}
 			}
 			if p.contextual {
 				for _, term := range []*domTerm{p.slot.source.alt.Tags, p.slot.source.ruleTags} {

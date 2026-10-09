@@ -522,7 +522,6 @@ export type Production = {
     rankedOption?: number;
     contextual?: boolean;
     rankedDeferred?: Condition[];
-    rankedClauses?: Condition[];
     lexicalFrame?: any;
     baseProduction?: Production;
     writtenTags?: Term[];
@@ -1126,7 +1125,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {number} [rankedOption]
  * @property {boolean} [contextual]
  * @property {Condition[]} [rankedDeferred]
- * @property {Condition[]} [rankedClauses]
  * @property {any} [lexicalFrame]
  * @property {Production} [baseProduction]
  * @property {Term[]} [writtenTags]

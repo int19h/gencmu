@@ -314,6 +314,8 @@ pub(crate) struct LexicalFrame {
     pub key: String,
     pub captures: std::collections::BTreeMap<String, Cap>,
     pub declared: Vec<String>,
+    pub known_private: Vec<String>,
+    pub available: Vec<String>,
     pub root: u32,
     pub origin: u32,
     pub prefix: u32,
@@ -392,6 +394,9 @@ impl Chart {
         let mut declared: std::collections::BTreeSet<String> =
             outer.map(|f| f.declared.iter().cloned().collect()).unwrap_or_default();
         declared.extend(p.slot.as_ref().expect("a contextual source").names.iter().flatten().cloned());
+        let mut known: std::collections::BTreeSet<String> =
+            outer.map(|f| f.known_private.iter().cloned().collect()).unwrap_or_default();
+        known.extend(g.ranked.private_names.get(&before.prod).into_iter().flatten().cloned());
         let root = outer.map_or(before.prod, |f| f.root);
         let origin = outer.map_or(before.origin, |f| f.origin);
         let prefix = outer.map_or(before.prefix, |f| {
@@ -402,8 +407,10 @@ impl Chart {
         let id = self.lexical.len() as u32 + 1;
         self.lexical.push(LexicalFrame {
             key: key.clone(),
+            available: captures.keys().cloned().collect(),
             captures,
             declared: declared.into_iter().collect(),
+            known_private: known.into_iter().collect(),
             root,
             origin,
             prefix,
@@ -1622,7 +1629,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         // examines.
         work::count(Work::Conditions, 1);
         let conds = if let Some(frame) = chart.lexical_frame(item.lexical) {
-            &g.ranked.plans[&(item.prod, frame.declared.clone())].conditions[item.dot as usize]
+            &g.ranked.plans[&(item.prod, frame.declared.clone(), frame.available.clone(), frame.known_private.clone())]
+                .conditions[item.dot as usize]
         } else {
             production.conds_at(item.dot as usize)
         };
@@ -2139,9 +2147,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             return Some(set);
         }
         let term = match frame.lexical {
-            Some(lexical) => {
-                self.g.ranked.plans.get(&(frame.prod, lexical.declared.clone())).and_then(|p| p.whole_tags.as_ref())
-            }
+            Some(lexical) => self
+                .g
+                .ranked
+                .plans
+                .get(&(frame.prod, lexical.declared.clone(), lexical.available.clone(), lexical.known_private.clone()))
+                .and_then(|p| p.whole_tags.as_ref()),
             None => self.g.prods[frame.prod as usize].tags.as_ref(),
         };
         match term {
