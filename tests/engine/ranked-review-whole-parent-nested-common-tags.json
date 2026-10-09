@@ -1,0 +1,35 @@
+{
+  "grammar": "%rule text $common(P) [(($x(a) ≻ b) ≻ c)]\n%tags tags($common) ∪ ~extra\n%conditions $x ⟹ tags($) = (~mark ∪ ~extra)\n%rule a X Y\n%rule b X Y\n%rule c X Y",
+  "tokens": [
+    {
+      "text": "p",
+      "tags": [
+        "P",
+        "mark"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  },
+  "description": "A private gate observes the effective named-parent tags across every helper boundary, as engine §2.1 requires."
+}

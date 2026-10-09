@@ -4690,7 +4690,14 @@
         /** @type {any[][]} */
         const conditionsAt = Array.from({length:production.rhs.length+1},() => []);
         for (const c of conditions) conditionsAt[c.readyAt+1].push(c);
-        const result = {...production,baseProduction:production,lexicalFrame:frame,conditions,conditionsAt};
+        const source = production.source;
+        const publicNames = new Set([...frame.present].filter(n => !production.sourcePrivate.has(n)));
+        const terms = [source.tags,source.clauses.tags].filter(term => term !== undefined)
+          .map(term => simplifyFor(prepareClause(term),n => n === '' || publicNames.has(n),publicNames));
+        // With no written term, tag closure proves empty unary inheritance.
+        // Multi-symbol parents discard tags by the ordinary rule.
+        const parentTags = terms.length === 0 ? {emptySet:true} : terms.length === 1 ? terms[0] : {union:terms};
+        const result = {...production,baseProduction:production,lexicalFrame:frame,conditions,conditionsAt,parentTags};
         productions.set(key,result);
         return result;
       },
@@ -7899,8 +7906,7 @@
         const machine = this.context.patterns;
         const prefix = machine ? machine.concat(frame.sealPrefix,machine.seal) : -1;
         const structure = machine ? machine.node(frame.root.lhs,prefix) : -1;
-        const parent = new ChartScope(this.context,{...frame.root,lexicalFrame:{...frame,parentWhole:true}},null,frame.namedOrigin,this.end,structure);
-        const scope = this;
+        const parent = new ChartScope(this.context,{...frame.root,tags:this.production.parentTags,lexicalFrame:{...frame,parentWhole:true}},null,frame.namedOrigin,this.end,structure);
         return {structure,patterns:machine,start:frame.namedOrigin,end:this.end,space:this.space,
           get tags() {return /** @type {TagSet} */ (parent.constituent());}};
       }
@@ -15470,6 +15476,7 @@
    * @property {number} [rankedOption]
    * @property {boolean} [contextual]
    * @property {Condition[]} [rankedDeferred]
+   * @property {Term} [parentTags]
    * @property {any} [lexicalFrame]
    * @property {Production} [baseProduction]
    * @property {Term[]} [writtenTags]
