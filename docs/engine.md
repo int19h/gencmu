@@ -136,25 +136,33 @@ A reference other than `#`, or a terminal, can carry one test on its own span, a
 
 The first two are sound tests, and the other four are tag tests. `s` is a closed term (§10) whose type is a string, and `t` is a closed term whose type is a tag set. The own tags of a terminal are the tags of its token. The own tags of a reference are the tags of its completed constituent (§4).
 
-### 2.1 Preference declarations and loading diagnostics
+### 2.1 Slot preference validation
 
-`%prefer A > B` has exactly two rule names and one separator. Both rules must exist after stitching, and neither name can begin with a capital. The loader rejects self-preferences and directed declaration cycles. It reports the cycle's rules and declaration positions. Identical edges collapse into one edge, without declaration priority.
+`%prefer A > B` has exactly two existing rule names and one separator. Resolve declarations after final stitching and constant binding. Neither name can begin with a capital. Reject self-preferences and directed declaration cycles, with their rules and declaration positions. Identical edges collapse, and nonempty paths define transitive preference.
 
-After final name resolution, the loader counts written reference sites for every declared preference rule. A site identifies its enclosing rule, final alternative index and expression path. Captures, tests, optionals, repetitions and separators each retain their actual references. Explicit recursion counts, but generated recursion does not. All surviving alternatives count, including extensions, feature-gated alternatives and unreachable rules. Replaced alternatives, query arguments, pattern names, declarations and implicit root invocations do not count.
+Count written body-reference sites across every surviving alternative, including disabled features and unreachable rules. A site records its enclosing rule, final alternative index and expression path. Captures, tests, optionals, repetitions, separators and explicit recursion retain their references. Generated recursion, query arguments, pattern names, declarations and implicit root invocation do not count. Each ranked rule requires exactly one site, otherwise report `prefer-slot-multiple-references`.
 
-Several sites produce one `prefer-multiple-references` warning per rule and stage. Sites sort by enclosing rule, alternative index and expression traversal order. Output defines their source locations and JSON Pointers. A JSON Pointer identifies a path through an object's members.
+Every connected component must occupy one hole in one common parent template. Different enclosing parents report `prefer-slot-parent`. Replace each ranked reference with a hole before comparison. Extract its symbol test and ready candidate gates. Preserve all remaining prefix and suffix syntax.
 
-The loader forms a conservative context-free skeleton from surviving bodies. It ignores guards, conditions and tests, and expands optionals and repetitions. Least fixed points determine nullability, productivity and the ability to derive a nonempty token sequence. Nullability means the ability to consume no tokens. Productivity means the ability to derive a finite token sequence.
+Corresponding prefix and suffix captures require matching expression positions and aliases, including unread captures. Normalize capture names to those position roles. Hole captures can differ or be absent, and each present one uses the hole role. Generated helpers use their written expression positions rather than generated identifiers.
 
-Projected nullability also treats every terminal declared elidable anywhere in the stage as zero-width. This includes compulsory prefixes that reconstruction can supply synthetically. For each production, a containment edge reaches a child rule when every other symbol can consume no original words. Each edge retains its source reference.
+Compare alternative and definition tag clauses after constant expansion, per-production simplification and role normalization. Compare their presence and expression DOMs, without locations. Remaining common conditions must match. Structural equality does not commute set operations or equate an absent clause with explicit empty tags. A mismatch reports `prefer-slot-template`.
 
-For every graph-comparable preference pair, the loader tests containment in both directions. A nonempty containment path to a rule with a nonempty derivation produces a `prefer-same-span-containment` warning. Emit one warning per `(higher,lower,container,contained)` tuple. Select the shortest source-reference path, then reference-site order. Collapse generated helper steps into their original source-reference steps.
+Parent `%emits` lists require matching presence, order, carriers, attachments and tag terms after the same simplification. Reject any item that names or reads a hole capture before absent-carrier pruning. This includes carriers, attachments, presence guards and span-based reads. Report `prefer-slot-template`. Whole-parent `$` and corresponding prefix or suffix captures remain legal sources.
 
-Both warnings describe possibilities and never alter ranking or recognition. The bundled dialects require zero preference warnings. The loaded dialect exposes an ordered `loadWarnings` collection. Cached and uncached document loads recompute identical diagnostics from final stitched definitions.
+Feature guards and hole symbol tests are candidate gates. Differing conditions are gates only when every remaining capture observation is ready at the hole boundary. `$` is ready only at completion, including a final hole after a fixed prefix. Any suffix element, even nullable, delays it. An unready differing condition reports `prefer-slot-continuation`.
 
-Publish warnings only after the whole dialect loads successfully. The CLI prints them to stderr once per load. Parsing and reconstruction do not repeat them.
+Every private hole structural read must be a ready condition gate, even when common across variants. A suffix-dependent pattern condition or private structural read in a tag term reports `prefer-slot-continuation`. Gates on a direct hole capture see its real state. Gates on `$` see the composed sealed state (§4.1). Preserve the existing evaluation order and raw parent recognition.
 
-Warnings sort by stage order, kind and the name fields defined in output. Name comparisons use code point order. Loading diagnostics stay outside document DOMs, cache envelopes and parse warnings (§12).
+After gates, private hole constituent tags require every ranked component rule to be provably empty. This includes unary default inheritance and later one-argument `tags` or `classes` reads. Span-derived input observations and raw two-argument tag queries do not read constituent tags. Explicit common parent tags can replace inheritance.
+
+Compute emptiness over normalized lowered productions, helpers and all guarded alternatives. Mark a rule unsafe when either explicit tag term differs from literal `∅` after constant expansion. Without explicit terms, mark a production's rule unsafe when its sole lowered symbol is a terminal. Add an inheritance edge from each remaining unary production to its child rule or helper. Propagate unsafe marks backward along these edges. Every unmarked rule is provably empty.
+
+Literal-empty terms replace inheritance. Zero-symbol and multi-symbol productions without terms add no mark or edge. Conditions and tests create no tags. An unmarked unary cycle cannot create tags in a finite proof. Written terminals can supply tags even though restored terminals do not. Pattern leaf tags remain separate.
+
+If a later constituent-tag reader or default inheritance lacks this proof, report `prefer-slot-tags`. Inspect every branch remaining after ordinary simplification. Equal nonempty rival tags and an empty class projection do not excuse the read. Tags are dead when no local later expression reads them and the parent does not inherit them.
+
+Apply these rules to all surviving variants without feature-assignment enumeration or caller analysis. Source-order diagnostics name the declaration, ranked references, common parent and offending expression or capture role. Tag errors include the inheritance path to a terminal or nonempty term. Output defines source paths. No preference warning or observer-path diagnostic remains.
 
 ## 3. Lowering
 
@@ -310,7 +318,7 @@ The order between steps, between items and between sets is not observable either
 
 `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` each run a nested parse. A nested parse is one recognition over the span's tokens alone, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does.
 
-A query that the check of §7 starts reads the projected span in the stage's input. It uses this lowered grammar in its ordinary mode (§7.6). Its chart is every item, partial or completed, that this recognition holds after it ends. The three functions read the eligible proof trees of the chart (below), before any ranking:
+A query that the check of §7 starts reads the projected span in the stage's input. It uses this lowered grammar in its ordinary mode (§7.6). Its chart is every item, partial or completed, that this recognition holds after it ends. The three functions read raw eligible proof trees, before slot filtering or ranking. Their structural observations still use declared seals (§4.1):
 
 - `matches` holds when a completed item of `rule` spans the tokens and has an eligible proof tree.
 - `begins` holds when a completed item of `rule` has its origin at the span's start, in any set, and has an eligible proof tree. So it covers a prefix of the span, the empty prefix included.
@@ -415,11 +423,13 @@ Maximal terminators apply in the main parse and nested queries. The ranking (§6
 
 Lowering records which helpers belong to maximal terminators (§3.8). The lowered grammar and its cache identity include this information. For each parse that needs them, the engine records the furthest completion of each symbol from each origin. A tested symbol needs its completed items because the furthest completion need not pass its test. A nested parse builds this table from its own chart, once per query. The query's memo keys identify that chart.
 
-A stage accepts when an item of the start rule `text` spans the whole input and has at least one derivation that is counted. It rejects an input whose every such derivation is cyclic, as it rejects one with no such item. A stage that accepts its input can still end with a tie, which is an error (§6). A rejected input reports the furthest position that any item reached. It also reports the terminals that the items there can read next, together with the rules that those items belong to (§11). The stage writes a tested terminal with its test, such as `LE="la"` (`docs/output.md`).
+A stage recognizes input when a completed `text` item spans it with an eligible noncyclic derivation. Slot filtering preserves this recognition for the sealed grammar. Section 6.1 defines admission before ranking, with raw charts and query answers unchanged.
+
+The stage rejects an input whose every such derivation is cyclic, as it rejects one with no such item. A stage that accepts its input can still end with a tie, which is an error (§6). A rejected input reports the furthest position that any item reached. It also reports the terminals that the items there can read next, together with the rules that those items belong to (§11). The stage writes a tested terminal with its test, such as `LE="la"` (`docs/output.md`).
 
 An input rejected only because maximality forbids an elided terminator in every derivation that is not cyclic reports that terminator instead. The terminator comes from the first reading, `m`, of the ranking that the stage makes with maximal terminators unrestricted (§6). It is the first elided terminator of that derivation, in the order of the tree's leaves, that maximality forbids. Its position is the position reported, and its terminal, with the rule in whose alternative its optional is written, is the one terminal expected there. If that terminator is tested, the stage writes it with its test there too.
 
-That ranking reads the same chart of the main parse. It does not run recognition again, and the answers of nested queries in it are those of the parse.
+That diagnostic ranking uses the same raw chart and nested-query answers. Recompute slot admission with maximal terminators unrestricted before ranking. Feature gates, ordinary conditions, written priority and cycle exclusion still apply. Keep this admission mode separate from ordinary maximality. The diagnostic never turns rejection into acceptance.
 
 This report covers only main derivations that maximality removes. If a nested query's answer makes a condition false, the recognizer does not make that advanced item. If no counted main derivation remains, the ordinary rejection rules apply. An ordinary rejection reports the furthest position and the terminals expected there, and those terminals can include a terminator.
 
@@ -440,6 +450,10 @@ A primitive predicate tests the current node and propagates its answer through a
 The state retains more than final Boolean answers. It includes sequence prefixes, leaf tests and child observations that later transitions need. Intersections and differences use correlated product states. They never combine facts from different packed edges.
 
 An advance keeps its structural prefix and each captured child's completed state. A condition on a capture reads that state when the constituent completes. A condition on `$` reads the candidate completion state before ordinary tag evaluation. These conditions never run a new recognizer or inspect ranking.
+
+At an advance over a declared ranked hole, the structural sequence machine receives one fixed sealed leaf. Every label and derivation of that slot supplies the same leaf. It has no name, terminal identity, sound, tags or children. Primitive names fail, paths stop, and sibling ellipses consume it as one child. Empty holes also contribute exactly one leaf.
+
+Direct hole captures retain their real completed states for ready gates. The composed parent state propagates the seal through subsequent constructors and captures. Output trees, tags, elisions and ranking actions retain their actual derivations. No seal appears in serialized trees or grammar DOMs. Queries and reconstruction apply the same transition at declared references.
 
 Every proof edge stays within its observation state. Equal states still permit distinct derivations and ordinary ties. A cycle alone supplies no finite proof of a structural answer. Cycle exclusion keeps its rule-and-span identity. A different structural state does not permit repetition of the same rule over the same span.
 
@@ -590,11 +604,11 @@ For example, take `text → b | a`, `a → b` and `b → a | A`, over the token 
 
 The derivations of the input are those of every completed item of `text` that spans it (§4). The implementation combines the summaries of all these items as the edges of one root.
 
-Under every ranking rule, the verdict needs the total, the number of eligible derivations that are not cyclic, capped at two. Within one edge, the totals of the children multiply. Over the edges of one summary, the totals add, for every edge that the context allows, losing ones included. The root combines its items in the same way. A total of one is `unique`.
+Under every ranking rule, the verdict needs the total, the number of admitted eligible noncyclic derivations, capped at two. Within one edge, the totals of the children multiply. Over the edges of one summary, the totals add, for every edge that the context allows, losing ones included. The root combines its items in the same way. A total of one is `unique`.
 
 The implementation can keep the total in each summary, or compute it apart with the same rules. Either way, it computes the total before it drops any losing edge. A ranking of the best derivations alone cannot give the total.
 
-A rule profile composes by addition. An edge adds its children's rule profiles and its own completed flagged occurrence, if any. Adding a common rule profile preserves comparison and equality. Each summary retains its greatest rule profile and every edge that attains it, with the same eligibility and cycle contexts. Counts before filtering remain separate from counts of preferred derivations.
+A rule profile composes by addition. An edge adds its children's rule profiles and its own completed flagged occurrence, if any. Adding a common rule profile preserves comparison and equality. Each summary retains its greatest rule profile and every edge that attains it, with the same eligibility and cycle contexts. Admission counts remain separate from counts of ranking-best derivations.
 
 For `greedy` and `lazy`, the action summaries of this section run over the forest of greatest rule profiles. For `late-elision`, each summary compares one key, the pair of its rule profile and elision vector. Compare the pair by its rule profile first, with the greater rule profile preferred. Within an equal rule profile, prefer the lesser elision vector. The count of preferred derivations and the retained edges follow this pair. Diagnostic selection uses no lean over the retained forest.
 
@@ -614,52 +628,35 @@ For example, take `text → [A] y [++T] B` and `y → A A | A A B | A [+U]`. On 
 
 A vector has N + 1 components. So a sparse vector, or a shared sequence of elisions, keeps the cost of each addition and comparison small.
 
-Structural state forms part of each summary's item identity. Eligibility and same-span cycle contexts remain separate. A summary cannot substitute an edge from another structural state. Count eligible noncyclic derivations before ranking, capped at two. Equal observations do not reduce that count. Existing rule profiles and elision vectors compose within each full state and context.
+Structural state forms part of each summary's item identity. Eligibility and same-span cycle contexts remain separate. A summary cannot substitute an edge from another structural state. Count admitted eligible noncyclic derivations before ranking, capped at two. Equal observations do not reduce that count. Existing rule profiles and elision vectors compose within each full state and context.
 
 For k independent Boolean observations, a product can contain up to `2^k` states. Sequence prefixes and captures add further factors. Finite sharing does not imply constant memory use. Measurements must record states, items, packed edges, summary contexts, elapsed time and peak memory. Use increasingly long lists, unary chains, nested omissions and independent ambiguous children.
 
-### 6.1 Complete-reading preferences
+### 6.1 Slot admission before ranking
 
-The declaration graph points from each higher rule to its lower rival. A nonempty path defines strict reachability `A ≻ B`. The graph has no directed cycle (§2.1). Complete readings can nevertheless form a comparison cycle.
+Retain the raw chart, completion tables and eligibility information. Preference filtering removes forest choices without removing chart items or changing input queries. It must not discard B merely because B arrives before A. Nested candidate availability depends on admitted finite child proofs.
 
-First retain the globally greatest `leftmost-longest` profiles L. For each retained derivation D, form `P_D(rule,p,q)`, a multiset of named preference-rule occurrences. A multiset stores occurrence counts. Count each completed named occurrence over the nonempty stage-token interval `[p,q)`. Helpers and empty intervals contribute nothing. Equal source ranges and equal spellings do not establish equal token intervals.
+A slot group contains qualifying candidates for one validated template hole. Its key includes recognition mode, feature choice, parent entry, complete prefix state and physical hole interval. Include requested eligibility channels, normalized continuation guards, enclosing-rule cycle context and relevant reconstruction state. Ordinary, reconstructed and unrestricted-maximality diagnostic modes have separate admission caches.
 
-Compare two flag-best readings X and Y as follows:
+Compare the complete prefix state immediately before the hole. Include the structural prefix and every prior capture's presence, interval, tags and structure. Normalize control positions, helper identities and capture roles across validated variants. Include existing eligibility, strictness, restoration and projection state wherever recognition depends on them.
 
-1. Cancel the smaller count at each identical `(rule,p,q)` coordinate from both multisets.
-2. Compare every residual rule on X with every residual rule on Y at each identical span.
-3. Record each direction supplied by graph reachability.
-4. If all recorded directions favor one reading, that reading wins.
-5. If both directions occur, the pair ties without stage fallback.
-6. If no direction occurs, apply the stage directive's existing comparison.
+Exclude variant production identifiers, proof identities, omission vectors, flagged profiles and diagnostic order. Exclude hole captures, returned hole tags, private structure and caller demand. Distinct equal-state prefix proofs remain distinct derivations for ranking. Sealing and the local tag rule make the common continuation independent of private hole results.
 
-One opposing contest suffices for a tie. Multiplicity affects cancellation, but repeated witnesses do not cast additional votes. No earlier, longer, deeper or first-declared contest takes priority. A source, middle rule or sink against an unrelated reading receives no automatic advantage.
+Each candidate must pass its ready gates and have an eligible finite noncyclic proof in the requested context. A disabled feature or failed gate supplies no witness. Eligibility before a written terminator cannot suppress a rival before an omitted maximal terminator. Normalize guard identities to common continuation roles without comparing their raw identifiers.
 
-Build every strict edge among flag-best complete signatures. Any directed cycle produces `tie`, even when another reading beats every cycle member. A conflicting pair alone contributes no edge. Without a cycle, retain vertices with no incoming edge. One concrete surviving derivation wins. Several survivors give an ordinary tie.
+Collect present labels in each group. Keep precisely the maximal present labels under the declaration graph's transitive closure. Keep every derivation of those labels, with neutral alternatives unchanged. Empty spans participate. Different intervals or prefix states do not compete. A chain suppresses its sink even when an intermediate label is absent.
 
-Count all eligible noncyclic derivations before ranking, capped at two, to distinguish `unique` from `resolved`.
+The existing summaries compose over admitted edges. Their totals count admitted derivations, capped at two. Rule profiles, omission vectors, actions and ordinary tie witnesses compose as above. Rank by `leftmost-longest`, then the stage directive. No complete-reading preference edge or cycle detector remains.
 
-A signature is the complete information needed for pair comparison. For late elision, it contains `(L,P,E)`, with E the existing omission vector. Greedy and lazy signatures retain full visible action sequences beside L and P. Diagnostics also retain original production identities and transparent actions. Pattern normalization does not normalize ranking actions.
+A nonempty finite group has a maximal label in the acyclic graph. Each removed candidate has an eligible same-context replacement. The replacement preserves the sealed structural export and the common continuation's tags and captures. Induction through finite child proofs preserves eligible recognition, with sealing fixed. This proof does not preserve every raw item or successful-parser verdict.
 
-Inspect the whole root-reachable forest before preference or elision pruning. Collect possible named occurrences and their nonempty spans. Conservative extra occurrences are safe. If no span contains two distinct comparable names, run the original ranker unchanged. A child cannot independently use this fast path when another part of the root forest contains a contest.
+Filtering only removes admitted derivations. A tie can become `resolved` or `unique`, and `resolved` can become `unique` or a tie. A unique result keeps its verdict, but a grammar migration can select its replacement tree. Deletion from a fixed singleton forest also preserves its tree.
 
-Otherwise, retain every distinct lossless signature in each full item, eligibility and same-span cycle context. Preserve structural state, tags and captures. Keep `all` and `allowed` summaries distinct. Combine child signature sets by Cartesian product, the set of all child combinations. Add each edge's contributions.
+A newly resolved result reaches emission and the enabled elision-only check. A newly tied result reaches neither, has no chosen tree, output or warnings, and stops later stages.
 
-A completed named rule adds its occurrence. Prefix edges add no completion.
+Let F count existing prefix facts, completion facts, proof edges and eligibility contexts, including stored values. Let r be the largest preference component. Grouping by sorting costs `O(F log F)` key comparisons. Maximal-label filtering costs at most `O(F r²)`. Include stored-value comparison work. Admission adds no complete-tree signature products or caller-specific summaries.
 
-Strictly worse L profiles can be removed within substitutable full states under the existing flag proof. Preference and elision never justify local pruning. Identical signatures can share packed witness edges and a concrete derivation count capped at two. Distinct tied signatures must remain distinct because their comparisons with a third signature can differ.
-
-For an identical admissible context C, adding its occurrence multiset to X and Y preserves their residual multisets after cancellation. L comparison also survives common addition. With no contest, late-elision comparison survives common addition too. This composition proof preserves pair directions, but does not justify local pruning under a nontransitive relation.
-
-At the root, retain globally best L signatures and compare every pair. Detect every cyclic component, including dominated components. Choose a deterministic simple cycle using canonical T order and depth-first traversal. Stop at the first edge to the active traversal stack. Rotate that cycle to its least T representative, without reversing it. Diagnostics report every cycle member and each strict edge's reason.
-
-For an acyclic tie, use the T-least surviving derivation and the surviving derivation that diverges earliest from it. Break equal divergence positions by T. Diagnostic ordering never resolves an incomparable pair. Two concrete derivations can share a signature and still prove a tie.
-
-Losslessness follows by induction over admissible edges. Every complete derivation contributes one retained product, and every retained product represents an admissible derivation in that context. Identical signatures compare identically against every other signature. A signature cycle therefore lifts to a concrete derivation cycle. Without a cycle, indegree-zero classes contain exactly the unbeaten derivations.
-
-Finite eligible forests terminate under existing cycle exclusion. Exponential time and memory remain accepted costs. With F forest edges, largest signature set S and K flag-best root signatures, binary products require `O(F S²)` combinations. Signature arithmetic adds its own size factor. Root ranking requires `O(K²)` pair comparisons and linear graph traversal. Resource exhaustion reports a resource failure, never an invented winner or tie.
-
-Measure forest size, summary contexts, retained signatures, largest signature sets, pair comparisons, elapsed time and peak memory. Compare fast-path results directly with the original ranker. Keep query recognition independent of every ranking change.
+The tag closure uses linear work in productions and inheritance edges. Template comparison uses expanded expression DOMs without semantic-equivalence search. Measure raw chart facts, groups, retained edges, elapsed time and peak memory. Measure loader cost separately.
 
 ## 7. Elision-only
 
@@ -794,9 +791,9 @@ Cycles are found over spans of R, as §4 says. Two constituents of one rule whos
 
 Maximality does not apply to the derivations of R. A restoration reads a token, so the reconstruction has no elided terminator, and nothing for maximality to forbid. The queries of §7.6 keep their own policy.
 
-The check ranks R's derivations by rule profiles over projected spans `[π(a),π(b))` in O. It then applies §6.1's relation to projected preference occurrences. Empty projected occurrences contribute nothing. Distinct occurrences with equal projected spans count separately. Cancel only after projection, because distinct R spans can coincide in O.
+Locate raw W(D) before applying slot admission. The filter groups by physical R intervals, including synthetic tokens, with reconstruction eligibility. Equal projected O spans do not establish equal slot intervals. Rank admitted derivations by rule profiles over projected spans `[π(a),π(b))` in O.
 
-The stage fallback has no lean. Elision vectors are all zero. The whole-forest fast path uses the entire projected reconstruction forest.
+The stage ranking has no lean. Elision vectors are all zero. Reconstruction admission has its own cache and preserves existing restoration, strictness and projection rules.
 
 A restoration's read of its synthetic token is a read action, and its close is the close of a helper, which is transparent. Section 7.10 selects the error's readings. The canonical keys never turn a tie into a pass. Derivations whose trees are equal over O are still distinct derivations.
 
@@ -852,25 +849,21 @@ The message is the same in every library. Section 7.10 gives witness loss priori
 
 ### 7.10 Readings
 
-If the check ends without an error of the grammar, it makes these decisions in order. Witness membership tests the actual concrete derivation. Equal signatures or projected trees do not establish membership.
+If recognition ends without a grammar error, decide in this order. Raw witness membership tests the concrete derivation, not an equal projected tree.
 
-1. If W(D) is not a counted derivation, report `elision-witness-lost` (§7.9). A greatest rule profile below G_D proves this loss. A greater rule profile does not replace W(D).
-2. Rank all flag-best reconstruction readings by §6.1, with no-lean stage fallback.
-3. If any comparison cycle exists, report `ambiguous` with reason `elision-only` and the cycle certificate defined in output.
-4. If W(D) is the sole selected derivation, preserve the main result.
-5. Otherwise, report the existing two-reading `elision-only` ambiguity. Add `conflict` when the reported pair has opposing preference contests.
+1. Locate W(D) in the raw eligible reconstructed forest. If it is absent, report `elision-witness-lost` (§7.9).
+2. Apply slot filtering without preserving W(D) artificially.
+3. Rank admitted readings by projected rule profiles with no stage lean.
+4. If W(D) is admitted and is the sole selected derivation, preserve the main result.
+5. Otherwise, report `ambiguous` with reason `elision-only`, W(D) first and one deterministic admitted competitor second.
 
-A present defeated witness is not a lost witness. A cycle remains an error when W(D) is unbeaten outside that cycle. The restored witness preserves its original L and P by projection and multiset addition. Its presence does not prove that reconstruction selects it.
+If filtering excludes W(D), select the T-first best admitted competitor. If W(D) survives with competitors, use the existing earliest-divergence rule. A smaller filtered best profile does not prove witness loss. Intentional exclusion is an expected ambiguity, not a library defect.
 
-For a cycle, select concrete canonical representatives in R and fix the rotated cycle order first. Initialize `readings` with remapped W(D) and `chosenReading: 0`. Append each fixed cycle representative unless it is exactly W(D). Assign indices by concrete derivation identity, then remap every cycle edge through those indices. Do not rotate again to start at the witness.
-
-If W(D) lies outside the cycle, no edge touches index 0. Distinct R derivations can display equal trees.
-
-A competing reading never replaces D. Every reported reading is a tree over O. Ordinary ambiguities carry an action witness. Cycles carry their certificate instead.
+A competing reading never replaces D. Both reported trees and their action witness map to O. Distinct reconstructed derivations can display equal trees.
 
 In every ambiguity outcome, the result's `tree` is null. The stage keeps its verdict, output and warnings, since it accepted its input and chose its derivation. The error has no `token` or `source`. Section 7.9 gives the result fields for witness loss.
 
-In a non-cycle ambiguity, the two readings are two derivations of R, but they can be equal as trees over O. For example, one reading can restore an optional. The other reading can read the same synthetic token as a bare terminal, in a production with the same tree. So the error also has a witness, as a tie has (§6). It is the pair of actions at the first difference between the two derivations of R, visible if there is one, mapped to O:
+In an elision-only ambiguity, the two readings are two derivations of R, but they can be equal as trees over O. For example, one reading can restore an optional. The other reading can read the same synthetic token as a bare terminal, in a production with the same tree. So the error also has a witness, as a tie has (§6). It is the pair of actions at the first difference between the two derivations of R, visible if there is one, mapped to O:
 
 - A read of an original token is a read of that token's index in O.
 - A read of a synthetic token is an `elided` action of its record's terminal at the record's position in O.

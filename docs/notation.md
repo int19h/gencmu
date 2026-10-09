@@ -10,7 +10,7 @@ Conditions over the parts restrict which parses exist. A condition can also ask 
 
 A token is one unit that a grammar reads or emits. Examples are characters, phonemes and words. A transducer reads tokens and emits another sequence. Each rule can also say what its constituents hand to the next grammar. So a grammar is a transducer. A dialect is a pipeline of these grammars, its stages, defined by one pipeline document.
 
-A grammar is unordered: its alternatives are not ranked. A rule flag gives a rule a preference. Rule flags and the stage ranking choose among complete parses afterwards. The section "Ambiguity" describes these preferences.
+A grammar is unordered: its alternatives have no priority by position. A declared slot filters interchangeable alternatives before ranking. Rule flags and the stage directive then rank the remaining complete parses. The section "Ambiguity" describes this ranking.
 
 ## Rules
 
@@ -322,7 +322,7 @@ Thus `@(sumti)` accepts a sumti or its unary wrappers. It rejects a connection, 
 | `@(A B)` | Two children, each with its own unary search |
 | `@(A ⋯ B ⋯ C)` | Ordered children with arbitrary sibling gaps |
 | `@(⋮ P)` | P at an endpoint of any downward path |
-| `@(⋰ P)` | P at an endpoint of the first-child path |
+| `@(P ⋰)` | P at an endpoint of the first-child path |
 | `@(⋱ P)` | P at an endpoint of the last-child path |
 | `@(P ∪ Q)` | Either predicate on the candidate |
 | `@(P ∩ Q)` | Both predicates on the candidate |
@@ -339,9 +339,9 @@ Juxtaposition describes a complete child sequence. A single node predicate inste
 
 An omitted terminator is a child like a written one. When it is the last child, a last-child path reaches it and never passes it to an earlier sibling.
 
-Binding is primary, path prefix, sequence, intersection, then union or difference, from strongest to weakest. Intersection associates left. Union and difference share precedence and associate left. A path prefix takes exactly one primary. Chained prefixes and optional operands require parentheses or a nested literal.
+Binding is primary, path, sequence, intersection, then union or difference, from strongest to weakest. Intersection associates left. Union and difference share precedence and associate left. First-path `⋰` follows one primary, while descendant `⋮` and last-path `⋱` precede one primary. Chained paths and optional operands require parentheses or a nested literal.
 
-`@(⋰ A B)` tests two children, the first through `⋰ A`. `@(⋰ (A B))` searches for a node with children A and B. `@(⋰ NAhE ∪ SE)` puts only NAhE under the path. `@(⋰ (NAhE ∪ SE))` puts both alternatives under it.
+`@(A ⋰ B)` tests two children, the first through `A ⋰`. `@((A B) ⋰)` searches for a node with children A and B. `@(NAhE ⋰ ∪ SE)` puts only NAhE under the path. `@((NAhE ∪ SE) ⋰)` puts both alternatives under it. `@(A ⋰ ⋱ B)` applies first-path to A and last-path to B.
 
 Plain parentheses preserve sibling grouping without a subtree boundary. `@(A (B C))` therefore has three children. `@(A @(B C))` has two children. At a path or set boundary, a sequence becomes one child-sequence predicate. A set expression within a sequence consumes one child.
 
@@ -646,33 +646,52 @@ A directive is a keyword and its operands. By convention each stands in a block 
 - No directive names the elidable terminators. Each elidable optional is marked in its place, as `[+KU]` or `[++TOI]` (see "Elided terminators"). `%elidable` is not a directive. A document that writes it is an error, which the reader reports at the keyword.
 - `%stage NAME`, `%include "PATH"` and `%features NAME…` build a pipeline, as the next section says.
 
-### Narrow preferences
+### Slot preferences
 
-`%prefer A > B` declares that rule A precedes rule B in a same-span contest. Both names must denote rules in the final stitched stage. Terminal names, self-preferences and directed declaration cycles are errors. Duplicate edges collapse into one edge. A cycle diagnostic names its rules and declaration positions.
+`%prefer A > B` removes qualified B candidates when A fills the same slot over the same words. A slot is one child position in a common parent template. A candidate qualifies when its tests, conditions and eligibility requirements pass. A candidate is kept when it survives filtering.
+
+Both names must denote rules in the final stitched stage. Terminal names, missing rules, self-preferences and directed declaration cycles are errors. Duplicate edges collapse. Declaration order gives no priority.
 
 ```jbogenbau
-%rule me-sumti
-  sumti
-%rule me-mex
-  mex
+%rule me-unit
+  | ME # me-sumti [+MEhU] # [MOI #]
+  | ME # me-mex [+MEhU] # [MOI #]
 %prefer me-sumti > me-mex
 ```
 
-A wrapper is an ordinary rule dedicated to one contested position. Dedicated names keep a preference local to its intended position. The engine permits other bodies and callers. Every declared name participates through graph reachability, including middle rules and sinks. A path from A through B to C compares A with C.
+Dedicated rules identify the operand position. Each ranked rule must have exactly one written body-reference site. All surviving alternatives count, including disabled feature variants and unreachable rules. Generated recursion, queries, patterns and implicit root invocation do not count. Zero or several sites fail loading with `prefer-slot-multiple-references`.
 
-The loader warns when a declared rule has several written reference sites. Each reference in a surviving alternative counts once, including captures, tests, separators, repetitions and explicit recursion. Mutually exclusive guards and unreachable rules still count. Replaced alternatives, generated references, query arguments and pattern names do not count.
+Each connected preference component must occupy one hole in a common parent template. Prefix and suffix syntax must match, with corresponding captures at matching positions. Parent tag terms and `%emits` lists must match after ordinary simplification and capture-role normalization. Source locations and capture spelling do not affect equality.
 
-The loader also warns about possible same-span containment between comparable rivals. It ignores guards, conditions and tests for this conservative analysis. Nullable siblings and terminals that reconstruction can restore permit same-span paths. Containment can cancel the intended contest. Neither warning changes recognition or ranking. The loaded dialect exposes both warning kinds through `loadWarnings` (output, "Loading diagnostics").
+Emission presence, item order, carriers, attachments and tag terms must correspond. An emission item cannot name or read the hole capture, including presence guards and span-based reads. Whole-parent `$` and corresponding prefix or suffix captures remain legal sources. A mismatch or forbidden export reports `prefer-slot-template`.
 
-Preferences rank only complete eligible noncyclic readings after `leftmost-longest`. They change no tags, nullability, maximality or nested-query answers. A preferred prefix that cannot complete supplies no advantage.
+A gate is a test evaluated before filtering. Feature guards, hole symbol tests and ready parent conditions are gates. Direct hole captures retain their real trees and tags for these gates. A failed higher gate leaves the lower candidate available. Differing conditions must be ready when the hole completes.
 
-For each pair, cancel shared rule occurrences at each identical nonempty stage-token span. Keep multiplicities, the counts of repeated occurrences. Compare every residual comparable pair at every span. If all contests favor one reading, that reading wins. If contests favor both readings, the pair ties without the stage directive. If no contest remains, the stage directive decides.
+The whole-parent `$` becomes ready only when the alternative completes. A nullable suffix still delays that readiness. A private hole pattern must occur in a ready condition gate. A later structural read, including a guarded tag term, reports `prefer-slot-continuation`.
 
-No span, rule name or declaration position takes priority in this comparison. Equal source ranges do not establish equal stage-token spans. Empty spans contribute nothing. Shared ancestors cancel, even when their descendants span the same words.
+A preferred slot exports one sealed leaf, a child with hidden structure. It has no rule name, terminal identity or children. Empty holes still export one leaf. The seal affects structural observations only, without changing output trees or real captures.
 
-The engine compares all flag-best complete readings. Any directed comparison cycle causes a tie, including a cycle beneath an otherwise unbeaten reading. The error reports one whole cycle and each edge's reason. Without a cycle, a sole unbeaten derivation wins. Several unbeaten derivations give an ordinary two-reading tie.
+Outside patterns stop at a preferred slot. This includes descendant `⋮`, first-path `⋰`, last-path `⋱`, and tests that pass through a sole child. Patterns cannot recover the hidden structure from outside. An author who needs that observation cannot rank that position with `%prefer`.
 
-Reconstruction uses the same relation over projected original spans. Its stage fallback has no lean. A present restored witness can lose or participate in a tie. Engine §6.1 and §7.10 define these outcomes.
+A constant property can live on the parent. A ready gate can decide candidacy but cannot export a computed property of the hidden tree. A declaration cannot preserve arbitrary outside descendant or path observations.
+
+After gates, private constituent tags must be dead or provably empty. Dead tags have no later reader and are not inherited by the parent. The loader proves emptiness from literal-empty constructors and unary inheritance, including helpers and all feature variants. A terminal-only inherited production or nonempty explicit term makes its inheritance predecessors unsafe. A multi-symbol production without tag terms returns empty tags. Unsafe live tags report `prefer-slot-tags`.
+
+Span observations remain available, including text, sound, `tags(head($h))` and two-argument `tags($h,R)`. Later one-argument `tags($h)` and `classes($h)` require the emptiness proof. Even equal nonempty rival tags fail this rule.
+
+A slot group collects qualified labels for one template, prefix state and physical interval. Its identity includes eligibility, enclosing-rule cycle context and reconstruction mode. The complete prefix state includes every prior capture's presence, interval, tags and structure. Hole captures, hole results, production identities, proof identities, omission vectors and flag profiles do not distinguish groups.
+
+Keep only maximal present labels under transitive reachability. With `a > b > c`, a removes c even when b is absent. Incomparable maxima and unnamed alternatives remain. Keep every derivation of each retained label. Different intervals, prefix states or eligibility channels do not compete. Empty intervals participate.
+
+Input queries remain unfiltered. `begins` and `matches` use raw eligible recognition. `tags(span,R)` unions all raw eligible R readings, including excluded slot candidates. Queries apply the same seals at declared parent slots.
+
+Filtering preserves eligible recognition with sealing fixed. Adding a seal can change existing outside pattern answers. Filtering does not guarantee an unchanged successful-parser verdict or downstream output.
+
+Filtering only removes admitted derivations. A tie can become `resolved` or `unique`, and `resolved` can become `unique` or a tie. A unique result keeps its verdict, but a grammar migration can select its replacement tree. Deletion from a fixed singleton forest also preserves its tree.
+
+A newly resolved result reaches emission and the enabled elision-only check. A newly tied result reaches neither, has no chosen tree, output or warnings, and stops later stages.
+
+Rank admitted derivations by `leftmost-longest`, then the stage directive. Ordinary ambiguity remains possible. Reconstruction uses the same filter over physical reconstructed intervals, with its own eligibility. An excluded raw chosen witness gives ordinary `elision-only` ambiguity, not `elision-witness-lost`.
 
 ## Pipelines
 
@@ -717,9 +736,9 @@ The first stage reads the text's characters. Each is a token with one tag, its c
 
 ## Ambiguity
 
-The stage fallback below applies only when cancellation leaves no preference contest. The narrow-preference section defines conflicting contests and global cycle handling.
+Slot preferences filter eligible derivations before the ranking below. An admitted derivation has only kept slot candidates.
 
-A grammar admits every parse that its rules allow. A span is the range between two input token boundaries. A flagged span is a flagged occurrence's span. A rule profile counts flagged occurrences over each nonempty span.
+After slot filtering, a grammar ranks every admitted parse. A span is the range between two input token boundaries. A flagged span is a flagged occurrence's span. A rule profile counts flagged occurrences over each nonempty span.
 
 `leftmost-longest` compares complete parses by nonempty flagged-span counts, with earlier starts first, longer spans next, and larger counts preferred at the first difference.
 
@@ -732,15 +751,15 @@ Compare two rule profiles as lists of spans:
 3. Compare the lists from the front.
 4. At the first different entry, prefer the earlier start, then the later end.
 5. After an equal prefix, prefer the longer list.
-6. If the lists are equal, compare narrow preferences before stage fallback.
+6. If the lists are equal, apply the stage directive.
 
 Two nested flagged occurrences over one span contribute twice, so two such occurrences beat one. This document defines the flag's comparison, rather than POSIX subexpression semantics. For example, the flag pools occurrences across all flagged rules, counts nested and repeated occurrences, and ignores empty occurrences.
 
-A parse with a greater rule profile beats one with a lesser rule profile (engine §6). Among equal rule profiles, narrow preferences apply before stage fallback. A parse is best if no other parse beats it. Any comparison cycle gives a tie. Otherwise, the stage takes a sole best parse. Several best parses give an ordinary tie.
+A parse with a greater rule profile beats one with a lesser rule profile (engine §6). Among equal rule profiles, the stage directive applies. A parse is best if no other admitted parse beats it. The stage takes a sole best parse. Several best parses give a tie.
 
-The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every rule profile is zero. Narrow preferences still apply before the stage directive. Flags do not rank `matches`, `begins` or `tags` queries, or change maximal terminators.
+The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every rule profile is zero. Slot filtering already determines the admitted derivations. Flags do not rank `matches`, `begins` or `tags` queries, or change maximal terminators.
 
-A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later stage runs. An ordinary error shows two tied parses and their action witness. A cycle error shows a whole cycle and each directed reason.
+A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later stage runs. The error shows two tied parses and their action witness.
 
 The engine's canonical order (engine §6) orders the ambiguity diagnostics and selects the forbidden terminator that a maximality rejection reports. Among its keys are the numbers of the productions, which follow the order of a rule's alternatives. The canonical tie-break keys never turn a tie into an accepted reading.
 
@@ -837,13 +856,13 @@ Here S is the evaluated tag set, and s is the evaluated canonical string. The sa
 
 Then the stage parses that input again. Each elidable optional is now either restored or written. In the chosen parse's own reading, an optional that it left out is restored: it reads only its written-back terminator. Another reading can start an optional from a written-back terminator and read more after it, where the rest of the optional reads something.
 
-In that parse, the grammar reads the text with its terminators written back, but every condition, tag and test of a rule sees the original input. A written-back terminator has no text, no sound and no tags there. So a condition answers as it did for the chosen parse, and the chosen parse is always one reading. A test on a terminal is the one exception: `KU="ku"` reads a written-back `KU` by its sound. A test on a rule, such as `t="ku"`, sees the original input like a condition.
+In that parse, the grammar reads the text with its terminators written back, but every condition, tag and test of a rule sees the original input. A written-back terminator has no text, no sound and no tags there. So a condition answers as it did for the chosen parse, and the chosen parse remains a raw reading before slot admission. A test on a terminal is the one exception: `KU="ku"` reads a written-back `KU` by its sound. A test on a rule, such as `t="ku"`, sees the original input like a condition.
 
 A reconstruction is a second parse with terminators restored. These are the omitted terminators of the chosen parse. A projected span contains a constituent's original input tokens. Each written-back terminator adds no token (engine §7.3).
 
-The check retains the rule flags, but applies no stage preference. It counts flagged occurrences over projected spans. The restored chosen parse must be the sole reading of the reconstructed input with an equal or better rule profile. Another such reading gives an ambiguity error, never a replacement chosen parse.
+The check retains the rule flags, but applies no stage preference. It counts flagged occurrences over projected spans. The raw restored witness must survive slot filtering and be the sole best reconstructed reading. Another such reading gives an ambiguity error, never a replacement chosen parse.
 
-With no flagged rule, the check requires exactly one reading. Recognition always retains the restored chosen parse. If the check detects its loss, the library reports its defect as `elision-witness-lost` (engine §7.9). A tie ends the stage before this check.
+With no flagged rule, the check requires the witness as the only admitted reading. Raw eligible recognition retains the restored chosen parse. Only its raw absence reports `elision-witness-lost` (engine §7.9). Filtering can exclude that present witness and cause ordinary ambiguity. A tie ends the stage before this check.
 
 The measured corpus had no text that failed this check, but that is no general guarantee. Historically, under `greedy`, `mi broda joi ke brode ke'e` was one. The CLL grammar now settles it as the official parser does. A plain joik, a joik that does not open its own `ke` group, cannot take a unit that is only a `ke` group.
 
