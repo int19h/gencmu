@@ -396,7 +396,7 @@ impl Preferences {
                 let key = format!("{syms:?}/{captures:?}");
                 let clauses = format!(
                     "{:?}/{:?}",
-                    slot.tags.iter().map(|t| canonical_term(t, &v.roles)).collect::<Vec<_>>(),
+                    slot.tag_clauses.each_ref().map(|t| t.as_ref().map(|t| canonical_term(t, &v.roles))),
                     slot.emit
                         .as_ref()
                         .map(|items| items.iter().map(|e| canonical_emit(e, &v.roles)).collect::<Vec<_>>())

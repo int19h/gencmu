@@ -15,9 +15,10 @@ type symbol struct {
 }
 
 type slotMetadata struct {
-	source *sAlt
-	path   *domExpr
-	tags   []*domTerm
+	source     *sAlt
+	path       *domExpr
+	tags       []*domTerm
+	tagClauses [2]*domTerm
 }
 
 type production struct {
@@ -207,15 +208,17 @@ func lowerMode(g *stageGrammar, features map[string]bool, validation bool) *lowe
 	// The stage resolves its classifiers for the same features, before it
 	// lowers its rules; an error there ends the stage as an error of
 	// lowering does (§2, §3.3).
-	tables := g.classifiers(features)
-	if tables.fault != "" {
-		l.fault = tables.fault
-		location := *tables.faultLocation
-		location.Stage = g.name
-		l.faultLocation = &location
-		return l
+	if !validation {
+		tables := g.classifiers(features)
+		if tables.fault != "" {
+			l.fault = tables.fault
+			location := *tables.faultLocation
+			location.Stage = g.name
+			l.faultLocation = &location
+			return l
+		}
+		l.classifiers = tables.tables
 	}
-	l.classifiers = tables.tables
 	lw := &lowerer{validation: validation, g: g, l: l, features: features, terms: map[*domTerm]*termLowering{}, condsOf: map[condsKey]*condLowering{}, emits: map[*domEmit]*emitSplit{}, warnings: map[*sAlt][]string{}}
 	for _, r := range g.rules {
 		l.byName[r.name] = int32(len(l.rules))
@@ -556,13 +559,16 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 	// The union of the alternative's own tag term and its definition's
 	// %tags, where either is written (§3.7).
 	var written []*domTerm
-	for _, t := range []*domTerm{a.alt.Tags, a.ruleTags} {
+	var tagClauses [2]*domTerm
+	for index, t := range [2]*domTerm{a.alt.Tags, a.ruleTags} {
 		if t != nil {
-			written = append(written, lw.simplifyTerm(t, names, has))
+			tagClauses[index] = lw.simplifyTerm(t, names, has)
+			written = append(written, tagClauses[index])
 		}
 	}
 	if lw.validation {
 		p.slot.tags = written
+		p.slot.tagClauses = tagClauses
 	}
 	switch len(written) {
 	case 1:

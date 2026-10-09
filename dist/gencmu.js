@@ -2314,7 +2314,7 @@
             symbols:p.rhs.map((symbol,index) => index === hole ? {hole:true} : {name:symbol.role ?? symbol.name, terminal:symbol.terminal, test:normalize(symbol.test)}),
             captures:p.captures.filter(capture => capture.index !== hole && capture.name !== "\u0000child").map(capture => ({name:variant.roles.get(capture.name), index:capture.index})),
           });
-          const signature = JSON.stringify({tags:p.writtenTags?.map(normalize), emit:normalize(p.emit)});
+          const signature = JSON.stringify({tags:normalize(p.writtenTagClauses), emit:normalize(p.emit)});
           const previous = signatures.get(key);
           if (previous !== undefined && previous !== signature) this.fail("prefer-slot-template", variant.reference.expression.ref,
             {parent:component.parent, references:component.references, expression:"clauses"}, "The effective parent tag, emission or continuation clauses differ.");
@@ -5720,7 +5720,9 @@
       // the reader has made sure neither uses a capture this production lacks.
       // Each clause is prepared once for all productions, so that one costs
       // its own captures and output, not every part of the clause.
-      const written = [alternative.tags, clauses.tags].filter((term) => term !== undefined).map((term) => simplifyFor(prepareClause(term), has, names));
+      const alternativeTags = alternative.tags === undefined ? null : simplifyFor(prepareClause(alternative.tags), has, names);
+      const definitionTags = clauses.tags === undefined ? null : simplifyFor(prepareClause(clauses.tags), has, names);
+      const written = [alternativeTags, definitionTags].filter((term) => term !== null);
       /** @type {Term | null} */
       let tags = written.length === 0 ? null : written.length === 1 ? written[0] : { union: written };
       if (!tags && sequence.length === 1) {
@@ -5786,6 +5788,7 @@
         conditions,
         tags,
         writtenTags: written,
+        ...(this.validation ? { writtenTagClauses: { alternative: alternativeTags, definition: definitionTags } } : {}),
         emit,
         opaque: clauses.opaque,
         warnings: alternative.guards.filter((guard) => guard.kind === "warning").map((guard) => guard.feature),
@@ -15155,6 +15158,7 @@
    * @property {Map<number,Map<string,string>>} [componentRoles]
    * @property {string} [role]
    * @property {Term[]} [writtenTags]
+   * @property {{alternative: Term | null, definition: Term | null}} [writtenTagClauses]
    * @property {number} id
    * @property {string} lhs
    * @property {GrammarSymbol[]} rhs

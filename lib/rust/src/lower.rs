@@ -258,6 +258,7 @@ pub(crate) struct SlotMetadata {
     pub path: Option<usize>,
     pub names: Vec<Option<String>>,
     pub tags: Vec<Term>,
+    pub tag_clauses: [Option<Term>; 2],
     pub conditions: Vec<(Cond, usize)>,
     pub emit: Option<Vec<EmitItem>>,
 }
@@ -1028,6 +1029,7 @@ fn lower_mode(
                         .filter_map(|(_, n, _)| n.as_ref().map(|n| Some(n.clone())))
                         .collect(),
                     tags: Vec::new(),
+                    tag_clauses: [None, None],
                     conditions: Vec::new(),
                     emit: None,
                 }))
@@ -1061,10 +1063,8 @@ fn lower_mode(
             let each_part = work::mutated(Mutant::LowerEachPart);
             // The union of the alternative's own tags and its definition's
             // (§3.7); with neither written, the default below.
-            let written: Vec<Term> = [alternative.alternative.tags.as_ref(), alternative.clauses.tags.as_ref()]
-                .into_iter()
-                .flatten()
-                .map(|term| {
+            let tag_clauses = [alternative.alternative.tags.as_ref(), alternative.clauses.tags.as_ref()].map(|term| {
+                term.map(|term| {
                     if each_part {
                         // A mutation of the tests simplifies every part
                         // of the term for each production.
@@ -1073,7 +1073,12 @@ fn lower_mode(
                     let split = term_splits.entry(term as *const Term).or_insert_with(|| TermSplit::new(term));
                     split.simplify(own.iter().copied(), &has).unwrap_or(Term::EmptySet)
                 })
-                .collect();
+            });
+            if validation {
+                let slot = production.slot.as_mut().expect("slot validation");
+                slot.tag_clauses = tag_clauses.clone();
+            }
+            let written: Vec<Term> = tag_clauses.into_iter().flatten().collect();
             if validation {
                 production.slot.as_mut().expect("slot validation").tags = written.clone();
             }

@@ -7,6 +7,14 @@ import (
 	"testing"
 )
 
+func TestSlotValidationRejectsIncompleteLowering(t *testing.T) {
+	fault := &Error{Kind: ErrorGrammar, Message: "incomplete lowering", Document: "source.md", Line: 7}
+	got := (&preferences{}).validate(&lowered{fault: fault.Message, faultLocation: fault})
+	if got != fault {
+		t.Fatalf("got %v, want the original lowering fault %v", got, fault)
+	}
+}
+
 func TestSlotLinearForest(t *testing.T) {
 	d := mustLoad(t, oneStage("%ambiguity-resolution late-elision\n%rule text {unit}\n%rule unit a | b\n%rule a X\n%tags ∅\n%rule b X\n%tags ∅\n%prefer a > b"))
 	for n := 1; n <= 32; n++ {

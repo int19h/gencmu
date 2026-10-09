@@ -176,7 +176,7 @@ class Preferences:
                 symbols = [('hole',) if i == hole else (symbol_role(symbol, terminal, variant, lowered),p.tests[i] if p.tests else None) for i,(terminal,symbol) in enumerate(zip(p.terminal,p.rhs))]
                 captures = [(roles.get(name,name), index) for name,index in p.captures.items() if index != hole and name != '\u0000']
                 key = (tuple(symbols), tuple(captures))
-                signature = ([canonical(t,roles) for t in p.slot.tags],canonical(p.emit,roles))
+                signature = ([None if t is None else canonical(t,roles) for t in p.slot.tag_clauses],canonical(p.emit,roles))
                 previous = signatures.get(key)
                 if previous is not None:
                     if previous[0] != signature:

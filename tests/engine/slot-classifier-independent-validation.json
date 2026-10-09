@@ -1,0 +1,22 @@
+{
+  "description": "Classifier faults in another feature configuration cannot bypass slot validation.",
+  "grammar": "%classifier lex\n  \"mi\" ∈ KOhA\n  ¬f? \"mi\" ∈ KOhA\n%rule text a | b\n%rule a X\n%rule b X\n%prefer a > b",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "f"
+    ],
+    "autoFeatures": false
+  },
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "prefer-slot-tags"
+  }
+}

@@ -847,6 +847,7 @@ class SlotMetadata:
     source: Alternative
     path: int | None = None
     tags: list[Dom] = field(default_factory=list)
+    tag_clauses: tuple[Dom | None, Dom | None] = (None, None)
 
 
 @dataclass
@@ -1253,9 +1254,13 @@ class _Lowerer:
             # The union of the alternative's own tags and the definition's
             # (engine §3.7); the reader has made sure neither uses a capture
             # the alternative lacks.
-            terms = [self.prepare(term, False).simplified(present) for term in (alt.tags, alt.rule_tags) if term is not None]
             if self.validation:
+                tag_clauses = tuple(None if clause is None else self.prepare(clause, False).simplified(present) for clause in (alt.tags, alt.rule_tags))
+                terms = [term for term in tag_clauses if term is not None]
                 production.slot.tags = terms
+                production.slot.tag_clauses = tag_clauses
+            else:
+                terms = [self.prepare(term, False).simplified(present) for term in (alt.tags, alt.rule_tags) if term is not None]
             if terms:
                 production.tags_term = terms[0] if len(terms) == 1 else {"union": terms}
             production.emit = self.lower_emit(alt.emit, captures, self.emission(alt.emit))

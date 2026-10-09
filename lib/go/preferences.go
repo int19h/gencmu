@@ -503,6 +503,12 @@ func slotTestKey(t *symTest) string {
 	return fmt.Sprintf("%s/%q/%q", t.op, t.sound, t.tags)
 }
 func (p *preferences) validate(g *lowered) *Error {
+	if g.fault != "" {
+		if g.faultLocation != nil {
+			return g.faultLocation
+		}
+		return &Error{Kind: ErrorGrammar, Message: g.fault}
+	}
 	unsafe := map[int32]bool{}
 	users := map[int32][]int32{}
 	pending := []int32{}
@@ -584,7 +590,6 @@ func (p *preferences) validate(g *lowered) *Error {
 					common = append(common, slotCondKey(cond.cond, v.roles))
 				}
 			}
-			var terms []string
 			for _, t := range prod.slot.tags {
 				if slotStructureRead(t, nil, private) {
 					return p.fail("prefer-slot-continuation", first, c.references, "tag term reads private hole structure: "+slotTermKey(t, v.roles))
@@ -594,7 +599,6 @@ func (p *preferences) validate(g *lowered) *Error {
 						return e
 					}
 				}
-				terms = append(terms, slotTermKey(t, v.roles))
 			}
 			if len(prod.slot.tags) == 0 && len(prod.rhs) == 1 && hole >= 0 {
 				if e := requireEmpty("default inheritance"); e != nil {
@@ -613,7 +617,13 @@ func (p *preferences) validate(g *lowered) *Error {
 				}
 			}
 			key := fmt.Sprintf("%q/%q", syms, caps)
-			body := fmt.Sprintf("%q/%s", terms, slotEmitKey(prod.emit, v.roles))
+			tagClauses := [2]string{}
+			for i, term := range prod.slot.tagClauses {
+				if term != nil {
+					tagClauses[i] = slotTermKey(term, v.roles)
+				}
+			}
+			body := fmt.Sprintf("%q/%s", tagClauses, slotEmitKey(prod.emit, v.roles))
 			conditions := fmt.Sprintf("%q", common)
 			if old, ok := templates[key]; ok {
 				if old.body != body {
