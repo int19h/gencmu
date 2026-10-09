@@ -114,7 +114,7 @@ The test uses notation operators and canonical output tags, with spaces only aro
 
 ### Admitted derivations
 
-An admitted derivation has only kept slot candidates. `unique` means exactly one admitted derivation. `resolved` means several admitted derivations with exactly one best. A tie has at least two best admitted derivations, and reports two readings with their action witness.
+`unique` means exactly one admitted derivation. `resolved` means several admitted derivations with exactly one best. A tie has at least two best admitted derivations, and reports two readings with their action witness.
 
 [Ambiguity](notation.md#ambiguity) defines the effects of filtering and grammar migration.
 

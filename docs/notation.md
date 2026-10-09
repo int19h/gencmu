@@ -10,7 +10,7 @@ Conditions over the parts restrict which parses exist. A condition can also ask 
 
 A token is one unit that a grammar reads or emits. Examples are characters, phonemes and words. A transducer reads tokens and emits another sequence. Each rule can also say what its constituents hand to the next grammar. So a grammar is a transducer. A dialect is a pipeline of these grammars, its stages, defined by one pipeline document.
 
-A grammar is unordered: its alternatives have no priority by position. A declared slot filters interchangeable alternatives before ranking. Rule flags and the stage directive then rank the remaining complete parses. The section "Ambiguity" describes this ranking.
+An ordinary choice is unordered: its alternatives have no priority by position. A ranked choice filters alternatives at one written position before ranking. Rule flags and the stage directive then rank the remaining complete parses. The sections "Ranked choices" and "Ambiguity" describe filtering and ranking.
 
 ## Rules
 
@@ -687,7 +687,7 @@ Captures inside a ranked choice belong to that choice. They can serve only condi
 
 The whole-parent `$` becomes ready only when its named alternative completes. A final ranked group can reach that point. Any remaining element, including an empty optional, delays that readiness. A private capture cannot wrap a sequence or the ranked group itself.
 
-Outside patterns see one seal for the whole ranked choice, even when its selected option is empty. They cannot inspect its names, children, or selected option. Descendant, first-path, last-path, and sole-child walks stop there.
+Outside patterns see one seal for the whole ranked choice, even when its completed option is empty. They cannot inspect its names, children, or option. Descendant, first-path, last-path, and sole-child walks stop there.
 
 Internal named rules and ready conditions on their captures retain their own pattern views. The seal changes no output tree, omission, action, or captured constituent. An author who needs that hidden structure outside the choice cannot rank that position.
 
@@ -697,7 +697,7 @@ The choice must discard its returned tags locally or return a provably empty set
 
 After admission, flagged profiles precede the stage directive. With no flagged rule, every profile is zero, so the stage directive alone ranks the admitted derivations. Reconstruction applies the same admission over physical reconstructed spans.
 
-The reader rejects the retired `%prefer` directive as unknown and points to ranked choices. The group itself states the contested position and its order.
+The reader rejects the retired `%prefer` directive as unknown and points to ranked choices. The group itself states the written position and its option order.
 
 ## Pipelines
 
@@ -769,7 +769,7 @@ Two nested flagged occurrences over one span contribute twice, so two such occur
 
 A parse with a greater rule profile beats one with a lesser rule profile (engine §6). Among equal rule profiles, the stage directive applies. A parse is best if no other admitted parse beats it. The stage takes a sole best parse. Several best parses give a tie.
 
-The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every rule profile is zero. Slot filtering already determines the admitted derivations. Flags do not rank `matches`, `begins` or `tags` queries, or change maximal terminators.
+The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every rule profile is zero, so the stage directive alone ranks the admitted derivations. Flags do not rank `matches`, `begins` or `tags` queries, or change maximal terminators.
 
 A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later stage runs. The error shows two tied parses and their action witness.
 
@@ -868,11 +868,11 @@ Here S is the evaluated tag set, and s is the evaluated canonical string. The sa
 
 Then the stage parses that input again. Each elidable optional is now either restored or written. In the chosen parse's own reading, an optional that it left out is restored: it reads only its written-back terminator. Another reading can start an optional from a written-back terminator and read more after it, where the rest of the optional reads something.
 
-The grammar reads the text with its terminators written back. Every rule condition, tag and test sees the original input. A written-back terminator has no text, no sound and no tags there. So a condition answers as it did for the chosen parse, and the chosen parse remains a raw reading before slot admission. A test on a terminal is the one exception: `KU="ku"` reads a written-back `KU` by its sound. A test on a rule, such as `t="ku"`, sees the original input like a condition.
+The grammar reads the text with its terminators written back. Every rule condition, tag and test sees the original input. A written-back terminator has no text, no sound and no tags there. So a condition answers as it did for the chosen parse, and the chosen parse remains a raw reading before ranked-choice filtering. A test on a terminal is the one exception: `KU="ku"` reads a written-back `KU` by its sound. A test on a rule, such as `t="ku"`, sees the original input like a condition.
 
 A reconstruction is a second parse with terminators restored. These are the omitted terminators of the chosen parse. A projected span contains a constituent's original input tokens. Each written-back terminator adds no token (engine §7.3).
 
-The check retains the rule flags, but applies no stage preference. It counts flagged occurrences over projected spans. The raw restored witness must survive slot filtering and be the sole best reconstructed reading. Another such reading gives an ambiguity error, never a replacement chosen parse.
+The check retains the rule flags, but applies no stage preference. It counts flagged occurrences over projected spans. The raw restored witness must survive ranked-choice filtering and be the sole best reconstructed reading. Another such reading gives an ambiguity error, never a replacement chosen parse.
 
 With no flagged rule, the check requires the witness as the only admitted reading. Raw eligible recognition retains the restored chosen parse. Only its raw absence reports `elision-witness-lost` (engine §7.9). Filtering can exclude that present witness and cause ordinary ambiguity. A tie ends the stage before this check.
 

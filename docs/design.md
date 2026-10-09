@@ -320,7 +320,7 @@ A document can be included in several stages, and an included document can hold 
 
 ## Ambiguity
 
-Ranked choices filter eligible derivations before ranking. An admitted derivation has only kept slot candidates. Rank admitted parses by `leftmost-longest`, then the stage directive. A parse is best if no other admitted parse beats it.
+Ranked choices filter eligible derivations before ranking. Rank admitted parses by `leftmost-longest`, then the stage directive. A parse is best if no other admitted parse beats it.
 
 One admitted derivation gives `unique`. Several admitted derivations with exactly one best give `resolved`. Several best derivations give a tie with two readings and an action witness.
 
@@ -378,7 +378,7 @@ CLL's own rule is narrower. It says only that a terminator can be elided if no a
 
 1. Take the `elided` nodes of the chosen tree in the order of its leaves, left to right. This order follows the chosen derivation, also where several nodes stand at one point. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries the tag of that terminator and, for a terminator with an `=` test, the test's string as its sound. The engine marks it synthetic.
 2. Parse the new token sequence with the same grammar, in a mode where each elidable optional is restored or written. Every condition, tag and test of a rule reads the original input through a projection that leaves the synthetic tokens out. A test on a terminal reads the written-back terminator's tag and sound. A query parses the original input with the grammar as it is.
-3. Locate the raw chosen reconstruction before filtering. Its absence gives `elision-witness-lost`. Filter the reconstructed forest, then rank by projected rule profiles without stage lean. The check passes only when the witness remains admitted and is the sole selected derivation.
+3. Locate the raw chosen reconstruction before filtering. Its absence gives `elision-witness-lost`. Filter the reconstructed forest, then rank by projected rule profiles without stage lean. The check passes only when the witness remains admitted and is the sole best admitted derivation.
 
    The ambiguity is then not about terminators. The result is an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries the readings that engine §7.10 names, shown over the original input. An intentionally excluded witness gives ordinary ambiguity, not witness loss.
 
@@ -784,7 +784,7 @@ The earlier complete-reading preference relation also produced comparison cycles
 
 An inline ranked choice states its position and category order together. It requires one common prefix and suffix because the author writes them once. It needs no dedicated wrapper, reference count, template correspondence, or capture-role matching.
 
-Every option supplies its actual qualified constituent or sequence. A failed higher gate leaves lower options available. One seal hides all selected children from outside patterns. Ready private conditions still observe their real captured constituents.
+Every option supplies its actual qualified constituent or sequence. A failed higher gate leaves lower options available. One seal hides each completed option's children from outside patterns. Ready private conditions still observe their real captured constituents.
 
 The local tag closure prevents hidden option tags from changing the common continuation. Private captures cannot escape into later conditions, tags, or emissions. Common prefix captures retain one written binding.
 

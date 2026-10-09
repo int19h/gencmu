@@ -64,7 +64,7 @@ A loaded dialect lists its features (engine §13), in code point order of the na
 
 The result has the fields of `docs/output.md`, in the data types of the language. These fields are `ok`, the stages, the `tree` of the last stage, the `error`, and the `warnings`. `warnings` is an empty list when there are no warnings.
 
-An admitted derivation has only kept slot candidates. `unique` means exactly one admitted derivation. `resolved` means several admitted derivations with exactly one best. Several best admitted derivations give a tie.
+`unique` means exactly one admitted derivation. `resolved` means several admitted derivations with exactly one best. Several best admitted derivations give a tie.
 
 [Ambiguity](notation.md#ambiguity) defines the effects of filtering and grammar migration.
 
