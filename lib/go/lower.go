@@ -743,7 +743,7 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 	switch e.Kind {
 	case exSeq:
 		return lw.expandSeq(e.Items, a, ruleName)
-	case exChoice:
+	case exChoice, exRanked:
 		var out [][]slot
 		for _, it := range e.Items {
 			out = append(out, lw.expand(it, a, ruleName)...)

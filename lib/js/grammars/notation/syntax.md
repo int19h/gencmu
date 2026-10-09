@@ -128,10 +128,17 @@ A rule has a keyword, optional flags, name, alternatives and clauses, in that or
   ~identifier | '#'
 
 %rule body
-  ['|'] {alternative \ '|'}
+  | ['|'] {alternative \ '|'}
+  | ranked-alternative
 
 %rule alternative
   [{guard}] conjunction [alternative-tags]
+
+%rule ranked-alternative
+  [{guard}] ranked-choice [alternative-tags]
+
+%rule ranked-choice
+  conjunction '≻' {conjunction \ '≻'}
 
 %rule guard
   ~guard
@@ -140,7 +147,7 @@ A rule has a keyword, optional flags, name, alternatives and clauses, in that or
   '<' term '>'
 ```
 
-<details><summary>Railroad diagrams of the 9 rules from <code>rule</code> to <code>alternative-tags</code></summary>
+<details><summary>Railroad diagrams of the 11 rules from <code>rule</code> to <code>alternative-tags</code></summary>
 <p><img src="../../docs/diagrams/notation/syntax/rule.svg" alt="Railroad diagram of the rule rule"></p>
 <p><img src="../../docs/diagrams/notation/syntax/definer.svg" alt="Railroad diagram of the rule definer"></p>
 <p><img src="../../docs/diagrams/notation/syntax/rule-flags.svg" alt="Railroad diagram of the rule rule-flags"></p>
@@ -148,6 +155,8 @@ A rule has a keyword, optional flags, name, alternatives and clauses, in that or
 <p><img src="../../docs/diagrams/notation/syntax/rule-name.svg" alt="Railroad diagram of the rule rule-name"></p>
 <p><img src="../../docs/diagrams/notation/syntax/body.svg" alt="Railroad diagram of the rule body"></p>
 <p><img src="../../docs/diagrams/notation/syntax/alternative.svg" alt="Railroad diagram of the rule alternative"></p>
+<p><img src="../../docs/diagrams/notation/syntax/ranked-alternative.svg" alt="Railroad diagram of the rule ranked-alternative"></p>
+<p><img src="../../docs/diagrams/notation/syntax/ranked-choice.svg" alt="Railroad diagram of the rule ranked-choice"></p>
 <p><img src="../../docs/diagrams/notation/syntax/guard.svg" alt="Railroad diagram of the rule guard"></p>
 <p><img src="../../docs/diagrams/notation/syntax/alternative-tags.svg" alt="Railroad diagram of the rule alternative-tags"></p>
 </details>
@@ -226,7 +235,8 @@ The grammar reads a test after any primary, and a constant as a primary. The rea
   | '{' choice ~ellipsis ['\\' choice] '}'
 
 %rule choice
-  ['|'] {conjunction \ '|'}
+  | ['|'] {conjunction \ '|'}
+  | ranked-choice
 
 %rule empty
   'ε'

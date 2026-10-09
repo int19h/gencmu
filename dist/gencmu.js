@@ -2715,7 +2715,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 21;
+  const DOM_FORMAT = 22;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
@@ -2860,7 +2860,7 @@
    * The forms of an expression, a term and a condition, each as its members
    * (docs/output.md). The first member names the form.
    */
-  const EXPRESSION_FORMS = [["seq"], ["choice"], ["and"], ["optional", "elidable?", "maximal?"], ["repeat", "separator?", "chain?"], ["ref"], ["terminal"], ["capture", "expr"],
+  const EXPRESSION_FORMS = [["seq"], ["choice"], ["ranked"], ["and"], ["optional", "elidable?", "maximal?"], ["repeat", "separator?", "chain?"], ["ref"], ["terminal"], ["capture", "expr"],
     ["range"], ["property"], ["test", "value", "expr"], ["empty"]];
   const TERM_FORMS = [["pattern"], ["union"], ["intersection"], ["difference"], ["if", "then"], ["call", "args"], ["string"], ["tag"], ["range"], ["emptySet"], ["capture"], ["const", "at"]];
   const CONDITION_FORMS = [["op", "left", "right"], ["matches", "rule"], ["begins", "rule"], ["initial"], ["not"], ["any"], ["all"], ["captured"], ["if", "then"]];
@@ -2993,8 +2993,8 @@
       if (kind === "expr") {
         if ("range" in value || "property" in value) {
           if (!isCharacterClass(value, unicode)) return "a malformed expression";
-        } else if ("choice" in value || "seq" in value) {
-          const items = "choice" in value ? value.choice : value.seq;
+        } else if ("choice" in value || "ranked" in value || "seq" in value) {
+          const items = value.choice ?? value.ranked ?? value.seq;
           if (!list(items, 2)) return "a malformed expression";
           for (const item of /** @type {unknown[]} */ (items)) pushExpr(item);
         } else if ("and" in value) {
@@ -3851,10 +3851,10 @@
         for (const item of node.seq) sequences = product(sequences, yield visit(item));
         return sequences;
       }
-      if (Array.isArray(node.choice)) {
+      if (Array.isArray(node.choice) || Array.isArray(node.ranked)) {
         /** @type {CaptureNode[]} */
         const all = [];
-        for (const item of node.choice) for (const sequence of yield visit(item)) all.push(sequence);
+        for (const item of /** @type {unknown[]} */ (node.choice ?? node.ranked)) for (const sequence of yield visit(item)) all.push(sequence);
         return distinct(all);
       }
       if (Array.isArray(node.and)) {
@@ -3916,6 +3916,7 @@
       if (!isDomObject(node) || typeof node.capture === "string") return [];
       if (Array.isArray(node.seq)) return node.seq;
       if (Array.isArray(node.choice)) return node.choice;
+      if (Array.isArray(node.ranked)) return node.ranked;
       if (Array.isArray(node.and)) return node.and;
       if ("optional" in node && node.elidable !== true) return [node.optional];
       return [];
@@ -4527,7 +4528,7 @@
       if (hooks.work) countWork(hooks.work, "walkSteps");
       if (!isDomObject(current)) continue;
       if (typeof current.test === "string") found.push(/** @type {any} */ (current));
-      for (const key of ["choice", "and", "seq"]) {
+      for (const key of ["choice", "ranked", "and", "seq"]) {
         const items = current[key];
         if (Array.isArray(items)) for (let index = items.length - 1; index >= 0; index--) stack.push(items[index]);
       }
@@ -5490,6 +5491,7 @@
   function childExpressions(expr) {
     if ("seq" in expr) return expr.seq;
     if ("choice" in expr) return expr.choice;
+    if ("ranked" in expr) return expr.ranked;
     if ("and" in expr) return expr.and;
     if ("optional" in expr) return [expr.optional];
     if ("repeat" in expr) return expr.separator === undefined ? [expr.repeat] : [expr.repeat, expr.separator];
@@ -13076,7 +13078,9 @@
       // definition last (engine §9).
       /** @type {DomAlternative[]} */
       const alternatives = [];
-      for (const alternative of some(only(node, "body"), "alternative")) alternatives.push(yield readAlternative(alternative));
+      const body = only(node, "body");
+      const ranked = one(body, "ranked-alternative");
+      for (const alternative of ranked ? [ranked] : some(body, "alternative")) alternatives.push(yield readAlternative(alternative));
       const tagsClause = one(node, "tags-clause");
       const tags = tagsClause ? /** @type {Term} */ (yield readConstituentTags(tagsClause)) : undefined;
       // Each condition of the list is one condition, applying where its
@@ -13115,7 +13119,7 @@
       });
       captureNodes = new Map();
       /** @type {DomAlternative} */
-      const alternative = { guards, expr: /** @type {Expr} */ (yield readExpression(only(node, "conjunction"), true)) };
+      const alternative = { guards, expr: /** @type {Expr} */ (yield readExpression(only(node, ruleOf(node) === "ranked-alternative" ? "ranked-choice" : "conjunction"), true)) };
       // A name stands at most once in each production, gates aside: the
       // error stands at the second capture that such a production reads,
       // the first in the text where there are several (engine §3.5, §9).
@@ -13138,11 +13142,20 @@
     function* readExpression(node, whole = false) {
       switch (ruleOf(node)) {
         case "choice": {
+          const ranked = one(node, "ranked-choice");
+          if (ranked) return yield readExpression(ranked);
           const found = some(node, "conjunction");
           /** @type {Expr[]} */
           const items = [];
           for (const item of found) items.push(yield readExpression(item));
           return items.length === 1 ? items[0] : { choice: items };
+        }
+        case "ranked-choice": {
+          const found = some(node, "conjunction", 2);
+          /** @type {Expr[]} */
+          const items = [];
+          for (const item of found) items.push(yield readExpression(item));
+          return { ranked: items };
         }
         case "conjunction": {
           const found = some(node, "sequence");
@@ -13905,7 +13918,7 @@
   // §9). Every other rule is a wrapper, and the reader reads its parts in its
   // place.
   const NAMED = new Set(["prefer-directive", "tree-comparison", "tree-comparator", "pattern-literal", "pattern-union", "pattern-intersection", "pattern-sequence", "pattern-item", "pattern-atom", "pattern-brackets", "pattern-repeat", "pattern-path",
-    "directive", "argument-word", "argument-string", "rule", "definer", "rule-flags", "rule-flag", "rule-name", "body", "alternative", "guard", "alternative-tags",
+    "directive", "argument-word", "argument-string", "rule", "definer", "rule-flags", "rule-flag", "rule-name", "body", "alternative", "ranked-alternative", "ranked-choice", "guard", "alternative-tags",
     "conjunction", "sequence", "primary", "repetition", "reference", "string", "phoneme", "tested", "test", "test-operand", "capture", "group", "optional",
     "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "opaque-clause", "emit-item", "emit-target", "emit-tags", "emit-before", "emit-after",
     "implication", "any-of", "all-of", "condition", "comparison", "comparator", "negation", "presence",
@@ -15225,7 +15238,7 @@
 
   /**
    * A rule body expression.
-   * @typedef {{choice: Expr[]} | {and: Expr[]} | {seq: Expr[]}
+   * @typedef {{choice: Expr[]} | {ranked: Expr[]} | {and: Expr[]} | {seq: Expr[]}
    *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
    *   | {optional: Expr, elidable?: true, maximal?: true} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
    *   | {range: [string, string]} | {property: string}

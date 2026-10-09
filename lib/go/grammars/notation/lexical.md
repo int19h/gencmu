@@ -283,6 +283,7 @@ The rule for `...`, the marker of a chain, tags it `ellipsis`, and `..`, which j
   | '+' '+' <~double-plus>
   | '@' '(' <~pattern-open>
   | '≅' | '≇' | '⋯' | '⋮' | '⋰' | '⋱'
+  | '≻'
 %emits
   $
 ```

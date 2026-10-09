@@ -201,7 +201,7 @@ func walkPreferenceExpr(root *domExpr, call func(*domExpr, string)) {
 		e, p := s.e, s.p
 		call(e, p)
 		switch e.Kind {
-		case exSeq, exChoice, exAnd:
+		case exSeq, exChoice, exRanked, exAnd:
 			for i := len(e.Items) - 1; i >= 0; i-- {
 				stack = append(stack, step{e.Items[i], fmt.Sprintf("%s/%s/%d", p, e.Kind, i)})
 			}

@@ -169,12 +169,22 @@ func (f *exprFrame) next(b *domBuilder) readStep {
 func (f *exprFrame) start(b *domBuilder) readStep {
 	n := f.n
 	switch n.Rule {
-	case "choice", "conjunction", "sequence":
-		f.kind = map[string]string{"choice": exChoice, "conjunction": exAnd, "sequence": exSeq}[n.Rule]
-		f.parts = b.some(n, map[string]string{"choice": "conjunction", "conjunction": "sequence", "sequence": "primary"}[n.Rule], 1)
+	case "choice", "ranked-choice", "conjunction", "sequence":
+		if n.Rule == "choice" {
+			if ranked := one(n, "ranked-choice"); ranked != nil {
+				f.pass = true
+				return ask(&exprFrame{n: ranked})
+			}
+		}
+		f.kind = map[string]string{"choice": exChoice, "ranked-choice": exRanked, "conjunction": exAnd, "sequence": exSeq}[n.Rule]
+		minimum := 1
+		if f.kind == exRanked {
+			minimum = 2
+		}
+		f.parts = b.some(n, map[string]string{"choice": "conjunction", "ranked-choice": "conjunction", "conjunction": "sequence", "sequence": "primary"}[n.Rule], minimum)
 		// Only the one conjunction of an alternative, and its one sequence
 		// of one primary, are its whole expression.
-		f.inWhole = f.whole && f.kind != exChoice && len(f.parts) == 1
+		f.inWhole = f.whole && f.kind != exChoice && f.kind != exRanked && len(f.parts) == 1
 		// The bound of an & is its own form, so it comes before its items
 		// (engine §9).
 		if f.kind == exAnd && len(f.parts) > maxAnd {

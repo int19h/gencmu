@@ -346,7 +346,12 @@ impl<'a> Reader<'a> {
         // body, then its clauses in their fixed order, and the checks of the
         // whole definition last (§9).
         let mut alternatives = Vec::new();
-        for alternative in self.some(self.one(node, "body")?, "alternative", 1)? {
+        let body = self.one(node, "body")?;
+        let alternatives_nodes = match Self::rules(body, "ranked-alternative").next() {
+            Some(ranked) => vec![ranked],
+            None => self.some(body, "alternative", 1)?,
+        };
+        for alternative in alternatives_nodes {
             alternatives.push(self.alternative(alternative)?);
         }
         let tags = match Self::rules(node, "tags-clause").next() {
@@ -405,7 +410,14 @@ impl<'a> Reader<'a> {
             })
             .collect::<R<_>>()?;
         self.captures.borrow_mut().clear();
-        let expr = self.conjunction(self.one(node, "conjunction")?, true)?;
+        let expr = if rule_name(node) == "ranked-alternative" {
+            match self.run(Frame::Choice(Choice::new(self.one(node, "ranked-choice")?)))? {
+                Val::Expr(expr) => expr,
+                _ => unreachable!("an expression reads an expression"),
+            }
+        } else {
+            self.conjunction(self.one(node, "conjunction")?, true)?
+        };
         // A name stands at most once in each production, gates aside: the
         // error stands at the second capture that such a production reads,
         // the first in the text where there are several (§3.5, §9).
@@ -563,7 +575,11 @@ impl<'a> Reader<'a> {
 
     fn resume_choice(&self, frame: &mut Choice<'a>, input: Option<Val>) -> R<Step<'a>> {
         if frame.conjunctions.is_none() {
-            frame.conjunctions = Some(self.some(frame.node, "conjunction", 1)?);
+            if let Some(ranked) = Self::rules(frame.node, "ranked-choice").next() {
+                frame.node = ranked;
+                frame.ranked = true;
+            }
+            frame.conjunctions = Some(self.some(frame.node, "conjunction", if frame.ranked { 2 } else { 1 })?);
         }
         if let Some(Val::Expr(expr)) = input {
             frame.parts.push(expr);
@@ -571,7 +587,11 @@ impl<'a> Reader<'a> {
         let conjunctions = frame.conjunctions.as_ref().expect("the conjunctions");
         match conjunctions.get(frame.parts.len()) {
             Some(&conjunction) => Ok(Step::Call(Frame::Conjunction(Conjunction::new(conjunction, false)))),
-            None => Ok(Step::Done(Val::Expr(single_or(std::mem::take(&mut frame.parts), Expr::Choice)))),
+            None => Ok(Step::Done(Val::Expr(if frame.ranked {
+                Expr::Ranked(std::mem::take(&mut frame.parts))
+            } else {
+                single_or(std::mem::take(&mut frame.parts), Expr::Choice)
+            }))),
         }
     }
 
@@ -1703,6 +1723,7 @@ impl<'a> Conjunction<'a> {
 }
 
 struct Choice<'a> {
+    ranked: bool,
     node: &'a Node,
     conjunctions: Option<Vec<&'a Node>>,
     parts: Vec<Expr>,
@@ -1710,7 +1731,7 @@ struct Choice<'a> {
 
 impl<'a> Choice<'a> {
     fn new(node: &'a Node) -> Self {
-        Choice { node, conjunctions: None, parts: Vec::new() }
+        Choice { ranked: rule_name(node) == "ranked-choice", node, conjunctions: None, parts: Vec::new() }
     }
 }
 
@@ -1892,7 +1913,7 @@ fn first_of_rule<'n>(node: &'n Node, name: &str) -> Option<&'n Node> {
 /// The rules of the notation's syntax grammar that the reader knows (engine
 /// §9). Every other rule is a wrapper, and the reader reads its parts in
 /// its place.
-const KNOWN: [&str; 82] = [
+const KNOWN: [&str; 84] = [
     "tree-comparison",
     "tree-comparator",
     "pattern-literal",
@@ -1927,6 +1948,8 @@ const KNOWN: [&str; 82] = [
     "rule-name",
     "body",
     "alternative",
+    "ranked-alternative",
+    "ranked-choice",
     "guard",
     "alternative-tags",
     "choice",

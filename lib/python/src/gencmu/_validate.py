@@ -30,7 +30,7 @@ class Lowercase(Protocol):
     def is_mark(self, code: int) -> bool: ...
 
 
-FORMAT = 21
+FORMAT = 22
 """The version of the DOM's shape (docs/output.md)."""
 
 CONSTANT_NAME = re.compile(r"[A-Z][A-Za-z0-9-]*")
@@ -148,6 +148,7 @@ def _is_entry(entry: Any, unicode: Lowercase) -> bool:
 _EXPRESSION_FORMS = (
     ("seq",),
     ("choice",),
+    ("ranked",),
     ("and",),
     ("optional", "elidable?", "maximal?"),
     ("repeat", "separator?", "chain?"),
@@ -542,8 +543,8 @@ def _walk(pending: list[tuple[str, Any, int, int]], unicode: Lowercase, tests: l
             if "range" in value or "property" in value:
                 if not _is_character_class(value, unicode):
                     return "a malformed expression"
-            elif "choice" in value or "seq" in value:
-                items = value["choice"] if "choice" in value else value["seq"]
+            elif "choice" in value or "ranked" in value or "seq" in value:
+                items = value.get("choice", value.get("ranked", value.get("seq")))
                 if not _items(items, 2):
                     return "a malformed expression"
                 pending.extend(("expr", item, below, sealed) for item in items)

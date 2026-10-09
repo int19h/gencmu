@@ -36,7 +36,7 @@ func TestPreferenceDOMCache(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	sources["compiled.json"] = `{"format":21,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
+	sources["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
 	cached := mustLoad(t, sources)
 	if !reflect.DeepEqual(plain.LoadWarnings(), cached.LoadWarnings()) {
 		t.Fatal("warnings differ")
@@ -83,7 +83,7 @@ func TestSlotCacheDiagnostics(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		sources["compiled.json"] = `{"format":21,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
+		sources["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
 		_, cachedErr := LoadDialectSources(sources, "p.md")
 		if plainErr == nil || !reflect.DeepEqual(plainErr, cachedErr) || !strings.Contains(plainErr.Error(), "prefer-slot-template") {
 			t.Fatalf("%v\n%v", plainErr, cachedErr)

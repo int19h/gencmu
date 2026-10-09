@@ -1013,7 +1013,9 @@ impl Constants<'_> {
                 let mut stack = vec![&mut alternative.alternative.expr];
                 while let Some(expr) = stack.pop() {
                     match expr {
-                        Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => stack.extend(items.iter_mut()),
+                        Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                            stack.extend(items.iter_mut())
+                        }
                         Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push(inner),
                         Expr::Repeat(item, separator, _) => {
                             stack.push(item);
@@ -1210,7 +1212,7 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr) -> Result<(), String> {
         Expr::And(items) if items.len() > MAX_AND => {
             Err(format!("an & of {} items; at most {MAX_AND} are allowed", items.len()))
         }
-        Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
+        Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
             for item in items {
                 check_expr(grammar, item)?;
             }

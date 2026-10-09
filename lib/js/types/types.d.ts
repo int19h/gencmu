@@ -361,6 +361,8 @@ export type PatternChildren = {
 export type Expr = {
     choice: Expr[];
 } | {
+    ranked: Expr[];
+} | {
     and: Expr[];
 } | {
     seq: Expr[];
@@ -1009,7 +1011,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * A rule body expression.
- * @typedef {{choice: Expr[]} | {and: Expr[]} | {seq: Expr[]}
+ * @typedef {{choice: Expr[]} | {ranked: Expr[]} | {and: Expr[]} | {seq: Expr[]}
  *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
  *   | {optional: Expr, elidable?: true, maximal?: true} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
  *   | {range: [string, string]} | {property: string}

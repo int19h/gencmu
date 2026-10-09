@@ -38,7 +38,7 @@ from ._validate import (
 Dom = dict[str, Any]
 
 _MAPPED = frozenset(
-    """prefer-directive directive argument-word argument-string argument-tag rule definer rule-flags rule-flag rule-name body alternative guard alternative-tags
+    """prefer-directive directive argument-word argument-string argument-tag rule definer rule-flags rule-flag rule-name body alternative ranked-alternative ranked-choice guard alternative-tags
     choice conjunction sequence primary repetition reference string tag character phoneme name tested test test-operand capture
     group optional empty tags-clause conditions-clause emits-clause opaque-clause emit-item emit-target emit-tags emit-before
     emit-after implication any-of all-of condition comparison comparator negation presence call argument term guarded-term
@@ -424,7 +424,9 @@ class DomBuilder:
         # The parts of a definition are read in the order written: the body,
         # then its clauses in their fixed order, and the checks of the whole
         # definition last (engine §9).
-        alternatives = [self.alternative(kid) for kid in self.some(self.only(node, "body"), "alternative")]
+        body = self.only(node, "body")
+        ranked = self.one(body, "ranked-alternative")
+        alternatives = [self.alternative(kid) for kid in ([ranked] if ranked is not None else self.some(body, "alternative"))]
         tags_node = self.one(node, "tags-clause")
         tags = self.own_tags(tags_node) if tags_node is not None else None
         conditions_node = self.one(node, "conditions-clause")
@@ -468,7 +470,7 @@ class DomBuilder:
             negated = text.startswith("¬")
             kind = "warning" if text.endswith("!") else "gate"
             guards.append({"feature": text[1 if negated else 0 : -1], "kind": kind, "negated": negated})
-        expr = run(self._expr(self.only(node, "conjunction"), True))
+        expr = run(self._expr(self.only(node, "ranked-choice" if node.rule == "ranked-alternative" else "conjunction"), True))
         # A name stands at most once in each production, gates aside: the
         # error stands at the second capture that such a production reads,
         # the first in the text where there are several (engine §3.5, §9).
@@ -505,20 +507,24 @@ class DomBuilder:
         """An expression; ``whole`` says it is its alternative's whole
         expression, where a chain may stand (engine §9)."""
         rule = node.rule
-        if rule in ("choice", "conjunction", "sequence"):
-            part = {"choice": "conjunction", "conjunction": "sequence", "sequence": "primary"}[rule]
-            parts = self.some(node, part)
+        if rule == "choice":
+            ranked = self.one(node, "ranked-choice")
+            if ranked is not None:
+                return (yield self._expr(ranked))
+        if rule in ("choice", "ranked-choice", "conjunction", "sequence"):
+            part = {"choice": "conjunction", "ranked-choice": "conjunction", "conjunction": "sequence", "sequence": "primary"}[rule]
+            parts = self.some(node, part, 2 if rule == "ranked-choice" else 1)
             if rule == "conjunction" and len(parts) > 16:
                 raise self.fail(node, "& joins at most 16 items, since it expands to 2ⁿ−1 sequences")
             # A choice's conjunction is never the whole expression, nor is
             # an item of a sequence or of & of several.
-            nested = whole and rule != "choice" and len(parts) == 1
+            nested = whole and rule not in ("choice", "ranked-choice") and len(parts) == 1
             items: list[Dom] = []
             for p in parts:
                 items.append((yield self._expr(self.known_of(p, _PRIMARIES) if rule == "sequence" else p, nested)))
             if len(items) == 1:
                 return items[0]
-            key = {"choice": "choice", "conjunction": "and", "sequence": "seq"}[rule]
+            key = {"choice": "choice", "ranked-choice": "ranked", "conjunction": "and", "sequence": "seq"}[rule]
             return {key: items}
         if rule == "reference":
             return {"ref": self.text(self.token(node))}

@@ -8,7 +8,7 @@ use crate::tags::{character_code, is_name, is_tag};
 use crate::unicode::{is_property_name, Unicode};
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 21;
+pub const DOM_FORMAT: i64 = 22;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -130,6 +130,7 @@ pub(crate) struct Alternative {
 pub(crate) enum Expr {
     Seq(Vec<Expr>),
     Choice(Vec<Expr>),
+    Ranked(Vec<Expr>),
     And(Vec<Expr>),
     /// An optional `[x]`, or, with a marker, an elidable one, `[+T x]` or
     /// `[++T x]` (engine §3.8).
@@ -425,6 +426,7 @@ fn expr_from_json(value: &Json) -> R<Expr> {
     Ok(match first_key(value)? {
         "seq" => Expr::Seq(list("seq")?),
         "choice" => Expr::Choice(list("choice")?),
+        "ranked" => Expr::Ranked(list("ranked")?),
         "and" => Expr::And(list("and")?),
         "optional" => {
             let mark = match (is_true(value.get("elidable")), is_true(value.get("maximal"))) {
@@ -570,9 +572,10 @@ fn has(value: &Json, key: &str) -> bool {
 
 /// The forms of an expression, each as its members (docs/output.md). The
 /// first member names the form.
-const EXPR_FORMS: [&[&str]; 12] = [
+const EXPR_FORMS: [&[&str]; 13] = [
     &["seq"],
     &["choice"],
+    &["ranked"],
     &["and"],
     &["optional", "elidable?", "maximal?"],
     &["repeat", "separator?", "chain?"],
@@ -1062,8 +1065,8 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     if !is_character_class_json(value, unicode) {
                         return Some("a malformed expression");
                     }
-                } else if has(value, "choice") || has(value, "seq") {
-                    let items = value.get("choice").or_else(|| value.get("seq"));
+                } else if has(value, "choice") || has(value, "ranked") || has(value, "seq") {
+                    let items = value.get("choice").or_else(|| value.get("ranked")).or_else(|| value.get("seq"));
                     if !list(items, 2, usize::MAX) {
                         return Some("a malformed expression");
                     }
@@ -1711,6 +1714,7 @@ pub(crate) fn write_expr(out: &mut String, expr: &Expr) {
     match expr {
         Expr::Seq(items) => write_list(out, "seq", items, write_expr),
         Expr::Choice(items) => write_list(out, "choice", items, write_expr),
+        Expr::Ranked(items) => write_list(out, "ranked", items, write_expr),
         Expr::And(items) => write_list(out, "and", items, write_expr),
         Expr::Optional(inner, mark) => {
             out.push_str("{\"optional\":");
@@ -2024,7 +2028,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
         let below = depth + 1;
         match node {
             Nested::Expr(expr) => match expr {
-                Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
+                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
                     stack.extend(items.iter().map(|item| (Nested::Expr(item), below)))
                 }
                 Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push((Nested::Expr(inner), below)),
@@ -2115,7 +2119,9 @@ pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
     let mut stack = vec![expr];
     while let Some(current) = stack.pop() {
         match current {
-            Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => stack.extend(items.iter().rev()),
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                stack.extend(items.iter().rev())
+            }
             Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push(inner),
             // The item before the separator.
             Expr::Repeat(item, separator, _) => {
@@ -2441,7 +2447,7 @@ fn drop_parts(mut stack: Vec<Dropping>) {
 impl Expr {
     fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
         match self {
-            Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
                 stack.extend(items.drain(..).map(Dropping::Expr))
             }
             Expr::Optional(inner, _) | Expr::Capture(_, inner) => {

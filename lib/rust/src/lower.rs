@@ -550,7 +550,7 @@ impl<'a> Lowerer<'a> {
                 }
                 out
             }
-            Expr::Choice(items) => {
+            Expr::Choice(items) | Expr::Ranked(items) => {
                 let mut out = Vec::new();
                 for item in items {
                     out.extend(self.expand(item));
@@ -645,7 +645,9 @@ impl<'a> Lowerer<'a> {
 fn holds_capture(expr: &Expr) -> bool {
     match expr {
         Expr::Capture(..) => true,
-        Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => items.iter().any(holds_capture),
+        Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+            items.iter().any(holds_capture)
+        }
         Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => holds_capture(inner),
         Expr::Repeat(item, separator, _) => holds_capture(item) || separator.as_deref().is_some_and(holds_capture),
         Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => false,

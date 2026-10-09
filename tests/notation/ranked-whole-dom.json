@@ -1,0 +1,27 @@
+{
+  "description": "Ranked options retain their written order and expression boundaries.",
+  "document": "```jbogenbau\n%rule text a ≻ b\n```\n",
+  "expect": {
+    "dom": {
+      "format": 22,
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "ranked": [
+                  {
+                    "ref": "a"
+                  },
+                  {
+                    "ref": "b"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule ( leftmost-longest ) text A\n%extend-rule text B\n%redefine-rule(leftmost-longest) text C\n%redefine-rule text D\n```\n",
   "expect": {
     "dom": {
-      "format": 21,
+      "format": 22,
       "rules": [
         {
           "flags": [

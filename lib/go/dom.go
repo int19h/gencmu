@@ -8,7 +8,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 21
+const domFormat = 22
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -89,6 +89,7 @@ type domGuard struct {
 const (
 	exSeq      = "seq"
 	exChoice   = "choice"
+	exRanked   = "ranked"
 	exAnd      = "and"
 	exOptional = "optional"
 	exRepeat   = "repeat"
@@ -417,7 +418,7 @@ func (r *domRule) writeJSON(w *jsonWriter) {
 
 func (e *domExpr) writeJSON(w *jsonWriter) {
 	switch e.Kind {
-	case exSeq, exChoice, exAnd:
+	case exSeq, exChoice, exRanked, exAnd:
 		w.raw("{")
 		w.str(e.Kind)
 		w.raw(":[")
@@ -1025,7 +1026,7 @@ func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 		name, err := decodeString(v)
 		return &domExpr{Kind: exProperty, Name: name}, err
 	}
-	for _, k := range []string{exSeq, exChoice, exAnd} {
+	for _, k := range []string{exSeq, exChoice, exRanked, exAnd} {
 		if v, ok := o[k]; ok {
 			items, err := decodeList(v, func(r json.RawMessage) (*domExpr, error) { return decodeExprAt(r, depth+1) })
 			return &domExpr{Kind: k, Items: items}, err
@@ -1117,7 +1118,7 @@ func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 // member names the form. A rule argument and a classifier argument are
 // forms of a term too.
 var exprForms = [][]string{
-	{exSeq}, {exChoice}, {exAnd}, {exOptional, "elidable?", "maximal?"}, {exRepeat, "separator?", "chain?"}, {exRef}, {exTerminal}, {exCapture, "expr"},
+	{exSeq}, {exChoice}, {exRanked}, {exAnd}, {exOptional, "elidable?", "maximal?"}, {exRepeat, "separator?", "chain?"}, {exRef}, {exTerminal}, {exCapture, "expr"},
 	{exRange}, {exProperty}, {exTest, "value", "expr"}, {exEmpty},
 }
 

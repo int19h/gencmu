@@ -1243,5 +1243,152 @@
       }
     },
     "malformed": true
+  },
+  {
+    "description": "A ranked expression with two ordered options.",
+    "expr": {
+      "ranked": [
+        {
+          "ref": "a"
+        },
+        {
+          "ref": "b"
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A ranked expression with nested ordered options.",
+    "expr": {
+      "ranked": [
+        {
+          "ref": "a"
+        },
+        {
+          "ranked": [
+            {
+              "ref": "a"
+            },
+            {
+              "ref": "b"
+            }
+          ]
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A ranked expression with empty ordered option.",
+    "expr": {
+      "ranked": [
+        {
+          "empty": true
+        },
+        {
+          "ref": "b"
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A ranked expression with no ordered options.",
+    "expr": {
+      "ranked": []
+    },
+    "malformed": true
+  },
+  {
+    "description": "A ranked expression with one ordered option.",
+    "expr": {
+      "ranked": [
+        {
+          "ref": "a"
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A ranked expression with non-array ordered options.",
+    "expr": {
+      "ranked": {
+        "ref": "a"
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "A ranked expression with null ordered option.",
+    "expr": {
+      "ranked": [
+        {
+          "ref": "a"
+        },
+        null
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A ranked expression with choice mixed with rank.",
+    "expr": {
+      "ranked": [
+        {
+          "ref": "a"
+        },
+        {
+          "ref": "b"
+        }
+      ],
+      "choice": [
+        {
+          "ref": "a"
+        },
+        {
+          "ref": "b"
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A ranked expression with capture around rank.",
+    "expr": {
+      "capture": "x",
+      "expr": {
+        "ranked": [
+          {
+            "ref": "a"
+          },
+          {
+            "ref": "b"
+          }
+        ]
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "A ranked expression with test around rank.",
+    "expr": {
+      "test": "=",
+      "value": {
+        "string": "a"
+      },
+      "expr": {
+        "ranked": [
+          {
+            "ref": "a"
+          },
+          {
+            "ref": "b"
+          }
+        ]
+      }
+    },
+    "malformed": true
   }
 ]

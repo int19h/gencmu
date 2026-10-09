@@ -800,14 +800,12 @@ def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
         found = tested.get(id(node))
         if found is None:
             found = isinstance(node.get("test"), str)
-            for key in ("choice", "and", "seq"):
-                items = node.get(key)
-                if isinstance(items, list):
-                    for item in items:
+            for key, child in node.items():
+                if key in ("choice", "ranked", "and", "seq") and isinstance(child, list):
+                    for item in child:
                         found = (yield holds_test(item)) or found
-            for key in ("expr", "separator", "repeat", "optional"):
-                if key in node:
-                    found = (yield holds_test(node[key])) or found
+                elif key in ("expr", "separator", "repeat", "optional"):
+                    found = (yield holds_test(child)) or found
             tested[id(node)] = found
         return found
 
@@ -1110,9 +1108,9 @@ class _Lowerer:
             for item in expr["seq"]:
                 parts.append((yield self._expand(item)))
             return [[sym for part in combination for sym in part] for combination in itertools.product(*parts)]
-        if "choice" in expr:
+        if "choice" in expr or "ranked" in expr:
             options = []
-            for option in expr["choice"]:
+            for option in expr.get("choice", expr.get("ranked", [])):
                 options.extend((yield self._expand(option)))
             return options
         if "and" in expr:
@@ -1451,7 +1449,7 @@ def _holds_capture(expr: Any) -> bool:
         if isinstance(value, dict):
             if isinstance(value.get("capture"), str) and "expr" in value:
                 return True
-            stack.extend(value.get(key) for key in ("seq", "choice", "and") if isinstance(value.get(key), list))
+            stack.extend(value.get(key) for key in ("seq", "choice", "ranked", "and") if isinstance(value.get(key), list))
             stack.extend(value[key] for key in ("optional", "repeat", "separator", "expr") if key in value)
         elif isinstance(value, list):
             stack.extend(value)

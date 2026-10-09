@@ -499,10 +499,11 @@ pub(crate) struct Variant {
 fn visit(expr: &Expr, path: &str, call: &mut impl FnMut(&Expr, &str)) {
     call(expr, path);
     match expr {
-        Expr::Seq(xs) | Expr::Choice(xs) | Expr::And(xs) => {
+        Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs) | Expr::And(xs) => {
             let key = match expr {
                 Expr::Seq(_) => "seq",
                 Expr::Choice(_) => "choice",
+                Expr::Ranked(_) => "ranked",
                 _ => "and",
             };
             for (i, x) in xs.iter().enumerate() {
@@ -554,10 +555,11 @@ fn normalize_expr(expr: &Expr, name: &str, path: &str, v: &mut Variant) -> Expr 
         }
         Expr::Tested(_, _, x) if direct(x, name) => normalize_expr(x, name, &format!("{path}/expr"), v),
         Expr::Ref(n) if n == name => Expr::Ref("HOLE".into()),
-        Expr::Seq(xs) | Expr::Choice(xs) | Expr::And(xs) => {
+        Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs) | Expr::And(xs) => {
             let key = match expr {
                 Expr::Seq(_) => "seq",
                 Expr::Choice(_) => "choice",
+                Expr::Ranked(_) => "ranked",
                 _ => "and",
             };
             let xs =
@@ -565,6 +567,7 @@ fn normalize_expr(expr: &Expr, name: &str, path: &str, v: &mut Variant) -> Expr 
             match expr {
                 Expr::Seq(_) => Expr::Seq(xs),
                 Expr::Choice(_) => Expr::Choice(xs),
+                Expr::Ranked(_) => Expr::Ranked(xs),
                 _ => Expr::And(xs),
             }
         }

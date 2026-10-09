@@ -255,7 +255,7 @@ type domBuilder struct {
 // place.
 var domRules = map[string]bool{
 	"rule-name": true, "body": true, "primary": true, "emit-target": true, "condition": true, "argument": true, "term-atom": true,
-	"directive": true, "prefer-directive": true, "rule": true, "definer": true, "rule-flags": true, "rule-flag": true, "alternative": true, "choice": true,
+	"directive": true, "prefer-directive": true, "rule": true, "definer": true, "rule-flags": true, "rule-flag": true, "alternative": true, "choice": true, "ranked-alternative": true, "ranked-choice": true,
 	"conjunction": true, "sequence": true, "repetition": true, "reference": true,
 	"string": true, "tag": true, "character": true, "phoneme": true, "name": true,
 	"tested": true, "test": true, "test-operand": true, "capture": true, "group": true, "optional": true,
@@ -622,7 +622,14 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	// The parts of a definition are read in the order written: the body,
 	// then its clauses in their fixed order, and the checks of the whole
 	// definition last (engine §9).
-	for _, p := range b.some(b.only(n, "body"), "alternative", 1) {
+	body := b.only(n, "body")
+	var alternatives []*Node
+	if ranked := one(body, "ranked-alternative"); ranked != nil {
+		alternatives = []*Node{ranked}
+	} else {
+		alternatives = b.some(body, "alternative", 1)
+	}
+	for _, p := range alternatives {
 		r.Alternatives = append(r.Alternatives, b.alternative(p))
 	}
 	if p := one(n, "tags-clause"); p != nil {
@@ -665,7 +672,11 @@ func (b *domBuilder) alternative(n *Node) *domAlt {
 		name := strings.TrimSuffix(strings.TrimSuffix(strings.TrimPrefix(g, "¬"), "?"), "!")
 		a.Guards = append(a.Guards, domGuard{Feature: name, Kind: kind, Negated: neg})
 	}
-	a.Expr = b.exprIn(b.only(n, "conjunction"), true)
+	if n.Rule == "ranked-alternative" {
+		a.Expr = b.expr(b.only(n, "ranked-choice"))
+	} else {
+		a.Expr = b.exprIn(b.only(n, "conjunction"), true)
+	}
 	// A name stands at most once in each production, gates aside: the
 	// error stands at the second capture that such a production reads, the
 	// first in the text where there are several (engine §3.5, §9).

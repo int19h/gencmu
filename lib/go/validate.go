@@ -333,7 +333,7 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 		return
 	}
 	switch e.Kind {
-	case exSeq, exChoice, exAnd:
+	case exSeq, exChoice, exRanked, exAnd:
 		// The reader makes each only of two or more, an & of at most 16.
 		if len(e.Items) < 2 || (e.Kind == exAnd && len(e.Items) > maxAnd) {
 			c.fail("a %s of %d items", e.Kind, len(e.Items))
@@ -472,7 +472,7 @@ func duplicateCaptures(e *domExpr) map[*domExpr]bool {
 		switch {
 		case n == nil:
 			return nil
-		case n.Kind == exSeq || n.Kind == exAnd || n.Kind == exChoice:
+		case n.Kind == exSeq || n.Kind == exAnd || n.Kind == exChoice || n.Kind == exRanked:
 			return n.Items
 		case n.Kind == exOptional && !n.Elidable:
 			return []*domExpr{n.Inner}
@@ -704,7 +704,7 @@ func captureSequences(e *domExpr) [][]*domExpr {
 		switch {
 		case n == nil:
 			return nil
-		case n.Kind == exSeq || n.Kind == exAnd || n.Kind == exChoice:
+		case n.Kind == exSeq || n.Kind == exAnd || n.Kind == exChoice || n.Kind == exRanked:
 			return n.Items
 		case n.Kind == exOptional && !n.Elidable:
 			return []*domExpr{n.Inner}
@@ -748,7 +748,7 @@ func captureSequences(e *domExpr) [][]*domExpr {
 			for _, part := range parts {
 				out = product(out, part)
 			}
-		case exChoice:
+		case exChoice, exRanked:
 			for _, part := range parts {
 				out = appendCounted(out, part, readerCount(), "reader steps")
 			}
