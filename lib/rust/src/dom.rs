@@ -124,6 +124,7 @@ pub(crate) struct Alternative {
     pub guards: Vec<Guard>,
     pub expr: Expr,
     pub tags: Option<Term>,
+    pub ranked_locations: std::collections::BTreeMap<String, (usize, usize)>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -395,6 +396,7 @@ fn rule_from_json(value: &Json) -> R<RuleDef> {
                     guards: array(alternative, "guards")?.iter().map(guard_from_json).collect::<R<Vec<_>>>()?,
                     expr: expr_from_json(field(alternative, "expr")?)?,
                     tags: alternative.get("tags").map(term_from_json).transpose()?,
+                    ranked_locations: Default::default(),
                 })
             })
             .collect::<R<Vec<_>>>()?,
@@ -883,7 +885,6 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
         // The notation has four directives, and `%elidable` is none of them
         // (engine §9).
         let operands_ok = match directive.get("name").and_then(Json::as_str) {
-            Some("prefer") => args.len() == 2 && args.iter().all(|arg| is_rule_name(arg)),
             Some("stage") => args.len() == 1 && args.iter().all(is_name),
             Some("include") => args.len() == 1,
             Some("features") => !args.is_empty() && args.iter().all(is_name),
@@ -1058,22 +1059,38 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                 // An expression has exactly the members of one form
                 // (docs/output.md).
                 if !has_one_form(value, &EXPR_FORMS) {
-                    return Some("a malformed expression");
+                    return Some(if has(value, "ranked") {
+                        "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
+                    } else {
+                        "a malformed expression"
+                    });
                 }
                 let expr = |item, inside: bool| (Kind::Expr { whole: false, sealed: sealed || inside }, item, next);
                 if has(value, "range") || has(value, "property") {
                     if !is_character_class_json(value, unicode) {
-                        return Some("a malformed expression");
+                        return Some(if has(value, "ranked") {
+                            "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
+                        } else {
+                            "a malformed expression"
+                        });
                     }
                 } else if has(value, "choice") || has(value, "ranked") || has(value, "seq") {
                     let items = value.get("choice").or_else(|| value.get("ranked")).or_else(|| value.get("seq"));
                     if !list(items, 2, usize::MAX) {
-                        return Some("a malformed expression");
+                        return Some(if has(value, "ranked") {
+                            "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
+                        } else {
+                            "a malformed expression"
+                        });
                     }
                     pending.extend(items.and_then(Json::as_array).unwrap_or(&[]).iter().map(|item| expr(item, false)));
                 } else if has(value, "and") {
                     if !list(value.get("and"), 2, crate::grammar::MAX_AND) {
-                        return Some("a malformed expression");
+                        return Some(if has(value, "ranked") {
+                            "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
+                        } else {
+                            "a malformed expression"
+                        });
                     }
                     pending.extend(
                         value.get("and").and_then(Json::as_array).unwrap_or(&[]).iter().map(|item| expr(item, false)),
@@ -1085,7 +1102,11 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     // the item does, and neither holds a capture.
                     if let Some(chain) = value.get("chain") {
                         if !whole || !matches!(chain.as_str(), Some("left" | "right")) {
-                            return Some("a malformed expression");
+                            return Some(if has(value, "ranked") {
+                                "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
+                            } else {
+                                "a malformed expression"
+                            });
                         }
                     }
                     pending.push(expr(inner, true));
@@ -1101,7 +1122,11 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     if elidable.is_some_and(|marked| *marked != Json::Bool(true))
                         || maximal.is_some_and(|marked| *marked != Json::Bool(true) || elidable.is_none())
                     {
-                        return Some("a malformed expression");
+                        return Some(if has(value, "ranked") {
+                            "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
+                        } else {
+                            "a malformed expression"
+                        });
                     }
                     if elidable.is_some() && elidable_head_json(inner).is_none() {
                         return Some("a malformed elidable optional");
@@ -1135,7 +1160,11 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                         return Some("a malformed test");
                     }
                     let (Some(inner), Some(test_value)) = (value.get("expr"), value.get("value")) else {
-                        return Some("a malformed expression");
+                        return Some(if has(value, "ranked") {
+                            "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
+                        } else {
+                            "a malformed expression"
+                        });
                     };
                     if !is_testable_json(inner, unicode) {
                         return Some("a test follows only a reference other than # or a terminal");
@@ -1148,7 +1177,11 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     || is_true(value.get("empty")))
                 {
                     // A reference is a name or `#` (§9).
-                    return Some("a malformed expression");
+                    return Some(if has(value, "ranked") {
+                        "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
+                    } else {
+                        "a malformed expression"
+                    });
                 }
             }
             Kind::Emission => {
@@ -1596,7 +1629,7 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
     out
 }
 
-fn write_rule(out: &mut String, rule: &RuleDef) {
+pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
     out.push_str("{\"name\":");
     write_str(out, &rule.name);
     out.push_str(match rule.op {

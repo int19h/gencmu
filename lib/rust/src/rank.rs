@@ -240,96 +240,6 @@ fn written_frame(g: &Lowered, chart: &Chart, item: Item, at: u32) -> String {
 }
 impl Admission {
     fn new(g: &Lowered, chart: &Chart, views: Option<&SlotViews>, nodes: &[Node]) -> Self {
-        if !g.ranked.slots.is_empty() {
-            return Self::new_ranked(g, chart, views, nodes);
-        }
-        let mut groups = Vec::<Vec<SlotCandidate>>::new();
-        let mut group_ids = FxMap::<String, usize>::default();
-        let mut at = FxMap::<Node, Vec<SlotCandidate>>::default();
-        let mut stats = crate::slot_stats::SlotStatistics {
-            chart_facts: chart.sets.iter().map(|s| s.items.len()).sum(),
-            ..Default::default()
-        };
-        for &node in nodes {
-            let (raw, scope) = views.map_or((node, 0), |views| views.unpack(node));
-            let Node::Item { set: end, index } = raw else { continue };
-            let item = &chart.sets[end as usize].items[index as usize];
-            if g.rules[g.prods[item.prod as usize].rule as usize].helper && scope == 0 {
-                continue;
-            }
-            let p = &g.prods[item.prod as usize];
-            let Some(position) = (item.dot as usize).checked_sub(1) else { continue };
-            let Sym::N(rule) = p.syms[position] else { continue };
-            if g.rules[rule as usize].helper {
-                continue;
-            }
-            let name = &g.rules[rule as usize].name;
-            let Some(&component) = g.preferences.labels.get(name) else { continue };
-            let v = &g.preferences.variants[name];
-            for (edge, (previous, cap)) in chart.links.get(&(end, *item)).into_iter().flatten().enumerate() {
-                let pp = &g.prods[previous.prod as usize];
-                let prefix_symbols = pp.syms[..previous.dot as usize]
-                    .iter()
-                    .enumerate()
-                    .map(|(i, s)| match s {
-                        Sym::T(t) => {
-                            format!("T{} {:?}", g.terminals[*t as usize], pp.test(i).map(|x| &g.tests[x as usize]))
-                        }
-                        Sym::N(r) => {
-                            let role = if g.rules[*r as usize].helper {
-                                g.prods[g.rules[*r as usize].prods[0] as usize]
-                                    .slot
-                                    .as_ref()
-                                    .and_then(|s| s.path)
-                                    .and_then(|id| v.paths.get(&id))
-                                    .cloned()
-                                    .unwrap_or_else(|| format!("helper{r}"))
-                            } else {
-                                g.rules[*r as usize].name.clone()
-                            };
-                            format!("N{role} {:?}", pp.test(i).map(|x| &g.tests[x as usize]))
-                        }
-                    })
-                    .collect::<Vec<_>>();
-                let captures = chart
-                    .caps(previous.caps)
-                    .iter()
-                    .enumerate()
-                    .map(|(i, c)| {
-                        let name = pp.slot.as_ref().expect("a slot parent").names.get(i).and_then(|n| n.as_ref());
-                        let role = name
-                            .map(|n| v.roles.get(n).unwrap_or(n))
-                            .cloned()
-                            .unwrap_or_else(|| format!("implicit{}", pp.cap_pos[i]));
-                        (role, *c)
-                    })
-                    .collect::<Vec<_>>();
-                let previous_index = chart.sets[cap.start as usize].find(previous).expect("a predecessor");
-                let role =
-                    pp.slot.as_ref().and_then(|s| s.path).and_then(|id| v.paths.get(&id)).cloned().unwrap_or_default();
-                let ancestry = views.map(|views| views.prefix_key(scope, v, g, chart));
-                let key = format!(
-                    "{component}/{ancestry:?}/{role}/{prefix_symbols:?}/{}/{}/{captures:?}/{}/{}/{}",
-                    previous.origin,
-                    previous.prefix,
-                    chart.sets[cap.start as usize].is_strict(previous_index as usize),
-                    cap.start,
-                    cap.end
-                );
-                let group = *group_ids.entry(key).or_insert_with(|| {
-                    groups.push(vec![]);
-                    groups.len() - 1
-                });
-                let candidate = SlotCandidate { node, edge, label: name.clone(), group };
-                groups[group].push(candidate.clone());
-                at.entry(candidate.node).or_default().push(candidate);
-                stats.candidate_edges += 1;
-            }
-        }
-        stats.groups = groups.len();
-        Self { groups, at, counts: FxMap::default(), masks: FxMap::default(), maxima: FxMap::default(), stats }
-    }
-    fn new_ranked(g: &Lowered, chart: &Chart, views: Option<&SlotViews>, nodes: &[Node]) -> Self {
         let mut groups = Vec::<Vec<SlotCandidate>>::new();
         let mut ids = FxMap::<String, usize>::default();
         let mut at = FxMap::<Node, Vec<SlotCandidate>>::default();
@@ -436,16 +346,8 @@ impl Ranker<'_> {
                         }
                     }
                 }
-                let maximal = |labels: &std::collections::BTreeSet<String>| {
-                    if !self.dag.g.ranked.slots.is_empty() {
-                        return labels.iter().next().cloned().into_iter().collect();
-                    }
-                    labels
-                        .iter()
-                        .filter(|n| !labels.iter().any(|h| self.dag.g.preferences.paths[h].contains_key(*n)))
-                        .cloned()
-                        .collect()
-                };
+                let maximal =
+                    |labels: &std::collections::BTreeSet<String>| labels.iter().next().cloned().into_iter().collect();
                 let maxima = (maximal(&all), maximal(&allowed));
                 self.admission.as_mut().unwrap().maxima.insert(context, maxima);
             }
@@ -1271,7 +1173,7 @@ impl<'c> Ranker<'c> {
             views: SlotViews::new(g),
         };
         ranker.fset_index.insert(Vec::new(), 0);
-        if !g.preferences.paths.is_empty() || !g.ranked.slots.is_empty() {
+        if !g.ranked.slots.is_empty() {
             let nodes = ranker.prepare_views();
             ranker.admission = Some(Admission::new(g, chart, ranker.views.as_ref(), &nodes));
         }
@@ -2297,7 +2199,7 @@ struct SlotViews {
 }
 impl SlotViews {
     fn new(g: &Lowered) -> Option<Self> {
-        if g.preferences.paths.is_empty() && g.ranked.slots.is_empty() {
+        if g.ranked.slots.is_empty() {
             return None;
         }
         let mut users: FxMap<u32, Vec<u32>> = FxMap::default();
@@ -2311,14 +2213,7 @@ impl SlotViews {
             }
         }
         let mut wrapped: std::collections::BTreeSet<u32> = g.ranked.slots.keys().copied().collect();
-        let mut pending: Vec<u32> = g
-            .rules
-            .iter()
-            .enumerate()
-            .filter(|(_, r)| !r.helper && g.preferences.labels.contains_key(&r.name))
-            .map(|(i, _)| i as u32)
-            .collect();
-        pending.extend(g.ranked.slots.keys().copied());
+        let mut pending: Vec<u32> = g.ranked.slots.keys().copied().collect();
         let mut at = 0;
         while at < pending.len() {
             for &parent in users.get(&pending[at]).into_iter().flatten() {
@@ -2381,71 +2276,6 @@ impl SlotViews {
             .map(|(node, restricted)| {
                 let Node::Group { rule, origin, set, .. } = *node else { unreachable!() };
                 (g.ranked.written.get(&rule), origin, set, restricted)
-            })
-            .collect();
-        format!("{frames:?}/{bounds:?}")
-    }
-    fn prefix_key(&self, scope: usize, v: &crate::preferences::Variant, g: &Lowered, chart: &Chart) -> String {
-        let state = &self.scopes[scope];
-        let frames: Vec<_> = state
-            .frames
-            .iter()
-            .map(|node| {
-                let Node::Item { set, index } = *node else { unreachable!() };
-                let item = chart.sets[set as usize].items[index as usize];
-                let p = &g.prods[item.prod as usize];
-                let symbols: Vec<_> = p.syms[..item.dot as usize]
-                    .iter()
-                    .enumerate()
-                    .map(|(i, s)| {
-                        let role = match s {
-                            Sym::T(t) => format!("T{}", g.terminals[*t as usize]),
-                            Sym::N(r) => {
-                                if g.rules[*r as usize].helper {
-                                    g.prods[g.rules[*r as usize].prods[0] as usize]
-                                        .slot
-                                        .as_ref()
-                                        .and_then(|s| s.path)
-                                        .and_then(|path| v.paths.get(&path))
-                                        .cloned()
-                                        .unwrap_or_default()
-                                } else {
-                                    g.rules[*r as usize].name.clone()
-                                }
-                            }
-                        };
-                        (role, p.test(i).map(|t| &g.tests[t as usize]))
-                    })
-                    .collect();
-                let caps: Vec<_> = chart
-                    .caps(item.caps)
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, cap)| {
-                        let name = p.slot.as_ref().and_then(|s| s.names.get(i)).and_then(|n| n.as_ref());
-                        (name.map(|n| v.roles.get(n).unwrap_or(n)).cloned(), cap)
-                    })
-                    .collect();
-                let role = p.slot.as_ref().and_then(|s| s.path).and_then(|path| v.paths.get(&path));
-                format!(
-                    "{role:?}/{}/{}/{symbols:?}/{caps:?}/{}",
-                    item.origin,
-                    item.prefix,
-                    chart.sets[set as usize].is_strict(index as usize)
-                )
-            })
-            .collect();
-        let bounds: Vec<_> = state
-            .bounds
-            .iter()
-            .map(|(node, restricted)| {
-                let Node::Group { rule, origin, set, .. } = *node else { unreachable!() };
-                let role = g.prods[g.rules[rule as usize].prods[0] as usize]
-                    .slot
-                    .as_ref()
-                    .and_then(|s| s.path)
-                    .and_then(|path| v.paths.get(&path));
-                (role, origin, set, restricted)
             })
             .collect();
         format!("{frames:?}/{bounds:?}")

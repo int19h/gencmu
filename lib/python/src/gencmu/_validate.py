@@ -60,7 +60,7 @@ CAPTURE_NAME = re.compile(r"[a-z][a-z0-9-]*")
 """A capture's name is all lower case (engine §9)."""
 _WHOLE = ""
 """The capture name of ``$``, the whole constituent (engine §3.5)."""
-_DIRECTIVE_NAMES = frozenset(["ambiguity-resolution", "stage", "include", "features", "prefer"])
+_DIRECTIVE_NAMES = frozenset(["ambiguity-resolution", "stage", "include", "features"])
 """The directives of the notation (engine §9)."""
 _TERMINAL_NAME = re.compile(r"[A-Z][A-Za-z0-9-]*")
 """A reference that names a terminal begins with a capital (engine §2)."""
@@ -375,7 +375,6 @@ def dom_problem(dom: Any, unicode: Lowercase, defer_emission: bool = False) -> s
         name, args = directive["name"], directive["args"]
         if (
             (name == "stage" and not (len(args) == 1 and _NAME.fullmatch(args[0])))
-            or (name == "prefer" and not (len(args) == 2 and all(arg == "#" or _NAME.fullmatch(arg) for arg in args)))
             or (name == "include" and len(args) != 1)
             or (name == "features" and not (args and all(_NAME.fullmatch(arg) for arg in args)))
         ):
@@ -539,14 +538,14 @@ def _walk(pending: list[tuple[str, Any, int, int]], unicode: Lowercase, tests: l
             # optional holds no capture, at any depth (engine §3.5).
             sealed = own & _SEALED
             if not _has_one_form(value, _EXPRESSION_FORMS):
-                return "a malformed expression"
+                return "ranked-choice-syntax: A ranked expression has only its ranked array." if "ranked" in value else "a malformed expression"
             if "range" in value or "property" in value:
                 if not _is_character_class(value, unicode):
                     return "a malformed expression"
             elif "choice" in value or "ranked" in value or "seq" in value:
                 items = value.get("choice", value.get("ranked", value.get("seq")))
                 if not _items(items, 2):
-                    return "a malformed expression"
+                    return "ranked-choice-syntax: A ranked expression requires at least two operands." if "ranked" in value else "a malformed expression"
                 pending.extend(("expr", item, below, sealed) for item in items)
             elif "and" in value:
                 if not _items(value["and"], 2, 16):

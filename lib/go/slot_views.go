@@ -1,7 +1,5 @@
 package gencmu
 
-import "fmt"
-
 // A ranking view carries the written invocation through generated helpers.
 // Recognition retains its original items and completion tables.
 type slotFrame struct{ before, parent *item }
@@ -57,11 +55,6 @@ func newSlotViews(rk *ranker) *slotViews {
 	for r := range g.rankedHelpers {
 		wrapped[r] = true
 		pending = append(pending, r)
-	}
-	for i, r := range g.rules {
-		if _, ok := rk.preferences.labels[r.name]; ok && !r.helper {
-			pending = append(pending, int32(i))
-		}
 	}
 	for at := 0; at < len(pending); at++ {
 		for _, r := range users[pending[at]] {
@@ -198,54 +191,7 @@ func newSlotViews(rk *ranker) *slotViews {
 	}
 	return v
 }
-func (v *slotViews) ancestry(scope *slotScope, variant *slotVariant, rk *ranker) string {
-	if scope == nil {
-		return ""
-	}
-	g := rk.rec.g
-	var frames, bounds []string
-	for _, frame := range scope.frames {
-		parent := frame.parent
-		before := frame.before
-		p := parent.prod
-		dot := int(parent.dot) - 1
-		state := rk.rec.machine.empty
-		strict, restores := false, false
-		if before != nil {
-			dot = int(before.dot)
-			state = before.prefix
-			strict, restores = before.strict, before.restores
-		}
-		role := "written-parent"
-		if g.rules[p.lhs].helper {
-			role = variant.paths[p.slot.path]
-		}
-		var symbols, captures []string
-		for i, s := range p.rhs[:dot] {
-			symbols = append(symbols, slotSymbolRole(s, variant, g)+"/"+slotTestKey(p.testAt(i)))
-		}
-		if before != nil {
-			caps := rk.rec.caps(&before.itemKey)
-			for i := 0; i < dot; i++ {
-				if slot := p.capSlot[i]; slot >= 0 {
-					name := p.capName[i]
-					r, ok := variant.roles[name]
-					if !ok {
-						r = name
-					}
-					captures = append(captures, fmt.Sprintf("%q/%v", r, caps.at(slot)))
-				}
-			}
-		}
-		frames = append(frames, fmt.Sprintf("%q/%d/%q/%d/%q/%t/%t", role, parent.origin, symbols, state, captures, strict, restores))
-	}
-	for _, bound := range scope.bounds {
-		c := bound.carrier
-		role := variant.paths[slotHelperPath(c.rule, g)]
-		bounds = append(bounds, fmt.Sprintf("%q/%d/%d/%t", role, c.start, c.end, bound.restricted))
-	}
-	return fmt.Sprintf("%q/%q", frames, bounds)
-}
+
 func (rk *ranker) slotMarks(it *item) map[link]bool {
 	if rk.marks == nil {
 		return nil

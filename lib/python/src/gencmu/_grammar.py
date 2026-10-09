@@ -27,7 +27,6 @@ from ._tags import (
 )
 from ._trampoline import Walk, run
 from ._patterns import empty_pattern, walk_pattern
-from ._preferences import Preferences
 from ._ranked import RankedGroups, reads
 from ._types import (
     TermType,
@@ -66,6 +65,7 @@ class Alternative:
     opaque: bool
     document: str
     at: tuple[int, int]
+    ranked_locations: dict = field(default_factory=dict, repr=False, compare=False)
 
 
 @dataclass
@@ -140,7 +140,6 @@ class Grammar:
     # The rule of the ranking, one of RANKING_RULES (engine §6).
     lean: str
     elision_only: bool
-    preferences: Preferences | None = None
     changes: list[Change] = field(default_factory=list)
     ranked: RankedGroups | None = field(default=None, repr=False, compare=False)
     # The stage's %classifier items in stitching order, each with its
@@ -629,7 +628,6 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
     constants = _Constants(stage, unicode)
     changes: list[Change] = []
     resolutions: list[tuple[list[str], str, Any]] = []
-    preferences = []
     classifier_items: list[tuple[str, Dom]] = []
     implication_items: list[tuple[str, Dom]] = []
     for path, dom in documents:
@@ -655,8 +653,9 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
                     opaque=rule.get("opaque") is True,
                     document=path,
                     at=at,
+                    ranked_locations=getattr(rule,"ranked_locations",{}).get(alternative_index,{}),
                 )
-                for alt in rule.get("alternatives", [])
+                for alternative_index,alt in enumerate(rule.get("alternatives", []))
             ]
             previous = rules.get(name)
             op = rule.get("op")
@@ -688,10 +687,6 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
             at = directive.get("at")
             if name == "ambiguity-resolution":
                 resolutions.append((args, path, at))
-            elif name == "prefer":
-                if len(args) != 2:
-                    raise _error("%prefer takes exactly two rule names", path, at, stage)
-                preferences.append((args[0], args[1], path, at))
             else:
                 raise _error(f"an unknown directive %{name}", path, at, stage)
         for constant in dom.get("constants", []):
@@ -765,16 +760,14 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
         rules,
         args[0],
         elision_only,
-        Preferences(stage, rules, preferences),
         changes,
         classifier_items=classifier_items,
         implications=implications,
     )
 
     grammar.ranked = RankedGroups(stage, rules)
-    if grammar.preferences.names or grammar.ranked.groups:
+    if grammar.ranked.groups:
         lowered = _Lowerer(grammar,frozenset(),True).lower()
-        grammar.preferences.validate(lowered)
         grammar.ranked.validate_tags(lowered)
     if constants.deferred_emissions:
         raise constants.deferred_emissions[0]
@@ -1004,7 +997,7 @@ class _Lowerer:
         self.helper_sources = {}
         self.helper_options = {}
         self.common_conditions = {}
-        if grammar.preferences and grammar.preferences.names or grammar.ranked and grammar.ranked.groups:
+        if grammar.ranked and grammar.ranked.groups:
             self._expand_plain = self._expand
             self._expand = self._expand_slot
         self.features = features
@@ -1069,7 +1062,7 @@ class _Lowerer:
         self.rule_names.append(f"\u0000{owner}\u0000{number}")
         self.rule_display.append(owner)
         self.helper_expansions[number] = expansions
-        if self.grammar.preferences and self.grammar.preferences.names or self.grammar.ranked and self.grammar.ranked.groups:
+        if self.grammar.ranked and self.grammar.ranked.groups:
             self.helper_sources[number] = (self.current_alt,id(self.current_expr))
         if elided is not None:
             self.helper_elided[number] = elided
@@ -1270,7 +1263,7 @@ class _Lowerer:
             tests=tests if any(test is not None for test in tests) else None,
             captures=captures,
         )
-        if self.grammar.preferences and self.grammar.preferences.names or self.grammar.ranked and self.grammar.ranked.groups:
+        if self.grammar.ranked and self.grammar.ranked.groups:
             source,path = (alt,None) if alt is not None else self.helper_sources[lhs]
             production.slot = SlotMetadata(source,path)
             if alt is None:

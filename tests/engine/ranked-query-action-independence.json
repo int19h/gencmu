@@ -1,0 +1,40 @@
+{
+  "description": "Raw queries retain the lower category after admission selects the higher option. Flags and action ranking do not change those answers.",
+  "grammar": "%ambiguity-resolution lazy\n%rule text $q(query)\n%conditions matches($q,low) ∧ begins(from($q),low) ∧ ~l ⊆ tags($q,low)\n%rule query high ≻ low\n%tags ∅\n%rule(leftmost-longest) high X Y\n%tags ~h\n%rule low X Y\n%tags ~l",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "query",
+            "children": [
+              {
+                "rule": "high"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

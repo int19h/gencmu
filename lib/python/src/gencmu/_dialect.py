@@ -198,7 +198,7 @@ class NotationReader:
                     raise GencmuError("a document of the bootstrap has a path and a DOM", document=where)
                 problem = dom_problem(document.get("dom"), unicode)
                 if problem is not None:
-                    raise GencmuError(f"the bootstrap's DOM of {document['path']} is malformed: {problem}", document=where)
+                    raise GencmuError(f"the bootstrap's DOM of {document['path']} is malformed: {problem}", document=where, code="ranked-choice-syntax" if problem.startswith("ranked-choice-syntax:") else None)
                 pairs.append((document["path"], document["dom"]))
             inputs.append((stage["name"], pairs))
         for name, pairs in inputs:
@@ -220,6 +220,18 @@ class NotationReader:
                 raise
         return lowered
 
+    def located(self, dom, text, path):
+        from ._ranked import has_ranked, restore_locations
+        if not has_ranked(dom) or all(hasattr(rule, 'ranked_locations') for rule in dom['rules']):
+            return dom
+        grammar_text = jbogenbau_text(text)
+        tokens = character_tokens(grammar_text.text, self.unicode)
+        name, lowered = self.stages[0]
+        outcome = StageRunner(name, lowered, tokens, grammar_text.text, self.unicode).run(lowered.grammar.elision_only)
+        if outcome.error is None and outcome.output is not None:
+            return restore_locations(dom, outcome.output, grammar_text.position)
+        return dom
+
     def read(self, text: str, path: str, defer_emission: bool = False) -> Dom:
         """The DOM of a grammar document (engine §8, §9)."""
         try:
@@ -230,6 +242,11 @@ class NotationReader:
         tokens = character_tokens(grammar_text.text, self.unicode)
         tree = None
         for number, (name, lowered) in enumerate(self.stages):
+            if name == 'syntax':
+                for token in tokens:
+                    if token.text == '%prefer':
+                        line, column = grammar_text.position(token.source[0])
+                        raise GencmuError('unknown directive %prefer; use an inline ranked choice (A ≻ B)', document=path, line=line, column=column)
             last = number == len(self.stages) - 1
             runner = StageRunner(name, lowered, tokens, grammar_text.text, self.unicode, emit=not last)
             # Each notation stage runs the check of elision-only where its
@@ -247,7 +264,9 @@ class NotationReader:
                 if outcome.error.kind == "rejected":
                     shown = tokens[outcome.error.token].text if outcome.error.token is not None and outcome.error.token < len(tokens) else None
                     message = f"the notation cannot continue here{f' at {shown!r}' if shown else ''} (stage {name})"
-                raise GencmuError(message, document=path, line=line, column=column)
+                from ._ranked import syntax_failure
+                code = 'ranked-choice-syntax' if name == 'syntax' and outcome.error.kind == 'rejected' and outcome.error.token is not None and syntax_failure(tokens, outcome.error.token) else None
+                raise GencmuError(message, document=path, line=line, column=column, code=code)
             if last:
                 tree = outcome.tree
             else:
@@ -270,7 +289,8 @@ class NotationReader:
         # that breaks them.
         problem = dom_problem(dom, self.unicode, defer_emission)
         if problem is None:
-            return dom
+            from ._ranked import restore_locations
+            return restore_locations(dom, tokens, grammar_text.position)
         # Each rule, constant definition and implication alone, in the
         # order of the document.
         items = (
@@ -295,9 +315,9 @@ class NotationReader:
         # the document.
         found_at = next(((at, found) for at, found in alone if found is not None), None)
         if found_at is None:
-            raise GencmuError(problem, document=path)
+            raise GencmuError(problem, document=path, code="ranked-choice-syntax" if problem.startswith("ranked-choice-syntax:") else None)
         (line, column), found = found_at
-        raise GencmuError(found, document=path, line=line, column=column)
+        raise GencmuError(found, document=path, line=line, column=column, code="ranked-choice-syntax" if found.startswith("ranked-choice-syntax:") else None)
 
 
 def _reader(bootstrap: str, unicode_text: str) -> NotationReader:
@@ -380,11 +400,11 @@ class _Loader:
         if self.use_cache:
             found = self.compiled.get(text_hash)
             if found is not None:
-                return found
+                return self.reader.located(found, text, path)
             with _lock:
                 found = self.reader.doms.get(key)
             if found is not None:
-                return found
+                return self.reader.located(found, text, path)
         dom = self.reader.read(text, path, True)
         with _lock:
             self.reader.doms.put(key, dom, len(text))
@@ -504,11 +524,6 @@ class Dialect:
                 # An error lowering finds is a result of the parses that
                 # meet it (engine §3.3, §13), not an error of the load.
                 pass
-
-    @property
-    def load_warnings(self) -> list[dict[str, Any]]:
-        """Source authoring warnings in stage order."""
-        return deepcopy([warning for grammar in self.grammars for warning in grammar.preferences.warnings])
 
     @property
     def stage_names(self) -> list[str]:

@@ -250,10 +250,6 @@ pub(crate) fn line_column(text: &[char], offset: usize) -> (usize, usize) {
 }
 
 impl Dialect {
-    /// The authoring warnings of all stages, in stage order.
-    pub fn load_warnings(&self) -> Vec<crate::preferences::LoadWarning> {
-        self.stages.iter().flat_map(|s| s.preferences.warnings.iter().cloned()).collect()
-    }
     /// A dialect of stitched stages, whose pipeline's `%features` turns
     /// on `declared`; a feature used both as a gate and as a warning is an
     /// error of the dialect (engine §13).
@@ -940,7 +936,7 @@ impl Dialect {
             let mut ranker = Ranker::new(g, &chart, &tokens, shared, Lean::Neither, None)
                 .observing(input, &recon.project)
                 .checking(marks);
-            let preferred = !g.preferences.paths.is_empty() || !g.ranked.slots.is_empty();
+            let preferred = !g.ranked.slots.is_empty();
             let raw_counted = if preferred {
                 Ranker::new(g, &chart, &tokens, shared, Lean::Neither, None)
                     .unfiltered()

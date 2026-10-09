@@ -46,6 +46,8 @@ pub(crate) struct RuleClauses {
 #[derive(Debug, Clone)]
 pub(crate) struct StitchedAlternative {
     pub alternative: Alternative,
+    pub written: Option<Arc<crate::json::Json>>,
+    pub written_alternative: usize,
     pub clauses: Arc<RuleClauses>,
     pub opaque: bool,
     pub document: Arc<str>,
@@ -92,7 +94,6 @@ pub(crate) struct StageGrammar {
     pub index: HashMap<String, usize>,
     pub lean: Lean,
     pub elision_only: bool,
-    pub preferences: Arc<crate::preferences::Preferences>,
     pub ranked: Arc<crate::ranked::RankedGroups>,
     /// Whether an elided terminator is forbidden where its constituent
     /// could have been longer (engine §4).
@@ -216,13 +217,11 @@ pub(crate) fn stitch(
         index: HashMap::new(),
         lean: Lean::Greedy,
         elision_only: false,
-        preferences: Arc::new(crate::preferences::Preferences::default()),
         ranked: Arc::new(crate::ranked::RankedGroups::default()),
         changes: Vec::new(),
         classifiers: Vec::new(),
         implications: Arc::from(Vec::new()),
     };
-    let mut preferences = Vec::new();
     let mut implications: Vec<(&Arc<str>, &ImplicationDef)> = Vec::new();
     let mut resolution: Option<(Arc<str>, (usize, usize))> = None;
     let mut constants =
@@ -249,12 +248,22 @@ pub(crate) fn stitch(
                     conditions: rule.conditions.iter().inspect(|_| work::count(Work::Stitched, 1)).cloned().collect(),
                 })
             };
+            let written = if rule.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr)) {
+                let mut text = String::new();
+                crate::dom::write_rule(&mut text, rule);
+                Some(Arc::new(crate::json::parse(&text).expect("the written rule DOM")))
+            } else {
+                None
+            };
             let clauses = copy_clauses();
             let alternatives: Vec<StitchedAlternative> = rule
                 .alternatives
                 .iter()
-                .map(|alternative| StitchedAlternative {
+                .enumerate()
+                .map(|(written_alternative, alternative)| StitchedAlternative {
                     alternative: alternative.clone(),
+                    written: written.clone(),
+                    written_alternative,
                     clauses: if work::mutated(Mutant::ClausesPerAlternative) {
                         copy_clauses()
                     } else {
@@ -324,17 +333,6 @@ pub(crate) fn stitch(
         for directive in &dom.directives {
             let here = |message: String| located(message, document, directive.at);
             match directive.name.as_str() {
-                "prefer" => {
-                    if directive.args.len() != 2 {
-                        return Err(here("%prefer takes exactly two rule names".into()));
-                    }
-                    preferences.push(crate::preferences::Declaration {
-                        higher: directive.args[0].clone(),
-                        lower: directive.args[1].clone(),
-                        document: document.clone(),
-                        at: directive.at,
-                    });
-                }
                 "ambiguity-resolution" => {
                     if resolution.is_some() {
                         return Err(here(format!("stage {stage} has two %ambiguity-resolution directives")));
@@ -394,12 +392,10 @@ pub(crate) fn stitch(
             })?;
         }
     }
-    grammar.preferences = Arc::new(crate::preferences::Preferences::new(&grammar, &preferences)?);
     grammar.ranked = Arc::new(crate::ranked::RankedGroups::new(&grammar)?);
-    if !grammar.preferences.paths.is_empty() || !grammar.ranked.groups.is_empty() {
+    if !grammar.ranked.groups.is_empty() {
         let lowered =
             crate::lower::lower_for_slots(&grammar).map_err(|e| located(e.message, &e.document, (e.line, e.column)))?;
-        grammar.preferences.validate(&lowered)?;
         grammar.ranked.validate_tags(&grammar, &lowered)?;
     }
     if let Some(error) = deferred.into_iter().next() {
@@ -1359,7 +1355,12 @@ mod tests {
                 flags: Vec::new(),
                 tags: None,
                 alternatives: (0..n)
-                    .map(|_| Alternative { guards: Vec::new(), expr: Expr::Terminal("A".into()), tags: None })
+                    .map(|_| Alternative {
+                        guards: Vec::new(),
+                        expr: Expr::Terminal("A".into()),
+                        tags: None,
+                        ranked_locations: Default::default(),
+                    })
                     .collect(),
                 emit: None,
                 conditions: (0..n).map(|_| same()).collect(),
@@ -1413,7 +1414,6 @@ mod tests {
                 index: HashMap::new(),
                 lean: Lean::Greedy,
                 elision_only: false,
-                preferences: Arc::new(crate::preferences::Preferences::default()),
                 ranked: Arc::new(crate::ranked::RankedGroups::default()),
                 changes: Vec::new(),
                 classifiers: vec![(Arc::from("d.md"), ClassifierDef { name: "c".into(), entries, at: (0, 0) })],

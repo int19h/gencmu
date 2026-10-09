@@ -90,7 +90,13 @@ struct Context {
 }
 
 fn grammar_error(message: String) -> Error {
-    Error::new(ErrorKind::Grammar, message)
+    let ranked_syntax = message.starts_with("ranked-choice-syntax:");
+    let error = Error::new(ErrorKind::Grammar, message);
+    if ranked_syntax {
+        error.coded("ranked-choice-syntax")
+    } else {
+        error
+    }
 }
 
 fn notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dialect, Error> {
@@ -195,7 +201,16 @@ impl Context {
     }
 
     fn document(&self, path: &str, text: &str) -> Result<Dom, Error> {
-        if let Some(dom) = self.compiled.lookup(path, &fnv1a64(text), &self.unicode) {
+        if let Some(mut dom) = self.compiled.lookup(path, &fnv1a64(text), &self.unicode) {
+            if dom.rules.iter().any(|r| r.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr))) {
+                let grammar = grammar_text(text)?;
+                let options =
+                    ParseOptions { until: Some("lexical".into()), auto_features: false, ..ParseOptions::default() };
+                let result = self.notation.parse_chars(grammar.chars.clone(), &options)?;
+                if let Some(tokens) = result.stages.last().and_then(|stage| stage.output.as_ref()) {
+                    crate::ranked::restore_locations(&mut dom, tokens, &|at| grammar.position(at));
+                }
+            }
             return Ok(dom);
         }
         read_document_mode(&self.notation, text, true).map_err(|error| error.in_document(path))
@@ -210,6 +225,11 @@ fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom
     let grammar = grammar_text(text)?;
     let options = ParseOptions { auto_features: false, ..ParseOptions::default() };
     let result = notation.parse_chars(grammar.chars.clone(), &options)?;
+    let syntax_input = result.stages.iter().find(|stage| stage.name == "syntax").map(|stage| stage.input.as_slice());
+    if let Some(token) = syntax_input.and_then(|tokens| tokens.iter().find(|token| token.text == "%prefer")) {
+        let (line, column) = grammar.position(token.source.start);
+        return Err(Error::grammar("unknown directive %prefer; use an inline ranked choice (A ≻ B)").at(line, column));
+    }
     if let Some(error) = &result.error {
         // A tie has no single position, so the error names the document
         // alone (engine §8).
@@ -228,7 +248,16 @@ fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom
             },
             _ => error.message.clone(),
         };
-        return Err(Error::grammar(message).at(line, column));
+        let mut failure = Error::grammar(message).at(line, column);
+        if error.kind == ParseErrorKind::Rejected && error.stage.as_deref() == Some("syntax") {
+            if let Some(tokens) = syntax_input {
+                let at = error.token.unwrap_or(0);
+                if crate::ranked::syntax_failure(tokens, at) {
+                    failure.code = Some("ranked-choice-syntax".into());
+                }
+            }
+        }
+        return Err(failure);
     }
     let (Some(tree), Some(stage)) = (&result.tree, result.stages.last()) else {
         return Err(Error::grammar("the notation produced no tree"));
@@ -247,8 +276,9 @@ fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom
         unicode: &notation.unicode,
         closed_for: Default::default(),
     };
-    let dom = reader.document(tree)?;
+    let mut dom = reader.document(tree)?;
     check_read(&dom, &notation.unicode)?;
+    crate::ranked::restore_locations(&mut dom, &stage.input, &position);
     Ok(dom)
 }
 
@@ -324,10 +354,10 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
     singles.sort_by_key(|(_, at)| *at);
     for (single, at) in singles {
         if let Some(problem) = problem_of(&single) {
-            return Err(Error::grammar(problem).at(at.0, at.1));
+            return Err(grammar_error(problem).at(at.0, at.1));
         }
     }
-    Err(Error::grammar(problem))
+    Err(grammar_error(problem))
 }
 
 /// Where a loader finds its documents.

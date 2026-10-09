@@ -110,9 +110,10 @@ A test does not replace a class. `zo la` quotes a word that sounds `la` but has 
 
 ## Operators
 
-The operators of a body are those of CLL, except for repetition and elidable terminators:
+The body adds repetition, elidable terminators, and ranked choices to the CLL operators:
 
 - Juxtaposition is sequence.
+- `a ≻ b` is a ranked choice, with the preferred option first (see "Ranked choices").
 - `[x]` is optional.
 - `[+T x]` is an elidable optional, whose first item is the terminator `T`. `[++T x]` is one whose terminator is also maximal. "Elided terminators" below explains both.
 - `{x}` is one or more of `x`, and `[{x}]` is zero or more. `{x \ s}` is one or more of `x` with `s` between each two. "Repetition" below explains braces, and the chains `{... x \ s}` and `{x ... \ s}`. A chain can also leave out `\ s`, as `{... x}` and `{x ...}`.
@@ -120,7 +121,7 @@ The operators of a body are those of CLL, except for repetition and elidable ter
 - `( )` groups.
 - `ε` is the empty sequence.
 
-`&` binds tighter than `|`. Parentheses, brackets and braces each delimit what they hold, so they need no precedence.
+`&` binds tighter than either `|` or `≻`. Parentheses, brackets and braces each delimit what they hold, so they need no precedence.
 
 `#` is shorthand for an optional list of free modifiers (CLL 1.1 section 21.2, point 9). This construct appears in many places. A free modifier is a word or phrase that stands almost anywhere. A vocative is an example.
 
@@ -303,7 +304,7 @@ Patterns observe named rules, terminal reads and omitted terminators before brac
 
 A terminal leaf records the terminal that read it, rather than every tag on its token. An omitted T contributes one leaf labeled T, with empty sound and pattern tags `{T}`. Its empty span does not remove it. This leaf adds no tags to the empty helper or the enclosing constituent.
 
-A structurally empty node contains no terminal read or omitted marker. Parent sequences remove such named children, including empty `#` nodes and empty wrappers. A direct capture of an empty named rule retains its named root for a root-name test.
+A structurally empty node contains no terminal read, omitted marker, or seal. Parent sequences remove structurally empty named children, including empty `#` nodes and empty wrappers. A seal is an opaque leaf supplied by a ranked choice. A node that contains a seal remains in its parent sequence. A direct capture of an empty named rule retains its named root for a root-name test.
 
 A primitive predicate first tests the current node, then can follow its sole structural child. This single-child transparency repeats only while exactly one child exists. A branching node stops it. A child-sequence predicate uses the same search, and tests each visited node's complete ordered children.
 
@@ -646,50 +647,57 @@ A directive is a keyword and its operands. By convention each stands in a block 
 - No directive names the elidable terminators. Each elidable optional is marked in its place, as `[+KU]` or `[++TOI]` (see "Elided terminators"). `%elidable` is not a directive. A document that writes it is an error, which the reader reports at the keyword.
 - `%stage NAME`, `%include "PATH"` and `%features NAME…` build a pipeline, as the next section says.
 
-### Slot preferences
+### Ranked choices
 
-`%prefer A > B` removes qualified B candidates when A fills the same slot over the same words. A slot is one child position in a common parent template. A candidate qualifies when its tests, conditions and eligibility requirements pass. A candidate is kept when it survives filtering.
+A ranked choice writes its preferred option first: `(a ≻ b ≻ c)`. Each option can contain a sequence. Parentheses delimit a ranked choice inside a larger expression.
 
-Both names must denote rules in the final stitched stage. Terminal names, missing rules, self-preferences and directed declaration cycles are errors. Duplicate edges collapse. Declaration order gives no priority.
+A span is the range between two input token boundaries. A lower option disappears where an earlier option qualifies over the same span in that invocation. Qualification requires its tests and ready conditions to pass. A condition is ready when every capture that it reads is bound. A failing higher option removes nothing.
+
+Earlier options also outrank later options when intervening options are absent. An ordinary choice inside an option gives its branches equal rank. Different spans still compete through the ordinary stage ranking.
 
 ```jbogenbau
 %rule me-unit
-  | ME # me-sumti [+MEhU] # [MOI #]
-  | ME # me-mex [+MEhU] # [MOI #]
-%prefer me-sumti > me-mex
+  ME # (sumti ≻ mex) [+MEhU] # [MOI #]
 ```
 
-Dedicated rules identify the operand position. Each ranked rule must have exactly one written body-reference site. All surviving alternatives count, including disabled feature variants and unreachable rules. Generated recursion, queries, patterns and implicit root invocation do not count. Zero or several sites fail loading with `prefer-slot-multiple-references`.
+Binding, from strongest to weakest, is primary expressions, sequence, `&`, then choice. At a choice level, the separator is either `|` or `≻`. Mixing them at that level is a reader error. Parentheses start a new level.
 
-Each connected preference component must occupy one hole in a common parent template. Prefix and suffix syntax must match, with corresponding captures at matching positions. Parent tag terms and `%emits` lists must match after ordinary simplification and capture-role normalization. Source locations and capture spelling do not affect equality.
+| Text | Meaning |
+| --- | --- |
+| `a b ≻ c d` | Rank the sequence `a b` above `c d`. |
+| `(a ≻ b) c` | Rank the child before the common suffix `c`. |
+| `a & b ≻ c` | Rank the conjunction above `c`. |
+| `a ≻ (b \| c)` | Rank `a` above either lower branch. The lower branches share one rank. |
+| `(a \| b) ≻ c` | Either higher branch removes `c` over the same span. |
+| `(a ≻ b) \| c` | Keep `c` outside the ranked group. |
+| `a ≻ (b ≻ c)` | Give the inner expression its own group and seal. |
+| `[a ≻ b]` | Keep the absent optional route outside the ranked group. |
+| `{(a ≻ b)}` | Repeat ranked items under the existing nonnullability rule. |
+| `(ε ≻ a)` | Compare empty candidates only against other empty candidates. |
 
-Emission presence, item order, carriers, attachments and tag terms must correspond. An emission item cannot name or read the hole capture, including presence guards and span-based reads. Whole-parent `$` and corresponding prefix or suffix captures remain legal sources. A mismatch or forbidden export reports `prefer-slot-template`.
+Thus `a | b ≻ c` and `a ≻ b | c` require parentheses. A whole rule body can be `a ≻ b`. A leading `|` starts the ordinary alternative list, so `| a ≻ b` also requires parentheses.
 
-A gate is a test evaluated before filtering. Feature guards, hole symbol tests and ready parent conditions are gates. Direct hole captures retain their real trees and tags for these gates. A failed higher gate leaves the lower candidate available. Differing conditions must be ready when the hole completes.
+Every ranked expression needs at least two nonempty written operands. `ε` supplies an explicit empty operand. Each operand is a complete conjunction expression. `≻` has no operator meaning inside strings, conditions, or tree patterns.
 
-The whole-parent `$` becomes ready only when the alternative completes. A nullable suffix still delays that readiness. A private hole pattern must occur in a ready condition gate. A later structural read, including a guarded tag term, reports `prefer-slot-continuation`.
+Optionals and repetitions accept ranked content in their existing expression positions. A repetition separator can contain a ranked group too. Ranking does not permit nullable repetition items or change the required leading terminal of an elidable optional.
 
-A preferred slot exports one sealed leaf, a child with hidden structure. It has no rule name, terminal identity or children. Empty holes still export one leaf. The seal affects structural observations only, without changing output trees or real captures.
+Ranked options have no local guard, tag clause, or emission clause. Ordinary alternative guards and trailing tags apply to the whole expression. A named rule can express a feature-dependent category.
 
-Outside patterns stop at a preferred slot. This includes descendant `⋮`, first-path `⋰`, last-path `⋱`, and tests that pass through a sole child. Patterns cannot recover the hidden structure from outside. An author who needs that observation cannot rank that position with `%prefer`.
+Captures inside a ranked choice belong to that choice. They can serve only conditions ready before that choice closes. They cannot feed later conditions, tag terms, or explicit emission items. Existing restrictions on capture syntax still apply.
 
-A constant property can live on the parent. A ready gate can decide candidacy but cannot export a computed property of the hidden tree. A declaration cannot preserve arbitrary outside descendant or path observations.
+The whole-parent `$` becomes ready only when its named alternative completes. A final ranked group can reach that point. Any remaining element, including an empty optional, delays that readiness. A private capture cannot wrap a sequence or the ranked group itself.
 
-After gates, private constituent tags must be dead or provably empty. Dead tags have no later reader and are not inherited by the parent. The loader proves emptiness from literal-empty constructors and unary inheritance, including helpers and all feature variants. A terminal-only inherited production or nonempty explicit term makes its inheritance predecessors unsafe. A multi-symbol production without tag terms returns empty tags. Unsafe live tags report `prefer-slot-tags`.
+Outside patterns see one seal for the whole ranked choice, even when its selected option is empty. They cannot inspect its names, children, or selected option. Descendant, first-path, last-path, and sole-child walks stop there.
 
-Span observations remain available, including text, sound, `tags(head($h))` and two-argument `tags($h,R)`. Later one-argument `tags($h)` and `classes($h)` require the emptiness proof. Even equal nonempty rival tags fail this rule.
+Internal named rules and ready conditions on their captures retain their own pattern views. The seal changes no output tree, omission, action, or captured constituent. An author who needs that hidden structure outside the choice cannot rank that position.
 
-A slot group collects qualified labels for one template, prefix state and physical interval. Its identity includes eligibility, enclosing-rule cycle context and reconstruction mode. The complete prefix state includes every prior capture's presence, interval, tags and structure. Hole captures, hole results, production identities, proof identities, omission vectors and flag profiles do not distinguish groups.
+The choice must discard its returned tags locally or return a provably empty set. A common explicit tag term can replace inheritance. The loader applies the closure in engine §2.1. A private capture cannot supply that common term.
 
-Keep only maximal present labels under transitive reachability. With `a > b > c`, a removes c even when b is absent. Incomparable maxima and unnamed alternatives remain. Keep every derivation of each retained label. Different intervals, prefix states or eligibility channels do not compete. Empty intervals participate.
+`begins`, `matches`, and two-argument `tags` query raw eligible recognition. They do not apply ranked admission. `tags(span, rule)` remains a union over those readings.
 
-Input queries remain unfiltered. `begins` and `matches` use raw eligible recognition. `tags(span,R)` unions all raw eligible R readings, including excluded slot candidates. Queries apply the same seals at declared parent slots.
+After admission, flagged profiles precede the stage directive. With no flagged rule, every profile is zero, so the stage directive alone ranks the admitted derivations. Reconstruction applies the same admission over physical reconstructed spans.
 
-Filtering preserves eligible recognition with sealing fixed. Adding a seal can change existing outside pattern answers. Filtering does not guarantee an unchanged successful-parser verdict or downstream output.
-
-The verdict transitions and their effects are defined in [Ambiguity](#ambiguity).
-
-Rank admitted derivations by `leftmost-longest`, then the stage directive. Ordinary ambiguity remains possible. Reconstruction uses the same filter over physical reconstructed intervals, with its own eligibility. An excluded raw chosen witness gives ordinary `elision-only` ambiguity, not `elision-witness-lost`.
+The reader rejects the retired `%prefer` directive as unknown and points to ranked choices. The group itself states the contested position and its order.
 
 ## Pipelines
 
@@ -734,15 +742,15 @@ The first stage reads the text's characters. Each is a token with one tag, its c
 
 ## Ambiguity
 
-Slot preferences filter eligible derivations before the ranking below.
+Ranked choices filter eligible derivations before the ranking below.
 
 Filtering only removes derivations and never adds one. The remaining derivations are admitted. A tie can become `resolved` or `unique`, and `resolved` can become `unique` or a tie. Filtering never changes a unique result.
 
-A migration that adds `%prefer` also changes the grammar rules. A uniquely parsed text can get a different tree after that migration.
+A migration that adds ranked choices can change grammar rules and seals. A uniquely parsed text can get a different tree after that migration.
 
 A newly resolved result reaches emission and the enabled elision-only check. A newly tied result reaches neither, has no chosen tree, output or warnings, and stops later stages.
 
-After slot filtering, a grammar ranks every admitted parse. A span is the range between two input token boundaries. A flagged span is a flagged occurrence's span. A rule profile counts flagged occurrences over each nonempty span.
+After admission, a grammar ranks every admitted parse. A flagged span is a flagged occurrence's span. A rule profile counts flagged occurrences over each nonempty span.
 
 `leftmost-longest` compares complete parses by nonempty flagged-span counts, with earlier starts first, longer spans next, and larger counts preferred at the first difference.
 

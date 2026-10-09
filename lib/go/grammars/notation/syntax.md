@@ -27,10 +27,7 @@ A grammar text is a sequence of rules, directives, constant definitions, classif
   [{statement}]
 
 %rule statement
-  rule | directive | prefer-directive | constant-definition | classifier | implication-declaration
-
-%rule prefer-directive
-  ~keyword-prefer reference '>' reference
+  rule | directive | constant-definition | classifier | implication-declaration
 
 %rule constant-definition
   constant-definer constant-reference term
@@ -55,10 +52,9 @@ A grammar text is a sequence of rules, directives, constant definitions, classif
   ~tag | ~phoneme | ~character | range | property
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>text</code> to <code>argument-tag</code></summary>
+<details><summary>Railroad diagrams of the 9 rules from <code>text</code> to <code>argument-tag</code></summary>
 <p><img src="../../docs/diagrams/notation/syntax/text.svg" alt="Railroad diagram of the rule text"></p>
 <p><img src="../../docs/diagrams/notation/syntax/statement.svg" alt="Railroad diagram of the rule statement"></p>
-<p><img src="../../docs/diagrams/notation/syntax/prefer-directive.svg" alt="Railroad diagram of the rule prefer-directive"></p>
 <p><img src="../../docs/diagrams/notation/syntax/constant-definition.svg" alt="Railroad diagram of the rule constant-definition"></p>
 <p><img src="../../docs/diagrams/notation/syntax/constant-definer.svg" alt="Railroad diagram of the rule constant-definer"></p>
 <p><img src="../../docs/diagrams/notation/syntax/directive.svg" alt="Railroad diagram of the rule directive"></p>

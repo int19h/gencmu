@@ -1,7 +1,0 @@
-{
-  "description": "Invalid preference declarations fail during stage loading.",
-  "grammar": "%rule text a\n%rule a X\n%rule b X\n%rule c X\n%prefer a > a",
-  "expect": {
-    "error": "grammar"
-  }
-}

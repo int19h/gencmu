@@ -15,11 +15,8 @@ export type RouteMask = {
 /** @typedef {import("./types.js").Item} Item */
 /** @typedef {{id:number,frames:Item[],bounds:{carrier:Item,restricted:boolean}[],blocked:boolean}} SlotScope */
 /** @typedef {{all:Set<number>,allowed:Set<number>}} RouteMask */
-/** @param {import("./earley.js").Chart} chart @param {{names:Set<string>,ranked?:boolean}} preferences @param {import("./maximal.js").Maximal|null} maximal */
-export declare function helperSlotForest(chart: import("./earley.js").Chart, preferences: {
-    names: Set<string>;
-    ranked?: boolean;
-}, maximal: import("./maximal.js").Maximal | null): {
+/** @param {import("./earley.js").Chart} chart @param {Set<string>} names @param {import("./maximal.js").Maximal|null} maximal */
+export declare function helperSlotForest(chart: import("./earley.js").Chart, names: Set<string>, maximal: import("./maximal.js").Maximal | null): {
     chart: {
         start: number;
         end: number;
@@ -43,5 +40,3 @@ export declare function helperSlotForest(chart: import("./earley.js").Chart, pre
     routeMasks: Map<import("./types.js").Item, RouteMask>;
     rawIndices: WeakMap<import("./types.js").Edge, number>;
 } | null;
-/** @param {Item} item @param {import("./preferences.js").SlotVariant} variant @param {Map<string,object|undefined>} helpers */
-export declare function helperPrefixKey(item: Item, variant: import("./preferences.js").SlotVariant, helpers: Map<string, object | undefined>): (string | number | boolean | (string | number)[][] | (string | boolean | import("./types.js").SymbolTest | undefined)[][] | undefined)[];

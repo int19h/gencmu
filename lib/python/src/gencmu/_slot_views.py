@@ -1,6 +1,5 @@
 """A ranking view carries written invocations through generated helpers."""
 from dataclasses import replace
-from ._preferences import symbol_role, helper_path
 from ._earley import RESTORE
 
 
@@ -18,7 +17,7 @@ class SlotMaximal:
         return self.raw.forbids(self.originals[item],test)
 
 
-def helper_forest(raw, preferences, maximal, marks):
+def helper_forest(raw, names, maximal, marks):
     productions = raw.lowered.productions
     helpers = {p.lhs for p in productions if p.helper}
     users = {}
@@ -27,9 +26,8 @@ def helper_forest(raw, preferences, maximal, marks):
             for terminal,symbol in zip(p.terminal,p.rhs):
                 if not terminal:
                     users.setdefault(symbol,[]).append(p.lhs)
-    wrapped, pending = set(), [raw.lowered.rule_ids[name] for name in preferences.names]
-    if getattr(preferences,"ranked",False):
-        wrapped.update(pending)
+    pending = [raw.lowered.rule_ids[name] for name in names]
+    wrapped = set(pending)
     for symbol in pending:
         for parent in users.get(symbol,()):
             if parent not in wrapped:
@@ -122,19 +120,3 @@ def helper_forest(raw, preferences, maximal, marks):
     if marks is not None:
         marks = {item:{i for i,original_index in enumerate(forest.slot_indices[item]) if original_index in marks[original]} for item,original in enumerate(forest.slot_original) if original in marks}
     return forest,SlotMaximal(maximal,forest.slot_original) if maximal is not None else None,marks
-
-
-def ancestry(forest,scope,variant):
-    if scope is None:
-        return None
-    lowered = forest.lowered
-    frames = []
-    for item in scope['frames']:
-        p = lowered.productions[forest.prod[item]]
-        dot = forest.dot[item]
-        symbols = tuple((symbol_role(s,t,variant,lowered),p.tests[i] if p.tests else None) for i,(s,t) in enumerate(zip(p.rhs[:dot],p.terminal[:dot])))
-        captures = tuple((variant['roles'].get(name,name),forest.caps[item][p.slots[pos]]) for name,pos in sorted(p.captures.items(),key=lambda part:part[1]) if pos < dot)
-        restores = any(edge[1] == RESTORE for edge in forest.edges[item])
-        frames.append((variant['paths'].get(p.slot.path) if p.helper else 'written-parent',forest.origin[item],symbols,forest.prefix[item],captures,forest.strict[item] if forest.strict else False,restores))
-    bounds = tuple((variant['paths'].get(helper_path(lowered,lowered.productions[forest.prod[item]].lhs)),forest.origin[item],forest.end[item],restricted) for item,restricted in scope['bounds'])
-    return (tuple(frames),bounds)

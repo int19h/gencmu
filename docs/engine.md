@@ -86,7 +86,7 @@ A rule flag gives a rule a preference. Only `leftmost-longest` is supported. `%r
 
 Parentheses follow the keyword and precede the name. Their only accepted content is `leftmost-longest`, with optional surrounding spaces. Empty parentheses, duplicates, unknown flags, arguments and parentheses on `%extend-rule` are errors of the document. Section 9 gives their priority and positions.
 
-The loader collects directives from all the stage's items. `%stage`, `%include` and `%features` shape the pipeline (§13) and do not belong to a stage. `%ambiguity-resolution` and `%prefer` belong to the stage.
+The loader collects directives from all the stage's items. `%stage`, `%include` and `%features` shape the pipeline (§13) and do not belong to a stage. `%ambiguity-resolution` belongs to the stage.
 
 A stage also has constants. A constant is a named value that terms and conditions use (§10). Its name is `$` and a name (§9) that begins with `A` to `Z`, such as `$SU-STOPS`. By convention, the whole name is in capitals.
 
@@ -136,33 +136,33 @@ A reference other than `#`, or a terminal, can carry one test on its own span, a
 
 The first two are sound tests, and the other four are tag tests. `s` is a closed term (§10) whose type is a string, and `t` is a closed term whose type is a tag set. The own tags of a terminal are the tags of its token. The own tags of a reference are the tags of its completed constituent (§4).
 
-### 2.1 Slot preference validation
+### 2.1 Ranked choice validation
 
-`%prefer A > B` has exactly two existing rule names and one separator. Resolve declarations after final stitching and constant binding. Neither name can begin with a capital. Reject self-preferences and directed declaration cycles, with their rules and declaration positions. Identical edges collapse, and nonempty paths define transitive preference.
+Identify each ranked expression after final stitching and constant binding. Its identity is the final rule, zero-based alternative index, and expression path. Its options retain source order. Every group requires at least two expressions.
 
-Count written body-reference sites across every surviving alternative, including disabled features and unreachable rules. A site records its enclosing rule, final alternative index and expression path. Captures, tests, optionals, repetitions, separators and explicit recursion retain their references. Generated recursion, query arguments, pattern names, declarations and implicit root invocation do not count. Each ranked rule requires exactly one site, otherwise report `prefer-slot-multiple-references`.
+Visit groups in stitched rule, alternative, and expression traversal order. The first offending group determines the error, across capture and tag checks. Source locations remain separate from the document DOM. The group location is its first `≻` token when source exists.
 
-Every connected component must occupy one hole in one common parent template. Different enclosing parents report `prefer-slot-parent`. Replace each ranked reference with a hole before comparison. Extract its symbol test and ready candidate gates. Preserve all remaining prefix and suffix syntax.
+A capture inside an option belongs to its innermost ranked group. Simplify each condition for capture presence in every virtual option expansion. A virtual expansion records written capture positions without copying the parent. Every remaining condition that reads a private capture must be ready when that group completes.
 
-Corresponding prefix and suffix captures require matching expression positions and aliases, including unread captures. Normalize capture names to those position roles. Hole captures can differ or be absent, and each present one uses the hole role. Generated helpers use their written expression positions rather than generated identifiers.
+`$` becomes ready only at completion of the enclosing named alternative. A final ranked group can reach completion. Any suffix element, even nullable, delays it. An unready private condition reports `ranked-choice-continuation`.
 
-Compare alternative and definition tag clauses after constant expansion, per-production simplification and role normalization. Compare their presence and expression DOMs, without locations. Remaining common conditions must match. Structural equality does not commute set operations or equate an absent clause with explicit empty tags. A mismatch reports `prefer-slot-template`.
+Private captures cannot feed tag terms or explicit emission items. Inspect carriers, attachments, presence guards, span reads, and tag reads before absent-carrier pruning. A forbidden export reports `ranked-choice-export`. Common prefix and suffix captures, and whole-parent `$` emission, remain legal.
 
-Parent `%emits` lists require matching presence, order, carriers, attachments and tag terms after the same simplification. Reject any item that names or reads a hole capture before absent-carrier pruning. This includes carriers, attachments, presence guards and span-based reads. Report `prefer-slot-template`. Whole-parent `$` and corresponding prefix or suffix captures remain legal sources.
+Private conditions retain their existing evaluation order and real captured states. A condition on `$` observes the composed parent with its seal (§4.1). Feature guards and symbol tests remain ordinary gates. A failed gate supplies no admission witness.
 
-Feature guards and hole symbol tests are candidate gates. Differing conditions are gates only when every remaining capture observation is ready at the hole boundary. `$` is ready only at completion, including a final hole after a fixed prefix. Any suffix element, even nullable, delays it. An unready differing condition reports `prefer-slot-continuation`.
+The ranked helper uses the existing tag constructors. An untagged unary production inherits its child's tags. Untagged zero-symbol and multi-symbol productions return empty tags. Explicit tag terms replace inheritance.
 
-Every private hole structural read must be a ready condition gate, even when common across variants. A suffix-dependent pattern condition or private structural read in a tag term reports `prefer-slot-continuation`. Gates on a direct hole capture see its real state. Gates on `$` see the composed sealed state (§4.1). Preserve the existing evaluation order and raw parent recognition.
+Compute provable emptiness over all lowered alternatives and helpers, including disabled features. Mark a rule or helper unsafe when either explicit tag term differs from literal `∅` after constant expansion. Without explicit terms, mark it unsafe when its only lowered symbol is a terminal.
 
-After gates, private hole constituent tags require every ranked component rule to be provably empty. This includes unary default inheritance and later one-argument `tags` or `classes` reads. Span-derived input observations and raw two-argument tag queries do not read constituent tags. Explicit common parent tags can replace inheritance.
+Add an inheritance edge from every other untagged unary production to its child rule or helper. Propagate unsafe marks backward until no mark changes. Every unmarked rule or helper is provably empty. Explicit `∅` blocks inheritance. Zero-symbol and multi-symbol productions introduce no unsafe mark or edge.
 
-Compute emptiness over normalized lowered productions, helpers and all guarded alternatives. Mark a rule unsafe when either explicit tag term differs from literal `∅` after constant expansion. Without explicit terms, mark a production's rule unsafe when its sole lowered symbol is a terminal. Add an inheritance edge from each remaining unary production to its child rule or helper. Propagate unsafe marks backward along these edges. Every unmarked rule is provably empty.
+An unmarked unary cycle cannot invent tags in a finite proof. Written terminals can supply tags although restored terminals do not. Pattern leaf tags remain separate from constituent tags.
 
-Literal-empty terms replace inheritance. Zero-symbol and multi-symbol productions without terms add no mark or edge. Conditions and tests create no tags. An unmarked unary cycle cannot create tags in a finite proof. Written terminals can supply tags even though restored terminals do not. Pattern leaf tags remain separate.
+Follow local unary inheritance from the ranked helper toward its enclosing named parent. If unsafe tags reach that boundary, report `ranked-choice-tags`. A multi-symbol parent or common explicit tag term discards option tags locally. No caller analysis or runtime equality of rival tags excuses unsafe inheritance.
 
-If a later constituent-tag reader or default inheritance lacks this proof, report `prefer-slot-tags`. Inspect every branch remaining after ordinary simplification. Equal nonempty rival tags and an empty class projection do not excuse the read. Tags are dead when no local later expression reads them and the parent does not inherit them.
+Malformed ranked syntax or DOM reports `ranked-choice-syntax`. Other unrelated reader errors retain their codes or uncoded form. The retired `%prefer` directive reports the ordinary unknown-directive error with a ranked-choice explanation. No inert-rank warning exists.
 
-Apply these rules to all surviving variants without feature-assignment enumeration or caller analysis. Source-order diagnostics name the declaration, ranked references, common parent and offending expression or capture role. Tag errors include the inheritance path to a terminal or nonempty term. Output defines source paths. No preference warning or observer-path diagnostic remains.
+Loading errors carry the structured members defined in `docs/output.md`. Tag errors use the shortest inheritance witness from the group to its tag source. Source traversal order breaks equal-length choices. Helper sites use written expression paths.
 
 ## 3. Lowering
 
@@ -209,7 +209,11 @@ So a chain beside another alternative is reported before an empty item, whicheve
    Lowering finds both errors of this step when it lowers the grammar for features that make them. It reports each one at the definition that wrote the alternative, as for any error of lowering. The order is the one that the start of this section gives. A gate or a `%extend-rule` can make either error depend on the features, and a warning guard never removes an alternative.
 
    A flat list is one helper, so its closes are transparent (§6), and the clauses of its rule apply only to the rule's whole constituent. Some grammars need each prefix of a list as a constituent, which the ranking and the rule's conditions see. Such a grammar writes a chain or explicit recursion.
-4. The engine names the helpers, and it never shows their names. A helper is a production whose left side is a helper name.
+4. A ranked expression lowers to one transparent helper with ordered options. Every expansion retains its option index and written expression identity. Its entry retains the enclosing named invocation and complete prefix state. Conditions keep that named scope for `$`, `from`, and `after`. Private bindings leave the continuation environment after ready gates. Proofs retain them for output and diagnostics.
+
+   Number ranked options in source order before later siblings. No ranked helper gains a flag. Ordinary parentheses retain their existing expansion behavior.
+
+   The engine names the helpers, and it never shows their names. A helper is a production whose left side is a helper name.
 5. A capture `$x(s)` must wrap a single symbol `s`, which can be tested. It can stand anywhere in the expression of an alternative, at any depth. That includes a group, a choice, an item of `&` and a plain optional. It must not stand inside braces, flat or chain, or inside an elidable optional (step 8), at any depth (§9).
 
    A capture labels the symbol's position in each production that reads the symbol. A production has the capture `x` exactly when its expansion reads the symbol that `$x` wraps. The other productions of the alternative lack it, and the missing-capture rules of step 6 apply to them.
@@ -425,7 +429,7 @@ Lowering records which helpers belong to maximal terminators (§3.8). The lowere
 
 A stage recognizes input when a completed `text` item spans it with an eligible noncyclic derivation. Slot filtering preserves this recognition for the sealed grammar. Section 6.1 defines admission before ranking, with raw charts and query answers unchanged.
 
-The stage rejects an input whose every such derivation is cyclic, as it rejects one with no such item. A stage that accepts its input can still end with a tie, which is an error (§6). A rejected input reports the furthest position that any item reached. It also reports the terminals that the items there can read next, together with the rules that those items belong to (§11). The stage writes a tested terminal with its test, such as `LE="la"` (`docs/output.md`).
+The stage rejects an input whose every completed text derivation is cyclic, as it rejects one with no such item. A stage that accepts its input can still end with a tie, which is an error (§6). A rejected input reports the furthest position that any item reached. It also reports the terminals that the items there can read next, together with the rules that those items belong to (§11). The stage writes a tested terminal with its test, such as `LE="la"` (`docs/output.md`).
 
 An input rejected only because maximality forbids an elided terminator in every derivation that is not cyclic reports that terminator instead. The terminator comes from the first reading, `m`, of the ranking that the stage makes with maximal terminators unrestricted (§6). It is the first elided terminator of that derivation, in the order of the tree's leaves, that maximality forbids. Its position is the position reported, and its terminal, with the rule in whose alternative its optional is written, is the one terminal expected there. If that terminator is tested, the stage writes it with its test there too.
 
@@ -451,9 +455,9 @@ The state retains more than final Boolean answers. It includes sequence prefixes
 
 An advance keeps its structural prefix and each captured child's completed state. A condition on a capture reads that state when the constituent completes. A condition on `$` reads the candidate completion state before ordinary tag evaluation. These conditions never run a new recognizer or inspect ranking.
 
-At an advance over a declared ranked hole, the structural sequence machine receives one fixed sealed leaf. Every label and derivation of that slot supplies the same leaf. It has no name, terminal identity, sound, tags or children. Primitive names fail, paths stop, and sibling ellipses consume it as one child. Empty holes also contribute exactly one leaf.
+At a ranked group completion, the structural sequence machine receives one fixed sealed leaf. Every option and proof supplies the same leaf. It has no name, terminal identity, sound, tags or children. Primitive names fail, paths stop, and sibling ellipses consume it as one child. An empty selected option also contributes exactly one leaf. Empty normalization never removes it or a named node that contains it.
 
-Direct hole captures retain their real completed states for ready gates. The composed parent state propagates the seal through subsequent constructors and captures. Output trees, tags, elisions and ranking actions retain their actual derivations. No seal appears in serialized trees or grammar DOMs. Queries and reconstruction apply the same transition at declared references.
+Private option captures retain their real completed states for ready gates. The composed parent state propagates the seal through subsequent constructors and captures. Output trees, tags, elisions and ranking actions retain their actual derivations. No seal appears in serialized trees or grammar DOMs. Queries and reconstruction apply the same transition at ranked group boundaries.
 
 Every proof edge stays within its observation state. Equal states still permit distinct derivations and ordinary ties. A cycle alone supplies no finite proof of a structural answer. Cycle exclusion keeps its rule-and-span identity. A different structural state does not permit repetition of the same rule over the same span.
 
@@ -487,7 +491,7 @@ In the check of §7, `phonemes(span)` and `text(span)` read the projected span, 
 
 ## 6. Choosing a parse
 
-Section 6.1 admits derivations before this ranker when a `%prefer` declaration can apply. This ranker is the same either way.
+Section 6.1 admits derivations before this ranker when a ranked group can apply. This ranker is the same either way.
 
 A stage ranks its admitted derivations (§6.1). A flagged occurrence is a flagged rule's constituent. A flagged span is a flagged occurrence's span. A rule profile counts flagged occurrences over nonempty spans. `leftmost-longest` compares complete parses by nonempty flagged-span counts, with earlier starts first, longer spans next, and larger counts preferred at the first difference.
 
@@ -511,7 +515,7 @@ Only a flagged occurrence makes a component nonzero. A sparse map stores only no
 
 An occurrence beats absence, and equal spans count separately. With no flagged rule, every rule profile is zero, so the directive alone ranks.
 
-The stage retains every derivation with the greatest rule profile before applying its directive. The total before filtering still determines `unique`. The remaining comparison of actions and elisions applies within that retained forest.
+The stage retains every derivation with the greatest rule profile before applying its directive. The admitted total, before rule-profile selection, determines `unique`. The remaining comparison of actions and elisions applies within that retained forest.
 
 A derivation is read as its sequence of actions in bottom-up order. An action is a read of a token as a terminal, or a close of a production over a span. Closes of helper productions and of productions with exactly one symbol are transparent. They are part of the sequence, but two sequences never differ at one. The other actions are visible.
 
@@ -632,29 +636,46 @@ Structural state forms part of each summary's item identity. Eligibility and sam
 
 For k independent Boolean observations, a product can contain up to `2^k` states. Sequence prefixes and captures add further factors. Finite sharing does not imply constant memory use. Measurements must record states, items, packed edges, summary contexts, elapsed time and peak memory. Use increasingly long lists, unary chains, nested omissions and independent ambiguous children.
 
-### 6.1 Slot admission before ranking
+### 6.1 Ranked admission before ranking
 
-Retain the raw chart, completion tables and eligibility information. Preference filtering removes forest choices without removing chart items or changing input queries. It must not discard B merely because B arrives before A. Nested candidate availability depends on admitted finite child proofs.
+Retain the raw chart, completion tables, and eligibility information. Admission removes forest choices without removing chart items or changing input queries. A later completion can provide an earlier qualifying option. Nested availability requires admitted finite child proofs.
 
-A slot group contains qualifying candidates for one validated template hole. Its key includes recognition mode, feature choice, parent entry, complete prefix state and physical hole interval. Include requested eligibility channels, normalized continuation guards, enclosing-rule cycle context and relevant reconstruction state. Ordinary, reconstructed and unrestricted-maximality diagnostic modes have separate admission caches.
+A slot instance is one written ranked group in one prefix context. Each physical span in that instance has a separate admission group. Its key contains these components:
 
-Compare the complete prefix state immediately before the hole. Include the structural prefix and every prior capture's presence, interval, tags and structure. Normalize control positions, helper identities and capture roles across validated variants. Include existing eligibility, strictness, restoration and projection state wherever recognition depends on them.
+| Component | Required equality |
+| --- | --- |
+| Recognition | Input recognition, selected features, and main, query, reconstruction, or diagnostic mode. |
+| Source | Final stitched rule, alternative, and expression path. |
+| Entry | Enclosing named invocation origin and control route to the helper entry. |
+| Prefix | Complete common prefix recognition state at entry. |
+| Span | Actual group start and end positions. |
+| Eligibility | Requested existing eligibility channel and normalized continuation guards. |
+| Cycles | Existing enclosing named-rule context for relevant spans. |
+| Reconstruction | Strictness, restoration, and projection state where recognition depends on them. |
 
-Exclude variant production identifiers, proof identities, omission vectors, flagged profiles and diagnostic order. Exclude hole captures, returned hole tags, private structure and caller demand. Distinct equal-state prefix proofs remain distinct derivations for ranking. Sealing and the local tag rule make the common continuation independent of private hole results.
+The prefix includes bound common captures, their values, and structural state. Control positions refer to the common group entry. Generated helpers retain their written paths. Option indexes and generated option-production identities do not distinguish entry contexts.
 
-Each candidate must pass its ready gates and have an eligible finite noncyclic proof in the requested context. A disabled feature or failed gate supplies no witness. Eligibility before a written terminator cannot suppress a rival before an omitted maximal terminator. Normalize guard identities to common continuation roles without comparing their raw identifiers.
+The key excludes private captures, returned option tags, private pattern states, and proof identities. It also excludes omission vectors, flagged profiles, diagnostic ordering, and caller demand contexts. Equal-state prefix proofs remain distinct derivations for ordinary ranking.
 
-Collect present labels in each group. Keep precisely the maximal present labels under the declaration graph's transitive closure. Keep every derivation of those labels, with neutral alternatives unchanged. Empty spans participate. Different intervals or prefix states do not compete. A chain suppresses its sink even when an intermediate label is absent.
+An invocation is a recognition state, rather than a call-stack identity. Different callers share admission when all key components agree. Different continuations remain separate. Equal spelling at another location does not establish equal spans. Empty spans participate.
 
-The existing summaries compose over admitted edges. Their totals count admitted derivations, capped at two. Rule profiles, omission vectors, actions and ordinary tie witnesses compose as above. Rank by `leftmost-longest`, then the stage directive.
+Compute the options with a qualified finite proof in each admission group. Keep every proof whose option index is the smallest present index. Keep no proof from a later index. With no qualifying option, the group supplies no completion.
 
-A nonempty finite group has a maximal label in the acyclic graph. Each removed candidate has an eligible same-context replacement. The replacement preserves the sealed structural export and the common continuation's tags and captures. Induction through finite child proofs preserves eligible recognition, with sealing fixed. This proof does not preserve every raw item or successful-parser verdict.
+For `a ≻ b ≻ c`, qualified `a` removes `c` even when `b` is absent. Ordinary branches within one option share its index. A nested group finishes admission before its option supplies an outer witness.
+
+A candidate must pass its tests and ready conditions in the requested eligibility and cycle context. A disabled feature, failed gate, or unavailable cyclic proof supplies no witness. A candidate forbidden by maximality cannot suppress a lower option in that channel. It can qualify in a written-terminator channel.
+
+A maximal terminator inside an option applies to its actual preceding symbol. A maximal terminator after the group applies to the group as one symbol. Raw group completions determine maximality. Admission leaves those completions unchanged.
+
+The existing summaries compose over admitted edges. Their totals count admitted derivations, capped at two, before rule-profile selection. Rank by `leftmost-longest`, then the stage directive. With no flagged rule, the stage directive alone ranks admitted derivations.
+
+Every removed proof has an eligible same-context replacement at the group. The seal and local tag rule preserve its common continuation. Induction through finite admitted child proofs preserves eligible recognition with sealing fixed. Adding a seal can change outside pattern answers.
 
 [Ambiguity](notation.md#ambiguity) defines the effects of filtering and grammar migration.
 
-Let F count existing prefix facts, completion facts, proof edges and eligibility contexts, including stored values. Let r be the largest preference component. Grouping by sorting costs `O(F log F)` key comparisons. Maximal-label filtering costs at most `O(F r²)`. Include stored-value comparison work. Admission composes over stored facts and existing contexts.
+Let F count stored prefix facts, completion facts, proof edges, eligibility contexts, and their values. Sorting admission groups costs `O(F log F)` key comparisons. Selecting the least present index costs linear work in candidate facts. Include stored-value comparison work. Admission composes over packed facts without complete derivation enumeration.
 
-The tag closure uses linear work in productions and inheritance edges. Template comparison uses expanded expression DOMs without semantic-equivalence search. Measure raw chart facts, groups, retained edges, elapsed time and peak memory. Measure loader cost separately.
+The tag closure uses linear work in productions and inheritance edges. Measure chart facts, groups, retained edges, elapsed time, and peak memory. Measure loader cost separately.
 
 ## 7. Elision-only
 
@@ -791,7 +812,7 @@ Maximality does not apply to the derivations of R. A restoration reads a token, 
 
 Locate raw W(D) before applying slot admission. The filter groups by physical R intervals, including synthetic tokens, with reconstruction eligibility. Equal projected O spans do not establish equal slot intervals. Rank admitted derivations by rule profiles over projected spans `[π(a),π(b))` in O.
 
-The stage ranking has no lean. Elision vectors are all zero. Reconstruction admission has its own cache and preserves existing restoration, strictness and projection rules.
+No stage directive or diagnostic lean applies. Elision vectors are all zero. A flagged occurrence whose projected span is empty contributes zero weight. Distinct occurrences with equal nonempty projected spans each contribute separately. Reconstruction admission has its own cache and preserves existing restoration, strictness and projection rules.
 
 A restoration's read of its synthetic token is a read action, and its close is the close of a helper, which is transparent. Section 7.10 selects the error's readings. The canonical keys never turn a tie into a pass. Derivations whose trees are equal over O are still distinct derivations.
 
@@ -849,17 +870,17 @@ The message is the same in every library. Section 7.10 gives witness loss priori
 
 ### 7.10 Readings
 
-This policy applies to every grammar, including grammars without `%prefer` or flagged rules. Raw witness membership tests the concrete derivation. A competitor is a best admitted derivation other than W(D).
+This policy applies to every grammar, including grammars without ranked groups or flagged rules. Raw witness membership tests the concrete derivation. A competitor is a best admitted derivation other than W(D).
 
 If recognition ends without a grammar error, decide in this order.
 
 1. Locate W(D) in the raw eligible reconstructed forest. If it is absent, report `elision-witness-lost` (§7.9).
 2. Apply slot filtering without preserving W(D) artificially.
 3. Rank admitted readings by projected rule profiles with no stage lean.
-4. If W(D) is admitted and is the sole selected derivation, preserve the main result.
+4. If W(D) is admitted and is the sole best admitted derivation, preserve the main result.
 5. Otherwise, report `ambiguous` with reason `elision-only`, with W(D) first and one competitor second.
 
-If filtering excludes W(D), the competitor is the T-first best admitted derivation. If W(D) remains admitted, the competitor is the best admitted derivation that diverges from W(D) earliest. Equal divergence positions use T. Divergence uses visible actions, with transparent differences after every visible position (§6).
+The competitor is the T-first best admitted derivation distinct from W(D). This rule applies whether admission excludes W(D) or retains it. Transparent actions remain part of T (§6).
 
 A smaller filtered best profile does not prove witness loss. Intentional exclusion gives an expected ambiguity.
 
@@ -926,7 +947,6 @@ The notation's syntax grammar names its constituents so that the reader can read
 
 | rule | DOM |
 | --- | --- |
-| `prefer-directive` | a `prefer` directive with the names of its first two `reference` parts, in preferred-first order |
 | `directive` | a directive: name from its keyword without `%`, arguments in order. An `argument-word` gives its name, an `argument-string` the decoded string, and an `argument-tag` of `~name` the name |
 | `classifier` | a classifier: name from its `classifier-name`, a name. Entries from its `classifier-entry`s, in order |
 | `classifier-entry` | an entry: gates from its `guard`s, as an alternative reads them. Keys from its `classifier-key`s, each the decoded string, in order. Operator from its `classifier-operator`, `∈` or `∉`. Class from its `classifier-class`: the name, or the name after `~` |
@@ -934,7 +954,9 @@ The notation's syntax grammar names its constituents so that the reader can read
 | `constant-definition` | a constant: `define` or `redefine` from its `constant-definer`, a token tagged `keyword-const` or `keyword-redefine-const`. Name from its `constant-reference` without `$`. Value from its `term` |
 | `rule` | a rule: `define`, `redefine` or `extend` from its `definer`, a token tagged `keyword-rule`, `keyword-redefine-rule` or `keyword-extend-rule`. Name from its `rule-name`, a name or `#`. Flags from its optional `rule-flags`, or `[]` without it. Alternatives from its `body`. Tags from its `tags-clause`. Conditions from its `conditions-clause`. Emission from its `emits-clause`. `opaque` true if it has an `opaque-clause` |
 | `alternative` | guards from its `guard`s: a gate from `f?` or `¬f?`, a warning from `f!`. Expression from its `conjunction`, tags from `alternative-tags` |
-| `choice` | `choice` of its `conjunction`s, or the one conjunction itself |
+| `ranked-alternative` | guards and trailing tags of one ordinary ALT, with its `ranked-choice` expression |
+| `ranked-choice` | `ranked` of its conjunction operands, in source order |
+| `choice` | its `ranked-choice`, or `choice` of its conjunctions, or its single conjunction |
 | `conjunction` | `and` of its `sequence`s, or the one sequence itself |
 | `sequence` | `seq` of its `primary`s, or the one primary itself |
 | `repetition` | `repeat`, its first `choice`. `separator`, its second `choice`, if it has one. `chain`, `left` if its marker stands before its first `choice`, or `right` if it stands after it: `{"repeat":{"ref":"x"},"separator":{"ref":"s"},"chain":"left"}`. A marker is a token `...` among its parts. The reader ignores a third and any later `choice`, as it ignores any part that it does not read |
@@ -975,9 +997,9 @@ The notation's syntax grammar names its constituents so that the reader can read
 
 A rule with any other name makes no node of the DOM. The reader reads its children in its place.
 
-The reader knows 81 rules of the syntax grammar, grouped here by what they read.
+The reader knows 80 rules of the syntax grammar, grouped here by what they read.
 
-For items, they are `directive`, `prefer-directive`, `argument-word`, `argument-string`, `argument-tag`, `classifier`, `classifier-name`, `classifier-entry`, `classifier-key`, `classifier-operator`, `classifier-class`, `implication-declaration`, `constant-definition`, `constant-definer` and `constant-reference`. For definitions, they are `rule`, `definer`, `rule-flags`, `rule-flag`, `rule-name`, `body`, `alternative`, `guard` and `alternative-tags`. For expressions, they are `choice`, `conjunction`, `sequence`, `primary`, `repetition`, `reference`, `tag`, `character`, `phoneme`, `range`, `property`, `tested`, `test`, `test-operand`, `capture`, `group`, `optional` and `empty`. For clauses, they are `tags-clause`, `conditions-clause`, `emits-clause`, `opaque-clause`, `emit-item`, `emit-target`, `emit-tags`, `emit-before` and `emit-after`. For conditions, they are `implication`, `any-of`, `all-of`, `condition`, `comparison`, `comparator`, `tree-comparison`, `tree-comparator`, `negation`, `presence`, `call` and `argument`. For terms, they are `term`, `guarded-term`, `union`, `intersection`, `term-atom`, `string`, `name`, `empty-set` and `capture-reference`.
+For items, they are `directive`, `argument-word`, `argument-string`, `argument-tag`, `classifier`, `classifier-name`, `classifier-entry`, `classifier-key`, `classifier-operator`, `classifier-class`, `implication-declaration`, `constant-definition`, `constant-definer` and `constant-reference`. For definitions, they are `rule`, `definer`, `rule-flags`, `rule-flag`, `rule-name`, `body`, `alternative`, `ranked-alternative`, `guard` and `alternative-tags`. For expressions, they are `choice`, `ranked-choice`, `conjunction`, `sequence`, `primary`, `repetition`, `reference`, `tag`, `character`, `phoneme`, `range`, `property`, `tested`, `test`, `test-operand`, `capture`, `group`, `optional` and `empty`. For clauses, they are `tags-clause`, `conditions-clause`, `emits-clause`, `opaque-clause`, `emit-item`, `emit-target`, `emit-tags`, `emit-before` and `emit-after`. For conditions, they are `implication`, `any-of`, `all-of`, `condition`, `comparison`, `comparator`, `tree-comparison`, `tree-comparator`, `negation`, `presence`, `call` and `argument`. For terms, they are `term`, `guarded-term`, `union`, `intersection`, `term-atom`, `string`, `name`, `empty-set` and `capture-reference`.
 
 For patterns, they are `pattern-literal`, `pattern-union`, `pattern-intersection`, `pattern-sequence`, `pattern-item`, `pattern-atom`, `pattern-brackets`, `pattern-repeat` and `pattern-path`.
 
@@ -987,8 +1009,7 @@ A node must have the parts that the reader reads from it. A node without one is 
 
 | rule | parts |
 | --- | --- |
-| the root | no part. Each known part is an item: a `directive`, a `prefer-directive`, a `rule`, a `constant-definition`, a `classifier` or an `implication-declaration`. Any other known part is an error |
-| `prefer-directive` | two `reference` parts, read in preferred-first order |
+| the root | no part. Each known part is an item: a `directive`, a `rule`, a `constant-definition`, a `classifier` or an `implication-declaration`. Any other known part is an error |
 | `directive` | a token, its keyword. Its operands are its `argument-word`, `argument-string` and `argument-tag` parts |
 | `argument-word`, `argument-string`, `classifier-name`, `classifier-key`, `classifier-operator`, `classifier-class`, `constant-definer`, `constant-reference`, `definer`, `rule-flag`, `rule-name`, `guard`, `reference`, `tag`, `character`, `phoneme`, `property`, `string`, `name`, `presence`, `capture-reference`, `comparator`, `call` | a token. For a `call`, it is the function's name, and the `argument` parts are its arguments |
 | `argument-tag`, `emit-target` | a first part that is a token, a `range` or a `property` |
@@ -998,9 +1019,11 @@ A node must have the parts that the reader reads from it. A node without one is 
 | `constant-definition` | a `constant-definer`, a `constant-reference` and a `term` |
 | `rule` | a `definer`, an optional `rule-flags`, a `rule-name` and a `body` |
 | `rule-flags` | one or more `rule-flag` |
-| `body` | one or more `alternative` |
+| `body` | one or more `alternative`, or one `ranked-alternative` |
 | `alternative` | a `conjunction` |
-| `choice`, `conjunction`, `sequence` | one or more `conjunction`, `sequence` and `primary` in turn |
+| `ranked-alternative` | a `ranked-choice` |
+| `ranked-choice` | at least two `conjunction` parts |
+| `choice`, `ranked-choice`, `conjunction`, `sequence` | one or more `conjunction`, `sequence` and `primary` in turn |
 | `primary` | one known part: a `reference`, `tag`, `character`, `phoneme`, `range`, `property`, `tested`, `capture`, `group`, `optional`, `repetition`, `empty` or `constant-reference` |
 | `repetition` | one or more `choice`. The reader reads the first two. A `...` token among its parts is a marker |
 | `range` | two `character` |
@@ -1124,8 +1147,8 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - An attachment on a `$` item or on an inserted tag is an error, reported at the item. Only a named capture carries attachments. So a constituent never attaches to itself.
 - A capture other than `$` named twice in one emission, as an item or as an attachment, is an error. So an attachment capture is never an item of its own.
 - A rule's or an alternative's tag term that reads the tags that it defines is an error: `tags($)` or `classes($)` in it. `tags(head($))` and the like read the tokens' tags, not the constituent's, and are allowed, as is `tags($, R)`.
-- An unknown directive or keyword is an error. The syntax grammar already refuses it.
-- A directive with the wrong operands is an error, reported at the directive. `%stage` takes one name, `%include` one string, and `%features` one or more names. `%prefer` takes two rule names separated by `>`. `%ambiguity-resolution` takes a ranking name and optionally `elision-only`. The retired operand `maximal` is an error. `%elidable` is no directive, and the syntax grammar refuses it as an unknown keyword.
+- An unknown directive or keyword is an error. The syntax grammar already refuses it. The retired `%prefer` directive points to ranked choices.
+- A directive with the wrong operands is an error, reported at the directive. `%stage` takes one name, `%include` one string, and `%features` one or more names. `%ambiguity-resolution` takes a ranking name and optionally `elision-only`. The retired operand `maximal` is an error. `%elidable` is no directive, and the syntax grammar refuses it as an unknown keyword.
 
 Once the reader reads a definition (§2), it makes sure that the whole definition meets its requirements. These checks are about the productions of the definition's alternatives, the expansions of §3.2 with the captures of §3.5. Gates do not matter here, so every alternative counts. Two expansions of one alternative that read the same captures in the same order are one case for these checks. So the reader can decide them over the distinct sequences of captures that the expansions read, without listing the expansions.
 
@@ -1154,13 +1177,14 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - A rule lacks `flags`, or its value is neither `[]` nor `["leftmost-longest"]`. An `extend` rule must have `[]`.
 - It has an expression, a term or a condition with members of two forms, or with a member that its form lacks (`docs/output.md`).
 - It has a `ref` that is not a name or `#`.
+- It has a `ranked` value that is not an array of at least two expressions. Report `ranked-choice-syntax`.
 - It has a `repeat` with a `chain` other than `left` or `right`, or with a `chain` that is not the whole `expr` of an alternative. A `repeat` with a `min` member is malformed too, since the form has no such member.
 - It has an `optional` with an `elidable` or a `maximal` member whose value is not `true`, or with `maximal` and no `elidable`. It has an elidable `optional` whose expression the reader refuses (above).
 - It has a capture that the reader refuses. That is one that wraps anything but a symbol, or one inside a `repeat` or inside an elidable `optional`. It is also a name that some expansion of an alternative holds twice (above), or a name that is not all lower case.
 - It has an emission with a member other than `items`.
 - It has a guard of an alternative whose feature is not a name, or that has a member other than its feature, its kind and whether it is negated.
-- It has a directive whose name is not `ambiguity-resolution`, `prefer`, `stage`, `include` or `features`. So a directive named `elidable` is malformed.
-- It has an `ambiguity-resolution`, `prefer`, `stage`, `include` or `features` directive whose operands the reader refuses.
+- It has a directive whose name is not `ambiguity-resolution`, `stage`, `include` or `features`. So a directive named `elidable` is malformed.
+- It has an `ambiguity-resolution`, `stage`, `include` or `features` directive whose operands the reader refuses.
 - It has a `maximal` member on a directive. No directive has that member.
 - It has a test that the reader refuses. That is a test after anything but a reference other than `#` or a terminal, or an unknown comparator. It is also a value that is not a closed term of the right type. It is also a string that holds a comma or that the lowercase mapping of the canonical sound changes.
 - It has a `terminal`, a `tag` or an inserted tag that is not a tag in its canonical spelling (§1).

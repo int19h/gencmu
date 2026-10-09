@@ -1,5 +1,5 @@
 """The earliest qualifying option in each explicit, written slot."""
-from ._slots import SlotAdmission
+from ._ranked_facts import RankedFacts
 from ._rank import Summaries
 from ._ranked_frame import written_prefix
 from ._earley import RESTORE
@@ -19,7 +19,7 @@ def ancestry(forest,scope):
     return (frames,bounds)
 
 
-class RankedAdmission(SlotAdmission):
+class RankedAdmission(RankedFacts):
     def __init__(self,forest,maximal,check=False):
         Summaries.__init__(self,forest,maximal)
         self.check = check

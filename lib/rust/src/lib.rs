@@ -55,7 +55,6 @@ mod notation;
 mod output;
 mod patterns;
 mod pipeline;
-mod preferences;
 mod rank;
 mod ranked;
 mod recent;
@@ -69,11 +68,11 @@ mod work;
 
 pub use dialect::{Dialect, Feature, InputToken, ParseOptions};
 pub use dom::FeatureKind;
-pub use error::{Error, ErrorKind};
+pub use error::{Error, ErrorKind, GroupSite, RankedDiagnostic};
 pub use grammar::{Change, FlagChange};
+pub use json::Json as GrammarValue;
 pub use loader::{load_dialect, load_dialect_file, load_dialect_sources};
 pub use output::{node_to_json, to_brackets, to_json};
-pub use preferences::{LoadWarning, ReferenceSite};
 pub use result::{
     Action, AmbiguityReason, Attachment, ErrorCode, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult,
     Restoration, Stage, Tags, Token, Verdict, Warning,

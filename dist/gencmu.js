@@ -1676,6 +1676,24 @@
       this.name = "GencmuError";
       this.kind = kind;
       this.where = where || {};
+      this.code = this.where.code;
+      this.group = this.where.group;
+      this.option = this.where.option;
+      this.expression = this.where.expression;
+      this.inheritance = this.where.inheritance;
+    }
+
+    // Loading diagnostics have their own canonical schema.
+    toJSON() {
+      return {
+        kind: this.kind,
+        ...(this.code === undefined ? {} : {code:this.code}),
+        message: this.message,
+        ...(this.group === undefined ? {} : {group:this.group}),
+        ...(this.option === undefined ? {} : {option:this.option}),
+        ...(this.expression === undefined ? {} : {expression:this.expression}),
+        ...(this.inheritance === undefined ? {} : {inheritance:this.inheritance}),
+      };
     }
   }
 
@@ -2105,402 +2123,6 @@
     return witnesses.filter((witness) => eligible[at(witness)]);
   }
 
-  // ---- preferences.js
-  // Sealed slot declarations, template validation and the local tag closure.
-
-
-
-  /** @typedef {{document: string, at: [number, number], rule: string, alternative: number, path: string}} ReferenceSite */
-  /** @typedef {{kind: string, stage: string, rule?: string, higher?: string, lower?: string, container?: string, contained?: string, references: ReferenceSite[], message: string}} LoadWarning */
-  /** @typedef {{higher: string, lower: string, at: import("./types.js").ErrorLocation}} PreferenceDeclaration */
-
-  /** @typedef {ReferenceSite & {expression: any, source: import("./grammar.js").StitchedAlternative}} RankedReference */
-  /** @typedef {{id: number, names: Set<string>, parent: string, references: RankedReference[]}} SlotComponent */
-  /** @typedef {{component: SlotComponent, reference: RankedReference, roles: Map<string,string>, holeNames: Set<string>, paths: WeakMap<object,string>, body: any}} SlotVariant */
-
-  class Preferences {
-    /** @param {string} stage @param {Map<string, import("./grammar.js").StitchedRule>} rules @param {PreferenceDeclaration[]} declarations */
-    constructor(stage, rules, declarations) {
-      /** @type {Map<string, Map<string, string[]>>} */
-      this.paths = new Map();
-      this.declarations = declarations;
-      /** @type {Map<string, Set<string>>} */
-      const edges = new Map();
-      for (const { higher, lower, at } of declarations) {
-        for (const name of [higher, lower]) {
-          if (/^[A-Z]/.test(name) || !rules.has(name)) throw new GencmuError("grammar", `%prefer requires an existing rule: ${name}`, at);
-          if (!edges.has(name)) edges.set(name, new Set());
-        }
-        if (higher === lower) throw new GencmuError("grammar", `%prefer cannot prefer ${higher} to itself`, at);
-        slotRequired(edges, higher).add(lower);
-      }
-      this.names = new Set(edges.keys());
-      // Breadth-first traversal gives shortest paths, with code point ties.
-      for (const start of [...edges.keys()].sort(compareCodePoints)) {
-        const found = new Map();
-        const queue = [[start]];
-        for (let i = 0; i < queue.length; i++) {
-          const path = queue[i];
-          for (const next of [...slotRequired(edges, path[path.length - 1])].sort(compareCodePoints)) {
-            if (next === start) {
-              const cycle = [...path, next];
-              const locations = cycle.slice(1).map((name, j) => {
-                const edge = /** @type {PreferenceDeclaration} */ (declarations.find((entry) => entry.higher === cycle[j] && entry.lower === name));
-                return `${edge.at.document}:${edge.at.line}:${edge.at.column}`;
-              });
-              throw new GencmuError("grammar", `preference cycle: ${cycle.join(" > ")} (${locations.join(", ")})`, /** @type {PreferenceDeclaration} */ (declarations.find((d) => d.higher === start)).at);
-            }
-            if (!found.has(next)) {
-              const reached = [...path, next];
-              found.set(next, reached);
-              queue.push(reached);
-            }
-          }
-        }
-        this.paths.set(start, found);
-      }
-      this.warnings = [];
-      /** @type {Map<string, SlotComponent>} */
-      this.byName = new Map();
-      /** @type {Map<import("./grammar.js").StitchedAlternative, SlotVariant>} */
-      this.variants = new Map();
-      /** @type {SlotComponent[]} */
-      this.components = [];
-      /** @type {Map<string,SlotVariant>} */
-      this.ruleVariants = new Map();
-      /** @type {Map<import("./grammar.js").StitchedAlternative,Map<number,SlotVariant>>} */
-      this.sourceVariants = new Map();
-      this.helperExpressions = new Map();
-      this.hasHelperSlots = false;
-      if (this.names.size === 0) return;
-      /** @type {Map<string, RankedReference[]>} */
-      const sites = new Map([...this.names].map(name => [name, []]));
-      for (const rule of rules.values()) rule.alternatives.forEach((alternative, index) => {
-        slotVisit(alternative.expr, "", (expr, path) => {
-          if (expr.ref && sites.has(expr.ref)) slotRequired(sites, expr.ref).push({ ...slotSite(rule.name, alternative, index, path), expression: expr, source: alternative });
-        });
-      });
-      for (const [name, references] of sites) {
-        if (references.length !== 1) this.fail("prefer-slot-multiple-references", name, {references}, `Rule ${name} requires exactly one written reference site.`);
-      }
-      const seen = new Set();
-      for (const start of this.names) {
-        if (seen.has(start)) continue;
-        const names = new Set([start]), pending = [start];
-        for (let name = pending.pop(); name !== undefined; name = pending.pop()) {
-          seen.add(name);
-          for (const other of this.names) if ((edges.get(name)?.has(other) || edges.get(other)?.has(name)) && !names.has(other)) {
-            names.add(other); pending.push(other);
-          }
-        }
-        const references = [...names].map(name => slotRequired(sites, name)[0]);
-        const parent = references[0].rule;
-        if (references.some(reference => reference.rule !== parent)) this.fail("prefer-slot-parent", start, {references, parent}, "Ranked references require one common parent.");
-        /** @type {SlotComponent} */
-        const component = {id: this.components.length, names, parent, references};
-        this.components.push(component);
-        let common;
-        for (const name of names) {
-          const reference = slotRequired(sites, name)[0];
-          const variant = this.template(reference, component);
-          const template = JSON.stringify(variant.body);
-          if (common !== undefined && common !== template) this.fail("prefer-slot-template", name, {references, parent, expression: reference.path}, "The parent bodies differ outside the ranked hole.");
-          common = template;
-          this.byName.set(name, component);
-          this.ruleVariants.set(name, variant);
-          this.variants.set(reference.source, variant);
-          let variants = this.sourceVariants.get(reference.source);
-          if (!variants) this.sourceVariants.set(reference.source, variants = new Map());
-          variants.set(component.id, variant);
-        }
-      }
-    }
-
-    /** @param {string} code @param {string} name @param {any} fields @param {string} message @returns {never} */
-    fail(code, name, fields, message) {
-      const declaration = /** @type {PreferenceDeclaration} */ (this.declarations.find(d => d.higher === name || d.lower === name));
-      if (fields.references) fields.references = fields.references.map((/** @type {ReferenceSite} */ {document,at,rule,alternative,path}) => ({document,at,rule,alternative,path}));
-      throw new GencmuError("grammar", `${code}: ${message}`, { ...declaration.at, code, declaration: {higher: declaration.higher, lower: declaration.lower}, ...fields });
-    }
-
-    /** @param {RankedReference} reference @param {SlotComponent} component @returns {SlotVariant} */
-    template(reference, component) {
-      const roles = new Map(), paths = new WeakMap();
-      /** @type {(expr: any, path: string) => any} */
-      const normalize = (expr, path) => {
-        paths.set(expr, path);
-        if (expr.choice) {
-          const branch = expr.choice.find((/** @type {any} */ child) => slotContainsDeep(child, reference.expression));
-          if (branch) return normalize(branch, path);
-        }
-        if (expr.capture) {
-          const hole = slotContainsReference(expr.expr, reference.expression);
-          roles.set(expr.capture, hole ? "hole" : path);
-          const inner = normalize(expr.expr, `${path}/expr`);
-          return hole ? inner : {capture: path, expr: inner};
-        }
-        if (expr.test && slotContainsReference(expr.expr, reference.expression)) return normalize(expr.expr, `${path}/expr`);
-        if (expr === reference.expression) return {hole: true};
-        /** @type {any} */
-        /** @type {any} */
-    const result = {};
-        for (const [key, value] of Object.entries(expr)) {
-          if (key === "at") continue;
-          if (["seq", "choice", "and"].includes(key)) result[key] = value.map((/** @type {any} */ child, /** @type {number} */ index) => normalize(child, `${path}/${key}/${index}`));
-          else if (["expr", "optional", "repeat", "separator"].includes(key)) result[key] = normalize(value, `${path}/${key}`);
-          else result[key] = slotCanonical(value);
-        }
-        return result;
-      };
-      const body = normalize(reference.source.expr, "");
-      const holeNames = new Set([...roles].filter(([,role]) => role === "hole").map(([name]) => name));
-      // Inspect exports before per-production absent-carrier pruning.
-      if (slotMentions(reference.source.clauses.emit, holeNames)) this.fail("prefer-slot-template", reference.expression.ref,
-        {parent: component.parent, references: component.references, expression: "emits"}, "An emission item cannot name or read a ranked hole capture.");
-      return {component, reference, roles, holeNames, paths, body};
-    }
-
-    /** @param {import("./types.js").Production[]} productions */
-    validate(productions) {
-      if (!this.names.size) return;
-      this.helperExpressions = new Map(productions.filter(p=>p.helper).map(p=>[p.lhs,p.writtenExpression]));
-      this.hasHelperSlots = productions.some(p=>p.helper && p.rhs.some(s=>this.names.has(s.name)));
-      const unsafe = new Set(), users = new Map();
-      /** @type {(name: string) => void} */
-      const mark = name => { unsafe.add(name); };
-      for (const p of productions) {
-        const terms = p.writtenTags;
-        if (terms?.length) {
-          if (terms.some(term => !slotLiteralEmpty(term))) mark(p.lhs);
-        } else if (p.rhs.length === 1) {
-          const symbol = p.rhs[0];
-          if (symbol.terminal) mark(p.lhs);
-          else {
-            const list = users.get(symbol.name) ?? []; list.push(p.lhs); users.set(symbol.name, list);
-          }
-        }
-      }
-      const pending = [...unsafe.keys()];
-      for (let i=0;i<pending.length;i++) for (const parent of users.get(pending[i]) ?? []) {
-        if (!unsafe.has(parent)) { mark(parent); pending.push(parent); }
-      }
-      for (const component of this.components) {
-        const signatures = new Map();
-        const gates = [];
-        for (const p of productions) {
-          const variant = this.variant(p, component);
-          if (!variant || variant.component !== component) continue;
-          const hole = p.rhs.findIndex(symbol => component.names.has(symbol.name) || slotContainsDeep(this.helperExpressions.get(symbol.name) ?? {}, variant.reference.expression));
-          const direct = hole !== -1;
-          const boundary = hole < 0 ? false : component.names.has(p.rhs[hole].name) || slotEndsAtHole(this.helperExpressions.get(p.rhs[hole].name), variant.reference.expression);
-          const holeNames = new Set(p.captures.filter(capture => capture.index === hole).map(capture => capture.name));
-          // The implicit unary capture also reads the private constituent tags.
-          const actualHole = direct && component.names.has(p.rhs[hole].name);
-          const privateNames = new Set([...variant.holeNames, ...(actualHole ? holeNames : [])]);
-          const privateTags = new Set([...privateNames, ...(direct && unsafe.has(p.rhs[hole].name) ? holeNames : [])]);
-          /** @type {(value: any) => any} */
-          const normalize = value => slotCanonical(value, variant.roles, p, hole);
-          /** @type {(condition: import("./types.js").ReadyCondition) => boolean} */
-          const ready = condition => direct && (condition.readyAt < hole || condition.readyAt === hole && boundary);
-          const commonConditions = [];
-          const candidateGates = [];
-          for (const condition of p.conditions) {
-            if (slotStructuralRead(condition.condition, privateNames) && !ready(condition)) this.fail("prefer-slot-continuation", variant.reference.expression.ref,
-              {parent:component.parent, references:component.references, expression:normalize(condition.condition)}, "A private hole pattern requires a ready condition gate.");
-            if (slotTagRead(condition.condition, privateTags) && !ready(condition)) this.requireEmpty(component, unsafe, condition.condition, productions);
-            if (ready(condition)) candidateGates.push(normalize(condition.condition));
-            else commonConditions.push(normalize(condition.condition));
-          }
-          for (const term of p.writtenTags ?? []) {
-            if (slotStructuralRead(term, privateNames)) this.fail("prefer-slot-continuation", variant.reference.expression.ref,
-              {parent:component.parent, references:component.references, expression:normalize(term)}, "A tag term cannot read private hole structure.");
-            if (slotTagRead(term, privateTags)) this.requireEmpty(component, unsafe, term, productions);
-          }
-          if (!p.helper && !p.writtenTags?.length && p.rhs.length === 1 && direct && (component.names.has(p.rhs[hole].name) || unsafe.has(p.rhs[hole].name))) this.requireEmpty(component, unsafe, {inherit: true}, productions);
-          const key = JSON.stringify({
-            role:p.helper ? variant.paths.get(/** @type {object} */ (p.writtenExpression)) : "written-parent",
-            symbols:p.rhs.map((symbol,index) => index === hole ? {hole:true} : {name:slotSymbolRole(symbol, variant, this.helperExpressions), terminal:symbol.terminal, test:normalize(symbol.test)}),
-            captures:p.captures.filter(capture => capture.index !== hole && capture.name !== "\u0000child").map(capture => ({name:variant.roles.get(capture.name), index:capture.index})),
-          });
-          const signature = JSON.stringify({tags:normalize(p.writtenTagClauses), emit:normalize(p.emit)});
-          const previous = signatures.get(key);
-          if (previous !== undefined && previous !== signature) this.fail("prefer-slot-template", variant.reference.expression.ref,
-            {parent:component.parent, references:component.references, expression:"clauses"}, "The effective parent tag, emission or continuation clauses differ.");
-          signatures.set(key, signature);
-          if (direct) gates.push({p, variant, commonConditions, candidateGates, normalize, hole, key});
-        }
-        // A condition that differs across variants cannot remain after the hole.
-        const byTemplate = new Map();
-        for (const entry of gates) {
-          const conditions = JSON.stringify(entry.commonConditions);
-          const previous = byTemplate.get(entry.key);
-          if (previous !== undefined && previous !== conditions) this.fail("prefer-slot-continuation", entry.variant.reference.expression.ref,
-            {parent:component.parent, references:component.references, expression:entry.commonConditions}, "Differing conditions must be ready at the ranked hole boundary.");
-          byTemplate.set(entry.key, conditions);
-        }
-      }
-    }
-
-    /** @param {import("./types.js").Production} p @param {SlotComponent} component @returns {SlotVariant | undefined} */
-    variant(p, component) {
-      for (const symbol of p.rhs) {
-        const variant = this.ruleVariants.get(symbol.name);
-        if (variant?.component === component) return variant;
-      }
-      for (const reference of component.references) if (reference.source === p.source) {
-        const variant = this.ruleVariants.get(reference.expression.ref);
-        if (p.rhs.some(symbol => slotContainsDeep(this.helperExpressions.get(symbol.name) ?? {}, reference.expression))) return variant;
-      }
-      // Inline choices also lower neutral branches. A helper belongs to
-      // a variant only when that variant records its written expression.
-      /** @param {SlotVariant} variant */
-      const ownsHelpers = variant => (!p.helper || !!p.writtenExpression && variant.paths.has(p.writtenExpression)) &&
-        p.rhs.every(symbol => !this.helperExpressions.has(symbol.name) || variant.paths.has(this.helperExpressions.get(symbol.name)));
-      const fallback = p.source && this.sourceVariants.get(p.source)?.get(component.id);
-      if (fallback && ownsHelpers(fallback)) return fallback;
-      for (const reference of component.references) if (reference.source === p.source) {
-        const variant = /** @type {SlotVariant} */ (this.ruleVariants.get(reference.expression.ref));
-        if (ownsHelpers(variant)) return variant;
-      }
-      return undefined;
-    }
-
-    /** @param {SlotComponent} component @param {Set<string>} unsafe @param {any} expression @param {import("./types.js").Production[]} productions */
-    requireEmpty(component, unsafe, expression, productions) {
-      for (const name of component.names) if (unsafe.has(name)) this.fail("prefer-slot-tags", name,
-        {parent:component.parent, references:component.references, expression:slotCanonical(expression), inheritance:slotInheritancePath(name,unsafe,productions)}, "Private hole tags are neither dead nor provably empty.");
-    }
-  }
-
-  /** @param {import("./types.js").GrammarSymbol} symbol @param {SlotVariant} variant @param {Map<string, object | undefined>} helpers */
-  function slotSymbolRole(symbol, variant, helpers) {
-    if (!helpers.has(symbol.name)) return symbol.name;
-    const expression = helpers.get(symbol.name);
-    const path = expression && variant.paths.get(expression);
-    if (path === undefined) throw new Error("A slot helper requires its written expression path.");
-    return `${variant.reference.rule}:${path}`;
-  }
-
-  /** @param {any} expr @param {any} reference @returns {boolean} */
-  function slotContainsReference(expr, reference) {
-    if (expr === reference) return true;
-    return expr.expr ? slotContainsReference(expr.expr, reference) : false;
-  }
-
-  /** @param {any} value @param {Map<string,string>} [roles] @param {import("./types.js").Production | null} [production] @param {number} [hole] @returns {any} */
-  function slotCanonical(value, roles = new Map(), production = null, hole = -1) {
-    if (value?.const && value.value !== undefined) return slotCanonical(value.value, roles, production, hole);
-    if (value?.set instanceof Set) {
-      const tags=[...value.set].sort(compareCodePoints).map(tag=>({tag}));
-      return tags.length===0 ? {emptySet:true} : tags.length===1 ? tags[0] : {union:tags};
-    }
-    if (value instanceof Set) return {set:[...value].sort(compareCodePoints)};
-    if (Array.isArray(value)) return value.map(child => slotCanonical(child, roles, production, hole));
-    if (!value || typeof value !== "object") return value;
-    /** @type {any} */
-    const result = {};
-    for (const [key, child] of Object.entries(value)) {
-      if (key === "at" || key === "source" || key === "document") continue;
-      if (key === "capture" || key === "captured") result[key] = child === "" ? "" : roles.get(child) ?? child;
-      else if (key === "before" || key === "after") result[key] = child.map((/** @type {string} */ name) => roles.get(name) ?? name);
-      else result[key] = slotCanonical(child, roles, production, hole);
-    }
-    return result;
-  }
-
-  /** @param {any} value @param {Set<string>} names @returns {boolean} */
-  function slotMentions(value, names) {
-    if (!value || typeof value !== "object") return false;
-    if (typeof value.capture === "string" && names.has(value.capture)) return true;
-    if (typeof value.captured === "string" && names.has(value.captured)) return true;
-    if ((value.before ?? []).some((/** @type {string} */ name) => names.has(name)) || (value.after ?? []).some((/** @type {string} */ name) => names.has(name))) return true;
-    return Object.values(value).some(child => Array.isArray(child) ? child.some(part => slotMentions(part, names)) : slotMentions(child, names));
-  }
-
-  /** @param {any} value @param {Set<string>} names @returns {boolean} */
-  function slotStructuralRead(value, names) {
-    if (!value || typeof value !== "object") return false;
-    if ((value.op === "≅" || value.op === "≇") && slotMentions(value.left, names)) return true;
-    return Object.values(value).some(child => Array.isArray(child) ? child.some(part => slotStructuralRead(part, names)) : slotStructuralRead(child, names));
-  }
-
-  /** @param {any} value @param {Set<string>} names @returns {boolean} */
-  function slotTagRead(value, names) {
-    if (!value || typeof value !== "object") return false;
-    if (["tags", "classes"].includes(value.call) && value.args.length === 1 && names.has(value.args[0]?.capture)) return true;
-    return Object.values(value).some(child => Array.isArray(child) ? child.some(part => slotTagRead(part, names)) : slotTagRead(child, names));
-  }
-
-  /** @param {any} value @returns {boolean} */
-  function slotLiteralEmpty(value) {
-    if (value?.const && value.value !== undefined) return slotLiteralEmpty(value.value);
-    return value?.emptySet === true || value?.set instanceof Set && value.set.size === 0;
-  }
-
-  /** @param {any} expr @param {string} path @param {(expr: any, path: string) => void} call */
-  function slotVisit(expr, path, call) {
-    call(expr, path);
-    for (const key of ["seq", "choice", "and"]) if (expr[key]) expr[key].forEach((/** @type {any} */ child, /** @type {number} */ i) => slotVisit(child, `${path}/${key}/${i}`, call));
-    for (const key of ["expr", "optional", "repeat", "separator"]) if (expr[key]) slotVisit(expr[key], `${path}/${key}`, call);
-  }
-
-  /** @param {string} rule @param {import("./grammar.js").StitchedAlternative} alternative @param {number} index @param {string} path @returns {ReferenceSite} */
-  function slotSite(rule, alternative, index, path) {
-    return { document: alternative.document, at: [/** @type {number} */ (alternative.at.line), /** @type {number} */ (alternative.at.column)], rule, alternative: index, path };
-  }
-  /** @template K, V @param {Map<K, V>} map @param {K} key @returns {V} */
-  function slotRequired(map, key) {
-    const value = map.get(key);
-    if (value === undefined) throw new Error(`Missing preference graph entry: ${key}`);
-    return value;
-  }
-
-  /** @param {any} expr @param {any} reference @returns {boolean} */
-  function slotContainsDeep(expr, reference) {
-    let found = false;
-    slotVisit(expr, "", node => { if (node === reference) found = true; });
-    return found;
-  }
-
-  // The worklist proves emptiness. Only a failed closure needs a diagnostic
-  // walk, which follows productions in source order instead of seed arrival.
-  /** @param {string} name @param {Set<string>} unsafe @param {import("./types.js").Production[]} productions @returns {any[]} */
-  function slotInheritancePath(name,unsafe,productions) {
-    /** @type {Map<string,import("./types.js").Production[]>} */
-    const byRule = new Map();
-    for (const p of productions) {const list=byRule.get(p.lhs)??[];list.push(p);byRule.set(p.lhs,list);}
-    const visited = new Set();
-    /** @type {{rule?:string,end?:boolean,path:any}[]} */
-    const stack = [{rule:name,path:null}];
-    while (stack.length) {
-      const part = stack.pop();
-      if (!part) break;
-      if (part.end) {const path=[];for(let step=part.path;step;step=step.parent) path.push(step.value);return path.reverse();}
-      if (visited.has(part.rule)) continue;
-      visited.add(part.rule);
-      for (const p of [...(byRule.get(part.rule??"")??[])].reverse()) {
-        if (p.writtenTags?.some(term=>!slotLiteralEmpty(term))) stack.push({end:true,path:{parent:part.path,value:{rule:p.lhs,expression:"tags",source:p.source?.at}}});
-        else if (!p.writtenTags?.length && p.rhs.length===1) {
-          const symbol=p.rhs[0];
-          if (symbol.terminal) stack.push({end:true,path:{parent:part.path,value:{rule:p.lhs,terminal:symbol.name,source:p.source?.at}}});
-          else if (unsafe.has(symbol.name)) stack.push({rule:symbol.name,path:{parent:part.path,value:{rule:p.lhs}}});
-        }
-      }
-    }
-    throw new Error("An unsafe tag source requires an inheritance path.");
-  }
-
-  /** @param {any} expr @param {any} reference @returns {boolean} */
-  function slotEndsAtHole(expr, reference) {
-   if (expr === reference) return true;
-   if (!expr) return false;
-   if (expr.expr) return slotEndsAtHole(expr.expr, reference);
-   if (expr.optional) return slotEndsAtHole(expr.optional, reference);
-   if (expr.seq) return slotEndsAtHole(expr.seq.at(-1), reference);
-   if (expr.choice) return expr.choice.some((/** @type {any} */ child)=>slotEndsAtHole(child, reference));
-   return false;
-  }
-
   // ---- unicode.js
   // The character data of grammars/unicode.txt: the General_Category of a
   // character, the White_Space property, and the simple lowercase mapping, the
@@ -2707,7 +2329,7 @@
   const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈", "≅", "≇"]);
   const DOM_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
   // The directives of the notation (engine §9).
-  const DIRECTIVE_NAMES = new Set(["ambiguity-resolution", "prefer", "stage", "include", "features"]);
+  const DIRECTIVE_NAMES = new Set(["ambiguity-resolution", "stage", "include", "features"]);
   // A capture's name is all lower case (engine §9).
   const CAPTURE_NAME = /^[a-z][a-z0-9-]*$/;
   // The nesting the notation allows (engine §9): deeper than any grammar a
@@ -2902,7 +2524,6 @@
       // The operands the notation's syntax allows these directives (engine §9).
       const args = /** @type {string[]} */ (directive.args);
       if ((directive.name === "stage" && !(args.length === 1 && DOM_NAME.test(args[0]))) ||
-          (directive.name === "prefer" && !(args.length === 2 && args.every((arg) => arg === "#" || DOM_NAME.test(arg)))) ||
           (directive.name === "include" && args.length !== 1) ||
           (directive.name === "features" && !(args.length > 0 && args.every((arg) => DOM_NAME.test(arg))))) return "a malformed directive";
     }
@@ -2985,7 +2606,7 @@
       /** @type {(list: unknown, least: number, most?: number) => boolean} */
       const list = (items, least, most = Infinity) => Array.isArray(items) && items.length >= least && items.length <= most;
       // An expression has exactly the members of one form (docs/output.md).
-      if (kind === "expr" && !hasOneForm(value, EXPRESSION_FORMS)) return "a malformed expression";
+      if (kind === "expr" && !hasOneForm(value, EXPRESSION_FORMS)) return "ranked" in value ? "ranked-choice-syntax: A ranked expression has only its ranked array." : "a malformed expression";
       // A place inside braces or an elidable optional holds no capture, at
       // any depth (engine §3.5).
       /** @type {(child: unknown, sealed?: boolean) => void} */
@@ -2995,7 +2616,7 @@
           if (!isCharacterClass(value, unicode)) return "a malformed expression";
         } else if ("choice" in value || "ranked" in value || "seq" in value) {
           const items = value.choice ?? value.ranked ?? value.seq;
-          if (!list(items, 2)) return "a malformed expression";
+          if (!list(items, 2)) return "ranked" in value ? "ranked-choice-syntax: A ranked expression requires at least two operands." : "a malformed expression";
           for (const item of /** @type {unknown[]} */ (items)) pushExpr(item);
         } else if ("and" in value) {
           if (!list(value.and, 2, 16)) return "a malformed expression";
@@ -4663,15 +4284,25 @@
     /** @type {{expr:object,at:[number,number]}[]} */
     const locations = [];
     let index = 0;
-    /** @param {any} expr */
-    const visit = expr => {
-      if (expr.ranked) {
-        visit(expr.ranked[0]);
-        if (index < separators.length) locations.push({expr,at:positionOf(separators[index])});
-        for (let option = 1; option < expr.ranked.length; option++) {index++;visit(expr.ranked[option]);}
-      } else for (const [child] of rankedExpressionChildren(expr)) visit(child);
-    };
-    for (const rule of dom.rules) for (const alternative of rule.alternatives) visit(alternative.expr);
+    for (const rule of dom.rules) for (const alternative of rule.alternatives) {
+      const pending = [{expr:alternative.expr,action:0}];
+      while (pending.length) {
+        const item = pending.pop();
+        if (!item) break;
+        const {expr,action} = item;
+        if (action === 1) {
+          if (index < separators.length) locations.push({expr,at:positionOf(separators[index])});
+        } else if (action === 2) index++;
+        else if ("ranked" in expr) {
+          for (let option = expr.ranked.length - 1; option > 0; option--) {
+            pending.push({expr:expr.ranked[option],action:0},{expr,action:2});
+          }
+          pending.push({expr,action:1},{expr:expr.ranked[0],action:0});
+        } else {
+          for (const [child] of rankedExpressionChildren(expr).reverse()) pending.push({expr:child,action:0});
+        }
+      }
+    }
     // A caller can supply a DOM unrelated to the source, with no locations.
     if (index === separators.length) for (const {expr,at} of locations) rankedLocations.set(expr,at);
   }
@@ -4735,7 +4366,13 @@
         };
         visit(source.expr, "", true, null);
       });
-      this.validateClauses();
+      this.clauseErrors = new Map();
+      for (const group of this.groups) {
+        try {this.validateClauses(group);} catch (error) {
+          if (!(error instanceof GencmuError)) throw error;
+          this.clauseErrors.set(group,error);
+        }
+      }
     }
 
     /** @param {RankedGroup} group @param {string} code @param {string} message @param {any} [fields] @returns {never} */
@@ -4752,9 +4389,8 @@
       });
     }
 
-    validateClauses() {
-      // The first offending written group determines the diagnostic.
-      for (const group of this.groups) {
+    /** @param {RankedGroup} group */
+    validateClauses(group) {
         const source = group.source;
         const paths = rankedVirtualPaths(source.expr, this.byExpression);
         for (const path of paths) {
@@ -4780,13 +4416,11 @@
           }
           for (const term of [source.tags, source.clauses.tags]) {
             if (term === undefined) continue;
-            const effective = simplifyFor(prepareClause(term), has, names);
-            if (privateRead(effective)) this.fail(group, "ranked-choice-export", "A tag term cannot read a private ranked capture.", {option:end.option,expression:term});
+            if (privateRead(term)) this.fail(group, "ranked-choice-export", "A tag term cannot read a private ranked capture.", {option:end.option,expression:term});
           }
           // Written emission references count before absent carriers disappear.
           if (privateRead(source.clauses.emit)) this.fail(group, "ranked-choice-export", "An emission item cannot read a private ranked capture.", {option:end.option,expression:source.clauses.emit});
         }
-      }
     }
 
     /** @param {import("./types.js").Production[]} productions */
@@ -4811,6 +4445,7 @@
         if (!unsafe.has(parent.lhs)) {unsafe.add(parent.lhs);pending.push(parent.lhs);}
       }
       for (const group of this.groups) {
+        if (this.clauseErrors.has(group)) throw this.clauseErrors.get(group);
         if (!unsafe.has(group.helper)) continue;
         const outward = [group.helper], seen = new Set(outward);
         let escapes = false;
@@ -5083,7 +4718,6 @@
 
 
 
-
   /**
    * @import { Condition, ConstantTerm, DomAlternative, DomClassifier, DomConstant, DomImplication, DomRule, Emission, ErrorLocation, Expr, GrammarDom, Guard, LoweredGrammar, Production, Resolution, SymbolTest, TagSet, Term, TermValue, TestOp } from "./types.js"
    * @import { TermType } from "./dom.js"
@@ -5194,8 +4828,6 @@
       this.changes = [];
       /** @type {Resolution | null} */
       this.resolution = null;
-      /** @type {import("./preferences.js").PreferenceDeclaration[]} */
-      this.preferenceDeclarations = [];
       /**
        * The stage's `%classifier` items in stitching order, each with its
        * document (engine §2).
@@ -5231,14 +4863,11 @@
       }
       this.checkReferences();
       this.ranked = new RankedGroups(this.rules);
-      this.preferences = new Preferences(stageName, this.rules, this.preferenceDeclarations);
-      this.loadWarnings = this.preferences.warnings;
-      if (this.preferences.names.size || this.ranked.groups.length) {
+      if (this.ranked.groups.length) {
         // Validate every surviving variant without enumerating feature assignments.
         const validation = new Lowering(this, new Set());
         validation.validation = true;
         for (const rule of this.rules.values()) for (const alternative of rule.alternatives) validation.lowerAlternative(rule, alternative);
-        this.preferences.validate(validation.productions);
         this.ranked.validateTags(validation.productions);
       }
       // Slot emission checks inspect written carriers before absent ones disappear.
@@ -5308,11 +4937,6 @@
       for (const directive of dom.directives) {
         const at = { document: path, line: directive.at[0], column: directive.at[1] };
         switch (directive.name) {
-          case "prefer": {
-            if (directive.args.length !== 2) throw new GencmuError("grammar", "%prefer takes two rule names separated by >", at);
-            this.preferenceDeclarations.push({ higher: directive.args[0], lower: directive.args[1], at });
-            break;
-          }
           case "ambiguity-resolution": {
             if (this.resolution) {
               throw new GencmuError("grammar", `${path}:${at.line}: stage ${this.stageName} has a second %ambiguity-resolution`, at);
@@ -5958,8 +5582,6 @@
       this.byLhs = new Map();
       this.helperCount = 0;
       this.validation = false;
-      /** @type {Map<string, string>} */
-      this.helperRoles = new Map();
       this.helperExpressions = new Map();
       /** @type {WeakMap<SequenceItem[],{group:import("./ranked.js").RankedGroup,option:number}>} */
       this.rankedSequences = new WeakMap();
@@ -6000,7 +5622,6 @@
         byLhs: this.byLhs,
         maximalHelpers: this.maximalHelpers,
         resolution: /** @type {Resolution} */ (this.grammar.resolution),
-        preferences: this.grammar.preferences,
         ranked: this.grammar.ranked,
       };
     }
@@ -6041,15 +5662,9 @@
       }
       /** @type {Production} */
       const production = { ...fields, captureAt, captureSlot, conditionsAt, id: this.productions.length };
-      if (this.grammar.preferences?.names.size || this.grammar.ranked.groups.length) {
+      if (this.grammar.ranked.groups.length) {
         const source = this.source;
-        const variants = source && this.grammar.preferences.sourceVariants.get(source);
-        const componentRoles = new Map([...(variants || [])].map(([id, variant]) => [id, variant.roles]));
-        for (const symbol of fields.rhs) {
-          const selected = this.grammar.preferences.ruleVariants.get(symbol.name);
-          if (selected) componentRoles.set(selected.component.id, selected.roles);
-        }
-        Object.assign(production, {source, componentRoles, writtenExpression: fields.helper ? this.helperExpressions.get(fields.lhs) : source?.expr, role: this.helperRoles.get(fields.lhs) ?? fields.lhs});
+        Object.assign(production, {source, writtenExpression: fields.helper ? this.helperExpressions.get(fields.lhs) : source?.expr});
       }
       this.productions.push(production);
       let same = this.byLhs.get(production.lhs);
@@ -6354,7 +5969,7 @@
         this.helperExpression = expr;
         const name = this.helper(where, (context) => [/** @type {SequenceItem[]} */ ([]), ...this.expand(inner, context)], elided);
         if (expr.maximal === true) this.maximalHelpers.add(name);
-        return [[{ symbol: { name, terminal: false, role: this.helperRoles?.get(name) } }]];
+        return [[{ symbol: { name, terminal: false } }]];
       }
       if ("repeat" in expr) {
         // Flat braces are a helper, `h → x | h s x`, its base productions
@@ -6372,7 +5987,7 @@
           const self = [{ symbol: { name, terminal: false } }];
           return [...items, ...product(product([self], separators), items)];
         }, null);
-        return [[{ symbol: { name, terminal: false, role: this.helperRoles?.get(name) } }]];
+        return [[{ symbol: { name, terminal: false } }]];
       }
       if ("empty" in expr) return [[]];
       if ("test" in expr) {
@@ -6382,8 +5997,7 @@
         const test = this.grammar.symbolTest(expr, where.rule.document, where.rule.at);
         return [[{ symbol: { ...inner[0][0].symbol, test } }]];
       }
-      if ("ref" in expr) return [[{ symbol: { name: expr.ref, terminal: isTerminalName(expr.ref),
-        slot: this.grammar.preferences?.byName.get(expr.ref) } }]];
+      if ("ref" in expr) return [[{ symbol: { name: expr.ref, terminal: isTerminalName(expr.ref) } }]];
       if ("terminal" in expr) return [[{ symbol: { name: expr.terminal, terminal: true } }]];
       // A range or a property is a terminal whose name is its written form,
       // and which matches by its characters rather than by a tag (engine §4).
@@ -6423,12 +6037,7 @@
      */
     helper(where, build, elided) {
       const name = `${where.rule.name}·${this.helperCount++}`;
-      const variant = [...(this.grammar.preferences?.ruleVariants.values() ?? [])].find(v => v.reference.source === where.alternative && this.helperExpression && v.paths.has(this.helperExpression));
-      if ((this.grammar.preferences?.names.size || this.grammar.ranked.groups.length) && this.helperExpression) this.helperExpressions.set(name, this.helperExpression);
-      if (variant && this.helperExpression) {
-        this.helperRoles ??= new Map();
-        this.helperRoles.set(name, `${where.rule.name}:${variant.paths.get(this.helperExpression)}`);
-      }
+      if (this.grammar.ranked.groups.length && this.helperExpression) this.helperExpressions.set(name, this.helperExpression);
       where.pending.push({ name, build, elided: elided ? elided.terminal : null, elidedTest: elided ? elided.test : null });
       return name;
     }
@@ -10198,30 +9807,6 @@
   const EMPTY = { empty: true, size: 0 };
 
   /**
-   * How two derivations other than the first reading compare as the second
-   * reading (engine §6): the one that diverges earlier from the first, in
-   * visible actions, comes first, and the order T decides between two that
-   * diverge at one point. Negative where `left` comes first.
-   * @param {Rope} first
-   * @param {Rope} left
-   * @param {Rope} right
-   * @param {Lean} lean
-   * @returns {number}
-   */
-  function secondOrder(first, left, right, lean) {
-    /** @type {(other: Rope) => Count} */
-    const divergence = (other) => {
-      const difference = firstDifference(first, other, true);
-      return difference ? difference.index : Infinity;
-    };
-    const a = divergence(left);
-    const b = divergence(right);
-    if (a < b) return -1;
-    if (b < a) return 1;
-    return totalOrder(left, right, lean);
-  }
-
-  /**
    * The rope of a sequence of actions, for a derivation that no ranking
    * built: the witness hook's W(D) (tests/README.md).
    * @param {Iterable<Action>} sequence
@@ -10576,7 +10161,7 @@
        * @type {Map<Item, Set<number>> | null}
        */
       this.marks = null;
-      /** @type {import("./slots.js").SlotAdmission | import("./ranked-admission.js").RankedAdmission | null} */
+      /** @type {import("./ranked-admission.js").RankedAdmission | null} */
       this.admission = null;
     }
 
@@ -11018,7 +10603,7 @@
       const contextBelow = (frame, item) => {
         if (!this.sameSpan(frame.item, item)) return EMPTY_CONTEXT;
         if(item.slotScope && item.production.helper){
-          const helpers=/** @type {NonNullable<import("./slots.js").SlotAdmission["forest"]>} */ (this.admission?.forest).helpers;
+          const helpers=/** @type {NonNullable<import("./ranked-admission.js").RankedAdmission["forest"]>} */ (this.admission?.forest).helpers;
           const kept=new Set([...frame.context].filter(key=>!helpers.has(key.slice(1))));
           if(complete(frame.item)&&!frame.item.production.helper)kept.add(ruleKey(frame.item));
           return kept.size?kept:EMPTY_CONTEXT;
@@ -11588,12 +11173,11 @@
   // ---- slot-forest.js
   // A ranking view carries the written invocation across generated helpers.
   // Recognition keeps the original chart and its completion tables.
-
   /** @typedef {import("./types.js").Item} Item */
   /** @typedef {{id:number,frames:Item[],bounds:{carrier:Item,restricted:boolean}[],blocked:boolean}} SlotScope */
   /** @typedef {{all:Set<number>,allowed:Set<number>}} RouteMask */
-  /** @param {import("./earley.js").Chart} chart @param {{names:Set<string>,ranked?:boolean}} preferences @param {import("./maximal.js").Maximal|null} maximal */
-  function helperSlotForest(chart, preferences, maximal) {
+  /** @param {import("./earley.js").Chart} chart @param {Set<string>} names @param {import("./maximal.js").Maximal|null} maximal */
+  function helperSlotForest(chart, names, maximal) {
     const lowered = chart.context.lowered;
     const helpers = new Set(lowered.productions.filter(p => p.helper).map(p => p.lhs));
     const users = new Map();
@@ -11602,7 +11186,7 @@
       list.push(p.lhs);
       users.set(s.name, list);
     }
-    const wrapped = new Set(preferences.ranked ? [...preferences.names] : []), pending = [...preferences.names];
+    const wrapped = new Set(names), pending = [...names];
     for (let at = 0; at < pending.length; at++) for (const name of users.get(pending[at]) ?? []) {
       if (!wrapped.has(name)) { wrapped.add(name); pending.push(name); }
     }
@@ -11693,138 +11277,6 @@
     return {chart:{...chart, sets}, plain, helpers, routeMasks, rawIndices};
   }
 
-  /** @param {Item} item @param {import("./preferences.js").SlotVariant} variant @param {Map<string,object|undefined>} helpers */
-  function helperPrefixKey(item, variant, helpers) {
-    const captures = [];
-    for (let part = item.slots; part; part = part.parent) {
-      const capture = item.production.captures[part.index];
-      captures.push([variant.roles.get(capture?.name ?? "") ?? capture?.name, part.start, part.end, part.tags, part.structure]);
-    }
-    captures.reverse();
-    return [item.production.helper ? variant.paths.get(/** @type {object} */ (item.production.writtenExpression)) : "written-parent", item.origin,
-      item.production.rhs.slice(0, item.dot).map(s => [slotSymbolRole(s,variant,helpers), s.terminal, s.test]), item.prefix, captures, item.strict, item.restores];
-  }
-
-  // ---- slots.js
-
-
-  // Slot admission over raw packed edges. Counts supply finite eligible child
-  // proofs before any flag or omission ranking chooses a reading.
-  /** @typedef {{item: import("./types.js").Item, index: number, edge: Extract<import("./types.js").Edge, {kind:"complete"}>, label: string}} SlotCandidate */
-  /** @typedef {{all: Set<number>, allowed: Set<number>}} AdmissionMask */
-  class SlotAdmission {
-    /** @param {import("./earley.js").Chart} chart @param {import("./preferences.js").Preferences} preferences @param {import("./maximal.js").Maximal | null} maximal */
-    constructor(chart, preferences, maximal) {
-      this.forest = preferences.hasHelperSlots ? helperSlotForest(chart,preferences,maximal) : null;
-      const originalChart=chart;
-      chart=this.forest?.chart??chart;
-      this.preferences = preferences;
-      this.maximal = maximal;
-      /** @type {Map<string,SlotCandidate[]>} */
-      this.groups = new Map();
-      /** @type {Map<import("./types.js").Item,Map<number,SlotCandidate[]>>} */
-      this.at = new Map();
-      /** @type {{plain: Map<import("./types.js").Item,AdmissionMask>, contextual: Map<import("./types.js").Item,Map<string,AdmissionMask>>}} */
-      this.masks = {plain:new Map(), contextual:new Map()};
-      /** @type {Map<SlotCandidate[], Map<string, {all:Set<string>, allowed:Set<string>}>>} */
-      this.maxima = new Map();
-      this.stats = {chartFacts:0, groups:0, candidateEdges:0, retainedEdges:0};
-      if (!preferences.names.size) return;
-      const helpers = new Map(originalChart.context.lowered.productions.filter(p => p.helper).map(p => [p.lhs, p.writtenExpression]));
-      for (const set of chart.sets) if (set) for (const raw of set.items) {
-        const item = /** @type {import("./types.js").Item} */ (raw);
-        this.stats.chartFacts++;
-        const symbol = item.production.rhs[item.dot - 1];
-        if (!symbol?.slot || item.production.helper && !item.slotScope) continue;
-        for (const [index, edge] of item.edges.entries()) {
-          if (edge.kind !== 'complete') continue;
-          const previous = edge.previous;
-          const captures = [];
-          for (let part=previous.slots; part; part=part.parent) {
-            const capture = previous.production.captures[part.index];
-            captures.push([(previous.production.componentRoles?.get(symbol.slot.id) ?? previous.production.slotRoles)?.get(capture?.name ?? "") ?? capture?.name, part.start, part.end, part.tags, part.structure]);
-          }
-          captures.reverse();
-          const variant=/** @type {import("./preferences.js").SlotVariant} */ (preferences.ruleVariants.get(symbol.name));
-          const scope=item.slotScope;
-          const ancestry=scope?[scope.frames.map(frame=>helperPrefixKey(frame,variant,helpers)),scope.bounds.map(({carrier,restricted})=>[variant.paths.get(/** @type {object} */ (carrier.production.writtenExpression)),carrier.origin,carrier.end,restricted])]:null;
-          const key = JSON.stringify([symbol.slot.id, ancestry, item.production.role, item.origin,
-            previous.production.rhs.slice(0, previous.dot).map(s => [slotSymbolRole(s,variant,helpers), s.terminal, s.test]),
-            previous.prefix, captures, previous.strict, previous.restores, edge.child.origin, edge.child.end]);
-          let group = this.groups.get(key);
-          if (!group) this.groups.set(key, group=[]);
-          group.push({item,index,edge,label:symbol.name});
-          let choices = this.at.get(item);
-          if (!choices) this.at.set(item,choices=new Map());
-          choices.set(index,group);
-          this.stats.candidateEdges++;
-        }
-      }
-      this.stats.groups = this.groups.size;
-      if (this.forest) this.stats.chartFacts=originalChart.sets.reduce((sum,set)=>sum+(set?.items.length??0),0);
-    }
-
-    /** @param {import("./types.js").Item} item @param {string} context */
-    availabilityKey(item, context) {
-      return JSON.stringify([context, item.complete ? item.slotScope?.frames[0].production.lhs ?? item.production.lhs : null]);
-    }
-
-    /** @param {import("./types.js").Item} item @param {string} context */
-    dependencies(item, context) {
-      const choices = this.at.get(item);
-      const key = this.availabilityKey(item, context);
-      return choices ? [...new Set(choices.values())].filter(group => !this.maxima.get(group)?.has(key))
-        .flatMap(group => group.map(candidate => candidate.edge)) : [];
-    }
-
-    /** @param {import("./types.js").Item} item @param {(item: import("./types.js").Item) => {all:number,allowed:number}} dependency @param {string} context */
-    compute(item, dependency, context) {
-      const choices = this.at.get(item);
-      if (!choices) return this.forest?.routeMasks.get(item) ?? null;
-      const maximal = this.maximal;
-      const mask = {all:new Set(), allowed:new Set()};
-      const key = this.availabilityKey(item, context);
-      for (const [index,group] of choices) {
-        let contexts = this.maxima.get(group);
-        if (!contexts) this.maxima.set(group, contexts = new Map());
-        let kept = contexts.get(key);
-        if (!kept) {
-          const present = new Set(), allowed = new Set();
-          for (const candidate of group) {
-            const {edge} = candidate;
-            if (!dependency(edge.previous).all || !dependency(edge.child).all) continue;
-            present.add(candidate.label);
-            const guarded = maximal?.guards(candidate.item);
-            if (!guarded || !maximal?.forbids(edge.child, candidate.item.production.rhs[candidate.item.dot - 1].test)) allowed.add(candidate.label);
-          }
-          /** @type {(labels: Set<string>) => Set<string>} */
-          const maximalLabels = labels => new Set([...labels].filter(label => ![...labels].some(higher => this.preferences.paths.get(higher)?.has(label))));
-          kept = {all:maximalLabels(present), allowed:maximalLabels(allowed)};
-          contexts.set(key,kept);
-        }
-        const label = item.production.rhs[item.dot - 1].name;
-        if (kept.all.has(label)) mask.all.add(index);
-        if (kept.allowed.has(label)) mask.allowed.add(index);
-      }
-      if (context === '') this.masks.plain.set(item,mask);
-      else {
-        let contexts = this.masks.contextual.get(item);
-        if (!contexts) this.masks.contextual.set(item,contexts=new Map());
-        contexts.set(context,mask);
-      }
-      this.stats.retainedEdges += mask.all.size;
-      return mask;
-    }
-
-    /** @param {import("./types.js").Item} item @param {string} context */
-    mask(item, context) {
-      if (!this.at.has(item)) return this.forest?.routeMasks.get(item) ?? null;
-      const found = context === '' ? this.masks.plain.get(item) : this.masks.contextual.get(item)?.get(context);
-      if (!found) throw new Error('Slot admission requires eligible child facts before ranking.');
-      return found;
-    }
-  }
-
   // ---- ranked-admission.js
 
 
@@ -11833,7 +11285,7 @@
     /** @param {any} chart @param {any} ranked @param {any} maximal */
     constructor(chart, ranked, maximal) {
       const names = new Set(ranked.groups.map((/** @type {any} */ g) => g.helper));
-      this.forest = helperSlotForest(chart,{names,ranked:true},maximal);
+      this.forest = helperSlotForest(chart,names,maximal);
       this.maximal = maximal;
       this.groups = new Map();
       this.at = new Map();
@@ -12233,7 +11685,6 @@
 
 
 
-
   /**
    * @import { Action, Derivation, DerivationRule, ElidedNode, EmitItem, ResultNode, Scope, Span, StageReport, TagSet } from "./types.js"
    * @import { Grammar } from "./grammar.js"
@@ -12248,11 +11699,10 @@
    * @property {boolean} last whether this is the pipeline's last stage
    */
 
-  /** @param {import("./earley.js").Chart} chart @param {Token[]} tokens @param {import("./types.js").Lean} lean @param {import("./preferences.js").Preferences} preferences @param {import("./maximal.js").Maximal | null} [maximal] @param {number[] | null} [project] */
-  function slotRanker(chart, tokens, lean, preferences, maximal = null, project = null) {
+  /** @param {import("./earley.js").Chart} chart @param {Token[]} tokens @param {import("./types.js").Lean} lean @param {import("./maximal.js").Maximal | null} [maximal] @param {number[] | null} [project] */
+  function slotRanker(chart, tokens, lean, maximal = null, project = null) {
     const ranker = new Ranker(tokens, lean, maximal, project);
     if (chart.context.lowered.ranked?.groups.length) ranker.admission = new RankedAdmission(chart,chart.context.lowered.ranked,maximal);
-    else if (preferences.names.size) ranker.admission = new SlotAdmission(chart, preferences, maximal);
     return ranker;
   }
 
@@ -12302,12 +11752,12 @@
       // Maximal terminators before
       // the ranking (engine §4).
       const maximal = lowered.maximalHelpers.size > 0 ? maximalRule(chart, lowered) : null;
-      const ranking = roots.length === 0 ? null : slotRanker(chart, tokens, resolution.lean, lowered.preferences, maximal).rank(roots);
+      const ranking = roots.length === 0 ? null : slotRanker(chart, tokens, resolution.lean, maximal).rank(roots);
       if (ranking === null) {
         // A text that maximal leaves with no derivation is rejected at the
         // first terminator it forbids in the first reading, m, of the ranking
         // without maximal, whatever its verdict (engine §4).
-        const rejection = (maximal && roots.length > 0 && forbiddenTerminator(slotRanker(chart, tokens, resolution.lean, lowered.preferences).rank(roots), maximal))
+        const rejection = (maximal && roots.length > 0 && forbiddenTerminator(slotRanker(chart, tokens, resolution.lean).rank(roots), maximal))
           || rejectionOf(chart);
         report.error = {
           kind: "rejected",
@@ -12527,7 +11977,7 @@
       const walk = protectWitness ? walkWitness(run) : null;
       const watch = hooks.elisionCheck ? hooks.elisionCheck(run) : null;
       // The check's ranker: no lean, and cycles over spans of R (engine §7.7).
-      const ranker = slotRanker(chart, restored, "none", lowered.preferences, maximal, fault("F19") ? project : null);
+      const ranker = slotRanker(chart, restored, "none", maximal, fault("F19") ? project : null);
       ranker.profileProject = project;
       ranker.check = true;
       ranker.marks = protectWitness ? walk?.marks ?? null : watch?.marks ?? null;
@@ -13578,11 +13028,7 @@
     let marked = 0;
     for (const item of parts(tree)) {
       if (item.kind === "rule" && !ITEMS.has(item.rule)) fail(`the notation gives a ${item.rule} where an item stands`, item);
-      if (ruleOf(item) === "prefer-directive") {
-        const references = parts(item).filter((child) => ruleOf(child) === "reference");
-        if (references.length < 2) fail("%prefer takes two rule names separated by >", item);
-        directives.push({ name: "prefer", args: references.slice(0, 2).map((child) => text(token(child))), at: at(item) });
-      } else if (ruleOf(item) === "directive") {
+      if (ruleOf(item) === "directive") {
         const name = text(token(item)).slice(1);
         const operands = parts(item).filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag");
         const problem = operandProblem(name, operands.map((child) => operandKind(child)));
@@ -14557,12 +14003,12 @@
   const TERMS = new Set(["union", "guarded-term"]);
   const ATOMS = new Set(["pattern-literal", "string", "tag", "character", "phoneme", "range", "property", "name", "empty-set", "term", "call", "capture-reference", "constant-reference"]);
   // The items of a document (engine §9).
-  const ITEMS = new Set(["directive", "prefer-directive", "rule", "constant-definition", "classifier", "implication-declaration"]);
+  const ITEMS = new Set(["directive", "rule", "constant-definition", "classifier", "implication-declaration"]);
 
   // The rules of the notation's syntax grammar that the reader knows (engine
   // §9). Every other rule is a wrapper, and the reader reads its parts in its
   // place.
-  const NAMED = new Set(["prefer-directive", "tree-comparison", "tree-comparator", "pattern-literal", "pattern-union", "pattern-intersection", "pattern-sequence", "pattern-item", "pattern-atom", "pattern-brackets", "pattern-repeat", "pattern-path",
+  const NAMED = new Set(["tree-comparison", "tree-comparator", "pattern-literal", "pattern-union", "pattern-intersection", "pattern-sequence", "pattern-item", "pattern-atom", "pattern-brackets", "pattern-repeat", "pattern-path",
     "directive", "argument-word", "argument-string", "rule", "definer", "rule-flags", "rule-flag", "rule-name", "body", "alternative", "ranked-alternative", "ranked-choice", "guard", "alternative-tags",
     "conjunction", "sequence", "primary", "repetition", "reference", "string", "phoneme", "tested", "test", "test-operand", "capture", "group", "optional",
     "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "opaque-clause", "emit-item", "emit-target", "emit-tags", "emit-before", "emit-after",
@@ -15054,6 +14500,11 @@
     readDocument(markdown, path, deferEmission = false) {
       const { text, positions } = extractGrammarText(markdown, path);
       const run = this.notation.parse(text, { features: new Set() });
+      const retired = run.stages[0]?.output?.find(token => token.text === "%prefer");
+      if (retired) {
+        const [line,column] = positions[retired.source[0]] ?? [1,1];
+        throw new GencmuError("grammar", `${path}:${line}:${column}: unknown directive %prefer; use an inline ranked choice (a ≻ b).`, {document:path,line,column});
+      }
       /** @type {(token: Token) => import("./types.js").Position} */
       const positionOf = (token) => positions[token.source[0]] || positions[positions.length - 1] || [1, 1];
       if (!run.ok) {
@@ -15157,7 +14608,6 @@
       this.stages = stages;
       this.loader = loader;
       this.declared = declared;
-      this.loadWarnings = stages.flatMap((stage) => stage.grammar.loadWarnings);
       /** @type {Feature[]} the dialect's features, with their kinds and defaults */
       this.features = dialectFeatures(path, stages, declared);
     }
@@ -15363,9 +14813,9 @@
     // in the order of the document, or else at the document.
     const item = itemsAlone(dom).map((candidate) => ({ at: candidate.at, problem: domProblem(candidate.alone, unicode, deferEmission) }))
       .find((candidate) => candidate.problem !== null);
-    if (!item) throw new GencmuError("grammar", `${path}: ${problem}`, { document: path });
+    if (!item) throw new GencmuError("grammar", `${path}: ${problem}`, { document: path, ...(problem.startsWith("ranked-choice-syntax:") ? {code:"ranked-choice-syntax"} : {}) });
     const [line, column] = item.at;
-    throw new GencmuError("grammar", `${path}:${line}:${column}: ${item.problem}`, { document: path, line, column });
+    throw new GencmuError("grammar", `${path}:${line}:${column}: ${item.problem}`, { document: path, line, column, ...(item.problem?.startsWith("ranked-choice-syntax:") ? {code:"ranked-choice-syntax"} : {}) });
   }
 
   // Adds the line and column of an error's source position.
@@ -15409,7 +14859,7 @@
       names.add(stage.name);
       for (const document of stage.documents) {
         const problem = document && typeof document.path === "string" ? domProblem(document.dom, unicode) : "a document without a path";
-        if (problem) throw new GencmuError("grammar", `notation/bootstrap.json: ${problem}`, { document: "notation/bootstrap.json" });
+        if (problem) throw new GencmuError("grammar", `notation/bootstrap.json: ${problem}`, { document: "notation/bootstrap.json", ...(problem.startsWith("ranked-choice-syntax:") ? {code:"ranked-choice-syntax"} : {}) });
       }
     }
     for (const stage of stages) {
@@ -15968,8 +15418,7 @@
 
   /**
    * @typedef {object} GrammarSymbol
-   * @property {import("./preferences.js").SlotComponent} [slot]
-   * @property {string} [role]
+   * @property {import("./ranked.js").RankedGroup} [slot]
    * @property {string} name
    * @property {boolean} terminal
    * @property {SymbolTest} [test] the test on the symbol's own span; not part
@@ -16013,8 +15462,6 @@
    * A production of a lowered grammar (engine §3).
    * @typedef {object} Production
    * @property {import("./grammar.js").StitchedAlternative} [source]
-   * @property {Map<string, string>} [slotRoles]
-   * @property {Map<number,Map<string,string>>} [componentRoles]
    * @property {Expr} [writtenExpression]
    * @property {import("./ranked.js").RankedGroup} [rankedGroup]
    * @property {number} [rankedOption]
@@ -16023,7 +15470,6 @@
    * @property {Condition[]} [rankedClauses]
    * @property {any} [lexicalFrame]
    * @property {Production} [baseProduction]
-   * @property {string} [role]
    * @property {Term[]} [writtenTags]
    * @property {{alternative: Term | null, definition: Term | null}} [writtenTagClauses]
    * @property {number} id
@@ -16067,7 +15513,6 @@
    *   optionals written [++T x], whose terminators are maximal (engine §3.8,
    *   §4)
    * @property {Resolution} resolution
-   * @property {import("./preferences.js").Preferences} preferences
    * @property {import("./ranked.js").RankedGroups} ranked
    * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
    *   of the stage, resolved for these features: each key's classes (engine

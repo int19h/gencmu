@@ -20,6 +20,8 @@ A dialect that cannot be loaded is an error. A dialect cannot be loaded when a d
 
 The error is an exception in JavaScript and Python, and a returned error in Go and Rust. It carries a message with the document, line and column where known. A tie has no line or column.
 
+Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches. Grammar DOM format 22 adds ranked expressions. Parse-result format 11 fixes the first reading of an elision-only error.
+
 ### Parsing
 
 A feature is a named switch that the grammars of the dialect test (engine §13). A loaded dialect parses a text with these options, all optional:

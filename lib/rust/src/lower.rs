@@ -319,7 +319,6 @@ impl Prod {
 
 #[derive(Debug, Clone)]
 pub(crate) struct Lowered {
-    pub preferences: Arc<crate::preferences::Preferences>,
     pub ranked: RankedRuntime,
     pub rules: Vec<LRule>,
     pub prods: Vec<Prod>,
@@ -1107,7 +1106,7 @@ fn lower_mode(
             warnings: Vec::new(),
             document: None,
             at: (0, 0),
-            slot: if grammar.preferences.paths.is_empty() && grammar.ranked.groups.is_empty() {
+            slot: if grammar.ranked.groups.is_empty() {
                 None
             } else {
                 Some(Box::new(SlotMetadata {
@@ -1372,7 +1371,6 @@ fn lower_mode(
     let tests = std::mem::take(&mut lowerer.tests);
     let elides = rules.iter().any(|rule| rule.elided.is_some());
     let mut lowered = Lowered {
-        preferences: grammar.preferences.clone(),
         ranked: RankedRuntime::default(),
         start: grammar.index["text"] as u32,
         elides,
@@ -1386,7 +1384,9 @@ fn lower_mode(
         classifiers,
         implications: grammar.implications.clone(),
     };
-    lowered.ranked = ranked_runtime(grammar, &lowered);
+    if !validation {
+        lowered.ranked = ranked_runtime(grammar, &lowered);
+    }
     Ok(lowered)
 }
 
@@ -1876,7 +1876,12 @@ mod tests {
                 tags: None,
                 alternatives: alternatives
                     .into_iter()
-                    .map(|expr| Alternative { guards: Vec::new(), expr, tags: None })
+                    .map(|expr| Alternative {
+                        guards: Vec::new(),
+                        expr,
+                        tags: None,
+                        ranked_locations: Default::default(),
+                    })
                     .collect(),
                 emit: None,
                 conditions: Vec::new(),
@@ -1950,7 +1955,12 @@ mod tests {
             op: Op::Define,
             flags: Vec::new(),
             tags: Some(Term::Union(guards.collect())),
-            alternatives: vec![Alternative { guards: Vec::new(), expr: Expr::Choice(captures.collect()), tags: None }],
+            alternatives: vec![Alternative {
+                guards: Vec::new(),
+                expr: Expr::Choice(captures.collect()),
+                tags: None,
+                ranked_locations: Default::default(),
+            }],
             emit: None,
             conditions: Vec::new(),
             opaque: false,

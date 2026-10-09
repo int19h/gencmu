@@ -478,8 +478,7 @@ export type Argument = Term | {
     classifier: string;
 };
 export type GrammarSymbol = {
-    slot?: import("./preferences.js").SlotComponent;
-    role?: string;
+    slot?: import("./ranked.js").RankedGroup;
     name: string;
     terminal: boolean;
     /**
@@ -518,8 +517,6 @@ export type ReadyCondition = {
 };
 export type Production = {
     source?: import("./grammar.js").StitchedAlternative;
-    slotRoles?: Map<string, string>;
-    componentRoles?: Map<number, Map<string, string>>;
     writtenExpression?: Expr;
     rankedGroup?: import("./ranked.js").RankedGroup;
     rankedOption?: number;
@@ -528,7 +525,6 @@ export type Production = {
     rankedClauses?: Condition[];
     lexicalFrame?: any;
     baseProduction?: Production;
-    role?: string;
     writtenTags?: Term[];
     writtenTagClauses?: {
         alternative: Term | null;
@@ -600,7 +596,6 @@ export type LoweredGrammar = {
      */
     maximalHelpers: Set<string>;
     resolution: Resolution;
-    preferences: import("./preferences.js").Preferences;
     ranked: import("./ranked.js").RankedGroups;
     /**
      * each classifier
@@ -1087,8 +1082,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * @typedef {object} GrammarSymbol
- * @property {import("./preferences.js").SlotComponent} [slot]
- * @property {string} [role]
+ * @property {import("./ranked.js").RankedGroup} [slot]
  * @property {string} name
  * @property {boolean} terminal
  * @property {SymbolTest} [test] the test on the symbol's own span; not part
@@ -1127,8 +1121,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * A production of a lowered grammar (engine §3).
  * @typedef {object} Production
  * @property {import("./grammar.js").StitchedAlternative} [source]
- * @property {Map<string, string>} [slotRoles]
- * @property {Map<number,Map<string,string>>} [componentRoles]
  * @property {Expr} [writtenExpression]
  * @property {import("./ranked.js").RankedGroup} [rankedGroup]
  * @property {number} [rankedOption]
@@ -1137,7 +1129,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Condition[]} [rankedClauses]
  * @property {any} [lexicalFrame]
  * @property {Production} [baseProduction]
- * @property {string} [role]
  * @property {Term[]} [writtenTags]
  * @property {{alternative: Term | null, definition: Term | null}} [writtenTagClauses]
  * @property {number} id
@@ -1179,7 +1170,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  *   optionals written [++T x], whose terminators are maximal (engine §3.8,
  *   §4)
  * @property {Resolution} resolution
- * @property {import("./preferences.js").Preferences} preferences
  * @property {import("./ranked.js").RankedGroups} ranked
  * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
  *   of the stage, resolved for these features: each key's classes (engine

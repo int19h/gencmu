@@ -88,7 +88,7 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 			}
 			dom, err := decodeDOM(d.Dom, uni)
 			if err != nil {
-				return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "cannot read the bootstrap's DOM of " + *d.Path + ": " + err.Error()}
+				return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "cannot read the bootstrap's DOM of " + *d.Path + ": " + err.Error(), Code: rankedDOMCode(err)}
 			}
 			docs = append(docs, docDOM{path: *d.Path, dom: dom})
 		}
@@ -138,6 +138,13 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (do
 	toks := ps.characterTokens()
 	var out stageOutcome
 	for i, g := range nr.stages {
+		if g.name == "syntax" {
+			for _, token := range toks {
+				if token.Text == "%prefer" {
+					return nil, grammarError(docPath, gt.at(token.Source[0]), "unknown directive %%prefer; use an inline ranked choice (A ≻ B)")
+				}
+			}
+		}
 		run := ps.newRun(g.name, g, toks)
 		// Each notation stage runs the check of elision-only where its own
 		// directive declares it (§8).
@@ -161,6 +168,9 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (do
 				}
 			} else {
 				e.Message = out.err.Message
+			}
+			if g.name == "syntax" && out.err.Kind == ErrorRejected && out.err.Token != nil && rankedSyntaxFailure(toks, *out.err.Token) {
+				e.Code = "ranked-choice-syntax"
 			}
 			return nil, e
 		}
@@ -187,7 +197,7 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (do
 		if p.tooDeep {
 			p = firstTooDeep(dom, nr.uni, p)
 		}
-		e := &Error{Kind: ErrorGrammar, Document: docPath, Message: p.message}
+		e := &Error{Kind: ErrorGrammar, Document: docPath, Message: p.message, Code: p.code}
 		if p.rule != nil {
 			e.Line, e.Column = p.rule.At[0], p.rule.At[1]
 		} else if p.constant != nil {
@@ -197,6 +207,7 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (do
 		}
 		return nil, e
 	}
+	restoreRankedLocations(dom, toks, gt.at)
 	return dom, nil
 }
 
@@ -255,7 +266,7 @@ type domBuilder struct {
 // place.
 var domRules = map[string]bool{
 	"rule-name": true, "body": true, "primary": true, "emit-target": true, "condition": true, "argument": true, "term-atom": true,
-	"directive": true, "prefer-directive": true, "rule": true, "definer": true, "rule-flags": true, "rule-flag": true, "alternative": true, "choice": true, "ranked-alternative": true, "ranked-choice": true,
+	"directive": true, "rule": true, "definer": true, "rule-flags": true, "rule-flag": true, "alternative": true, "choice": true, "ranked-alternative": true, "ranked-choice": true,
 	"conjunction": true, "sequence": true, "repetition": true, "reference": true,
 	"string": true, "tag": true, "character": true, "phoneme": true, "name": true,
 	"tested": true, "test": true, "test-operand": true, "capture": true, "group": true, "optional": true,
@@ -283,7 +294,11 @@ func (b *domBuilder) at(n *Node) [2]int {
 }
 
 func (b *domBuilder) fail(n *Node, format string, args ...any) {
-	panic(grammarError(b.doc, b.at(n), format, args...))
+	e := grammarError(b.doc, b.at(n), format, args...)
+	if n.Rule == "ranked-choice" {
+		e.Code = "ranked-choice-syntax"
+	}
+	panic(e)
 }
 
 // parts lists a node's children, reading transparent rules in their place.
@@ -424,7 +439,7 @@ func (b *domBuilder) document(root *Node) *domDoc {
 	d := &domDoc{Rules: []*domRule{}, Directives: []*domDirective{}, Constants: []*domConst{}, Classifiers: []*domClassifier{}, Implications: []*domImplication{}}
 	for _, c := range ruleParts(root) {
 		switch c.Rule {
-		case "rule", "constant-definition", "classifier", "implication-declaration", "directive", "prefer-directive":
+		case "rule", "constant-definition", "classifier", "implication-declaration", "directive":
 		default:
 			b.fail(c, "the notation gives a %s where an item stands", c.Rule)
 		}
@@ -437,15 +452,6 @@ func (b *domBuilder) document(root *Node) *domDoc {
 			d.Classifiers = append(d.Classifiers, b.classifier(c))
 		case "implication-declaration":
 			d.Implications = append(d.Implications, b.implicationDeclaration(c))
-		case "prefer-directive":
-			keyword := b.token(c)
-			dir := &domDirective{Name: "prefer", Args: []string{}, At: b.at(keyword)}
-			for _, p := range ruleParts(c) {
-				if p.Rule == "reference" && len(dir.Args) < 2 {
-					dir.Args = append(dir.Args, b.text(b.token(p)))
-				}
-			}
-			d.Directives = append(d.Directives, dir)
 		case "directive":
 			keyword := b.token(c)
 			ps := parts(c)
@@ -1011,10 +1017,6 @@ func operandProblem(name string, kinds []string) string {
 		}
 	}
 	switch name {
-	case "prefer":
-		if len(kinds) != 2 || !names {
-			return "%prefer takes exactly two rule names"
-		}
 	case "stage":
 		if len(kinds) != 1 || !names {
 			return "%stage takes one name"

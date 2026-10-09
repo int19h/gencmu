@@ -396,7 +396,7 @@ func (lw *lowerer) lowerRule(r *sRule) {
 				for optionIndex, b := range h.bodies {
 					lw.structural = append(lw.structural, structuralProduction{h.rule, symbolsOf(b)})
 					p := lw.newProduction(h.rule, b)
-					if len(lw.g.preferences.paths) > 0 || lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
+					if lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
 						p.slot = &slotMetadata{source: h.owner, path: h.path}
 					}
 					if lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
@@ -559,7 +559,7 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 		}
 	}
 	p := lw.newProduction(lhs, body)
-	if len(lw.g.preferences.paths) > 0 || lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
+	if lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
 		p.slot = &slotMetadata{source: a}
 	}
 	p.opaque = a.opaque

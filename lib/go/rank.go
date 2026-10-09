@@ -234,7 +234,6 @@ func (r cmpRes) flip() cmpRes {
 }
 
 type ranker struct {
-	preferences       *preferences
 	admission         *slotAdmission
 	rawWitnessCounted *bool
 	rec               *recognizer
@@ -271,9 +270,6 @@ func (rk *ranker) skips(fault, site string, i, n int) bool {
 // late-elision, or under no lean for "".
 func newRanker(rec *recognizer, rule string, mx *maximal) *ranker {
 	rk := &ranker{rec: rec, lean: rule, maximal: mx, items: map[*item]*itemRank{}, syms: map[*symNode]*itemRank{}, marked: map[*item]bool{}}
-	if rec.g.stage != nil {
-		rk.preferences = rec.g.stage.preferences
-	}
 	if rule == "late-elision" {
 		// The readings come from a ranking with no lean over the forest of
 		// the best derivations (engine §6).
@@ -283,7 +279,7 @@ func newRanker(rec *recognizer, rule string, mx *maximal) *ranker {
 	for _, r := range rec.g.rules {
 		rk.profiles = rk.profiles || r.leftmostLongest
 	}
-	if len(rec.g.rankedHelpers) > 0 || rk.preferences != nil && len(rk.preferences.paths) > 0 {
+	if len(rec.g.rankedHelpers) > 0 {
 		rk.views = newSlotViews(rk)
 		rk.admission = newSlotAdmission(rk)
 	}

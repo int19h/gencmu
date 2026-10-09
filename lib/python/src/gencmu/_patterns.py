@@ -314,7 +314,7 @@ class PatternMachine:
 def observation_machine(lowered: Any) -> PatternMachine | None:
     roots = getattr(lowered, "_pattern_roots", None)
     if roots is not None:
-        return PatternMachine(roots) if roots or lowered.ranked_helpers or lowered.grammar.preferences and lowered.grammar.preferences.names else None
+        return PatternMachine(roots) if roots or lowered.ranked_helpers else None
     pending = []
     for production in lowered.productions:
         pending.extend(production.private_conditions)
@@ -339,4 +339,4 @@ def observation_machine(lowered: Any) -> PatternMachine | None:
         else:
             pending.extend(node.values())
     lowered._pattern_roots = roots
-    return PatternMachine(roots) if roots or lowered.ranked_helpers or lowered.grammar.preferences and lowered.grammar.preferences.names else None
+    return PatternMachine(roots) if roots or lowered.ranked_helpers else None

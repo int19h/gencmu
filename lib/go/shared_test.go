@@ -1,7 +1,6 @@
 package gencmu
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -65,13 +64,12 @@ type caseOptions struct {
 // caseExpect is what a case expects. Result, Warnings and Features are
 // decoded JSON, nil where the case leaves them out.
 type caseExpect struct {
-	Diagnostic   string  `json:"diagnostic"`
-	LoadWarnings *any    `json:"loadWarnings"`
-	Result       *any    `json:"result"`
-	Brackets     *string `json:"brackets"`
-	Warnings     *any    `json:"warnings"`
-	Features     *any    `json:"features"`
-	Error        string  `json:"error"`
+	Diagnostic string  `json:"diagnostic"`
+	Result     *any    `json:"result"`
+	Brackets   *string `json:"brackets"`
+	Warnings   *any    `json:"warnings"`
+	Features   *any    `json:"features"`
+	Error      string  `json:"error"`
 	// Where is where a load error stands (tests/README.md).
 	Where *struct {
 		Document string `json:"document"`
@@ -304,7 +302,7 @@ func checkLoadError(expect *caseExpect, err error) error {
 	if expect.Error != e.Kind {
 		return fmt.Errorf("unexpected load error: %v", err)
 	}
-	if expect.Result != nil || expect.Brackets != nil || expect.Warnings != nil || expect.Features != nil || expect.LoadWarnings != nil {
+	if expect.Result != nil || expect.Brackets != nil || expect.Warnings != nil || expect.Features != nil {
 		return fmt.Errorf("the dialect did not load: %v", err)
 	}
 	// Where the error stands, in a document of the case, given only for a
@@ -314,7 +312,7 @@ func checkLoadError(expect *caseExpect, err error) error {
 	} else if w != nil && (e.Document != w.Document || e.Line != w.Line || e.Column != w.Column) {
 		return fmt.Errorf("the load error stands at %s:%d:%d, not at %s:%d:%d: %v", e.Document, e.Line, e.Column, w.Document, w.Line, w.Column, err)
 	}
-	if expect.Diagnostic != "" && !strings.HasPrefix(e.Message, expect.Diagnostic+":") {
+	if expect.Diagnostic != "" && e.Code != expect.Diagnostic {
 		return fmt.Errorf("the load diagnostic is %s, not %s", e.Message, expect.Diagnostic)
 	}
 	return nil
@@ -333,24 +331,7 @@ func checkParse(d *Dialect, c *engineCase, options *caseOptions, expect *caseExp
 			return fmt.Errorf("features: expected %s, got %+v", shown(*expect.Features), d.Features())
 		}
 	}
-	if expect.LoadWarnings != nil {
-		warnings := d.LoadWarnings()
-		if c.Grammar != nil {
-			for i := range warnings {
-				for j := range warnings[i].References {
-					warnings[i].References[j].Document = "case/" + warnings[i].References[j].Document
-				}
-			}
-		}
-		data, _ := json.Marshal(warnings)
-		found, err := decodeJSON(data)
-		if err != nil {
-			return err
-		}
-		if err := match(*expect.LoadWarnings, found, "loadWarnings"); err != nil {
-			return err
-		}
-	}
+
 	res, log, err := runCaseLogged(d, c, options, "")
 	if c.onlyHook {
 		if err == nil && log.lost() > 0 {

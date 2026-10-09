@@ -40,8 +40,6 @@ type slotAdmission struct {
 func newSlotAdmission(rk *ranker) *slotAdmission {
 	a := &slotAdmission{rk: rk, groups: map[string]*slotGroup{}, at: map[*item]map[int]*slotGroup{}, masks: map[slotCountKey]slotMask{}, counts: map[slotCountKey]slotCount{}, contexts: map[string]forbidden{"": nil}}
 	g := rk.rec.g
-	prefs := g.stage.preferences
-	ranked := len(g.rankedHelpers) > 0
 	var items []*item
 	for _, set := range rk.rec.sets {
 		if set == nil {
@@ -68,94 +66,38 @@ func newSlotAdmission(rk *ranker) *slotAdmission {
 			continue
 		}
 		s := it.prod.rhs[pos]
-		if s.term || (!ranked && g.rules[s.id].helper) {
+		if s.term {
 			continue
 		}
-		if ranked {
-			groupInfo := g.rankedHelpers[s.id]
-			if groupInfo == nil {
-				continue
-			}
-			for index, edge := range it.links {
-				if edge.sym == nil {
-					continue
-				}
-				before := edge.prev
-				if before == nil {
-					copy := *it
-					copy.dot = 0
-					copy.prefix = rk.rec.machine.empty
-					copy.cap0 = capVal{}
-					copy.more = 0
-					before = &copy
-				}
-				ancestry := ""
-				if rk.views != nil {
-					ancestry = rk.views.rankedAncestry(scope, rk.rec)
-				}
-				key := fmt.Sprintf("%d/%s/%t/%s/%d/%d", groupInfo.id, rk.rec.rankedPrefix(before), before.strict, ancestry, edge.sym.start, edge.sym.end)
-				group := a.groups[key]
-				if group == nil {
-					group = &slotGroup{maxima: map[string]slotLabels{}}
-					a.groups[key] = group
-				}
-				label := fmt.Sprintf("%020d", edge.sym.option)
-				group.candidates = append(group.candidates, slotCandidate{it, index, label, group})
-				if a.at[it] == nil {
-					a.at[it] = map[int]*slotGroup{}
-				}
-				a.at[it][index] = group
-				a.stats.candidateEdges++
-			}
+
+		groupInfo := g.rankedHelpers[s.id]
+		if groupInfo == nil {
 			continue
-		}
-		label := g.rules[s.id].name
-		component, ok := prefs.labels[label]
-		if !ok {
-			continue
-		}
-		v := prefs.variants[label]
-		role := "root"
-		if path, ok := v.paths[it.prod.slot.path]; ok {
-			role = path
-		}
-		var prefix []string
-		for i, s := range it.prod.rhs[:pos] {
-			prefix = append(prefix, slotSymbolRole(s, v, g)+"/"+slotTestKey(it.prod.testAt(i)))
 		}
 		for index, edge := range it.links {
 			if edge.sym == nil {
 				continue
 			}
-			state := rk.rec.machine.empty
-			strict, restores := false, false
-			var captures []string
-			if edge.prev != nil {
-				before := edge.prev
-				state = before.prefix
-				strict, restores = before.strict, before.restores
-				caps := rk.rec.caps(&before.itemKey)
-				for i := 0; i < int(before.dot); i++ {
-					if slot := before.prod.capSlot[i]; slot >= 0 {
-						n := before.prod.capName[i]
-						r, ok := v.roles[n]
-						if !ok {
-							r = n
-						}
-						captures = append(captures, fmt.Sprintf("%q/%v", r, caps.at(slot)))
-					}
-				}
+			before := edge.prev
+			if before == nil {
+				copy := *it
+				copy.dot = 0
+				copy.prefix = rk.rec.machine.empty
+				copy.cap0 = capVal{}
+				copy.more = 0
+				before = &copy
 			}
 			ancestry := ""
 			if rk.views != nil {
-				ancestry = rk.views.ancestry(scope, v, rk)
+				ancestry = rk.views.rankedAncestry(scope, rk.rec)
 			}
-			key := fmt.Sprintf("%d/%q/%q/%q/%d/%d/%q/%t/%t/%d/%d", component, ancestry, role, prefix, it.origin, state, captures, strict, restores, edge.sym.start, edge.sym.end)
+			key := fmt.Sprintf("%d/%s/%t/%s/%d/%d", groupInfo.id, rk.rec.rankedPrefix(before), before.strict, ancestry, edge.sym.start, edge.sym.end)
 			group := a.groups[key]
 			if group == nil {
 				group = &slotGroup{maxima: map[string]slotLabels{}}
 				a.groups[key] = group
 			}
+			label := fmt.Sprintf("%020d", edge.sym.option)
 			group.candidates = append(group.candidates, slotCandidate{it, index, label, group})
 			if a.at[it] == nil {
 				a.at[it] = map[int]*slotGroup{}
@@ -163,6 +105,8 @@ func newSlotAdmission(rk *ranker) *slotAdmission {
 			a.at[it][index] = group
 			a.stats.candidateEdges++
 		}
+		continue
+
 	}
 	a.stats.groups = len(a.groups)
 	return a
@@ -314,26 +258,14 @@ func (a *slotAdmission) admit(key slotCountKey) {
 			}
 			maximal := func(labels map[string]bool) map[string]bool {
 				out := map[string]bool{}
-				if len(a.rk.rec.g.rankedHelpers) > 0 {
-					first := ""
-					for label := range labels {
-						if first == "" || label < first {
-							first = label
-						}
-					}
-					if first != "" {
-						out[first] = true
-					}
-					return out
-				}
+				first := ""
 				for label := range labels {
-					dominated := false
-					for higher := range labels {
-						dominated = dominated || a.rk.preferences.paths[higher][label] != nil
+					if first == "" || label < first {
+						first = label
 					}
-					if !dominated {
-						out[label] = true
-					}
+				}
+				if first != "" {
+					out[first] = true
 				}
 				return out
 			}

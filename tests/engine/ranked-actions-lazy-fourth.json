@@ -1,0 +1,47 @@
+{
+  "description": "Local admission removes the lower option before ordinary action ranking. A fourth reading dominates all admitted competitors.",
+  "grammar": "%ambiguity-resolution lazy\n%rule text (favored ≻ disfavored) | neutral | winner\n%rule favored A B C D\n%rule disfavored early C D\n%rule early A B\n%rule neutral middle D\n%rule middle A B C\n%rule winner A boundary B C D\n%rule boundary ε",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    },
+    {
+      "text": "d",
+      "tags": [
+        "D"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "winner"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -248,7 +248,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	var res *rankResult
 	rk := newRanker(r, "", nil)
 	rk.check, rk.marks = true, marks
-	preferred := len(g.rankedHelpers) > 0 || g.stage != nil && g.stage.preferences != nil && len(g.stage.preferences.paths) > 0
+	preferred := len(g.rankedHelpers) > 0
 	rawCounted := true
 	if preferred {
 		raw := newRanker(r, "", nil)

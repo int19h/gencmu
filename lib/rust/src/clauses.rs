@@ -1720,7 +1720,12 @@ mod tests {
                 op: Op::Define,
                 flags: Vec::new(),
                 tags: Some(tags),
-                alternatives: vec![Alternative { guards: Vec::new(), expr, tags: None }],
+                alternatives: vec![Alternative {
+                    guards: Vec::new(),
+                    expr,
+                    tags: None,
+                    ranked_locations: Default::default(),
+                }],
                 emit: Some(emit),
                 conditions: Vec::new(),
                 opaque: false,

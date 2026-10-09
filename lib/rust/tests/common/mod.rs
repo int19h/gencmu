@@ -664,7 +664,7 @@ pub fn run_engine_case(case: &Value) -> Result<(), String> {
 }
 
 /// The members of `expect` that only a loaded dialect can meet.
-const AFTER_LOAD: [&str; 5] = ["result", "brackets", "warnings", "features", "loadWarnings"];
+const AFTER_LOAD: [&str; 4] = ["result", "brackets", "warnings", "features"];
 
 /// Holds the error of a dialect that did not load to `expect`. The error is
 /// the whole outcome, so a case that expects anything that only a loaded
@@ -686,7 +686,7 @@ pub fn check_load_error(expect: &Value, error: &gencmu::Error) -> Result<(), Str
         return Err(format!("expect.where is only for a grammar error: {error}"));
     }
     if let Some(code) = expect.get("diagnostic").and_then(Value::str) {
-        if !error.message.starts_with(&format!("{code}:")) {
+        if error.code.as_deref() != Some(code) {
             return Err(format!("expected diagnostic {code}: {error}"));
         }
     }
@@ -830,28 +830,7 @@ fn check_parse(dialect: &gencmu::Dialect, case: &Value, run: &Value, expect: &Va
             let _ = writeln!(problems, "{problem}");
         }
     }
-    if let Some(expected) = expect.get("loadWarnings") {
-        let text = format!(
-            "[{}]",
-            dialect
-                .load_warnings()
-                .into_iter()
-                .map(|mut w| {
-                    if case.get("grammar").is_some() {
-                        for s in &mut w.references {
-                            s.document = format!("case/{}", s.document);
-                        }
-                    }
-                    w.to_json()
-                })
-                .collect::<Vec<_>>()
-                .join(",")
-        );
-        let found = parse_json(&text).expect("load warnings are JSON");
-        if let Err(problem) = matches(expected, &found, "loadWarnings") {
-            let _ = writeln!(problems, "{problem}");
-        }
-    }
+
     let options = case_options(run);
     // Every check of elision-only that runs must keep its witness
     // (tests/README.md).

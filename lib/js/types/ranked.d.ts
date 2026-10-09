@@ -52,11 +52,13 @@ export declare class RankedGroups {
     /** @type {WeakMap<object,string>} */
     paths: WeakMap<object, string>;
     sourceSites: WeakMap<object, any>;
+    clauseErrors: Map<any, any>;
     /** @param {Map<string,import("./grammar.js").StitchedRule>} rules */
     constructor(rules: Map<string, import("./grammar.js").StitchedRule>);
     /** @param {RankedGroup} group @param {string} code @param {string} message @param {any} [fields] @returns {never} */
     fail(group: RankedGroup, code: string, message: string, fields?: any): never;
-    validateClauses(): void;
+    /** @param {RankedGroup} group */
+    validateClauses(group: RankedGroup): void;
     /** @param {import("./types.js").Production[]} productions */
     validateTags(productions: import("./types.js").Production[]): void;
 }

@@ -1,7 +1,40 @@
 //! The error a library call returns: a dialect that cannot be loaded, or a
 //! caller's mistake such as an unknown stage name.
 
+use crate::json::Json;
 use std::fmt;
+
+/// The written source of a ranked group or inheritance step.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GroupSite {
+    /// The source document, when known.
+    pub document: Option<String>,
+    /// The source line and column, when known.
+    pub at: Option<(usize, usize)>,
+    /// The final stitched rule.
+    pub rule: String,
+    /// The zero-based alternative index.
+    pub alternative: usize,
+    /// The expression path relative to its alternative.
+    pub path: String,
+}
+impl GroupSite {
+    fn value(&self) -> Json {
+        let mut fields = Vec::new();
+        if let Some(document) = &self.document {
+            fields.push(("document".into(), Json::Str(document.clone())));
+        }
+        if let Some((line, column)) = self.at {
+            fields.push(("at".into(), Json::Arr(vec![Json::Int(line as i64), Json::Int(column as i64)])));
+        }
+        fields.extend([
+            ("rule".into(), Json::Str(self.rule.clone())),
+            ("alternative".into(), Json::Int(self.alternative as i64)),
+            ("path".into(), Json::Str(self.path.clone())),
+        ]);
+        Json::Obj(fields)
+    }
+}
 
 /// What kind of failure an [`Error`] is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -38,11 +71,78 @@ pub struct Error {
     pub column: Option<usize>,
     /// The pipeline stage the error concerns, when known.
     pub stage: Option<String>,
+    /// The optional ranked loading details.
+    pub diagnostic: Option<Box<RankedDiagnostic>>,
+}
+
+/// The structured fields of a ranked loading diagnostic.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct RankedDiagnostic {
+    /// The stable ranked loading code, when present.
+    pub code: Option<String>,
+    /// The written ranked group.
+    pub group: Option<GroupSite>,
+    /// The zero-based option index.
+    pub option: Option<usize>,
+    /// The original written DOM expression.
+    pub expression: Option<Json>,
+    /// The shortest tag inheritance witness.
+    pub inheritance: Option<Vec<GroupSite>>,
+}
+
+impl std::ops::Deref for Error {
+    type Target = RankedDiagnostic;
+    fn deref(&self) -> &RankedDiagnostic {
+        static EMPTY: RankedDiagnostic =
+            RankedDiagnostic { code: None, group: None, option: None, expression: None, inheritance: None };
+        self.diagnostic.as_deref().unwrap_or(&EMPTY)
+    }
+}
+impl std::ops::DerefMut for Error {
+    fn deref_mut(&mut self) -> &mut RankedDiagnostic {
+        self.diagnostic.get_or_insert_with(Default::default)
+    }
 }
 
 impl Error {
+    /// Writes the canonical loading diagnostic schema.
+    pub fn to_json(&self) -> String {
+        let kind = match self.kind {
+            ErrorKind::Grammar => "grammar",
+            ErrorKind::Usage => "usage",
+            ErrorKind::Io => "io",
+        };
+        let mut fields = vec![("kind".into(), Json::Str(kind.into()))];
+        if let Some(code) = &self.code {
+            fields.push(("code".into(), Json::Str(code.clone())));
+        }
+        fields.push(("message".into(), Json::Str(self.to_string())));
+        if let Some(group) = &self.group {
+            fields.push(("group".into(), group.value()));
+        }
+        if let Some(option) = self.option {
+            fields.push(("option".into(), Json::Int(option as i64)));
+        }
+        if let Some(expression) = &self.expression {
+            fields.push(("expression".into(), expression.clone()));
+        }
+        if let Some(inheritance) = &self.inheritance {
+            fields.push(("inheritance".into(), Json::Arr(inheritance.iter().map(GroupSite::value).collect())));
+        }
+        Json::Obj(fields).to_json()
+    }
+    pub(crate) fn ranked_detail(mut self, option: usize, expression: Option<Json>) -> Self {
+        self.option = Some(option);
+        self.expression = expression;
+        self
+    }
+    pub(crate) fn coded(mut self, code: &str) -> Self {
+        self.code = Some(code.into());
+        self
+    }
+
     pub(crate) fn new(kind: ErrorKind, message: impl Into<String>) -> Error {
-        Error { kind, message: message.into(), document: None, line: None, column: None, stage: None }
+        Error { kind, message: message.into(), document: None, line: None, column: None, stage: None, diagnostic: None }
     }
 
     pub(crate) fn grammar(message: impl Into<String>) -> Error {

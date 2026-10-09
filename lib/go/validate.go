@@ -29,6 +29,7 @@ var captureName = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
 // domProblem is why a DOM is malformed; tooDeep marks the nesting limit,
 // the one problem a DOM the reader built can have.
 type domProblem struct {
+	code        string
 	message     string
 	rule        *domRule
 	constant    *domConst
@@ -272,8 +273,6 @@ func implicationSideFault(side *domTerm, ct constTypes) *typeFault {
 // %features one or more names. %elidable is no directive.
 func directiveOperandsOK(dir *domDirective) bool {
 	switch dir.Name {
-	case "prefer":
-		return len(dir.Args) == 2 && (dir.Args[0] == "#" || domName.MatchString(dir.Args[0])) && (dir.Args[1] == "#" || domName.MatchString(dir.Args[1]))
 	case "stage":
 		return len(dir.Args) == 1 && domName.MatchString(dir.Args[0])
 	case "include":
@@ -337,6 +336,9 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 		// The reader makes each only of two or more, an & of at most 16.
 		if len(e.Items) < 2 || (e.Kind == exAnd && len(e.Items) > maxAnd) {
 			c.fail("a %s of %d items", e.Kind, len(e.Items))
+			if e.Kind == exRanked {
+				c.problem.code = "ranked-choice-syntax"
+			}
 			return
 		}
 		for _, it := range e.Items {

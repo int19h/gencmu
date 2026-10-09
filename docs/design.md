@@ -147,9 +147,10 @@ A name in upper case is a terminal that matches a token carrying that tag. A cha
 
 A reference or a terminal can carry a test on its own span, as in `LE="la"`. The symbol then matches only where the test holds. The `=` and `≠` tests compare the sound of the span, whatever the stress or the script. The four tag tests compare the symbol's own tags with a set, as in `cmavo∩UI=∅`. So a rule can name a word by its sound or its tags in its body, and not in a condition. A test does not replace a class, since a word that `zo` quotes has the sound but not the class.
 
-The operators of a body are those of CLL, except for repetition and elidable terminators. "Repetition, lists and chains" and "Elidable optionals and captures" below say why. The operators are these:
+The body adds repetition, elidable terminators, and ranked choices to the CLL operators. "Repetition, lists and chains" and "Elidable optionals and captures" below say why. The operators are these:
 
 - Juxtaposition is sequence.
+- `a ≻ b` ranks `a` first over the same span.
 - `[x]` is optional.
 - `{x}` is one or more, and `[{x}]` is zero or more. `{x \ s}` is a separated list.
 - `{... x \ s}` is a left chain, and `{x ... \ s}` a right chain. A chain, like a list, can leave out `\ s`, as in `{... x}`. A chain is the whole of its rule.
@@ -319,7 +320,7 @@ A document can be included in several stages, and an included document can hold 
 
 ## Ambiguity
 
-Slot preferences filter eligible derivations before ranking. An admitted derivation has only kept slot candidates. Rank admitted parses by `leftmost-longest`, then the stage directive. A parse is best if no other admitted parse beats it.
+Ranked choices filter eligible derivations before ranking. An admitted derivation has only kept slot candidates. Rank admitted parses by `leftmost-longest`, then the stage directive. A parse is best if no other admitted parse beats it.
 
 One admitted derivation gives `unique`. Several admitted derivations with exactly one best give `resolved`. Several best derivations give a tie with two readings and an action witness.
 
@@ -422,7 +423,7 @@ Both variants change queries where no terminator is written, so the policy was r
 
 ### Maximal terminators
 
-Some Zantufa conditions accept a nested reading that closes a parenthesis early, with no terminator written. The condition `¬matches($m, terms-vau)` of `fragment` is an example. So `so to mi klama` reads `([so {to mi}] klama)`, while the reference parser reads one mekso fragment, `so` with the parenthesis `to mi klama`. `so to recap` closes an empty `to`. In `ro sei ny rere'u basna mutce cusku`, the `sei` closes before `cusku`.
+A former Zantufa fragment condition, `¬matches($m, terms-vau)`, queried an isolated span rather than its constructed reading. The current `so to mi klama` reads `(so [to {mi klama}])`. Ordinary late elision still decides the parenthesis boundary in `so to recap`. In `ro sei ny rere'u basna mutce cusku`, the `sei` closes before `cusku`.
 
 Written-terminator priority does not settle these texts, because no `toi` or `se'u` is written. A condition cannot say that the content of a construct cannot be longer. An attempt to copy the greed of the reference with conditions rejected 27 texts that the reference accepts.
 
@@ -682,7 +683,7 @@ The recognizer compiles demanded patterns into finite structural states. Items r
 
 Reconstruction observes each candidate's structure projected onto original tokens. Restored helpers contribute omitted markers, while ordinary synthetic reads contribute no observable leaf. Pattern sound remains empty on omitted markers. Body tests instead read synthetic recognition values. Every omission must pass its test on its canonical restoration value before recognition admits it. This rule preserves the witness for inequality and tag tests without inventing sound or tags.
 
-Grammar DOM format 21 stores pattern expressions, unresolved constants and preference directives. Structural states remain internal. Parse-result format 11 removes preference cycle and conflict certificates. No seal node is serialized.
+Grammar DOM format 22 stores pattern expressions, unresolved constants, and ranked expressions. Structural states remain internal. Parse-result format 11 reports the restored chosen witness first in elision-only errors. No seal node is serialized.
 
 Measurements record structural states, chart items, packed edges and summary contexts alongside elapsed time and peak memory. Increasing list length, unary depth, nested omissions and independent ambiguous children expose product-state growth. Finite sharing can still require exponentially many states.
 
@@ -775,26 +776,30 @@ The Rust corpus comparison gives bpfk 54 new acceptances under the shared elisio
 
 The comparison changes 512 results among 29,725 existing cases. In cll-ebnf, 26 texts now reject, one tree changes, and 394 verdicts change from `resolved` to `unique`. In bpfk, 23 rejection positions move, and 14 verdicts change from `unique` to `resolved`, alongside the 54 new acceptances. No experimental or Zantufa result changes.
 
-## Slot preference design
+## Ranked choice design
 
-`%prefer A > B` excludes qualified B candidates when A fills one validated parent hole over the same interval. Dedicated ordinary rules make the operand position explicit. Each ranked rule requires one written reference site across all surviving feature variants. Invalid site counts report `prefer-slot-multiple-references`, rather than warnings.
+An isolated reparse can disagree with the constituent that the parent actually builds. Queries about one span lose its surrounding prefix, eligibility channel, and ready gates. They cannot establish an actual replacement at that written position.
 
-Parent variants require common prefix and suffix syntax, corresponding captures, matching tag terms and matching `%emits` lists. Emission cannot name or read the hole capture. Feature guards, symbol tests and ready conditions determine candidate availability. A failed higher gate cannot suppress a working lower operand.
+The earlier complete-reading preference relation also produced comparison cycles. Ordinary elision ranking supplied some directions, and local category preferences supplied others. Accepted texts then became ties across all seven families. A local filter avoids that combined relation.
 
-After ready gates, outside patterns see one sealed leaf in place of the hole subtree. Direct hole captures retain their real states only for ready structural gates. Later private tags must be dead or provably empty. A syntactic unary-inheritance closure proves emptiness without caller analysis or a tag-value lattice.
+An inline ranked choice states its position and category order together. It requires one common prefix and suffix because the author writes them once. It needs no dedicated wrapper, reference count, template correspondence, or capture-role matching.
 
-The filter groups completion edges by complete common prefix state, physical interval and existing eligibility, cycle and reconstruction contexts. The group key normalizes parent-variant identities and corresponding capture roles. It excludes private hole results, proof identities, omission vectors, flag profiles and caller demands. The filter keeps maximal present graph labels and every derivation of those labels. Transitivity still applies when a middle label is absent.
+Every option supplies its actual qualified constituent or sequence. A failed higher gate leaves lower options available. One seal hides all selected children from outside patterns. Ready private conditions still observe their real captured constituents.
 
-Raw charts remain authoritative for queries, maximality and witness reconstruction. Admission masks remain separate. Nested filtering uses finite admitted child proofs. Rejected-maximality diagnostics recompute admission with maximal terminators unrestricted before ordinary ranking.
+The local tag closure prevents hidden option tags from changing the common continuation. Private captures cannot escape into later conditions, tags, or emissions. Common prefix captures retain one written binding.
 
-Every removed candidate has an eligible same-slot replacement. Sealing and independent parent tags preserve its legal continuation. Induction preserves eligible recognition with sealing fixed. Adding seals can change outside pattern answers, and filtering can change successful-parser verdicts or downstream output.
+Every removed proof has an eligible replacement in its admission group. Sealing and the tag rule preserve that replacement's continuation. Induction preserves eligible recognition with sealing fixed. Adding seals can change existing outside observations.
 
-The verdict transitions and their effects on emission and the elision-only check are defined in [Ambiguity](notation.md#ambiguity).
+The exact group key, tag closure, and algorithm belong to engine §2.1 and §6.1. [Ambiguity](notation.md#ambiguity) defines verdict changes and their effects on later stages. The existing ranker still compares flagged profiles before the stage directive.
 
-The existing ranker remains the only ranking implementation. It compares rule profiles before the stage directive and retains ordinary ties. Local filtering changes which derivations reach it.
+Reconstruction locates raw W(D) before admission over physical reconstructed spans. It ranks admitted readings by projected profiles without a stage directive or diagnostic lean. Exclusion reports W(D) first in ordinary `elision-only` ambiguity. Only raw absence reports `elision-witness-lost`.
 
-For F stored forest facts and contexts and largest preference component r, sorting groups costs `O(F log F)` comparisons. Selecting graph maxima costs at most `O(F r²)`, plus stored-value comparison work. Tag closure is linear in productions and inheritance edges. Measurements report loader cost, chart facts, groups, retained edges, time and memory separately.
+Experimental ranks NUhI bodies and shared ME operands. Zantufa ranks fragments, ME, whole MOI constructions, MAhO, and MOhE. The MOI group also includes SE because SE can begin a mekso through an operator. FA and JAI cannot begin those mekso forms.
 
-Reconstruction first locates raw W(D), then applies its own admission policy over physical reconstructed intervals. The ranker compares admitted readings by projected rule profiles without stage lean. An excluded witness gives ordinary two-reading `elision-only` ambiguity, with W(D) first. Only raw witness absence gives `elision-witness-lost`.
+The migration removes twelve unary wrappers and two sequence wrappers. Late elision makes their action boundaries irrelevant to the bundled ranking. Existing named parents preserve bracket grouping. `gek-termset-body`, `termset-with-nuhi`, `me-unit`, and `terms-vau` remain for structure, reuse, or capture.
 
-Experimental preferences cover NUhI bodies and shared ME operands. Zantufa preferences cover fragments, ME, MOI scope, MAhO and MOhE. Their templates, ready gates and dead or empty tags satisfy the local contract. Named wrappers follow ordinary brackets, including the accepted forethought `gek-termset-body` group. Input lookaheads, experimental KE copies and Zantufa grouped content remain issue #166 work.
+A railroad diagram numbers options in preferred order inside a ranked frame. Its shared label is `≻ same span`. Only a qualified option over the same span removes lower options. Ordinary alternatives within an option remain unnumbered. Nested ranked groups receive separate frames.
+
+Sealing remains an authoring limit. An outside pattern that needs hidden option structure requires an unranked position or an earlier local condition. Sequence captures remain unsupported, so the fragment keeps its readable compound name `terms-vau`.
+
+Input lookaheads, experimental KE copies, and Zantufa grouped content remain issue #166 work. Corpus class pins remain issue #169 work.

@@ -34,7 +34,7 @@ from .shared import (
 
 
 # The members of `expect` that only a loaded dialect can meet.
-AFTER_LOAD = ("result", "brackets", "warnings", "features", "loadWarnings")
+AFTER_LOAD = ("result", "brackets", "warnings", "features")
 
 
 class EngineCases(unittest.TestCase):
@@ -78,7 +78,7 @@ class EngineCases(unittest.TestCase):
             loaded_only = [name for name in AFTER_LOAD if name in expect]
             self.assertEqual(loaded_only, [], f"{label}: the dialect did not load: {error}")
             if "diagnostic" in expect:
-                self.assertTrue(error.message.startswith(expect["diagnostic"] + ":"), f"{label}: {error.message}")
+                self.assertEqual(error.code, expect["diagnostic"], f"{label}: {error.message}")
             if "where" in expect:
                 # Where the error stands, in a document of the case, given
                 # only for a grammar error (tests/README.md).

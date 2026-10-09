@@ -212,13 +212,6 @@
       "(q s)",
       "rejected"
     ],
-    "prefer-directive": [
-      "rejected",
-      "rejected",
-      "(q [t r])",
-      "(q s)",
-      "rejected"
-    ],
     "ranked-alternative": [
       "rejected",
       "rejected",

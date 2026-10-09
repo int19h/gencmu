@@ -907,7 +907,7 @@ func (r *recognizer) preparePatterns() {
 				}
 			}
 		}
-		if len(r.g.rankedHelpers) > 0 || len(roots) > 0 || r.g.stage != nil && r.g.stage.preferences != nil && len(r.g.stage.preferences.paths) > 0 {
+		if len(r.g.rankedHelpers) > 0 || len(roots) > 0 {
 			r.machine = newPatternMachine(roots)
 		}
 		if run.patternMachines == nil {

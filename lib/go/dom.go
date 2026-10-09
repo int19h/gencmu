@@ -72,9 +72,10 @@ type domRule struct {
 }
 
 type domAlt struct {
-	Guards []domGuard
-	Expr   *domExpr
-	Tags   *domTerm
+	rankedLocations map[string][2]int
+	Guards          []domGuard
+	Expr            *domExpr
+	Tags            *domTerm
 }
 
 // domGuard is a gate, f? or ¬f?, or a warning, f!, which is never negated
@@ -1016,6 +1017,9 @@ func decodeExprAt(raw json.RawMessage, depth int) (*domExpr, error) {
 func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 	// An expression has exactly the members of one form (docs/output.md).
 	if !hasOneForm(o, exprForms) {
+		if _, ranked := o[exRanked]; ranked {
+			return nil, fmt.Errorf("ranked-choice-syntax: A ranked expression has only its ranked array.")
+		}
 		return nil, fmt.Errorf("a malformed expression")
 	}
 	if v, ok := o[exRange]; ok {

@@ -184,7 +184,7 @@ func (r *recognizer) rankedPrefix(it *item) string {
 		} else if path, ok := r.g.writtenHelpers[s.id]; ok {
 			role = path
 		}
-		symbols = append(symbols, role+"/"+slotTestKey(p.testAt(i)))
+		symbols = append(symbols, role+"/"+rankedTestKey(p.testAt(i)))
 	}
 	captures := []string{}
 	caps := r.caps(&it.itemKey)
@@ -362,4 +362,11 @@ func baseProduction(p *production) *production {
 		return p.base
 	}
 	return p
+}
+
+func rankedTestKey(t *symTest) string {
+	if t == nil {
+		return ""
+	}
+	return fmt.Sprintf("%s/%q/%q", t.op, t.sound, t.tags)
 }

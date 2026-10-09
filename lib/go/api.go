@@ -109,6 +109,9 @@ func (l *loader) document(p string) (*domDoc, *Error) {
 	if !l.noCache {
 		if raw, ok := l.compiled[fnv1a64(text)]; ok {
 			if dom, err := decodeDOM(raw, l.uni); err == nil {
+				if domHasRanked(dom) {
+					l.reader.restoreLocations(text, dom)
+				}
 				return dom, nil
 			}
 		}
@@ -394,20 +397,6 @@ func (d *Dialect) StageNames() []string {
 	out := make([]string, len(d.stages))
 	for i, s := range d.stages {
 		out[i] = s.name
-	}
-	return out
-}
-
-// LoadWarnings lists source authoring warnings in stage order.
-func (d *Dialect) LoadWarnings() []LoadWarning {
-	out := []LoadWarning{}
-	for _, s := range d.stages {
-		if s.preferences != nil {
-			for _, w := range s.preferences.warnings {
-				w.References = append([]ReferenceSite{}, w.References...)
-				out = append(out, w)
-			}
-		}
 	}
 	return out
 }

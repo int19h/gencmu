@@ -984,14 +984,6 @@ def load_case_dialect(case: dict[str, Any], use_cache: bool = True) -> tuple[gen
     sources, pipeline = case_sources(case)
     try:
         dialect = gencmu.load_dialect_sources(sources, pipeline, use_cache=use_cache)
-        if "loadWarnings" in case.get("expect", {}):
-            warnings = dialect.load_warnings
-            if "grammar" in case:
-                for warning in warnings:
-                    for reference in warning["references"]:
-                        reference["document"] = "case/" + reference["document"]
-            problem = mismatch(case["expect"]["loadWarnings"], warnings, "loadWarnings")
-            if problem is not None: raise AssertionError(problem)
         return dialect, None
     except gencmu.GencmuError as error:
         return None, error

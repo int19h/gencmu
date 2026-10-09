@@ -5,7 +5,6 @@ import "slices"
 // A stage's grammar: its documents stitched into one set of rules,
 // directives, constants, classifiers and implications (engine §2).
 type stageGrammar struct {
-	preferences       *preferences
 	ranked            *rankedGroups
 	deferredEmissions []*Error
 	name              string
@@ -55,13 +54,15 @@ type sRule struct {
 // sAlt is an alternative with the clauses of the rule statement that wrote
 // it: an extension's alternatives keep the extension's own clauses.
 type sAlt struct {
-	alt      *domAlt
-	ruleTags *domTerm
-	emit     *domEmit
-	conds    []*domCond
-	opaque   bool
-	doc      string
-	at       [2]int
+	written            jobj
+	writtenAlternative int
+	alt                *domAlt
+	ruleTags           *domTerm
+	emit               *domEmit
+	conds              []*domCond
+	opaque             bool
+	doc                string
+	at                 [2]int
 	// tests are the tests of its body with their values, in the order
 	// testsIn lists them, from the constants' final values (engine §2, §4).
 	tests []*symTest
@@ -92,7 +93,6 @@ func isTerminalName(name string) bool {
 func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, *Error) {
 	g := &stageGrammar{name: stageName, uni: uni, constants: map[string]*stageConst{}, byName: map[string]*sRule{}}
 	g.classifierSet.names = map[string]bool{}
-	var preferences []preferenceDeclaration
 	var implications []implicationItem
 	fail := func(doc string, at [2]int, format string, args ...any) *Error {
 		e := grammarError(doc, at, format, args...)
@@ -108,9 +108,22 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 			if len(constRefs(r)) > 0 || ruleHasPattern(r) {
 				g.constUsers = append(g.constUsers, constUser{doc: d.path, rule: r})
 			}
+			var written jobj
+			for _, alternative := range r.Alternatives {
+				if containsRanked(alternative.Expr) {
+					w := &jsonWriter{}
+					r.writeJSON(w)
+					var err error
+					written, err = decodeObj(w.buf)
+					if err != nil {
+						return nil, fail(d.path, r.At, "cannot retain the written rule DOM: %v", err)
+					}
+					break
+				}
+			}
 			alts := make([]*sAlt, len(r.Alternatives))
 			for i, a := range r.Alternatives {
-				alts[i] = &sAlt{alt: a, ruleTags: r.Tags, emit: r.Emit, conds: r.Conditions, opaque: r.Opaque, doc: d.path, at: r.At}
+				alts[i] = &sAlt{written: written, writtenAlternative: i, alt: a, ruleTags: r.Tags, emit: r.Emit, conds: r.Conditions, opaque: r.Opaque, doc: d.path, at: r.At}
 			}
 			existing := g.byName[r.Name]
 			// Each way of stating a rule says what it expects to be there
@@ -148,11 +161,6 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 		}
 		for _, dir := range d.dom.Directives {
 			switch dir.Name {
-			case "prefer":
-				if len(dir.Args) != 2 {
-					return nil, fail(d.path, dir.At, "%%prefer takes exactly two rule names")
-				}
-				preferences = append(preferences, preferenceDeclaration{dir.Args[0], dir.Args[1], d.path, dir.At})
 			case "ambiguity-resolution":
 				ambiguity = append(ambiguity, dir)
 				if len(ambiguity) > 1 {
@@ -240,19 +248,13 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 	g.classifierSet.gates = guardNames(entries)
 	g.guarded = guardNames(append(guards, entries...))
 	var err *Error
-	g.preferences, err = newPreferences(g, preferences)
-	if err != nil {
-		return nil, err
-	}
 	g.ranked, err = newRankedGroups(g)
 	if err != nil {
 		return nil, err
 	}
-	if len(g.preferences.paths) > 0 || len(g.ranked.groups) > 0 {
+	if len(g.ranked.groups) > 0 {
 		lowered := lowerForSlots(g)
-		if err := g.preferences.validate(lowered); err != nil {
-			return nil, err
-		}
+
 		if err := g.ranked.validateTags(lowered); err != nil {
 			return nil, err
 		}

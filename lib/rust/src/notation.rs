@@ -103,7 +103,14 @@ impl<'a> Reader<'a> {
     /// give such a tree. The reader then gives this error, and never
     /// assumes a shape that the tree lacks.
     fn shape_error(&self, node: &Node, what: impl std::fmt::Display) -> Error {
-        self.error(node, format!("the notation's {} has no {what}", rule_name(node)))
+        {
+            let error = self.error(node, format!("the notation's {} has no {what}", rule_name(node)));
+            if rule_name(node) == "ranked-choice" {
+                error.coded("ranked-choice-syntax")
+            } else {
+                error
+            }
+        }
     }
 
     /// The error of a child of a kind that the reader does not know.
@@ -151,15 +158,7 @@ impl<'a> Reader<'a> {
             match rule_name(node) {
                 "rule" => dom.rules.push(self.rule(node)?),
                 "directive" => dom.directives.push(self.directive(node)?),
-                "prefer-directive" => {
-                    let refs: Vec<_> =
-                        Self::parts(node).into_iter().filter(|n| rule_name(n) == "reference").take(2).collect();
-                    let args = refs
-                        .into_iter()
-                        .map(|n| self.token(n).map(|t| self.text(t).to_string()))
-                        .collect::<R<Vec<_>>>()?;
-                    dom.directives.push(Directive { name: "prefer".into(), args, at: self.at(self.token(node)?) });
-                }
+
                 "constant-definition" => dom.constants.push(self.constant(node)?),
                 "classifier" => dom.classifiers.push(self.classifier(node)?),
                 "implication-declaration" => dom.implications.push(self.implication_declaration(node)?),
@@ -432,7 +431,7 @@ impl<'a> Reader<'a> {
             Some(tags) => Some(self.constituent_tags(tags)?),
             None => None,
         };
-        Ok(Alternative { guards, expr, tags })
+        Ok(Alternative { guards, expr, tags, ranked_locations: Default::default() })
     }
 
     /// A rule's or an alternative's tags, which say what the constituent's
@@ -1913,7 +1912,7 @@ fn first_of_rule<'n>(node: &'n Node, name: &str) -> Option<&'n Node> {
 /// The rules of the notation's syntax grammar that the reader knows (engine
 /// §9). Every other rule is a wrapper, and the reader reads its parts in
 /// its place.
-const KNOWN: [&str; 84] = [
+const KNOWN: [&str; 83] = [
     "tree-comparison",
     "tree-comparator",
     "pattern-literal",
@@ -1927,7 +1926,6 @@ const KNOWN: [&str; 84] = [
     "pattern-path",
     "pattern-separator",
     "directive",
-    "prefer-directive",
     "argument-word",
     "argument-string",
     "argument-tag",
@@ -2201,7 +2199,6 @@ enum Operand {
 fn operand_problem(name: &str, kinds: &[Operand]) -> Option<String> {
     let names = kinds.iter().all(|kind| matches!(kind, Operand::Name | Operand::Class));
     let (ok, problem) = match name {
-        "prefer" => (kinds.len() == 2 && names, "%prefer takes exactly two rule names".to_string()),
         "stage" => (kinds.len() == 1 && names, "%stage takes one name".to_string()),
         "include" => (kinds == [Operand::String], "%include takes one string".to_string()),
         "features" => (!kinds.is_empty() && names, "%features takes one or more names".to_string()),

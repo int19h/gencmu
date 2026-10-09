@@ -1,6 +1,6 @@
 //! Scoped instrumentation for tests and measurements.
 use std::cell::RefCell;
-/// The work of one preference-enabled forest ranking.
+/// The work of one ranked-choice forest ranking.
 #[derive(Debug, Clone, Default)]
 pub struct SlotStatistics {
     /// The raw chart facts.

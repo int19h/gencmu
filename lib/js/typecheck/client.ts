@@ -37,7 +37,7 @@ if (result.error) {
   // An ambiguous error says why: a tie or the check of elision-only.
   const reason: "tie" | "elision-only" | undefined = result.error.reason;
   if (result.error.readings) result.error.readings.forEach(rules);
-  // @ts-expect-error format 11 has no preference cycle certificate
+  // @ts-expect-error the historical cycle field is outside the released result schema
   void result.error.cycle;
   void kind, reason;
 }

@@ -16,7 +16,7 @@ Libraries write object keys in the order that this document gives. They write no
 {"format":11,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
 ```
 
-`format` is the version of the result shape, 11. Format 11 removes preference cycle and conflict certificates. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one parse warning (engine §12, §13).
+`format` is the version of the result shape, 11. Format 11 puts the restored chosen derivation first in elision-only errors, compared with released format 9. Format 10 was never released. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one parse warning (engine §12, §13).
 
 A stage has one of these forms:
 
@@ -89,7 +89,7 @@ An error has one of these forms:
 - `rejected`: The grammar of the stage does not accept its input.
 - `ambiguous` (engine §6, §7): The error has `stage`, `reason`, `readings` and `message`, and no position. Every ambiguous error has two readings. `message` is free, and the shared tests do not compare it. `reason` says which of two cases the error is:
   - `tie`: The ranking of the stage has two or more best derivations (engine §6). The stage's verdict is `tie`, and it has no output. The readings are the first and the second reading of the tie, over the stage's input as the stage read it. They are two derivations, but they can be equal as `NODE` values. The engine counts derivations. It merges neither those that differ only at transparent closes nor those with equal trees (engine §6). The stage's witness then names the actions where they differ.
-  - `elision-only`: The stage chose one derivation, but its text stays ambiguous with its elided terminators written back (engine §7). The stage's verdict is `resolved`, and it keeps its output. The first reading is W(D), the restored chosen derivation. The second is its deterministic competitor (engine §7.10). This order also applies without `%prefer` or flagged rules.
+  - `elision-only`: The stage chose one derivation, but its text stays ambiguous with its elided terminators written back (engine §7). The stage's verdict is `resolved`, and it keeps its output. The first reading is W(D), the restored chosen derivation. The second is its deterministic competitor (engine §7.10). This order also applies without ranked groups or flagged rules.
 
     The readings hold the written-back terminators as elided nodes (engine §7.10). One can be a restored optional's terminator. One can also be a terminator that a reading reads on the written route of an optional, or as a bare terminal. So the two readings can be equal as `NODE` values, as a tie's can.
 
@@ -100,7 +100,7 @@ An error has one of these forms:
 
   A defect found by the check of `elision-only` can have the member `code` with the value `elision-witness-lost` (engine §7.9). Such an error also has `chosen`, the chosen tree. It has `completion`, the terminators written back.
 
-  Each of them is `{"terminal":T,"at":N,"source":[S,S]}`. Only a terminator with an equality test adds `"sound":"..."` last, including an empty equality operand. The members stand in the order `kind`, `stage`, `code`, `message`, `chosen`, `completion`. Any other error has no `code`.
+  Each of them is `{"terminal":T,"at":N,"source":[S,S]}`. Only a terminator with an equality test adds `"sound":"..."` last, including an empty equality operand. The members stand in the order `kind`, `stage`, `code`, `message`, `chosen`, `completion`. Other parse-result errors have no `code`. Structured loading errors use the separate schema below.
 
 For example, `text → [[X]]` on the empty input ties, and both readings are `{"kind":"rule","rule":"text","span":[0,0],"source":[0,0],"tags":[],"children":[]}`. The stage's witness names two different productions of the helpers. A nullable `&`, such as `[A] & [B]`, gives such a tie in the same way, with three derivations.
 
@@ -120,19 +120,21 @@ An admitted derivation has only kept slot candidates. `unique` means exactly one
 
 An elision-only error reports the raw reconstructed chosen derivation first, even when filtering excludes it. Its second reading is a deterministic admitted competitor. Both readings and their action witness map onto original input O. Intentional witness exclusion is ordinary ambiguity. Only absence from raw eligible recognition reports `elision-witness-lost`.
 
-No `cycle`, `conflict` or `chosenReading` field exists. Grammar DOM format 21 remains unchanged, and no seal node is serialized.
+No seal node is serialized.
 
 ### A grammar DOM
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
 
 ```
-{"format":21,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
+{"format":22,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
 ```
 
-`format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version. Format 21 adds pattern values and tree comparisons. It also permits all six tests on elidable terminators. Format 20 brought rule flags: `flags` on every rule definition, and the flag `leftmost-longest`. Format 18 brought braces and elidable optional markers.
+`format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version.
 
-An unreleased format covers all its changes together. Format 21 covers patterns and preference directives, including bootstrap and cache envelopes.
+Format 22 adds ordered ranked expressions and removes preference directives. Format 21 introduced pattern values and tree comparisons. It also permits all six tests on elidable terminators. Format 20 brought rule flags: `flags` on every rule definition, and the flag `leftmost-longest`. Format 18 brought braces and elidable optional markers.
+
+An unreleased format covers all its changes together. Format 22 applies to grammar DOMs, bootstrap envelopes, and cache envelopes.
 
 A library skips cached DOMs with another format and rejects bootstraps with another format. The cache identity also includes the bootstrap hash (engine §8).
 
@@ -145,7 +147,7 @@ An alternative is `{"guards":[GUARD...],"expr":EXPR,"tags":TERM}`, with `tags` o
 An expression is one of these forms:
 
 ```
-{"seq":[EXPR...]}  {"choice":[EXPR...]}  {"and":[EXPR...]}
+{"seq":[EXPR...]}  {"choice":[EXPR...]}  {"ranked":[EXPR,EXPR...]}  {"and":[EXPR...]}
 {"optional":EXPR}  {"optional":EXPR,"elidable":true,"maximal":true}
 {"repeat":EXPR,"separator":EXPR,"chain":"left"}
 {"ref":"sumti"}    {"terminal":"KOhA"}    {"capture":"x","expr":EXPR}
@@ -154,7 +156,7 @@ An expression is one of these forms:
 {"empty":true}
 ```
 
-An expression has no member but those of its one form.
+An expression has no member but those of its one form. Ranked expressions also use `{"ranked":[EXPR,EXPR]}`, as defined below.
 
 `repeat` is braces (engine §3, §9). Its value is the item, and its `separator` is present only where the braces have `\`. Its `chain` is present only for a chain: `left` for `{... x \ s}` and `right` for `{x ... \ s}`. So `{x}` is `{"repeat":X}`, `{x \ s}` is `{"repeat":X,"separator":S}`, and `[{x}]` is `{"optional":{"repeat":X}}`. A `repeat` with a `chain` is the whole `expr` of its alternative, and never part of another expression. A `repeat` has no `min`: a list counts one or more items, and an optional list is an `optional`.
 
@@ -202,7 +204,7 @@ An implication is `{"if":TERM,"then":TERM,"at":[line,column]}`, for `%implies A 
 
 A classifier and an implication have no member but those shown.
 
-A directive is `{"name":"features","args":["cbm"],"at":[line,column]}`. The name is the keyword without `%`: `ambiguity-resolution`, `prefer`, `stage`, `include` or `features`. A directive of any other name is malformed, `elidable` included (engine §9). An argument is a name, or, for `include`, the decoded string: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
+A directive is `{"name":"features","args":["cbm"],"at":[line,column]}`. The name is the keyword without `%`: `ambiguity-resolution`, `stage`, `include` or `features`. A directive of any other name is malformed, `elidable` included (engine §9). An argument is a name, or, for `include`, the decoded string: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
 
 `ambiguity-resolution` takes a ranking name and optionally `elision-only`. The retired operand `maximal` in `args` is an error.
 
@@ -260,27 +262,39 @@ These operators require a bare capture on the left and a pattern term on the rig
 
 Structural states and omission predicates are derived engine state. They add no serialized members. An omitted leaf's singleton pattern tags derive from its terminal name. An elided output node retains `sound` only for equality, including explicit empty equality. Inequality and tag tests add no saved sound or synthetic-token fields.
 
-### Preference directives and loading diagnostics
+### Ranked expressions and loading diagnostics
 
-`%prefer me-sumti > me-mex` produces this ordinary directive object:
+A ranked expression is `{"ranked":[EXPR,EXPR]}`. Its array has at least two ordinary expressions and preserves source order. A nested ranked expression retains its own boundary. Ordinary alternatives within one option use `choice`.
+
+For example, `mex MOI # ≻ SE # tanru-unit-1` produces this expression:
 
 ```json
-{"name":"prefer","args":["me-sumti","me-mex"],"at":[1,1]}
+{"ranked":[{"seq":[{"ref":"mex"},{"ref":"MOI"},{"ref":"#"}]},{"seq":[{"ref":"SE"},{"ref":"#"},{"ref":"tanru-unit-1"}]}]}
 ```
 
-The preferred name comes first. The reader requires `>` without storing it as an argument. The loader requires exactly two existing rules with names that are not capital-initial. Directives stitch with other stage directives. No top-level preference array exists.
+The DOM holds no lowered helper, admission key, seal, or selected option. References retain their existing written form before terminal resolution. Expression traversal includes `ranked` beside the existing expression forms.
 
-Slot validation reports errors rather than preference warnings. The codes are `prefer-slot-multiple-references`, `prefer-slot-parent`, `prefer-slot-template`, `prefer-slot-continuation` and `prefer-slot-tags`.
+Ranked loading errors have these members, in this order:
 
-Each diagnostic names its declaration, ranked references, common parent where available, and offending expression or capture role. A tag error gives the inheritance path to a terminal or explicit nonempty term. Choose source order when several offending paths exist. Diagnostics have no input span, chosen derivation or observer path.
+```text
+kind, code, message, group, option, expression, inheritance
+```
 
-A reference site records `document`, `at`, `rule`, `alternative` and `path`. `document` and `at` identify the surviving source definition, rather than the reference token. `rule` names the final enclosing rule, and `alternative` is its zero-based final alternative index. `path` is a JSON Pointer relative to that alternative's `expr`, ending at its `ref` object. An empty pointer denotes a whole-expression reference.
+`kind` is `grammar`. `code` and `message` are required for the four ranked loading errors. Their codes are `ranked-choice-syntax`, `ranked-choice-continuation`, `ranked-choice-export`, and `ranked-choice-tags` (engine §2.1). Message wording is not part of conformance.
 
-Captures and tests continue through `expr`. Traverse sequence and choice arrays in order, and repetition items before separators. Keep loading diagnostics outside document DOMs, cache envelopes and parse-result warnings. Descriptive `message` wording is not part of conformance.
+`group` appears when the reader identifies a ranked group. Its members are `document`, `at`, `rule`, `alternative`, and `path`, in that order. Omit `document` and `at` when unknown. `at` identifies the first `≻` token where source exists.
+
+`rule`, `alternative`, and `path` identify the final stitched source expression where available. `alternative` and `option` are zero-based indexes. Omit `option` for a failure common to the whole group.
+
+`path` is a JSON Pointer relative to the alternative's `expr`. Ranked children use `/ranked/0`, `/ranked/1`, and subsequent indexes. Captures and tests continue through `expr`. Other components retain their existing names.
+
+`expression` is the offending written expression as a DOM value where available. `inheritance` appears only for a tag error with a witness. It lists rule or helper sites from the group toward the tag source. Helper sites use written paths and the same source fields.
+
+Choose the shortest inheritance witness. Source traversal order breaks equal-length choices. Keep loading diagnostics outside document DOMs, cache envelopes, and parse-result warnings. The API exposes these members, and CLI JSON serialization preserves their order.
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":21,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":22,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
 
 A precompiled DOM holds the document's constants, classifiers and implications as the document writes them. The loader gives the constants their values when it stitches a stage, and a stage resolves a classifier for the features of a parse. So one precompiled DOM serves every stage, dialect and set of features that uses the document (engine §2, §8).
 
@@ -293,10 +307,6 @@ A token node reads an input token of the last stage, and that token can have att
 A hollow rule node, such as an empty slot for a free modifier, has no token and no elided node below it. No rendering shows a hollow rule node. Brackets drop it as an empty node, and the tree and the display JSON leave it out. But the tree and the display JSON always show the root. So the tree renders a hollow tree, such as that of the empty text, as the rule name of the root alone. The display JSON renders it as `{"text": []}`, and brackets render it as nothing.
 
 ### Brackets
-
-A named wrapper with several visible children adds a group. Empty children disappear, and one visible child collapses. Apply this after elided-marker visibility. Preference membership grants no rendering exemption. The experimental `gek-termset-body` groups its forethought body inside NUhI. Shared `me-unit` remains bracket-neutral.
-
-Wrapper normalization is an analysis technique, not public output behavior.
 
 Tree patterns do not change bracket grouping. The renderer applies the rules below after it decides whether to show elided terminators. Brackets write the tree of the final stage as nested groups:
 

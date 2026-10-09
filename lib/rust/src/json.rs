@@ -6,53 +6,102 @@ use std::collections::HashMap;
 use std::fmt::Write as _;
 
 /// A parsed JSON value. Objects keep their members in document order.
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) enum Json {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Json {
+    /// A null value.
     Null,
+    /// A Boolean value.
     Bool(bool),
+    /// An integer value.
     Int(i64),
+    /// A string value.
     Str(String),
+    /// An ordered array.
     Arr(Vec<Json>),
+    /// An object with ordered members.
     Obj(Vec<(String, Json)>),
 }
 
 impl Json {
-    pub(crate) fn get(&self, key: &str) -> Option<&Json> {
+    /// Writes the value with object members in their stored order.
+    pub fn to_json(&self) -> String {
+        fn write(out: &mut String, value: &Json) {
+            match value {
+                Json::Null => out.push_str("null"),
+                Json::Bool(v) => out.push_str(if *v { "true" } else { "false" }),
+                Json::Int(v) => out.push_str(&v.to_string()),
+                Json::Str(v) => write_str(out, v),
+                Json::Arr(items) => {
+                    out.push('[');
+                    for (i, item) in items.iter().enumerate() {
+                        if i > 0 {
+                            out.push(',');
+                        }
+                        write(out, item);
+                    }
+                    out.push(']');
+                }
+                Json::Obj(items) => {
+                    out.push('{');
+                    for (i, (key, item)) in items.iter().enumerate() {
+                        if i > 0 {
+                            out.push(',');
+                        }
+                        write_str(out, key);
+                        out.push(':');
+                        write(out, item);
+                    }
+                    out.push('}');
+                }
+            }
+        }
+        let mut out = String::new();
+        write(&mut out, self);
+        out
+    }
+
+    /// Gets the first object member with this name.
+    pub fn get(&self, key: &str) -> Option<&Json> {
         match self {
             Json::Obj(members) => members.iter().find(|(name, _)| name == key).map(|(_, value)| value),
             _ => None,
         }
     }
 
-    pub(crate) fn as_str(&self) -> Option<&str> {
+    /// Gets a string value.
+    pub fn as_str(&self) -> Option<&str> {
         match self {
             Json::Str(text) => Some(text),
             _ => None,
         }
     }
 
-    pub(crate) fn as_array(&self) -> Option<&[Json]> {
+    /// Gets an array value.
+    pub fn as_array(&self) -> Option<&[Json]> {
         match self {
             Json::Arr(items) => Some(items),
             _ => None,
         }
     }
 
-    pub(crate) fn as_object(&self) -> Option<&[(String, Json)]> {
+    /// Gets ordered object members.
+    pub fn as_object(&self) -> Option<&[(String, Json)]> {
         match self {
             Json::Obj(members) => Some(members),
             _ => None,
         }
     }
 
-    pub(crate) fn as_int(&self) -> Option<i64> {
+    /// Gets an integer value.
+    pub fn as_int(&self) -> Option<i64> {
         match self {
             Json::Int(value) => Some(*value),
             _ => None,
         }
     }
 
-    pub(crate) fn as_bool(&self) -> Option<bool> {
+    /// Gets a Boolean value.
+    pub fn as_bool(&self) -> Option<bool> {
         match self {
             Json::Bool(value) => Some(*value),
             _ => None,

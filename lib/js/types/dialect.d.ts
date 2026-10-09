@@ -80,7 +80,6 @@ export declare class Dialect {
     stages: Stage[];
     loader: Loader;
     declared: string[];
-    loadWarnings: any[];
     /** @type {Feature[]} the dialect's features, with their kinds and defaults */
     features: Feature[];
     /**

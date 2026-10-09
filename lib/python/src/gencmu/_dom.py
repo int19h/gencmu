@@ -38,7 +38,7 @@ from ._validate import (
 Dom = dict[str, Any]
 
 _MAPPED = frozenset(
-    """prefer-directive directive argument-word argument-string argument-tag rule definer rule-flags rule-flag rule-name body alternative ranked-alternative ranked-choice guard alternative-tags
+    """directive argument-word argument-string argument-tag rule definer rule-flags rule-flag rule-name body alternative ranked-alternative ranked-choice guard alternative-tags
     choice conjunction sequence primary repetition reference string tag character phoneme name tested test test-operand capture
     group optional empty tags-clause conditions-clause emits-clause opaque-clause emit-item emit-target emit-tags emit-before
     emit-after implication any-of all-of condition comparison comparator negation presence call argument term guarded-term
@@ -73,7 +73,7 @@ _ATOMS = frozenset(
 )
 """What a primary, a condition, a term and a term atom hold: the one rule
 among their parts is one of these (engine §9)."""
-_ITEMS = frozenset(["prefer-directive", "directive", "rule", "constant-definition", "classifier", "implication-declaration"])
+_ITEMS = frozenset(["directive", "rule", "constant-definition", "classifier", "implication-declaration"])
 """The items of a document (engine §9)."""
 _PROPERTY = re.compile(r"'\\p\{([^}]*)\}'")
 _SYMBOLS = frozenset(["reference", "tag", "character", "phoneme", "range", "property", "tested"])
@@ -198,7 +198,7 @@ class DomBuilder:
 
     def fail(self, node: Node, message: str) -> GencmuError:
         line, column = self.position(node)
-        return GencmuError(message, document=self.document, line=line, column=column)
+        return GencmuError(message, document=self.document, line=line, column=column, code="ranked-choice-syntax" if node.rule == "ranked-choice" else None)
 
     def text(self, node: Node) -> str:
         assert node.kind == "token" and node.token is not None
@@ -275,7 +275,7 @@ class DomBuilder:
                 raise self.fail(kid, f"the notation gives a {kid.rule} where an item stands")
             if kid.kind == "rule" and kid.rule == "rule":
                 rules.append(self.rule(kid))
-            elif kid.kind == "rule" and kid.rule in ("directive", "prefer-directive"):
+            elif kid.kind == "rule" and kid.rule in ("directive"):
                 directives.append(self.directive(kid))
             elif kid.kind == "rule" and kid.rule == "constant-definition":
                 constants.append(self.constant(kid))
@@ -367,9 +367,6 @@ class DomBuilder:
 
     def directive(self, node: Node) -> Dom:
         name = self.text(self.token(node))[1:]
-        if node.rule == "prefer-directive":
-            args = [self.text(self.token(kid)) for kid in self.kids(node) if kid.kind == "rule" and kid.rule == "reference"][:2]
-            return {"name": "prefer", "args": args, "at": list(self.position(node))}
         operands = [kid for kid in self.kids(node) if kid.kind == "rule" and kid.rule in ("argument-word", "argument-string", "argument-tag")]
         problem = operand_problem(name, [self.operand_kind(kid) for kid in operands])
         if problem:
@@ -1205,8 +1202,7 @@ def operand_problem(name: str, kinds: list[str]) -> str | None:
     ``tag``, ``phoneme`` or ``character``, or ``range`` or ``property``, or
     None (engine §9)."""
     names = all(kind in ("name", "class") for kind in kinds)
-    if name == "prefer":
-        return None if len(kinds) == 2 and names else "%prefer takes exactly two rule names"
+
     if name == "stage":
         return None if len(kinds) == 1 and names else "%stage takes one name"
     if name == "include":

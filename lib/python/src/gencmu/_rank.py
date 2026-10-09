@@ -1182,25 +1182,15 @@ class Ranking:
 
 
 def rank(forest: Forest, lean: str, maximal: Maximal | None = None, marks=None, check=False, unfiltered=False) -> Ranking | None:
-    preferences = forest.lowered.grammar.preferences
     admission = None
     if not unfiltered and forest.lowered.ranked_helpers:
         from ._ranked_admission import RankedAdmission
         from ._slot_views import helper_forest
-        from types import SimpleNamespace
         names = {forest.lowered.rule_names[r] for r in forest.lowered.ranked_helpers}
         raw_facts = len(forest.prod)
-        forest,maximal,marks = helper_forest(forest,SimpleNamespace(names=names,ranked=True),maximal,marks)
+        forest,maximal,marks = helper_forest(forest,names,maximal,marks)
         admission = RankedAdmission(forest,maximal,check)
         admission.stats['chart_facts'] = raw_facts
-        admission.prepare()
-    elif not unfiltered and preferences is not None and preferences.names:
-        from ._slots import SlotAdmission
-        raw_facts = len(forest.prod)
-        from ._slot_views import helper_forest
-        forest,maximal,marks = helper_forest(forest,preferences,maximal,marks)
-        admission = SlotAdmission(forest,preferences,maximal,check)
-        admission.stats["chart_facts"] = raw_facts
         admission.prepare()
     result = rank_original(forest,lean,maximal,marks,check,admission)
     callback = _testing.slot_admission.get()

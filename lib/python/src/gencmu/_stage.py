@@ -818,7 +818,7 @@ class StageRunner:
                 pending.extend(node.children)
             walk = walk_witness(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at))
         marks = walk.marks if walk is not None else watch.marks if watch is not None else None
-        preferred = bool(lowered.ranked_helpers or lowered.grammar.preferences.names)
+        preferred = bool(lowered.ranked_helpers)
         raw_counted = True
         if preferred:
             raw = rank(forest,"none",marks=marks,check=True,unfiltered=True)

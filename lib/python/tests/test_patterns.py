@@ -65,7 +65,7 @@ class Patterns(unittest.TestCase):
         )
         lowered = SimpleNamespace(
             productions=[production] * 1000, ranked_helpers={},
-            grammar=SimpleNamespace(preferences=None),
+            grammar=SimpleNamespace(),
         )
         first = observation_machine(lowered)
         self.assertEqual(len(lowered._pattern_roots), 1)

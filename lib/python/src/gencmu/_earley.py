@@ -828,8 +828,7 @@ class Parser:
         last_reading = reading_last(lowered) if recon else []
         elidable_helpers = lowered.elidable_helpers
 
-        ranked = getattr(lowered.grammar.preferences,"names",())
-        has_slots = bool(ranked or ranked_groups)
+        has_slots = bool(ranked_groups)
         prod: list[int] = []
         dot: list[int] = []
         origin: list[int] = []
@@ -1032,7 +1031,7 @@ class Parser:
             if machine is not None:
                 part_structure = structures[edge[2]] if edge[1] == 2 else terminal_structure(production, position, edge[2], edge[3])
                 symbol = production.rhs[position]
-                exported = machine.sealed() if not production.terminal[position] and (lowered.rule_names[symbol] in ranked or symbol in lowered.ranked_helpers) else part_structure
+                exported = machine.sealed() if not production.terminal[position] and symbol in lowered.ranked_helpers else part_structure
                 prefix = machine.concat(prefixes[item], exported)
                 part = (*part[:3], part_structure)
             captured = caps[item]
