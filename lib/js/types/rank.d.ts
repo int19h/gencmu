@@ -21,10 +21,6 @@ export type Ranking = {
     second: Rope | null;
     witness: [Action | null, Action | null] | null;
     profile: RuleProfile;
-    cycle?: import("./prefer-rank.js").CycleEdge[];
-    readings?: Rope[];
-    conflict?: import("./prefer-rank.js").PreferenceConflict;
-    slow?: boolean;
     /**
      * with the witness hook's marks,
      * whether the count counted W(D); null without marks
@@ -152,6 +148,8 @@ export declare class Ranker {
      * @type {Map<Item, Set<number>> | null}
      */
     marks: Map<Item, Set<number>> | null;
+    /** @type {import("./slots.js").SlotAdmission | null} */
+    admission: import("./slots.js").SlotAdmission | null;
     /**
      * @param {Token[]} tokens
      * @param {Lean} lean

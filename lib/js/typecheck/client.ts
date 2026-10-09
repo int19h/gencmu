@@ -37,7 +37,8 @@ if (result.error) {
   // An ambiguous error says why: a tie or the check of elision-only.
   const reason: "tie" | "elision-only" | undefined = result.error.reason;
   if (result.error.readings) result.error.readings.forEach(rules);
-  if (result.error.cycle) result.error.cycle.forEach((edge) => { void edge.from, edge.to, edge.basis; });
+  // @ts-expect-error format 11 has no preference cycle certificate
+  void result.error.cycle;
   void kind, reason;
 }
 

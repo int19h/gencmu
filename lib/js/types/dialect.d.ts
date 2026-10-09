@@ -53,9 +53,10 @@ export declare class Loader {
      * Reads a grammar document's Markdown into its DOM with the notation.
      * @param {string} markdown
      * @param {string} path
+     * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
      * @returns {GrammarDom}
      */
-    readDocument(markdown: string, path: string): GrammarDom;
+    readDocument(markdown: string, path: string, deferEmission?: boolean): GrammarDom;
     /**
      * A dialect from its pipeline document's path.
      * @param {string} path
@@ -79,7 +80,7 @@ export declare class Dialect {
     stages: Stage[];
     loader: Loader;
     declared: string[];
-    loadWarnings: import("./preferences.js").LoadWarning[];
+    loadWarnings: any[];
     /** @type {Feature[]} the dialect's features, with their kinds and defaults */
     features: Feature[];
     /**
@@ -115,9 +116,10 @@ export declare class Dialect {
  * @param {(token: Token) => import("./types.js").Position} positionOf
  * @param {string} path
  * @param {UnicodeTable} unicode
+ * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
  * @returns {GrammarDom}
  */
-export declare function domOfTree(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => import("./types.js").Position, path: string, unicode: UnicodeTable): GrammarDom;
+export declare function domOfTree(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => import("./types.js").Position, path: string, unicode: UnicodeTable, deferEmission?: boolean): GrammarDom;
 /**
  * @param {string} text
  * @returns {string}

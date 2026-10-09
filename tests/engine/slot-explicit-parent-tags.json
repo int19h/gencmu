@@ -1,0 +1,75 @@
+{
+  "description": "A common parent tag constructor replaces unsafe unary inheritance.",
+  "grammar": "%rule text a <~unit> | b <~unit>\n%rule a X <~a>\n%rule b X <~b>\n%prefer a > b",
+  "tokens": [
+    {
+      "text": "x",
+      "phonemes": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 11,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": []
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": [
+          "unit"
+        ],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "a",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [
+              "a"
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "X",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "error": null
+    },
+    "brackets": "x"
+  }
+}

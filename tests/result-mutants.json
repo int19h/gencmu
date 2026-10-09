@@ -152,41 +152,8 @@
       }
     },
     {
-      "name": "cycle index outside readings",
-      "case": "prefer-basic-cycle.json",
-      "path": [
-        "error",
-        "cycle",
-        0,
-        "to"
-      ],
-      "set": 100
-    },
-    {
-      "name": "cycle edge without a reason",
-      "case": "prefer-basic-cycle.json",
-      "path": [
-        "error",
-        "cycle",
-        0,
-        "basis"
-      ],
-      "set": "unknown"
-    },
-    {
-      "name": "broken cycle",
-      "case": "prefer-basic-cycle.json",
-      "path": [
-        "error",
-        "cycle",
-        1,
-        "from"
-      ],
-      "set": 0
-    },
-    {
-      "name": "cycle with two edges",
-      "case": "prefer-basic-cycle.json",
+      "name": "obsolete preference cycle",
+      "case": "late-elision-roots-tie.json",
       "path": [
         "error",
         "cycle"
@@ -194,30 +161,22 @@
       "set": []
     },
     {
-      "name": "inexact cycle counts",
-      "case": "prefer-basic-cycle.json",
+      "name": "obsolete preference conflict",
+      "case": "late-elision-roots-tie.json",
       "path": [
         "error",
-        "cycle",
-        0,
-        "counts"
+        "conflict"
       ],
-      "set": [
-        0,
-        1
-      ]
+      "set": {}
     },
     {
-      "name": "cycle pairwise witness",
-      "case": "prefer-basic-cycle.json",
+      "name": "obsolete preference chosenReading",
+      "case": "late-elision-roots-tie.json",
       "path": [
         "error",
-        "witness"
+        "chosenReading"
       ],
-      "set": [
-        null,
-        null
-      ]
+      "set": 0
     }
   ]
 }

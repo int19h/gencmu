@@ -19,6 +19,7 @@ export declare class PatternMachine {
     /** @type {Map<string,number>} */ stateIds: Map<string, number>;
     /** @type {Map<string,number>} */ transitions: Map<string, number>;
     empty: number;
+    seal: number;
     /** @param {any[]} roots */
     constructor(roots: any[]);
     /** @param {any} n @returns {number} */

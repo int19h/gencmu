@@ -73,6 +73,11 @@ export declare class Grammar {
         path: string;
         rule: DomRule;
     }[];
+    /** @type {{path:string, rule:DomRule}[]} */
+    emissionUsers: {
+        path: string;
+        rule: DomRule;
+    }[];
     /** @type {Map<string, StitchedRule>} */
     rules: Map<string, StitchedRule>;
     /** @type {RuleChange[]} */
@@ -115,7 +120,7 @@ export declare class Grammar {
      */
     tests: WeakMap<object, SymbolTest>;
     preferences: Preferences;
-    loadWarnings: import("./preferences.js").LoadWarning[];
+    loadWarnings: any[];
     /**
      * The features that gate an alternative or an entry of a classifier.
      * Only these change a lowered grammar. A warning keeps its alternative

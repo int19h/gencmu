@@ -44,16 +44,6 @@ export type RuleNode = {
     children: ResultNode[];
 };
 export type ResultNode = TokenNode | ElidedNode | RuleNode;
-export type PreferenceCycleEdge = {
-    from: number;
-    to: number;
-    basis: "prefer" | "stage";
-    contests?: import("./prefer-rank.js").Contest[];
-    directive?: string;
-    boundary?: number;
-    counts?: [string, string];
-    witness?: [WitnessAction | null, WitnessAction | null];
-};
 export type Expectation = {
     terminal: string;
     rules: string[];
@@ -86,9 +76,6 @@ export type ParseError = {
     column?: number;
     expected?: Expectation[];
     readings?: ResultNode[];
-    cycle?: PreferenceCycleEdge[];
-    conflict?: import("./prefer-rank.js").PreferenceConflict;
-    chosenReading?: number;
     /**
      * for an error of elision-only, where its
      * two readings first differ (engine §7.10)
@@ -484,6 +471,8 @@ export type Argument = Term | {
     classifier: string;
 };
 export type GrammarSymbol = {
+    slot?: import("./preferences.js").SlotComponent;
+    role?: string;
     name: string;
     terminal: boolean;
     /**
@@ -521,6 +510,10 @@ export type ReadyCondition = {
     readyAt: number;
 };
 export type Production = {
+    source?: import("./grammar.js").StitchedAlternative;
+    slotRoles?: Map<string, string>;
+    role?: string;
+    writtenTags?: Term[];
     id: number;
     lhs: string;
     rhs: GrammarSymbol[];
@@ -759,7 +752,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {ResultNode[]} children
  */
 /** @typedef {TokenNode | ElidedNode | RuleNode} ResultNode */
-/** @typedef {{from: number, to: number, basis: "prefer" | "stage", contests?: import("./prefer-rank.js").Contest[], directive?: string, boundary?: number, counts?: [string, string], witness?: [WitnessAction | null, WitnessAction | null]}} PreferenceCycleEdge */
 /**
  * A terminal a rejected stage could have read, and the rules that could
  * have read it.
@@ -786,9 +778,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {number} [column]
  * @property {Expectation[]} [expected]
  * @property {ResultNode[]} [readings]
- * @property {PreferenceCycleEdge[]} [cycle]
- * @property {import("./prefer-rank.js").PreferenceConflict} [conflict]
- * @property {number} [chosenReading]
  * @property {Witness} [witness] for an error of elision-only, where its
  *   two readings first differ (engine §7.10)
  * @property {string} [document]
@@ -1069,6 +1058,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * @typedef {object} GrammarSymbol
+ * @property {import("./preferences.js").SlotComponent} [slot]
+ * @property {string} [role]
  * @property {string} name
  * @property {boolean} terminal
  * @property {SymbolTest} [test] the test on the symbol's own span; not part
@@ -1106,6 +1097,10 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * A production of a lowered grammar (engine §3).
  * @typedef {object} Production
+ * @property {import("./grammar.js").StitchedAlternative} [source]
+ * @property {Map<string, string>} [slotRoles]
+ * @property {string} [role]
+ * @property {Term[]} [writtenTags]
  * @property {number} id
  * @property {string} lhs
  * @property {GrammarSymbol[]} rhs

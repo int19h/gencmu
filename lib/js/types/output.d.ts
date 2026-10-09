@@ -68,9 +68,6 @@ export type ErrorJson = {
     expected?: import("./types.js").Expectation[];
     readings?: NodeJson[];
     witness?: ActionJson[];
-    cycle?: CycleEdgeJson[];
-    conflict?: import("./prefer-rank.js").PreferenceConflict;
-    chosenReading?: number;
     document?: string;
     message: string;
     chosen?: NodeJson;
@@ -102,9 +99,6 @@ export type WarningJson = {
 };
 export type DisplayValue = {
     [name: string]: DisplayValue | DisplayValue[] | string | string[] | null;
-};
-export type CycleEdgeJson = Omit<import("./types.js").PreferenceCycleEdge, "witness"> & {
-    witness?: [ActionJson | null, ActionJson | null];
 };
 /** @import { WitnessAction, ParseError, ParseResult, ResultNode, Span } from "./types.js" */
 /** @import { AttachedToken, Token } from "./tokens.js" */
@@ -147,9 +141,6 @@ export type CycleEdgeJson = Omit<import("./types.js").PreferenceCycleEdge, "witn
  * @property {import("./types.js").Expectation[]} [expected]
  * @property {NodeJson[]} [readings]
  * @property {ActionJson[]} [witness]
- * @property {CycleEdgeJson[]} [cycle]
- * @property {import("./prefer-rank.js").PreferenceConflict} [conflict]
- * @property {number} [chosenReading]
  * @property {string} [document]
  * @property {string} message
  * @property {NodeJson} [chosen]
@@ -187,8 +178,7 @@ export type CycleEdgeJson = Omit<import("./types.js").PreferenceCycleEdge, "witn
  * member, its rule or terminal.
  * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | string[] | null}} DisplayValue
  */
-/** @typedef {Omit<import("./types.js").PreferenceCycleEdge, "witness"> & {witness?: [ActionJson | null, ActionJson | null]}} CycleEdgeJson */
-export declare const RESULT_FORMAT = 10;
+export declare const RESULT_FORMAT = 11;
 /**
  * @param {ResultNode} node
  * @returns {NodeJson}

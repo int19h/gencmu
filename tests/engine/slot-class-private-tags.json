@@ -1,0 +1,24 @@
+{
+  "description": "An empty class projection does not excuse a later read of nonempty private tags.",
+  "grammar": "%rule text $h(a) $s(Z) | $h(b) $s(Z)\n%conditions classes($h) = ∅ ∨ text($s) = \"z\"\n%rule a X <~private>\n%rule b X <~private>\n%prefer a > b",
+  "tokens": [
+    {
+      "text": "x",
+      "phonemes": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "phonemes": "y",
+      "tags": [
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "prefer-slot-tags"
+  }
+}

@@ -63,12 +63,13 @@ export declare function propertyProblem(name: unknown): string | null;
  * tests are checked against, and the marks that decide a character tag's canonical spelling.
  * @param {unknown} dom
  * @param {{lowercase(text: string): string, isMark(code: number): boolean}} unicode
+ * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
  * @returns {string | null}
  */
 export declare function domProblem(dom: unknown, unicode: {
     lowercase(text: string): string;
     isMark(code: number): boolean;
-}): string | null;
+}, deferEmission?: boolean): string | null;
 /**
  * What is wrong with a call of split or tag whose argument the reader sees
  * as a string literal (engine §9, §10), or null: an empty delimiter, or a
@@ -82,12 +83,13 @@ export declare function literalCallProblem(call: string, args: unknown[]): strin
  * Whether a value is a grammar DOM, by the loader's table.
  * @param {unknown} dom
  * @param {{lowercase(text: string): string, isMark(code: number): boolean}} unicode
+ * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
  * @returns {dom is GrammarDom}
  */
 export declare function isDom(dom: unknown, unicode: {
     lowercase(text: string): string;
     isMark(code: number): boolean;
-}): dom is GrammarDom;
+}, deferEmission?: boolean): dom is GrammarDom;
 /**
  * Whether a term, or a condition inside one, reads the tags of `$`, the
  * constituent whose tags it may be defining: `$` as a value, `tags($)` or
@@ -297,15 +299,18 @@ export declare function duplicateCaptures(expr: any): {
  * @returns {any}
  */
 export declare function elidableHead(expr: any): any;
+/** @param {object} rule @returns {string | undefined} */
+export declare const deferredEmissionProblem: (rule: object) => string | undefined;
 /**
  * Why a definition, a rule's alternatives with its own clauses, cannot be
  * read (engine §9), or null. The DOM's shape must already be checked. The
  * checks that simplification decides skip a clause that holds a constant
  * without its value.
  * @param {any} rule
+ * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
  * @returns {string | null}
  */
-export declare function definitionProblem(rule: any): string | null;
+export declare function definitionProblem(rule: any, deferEmission?: boolean): string | null;
 /**
  * An emission item's attachment captures, before and after it, in order.
  * @param {any} item

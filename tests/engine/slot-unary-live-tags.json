@@ -1,0 +1,24 @@
+{
+  "description": "A unary parent cannot inherit unsafe hole tags, even when nobody reads them.",
+  "grammar": "%rule text a | b\n%rule a X\n%rule b X Y\n%prefer a > b",
+  "tokens": [
+    {
+      "text": "x",
+      "phonemes": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "phonemes": "y",
+      "tags": [
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "prefer-slot-tags"
+  }
+}

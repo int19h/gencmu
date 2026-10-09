@@ -1,0 +1,24 @@
+{
+  "description": "Unary inheritance from a terminal propagates its unsafe mark through helper rules.",
+  "grammar": "%rule text a | b\n%rule a inner\n%rule inner X\n%rule b X Y\n%prefer a > b",
+  "tokens": [
+    {
+      "text": "x",
+      "phonemes": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "phonemes": "y",
+      "tags": [
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "prefer-slot-tags"
+  }
+}

@@ -1,0 +1,127 @@
+{
+  "description": "An inline choice has one common hole. The multi-symbol rivals return empty tags.",
+  "grammar": "%rule text X (a | b) Z\n%rule a Y Y\n%rule b Y Y\n%prefer a > b",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    },
+    {
+      "text": "z",
+      "tags": [
+        "Z"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 11,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": []
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          4
+        ],
+        "source": [
+          0,
+          7
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "X",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "a",
+            "span": [
+              1,
+              3
+            ],
+            "source": [
+              2,
+              5
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "Y",
+                "token": 1,
+                "span": [
+                  1,
+                  2
+                ],
+                "source": [
+                  2,
+                  3
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "Y",
+                "token": 2,
+                "span": [
+                  2,
+                  3
+                ],
+                "source": [
+                  4,
+                  5
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "Z",
+            "token": 3,
+            "span": [
+              3,
+              4
+            ],
+            "source": [
+              6,
+              7
+            ]
+          }
+        ]
+      },
+      "error": null
+    },
+    "brackets": "(x [y y] z)"
+  }
+}

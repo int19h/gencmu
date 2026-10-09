@@ -1,0 +1,24 @@
+{
+  "description": "A common condition that reads private structure and a suffix capture is not a ready gate.",
+  "grammar": "%rule text $h(a) $s(Z) | $h(b) $s(Z)\n%conditions $h ≅ @(a) ∨ initial($s)\n%rule a X Y\n%rule b X Y\n%prefer a > b",
+  "tokens": [
+    {
+      "text": "x",
+      "phonemes": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "phonemes": "y",
+      "tags": [
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "prefer-slot-continuation"
+  }
+}

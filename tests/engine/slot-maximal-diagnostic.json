@@ -1,0 +1,61 @@
+{
+  "description": "Unrestricted diagnostic admission removes b, so the first forbidden omission is T at boundary one in a. Ordinary admission remains rejected.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text a | b\n%rule a y [++T] Y Z\n%rule b z [++U] Z\n%rule y X | X Y\n%rule z X Y | X Y Z\n%prefer a > b",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "x"
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ],
+      "phonemes": "y"
+    },
+    {
+      "text": "z",
+      "tags": [
+        "Z"
+      ],
+      "phonemes": "z"
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "format": 11,
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 1,
+        "source": [
+          2,
+          3
+        ],
+        "line": 1,
+        "column": 3,
+        "expected": [
+          {
+            "terminal": "T",
+            "rules": [
+              "a"
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": ""
+  }
+}

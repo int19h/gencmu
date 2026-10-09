@@ -10,7 +10,7 @@
   "input": "w",
   "expect": {
     "result": {
-      "format": 10,
+      "format": 11,
       "ok": true,
       "stages": [
         {
