@@ -184,9 +184,7 @@ class ParseError:
     An ambiguous error has a ``reason``: ``"tie"`` where a stage has two or
     more best readings (engine §6), or ``"elision-only"`` where the check of
     engine §7 fails. Its ``readings`` hold two trees for an ordinary tie.
-    A comparison cycle holds at least three trees and each edge in ``cycle``.
     An ordinary elision-only error also holds the first differing actions in ``witness``.
-    A cycle under elision-only holds ``chosen_reading`` equal to zero.
 
     A grammar error has the ``code`` ``"elision-witness-lost"`` where the
     check of engine §7 lost its chosen derivation, a defect of the library
@@ -209,9 +207,6 @@ class ParseError:
     chosen: Node | None = None
     completion: list[Restoration] | None = None
     witness: tuple[Action, Action] | None = None
-    cycle: list[dict[str, Any]] | None = None
-    conflict: dict[str, Any] | None = None
-    chosen_reading: int | None = None
 
 
 @dataclass(frozen=True)

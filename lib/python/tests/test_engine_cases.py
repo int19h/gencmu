@@ -77,6 +77,8 @@ class EngineCases(unittest.TestCase):
             self.assertEqual(error.kind, expect.get("error"), f"{label}: unexpected load error: {error}")
             loaded_only = [name for name in AFTER_LOAD if name in expect]
             self.assertEqual(loaded_only, [], f"{label}: the dialect did not load: {error}")
+            if "diagnostic" in expect:
+                self.assertTrue(error.message.startswith(expect["diagnostic"] + ":"), f"{label}: {error.message}")
             if "where" in expect:
                 # Where the error stands, in a document of the case, given
                 # only for a grammar error (tests/README.md).

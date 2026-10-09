@@ -13,7 +13,7 @@ import json
 import re
 from typing import Any, Protocol
 
-from ._clauses import definition_problem, duplicate_captures
+from ._clauses import definition_problem, duplicate_captures, deferred_emission_problem
 from ._tags import character_of_tag, is_tag
 from ._types import constant_value_problem, expected_problem, is_sound_test, open_part, rule_type_problem, term_type, test_type_problem
 from ._unicode import PROPERTY_NAMES
@@ -342,7 +342,7 @@ def _is_character_class(value: dict[str, Any], unicode: Lowercase) -> bool:
     return False
 
 
-def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
+def dom_problem(dom: Any, unicode: Lowercase, defer_emission: bool = False) -> str | None:
     """Why a value is not a grammar DOM the reader could have written, or
     None when it is one. ``unicode`` is the loader's table: the lowercase
     mapping that the strings of sound tests are checked against, and the marks that decide a
@@ -494,7 +494,10 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
     # known to be well formed, and so are the types of its terms and
     # conditions (engine §10).
     for rule in dom["rules"]:
-        problem = definition_problem(rule) or rule_type_problem(rule)
+        problem = definition_problem(rule)
+        if problem is not None and defer_emission and deferred_emission_problem(problem):
+            problem = None
+        problem = problem or rule_type_problem(rule)
         if problem is not None:
             return problem
     for constant in dom["constants"]:

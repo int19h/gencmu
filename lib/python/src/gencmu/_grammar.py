@@ -9,7 +9,7 @@ import threading
 from dataclasses import dataclass, field
 from typing import Any, Union
 
-from ._clauses import WHOLE, Emission, Prepared, captures_in, definition_problem, prepare, prepare_conditions, simplify_term
+from ._clauses import WHOLE, Emission, Prepared, captures_in, definition_problem, deferred_emission_problem, prepare, prepare_conditions, simplify_term
 from ._errors import ErrorData, GencmuError
 from ._recent import Recent
 from ._tags import (
@@ -265,6 +265,7 @@ class _Constants:
         # The definitions of rules that use constants, which the loader
         # checks once the constants have their final values.
         self.users: list[tuple[str, Dom]] = []
+        self.deferred_emissions = []
 
     def type_of(self, name: str) -> TermType:
         return self.values[name].type
@@ -489,7 +490,10 @@ class _Constants:
             # to the loader, now with the constants' values (engine §9).
             problem = definition_problem(run(self.with_values(rule)))
             if problem is not None:
-                raise _error(problem, path, rule["at"], self.stage)
+                if deferred_emission_problem(problem):
+                    self.deferred_emissions.append(_error(problem,path,rule["at"],self.stage))
+                else:
+                    raise _error(problem, path, rule["at"], self.stage)
             # A string constant in a sound test must be a canonical sound
             # (engine §2, §9); the error stands at the constant.
             for alternative in rule["alternatives"]:
@@ -627,6 +631,9 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
     classifier_items: list[tuple[str, Dom]] = []
     implication_items: list[tuple[str, Dom]] = []
     for path, dom in documents:
+        for rule,message in getattr(dom,"deferred_emissions",()):
+            if not constants_in(rule) and not _rule_has_pattern(rule):
+                constants.deferred_emissions.append(_error(message,path,rule["at"],stage))
         for rule in dom.get("rules", []):
             if constants_in(rule) or _rule_has_pattern(rule):
                 constants.users.append((path, rule))
@@ -751,7 +758,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
                     stack.extend(value.values())
                 elif isinstance(value, list):
                     stack.extend(value)
-    return Grammar(
+    grammar = Grammar(
         stage,
         rules,
         args[0],
@@ -761,6 +768,12 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
         classifier_items=classifier_items,
         implications=implications,
     )
+
+    if grammar.preferences.names:
+        grammar.preferences.validate(_Lowerer(grammar,frozenset(),True).lower())
+    if constants.deferred_emissions:
+        raise constants.deferred_emissions[0]
+    return grammar
 
 
 RESOLVED = "resolved"
@@ -830,6 +843,13 @@ def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
 
 
 @dataclass
+class SlotMetadata:
+    source: Alternative
+    path: int | None = None
+    tags: list[Dom] = field(default_factory=list)
+
+
+@dataclass
 class Production:
     """A production of the lowered grammar."""
 
@@ -863,6 +883,7 @@ class Production:
     # The features of the alternative's warnings, in the order they are
     # written (engine §12); none for a helper.
     warnings: tuple[str, ...] = ()
+    slot: SlotMetadata | None = field(init=False,default=None,repr=False,compare=False)
 
     @property
     def transparent(self) -> bool:
@@ -958,8 +979,14 @@ def written_symbol(name: str, test: SymbolTest | None) -> str:
 
 
 class _Lowerer:
-    def __init__(self, grammar: Grammar, features: frozenset[str]) -> None:
+    def __init__(self, grammar: Grammar, features: frozenset[str], validation: bool = False) -> None:
         self.grammar = grammar
+        self.validation = validation
+        self.current_expr = None
+        self.helper_sources = {}
+        if grammar.preferences and grammar.preferences.names:
+            self._expand_plain = self._expand
+            self._expand = self._expand_slot
         self.features = features
         self.rule_names: list[str] = list(grammar.rules)
         self.rule_ids = {name: index for index, name in enumerate(self.rule_names)}
@@ -1022,6 +1049,8 @@ class _Lowerer:
         self.rule_names.append(f"\u0000{owner}\u0000{number}")
         self.rule_display.append(owner)
         self.helper_expansions[number] = expansions
+        if self.grammar.preferences and self.grammar.preferences.names:
+            self.helper_sources[number] = (self.current_alt,id(self.current_expr))
         if elided is not None:
             self.helper_elided[number] = elided
         return number
@@ -1065,6 +1094,14 @@ class _Lowerer:
     def expand(self, expr: Dom) -> list[list[_Sym]]:
         """An expression's expansions (engine §3.2), without recursion."""
         return run(self._expand(expr))  # type: ignore[no-any-return]
+
+    def _expand_slot(self, expr: Dom) -> Walk:
+        previous = self.current_expr
+        self.current_expr = expr
+        try:
+            return (yield self._expand_plain(expr))
+        finally:
+            self.current_expr = previous
 
     def _expand(self, expr: Dom) -> Walk:
         if "seq" in expr:
@@ -1181,6 +1218,9 @@ class _Lowerer:
             tests=tests if any(test is not None for test in tests) else None,
             captures=captures,
         )
+        if self.grammar.preferences and self.grammar.preferences.names:
+            source,path = (alt,None) if alt is not None else self.helper_sources[lhs]
+            production.slot = SlotMetadata(source,path)
         if alt is not None:
             # $ is a capture every production has, and each clause is
             # simplified for the captures this one has (engine §3.6).
@@ -1190,7 +1230,8 @@ class _Lowerer:
             # captures and output, not every part of the conditions.
             for condition in self.prepare(alt.conditions, True).kept(present):
                 if condition is False:
-                    # A condition false for this production removes it.
+                    if self.validation:
+                        continue
                     return
                 names = captures_in(condition)
                 if not names <= present:
@@ -1213,6 +1254,8 @@ class _Lowerer:
             # (engine §3.7); the reader has made sure neither uses a capture
             # the alternative lacks.
             terms = [self.prepare(term, False).simplified(present) for term in (alt.tags, alt.rule_tags) if term is not None]
+            if self.validation:
+                production.slot.tags = terms
             if terms:
                 production.tags_term = terms[0] if len(terms) == 1 else {"union": terms}
             production.emit = self.lower_emit(alt.emit, captures, self.emission(alt.emit))
@@ -1309,7 +1352,7 @@ class _Lowerer:
             # A chain is the only alternative of its rule that the gates
             # leave (engine §3.3); a %extend-rule can add another.
             chain = next((alt for alt in alternatives if "repeat" in alt.expr and "chain" in alt.expr), None)
-            if chain is not None and len(alternatives) > 1:
+            if not self.validation and chain is not None and len(alternatives) > 1:
                 raise self.fail(f"{name} is a chain, which is the whole of its rule, but another alternative stands beside it", chain)
             for alt in alternatives:
                 self.current_alt = alt
@@ -1334,7 +1377,8 @@ class _Lowerer:
                     self.add(lhs, expansion, alt)
                 self.flush(expansions)
             self.current_alt = None
-        self.check_brace_items()
+        if not self.validation:
+            self.check_brace_items()
         rule_productions: list[list[int]] = [[] for _ in self.rule_names]
         for production in self.productions:
             rule_productions[production.lhs].append(production.id)
@@ -1385,6 +1429,8 @@ class _Lowerer:
                 raise self.fail(f"an item of braces in {rule.name if rule else '?'} can match no tokens", alt, rule)
 
     def holds(self, guards: list[Dom]) -> bool:
+        if self.validation:
+            return True
         # Only gates drop an alternative; a warning keeps it (engine §3.1).
         return all(
             guard.get("kind") == "warning" or (guard["feature"] in self.features) != bool(guard.get("negated"))

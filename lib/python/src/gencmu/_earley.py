@@ -221,6 +221,8 @@ class Forest:
     project: list[int] | None = None
     structure: list[int] = field(default_factory=list)
     machine: PatternMachine | None = None
+    prefix: list[int] = field(default_factory=list)
+    strict: list[bool] = field(default_factory=list)
 
 
 @dataclass
@@ -818,6 +820,7 @@ class Parser:
         last_reading = reading_last(lowered) if recon else []
         elidable_helpers = lowered.elidable_helpers
 
+        ranked = getattr(lowered.grammar.preferences,"names",())
         prod: list[int] = []
         dot: list[int] = []
         origin: list[int] = []
@@ -989,7 +992,9 @@ class Parser:
             prefix = 0
             if machine is not None:
                 part_structure = structures[edge[2]] if edge[1] == 2 else terminal_structure(production, position, edge[2], edge[3])
-                prefix = machine.concat(prefixes[item], part_structure)
+                symbol = production.rhs[position]
+                exported = machine.sealed() if not production.terminal[position] and lowered.rule_names[symbol] in ranked else part_structure
+                prefix = machine.concat(prefixes[item], exported)
                 part = (*part[:3], part_structure)
             captured = caps[item]
             if production.slots[position] >= 0:
@@ -1274,7 +1279,7 @@ class Parser:
                 expected.setdefault(written_symbol(terminal, test), set()).add(production.rule_name)
         # The forest's tokens are those the parse read, before its furthest
         # set.
-        return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected, context.project, structures, machine)
+        return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected, context.project, structures, machine, prefixes if ranked else [], strict if ranked else [])
 
 
 def reading_last(lowered: Lowered) -> list[int]:

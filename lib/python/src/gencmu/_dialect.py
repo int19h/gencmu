@@ -220,7 +220,7 @@ class NotationReader:
                 raise
         return lowered
 
-    def read(self, text: str, path: str) -> Dom:
+    def read(self, text: str, path: str, defer_emission: bool = False) -> Dom:
         """The DOM of a grammar document (engine §8, §9)."""
         try:
             grammar_text = jbogenbau_text(text)
@@ -255,7 +255,11 @@ class NotationReader:
                 tokens = outcome.output
         assert tree is not None
         try:
-            dom = DomBuilder(tokens, grammar_text, path, self.unicode).document_dom(tree)
+            builder = DomBuilder(tokens, grammar_text, path, self.unicode, defer_emission)
+            dom = builder.document_dom(tree)
+            if builder.deferred_emissions:
+                from ._dom import DeferredDom
+                dom = DeferredDom(dom,builder.deferred_emissions)
         except GencmuError:
             raise
         except (LookupError, TypeError, ValueError, AttributeError, AssertionError) as error:
@@ -264,7 +268,7 @@ class NotationReader:
         # A document read here is held to the rules of a precompiled DOM
         # (engine §9). A bootstrap that is not the notation's can give a DOM
         # that breaks them.
-        problem = dom_problem(dom, self.unicode)
+        problem = dom_problem(dom, self.unicode, defer_emission)
         if problem is None:
             return dom
         # Each rule, constant definition and implication alone, in the
@@ -381,7 +385,7 @@ class _Loader:
                 found = self.reader.doms.get(key)
             if found is not None:
                 return found
-        dom = self.reader.read(text, path)
+        dom = self.reader.read(text, path, True)
         with _lock:
             self.reader.doms.put(key, dom, len(text))
         return dom

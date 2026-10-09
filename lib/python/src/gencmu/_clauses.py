@@ -835,3 +835,7 @@ def definition_problem(rule: Dom) -> str | None:
             if anchor is not None and anchor not in present:
                 return f"an inserted tag of {rule['name']} stands before ${anchor}, which a production lacks"
     return None
+
+
+def deferred_emission_problem(message):
+    return "leaves a production nothing to emit" in message

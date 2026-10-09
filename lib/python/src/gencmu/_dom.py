@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from ._clauses import attachment_order, definition_problem, duplicate_captures
+from ._clauses import attachment_order, definition_problem, duplicate_captures, deferred_emission_problem
 from ._errors import GencmuError
 from ._markdown import GrammarText
 from ._model import Node, Token
@@ -150,10 +150,18 @@ def _is_capital(name: str) -> bool:
     return "A" <= name[:1] <= "Z"
 
 
+class DeferredDom(dict):
+    def __init__(self,dom,pending):
+        super().__init__(dom)
+        self.deferred_emissions = pending
+
+
 class DomBuilder:
     """Reads the DOM off a document tree, rule by rule of the §9 table."""
 
-    def __init__(self, tokens: list[Token], grammar_text: GrammarText, document: str, unicode: Lowercase) -> None:
+    def __init__(self, tokens: list[Token], grammar_text: GrammarText, document: str, unicode: Lowercase, defer_emission: bool = False) -> None:
+        self.defer_emission = defer_emission
+        self.deferred_emissions = []
         self.tokens = tokens
         self.grammar_text = grammar_text
         self.document = document
@@ -440,7 +448,10 @@ class DomBuilder:
         flatten_groups(dom)
         problem = definition_problem(dom)
         if problem is not None:
-            raise self.fail(node, problem)
+            if self.defer_emission and deferred_emission_problem(problem):
+                self.deferred_emissions.append((dom,problem))
+            else:
+                raise self.fail(node, problem)
         return dom
 
     # -- expressions

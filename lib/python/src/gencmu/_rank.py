@@ -267,6 +267,7 @@ class Summaries:
 
     def __init__(self, forest: Forest, maximal: Maximal | None) -> None:
         self.forest = forest
+        self.admission = None
         self.maximal = maximal
         self.productions = forest.lowered.productions
         self.memo: dict[Key, Any] = {}
@@ -599,6 +600,8 @@ class Ranker(Summaries):
                 self.keep(kept, self.extend(entry, close))
             return (kept, count)
         guarded = self.guarded(item)
+        mask = self.admission.mask(key) if self.admission is not None else None
+        guarded = guarded or mask is not None and mask[0] != mask[1]
         best = self.best
         if best is not None:
             best_all, best_eligible = best.edges(key)
@@ -610,10 +613,10 @@ class Ranker(Summaries):
         w_all = w_allowed = False
         edges = len(self.forest.edges[item])
         for index, edge_kind, pred_key, child_key, a, b in self.steps(key):
-            to_all = True
-            to_allowed = guarded and self.permits(item, edge_kind, a)
+            to_all = mask is None or index in mask[0]
+            to_allowed = guarded and (self.maximal is None or self.permits(item, edge_kind, a)) and (mask is None or index in mask[1])
             if best is not None:
-                to_all = index in best_all
+                to_all = to_all and index in best_all
                 to_allowed = to_allowed and index in best_eligible
             # Faults of the check skip the first of two or more edges, in the
             # count or in the candidates (tests/README.md). Python's agenda
@@ -1055,6 +1058,8 @@ class Elisions(Summaries):
                 vector = join(vector, unit)
             return Summary(inner.total, vector, inner.count, NO_EDGES, profile)
         guarded = self.guarded(item)
+        mask = self.admission.mask(key) if self.admission is not None else None
+        guarded = guarded or mask is not None and mask[0] != mask[1]
         every = Least()
         eligible = Least()
         for index, edge_kind, pred_key, child_key, a, _ in self.steps(key):
@@ -1074,8 +1079,9 @@ class Elisions(Summaries):
                     vector = join(vector, child.vector)
                     profile = sum_profiles(profile, child.profile)
                     count = min(count * child.count, 2)
-            every.offer(index, total, vector, count, profile)
-            if guarded and self.permits(item, edge_kind, a):
+            if mask is None or index in mask[0]:
+                every.offer(index, total, vector, count, profile)
+            if guarded and (self.maximal is None or self.permits(item, edge_kind, a)) and (mask is None or index in mask[1]):
                 eligible.offer(index, total, vector, count, profile)
         summary = every.summary()
         return (summary, eligible.summary() if guarded else summary)
@@ -1113,6 +1119,7 @@ class Elisions(Summaries):
         best = roots_least.edges
         lean = "none" if self.lean == "late-elision" else self.lean
         ranker = Ranker(self.forest, lean, self.maximal, best=self)
+        ranker.admission = self.admission
         ranker.check = self.check
         readings = ranker.rank(best)
         # The least count says whether the best forest holds a second
@@ -1126,7 +1133,8 @@ class Elisions(Summaries):
             readings.verdict = "resolved"
         readings.profile = roots_least.profile
         if self.marks is not None:
-            counter = Ranker(self.forest, "none")
+            counter = Ranker(self.forest, "none", self.maximal)
+            counter.admission = self.admission
             counter.check, counter.marks = self.check, self.marks
             unfiltered = counter.rank(roots)
             readings.witness_counted = unfiltered is not None and unfiltered.witness_counted
@@ -1136,12 +1144,11 @@ class Elisions(Summaries):
 class Ranking:
     """The outcome of a ranking (engine §6): its verdict, its first reading
     ``m``, and for an ordinary tie its second reading ``t`` and first differing actions.
-    A comparison cycle holds every cycle reading and each directed reason.
     ``witness_counted``, with the
     witness hook's marks, says whether the count counted W(D)
     (tests/README.md); ``None`` without marks."""
 
-    __slots__ = ("verdict", "first", "second", "witness", "witness_counted", "profile", "slow", "readings", "cycle", "conflict")
+    __slots__ = ("verdict", "first", "second", "witness", "witness_counted", "profile", "raw_witness_counted")
 
     def __init__(
         self,
@@ -1151,10 +1158,7 @@ class Ranking:
         witness: tuple[Act | None, Act | None] | None,
         witness_counted: bool | None = None,
     ) -> None:
-        self.slow = False
-        self.readings = None
-        self.cycle = None
-        self.conflict = None
+        self.raw_witness_counted = None
         self.profile: Profile = ()
         self.verdict = verdict
         self.first = first
@@ -1163,17 +1167,21 @@ class Ranking:
         self.witness_counted = witness_counted
 
 
-def rank(forest: Forest, lean: str, maximal: Maximal | None = None, marks=None, check=False) -> Ranking | None:
+def rank(forest: Forest, lean: str, maximal: Maximal | None = None, marks=None, check=False, unfiltered=False) -> Ranking | None:
     preferences = forest.lowered.grammar.preferences
-    if preferences is not None and preferences.names:
-        from ._prefer_rank import PreferenceRanker
-        ranker = PreferenceRanker(forest, lean, preferences, maximal)
-        ranker.marks, ranker.check = marks, check
-        return ranker.rank(forest.roots)
-    return rank_original(forest, lean, maximal, marks, check)
+    admission = None
+    if not unfiltered and preferences is not None and preferences.names:
+        from ._slots import SlotAdmission
+        admission = SlotAdmission(forest,preferences,maximal,check)
+        admission.prepare()
+    result = rank_original(forest,lean,maximal,marks,check,admission)
+    callback = _testing.slot_admission.get()
+    if admission is not None and callback is not None:
+        callback(admission.stats)
+    return result
 
 
-def rank_original(forest: Forest, lean: str, maximal: Maximal | None = None, marks=None, check=False) -> Ranking | None:
+def rank_original(forest: Forest, lean: str, maximal: Maximal | None = None, marks=None, check=False, admission=None) -> Ranking | None:
     """Rank a forest's derivations by a rule of the ranking, ``greedy``,
     ``lazy`` or ``late-elision``, or by no lean, ``none``; ``None`` if the
     input has no derivation that counts."""
@@ -1184,9 +1192,18 @@ def rank_original(forest: Forest, lean: str, maximal: Maximal | None = None, mar
     else:
         ranker = Ranker(forest, lean, maximal)
     ranker.marks, ranker.check = marks, check
+    ranker.admission = admission
     return ranker.rank(forest.roots)
 
 
 def count_roots(forest: Forest, roots: list[int]) -> list[int]:
     """The number of derivations, up to two, of each of a forest's roots."""
     return Ranker(forest, "greedy", entries=False).count(roots)
+
+
+def second_before(first,left,right):
+    def divergence(other):
+        difference = first_difference(first,other,True)
+        return INF if difference is None else difference[0]
+    a,b = divergence(left),divergence(right)
+    return a<b if a!=b else compare(left,right,"none").order<0

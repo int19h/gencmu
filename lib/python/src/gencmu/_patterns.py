@@ -266,6 +266,9 @@ class PatternMachine:
             relations.append(self.compose(self.compose(machine["epsilon"], tuple(move)), machine["epsilon"]))
         return self.intern((1, bits, bits, bits, tuple(relations), bits, False))
 
+    def sealed(self) -> int:
+        return self.node(None,self.empty,("","",frozenset()))
+
     def node(self, name: str | None, children: int, leaf: tuple[str, str, frozenset[str]] | None = None) -> int:
         key = ("node", name, children, leaf)
         old = self.transitions.get(key)
@@ -311,7 +314,7 @@ class PatternMachine:
 def observation_machine(lowered: Any) -> PatternMachine | None:
     roots = getattr(lowered, "_pattern_roots", None)
     if roots is not None:
-        return PatternMachine(roots) if roots else None
+        return PatternMachine(roots) if roots or lowered.grammar.preferences and lowered.grammar.preferences.names else None
     pending = []
     for production in lowered.productions:
         pending.extend(production.conds_predict)
@@ -333,4 +336,4 @@ def observation_machine(lowered: Any) -> PatternMachine | None:
         else:
             pending.extend(node.values())
     lowered._pattern_roots = roots
-    return PatternMachine(roots) if roots else None
+    return PatternMachine(roots) if roots or lowered.grammar.preferences and lowered.grammar.preferences.names else None

@@ -49,9 +49,11 @@ def keeps(walk: Walk, ranking: Ranking | None) -> bool:
     W(D), W(D) was a candidate for the second, so the second does not come
     after W(D) by the criterion of engine §6 that picks it: divergence from
     the first, then T."""
+    if ranking is not None and ranking.raw_witness_counted is not None:
+        return ranking.raw_witness_counted
     if ranking is None or not ranking.witness_counted:
         return False
-    if ranking.slow or ranking.verdict != "tie":
+    if ranking.verdict != "tie":
         return True
     w: Rope | None = None
     for act in walk.sequence:

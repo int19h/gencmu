@@ -95,4 +95,4 @@ def count(name: str) -> None:
         work[name] = work.get(name, 0) + 1
 
 
-preference_ranking: ContextVar = ContextVar("preference_ranking", default=None)
+slot_admission: ContextVar = ContextVar("slot_admission", default=None)

@@ -8,7 +8,7 @@ from typing import Any
 from ._model import Action, Node, ParseError, ParseResult, ParseWarning, Restoration, Stage, Token
 from ._tags import sorted_tags
 
-FORMAT = 10
+FORMAT = 11
 
 
 def token_json(token: Token) -> dict[str, Any]:
@@ -122,17 +122,6 @@ def error_json(error: ParseError) -> dict[str, Any]:
     # Only an error of elision-only has a witness (docs/output.md).
     if error.witness is not None and error.reason == "elision-only":
         value["witness"] = [action_json(error.witness[0]), action_json(error.witness[1])]
-    if error.cycle is not None:
-        value["cycle"] = []
-        for edge in error.cycle:
-            public = dict(edge)
-            if "witness" in public:
-                public["witness"] = [action_json(a) if a is not None else None for a in public["witness"]]
-            value["cycle"].append(public)
-    if error.conflict is not None:
-        value["conflict"] = error.conflict
-    if error.chosen_reading is not None:
-        value["chosenReading"] = error.chosen_reading
     value["message"] = error.message
     # The members of elision-witness-lost follow its message
     # (docs/output.md).
