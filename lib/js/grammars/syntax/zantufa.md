@@ -830,7 +830,7 @@ The condition removes a connective operator whose first word is SE. The alternat
 
 %rule number
   (* number <- PA_clause+;  PA_post <- number_post_clause *)
-  {PA number-post}
+  {PA [{free-not-number}]}
 
 %rule lerfu-string
   (* lerfu_string <- lerfu_word+ *)
@@ -838,7 +838,7 @@ The condition removes a connective operator whose first word is SE. The alternat
 
 %rule lerfu-word
   (* lerfu_word <- BY_clause / LAU_clause lerfu_word / TEI_clause lerfu_string FOI_clause;  BY_post <- lerfu_post_clause *)
-  BY lerfu-post | LAU # lerfu-word | TEI # lerfu-string FOI #
+  BY [{free-not-lerfu}] | LAU # lerfu-word | TEI # lerfu-string FOI #
 ```
 
 <details><summary>Railroad diagrams of the 17 rules from <code>quantifier</code> to <code>lerfu-word</code></summary>
@@ -917,12 +917,9 @@ The mekso prefix pattern tests an actual NAhE or SE constructor over an operand 
   {tcita-selci} [{tag-link}]
 
 %rule tag-link
-  $j(joik) tcita-selcis
+  $j(joik) {tcita-selci}
 %conditions
   ¬begins(from($j), tcita-selci)
-
-%rule tcita-selcis
-  {tcita-selci}
 
 %rule tcita-selci
   (* tcita_selci <- (NAhE_clause / SE_clause) tcita_selci / BAI_clause / mex? ROI_clause / FIhO_clause selbri FEhU_elidible *)
@@ -935,10 +932,9 @@ The mekso prefix pattern tests an actual NAhE or SE constructor over an operand 
   $m ≇ @(⋰ ((NAhE ∪ SE) [#] (operand ∪ operator)))
 ```
 
-<details><summary>Railroad diagrams of <code>tag</code>, <code>tag-link</code>, <code>tcita-selcis</code> and <code>tcita-selci</code></summary>
+<details><summary>Railroad diagrams of <code>tag</code>, <code>tag-link</code> and <code>tcita-selci</code></summary>
 <p><img src="../../docs/diagrams/syntax/zantufa/tag.svg" alt="Railroad diagram of the rule tag"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/tag-link.svg" alt="Railroad diagram of the rule tag-link"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/tcita-selcis.svg" alt="Railroad diagram of the rule tcita-selcis"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/tcita-selci.svg" alt="Railroad diagram of the rule tcita-selci"></p>
 </details>
 
@@ -978,11 +974,7 @@ The dialect keeps one odd reading of Zantufa. In `pe'usai doi xod ko jmina`, the
 
 %rule vocative
   (* vocative <- COI_clause+;  COI_post <- vocative_post_clause *)
-  {COI vocative-post}
-
-%rule number-post
-  (* number_post_clause <- spaces? !BU_clause (!number free)* *)
-  [{free-not-number}]
+  {COI [{free-not-vocative}]}
 
 %rule lohai-word
   ~word∩(LOhAI ∪ LEhAI)=∅
@@ -992,18 +984,10 @@ The dialect keeps one odd reading of Zantufa. In `pe'usai doi xod ko jmina`, the
 %conditions
   ¬begins(from($f), number)
 
-%rule lerfu-post
-  (* lerfu_post_clause <- spaces? !BU_clause (!lerfu_string free)* *)
-  [{free-not-lerfu}]
-
 %rule free-not-lerfu
   $f(free)
 %conditions
   ¬begins(from($f), lerfu-string)
-
-%rule vocative-post
-  (* vocative_post_clause <- spaces? !BU_clause (!vocative free)* *)
-  [{free-not-vocative}]
 
 %rule free-not-vocative
   $f(free)
@@ -1011,16 +995,13 @@ The dialect keeps one odd reading of Zantufa. In `pe'usai doi xod ko jmina`, the
   ¬begins(from($f), vocative)
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>free</code> to <code>free-not-vocative</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>free</code> to <code>free-not-vocative</code></summary>
 <p><img src="../../docs/diagrams/syntax/zantufa/free.svg" alt="Railroad diagram of the rule free"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/parenthesis-text.svg" alt="Railroad diagram of the rule parenthesis-text"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/vocative.svg" alt="Railroad diagram of the rule vocative"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/number-post.svg" alt="Railroad diagram of the rule number-post"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/lohai-word.svg" alt="Railroad diagram of the rule lohai-word"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/free-not-number.svg" alt="Railroad diagram of the rule free-not-number"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/lerfu-post.svg" alt="Railroad diagram of the rule lerfu-post"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/free-not-lerfu.svg" alt="Railroad diagram of the rule free-not-lerfu"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/vocative-post.svg" alt="Railroad diagram of the rule vocative-post"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/free-not-vocative.svg" alt="Railroad diagram of the rule free-not-vocative"></p>
 </details>
 

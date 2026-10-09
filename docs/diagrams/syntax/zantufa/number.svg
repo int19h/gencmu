@@ -1,13 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="232" height="78" viewBox="0 0 232 78" role="img" aria-label="Railroad diagram of the rule number">
+<svg xmlns="http://www.w3.org/2000/svg" width="345" height="98" viewBox="0 0 345 98" role="img" aria-label="Railroad diagram of the rule number">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="50.4" lengthAdjust="spacingAndGlyphs">number</text>
-<path d="M10 38v16m4 -16v16M14 46h6"/>
-<path d="M20 46h20"/>
-<g class="terminal"><rect x="40" y="34" width="33" height="24" rx="12"/><text x="56.5" y="51" textLength="16.8" lengthAdjust="spacingAndGlyphs">PA</text></g>
-<path d="M73 46h10"/>
-<g class="rule"><rect x="83" y="34" width="109" height="24" rx="0"/><text x="137.5" y="51" textLength="92.4" lengthAdjust="spacingAndGlyphs">number-post</text></g>
-<path d="M192 46H212"/>
-<path d="M192 46a10 10 0 0 1 10 10V58a10 10 0 0 1 -10 10H40a10 10 0 0 1 -10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M212 46h6m0 -8v16m4 -16v16"/>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<g class="terminal"><rect x="40" y="44" width="33" height="24" rx="12"/><text x="56.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">PA</text></g>
+<path d="M73 56h10"/>
+<path d="M83 56h20"/>
+<path d="M103 56h20"/>
+<g class="rule"><rect x="123" y="44" width="142" height="24" rx="0"/><text x="194" y="61" textLength="126" lengthAdjust="spacingAndGlyphs">free-not-number</text></g>
+<path d="M265 56H285"/>
+<path d="M265 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H123a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M285 56H305"/>
+<path d="M83 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H285a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M305 56H325"/>
+<path d="M305 56a10 10 0 0 1 10 10V78a10 10 0 0 1 -10 10H40a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M325 56h6m0 -8v16m4 -16v16"/>
 </svg>

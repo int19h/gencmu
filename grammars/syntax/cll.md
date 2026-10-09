@@ -215,7 +215,7 @@ In `mi klama lo nu broda gi'e ke brode ke'e`, the group stays inside the `nu`, a
 
 - The tail is not the last one, as in `mi broda gi'e ke brode ke'e gi'a brodi` and `mi broda gi'e ke ga brode gi brodi ke'e do gi'a brodi`. The `ke` form must end its bridi-tail.
 - The tail goes on after `ke'e`, as in `mi broda gi'e ke brode ke'e brodi`.
-- A free modifier stands between the gihek and `ke`, as in `mi broda gi'e to do toi ke brode ke'e`. The `ke` form has no slot there. `bridi-tail-1-final` reads this case in its own alternative, through the rule `free-modifiers`, a `#` slot that is not empty.
+- A free modifier stands between the gihek and `ke`, as in `mi broda gi'e to do toi ke brode ke'e`. The `ke` form has no slot there. `bridi-tail-1-final` reads this case with `{free}`, which requires at least one free modifier.
 - The tail has two runs of tail terms. Its own VAU is written, and separate outer terms follow, as in `mi broda gi'e ke brode ke'e vau do`. Another example is `mi broda gi'e ke brode ke'e vau le le brodi brodo ku`. The group has only one run of tail terms after KEhE. `$KE-TAIL-WITH-VAU` tests the actual `tail-terms` child against `$WRITTEN-VAU`. That pattern requires a written VAU leaf after optional terms.
 
   The condition also requires nonempty outer tail terms. The corpus case `adhoc.syntax.gihek-ke-group-tail-term-vau` pins this boundary. In `mi broda gi'e ke brode ke'e do vau`, the plain parse omits its own VAU after `do`. Its next tail terms contain the written VAU, which cannot satisfy the pattern on the earlier child. Reconstruction keeps the omitted leaf sound empty.
@@ -258,13 +258,10 @@ The gek-sentence's tail terms follow the whole connection and apply to both side
 
 %rule bridi-tail-1-final
   | bridi-tail-2
-  | bridi-tail-1 gihek free-modifiers bridi-tail-2 tail-terms
+  | bridi-tail-1 gihek {free} bridi-tail-2 tail-terms
   | bridi-tail-1 gihek $t(bridi-tail-2) $v(tail-terms)
 %conditions
   $t ≇ $KE-TAIL ∨ ($t ≅ $KE-TAIL-WITH-VAU ∧ text($v) ≠ "")
-
-%rule free-modifiers
-  {free}
 
 %rule bridi-tail-2
   bridi-tail-3 [gihek [stag] BO # bridi-tail-2 tail-terms]
@@ -283,13 +280,12 @@ The gek-sentence's tail terms follow the whole connection and apply to both side
   [terms] [+VAU #]
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>sentence</code> to <code>tail-terms</code></summary>
+<details><summary>Railroad diagrams of the 9 rules from <code>sentence</code> to <code>tail-terms</code></summary>
 <p><img src="../../docs/diagrams/syntax/cll/sentence.svg" alt="Railroad diagram of the rule sentence"></p>
 <p><img src="../../docs/diagrams/syntax/cll/subsentence.svg" alt="Railroad diagram of the rule subsentence"></p>
 <p><img src="../../docs/diagrams/syntax/cll/bridi-tail.svg" alt="Railroad diagram of the rule bridi-tail"></p>
 <p><img src="../../docs/diagrams/syntax/cll/bridi-tail-1.svg" alt="Railroad diagram of the rule bridi-tail-1"></p>
 <p><img src="../../docs/diagrams/syntax/cll/bridi-tail-1-final.svg" alt="Railroad diagram of the rule bridi-tail-1-final"></p>
-<p><img src="../../docs/diagrams/syntax/cll/free-modifiers.svg" alt="Railroad diagram of the rule free-modifiers"></p>
 <p><img src="../../docs/diagrams/syntax/cll/bridi-tail-2.svg" alt="Railroad diagram of the rule bridi-tail-2"></p>
 <p><img src="../../docs/diagrams/syntax/cll/bridi-tail-3.svg" alt="Railroad diagram of the rule bridi-tail-3"></p>
 <p><img src="../../docs/diagrams/syntax/cll/gek-sentence.svg" alt="Railroad diagram of the rule gek-sentence"></p>
