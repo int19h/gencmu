@@ -2261,16 +2261,16 @@
     /** @param {import("./types.js").Production[]} productions */
     validate(productions) {
       if (!this.names.size) return;
-      const unsafe = new Map(), users = new Map();
-      /** @type {(name: string, path: any[]) => void} */
-      const mark = (name, path) => { if (!unsafe.has(name)) unsafe.set(name, path); };
+      const unsafe = new Set(), users = new Map();
+      /** @type {(name: string) => void} */
+      const mark = name => { unsafe.add(name); };
       for (const p of productions) {
         const terms = p.writtenTags;
         if (terms?.length) {
-          if (terms.some(term => !slotLiteralEmpty(term))) mark(p.lhs, [{rule:p.lhs, expression:"tags", source:p.source?.at}]);
+          if (terms.some(term => !slotLiteralEmpty(term))) mark(p.lhs);
         } else if (p.rhs.length === 1) {
           const symbol = p.rhs[0];
-          if (symbol.terminal) mark(p.lhs, [{rule:p.lhs, terminal:symbol.name, source:p.source?.at}]);
+          if (symbol.terminal) mark(p.lhs);
           else {
             const list = users.get(symbol.name) ?? []; list.push(p.lhs); users.set(symbol.name, list);
           }
@@ -2278,7 +2278,7 @@
       }
       const pending = [...unsafe.keys()];
       for (let i=0;i<pending.length;i++) for (const parent of users.get(pending[i]) ?? []) {
-        if (!unsafe.has(parent)) { mark(parent, [{rule:parent}, ...unsafe.get(pending[i])]); pending.push(parent); }
+        if (!unsafe.has(parent)) { mark(parent); pending.push(parent); }
       }
       for (const component of this.components) {
         const signatures = new Map();
@@ -2300,16 +2300,16 @@
           for (const condition of p.conditions) {
             if (slotStructuralRead(condition.condition, privateNames) && !ready(condition)) this.fail("prefer-slot-continuation", variant.reference.expression.ref,
               {parent:component.parent, references:component.references, expression:normalize(condition.condition)}, "A private hole pattern requires a ready condition gate.");
-            if (slotTagRead(condition.condition, privateNames) && !ready(condition)) this.requireEmpty(component, unsafe, condition.condition);
+            if (slotTagRead(condition.condition, privateNames) && !ready(condition)) this.requireEmpty(component, unsafe, condition.condition, productions);
             if (ready(condition)) candidateGates.push(normalize(condition.condition));
             else commonConditions.push(normalize(condition.condition));
           }
           for (const term of p.writtenTags ?? []) {
             if (slotStructuralRead(term, privateNames)) this.fail("prefer-slot-continuation", variant.reference.expression.ref,
               {parent:component.parent, references:component.references, expression:normalize(term)}, "A tag term cannot read private hole structure.");
-            if (slotTagRead(term, privateNames)) this.requireEmpty(component, unsafe, term);
+            if (slotTagRead(term, privateNames)) this.requireEmpty(component, unsafe, term, productions);
           }
-          if (!p.writtenTags?.length && p.rhs.length === 1 && direct) this.requireEmpty(component, unsafe, {inherit: true});
+          if (!p.writtenTags?.length && p.rhs.length === 1 && direct) this.requireEmpty(component, unsafe, {inherit: true}, productions);
           const key = JSON.stringify({
             symbols:p.rhs.map((symbol,index) => index === hole ? {hole:true} : {name:symbol.role ?? symbol.name, terminal:symbol.terminal, test:normalize(symbol.test)}),
             captures:p.captures.filter(capture => capture.index !== hole && capture.name !== "\u0000child").map(capture => ({name:variant.roles.get(capture.name), index:capture.index})),
@@ -2342,10 +2342,10 @@
       return p.source && this.sourceVariants.get(p.source)?.get(component.id);
     }
 
-    /** @param {SlotComponent} component @param {Map<string,any[]>} unsafe @param {any} expression */
-    requireEmpty(component, unsafe, expression) {
+    /** @param {SlotComponent} component @param {Set<string>} unsafe @param {any} expression @param {import("./types.js").Production[]} productions */
+    requireEmpty(component, unsafe, expression, productions) {
       for (const name of component.names) if (unsafe.has(name)) this.fail("prefer-slot-tags", name,
-        {parent:component.parent, references:component.references, expression:slotCanonical(expression), inheritance:unsafe.get(name)}, "Private hole tags are neither dead nor provably empty.");
+        {parent:component.parent, references:component.references, expression:slotCanonical(expression), inheritance:slotInheritancePath(name,unsafe,productions)}, "Private hole tags are neither dead nor provably empty.");
     }
   }
 
@@ -2424,6 +2424,34 @@
     let found = false;
     slotVisit(expr, "", node => { if (node === reference) found = true; });
     return found;
+  }
+
+  // The worklist proves emptiness. Only a failed closure needs a diagnostic
+  // walk, which follows productions in source order instead of seed arrival.
+  /** @param {string} name @param {Set<string>} unsafe @param {import("./types.js").Production[]} productions @returns {any[]} */
+  function slotInheritancePath(name,unsafe,productions) {
+    /** @type {Map<string,import("./types.js").Production[]>} */
+    const byRule = new Map();
+    for (const p of productions) {const list=byRule.get(p.lhs)??[];list.push(p);byRule.set(p.lhs,list);}
+    const visited = new Set();
+    /** @type {{rule?:string,end?:boolean,path:any}[]} */
+    const stack = [{rule:name,path:null}];
+    while (stack.length) {
+      const part = stack.pop();
+      if (!part) break;
+      if (part.end) {const path=[];for(let step=part.path;step;step=step.parent) path.push(step.value);return path.reverse();}
+      if (visited.has(part.rule)) continue;
+      visited.add(part.rule);
+      for (const p of [...(byRule.get(part.rule??"")??[])].reverse()) {
+        if (p.writtenTags?.some(term=>!slotLiteralEmpty(term))) stack.push({end:true,path:{parent:part.path,value:{rule:p.lhs,expression:"tags",source:p.source?.at}}});
+        else if (!p.writtenTags?.length && p.rhs.length===1) {
+          const symbol=p.rhs[0];
+          if (symbol.terminal) stack.push({end:true,path:{parent:part.path,value:{rule:p.lhs,terminal:symbol.name,source:p.source?.at}}});
+          else if (unsafe.has(symbol.name)) stack.push({rule:symbol.name,path:{parent:part.path,value:{rule:p.lhs}}});
+        }
+      }
+    }
+    throw new Error("An unsafe tag source requires an inheritance path.");
   }
 
   // ---- unicode.js
@@ -14109,7 +14137,7 @@
         }
         if (data && data.format === DOM_FORMAT && data.bootstrap === this.bootstrapHash && data.documents && typeof data.documents === "object") {
           for (const [path, entry] of Object.entries(data.documents)) {
-            if (entry && typeof entry.hash === "string" && isDom(entry.dom, this.unicode, true)) this.compiled.set(path, entry);
+            if (entry && typeof entry.hash === "string" && isDom(entry.dom, this.unicode)) this.compiled.set(path, entry);
           }
         }
       }

@@ -71,6 +71,6 @@ export declare class Preferences {
     validate(productions: import("./types.js").Production[]): void;
     /** @param {import("./types.js").Production} p @param {SlotComponent} component @returns {SlotVariant | undefined} */
     variant(p: import("./types.js").Production, component: SlotComponent): SlotVariant | undefined;
-    /** @param {SlotComponent} component @param {Map<string,any[]>} unsafe @param {any} expression */
-    requireEmpty(component: SlotComponent, unsafe: Map<string, any[]>, expression: any): void;
+    /** @param {SlotComponent} component @param {Set<string>} unsafe @param {any} expression @param {import("./types.js").Production[]} productions */
+    requireEmpty(component: SlotComponent, unsafe: Set<string>, expression: any, productions: import("./types.js").Production[]): void;
 }
