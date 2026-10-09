@@ -837,5 +837,18 @@ def definition_problem(rule: Dom) -> str | None:
     return None
 
 
+def rule_has_ranked(rule: Dom) -> bool:
+    pending = [a['expr'] for a in rule['alternatives']]
+    while pending:
+        value = pending.pop()
+        if isinstance(value,dict):
+            if 'ranked' in value:
+                return True
+            pending.extend(value.values())
+        elif isinstance(value,list):
+            pending.extend(value)
+    return False
+
+
 def deferred_emission_problem(message):
     return "leaves a production nothing to emit" in message

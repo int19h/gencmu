@@ -9,7 +9,7 @@ import threading
 from dataclasses import dataclass, field
 from typing import Any, Union
 
-from ._clauses import WHOLE, Emission, Prepared, captures_in, definition_problem, deferred_emission_problem, prepare, prepare_conditions, simplify_term
+from ._clauses import WHOLE, Emission, Prepared, captures_in, definition_problem, deferred_emission_problem, rule_has_ranked, prepare, prepare_conditions, simplify_term
 from ._errors import ErrorData, GencmuError
 from ._recent import Recent
 from ._tags import (
@@ -491,7 +491,7 @@ class _Constants:
             # to the loader, now with the constants' values (engine §9).
             problem = definition_problem(run(self.with_values(rule)))
             if problem is not None:
-                if deferred_emission_problem(problem):
+                if deferred_emission_problem(problem) and rule_has_ranked(rule):
                     self.deferred_emissions.append(_error(problem,path,rule["at"],self.stage))
                 else:
                     raise _error(problem, path, rule["at"], self.stage)

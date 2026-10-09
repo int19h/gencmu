@@ -3634,6 +3634,21 @@
   /** @param {object} rule @returns {string | undefined} */
   const deferredEmissionProblem = rule => deferredEmissionProblems.get(rule);
 
+  /** @param {any} rule @returns {boolean} */
+  function ruleHasRanked(rule) {
+    const pending = rule.alternatives.map((/** @type {any} */ alternative) => alternative.expr);
+    while (pending.length) {
+      const expr = pending.pop();
+      if (!expr || typeof expr !== 'object') continue;
+      if ('ranked' in expr) return true;
+      for (const value of Object.values(expr)) {
+        if (Array.isArray(value)) for (const child of value) pending.push(child);
+        else if (value && typeof value === 'object') pending.push(value);
+      }
+    }
+    return false;
+  }
+
   /**
    * Why a definition, a rule's alternatives with its own clauses, cannot be
    * read (engine §9), or null. The DOM's shape must already be checked. The
@@ -3752,7 +3767,7 @@
       const present = presentItems(items, has, captures).map((index) => items[index]);
       if (items.length > 0 && present.length === 0) {
         const problem = `%emits of ${rule.name} leaves a production nothing to emit`;
-        if (!deferEmission) return problem;
+        if (!deferEmission || !ruleHasRanked(rule)) return problem;
         deferredEmissionProblems.set(rule, problem);
       }
       // A production without an item's carrier lacks its attachments too

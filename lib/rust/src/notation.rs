@@ -383,7 +383,10 @@ impl<'a> Reader<'a> {
         flatten_groups(&mut rule);
         // The definition is checked as a whole once it is read (§9).
         if let Some(problem) = crate::clauses::definition_problem(&rule) {
-            if self.defer_emission && crate::dom::deferred_emission_problem(&problem) {
+            if self.defer_emission
+                && crate::dom::deferred_emission_problem(&problem)
+                && rule.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr))
+            {
                 rule.deferred_emission = Some(problem);
             } else {
                 return Err(self.error(definer, problem));

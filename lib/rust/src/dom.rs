@@ -351,7 +351,10 @@ pub(crate) fn dom_from_json_mode(value: &Json, unicode: &Unicode, defer: bool) -
     // A definition the reader would refuse (engine §9).
     for rule in &mut rules {
         if let Some(problem) = crate::clauses::definition_problem(rule) {
-            if defer && deferred_emission_problem(&problem) {
+            if defer
+                && deferred_emission_problem(&problem)
+                && rule.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr))
+            {
                 rule.deferred_emission = Some(problem);
             } else {
                 return Err(problem);

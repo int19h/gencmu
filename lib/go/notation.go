@@ -653,7 +653,7 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	flattenGroups(r)
 	// The definition as a whole (§9), reported at the rule.
 	if msg := definitionProblem(r); msg != "" {
-		if b.deferEmission && deferredEmissionProblem(msg) {
+		if b.deferEmission && deferredEmissionProblem(msg) && ruleHasRanked(r) {
 			r.deferredEmission = msg
 		} else {
 			b.fail(definer, "%s", msg)

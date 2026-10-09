@@ -13,7 +13,7 @@ import json
 import re
 from typing import Any, Protocol
 
-from ._clauses import definition_problem, duplicate_captures, deferred_emission_problem
+from ._clauses import definition_problem, duplicate_captures, deferred_emission_problem, rule_has_ranked
 from ._tags import character_of_tag, is_tag
 from ._types import constant_value_problem, expected_problem, is_sound_test, open_part, rule_type_problem, term_type, test_type_problem
 from ._unicode import PROPERTY_NAMES
@@ -495,7 +495,7 @@ def dom_problem(dom: Any, unicode: Lowercase, defer_emission: bool = False) -> s
     # conditions (engine §10).
     for rule in dom["rules"]:
         problem = definition_problem(rule)
-        if problem is not None and defer_emission and deferred_emission_problem(problem):
+        if problem is not None and defer_emission and deferred_emission_problem(problem) and rule_has_ranked(rule):
             problem = None
         problem = problem or rule_type_problem(rule)
         if problem is not None:

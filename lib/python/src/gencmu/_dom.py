@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from ._clauses import attachment_order, definition_problem, duplicate_captures, deferred_emission_problem
+from ._clauses import attachment_order, definition_problem, duplicate_captures, deferred_emission_problem, rule_has_ranked
 from ._errors import GencmuError
 from ._markdown import GrammarText
 from ._model import Node, Token
@@ -447,7 +447,7 @@ class DomBuilder:
         flatten_groups(dom)
         problem = definition_problem(dom)
         if problem is not None:
-            if self.defer_emission and deferred_emission_problem(problem):
+            if self.defer_emission and deferred_emission_problem(problem) and rule_has_ranked(dom):
                 self.deferred_emissions.append((dom,problem))
             else:
                 raise self.fail(node, problem)

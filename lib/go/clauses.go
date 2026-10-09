@@ -753,6 +753,26 @@ func hasIn(caps map[string]int) func(string) bool {
 	}
 }
 
+func ruleHasRanked(r *domRule) bool {
+	pending := []*domExpr{}
+	for _, a := range r.Alternatives {
+		pending = append(pending, a.Expr)
+	}
+	for len(pending) > 0 {
+		e := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if e == nil {
+			continue
+		}
+		if e.Kind == exRanked {
+			return true
+		}
+		pending = append(pending, e.Items...)
+		pending = append(pending, e.Inner, e.Sep)
+	}
+	return false
+}
+
 func deferredEmissionProblem(message string) bool {
 	return strings.Contains(message, "leaves a production nothing to emit")
 }

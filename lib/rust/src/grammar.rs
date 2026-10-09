@@ -926,7 +926,9 @@ impl Constants<'_> {
             // The checks that simplification decides, which the reader left
             // to the loader, now with the constants' values (§9).
             if let Some(problem) = definition_problem(&self.substitute_rule(rule)) {
-                if crate::dom::deferred_emission_problem(&problem) {
+                if crate::dom::deferred_emission_problem(&problem)
+                    && rule.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr))
+                {
                     deferred.push(located(problem, document, rule.at));
                 } else {
                     return Err(located(problem, document, rule.at));
