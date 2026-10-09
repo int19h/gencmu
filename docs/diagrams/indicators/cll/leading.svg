@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="475" height="210" viewBox="0 0 475 210" role="img" aria-label="Railroad diagram of the rule leading">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24">leading</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<path d="M40 56h20"/>
+<g class="rule"><rect x="60" y="44" width="50" height="24" rx="0"/><text x="85" y="61" textLength="33.6" lengthAdjust="spacingAndGlyphs">fuhe</text></g>
+<path d="M110 56H130"/>
+<path d="M40 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H110a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M130 56h10"/>
+<g class="rule"><rect x="140" y="44" width="92" height="24" rx="0"/><text x="186" y="61" textLength="75.6" lengthAdjust="spacingAndGlyphs">indicator</text></g>
+<path d="M232 56H455"/>
+<path d="M20 56a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M40 100h20"/>
+<g class="rule"><rect x="60" y="88" width="50" height="24" rx="0"/><text x="85" y="105" textLength="33.6" lengthAdjust="spacingAndGlyphs">fuhe</text></g>
+<path d="M110 100H130"/>
+<path d="M40 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H110a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M130 100h10"/>
+<g class="rule"><rect x="140" y="88" width="210" height="24" rx="0"/><text x="245" y="105" textLength="193.2" lengthAdjust="spacingAndGlyphs">leading-attitudinal-nai</text></g>
+<path d="M350 100H435a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M20 56a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="132" width="75" height="24" rx="0"/><text x="77.5" y="149" textLength="58.8" lengthAdjust="spacingAndGlyphs">leading</text></g>
+<path d="M115 144h10"/>
+<path d="M125 144h20"/>
+<g class="rule"><rect x="145" y="132" width="50" height="24" rx="0"/><text x="170" y="149" textLength="33.6" lengthAdjust="spacingAndGlyphs">fuhe</text></g>
+<path d="M195 144H215"/>
+<path d="M125 144a10 10 0 0 0 10 -10V132a10 10 0 0 1 10 -10H195a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
+<path d="M215 144h10"/>
+<g class="rule"><rect x="225" y="132" width="92" height="24" rx="0"/><text x="271" y="149" textLength="75.6" lengthAdjust="spacingAndGlyphs">indicator</text></g>
+<path d="M317 144H435a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M20 56a10 10 0 0 1 10 10V178a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="176" width="75" height="24" rx="0"/><text x="77.5" y="193" textLength="58.8" lengthAdjust="spacingAndGlyphs">leading</text></g>
+<path d="M115 188h10"/>
+<path d="M125 188h20"/>
+<g class="rule"><rect x="145" y="176" width="50" height="24" rx="0"/><text x="170" y="193" textLength="33.6" lengthAdjust="spacingAndGlyphs">fuhe</text></g>
+<path d="M195 188H215"/>
+<path d="M125 188a10 10 0 0 0 10 -10V176a10 10 0 0 1 10 -10H195a10 10 0 0 1 10 10V178a10 10 0 0 0 10 10"/>
+<path d="M215 188h10"/>
+<g class="rule"><rect x="225" y="176" width="210" height="24" rx="0"/><text x="330" y="193" textLength="193.2" lengthAdjust="spacingAndGlyphs">leading-attitudinal-nai</text></g>
+<path d="M435 188H435a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M455 56h6m0 -8v16m4 -16v16"/>
+</svg>

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="623" height="78" viewBox="0 0 623 78" role="img" aria-label="Railroad diagram of the rule joik">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24">joik</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<g class="terminal"><rect x="40" y="44" width="50" height="24" rx="12"/><text x="65" y="61" textLength="33.6" lengthAdjust="spacingAndGlyphs">GAhO</text></g>
+<path d="M90 56h10"/>
+<g class="rule"><rect x="100" y="44" width="25" height="24" rx="0"/><text x="112.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M125 56H145"/>
+<path d="M20 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H125a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M145 56h10"/>
+<path d="M155 56h20"/>
+<g class="terminal"><rect x="175" y="44" width="33" height="24" rx="12"/><text x="191.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">NA</text></g>
+<path d="M208 56h10"/>
+<g class="rule"><rect x="218" y="44" width="25" height="24" rx="0"/><text x="230.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M243 56H263"/>
+<path d="M155 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H243a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M263 56h10"/>
+<path d="M273 56h20"/>
+<g class="terminal"><rect x="293" y="44" width="33" height="24" rx="12"/><text x="309.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">SE</text></g>
+<path d="M326 56h10"/>
+<g class="rule"><rect x="336" y="44" width="25" height="24" rx="0"/><text x="348.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M361 56H381"/>
+<path d="M273 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H361a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M381 56h10"/>
+<g class="terminal"><rect x="391" y="44" width="42" height="24" rx="12"/><text x="412" y="61" textLength="25.2" lengthAdjust="spacingAndGlyphs">JOI</text></g>
+<path d="M433 56h10"/>
+<g class="rule"><rect x="443" y="44" width="25" height="24" rx="0"/><text x="455.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M468 56h10"/>
+<path d="M478 56h20"/>
+<g class="terminal"><rect x="498" y="44" width="50" height="24" rx="12"/><text x="523" y="61" textLength="33.6" lengthAdjust="spacingAndGlyphs">GAhO</text></g>
+<path d="M548 56h10"/>
+<g class="rule"><rect x="558" y="44" width="25" height="24" rx="0"/><text x="570.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M583 56H603"/>
+<path d="M478 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H583a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M603 56h6m0 -8v16m4 -16v16"/>
+</svg>

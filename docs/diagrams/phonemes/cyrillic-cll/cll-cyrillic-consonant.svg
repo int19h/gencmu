@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="205" height="1190" viewBox="0 0 205 1190" role="img" aria-label="Railroad diagram of the rule cll-cyrillic-consonant">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24">cll-cyrillic-consonant</text>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<path d="M20 46h20"/>
+<g class="terminal"><rect x="40" y="34" width="42" height="24" rx="12"/><text x="61" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">'б'</text></g>
+<path d="M82 46H102"/>
+<path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="68" width="42" height="24" rx="12"/><text x="61" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">'Б'</text></g>
+<path d="M82 80H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="102" width="42" height="24" rx="12"/><text x="61" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">'в'</text></g>
+<path d="M82 114H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="136" width="42" height="24" rx="12"/><text x="61" y="153" textLength="25.2" lengthAdjust="spacingAndGlyphs">'В'</text></g>
+<path d="M82 148H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V172a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="170" width="42" height="24" rx="12"/><text x="61" y="187" textLength="25.2" lengthAdjust="spacingAndGlyphs">'г'</text></g>
+<path d="M82 182H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V206a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="204" width="42" height="24" rx="12"/><text x="61" y="221" textLength="25.2" lengthAdjust="spacingAndGlyphs">'Г'</text></g>
+<path d="M82 216H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V240a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="238" width="42" height="24" rx="12"/><text x="61" y="255" textLength="25.2" lengthAdjust="spacingAndGlyphs">'д'</text></g>
+<path d="M82 250H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V274a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="272" width="42" height="24" rx="12"/><text x="61" y="289" textLength="25.2" lengthAdjust="spacingAndGlyphs">'Д'</text></g>
+<path d="M82 284H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V308a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="306" width="42" height="24" rx="12"/><text x="61" y="323" textLength="25.2" lengthAdjust="spacingAndGlyphs">'ж'</text></g>
+<path d="M82 318H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V342a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="340" width="42" height="24" rx="12"/><text x="61" y="357" textLength="25.2" lengthAdjust="spacingAndGlyphs">'Ж'</text></g>
+<path d="M82 352H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V376a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="374" width="42" height="24" rx="12"/><text x="61" y="391" textLength="25.2" lengthAdjust="spacingAndGlyphs">'з'</text></g>
+<path d="M82 386H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V410a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="408" width="42" height="24" rx="12"/><text x="61" y="425" textLength="25.2" lengthAdjust="spacingAndGlyphs">'З'</text></g>
+<path d="M82 420H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V444a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="442" width="42" height="24" rx="12"/><text x="61" y="459" textLength="25.2" lengthAdjust="spacingAndGlyphs">'к'</text></g>
+<path d="M82 454H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V478a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="476" width="42" height="24" rx="12"/><text x="61" y="493" textLength="25.2" lengthAdjust="spacingAndGlyphs">'К'</text></g>
+<path d="M82 488H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V512a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="510" width="42" height="24" rx="12"/><text x="61" y="527" textLength="25.2" lengthAdjust="spacingAndGlyphs">'л'</text></g>
+<path d="M82 522H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V546a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="544" width="42" height="24" rx="12"/><text x="61" y="561" textLength="25.2" lengthAdjust="spacingAndGlyphs">'Л'</text></g>
+<path d="M82 556H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V580a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="578" width="42" height="24" rx="12"/><text x="61" y="595" textLength="25.2" lengthAdjust="spacingAndGlyphs">'м'</text></g>
+<path d="M82 590H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V614a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="612" width="42" height="24" rx="12"/><text x="61" y="629" textLength="25.2" lengthAdjust="spacingAndGlyphs">'М'</text></g>
+<path d="M82 624H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V648a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="646" width="42" height="24" rx="12"/><text x="61" y="663" textLength="25.2" lengthAdjust="spacingAndGlyphs">'н'</text></g>
+<path d="M82 658H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V682a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="680" width="42" height="24" rx="12"/><text x="61" y="697" textLength="25.2" lengthAdjust="spacingAndGlyphs">'Н'</text></g>
+<path d="M82 692H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V716a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="714" width="42" height="24" rx="12"/><text x="61" y="731" textLength="25.2" lengthAdjust="spacingAndGlyphs">'п'</text></g>
+<path d="M82 726H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V750a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="748" width="42" height="24" rx="12"/><text x="61" y="765" textLength="25.2" lengthAdjust="spacingAndGlyphs">'П'</text></g>
+<path d="M82 760H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V784a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="782" width="42" height="24" rx="12"/><text x="61" y="799" textLength="25.2" lengthAdjust="spacingAndGlyphs">'р'</text></g>
+<path d="M82 794H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V818a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="816" width="42" height="24" rx="12"/><text x="61" y="833" textLength="25.2" lengthAdjust="spacingAndGlyphs">'Р'</text></g>
+<path d="M82 828H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V852a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="850" width="42" height="24" rx="12"/><text x="61" y="867" textLength="25.2" lengthAdjust="spacingAndGlyphs">'с'</text></g>
+<path d="M82 862H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V886a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="884" width="42" height="24" rx="12"/><text x="61" y="901" textLength="25.2" lengthAdjust="spacingAndGlyphs">'С'</text></g>
+<path d="M82 896H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V920a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="918" width="42" height="24" rx="12"/><text x="61" y="935" textLength="25.2" lengthAdjust="spacingAndGlyphs">'т'</text></g>
+<path d="M82 930H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V954a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="952" width="42" height="24" rx="12"/><text x="61" y="969" textLength="25.2" lengthAdjust="spacingAndGlyphs">'Т'</text></g>
+<path d="M82 964H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V988a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="986" width="42" height="24" rx="12"/><text x="61" y="1003" textLength="25.2" lengthAdjust="spacingAndGlyphs">'ф'</text></g>
+<path d="M82 998H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V1022a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="1020" width="42" height="24" rx="12"/><text x="61" y="1037" textLength="25.2" lengthAdjust="spacingAndGlyphs">'Ф'</text></g>
+<path d="M82 1032H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V1056a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="1054" width="42" height="24" rx="12"/><text x="61" y="1071" textLength="25.2" lengthAdjust="spacingAndGlyphs">'х'</text></g>
+<path d="M82 1066H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V1090a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="1088" width="42" height="24" rx="12"/><text x="61" y="1105" textLength="25.2" lengthAdjust="spacingAndGlyphs">'Х'</text></g>
+<path d="M82 1100H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V1124a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="1122" width="42" height="24" rx="12"/><text x="61" y="1139" textLength="25.2" lengthAdjust="spacingAndGlyphs">'ш'</text></g>
+<path d="M82 1134H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V1158a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="1156" width="42" height="24" rx="12"/><text x="61" y="1173" textLength="25.2" lengthAdjust="spacingAndGlyphs">'Ш'</text></g>
+<path d="M82 1168H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M102 46h6m0 -8v16m4 -16v16"/>
+</svg>

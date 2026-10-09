@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="601" height="268" viewBox="0 0 601 268" role="img" aria-label="Railroad diagram of the rule simple-tense-modal">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24">simple-tense-modal</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<path d="M40 56h20"/>
+<g class="terminal"><rect x="60" y="44" width="50" height="24" rx="12"/><text x="85" y="61" textLength="33.6" lengthAdjust="spacingAndGlyphs">NAhE</text></g>
+<path d="M110 56H130"/>
+<path d="M40 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H110a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M130 56h10"/>
+<path d="M140 56h20"/>
+<g class="terminal"><rect x="160" y="44" width="33" height="24" rx="12"/><text x="176.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">SE</text></g>
+<path d="M193 56H213"/>
+<path d="M140 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H193a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M213 56h10"/>
+<g class="terminal"><rect x="223" y="44" width="42" height="24" rx="12"/><text x="244" y="61" textLength="25.2" lengthAdjust="spacingAndGlyphs">BAI</text></g>
+<path d="M265 56h10"/>
+<path d="M275 56h20"/>
+<g class="terminal"><rect x="295" y="44" width="42" height="24" rx="12"/><text x="316" y="61" textLength="25.2" lengthAdjust="spacingAndGlyphs">NAI</text></g>
+<path d="M337 56H357"/>
+<path d="M275 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H337a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M357 56h10"/>
+<path d="M367 56h20"/>
+<g class="terminal"><rect x="387" y="44" width="33" height="24" rx="12"/><text x="403.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">KI</text></g>
+<path d="M420 56H440"/>
+<path d="M367 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H420a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M440 56H581"/>
+<path d="M20 56a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M40 100h20"/>
+<g class="terminal"><rect x="60" y="88" width="50" height="24" rx="12"/><text x="85" y="105" textLength="33.6" lengthAdjust="spacingAndGlyphs">NAhE</text></g>
+<path d="M110 100H130"/>
+<path d="M40 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H110a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M130 100h10"/>
+<path d="M140 100h20"/>
+<path d="M160 100h20"/>
+<g class="rule"><rect x="180" y="88" width="50" height="24" rx="0"/><text x="205" y="105" textLength="33.6" lengthAdjust="spacingAndGlyphs">time</text></g>
+<path d="M230 100h10"/>
+<path d="M240 100h20"/>
+<g class="rule"><rect x="260" y="88" width="58" height="24" rx="0"/><text x="289" y="105" textLength="42" lengthAdjust="spacingAndGlyphs">space</text></g>
+<path d="M318 100H338"/>
+<path d="M240 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H318a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M338 100H358"/>
+<path d="M160 100a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="180" y="132" width="58" height="24" rx="0"/><text x="209" y="149" textLength="42" lengthAdjust="spacingAndGlyphs">space</text></g>
+<path d="M238 144h10"/>
+<path d="M248 144h20"/>
+<g class="rule"><rect x="268" y="132" width="50" height="24" rx="0"/><text x="293" y="149" textLength="33.6" lengthAdjust="spacingAndGlyphs">time</text></g>
+<path d="M318 144H338"/>
+<path d="M248 144a10 10 0 0 0 10 -10V132a10 10 0 0 1 10 -10H318a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
+<path d="M338 144H338a10 10 0 0 0 10 -10V110a10 10 0 0 1 10 -10"/>
+<path d="M358 100h10"/>
+<path d="M368 100h20"/>
+<g class="terminal"><rect x="388" y="88" width="50" height="24" rx="12"/><text x="413" y="105" textLength="33.6" lengthAdjust="spacingAndGlyphs">CAhA</text></g>
+<path d="M438 100H458"/>
+<path d="M368 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H438a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M458 100H478"/>
+<path d="M140 100a10 10 0 0 1 10 10V168a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="160" y="166" width="50" height="24" rx="12"/><text x="185" y="183" textLength="33.6" lengthAdjust="spacingAndGlyphs">CAhA</text></g>
+<path d="M210 178H458a10 10 0 0 0 10 -10V110a10 10 0 0 1 10 -10"/>
+<path d="M478 100h10"/>
+<path d="M488 100h20"/>
+<g class="terminal"><rect x="508" y="88" width="33" height="24" rx="12"/><text x="524.5" y="105" textLength="16.8" lengthAdjust="spacingAndGlyphs">KI</text></g>
+<path d="M541 100H561"/>
+<path d="M488 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H541a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M561 100H561a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M20 56a10 10 0 0 1 10 10V202a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="200" width="33" height="24" rx="12"/><text x="56.5" y="217" textLength="16.8" lengthAdjust="spacingAndGlyphs">KI</text></g>
+<path d="M73 212H561a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M20 56a10 10 0 0 1 10 10V236a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="234" width="50" height="24" rx="12"/><text x="65" y="251" textLength="33.6" lengthAdjust="spacingAndGlyphs">CUhE</text></g>
+<path d="M90 246H561a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M581 56h6m0 -8v16m4 -16v16"/>
+</svg>

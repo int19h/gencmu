@@ -1,6 +1,6 @@
 # The experimental grammar
 
-This document is a layer over [the CLL grammar](cll.md), the grammar printed in chapter 21 of *The Complete Lojban Language*, edition 1.1. A layer is a document that changes earlier rules. A dialect is a pipeline of stages, defined by one pipeline document. The [experimental](../dialects/experimental.md) dialect stitches this layer after that grammar, that is, combines their rules into one grammar.
+This document is a layer over [the CLL grammar](cll.md), the grammar printed in chapter 21 of *The Complete Lojban Language*, edition 1.1. A layer is a document that changes earlier rules. A dialect is a pipeline of stages, defined by one pipeline document. The [experimental](../dialects/experimental.md) dialect stitches this layer after that grammar, that is, combines their rules into one grammar. [Railroad diagrams](../../docs/diagrams/syntax/experimental.md) draw each rule of this document.
 
 The layer adds the experimental constructs that grew up in use after CLL was printed. The grammar always accepts some of them, and a feature (a named switch that the grammars test) guards others. Their reference is camxes-exp, the experimental PEG (parsing expression grammar).
 

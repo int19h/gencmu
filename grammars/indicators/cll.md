@@ -1,6 +1,6 @@
 # Indicators and `ba'e`
 
-This document is the indicator stage, the fourth stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar.
+This document is the indicator stage, the fourth stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. [Railroad diagrams](../../docs/diagrams/indicators/cll.md) draw each rule of this document.
 
 This stage reads the words that the word stage emitted, and applies `word`, one of CLL 1.1 section 21.2's four non-formal rules. CLL is *The Complete Lojban Language*. A parser applies this rule before the grammar proper. The rule is `word ≔ [BAhE] any-word [indicators]`.
 

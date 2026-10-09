@@ -6,6 +6,8 @@
 //   lib/js/grammars/         the npm package's copy of grammars/
 //   dist/grammars.js         grammars/ as one object, for the browser
 //   dist/gencmu.js           the library as one factory function, for the browser
+//   docs/diagrams/           a railroad diagram of each rule, and a page for
+//                            each grammar document that shows them
 //
 // and the other packages' copies of grammars/ and of LICENSE under lib/,
 // removing a copy of a document that grammars/ no longer has. Run it after
@@ -20,13 +22,14 @@ import { fileURLToPath } from "node:url";
 import { Loader, fnv1a64 } from "../lib/js/src/node.js";
 import { DOM_FORMAT } from "../lib/js/src/dom.js";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
-import { includeLinks } from "./links.js";
+import { includeLinks, inlineLinkTargets } from "./links.js";
 import { layoutProblems } from "./alternatives.js";
 import { quotedTextProblems } from "./quoted-texts.js";
 import { proseLineProblems } from "./prose-lines.js";
 import { markdownFiles, repositoryFiles } from "./documents.js";
 import { corpusShapeProblems, mutantShapeProblems } from "./corpus-shape.js";
 import { missing as parserMissing } from "./markdown.js";
+import { DIAGRAMS, diagramPaths, documentDiagrams } from "./railroad.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const grammars = path.join(root, "grammars");
@@ -149,6 +152,13 @@ if (parserMissing && check) {
       if (directive.name === "include" && !isLinked(directive.at[0], directive.args[0])) unlinked.push(`${file}:${directive.at[0]}: %include "${directive.args[0]}" does not follow a list item with a link [text](${directive.args[0]})`);
     }
   }
+  // Every grammar document with rules links to the page of its railroad
+  // diagrams (tools/railroad.js).
+  for (const [file, { dom }] of Object.entries(documents)) {
+    if (dom.rules.length === 0) continue;
+    const page = path.relative(path.join("grammars", path.dirname(file)), diagramPaths(file).page).split(path.sep).join("/");
+    if (!inlineLinkTargets(fs.readFileSync(path.join(grammars, file), "utf8")).includes(page)) unlinked.push(`grammars/${file}: has no link [text](${page}) to the railroad diagrams of its rules`);
+  }
   if (unlinked.length) {
     console.error(unlinked.join("\n"));
     process.exit(1);
@@ -166,6 +176,30 @@ if (parserMissing && check) {
   }
 }
 write("grammars/compiled.json", JSON.stringify(compiled) + "\n");
+
+// The railroad diagrams of the rules, and a page for each grammar document
+// that shows them (tools/railroad.js). They are documentation, so no
+// package ships them. A file under docs/diagrams/ that this run does not
+// write, such as the diagram of a rule that is gone, goes.
+const diagrams = new Map();
+for (const [file, { dom }] of Object.entries(documents)) {
+  for (const [relative, text] of documentDiagrams(file, fs.readFileSync(path.join(grammars, file), "utf8"), dom)) diagrams.set(relative, text);
+}
+for (const [relative, text] of diagrams) write(relative, text);
+/** @param {string} relative */
+const existing = (relative) => {
+  const directory = path.join(root, relative);
+  if (!fs.existsSync(directory)) return [];
+  return fs.readdirSync(directory, { withFileTypes: true }).filter((entry) => !entry.name.startsWith(".")).flatMap((entry) => (entry.isDirectory() ? existing(`${relative}/${entry.name}`) : [`${relative}/${entry.name}`]));
+};
+for (const relative of existing(DIAGRAMS)) {
+  if (diagrams.has(relative)) continue;
+  stale.push(relative);
+  if (check) continue;
+  fs.unlinkSync(path.join(root, relative));
+  // A directory that this leaves empty goes too.
+  for (let directory = path.dirname(relative); directory !== DIAGRAMS && directory.startsWith(DIAGRAMS) && fs.readdirSync(path.join(root, directory)).length === 0; directory = path.dirname(directory)) fs.rmdirSync(path.join(root, directory));
+}
 
 // The licence, which every package ships beside its code.
 const license = fs.readFileSync(path.join(root, "LICENSE"), "utf8");

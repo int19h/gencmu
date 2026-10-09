@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="410" height="78" viewBox="0 0 410 78" role="img" aria-label="Railroad diagram of the rule sumti-2-link">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24">sumti-2-link</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<g class="rule"><rect x="40" y="44" width="75" height="24" rx="0"/><text x="77.5" y="61" textLength="58.8" lengthAdjust="spacingAndGlyphs">joik-ek</text></g>
+<path d="M115 56H135"/>
+<path d="M20 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H115a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M135 56h10"/>
+<path d="M145 56h20"/>
+<g class="rule"><rect x="165" y="44" width="42" height="24" rx="0"/><text x="186" y="61" textLength="25.2" lengthAdjust="spacingAndGlyphs">tag</text></g>
+<path d="M207 56H227"/>
+<path d="M145 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H207a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M227 56h10"/>
+<g class="terminal"><rect x="237" y="44" width="33" height="24" rx="12"/><text x="253.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">BO</text></g>
+<path d="M270 56h10"/>
+<g class="rule"><rect x="280" y="44" width="25" height="24" rx="0"/><text x="292.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M305 56h10"/>
+<g class="rule"><rect x="315" y="44" width="75" height="24" rx="0"/><text x="352.5" y="61" textLength="58.8" lengthAdjust="spacingAndGlyphs">sumti-3</text></g>
+<path d="M390 56h6m0 -8v16m4 -16v16"/>
+</svg>

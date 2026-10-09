@@ -1,6 +1,6 @@
 # Experimental word forms
 
-This document is part of the forms stage in the [experimental](../dialects/experimental.md) dialect. The forms stage is the second stage of the pipeline. It divides the phonemes of the text into words. The loader stitches this document into the stage after [bpfk.md](bpfk.md).
+This document is part of the forms stage in the [experimental](../dialects/experimental.md) dialect. The forms stage is the second stage of the pipeline. It divides the phonemes of the text into words. The loader stitches this document into the stage after [bpfk.md](bpfk.md). [Railroad diagrams](../../docs/diagrams/words/experimental.md) draw each rule of this document.
 
 camxes-exp, the experimental PEG (parsing expression grammar), reads the working word forms of the BPFK (a Lojban committee), with a few changes. This document makes the same changes to the translation in [bpfk.md](bpfk.md).
 

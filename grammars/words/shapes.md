@@ -1,6 +1,6 @@
 # Word shapes
 
-This document is part of the forms stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)).
+This document is part of the forms stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). [Railroad diagrams](../../docs/diagrams/words/shapes.md) draw each rule of this document.
 
 The document holds the sounds of the word forms in *The Complete Lojban Language* (CLL). These are the consonants and their pairs, the vowels and diphthongs, and the stress. The loader stitches it into the stage after [forms.md](forms.md) and before [cll.md](cll.md), which builds the words from these parts. The other dialects read the word forms of the BPFK (a Lojban committee) in [bpfk.md](bpfk.md) instead, and use nothing here. [The notation document](../../docs/notation.md) explains the notation.
 

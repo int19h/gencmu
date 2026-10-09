@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="406" height="88" viewBox="0 0 406 88" role="img" aria-label="Railroad diagram of the rule bridi-tail-1">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24">bridi-tail-1</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<g class="rule"><rect x="20" y="44" width="117" height="24" rx="0"/><text x="78.5" y="61" textLength="100.8" lengthAdjust="spacingAndGlyphs">bridi-tail-2</text></g>
+<path d="M137 56h10"/>
+<path d="M147 56h20"/>
+<path d="M167 56h20"/>
+<g class="rule"><rect x="187" y="44" width="159" height="24" rx="0"/><text x="266.5" y="61" textLength="142.8" lengthAdjust="spacingAndGlyphs">bridi-tail-1-link</text></g>
+<path d="M346 56H366"/>
+<path d="M346 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H187a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M366 56H386"/>
+<path d="M147 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H366a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M386 56h6m0 -8v16m4 -16v16"/>
+</svg>

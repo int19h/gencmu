@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="274" height="102" viewBox="0 0 274 102" role="img" aria-label="Railroad diagram of the rule short-final-body">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24">short-final-body</text>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<path d="M20 46h20"/>
+<g class="rule"><rect x="40" y="34" width="92" height="24" rx="0"/><text x="86" y="51" textLength="75.6" lengthAdjust="spacingAndGlyphs">consonant</text></g>
+<path d="M132 46h10"/>
+<g class="rule"><rect x="142" y="34" width="92" height="24" rx="0"/><text x="188" y="51" textLength="75.6" lengthAdjust="spacingAndGlyphs">diphthong</text></g>
+<path d="M234 46H254"/>
+<path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="68" width="117" height="24" rx="0"/><text x="98.5" y="85" textLength="100.8" lengthAdjust="spacingAndGlyphs">initial-pair</text></g>
+<path d="M157 80h10"/>
+<g class="rule"><rect x="167" y="68" width="58" height="24" rx="0"/><text x="196" y="85" textLength="42" lengthAdjust="spacingAndGlyphs">vowel</text></g>
+<path d="M225 80H234a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M254 46h6m0 -8v16m4 -16v16"/>
+</svg>

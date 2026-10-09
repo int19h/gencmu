@@ -1,6 +1,6 @@
 # Replacement quotes
 
-A letteral is a letter word of class BY, as [stream.md](stream.md) defines it.
+A letteral is a letter word of class BY, as [stream.md](stream.md) defines it. [Railroad diagrams](../../docs/diagrams/words/lohai.md) draw each rule of this document.
 
 This document is part of the word stage of the [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) dialects, after [the word stream](stream.md). A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. Each stage reads the tokens that the stage before it emitted, and emits new tokens. [The notation document](../../docs/notation.md) explains the notation.
 

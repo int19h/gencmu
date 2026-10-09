@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="697" height="128" viewBox="0 0 697 128" role="img" aria-label="Railroad diagram of the rule sumti-1">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24">sumti-1</text>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<path d="M20 46h20"/>
+<g class="rule"><rect x="40" y="34" width="75" height="24" rx="0"/><text x="77.5" y="51" textLength="58.8" lengthAdjust="spacingAndGlyphs">sumti-2</text></g>
+<path d="M115 46H677"/>
+<path d="M20 46a10 10 0 0 1 10 10V96a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="94" width="75" height="24" rx="0"/><text x="77.5" y="111" textLength="58.8" lengthAdjust="spacingAndGlyphs">sumti-2</text></g>
+<path d="M115 106h10"/>
+<g class="rule"><rect x="125" y="94" width="151" height="24" rx="0"/><text x="200.5" y="111" textLength="134.4" lengthAdjust="spacingAndGlyphs">sumti-connective</text></g>
+<path d="M276 106h10"/>
+<path d="M286 106h20"/>
+<g class="rule"><rect x="306" y="94" width="50" height="24" rx="0"/><text x="331" y="111" textLength="33.6" lengthAdjust="spacingAndGlyphs">stag</text></g>
+<path d="M356 106H376"/>
+<path d="M286 106a10 10 0 0 0 10 -10V94a10 10 0 0 1 10 -10H356a10 10 0 0 1 10 10V96a10 10 0 0 0 10 10"/>
+<path d="M376 106h10"/>
+<g class="terminal"><rect x="386" y="94" width="33" height="24" rx="12"/><text x="402.5" y="111" textLength="16.8" lengthAdjust="spacingAndGlyphs">KE</text></g>
+<path d="M419 106h10"/>
+<g class="rule"><rect x="429" y="94" width="25" height="24" rx="0"/><text x="441.5" y="111" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M454 106h10"/>
+<g class="rule"><rect x="464" y="94" width="58" height="24" rx="0"/><text x="493" y="111" textLength="42" lengthAdjust="spacingAndGlyphs">sumti</text></g>
+<path d="M522 106h10"/>
+<path d="M532 106h20"/>
+<g class="terminal"><rect x="552" y="94" width="50" height="24" rx="12"/><text x="577" y="111" textLength="33.6" lengthAdjust="spacingAndGlyphs">KEhE</text></g>
+<path d="M602 106H622"/>
+<path d="M532 106a10 10 0 0 0 10 -10V94a10 10 0 0 1 10 -10H602a10 10 0 0 1 10 10V96a10 10 0 0 0 10 10"/>
+<text class="label" x="556" y="79" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M622 106h10"/>
+<g class="rule"><rect x="632" y="94" width="25" height="24" rx="0"/><text x="644.5" y="111" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M657 106H657a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M677 46h6m0 -8v16m4 -16v16"/>
+</svg>

@@ -1,6 +1,6 @@
 # The CLL word stream
 
-A letteral is a letter word of class BY, as [stream.md](stream.md) defines it.
+A letteral is a letter word of class BY, as [stream.md](stream.md) defines it. [Railroad diagrams](../../docs/diagrams/words/cll-stream.md) draw each rule of this document.
 
 This document is part of the word stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. Each stage reads the tokens that the stage before it emitted, and emits new tokens. The dialect includes this document after [stream.md](stream.md). [The notation document](../../docs/notation.md) explains the notation.
 

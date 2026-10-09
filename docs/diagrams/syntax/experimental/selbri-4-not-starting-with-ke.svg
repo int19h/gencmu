@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="807" height="196" viewBox="0 0 807 196" role="img" aria-label="Railroad diagram of the rule selbri-4-not-starting-with-ke">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24">selbri-4-not-starting-with-ke</text>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<path d="M20 46h20"/>
+<g class="rule"><rect x="40" y="34" width="260" height="24" rx="0"/><text x="170" y="51" textLength="243.6" lengthAdjust="spacingAndGlyphs">selbri-5-not-starting-with-ke</text></g>
+<path d="M300 46H787"/>
+<path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="68" width="260" height="24" rx="0"/><text x="170" y="85" textLength="243.6" lengthAdjust="spacingAndGlyphs">selbri-4-not-starting-with-ke</text></g>
+<path d="M300 80h10"/>
+<g class="rule"><rect x="310" y="68" width="210" height="24" rx="0"/><text x="415" y="85" textLength="193.2" lengthAdjust="spacingAndGlyphs">plain-selbri-connective</text></g>
+<path d="M520 80h10"/>
+<g class="rule"><rect x="530" y="68" width="84" height="24" rx="0"/><text x="572" y="85" textLength="67.2" lengthAdjust="spacingAndGlyphs">selbri-5</text></g>
+<path d="M614 80H767a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="102" width="260" height="24" rx="0"/><text x="170" y="119" textLength="243.6" lengthAdjust="spacingAndGlyphs">selbri-4-not-starting-with-ke</text></g>
+<path d="M300 114h10"/>
+<g class="rule"><rect x="310" y="102" width="134" height="24" rx="0"/><text x="377" y="119" textLength="117.6" lengthAdjust="spacingAndGlyphs">joik-before-ke</text></g>
+<path d="M444 114h10"/>
+<g class="rule"><rect x="454" y="102" width="193" height="24" rx="0"/><text x="550.5" y="119" textLength="176.4" lengthAdjust="spacingAndGlyphs">selbri-5-not-ke-group</text></g>
+<path d="M647 114H767a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V164a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="162" width="260" height="24" rx="0"/><text x="170" y="179" textLength="243.6" lengthAdjust="spacingAndGlyphs">selbri-4-not-starting-with-ke</text></g>
+<path d="M300 174h10"/>
+<g class="rule"><rect x="310" y="162" width="50" height="24" rx="0"/><text x="335" y="179" textLength="33.6" lengthAdjust="spacingAndGlyphs">joik</text></g>
+<path d="M360 174h10"/>
+<path d="M370 174h20"/>
+<g class="rule"><rect x="390" y="162" width="50" height="24" rx="0"/><text x="415" y="179" textLength="33.6" lengthAdjust="spacingAndGlyphs">stag</text></g>
+<path d="M440 174H460"/>
+<path d="M370 174a10 10 0 0 0 10 -10V162a10 10 0 0 1 10 -10H440a10 10 0 0 1 10 10V164a10 10 0 0 0 10 10"/>
+<path d="M460 174h10"/>
+<g class="terminal"><rect x="470" y="162" width="33" height="24" rx="12"/><text x="486.5" y="179" textLength="16.8" lengthAdjust="spacingAndGlyphs">KE</text></g>
+<path d="M503 174h10"/>
+<g class="rule"><rect x="513" y="162" width="25" height="24" rx="0"/><text x="525.5" y="179" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M538 174h10"/>
+<g class="rule"><rect x="548" y="162" width="84" height="24" rx="0"/><text x="590" y="179" textLength="67.2" lengthAdjust="spacingAndGlyphs">selbri-3</text></g>
+<path d="M632 174h10"/>
+<path d="M642 174h20"/>
+<g class="terminal"><rect x="662" y="162" width="50" height="24" rx="12"/><text x="687" y="179" textLength="33.6" lengthAdjust="spacingAndGlyphs">KEhE</text></g>
+<path d="M712 174H732"/>
+<path d="M642 174a10 10 0 0 0 10 -10V162a10 10 0 0 1 10 -10H712a10 10 0 0 1 10 10V164a10 10 0 0 0 10 10"/>
+<text class="label" x="666" y="147" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M732 174h10"/>
+<g class="rule"><rect x="742" y="162" width="25" height="24" rx="0"/><text x="754.5" y="179" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M767 174H767a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M787 46h6m0 -8v16m4 -16v16"/>
+</svg>

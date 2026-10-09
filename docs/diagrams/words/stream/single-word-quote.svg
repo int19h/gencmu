@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="727" height="122" viewBox="0 0 727 122" role="img" aria-label="Railroad diagram of the rule single-word-quote">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24">single-word-quote</text>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<path d="M20 46h20"/>
+<g class="rule"><rect x="40" y="34" width="126" height="24" rx="0"/><text x="103" y="51" textLength="109.2" lengthAdjust="spacingAndGlyphs">single-marker</text></g>
+<path d="M166 46h10"/>
+<g class="rule"><rect x="176" y="34" width="126" height="24" rx="0"/><text x="239" y="51" textLength="109.2" lengthAdjust="spacingAndGlyphs">zohoi-payload</text></g>
+<path d="M302 46H707"/>
+<path d="M20 46a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="88" width="126" height="24" rx="0"/><text x="103" y="105" textLength="109.2" lengthAdjust="spacingAndGlyphs">single-marker</text></g>
+<path d="M166 100h10"/>
+<g class="terminal"><rect x="176" y="88" width="58" height="24" rx="12"/><text x="205" y="105" textLength="42" lengthAdjust="spacingAndGlyphs">PAUSE</text></g>
+<path d="M234 100h10"/>
+<path d="M244 100h20"/>
+<g class="rule"><rect x="264" y="88" width="159" height="24" rx="0"/><text x="343.5" y="105" textLength="142.8" lengthAdjust="spacingAndGlyphs">zohoi-hesitations</text></g>
+<path d="M423 100h10"/>
+<path d="M433 100h20"/>
+<g class="terminal"><rect x="453" y="88" width="58" height="24" rx="12"/><text x="482" y="105" textLength="42" lengthAdjust="spacingAndGlyphs">PAUSE</text></g>
+<path d="M511 100H531"/>
+<path d="M433 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H511a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M531 100H551"/>
+<path d="M244 100a10 10 0 0 0 10 -10V78a10 10 0 0 1 10 -10H531a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M551 100h10"/>
+<g class="rule"><rect x="561" y="88" width="126" height="24" rx="0"/><text x="624" y="105" textLength="109.2" lengthAdjust="spacingAndGlyphs">zohoi-payload</text></g>
+<path d="M687 100H687a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M707 46h6m0 -8v16m4 -16v16"/>
+</svg>

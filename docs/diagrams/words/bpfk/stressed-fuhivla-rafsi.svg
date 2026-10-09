@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="632" height="68" viewBox="0 0 632 68" role="img" aria-label="Railroad diagram of the rule stressed-fuhivla-rafsi">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24">stressed-fuhivla-rafsi</text>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<g class="rule"><rect x="20" y="34" width="117" height="24" rx="0"/><text x="78.5" y="51" textLength="100.8" lengthAdjust="spacingAndGlyphs">fuhivla-head</text></g>
+<path d="M137 46h10"/>
+<g class="rule"><rect x="147" y="34" width="159" height="24" rx="0"/><text x="226.5" y="51" textLength="142.8" lengthAdjust="spacingAndGlyphs">stressed-syllable</text></g>
+<path d="M306 46h10"/>
+<g class="rule"><rect x="316" y="34" width="193" height="24" rx="0"/><text x="412.5" y="51" textLength="176.4" lengthAdjust="spacingAndGlyphs">consonantal-syllables</text></g>
+<path d="M509 46h10"/>
+<g class="rule"><rect x="519" y="34" width="58" height="24" rx="0"/><text x="548" y="51" textLength="42" lengthAdjust="spacingAndGlyphs">onset</text></g>
+<path d="M577 46h10"/>
+<g class="rule"><rect x="587" y="34" width="25" height="24" rx="0"/><text x="599.5" y="51" textLength="8.4" lengthAdjust="spacingAndGlyphs">y</text></g>
+<path d="M612 46h6m0 -8v16m4 -16v16"/>
+</svg>

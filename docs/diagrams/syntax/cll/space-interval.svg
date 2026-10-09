@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="654" height="156" viewBox="0 0 654 156" role="img" aria-label="Railroad diagram of the rule space-interval">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24">space-interval</text>
+<path d="M10 58v16m4 -16v16M14 66h6"/>
+<path d="M20 66h20"/>
+<path d="M40 66h20"/>
+<g class="terminal"><rect x="60" y="54" width="50" height="24" rx="12"/><text x="85" y="71" textLength="33.6" lengthAdjust="spacingAndGlyphs">VEhA</text></g>
+<path d="M110 66h10"/>
+<path d="M120 66h20"/>
+<g class="terminal"><rect x="140" y="54" width="50" height="24" rx="12"/><text x="165" y="71" textLength="33.6" lengthAdjust="spacingAndGlyphs">VIhA</text></g>
+<path d="M190 66H210"/>
+<path d="M120 66a10 10 0 0 0 10 -10V54a10 10 0 0 1 10 -10H190a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M210 66H230"/>
+<path d="M40 66a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="88" width="50" height="24" rx="12"/><text x="85" y="105" textLength="33.6" lengthAdjust="spacingAndGlyphs">VIhA</text></g>
+<path d="M110 100H210a10 10 0 0 0 10 -10V76a10 10 0 0 1 10 -10"/>
+<path d="M230 66h10"/>
+<path d="M240 66h20"/>
+<g class="terminal"><rect x="260" y="54" width="50" height="24" rx="12"/><text x="285" y="71" textLength="33.6" lengthAdjust="spacingAndGlyphs">FAhA</text></g>
+<path d="M310 66h10"/>
+<path d="M320 66h20"/>
+<g class="terminal"><rect x="340" y="54" width="42" height="24" rx="12"/><text x="361" y="71" textLength="25.2" lengthAdjust="spacingAndGlyphs">NAI</text></g>
+<path d="M382 66H402"/>
+<path d="M320 66a10 10 0 0 0 10 -10V54a10 10 0 0 1 10 -10H382a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M402 66H422"/>
+<path d="M240 66a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H402a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M422 66h10"/>
+<path d="M432 66h20"/>
+<g class="rule"><rect x="452" y="54" width="142" height="24" rx="0"/><text x="523" y="71" textLength="126" lengthAdjust="spacingAndGlyphs">space-int-props</text></g>
+<path d="M594 66H614"/>
+<path d="M432 66a10 10 0 0 0 10 -10V54a10 10 0 0 1 10 -10H594a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M614 66H634"/>
+<path d="M20 66a10 10 0 0 1 10 10V124a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="122" width="142" height="24" rx="0"/><text x="111" y="139" textLength="126" lengthAdjust="spacingAndGlyphs">space-int-props</text></g>
+<path d="M182 134H614a10 10 0 0 0 10 -10V76a10 10 0 0 1 10 -10"/>
+<path d="M634 66h6m0 -8v16m4 -16v16"/>
+</svg>

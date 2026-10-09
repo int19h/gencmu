@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="241" height="1258" viewBox="0 0 241 1258" role="img" aria-label="Railroad diagram of the rule stressed-vowel">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24">stressed-vowel</text>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<path d="M20 46h20"/>
+<g class="terminal"><rect x="40" y="34" width="42" height="24" rx="12"/><text x="61" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">'á'</text></g>
+<path d="M82 46H221"/>
+<path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="68" width="42" height="24" rx="12"/><text x="61" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">'à'</text></g>
+<path d="M82 80H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="102" width="42" height="24" rx="12"/><text x="61" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">'Á'</text></g>
+<path d="M82 114H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="136" width="42" height="24" rx="12"/><text x="61" y="153" textLength="25.2" lengthAdjust="spacingAndGlyphs">'À'</text></g>
+<path d="M82 148H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V172a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="170" width="42" height="24" rx="12"/><text x="61" y="187" textLength="25.2" lengthAdjust="spacingAndGlyphs">'a'</text></g>
+<path d="M82 182h10"/>
+<g class="rule"><rect x="92" y="170" width="109" height="24" rx="0"/><text x="146.5" y="187" textLength="92.4" lengthAdjust="spacingAndGlyphs">stress-mark</text></g>
+<path d="M201 182H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V206a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="204" width="42" height="24" rx="12"/><text x="61" y="221" textLength="25.2" lengthAdjust="spacingAndGlyphs">'A'</text></g>
+<path d="M82 216h10"/>
+<g class="rule"><rect x="92" y="204" width="109" height="24" rx="0"/><text x="146.5" y="221" textLength="92.4" lengthAdjust="spacingAndGlyphs">stress-mark</text></g>
+<path d="M201 216H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V240a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="238" width="42" height="24" rx="12"/><text x="61" y="255" textLength="25.2" lengthAdjust="spacingAndGlyphs">'é'</text></g>
+<path d="M82 250H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V274a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="272" width="42" height="24" rx="12"/><text x="61" y="289" textLength="25.2" lengthAdjust="spacingAndGlyphs">'è'</text></g>
+<path d="M82 284H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V308a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="306" width="42" height="24" rx="12"/><text x="61" y="323" textLength="25.2" lengthAdjust="spacingAndGlyphs">'É'</text></g>
+<path d="M82 318H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V342a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="340" width="42" height="24" rx="12"/><text x="61" y="357" textLength="25.2" lengthAdjust="spacingAndGlyphs">'È'</text></g>
+<path d="M82 352H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V376a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="374" width="42" height="24" rx="12"/><text x="61" y="391" textLength="25.2" lengthAdjust="spacingAndGlyphs">'e'</text></g>
+<path d="M82 386h10"/>
+<g class="rule"><rect x="92" y="374" width="109" height="24" rx="0"/><text x="146.5" y="391" textLength="92.4" lengthAdjust="spacingAndGlyphs">stress-mark</text></g>
+<path d="M201 386H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V410a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="408" width="42" height="24" rx="12"/><text x="61" y="425" textLength="25.2" lengthAdjust="spacingAndGlyphs">'E'</text></g>
+<path d="M82 420h10"/>
+<g class="rule"><rect x="92" y="408" width="109" height="24" rx="0"/><text x="146.5" y="425" textLength="92.4" lengthAdjust="spacingAndGlyphs">stress-mark</text></g>
+<path d="M201 420H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V444a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="442" width="42" height="24" rx="12"/><text x="61" y="459" textLength="25.2" lengthAdjust="spacingAndGlyphs">'í'</text></g>
+<path d="M82 454H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V478a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="476" width="42" height="24" rx="12"/><text x="61" y="493" textLength="25.2" lengthAdjust="spacingAndGlyphs">'ì'</text></g>
+<path d="M82 488H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V512a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="510" width="42" height="24" rx="12"/><text x="61" y="527" textLength="25.2" lengthAdjust="spacingAndGlyphs">'Í'</text></g>
+<path d="M82 522H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V546a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="544" width="42" height="24" rx="12"/><text x="61" y="561" textLength="25.2" lengthAdjust="spacingAndGlyphs">'Ì'</text></g>
+<path d="M82 556H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V580a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="578" width="42" height="24" rx="12"/><text x="61" y="595" textLength="25.2" lengthAdjust="spacingAndGlyphs">'i'</text></g>
+<path d="M82 590h10"/>
+<g class="rule"><rect x="92" y="578" width="109" height="24" rx="0"/><text x="146.5" y="595" textLength="92.4" lengthAdjust="spacingAndGlyphs">stress-mark</text></g>
+<path d="M201 590H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V614a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="612" width="42" height="24" rx="12"/><text x="61" y="629" textLength="25.2" lengthAdjust="spacingAndGlyphs">'I'</text></g>
+<path d="M82 624h10"/>
+<g class="rule"><rect x="92" y="612" width="109" height="24" rx="0"/><text x="146.5" y="629" textLength="92.4" lengthAdjust="spacingAndGlyphs">stress-mark</text></g>
+<path d="M201 624H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V648a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="646" width="42" height="24" rx="12"/><text x="61" y="663" textLength="25.2" lengthAdjust="spacingAndGlyphs">'ó'</text></g>
+<path d="M82 658H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V682a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="680" width="42" height="24" rx="12"/><text x="61" y="697" textLength="25.2" lengthAdjust="spacingAndGlyphs">'ò'</text></g>
+<path d="M82 692H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V716a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="714" width="42" height="24" rx="12"/><text x="61" y="731" textLength="25.2" lengthAdjust="spacingAndGlyphs">'Ó'</text></g>
+<path d="M82 726H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V750a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="748" width="42" height="24" rx="12"/><text x="61" y="765" textLength="25.2" lengthAdjust="spacingAndGlyphs">'Ò'</text></g>
+<path d="M82 760H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V784a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="782" width="42" height="24" rx="12"/><text x="61" y="799" textLength="25.2" lengthAdjust="spacingAndGlyphs">'o'</text></g>
+<path d="M82 794h10"/>
+<g class="rule"><rect x="92" y="782" width="109" height="24" rx="0"/><text x="146.5" y="799" textLength="92.4" lengthAdjust="spacingAndGlyphs">stress-mark</text></g>
+<path d="M201 794H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V818a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="816" width="42" height="24" rx="12"/><text x="61" y="833" textLength="25.2" lengthAdjust="spacingAndGlyphs">'O'</text></g>
+<path d="M82 828h10"/>
+<g class="rule"><rect x="92" y="816" width="109" height="24" rx="0"/><text x="146.5" y="833" textLength="92.4" lengthAdjust="spacingAndGlyphs">stress-mark</text></g>
+<path d="M201 828H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V852a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="850" width="42" height="24" rx="12"/><text x="61" y="867" textLength="25.2" lengthAdjust="spacingAndGlyphs">'ú'</text></g>
+<path d="M82 862H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V886a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="884" width="42" height="24" rx="12"/><text x="61" y="901" textLength="25.2" lengthAdjust="spacingAndGlyphs">'ù'</text></g>
+<path d="M82 896H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V920a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="918" width="42" height="24" rx="12"/><text x="61" y="935" textLength="25.2" lengthAdjust="spacingAndGlyphs">'Ú'</text></g>
+<path d="M82 930H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V954a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="952" width="42" height="24" rx="12"/><text x="61" y="969" textLength="25.2" lengthAdjust="spacingAndGlyphs">'Ù'</text></g>
+<path d="M82 964H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V988a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="986" width="42" height="24" rx="12"/><text x="61" y="1003" textLength="25.2" lengthAdjust="spacingAndGlyphs">'u'</text></g>
+<path d="M82 998h10"/>
+<g class="rule"><rect x="92" y="986" width="109" height="24" rx="0"/><text x="146.5" y="1003" textLength="92.4" lengthAdjust="spacingAndGlyphs">stress-mark</text></g>
+<path d="M201 998H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V1022a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="1020" width="42" height="24" rx="12"/><text x="61" y="1037" textLength="25.2" lengthAdjust="spacingAndGlyphs">'U'</text></g>
+<path d="M82 1032h10"/>
+<g class="rule"><rect x="92" y="1020" width="109" height="24" rx="0"/><text x="146.5" y="1037" textLength="92.4" lengthAdjust="spacingAndGlyphs">stress-mark</text></g>
+<path d="M201 1032H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V1056a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="1054" width="42" height="24" rx="12"/><text x="61" y="1071" textLength="25.2" lengthAdjust="spacingAndGlyphs">'ý'</text></g>
+<path d="M82 1066H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V1090a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="1088" width="42" height="24" rx="12"/><text x="61" y="1105" textLength="25.2" lengthAdjust="spacingAndGlyphs">'ỳ'</text></g>
+<path d="M82 1100H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V1124a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="1122" width="42" height="24" rx="12"/><text x="61" y="1139" textLength="25.2" lengthAdjust="spacingAndGlyphs">'Ý'</text></g>
+<path d="M82 1134H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V1158a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="1156" width="42" height="24" rx="12"/><text x="61" y="1173" textLength="25.2" lengthAdjust="spacingAndGlyphs">'Ỳ'</text></g>
+<path d="M82 1168H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V1192a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="1190" width="42" height="24" rx="12"/><text x="61" y="1207" textLength="25.2" lengthAdjust="spacingAndGlyphs">'y'</text></g>
+<path d="M82 1202h10"/>
+<g class="rule"><rect x="92" y="1190" width="109" height="24" rx="0"/><text x="146.5" y="1207" textLength="92.4" lengthAdjust="spacingAndGlyphs">stress-mark</text></g>
+<path d="M201 1202H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V1226a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="1224" width="42" height="24" rx="12"/><text x="61" y="1241" textLength="25.2" lengthAdjust="spacingAndGlyphs">'Y'</text></g>
+<path d="M82 1236h10"/>
+<g class="rule"><rect x="92" y="1224" width="109" height="24" rx="0"/><text x="146.5" y="1241" textLength="92.4" lengthAdjust="spacingAndGlyphs">stress-mark</text></g>
+<path d="M201 1236H201a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M221 46h6m0 -8v16m4 -16v16"/>
+</svg>
