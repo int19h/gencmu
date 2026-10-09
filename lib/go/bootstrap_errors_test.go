@@ -25,7 +25,10 @@ func TestBootstrapErrorMetadata(t *testing.T) {
 			Stage       *string `json:"stage"`
 			Line        *int    `json:"line"`
 			Column      *int    `json:"column"`
-			Bootstrap   *string `json:"bootstrap"`
+			// At is the text that stands at the error in the grammar
+			// document Context, which gives its line and column.
+			At        *string `json:"at"`
+			Bootstrap *string `json:"bootstrap"`
 		} `json:"cases"`
 	}
 	if err := unmarshalJSON(raw, &fixtures); err != nil {
@@ -41,10 +44,14 @@ func TestBootstrapErrorMetadata(t *testing.T) {
 			if item.Bootstrap != nil {
 				bootstrap = *item.Bootstrap
 			} else {
-				if !strings.Contains(bootstrap, item.Find) {
+				if len(findPlaces(bootstrap, item.Find)) == 0 {
 					t.Fatal("the mutation is absent")
 				}
-				bootstrap = strings.Replace(bootstrap, item.Find, item.Replace, 1)
+				replaced, err := substitute(bootstrap, item.Find, item.Replace)
+				if err != nil {
+					t.Fatal(err)
+				}
+				bootstrap = replaced
 			}
 			_, err := LoadDialectSources(map[string]string{
 				"p.md":                    "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
@@ -73,6 +80,17 @@ func TestBootstrapErrorMetadata(t *testing.T) {
 			}
 			if item.Column != nil {
 				column = *item.Column
+			}
+			if item.At != nil {
+				document, err := os.ReadFile("../../grammars/" + item.Context)
+				if err != nil {
+					t.Fatal(err)
+				}
+				found, at, err := positionOf(string(document), *item.At)
+				if err != nil {
+					t.Fatal(err)
+				}
+				line, column = found, at
 			}
 			if item.Stage != nil {
 				stage = *item.Stage

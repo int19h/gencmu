@@ -10,7 +10,7 @@ from typing import Any, Callable
 
 import gencmu
 
-from .shared import SHARED, REPOSITORY, load_json, read_json
+from .shared import SHARED, REPOSITORY, find_places, load_json, read_json, substitute
 
 SHAPES: dict[str, Any] = load_json(SHARED / "notation-shapes.json")
 with open(REPOSITORY / "grammars" / "notation" / "bootstrap.json", encoding="utf-8") as _file:
@@ -115,6 +115,6 @@ class NotationShapes(unittest.TestCase):
     def test_a_part_that_the_reader_does_not_read_is_ignored(self) -> None:
         for item in SHAPES["extraParts"]:
             with self.subTest(item["description"]):
-                self.assertEqual(BOOTSTRAP[SYNTAX_AT:].count(item["find"]), 1)
-                changed = with_syntax(lambda syntax, item=item: syntax.replace(item["find"], item["replace"]))
+                self.assertEqual(len(find_places(BOOTSTRAP[SYNTAX_AT:], item["find"])), 1)
+                changed = with_syntax(lambda syntax, item=item: substitute(syntax, item["find"], item["replace"]))
                 self.assertEqual(outcome(changed, item["document"], item["inputs"], item.get("where")), item["expect"])

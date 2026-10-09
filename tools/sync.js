@@ -15,8 +15,6 @@
 // diagram of each rule of the block (tools/railroad.js). It removes each
 // element that it no longer writes, and leaves every other line of the
 // document as it is.
-// tests/quoted-allow.txt names lines of the documents, so it renumbers them
-// where it moves them.
 //
 // Run it after editing a grammar. It checks the Markdown of the documents
 // with a parser, a development dependency of lib/js (tools/markdown.js):
@@ -120,13 +118,11 @@ let bootstrapText = settle(fs.readFileSync(bootstrapPath, "utf8"));
 
 // The railroad diagrams (tools/railroad.js): the generated elements of each
 // grammar document, and the SVG file of each rule. A document with no
-// grammar block keeps no generated element either. The elements move
-// the lines after them, so the lines that tests/quoted-allow.txt names
-// move with them, and the DOMs and the bootstrap, which give the line of
-// each rule, are read again.
+// grammar block keeps no generated element either. The elements move the
+// lines after them, and with them the line of each rule, so the DOMs and
+// the bootstrap are read again. No test names a line of a grammar document
+// by its number, so none of them changes (tests/README.md).
 const diagrams = new Map();
-const allowPath = path.join(root, "tests", "quoted-allow.txt");
-let allow = fs.readFileSync(allowPath, "utf8");
 let moved = false;
 const reader = loaderWith(bootstrapText);
 // Whether a test on an elided terminator allows its omission, in each
@@ -136,19 +132,12 @@ for (const file of grammarFiles()) {
   if (!file.endsWith(".md")) continue;
   const text = fs.readFileSync(path.join(grammars, file), "utf8");
   const dom = extractGrammarText(text, file).blocks === 0 ? { rules: [] } : reader.readDocument(text, file);
-  const { text: next, lines, files } = withDiagrams(file, text, dom, outcomes.get(file));
+  const { text: next, files } = withDiagrams(file, text, dom, outcomes.get(file));
   for (const [relative, svg] of files) diagrams.set(relative, svg);
   if (next === text) continue;
   write(`grammars/${file}`, next);
-  if (check) continue;
-  moved = true;
-  allow = allow.split("\n").map((line) => {
-    const entry = /^(.*?\s+#\s+)([^\s:]+):(\d+(?:,\d+)*)(\s+[#=]\s.*)$/.exec(line);
-    if (!entry || entry[2] !== `grammars/${file}`) return line;
-    return `${entry[1]}${entry[2]}:${entry[3].split(",").map((number) => lines[Number(number)] ?? number).join(",")}${entry[4]}`;
-  }).join("\n");
+  if (!check) moved = true;
 }
-write("tests/quoted-allow.txt", allow);
 if (moved) bootstrapText = settle(bootstrapText);
 write("grammars/notation/bootstrap.json", bootstrapText);
 

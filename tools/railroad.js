@@ -786,9 +786,7 @@ export function ownedLines(lines) {
  * @param {{rules: any[]}} dom the document's DOM
  * @param {Map<number, Set<boolean>[]>} [outcomes] the answers of the
  *   omission predicate for the document's rules, from elisionOutcomes
- * @returns {{text: string, lines: (number | null)[], files: Map<string, string>}}
- *   the document; the line where each line of `markdown` now stands, by its
- *   line number (both counted from 1), or null for a line that goes; and
+ * @returns {{text: string, files: Map<string, string>}} the document, and
  *   the SVG files
  */
 export function withDiagrams(file, markdown, dom, outcomes = new Map()) {
@@ -835,16 +833,9 @@ export function withDiagrams(file, markdown, dom, outcomes = new Map()) {
 
   /** @type {string[]} */
   const out = [];
-  let count = 0;
-  /** @type {(number | null)[]} */
-  const moved = [null];
   /** @param {string} line @param {string} end */
-  const emit = (line, end) => {
-    out.push(line + end);
-    count++;
-  };
+  const emit = (line, end) => out.push(line + end);
   for (let index = 0; index < lines.length; index++) {
-    moved.push(keep[index] ? count + 1 : null);
     if (!keep[index]) continue;
     const diagrams = after.get(index);
     if (!diagrams) {
@@ -862,5 +853,5 @@ export function withDiagrams(file, markdown, dom, outcomes = new Map()) {
     element.forEach((line, position) => emit(line, position < element.length - 1 || next < lines.length ? newline : ""));
     if (next < lines.length && lines[next] !== "") emit("", newline);
   }
-  return { text: out.join(""), lines: moved, files };
+  return { text: out.join(""), files };
 }

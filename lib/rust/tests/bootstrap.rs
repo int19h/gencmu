@@ -4,7 +4,7 @@ mod common;
 
 use std::collections::BTreeMap;
 
-use common::{parse_json, repository, Value};
+use common::{find_places, parse_json, position_of, repository, substitute, Value};
 use gencmu::tools::DOM_FORMAT;
 
 fn grammars() -> std::path::PathBuf {
@@ -253,8 +253,8 @@ fn bootstrap_errors_name_the_bootstrap_document() {
         } else {
             let find = item.get("find").and_then(Value::str).expect("find");
             let replace = item.get("replace").and_then(Value::str).expect("replace");
-            assert!(bundled.contains(find), "{description}: the mutation is absent");
-            bundled.replacen(find, replace, 1)
+            assert!(!find_places(&bundled, find).is_empty(), "{description}: the mutation is absent");
+            substitute(&bundled, find, replace)
         };
         let error = match load_with_bootstrap(bootstrap, "%ambiguity-resolution greedy\n%rule text A\n") {
             Ok(_) => panic!("{description}: the malformed bootstrap loaded"),
@@ -272,11 +272,20 @@ fn bootstrap_errors_name_the_bootstrap_document() {
             assert!(error.message.contains(message), "{description}: {error}");
         }
         assert_eq!(error.stage.as_deref(), item.get("stage").and_then(Value::str), "{description}: {error}");
-        assert_eq!(error.line, item.get("line").and_then(Value::number).map(|n| n as usize), "{description}: {error}");
-        assert_eq!(
-            error.column,
-            item.get("column").and_then(Value::number).map(|n| n as usize),
-            "{description}: {error}"
-        );
+        // The place of the error, by the text that stands there in its
+        // grammar document, or as the case gives it.
+        let (line, column) = match item.get("at").and_then(Value::str) {
+            Some(at) => {
+                let context = item.get("context").and_then(Value::str).expect("context");
+                let (line, column) = position_of(&read(context), at);
+                (Some(line), Some(column))
+            }
+            None => (
+                item.get("line").and_then(Value::number).map(|n| n as usize),
+                item.get("column").and_then(Value::number).map(|n| n as usize),
+            ),
+        };
+        assert_eq!(error.line, line, "{description}: {error}");
+        assert_eq!(error.column, column, "{description}: {error}");
     }
 }
