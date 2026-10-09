@@ -36,10 +36,8 @@ The rule `empty` reads a prefix that leaves no units. Its first three alternativ
 %ambiguity-resolution lazy
 
 %rule text
-  | empty
-  | $s(stream) spacing
-  | empty faho-group
-  | $s(stream) spacing faho-group
+  | empty [faho-group]
+  | $s(stream) spacing [faho-group]
 %conditions
   ~fault ⊈ tags($s)
 
