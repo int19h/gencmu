@@ -791,7 +791,7 @@ Every removed candidate has an eligible same-slot replacement. Sealing and indep
 
 The verdict transitions and their effects on emission and the elision-only check are defined in [Ambiguity](notation.md#ambiguity).
 
-The existing ranker remains the only ranking implementation. It compares rule profiles before the stage directive and retains ordinary ties. Local filtering supplies no complete-reading comparison edges, signatures, cancellation or cycle certificates.
+The existing ranker remains the only ranking implementation. It compares rule profiles before the stage directive and retains ordinary ties. Local filtering changes which derivations reach it.
 
 For F stored forest facts and contexts and largest preference component r, sorting groups costs `O(F log F)` comparisons. Selecting graph maxima costs at most `O(F r²)`, plus stored-value comparison work. Tag closure is linear in productions and inheritance edges. Measurements report loader cost, chart facts, groups, retained edges, time and memory separately.
 

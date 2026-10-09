@@ -487,9 +487,9 @@ In the check of §7, `phonemes(span)` and `text(span)` read the projected span, 
 
 ## 6. Choosing a parse
 
-Section 6.1 defines ranking when the root forest contains a possible preference contest. The original ranker below applies unchanged when no such contest exists. Canonical order T remains independent of preference edges.
+Section 6.1 admits derivations before this ranker when a `%prefer` declaration can apply. This ranker is the same either way.
 
-A stage ranks the counted derivations of its input (§4). A flagged occurrence is a flagged rule's constituent. A flagged span is a flagged occurrence's span. A rule profile counts flagged occurrences over nonempty spans. `leftmost-longest` compares complete parses by nonempty flagged-span counts, with earlier starts first, longer spans next, and larger counts preferred at the first difference.
+A stage ranks its admitted derivations (§6.1). A flagged occurrence is a flagged rule's constituent. A flagged span is a flagged occurrence's span. A rule profile counts flagged occurrences over nonempty spans. `leftmost-longest` compares complete parses by nonempty flagged-span counts, with earlier starts first, longer spans next, and larger counts preferred at the first difference.
 
 All flagged rules contribute together, without priority by name, declaration order, production number, tags or source. Equal spans count separately, including nested occurrences. Each nonempty occurrence of a flagged rule counts, including each named chain level and each constituent with one symbol. Empty occurrences contribute nothing, and helpers carry no flags. The flag ranks before the stage directive.
 
@@ -646,15 +646,13 @@ Each candidate must pass its ready gates and have an eligible finite noncyclic p
 
 Collect present labels in each group. Keep precisely the maximal present labels under the declaration graph's transitive closure. Keep every derivation of those labels, with neutral alternatives unchanged. Empty spans participate. Different intervals or prefix states do not compete. A chain suppresses its sink even when an intermediate label is absent.
 
-The existing summaries compose over admitted edges. Their totals count admitted derivations, capped at two. Rule profiles, omission vectors, actions and ordinary tie witnesses compose as above. Rank by `leftmost-longest`, then the stage directive. No complete-reading preference edge or cycle detector remains.
+The existing summaries compose over admitted edges. Their totals count admitted derivations, capped at two. Rule profiles, omission vectors, actions and ordinary tie witnesses compose as above. Rank by `leftmost-longest`, then the stage directive.
 
 A nonempty finite group has a maximal label in the acyclic graph. Each removed candidate has an eligible same-context replacement. The replacement preserves the sealed structural export and the common continuation's tags and captures. Induction through finite child proofs preserves eligible recognition, with sealing fixed. This proof does not preserve every raw item or successful-parser verdict.
 
-Filtering only removes admitted derivations. A tie can become `resolved` or `unique`, and `resolved` can become `unique` or a tie. A unique result keeps its verdict, but a grammar migration can select its replacement tree. Deletion from a fixed singleton forest also preserves its tree.
+[Ambiguity](notation.md#ambiguity) defines the effects of filtering and grammar migration.
 
-A newly resolved result reaches emission and the enabled elision-only check. A newly tied result reaches neither, has no chosen tree, output or warnings, and stops later stages.
-
-Let F count existing prefix facts, completion facts, proof edges and eligibility contexts, including stored values. Let r be the largest preference component. Grouping by sorting costs `O(F log F)` key comparisons. Maximal-label filtering costs at most `O(F r²)`. Include stored-value comparison work. Admission adds no complete-tree signature products or caller-specific summaries.
+Let F count existing prefix facts, completion facts, proof edges and eligibility contexts, including stored values. Let r be the largest preference component. Grouping by sorting costs `O(F log F)` key comparisons. Maximal-label filtering costs at most `O(F r²)`. Include stored-value comparison work. Admission composes over stored facts and existing contexts.
 
 The tag closure uses linear work in productions and inheritance edges. Template comparison uses expanded expression DOMs without semantic-equivalence search. Measure raw chart facts, groups, retained edges, elapsed time and peak memory. Measure loader cost separately.
 
@@ -810,7 +808,7 @@ The witness of D is the derivation W(D) of R that has D's productions in D's ord
 - Each written elidable optional of D takes the written route from an original token.
 - Each occurrence in the derivation tree spans the positions of R that hold its original tokens and the synthetic tokens of the elided terminators below it. This holds even where the representation shares one object between occurrences.
 
-W(D) is a derivation of R that counts. In outline:
+W(D) is a derivation of R that counts in the raw reconstructed forest. In outline:
 
 1. Every token read of W(D) is allowed. An original token reads as in D. A synthetic token is compatible with its own optional, because its tags and saved sound come from that optional's terminal and test.
 2. Every route of W(D) exists. A restoration needs no rest of its optional, so it exists even where the rest of the optional cannot be empty. A written optional of D starts with an original token, so it takes route 2 and reads what D read.
@@ -818,15 +816,17 @@ W(D) is a derivation of R that counts. In outline:
 4. Every constituent of W(D) has the tags of its node in D. This holds by induction from the leaves. An original token has its own tags. A restoration has the tags of the empty production, which D's elided helper had. A production's tag terms then read captures with the same projected spans and the same tags. A nested query in a tag term gives the answer it gave in D (§7.6). So the tag terms give the same tags.
 5. Every condition and test holds as in D. Each reads the same projected spans and the same tags (3, 4). A nested query reads the same tokens of O with the same grammar and policy (§7.6), so it gives the same answer. A test of a terminal reads an original token as in D, or a compatible synthetic token. No query of W(D) is recursive. The reconstruction's recognition is not a query, and each query of W(D) is a query of D.
 6. W(D) is not cyclic. Suppose that two nested nodes of one rule have one span of R. Both project to one span of O. Then D has two nested nodes of that rule over one span. That is a cycle, but D is not cyclic.
-7. Maximality does not apply (§7.7), so nothing removes W(D).
+7. Maximality does not apply (§7.7), so it cannot remove W(D) from the raw reconstructed forest.
 
-So, unless an error of the grammar ends the check, R has at least one derivation, and the check never ends with no reading. The argument depends on no corpus, no terminal and no shape of the optional's content. It depends on every observer, every test and every tag rule following §7.5 and §7.6. The strict items of §7.4 do not touch W(D), whose written optionals all start with an original token.
+So, unless an error of the grammar ends the check, the raw reconstructed forest contains W(D). The argument depends on no corpus, no terminal and no shape of the optional's content. It depends on every observer, every test and every tag rule following §7.5 and §7.6. The strict items of §7.4 do not touch W(D), whose written optionals all start with an original token.
+
+Slot admission can exclude W(D). Section 7.10 then reports W(D) first. Witness loss means only raw absence.
 
 The theorem does not excuse errors. A competing derivation can meet an error of the grammar, such as a `split` with an empty delimiter, that D never met. That error is the result's (§7.7).
 
 ### 7.9 A lost witness
 
-Section 7.10 defines when the check loses its witness. A lost witness is a defect of the library, not a property of the text. The result is an error of kind `grammar` with the code `elision-witness-lost`:
+Raw absence of W(D) is witness loss (§7.10). A lost witness is a defect of the library, not a property of the text. The result is an error of kind `grammar` with the code `elision-witness-lost`:
 
 ```json
 {"kind":"grammar","stage":"syntax","code":"elision-witness-lost",

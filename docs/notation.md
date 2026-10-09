@@ -734,9 +734,11 @@ The first stage reads the text's characters. Each is a token with one tag, its c
 
 ## Ambiguity
 
-Slot preferences filter eligible derivations before the ranking below. An admitted derivation has only kept slot candidates.
+Slot preferences filter eligible derivations before the ranking below.
 
-Filtering only removes admitted derivations. A tie can become `resolved` or `unique`, and `resolved` can become `unique` or a tie. Filtering never changes a unique result. A migration that adds `%prefer` also changes the grammar rules. A uniquely parsed text can get a different tree after that migration.
+Filtering only removes derivations and never adds one. The remaining derivations are admitted. A tie can become `resolved` or `unique`, and `resolved` can become `unique` or a tie. Filtering never changes a unique result.
+
+A migration that adds `%prefer` also changes the grammar rules. A uniquely parsed text can get a different tree after that migration.
 
 A newly resolved result reaches emission and the enabled elision-only check. A newly tied result reaches neither, has no chosen tree, output or warnings, and stops later stages.
 

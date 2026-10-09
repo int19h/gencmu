@@ -64,9 +64,7 @@ The result has the fields of `docs/output.md`, in the data types of the language
 
 An admitted derivation has only kept slot candidates. `unique` means exactly one admitted derivation. `resolved` means several admitted derivations with exactly one best. Several best admitted derivations give a tie.
 
-Filtering only removes admitted derivations. A tie can become `resolved` or `unique`, and `resolved` can become `unique` or a tie. A unique result keeps its verdict, but a grammar migration can select its replacement tree. Deletion from a fixed singleton forest also preserves its tree.
-
-A newly resolved result reaches emission and the enabled elision-only check. A newly tied result reaches neither, has no chosen tree, output or warnings, and stops later stages.
+[Ambiguity](notation.md#ambiguity) defines the effects of filtering and grammar migration.
 
 A stage has its name, its input and output tokens, its verdict, and for a tie its witness. A tied stage has no output tokens, and its two readings are in the result's error. A token has its text, its phonemes, its label, its tags, its span and its source range. An inserted token also names the rule that inserted it. A token also has its attachments, `before` and `after`, two lists of tokens (engine §11). An attached token has no span.
 

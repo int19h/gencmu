@@ -1,0 +1,125 @@
+{
+  "description": "Nested repetition separators share normalized local and enclosing prefixes. Both separator occurrences keep only the higher label.",
+  "grammar": "%rule text {P \\ {Q \\ a}} | {P \\ {Q \\ b}}\n%rule a Z W\n%rule b Z W\n%prefer a > b",
+  "tokens": [
+    {
+      "text": "p",
+      "tags": [
+        "P"
+      ]
+    },
+    {
+      "text": "q",
+      "tags": [
+        "Q"
+      ]
+    },
+    {
+      "text": "z",
+      "tags": [
+        "Z"
+      ]
+    },
+    {
+      "text": "w",
+      "tags": [
+        "W"
+      ]
+    },
+    {
+      "text": "q",
+      "tags": [
+        "Q"
+      ]
+    },
+    {
+      "text": "p",
+      "tags": [
+        "P"
+      ]
+    },
+    {
+      "text": "q",
+      "tags": [
+        "Q"
+      ]
+    },
+    {
+      "text": "z",
+      "tags": [
+        "Z"
+      ]
+    },
+    {
+      "text": "w",
+      "tags": [
+        "W"
+      ]
+    },
+    {
+      "text": "q",
+      "tags": [
+        "Q"
+      ]
+    },
+    {
+      "text": "p",
+      "tags": [
+        "P"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 11,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "terminal": "P"
+          },
+          {
+            "terminal": "Q"
+          },
+          {
+            "rule": "a",
+            "span": [
+              2,
+              4
+            ]
+          },
+          {
+            "terminal": "Q"
+          },
+          {
+            "terminal": "P"
+          },
+          {
+            "terminal": "Q"
+          },
+          {
+            "rule": "a",
+            "span": [
+              7,
+              9
+            ]
+          },
+          {
+            "terminal": "Q"
+          },
+          {
+            "terminal": "P"
+          }
+        ]
+      },
+      "error": null
+    }
+  }
+}

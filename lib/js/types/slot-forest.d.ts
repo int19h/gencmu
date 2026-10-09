@@ -40,5 +40,5 @@ export declare function helperSlotForest(chart: import("./earley.js").Chart, pre
     routeMasks: Map<import("./types.js").Item, RouteMask>;
     rawIndices: WeakMap<import("./types.js").Edge, number>;
 } | null;
-/** @param {Item} item @param {import("./preferences.js").SlotVariant} variant */
-export declare function helperPrefixKey(item: Item, variant: import("./preferences.js").SlotVariant): (string | number | boolean | (string | number)[][] | (string | boolean | import("./types.js").SymbolTest | undefined)[][] | undefined)[];
+/** @param {Item} item @param {import("./preferences.js").SlotVariant} variant @param {Map<string,object|undefined>} helpers */
+export declare function helperPrefixKey(item: Item, variant: import("./preferences.js").SlotVariant, helpers: Map<string, object | undefined>): (string | number | boolean | (string | number)[][] | (string | boolean | import("./types.js").SymbolTest | undefined)[][] | undefined)[];

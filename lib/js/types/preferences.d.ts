@@ -76,3 +76,5 @@ export declare class Preferences {
     /** @param {SlotComponent} component @param {Set<string>} unsafe @param {any} expression @param {import("./types.js").Production[]} productions */
     requireEmpty(component: SlotComponent, unsafe: Set<string>, expression: any, productions: import("./types.js").Production[]): void;
 }
+/** @param {import("./types.js").GrammarSymbol} symbol @param {SlotVariant} variant @param {Map<string, object | undefined>} helpers */
+export declare function slotSymbolRole(symbol: import("./types.js").GrammarSymbol, variant: SlotVariant, helpers: Map<string, object | undefined>): string;

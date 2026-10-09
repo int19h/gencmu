@@ -2319,7 +2319,7 @@
           if (!p.helper && !p.writtenTags?.length && p.rhs.length === 1 && direct && (component.names.has(p.rhs[hole].name) || unsafe.has(p.rhs[hole].name))) this.requireEmpty(component, unsafe, {inherit: true}, productions);
           const key = JSON.stringify({
             role:p.helper ? variant.paths.get(/** @type {object} */ (p.writtenExpression)) : "written-parent",
-            symbols:p.rhs.map((symbol,index) => index === hole ? {hole:true} : {name:symbol.role ?? symbol.name, terminal:symbol.terminal, test:normalize(symbol.test)}),
+            symbols:p.rhs.map((symbol,index) => index === hole ? {hole:true} : {name:slotSymbolRole(symbol, variant, this.helperExpressions), terminal:symbol.terminal, test:normalize(symbol.test)}),
             captures:p.captures.filter(capture => capture.index !== hole && capture.name !== "\u0000child").map(capture => ({name:variant.roles.get(capture.name), index:capture.index})),
           });
           const signature = JSON.stringify({tags:normalize(p.writtenTagClauses), emit:normalize(p.emit)});
@@ -2359,6 +2359,15 @@
       for (const name of component.names) if (unsafe.has(name)) this.fail("prefer-slot-tags", name,
         {parent:component.parent, references:component.references, expression:slotCanonical(expression), inheritance:slotInheritancePath(name,unsafe,productions)}, "Private hole tags are neither dead nor provably empty.");
     }
+  }
+
+  /** @param {import("./types.js").GrammarSymbol} symbol @param {SlotVariant} variant @param {Map<string, object | undefined>} helpers */
+  function slotSymbolRole(symbol, variant, helpers) {
+    if (!helpers.has(symbol.name)) return symbol.name;
+    const expression = helpers.get(symbol.name);
+    const path = expression && variant.paths.get(expression);
+    if (path === undefined) throw new Error("A slot helper requires its written expression path.");
+    return `${variant.reference.rule}:${path}`;
   }
 
   /** @param {any} expr @param {any} reference @returns {boolean} */
@@ -11057,6 +11066,7 @@
   // ---- slot-forest.js
   // A ranking view carries the written invocation across generated helpers.
   // Recognition keeps the original chart and its completion tables.
+
   /** @typedef {import("./types.js").Item} Item */
   /** @typedef {{id:number,frames:Item[],bounds:{carrier:Item,restricted:boolean}[],blocked:boolean}} SlotScope */
   /** @typedef {{all:Set<number>,allowed:Set<number>}} RouteMask */
@@ -11161,8 +11171,8 @@
     return {chart:{...chart, sets}, plain, helpers, routeMasks, rawIndices};
   }
 
-  /** @param {Item} item @param {import("./preferences.js").SlotVariant} variant */
-  function helperPrefixKey(item, variant) {
+  /** @param {Item} item @param {import("./preferences.js").SlotVariant} variant @param {Map<string,object|undefined>} helpers */
+  function helperPrefixKey(item, variant, helpers) {
     const captures = [];
     for (let part = item.slots; part; part = part.parent) {
       const capture = item.production.captures[part.index];
@@ -11170,10 +11180,11 @@
     }
     captures.reverse();
     return [item.production.helper ? variant.paths.get(/** @type {object} */ (item.production.writtenExpression)) : "written-parent", item.origin,
-      item.production.rhs.slice(0, item.dot).map(s => [s.role ?? s.name, s.terminal, s.test]), item.prefix, captures, item.strict, item.restores];
+      item.production.rhs.slice(0, item.dot).map(s => [slotSymbolRole(s,variant,helpers), s.terminal, s.test]), item.prefix, captures, item.strict, item.restores];
   }
 
   // ---- slots.js
+
 
   // Slot admission over raw packed edges. Counts supply finite eligible child
   // proofs before any flag or omission ranking chooses a reading.
@@ -11197,6 +11208,7 @@
       this.maxima = new Map();
       this.stats = {chartFacts:0, groups:0, candidateEdges:0, retainedEdges:0};
       if (!preferences.names.size) return;
+      const helpers = new Map(originalChart.context.lowered.productions.filter(p => p.helper).map(p => [p.lhs, p.writtenExpression]));
       for (const set of chart.sets) if (set) for (const raw of set.items) {
         const item = /** @type {import("./types.js").Item} */ (raw);
         this.stats.chartFacts++;
@@ -11213,9 +11225,9 @@
           captures.reverse();
           const variant=/** @type {import("./preferences.js").SlotVariant} */ (preferences.ruleVariants.get(symbol.name));
           const scope=item.slotScope;
-          const ancestry=scope?[scope.frames.map(frame=>helperPrefixKey(frame,variant)),scope.bounds.map(({carrier,restricted})=>[variant.paths.get(/** @type {object} */ (carrier.production.writtenExpression)),carrier.origin,carrier.end,restricted])]:null;
+          const ancestry=scope?[scope.frames.map(frame=>helperPrefixKey(frame,variant,helpers)),scope.bounds.map(({carrier,restricted})=>[variant.paths.get(/** @type {object} */ (carrier.production.writtenExpression)),carrier.origin,carrier.end,restricted])]:null;
           const key = JSON.stringify([symbol.slot.id, ancestry, item.production.role, item.origin,
-            previous.production.rhs.slice(0, previous.dot).map(s => [s.role ?? s.name, s.terminal, s.test]),
+            previous.production.rhs.slice(0, previous.dot).map(s => [slotSymbolRole(s,variant,helpers), s.terminal, s.test]),
             previous.prefix, captures, previous.strict, previous.restores, edge.child.origin, edge.child.end]);
           let group = this.groups.get(key);
           if (!group) this.groups.set(key, group=[]);

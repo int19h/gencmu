@@ -116,9 +116,7 @@ The test uses notation operators and canonical output tags, with spaces only aro
 
 An admitted derivation has only kept slot candidates. `unique` means exactly one admitted derivation. `resolved` means several admitted derivations with exactly one best. A tie has at least two best admitted derivations, and reports two readings with their action witness.
 
-Filtering only removes admitted derivations. A tie can become `resolved` or `unique`, and `resolved` can become `unique` or a tie. A unique result keeps its verdict, but a grammar migration can select its replacement tree. Deletion from a fixed singleton forest also preserves its tree.
-
-A newly resolved result reaches emission and the enabled elision-only check. A newly tied result reaches neither, has no chosen tree, output or warnings, and stops later stages.
+[Ambiguity](notation.md#ambiguity) defines the effects of filtering and grammar migration.
 
 An elision-only error reports the raw reconstructed chosen derivation first, even when filtering excludes it. Its second reading is a deterministic admitted competitor. Both readings and their action witness map onto original input O. Intentional witness exclusion is ordinary ambiguity. Only absence from raw eligible recognition reports `elision-witness-lost`.
 
