@@ -1023,7 +1023,9 @@ A node must have the parts that the reader reads from it. A node without one is 
 | `alternative` | a `conjunction` |
 | `ranked-alternative` | a `ranked-choice` |
 | `ranked-choice` | at least two `conjunction` parts |
-| `choice`, `ranked-choice`, `conjunction`, `sequence` | one or more `conjunction`, `sequence` and `primary` in turn |
+| `choice` | one `ranked-choice`, or one or more `conjunction` parts |
+| `conjunction` | one or more `sequence` parts |
+| `sequence` | one or more `primary` parts |
 | `primary` | one known part: a `reference`, `tag`, `character`, `phoneme`, `range`, `property`, `tested`, `capture`, `group`, `optional`, `repetition`, `empty` or `constant-reference` |
 | `repetition` | one or more `choice`. The reader reads the first two. A `...` token among its parts is a marker |
 | `range` | two `character` |
