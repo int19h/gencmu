@@ -862,7 +862,7 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 
 ## Logical and non-logical connectives
 
-This layer's connective rules omit camxes-exp's optional NAI because the indicator stage attaches every NAI after these connectives.
+This layer's connective rules omit camxes-exp's optional NAI because the indicator stage attaches every NAI after these connectives. The inherited CLL rules keep their `[NAI]` items. This dialect never reads them, because no separate `nai` reaches those positions.
 
 camxes-exp's joik takes `na` before a word of JOI, as its jek and ek do. So `mi na joi do klama` has one term, `mi na joi do`. The condition of `listed-bare-na` excludes a bare `na` term here. The words can still join two sumti or two terms, and the rule of "Terms" keeps the sumti.
 

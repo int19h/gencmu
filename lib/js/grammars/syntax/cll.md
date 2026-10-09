@@ -18,7 +18,7 @@ The prose uses these Lojban terms before the sections that explain them:
 - A brivla is a predicate word.
 - A lerfu word is a letter word, such as `.abu` or `xy.`.
 
-The stages before it make the word stream that it reads. The forms stage ([forms.md](../words/forms.md), with a family of word forms and a lexicon) reads phonemes into words. The word stage, [the word stream](../words/stream.md), makes quotes and compounds. It applies CLL's non-formal rule `null`, the erasers `si`, `sa` and `su`. CLL never defines the `utterance` that `sa` erases.
+The stages before it make the word stream that it reads. The forms stage ([forms.md](../words/forms.md), with a family of word forms and a lexicon) reads phonemes into words. The word stage, [the word stream](../words/stream.md), makes quotes and compounds. A non-formal rule is one that CLL's parser applies before the grammar proper. The word stage applies CLL's non-formal rule `null = any-word SI | utterance SA | text SU`, the erasers `si`, `sa` and `su`. CLL never defines the `utterance` that `sa` erases.
 
 [The indicator stage](../indicators/cll.md) attaches `ba'e` and indicators to their words, as CLL's non-formal rule `word = [BAhE] any-word [indicators]` says.
 
