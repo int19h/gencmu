@@ -5,7 +5,7 @@ from collections import deque
 from ._errors import GencmuError
 
 def children(expr, path=''):
-    out = [(child, f'{path}/{key}/{i}') for key in ('seq', 'choice', 'and') for i, child in enumerate(expr.get(key, []))]
+    out = [(child, f'{path}/{key}/{i}') for key in ('seq', 'choice', 'ranked', 'and') for i, child in enumerate(expr.get(key, []))]
     out.extend(((expr[key], f'{path}/{key}') for key in ('expr', 'optional', 'repeat', 'separator') if key in expr))
     return out
 

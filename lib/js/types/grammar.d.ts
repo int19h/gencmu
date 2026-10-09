@@ -1,4 +1,5 @@
 import { Preferences } from "./preferences.js";
+import { RankedGroups } from "./ranked.js";
 import { GencmuError } from "./errors.js";
 import type { Condition, DomAlternative, DomClassifier, DomConstant, DomImplication, DomRule, Emission, ErrorLocation, GrammarDom, LoweredGrammar, Resolution, SymbolTest, TagSet, Term, TermValue, TestOp } from "./types.js";
 import type { TermType } from "./dom.js";
@@ -119,6 +120,7 @@ export declare class Grammar {
      * @type {WeakMap<object, SymbolTest>}
      */
     tests: WeakMap<object, SymbolTest>;
+    ranked: RankedGroups;
     preferences: Preferences;
     loadWarnings: any[];
     /**

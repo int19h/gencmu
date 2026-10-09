@@ -6,6 +6,7 @@ import "slices"
 // directives, constants, classifiers and implications (engine §2).
 type stageGrammar struct {
 	preferences       *preferences
+	ranked            *rankedGroups
 	deferredEmissions []*Error
 	name              string
 	uni               *unicodeTable // the loader's table, for the tags of a range in a constant's value
@@ -243,8 +244,16 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 	if err != nil {
 		return nil, err
 	}
-	if len(g.preferences.paths) > 0 {
-		if err := g.preferences.validate(lowerForSlots(g)); err != nil {
+	g.ranked, err = newRankedGroups(g)
+	if err != nil {
+		return nil, err
+	}
+	if len(g.preferences.paths) > 0 || len(g.ranked.groups) > 0 {
+		lowered := lowerForSlots(g)
+		if err := g.preferences.validate(lowered); err != nil {
+			return nil, err
+		}
+		if err := g.ranked.validateTags(lowered); err != nil {
 			return nil, err
 		}
 	}

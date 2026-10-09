@@ -7,6 +7,11 @@ export type ErrorLocation = {
     column?: number;
     stage?: string;
     rule?: string;
+    code?: string;
+    group?: import("./ranked.js").GroupSite;
+    option?: number;
+    expression?: unknown;
+    inheritance?: import("./ranked.js").GroupSite[];
 };
 export type Resources = (path: string) => string | undefined;
 export type Verdict = "unique" | "resolved" | "tie";
@@ -516,6 +521,8 @@ export type Production = {
     slotRoles?: Map<string, string>;
     componentRoles?: Map<number, Map<string, string>>;
     writtenExpression?: Expr;
+    rankedGroup?: import("./ranked.js").RankedGroup;
+    rankedOption?: number;
     role?: string;
     writtenTags?: Term[];
     writtenTagClauses?: {
@@ -722,6 +729,11 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {number} [column]
  * @property {string} [stage]
  * @property {string} [rule]
+ * @property {string} [code]
+ * @property {import("./ranked.js").GroupSite} [group]
+ * @property {number} [option]
+ * @property {unknown} [expression]
+ * @property {import("./ranked.js").GroupSite[]} [inheritance]
  */
 /**
  * A function from a path relative to the grammars root to that file's text,
@@ -1112,6 +1124,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Map<string, string>} [slotRoles]
  * @property {Map<number,Map<string,string>>} [componentRoles]
  * @property {Expr} [writtenExpression]
+ * @property {import("./ranked.js").RankedGroup} [rankedGroup]
+ * @property {number} [rankedOption]
  * @property {string} [role]
  * @property {Term[]} [writtenTags]
  * @property {{alternative: Term | null, definition: Term | null}} [writtenTagClauses]

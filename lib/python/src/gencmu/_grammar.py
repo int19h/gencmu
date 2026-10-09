@@ -28,6 +28,7 @@ from ._tags import (
 from ._trampoline import Walk, run
 from ._patterns import empty_pattern, walk_pattern
 from ._preferences import Preferences
+from ._ranked import RankedGroups
 from ._types import (
     TermType,
     constant_value_type,
@@ -141,6 +142,7 @@ class Grammar:
     elision_only: bool
     preferences: Preferences | None = None
     changes: list[Change] = field(default_factory=list)
+    ranked: RankedGroups | None = field(default=None, repr=False, compare=False)
     # The stage's %classifier items in stitching order, each with its
     # document (engine §2).
     classifier_items: list[tuple[str, Dom]] = field(default_factory=list)
@@ -769,8 +771,11 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
         implications=implications,
     )
 
-    if grammar.preferences.names:
-        grammar.preferences.validate(_Lowerer(grammar,frozenset(),True).lower())
+    grammar.ranked = RankedGroups(stage, rules)
+    if grammar.preferences.names or grammar.ranked.groups:
+        lowered = _Lowerer(grammar,frozenset(),True).lower()
+        grammar.preferences.validate(lowered)
+        grammar.ranked.validate_tags(lowered)
     if constants.deferred_emissions:
         raise constants.deferred_emissions[0]
     return grammar
@@ -983,7 +988,7 @@ class _Lowerer:
         self.validation = validation
         self.current_expr = None
         self.helper_sources = {}
-        if grammar.preferences and grammar.preferences.names:
+        if grammar.preferences and grammar.preferences.names or grammar.ranked and grammar.ranked.groups:
             self._expand_plain = self._expand
             self._expand = self._expand_slot
         self.features = features
@@ -1048,7 +1053,7 @@ class _Lowerer:
         self.rule_names.append(f"\u0000{owner}\u0000{number}")
         self.rule_display.append(owner)
         self.helper_expansions[number] = expansions
-        if self.grammar.preferences and self.grammar.preferences.names:
+        if self.grammar.preferences and self.grammar.preferences.names or self.grammar.ranked and self.grammar.ranked.groups:
             self.helper_sources[number] = (self.current_alt,id(self.current_expr))
         if elided is not None:
             self.helper_elided[number] = elided
@@ -1108,9 +1113,15 @@ class _Lowerer:
             for item in expr["seq"]:
                 parts.append((yield self._expand(item)))
             return [[sym for part in combination for sym in part] for combination in itertools.product(*parts)]
-        if "choice" in expr or "ranked" in expr:
+        if "ranked" in expr:
             options = []
-            for option in expr.get("choice", expr.get("ranked", [])):
+            for option in expr["ranked"]:
+                options.extend((yield self._expand(option)))
+            helper = self.new_helper(options)
+            return [[(("n", helper), None)]]
+        if "choice" in expr:
+            options = []
+            for option in expr["choice"]:
                 options.extend((yield self._expand(option)))
             return options
         if "and" in expr:
@@ -1217,7 +1228,7 @@ class _Lowerer:
             tests=tests if any(test is not None for test in tests) else None,
             captures=captures,
         )
-        if self.grammar.preferences and self.grammar.preferences.names:
+        if self.grammar.preferences and self.grammar.preferences.names or self.grammar.ranked and self.grammar.ranked.groups:
             source,path = (alt,None) if alt is not None else self.helper_sources[lhs]
             production.slot = SlotMetadata(source,path)
         if alt is not None:

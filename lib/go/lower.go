@@ -383,7 +383,7 @@ func (lw *lowerer) lowerRule(r *sRule) {
 				for _, b := range h.bodies {
 					lw.structural = append(lw.structural, structuralProduction{h.rule, symbolsOf(b)})
 					p := lw.newProduction(h.rule, b)
-					if len(lw.g.preferences.paths) > 0 {
+					if len(lw.g.preferences.paths) > 0 || lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
 						p.slot = &slotMetadata{source: h.owner, path: h.path}
 					}
 					p.helper = true
@@ -520,7 +520,7 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 		}
 	}
 	p := lw.newProduction(lhs, body)
-	if len(lw.g.preferences.paths) > 0 {
+	if len(lw.g.preferences.paths) > 0 || lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
 		p.slot = &slotMetadata{source: a}
 	}
 	p.opaque = a.opaque
@@ -743,7 +743,15 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 	switch e.Kind {
 	case exSeq:
 		return lw.expandSeq(e.Items, a, ruleName)
-	case exChoice, exRanked:
+	case exRanked:
+		return lw.helper(a, ruleName, "", nil, func(int32) [][]slot {
+			var out [][]slot
+			for _, item := range e.Items {
+				out = append(out, lw.expand(item, a, ruleName)...)
+			}
+			return out
+		})
+	case exChoice:
 		var out [][]slot
 		for _, it := range e.Items {
 			out = append(out, lw.expand(it, a, ruleName)...)

@@ -550,7 +550,16 @@ impl<'a> Lowerer<'a> {
                 }
                 out
             }
-            Expr::Choice(items) | Expr::Ranked(items) => {
+            Expr::Ranked(items) => {
+                self.enter();
+                let mut prods = Vec::new();
+                for item in items {
+                    prods.extend(self.expand(item));
+                }
+                let sym = self.helper(prods, None, false, expr);
+                vec![vec![(sym, None, None)]]
+            }
+            Expr::Choice(items) => {
                 let mut out = Vec::new();
                 for item in items {
                     out.extend(self.expand(item));
@@ -1002,7 +1011,7 @@ fn lower_mode(
             warnings: Vec::new(),
             document: None,
             at: (0, 0),
-            slot: if grammar.preferences.paths.is_empty() {
+            slot: if grammar.preferences.paths.is_empty() && grammar.ranked.groups.is_empty() {
                 None
             } else {
                 Some(Box::new(SlotMetadata {

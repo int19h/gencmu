@@ -1,0 +1,6 @@
+{
+  "description": "The ranked choice loads because its captures remain local and its tags cannot escape.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text e ≻ f\n%rule e ε\n%rule f U V\n%rule a X Y\n%rule b U V",
+  "tokens": [],
+  "expect": {}
+}

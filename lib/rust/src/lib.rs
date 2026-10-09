@@ -57,6 +57,7 @@ mod patterns;
 mod pipeline;
 mod preferences;
 mod rank;
+mod ranked;
 mod recent;
 mod result;
 mod slot_stats;

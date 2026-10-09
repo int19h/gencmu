@@ -4635,9 +4635,300 @@
     return found;
   }
 
+  // ---- ranked.js
+  // Written ranked groups and their local loading rules.
+
+
+
+  /** @typedef {{document?:string, at?:[number,number], rule:string, alternative:number, path:string}} GroupSite */
+  /** @typedef {{id:number, site:GroupSite, expr:any, source:any, final:boolean, parent:string, helper:string}} RankedGroup */
+  /** @typedef {{steps:any[], captures:Map<string,{node:any,at:number}>, ends:Map<RankedGroup,{at:number,option:number}>}} VirtualPath */
+
+  // Source locations stay outside the document DOM.
+  /** @type {WeakMap<object,[number,number]>} */
+  const rankedLocations = new WeakMap();
+  /** @type {WeakMap<object,object>} */
+  const writtenOrigins = new WeakMap();
+
+  /** @param {object} source @param {object} target */
+  function copyRankedLocation(source,target) {
+    const at = rankedLocations.get(source);
+    if (at) rankedLocations.set(target,at);
+    writtenOrigins.set(target,writtenOrigins.get(source) ?? source);
+  }
+
+  /** @param {import("./types.js").GrammarDom} dom @param {{text:string}[]} tokens @param {(token:any)=>[number,number]} positionOf */
+  function restoreRankedLocations(dom,tokens,positionOf) {
+    const separators = tokens.filter(token => token.text === "≻");
+    /** @type {{expr:object,at:[number,number]}[]} */
+    const locations = [];
+    let index = 0;
+    /** @param {any} expr */
+    const visit = expr => {
+      if (expr.ranked) {
+        visit(expr.ranked[0]);
+        if (index < separators.length) locations.push({expr,at:positionOf(separators[index])});
+        for (let option = 1; option < expr.ranked.length; option++) {index++;visit(expr.ranked[option]);}
+      } else for (const [child] of rankedExpressionChildren(expr)) visit(child);
+    };
+    for (const rule of dom.rules) for (const alternative of rule.alternatives) visit(alternative.expr);
+    // A caller can supply a DOM unrelated to the source, with no locations.
+    if (index === separators.length) for (const {expr,at} of locations) rankedLocations.set(expr,at);
+  }
+
+  /** @param {import("./types.js").GrammarDom} dom */
+  function hasRankedGroups(dom) {
+    const pending = dom.rules.flatMap(rule => rule.alternatives.map(alternative => alternative.expr));
+    while (pending.length) {
+      const expr = pending.pop();
+      if (expr && "ranked" in expr) return true;
+      for (const [child] of rankedExpressionChildren(expr)) pending.push(child);
+    }
+    return false;
+  }
+
+  /** @param {{text:string}[]} tokens @param {number} at */
+  function rankedSyntaxFailure(tokens,at) {
+    if (tokens[at]?.text === "≻" || tokens[at-1]?.text === "≻") return true;
+    if (tokens[at]?.text !== "|") return false;
+    const levels = [false];
+    for (let index = 0; index < at; index++) {
+      const word = tokens[index].text;
+      if (["(","[","{"].includes(word)) levels.push(false);
+      else if ([")","]","}"].includes(word)) levels.pop();
+      else if (word === "≻") levels[levels.length-1] = true;
+      else if (word.startsWith("%")) levels[levels.length-1] = false;
+    }
+    return levels[levels.length-1];
+  }
+
+  class RankedGroups {
+    /** @param {Map<string,import("./grammar.js").StitchedRule>} rules */
+    constructor(rules) {
+      /** @type {RankedGroup[]} */
+      this.groups = [];
+      /** @type {WeakMap<object,RankedGroup>} */
+      this.byExpression = new WeakMap();
+      /** @type {WeakMap<object,RankedGroup>} */
+      this.owners = new WeakMap();
+      /** @type {WeakMap<object,string>} */
+      this.paths = new WeakMap();
+      this.sourceSites = new WeakMap();
+      for (const rule of rules.values()) rule.alternatives.forEach((source, alternative) => {
+        this.sourceSites.set(source,{document:source.document,at:[source.at.line,source.at.column],rule:rule.name,alternative,path:""});
+        /** @param {any} expr @param {string} path @param {boolean} final @param {RankedGroup|null} owner */
+        const visit = (expr, path, final, owner) => {
+          this.paths.set(expr, path);
+          if (expr.ranked) {
+            const site = { document: source.document, ...(rankedLocations.has(expr) ? {at:rankedLocations.get(expr)} : {}), rule:rule.name, alternative, path };
+            const group = {id:this.groups.length, site, expr, source, final, parent:rule.name, helper:`${rule.name}·ranked${this.groups.length}`};
+            this.groups.push(group);
+            this.byExpression.set(expr, group);
+            expr.ranked.forEach((/** @type {any} */ child, /** @type {number} */ index) => visit(child, `${path}/ranked/${index}`, final, group));
+            return;
+          }
+          if (typeof expr.capture === "string" && owner) this.owners.set(expr, owner);
+          for (const [child, component] of rankedExpressionChildren(expr)) {
+            const last = expr.seq || expr.and ? component.endsWith(`/${(expr.seq ?? expr.and).length - 1}`) : true;
+            visit(child, `${path}${component}`, final && last && !expr.repeat, owner);
+          }
+        };
+        visit(source.expr, "", true, null);
+      });
+      this.validateClauses();
+    }
+
+    /** @param {RankedGroup} group @param {string} code @param {string} message @param {any} [fields] @returns {never} */
+    fail(group, code, message, fields = {}) {
+      const {document,at} = group.site;
+      const location = document === undefined ? "" : at === undefined ? `${document}: ` : `${document}:${at[0]}:${at[1]}: `;
+      throw new GencmuError("grammar", `${location}${code}: ${message}`, {
+        ...(document === undefined ? {} : {document}),
+        ...(at === undefined ? {} : {line:at[0],column:at[1]}),
+        code, group:group.site,
+        ...(fields.option === undefined ? {} : {option:fields.option}),
+        ...(fields.expression === undefined ? {} : {expression:writtenOrigins.get(fields.expression) ?? fields.expression}),
+        ...(fields.inheritance === undefined ? {} : {inheritance:fields.inheritance}),
+      });
+    }
+
+    validateClauses() {
+      // The first offending written group determines the diagnostic.
+      for (const group of this.groups) {
+        const source = group.source;
+        const paths = rankedVirtualPaths(source.expr, this.byExpression);
+        for (const path of paths) {
+          const end = path.ends.get(group);
+          if (!end) continue;
+          const names = new Set(["", ...path.captures.keys()]);
+          /** @param {string} name */
+          const has = name => names.has(name);
+          /** @param {any} value */
+          const privateRead = value => [...rankedCaptureReads(value)].some(name => {
+            const capture = path.captures.get(name);
+            return capture && this.owners.get(capture.node) === group;
+          });
+          for (const condition of source.clauses.conditions) {
+            const effective = simplifyFor(prepareClause(condition), has, names);
+            if (effective === DOM_TRUE || !privateRead(condition)) continue;
+            const variables = [...rankedCaptureReads(effective)];
+            // Missing captures remove ordinary conditions under §3.6.
+            if (variables.some(name => !has(name))) continue;
+            if (variables.some(name => name === "" ? !group.final : /** @type {{at:number}} */ (path.captures.get(name)).at > end.at)) {
+              this.fail(group, "ranked-choice-continuation", "A private capture requires a condition ready when its ranked choice closes.", {option:end.option,expression:condition});
+            }
+          }
+          for (const term of [source.tags, source.clauses.tags]) {
+            if (term === undefined) continue;
+            const effective = simplifyFor(prepareClause(term), has, names);
+            if (privateRead(effective)) this.fail(group, "ranked-choice-export", "A tag term cannot read a private ranked capture.", {option:end.option,expression:term});
+          }
+          // Written emission references count before absent carriers disappear.
+          if (privateRead(source.clauses.emit)) this.fail(group, "ranked-choice-export", "An emission item cannot read a private ranked capture.", {option:end.option,expression:source.clauses.emit});
+        }
+      }
+    }
+
+    /** @param {import("./types.js").Production[]} productions */
+    validateTags(productions) {
+      const unsafe = new Set(), users = new Map(), byLhs = new Map();
+      const written = new Map();
+      for (const p of productions) {
+        const siblings = byLhs.get(p.lhs) ?? [];
+        siblings.push(p); byLhs.set(p.lhs, siblings);
+        const terms = p.helper ? p.writtenTags ?? [] : [p.source?.tags,p.source?.clauses.tags].filter(term => term !== undefined);
+        written.set(p,terms);
+        if (terms.length) {
+          if (terms.some(term => !rankedLiteralEmpty(term))) unsafe.add(p.lhs);
+        } else if (p.rhs.length === 1) {
+          const child = p.rhs[0];
+          if (child.terminal) unsafe.add(p.lhs);
+          else { const parents = users.get(child.name) ?? []; parents.push(p); users.set(child.name,parents); }
+        }
+      }
+      const pending = [...unsafe];
+      for (let index = 0; index < pending.length; index++) for (const parent of users.get(pending[index]) ?? []) {
+        if (!unsafe.has(parent.lhs)) {unsafe.add(parent.lhs);pending.push(parent.lhs);}
+      }
+      for (const group of this.groups) {
+        if (!unsafe.has(group.helper)) continue;
+        const outward = [group.helper], seen = new Set(outward);
+        let escapes = false;
+        for (let index = 0; index < outward.length && !escapes; index++) for (const parent of users.get(outward[index]) ?? []) {
+          if (parent.lhs === group.parent) {escapes = true;break;}
+          if (parent.helper && parent.owner === group.parent && !seen.has(parent.lhs)) {seen.add(parent.lhs);outward.push(parent.lhs);}
+        }
+        if (!escapes) continue;
+        const queue = [{name:group.helper,inheritance:[group.site],option:undefined}], visited = new Set([group.helper]);
+        /** @type {any} */
+        let witness;
+        for (let index = 0; index < queue.length && !witness; index++) {
+          const current = queue[index];
+          for (const p of byLhs.get(current.name) ?? []) {
+            const option = current.option ?? p.rankedOption;
+            const inherited = p.lhs === group.helper ? current.inheritance : current.inheritance.concat({
+              ...this.sourceSites.get(p.source),path:this.paths.get(p.writtenExpression) ?? "",
+            });
+            const terms = written.get(p);
+            if (terms.some((/** @type {any} */ term) => !rankedLiteralEmpty(term)) || !terms.length && p.rhs.length === 1 && p.rhs[0].terminal) {
+              witness = {inheritance:inherited,...(option === undefined ? {} : {option})};break;
+            }
+            if (!terms.length && p.rhs.length === 1 && !p.rhs[0].terminal) {
+              const child = p.rhs[0].name;
+              if (unsafe.has(child) && !visited.has(child)) {visited.add(child);queue.push({name:child,inheritance:inherited,option});}
+            }
+          }
+        }
+        this.fail(group, "ranked-choice-tags", "A ranked choice must discard its returned tags or return provably empty tags.", {expression:group.expr,...witness});
+      }
+    }
+  }
+
+  /** @param {any} expr @returns {[any,string][]} */
+  function rankedExpressionChildren(expr) {
+    /** @type {[any,string][]} */
+    const children = [];
+    for (const key of ["seq","choice","ranked","and"]) if (expr[key]) expr[key].forEach((/** @type {any} */ child, /** @type {number} */ index) => children.push([child,`/${key}/${index}`]));
+    for (const key of ["expr","optional","repeat","separator"]) if (expr[key]) children.push([expr[key],`/${key}`]);
+    return children;
+  }
+
+  /** @param {any} value @returns {Set<string>} */
+  function rankedCaptureReads(value) {
+    const found = new Set(), pending = [value];
+    while (pending.length) {
+      const node = pending.pop();
+      if (!node || typeof node !== "object") continue;
+      if (typeof node.capture === "string") found.add(node.capture);
+      if (typeof node.captured === "string") found.add(node.captured);
+      // Emission carriers and attachments use capture names as strings.
+      if (typeof node.take === "string") found.add(node.take);
+      for (const key of ["before","after"]) if (Array.isArray(node[key])) for (const name of node[key]) if (typeof name === "string") found.add(name);
+      for (const child of Object.values(node)) if (child && typeof child === "object") pending.push(child);
+    }
+    return found;
+  }
+
+  /** @returns {VirtualPath} */
+  function rankedEmptyPath() {return {steps:[],captures:new Map(),ends:new Map()};}
+
+  /** @param {VirtualPath} a @param {VirtualPath} b @returns {VirtualPath} */
+  function rankedJoinPaths(a,b) {
+    const offset = a.steps.length, captures = new Map(a.captures), ends = new Map(a.ends);
+    for (const [name,capture] of b.captures) captures.set(name,{node:capture.node,at:capture.at+offset});
+    for (const [group,end] of b.ends) ends.set(group,{option:end.option,at:end.at+offset});
+    return {steps:a.steps.concat(b.steps),captures,ends};
+  }
+
+  /** @param {VirtualPath[]} left @param {VirtualPath[]} right */
+  function rankedVirtualProduct(left,right) {
+    const out = [];
+    for (const a of left) for (const b of right) out.push(rankedJoinPaths(a,b));
+    return out;
+  }
+
+  /** @param {any} expr @param {WeakMap<object,RankedGroup>} groups @returns {VirtualPath[]} */
+  function rankedVirtualPaths(expr,groups) {
+    if (expr.empty) return [rankedEmptyPath()];
+    if (expr.seq) {
+      let paths = [rankedEmptyPath()];
+      for (const child of expr.seq) paths = rankedVirtualProduct(paths,rankedVirtualPaths(child,groups));
+      return paths;
+    }
+    if (expr.choice) return expr.choice.flatMap((/** @type {any} */ child) => rankedVirtualPaths(child,groups));
+    if (expr.ranked) {
+      const group = /** @type {RankedGroup} */ (groups.get(expr));
+      return expr.ranked.flatMap((/** @type {any} */ child, /** @type {number} */ option) => rankedVirtualPaths(child,groups).map(path => {
+        path.ends.set(group,{at:path.steps.length,option});return path;
+      }));
+    }
+    if (expr.and) {
+      const paths = [];
+      for (let mask = 1; mask < 1 << expr.and.length; mask++) {
+        let route = [rankedEmptyPath()];
+        expr.and.forEach((/** @type {any} */ child, /** @type {number} */ index) => {if (mask & (1 << index)) route = rankedVirtualProduct(route,rankedVirtualPaths(child,groups));});
+        for (const path of route) paths.push(path);
+      }
+      return paths;
+    }
+    if (expr.optional) return [rankedEmptyPath(),...rankedVirtualPaths(expr.optional,groups)];
+    if (expr.repeat) return expr.separator ? rankedVirtualProduct(rankedVirtualPaths(expr.repeat,groups),rankedVirtualPaths(expr.separator,groups)) : rankedVirtualPaths(expr.repeat,groups);
+    const path = rankedEmptyPath();
+    path.steps.push(expr);
+    if (typeof expr.capture === "string") path.captures.set(expr.capture,{node:expr,at:1});
+    return [path];
+  }
+
+  /** @param {any} value @returns {boolean} */
+  function rankedLiteralEmpty(value) {
+    if (value?.const && value.value !== undefined) return rankedLiteralEmpty(value.value);
+    return value?.emptySet === true || value?.set instanceof Set && value.set.size === 0;
+  }
+
   // ---- grammar.js
   // A stage's grammar: its documents stitched together (engine §2) and
   // lowered to productions for one set of features (engine §3).
+
 
 
 
@@ -4792,14 +5083,16 @@
         throw new GencmuError("grammar", `stage ${stageName} has no %ambiguity-resolution`, { stage: stageName });
       }
       this.checkReferences();
+      this.ranked = new RankedGroups(this.rules);
       this.preferences = new Preferences(stageName, this.rules, this.preferenceDeclarations);
       this.loadWarnings = this.preferences.warnings;
-      if (this.preferences.names.size) {
+      if (this.preferences.names.size || this.ranked.groups.length) {
         // Validate every surviving variant without enumerating feature assignments.
         const validation = new Lowering(this, new Set());
         validation.validation = true;
         for (const rule of this.rules.values()) for (const alternative of rule.alternatives) validation.lowerAlternative(rule, alternative);
         this.preferences.validate(validation.productions);
+        this.ranked.validateTags(validation.productions);
       }
       // Slot emission checks inspect written carriers before absent ones disappear.
       for (const { path, rule } of this.emissionUsers) {
@@ -5163,7 +5456,9 @@
       if (!node || typeof node !== "object" || node instanceof Set) return node;
       if (node.op === "≅" || node.op === "≇") return { ...node,
         right: this.evaluateClosed(path, node.right, at, undefined, "pattern") };
-      return Object.fromEntries(Object.entries(node).map(([key, value]) => [key, this.resolvePatterns(value, path, at)]));
+      const copy = Object.fromEntries(Object.entries(node).map(([key, value]) => [key, this.resolvePatterns(value, path, at)]));
+      copyRankedLocation(node,copy);
+      return copy;
     }
 
     /**
@@ -5398,11 +5693,13 @@
     if (typeof record.const === "string") {
       /** @type {ConstantTerm} */
       const reference = { const: record.const, at: /** @type {[number, number]} */ (record.at), value: /** @type {StageConstant} */ (constants.get(record.const)).value };
+      copyRankedLocation(record,reference);
       return reference;
     }
     /** @type {Record<string, unknown>} */
     const copy = {};
     for (const [key, value] of Object.entries(record)) copy[key] = resolveNode(value, constants);
+    copyRankedLocation(record,copy);
     return copy;
   }
 
@@ -5517,6 +5814,9 @@
       /** @type {Map<string, string>} */
       this.helperRoles = new Map();
       this.helperExpressions = new Map();
+      /** @type {WeakMap<SequenceItem[],{group:import("./ranked.js").RankedGroup,option:number}>} */
+      this.rankedSequences = new WeakMap();
+      this.rankedHelpers = new Set();
       // The helpers of the optionals written [++T x], whose terminators are
       // maximal (engine §3.8, §4).
       /** @type {Set<string>} */
@@ -5592,7 +5892,7 @@
       }
       /** @type {Production} */
       const production = { ...fields, captureAt, captureSlot, conditionsAt, id: this.productions.length };
-      if (this.grammar.preferences?.names.size) {
+      if (this.grammar.preferences?.names.size || this.grammar.ranked.groups.length) {
         const source = this.source;
         const variants = source && this.grammar.preferences.sourceVariants.get(source);
         const componentRoles = new Map([...(variants || [])].map(([id, variant]) => [id, variant.roles]));
@@ -5720,6 +6020,9 @@
           // A helper with one symbol has that symbol's tags, like any
           // production (engine §3.7).
           const single = sequence.length === 1;
+          const ranked = this.rankedSequences.get(sequence);
+          const captures = ranked ? sequence.flatMap((item,index) => item.capture ? [{name:item.capture,index}] : []) : [];
+          if (single && captures.length === 0) captures.push({name:"\u0000child",index:0});
           this.addProduction({
             lhs: helper.name,
             rhs: sequence.map((item) => item.symbol),
@@ -5728,12 +6031,13 @@
             owner: rule.name,
             elided: helper.elided,
             elidedTest: helper.elidedTest,
-            captures: single ? [{ name: "\u0000child", index: 0 }] : [],
+            captures,
             conditions: [],
-            tags: single ? { call: "tags", args: [{ capture: "\u0000child" }] } : null,
+            tags: single ? { call: "tags", args: [{ capture: captures[0].name }] } : null,
             emit: null,
             opaque: false,
             warnings: [],
+            ...(ranked ? {rankedGroup:ranked.group,rankedOption:ranked.option} : {}),
           });
         }
         for (let index = nested.length - 1; index >= 0; index--) {
@@ -5850,6 +6154,17 @@
     expand(expr, where) {
       if ("seq" in expr) return this.expandSequence(expr.seq, where);
       if ("choice" in expr) return expr.choice.flatMap((item) => this.expand(item, where));
+      if ("ranked" in expr) {
+        const group = /** @type {import("./ranked.js").RankedGroup} */ (this.grammar.ranked.byExpression.get(expr));
+        if (!this.rankedHelpers.has(group.helper)) {
+          this.rankedHelpers.add(group.helper);
+          this.helperExpressions.set(group.helper,expr);
+          where.pending.push({name:group.helper,elided:null,elidedTest:null,build:context => expr.ranked.flatMap((option,index) => this.expand(option,context).map(sequence => {
+            this.rankedSequences.set(sequence,{group,option:index});return sequence;
+          }))});
+        }
+        return [[{symbol:{name:group.helper,terminal:false}}]];
+      }
       if ("and" in expr) {
         const parts = expr.and.map((item) => this.expand(item, where));
         /** @type {SequenceItem[][]} */
@@ -5947,7 +6262,7 @@
     helper(where, build, elided) {
       const name = `${where.rule.name}·${this.helperCount++}`;
       const variant = [...(this.grammar.preferences?.ruleVariants.values() ?? [])].find(v => v.reference.source === where.alternative && this.helperExpression && v.paths.has(this.helperExpression));
-      if (this.grammar.preferences?.names.size && this.helperExpression) this.helperExpressions.set(name, this.helperExpression);
+      if ((this.grammar.preferences?.names.size || this.grammar.ranked.groups.length) && this.helperExpression) this.helperExpressions.set(name, this.helperExpression);
       if (variant && this.helperExpression) {
         this.helperRoles ??= new Map();
         this.helperRoles.set(name, `${where.rule.name}:${variant.paths.get(this.helperExpression)}`);
@@ -12810,6 +13125,7 @@
 
 
 
+
   /**
    * @import { Step } from "./trampoline.js"
    * @import { Argument, Comparator, Condition, DomAlternative, DomClassifier, DomConstant, DomDirective, DomEntry, DomImplication, DomRule, EmitItem, Emission, Expr, GrammarDom, Position, ResultNode, RuleNode, Term } from "./types.js"
@@ -13155,7 +13471,10 @@
           /** @type {Expr[]} */
           const items = [];
           for (const item of found) items.push(yield readExpression(item));
-          return { ranked: items };
+          const expr = {ranked:items};
+          const separator = parts(node).find(child => child.kind === "token" && text(child) === "≻");
+          if (separator) rankedLocations.set(expr,at(separator));
+          return expr;
         }
         case "conjunction": {
           const found = some(node, "sequence");
@@ -14276,6 +14595,7 @@
 
 
 
+
   /** @import { Feature, GrammarDom, ParseError, ParseOptions, ParseResult, Resources, ResultNode, StageReport } from "./types.js" */
 
 
@@ -14385,7 +14705,14 @@
       if (cached) return cached;
       const entry = this.compiled.get(path);
       let dom;
-      if (entry && entry.hash === hash) dom = entry.dom;
+      if (entry && entry.hash === hash) {
+        dom = entry.dom;
+        if (hasRankedGroups(dom)) {
+          const {text:body,positions} = extractGrammarText(text,path);
+          const lexical = this.notation.parse(body,{features:new Set(),until:"lexical"});
+          if (lexical.ok) restoreRankedLocations(dom,/** @type {Token[]} */ (lexical.stages[0].output),token => positions[token.source[0]] ?? [1,1]);
+        }
+      }
       else dom = this.readDocument(text, path, true);
       this.cache.set(key, dom);
       return dom;
@@ -14412,7 +14739,9 @@
         }
         const source = error.source || [0, 0];
         const [line, column] = positions[source[0]] || (positions.length ? positions[positions.length - 1] : [1, 1]);
-        throw new GencmuError("grammar", `${path}:${line}:${column}: ${error.message}`, { document: path, line, column });
+        const ranked = error.stage === "syntax" && rankedSyntaxFailure(/** @type {Token[]} */ (run.stages[0].output),error.token ?? 0);
+        const message = ranked ? "Parenthesize the intended ranked choice, with at least two operands and one separator kind." : error.message;
+        throw new GencmuError("grammar", `${path}:${line}:${column}: ${message}`, { document: path, line, column, ...(ranked ? {code:"ranked-choice-syntax"} : {}) });
       }
       const syntax = run.stages[run.stages.length - 1];
       return domOfTree(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path, this.unicode, deferEmission);
@@ -14911,6 +15240,11 @@
    * @property {number} [column]
    * @property {string} [stage]
    * @property {string} [rule]
+   * @property {string} [code]
+   * @property {import("./ranked.js").GroupSite} [group]
+   * @property {number} [option]
+   * @property {unknown} [expression]
+   * @property {import("./ranked.js").GroupSite[]} [inheritance]
    */
 
   /**
@@ -15356,6 +15690,8 @@
    * @property {Map<string, string>} [slotRoles]
    * @property {Map<number,Map<string,string>>} [componentRoles]
    * @property {Expr} [writtenExpression]
+   * @property {import("./ranked.js").RankedGroup} [rankedGroup]
+   * @property {number} [rankedOption]
    * @property {string} [role]
    * @property {Term[]} [writtenTags]
    * @property {{alternative: Term | null, definition: Term | null}} [writtenTagClauses]

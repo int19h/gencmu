@@ -93,6 +93,7 @@ pub(crate) struct StageGrammar {
     pub lean: Lean,
     pub elision_only: bool,
     pub preferences: Arc<crate::preferences::Preferences>,
+    pub ranked: Arc<crate::ranked::RankedGroups>,
     /// Whether an elided terminator is forbidden where its constituent
     /// could have been longer (engine §4).
     pub changes: Vec<Change>,
@@ -216,6 +217,7 @@ pub(crate) fn stitch(
         lean: Lean::Greedy,
         elision_only: false,
         preferences: Arc::new(crate::preferences::Preferences::default()),
+        ranked: Arc::new(crate::ranked::RankedGroups::default()),
         changes: Vec::new(),
         classifiers: Vec::new(),
         implications: Arc::from(Vec::new()),
@@ -393,10 +395,12 @@ pub(crate) fn stitch(
         }
     }
     grammar.preferences = Arc::new(crate::preferences::Preferences::new(&grammar, &preferences)?);
-    if !grammar.preferences.paths.is_empty() {
+    grammar.ranked = Arc::new(crate::ranked::RankedGroups::new(&grammar)?);
+    if !grammar.preferences.paths.is_empty() || !grammar.ranked.groups.is_empty() {
         let lowered =
             crate::lower::lower_for_slots(&grammar).map_err(|e| located(e.message, &e.document, (e.line, e.column)))?;
         grammar.preferences.validate(&lowered)?;
+        grammar.ranked.validate_tags(&grammar, &lowered)?;
     }
     if let Some(error) = deferred.into_iter().next() {
         return Err(error);
@@ -1410,6 +1414,7 @@ mod tests {
                 lean: Lean::Greedy,
                 elision_only: false,
                 preferences: Arc::new(crate::preferences::Preferences::default()),
+                ranked: Arc::new(crate::ranked::RankedGroups::default()),
                 changes: Vec::new(),
                 classifiers: vec![(Arc::from("d.md"), ClassifierDef { name: "c".into(), entries, at: (0, 0) })],
                 implications: Arc::from(Vec::new()),
