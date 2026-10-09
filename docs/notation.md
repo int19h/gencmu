@@ -651,7 +651,9 @@ A directive is a keyword and its operands. By convention each stands in a block 
 
 A ranked choice writes its preferred option first: `(a ≻ b ≻ c)`. Each option can contain a sequence. Parentheses delimit a ranked choice inside a larger expression.
 
-A span is the range between two input token boundaries. A lower option disappears where an earlier option qualifies over the same span in that invocation. Qualification requires its tests and ready conditions to pass. A condition is ready when every capture that it reads is bound. A failing higher option removes nothing.
+A span is the range between two input token boundaries. A prefix context is recognition state before the group. Only options of the same group in the same prefix context compete ([engine §6.1](engine.md#61-ranked-admission-before-ranking)).
+
+A lower option disappears where an earlier option qualifies over the same span. Qualification requires its tests and ready conditions to pass. A condition is ready when every capture that it reads is bound. A failing higher option removes nothing.
 
 Earlier options also outrank later options when intervening options are absent. An ordinary choice inside an option gives its branches equal rank. Different spans still compete through the ordinary stage ranking.
 
@@ -693,9 +695,9 @@ Internal named rules and ready conditions on their captures retain their own pat
 
 The choice must discard its returned tags locally or return a provably empty set. A common explicit tag term can replace inheritance. The loader applies the closure in engine §2.1. A private capture cannot supply that common term.
 
-`begins`, `matches`, and two-argument `tags` query raw eligible recognition. They do not apply ranked admission. `tags(span, rule)` remains a union over those readings.
+`begins`, `matches`, and two-argument `tags` inspect readings allowed by recognition before ranked filtering ([engine §4](engine.md#4-recognition)). `tags(span, rule)` remains a union over those readings.
 
-After admission, flagged profiles precede the stage directive. With no flagged rule, every profile is zero, so the stage directive alone ranks the admitted derivations. Reconstruction applies the same admission over physical reconstructed spans.
+After admission, flagged profiles precede the stage directive. With no flagged rule, every profile is zero, so the stage directive alone ranks the admitted derivations.
 
 The reader rejects the retired `%prefer` directive as unknown and points to ranked choices. The group itself states the written position and its option order.
 
@@ -871,6 +873,8 @@ Then the stage parses that input again. Each elidable optional is now either res
 The grammar reads the text with its terminators written back. Every rule condition, tag and test sees the original input. A written-back terminator has no text, no sound and no tags there. So a condition answers as it did for the chosen parse, and the chosen parse remains a raw reading before ranked-choice filtering. A test on a terminal is the one exception: `KU="ku"` reads a written-back `KU` by its sound. A test on a rule, such as `t="ku"`, sees the original input like a condition.
 
 A reconstruction is a second parse with terminators restored. These are the omitted terminators of the chosen parse. A projected span contains a constituent's original input tokens. Each written-back terminator adds no token (engine §7.3).
+
+Ranked choices compare spans in the reconstructed input, including restored terminators.
 
 The check retains the rule flags, but applies no stage preference. It counts flagged occurrences over projected spans. The raw restored witness must survive ranked-choice filtering and be the sole best reconstructed reading. Another such reading gives an ambiguity error, never a replacement chosen parse.
 
