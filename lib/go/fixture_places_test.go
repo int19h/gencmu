@@ -2,8 +2,10 @@ package gencmu
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
+	"testing"
 	"unicode/utf8"
 )
 
@@ -77,11 +79,70 @@ func substitute(text, find, replace string) (string, error) {
 // stands in text, which must hold it exactly once. A line ends at CR LF,
 // CR or LF, and a column counts code points.
 func positionOf(text, needle string) (int, int, error) {
+	if needle == "" {
+		return 0, 0, fmt.Errorf("an empty text stands everywhere in the document")
+	}
 	first := strings.Index(text, needle)
-	if first < 0 || strings.Contains(text[first+1:], needle) {
-		return 0, 0, fmt.Errorf("%q does not stand exactly once in the document", needle)
+	if first < 0 {
+		return 0, 0, fmt.Errorf("%q stands nowhere in the document", needle)
+	}
+	// A second place may overlap the first, so the search goes on after the
+	// first place's first character.
+	_, size := utf8.DecodeRuneInString(text[first:])
+	if strings.Contains(text[first+size:], needle) {
+		return 0, 0, fmt.Errorf("%q stands more than once in the document", needle)
 	}
 	before := strings.ReplaceAll(strings.ReplaceAll(text[:first], "\r\n", "\n"), "\r", "\n")
 	lineStart := strings.LastIndex(before, "\n") + 1
 	return strings.Count(before, "\n") + 1, utf8.RuneCountInString(before[lineStart:]) + 1, nil
+}
+
+// TestPlaces checks these helpers against tests/places.json, which every
+// library's runner shares.
+func TestPlaces(t *testing.T) {
+	raw, err := os.ReadFile("../../tests/places.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var places struct {
+		Positions []struct {
+			Text   string `json:"text"`
+			Needle string `json:"needle"`
+			Line   *int   `json:"line"`
+			Column *int   `json:"column"`
+		} `json:"positions"`
+		Substitutions []struct {
+			Text    string  `json:"text"`
+			Find    string  `json:"find"`
+			Replace string  `json:"replace"`
+			Places  int     `json:"places"`
+			Expect  *string `json:"expect"`
+		} `json:"substitutions"`
+	}
+	if err := unmarshalJSON(raw, &places); err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range places.Positions {
+		line, column, err := positionOf(item.Text, item.Needle)
+		if item.Line == nil {
+			if err == nil {
+				t.Errorf("%q in %q: no error", item.Needle, item.Text)
+			}
+		} else if err != nil || line != *item.Line || column != *item.Column {
+			t.Errorf("%q in %q: %d:%d %v, not %d:%d", item.Needle, item.Text, line, column, err, *item.Line, *item.Column)
+		}
+	}
+	for _, item := range places.Substitutions {
+		if got := len(findPlaces(item.Text, item.Find)); got != item.Places {
+			t.Errorf("%q in %q: %d places, not %d", item.Find, item.Text, got, item.Places)
+		}
+		got, err := substitute(item.Text, item.Find, item.Replace)
+		if item.Expect == nil {
+			if err == nil {
+				t.Errorf("%q in %q: no error", item.Find, item.Text)
+			}
+		} else if err != nil || got != *item.Expect {
+			t.Errorf("%q in %q: %q %v, not %q", item.Find, item.Text, got, err, *item.Expect)
+		}
+	}
 }

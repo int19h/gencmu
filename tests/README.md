@@ -147,10 +147,10 @@ The extra part holds text that the reader refuses if it reads it, so an outcome 
 
 No fixture names a line of a grammar document by its number. So an edit of a document never changes a fixture, unless it changes what the fixture is about. A fixture names a place by its content in two ways.
 
-- In the `find` and `replace` of `bootstrap-errors.json` and `notation-shapes.json`, `"at":[*]` stands for a source position, `"at":[LINE,COLUMN]`, of any value. A place of `find` is a place where the text matches it, each `"at":[*]` matching one position. In `replace`, each `"at":[*]` takes the position that the one in the same order in `find` matched. So `{"name":"optional",...,"at":[*]}` finds the rule `optional` wherever its document defines it.
+- In the `find` and `replace` of `bootstrap-errors.json` and `notation-shapes.json`, `"at":[*]` stands for a source position, `"at":[LINE,COLUMN]`, of any value. A place of `find` is a place where the text matches it, each `"at":[*]` matching one position. In `replace`, each `"at":[*]` takes the position that the one in the same order in `find` matched. So in `bootstrap-errors.json`, the `find` `"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[*]}]` finds the lexical document's directives wherever the directive stands. The text of `find` is literal apart from `"at":[*]`.
 - In `bootstrap-errors.json`, `at` is a text that stands exactly once in the grammar document `context`. The expected line and column of the error are those of the first character of that text. A line ends at CR LF, CR or LF, and a column counts code points.
 
-Each library's runner finds these places in the same way. `tests/quoted-allow.txt` names the lines of its entries by phrases, as "Quoted texts" says.
+Each library's runner finds these places in the same way, and `places.json` holds cases that every runner checks its helpers against. Each of its `positions` gives a text, a `needle` and the line and column where the needle stands, or `null` where the needle must stand nowhere or more than once. An empty needle is an error too. Each of its `substitutions` gives a text, a `find`, a `replace`, the number of places of `find`, and the text after the replacement, or `null` where `find` stands nowhere. `tests/quoted-allow.txt` names the lines of its entries by phrases, as "Quoted texts" says.
 
 ## Malformed directives: `dom-malformed.json`
 

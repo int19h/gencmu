@@ -1114,6 +1114,8 @@ def position_of(text: str, needle: str) -> tuple[int, int]:
     """The line and column, counted from 1, where needle stands in text,
     which must hold it exactly once. A line ends at CR LF, CR or LF, and a
     column counts code points."""
+    if not needle:
+        raise AssertionError("an empty text stands everywhere in the document")
     first = text.find(needle)
     if first == -1 or text.find(needle, first + 1) != -1:
         raise AssertionError(f"{needle!r} does not stand exactly once in the document")
