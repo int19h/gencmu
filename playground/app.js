@@ -506,16 +506,6 @@
         element("pre", { class: "explanation", text: parse.warningsText })));
     }
     for (const tie of parse ? parse.ties : []) {
-      if (tie.cycle) {
-        boxes.push(element("div", { class: "box bad", id: "explanation" },
-          element("h3", { text: `A comparison cycle in the ${tie.stage} stage` }),
-          element("pre", { class: "explanation", text: tie.summary }),
-          element("details", { class: "tie-trees" },
-            element("summary", { text: "All cycle trees" }),
-            tie.readings.map((reading,index) => element("figure", {},
-              element("figcaption", { text: `Reading ${index}` }), element("pre", { text: reading.tree }))))));
-        continue;
-      }
       boxes.push(element("div", { class: "box bad", id: "explanation" },
         element("h3", { text: `A tie in the ${tie.stage} stage` }),
         element("pre", { class: "explanation" }, tie.summary),

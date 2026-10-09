@@ -2179,7 +2179,7 @@
         });
       });
       for (const [name, references] of sites) {
-        if (references.length !== 1) this.fail("prefer-slot-multiple-references", name, {references}, `Rule ${name} requires exactly one written reference slotSite.`);
+        if (references.length !== 1) this.fail("prefer-slot-multiple-references", name, {references}, `Rule ${name} requires exactly one written reference site.`);
       }
       const seen = new Set();
       for (const start of this.names) {
@@ -2319,18 +2319,16 @@
           if (previous !== undefined && previous !== signature) this.fail("prefer-slot-template", variant.reference.expression.ref,
             {parent:component.parent, references:component.references, expression:"clauses"}, "The effective parent tag, emission or continuation clauses differ.");
           signatures.set(key, signature);
-          gates.push({p, variant, commonConditions, candidateGates, normalize, hole});
+          gates.push({p, variant, commonConditions, candidateGates, normalize, hole, key});
         }
         // A condition that differs across variants cannot remain after the hole.
-        const byClauses = new Map();
+        const byTemplate = new Map();
         for (const entry of gates) {
-          const key = JSON.stringify(entry.commonConditions);
-          byClauses.set(key, entry);
-        }
-        if (byClauses.size > 1) {
-          const entry = [...byClauses.values()][1];
-          this.fail("prefer-slot-continuation", entry.variant.reference.expression.ref,
+          const conditions = JSON.stringify(entry.commonConditions);
+          const previous = byTemplate.get(entry.key);
+          if (previous !== undefined && previous !== conditions) this.fail("prefer-slot-continuation", entry.variant.reference.expression.ref,
             {parent:component.parent, references:component.references, expression:entry.commonConditions}, "Differing conditions must be ready at the ranked hole boundary.");
+          byTemplate.set(entry.key, conditions);
         }
       }
     }
@@ -5514,10 +5512,18 @@
         if (hooks.work) countWork(hooks.work, "lowering");
         conditionsAt[condition.readyAt + 1].push(condition);
       }
-      const source = this.source;
-      const variant = fields.rhs.map(symbol => this.grammar.preferences?.ruleVariants.get(symbol.name)).find(Boolean) ?? (source && this.grammar.preferences?.variants.get(source));
-      const production = { ...fields, captureAt, captureSlot, conditionsAt, id: this.productions.length,
-        source, slotRoles: variant?.roles, role: this.helperRoles?.get(fields.lhs) ?? fields.lhs };
+      /** @type {Production} */
+      const production = { ...fields, captureAt, captureSlot, conditionsAt, id: this.productions.length };
+      if (this.grammar.preferences?.names.size) {
+        const source = this.source;
+        const variants = source && this.grammar.preferences.sourceVariants.get(source);
+        const componentRoles = new Map([...(variants || [])].map(([id, variant]) => [id, variant.roles]));
+        for (const symbol of fields.rhs) {
+          const selected = this.grammar.preferences.ruleVariants.get(symbol.name);
+          if (selected) componentRoles.set(selected.component.id, selected.roles);
+        }
+        Object.assign(production, {source, componentRoles, role: this.helperRoles.get(fields.lhs) ?? fields.lhs});
+      }
       this.productions.push(production);
       let same = this.byLhs.get(production.lhs);
       if (!same) this.byLhs.set(production.lhs, (same = []));
@@ -11009,7 +11015,7 @@
           const captures = [];
           for (let part=previous.slots; part; part=part.parent) {
             const capture = previous.production.captures[part.index];
-            captures.push([previous.production.slotRoles?.get(capture?.name ?? "") ?? capture?.name, part.start, part.end, part.tags, part.structure]);
+            captures.push([(previous.production.componentRoles?.get(symbol.slot.id) ?? previous.production.slotRoles)?.get(capture?.name ?? "") ?? capture?.name, part.start, part.end, part.tags, part.structure]);
           }
           captures.reverse();
           const key = JSON.stringify([symbol.slot.id, item.production.role, item.origin,
@@ -15114,6 +15120,7 @@
    * @typedef {object} Production
    * @property {import("./grammar.js").StitchedAlternative} [source]
    * @property {Map<string, string>} [slotRoles]
+   * @property {Map<number,Map<string,string>>} [componentRoles]
    * @property {string} [role]
    * @property {Term[]} [writtenTags]
    * @property {number} id

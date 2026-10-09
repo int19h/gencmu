@@ -512,6 +512,7 @@ export type ReadyCondition = {
 export type Production = {
     source?: import("./grammar.js").StitchedAlternative;
     slotRoles?: Map<string, string>;
+    componentRoles?: Map<number, Map<string, string>>;
     role?: string;
     writtenTags?: Term[];
     id: number;
@@ -1099,6 +1100,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} Production
  * @property {import("./grammar.js").StitchedAlternative} [source]
  * @property {Map<string, string>} [slotRoles]
+ * @property {Map<number,Map<string,string>>} [componentRoles]
  * @property {string} [role]
  * @property {Term[]} [writtenTags]
  * @property {number} id
