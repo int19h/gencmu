@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="379" height="188" viewBox="0 0 379 188" role="img" aria-label="Railroad diagram of the rule number-part">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="92.4" lengthAdjust="spacingAndGlyphs">number-part</text>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<path d="M20 46h20"/>
+<g class="terminal"><rect x="40" y="34" width="33" height="24" rx="12"/><text x="56.5" y="51" textLength="16.8" lengthAdjust="spacingAndGlyphs">PA</text></g>
+<path d="M73 46H359"/>
+<path d="M20 46a10 10 0 0 1 10 10V96a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="94" width="50" height="24" rx="12"/><text x="65" y="111" textLength="33.6" lengthAdjust="spacingAndGlyphs">NIhE</text></g>
+<path d="M90 106h10"/>
+<g class="rule"><rect x="100" y="94" width="25" height="24" rx="0"/><text x="112.5" y="111" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M125 106h10"/>
+<g class="rule"><rect x="135" y="94" width="67" height="24" rx="0"/><text x="168.5" y="111" textLength="50.4" lengthAdjust="spacingAndGlyphs">selbri</text></g>
+<path d="M202 106h10"/>
+<path d="M212 106h20"/>
+<g class="terminal"><rect x="232" y="94" width="50" height="24" rx="12"/><text x="257" y="111" textLength="33.6" lengthAdjust="spacingAndGlyphs">TEhU</text></g>
+<path d="M282 106H304"/>
+<path d="M212 106a10 10 0 0 0 10 -10V94a10 10 0 0 1 10 -10H284a10 10 0 0 1 10 10V96a10 10 0 0 0 10 10"/>
+<text class="label" x="236" y="79" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M304 106h10"/>
+<g class="rule"><rect x="314" y="94" width="25" height="24" rx="0"/><text x="326.5" y="111" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M339 106H339a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V156a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="154" width="50" height="24" rx="12"/><text x="65" y="171" textLength="33.6" lengthAdjust="spacingAndGlyphs">MOhE</text></g>
+<path d="M90 166h10"/>
+<g class="rule"><rect x="100" y="154" width="25" height="24" rx="0"/><text x="112.5" y="171" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M125 166h10"/>
+<g class="rule"><rect x="135" y="154" width="58" height="24" rx="0"/><text x="164" y="171" textLength="42" lengthAdjust="spacingAndGlyphs">sumti</text></g>
+<path d="M193 166h10"/>
+<path d="M203 166h20"/>
+<g class="terminal"><rect x="223" y="154" width="50" height="24" rx="12"/><text x="248" y="171" textLength="33.6" lengthAdjust="spacingAndGlyphs">TEhU</text></g>
+<path d="M273 166H295"/>
+<path d="M203 166a10 10 0 0 0 10 -10V154a10 10 0 0 1 10 -10H275a10 10 0 0 1 10 10V156a10 10 0 0 0 10 10"/>
+<text class="label" x="227" y="139" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M295 166h10"/>
+<g class="rule"><rect x="305" y="154" width="25" height="24" rx="0"/><text x="317.5" y="171" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M330 166H339a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M359 46h6m0 -8v16m4 -16v16"/>
+</svg>

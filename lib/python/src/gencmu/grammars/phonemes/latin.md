@@ -76,6 +76,20 @@ The phoneme stage cannot know that a pause stands in a quote. So punctuation bet
   ¬matches($c, punctuation-char)
 ```
 
+<details><summary>Railroad diagrams of the 11 rules from <code>pause</code> to <code>run-char</code></summary>
+<p><img src="../../docs/diagrams/phonemes/latin/pause.svg" alt="Railroad diagram of the rule pause"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/punctuation-pause.svg" alt="Railroad diagram of the rule punctuation-pause"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/pause-edge.svg" alt="Railroad diagram of the rule pause-edge"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/edge-char.svg" alt="Railroad diagram of the rule edge-char"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/punctuation.svg" alt="Railroad diagram of the rule punctuation"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/punctuation-char.svg" alt="Railroad diagram of the rule punctuation-char"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/other-char.svg" alt="Railroad diagram of the rule other-char"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/alpha-char.svg" alt="Railroad diagram of the rule alpha-char"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/mark-char.svg" alt="Railroad diagram of the rule mark-char"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/digit-char.svg" alt="Railroad diagram of the rule digit-char"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/run-char.svg" alt="Railroad diagram of the rule run-char"></p>
+</details>
+
 ## The comma
 
 The working morphology ignores a comma before a letter (`comma*` in each letter rule of its PEG). So a comma between two vowels is no syllable break here: it is nothing, as a comma is between other letters. The vowels on either side are one vowel group, as if they stood side by side. `me,iin` is `meiin`, and the Cyrillic `ма,и` is `ma'i`, as `маи` is. This document redefines `letters-after-vowel` without the `syllable-break` of latin-strict.md. So nothing reads `syllable-break` in these dialects.
@@ -92,6 +106,12 @@ The working morphology ignores a comma before a letter (`comma*` in each letter 
   vowel-group⊇~syllabic commas $v(joined-vowel⊇~syllabic) <tags($v)>
 ```
 
+<details><summary>Railroad diagrams of the 3 rules from <code>letters-after-vowel</code> to <code>vowel-group-joined</code></summary>
+<p><img src="../../docs/diagrams/phonemes/latin/letters-after-vowel.svg" alt="Railroad diagram of the rule letters-after-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/vowel-group-plain.svg" alt="Railroad diagram of the rule vowel-group-plain"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/vowel-group-joined.svg" alt="Railroad diagram of the rule vowel-group-joined"></p>
+</details>
+
 ## The apostrophe
 
 Texts write the apostrophe as the letter `h`, which CLL does not use. The names of selma'o (classes of Lojban particles), such as KOhA, write the apostrophe this way. The working morphology also reads `h` as an apostrophe (`h <- comma* ['h] &nucleus` in its PEG).
@@ -102,6 +122,10 @@ Texts write the apostrophe as the letter `h`, which CLL does not use. The names 
 %emits
   $ </'/>
 ```
+
+<details><summary>Railroad diagram of <code>apostrophe</code></summary>
+<p><img src="../../docs/diagrams/phonemes/latin/apostrophe.svg" alt="Railroad diagram of the rule apostrophe"></p>
+</details>
 
 ## Capital runs
 
@@ -165,6 +189,22 @@ A run in which every vowel is a capital carries no stress mark, and the stage re
   $
 ```
 
+<details><summary>Railroad diagrams of the 13 rules from <code>run</code> to <code>folded-vowel</code></summary>
+<p><img src="../../docs/diagrams/phonemes/latin/run.svg" alt="Railroad diagram of the rule run"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/ordinary-run.svg" alt="Railroad diagram of the rule ordinary-run"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/capital-run.svg" alt="Railroad diagram of the rule capital-run"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/capital-shape.svg" alt="Railroad diagram of the rule capital-shape"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/capital-groups.svg" alt="Railroad diagram of the rule capital-groups"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/capital-gap.svg" alt="Railroad diagram of the rule capital-gap"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/capital-consonants.svg" alt="Railroad diagram of the rule capital-consonants"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/capital-non-vowel.svg" alt="Railroad diagram of the rule capital-non-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/folded-vowel-group.svg" alt="Railroad diagram of the rule folded-vowel-group"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/folded-vowel-group-plain.svg" alt="Railroad diagram of the rule folded-vowel-group-plain"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/folded-vowel-group-joined.svg" alt="Railroad diagram of the rule folded-vowel-group-joined"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/joined-folded-vowel.svg" alt="Railroad diagram of the rule joined-folded-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/folded-vowel.svg" alt="Railroad diagram of the rule folded-vowel"></p>
+</details>
+
 ## Accents and breves
 
 A vowel with an acute or a grave accent, precomposed or combining, is the stressed phoneme, as a capital vowel is. Many texts mark stress this way, and CLL does not. A breve on `i` or `u` marks a glide in some texts. The word grammar finds a glide by its position, so the stage emits the letter plain. A combining mark that no letter rule takes makes its run foreign, as the precomposed letter already is. So the stage reads `i` followed by U+0308 as it reads `ï`.
@@ -192,6 +232,13 @@ A vowel with an acute or a grave accent, precomposed or combining, is the stress
 %rule glide-mark
   '\u{306}'
 ```
+
+<details><summary>Railroad diagrams of the 4 rules from <code>plain-vowel</code> to <code>glide-mark</code></summary>
+<p><img src="../../docs/diagrams/phonemes/latin/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/stress-mark.svg" alt="Railroad diagram of the rule stress-mark"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/glide-mark.svg" alt="Railroad diagram of the rule glide-mark"></p>
+</details>
 
 ## Digits
 
@@ -273,3 +320,22 @@ The working morphology reads a digit as a member of PA, the number word it stand
 %emits
   $ </p/>, $ </i/>
 ```
+
+<details><summary>Railroad diagrams of the 16 rules from <code>items</code> to <code>decimal-point</code></summary>
+<p><img src="../../docs/diagrams/phonemes/latin/items.svg" alt="Railroad diagram of the rule items"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/non-vowel.svg" alt="Railroad diagram of the rule non-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/non-vowels.svg" alt="Railroad diagram of the rule non-vowels"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/any-lojban-char.svg" alt="Railroad diagram of the rule any-lojban-char"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/digit.svg" alt="Railroad diagram of the rule digit"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/digit-0.svg" alt="Railroad diagram of the rule digit-0"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/digit-1.svg" alt="Railroad diagram of the rule digit-1"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/digit-2.svg" alt="Railroad diagram of the rule digit-2"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/digit-3.svg" alt="Railroad diagram of the rule digit-3"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/digit-4.svg" alt="Railroad diagram of the rule digit-4"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/digit-5.svg" alt="Railroad diagram of the rule digit-5"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/digit-6.svg" alt="Railroad diagram of the rule digit-6"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/digit-7.svg" alt="Railroad diagram of the rule digit-7"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/digit-8.svg" alt="Railroad diagram of the rule digit-8"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/digit-9.svg" alt="Railroad diagram of the rule digit-9"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/decimal-point.svg" alt="Railroad diagram of the rule decimal-point"></p>
+</details>

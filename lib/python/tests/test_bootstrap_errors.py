@@ -7,7 +7,7 @@ from unittest.mock import patch
 from gencmu import _dialect
 
 import gencmu
-from .shared import REPOSITORY
+from .shared import REPOSITORY, find_places, position_of, substitute
 
 
 class BootstrapErrors(unittest.TestCase):
@@ -19,8 +19,8 @@ class BootstrapErrors(unittest.TestCase):
                 if "bootstrap" in item:
                     bootstrap = item["bootstrap"]
                 else:
-                    self.assertIn(item["find"], bundled)
-                    bootstrap = bundled.replace(item["find"], item["replace"], 1)
+                    self.assertTrue(find_places(bundled, item["find"]), "the mutation is absent")
+                    bootstrap = substitute(bundled, item["find"], item["replace"])
                 with self.assertRaises(gencmu.GencmuError) as raised:
                     gencmu.load_dialect_sources({
                         "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
@@ -35,8 +35,14 @@ class BootstrapErrors(unittest.TestCase):
                     self.assertIn(item["context"], raised.exception.message)
                 if "message" in item:
                     self.assertIn(item["message"], raised.exception.message)
-                for field in ("stage", "line", "column"):
-                    self.assertEqual(getattr(raised.exception, field), item[field], field)
+                # The place of the error, by the text that stands there in
+                # its grammar document, or as the case gives it.
+                if "at" in item:
+                    line, column = position_of((REPOSITORY / "grammars" / item["context"]).read_text(encoding="utf-8"), item["at"])
+                else:
+                    line, column = item["line"], item["column"]
+                for field, value in (("stage", item["stage"]), ("line", line), ("column", column)):
+                    self.assertEqual(getattr(raised.exception, field), value, field)
 
     def test_bootstrap_file_reading_errors(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

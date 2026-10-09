@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="122" viewBox="0 0 600 122" role="img" aria-label="Railroad diagram of the rule la-doi-inside">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="109.2" lengthAdjust="spacingAndGlyphs">la-doi-inside</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<g class="rule"><rect x="40" y="44" width="92" height="24" rx="0"/><text x="86" y="61" textLength="75.6" lengthAdjust="spacingAndGlyphs">la-or-doi</text></g>
+<path d="M132 56h10"/>
+<path d="M142 56h20"/>
+<g class="rule"><rect x="162" y="44" width="109" height="24" rx="0"/><text x="216.5" y="61" textLength="92.4" lengthAdjust="spacingAndGlyphs">any-letters</text></g>
+<path d="M271 56H291"/>
+<path d="M142 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H271a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M291 56H580"/>
+<path d="M20 56a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M40 100h20"/>
+<g class="rule"><rect x="60" y="88" width="109" height="24" rx="0"/><text x="114.5" y="105" textLength="92.4" lengthAdjust="spacingAndGlyphs">any-letters</text></g>
+<path d="M169 100H189"/>
+<path d="M40 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H169a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M189 100h10"/>
+<g class="rule"><rect x="199" y="88" width="100" height="24" rx="0"/><text x="249" y="105" textLength="84" lengthAdjust="spacingAndGlyphs">name-vowel</text></g>
+<path d="M299 100h10"/>
+<g class="rule"><rect x="309" y="88" width="92" height="24" rx="0"/><text x="355" y="105" textLength="75.6" lengthAdjust="spacingAndGlyphs">la-or-doi</text></g>
+<path d="M401 100h10"/>
+<path d="M411 100h20"/>
+<g class="rule"><rect x="431" y="88" width="109" height="24" rx="0"/><text x="485.5" y="105" textLength="92.4" lengthAdjust="spacingAndGlyphs">any-letters</text></g>
+<path d="M540 100H560"/>
+<path d="M411 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H540a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M560 100H560a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M580 56h6m0 -8v16m4 -16v16"/>
+</svg>

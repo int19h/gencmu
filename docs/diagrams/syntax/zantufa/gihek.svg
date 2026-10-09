@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="361" height="78" viewBox="0 0 361 78" role="img" aria-label="Railroad diagram of the rule gihek">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="42" lengthAdjust="spacingAndGlyphs">gihek</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<g class="terminal"><rect x="40" y="44" width="33" height="24" rx="12"/><text x="56.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">NA</text></g>
+<path d="M73 56h10"/>
+<g class="rule"><rect x="83" y="44" width="25" height="24" rx="0"/><text x="95.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M108 56H128"/>
+<path d="M20 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H108a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M128 56h10"/>
+<path d="M138 56h20"/>
+<g class="terminal"><rect x="158" y="44" width="33" height="24" rx="12"/><text x="174.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">SE</text></g>
+<path d="M191 56h10"/>
+<g class="rule"><rect x="201" y="44" width="25" height="24" rx="0"/><text x="213.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M226 56H246"/>
+<path d="M138 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H226a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M246 56h10"/>
+<g class="terminal"><rect x="256" y="44" width="50" height="24" rx="12"/><text x="281" y="61" textLength="33.6" lengthAdjust="spacingAndGlyphs">GIhA</text></g>
+<path d="M306 56h10"/>
+<g class="rule"><rect x="316" y="44" width="25" height="24" rx="0"/><text x="328.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M341 56h6m0 -8v16m4 -16v16"/>
+</svg>

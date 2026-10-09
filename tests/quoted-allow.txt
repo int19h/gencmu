@@ -1,8 +1,9 @@
 # Quoted texts that no corpus case pins as a whole text (tests/README.md,
 # "Quoted texts"). Each entry covers one document. It is the text, " # ",
-# the document, with ":" and the lines that the entry covers where the
-# document quotes the text unpinned on more than one line, and then one of
-# these:
+# the document, and then, where the document quotes the text unpinned on
+# more than one line, ' @ "PHRASE"' for each line that the entry covers.
+# The phrase is a part of that line's Markdown, and of no other line that
+# quotes the text there. Then comes one of these:
 #
 # - " = ", and the cases that show the text in the role that the sentence
 #   gives it. Each case is its id after its role. A role is the rule whose
@@ -22,13 +23,13 @@
 # node tools/quoted-texts.js checks it.
 
 # Parts of texts that the sentences make claims about.
-ke brode ke'e bo brodi # grammars/syntax/cll.md:209,597 = selbri-5-not-ke-group adhoc.syntax.joik-ke-group-then-bo adhoc.syntax.joik-ke-group-then-bo.bpfk
+ke brode ke'e bo brodi # grammars/syntax/cll.md @ "the two parses compete" @ "The plain reading remains" = selbri-5-not-ke-group adhoc.syntax.joik-ke-group-then-bo adhoc.syntax.joik-ke-group-then-bo.bpfk
 se se broda # grammars/syntax/cll.md = tanru-unit-2 adhoc.syntax.se-se-unit adhoc.syntax.se-se-unit.bpfk
 na'e se broda # grammars/syntax/cll.md = tanru-unit-2 adhoc.syntax.nahe-se-unit adhoc.syntax.nahe-se-unit.bpfk
 pa xy. # grammars/syntax/cll.md = number adhoc.syntax.number-then-lerfu adhoc.syntax.number-then-lerfu.bpfk
 ci su'i vo pi'i mu # grammars/syntax/cll.md = mex-chain adhoc.syntax.mex-chain-left-grouping adhoc.syntax.mex-chain-left-grouping.bpfk
-va pu # grammars/syntax/cll.md:665,682 = simple-tense-modal adhoc.syntax.space-time-single-tense adhoc.syntax.space-time-single-tense.bpfk
-pu va # grammars/syntax/cll.md:665,691 = simple-tense-modal adhoc.syntax.tag-stag-gek.sumti-time-space adhoc.syntax.tag-stag-gek.sumti-time-space.bpfk
+va pu # grammars/syntax/cll.md @ "illustrate this whole branch" @ "Space can precede time" = simple-tense-modal adhoc.syntax.space-time-single-tense adhoc.syntax.space-time-single-tense.bpfk
+pu va # grammars/syntax/cll.md @ "illustrate this whole branch" @ "stays outside the connective" = simple-tense-modal adhoc.syntax.tag-stag-gek.sumti-time-space adhoc.syntax.tag-stag-gek.sumti-time-space.bpfk
 pu ka'e # grammars/syntax/cll.md = simple-tense-modal adhoc.syntax.simple-tense-modal-time-caha adhoc.syntax.simple-tense-modal-time-caha.bpfk
 ba za ki # grammars/syntax/cll.md = simple-tense-modal adhoc.syntax.simple-tense-modal-time-space-ki adhoc.syntax.simple-tense-modal-time-space-ki.bpfk
 na'e ka'e # grammars/syntax/cll.md = simple-tense-modal adhoc.syntax.simple-tense-modal-nahe-kahe adhoc.syntax.simple-tense-modal-nahe-kahe.bpfk
@@ -60,12 +61,12 @@ a kru,a # grammars/words/cll.md # the reading that akru,a does not have; akru,a 
 terms zo'u # grammars/syntax/cll.md # notation: a rule name before the cmavo
 .i ja nai # grammars/syntax/cll.md # a connective between sentences
 .i joi # grammars/syntax/cll.md # a connective between sentences
-.i bo # grammars/syntax/cll.md:81,85 # a part of the pinned text quoted after it on its line
-gi'e ke # grammars/syntax/cll.md:203,869 # the words of one token of the official parser's lexer
-joi ke # grammars/syntax/cll.md:209,860 # the words of one token of the official parser's lexer
+.i bo # grammars/syntax/cll.md @ "groups to the right" @ "This restriction also applies" # a part of the pinned text quoted after it on its line
+gi'e ke # grammars/syntax/cll.md @ "in all of these but the free modifier" @ "GIhEK_KE" # the words of one token of the official parser's lexer
+joi ke # grammars/syntax/cll.md @ "the two parses compete" @ "The official lexer makes" # the words of one token of the official parser's lexer
 ca lo nu broda # grammars/syntax/cll.md # the shape of a tense with its sumti
 fi mi # grammars/syntax/cll.md # the shape of a place marker with its sumti
-pu ku # grammars/syntax/cll.md:271 # the shape of a tense with an elided sumti
+pu ku # grammars/syntax/cll.md @ "a place marker" # the shape of a tense with an elided sumti
 na ku # grammars/syntax/cll.md # the shape of a negation as a term
 mi ce'e do # grammars/syntax/cll.md # the shape of a termset
 nu'i gek terms nu'u gik terms nu'u # grammars/syntax/cll.md # notation: rule names between the cmavo
@@ -74,7 +75,7 @@ mi .e do # grammars/syntax/cll.md # the shape of an afterthought sumti connectio
 mi joi do # grammars/syntax/cll.md # the shape of a joik sumti connection
 ge mi gi do # grammars/syntax/cll.md # the shape of a forethought sumti connection
 re lo gerku # grammars/syntax/cll.md # the shape of an outer quantifier
-na'e bo # grammars/syntax/cll.md:313,505 # the shape of a NAhE sumti
+na'e bo # grammars/syntax/cll.md @ "makes a sumti from the referent" @ "A `la'e` or `na'e bo` reference" # the shape of a NAhE sumti
 le mi zdani # grammars/syntax/cll.md # the shape of a possessive inner sumti
 lo re lo gerku # grammars/syntax/cll.md # the shape of a quantifier and a sumti after a descriptor
 mi goi ko'a # grammars/syntax/cll.md # the shape of a goi clause
@@ -90,7 +91,7 @@ fi'o selbri fe'u # grammars/syntax/cll.md # notation: a rule name between the cm
 sei mi cusku # grammars/syntax/cll.md # the shape of a discursive bridi
 pa mai # grammars/syntax/cll.md # the shape of an utterance ordinal
 a e i o u # grammars/words/cll.md # notation: the vowel letters
-a e i o u # grammars/words/shapes.md:345,408 # notation: the vowel letters
+a e i o u # grammars/words/shapes.md @ "A vowel of a word form" @ "counts the syllables" # notation: the vowel letters
 c j s z # grammars/words/shapes.md # notation: a set of consonant letters
 b d g v j z # grammars/words/shapes.md # notation: the voiced consonant letters
 p t k f c s x # grammars/words/shapes.md # notation: the unvoiced consonant letters
@@ -100,13 +101,13 @@ ia ie ii io iu ua ue ui uo uu # grammars/words/shapes.md # notation: the rising 
 
 zu'a nu'i la djordj. la'u lo mitre be li mu # grammars/syntax/cll.md = term adhoc.syntax.tag-termset.1.cll-ebnf adhoc.syntax.tag-termset.9.bpfk
 zu'a nu'i la'u lo mitre be li mu # grammars/syntax/cll.md = term adhoc.syntax.tag-termset.2.cll-ebnf adhoc.syntax.tag-termset.10.bpfk
-tag termset # grammars/syntax/cll.md:282,875 # These are names of grammar rules in an alternative, not Lojban words.
-gi'a brodi # grammars/syntax/cll.md:192 = words adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti.bpfk
-pu ku # grammars/syntax/cll.md:213 = term adhoc.syntax.gek-term.3.cll-ebnf adhoc.syntax.gek-term.4.bpfk
-na'e ke # grammars/syntax/cll.md:118 = words adhoc.syntax.negation-scope.2.cll-ebnf adhoc.syntax.negation-scope.4.bpfk
-nu'u fa'u # grammars/syntax/cll.md:110 = words adhoc.syntax.errata.5.cll-ebnf adhoc.syntax.errata.6.bpfk
-pe'e fa'u # grammars/syntax/cll.md:110 # The words of the wiki's alternative correction, rather than a complete text.
-ractu du # grammars/syntax/cll.md:126 = words corpus.camxes.1112 adhoc.syntax.errata-controls.19.bpfk
-kanla viska # grammars/syntax/cll.md:821 = words adhoc.syntax.elision-unforced.3.cll-ebnf adhoc.syntax.elision-unforced.4.bpfk
-pu ca gi # grammars/syntax/cll.md:691 = gek adhoc.syntax.tag-stag-gek.sumti-time-time adhoc.syntax.tag-stag-gek.sumti-time-time.bpfk
-ca gi # grammars/syntax/cll.md:691 = gek adhoc.syntax.leftmost-longest.sumti-time-space-time adhoc.syntax.leftmost-longest.sumti-time-space-time.bpfk
+tag termset # grammars/syntax/cll.md @ "repairs printed rule 83" @ "lets a tense or modal govern" # These are names of grammar rules in an alternative, not Lojban words.
+gi'a brodi # grammars/syntax/cll.md @ "keeps plain `gi'e` inside" = words adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti.bpfk
+pu ku # grammars/syntax/cll.md @ "The official parser needs written" = term adhoc.syntax.gek-term.3.cll-ebnf adhoc.syntax.gek-term.4.bpfk
+na'e ke # grammars/syntax/cll.md @ "Example 15.55" = words adhoc.syntax.negation-scope.2.cll-ebnf adhoc.syntax.negation-scope.4.bpfk
+nu'u fa'u # grammars/syntax/cll.md @ "cannot join its halves" = words adhoc.syntax.errata.5.cll-ebnf adhoc.syntax.errata.6.bpfk
+pe'e fa'u # grammars/syntax/cll.md @ "The errata page instead proposes" # The words of the wiki's alternative correction, rather than a complete text.
+ractu du # grammars/syntax/cll.md @ "Example 18.126" = words corpus.camxes.1112 adhoc.syntax.errata-controls.19.bpfk
+kanla viska # grammars/syntax/cll.md @ "remains the modal selbri" = words adhoc.syntax.elision-unforced.3.cll-ebnf adhoc.syntax.elision-unforced.4.bpfk
+pu ca gi # grammars/syntax/cll.md @ "forms one connective" = gek adhoc.syntax.tag-stag-gek.sumti-time-time adhoc.syntax.tag-stag-gek.sumti-time-time.bpfk
+ca gi # grammars/syntax/cll.md @ "forms one connective" = gek adhoc.syntax.leftmost-longest.sumti-time-space-time adhoc.syntax.leftmost-longest.sumti-time-space-time.bpfk

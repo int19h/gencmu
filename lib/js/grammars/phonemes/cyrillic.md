@@ -46,6 +46,12 @@ The consonants are those of *The Complete Lojban Language* (CLL), section 3.12. 
   'ӏ' | 'Ӏ'
 ```
 
+<details><summary>Railroad diagrams of the 3 rules from <code>cyrillic-consonant</code> to <code>cyrillic-period</code></summary>
+<p><img src="../../docs/diagrams/phonemes/cyrillic/cyrillic-consonant.svg" alt="Railroad diagram of the rule cyrillic-consonant"></p>
+<p><img src="../../docs/diagrams/phonemes/cyrillic/cyrillic-apostrophe.svg" alt="Railroad diagram of the rule cyrillic-apostrophe"></p>
+<p><img src="../../docs/diagrams/phonemes/cyrillic/cyrillic-period.svg" alt="Railroad diagram of the rule cyrillic-period"></p>
+</details>
+
 The orthography has no apostrophe between vowels. Two adjacent vowel letters are two syllables, so `аи` is `a'i`. The orthography writes a diphthong with the short forms `й` and `ў`, so `ай` is `ai`. This is where the orthography differs from CLL 3.12, which writes a diphthong as a vowel pair, as the Latin orthography does.
 
 So a full vowel letter carries the tag `syllabic`, which the vowel-group rules of [latin-strict.md](latin-strict.md) read. The stage inserts an apostrophe between adjacent syllabic vowels. `й`, `ј` and `ў`, the glides, carry no such tag, and they join the vowel beside them into a diphthong.
@@ -90,6 +96,12 @@ A capital full vowel letter, or a combining accent after one, marks stress, as i
   $
 ```
 
+<details><summary>Railroad diagrams of the 3 rules from <code>cyrillic-plain-vowel</code> to <code>cyrillic-folded-vowel</code></summary>
+<p><img src="../../docs/diagrams/phonemes/cyrillic/cyrillic-plain-vowel.svg" alt="Railroad diagram of the rule cyrillic-plain-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/cyrillic/cyrillic-stressed-vowel.svg" alt="Railroad diagram of the rule cyrillic-stressed-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/cyrillic/cyrillic-folded-vowel.svg" alt="Railroad diagram of the rule cyrillic-folded-vowel"></p>
+</details>
+
 The script is gencmu's own reading of Cyrillic. [cyrillic-cll.md](cyrillic-cll.md) reads CLL's, which writes a diphthong as a vowel pair. The two read the same letters differently, so a dialect or a caller chooses one with the feature `cll-cyrillic`. A feature is a named switch that the grammars test. The letters of this document apply while `cll-cyrillic` is off.
 
 ```jbogenbau
@@ -111,3 +123,12 @@ The script is gencmu's own reading of Cyrillic. [cyrillic-cll.md](cyrillic-cll.m
 %extend-rule folded-vowel
   ¬cll-cyrillic? cyrillic-folded-vowel
 ```
+
+<details><summary>Railroad diagrams of the 6 rules from <code>consonant</code> to <code>folded-vowel</code></summary>
+<p><img src="../../docs/diagrams/phonemes/cyrillic/consonant.svg" alt="Railroad diagram of the rule consonant"></p>
+<p><img src="../../docs/diagrams/phonemes/cyrillic/apostrophe.svg" alt="Railroad diagram of the rule apostrophe"></p>
+<p><img src="../../docs/diagrams/phonemes/cyrillic/core-char.svg" alt="Railroad diagram of the rule core-char"></p>
+<p><img src="../../docs/diagrams/phonemes/cyrillic/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/cyrillic/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/cyrillic/folded-vowel.svg" alt="Railroad diagram of the rule folded-vowel"></p>
+</details>

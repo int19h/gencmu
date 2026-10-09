@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="479" height="170" viewBox="0 0 479 170" role="img" aria-label="Railroad diagram of the rule leading-attitudinal-nai">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="193.2" lengthAdjust="spacingAndGlyphs">leading-attitudinal-nai</text>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<path d="M20 46h20"/>
+<g class="rule"><rect x="40" y="34" width="109" height="24" rx="0"/><text x="94.5" y="51" textLength="92.4" lengthAdjust="spacingAndGlyphs">attitudinal</text></g>
+<path d="M149 46h10"/>
+<g class="terminal"><rect x="159" y="34" width="92" height="24" rx="12"/><text x="205" y="51" textLength="75.6" lengthAdjust="spacingAndGlyphs">~word⊇NAI</text></g>
+<path d="M251 46H459"/>
+<path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="68" width="84" height="24" rx="0"/><text x="82" y="85" textLength="67.2" lengthAdjust="spacingAndGlyphs">bahe-run</text></g>
+<path d="M124 80h10"/>
+<g class="rule"><rect x="134" y="68" width="109" height="24" rx="0"/><text x="188.5" y="85" textLength="92.4" lengthAdjust="spacingAndGlyphs">attitudinal</text></g>
+<path d="M243 80h10"/>
+<g class="terminal"><rect x="253" y="68" width="92" height="24" rx="12"/><text x="299" y="85" textLength="75.6" lengthAdjust="spacingAndGlyphs">~word⊇NAI</text></g>
+<path d="M345 80H439a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="102" width="109" height="24" rx="0"/><text x="94.5" y="119" textLength="92.4" lengthAdjust="spacingAndGlyphs">attitudinal</text></g>
+<path d="M149 114h10"/>
+<g class="rule"><rect x="159" y="102" width="84" height="24" rx="0"/><text x="201" y="119" textLength="67.2" lengthAdjust="spacingAndGlyphs">bahe-run</text></g>
+<path d="M243 114h10"/>
+<g class="terminal"><rect x="253" y="102" width="92" height="24" rx="12"/><text x="299" y="119" textLength="75.6" lengthAdjust="spacingAndGlyphs">~word⊇NAI</text></g>
+<path d="M345 114H439a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="136" width="84" height="24" rx="0"/><text x="82" y="153" textLength="67.2" lengthAdjust="spacingAndGlyphs">bahe-run</text></g>
+<path d="M124 148h10"/>
+<g class="rule"><rect x="134" y="136" width="109" height="24" rx="0"/><text x="188.5" y="153" textLength="92.4" lengthAdjust="spacingAndGlyphs">attitudinal</text></g>
+<path d="M243 148h10"/>
+<g class="rule"><rect x="253" y="136" width="84" height="24" rx="0"/><text x="295" y="153" textLength="67.2" lengthAdjust="spacingAndGlyphs">bahe-run</text></g>
+<path d="M337 148h10"/>
+<g class="terminal"><rect x="347" y="136" width="92" height="24" rx="12"/><text x="393" y="153" textLength="75.6" lengthAdjust="spacingAndGlyphs">~word⊇NAI</text></g>
+<path d="M439 148H439a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M459 46h6m0 -8v16m4 -16v16"/>
+</svg>

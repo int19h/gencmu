@@ -57,3 +57,14 @@ In the experimental dialect, a marker that opens no quote is an ordinary word. [
 %emits
   $
 ```
+
+<details><summary>Railroad diagrams of the 8 rules from <code>quote</code> to <code>lehai-marker</code></summary>
+<p><img src="../../docs/diagrams/words/lohai/quote.svg" alt="Railroad diagram of the rule quote"></p>
+<p><img src="../../docs/diagrams/words/lohai/lohai-quote.svg" alt="Railroad diagram of the rule lohai-quote"></p>
+<p><img src="../../docs/diagrams/words/lohai/lohai-run.svg" alt="Railroad diagram of the rule lohai-run"></p>
+<p><img src="../../docs/diagrams/words/lohai/lohai-stream.svg" alt="Railroad diagram of the rule lohai-stream"></p>
+<p><img src="../../docs/diagrams/words/lohai/lohai-element.svg" alt="Railroad diagram of the rule lohai-element"></p>
+<p><img src="../../docs/diagrams/words/lohai/lohai-word.svg" alt="Railroad diagram of the rule lohai-word"></p>
+<p><img src="../../docs/diagrams/words/lohai/lohai-marker.svg" alt="Railroad diagram of the rule lohai-marker"></p>
+<p><img src="../../docs/diagrams/words/lohai/lehai-marker.svg" alt="Railroad diagram of the rule lehai-marker"></p>
+</details>

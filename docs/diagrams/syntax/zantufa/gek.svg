@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="384" height="214" viewBox="0 0 384 214" role="img" aria-label="Railroad diagram of the rule gek">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="25.2" lengthAdjust="spacingAndGlyphs">gek</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<path d="M40 56h20"/>
+<g class="terminal"><rect x="60" y="44" width="33" height="24" rx="12"/><text x="76.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">SE</text></g>
+<path d="M93 56h10"/>
+<g class="rule"><rect x="103" y="44" width="25" height="24" rx="0"/><text x="115.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M128 56H148"/>
+<path d="M40 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H128a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M148 56h10"/>
+<g class="terminal"><rect x="158" y="44" width="33" height="24" rx="12"/><text x="174.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">GA</text></g>
+<path d="M191 56h10"/>
+<g class="rule"><rect x="201" y="44" width="25" height="24" rx="0"/><text x="213.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M226 56H246"/>
+<path d="M20 56a10 10 0 0 1 10 10V80a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="78" width="33" height="24" rx="12"/><text x="56.5" y="95" textLength="16.8" lengthAdjust="spacingAndGlyphs">GI</text></g>
+<path d="M73 90h10"/>
+<g class="rule"><rect x="83" y="78" width="25" height="24" rx="0"/><text x="95.5" y="95" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M108 90h10"/>
+<path d="M118 90h20"/>
+<g class="rule"><rect x="138" y="78" width="50" height="24" rx="0"/><text x="163" y="95" textLength="33.6" lengthAdjust="spacingAndGlyphs">joik</text></g>
+<path d="M188 90H208"/>
+<path d="M118 90a10 10 0 0 1 10 10V114a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="138" y="112" width="42" height="24" rx="0"/><text x="159" y="129" textLength="25.2" lengthAdjust="spacingAndGlyphs">tag</text></g>
+<path d="M180 124H188a10 10 0 0 0 10 -10V100a10 10 0 0 1 10 -10"/>
+<path d="M208 90H226a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M20 56a10 10 0 0 1 10 10V148a10 10 0 0 0 10 10"/>
+<path d="M40 158h20"/>
+<g class="rule"><rect x="60" y="146" width="50" height="24" rx="0"/><text x="85" y="163" textLength="33.6" lengthAdjust="spacingAndGlyphs">joik</text></g>
+<path d="M110 158H130"/>
+<path d="M40 158a10 10 0 0 1 10 10V182a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="60" y="180" width="42" height="24" rx="0"/><text x="81" y="197" textLength="25.2" lengthAdjust="spacingAndGlyphs">tag</text></g>
+<path d="M102 192H110a10 10 0 0 0 10 -10V168a10 10 0 0 1 10 -10"/>
+<path d="M130 158h10"/>
+<g class="terminal"><rect x="140" y="146" width="33" height="24" rx="12"/><text x="156.5" y="163" textLength="16.8" lengthAdjust="spacingAndGlyphs">GI</text></g>
+<path d="M173 158h10"/>
+<g class="rule"><rect x="183" y="146" width="25" height="24" rx="0"/><text x="195.5" y="163" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M208 158H226a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M246 56h10"/>
+<path d="M256 56h20"/>
+<g class="terminal"><rect x="276" y="44" width="33" height="24" rx="12"/><text x="292.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">BO</text></g>
+<path d="M309 56h10"/>
+<g class="rule"><rect x="319" y="44" width="25" height="24" rx="0"/><text x="331.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M344 56H364"/>
+<path d="M256 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H344a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M364 56h6m0 -8v16m4 -16v16"/>
+</svg>

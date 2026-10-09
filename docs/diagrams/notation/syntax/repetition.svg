@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="564" height="166" viewBox="0 0 564 166" role="img" aria-label="Railroad diagram of the rule repetition">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="84" lengthAdjust="spacingAndGlyphs">repetition</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<g class="terminal"><rect x="40" y="44" width="42" height="24" rx="12"/><text x="61" y="61" textLength="25.2" lengthAdjust="spacingAndGlyphs">'{'</text></g>
+<path d="M82 56h10"/>
+<g class="rule"><rect x="92" y="44" width="67" height="24" rx="0"/><text x="125.5" y="61" textLength="50.4" lengthAdjust="spacingAndGlyphs">choice</text></g>
+<path d="M159 56h10"/>
+<path d="M169 56h20"/>
+<g class="terminal"><rect x="189" y="44" width="84" height="24" rx="12"/><text x="231" y="61" textLength="67.2" lengthAdjust="spacingAndGlyphs">'\u{5C}'</text></g>
+<path d="M273 56h10"/>
+<g class="rule"><rect x="283" y="44" width="67" height="24" rx="0"/><text x="316.5" y="61" textLength="50.4" lengthAdjust="spacingAndGlyphs">choice</text></g>
+<path d="M350 56H370"/>
+<path d="M169 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H350a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M370 56h10"/>
+<g class="terminal"><rect x="380" y="44" width="42" height="24" rx="12"/><text x="401" y="61" textLength="25.2" lengthAdjust="spacingAndGlyphs">'}'</text></g>
+<path d="M422 56H544"/>
+<path d="M20 56a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="88" width="42" height="24" rx="12"/><text x="61" y="105" textLength="25.2" lengthAdjust="spacingAndGlyphs">'{'</text></g>
+<path d="M82 100h10"/>
+<g class="terminal"><rect x="92" y="88" width="92" height="24" rx="12"/><text x="138" y="105" textLength="75.6" lengthAdjust="spacingAndGlyphs">~ellipsis</text></g>
+<path d="M184 100h10"/>
+<g class="rule"><rect x="194" y="88" width="67" height="24" rx="0"/><text x="227.5" y="105" textLength="50.4" lengthAdjust="spacingAndGlyphs">choice</text></g>
+<path d="M261 100h10"/>
+<path d="M271 100h20"/>
+<g class="terminal"><rect x="291" y="88" width="84" height="24" rx="12"/><text x="333" y="105" textLength="67.2" lengthAdjust="spacingAndGlyphs">'\u{5C}'</text></g>
+<path d="M375 100h10"/>
+<g class="rule"><rect x="385" y="88" width="67" height="24" rx="0"/><text x="418.5" y="105" textLength="50.4" lengthAdjust="spacingAndGlyphs">choice</text></g>
+<path d="M452 100H472"/>
+<path d="M271 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H452a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M472 100h10"/>
+<g class="terminal"><rect x="482" y="88" width="42" height="24" rx="12"/><text x="503" y="105" textLength="25.2" lengthAdjust="spacingAndGlyphs">'}'</text></g>
+<path d="M524 100H524a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M20 56a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="132" width="42" height="24" rx="12"/><text x="61" y="149" textLength="25.2" lengthAdjust="spacingAndGlyphs">'{'</text></g>
+<path d="M82 144h10"/>
+<g class="rule"><rect x="92" y="132" width="67" height="24" rx="0"/><text x="125.5" y="149" textLength="50.4" lengthAdjust="spacingAndGlyphs">choice</text></g>
+<path d="M159 144h10"/>
+<g class="terminal"><rect x="169" y="132" width="92" height="24" rx="12"/><text x="215" y="149" textLength="75.6" lengthAdjust="spacingAndGlyphs">~ellipsis</text></g>
+<path d="M261 144h10"/>
+<path d="M271 144h20"/>
+<g class="terminal"><rect x="291" y="132" width="84" height="24" rx="12"/><text x="333" y="149" textLength="67.2" lengthAdjust="spacingAndGlyphs">'\u{5C}'</text></g>
+<path d="M375 144h10"/>
+<g class="rule"><rect x="385" y="132" width="67" height="24" rx="0"/><text x="418.5" y="149" textLength="50.4" lengthAdjust="spacingAndGlyphs">choice</text></g>
+<path d="M452 144H472"/>
+<path d="M271 144a10 10 0 0 0 10 -10V132a10 10 0 0 1 10 -10H452a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
+<path d="M472 144h10"/>
+<g class="terminal"><rect x="482" y="132" width="42" height="24" rx="12"/><text x="503" y="149" textLength="25.2" lengthAdjust="spacingAndGlyphs">'}'</text></g>
+<path d="M524 144H524a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M544 56h6m0 -8v16m4 -16v16"/>
+</svg>

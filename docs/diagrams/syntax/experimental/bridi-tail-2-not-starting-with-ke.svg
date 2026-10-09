@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="827" height="166" viewBox="0 0 827 166" role="img" aria-label="Railroad diagram of the rule bridi-tail-2-not-starting-with-ke">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="277.2" lengthAdjust="spacingAndGlyphs">bridi-tail-2-not-starting-with-ke</text>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<path d="M20 46h20"/>
+<g class="rule"><rect x="40" y="34" width="294" height="24" rx="0"/><text x="187" y="51" textLength="277.2" lengthAdjust="spacingAndGlyphs">bridi-tail-3-not-starting-with-ke</text></g>
+<path d="M334 46H787a10 10 0 0 1 10 10V58a10 10 0 0 1 -10 10H40a10 10 0 0 0 -10 10V100a10 10 0 0 0 10 10"/>
+<path d="M40 110h20"/>
+<path d="M60 110h20"/>
+<g class="rule"><rect x="80" y="98" width="193" height="24" rx="0"/><text x="176.5" y="115" textLength="176.4" lengthAdjust="spacingAndGlyphs">bridi-tail-connective</text></g>
+<path d="M273 110h10"/>
+<path d="M283 110h20"/>
+<g class="rule"><rect x="303" y="98" width="50" height="24" rx="0"/><text x="328" y="115" textLength="33.6" lengthAdjust="spacingAndGlyphs">stag</text></g>
+<path d="M353 110H373"/>
+<path d="M283 110a10 10 0 0 0 10 -10V98a10 10 0 0 1 10 -10H353a10 10 0 0 1 10 10V100a10 10 0 0 0 10 10"/>
+<path d="M373 110H393"/>
+<path d="M60 110a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="80" y="132" width="33" height="24" rx="12"/><text x="96.5" y="149" textLength="16.8" lengthAdjust="spacingAndGlyphs">GI</text></g>
+<path d="M113 144h10"/>
+<g class="rule"><rect x="123" y="132" width="50" height="24" rx="0"/><text x="148" y="149" textLength="33.6" lengthAdjust="spacingAndGlyphs">stag</text></g>
+<path d="M173 144H373a10 10 0 0 0 10 -10V120a10 10 0 0 1 10 -10"/>
+<path d="M393 110h10"/>
+<g class="terminal"><rect x="403" y="98" width="33" height="24" rx="12"/><text x="419.5" y="115" textLength="16.8" lengthAdjust="spacingAndGlyphs">BO</text></g>
+<path d="M436 110h10"/>
+<g class="rule"><rect x="446" y="98" width="25" height="24" rx="0"/><text x="458.5" y="115" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M471 110h10"/>
+<g class="rule"><rect x="481" y="98" width="176" height="24" rx="0"/><text x="569" y="115" textLength="159.6" lengthAdjust="spacingAndGlyphs">headed-bridi-tail-2</text></g>
+<path d="M657 110h10"/>
+<g class="rule"><rect x="667" y="98" width="100" height="24" rx="0"/><text x="717" y="115" textLength="84" lengthAdjust="spacingAndGlyphs">tail-terms</text></g>
+<path d="M767 110H787"/>
+<path d="M40 110a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H767a10 10 0 0 1 10 10V100a10 10 0 0 0 10 10"/>
+<path d="M787 110H807"/>
+<path d="M807 110h6m0 -8v16m4 -16v16"/>
+</svg>

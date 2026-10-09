@@ -1029,3 +1029,107 @@ pub fn checking<T>(checks: Checks, work: impl FnOnce() -> T) -> T {
     let _restore = Restore;
     work()
 }
+
+// ---- Places in the shared fixtures (tests/README.md, "Places in fixtures")
+
+/// In a fixture's `find` and `replace`, a source position of any value.
+const ANY_POSITION: &str = r#""at":[*]"#;
+
+/// A place where a fixture's `find` stands, with the positions that its
+/// wildcards stand for, as "LINE,COLUMN".
+pub struct FixturePlace {
+    pub start: usize,
+    pub end: usize,
+    pub positions: Vec<String>,
+}
+
+/// The position `"at":[LINE,COLUMN]` at the start of `text`, as "LINE,COLUMN"
+/// and its length.
+fn position_at(text: &str) -> Option<(String, usize)> {
+    let rest = text.strip_prefix(r#""at":["#)?;
+    let line = rest.bytes().take_while(u8::is_ascii_digit).count();
+    let after = rest[line..].strip_prefix(',')?;
+    let column = after.bytes().take_while(u8::is_ascii_digit).count();
+    if line == 0 || column == 0 || !after[column..].starts_with(']') {
+        return None;
+    }
+    let value = format!("{},{}", &rest[..line], &after[..column]);
+    Some((value, r#""at":["#.len() + line + 1 + column + 1))
+}
+
+/// Every place where a fixture's `find` stands in `text`.
+pub fn find_places(text: &str, find: &str) -> Vec<FixturePlace> {
+    let pieces: Vec<&str> = find.split(ANY_POSITION).collect();
+    let mut places = Vec::new();
+    let mut from = 0;
+    while let Some(offset) = text[from..].find(pieces[0]) {
+        let start = from + offset;
+        let mut at = start + pieces[0].len();
+        let mut positions = Vec::new();
+        for piece in &pieces[1..] {
+            let Some((value, length)) = position_at(&text[at..]) else { break };
+            if !text[at + length..].starts_with(piece) {
+                break;
+            }
+            positions.push(value);
+            at += length + piece.len();
+        }
+        if positions.len() == pieces.len() - 1 {
+            places.push(FixturePlace { start, end: at, positions });
+        }
+        // The next place begins after this one's first character.
+        from = start + text[start..].chars().next().map_or(1, char::len_utf8);
+        if from > text.len() {
+            break;
+        }
+    }
+    places
+}
+
+/// `text` with the first place of `find` replaced by `replace`, whose
+/// wildcards take the positions of those of `find`, in order.
+pub fn try_substitute(text: &str, find: &str, replace: &str) -> Result<String, String> {
+    let places = find_places(text, find);
+    let place = places.first().ok_or_else(|| format!("the fixture's find is not in the text: {find}"))?;
+    let pieces: Vec<&str> = replace.split(ANY_POSITION).collect();
+    if pieces.len() - 1 > place.positions.len() {
+        return Err(format!("the fixture's replace has more wildcards than its find: {replace}"));
+    }
+    let mut result = String::from(&text[..place.start]);
+    result.push_str(pieces[0]);
+    for (piece, position) in pieces[1..].iter().zip(&place.positions) {
+        result.push_str(&format!(r#""at":[{position}]"#));
+        result.push_str(piece);
+    }
+    result.push_str(&text[place.end..]);
+    Ok(result)
+}
+
+/// As `try_substitute`, for a fixture that must hold.
+pub fn substitute(text: &str, find: &str, replace: &str) -> String {
+    try_substitute(text, find, replace).unwrap_or_else(|error| panic!("{error}"))
+}
+
+/// The line and column, counted from 1, where `needle` stands in `text`,
+/// which must hold it exactly once. A second place may overlap the first.
+/// A line ends at CR LF, CR or LF, and a column counts code points.
+pub fn try_position_of(text: &str, needle: &str) -> Result<(usize, usize), String> {
+    if needle.is_empty() {
+        return Err("an empty text stands everywhere in the document".to_string());
+    }
+    let first = text.find(needle).ok_or_else(|| format!("{needle:?} stands nowhere in the document"))?;
+    // The search for a second place goes on after the first place's first
+    // character, at a character boundary.
+    let next = first + text[first..].chars().next().map_or(1, char::len_utf8);
+    if text[next..].contains(needle) {
+        return Err(format!("{needle:?} stands more than once in the document"));
+    }
+    let before = text[..first].replace("\r\n", "\n").replace('\r', "\n");
+    let line_start = before.rfind('\n').map_or(0, |at| at + 1);
+    Ok((before.matches('\n').count() + 1, before[line_start..].chars().count() + 1))
+}
+
+/// As `try_position_of`, for a fixture that must hold.
+pub fn position_of(text: &str, needle: &str) -> (usize, usize) {
+    try_position_of(text, needle).unwrap_or_else(|error| panic!("{error}"))
+}

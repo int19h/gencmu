@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="281" height="112" viewBox="0 0 281 112" role="img" aria-label="Railroad diagram of the rule choice">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="50.4" lengthAdjust="spacingAndGlyphs">choice</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<g class="terminal"><rect x="40" y="44" width="42" height="24" rx="12"/><text x="61" y="61" textLength="25.2" lengthAdjust="spacingAndGlyphs">'|'</text></g>
+<path d="M82 56H102"/>
+<path d="M20 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H82a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M102 56h10"/>
+<path d="M112 56h20"/>
+<g class="rule"><rect x="132" y="44" width="109" height="24" rx="0"/><text x="186.5" y="61" textLength="92.4" lengthAdjust="spacingAndGlyphs">conjunction</text></g>
+<path d="M241 56H261"/>
+<path d="M241 56a10 10 0 0 1 10 10V80a10 10 0 0 1 -10 10H207.5"/>
+<g class="terminal"><rect x="165.5" y="78" width="42" height="24" rx="12"/><text x="186.5" y="95" textLength="25.2" lengthAdjust="spacingAndGlyphs">'|'</text></g>
+<path d="M165.5 90H132a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M261 56h6m0 -8v16m4 -16v16"/>
+</svg>

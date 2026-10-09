@@ -125,7 +125,7 @@ Each library reads the document as a grammar document (engine §8, §9). The rea
 
 ## Bootstrap errors: `bootstrap-errors.json`
 
-Each case supplies bootstrap text or replaces the first occurrence of `find` with `replace` in the bundled bootstrap. Each library loads a simple pipeline with that bootstrap and requires a grammar error. The error must name `notation/bootstrap.json`, including failures that arise when the loader constructs the stages. If a case supplies `line` and `column`, the error must keep that position.
+Each case supplies bootstrap text or replaces the first place of `find` with `replace` in the bundled bootstrap, as "Places in fixtures" says. Each library loads a simple pipeline with that bootstrap and requires a grammar error. The error must name `notation/bootstrap.json`, including failures that arise when the loader constructs the stages. If a case supplies `line` and `column`, the error must keep that position. A case of the bundled bootstrap gives `at` instead, and the error must stand where `at` stands in the document `context`.
 
 ## Notation shapes: `notation-shapes.json`
 
@@ -139,9 +139,18 @@ A caller can supply its own `notation/bootstrap.json` (`docs/api.md`). Its notat
 - Then each rule of the bundled bootstrap's syntax document, except `text`, gets a wrapper: a new rule whose one alternative is a reference to it. Every reference to the rule in that document becomes a reference to its wrapper. The outcomes are `control` again.
 - Then each rule of that document, except `text`, gets a new name in turn: its name with `x` after it, in its definition and in every reference to it. A rule named in `loads` gives a dialect, and the outcomes are those of `loads`. Any other rule gives the load error `grammar`. No other error escapes the library.
 
-Each item of `extraParts` gives a rule a part that the reader does not read. In the bundled bootstrap's syntax document, the text `find` stands once, and the bootstrap of the item has `replace` in its place. Each library loads the item's `document` with that bootstrap and parses its `inputs`, as above. The outcomes are those of `expect`.
+Each item of `extraParts` gives a rule a part that the reader does not read. In the bundled bootstrap's syntax document, `find` stands once, and the bootstrap of the item has `replace` in its place ("Places in fixtures"). Each library loads the item's `document` with that bootstrap and parses its `inputs`, as above. The outcomes are those of `expect`.
 
 The extra part holds text that the reader refuses if it reads it, so an outcome other than `expect` shows that the library read it. Other items give a rule of the notation another shape, such as a `repetition` whose markers stand elsewhere. An item whose `expect` is a load error can give `where`, `{"document": "g.md", "line": 3, "column": 21}`, the place of that error in its document. The load must then fail there, as `expect.where` says for an engine case.
+
+## Places in fixtures
+
+No fixture names a line of a grammar document by its number. So an edit of a document never changes a fixture, unless it changes what the fixture is about. A fixture names a place by its content in two ways.
+
+- In the `find` and `replace` of `bootstrap-errors.json` and `notation-shapes.json`, `"at":[*]` stands for a source position, `"at":[LINE,COLUMN]`, of any value. A place of `find` is a place where the text matches it, each `"at":[*]` matching one position. In `replace`, each `"at":[*]` takes the position that the one in the same order in `find` matched. So in `bootstrap-errors.json`, the `find` `"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[*]}]` finds the lexical document's directives wherever the directive stands. The text of `find` is literal apart from `"at":[*]`.
+- In `bootstrap-errors.json`, `at` is a text that stands exactly once in the grammar document `context`. The expected line and column of the error are those of the first character of that text. A line ends at CR LF, CR or LF, and a column counts code points.
+
+Each library's runner finds these places in the same way, and `places.json` holds cases that every runner checks its helpers against. Each entry of its `positions` gives a text, a `needle`, a line and a column. The line and column are `null` where the needle is absent, repeated or empty. Each entry of its `substitutions` gives a text, a `find`, a `replace`, the number of places of `find` and the expected result. The result is the text after the replacement, or `null` where `find` stands nowhere. `tests/quoted-allow.txt` names the lines of its entries by phrases, as "Quoted texts" says.
 
 ## Malformed directives: `dom-malformed.json`
 
@@ -279,11 +288,13 @@ When a case fails, the JavaScript corpus runner names the lines that the case pi
 
 Every case that pins a quoted text, by its own text or through an entry of `quoted-allow.txt`, is in `core.txt`. So every library runs it on a pull request. The check reports a case that is not there.
 
-Each entry of `quoted-allow.txt` covers one quoted text in one document: every line that quotes it there, or the lines that the entry names. Its line is the text, then ` # `, then the document, with `:` and its lines where it names them (as `grammars/syntax/cll.md:74,76`), and then one of these:
+Each entry of `quoted-allow.txt` covers one quoted text in one document: every line that quotes it there, or the lines that the entry names. Its line is the text, then ` # `, then the document, with ` @ "PHRASE"` for each line where it names them. An example is `va pu # grammars/syntax/cll.md @ "Space can precede time"`. Then comes one of these:
 
 - ` = ` and cases, each as its id after its role. A role applies to the ids after it, and a role with no id after it is an error. A role is the name of a rule, `words` or `reject`. The check parses each case. With a rule, the tree of some stage has a node of that rule whose words are exactly the quoted text. With `words`, some stage gives the text's words as the labels of tokens in a row, one label for each word. The label of a word is the word without the full stops and commas at its edges, with a space for each full stop inside it. So `la djim.bu` is the labels `la` and `djim bu`. These tokens, with their attachments, also stand together in the case's text: no letter between them is outside them. So `mi ui klama` shows `mi klama`, and `mi do si klama` does not. With `reject`, the dialect rejects the case, and both its `at` and the start of the source of the parsed error fall within the quoted text in the case's text, or within the word after it. Among the cases, there is one of each dialect that the text needs, even a dialect where a case of the whole text has the fragment's words: that case does not show the claim about the fragment. This form is for a part of a text that the sentence makes a claim about: a special grouping, a rejection or a repair. An example is `na'e ka'e` as one `simple-tense-modal`. The author checks that the role is the one that the sentence gives the fragment.
 - ` # ` and the reason. This form is for notation, such as `nu'i terms nu'u`, and for a shape that a rule produces as written, such as `mi .e do`. It is also for a part of a reading that the grammar does not choose, where the whole text has its own case. A reason that begins with "deferred:" names the branch that owes the text a pin.
 
-The sentence on each line makes its own claim. So when a document quotes a text unpinned on more than one line, its entry names those lines, and a line can have an entry of its own. The check reports an entry that names no lines and covers several, and a named line that does not need the entry.
+The sentence on each line makes its own claim. So when a document quotes a text unpinned on more than one line, its entry names those lines, and a line can have an entry of its own.
+
+A phrase names a line by its content, not by its number. So an edit above the line never changes the entry. The phrase is a part of the line's Markdown, such as a few words of the sentence that quotes the text. It names the one line of the document that quotes the text and holds the phrase. The check reports a phrase on no such line or on several. It also reports an entry that names no lines and covers several, and a named line that does not need the entry.
 
 Lines that begin with `#` are comments. An entry that the check does not need is an error, so the list does not keep stale entries.

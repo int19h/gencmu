@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="405" height="88" viewBox="0 0 405 88" role="img" aria-label="Railroad diagram of the rule spacing">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="58.8" lengthAdjust="spacingAndGlyphs">spacing</text>
+<path d="M10 58v16m4 -16v16M14 66h6"/>
+<path d="M20 66h20"/>
+<g class="terminal"><rect x="40" y="54" width="58" height="24" rx="12"/><text x="69" y="71" textLength="42" lengthAdjust="spacingAndGlyphs">PAUSE</text></g>
+<path d="M98 66H118"/>
+<path d="M20 66a10 10 0 0 0 10 -10V54a10 10 0 0 1 10 -10H98a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M118 66h10"/>
+<path d="M128 66h20"/>
+<g class="rule"><rect x="148" y="54" width="109" height="24" rx="0"/><text x="202.5" y="71" textLength="92.4" lengthAdjust="spacingAndGlyphs">hesitations</text></g>
+<path d="M257 66h10"/>
+<path d="M267 66h20"/>
+<g class="terminal"><rect x="287" y="54" width="58" height="24" rx="12"/><text x="316" y="71" textLength="42" lengthAdjust="spacingAndGlyphs">PAUSE</text></g>
+<path d="M345 66H365"/>
+<path d="M267 66a10 10 0 0 0 10 -10V54a10 10 0 0 1 10 -10H345a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M365 66H385"/>
+<path d="M128 66a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H365a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M385 66h6m0 -8v16m4 -16v16"/>
+</svg>

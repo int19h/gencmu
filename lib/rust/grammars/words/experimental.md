@@ -26,6 +26,10 @@ The prose uses these Lojban terms for words:
   ¬begins(after($c), m)
 ```
 
+<details><summary>Railroad diagram of <code>m</code></summary>
+<p><img src="../../docs/diagrams/words/experimental/m.svg" alt="Railroad diagram of the rule m"></p>
+</details>
+
 ## Extended rafsi
 
 The working morphology has two kinds of extended rafsi, which let a word, whole or cut short, stand before a y-hyphen inside a compound. A `brivla_rafsi` is the head of a brivla of two syllables or more, followed by `'y`, as in `klama'ybroda`. A `fuhivla_rafsi` is the head of a borrowing, followed by an onset and `y`, as in `spageiybroda`.
@@ -49,6 +53,12 @@ camxes-exp replaces the first kind with `hy_rafsi`, which the working morphology
   long-rafsi unstressed-vowel
 ```
 
+<details><summary>Railroad diagrams of the 3 rules from <code>extended-rafsi</code> to <code>long-rafsi-vowel</code></summary>
+<p><img src="../../docs/diagrams/words/experimental/extended-rafsi.svg" alt="Railroad diagram of the rule extended-rafsi"></p>
+<p><img src="../../docs/diagrams/words/experimental/stressed-extended-rafsi.svg" alt="Railroad diagram of the rule stressed-extended-rafsi"></p>
+<p><img src="../../docs/diagrams/words/experimental/long-rafsi-vowel.svg" alt="Railroad diagram of the rule long-rafsi-vowel"></p>
+</details>
+
 By itself, a `hy_rafsi` can also begin a brivla with a CCV rafsi, `'y` and the next rafsi. camxes-exp refuses that start, which it calls `slihykru`. So camxes-exp reads `kerlybla'ykla` as one word, but not `bla'ykla`, which the working morphology rejects too. Only that test uses the rule. Its first choice needs no order, because a CCV rafsi has an unstressed vowel and a stressed CCV rafsi a stressed one.
 
 ```jbogenbau
@@ -62,6 +72,11 @@ By itself, a `hy_rafsi` can also begin a brivla with a CCV rafsi, `'y` and the n
   (ccv-rafsi | stressed-ccv-rafsi) h y onset
 ```
 
+<details><summary>Railroad diagrams of <code>brivla</code> and <code>slihykru</code></summary>
+<p><img src="../../docs/diagrams/words/experimental/brivla.svg" alt="Railroad diagram of the rule brivla"></p>
+<p><img src="../../docs/diagrams/words/experimental/slihykru.svg" alt="Railroad diagram of the rule slihykru"></p>
+</details>
+
 In camxes-exp, the onset after the head of the rafsi of a borrowing can be an apostrophe. So `kerlyfa'u'yiismu` is one word: the rafsi `kerly` and `fa'u'y`, and the borrowing `iismu`. The working morphology rejects it.
 
 ```jbogenbau
@@ -73,6 +88,11 @@ In camxes-exp, the onset after the head of the rafsi of a borrowing can be an ap
 %redefine-rule stressed-fuhivla-rafsi (* stressed_fuhivla_rafsi <- fuhivla_head stressed_syllable consonantal_syllable* onset y *)
   fuhivla-head stressed-syllable consonantal-syllables onset y
 ```
+
+<details><summary>Railroad diagrams of <code>fuhivla-rafsi</code> and <code>stressed-fuhivla-rafsi</code></summary>
+<p><img src="../../docs/diagrams/words/experimental/fuhivla-rafsi.svg" alt="Railroad diagram of the rule fuhivla-rafsi"></p>
+<p><img src="../../docs/diagrams/words/experimental/stressed-fuhivla-rafsi.svg" alt="Railroad diagram of the rule stressed-fuhivla-rafsi"></p>
+</details>
 
 In the working morphology, a short rafsi without a y-hyphen cannot stand where an extended rafsi or a borrowing begins, or directly before one. In camxes-exp, it cannot stand where a borrowing or the rafsi of a borrowing begins, or directly before one. After this redefinition, nothing reads the rule `any-extended-rafsi` of bpfk.md.
 
@@ -91,6 +111,11 @@ In the working morphology, a short rafsi without a y-hyphen cannot stand where a
 %rule any-fuhivla-rafsi       (* any_fuhivla_rafsi <- fuhivla / fuhivla_rafsi / stressed_fuhivla_rafsi; only a lookahead *)
   fuhivla | fuhivla-rafsi | stressed-fuhivla-rafsi
 ```
+
+<details><summary>Railroad diagrams of <code>initial-rafsi</code> and <code>any-fuhivla-rafsi</code></summary>
+<p><img src="../../docs/diagrams/words/experimental/initial-rafsi.svg" alt="Railroad diagram of the rule initial-rafsi"></p>
+<p><img src="../../docs/diagrams/words/experimental/any-fuhivla-rafsi.svg" alt="Railroad diagram of the rule any-fuhivla-rafsi"></p>
+</details>
 
 ## Glides
 

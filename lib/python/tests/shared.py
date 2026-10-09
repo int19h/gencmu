@@ -16,6 +16,7 @@ import json
 import linecache
 import os
 from pathlib import Path
+import re
 import signal
 import sys
 import textwrap
@@ -1066,3 +1067,57 @@ def apply_mutant(value: dict[str, Any], mutant: dict[str, Any]) -> dict[str, Any
     else:
         raise AssertionError(f"the mutant {mutant['name']} changes nothing")
     return value
+
+
+# ---- Places in the shared fixtures (tests/README.md, "Places in fixtures")
+
+# In a fixture's find and replace, a source position of any value.
+ANY_POSITION = '"at":[*]'
+_POSITION_AT = re.compile(r'"at":\[(\d+,\d+)\]')
+
+
+def find_places(text: str, find: str) -> list[tuple[int, int, list[str]]]:
+    """Every place where a fixture's find stands in text: its start, its
+    end, and the positions that its wildcards stand for, as "LINE,COLUMN"."""
+    first, *rest = find.split(ANY_POSITION)
+    places = []
+    start = text.find(first)
+    while start != -1:
+        at = start + len(first)
+        positions = []
+        for piece in rest:
+            found = _POSITION_AT.match(text, at)
+            if not found or not text.startswith(piece, found.end()):
+                break
+            positions.append(found.group(1))
+            at = found.end() + len(piece)
+        if len(positions) == len(rest):
+            places.append((start, at, positions))
+        start = text.find(first, start + 1)
+    return places
+
+
+def substitute(text: str, find: str, replace: str) -> str:
+    """text with the first place of find replaced by replace, whose
+    wildcards take the positions of those of find, in order."""
+    places = find_places(text, find)
+    if not places:
+        raise AssertionError(f"the fixture's find is not in the text: {find}")
+    start, end, positions = places[0]
+    first, *rest = replace.split(ANY_POSITION)
+    if len(rest) > len(positions):
+        raise AssertionError(f"the fixture's replace has more wildcards than its find: {replace}")
+    return text[:start] + first + "".join(f'"at":[{position}]{piece}' for position, piece in zip(positions, rest)) + text[end:]
+
+
+def position_of(text: str, needle: str) -> tuple[int, int]:
+    """The line and column, counted from 1, where needle stands in text,
+    which must hold it exactly once. A line ends at CR LF, CR or LF, and a
+    column counts code points."""
+    if not needle:
+        raise AssertionError("an empty text stands everywhere in the document")
+    first = text.find(needle)
+    if first == -1 or text.find(needle, first + 1) != -1:
+        raise AssertionError(f"{needle!r} does not stand exactly once in the document")
+    lines = re.split(r"\r\n|\r|\n", text[:first])
+    return len(lines), len(lines[-1]) + 1

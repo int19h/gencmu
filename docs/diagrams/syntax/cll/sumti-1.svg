@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="636" height="138" viewBox="0 0 636 138" role="img" aria-label="Railroad diagram of the rule sumti-1">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="58.8" lengthAdjust="spacingAndGlyphs">sumti-1</text>
+<path d="M10 74v16m4 -16v16M14 82h6"/>
+<g class="rule"><rect x="20" y="70" width="75" height="24" rx="0"/><text x="57.5" y="87" textLength="58.8" lengthAdjust="spacingAndGlyphs">sumti-2</text></g>
+<path d="M95 82h10"/>
+<path d="M105 82h20"/>
+<path d="M125 82h20"/>
+<g class="rule"><rect x="145" y="70" width="33" height="24" rx="0"/><text x="161.5" y="87" textLength="16.8" lengthAdjust="spacingAndGlyphs">ek</text></g>
+<path d="M178 82H215"/>
+<path d="M125 82a10 10 0 0 1 10 10V106a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="145" y="104" width="50" height="24" rx="0"/><text x="170" y="121" textLength="33.6" lengthAdjust="spacingAndGlyphs">joik</text></g>
+<path d="M195 116H195a10 10 0 0 0 10 -10V92a10 10 0 0 1 10 -10"/>
+<path d="M215 82h10"/>
+<path d="M225 82h20"/>
+<g class="rule"><rect x="245" y="70" width="50" height="24" rx="0"/><text x="270" y="87" textLength="33.6" lengthAdjust="spacingAndGlyphs">stag</text></g>
+<path d="M295 82H315"/>
+<path d="M225 82a10 10 0 0 0 10 -10V70a10 10 0 0 1 10 -10H295a10 10 0 0 1 10 10V72a10 10 0 0 0 10 10"/>
+<path d="M315 82h10"/>
+<g class="terminal"><rect x="325" y="70" width="33" height="24" rx="12"/><text x="341.5" y="87" textLength="16.8" lengthAdjust="spacingAndGlyphs">KE</text></g>
+<path d="M358 82h10"/>
+<g class="rule"><rect x="368" y="70" width="25" height="24" rx="0"/><text x="380.5" y="87" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M393 82h10"/>
+<g class="rule"><rect x="403" y="70" width="58" height="24" rx="0"/><text x="432" y="87" textLength="42" lengthAdjust="spacingAndGlyphs">sumti</text></g>
+<path d="M461 82h10"/>
+<path d="M471 82h20"/>
+<g class="terminal"><rect x="491" y="70" width="50" height="24" rx="12"/><text x="516" y="87" textLength="33.6" lengthAdjust="spacingAndGlyphs">KEhE</text></g>
+<path d="M541 82h10"/>
+<g class="rule"><rect x="551" y="70" width="25" height="24" rx="0"/><text x="563.5" y="87" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M576 82H596"/>
+<path d="M471 82a10 10 0 0 0 10 -10V70a10 10 0 0 1 10 -10H576a10 10 0 0 1 10 10V72a10 10 0 0 0 10 10"/>
+<text class="label" x="495" y="55" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M596 82H616"/>
+<path d="M105 82a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H596a10 10 0 0 1 10 10V72a10 10 0 0 0 10 10"/>
+<path d="M616 82h6m0 -8v16m4 -16v16"/>
+</svg>

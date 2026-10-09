@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="569" height="122" viewBox="0 0 569 122" role="img" aria-label="Railroad diagram of the rule selbri-6-not-starting-with-ke">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="243.6" lengthAdjust="spacingAndGlyphs">selbri-6-not-starting-with-ke</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<g class="rule"><rect x="40" y="44" width="277" height="24" rx="0"/><text x="178.5" y="61" textLength="260.4" lengthAdjust="spacingAndGlyphs">tanru-unit-not-starting-with-ke</text></g>
+<path d="M317 56h10"/>
+<path d="M327 56h20"/>
+<g class="terminal"><rect x="347" y="44" width="33" height="24" rx="12"/><text x="363.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">BO</text></g>
+<path d="M380 56h10"/>
+<g class="rule"><rect x="390" y="44" width="25" height="24" rx="0"/><text x="402.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M415 56h10"/>
+<g class="rule"><rect x="425" y="44" width="84" height="24" rx="0"/><text x="467" y="61" textLength="67.2" lengthAdjust="spacingAndGlyphs">selbri-6</text></g>
+<path d="M509 56H529"/>
+<path d="M327 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H509a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M529 56H549"/>
+<path d="M20 56a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M40 100h20"/>
+<g class="terminal"><rect x="60" y="88" width="50" height="24" rx="12"/><text x="85" y="105" textLength="33.6" lengthAdjust="spacingAndGlyphs">NAhE</text></g>
+<path d="M110 100h10"/>
+<g class="rule"><rect x="120" y="88" width="25" height="24" rx="0"/><text x="132.5" y="105" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M145 100H165"/>
+<path d="M40 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H145a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M165 100h10"/>
+<g class="rule"><rect x="175" y="88" width="58" height="24" rx="0"/><text x="204" y="105" textLength="42" lengthAdjust="spacingAndGlyphs">guhek</text></g>
+<path d="M233 100h10"/>
+<g class="rule"><rect x="243" y="88" width="67" height="24" rx="0"/><text x="276.5" y="105" textLength="50.4" lengthAdjust="spacingAndGlyphs">selbri</text></g>
+<path d="M310 100h10"/>
+<g class="rule"><rect x="320" y="88" width="42" height="24" rx="0"/><text x="341" y="105" textLength="25.2" lengthAdjust="spacingAndGlyphs">gik</text></g>
+<path d="M362 100h10"/>
+<g class="rule"><rect x="372" y="88" width="84" height="24" rx="0"/><text x="414" y="105" textLength="67.2" lengthAdjust="spacingAndGlyphs">selbri-6</text></g>
+<path d="M456 100H529a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M549 56h6m0 -8v16m4 -16v16"/>
+</svg>

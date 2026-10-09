@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="755" height="148" viewBox="0 0 755 148" role="img" aria-label="Railroad diagram of the rule sentence">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="67.2" lengthAdjust="spacingAndGlyphs">sentence</text>
+<text class="label" x="97.2" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<path d="M40 56h20"/>
+<g class="rule"><rect x="60" y="44" width="58" height="24" rx="0"/><text x="89" y="61" textLength="42" lengthAdjust="spacingAndGlyphs">terms</text></g>
+<path d="M118 56H138"/>
+<path d="M40 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H118a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M138 56h10"/>
+<path d="M148 56h20"/>
+<g class="terminal"><rect x="168" y="44" width="33" height="24" rx="12"/><text x="184.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">CU</text></g>
+<path d="M201 56h10"/>
+<g class="rule"><rect x="211" y="44" width="25" height="24" rx="0"/><text x="223.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M236 56H256"/>
+<path d="M148 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H236a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M256 56h10"/>
+<g class="rule"><rect x="266" y="44" width="100" height="24" rx="0"/><text x="316" y="61" textLength="84" lengthAdjust="spacingAndGlyphs">bridi-tail</text></g>
+<path d="M366 56H735"/>
+<path d="M20 56a10 10 0 0 1 10 10V106a10 10 0 0 0 10 10"/>
+<path d="M40 116h20"/>
+<g class="rule"><rect x="60" y="104" width="58" height="24" rx="0"/><text x="89" y="121" textLength="42" lengthAdjust="spacingAndGlyphs">terms</text></g>
+<path d="M118 116H138"/>
+<path d="M40 116a10 10 0 0 0 10 -10V104a10 10 0 0 1 10 -10H118a10 10 0 0 1 10 10V106a10 10 0 0 0 10 10"/>
+<path d="M138 116h10"/>
+<g class="rule"><rect x="148" y="104" width="42" height="24" rx="0"/><text x="169" y="121" textLength="25.2" lengthAdjust="spacingAndGlyphs">gek</text></g>
+<path d="M190 116h10"/>
+<g class="rule"><rect x="200" y="104" width="84" height="24" rx="0"/><text x="242" y="121" textLength="67.2" lengthAdjust="spacingAndGlyphs">sentence</text></g>
+<path d="M284 116h10"/>
+<path d="M294 116h20"/>
+<g class="rule"><rect x="314" y="104" width="42" height="24" rx="0"/><text x="335" y="121" textLength="25.2" lengthAdjust="spacingAndGlyphs">gik</text></g>
+<path d="M356 116h10"/>
+<g class="rule"><rect x="366" y="104" width="84" height="24" rx="0"/><text x="408" y="121" textLength="67.2" lengthAdjust="spacingAndGlyphs">sentence</text></g>
+<path d="M450 116H470"/>
+<path d="M450 116a10 10 0 0 1 10 10V128a10 10 0 0 1 -10 10H314a10 10 0 0 1 -10 -10V126a10 10 0 0 1 10 -10"/>
+<path d="M470 116h10"/>
+<path d="M480 116h20"/>
+<g class="terminal"><rect x="500" y="104" width="50" height="24" rx="12"/><text x="525" y="121" textLength="33.6" lengthAdjust="spacingAndGlyphs">GIhI</text></g>
+<path d="M550 116h10"/>
+<g class="rule"><rect x="560" y="104" width="25" height="24" rx="0"/><text x="572.5" y="121" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M585 116H605"/>
+<path d="M480 116a10 10 0 0 0 10 -10V104a10 10 0 0 1 10 -10H585a10 10 0 0 1 10 10V106a10 10 0 0 0 10 10"/>
+<text class="label" x="504" y="89" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M605 116h10"/>
+<g class="rule"><rect x="615" y="104" width="100" height="24" rx="0"/><text x="665" y="121" textLength="84" lengthAdjust="spacingAndGlyphs">tail-terms</text></g>
+<path d="M715 116H715a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M735 56h6m0 -8v16m4 -16v16"/>
+</svg>

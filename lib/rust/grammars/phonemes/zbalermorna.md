@@ -50,6 +50,13 @@ The first rules below read the consonant radicals. U+ED89 is the radical for the
   '\u{ED9A}' | '\u{ED8C}' | '\u{ED99}' | '\u{ED9B}'
 ```
 
+<details><summary>Railroad diagrams of <code>consonant</code>, <code>apostrophe</code>, <code>core-char</code> and <code>comma</code></summary>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/consonant.svg" alt="Railroad diagram of the rule consonant"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/apostrophe.svg" alt="Railroad diagram of the rule apostrophe"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/core-char.svg" alt="Railroad diagram of the rule core-char"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/comma.svg" alt="Railroad diagram of the rule comma"></p>
+</details>
+
 A vowel diacritic and its full-vowel form are the same phoneme. The stress mark U+ED98 after either, or after a diphthong diacritic, makes it stressed, and a repeated mark is one mark. The glide radicals U+EDAA and U+EDAB are `i` and `u` before a vowel. A diphthong diacritic is two phonemes and stands where a vowel stands.
 
 The shorthand U+ED8B followed by a vowel, plain or stressed, is that vowel and an apostrophe. A token is one unit that a stage reads or emits. The vowel's token covers the shorthand too, as a stressed vowel's token covers its stress mark. The rule emits the apostrophe as a token with an empty span. The shorthand stands where a non-vowel stands, because the apostrophe closes the vowel group. It does not stand before a diphthong.
@@ -158,3 +165,28 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 %rule zbalermorna-shorthand-mark
   '\u{ED8B}'
 ```
+
+<details><summary>Railroad diagrams of the 22 rules from <code>plain-vowel</code> to <code>zbalermorna-shorthand-mark</code></summary>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-stress.svg" alt="Railroad diagram of the rule zbalermorna-stress"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/vowel.svg" alt="Railroad diagram of the rule vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/non-vowel.svg" alt="Railroad diagram of the rule non-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/any-lojban-char.svg" alt="Railroad diagram of the rule any-lojban-char"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/mark-char.svg" alt="Railroad diagram of the rule mark-char"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-stress-mark.svg" alt="Railroad diagram of the rule zbalermorna-stress-mark"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-diphthong.svg" alt="Railroad diagram of the rule zbalermorna-diphthong"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-ai.svg" alt="Railroad diagram of the rule zbalermorna-ai"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-ei.svg" alt="Railroad diagram of the rule zbalermorna-ei"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-oi.svg" alt="Railroad diagram of the rule zbalermorna-oi"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-au.svg" alt="Railroad diagram of the rule zbalermorna-au"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-stressed-diphthong.svg" alt="Railroad diagram of the rule zbalermorna-stressed-diphthong"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-stressed-ai.svg" alt="Railroad diagram of the rule zbalermorna-stressed-ai"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-stressed-ei.svg" alt="Railroad diagram of the rule zbalermorna-stressed-ei"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-stressed-oi.svg" alt="Railroad diagram of the rule zbalermorna-stressed-oi"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-stressed-au.svg" alt="Railroad diagram of the rule zbalermorna-stressed-au"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-shorthand.svg" alt="Railroad diagram of the rule zbalermorna-shorthand"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-marked-vowel.svg" alt="Railroad diagram of the rule zbalermorna-marked-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-shorthand-vowel.svg" alt="Railroad diagram of the rule zbalermorna-shorthand-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-shorthand-mark.svg" alt="Railroad diagram of the rule zbalermorna-shorthand-mark"></p>
+</details>

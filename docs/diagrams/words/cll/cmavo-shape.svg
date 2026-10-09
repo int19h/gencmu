@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="248" height="204" viewBox="0 0 248 204" role="img" aria-label="Railroad diagram of the rule cmavo-shape">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="92.4" lengthAdjust="spacingAndGlyphs">cmavo-shape</text>
+<text class="label" x="122.4" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<path d="M20 46h20"/>
+<g class="rule"><rect x="40" y="34" width="151" height="24" rx="0"/><text x="115.5" y="51" textLength="134.4" lengthAdjust="spacingAndGlyphs">plain-cmavo-body</text></g>
+<path d="M191 46H211"/>
+<path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="68" width="109" height="24" rx="0"/><text x="94.5" y="85" textLength="92.4" lengthAdjust="spacingAndGlyphs">vowel-cmavo</text></g>
+<path d="M149 80H191a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="102" width="117" height="24" rx="0"/><text x="98.5" y="119" textLength="100.8" lengthAdjust="spacingAndGlyphs">letter-cmavo</text></g>
+<path d="M157 114H191a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="136" width="117" height="24" rx="0"/><text x="98.5" y="153" textLength="100.8" lengthAdjust="spacingAndGlyphs">y-pair-cmavo</text></g>
+<path d="M157 148H191a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V172a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="170" width="117" height="24" rx="0"/><text x="98.5" y="187" textLength="100.8" lengthAdjust="spacingAndGlyphs">warned-cmavo</text></g>
+<path d="M157 182H191a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M211 46h6m0 -8v16m4 -16v16"/>
+</svg>

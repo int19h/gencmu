@@ -36,6 +36,7 @@ docs/
   engine.md                the engine specification, for implementers
   api.md                   the library API, per language
   output.md                the output formats, defined exactly
+  diagrams/                railroad diagrams of the grammars' rules as SVG, generated
 tests/
   engine/                  small grammars with expected parses: the engine spec as tests
   notation/                small grammar documents with their expected DOMs and errors
@@ -649,7 +650,25 @@ The tools list the repository's documents in one way (`tools/documents.js`). In 
 - a fenced block with no closing fence, which takes in the rest of its container
 - an indented code block, such as a paragraph indented too far in a list item, and an HTML block, since either can hide prose
 
+The one HTML block that a document can hold is the generated element of railroad diagrams after a block of rules, at the top level ("Railroad diagrams").
+
 The check of quoted texts relies on this rule, since it gives each text the line of its code span (`tools/quoted-texts.js`).
+
+## Railroad diagrams
+
+A railroad diagram draws a grammar rule as a track. A reader follows the track from left to right, and each path along it is one way to read the rule. "Railroad diagrams" in [the notation document](notation.md#railroad-diagrams) explains how to read them, and what they leave out.
+
+`node tools/sync.js` draws one diagram for each rule of each grammar document (`tools/railroad.js`). It reads the rules from the document's DOM, as the libraries read them. It writes each diagram as an SVG file under `docs/diagrams/`, in one directory for each document. So the diagram of `sumti` in `grammars/syntax/cll.md` is `docs/diagrams/syntax/cll/sumti.svg`. The packages do not ship these files.
+
+The grammar document shows its diagrams itself. HTML cannot stand inside a fenced block, so the diagrams follow the block that states their rules. After the block come a blank line and one collapsed `<details>` element, so a reader opens the diagrams only when they want them. Its summary names the rules of the block. A long list gives only the first and the last rule, and the number of rules. The element holds an image of each rule's SVG file, one on each line, in the order of the rules. Each drawing gives its rule's name above its track.
+
+`tools/sync.js` owns these generated elements. An element begins with a line outside fenced blocks that begins with `<details><summary>Railroad diagram`. It goes on through the lines of its images, which begin with `<p><img`, to its line `</details>`. Each run removes every element, with the blank line before it, and writes them again from the DOM. So the elements follow a rule that is renamed, added or removed. Every other line of the document keeps its text and its line ending. `tools/sync.js --check` fails when an element is missing, out of date or left over, or stands in a document outside `grammars/`.
+
+The libraries' reader reads only the fenced `jbogenbau` blocks, so the generated elements change no rule. They move the lines below them, and with them the line of each rule in the DOM. No test names a line of a grammar document by its number, so no test changes when the lines move ("Places in fixtures" in `tests/README.md`). Each package's copy of a grammar document is the same file, generated elements included. Their images do not show inside a package, which holds no diagrams.
+
+The SVG has fixed sizes and no fonts to measure. Each text is drawn at the width that its characters are given. So a diagram depends only on the rule in the DOM and on the omission outcomes of its tested terminators. A test whose value holds a constant takes the constant from each dialect that reads the document. So another document, such as one with a `%redefine-const`, can change whether a bypass is drawn. With the same rule and the same outcomes, the file is always the same. Each diagram has a white background, so it reads in a dark theme too.
+
+GitHub also renders railroad diagrams written in Mermaid, a beta diagram type since Mermaid 11.16. That type has no separators, labels or rows. GitHub draws each diagram in a frame of its own, with a Mermaid version that it can change at any time. Other viewers of Markdown often do not draw Mermaid at all. An SVG file shows wherever an image does.
 
 ## Structural pattern implementation
 

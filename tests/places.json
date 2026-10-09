@@ -1,0 +1,84 @@
+{
+  "description": "The places of tests/README.md, \"Places in fixtures\": where a needle stands, and what a find and a replace with \"at\":[*] give. Every library's runner checks its helpers against these.",
+  "positions": [
+    {
+      "text": "a\r\n😀 βneedle\rnext",
+      "needle": "βneedle",
+      "line": 2,
+      "column": 3
+    },
+    {
+      "text": "first\nsecond line\r\nthird",
+      "needle": "third",
+      "line": 3,
+      "column": 1
+    },
+    {
+      "text": "ŝ\nxŝyŝz",
+      "needle": "yŝ",
+      "line": 2,
+      "column": 3
+    },
+    {
+      "text": "aaa",
+      "needle": "aa",
+      "line": null,
+      "column": null
+    },
+    {
+      "text": "ββ",
+      "needle": "β",
+      "line": null,
+      "column": null
+    },
+    {
+      "text": "abc",
+      "needle": "x",
+      "line": null,
+      "column": null
+    },
+    {
+      "text": "abc",
+      "needle": "",
+      "line": null,
+      "column": null
+    }
+  ],
+  "substitutions": [
+    {
+      "text": "{\"name\":\"β\",\"at\":[3,1]},{\"name\":\"γ\",\"at\":[14,2]}",
+      "find": "{\"name\":\"γ\",\"at\":[*]}",
+      "replace": "{\"name\":\"δ\",\"at\":[*]}",
+      "places": 1,
+      "expect": "{\"name\":\"β\",\"at\":[3,1]},{\"name\":\"δ\",\"at\":[14,2]}"
+    },
+    {
+      "text": "{\"name\":\"β\",\"at\":[3,1]},{\"name\":\"β\",\"at\":[4,2]}",
+      "find": "\"name\":\"β\",\"at\":[*]",
+      "replace": "\"name\":\"ε\",\"at\":[*],\"x\":1",
+      "places": 2,
+      "expect": "{\"name\":\"ε\",\"at\":[3,1],\"x\":1},{\"name\":\"β\",\"at\":[4,2]}"
+    },
+    {
+      "text": "[{\"at\":[1,2]},{\"at\":[3,4]}]",
+      "find": "{\"at\":[*]},{\"at\":[*]}",
+      "replace": "{\"at\":[*]}",
+      "places": 1,
+      "expect": "[{\"at\":[1,2]}]"
+    },
+    {
+      "text": "{\"name\":\"a\",\"at\":[x,1]}",
+      "find": "\"at\":[*]",
+      "replace": "",
+      "places": 0,
+      "expect": null
+    },
+    {
+      "text": "βγ",
+      "find": "γ",
+      "replace": "δ",
+      "places": 1,
+      "expect": "βδ"
+    }
+  ]
+}

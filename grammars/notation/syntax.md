@@ -52,6 +52,18 @@ A grammar text is a sequence of rules, directives, constant definitions, classif
   ~tag | ~phoneme | ~character | range | property
 ```
 
+<details><summary>Railroad diagrams of the 9 rules from <code>text</code> to <code>argument-tag</code></summary>
+<p><img src="../../docs/diagrams/notation/syntax/text.svg" alt="Railroad diagram of the rule text"></p>
+<p><img src="../../docs/diagrams/notation/syntax/statement.svg" alt="Railroad diagram of the rule statement"></p>
+<p><img src="../../docs/diagrams/notation/syntax/constant-definition.svg" alt="Railroad diagram of the rule constant-definition"></p>
+<p><img src="../../docs/diagrams/notation/syntax/constant-definer.svg" alt="Railroad diagram of the rule constant-definer"></p>
+<p><img src="../../docs/diagrams/notation/syntax/directive.svg" alt="Railroad diagram of the rule directive"></p>
+<p><img src="../../docs/diagrams/notation/syntax/directive-name.svg" alt="Railroad diagram of the rule directive-name"></p>
+<p><img src="../../docs/diagrams/notation/syntax/argument-word.svg" alt="Railroad diagram of the rule argument-word"></p>
+<p><img src="../../docs/diagrams/notation/syntax/argument-string.svg" alt="Railroad diagram of the rule argument-string"></p>
+<p><img src="../../docs/diagrams/notation/syntax/argument-tag.svg" alt="Railroad diagram of the rule argument-tag"></p>
+</details>
+
 ## Classifiers and implications
 
 A classifier is `%classifier`, its name, and any number of entries. An entry is its gates, one or more keys, `∈` or `∉`, and a class. A key is a string, and a class is a name or a tag literal. An entry ends with its class, and the next one begins with a gate or a key, so line breaks are only layout here. The reader refuses a warning on an entry and a key that is not a canonical sound. It also refuses a class that does not begin with a capital (`../../docs/engine.md`, §9).
@@ -80,6 +92,16 @@ An implication is `%implies` and two terms joined by `⟹`. Each term is a union
 %rule implication-declaration
   ~keyword-implies union '⟹' union
 ```
+
+<details><summary>Railroad diagrams of the 7 rules from <code>classifier</code> to <code>implication-declaration</code></summary>
+<p><img src="../../docs/diagrams/notation/syntax/classifier.svg" alt="Railroad diagram of the rule classifier"></p>
+<p><img src="../../docs/diagrams/notation/syntax/classifier-name.svg" alt="Railroad diagram of the rule classifier-name"></p>
+<p><img src="../../docs/diagrams/notation/syntax/classifier-entry.svg" alt="Railroad diagram of the rule classifier-entry"></p>
+<p><img src="../../docs/diagrams/notation/syntax/classifier-key.svg" alt="Railroad diagram of the rule classifier-key"></p>
+<p><img src="../../docs/diagrams/notation/syntax/classifier-operator.svg" alt="Railroad diagram of the rule classifier-operator"></p>
+<p><img src="../../docs/diagrams/notation/syntax/classifier-class.svg" alt="Railroad diagram of the rule classifier-class"></p>
+<p><img src="../../docs/diagrams/notation/syntax/implication-declaration.svg" alt="Railroad diagram of the rule implication-declaration"></p>
+</details>
 
 ## Rules
 
@@ -113,6 +135,18 @@ A rule has a keyword, optional flags, name, alternatives and clauses, in that or
 %rule alternative-tags
   '<' term '>'
 ```
+
+<details><summary>Railroad diagrams of the 9 rules from <code>rule</code> to <code>alternative-tags</code></summary>
+<p><img src="../../docs/diagrams/notation/syntax/rule.svg" alt="Railroad diagram of the rule rule"></p>
+<p><img src="../../docs/diagrams/notation/syntax/definer.svg" alt="Railroad diagram of the rule definer"></p>
+<p><img src="../../docs/diagrams/notation/syntax/rule-flags.svg" alt="Railroad diagram of the rule rule-flags"></p>
+<p><img src="../../docs/diagrams/notation/syntax/rule-flag.svg" alt="Railroad diagram of the rule rule-flag"></p>
+<p><img src="../../docs/diagrams/notation/syntax/rule-name.svg" alt="Railroad diagram of the rule rule-name"></p>
+<p><img src="../../docs/diagrams/notation/syntax/body.svg" alt="Railroad diagram of the rule body"></p>
+<p><img src="../../docs/diagrams/notation/syntax/alternative.svg" alt="Railroad diagram of the rule alternative"></p>
+<p><img src="../../docs/diagrams/notation/syntax/guard.svg" alt="Railroad diagram of the rule guard"></p>
+<p><img src="../../docs/diagrams/notation/syntax/alternative-tags.svg" alt="Railroad diagram of the rule alternative-tags"></p>
+</details>
 
 ## Expressions
 
@@ -194,6 +228,29 @@ The grammar reads a test after any primary, and a constant as a primary. The rea
   'ε'
 ```
 
+<details><summary>Railroad diagrams of the 20 rules from <code>conjunction</code> to <code>empty</code></summary>
+<p><img src="../../docs/diagrams/notation/syntax/conjunction.svg" alt="Railroad diagram of the rule conjunction"></p>
+<p><img src="../../docs/diagrams/notation/syntax/sequence.svg" alt="Railroad diagram of the rule sequence"></p>
+<p><img src="../../docs/diagrams/notation/syntax/primary.svg" alt="Railroad diagram of the rule primary"></p>
+<p><img src="../../docs/diagrams/notation/syntax/tested.svg" alt="Railroad diagram of the rule tested"></p>
+<p><img src="../../docs/diagrams/notation/syntax/test.svg" alt="Railroad diagram of the rule test"></p>
+<p><img src="../../docs/diagrams/notation/syntax/test-comparator.svg" alt="Railroad diagram of the rule test-comparator"></p>
+<p><img src="../../docs/diagrams/notation/syntax/test-emptiness.svg" alt="Railroad diagram of the rule test-emptiness"></p>
+<p><img src="../../docs/diagrams/notation/syntax/test-operand.svg" alt="Railroad diagram of the rule test-operand"></p>
+<p><img src="../../docs/diagrams/notation/syntax/reference.svg" alt="Railroad diagram of the rule reference"></p>
+<p><img src="../../docs/diagrams/notation/syntax/tag.svg" alt="Railroad diagram of the rule tag"></p>
+<p><img src="../../docs/diagrams/notation/syntax/character.svg" alt="Railroad diagram of the rule character"></p>
+<p><img src="../../docs/diagrams/notation/syntax/phoneme.svg" alt="Railroad diagram of the rule phoneme"></p>
+<p><img src="../../docs/diagrams/notation/syntax/range.svg" alt="Railroad diagram of the rule range"></p>
+<p><img src="../../docs/diagrams/notation/syntax/property.svg" alt="Railroad diagram of the rule property"></p>
+<p><img src="../../docs/diagrams/notation/syntax/capture.svg" alt="Railroad diagram of the rule capture"></p>
+<p><img src="../../docs/diagrams/notation/syntax/group.svg" alt="Railroad diagram of the rule group"></p>
+<p><img src="../../docs/diagrams/notation/syntax/optional.svg" alt="Railroad diagram of the rule optional"></p>
+<p><img src="../../docs/diagrams/notation/syntax/repetition.svg" alt="Railroad diagram of the rule repetition"></p>
+<p><img src="../../docs/diagrams/notation/syntax/choice.svg" alt="Railroad diagram of the rule choice"></p>
+<p><img src="../../docs/diagrams/notation/syntax/empty.svg" alt="Railroad diagram of the rule empty"></p>
+</details>
+
 ## Clauses
 
 `%tags` says what tags every alternative's constituent carries. `%conditions` lists what must hold of the captured parts.
@@ -233,6 +290,18 @@ An item can have attachments: captures in parentheses, any number before its tar
   '<' term '>'
 ```
 
+<details><summary>Railroad diagrams of the 9 rules from <code>tags-clause</code> to <code>emit-tags</code></summary>
+<p><img src="../../docs/diagrams/notation/syntax/tags-clause.svg" alt="Railroad diagram of the rule tags-clause"></p>
+<p><img src="../../docs/diagrams/notation/syntax/conditions-clause.svg" alt="Railroad diagram of the rule conditions-clause"></p>
+<p><img src="../../docs/diagrams/notation/syntax/emits-clause.svg" alt="Railroad diagram of the rule emits-clause"></p>
+<p><img src="../../docs/diagrams/notation/syntax/opaque-clause.svg" alt="Railroad diagram of the rule opaque-clause"></p>
+<p><img src="../../docs/diagrams/notation/syntax/emit-item.svg" alt="Railroad diagram of the rule emit-item"></p>
+<p><img src="../../docs/diagrams/notation/syntax/emit-before.svg" alt="Railroad diagram of the rule emit-before"></p>
+<p><img src="../../docs/diagrams/notation/syntax/emit-after.svg" alt="Railroad diagram of the rule emit-after"></p>
+<p><img src="../../docs/diagrams/notation/syntax/emit-target.svg" alt="Railroad diagram of the rule emit-target"></p>
+<p><img src="../../docs/diagrams/notation/syntax/emit-tags.svg" alt="Railroad diagram of the rule emit-tags"></p>
+</details>
+
 A condition joins others with `∧`, `∨` and `⟹`. These operators bind in that order, and `⟹` groups to the right. Parentheses group, and `¬` negates the condition after it. A capture alone is a condition, true where the alternative has it.
 
 The grammar reads a run of conditions joined by `⟹` as one list, and the reader groups it to the right. Right recursion completes every level again at each `⟹`. So the work of a parse grows with the square of the run's length. A list does not.
@@ -262,6 +331,17 @@ The grammar reads a run of conditions joined by `⟹` as one list, and the reade
 %rule presence
   ~capture
 ```
+
+<details><summary>Railroad diagrams of the 8 rules from <code>implication</code> to <code>presence</code></summary>
+<p><img src="../../docs/diagrams/notation/syntax/implication.svg" alt="Railroad diagram of the rule implication"></p>
+<p><img src="../../docs/diagrams/notation/syntax/any-of.svg" alt="Railroad diagram of the rule any-of"></p>
+<p><img src="../../docs/diagrams/notation/syntax/all-of.svg" alt="Railroad diagram of the rule all-of"></p>
+<p><img src="../../docs/diagrams/notation/syntax/condition.svg" alt="Railroad diagram of the rule condition"></p>
+<p><img src="../../docs/diagrams/notation/syntax/comparison.svg" alt="Railroad diagram of the rule comparison"></p>
+<p><img src="../../docs/diagrams/notation/syntax/comparator.svg" alt="Railroad diagram of the rule comparator"></p>
+<p><img src="../../docs/diagrams/notation/syntax/negation.svg" alt="Railroad diagram of the rule negation"></p>
+<p><img src="../../docs/diagrams/notation/syntax/presence.svg" alt="Railroad diagram of the rule presence"></p>
+</details>
 
 ## Terms
 
@@ -310,6 +390,21 @@ A property is not a tag set, but the grammar reads one in a term, so that the re
   ~constant
 ```
 
+<details><summary>Railroad diagrams of the 12 rules from <code>term</code> to <code>constant-reference</code></summary>
+<p><img src="../../docs/diagrams/notation/syntax/term.svg" alt="Railroad diagram of the rule term"></p>
+<p><img src="../../docs/diagrams/notation/syntax/guarded-term.svg" alt="Railroad diagram of the rule guarded-term"></p>
+<p><img src="../../docs/diagrams/notation/syntax/union.svg" alt="Railroad diagram of the rule union"></p>
+<p><img src="../../docs/diagrams/notation/syntax/intersection.svg" alt="Railroad diagram of the rule intersection"></p>
+<p><img src="../../docs/diagrams/notation/syntax/term-atom.svg" alt="Railroad diagram of the rule term-atom"></p>
+<p><img src="../../docs/diagrams/notation/syntax/string.svg" alt="Railroad diagram of the rule string"></p>
+<p><img src="../../docs/diagrams/notation/syntax/name.svg" alt="Railroad diagram of the rule name"></p>
+<p><img src="../../docs/diagrams/notation/syntax/empty-set.svg" alt="Railroad diagram of the rule empty-set"></p>
+<p><img src="../../docs/diagrams/notation/syntax/call.svg" alt="Railroad diagram of the rule call"></p>
+<p><img src="../../docs/diagrams/notation/syntax/argument.svg" alt="Railroad diagram of the rule argument"></p>
+<p><img src="../../docs/diagrams/notation/syntax/capture-reference.svg" alt="Railroad diagram of the rule capture-reference"></p>
+<p><img src="../../docs/diagrams/notation/syntax/constant-reference.svg" alt="Railroad diagram of the rule constant-reference"></p>
+</details>
+
 ## Tree patterns
 
 A tree pattern observes a constructed constituent. A literal starts with the compound token `~pattern-open`, written `@(`, and ends with `)`. The left operand of a tree comparison is a bare capture. Its right operand is a union term with pattern type. The reader reports a bare name there with the specific missing-pattern diagnostic in `../../docs/engine.md`, §10.
@@ -351,3 +446,17 @@ Path prefixes take one atom. Parentheses keep sibling grouping, but a nested lit
 %rule pattern-path
   ('⋮' | '⋰' | '⋱') pattern-atom
 ```
+
+<details><summary>Railroad diagrams of the 11 rules from <code>tree-comparison</code> to <code>pattern-path</code></summary>
+<p><img src="../../docs/diagrams/notation/syntax/tree-comparison.svg" alt="Railroad diagram of the rule tree-comparison"></p>
+<p><img src="../../docs/diagrams/notation/syntax/tree-comparator.svg" alt="Railroad diagram of the rule tree-comparator"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-literal.svg" alt="Railroad diagram of the rule pattern-literal"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-union.svg" alt="Railroad diagram of the rule pattern-union"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-intersection.svg" alt="Railroad diagram of the rule pattern-intersection"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-sequence.svg" alt="Railroad diagram of the rule pattern-sequence"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-item.svg" alt="Railroad diagram of the rule pattern-item"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-atom.svg" alt="Railroad diagram of the rule pattern-atom"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-brackets.svg" alt="Railroad diagram of the rule pattern-brackets"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-repeat.svg" alt="Railroad diagram of the rule pattern-repeat"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-path.svg" alt="Railroad diagram of the rule pattern-path"></p>
+</details>

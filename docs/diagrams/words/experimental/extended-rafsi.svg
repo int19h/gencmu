@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="273" height="102" viewBox="0 0 273 102" role="img" aria-label="Railroad diagram of the rule extended-rafsi">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="117.6" lengthAdjust="spacingAndGlyphs">extended-rafsi</text>
+<text class="label" x="147.6" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<path d="M20 46h20"/>
+<g class="rule"><rect x="40" y="34" width="84" height="24" rx="0"/><text x="82" y="51" textLength="67.2" lengthAdjust="spacingAndGlyphs">hy-rafsi</text></g>
+<path d="M124 46H186"/>
+<path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="68" width="126" height="24" rx="0"/><text x="103" y="85" textLength="109.2" lengthAdjust="spacingAndGlyphs">fuhivla-rafsi</text></g>
+<path d="M166 80H166a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M186 46h6m0 -8v16m4 -16v16"/>
+</svg>

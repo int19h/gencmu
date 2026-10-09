@@ -43,6 +43,10 @@ Point 9 of CLL 1.1 section 21.2 defines `#` as a slot for any number of free mod
   [{free}]
 ```
 
+<details><summary>Railroad diagram of <code>#</code></summary>
+<p><img src="../../docs/diagrams/syntax/cll/_hash.svg" alt="Railroad diagram of the rule #"></p>
+</details>
+
 ## The text and its paragraphs
 
 A text is what one speaker or writer produces, from the first word to the last. A text can open with these forms:
@@ -71,6 +75,13 @@ This grammar writes most unbounded sequences with flat braces or left chains, wh
 %rule paragraph
   (statement | fragment) [{I # [statement | fragment]}]
 ```
+
+<details><summary>Railroad diagrams of <code>text</code>, <code>text-1</code>, <code>paragraphs</code> and <code>paragraph</code></summary>
+<p><img src="../../docs/diagrams/syntax/cll/text.svg" alt="Railroad diagram of the rule text"></p>
+<p><img src="../../docs/diagrams/syntax/cll/text-1.svg" alt="Railroad diagram of the rule text-1"></p>
+<p><img src="../../docs/diagrams/syntax/cll/paragraphs.svg" alt="Railroad diagram of the rule paragraphs"></p>
+<p><img src="../../docs/diagrams/syntax/cll/paragraph.svg" alt="Railroad diagram of the rule paragraph"></p>
+</details>
 
 ## Statements and fragments
 
@@ -158,6 +169,15 @@ A fragment is what a speaker utters when the utterance is not a sentence (CLL 19
 %rule prenex
   terms ZOhU #
 ```
+
+<details><summary>Railroad diagrams of the 6 rules from <code>statement</code> to <code>prenex</code></summary>
+<p><img src="../../docs/diagrams/syntax/cll/statement.svg" alt="Railroad diagram of the rule statement"></p>
+<p><img src="../../docs/diagrams/syntax/cll/statement-1.svg" alt="Railroad diagram of the rule statement-1"></p>
+<p><img src="../../docs/diagrams/syntax/cll/statement-2.svg" alt="Railroad diagram of the rule statement-2"></p>
+<p><img src="../../docs/diagrams/syntax/cll/statement-3.svg" alt="Railroad diagram of the rule statement-3"></p>
+<p><img src="../../docs/diagrams/syntax/cll/fragment.svg" alt="Railroad diagram of the rule fragment"></p>
+<p><img src="../../docs/diagrams/syntax/cll/prenex.svg" alt="Railroad diagram of the rule prenex"></p>
+</details>
 
 ## Sentences and bridi-tails
 
@@ -263,6 +283,19 @@ The gek-sentence's tail terms follow the whole connection and apply to both side
   [terms] [+VAU #]
 ```
 
+<details><summary>Railroad diagrams of the 10 rules from <code>sentence</code> to <code>tail-terms</code></summary>
+<p><img src="../../docs/diagrams/syntax/cll/sentence.svg" alt="Railroad diagram of the rule sentence"></p>
+<p><img src="../../docs/diagrams/syntax/cll/subsentence.svg" alt="Railroad diagram of the rule subsentence"></p>
+<p><img src="../../docs/diagrams/syntax/cll/bridi-tail.svg" alt="Railroad diagram of the rule bridi-tail"></p>
+<p><img src="../../docs/diagrams/syntax/cll/bridi-tail-1.svg" alt="Railroad diagram of the rule bridi-tail-1"></p>
+<p><img src="../../docs/diagrams/syntax/cll/bridi-tail-1-final.svg" alt="Railroad diagram of the rule bridi-tail-1-final"></p>
+<p><img src="../../docs/diagrams/syntax/cll/free-modifiers.svg" alt="Railroad diagram of the rule free-modifiers"></p>
+<p><img src="../../docs/diagrams/syntax/cll/bridi-tail-2.svg" alt="Railroad diagram of the rule bridi-tail-2"></p>
+<p><img src="../../docs/diagrams/syntax/cll/bridi-tail-3.svg" alt="Railroad diagram of the rule bridi-tail-3"></p>
+<p><img src="../../docs/diagrams/syntax/cll/gek-sentence.svg" alt="Railroad diagram of the rule gek-sentence"></p>
+<p><img src="../../docs/diagrams/syntax/cll/tail-terms.svg" alt="Railroad diagram of the rule tail-terms"></p>
+</details>
+
 ## Terms
 
 A term is one argument of a bridi, or one tense or modal standing on its own (CLL 9.3, 10.13, 16.11). It is one of these:
@@ -299,6 +332,14 @@ The terms `zu'a nu'i la djordj. la'u lo mitre be li mu` and `zu'a nu'i la'u lo m
 %rule termset
   NUhI # gek terms [+NUhU #] gik terms [+NUhU #] | NUhI # terms [+NUhU #]
 ```
+
+<details><summary>Railroad diagrams of <code>terms</code>, <code>terms-1</code>, <code>terms-2</code>, <code>term</code> and <code>termset</code></summary>
+<p><img src="../../docs/diagrams/syntax/cll/terms.svg" alt="Railroad diagram of the rule terms"></p>
+<p><img src="../../docs/diagrams/syntax/cll/terms-1.svg" alt="Railroad diagram of the rule terms-1"></p>
+<p><img src="../../docs/diagrams/syntax/cll/terms-2.svg" alt="Railroad diagram of the rule terms-2"></p>
+<p><img src="../../docs/diagrams/syntax/cll/term.svg" alt="Railroad diagram of the rule term"></p>
+<p><img src="../../docs/diagrams/syntax/cll/termset.svg" alt="Railroad diagram of the rule termset"></p>
+</details>
 
 ## Sumti
 
@@ -361,6 +402,18 @@ This grammar states the quote rules over `any-word` and `anything`. The word sta
   [quantifier] selbri [relative-clauses] | quantifier sumti
 ```
 
+<details><summary>Railroad diagrams of the 9 rules from <code>sumti</code> to <code>sumti-tail-1</code></summary>
+<p><img src="../../docs/diagrams/syntax/cll/sumti.svg" alt="Railroad diagram of the rule sumti"></p>
+<p><img src="../../docs/diagrams/syntax/cll/sumti-1.svg" alt="Railroad diagram of the rule sumti-1"></p>
+<p><img src="../../docs/diagrams/syntax/cll/sumti-2.svg" alt="Railroad diagram of the rule sumti-2"></p>
+<p><img src="../../docs/diagrams/syntax/cll/sumti-3.svg" alt="Railroad diagram of the rule sumti-3"></p>
+<p><img src="../../docs/diagrams/syntax/cll/sumti-4.svg" alt="Railroad diagram of the rule sumti-4"></p>
+<p><img src="../../docs/diagrams/syntax/cll/sumti-5.svg" alt="Railroad diagram of the rule sumti-5"></p>
+<p><img src="../../docs/diagrams/syntax/cll/sumti-6.svg" alt="Railroad diagram of the rule sumti-6"></p>
+<p><img src="../../docs/diagrams/syntax/cll/sumti-tail.svg" alt="Railroad diagram of the rule sumti-tail"></p>
+<p><img src="../../docs/diagrams/syntax/cll/sumti-tail-1.svg" alt="Railroad diagram of the rule sumti-tail-1"></p>
+</details>
+
 ## Relative clauses
 
 A relative clause attaches to a sumti and restricts or comments on it (CLL 8). `goi` and the other members of GOI take a term, `mi goi ko'a`, `le zdani pe mi`, and `ge'u` closes the clause. `poi`, `noi` and `voi` take a subsentence in which `ke'a` refers back to the sumti, and `ku'o` closes the clause. `zi'e` joins several relative clauses on one sumti. They are a flat list, since `zi'e` groups nothing (CLL 8.4).
@@ -372,6 +425,11 @@ A relative clause attaches to a sumti and restricts or comments on it (CLL 8). `
 %rule relative-clause
   GOI # term [+GEhU #] | NOI # subsentence [+KUhO #]
 ```
+
+<details><summary>Railroad diagrams of <code>relative-clauses</code> and <code>relative-clause</code></summary>
+<p><img src="../../docs/diagrams/syntax/cll/relative-clauses.svg" alt="Railroad diagram of the rule relative-clauses"></p>
+<p><img src="../../docs/diagrams/syntax/cll/relative-clause.svg" alt="Railroad diagram of the rule relative-clause"></p>
+</details>
 
 ## Selbri and tanru
 
@@ -459,6 +517,22 @@ Each level of the chain holds its first abstractor. So a single abstractor with 
 %rule links
   BEI # term [links]
 ```
+
+<details><summary>Railroad diagrams of the 13 rules from <code>selbri</code> to <code>links</code></summary>
+<p><img src="../../docs/diagrams/syntax/cll/selbri.svg" alt="Railroad diagram of the rule selbri"></p>
+<p><img src="../../docs/diagrams/syntax/cll/selbri-1.svg" alt="Railroad diagram of the rule selbri-1"></p>
+<p><img src="../../docs/diagrams/syntax/cll/selbri-2.svg" alt="Railroad diagram of the rule selbri-2"></p>
+<p><img src="../../docs/diagrams/syntax/cll/selbri-3.svg" alt="Railroad diagram of the rule selbri-3"></p>
+<p><img src="../../docs/diagrams/syntax/cll/selbri-4.svg" alt="Railroad diagram of the rule selbri-4"></p>
+<p><img src="../../docs/diagrams/syntax/cll/selbri-5.svg" alt="Railroad diagram of the rule selbri-5"></p>
+<p><img src="../../docs/diagrams/syntax/cll/selbri-6.svg" alt="Railroad diagram of the rule selbri-6"></p>
+<p><img src="../../docs/diagrams/syntax/cll/tanru-unit.svg" alt="Railroad diagram of the rule tanru-unit"></p>
+<p><img src="../../docs/diagrams/syntax/cll/tanru-unit-1.svg" alt="Railroad diagram of the rule tanru-unit-1"></p>
+<p><img src="../../docs/diagrams/syntax/cll/tanru-unit-2.svg" alt="Railroad diagram of the rule tanru-unit-2"></p>
+<p><img src="../../docs/diagrams/syntax/cll/abstractor-chain.svg" alt="Railroad diagram of the rule abstractor-chain"></p>
+<p><img src="../../docs/diagrams/syntax/cll/linkargs.svg" alt="Railroad diagram of the rule linkargs"></p>
+<p><img src="../../docs/diagrams/syntax/cll/links.svg" alt="Railroad diagram of the rule links"></p>
+</details>
 
 ## Numbers, lerfu strings and mekso
 
@@ -577,6 +651,28 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
   BY | any-word BU | LAU lerfu-word | TEI lerfu-string FOI
 ```
 
+<details><summary>Railroad diagrams of the 19 rules from <code>quantifier</code> to <code>lerfu-word</code></summary>
+<p><img src="../../docs/diagrams/syntax/cll/quantifier.svg" alt="Railroad diagram of the rule quantifier"></p>
+<p><img src="../../docs/diagrams/syntax/cll/mex.svg" alt="Railroad diagram of the rule mex"></p>
+<p><img src="../../docs/diagrams/syntax/cll/mex-chain.svg" alt="Railroad diagram of the rule mex-chain"></p>
+<p><img src="../../docs/diagrams/syntax/cll/mex-1.svg" alt="Railroad diagram of the rule mex-1"></p>
+<p><img src="../../docs/diagrams/syntax/cll/mex-2.svg" alt="Railroad diagram of the rule mex-2"></p>
+<p><img src="../../docs/diagrams/syntax/cll/rp-expression.svg" alt="Railroad diagram of the rule rp-expression"></p>
+<p><img src="../../docs/diagrams/syntax/cll/rp-operand.svg" alt="Railroad diagram of the rule rp-operand"></p>
+<p><img src="../../docs/diagrams/syntax/cll/operator.svg" alt="Railroad diagram of the rule operator"></p>
+<p><img src="../../docs/diagrams/syntax/cll/operator-1.svg" alt="Railroad diagram of the rule operator-1"></p>
+<p><img src="../../docs/diagrams/syntax/cll/operator-2.svg" alt="Railroad diagram of the rule operator-2"></p>
+<p><img src="../../docs/diagrams/syntax/cll/mex-operator.svg" alt="Railroad diagram of the rule mex-operator"></p>
+<p><img src="../../docs/diagrams/syntax/cll/operand.svg" alt="Railroad diagram of the rule operand"></p>
+<p><img src="../../docs/diagrams/syntax/cll/operand-1.svg" alt="Railroad diagram of the rule operand-1"></p>
+<p><img src="../../docs/diagrams/syntax/cll/operand-2.svg" alt="Railroad diagram of the rule operand-2"></p>
+<p><img src="../../docs/diagrams/syntax/cll/operand-3.svg" alt="Railroad diagram of the rule operand-3"></p>
+<p><img src="../../docs/diagrams/syntax/cll/number.svg" alt="Railroad diagram of the rule number"></p>
+<p><img src="../../docs/diagrams/syntax/cll/lerfu-string.svg" alt="Railroad diagram of the rule lerfu-string"></p>
+<p><img src="../../docs/diagrams/syntax/cll/number-continuation.svg" alt="Railroad diagram of the rule number-continuation"></p>
+<p><img src="../../docs/diagrams/syntax/cll/lerfu-word.svg" alt="Railroad diagram of the rule lerfu-word"></p>
+</details>
+
 ## Logical and non-logical connectives
 
 Lojban has one set of logical connectives, spelled differently for each level of the grammar (CLL 14.3):
@@ -655,6 +751,23 @@ A gek is a forethought logical connective, a joik used in forethought with `gi`,
   GI [NAI] #
 ```
 
+<details><summary>Railroad diagrams of the 14 rules from <code>ek</code> to <code>gik</code></summary>
+<p><img src="../../docs/diagrams/syntax/cll/ek.svg" alt="Railroad diagram of the rule ek"></p>
+<p><img src="../../docs/diagrams/syntax/cll/gihek.svg" alt="Railroad diagram of the rule gihek"></p>
+<p><img src="../../docs/diagrams/syntax/cll/jek.svg" alt="Railroad diagram of the rule jek"></p>
+<p><img src="../../docs/diagrams/syntax/cll/joik.svg" alt="Railroad diagram of the rule joik"></p>
+<p><img src="../../docs/diagrams/syntax/cll/interval.svg" alt="Railroad diagram of the rule interval"></p>
+<p><img src="../../docs/diagrams/syntax/cll/joik-ek.svg" alt="Railroad diagram of the rule joik-ek"></p>
+<p><img src="../../docs/diagrams/syntax/cll/joik-jek.svg" alt="Railroad diagram of the rule joik-jek"></p>
+<p><img src="../../docs/diagrams/syntax/cll/plain-joik-jek.svg" alt="Railroad diagram of the rule plain-joik-jek"></p>
+<p><img src="../../docs/diagrams/syntax/cll/joik-before-ke.svg" alt="Railroad diagram of the rule joik-before-ke"></p>
+<p><img src="../../docs/diagrams/syntax/cll/selbri-5-not-ke-group.svg" alt="Railroad diagram of the rule selbri-5-not-ke-group"></p>
+<p><img src="../../docs/diagrams/syntax/cll/operator-1-not-ke-group.svg" alt="Railroad diagram of the rule operator-1-not-ke-group"></p>
+<p><img src="../../docs/diagrams/syntax/cll/gek.svg" alt="Railroad diagram of the rule gek"></p>
+<p><img src="../../docs/diagrams/syntax/cll/guhek.svg" alt="Railroad diagram of the rule guhek"></p>
+<p><img src="../../docs/diagrams/syntax/cll/gik.svg" alt="Railroad diagram of the rule gik"></p>
+</details>
+
 ## Tenses and modals
 
 A tense or modal (the rule `tag`) turns a sumti into a modal or tense term (CLL 9 and 10). It also marks a selbri or a whole sentence with a tense. `tag` is one or more tense-modals joined by jek or joik, `pu je ca`. Both `tag` and `stag` are left chains, since these connections group from the left and nothing overrides that (CLL 10.20, 14.18). `stag` is the restricted form that is allowed inside connectives before `bo` and `ke`, and in a gek. If `stag` includes a free-modifier slot there, the grammar becomes ambiguous.
@@ -727,6 +840,20 @@ In `mi viska ba'o pu gi do gi la djan`, `ba'o` stays a tag over the forethought 
   number ROI [NAI] | TAhE [NAI] | ZAhO [NAI]
 ```
 
+<details><summary>Railroad diagrams of the 11 rules from <code>tag</code> to <code>interval-property</code></summary>
+<p><img src="../../docs/diagrams/syntax/cll/tag.svg" alt="Railroad diagram of the rule tag"></p>
+<p><img src="../../docs/diagrams/syntax/cll/stag.svg" alt="Railroad diagram of the rule stag"></p>
+<p><img src="../../docs/diagrams/syntax/cll/tense-modal.svg" alt="Railroad diagram of the rule tense-modal"></p>
+<p><img src="../../docs/diagrams/syntax/cll/simple-tense-modal.svg" alt="Railroad diagram of the rule simple-tense-modal"></p>
+<p><img src="../../docs/diagrams/syntax/cll/time.svg" alt="Railroad diagram of the rule time"></p>
+<p><img src="../../docs/diagrams/syntax/cll/time-offset.svg" alt="Railroad diagram of the rule time-offset"></p>
+<p><img src="../../docs/diagrams/syntax/cll/space.svg" alt="Railroad diagram of the rule space"></p>
+<p><img src="../../docs/diagrams/syntax/cll/space-offset.svg" alt="Railroad diagram of the rule space-offset"></p>
+<p><img src="../../docs/diagrams/syntax/cll/space-interval.svg" alt="Railroad diagram of the rule space-interval"></p>
+<p><img src="../../docs/diagrams/syntax/cll/space-int-props.svg" alt="Railroad diagram of the rule space-int-props"></p>
+<p><img src="../../docs/diagrams/syntax/cll/interval-property.svg" alt="Railroad diagram of the rule interval-property"></p>
+</details>
+
 ## Free modifiers, vocatives and indicators
 
 A free modifier can stand wherever the grammar writes `#`. CLL 6.11 allows free modifiers after many constructions. Point 9 of CLL 1.1 section 21.2 defines `#` as a construct that "appears in many places". The forms are these:
@@ -775,6 +902,13 @@ CLL 19.8 says that FUhO "cancels all in-force attitudinals". This grammar infers
   (UI | CAI) [NAI] | Y | DAhO | FUhO
 ```
 
+<details><summary>Railroad diagrams of <code>free</code>, <code>vocative</code>, <code>indicators</code> and <code>indicator</code></summary>
+<p><img src="../../docs/diagrams/syntax/cll/free.svg" alt="Railroad diagram of the rule free"></p>
+<p><img src="../../docs/diagrams/syntax/cll/vocative.svg" alt="Railroad diagram of the rule vocative"></p>
+<p><img src="../../docs/diagrams/syntax/cll/indicators.svg" alt="Railroad diagram of the rule indicators"></p>
+<p><img src="../../docs/diagrams/syntax/cll/indicator.svg" alt="Railroad diagram of the rule indicator"></p>
+</details>
+
 ## The non-formal rules
 
 CLL ends its grammar with four rules that it calls non-formal. A parser applies them before the grammar proper rather than through it (CLL 21). Two of them are the material of quotes. The word stage delimits every quote but `lu ... li'u`, and hands on a quoted word tagged `word` and a quoted unit tagged `quoted-text`. So here these two are ordinary rules:
@@ -786,6 +920,11 @@ CLL ends its grammar with four rules that it calls non-formal. A parser applies 
 %rule anything
   ~quoted-text
 ```
+
+<details><summary>Railroad diagrams of <code>any-word</code> and <code>anything</code></summary>
+<p><img src="../../docs/diagrams/syntax/cll/any-word.svg" alt="Railroad diagram of the rule any-word"></p>
+<p><img src="../../docs/diagrams/syntax/cll/anything.svg" alt="Railroad diagram of the rule anything"></p>
+</details>
 
 The stages before this one apply the other two. The indicator stage attaches `ba'e` and indicators to their words, and the word stage applies the erasers. The indicator stage lets several `ba'e` stand before one word, as in `mi ba'e ba'e klama`, where rule 1100 allows one. CLL 19.16 says that "Multiple BAhE cmavo may be used in succession". This document shows them as CLL prints them, for reference only. CLL does not define anywhere the `utterance` that `sa` erases.
 

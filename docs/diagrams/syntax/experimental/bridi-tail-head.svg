@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="424" height="200" viewBox="0 0 424 200" role="img" aria-label="Railroad diagram of the rule bridi-tail-head">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="126" lengthAdjust="spacingAndGlyphs">bridi-tail-head</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<path d="M40 56h20"/>
+<g class="rule"><rect x="60" y="44" width="58" height="24" rx="0"/><text x="89" y="61" textLength="42" lengthAdjust="spacingAndGlyphs">terms</text></g>
+<path d="M118 56H148"/>
+<path d="M128 56a10 10 0 0 1 10 10V80a10 10 0 0 1 -10 10H128"/>
+<g class="terminal"><rect x="95" y="78" width="33" height="24" rx="12"/><text x="111.5" y="95" textLength="16.8" lengthAdjust="spacingAndGlyphs">CU</text></g>
+<path d="M95 90h-10"/>
+<g class="rule"><rect x="60" y="78" width="25" height="24" rx="0"/><text x="72.5" y="95" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M60 90H60a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M148 56h10"/>
+<path d="M158 56h20"/>
+<g class="terminal"><rect x="178" y="44" width="33" height="24" rx="12"/><text x="194.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">CU</text></g>
+<path d="M211 56h10"/>
+<g class="rule"><rect x="221" y="44" width="25" height="24" rx="0"/><text x="233.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M246 56H266"/>
+<path d="M158 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H246a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M266 56H404"/>
+<path d="M20 56a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="132" width="33" height="24" rx="12"/><text x="56.5" y="149" textLength="16.8" lengthAdjust="spacingAndGlyphs">CU</text></g>
+<path d="M73 144h10"/>
+<g class="rule"><rect x="83" y="132" width="25" height="24" rx="0"/><text x="95.5" y="149" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M108 144h10"/>
+<path d="M118 144h20"/>
+<path d="M138 144h20"/>
+<g class="rule"><rect x="158" y="132" width="58" height="24" rx="0"/><text x="187" y="149" textLength="42" lengthAdjust="spacingAndGlyphs">terms</text></g>
+<path d="M216 144H246"/>
+<path d="M226 144a10 10 0 0 1 10 10V168a10 10 0 0 1 -10 10H226"/>
+<g class="terminal"><rect x="193" y="166" width="33" height="24" rx="12"/><text x="209.5" y="183" textLength="16.8" lengthAdjust="spacingAndGlyphs">CU</text></g>
+<path d="M193 178h-10"/>
+<g class="rule"><rect x="158" y="166" width="25" height="24" rx="0"/><text x="170.5" y="183" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M158 178H158a10 10 0 0 1 -10 -10V154a10 10 0 0 1 10 -10"/>
+<path d="M246 144h10"/>
+<path d="M256 144h20"/>
+<g class="terminal"><rect x="276" y="132" width="33" height="24" rx="12"/><text x="292.5" y="149" textLength="16.8" lengthAdjust="spacingAndGlyphs">CU</text></g>
+<path d="M309 144h10"/>
+<g class="rule"><rect x="319" y="132" width="25" height="24" rx="0"/><text x="331.5" y="149" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M344 144H364"/>
+<path d="M256 144a10 10 0 0 0 10 -10V132a10 10 0 0 1 10 -10H344a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
+<path d="M364 144H384"/>
+<path d="M118 144a10 10 0 0 0 10 -10V122a10 10 0 0 1 10 -10H364a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
+<path d="M384 144H384a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M404 56h6m0 -8v16m4 -16v16"/>
+</svg>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="254" height="214" viewBox="0 0 254 214" role="img" aria-label="Railroad diagram of the rule indicator">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="75.6" lengthAdjust="spacingAndGlyphs">indicator</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<path d="M40 56h20"/>
+<g class="terminal"><rect x="60" y="44" width="33" height="24" rx="12"/><text x="76.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">UI</text></g>
+<path d="M93 56H122"/>
+<path d="M40 56a10 10 0 0 1 10 10V80a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="78" width="42" height="24" rx="12"/><text x="81" y="95" textLength="25.2" lengthAdjust="spacingAndGlyphs">CAI</text></g>
+<path d="M102 90H102a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M122 56h10"/>
+<path d="M132 56h20"/>
+<g class="terminal"><rect x="152" y="44" width="42" height="24" rx="12"/><text x="173" y="61" textLength="25.2" lengthAdjust="spacingAndGlyphs">NAI</text></g>
+<path d="M194 56H214"/>
+<path d="M132 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H194a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M214 56H234"/>
+<path d="M20 56a10 10 0 0 1 10 10V114a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="112" width="25" height="24" rx="12"/><text x="52.5" y="129" textLength="8.4" lengthAdjust="spacingAndGlyphs">Y</text></g>
+<path d="M65 124H214a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M20 56a10 10 0 0 1 10 10V148a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="146" width="50" height="24" rx="12"/><text x="65" y="163" textLength="33.6" lengthAdjust="spacingAndGlyphs">DAhO</text></g>
+<path d="M90 158H214a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M20 56a10 10 0 0 1 10 10V182a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="180" width="50" height="24" rx="12"/><text x="65" y="197" textLength="33.6" lengthAdjust="spacingAndGlyphs">FUhO</text></g>
+<path d="M90 192H214a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M234 56h6m0 -8v16m4 -16v16"/>
+</svg>

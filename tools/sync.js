@@ -6,12 +6,19 @@
 //   lib/js/grammars/         the npm package's copy of grammars/
 //   dist/grammars.js         grammars/ as one object, for the browser
 //   dist/gencmu.js           the library as one factory function, for the browser
+//   docs/diagrams/           a railroad diagram of each rule, as an SVG file
 //
 // and the other packages' copies of grammars/ and of LICENSE under lib/,
-// removing a copy of a document that grammars/ no longer has. Run it after
-// editing a grammar. It checks the Markdown of the documents with a
-// parser, a development dependency of lib/js (tools/markdown.js): without
-// `npm ci` in lib/js, it skips those checks, and --check fails. The
+// removing a copy of a document that grammars/ no longer has. It also
+// writes the generated elements of the grammar documents themselves: under
+// each block of rules, one collapsed <details> element, which shows the
+// diagram of each rule of the block (tools/railroad.js). It removes each
+// element that it no longer writes, and leaves every other line of the
+// document as it is.
+//
+// Run it after editing a grammar. It checks the Markdown of the documents
+// with a parser, a development dependency of lib/js (tools/markdown.js):
+// without `npm ci` in lib/js, it skips those checks, and --check fails. The
 // libraries' own reader of grammar blocks (lib/js/src/markdown.js), which
 // docs/engine.md specifies, reads the grammar, as every library does.
 import fs from "node:fs";
@@ -27,8 +34,11 @@ import { proseLineProblems } from "./prose-lines.js";
 import { markdownFiles, repositoryFiles } from "./documents.js";
 import { corpusShapeProblems, mutantShapeProblems } from "./corpus-shape.js";
 import { missing as parserMissing } from "./markdown.js";
+import { DIAGRAMS, documentLines, elisionOutcomes, ownedLines, withDiagrams } from "./railroad.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+// The packages' copies of grammars/.
+const copies = ["lib/js/grammars", "lib/python/src/gencmu/grammars", "lib/go/grammars", "lib/rust/grammars"];
 const grammars = path.join(root, "grammars");
 const check = process.argv.includes("--check");
 const stale = [];
@@ -81,7 +91,6 @@ if (misshapen.length) {
 // change to the notation that the current bootstrap cannot read needs
 // tools/write-bootstrap.js first.
 const bootstrapPath = path.join(grammars, "notation", "bootstrap.json");
-let bootstrapText = fs.readFileSync(bootstrapPath, "utf8");
 // A loader of grammars/ with the given bootstrap and no precompiled DOMs.
 /** @param {string} bootstrap */
 const loaderWith = (bootstrap) => new Loader((relative) => {
@@ -90,26 +99,81 @@ const loaderWith = (bootstrap) => new Loader((relative) => {
   const file = path.join(grammars, relative.split("/").join(path.sep));
   return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : undefined;
 });
-for (let round = 0; ; round++) {
-  // The notation's own pipeline, spliced with the current bootstrap.
-  const { stages } = loaderWith(bootstrapText).pipeline("dialects/notation.md");
-  const next = { format: DOM_FORMAT, stages: stages.map((stage) => ({ name: stage.name, documents: stage.documents })) };
-  const nextText = JSON.stringify(next) + "\n";
-  if (nextText === bootstrapText) break;
-  if (round === 3) throw new Error("the notation does not reach a fixpoint");
-  bootstrapText = nextText;
+/**
+ * The bootstrap that reading the notation with `bootstrap` reaches.
+ * @param {string} bootstrap
+ */
+function settle(bootstrap) {
+  for (let round = 0; ; round++) {
+    // The notation's own pipeline, spliced with the current bootstrap.
+    const { stages } = loaderWith(bootstrap).pipeline("dialects/notation.md");
+    const next = { format: DOM_FORMAT, stages: stages.map((stage) => ({ name: stage.name, documents: stage.documents })) };
+    const nextText = JSON.stringify(next) + "\n";
+    if (nextText === bootstrap) return bootstrap;
+    if (round === 3) throw new Error("the notation does not reach a fixpoint");
+    bootstrap = nextText;
+  }
 }
+let bootstrapText = settle(fs.readFileSync(bootstrapPath, "utf8"));
+
+// The railroad diagrams (tools/railroad.js): the generated elements of each
+// grammar document, and the SVG file of each rule. A document with no
+// grammar block keeps no generated element either. The elements move the
+// lines after them, and with them the line of each rule, so the DOMs and
+// the bootstrap are read again. No test names a line of a grammar document
+// by its number, so none of them changes (tests/README.md).
+const diagrams = new Map();
+let moved = false;
+const reader = loaderWith(bootstrapText);
+/** @type {Map<string, {text: string, dom: any}>} each grammar document as this pass reads it */
+const read = new Map();
+for (const file of grammarFiles()) {
+  if (!file.endsWith(".md")) continue;
+  const text = fs.readFileSync(path.join(grammars, file), "utf8");
+  read.set(file, { text, dom: extractGrammarText(text, file).blocks === 0 ? { rules: [] } : reader.readDocument(text, file) });
+}
+// Whether a test on an elided terminator allows its omission, in each
+// stage of each dialect that reads the document. With no such test, this
+// costs nothing.
+const outcomes = elisionOutcomes(reader, grammarFiles().filter((file) => file.startsWith("dialects/") && file.endsWith(".md")), new Map([...read].map(([file, { dom }]) => [file, dom])));
+for (const [file, { text, dom }] of read) {
+  const { text: next, files } = withDiagrams(file, text, dom, outcomes.get(file));
+  for (const [relative, svg] of files) diagrams.set(relative, svg);
+  if (next === text) continue;
+  write(`grammars/${file}`, next);
+  if (!check) moved = true;
+}
+if (moved) bootstrapText = settle(bootstrapText);
 write("grammars/notation/bootstrap.json", bootstrapText);
 
-// The precompiled DOMs, read with the engine and the bootstrap.
-const loader = loaderWith(bootstrapText);
+// No other document holds a generated element: one there would show
+// diagrams that nothing updates. The packages' copies of grammars/ hold
+// the same elements as grammars/.
+const strays = [];
+for (const file of markdownFiles(root)) {
+  if (file.startsWith("grammars/") || copies.some((copy) => file.startsWith(`${copy}/`))) continue;
+  const owned = ownedLines(documentLines(fs.readFileSync(path.join(root, file), "utf8")).lines);
+  owned.forEach((line, index) => {
+    if (line) strays.push(`${file}:${index + 1}: a line of a railroad diagram's generated element outside grammars/; remove it`);
+  });
+}
+if (strays.length) {
+  console.error(strays.join("\n"));
+  process.exit(1);
+}
+
+// The precompiled DOMs, read with the engine and the bootstrap. Where the
+// pass of the diagrams changed neither a document nor the bootstrap, its
+// DOM is the one that pass read.
+const loader = moved ? loaderWith(bootstrapText) : reader;
 const documents = {};
 for (const file of grammarFiles()) {
   if (!file.endsWith(".md")) continue;
   const text = fs.readFileSync(path.join(grammars, file), "utf8");
   // A document holds grammar when the reader finds a block in it.
   if (extractGrammarText(text, file).blocks === 0) continue;
-  documents[file] = { hash: fnv1a64(text), dom: loader.readDocument(text, file) };
+  const earlier = read.get(file);
+  documents[file] = { hash: fnv1a64(text), dom: !moved && earlier && earlier.text === text ? earlier.dom : loader.readDocument(text, file) };
 }
 const compiled = { format: DOM_FORMAT, bootstrap: loader.bootstrapHash, documents };
 
@@ -153,7 +217,9 @@ if (parserMissing && check) {
     console.error(unlinked.join("\n"));
     process.exit(1);
   }
-  const broken = markdownFiles(root).flatMap((file) => proseLineProblems(fs.readFileSync(path.join(root, file), "utf8"), file));
+  // The packages' copies of grammars/ are checked as grammars/, which
+  // this run copies to them.
+  const broken = markdownFiles(root).filter((file) => !copies.some((copy) => file.startsWith(`${copy}/`))).flatMap((file) => proseLineProblems(fs.readFileSync(path.join(root, file), "utf8"), file));
   if (broken.length) {
     console.error(broken.join("\n"));
     process.exit(1);
@@ -167,12 +233,30 @@ if (parserMissing && check) {
 }
 write("grammars/compiled.json", JSON.stringify(compiled) + "\n");
 
+// The SVG files of the railroad diagrams. They are documentation, so no
+// package ships them. A file under docs/diagrams/ that this run does not
+// write, such as the diagram of a rule that is gone, goes.
+for (const [relative, text] of diagrams) write(relative, text);
+/** @param {string} relative */
+const existing = (relative) => {
+  const directory = path.join(root, relative);
+  if (!fs.existsSync(directory)) return [];
+  return fs.readdirSync(directory, { withFileTypes: true }).filter((entry) => !entry.name.startsWith(".")).flatMap((entry) => (entry.isDirectory() ? existing(`${relative}/${entry.name}`) : [`${relative}/${entry.name}`]));
+};
+for (const relative of existing(DIAGRAMS)) {
+  if (diagrams.has(relative)) continue;
+  stale.push(relative);
+  if (check) continue;
+  fs.unlinkSync(path.join(root, relative));
+  // A directory that this leaves empty goes too.
+  for (let directory = path.dirname(relative); directory !== DIAGRAMS && directory.startsWith(DIAGRAMS) && fs.readdirSync(path.join(root, directory)).length === 0; directory = path.dirname(directory)) fs.rmdirSync(path.join(root, directory));
+}
+
 // The licence, which every package ships beside its code.
 const license = fs.readFileSync(path.join(root, "LICENSE"), "utf8");
 for (const library of ["lib/js", "lib/python", "lib/go", "lib/rust"]) write(`${library}/LICENSE`, license);
 
 // The grammar copies.
-const copies = ["lib/js/grammars", "lib/python/src/gencmu/grammars", "lib/go/grammars", "lib/rust/grammars"];
 const sources = {};
 for (const file of grammarFiles()) sources[file] = fs.readFileSync(path.join(grammars, file), "utf8");
 sources["compiled.json"] = JSON.stringify(compiled) + "\n";

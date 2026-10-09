@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="249" height="146" viewBox="0 0 249 146" role="img" aria-label="Railroad diagram of the rule fa-jai">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="50.4" lengthAdjust="spacingAndGlyphs">fa-jai</text>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<path d="M20 46h20"/>
+<path d="M40 46h20"/>
+<g class="terminal"><rect x="60" y="34" width="33" height="24" rx="12"/><text x="76.5" y="51" textLength="16.8" lengthAdjust="spacingAndGlyphs">FA</text></g>
+<path d="M93 46h10"/>
+<g class="rule"><rect x="103" y="34" width="25" height="24" rx="0"/><text x="115.5" y="51" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M128 46H148"/>
+<path d="M128 46a10 10 0 0 1 10 10V70a10 10 0 0 1 -10 10H119"/>
+<g class="rule"><rect x="69" y="68" width="50" height="24" rx="0"/><text x="94" y="85" textLength="33.6" lengthAdjust="spacingAndGlyphs">joik</text></g>
+<path d="M69 80H60a10 10 0 0 1 -10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M148 46H229"/>
+<path d="M20 46a10 10 0 0 1 10 10V114a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="112" width="42" height="24" rx="12"/><text x="61" y="129" textLength="25.2" lengthAdjust="spacingAndGlyphs">JAI</text></g>
+<path d="M82 124h10"/>
+<g class="rule"><rect x="92" y="112" width="25" height="24" rx="0"/><text x="104.5" y="129" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M117 124h10"/>
+<path d="M127 124h20"/>
+<g class="rule"><rect x="147" y="112" width="42" height="24" rx="0"/><text x="168" y="129" textLength="25.2" lengthAdjust="spacingAndGlyphs">tag</text></g>
+<path d="M189 124H209"/>
+<path d="M127 124a10 10 0 0 0 10 -10V112a10 10 0 0 1 10 -10H189a10 10 0 0 1 10 10V114a10 10 0 0 0 10 10"/>
+<path d="M209 124H209a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M229 46h6m0 -8v16m4 -16v16"/>
+</svg>

@@ -255,8 +255,12 @@ export function uncheckedReasons(base = root, doms = repositoryDoms(base), check
  * @typedef {object} AllowEntry
  * @property {string} text
  * @property {string} document the document whose quotes the entry covers
- * @property {number[]} [lines] the lines of the document that the entry
- *   covers, when it names them; else every line that quotes the text
+ * @property {string[]} [locators] the phrases that name the lines of the
+ *   document that the entry covers, one phrase for each line, when it names
+ *   them
+ * @property {number[]} [lines] the lines that the locators name, once
+ *   locateEntries has found them; with no locators, every line that quotes
+ *   the text
  * @property {number} line the entry's line in the allow-list
  * @property {string} [reason] why the text needs no case of its own
  * @property {{role: string, id: string}[]} [cases] the cases that show the
@@ -269,9 +273,11 @@ export function uncheckedReasons(base = root, doms = repositoryDoms(base), check
 /**
  * The allow-list. Each line that is not empty and does not begin with `#`
  * is an entry for one document: a quoted text, ` # `, the document, with
- * `:` and its lines, separated by commas, where the entry names them, and
- * then either ` # ` and the reason why no case pins the text, or ` = ` and
- * the cases that show it. The cases are their ids, each after its role: a
+ * ` @ "PHRASE"` for each line that the entry covers where it names them,
+ * and then either ` # ` and the reason why no case pins the text, or ` = `
+ * and the cases that show it. A phrase names the one line of the document
+ * that quotes the text and holds the phrase (locateEntries), so an edit
+ * elsewhere in the document never changes the entry. The cases are their ids, each after its role: a
  * rule name, `words` or `reject`. A role applies to the ids after it, up to the
  * next role.
  * @param {string} list
@@ -285,23 +291,24 @@ export function readAllowList(list) {
   list.split(/\r\n|\r|\n/).forEach((line, index) => {
     if (!line.trim() || line.startsWith("#")) return;
     const at = `tests/quoted-allow.txt:${index + 1}`;
-    const match = /^(.*?)\s+#\s+([^\s:]+)(?::(\d+(?:,\d+)*))?\s+(?:#\s+(\S.*)|=\s+(\S.*))$/.exec(line);
+    const match = /^(.*?)\s+#\s+([^\s:@"]+)((?:\s+@\s+"[^"]+")*)\s+(?:#\s+(\S.*)|=\s+(\S.*))$/.exec(line);
     const text = match && quotedText(match[1]);
     if (!text) {
-      problems.push(`${at}: not a quoted text, " # ", a document with its lines or none, and " # " and a reason or " = " and roles and case ids`);
+      const numbered = /\s#\s+[^\s:]+:\d/.test(line) ? `; name each line by a phrase of it, as DOCUMENT @ "PHRASE", not by its number` : "";
+      problems.push(`${at}: not a quoted text, " # ", a document with the phrases of its lines or none, and " # " and a reason or " = " and roles and case ids${numbered}`);
       return;
     }
     const document = match[2];
-    const lines = match[3] ? match[3].split(",").map(Number) : null;
-    // An entry with no lines stands for all of them, and is counted once.
-    for (const place of lines ? lines.map((number) => `${document}:${number}`) : [document]) {
+    const locators = match[3] ? [...match[3].matchAll(/@\s+"([^"]+)"/g)].map((found) => found[1]) : null;
+    // An entry with no phrases stands for every line, and is counted once.
+    for (const place of locators ? locators.map((phrase) => `${document} @ "${phrase}"`) : [document]) {
       const key = `${place}\0${text}`;
       if (keys.has(key)) problems.push(`${at}: \`${text}\` is listed twice for ${place}`);
       keys.add(key);
     }
     /** @type {AllowEntry} */
     const entry = { text, document, line: index + 1 };
-    if (lines) entry.lines = lines;
+    if (locators) entry.locators = locators;
     if (match[4]) entry.reason = match[4];
     else {
       entry.cases = [];
@@ -327,6 +334,64 @@ export function readAllowList(list) {
     }
     entries.push(entry);
   });
+  return { entries, problems };
+}
+
+/**
+ * Finds the line that each phrase of an entry names: the one line of the
+ * entry's document that quotes the entry's text and holds the phrase, in
+ * its Markdown source. Each entry with phrases gets its `lines`. A phrase on
+ * no such line, or on several, is a problem, and so is a line that two
+ * entries of the same text name.
+ * @param {AllowEntry[]} entries
+ * @param {(document: string) => {source: string[], quoted: {text: string, line: number}[]} | null} read
+ *   a document's lines and its quoted texts, or null where it is missing
+ * @returns {string[]}
+ */
+export function locateEntries(entries, read) {
+  const problems = [];
+  const named = new Set();
+  for (const entry of entries) {
+    if (!entry.locators) continue;
+    const document = read(entry.document);
+    const quoting = document ? [...new Set(document.quoted.filter((quote) => quote.text === entry.text).map((quote) => quote.line))] : [];
+    entry.lines = [];
+    for (const phrase of entry.locators) {
+      const found = quoting.filter((line) => /** @type {NonNullable<typeof document>} */ (document).source[line - 1].includes(phrase));
+      const at = `tests/quoted-allow.txt:${entry.line}`;
+      if (found.length !== 1) {
+        problems.push(`${at}: "${phrase}" stands on ${found.length ? `${found.length} lines` : "no line"} of ${entry.document} that quote \`${entry.text}\`; give a phrase of exactly one of them`);
+        continue;
+      }
+      const key = `${entry.document}:${found[0]}\0${entry.text}`;
+      if (named.has(key)) problems.push(`${at}: \`${entry.text}\` is listed twice for ${entry.document}:${found[0]}, which "${phrase}" names`);
+      named.add(key);
+      entry.lines.push(found[0]);
+    }
+  }
+  return problems;
+}
+
+/**
+ * The allow-list of a repository, with the lines of its entries found.
+ * @param {string} base the repository
+ * @param {string[]} names the dialects' names, for quotedTexts
+ * @returns {{entries: AllowEntry[], problems: string[]}}
+ */
+function allowList(base, names) {
+  const allowFile = path.join(base, "tests", "quoted-allow.txt");
+  const { entries, problems } = readAllowList(fs.existsSync(allowFile) ? fs.readFileSync(allowFile, "utf8") : "");
+  /** @type {Map<string, {source: string[], quoted: {text: string, line: number}[]} | null>} */
+  const documents = new Map();
+  const read = (/** @type {string} */ document) => {
+    if (!documents.has(document)) {
+      const file = path.join(base, document);
+      const markdown = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : null;
+      documents.set(document, markdown === null ? null : { source: markdown.split(/\r\n|\r|\n/), quoted: quotedTexts(markdown, names) });
+    }
+    return /** @type {{source: string[], quoted: {text: string, line: number}[]} | null} */ (documents.get(document));
+  };
+  for (const problem of locateEntries(entries, read)) problems.push(problem);
   return { entries, problems };
 }
 
@@ -696,8 +761,7 @@ export function quotedTextProblems(base = root, { loader, doms, checked = CHECKE
     casesOf.get(text).push(c);
     byId.set(c.id, c);
   }
-  const allowFile = path.join(base, "tests", "quoted-allow.txt");
-  const { entries, problems } = readAllowList(fs.existsSync(allowFile) ? fs.readFileSync(allowFile, "utf8") : "");
+  const { entries, problems } = allowList(base, dialectNames(base));
   // The entries by document and text, so that finding one does not scan
   // the whole list for each quoted text.
   /** @type {Map<string, AllowEntry[]>} */
@@ -811,14 +875,15 @@ export function quotedTextProblems(base = root, { loader, doms, checked = CHECKE
   for (const entry of entries) {
     const lines = [...(used.get(entry) || [])].sort((a, b) => a - b);
     const place = `tests/quoted-allow.txt:${entry.line}`;
-    if (!lines.length) problems.push(`${place}: \`${entry.text}\` is not needed: ${entry.document} does not quote it unpinned${entry.lines ? ` on ${entry.lines.join(", ")}` : ""}`);
+    if (!lines.length) problems.push(`${place}: \`${entry.text}\` is not needed: ${entry.document} does not quote it unpinned${entry.locators ? " on the lines of its phrases" : ""}`);
     else if (entry.lines) {
       const needless = entry.lines.filter((line) => !lines.includes(line));
-      if (needless.length) problems.push(`${place}: \`${entry.text}\` is not needed on ${entry.document}:${needless.join(",")}, which does not quote it unpinned`);
+      const phrases = needless.map((line) => `"${/** @type {string[]} */ (entry.locators)[/** @type {number[]} */ (entry.lines).indexOf(line)]}"`);
+      if (needless.length) problems.push(`${place}: \`${entry.text}\` is not needed on the line${needless.length > 1 ? "s" : ""} of ${phrases.join(" and ")} in ${entry.document}, which ${needless.length > 1 ? "do" : "does"} not quote it unpinned`);
     } else if (lines.length > 1) {
       // A sentence on each line makes its own claim, so the entry says
       // which lines it covers.
-      problems.push(`${place}: \`${entry.text}\` is quoted unpinned on lines ${lines.join(", ")} of ${entry.document}; name the lines that the entry covers, as ${entry.document}:${lines.join(",")}`);
+      problems.push(`${place}: \`${entry.text}\` is quoted unpinned on lines ${lines.join(", ")} of ${entry.document}; name each line that the entry covers by a phrase of it, as ${entry.document} @ "PHRASE"`);
     }
   }
   return problems;
@@ -875,8 +940,7 @@ export function quotingPlaces(base = root, doms = repositoryDoms(base)) {
     else byText.set(text, [...lines]);
   }
   for (const c of corpusCases(base)) add(c.id, byText.get(normal(c.text)) || []);
-  const allowFile = path.join(base, "tests", "quoted-allow.txt");
-  for (const entry of readAllowList(fs.existsSync(allowFile) ? fs.readFileSync(allowFile, "utf8") : "").entries) {
+  for (const entry of allowList(base, names).entries) {
     const lines = (quoted.get(`${entry.document}\0${entry.text}`) || []).filter((place) => !entry.lines || entry.lines.includes(Number(place.slice(place.lastIndexOf(":") + 1))));
     for (const { id } of entry.cases || []) add(id, lines);
   }

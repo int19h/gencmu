@@ -25,6 +25,10 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
   classes($q) ∩ (ZO ∪ GOhOI) ≠ ∅
 ```
 
+<details><summary>Railroad diagram of <code>word-quote-marker</code></summary>
+<p><img src="../../docs/diagrams/words/zantufa-stream/word-quote-marker.svg" alt="Railroad diagram of the rule word-quote-marker"></p>
+</details>
+
 `ra'oi` quotes the rafsi or gismu form that the forms stage read after it ([zantufa.md](zantufa.md)), with or without a pause between them.
 
 ```jbogenbau
@@ -42,6 +46,12 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
   RAhOI ⊆ classes($q)
 ```
 
+<details><summary>Railroad diagrams of <code>quote</code>, <code>rahoi-quote</code> and <code>rahoi-marker</code></summary>
+<p><img src="../../docs/diagrams/words/zantufa-stream/quote.svg" alt="Railroad diagram of the rule quote"></p>
+<p><img src="../../docs/diagrams/words/zantufa-stream/rahoi-quote.svg" alt="Railroad diagram of the rule rahoi-quote"></p>
+<p><img src="../../docs/diagrams/words/zantufa-stream/rahoi-marker.svg" alt="Railroad diagram of the rule rahoi-marker"></p>
+</details>
+
 `mu'oi` quotes a body between two delimiters, as `zoi` does. Zantufa compares the two delimiters in lower case, so `zoi .ko. x .kO.` is a quote. So does every dialect, which compares them by their canonical sound ([the word stream](stream.md)). So the dialect needs only the marker.
 
 ```jbogenbau
@@ -51,6 +61,10 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 %conditions
   classes($q) ∩ (ZOI ∪ MUhOI) ≠ ∅
 ```
+
+<details><summary>Railroad diagram of <code>zoi-marker</code></summary>
+<p><img src="../../docs/diagrams/words/zantufa-stream/zoi-marker.svg" alt="Railroad diagram of the rule zoi-marker"></p>
+</details>
 
 Zantufa reads `y` and `ie'o` as space only after a pause or at the start of the text, because its `spaces` begins with `!Y`. A hesitation attached to the word before it, with no pause between them, is a word of class Y there. So `zoie'o mi` quotes `ie'o` and leaves `mi`, while `zo ie'o mi` quotes `mi`. Such a word has no place in the syntax except in a quote, so the dialect rejects `mi cuyy klama`, as Zantufa does. Before `bu`, hesitation stays the base of a letteral.
 
@@ -82,6 +96,13 @@ In a `lo'u` or `lo'ai` quote, the stage tags such a word `word` only, like every
   attached-y
 
 ```
+
+<details><summary>Railroad diagrams of the 4 rules from <code>hesitation</code> to <code>read-word</code></summary>
+<p><img src="../../docs/diagrams/words/zantufa-stream/hesitation.svg" alt="Railroad diagram of the rule hesitation"></p>
+<p><img src="../../docs/diagrams/words/zantufa-stream/y-letter-ahead.svg" alt="Railroad diagram of the rule y-letter-ahead"></p>
+<p><img src="../../docs/diagrams/words/zantufa-stream/attached-y.svg" alt="Railroad diagram of the rule attached-y"></p>
+<p><img src="../../docs/diagrams/words/zantufa-stream/read-word.svg" alt="Railroad diagram of the rule read-word"></p>
+</details>
 
 A magic word is never a plain word. The stream's list of them, `$MAGIC-WORDS`, lacks RAhOI, GOhOI and MUhOI, which only Zantufa has. It also lacks LOhAI and LEhAI. The experimental dialect reads a bare marker of these as a plain word, and Zantufa does not. This document adds all five classes to the list.
 
@@ -129,6 +150,13 @@ A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads
   ¬begins(from($h), y-bu-word)
 ```
 
+<details><summary>Railroad diagrams of the 4 rules from <code>word</code> to <code>opener-space-token</code></summary>
+<p><img src="../../docs/diagrams/words/zantufa-stream/word.svg" alt="Railroad diagram of the rule word"></p>
+<p><img src="../../docs/diagrams/words/zantufa-stream/text-opener.svg" alt="Railroad diagram of the rule text-opener"></p>
+<p><img src="../../docs/diagrams/words/zantufa-stream/opener-spaces.svg" alt="Railroad diagram of the rule opener-spaces"></p>
+<p><img src="../../docs/diagrams/words/zantufa-stream/opener-space-token.svg" alt="Railroad diagram of the rule opener-space-token"></p>
+</details>
+
 The forms stage hands on the form after `ra'oi` as a `rafsi-form` token, even where that `ra'oi` opens no quote. So a `zoi` body, a `zoi` delimiter and the text after `fa'o` take that token as they take any other word. `fa'o ra'oi broda` is `fa'o` and what it ignores, and `zoi broda ra'oi broda` quotes `ra'oi`, as in Zantufa.
 
 ```jbogenbau
@@ -138,6 +166,11 @@ The forms stage hands on the form after `ra'oi` as a `rafsi-form` token, even wh
 %extend-rule delimiter
   ~rafsi-form
 ```
+
+<details><summary>Railroad diagrams of <code>payload-token</code> and <code>delimiter</code></summary>
+<p><img src="../../docs/diagrams/words/zantufa-stream/payload-token.svg" alt="Railroad diagram of the rule payload-token"></p>
+<p><img src="../../docs/diagrams/words/zantufa-stream/delimiter.svg" alt="Railroad diagram of the rule delimiter"></p>
+</details>
 
 A quote word that opens no quote is an ordinary word in Zantufa, which `si` erases. Zantufa's `si_word` tries the quotes first, and then reads any cmavo but `bu`, a word of SI or SU, and `fa'o`. So `zoi si broda` is `broda`, and `lo'u si` is nothing. A bare marker can occupy a unit before SI or BU. It remains bare only where no complete quote begins.
 
@@ -158,6 +191,12 @@ A quote word that opens no quote is an ordinary word in Zantufa, which `si` eras
 %conditions
   classes($q) ∩ (ZOI ∪ MUhOI ∪ LOhU ∪ LOhAI ∪ RAhOI) ≠ ∅
 ```
+
+<details><summary>Railroad diagrams of <code>unit</code>, <code>bare-marker-tail</code> and <code>bare-marker</code></summary>
+<p><img src="../../docs/diagrams/words/zantufa-stream/unit.svg" alt="Railroad diagram of the rule unit"></p>
+<p><img src="../../docs/diagrams/words/zantufa-stream/bare-marker-tail.svg" alt="Railroad diagram of the rule bare-marker-tail"></p>
+<p><img src="../../docs/diagrams/words/zantufa-stream/bare-marker.svg" alt="Railroad diagram of the rule bare-marker"></p>
+</details>
 
 The shared BU constructor also takes a bare marker when no quote begins there. Zantufa keeps its reference parser's quote-first fallback. A complete quote takes priority over a bare marker.
 
@@ -185,3 +224,10 @@ The lookahead skips erased regions before BU. Thus `su mi si bu` forms the lette
   SU ⊆ classes($q),
   ¬begins(after($q), su-letter-tail)
 ```
+
+<details><summary>Railroad diagrams of <code>unit</code>, <code>su-letter-base</code>, <code>su-letter-tail</code> and <code>su-word</code></summary>
+<p><img src="../../docs/diagrams/words/zantufa-stream/unit.2.svg" alt="Railroad diagram of the rule unit"></p>
+<p><img src="../../docs/diagrams/words/zantufa-stream/su-letter-base.svg" alt="Railroad diagram of the rule su-letter-base"></p>
+<p><img src="../../docs/diagrams/words/zantufa-stream/su-letter-tail.svg" alt="Railroad diagram of the rule su-letter-tail"></p>
+<p><img src="../../docs/diagrams/words/zantufa-stream/su-word.svg" alt="Railroad diagram of the rule su-word"></p>
+</details>
