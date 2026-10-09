@@ -35,7 +35,7 @@ import { proseLineProblems } from "./prose-lines.js";
 import { markdownFiles, repositoryFiles } from "./documents.js";
 import { corpusShapeProblems, mutantShapeProblems } from "./corpus-shape.js";
 import { missing as parserMissing } from "./markdown.js";
-import { DIAGRAMS, DIAGRAM_LINE_START, fencedBlocks, withDiagrams } from "./railroad.js";
+import { DIAGRAMS, DIAGRAM_LINE_START, elisionOutcomes, fencedBlocks, withDiagrams } from "./railroad.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 // The packages' copies of grammars/.
@@ -128,11 +128,14 @@ const allowPath = path.join(root, "tests", "quoted-allow.txt");
 let allow = fs.readFileSync(allowPath, "utf8");
 let moved = false;
 const reader = loaderWith(bootstrapText);
+// Whether a test on an elided terminator allows its omission, in each
+// stage of each dialect that reads the document.
+const outcomes = elisionOutcomes(reader, grammarFiles().filter((file) => file.startsWith("dialects/") && file.endsWith(".md")));
 for (const file of grammarFiles()) {
   if (!file.endsWith(".md")) continue;
   const text = fs.readFileSync(path.join(grammars, file), "utf8");
   const dom = extractGrammarText(text, file).blocks === 0 ? { rules: [] } : reader.readDocument(text, file);
-  const { text: next, lines, files } = withDiagrams(file, text, dom);
+  const { text: next, lines, files } = withDiagrams(file, text, dom, outcomes.get(file));
   for (const [relative, svg] of files) diagrams.set(relative, svg);
   if (next === text) continue;
   write(`grammars/${file}`, next);

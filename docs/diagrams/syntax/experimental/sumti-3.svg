@@ -1,22 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="409" height="128" viewBox="0 0 409 128" role="img" aria-label="Railroad diagram of the rule sumti-3">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
-<text class="title" x="10" y="24">sumti-3</text>
+<text class="title" x="10" y="24" textLength="58.8" lengthAdjust="spacingAndGlyphs">sumti-3</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
 <g class="rule"><rect x="40" y="34" width="75" height="24" rx="0"/><text x="77.5" y="51" textLength="58.8" lengthAdjust="spacingAndGlyphs">sumti-4</text></g>
 <path d="M115 46H389"/>
 <path d="M369 46a10 10 0 0 1 10 10V80a10 10 0 0 1 -10 10H369"/>
-<g class="rule"><rect x="40" y="78" width="151" height="24" rx="0"/><text x="115.5" y="95" textLength="134.4" lengthAdjust="spacingAndGlyphs">sumti-connective</text></g>
-<path d="M191 90h10"/>
-<path d="M201 90h20"/>
-<g class="rule"><rect x="221" y="78" width="50" height="24" rx="0"/><text x="246" y="95" textLength="33.6" lengthAdjust="spacingAndGlyphs">stag</text></g>
-<path d="M271 90H291"/>
-<path d="M201 90a10 10 0 0 0 10 -10V78a10 10 0 0 1 10 -10H271a10 10 0 0 1 10 10V80a10 10 0 0 0 10 10"/>
-<path d="M291 90h10"/>
-<g class="terminal"><rect x="301" y="78" width="33" height="24" rx="12"/><text x="317.5" y="95" textLength="16.8" lengthAdjust="spacingAndGlyphs">BO</text></g>
-<path d="M334 90h10"/>
-<g class="rule"><rect x="344" y="78" width="25" height="24" rx="0"/><text x="356.5" y="95" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="218" y="78" width="151" height="24" rx="0"/><text x="293.5" y="95" textLength="134.4" lengthAdjust="spacingAndGlyphs">sumti-connective</text></g>
+<path d="M218 90h-10"/>
+<path d="M208 90h-20"/>
+<g class="rule"><rect x="138" y="78" width="50" height="24" rx="0"/><text x="163" y="95" textLength="33.6" lengthAdjust="spacingAndGlyphs">stag</text></g>
+<path d="M138 90H118"/>
+<path d="M208 90a10 10 0 0 1 -10 -10V78a10 10 0 0 0 -10 -10H138a10 10 0 0 0 -10 10V80a10 10 0 0 1 -10 10"/>
+<path d="M118 90h-10"/>
+<g class="terminal"><rect x="75" y="78" width="33" height="24" rx="12"/><text x="91.5" y="95" textLength="16.8" lengthAdjust="spacingAndGlyphs">BO</text></g>
+<path d="M75 90h-10"/>
+<g class="rule"><rect x="40" y="78" width="25" height="24" rx="0"/><text x="52.5" y="95" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
 <path d="M40 90H40a10 10 0 0 1 -10 -10V56a10 10 0 0 1 10 -10"/>
 <text class="label" x="44" y="116" textLength="79.2" lengthAdjust="spacingAndGlyphs">right chain</text>
 <path d="M389 46h6m0 -8v16m4 -16v16"/>

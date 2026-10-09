@@ -1,18 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="264" height="136" viewBox="0 0 264 136" role="img" aria-label="Railroad diagram of the rule pattern-union">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
-<text class="title" x="10" y="24">pattern-union</text>
+<text class="title" x="10" y="24" textLength="109.2" lengthAdjust="spacingAndGlyphs">pattern-union</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
 <g class="rule"><rect x="40" y="34" width="184" height="24" rx="0"/><text x="132" y="51" textLength="168" lengthAdjust="spacingAndGlyphs">pattern-intersection</text></g>
 <path d="M224 46H244"/>
 <path d="M224 46a10 10 0 0 1 10 10V70a10 10 0 0 1 -10 10H173"/>
-<path d="M91 80h20"/>
+<path d="M173 80h-20"/>
 <g class="terminal"><rect x="111" y="68" width="42" height="24" rx="12"/><text x="132" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">'∪'</text></g>
-<path d="M153 80H173"/>
-<path d="M91 80a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
+<path d="M111 80H91"/>
+<path d="M173 80a10 10 0 0 0 -10 10V104a10 10 0 0 1 -10 10"/>
 <g class="terminal"><rect x="111" y="102" width="42" height="24" rx="12"/><text x="132" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">'∖'</text></g>
-<path d="M153 114H153a10 10 0 0 0 10 -10V90a10 10 0 0 1 10 -10"/>
+<path d="M111 114H111a10 10 0 0 1 -10 -10V90a10 10 0 0 0 -10 -10"/>
 <path d="M91 80H40a10 10 0 0 1 -10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M244 46h6m0 -8v16m4 -16v16"/>
 </svg>

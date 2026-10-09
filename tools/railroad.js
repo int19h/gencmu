@@ -13,6 +13,7 @@
 // The SVG is plain text with fixed sizes and no fonts to measure, so the
 // same DOM always gives the same file.
 import { formatTerm } from "../lib/js/src/diagnostics.js";
+import { leafTest } from "../lib/js/src/patterns.js";
 
 /** The width, in pixels, beyond which a sequence continues on a new row. */
 export const MAX_WIDTH = 800;
@@ -234,16 +235,24 @@ export function choice(branches) {
     },
   };
 }
+/**
+ * The width that a note needs on the track, from where it begins, 4 pixels
+ * in, to 4 pixels before its end.
+ * @param {string | undefined} note
+ */
+const noteWidth = (note) => (note ? Math.ceil(length(note) * LABEL_CHAR_WIDTH) + 8 : 0);
 
 /**
  * An optional: its content on the track, and a bypass over it. `note`
- * labels the bypass, as the route of an elided terminator.
+ * labels the bypass, as the route of an elided terminator. The piece is
+ * wide enough for the note.
  * @param {Piece} item
  * @param {string} [note]
  * @returns {Piece}
  */
 export function optional(item, note) {
-  const width = item.width + 4 * RADIUS;
+  const inner = Math.max(item.width, noteWidth(note));
+  const width = inner + 4 * RADIUS;
   const rise = Math.max(item.up + GAP, 2 * RADIUS);
   return {
     width, up: rise + (note ? LABEL_HEIGHT : 0), down: item.down, height: item.height,
@@ -259,21 +268,82 @@ export function optional(item, note) {
 }
 
 /**
+ * A path's data reflected across the vertical line x = axis / 2. The paths
+ * of this file use only M, m, H, h, V, v and a, and a reflected arc turns
+ * the other way.
+ * @param {string} d
+ * @param {number} axis twice the x of the line
+ */
+function reflectPath(d, axis) {
+  return d.replace(/([MmHhVva])([^MmHhVva]*)/g, (_, command, args) => {
+    const v = args.trim().split(/[ ,]+/).map(Number);
+    if (command === "M") return `M${n(axis - v[0])} ${n(v[1])}`;
+    if (command === "m") return `m${n(-v[0])} ${n(v[1])}`;
+    if (command === "H") return `H${n(axis - v[0])}`;
+    if (command === "h") return `h${n(-v[0])}`;
+    if (command === "a") return `a${v[0]} ${v[1]} ${v[2]} ${v[3]} ${1 - v[4]} ${n(-v[5])} ${n(v[6])}`;
+    return command + args;
+  });
+}
+
+/**
+ * An element of a drawing reflected across the vertical line x = axis / 2.
+ * A box and its text keep their size, and a text stays upright: only where
+ * it stands changes.
+ * @param {string} element
+ * @param {number} axis
+ */
+function reflect(element, axis) {
+  if (element.startsWith("<path ")) return element.replace(/ d="([^"]*)"/, (_, d) => ` d="${reflectPath(d, axis)}"`);
+  if (element.startsWith("<g ")) {
+    return element
+      .replace(/<rect x="([-\d.]+)"([^>]*) width="([\d.]+)"/, (_, x, rest, width) => `<rect x="${n(axis - Number(x) - Number(width))}"${rest} width="${width}"`)
+      .replace(/<text x="([-\d.]+)"/, (_, x) => `<text x="${n(axis - Number(x))}"`);
+  }
+  // A note, whose text begins at its x.
+  return element.replace(/ x="([-\d.]+)"(.*?) textLength="([\d.]+)"/, (_, x, rest, textLength) => ` x="${n(axis - Number(x) - Number(textLength))}"${rest} textLength="${textLength}"`);
+}
+
+/**
+ * A piece for a track that runs from right to left, such as a separator on
+ * the way back of a loop. It enters at its right, at (width, 0), and leaves
+ * at its left, at (0, height). Its parts stand in the order of that track,
+ * so the first part read stands at the right, and every text stays upright.
+ * @param {Piece} piece
+ * @returns {Piece}
+ */
+export function reversed(piece) {
+  return {
+    width: piece.width, up: piece.up, down: piece.down, height: piece.height,
+    draw(x, y, out) {
+      /** @type {string[]} */
+      const drawn = [];
+      piece.draw(x, y, drawn);
+      for (const element of drawn) out.push(reflect(element, 2 * x + piece.width));
+    },
+  };
+}
+
+/**
  * One or more of an item: the item on the track, and a loop back under it,
- * through the separator if there is one. `note` labels the loop, as the
- * kind of a chain.
+ * through the separator if there is one. The loop runs from right to left,
+ * so the separator is drawn reversed: the track reaches its right end first.
+ * `note` labels the loop, as the kind of a chain.
  * @param {Piece} item
  * @param {Piece} [separator]
  * @param {string} [note]
  * @returns {Piece}
  */
 export function repeat(item, separator, note) {
-  const inner = Math.max(item.width, separator ? separator.width : 0);
+  const inner = Math.max(item.width, separator ? separator.width : 0, noteWidth(note));
   const width = inner + 4 * RADIUS;
+  // The loop runs this far below the item's exit, and the separator, which
+  // can continue on rows of its own, leaves it `fall` lower again.
   const drop = Math.max(item.down + GAP + (separator ? separator.up : 0), 2 * RADIUS);
+  const fall = separator ? separator.height : 0;
   const below = separator ? separator.down : 0;
   return {
-    width, up: item.up, down: drop + below + (note ? LABEL_HEIGHT : 0), height: item.height,
+    width, up: item.up, down: drop + fall + below + (note ? LABEL_HEIGHT : 0), height: item.height,
     draw(x, y, out) {
       const exit = y + item.height;
       const loop = exit + drop;
@@ -283,15 +353,15 @@ export function repeat(item, separator, note) {
       const right = x + width - 2 * RADIUS;
       let back = `M${n(right)} ${n(exit)}${turn(RADIUS, RADIUS, true)}V${n(loop - RADIUS)}${turn(-RADIUS, RADIUS, true)}`;
       if (separator) {
-        // The separator is read on the way back, so its box stands on the
-        // loop, centred, with the track on either side of it.
+        // The separator stands on the loop, centred, with the track on
+        // either side of it.
         const start = x + 2 * RADIUS + (inner - separator.width) / 2;
         out.push(path(`${back}H${n(start + separator.width)}`));
-        separator.draw(start, loop, out);
-        back = `M${n(start)} ${n(loop)}`;
+        reversed(separator).draw(start, loop, out);
+        back = `M${n(start)} ${n(loop + fall)}`;
       }
       out.push(path(`${back}H${n(x + 2 * RADIUS)}${turn(-RADIUS, -RADIUS, true)}V${n(y + RADIUS)}${turn(RADIUS, -RADIUS, true)}`));
-      if (note) out.push(`<text class="label" x="${n(x + 2 * RADIUS + 4)}" y="${n(loop + below + LABEL_HEIGHT - 2)}"${fit(note, LABEL_CHAR_WIDTH)}>${escape(note)}</text>`);
+      if (note) out.push(`<text class="label" x="${n(x + 2 * RADIUS + 4)}" y="${n(loop + fall + below + LABEL_HEIGHT - 2)}"${fit(note, LABEL_CHAR_WIDTH)}>${escape(note)}</text>`);
     },
   };
 }
@@ -333,35 +403,138 @@ export function testText(expr) {
 }
 
 /**
+ * The elidable optionals of a rule whose terminator has a test, in the
+ * order of a walk of its alternatives, each item before its parts. Only for
+ * these can the test forbid the omission (engine §3.8, the omission
+ * predicate).
+ * @param {any} rule
+ * @returns {any[]}
+ */
+export function testedElisions(rule) {
+  const found = [];
+  /** @param {any} expr */
+  const visit = (expr) => {
+    if (!expr || typeof expr !== "object") return;
+    if (Array.isArray(expr)) {
+      for (const item of expr) visit(item);
+      return;
+    }
+    if ("optional" in expr && expr.elidable) {
+      const first = "seq" in expr.optional ? expr.optional.seq[0] : expr.optional;
+      if ("test" in first) found.push(expr);
+    }
+    for (const key of ["seq", "choice", "and", "optional", "repeat", "separator", "expr"]) if (key in expr) visit(expr[key]);
+  };
+  for (const alternative of rule.alternatives) visit(alternative.expr);
+  return found;
+}
+
+/**
+ * What the omission predicate of the engine gives for each elidable optional
+ * whose terminator has a test (engine §3.8), in every stage of the given
+ * pipelines that reads its document. A constant takes its value in each
+ * stage, so a document that several dialects read can give each a
+ * different answer. The predicate tests the omitted terminator: the sound of
+ * an `=` test, or no sound, and the tag set of the terminator alone.
+ * @param {{pipeline: (path: string) => {stages: {documents: {path: string, dom: any}[]}[]}, dialect: (path: string) => {stages: {grammar: any}[]}}} loader
+ * @param {string[]} pipelines the pipeline documents' paths
+ * @returns {Map<string, Map<number, Set<boolean>[]>>} by document, then by
+ *   the index of the rule: one set of answers for each of its
+ *   testedElisions, in order
+ */
+export function elisionOutcomes(loader, pipelines) {
+  /** @type {Map<string, Map<number, Set<boolean>[]>>} */
+  const outcomes = new Map();
+  for (const pipeline of pipelines) {
+    const { stages } = loader.pipeline(pipeline);
+    const dialect = loader.dialect(pipeline);
+    stages.forEach((stage, index) => {
+      const grammar = dialect.stages[index].grammar;
+      for (const { path: document, dom } of stage.documents) {
+        dom.rules.forEach((/** @type {any} */ rule, /** @type {number} */ ruleIndex) => {
+          testedElisions(rule).forEach((optional, ordinal) => {
+            const first = "seq" in optional.optional ? optional.optional.seq[0] : optional.optional;
+            const test = grammar.symbolTest(first, document, { document, line: rule.at[0], column: rule.at[1] });
+            const terminal = "terminal" in first.expr ? first.expr.terminal : first.expr.ref;
+            const held = leafTest({ test: test.op, value: test.sound !== undefined ? { string: test.sound } : { set: test.tags } }, test.op === "=" ? test.sound : "", new Set([terminal]));
+            if (!outcomes.has(document)) outcomes.set(document, new Map());
+            const byRule = /** @type {Map<number, Set<boolean>[]>} */ (outcomes.get(document));
+            if (!byRule.has(ruleIndex)) byRule.set(ruleIndex, []);
+            const answers = /** @type {Set<boolean>[]} */ (byRule.get(ruleIndex));
+            (answers[ordinal] ??= new Set()).add(held);
+          });
+        });
+      }
+    });
+  }
+  return outcomes;
+}
+
+/**
+ * The Omission of one rule, from its answers in elisionOutcomes.
+ * @param {any} rule
+ * @param {Set<boolean>[] | undefined} answers
+ * @returns {Omission}
+ */
+export function omissionOf(rule, answers) {
+  const tested = testedElisions(rule);
+  return (optional) => {
+    const found = answers?.[tested.indexOf(optional)];
+    return found && found.size === 1 ? [...found][0] : null;
+  };
+}
+
+/**
+ * Whether the engine may omit the terminator of an elidable optional: true
+ * or false where every stage that reads the rule agrees, null where they
+ * differ or where nothing says. An optional whose terminator has no test
+ * may always be omitted.
+ * @typedef {(optional: any) => boolean | null} Omission
+ */
+
+/** @type {Omission} */
+const unknownOmission = () => null;
+
+/**
  * The diagram of an expression of the DOM (docs/engine.md, §9), no wider
  * than `limit` where its sequences can wrap. Each construct that frames its
  * parts takes the room of its frame from the limit of the parts.
  * @param {any} expr
  * @param {number} [limit]
+ * @param {Omission} [omission]
  * @returns {Piece}
  */
-export function expressionPiece(expr, limit = MAX_WIDTH) {
+export function expressionPiece(expr, limit = MAX_WIDTH, omission = unknownOmission) {
   const inside = limit - 4 * RADIUS;
   /** @param {any} part */
-  const framed = (part) => expressionPiece(part, inside);
+  const framed = (part) => expressionPiece(part, inside, omission);
   if ("seq" in expr) return wrapped(expr.seq.map(framed), limit);
   if ("choice" in expr) return choice(expr.choice.map(framed));
   // A & B & C reads any non-empty subsequence in order. So it is the choice
   // of where the subsequence begins, each item after that being optional.
   if ("and" in expr) {
     return choice(expr.and.map((/** @type {any} */ item, /** @type {number} */ index) => wrapped([
-      expressionPiece(item, inside - 4 * RADIUS),
-      ...expr.and.slice(index + 1).map((/** @type {any} */ rest) => optional(expressionPiece(rest, inside - 8 * RADIUS))),
+      expressionPiece(item, inside - 4 * RADIUS, omission),
+      ...expr.and.slice(index + 1).map((/** @type {any} */ rest) => optional(expressionPiece(rest, inside - 8 * RADIUS, omission))),
     ], inside)));
   }
-  if ("optional" in expr) return optional(framed(expr.optional), expr.elidable ? (expr.maximal ? "elided, maximal" : "elided") : undefined);
+  if ("optional" in expr) {
+    if (!expr.elidable) return optional(framed(expr.optional));
+    // The terminator's test can forbid its omission (engine §3.8): then
+    // only the written route is left.
+    const first = "seq" in expr.optional ? expr.optional.seq[0] : expr.optional;
+    const allowed = "test" in first ? omission(expr) : true;
+    if (allowed === false) return expressionPiece(expr.optional, limit, omission);
+    const kind = expr.maximal ? "elided, maximal" : "elided";
+    return optional(framed(expr.optional), allowed ? kind : `${kind}, where its test allows`);
+  }
   if ("repeat" in expr) {
     const note = expr.chain ? `${expr.chain} chain` : undefined;
     return repeat(framed(expr.repeat), expr.separator ? framed(expr.separator) : undefined, note);
   }
   // A capture names a part for the clauses, and changes nothing that the
   // rule reads.
-  if ("capture" in expr) return expressionPiece(expr.expr, limit);
+  if ("capture" in expr) return expressionPiece(expr.expr, limit, omission);
   if ("test" in expr) return box(symbolText(expr.expr) + testText(expr), isTerminal(expr.expr));
   if (expr.empty === true) return skip();
   return box(symbolText(expr), isTerminal(expr));
@@ -380,20 +553,21 @@ export function guardText(guards) {
  * The diagram of a rule's alternatives: a choice of them, each led by its
  * guards.
  * @param {any} rule
+ * @param {Omission} [omission]
  * @returns {Piece}
  */
-export function rulePiece(rule) {
+export function rulePiece(rule, omission = unknownOmission) {
   // With several alternatives, the choice's frame takes its room.
   const limit = rule.alternatives.length > 1 ? MAX_WIDTH - 4 * RADIUS : MAX_WIDTH;
   return choice(rule.alternatives.map((/** @type {any} */ alternative) => {
-    if (!alternative.guards.length) return expressionPiece(alternative.expr, limit);
+    if (!alternative.guards.length) return expressionPiece(alternative.expr, limit, omission);
     const guards = label(guardText(alternative.guards));
-    return sequence([guards, expressionPiece(alternative.expr, limit - guards.width - GAP)]);
+    return sequence([guards, expressionPiece(alternative.expr, limit - guards.width - GAP, omission)]);
   }));
 }
 
 const STYLE = [
-    "path{fill:none;stroke:#333;stroke-width:1.5}",
+  "path{fill:none;stroke:#333;stroke-width:1.5}",
   ".rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}",
   ".terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}",
   `text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:${FONT_SIZE}px;fill:#111;text-anchor:middle}`,
@@ -401,21 +575,31 @@ const STYLE = [
   "text.title{font-weight:bold;text-anchor:start}",
 ].join("");
 
+/** The note beside the name of a rule that has conditions. */
+export const CONDITIONS_NOTE = "conditions apply";
+
 /**
  * The SVG file of a rule: its name, then the track from a start mark to an
- * end mark through its alternatives.
+ * end mark through its alternatives. A rule with conditions has a note
+ * beside its name, since a condition can reject a reading that the track
+ * shows.
  * @param {any} rule
+ * @param {Omission} [omission]
  * @returns {string}
  */
-export function ruleSvg(rule) {
-  const body = rulePiece(rule);
+export function ruleSvg(rule, omission = unknownOmission) {
+  const body = rulePiece(rule, omission);
   const mark = 10;
-  const width = Math.ceil(Math.max(MARGIN * 2 + mark * 2 + body.width, MARGIN * 2 + length(rule.name) * CHAR_WIDTH));
+  const titleWidth = length(rule.name) * CHAR_WIDTH;
+  const conditioned = rule.conditions.length > 0;
+  const heading = titleWidth + (conditioned ? 2 * GAP + length(CONDITIONS_NOTE) * LABEL_CHAR_WIDTH : 0);
+  const width = Math.ceil(Math.max(MARGIN * 2 + mark * 2 + body.width, MARGIN * 2 + heading));
   const y = MARGIN + TITLE_HEIGHT + Math.max(body.up, BOX_HALF);
   const height = Math.ceil(y + body.height + Math.max(body.down, BOX_HALF) + MARGIN);
   /** @type {string[]} */
   const out = [];
-  out.push(`<text class="title" x="${MARGIN}" y="${MARGIN + FONT_SIZE}">${escape(rule.name)}</text>`);
+  out.push(`<text class="title" x="${MARGIN}" y="${MARGIN + FONT_SIZE}"${fit(rule.name, CHAR_WIDTH)}>${escape(rule.name)}</text>`);
+  if (conditioned) out.push(`<text class="label" x="${n(MARGIN + titleWidth + 2 * GAP)}" y="${MARGIN + FONT_SIZE}"${fit(CONDITIONS_NOTE, LABEL_CHAR_WIDTH)}>${CONDITIONS_NOTE}</text>`);
   // The start and end marks: a double bar, as most railroad diagrams draw
   // them.
   out.push(path(`M${MARGIN} ${n(y - 8)}v16m4 -16v16M${MARGIN + 4} ${n(y)}h${mark - 4}`));
@@ -519,12 +703,14 @@ export function fencedBlocks(lines) {
  * @param {string} file the document's path under grammars/
  * @param {string} markdown the document
  * @param {{rules: any[]}} dom the document's DOM
+ * @param {Map<number, Set<boolean>[]>} [outcomes] the answers of the
+ *   omission predicate for the document's rules, from elisionOutcomes
  * @returns {{text: string, lines: (number | null)[], files: Map<string, string>}}
  *   the document; the line where each line of `markdown` now stands, by its
  *   line number (both counted from 1), or null for a generated line; and
  *   the SVG files
  */
-export function withDiagrams(file, markdown, dom) {
+export function withDiagrams(file, markdown, dom, outcomes = new Map()) {
   const lines = markdown.split("\n");
   const blocks = fencedBlocks(lines);
   const inside = new Array(lines.length).fill(false);
@@ -563,7 +749,7 @@ export function withDiagrams(file, markdown, dom) {
     // list item, which indents its fences, would end the list.
     if (/^ /.test(lines[block.start])) throw new Error(`${file}:${block.start + 1}: a jbogenbau block with rules is indented, as in a list item; put it at the top level, where its railroad diagrams can follow it`);
     const svg = `${directory}/${names[index]}.svg`;
-    files.set(svg, ruleSvg(rule));
+    files.set(svg, ruleSvg(rule, omissionOf(rule, outcomes.get(index))));
     if (!after.has(block.end)) after.set(block.end, []);
     /** @type {string[]} */ (after.get(block.end)).push(diagramLine(rule.name, up + svg));
   });
