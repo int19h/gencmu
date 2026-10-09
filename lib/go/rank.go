@@ -255,8 +255,7 @@ type ranker struct {
 	// a derivation of marked links only. A parse that no test watches has
 	// none.
 	marks map[*item]map[link]bool
-	// check says that this ranks the check of elision-only, which only its
-	// faults read.
+	// check selects canonical competitors during reconstruction.
 	check bool
 	views *slotViews
 }
@@ -523,10 +522,10 @@ type entry struct {
 
 func (rk *ranker) addTo(s *tiedSet, d *dn, div count) {
 	c := div.cmp(s.div)
-	if len(s.ds) > 0 && c > 0 {
+	if !rk.check && len(s.ds) > 0 && c > 0 {
 		return
 	}
-	if len(s.ds) == 0 || c < 0 {
+	if len(s.ds) == 0 || !rk.check && c < 0 {
 		s.ds, s.div = []*dn{d}, div
 		return
 	}
@@ -542,7 +541,7 @@ func (rk *ranker) addTied(c *cand, d *dn, div count) {
 // tied with c at the same divergence.
 func (rk *ranker) inherit(c *cand, z *cand, shift count, f func(*dn) *dn, below count) {
 	s := z.tied
-	if len(s.ds) == 0 || s.div.cmp(below) >= 0 {
+	if len(s.ds) == 0 || !rk.check && s.div.cmp(below) >= 0 {
 		return
 	}
 	// A shift leaves inf as it is.
@@ -1548,25 +1547,4 @@ func derivationProfile(g *lowered, d *dn) ruleProfile {
 		stack = append(stack, n.a, n.b)
 	}
 	return out
-}
-
-// secondBefore says whether a comes before b as the second reading after
-// first (engine §6): it diverges from first earlier, in visible actions, or
-// at the same point and before b in the order T, as contribute measures it.
-func secondBefore(rk *ranker, first, a, b *dn) bool {
-	div := func(d *dn) count {
-		r := rk.compare(first, d)
-		switch r.kind {
-		case cVisDiff, cAPrefix, cBPrefix:
-			return r.pos
-		}
-		return inf
-	}
-	switch c := div(a).cmp(div(b)); {
-	case c < 0:
-		return true
-	case c > 0:
-		return false
-	}
-	return rk.aFirst(rk.compare(a, b))
 }

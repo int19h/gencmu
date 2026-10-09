@@ -796,6 +796,7 @@ class StageRunner:
         context.project = project
         # The recognition of R is not a query (engine §4, §7.6).
         forest = _reconstruct(context)
+        lowered = forest.lowered
         # A test that watches the check marks W(D)'s edges before the check
         # ranks (tests/README.md).
         hook = _testing.elision_check
@@ -817,7 +818,7 @@ class StageRunner:
                 pending.extend(node.children)
             walk = walk_witness(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at))
         marks = walk.marks if walk is not None else watch.marks if watch is not None else None
-        preferred = bool(lowered.grammar.preferences.names)
+        preferred = bool(lowered.ranked_helpers or lowered.grammar.preferences.names)
         raw_counted = True
         if preferred:
             raw = rank(forest,"none",marks=marks,check=True,unfiltered=True)
@@ -839,15 +840,9 @@ class StageRunner:
                     watch.ranked(ranking)
                     watched_selection = True
                 if better or ranking.verdict=="tie":
-                    from ._rank import second_before
-                    if excluded:
-                        competitor = ranking.first
-                    else:
-                        options = [rope for rope in (ranking.first,ranking.second) if rope is not None and first_difference(restored_rope,rope,False) is not None]
-                        competitor = options[0]
-                        for other in options[1:]:
-                            if second_before(restored_rope,other,competitor):
-                                competitor = other
+                    competitor = ranking.first if first_difference(restored_rope,ranking.first,False) is not None else ranking.second
+                    if competitor is None:
+                        raise RuntimeError("Reconstruction requires a distinct best admitted competitor.")
                     ranking.first,ranking.second = restored_rope,competitor
                     difference = first_difference(restored_rope,competitor,True) or first_difference(restored_rope,competitor,False)
                     assert difference is not None

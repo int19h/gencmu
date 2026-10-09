@@ -862,6 +862,7 @@ pub(crate) struct Dag<'c> {
     /// its projected span (§7.5); `None` elsewhere.
     projection: Option<(&'c [Tok], &'c [u32])>,
     lean: Lean,
+    canonical_companions: bool,
     pub arena: Vec<DNode>,
     /// The number of visible actions and of all actions of each node,
     /// exact, since a derivation can be exponentially long.
@@ -883,8 +884,7 @@ pub(crate) struct Ranker<'c> {
     /// count also says whether it includes a derivation made of marked links
     /// only. A parse that no test watches has none.
     marks: Option<&'c Marks>,
-    /// Whether this is the ranker of the check of `elision-only`, which only
-    /// its faults read.
+    /// Reconstruction selects canonical companions and enables its fault tests.
     check: bool,
     admission: Option<Admission>,
     views: Option<SlotViews>,
@@ -995,7 +995,7 @@ impl<'c> Dag<'c> {
                 // A companion that diverged from the loser where the winner
                 // beat it is beaten there too, since ties are transitive.
                 for comp in &loser.comps {
-                    if comp.div < p {
+                    if self.canonical_companions || comp.div < p {
                         winner.comps.push(comp.clone());
                     }
                 }
@@ -1008,13 +1008,14 @@ impl<'c> Dag<'c> {
         self.prune(&mut winner.comps);
     }
 
-    /// Keeps the companions that diverge earliest, and of those the ones
-    /// nothing precedes in every context.
+    /// Reconstruction keeps canonical companions.
+    /// Ordinary ranking first selects the earliest divergence.
     fn prune(&mut self, comps: &mut Vec<Comp>) {
         let Some(min) = comps.iter().map(|comp| &comp.div).min().cloned() else {
             return;
         };
-        let candidates: Vec<Comp> = comps.drain(..).filter(|comp| comp.div == min).collect();
+        let candidates: Vec<Comp> =
+            comps.drain(..).filter(|comp| self.canonical_companions || comp.div == min).collect();
         let mut kept: Vec<Comp> = Vec::new();
         for comp in candidates {
             let mut dominated = false;
@@ -1246,6 +1247,7 @@ impl<'c> Ranker<'c> {
             tags: &shared.tags,
             projection: None,
             lean,
+            canonical_companions: false,
             arena: Vec::new(),
             vlen: Vec::new(),
             flen: Vec::new(),
@@ -1293,6 +1295,7 @@ impl<'c> Ranker<'c> {
     /// of W(D) where a test watches it (tests/README.md).
     pub(crate) fn checking(mut self, marks: Option<&'c Marks>) -> Ranker<'c> {
         self.check = true;
+        self.dag.canonical_companions = true;
         self.marks = marks;
         self
     }
@@ -1347,22 +1350,6 @@ impl<'c> Ranker<'c> {
     /// Whether `a` comes before `b` in the order T.
     pub(crate) fn before(&self, a: u32, b: u32) -> bool {
         self.dag.before(a, b)
-    }
-
-    /// Whether `a` comes before `b` as the second reading after `first`
-    /// (§6): it diverges from `first` earlier, or at the same point and
-    /// before `b` in the order T. As `rank` measures it.
-    pub(crate) fn second_before(&self, first: u32, a: u32, b: u32) -> bool {
-        let div = |d: u32| match self.dag.first_difference(first, d, true) {
-            Diff::At { index, .. } => Div::At(index),
-            Diff::APrefix { len } | Diff::BPrefix { len } => Div::At(len),
-            Diff::Equal => Div::Last,
-        };
-        match div(a).cmp(&div(b)) {
-            Ordering::Less => true,
-            Ordering::Greater => false,
-            Ordering::Equal => self.dag.before(a, b),
-        }
     }
 
     /// The tokens that a test of a reference over `start..end` reads: those
@@ -2063,6 +2050,7 @@ impl<'c> Ranker<'c> {
             };
             let better = match &tied {
                 None => true,
+                Some((best, _)) if self.check => self.dag.before(d, *best),
                 Some((best, best_div)) => match div.cmp(best_div) {
                     Ordering::Less => true,
                     Ordering::Greater => false,

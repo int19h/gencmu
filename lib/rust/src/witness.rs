@@ -375,6 +375,9 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                         (IKind::Close { .. }, Sym::N(_)) => {
                             for &i in &found[child as usize] {
                                 let set = &forest.chart.sets[to as usize];
+                                if set.items[i as usize].lexical != forest.chart.expected_lexical(item, from) {
+                                    continue;
+                                }
                                 caps.push(Cap {
                                     start: from,
                                     end: to,

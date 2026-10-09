@@ -1,0 +1,44 @@
+{
+  "description": "A reconstructed higher option excludes the raw chosen witness. The error reports that witness first.",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text [{(a ≻ b)}]\n%tags ∅\n%rule a X T\n%rule b X [+T] | [+U] X",
+  "tokens": [
+    {
+      "text": "x",
+      "phonemes": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "format": 11,
+      "ok": false,
+      "stages": [
+        {
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "reason": "elision-only",
+        "readings": [
+          {
+            "children": [
+              {
+                "rule": "b"
+              }
+            ]
+          },
+          {
+            "children": [
+              {
+                "rule": "a"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

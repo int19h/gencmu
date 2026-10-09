@@ -10807,8 +10807,8 @@
      * @returns {Candidate}
      */
     offer(entry, alt, at) {
-      if (entry.alts.length === 0 || at < entry.at) return { seq: entry.seq, alts: [alt], at };
-      if (at > entry.at) return entry;
+      if (entry.alts.length === 0 || !this.check && at < entry.at) return { seq: entry.seq, alts: [alt], at };
+      if (!this.check && at > entry.at) return entry;
       /** @type {Rope[]} */
       const alts = [];
       /** @type {Rope | null} */
@@ -10824,7 +10824,7 @@
         }
       }
       if (current !== null) alts.push(current);
-      return { seq: entry.seq, alts, at };
+      return { seq: entry.seq, alts, at: lesser(entry.at, at) };
     }
 
     // Adds a candidate to a list, settling it against every candidate it can
@@ -12066,6 +12066,28 @@
     }
     const top = found.get(chosen);
     if (!top || !roots.some((item) => top.has(item))) return null;
+    // Bind one coherent proof to its actual reconstruction entry frames.
+    /** @type {Map<import("./types.js").Derivation, import("./types.js").Item>} */
+    const bound = new Map();
+    /** @type {{node:import("./types.js").DerivationRule,item:import("./types.js").Item}[]} */
+    const bind = [{node:/** @type {import("./types.js").DerivationRule} */ (chosen),item:/** @type {import("./types.js").Item} */ (roots.find(item => top.has(item)))}];
+    while (bind.length) {
+      const {node,item} = /** @type {NonNullable<ReturnType<typeof bind.pop>>} */ (bind.pop());
+      bound.set(node,item);
+      if (witnessElided(node)) continue;
+      let current = item;
+      for (let index = node.children.length-1; index >= 0; index--) {
+        const child = node.children[index];
+        const edge = current.edges.find((edge, number) => marks.get(current)?.has(number) && (
+          "read" in child
+            ? edge.kind === "scan" && edge.token === spanOf(child)[0] && edge.terminal === child.read.terminal
+            : edge.kind === "complete" && found.get(child)?.has(edge.child)
+        ));
+        if (!edge || !("previous" in edge)) return null;
+        if (edge.kind === "complete") bind.push({node:/** @type {import("./types.js").DerivationRule} */ (child),item:edge.child});
+        current = edge.previous;
+      }
+    }
     // Build actions after visiting each node's children, without ranking.
     // Each restoration reads its synthetic token and closes over it.
     /** @type {import("./types.js").Action[]} */
@@ -12077,7 +12099,7 @@
         continue;
       }
       if (witnessElided(node)) sequence.push({ kind: "read", token: start, terminal: /** @type {string} */ (node.production.elided) });
-      const item = /** @type {import("./types.js").Item} */ ([...(found.get(node) || [])][0]);
+      const item = /** @type {import("./types.js").Item} */ (bound.get(node));
       sequence.push({ kind: "close", item: item ?? /** @type {any} */ ({ production: node.production, origin: start, end }) });
     }
     return { marks, sequence };
@@ -12543,9 +12565,8 @@
       if (better || ranking.verdict === "tie" && protectWitness) {
         const first = ranking.first;
         const second = ranking.second;
-        const options = second && firstDifference(restoredWitness, second, false) !== null ? [second] : [];
-        if (firstDifference(restoredWitness, first, false) !== null) options.push(first);
-        const competitor = excluded ? first : options.sort((a,b) => secondOrder(restoredWitness,a,b,"none"))[0];
+        const competitor = firstDifference(restoredWitness, first, false) !== null ? first : second;
+        if (!competitor) throw new Error("Reconstruction requires a distinct best admitted competitor.");
         let difference = firstDifference(restoredWitness, competitor, true);
         if (!difference?.left || !difference.right) difference = firstDifference(restoredWitness, competitor, false);
         ranking = { ...ranking, second: competitor, first: restoredWitness,

@@ -48,8 +48,7 @@ func (log *checkLog) lost() int { return log.bad }
 // marked links only. The selection channel: where the check reports two
 // readings, the first does not come after W(D) in the order T. Where the
 // first is not W(D), W(D) was a candidate for the second, so the second
-// does not come after W(D) by the criterion of engine §6 that picks it:
-// divergence from the first, then T.
+// does not come after W(D) in the canonical order T.
 func keeps(res *rankResult, rk *ranker, w *dn) bool {
 	if rk.rawWitnessCounted != nil {
 		return res != nil && *rk.rawWitnessCounted
@@ -64,33 +63,9 @@ func keeps(res *rankResult, rk *ranker, w *dn) bool {
 	if !rk.aFirst(first) {
 		return false
 	}
-	return first.kind == cIdentical || secondFirst(rk, res.first, res.second, w)
+	return first.kind == cIdentical || rk.aFirst(rk.compare(res.second, w))
 }
 
-// secondFirst says whether a comes before b as the second reading after
-// first (engine §6): it diverges from first earlier, in visible actions, or
-// at the same point and before b in the order T, as contribute measures it.
-func secondFirst(rk *ranker, first, a, b *dn) bool {
-	div := func(d *dn) count {
-		r := rk.compare(first, d)
-		switch r.kind {
-		case cVisDiff, cAPrefix, cBPrefix:
-			return r.pos
-		}
-		return inf
-	}
-	switch c := div(a).cmp(div(b)); {
-	case c < 0:
-		return true
-	case c > 0:
-		return false
-	}
-	return rk.aFirst(rk.compare(a, b))
-}
-
-// lostCase is a two-stage pipeline whose first stage runs the check of
-// elision-only over two terminators at one position, one tested, with a
-// warning on its chosen tree.
 func lostCase(t *testing.T) (*Dialect, *engineCase) {
 	c := &engineCase{
 		Documents: map[string]string{"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n" +

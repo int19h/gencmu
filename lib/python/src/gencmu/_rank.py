@@ -713,14 +713,13 @@ class Ranker(Summaries):
         return result
 
     def offer(self, entry: Entry, alt: Rope | None, at: Count) -> None:
-        """Add a tied derivation to an entry's, keeping the earliest-diverging,
-        and of those the T-least of any two whose order is
-        settled."""
-        if not entry.alts or at < entry.at:
+        """Keep canonical companions during reconstruction. Ordinary ranking
+        first selects the earliest divergence."""
+        if not entry.alts or not self.check and at < entry.at:
             entry.alts = [alt]
             entry.at = at
             return
-        if at > entry.at:
+        if not self.check and at > entry.at:
             return
         kept: list[Alt] = []
         pending = True
@@ -737,6 +736,7 @@ class Ranker(Summaries):
         if pending:
             kept.append(alt)
         entry.alts = kept
+        entry.at = min(entry.at, at)
 
     def keep(self, kept: list[Entry], new: Entry) -> None:
         """Add a candidate to a list of candidates whose order is not yet
@@ -770,7 +770,7 @@ class Ranker(Summaries):
             # The loser is tied with the winner here, and precedes in T every
             # derivation tied with it that diverges from it here or later.
             self.offer(winner, loser.seq, point)
-        if loser.at < point:
+        if self.check or loser.at < point:
             for alt in loser.alts:
                 self.offer(winner, alt, loser.at)
 
@@ -828,7 +828,11 @@ class Ranker(Summaries):
             return Ranking("resolved", first.seq, None, None, counted_w)
         best_at, second = candidates[0]
         for at, rope in candidates[1:]:
-            if at < best_at or (at == best_at and compare(rope, second, self.lean).order < 0):
+            if self.check:
+                better = compare(rope, second, self.lean).order < 0
+            else:
+                better = at < best_at or at == best_at and compare(rope, second, self.lean).order < 0
+            if better:
                 best_at, second = at, rope
         difference = first_difference(first.seq, second, True)
         if difference is None or difference[1] is None or difference[2] is None:
@@ -1223,11 +1227,3 @@ def rank_original(forest: Forest, lean: str, maximal: Maximal | None = None, mar
 def count_roots(forest: Forest, roots: list[int]) -> list[int]:
     """The number of derivations, up to two, of each of a forest's roots."""
     return Ranker(forest, "greedy", entries=False).count(roots)
-
-
-def second_before(first,left,right):
-    def divergence(other):
-        difference = first_difference(first,other,True)
-        return INF if difference is None else difference[0]
-    a,b = divergence(left),divergence(right)
-    return a<b if a!=b else compare(left,right,"none").order<0

@@ -940,7 +940,8 @@ impl Dialect {
             let mut ranker = Ranker::new(g, &chart, &tokens, shared, Lean::Neither, None)
                 .observing(input, &recon.project)
                 .checking(marks);
-            let raw_counted = if !g.preferences.paths.is_empty() {
+            let preferred = !g.preferences.paths.is_empty() || !g.ranked.slots.is_empty();
+            let raw_counted = if preferred {
                 Ranker::new(g, &chart, &tokens, shared, Lean::Neither, None)
                     .unfiltered()
                     .observing(input, &recon.project)
@@ -954,17 +955,15 @@ impl Dialect {
                 .rank()
                 .filter(|ranking| {
                     loss != Some(witness::Loss::Count)
-                        && (!protect
-                            || (raw_counted
-                                && (!g.preferences.paths.is_empty() || ranking.witness_counted == Some(true))))
-                        && (!g.preferences.paths.is_empty()
+                        && (!protect || (raw_counted && (preferred || ranking.witness_counted == Some(true))))
+                        && (preferred
                             || compare_profiles(&ranking.profile, &chosen_profile) != std::cmp::Ordering::Greater)
                 })
                 .map(|mut ranking| {
                     let excluded = protect && ranking.witness_counted != Some(true);
                     let better =
                         excluded || compare_profiles(&ranking.profile, &chosen_profile) == std::cmp::Ordering::Less;
-                    let keeps = if !g.preferences.paths.is_empty() {
+                    let keeps = if preferred {
                         raw_counted
                     } else {
                         ranking.witness_counted == Some(true)
@@ -973,8 +972,7 @@ impl Dialect {
                                     Some(second) if ranking.verdict == RankVerdict::Tie || better => {
                                         let w = ranker.derivation(&walk.sequence);
                                         !ranker.before(w, ranking.first)
-                                            && (!ranker.before(ranking.first, w)
-                                                || !ranker.second_before(ranking.first, w, second))
+                                            && (!ranker.before(ranking.first, w) || !ranker.before(w, second))
                                     }
                                     _ => true,
                                 }))
@@ -996,7 +994,7 @@ impl Dialect {
                             }
                             let mut best = options[0];
                             for &other in &options[1..] {
-                                if ranker.second_before(w, other, best) {
+                                if ranker.before(other, best) {
                                     best = other;
                                 }
                             }

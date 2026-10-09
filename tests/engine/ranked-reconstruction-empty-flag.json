@@ -1,0 +1,44 @@
+{
+  "description": "A synthetic-only flagged occurrence has zero weight, so the canonical competing reading remains c.",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text (w ≻ missing) | c | d\n%rule(leftmost-longest) w X [+T] | [+U] X\n%rule missing M N\n%rule(leftmost-longest) c X T\n%rule(leftmost-longest) d X empty\n%rule(leftmost-longest) empty T",
+  "tokens": [
+    {
+      "text": "x",
+      "phonemes": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "format": 11,
+      "ok": false,
+      "stages": [
+        {
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "reason": "elision-only",
+        "readings": [
+          {
+            "children": [
+              {
+                "rule": "w"
+              }
+            ]
+          },
+          {
+            "children": [
+              {
+                "rule": "c"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -248,7 +248,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	var res *rankResult
 	rk := newRanker(r, "", nil)
 	rk.check, rk.marks = true, marks
-	preferred := g.stage != nil && g.stage.preferences != nil && len(g.stage.preferences.paths) > 0
+	preferred := len(g.rankedHelpers) > 0 || g.stage != nil && g.stage.preferences != nil && len(g.stage.preferences.paths) > 0
 	rawCounted := true
 	if preferred {
 		raw := newRanker(r, "", nil)
@@ -279,15 +279,12 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 				selected = &copy
 			}
 			if better || res.verdict == VerdictTie && protect {
-				var competitor *dn
-				if excluded {
-					competitor = res.first
-				} else {
-					for _, candidate := range []*dn{res.first, res.second} {
-						if candidate != nil && rk.compare(restored, candidate).kind != cIdentical && (competitor == nil || secondBefore(rk, restored, candidate, competitor)) {
-							competitor = candidate
-						}
-					}
+				competitor := res.first
+				if rk.compare(restored, competitor).kind == cIdentical {
+					competitor = res.second
+				}
+				if competitor == nil {
+					panic("reconstruction requires a distinct best admitted competitor")
 				}
 				res.first, res.second = restored, competitor
 				diff := rk.compare(restored, competitor)

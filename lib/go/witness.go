@@ -89,14 +89,14 @@ func walkWitness(run *elisionCheckRun) (map[*item]map[link]bool, *dn) {
 			continue
 		}
 		if elided(w.d) {
-			index[where{w.end, w.d.prod, 0, int32(w.start)}] = nil
+			index[where{w.end, baseProduction(w.d.prod), 0, int32(w.start)}] = nil
 			need[w.end] = true
 			continue
 		}
-		index[where{w.start, w.d.prod, 0, int32(w.start)}] = nil
+		index[where{w.start, baseProduction(w.d.prod), 0, int32(w.start)}] = nil
 		need[w.start] = true
 		for i, k := range w.kids {
-			index[where{k.end, w.d.prod, int32(i + 1), int32(w.start)}] = nil
+			index[where{k.end, baseProduction(w.d.prod), int32(i + 1), int32(w.start)}] = nil
 			need[k.end] = true
 		}
 	}
@@ -105,14 +105,14 @@ func walkWitness(run *elisionCheckRun) (map[*item]map[link]bool, *dn) {
 			continue
 		}
 		for _, it := range run.rec.sets[k].items {
-			key := where{k, it.prod, it.dot, it.origin}
+			key := where{k, baseProduction(it.prod), it.dot, it.origin}
 			if list, ok := index[key]; ok {
 				index[key] = append(list, it)
 			}
 		}
 	}
 	itemsAt := func(k int, p *production, dot, origin int) []*item {
-		return index[where{k, p, int32(dot), int32(origin)}]
+		return index[where{k, baseProduction(p), int32(dot), int32(origin)}]
 	}
 
 	// Record exact items for each close and matched links for each item.
@@ -214,10 +214,12 @@ func walkWitness(run *elisionCheckRun) (map[*item]map[link]bool, *dn) {
 		return nil, nil
 	}
 	states := map[*wnode]*symNode{}
+	productions := map[*wnode]*production{}
 	for len(pending) > 0 {
 		b := pending[len(pending)-1]
 		pending = pending[:len(pending)-1]
 		states[b.w] = b.sym
+		productions[b.w] = b.it.prod
 		it := b.it
 		for i := len(b.w.kids) - 1; i >= 0; i-- {
 			k := b.w.kids[i]
@@ -242,13 +244,13 @@ func walkWitness(run *elisionCheckRun) (map[*item]map[link]bool, *dn) {
 			built[w] = readNode(int32(w.end-1), w.d.term)
 		case elided(w.d):
 			read := readNode(int32(w.end-1), run.rec.g.termID[w.d.prod.elided])
-			built[w] = closeNode(w.d.prod, int32(w.end-1), int32(w.end), states[w].tags, partNode(nil, read), states[w].structure)
+			built[w] = closeNode(productions[w], int32(w.end-1), int32(w.end), states[w].tags, partNode(nil, read), states[w].structure)
 		default:
 			var kids *dn
 			for _, k := range w.kids {
 				kids = partNode(kids, built[k])
 			}
-			built[w] = closeNode(w.d.prod, int32(w.start), int32(w.end), states[w].tags, kids, states[w].structure)
+			built[w] = closeNode(productions[w], int32(w.start), int32(w.end), states[w].tags, kids, states[w].structure)
 		}
 	}
 	return marks, built[root]

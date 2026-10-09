@@ -1,0 +1,44 @@
+{
+  "description": "Distinct physical spans remain separate when their projected spans coincide.",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text q ≻ neutral\n%rule q T p Z\n%rule p (a ≻ b) [T]\n%rule a ε\n%rule b [+T]\n%tags ∅\n%rule neutral [+T] [+T] Z | [+T] [+T] [+U] Z",
+  "tokens": [
+    {
+      "text": "z",
+      "phonemes": "z",
+      "tags": [
+        "Z"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "format": 11,
+      "ok": false,
+      "stages": [
+        {
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "reason": "elision-only",
+        "readings": [
+          {
+            "children": [
+              {
+                "rule": "neutral"
+              }
+            ]
+          },
+          {
+            "children": [
+              {
+                "rule": "q"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
