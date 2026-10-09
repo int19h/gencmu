@@ -64,8 +64,10 @@ A leading indicator run also stays in the stream at the start of the whole text.
   classes(last($p)) ∩ $QUOTE-OPENERS ≠ ∅
 ```
 
-<details><summary>Railroad diagram of <code>text</code></summary><img src="../../docs/diagrams/indicators/cll/text.svg" alt="Railroad diagram of the rule text"></details>
-<details><summary>Railroad diagram of <code>item-run</code></summary><img src="../../docs/diagrams/indicators/cll/item-run.svg" alt="Railroad diagram of the rule item-run"></details>
+<details><summary>Railroad diagrams of <code>text</code> and <code>item-run</code></summary>
+<p><img src="../../docs/diagrams/indicators/cll/text.svg" alt="Railroad diagram of the rule text"></p>
+<p><img src="../../docs/diagrams/indicators/cll/item-run.svg" alt="Railroad diagram of the rule item-run"></p>
+</details>
 
 An item hands on a word with its preceding `ba'e` run and following indicator run attached. A quotation opener takes no following indicators, as above.
 
@@ -92,10 +94,12 @@ An item hands on a word with its preceding `ba'e` run and following indicator ru
   $
 ```
 
-<details><summary>Railroad diagram of <code>item</code></summary><img src="../../docs/diagrams/indicators/cll/item.svg" alt="Railroad diagram of the rule item"></details>
-<details><summary>Railroad diagram of <code>unit</code></summary><img src="../../docs/diagrams/indicators/cll/unit.svg" alt="Railroad diagram of the rule unit"></details>
-<details><summary>Railroad diagram of <code>bahe-run</code></summary><img src="../../docs/diagrams/indicators/cll/bahe-run.svg" alt="Railroad diagram of the rule bahe-run"></details>
-<details><summary>Railroad diagram of <code>bahe</code></summary><img src="../../docs/diagrams/indicators/cll/bahe.svg" alt="Railroad diagram of the rule bahe"></details>
+<details><summary>Railroad diagrams of <code>item</code>, <code>unit</code>, <code>bahe-run</code> and <code>bahe</code></summary>
+<p><img src="../../docs/diagrams/indicators/cll/item.svg" alt="Railroad diagram of the rule item"></p>
+<p><img src="../../docs/diagrams/indicators/cll/unit.svg" alt="Railroad diagram of the rule unit"></p>
+<p><img src="../../docs/diagrams/indicators/cll/bahe-run.svg" alt="Railroad diagram of the rule bahe-run"></p>
+<p><img src="../../docs/diagrams/indicators/cll/bahe.svg" alt="Railroad diagram of the rule bahe"></p>
+</details>
 
 A `le'u` outside any quote is still a word. But the stage reads it as `LEhU` and not also as a plain word, so that it has one reading.
 
@@ -154,12 +158,14 @@ The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run be
   ($b) $m
 ```
 
-<details><summary>Railroad diagram of <code>indicator-run</code></summary><img src="../../docs/diagrams/indicators/cll/indicator-run.svg" alt="Railroad diagram of the rule indicator-run"></details>
-<details><summary>Railroad diagram of <code>indicator</code></summary><img src="../../docs/diagrams/indicators/cll/indicator.svg" alt="Railroad diagram of the rule indicator"></details>
-<details><summary>Railroad diagram of <code>fuhe</code></summary><img src="../../docs/diagrams/indicators/cll/fuhe.svg" alt="Railroad diagram of the rule fuhe"></details>
-<details><summary>Railroad diagram of <code>attitudinal-nai</code></summary><img src="../../docs/diagrams/indicators/cll/attitudinal-nai.svg" alt="Railroad diagram of the rule attitudinal-nai"></details>
-<details><summary>Railroad diagram of <code>attitudinal</code></summary><img src="../../docs/diagrams/indicators/cll/attitudinal.svg" alt="Railroad diagram of the rule attitudinal"></details>
-<details><summary>Railroad diagram of <code>nai</code></summary><img src="../../docs/diagrams/indicators/cll/nai.svg" alt="Railroad diagram of the rule nai"></details>
+<details><summary>Railroad diagrams of the 6 rules from <code>indicator-run</code> to <code>nai</code></summary>
+<p><img src="../../docs/diagrams/indicators/cll/indicator-run.svg" alt="Railroad diagram of the rule indicator-run"></p>
+<p><img src="../../docs/diagrams/indicators/cll/indicator.svg" alt="Railroad diagram of the rule indicator"></p>
+<p><img src="../../docs/diagrams/indicators/cll/fuhe.svg" alt="Railroad diagram of the rule fuhe"></p>
+<p><img src="../../docs/diagrams/indicators/cll/attitudinal-nai.svg" alt="Railroad diagram of the rule attitudinal-nai"></p>
+<p><img src="../../docs/diagrams/indicators/cll/attitudinal.svg" alt="Railroad diagram of the rule attitudinal"></p>
+<p><img src="../../docs/diagrams/indicators/cll/nai.svg" alt="Railroad diagram of the rule nai"></p>
+</details>
 
 After a leading run (see "Leading runs"), a `nai` belongs to the last indicator of the run when that is an attitudinal. The stage is greedy, so it reads the `nai` into the run before it starts the next item. So `iu nai` is one run, not `iu` followed by a text that begins with `nai`. The same holds when a `ba'e` stands before the `nai`, as in `iu ba'e nai`.
 
@@ -215,5 +221,7 @@ The reason is that the syntax reads this run. A `nai` nested under its attitudin
   ($b) $u, ($c) $m
 ```
 
-<details><summary>Railroad diagram of <code>leading</code></summary><img src="../../docs/diagrams/indicators/cll/leading.svg" alt="Railroad diagram of the rule leading"></details>
-<details><summary>Railroad diagram of <code>leading-attitudinal-nai</code></summary><img src="../../docs/diagrams/indicators/cll/leading-attitudinal-nai.svg" alt="Railroad diagram of the rule leading-attitudinal-nai"></details>
+<details><summary>Railroad diagrams of <code>leading</code> and <code>leading-attitudinal-nai</code></summary>
+<p><img src="../../docs/diagrams/indicators/cll/leading.svg" alt="Railroad diagram of the rule leading"></p>
+<p><img src="../../docs/diagrams/indicators/cll/leading-attitudinal-nai.svg" alt="Railroad diagram of the rule leading-attitudinal-nai"></p>
+</details>

@@ -10,10 +10,11 @@
 //
 // and the other packages' copies of grammars/ and of LICENSE under lib/,
 // removing a copy of a document that grammars/ no longer has. It also
-// writes the generated lines of the grammar documents themselves: under
-// each block of rules, one collapsed <details> element for each rule, which
-// shows its diagram (tools/railroad.js). It removes each generated line of a
-// rule that is gone, and leaves every other line of the document as it is.
+// writes the generated elements of the grammar documents themselves: under
+// each block of rules, one collapsed <details> element, which shows the
+// diagram of each rule of the block (tools/railroad.js). It removes each
+// element that it no longer writes, and leaves every other line of the
+// document as it is.
 // tests/quoted-allow.txt names lines of the documents, so it renumbers them
 // where it moves them.
 //
@@ -35,7 +36,7 @@ import { proseLineProblems } from "./prose-lines.js";
 import { markdownFiles, repositoryFiles } from "./documents.js";
 import { corpusShapeProblems, mutantShapeProblems } from "./corpus-shape.js";
 import { missing as parserMissing } from "./markdown.js";
-import { DIAGRAMS, DIAGRAM_LINE_START, elisionOutcomes, fencedBlocks, withDiagrams } from "./railroad.js";
+import { DIAGRAMS, documentLines, elisionOutcomes, ownedLines, withDiagrams } from "./railroad.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 // The packages' copies of grammars/.
@@ -117,9 +118,9 @@ function settle(bootstrap) {
 }
 let bootstrapText = settle(fs.readFileSync(bootstrapPath, "utf8"));
 
-// The railroad diagrams (tools/railroad.js): the generated lines of each
+// The railroad diagrams (tools/railroad.js): the generated elements of each
 // grammar document, and the SVG file of each rule. A document with no
-// grammar block keeps no generated line either. The generated lines move
+// grammar block keeps no generated element either. The elements move
 // the lines after them, so the lines that tests/quoted-allow.txt names
 // move with them, and the DOMs and the bootstrap, which give the line of
 // each rule, are read again.
@@ -151,16 +152,15 @@ write("tests/quoted-allow.txt", allow);
 if (moved) bootstrapText = settle(bootstrapText);
 write("grammars/notation/bootstrap.json", bootstrapText);
 
-// No other document holds a generated line: one there would be a diagram
-// that nothing updates. The packages' copies of grammars/ hold the same
-// lines as grammars/.
+// No other document holds a generated element: one there would show
+// diagrams that nothing updates. The packages' copies of grammars/ hold
+// the same elements as grammars/.
 const strays = [];
 for (const file of markdownFiles(root)) {
   if (file.startsWith("grammars/") || copies.some((copy) => file.startsWith(`${copy}/`))) continue;
-  const lines = fs.readFileSync(path.join(root, file), "utf8").split("\n");
-  const inside = new Set(fencedBlocks(lines).flatMap(({ start, end }) => Array.from({ length: end - start + 1 }, (_, index) => start + index)));
-  lines.forEach((line, index) => {
-    if (!inside.has(index) && line.startsWith(DIAGRAM_LINE_START)) strays.push(`${file}:${index + 1}: a railroad diagram's generated line outside grammars/; remove it`);
+  const owned = ownedLines(documentLines(fs.readFileSync(path.join(root, file), "utf8")).lines);
+  owned.forEach((line, index) => {
+    if (line) strays.push(`${file}:${index + 1}: a line of a railroad diagram's generated element outside grammars/; remove it`);
   });
 }
 if (strays.length) {
@@ -220,7 +220,9 @@ if (parserMissing && check) {
     console.error(unlinked.join("\n"));
     process.exit(1);
   }
-  const broken = markdownFiles(root).flatMap((file) => proseLineProblems(fs.readFileSync(path.join(root, file), "utf8"), file));
+  // The packages' copies of grammars/ are checked as grammars/, which
+  // this run copies to them.
+  const broken = markdownFiles(root).filter((file) => !copies.some((copy) => file.startsWith(`${copy}/`))).flatMap((file) => proseLineProblems(fs.readFileSync(path.join(root, file), "utf8"), file));
   if (broken.length) {
     console.error(broken.join("\n"));
     process.exit(1);

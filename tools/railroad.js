@@ -616,21 +616,62 @@ export function ruleSvg(rule, omission = unknownOmission) {
 export const DIAGRAMS = "docs/diagrams";
 
 /**
- * How a generated line begins. tools/sync.js owns every line outside a
- * fenced block that begins so, and no line that a person writes does: the
- * documents hold no other HTML (tools/prose-lines.js).
+ * How the first line of a generated element begins. tools/sync.js owns
+ * every element outside a fenced block that begins so, and no line that a
+ * person writes does: the documents hold no other HTML
+ * (tools/prose-lines.js).
  */
-export const DIAGRAM_LINE_START = "<details><summary>Railroad diagram of ";
+export const DIAGRAM_START = "<details><summary>Railroad diagram";
+
+/** How each line of a generated element after its first begins. */
+const IMAGE_START = "<p><img ";
+
+/** The last line of a generated element. */
+const DIAGRAM_END = "</details>";
+
+/** The longest summary, in characters as shown, that names every rule. */
+export const SUMMARY_LIMIT = 72;
 
 /**
- * The generated line of a rule: a collapsed `<details>` element that shows
- * the rule's SVG file.
- * @param {string} name the rule's name
- * @param {string} source the SVG file, relative to the document
- * @returns {string}
+ * Whether the lines of an HTML block are those of one generated element:
+ * its summary line, a line for each image, and its end.
+ * @param {string[]} lines
  */
-export function diagramLine(name, source) {
-  return `${DIAGRAM_LINE_START}<code>${escape(name)}</code></summary><img src="${escape(source)}" alt="Railroad diagram of the rule ${escape(name)}"></details>`;
+export function isDiagramElement(lines) {
+  return lines.length >= 3 && lines[0].startsWith(DIAGRAM_START) && lines[lines.length - 1] === DIAGRAM_END && lines.slice(1, -1).every((line) => line.startsWith(IMAGE_START));
+}
+
+/**
+ * The summary of a block's diagrams: "Railroad diagram of" its one rule,
+ * or "Railroad diagrams of" its rules, named once each. A summary that
+ * would be longer than SUMMARY_LIMIT names the first and the last rule.
+ * @param {string[]} names the names of the block's rules, in order
+ * @returns {string} the summary's HTML
+ */
+export function diagramSummary(names) {
+  const unique = [...new Set(names)];
+  const code = (/** @type {string} */ name) => `<code>${escape(name)}</code>`;
+  if (names.length === 1) return `Railroad diagram of ${code(names[0])}`;
+  const listed = (/** @type {(name: string) => string} */ show) => (unique.length === 1 ? show(unique[0]) : `${unique.slice(0, -1).map(show).join(", ")} and ${show(unique[unique.length - 1])}`);
+  if (`Railroad diagrams of ${listed((name) => name)}`.length <= SUMMARY_LIMIT) return `Railroad diagrams of ${listed(code)}`;
+  return `Railroad diagrams of the ${unique.length} rules from ${code(unique[0])} to ${code(unique[unique.length - 1])}`;
+}
+
+/**
+ * The generated element of a block of rules: a collapsed `<details>` whose
+ * summary names the rules, and which holds the SVG file of each rule, in
+ * their order, each on a line of its own. Each drawing gives its rule's
+ * name above its track.
+ * @param {{name: string, source: string}[]} diagrams each rule's name, and
+ *   its SVG file relative to the document
+ * @returns {string[]} the element's lines
+ */
+export function diagramElement(diagrams) {
+  return [
+    `<details><summary>${diagramSummary(diagrams.map((diagram) => diagram.name))}</summary>`,
+    ...diagrams.map(({ name, source }) => `${IMAGE_START}src="${escape(source)}" alt="Railroad diagram of the rule ${escape(name)}"></p>`),
+    DIAGRAM_END,
+  ];
 }
 
 /**
@@ -662,11 +703,29 @@ export function diagramNames(rules) {
 export const diagramDirectory = (file) => `${DIAGRAMS}/${file.replace(/\.md$/, "")}`;
 
 /**
+ * The lines of a document and the line ending after each, as the
+ * libraries' reader divides them (lib/js/src/markdown.js): at CR LF, CR or
+ * LF. The last line has none.
+ * @param {string} markdown
+ * @returns {{lines: string[], ends: string[]}}
+ */
+export function documentLines(markdown) {
+  const parts = markdown.split(/(\r\n|\r|\n)/);
+  const lines = [];
+  const ends = [];
+  for (let index = 0; index < parts.length; index += 2) {
+    lines.push(parts[index]);
+    ends.push(parts[index + 1] ?? "");
+  }
+  return { lines, ends };
+}
+
+/**
  * The fenced blocks of a Markdown document, found as the libraries' reader
  * finds them (lib/js/src/markdown.js): the lines of each block's opening
  * and closing fences, counted from 0, and whether it is a grammar block. A
  * block with no closing fence ends after the last line.
- * @param {string[]} lines
+ * @param {string[]} lines the document's lines, without their endings
  * @returns {{start: number, end: number, grammar: boolean}[]}
  */
 export function fencedBlocks(lines) {
@@ -691,15 +750,37 @@ export function fencedBlocks(lines) {
 }
 
 /**
+ * The lines that sync.js owns in a document, counted from 0: each
+ * generated element outside the fenced blocks. An element begins with a
+ * line that begins with DIAGRAM_START, and takes in the image lines after
+ * it, up to and with its end line. A line of any other kind ends it, and
+ * is not owned.
+ * @param {string[]} lines the document's lines, without their endings
+ * @returns {boolean[]}
+ */
+export function ownedLines(lines) {
+  const inside = new Array(lines.length).fill(false);
+  for (const { start, end } of fencedBlocks(lines)) inside.fill(true, start, end + 1);
+  const owned = new Array(lines.length).fill(false);
+  for (let index = 0; index < lines.length; index++) {
+    if (inside[index] || !lines[index].startsWith(DIAGRAM_START)) continue;
+    owned[index] = true;
+    while (index + 1 < lines.length && lines[index + 1].startsWith(IMAGE_START)) owned[++index] = true;
+    if (index + 1 < lines.length && lines[index + 1] === DIAGRAM_END) owned[++index] = true;
+  }
+  return owned;
+}
+
+/**
  * A grammar document with the diagrams of its rules in place, and the SVG
  * file of each rule by its path in the repository. After each grammar
- * block that states rules come a blank line and one generated line for
- * each of those rules, in their order.
+ * block that states rules come a blank line and one generated element,
+ * which shows the diagrams of the block's rules in their order.
  *
- * The generated lines are the lines outside fenced blocks that begin with
- * DIAGRAM_LINE_START. This removes them all, and the blank line before each
- * run of them, then writes them again. So the diagram of a rule that is gone
- * goes too, and every other line stays as it is.
+ * This removes every generated element (ownedLines), and the blank line
+ * before each, then writes them again. So the diagram of a rule that is
+ * gone goes too, and every other line stays as it is, with its line
+ * ending. A new line takes the document's first line ending.
  * @param {string} file the document's path under grammars/
  * @param {string} markdown the document
  * @param {{rules: any[]}} dom the document's DOM
@@ -707,15 +788,14 @@ export function fencedBlocks(lines) {
  *   omission predicate for the document's rules, from elisionOutcomes
  * @returns {{text: string, lines: (number | null)[], files: Map<string, string>}}
  *   the document; the line where each line of `markdown` now stands, by its
- *   line number (both counted from 1), or null for a generated line; and
+ *   line number (both counted from 1), or null for a line that goes; and
  *   the SVG files
  */
 export function withDiagrams(file, markdown, dom, outcomes = new Map()) {
-  const lines = markdown.split("\n");
+  const { lines, ends } = documentLines(markdown);
+  const newline = ends.find((end) => end !== "") ?? "\n";
   const blocks = fencedBlocks(lines);
-  const inside = new Array(lines.length).fill(false);
-  for (const { start, end } of blocks) inside.fill(true, start, end + 1);
-  const generated = lines.map((line, index) => !inside[index] && line.startsWith(DIAGRAM_LINE_START));
+  const generated = ownedLines(lines);
   const keep = generated.map((line) => !line);
   for (let first = 0; first < lines.length; first++) {
     if (!generated[first] || (first > 0 && generated[first - 1])) continue;
@@ -729,14 +809,13 @@ export function withDiagrams(file, markdown, dom, outcomes = new Map()) {
     if (first > 0 && lines[first - 1] === "" && (blankAfter || blankBefore)) keep[first - 1] = false;
   }
 
-  // The generated lines after each grammar block, by the line of its
-  // closing fence. The rules come in the order of the document, and so do
-  // the blocks.
+  // The diagrams of each grammar block, by the line of its closing fence.
+  // The rules come in the order of the document, and so do the blocks.
   const directory = diagramDirectory(file);
   const up = "../".repeat(file.split("/").length);
   const names = diagramNames(dom.rules);
   const grammarBlocks = blocks.filter((block) => block.grammar);
-  /** @type {Map<number, string[]>} */
+  /** @type {Map<number, {name: string, source: string}[]>} */
   const after = new Map();
   const files = new Map();
   let at = 0;
@@ -745,30 +824,43 @@ export function withDiagrams(file, markdown, dom, outcomes = new Map()) {
     while (at < grammarBlocks.length && grammarBlocks[at].end < line) at++;
     const block = grammarBlocks[at];
     if (!block || !(block.start < line)) throw new Error(`${file}:${rule.at[0]}: the rule ${rule.name} stands in no jbogenbau block`);
-    // The generated lines stand at the top level, so a block of rules in a
-    // list item, which indents its fences, would end the list.
+    // The generated element stands at the top level, so a block of rules
+    // in a list item, which indents its fences, would end the list.
     if (/^ /.test(lines[block.start])) throw new Error(`${file}:${block.start + 1}: a jbogenbau block with rules is indented, as in a list item; put it at the top level, where its railroad diagrams can follow it`);
     const svg = `${directory}/${names[index]}.svg`;
     files.set(svg, ruleSvg(rule, omissionOf(rule, outcomes.get(index))));
     if (!after.has(block.end)) after.set(block.end, []);
-    /** @type {string[]} */ (after.get(block.end)).push(diagramLine(rule.name, up + svg));
+    /** @type {{name: string, source: string}[]} */ (after.get(block.end)).push({ name: rule.name, source: up + svg });
   });
 
+  /** @type {string[]} */
   const out = [];
+  let count = 0;
   /** @type {(number | null)[]} */
   const moved = [null];
+  /** @param {string} line @param {string} end */
+  const emit = (line, end) => {
+    out.push(line + end);
+    count++;
+  };
   for (let index = 0; index < lines.length; index++) {
-    moved.push(keep[index] ? out.length + 1 : null);
+    moved.push(keep[index] ? count + 1 : null);
     if (!keep[index]) continue;
-    out.push(lines[index]);
     const diagrams = after.get(index);
-    if (!diagrams) continue;
-    out.push("");
-    for (const diagram of diagrams) out.push(diagram);
-    // An HTML block runs to the next blank line, so one follows it.
+    if (!diagrams) {
+      emit(lines[index], ends[index]);
+      continue;
+    }
+    // After the closing fence, a blank line and the element. An HTML block
+    // runs to the next blank line, so one follows it, unless the document
+    // ends there. A document that ends with no line ending still does.
+    emit(lines[index], ends[index] || newline);
+    emit("", newline);
+    const element = diagramElement(diagrams);
     let next = index + 1;
     while (next < lines.length && !keep[next]) next++;
-    if (next < lines.length && lines[next] !== "") out.push("");
+    element.forEach((line, position) => emit(line, position < element.length - 1 || next < lines.length ? newline : ""));
+    if (next < lines.length && lines[next] !== "") emit("", newline);
   }
-  return { text: out.join("\n"), lines: moved, files };
+  return { text: out.join(""), lines: moved, files };
 }

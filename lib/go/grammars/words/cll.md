@@ -120,24 +120,26 @@ A cmavo's stress is free (CLL 3.9), so any of its vowels can be a capital. Its f
   /l/ any-a | /l/ any-a any-i | /l/ any-a /'/ any-i | /d/ any-o any-i
 ```
 
-<details><summary>Railroad diagram of <code>cmavo-shape</code></summary><img src="../../docs/diagrams/words/cll/cmavo-shape.svg" alt="Railroad diagram of the rule cmavo-shape"></details>
-<details><summary>Railroad diagram of <code>plain-cmavo-body</code></summary><img src="../../docs/diagrams/words/cll/plain-cmavo-body.svg" alt="Railroad diagram of the rule plain-cmavo-body"></details>
-<details><summary>Railroad diagram of <code>vowel-cmavo</code></summary><img src="../../docs/diagrams/words/cll/vowel-cmavo.svg" alt="Railroad diagram of the rule vowel-cmavo"></details>
-<details><summary>Railroad diagram of <code>cmavo-units</code></summary><img src="../../docs/diagrams/words/cll/cmavo-units.svg" alt="Railroad diagram of the rule cmavo-units"></details>
-<details><summary>Railroad diagram of <code>cmavo-unit</code></summary><img src="../../docs/diagrams/words/cll/cmavo-unit.svg" alt="Railroad diagram of the rule cmavo-unit"></details>
-<details><summary>Railroad diagram of <code>letter-cmavo</code></summary><img src="../../docs/diagrams/words/cll/letter-cmavo.svg" alt="Railroad diagram of the rule letter-cmavo"></details>
-<details><summary>Railroad diagram of <code>y-pair-cmavo</code></summary><img src="../../docs/diagrams/words/cll/y-pair-cmavo.svg" alt="Railroad diagram of the rule y-pair-cmavo"></details>
-<details><summary>Railroad diagram of <code>warned-cmavo</code></summary><img src="../../docs/diagrams/words/cll/warned-cmavo.svg" alt="Railroad diagram of the rule warned-cmavo"></details>
-<details><summary>Railroad diagram of <code>warned-units</code></summary><img src="../../docs/diagrams/words/cll/warned-units.svg" alt="Railroad diagram of the rule warned-units"></details>
-<details><summary>Railroad diagram of <code>warned-tail</code></summary><img src="../../docs/diagrams/words/cll/warned-tail.svg" alt="Railroad diagram of the rule warned-tail"></details>
-<details><summary>Railroad diagram of <code>any-units</code></summary><img src="../../docs/diagrams/words/cll/any-units.svg" alt="Railroad diagram of the rule any-units"></details>
-<details><summary>Railroad diagram of <code>any-unit</code></summary><img src="../../docs/diagrams/words/cll/any-unit.svg" alt="Railroad diagram of the rule any-unit"></details>
-<details><summary>Railroad diagram of <code>y-letters</code></summary><img src="../../docs/diagrams/words/cll/y-letters.svg" alt="Railroad diagram of the rule y-letters"></details>
-<details><summary>Railroad diagram of <code>y-units</code></summary><img src="../../docs/diagrams/words/cll/y-units.svg" alt="Railroad diagram of the rule y-units"></details>
-<details><summary>Railroad diagram of <code>cmavo-nucleus</code></summary><img src="../../docs/diagrams/words/cll/cmavo-nucleus.svg" alt="Railroad diagram of the rule cmavo-nucleus"></details>
-<details><summary>Railroad diagram of <code>first-marked-cmavo</code></summary><img src="../../docs/diagrams/words/cll/first-marked-cmavo.svg" alt="Railroad diagram of the rule first-marked-cmavo"></details>
-<details><summary>Railroad diagram of <code>last-marked-cmavo</code></summary><img src="../../docs/diagrams/words/cll/last-marked-cmavo.svg" alt="Railroad diagram of the rule last-marked-cmavo"></details>
-<details><summary>Railroad diagram of <code>name-intro-cmavo</code></summary><img src="../../docs/diagrams/words/cll/name-intro-cmavo.svg" alt="Railroad diagram of the rule name-intro-cmavo"></details>
+<details><summary>Railroad diagrams of the 18 rules from <code>cmavo-shape</code> to <code>name-intro-cmavo</code></summary>
+<p><img src="../../docs/diagrams/words/cll/cmavo-shape.svg" alt="Railroad diagram of the rule cmavo-shape"></p>
+<p><img src="../../docs/diagrams/words/cll/plain-cmavo-body.svg" alt="Railroad diagram of the rule plain-cmavo-body"></p>
+<p><img src="../../docs/diagrams/words/cll/vowel-cmavo.svg" alt="Railroad diagram of the rule vowel-cmavo"></p>
+<p><img src="../../docs/diagrams/words/cll/cmavo-units.svg" alt="Railroad diagram of the rule cmavo-units"></p>
+<p><img src="../../docs/diagrams/words/cll/cmavo-unit.svg" alt="Railroad diagram of the rule cmavo-unit"></p>
+<p><img src="../../docs/diagrams/words/cll/letter-cmavo.svg" alt="Railroad diagram of the rule letter-cmavo"></p>
+<p><img src="../../docs/diagrams/words/cll/y-pair-cmavo.svg" alt="Railroad diagram of the rule y-pair-cmavo"></p>
+<p><img src="../../docs/diagrams/words/cll/warned-cmavo.svg" alt="Railroad diagram of the rule warned-cmavo"></p>
+<p><img src="../../docs/diagrams/words/cll/warned-units.svg" alt="Railroad diagram of the rule warned-units"></p>
+<p><img src="../../docs/diagrams/words/cll/warned-tail.svg" alt="Railroad diagram of the rule warned-tail"></p>
+<p><img src="../../docs/diagrams/words/cll/any-units.svg" alt="Railroad diagram of the rule any-units"></p>
+<p><img src="../../docs/diagrams/words/cll/any-unit.svg" alt="Railroad diagram of the rule any-unit"></p>
+<p><img src="../../docs/diagrams/words/cll/y-letters.svg" alt="Railroad diagram of the rule y-letters"></p>
+<p><img src="../../docs/diagrams/words/cll/y-units.svg" alt="Railroad diagram of the rule y-units"></p>
+<p><img src="../../docs/diagrams/words/cll/cmavo-nucleus.svg" alt="Railroad diagram of the rule cmavo-nucleus"></p>
+<p><img src="../../docs/diagrams/words/cll/first-marked-cmavo.svg" alt="Railroad diagram of the rule first-marked-cmavo"></p>
+<p><img src="../../docs/diagrams/words/cll/last-marked-cmavo.svg" alt="Railroad diagram of the rule last-marked-cmavo"></p>
+<p><img src="../../docs/diagrams/words/cll/name-intro-cmavo.svg" alt="Railroad diagram of the rule name-intro-cmavo"></p>
+</details>
 
 These rules spell each vowel with an `any-` rule, which matches either the plain or the stressed phoneme. The lexicon needs no such rule, since it looks a cmavo up by its canonical sound, in which a stressed vowel is plain.
 
@@ -166,8 +168,10 @@ A brivla is a gismu, a lujvo or a borrowing (CLL 4.3). It ends in a vowel other 
   ¬matches($l, has-comma)
 ```
 
-<details><summary>Railroad diagram of <code>brivla-shape</code></summary><img src="../../docs/diagrams/words/cll/brivla-shape.svg" alt="Railroad diagram of the rule brivla-shape"></details>
-<details><summary>Railroad diagram of <code>brivla-word</code></summary><img src="../../docs/diagrams/words/cll/brivla-word.svg" alt="Railroad diagram of the rule brivla-word"></details>
+<details><summary>Railroad diagrams of <code>brivla-shape</code> and <code>brivla-word</code></summary>
+<p><img src="../../docs/diagrams/words/cll/brivla-shape.svg" alt="Railroad diagram of the rule brivla-shape"></p>
+<p><img src="../../docs/diagrams/words/cll/brivla-word.svg" alt="Railroad diagram of the rule brivla-word"></p>
+</details>
 
 A gismu is CVCCV with a permissible pair, or CCVCV with an initial pair (CLL 4.4). Here and below, C is a consonant, and V is one of `a e i o u`, never `y`.
 
@@ -177,7 +181,9 @@ A gismu is CVCCV with a permissible pair, or CCVCV with an initial pair (CLL 4.4
   | initial-pair vowel consonant vowel
 ```
 
-<details><summary>Railroad diagram of <code>gismu-form</code></summary><img src="../../docs/diagrams/words/cll/gismu-form.svg" alt="Railroad diagram of the rule gismu-form"></details>
+<details><summary>Railroad diagram of <code>gismu-form</code></summary>
+<p><img src="../../docs/diagrams/words/cll/gismu-form.svg" alt="Railroad diagram of the rule gismu-form"></p>
+</details>
 
 ## Lujvo
 
@@ -272,18 +278,20 @@ The rules below build the letters of a lujvo from the left, and they place each 
   | /z/ /y/ after-z
 ```
 
-<details><summary>Railroad diagram of <code>lujvo-form</code></summary><img src="../../docs/diagrams/words/cll/lujvo-form.svg" alt="Railroad diagram of the rule lujvo-form"></details>
-<details><summary>Railroad diagram of <code>lujvo-after-cvv</code></summary><img src="../../docs/diagrams/words/cll/lujvo-after-cvv.svg" alt="Railroad diagram of the rule lujvo-after-cvv"></details>
-<details><summary>Railroad diagram of <code>cvv-first-rest</code></summary><img src="../../docs/diagrams/words/cll/cvv-first-rest.svg" alt="Railroad diagram of the rule cvv-first-rest"></details>
-<details><summary>Railroad diagram of <code>lujvo-rest</code></summary><img src="../../docs/diagrams/words/cll/lujvo-rest.svg" alt="Railroad diagram of the rule lujvo-rest"></details>
-<details><summary>Railroad diagram of <code>cvc-rest</code></summary><img src="../../docs/diagrams/words/cll/cvc-rest.svg" alt="Railroad diagram of the rule cvc-rest"></details>
-<details><summary>Railroad diagram of <code>final-rafsi</code></summary><img src="../../docs/diagrams/words/cll/final-rafsi.svg" alt="Railroad diagram of the rule final-rafsi"></details>
-<details><summary>Railroad diagram of <code>ccv-rafsi</code></summary><img src="../../docs/diagrams/words/cll/ccv-rafsi.svg" alt="Railroad diagram of the rule ccv-rafsi"></details>
-<details><summary>Railroad diagram of <code>cvv-rafsi</code></summary><img src="../../docs/diagrams/words/cll/cvv-rafsi.svg" alt="Railroad diagram of the rule cvv-rafsi"></details>
-<details><summary>Railroad diagram of <code>mandatory-y</code></summary><img src="../../docs/diagrams/words/cll/mandatory-y.svg" alt="Railroad diagram of the rule mandatory-y"></details>
-<details><summary>Railroad diagram of <code>y-joint</code></summary><img src="../../docs/diagrams/words/cll/y-joint.svg" alt="Railroad diagram of the rule y-joint"></details>
-<details><summary>Railroad diagram of <code>affricate</code></summary><img src="../../docs/diagrams/words/cll/affricate.svg" alt="Railroad diagram of the rule affricate"></details>
-<details><summary>Railroad diagram of <code>pair-across-y</code></summary><img src="../../docs/diagrams/words/cll/pair-across-y.svg" alt="Railroad diagram of the rule pair-across-y"></details>
+<details><summary>Railroad diagrams of the 12 rules from <code>lujvo-form</code> to <code>pair-across-y</code></summary>
+<p><img src="../../docs/diagrams/words/cll/lujvo-form.svg" alt="Railroad diagram of the rule lujvo-form"></p>
+<p><img src="../../docs/diagrams/words/cll/lujvo-after-cvv.svg" alt="Railroad diagram of the rule lujvo-after-cvv"></p>
+<p><img src="../../docs/diagrams/words/cll/cvv-first-rest.svg" alt="Railroad diagram of the rule cvv-first-rest"></p>
+<p><img src="../../docs/diagrams/words/cll/lujvo-rest.svg" alt="Railroad diagram of the rule lujvo-rest"></p>
+<p><img src="../../docs/diagrams/words/cll/cvc-rest.svg" alt="Railroad diagram of the rule cvc-rest"></p>
+<p><img src="../../docs/diagrams/words/cll/final-rafsi.svg" alt="Railroad diagram of the rule final-rafsi"></p>
+<p><img src="../../docs/diagrams/words/cll/ccv-rafsi.svg" alt="Railroad diagram of the rule ccv-rafsi"></p>
+<p><img src="../../docs/diagrams/words/cll/cvv-rafsi.svg" alt="Railroad diagram of the rule cvv-rafsi"></p>
+<p><img src="../../docs/diagrams/words/cll/mandatory-y.svg" alt="Railroad diagram of the rule mandatory-y"></p>
+<p><img src="../../docs/diagrams/words/cll/y-joint.svg" alt="Railroad diagram of the rule y-joint"></p>
+<p><img src="../../docs/diagrams/words/cll/affricate.svg" alt="Railroad diagram of the rule affricate"></p>
+<p><img src="../../docs/diagrams/words/cll/pair-across-y.svg" alt="Railroad diagram of the rule pair-across-y"></p>
+</details>
 
 The tosmabru test of CLL 4.11 decides whether a lujvo whose first rafsi is CVC needs one more `y` after it. Without that `y`, the word can fall apart into a cmavo and a shorter lujvo: `tosmabru` is `to smabru`, and the lujvo is `tosymabru`. The test starts from the lujvo with its required hyphens. It follows the CVC rafsi from the first one, across joints with no hyphen. It stops at the first required `y` or at the first rafsi that is not CVC.
 
@@ -367,11 +375,13 @@ If the test examines at least one pair and every examined pair is an initial pai
   | /z/ /y/ /v/
 ```
 
-<details><summary>Railroad diagram of <code>lujvo-after-cv</code></summary><img src="../../docs/diagrams/words/cll/lujvo-after-cv.svg" alt="Railroad diagram of the rule lujvo-after-cv"></details>
-<details><summary>Railroad diagram of <code>tosmabru-positive</code></summary><img src="../../docs/diagrams/words/cll/tosmabru-positive.svg" alt="Railroad diagram of the rule tosmabru-positive"></details>
-<details><summary>Railroad diagram of <code>tosmabru-chain</code></summary><img src="../../docs/diagrams/words/cll/tosmabru-chain.svg" alt="Railroad diagram of the rule tosmabru-chain"></details>
-<details><summary>Railroad diagram of <code>tosmabru-y</code></summary><img src="../../docs/diagrams/words/cll/tosmabru-y.svg" alt="Railroad diagram of the rule tosmabru-y"></details>
-<details><summary>Railroad diagram of <code>initial-pair-across-y</code></summary><img src="../../docs/diagrams/words/cll/initial-pair-across-y.svg" alt="Railroad diagram of the rule initial-pair-across-y"></details>
+<details><summary>Railroad diagrams of the 5 rules from <code>lujvo-after-cv</code> to <code>initial-pair-across-y</code></summary>
+<p><img src="../../docs/diagrams/words/cll/lujvo-after-cv.svg" alt="Railroad diagram of the rule lujvo-after-cv"></p>
+<p><img src="../../docs/diagrams/words/cll/tosmabru-positive.svg" alt="Railroad diagram of the rule tosmabru-positive"></p>
+<p><img src="../../docs/diagrams/words/cll/tosmabru-chain.svg" alt="Railroad diagram of the rule tosmabru-chain"></p>
+<p><img src="../../docs/diagrams/words/cll/tosmabru-y.svg" alt="Railroad diagram of the rule tosmabru-y"></p>
+<p><img src="../../docs/diagrams/words/cll/initial-pair-across-y.svg" alt="Railroad diagram of the rule initial-pair-across-y"></p>
+</details>
 
 No lujvo made this way breaks up, which is why the algorithm is as it is. A word's stress falls on its penultimate syllable, so a brivla inside it must reach its end. The words before that brivla must then be cmavo.
 
@@ -435,15 +445,17 @@ The slinku'i test of CLL 4.7 says that a CV cmavo joined to the front of a borro
   matches(head($f), consonant)
 ```
 
-<details><summary>Railroad diagram of <code>fuhivla-word</code></summary><img src="../../docs/diagrams/words/cll/fuhivla-word.svg" alt="Railroad diagram of the rule fuhivla-word"></details>
-<details><summary>Railroad diagram of <code>fuhivla-form</code></summary><img src="../../docs/diagrams/words/cll/fuhivla-form.svg" alt="Railroad diagram of the rule fuhivla-form"></details>
-<details><summary>Railroad diagram of <code>fuhivla-body</code></summary><img src="../../docs/diagrams/words/cll/fuhivla-body.svg" alt="Railroad diagram of the rule fuhivla-body"></details>
-<details><summary>Railroad diagram of <code>vowel-group</code></summary><img src="../../docs/diagrams/words/cll/vowel-group.svg" alt="Railroad diagram of the rule vowel-group"></details>
-<details><summary>Railroad diagram of <code>clustered-start</code></summary><img src="../../docs/diagrams/words/cll/clustered-start.svg" alt="Railroad diagram of the rule clustered-start"></details>
-<details><summary>Railroad diagram of <code>counted-lead</code></summary><img src="../../docs/diagrams/words/cll/counted-lead.svg" alt="Railroad diagram of the rule counted-lead"></details>
-<details><summary>Railroad diagram of <code>counted-letter</code></summary><img src="../../docs/diagrams/words/cll/counted-letter.svg" alt="Railroad diagram of the rule counted-letter"></details>
-<details><summary>Railroad diagram of <code>combination</code></summary><img src="../../docs/diagrams/words/cll/combination.svg" alt="Railroad diagram of the rule combination"></details>
-<details><summary>Railroad diagram of <code>combination-rest</code></summary><img src="../../docs/diagrams/words/cll/combination-rest.svg" alt="Railroad diagram of the rule combination-rest"></details>
+<details><summary>Railroad diagrams of the 9 rules from <code>fuhivla-word</code> to <code>combination-rest</code></summary>
+<p><img src="../../docs/diagrams/words/cll/fuhivla-word.svg" alt="Railroad diagram of the rule fuhivla-word"></p>
+<p><img src="../../docs/diagrams/words/cll/fuhivla-form.svg" alt="Railroad diagram of the rule fuhivla-form"></p>
+<p><img src="../../docs/diagrams/words/cll/fuhivla-body.svg" alt="Railroad diagram of the rule fuhivla-body"></p>
+<p><img src="../../docs/diagrams/words/cll/vowel-group.svg" alt="Railroad diagram of the rule vowel-group"></p>
+<p><img src="../../docs/diagrams/words/cll/clustered-start.svg" alt="Railroad diagram of the rule clustered-start"></p>
+<p><img src="../../docs/diagrams/words/cll/counted-lead.svg" alt="Railroad diagram of the rule counted-lead"></p>
+<p><img src="../../docs/diagrams/words/cll/counted-letter.svg" alt="Railroad diagram of the rule counted-letter"></p>
+<p><img src="../../docs/diagrams/words/cll/combination.svg" alt="Railroad diagram of the rule combination"></p>
+<p><img src="../../docs/diagrams/words/cll/combination-rest.svg" alt="Railroad diagram of the rule combination-rest"></p>
+</details>
 
 ## Cmevla
 
@@ -483,12 +495,14 @@ Pauses surround a name (rules 2 and 4), so its shape carries neither `onset` nor
   /l/ any-a | /d/ any-o [/,/] any-i
 ```
 
-<details><summary>Railroad diagram of <code>cmevla-shape</code></summary><img src="../../docs/diagrams/words/cll/cmevla-shape.svg" alt="Railroad diagram of the rule cmevla-shape"></details>
-<details><summary>Railroad diagram of <code>cmevla</code></summary><img src="../../docs/diagrams/words/cll/cmevla.svg" alt="Railroad diagram of the rule cmevla"></details>
-<details><summary>Railroad diagram of <code>name-body</code></summary><img src="../../docs/diagrams/words/cll/name-body.svg" alt="Railroad diagram of the rule name-body"></details>
-<details><summary>Railroad diagram of <code>name-vowels</code></summary><img src="../../docs/diagrams/words/cll/name-vowels.svg" alt="Railroad diagram of the rule name-vowels"></details>
-<details><summary>Railroad diagram of <code>la-doi-inside</code></summary><img src="../../docs/diagrams/words/cll/la-doi-inside.svg" alt="Railroad diagram of the rule la-doi-inside"></details>
-<details><summary>Railroad diagram of <code>la-or-doi</code></summary><img src="../../docs/diagrams/words/cll/la-or-doi.svg" alt="Railroad diagram of the rule la-or-doi"></details>
+<details><summary>Railroad diagrams of the 6 rules from <code>cmevla-shape</code> to <code>la-or-doi</code></summary>
+<p><img src="../../docs/diagrams/words/cll/cmevla-shape.svg" alt="Railroad diagram of the rule cmevla-shape"></p>
+<p><img src="../../docs/diagrams/words/cll/cmevla.svg" alt="Railroad diagram of the rule cmevla"></p>
+<p><img src="../../docs/diagrams/words/cll/name-body.svg" alt="Railroad diagram of the rule name-body"></p>
+<p><img src="../../docs/diagrams/words/cll/name-vowels.svg" alt="Railroad diagram of the rule name-vowels"></p>
+<p><img src="../../docs/diagrams/words/cll/la-doi-inside.svg" alt="Railroad diagram of the rule la-doi-inside"></p>
+<p><img src="../../docs/diagrams/words/cll/la-or-doi.svg" alt="Railroad diagram of the rule la-or-doi"></p>
+</details>
 
 ## Commas
 
@@ -526,12 +540,14 @@ A name needs one more test. CLL 4.8 forbids the letters `doi` at the start of a 
   [any-letters] /,/ [any-letters]
 ```
 
-<details><summary>Railroad diagram of <code>falling-vowels</code></summary><img src="../../docs/diagrams/words/cll/falling-vowels.svg" alt="Railroad diagram of the rule falling-vowels"></details>
-<details><summary>Railroad diagram of <code>rising-vowels</code></summary><img src="../../docs/diagrams/words/cll/rising-vowels.svg" alt="Railroad diagram of the rule rising-vowels"></details>
-<details><summary>Railroad diagram of <code>falling-i</code></summary><img src="../../docs/diagrams/words/cll/falling-i.svg" alt="Railroad diagram of the rule falling-i"></details>
-<details><summary>Railroad diagram of <code>one-syllable</code></summary><img src="../../docs/diagrams/words/cll/one-syllable.svg" alt="Railroad diagram of the rule one-syllable"></details>
-<details><summary>Railroad diagram of <code>syllable-vowels</code></summary><img src="../../docs/diagrams/words/cll/syllable-vowels.svg" alt="Railroad diagram of the rule syllable-vowels"></details>
-<details><summary>Railroad diagram of <code>has-comma</code></summary><img src="../../docs/diagrams/words/cll/has-comma.svg" alt="Railroad diagram of the rule has-comma"></details>
+<details><summary>Railroad diagrams of the 6 rules from <code>falling-vowels</code> to <code>has-comma</code></summary>
+<p><img src="../../docs/diagrams/words/cll/falling-vowels.svg" alt="Railroad diagram of the rule falling-vowels"></p>
+<p><img src="../../docs/diagrams/words/cll/rising-vowels.svg" alt="Railroad diagram of the rule rising-vowels"></p>
+<p><img src="../../docs/diagrams/words/cll/falling-i.svg" alt="Railroad diagram of the rule falling-i"></p>
+<p><img src="../../docs/diagrams/words/cll/one-syllable.svg" alt="Railroad diagram of the rule one-syllable"></p>
+<p><img src="../../docs/diagrams/words/cll/syllable-vowels.svg" alt="Railroad diagram of the rule syllable-vowels"></p>
+<p><img src="../../docs/diagrams/words/cll/has-comma.svg" alt="Railroad diagram of the rule has-comma"></p>
+</details>
 
 ## Where the book leaves a choice
 

@@ -18,7 +18,9 @@ The stage gives the warning where it reads the word as a Lojban word. That is, t
   | y-cmavo! ~cmavo⊇~cmavo-warning
 ```
 
-<details><summary>Railroad diagram of <code>cmavo-token</code></summary><img src="../../docs/diagrams/words/cll-stream/cmavo-token.svg" alt="Railroad diagram of the rule cmavo-token"></details>
+<details><summary>Railroad diagram of <code>cmavo-token</code></summary>
+<p><img src="../../docs/diagrams/words/cll-stream/cmavo-token.svg" alt="Railroad diagram of the rule cmavo-token"></p>
+</details>
 
 A name that `bu` takes needs a pause on both sides of it in the source (CLL 17.4). The forms stage requires a pause or the end of the text after every name, because CLL 4.9 rule 2 needs one there. It tags the first word of each run `run-initial`. A run is a stretch with no internal pause.
 
@@ -35,4 +37,6 @@ A replacement name keeps its source boundary. Thus `ladjan. sa .djim. bu` leaves
   $
 ```
 
-<details><summary>Railroad diagram of <code>lerfu-word</code></summary><img src="../../docs/diagrams/words/cll-stream/lerfu-word.svg" alt="Railroad diagram of the rule lerfu-word"></details>
+<details><summary>Railroad diagram of <code>lerfu-word</code></summary>
+<p><img src="../../docs/diagrams/words/cll-stream/lerfu-word.svg" alt="Railroad diagram of the rule lerfu-word"></p>
+</details>

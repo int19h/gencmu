@@ -83,7 +83,7 @@
       "description": "Duplicate bootstrap rule",
       "find": "\"name\":\"text\",\"op\":\"define\"",
       "replace": "\"name\":\"word\",\"op\":\"define\"",
-      "line": 42,
+      "line": 44,
       "column": 1,
       "context": "notation/lexical.md",
       "stage": "lexical"

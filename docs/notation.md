@@ -825,7 +825,7 @@ The grammars that extend CLL do not declare `elision-only`. A caller can switch 
 
 ## Railroad diagrams
 
-Each bundled grammar document shows a railroad diagram of each of its rules. A railroad diagram draws a rule as a track. A reader follows the track from left to right, and each path along it is one way to read the rule. Under each block of rules stands one collapsed diagram for each rule of the block, which opens on a click. `tools/sync.js` draws them, as "Railroad diagrams" in [the design document](design.md#railroad-diagrams) says.
+Each bundled grammar document shows a railroad diagram of each of its rules. A railroad diagram draws a rule as a track. A reader follows the track from left to right, and each path along it is one way to read the rule. Under each block of rules stands one collapsed element, which opens on a click and shows a diagram of each rule of the block. `tools/sync.js` draws them, as "Railroad diagrams" in [the design document](design.md#railroad-diagrams) says.
 
 The diagrams draw the notation in this way:
 

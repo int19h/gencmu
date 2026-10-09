@@ -39,5 +39,7 @@ Indicators after `lu` begin the quoted text, as in camxes-exp. The CLL document 
   NAI ⊈ tags($i) ∨ classes(last($r)) ∩ (UI ∪ CAI) = ∅
 ```
 
-<details><summary>Railroad diagram of <code>leading</code></summary><img src="../../docs/diagrams/indicators/experimental/leading.svg" alt="Railroad diagram of the rule leading"></details>
-<details><summary>Railroad diagram of <code>indicator-run</code></summary><img src="../../docs/diagrams/indicators/experimental/indicator-run.svg" alt="Railroad diagram of the rule indicator-run"></details>
+<details><summary>Railroad diagrams of <code>leading</code> and <code>indicator-run</code></summary>
+<p><img src="../../docs/diagrams/indicators/experimental/leading.svg" alt="Railroad diagram of the rule leading"></p>
+<p><img src="../../docs/diagrams/indicators/experimental/indicator-run.svg" alt="Railroad diagram of the rule indicator-run"></p>
+</details>

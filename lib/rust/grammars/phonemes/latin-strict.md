@@ -41,10 +41,12 @@ A run is what stands between two pauses. It is an ordinary run of letters, or a 
   ordinary-run | foreign-run
 ```
 
-<details><summary>Railroad diagram of <code>text</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/text.svg" alt="Railroad diagram of the rule text"></details>
-<details><summary>Railroad diagram of <code>edge-pause</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/edge-pause.svg" alt="Railroad diagram of the rule edge-pause"></details>
-<details><summary>Railroad diagram of <code>items</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/items.svg" alt="Railroad diagram of the rule items"></details>
-<details><summary>Railroad diagram of <code>run</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/run.svg" alt="Railroad diagram of the rule run"></details>
+<details><summary>Railroad diagrams of <code>text</code>, <code>edge-pause</code>, <code>items</code> and <code>run</code></summary>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/text.svg" alt="Railroad diagram of the rule text"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/edge-pause.svg" alt="Railroad diagram of the rule edge-pause"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/items.svg" alt="Railroad diagram of the rule items"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/run.svg" alt="Railroad diagram of the rule run"></p>
+</details>
 
 A pause is one token. Its core is a run of whitespace characters and periods, with any commas inside it. A whitespace character is one with the Unicode property White_Space. A comma next to the core is part of the pause, but it belongs to no token. So `mi , klama` has one pause between its two words, and a quote body next to such a comma takes it in.
 
@@ -78,13 +80,15 @@ CLL 3.3 says that a comma "cannot be pronounced as a pause", so a comma alone be
   comma | commas comma
 ```
 
-<details><summary>Railroad diagram of <code>pause</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/pause.svg" alt="Railroad diagram of the rule pause"></details>
-<details><summary>Railroad diagram of <code>spaced-pause</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/spaced-pause.svg" alt="Railroad diagram of the rule spaced-pause"></details>
-<details><summary>Railroad diagram of <code>pause-core</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/pause-core.svg" alt="Railroad diagram of the rule pause-core"></details>
-<details><summary>Railroad diagram of <code>pause-edge</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/pause-edge.svg" alt="Railroad diagram of the rule pause-edge"></details>
-<details><summary>Railroad diagram of <code>core-char</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/core-char.svg" alt="Railroad diagram of the rule core-char"></details>
-<details><summary>Railroad diagram of <code>space-char</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/space-char.svg" alt="Railroad diagram of the rule space-char"></details>
-<details><summary>Railroad diagram of <code>commas</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/commas.svg" alt="Railroad diagram of the rule commas"></details>
+<details><summary>Railroad diagrams of the 7 rules from <code>pause</code> to <code>commas</code></summary>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/pause.svg" alt="Railroad diagram of the rule pause"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/spaced-pause.svg" alt="Railroad diagram of the rule spaced-pause"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/pause-core.svg" alt="Railroad diagram of the rule pause-core"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/pause-edge.svg" alt="Railroad diagram of the rule pause-edge"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/core-char.svg" alt="Railroad diagram of the rule core-char"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/space-char.svg" alt="Railroad diagram of the rule space-char"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/commas.svg" alt="Railroad diagram of the rule commas"></p>
+</details>
 
 An ordinary run is letters. A run of adjacent vowel letters is one vowel group, and a group carries the tags of its last vowel. In the Latin orthography, a group is its vowels, one phoneme each.
 
@@ -140,19 +144,21 @@ A comma stands only between two letters of a run. Between two vowels it is the s
   consonant | plain-vowel | stressed-vowel | apostrophe | comma
 ```
 
-<details><summary>Railroad diagram of <code>ordinary-run</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/ordinary-run.svg" alt="Railroad diagram of the rule ordinary-run"></details>
-<details><summary>Railroad diagram of <code>letters</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/letters.svg" alt="Railroad diagram of the rule letters"></details>
-<details><summary>Railroad diagram of <code>letters-after-vowel</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/letters-after-vowel.svg" alt="Railroad diagram of the rule letters-after-vowel"></details>
-<details><summary>Railroad diagram of <code>letters-after-consonant</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/letters-after-consonant.svg" alt="Railroad diagram of the rule letters-after-consonant"></details>
-<details><summary>Railroad diagram of <code>non-vowels</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/non-vowels.svg" alt="Railroad diagram of the rule non-vowels"></details>
-<details><summary>Railroad diagram of <code>non-vowel</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/non-vowel.svg" alt="Railroad diagram of the rule non-vowel"></details>
-<details><summary>Railroad diagram of <code>syllable-break</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/syllable-break.svg" alt="Railroad diagram of the rule syllable-break"></details>
-<details><summary>Railroad diagram of <code>vowel</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/vowel.svg" alt="Railroad diagram of the rule vowel"></details>
-<details><summary>Railroad diagram of <code>vowel-group</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/vowel-group.svg" alt="Railroad diagram of the rule vowel-group"></details>
-<details><summary>Railroad diagram of <code>vowel-group-plain</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/vowel-group-plain.svg" alt="Railroad diagram of the rule vowel-group-plain"></details>
-<details><summary>Railroad diagram of <code>vowel-group-joined</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/vowel-group-joined.svg" alt="Railroad diagram of the rule vowel-group-joined"></details>
-<details><summary>Railroad diagram of <code>joined-vowel</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/joined-vowel.svg" alt="Railroad diagram of the rule joined-vowel"></details>
-<details><summary>Railroad diagram of <code>any-lojban-char</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/any-lojban-char.svg" alt="Railroad diagram of the rule any-lojban-char"></details>
+<details><summary>Railroad diagrams of the 13 rules from <code>ordinary-run</code> to <code>any-lojban-char</code></summary>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/ordinary-run.svg" alt="Railroad diagram of the rule ordinary-run"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/letters.svg" alt="Railroad diagram of the rule letters"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/letters-after-vowel.svg" alt="Railroad diagram of the rule letters-after-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/letters-after-consonant.svg" alt="Railroad diagram of the rule letters-after-consonant"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/non-vowels.svg" alt="Railroad diagram of the rule non-vowels"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/non-vowel.svg" alt="Railroad diagram of the rule non-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/syllable-break.svg" alt="Railroad diagram of the rule syllable-break"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/vowel.svg" alt="Railroad diagram of the rule vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/vowel-group.svg" alt="Railroad diagram of the rule vowel-group"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/vowel-group-plain.svg" alt="Railroad diagram of the rule vowel-group-plain"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/vowel-group-joined.svg" alt="Railroad diagram of the rule vowel-group-joined"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/joined-vowel.svg" alt="Railroad diagram of the rule joined-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/any-lojban-char.svg" alt="Railroad diagram of the rule any-lojban-char"></p>
+</details>
 
 A run that is not an ordinary run is foreign. It has a letter, a digit, a mark or any other character that this orthography does not read, as `mi klama?` has. The stage emits a foreign run as one `UNREAD` token. The rule is `%opaque`, so the token sounds `?`, and its label is its text. A `zoi` delimiter is a word, which never sounds `?`. So no delimiter matches such a run.
 
@@ -193,12 +199,14 @@ A foreign run has at least one character that no rule of `any-lojban-char` reads
   ¬matches($c, core-char)
 ```
 
-<details><summary>Railroad diagram of <code>foreign-run</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/foreign-run.svg" alt="Railroad diagram of the rule foreign-run"></details>
-<details><summary>Railroad diagram of <code>foreign-chars</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/foreign-chars.svg" alt="Railroad diagram of the rule foreign-chars"></details>
-<details><summary>Railroad diagram of <code>lojban-chars</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/lojban-chars.svg" alt="Railroad diagram of the rule lojban-chars"></details>
-<details><summary>Railroad diagram of <code>lojban-char</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/lojban-char.svg" alt="Railroad diagram of the rule lojban-char"></details>
-<details><summary>Railroad diagram of <code>foreign-char</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/foreign-char.svg" alt="Railroad diagram of the rule foreign-char"></details>
-<details><summary>Railroad diagram of <code>run-char</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/run-char.svg" alt="Railroad diagram of the rule run-char"></details>
+<details><summary>Railroad diagrams of the 6 rules from <code>foreign-run</code> to <code>run-char</code></summary>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/foreign-run.svg" alt="Railroad diagram of the rule foreign-run"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/foreign-chars.svg" alt="Railroad diagram of the rule foreign-chars"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/lojban-chars.svg" alt="Railroad diagram of the rule lojban-chars"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/lojban-char.svg" alt="Railroad diagram of the rule lojban-char"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/foreign-char.svg" alt="Railroad diagram of the rule foreign-char"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/run-char.svg" alt="Railroad diagram of the rule run-char"></p>
+</details>
 
 ## Letters
 
@@ -247,8 +255,10 @@ CLL 3.1 omits `h` from the alphabet. CLL 3.3 says that `h` does not write the ap
   ','
 ```
 
-<details><summary>Railroad diagram of <code>consonant</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/consonant.svg" alt="Railroad diagram of the rule consonant"></details>
-<details><summary>Railroad diagram of <code>plain-vowel</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></details>
-<details><summary>Railroad diagram of <code>stressed-vowel</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></details>
-<details><summary>Railroad diagram of <code>apostrophe</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/apostrophe.svg" alt="Railroad diagram of the rule apostrophe"></details>
-<details><summary>Railroad diagram of <code>comma</code></summary><img src="../../docs/diagrams/phonemes/latin-strict/comma.svg" alt="Railroad diagram of the rule comma"></details>
+<details><summary>Railroad diagrams of the 5 rules from <code>consonant</code> to <code>comma</code></summary>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/consonant.svg" alt="Railroad diagram of the rule consonant"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/apostrophe.svg" alt="Railroad diagram of the rule apostrophe"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/comma.svg" alt="Railroad diagram of the rule comma"></p>
+</details>

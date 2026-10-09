@@ -65,9 +65,11 @@ Each of these conditions is a restriction of the grammar, not a preference among
   ~quoted-text
 ```
 
-<details><summary>Railroad diagram of <code>#</code></summary><img src="../../docs/diagrams/syntax/zantufa/_hash.svg" alt="Railroad diagram of the rule #"></details>
-<details><summary>Railroad diagram of <code>any-word</code></summary><img src="../../docs/diagrams/syntax/zantufa/any-word.svg" alt="Railroad diagram of the rule any-word"></details>
-<details><summary>Railroad diagram of <code>anything</code></summary><img src="../../docs/diagrams/syntax/zantufa/anything.svg" alt="Railroad diagram of the rule anything"></details>
+<details><summary>Railroad diagrams of <code>#</code>, <code>any-word</code> and <code>anything</code></summary>
+<p><img src="../../docs/diagrams/syntax/zantufa/_hash.svg" alt="Railroad diagram of the rule #"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/any-word.svg" alt="Railroad diagram of the rule any-word"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/anything.svg" alt="Railroad diagram of the rule anything"></p>
+</details>
 
 ## The text and its paragraphs
 
@@ -106,12 +108,14 @@ The [indicator document](../indicators/cll.md#quotation-boundaries) explains the
   | (statement-terms | fragment) [{I # [statement-terms | fragment]}]
 ```
 
-<details><summary>Railroad diagram of <code>text</code></summary><img src="../../docs/diagrams/syntax/zantufa/text.svg" alt="Railroad diagram of the rule text"></details>
-<details><summary>Railroad diagram of <code>paragraphs</code></summary><img src="../../docs/diagrams/syntax/zantufa/paragraphs.svg" alt="Railroad diagram of the rule paragraphs"></details>
-<details><summary>Railroad diagram of <code>paragraphs-tail</code></summary><img src="../../docs/diagrams/syntax/zantufa/paragraphs-tail.svg" alt="Railroad diagram of the rule paragraphs-tail"></details>
-<details><summary>Railroad diagram of <code>paragraphs-1</code></summary><img src="../../docs/diagrams/syntax/zantufa/paragraphs-1.svg" alt="Railroad diagram of the rule paragraphs-1"></details>
-<details><summary>Railroad diagram of <code>paragraphs-2</code></summary><img src="../../docs/diagrams/syntax/zantufa/paragraphs-2.svg" alt="Railroad diagram of the rule paragraphs-2"></details>
-<details><summary>Railroad diagram of <code>paragraph</code></summary><img src="../../docs/diagrams/syntax/zantufa/paragraph.svg" alt="Railroad diagram of the rule paragraph"></details>
+<details><summary>Railroad diagrams of the 6 rules from <code>text</code> to <code>paragraph</code></summary>
+<p><img src="../../docs/diagrams/syntax/zantufa/text.svg" alt="Railroad diagram of the rule text"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/paragraphs.svg" alt="Railroad diagram of the rule paragraphs"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/paragraphs-tail.svg" alt="Railroad diagram of the rule paragraphs-tail"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/paragraphs-1.svg" alt="Railroad diagram of the rule paragraphs-1"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/paragraphs-2.svg" alt="Railroad diagram of the rule paragraphs-2"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/paragraph.svg" alt="Railroad diagram of the rule paragraph"></p>
+</details>
 
 ## Statements and fragments
 
@@ -197,18 +201,20 @@ A structural pattern describes constructed nodes. Suppose every earlier branch i
   KU
 ```
 
-<details><summary>Railroad diagram of <code>statement-terms</code></summary><img src="../../docs/diagrams/syntax/zantufa/statement-terms.svg" alt="Railroad diagram of the rule statement-terms"></details>
-<details><summary>Railroad diagram of <code>statement</code></summary><img src="../../docs/diagrams/syntax/zantufa/statement.svg" alt="Railroad diagram of the rule statement"></details>
-<details><summary>Railroad diagram of <code>statement-1</code></summary><img src="../../docs/diagrams/syntax/zantufa/statement-1.svg" alt="Railroad diagram of the rule statement-1"></details>
-<details><summary>Railroad diagram of <code>statement-2</code></summary><img src="../../docs/diagrams/syntax/zantufa/statement-2.svg" alt="Railroad diagram of the rule statement-2"></details>
-<details><summary>Railroad diagram of <code>statement-3</code></summary><img src="../../docs/diagrams/syntax/zantufa/statement-3.svg" alt="Railroad diagram of the rule statement-3"></details>
-<details><summary>Railroad diagram of <code>gek-statement</code></summary><img src="../../docs/diagrams/syntax/zantufa/gek-statement.svg" alt="Railroad diagram of the rule gek-statement"></details>
-<details><summary>Railroad diagram of <code>gek-branches</code></summary><img src="../../docs/diagrams/syntax/zantufa/gek-branches.svg" alt="Railroad diagram of the rule gek-branches"></details>
-<details><summary>Railroad diagram of <code>fragment</code></summary><img src="../../docs/diagrams/syntax/zantufa/fragment.svg" alt="Railroad diagram of the rule fragment"></details>
-<details><summary>Railroad diagram of <code>prenex</code></summary><img src="../../docs/diagrams/syntax/zantufa/prenex.svg" alt="Railroad diagram of the rule prenex"></details>
-<details><summary>Railroad diagram of <code>na-clause</code></summary><img src="../../docs/diagrams/syntax/zantufa/na-clause.svg" alt="Railroad diagram of the rule na-clause"></details>
-<details><summary>Railroad diagram of <code>terms-vau</code></summary><img src="../../docs/diagrams/syntax/zantufa/terms-vau.svg" alt="Railroad diagram of the rule terms-vau"></details>
-<details><summary>Railroad diagram of <code>ku-word</code></summary><img src="../../docs/diagrams/syntax/zantufa/ku-word.svg" alt="Railroad diagram of the rule ku-word"></details>
+<details><summary>Railroad diagrams of the 12 rules from <code>statement-terms</code> to <code>ku-word</code></summary>
+<p><img src="../../docs/diagrams/syntax/zantufa/statement-terms.svg" alt="Railroad diagram of the rule statement-terms"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/statement.svg" alt="Railroad diagram of the rule statement"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/statement-1.svg" alt="Railroad diagram of the rule statement-1"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/statement-2.svg" alt="Railroad diagram of the rule statement-2"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/statement-3.svg" alt="Railroad diagram of the rule statement-3"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/gek-statement.svg" alt="Railroad diagram of the rule gek-statement"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/gek-branches.svg" alt="Railroad diagram of the rule gek-branches"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/fragment.svg" alt="Railroad diagram of the rule fragment"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/prenex.svg" alt="Railroad diagram of the rule prenex"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/na-clause.svg" alt="Railroad diagram of the rule na-clause"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/terms-vau.svg" alt="Railroad diagram of the rule terms-vau"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/ku-word.svg" alt="Railroad diagram of the rule ku-word"></p>
+</details>
 
 ## Sentences and bridi-tails
 
@@ -307,24 +313,26 @@ The tenses and modals before `ke` and a forethought bridi-tail are one tag. The 
   [{term}] [+VAU #]
 ```
 
-<details><summary>Railroad diagram of <code>sentence</code></summary><img src="../../docs/diagrams/syntax/zantufa/sentence.svg" alt="Railroad diagram of the rule sentence"></details>
-<details><summary>Railroad diagram of <code>bridi-tail-before-no-gik</code></summary><img src="../../docs/diagrams/syntax/zantufa/bridi-tail-before-no-gik.svg" alt="Railroad diagram of the rule bridi-tail-before-no-gik"></details>
-<details><summary>Railroad diagram of <code>bridi-tail</code></summary><img src="../../docs/diagrams/syntax/zantufa/bridi-tail.svg" alt="Railroad diagram of the rule bridi-tail"></details>
-<details><summary>Railroad diagram of <code>bridi-tail-link</code></summary><img src="../../docs/diagrams/syntax/zantufa/bridi-tail-link.svg" alt="Railroad diagram of the rule bridi-tail-link"></details>
-<details><summary>Railroad diagram of <code>tag-cu</code></summary><img src="../../docs/diagrams/syntax/zantufa/tag-cu.svg" alt="Railroad diagram of the rule tag-cu"></details>
-<details><summary>Railroad diagram of <code>bridi-tail-1</code></summary><img src="../../docs/diagrams/syntax/zantufa/bridi-tail-1.svg" alt="Railroad diagram of the rule bridi-tail-1"></details>
-<details><summary>Railroad diagram of <code>bridi-tail-1-link</code></summary><img src="../../docs/diagrams/syntax/zantufa/bridi-tail-1-link.svg" alt="Railroad diagram of the rule bridi-tail-1-link"></details>
-<details><summary>Railroad diagram of <code>tag-bo</code></summary><img src="../../docs/diagrams/syntax/zantufa/tag-bo.svg" alt="Railroad diagram of the rule tag-bo"></details>
-<details><summary>Railroad diagram of <code>tag-ke</code></summary><img src="../../docs/diagrams/syntax/zantufa/tag-ke.svg" alt="Railroad diagram of the rule tag-ke"></details>
-<details><summary>Railroad diagram of <code>bridi-tail-2</code></summary><img src="../../docs/diagrams/syntax/zantufa/bridi-tail-2.svg" alt="Railroad diagram of the rule bridi-tail-2"></details>
-<details><summary>Railroad diagram of <code>bridi-tail-3</code></summary><img src="../../docs/diagrams/syntax/zantufa/bridi-tail-3.svg" alt="Railroad diagram of the rule bridi-tail-3"></details>
-<details><summary>Railroad diagram of <code>ke-selbri-2-kehe</code></summary><img src="../../docs/diagrams/syntax/zantufa/ke-selbri-2-kehe.svg" alt="Railroad diagram of the rule ke-selbri-2-kehe"></details>
-<details><summary>Railroad diagram of <code>ke-clause</code></summary><img src="../../docs/diagrams/syntax/zantufa/ke-clause.svg" alt="Railroad diagram of the rule ke-clause"></details>
-<details><summary>Railroad diagram of <code>selbri-2-kehe</code></summary><img src="../../docs/diagrams/syntax/zantufa/selbri-2-kehe.svg" alt="Railroad diagram of the rule selbri-2-kehe"></details>
-<details><summary>Railroad diagram of <code>gek-bridi-tail</code></summary><img src="../../docs/diagrams/syntax/zantufa/gek-bridi-tail.svg" alt="Railroad diagram of the rule gek-bridi-tail"></details>
-<details><summary>Railroad diagram of <code>gik-bridi-tails</code></summary><img src="../../docs/diagrams/syntax/zantufa/gik-bridi-tails.svg" alt="Railroad diagram of the rule gik-bridi-tails"></details>
-<details><summary>Railroad diagram of <code>gik-term</code></summary><img src="../../docs/diagrams/syntax/zantufa/gik-term.svg" alt="Railroad diagram of the rule gik-term"></details>
-<details><summary>Railroad diagram of <code>tail-terms</code></summary><img src="../../docs/diagrams/syntax/zantufa/tail-terms.svg" alt="Railroad diagram of the rule tail-terms"></details>
+<details><summary>Railroad diagrams of the 18 rules from <code>sentence</code> to <code>tail-terms</code></summary>
+<p><img src="../../docs/diagrams/syntax/zantufa/sentence.svg" alt="Railroad diagram of the rule sentence"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/bridi-tail-before-no-gik.svg" alt="Railroad diagram of the rule bridi-tail-before-no-gik"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/bridi-tail.svg" alt="Railroad diagram of the rule bridi-tail"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/bridi-tail-link.svg" alt="Railroad diagram of the rule bridi-tail-link"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/tag-cu.svg" alt="Railroad diagram of the rule tag-cu"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/bridi-tail-1.svg" alt="Railroad diagram of the rule bridi-tail-1"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/bridi-tail-1-link.svg" alt="Railroad diagram of the rule bridi-tail-1-link"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/tag-bo.svg" alt="Railroad diagram of the rule tag-bo"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/tag-ke.svg" alt="Railroad diagram of the rule tag-ke"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/bridi-tail-2.svg" alt="Railroad diagram of the rule bridi-tail-2"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/bridi-tail-3.svg" alt="Railroad diagram of the rule bridi-tail-3"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/ke-selbri-2-kehe.svg" alt="Railroad diagram of the rule ke-selbri-2-kehe"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/ke-clause.svg" alt="Railroad diagram of the rule ke-clause"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/selbri-2-kehe.svg" alt="Railroad diagram of the rule selbri-2-kehe"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/gek-bridi-tail.svg" alt="Railroad diagram of the rule gek-bridi-tail"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/gik-bridi-tails.svg" alt="Railroad diagram of the rule gik-bridi-tails"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/gik-term.svg" alt="Railroad diagram of the rule gik-term"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/tail-terms.svg" alt="Railroad diagram of the rule tail-terms"></p>
+</details>
 
 ## Terms
 
@@ -416,20 +424,22 @@ A `ke` group of terms comes before a sumti that begins with `ke`, as in the refe
   gek {term} {gik {term}} [+GIhI #]
 ```
 
-<details><summary>Railroad diagram of <code>terms</code></summary><img src="../../docs/diagrams/syntax/zantufa/terms.svg" alt="Railroad diagram of the rule terms"></details>
-<details><summary>Railroad diagram of <code>term</code></summary><img src="../../docs/diagrams/syntax/zantufa/term.svg" alt="Railroad diagram of the rule term"></details>
-<details><summary>Railroad diagram of <code>term-link</code></summary><img src="../../docs/diagrams/syntax/zantufa/term-link.svg" alt="Railroad diagram of the rule term-link"></details>
-<details><summary>Railroad diagram of <code>joik-tag-cu</code></summary><img src="../../docs/diagrams/syntax/zantufa/joik-tag-cu.svg" alt="Railroad diagram of the rule joik-tag-cu"></details>
-<details><summary>Railroad diagram of <code>term-1</code></summary><img src="../../docs/diagrams/syntax/zantufa/term-1.svg" alt="Railroad diagram of the rule term-1"></details>
-<details><summary>Railroad diagram of <code>term-2</code></summary><img src="../../docs/diagrams/syntax/zantufa/term-2.svg" alt="Railroad diagram of the rule term-2"></details>
-<details><summary>Railroad diagram of <code>ke-group-of-terms</code></summary><img src="../../docs/diagrams/syntax/zantufa/ke-group-of-terms.svg" alt="Railroad diagram of the rule ke-group-of-terms"></details>
-<details><summary>Railroad diagram of <code>sumti-kehe</code></summary><img src="../../docs/diagrams/syntax/zantufa/sumti-kehe.svg" alt="Railroad diagram of the rule sumti-kehe"></details>
-<details><summary>Railroad diagram of <code>brigahi</code></summary><img src="../../docs/diagrams/syntax/zantufa/brigahi.svg" alt="Railroad diagram of the rule brigahi"></details>
-<details><summary>Railroad diagram of <code>tag-term</code></summary><img src="../../docs/diagrams/syntax/zantufa/tag-term.svg" alt="Railroad diagram of the rule tag-term"></details>
-<details><summary>Railroad diagram of <code>tag-term-argument</code></summary><img src="../../docs/diagrams/syntax/zantufa/tag-term-argument.svg" alt="Railroad diagram of the rule tag-term-argument"></details>
-<details><summary>Railroad diagram of <code>fa-jai</code></summary><img src="../../docs/diagrams/syntax/zantufa/fa-jai.svg" alt="Railroad diagram of the rule fa-jai"></details>
-<details><summary>Railroad diagram of <code>bo-word</code></summary><img src="../../docs/diagrams/syntax/zantufa/bo-word.svg" alt="Railroad diagram of the rule bo-word"></details>
-<details><summary>Railroad diagram of <code>gek-term</code></summary><img src="../../docs/diagrams/syntax/zantufa/gek-term.svg" alt="Railroad diagram of the rule gek-term"></details>
+<details><summary>Railroad diagrams of the 14 rules from <code>terms</code> to <code>gek-term</code></summary>
+<p><img src="../../docs/diagrams/syntax/zantufa/terms.svg" alt="Railroad diagram of the rule terms"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/term.svg" alt="Railroad diagram of the rule term"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/term-link.svg" alt="Railroad diagram of the rule term-link"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/joik-tag-cu.svg" alt="Railroad diagram of the rule joik-tag-cu"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/term-1.svg" alt="Railroad diagram of the rule term-1"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/term-2.svg" alt="Railroad diagram of the rule term-2"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/ke-group-of-terms.svg" alt="Railroad diagram of the rule ke-group-of-terms"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/sumti-kehe.svg" alt="Railroad diagram of the rule sumti-kehe"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/brigahi.svg" alt="Railroad diagram of the rule brigahi"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/tag-term.svg" alt="Railroad diagram of the rule tag-term"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/tag-term-argument.svg" alt="Railroad diagram of the rule tag-term-argument"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/fa-jai.svg" alt="Railroad diagram of the rule fa-jai"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/bo-word.svg" alt="Railroad diagram of the rule bo-word"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/gek-term.svg" alt="Railroad diagram of the rule gek-term"></p>
+</details>
 
 ## Sumti
 
@@ -531,22 +541,24 @@ The conditions on `sumti-1` and `sumti-2` state this. Each says that no further 
   ¬begins(from($s), tag)
 ```
 
-<details><summary>Railroad diagram of <code>sumti</code></summary><img src="../../docs/diagrams/syntax/zantufa/sumti.svg" alt="Railroad diagram of the rule sumti"></details>
-<details><summary>Railroad diagram of <code>sumti-1</code></summary><img src="../../docs/diagrams/syntax/zantufa/sumti-1.svg" alt="Railroad diagram of the rule sumti-1"></details>
-<details><summary>Railroad diagram of <code>sumti-1-run</code></summary><img src="../../docs/diagrams/syntax/zantufa/sumti-1-run.svg" alt="Railroad diagram of the rule sumti-1-run"></details>
-<details><summary>Railroad diagram of <code>sumti-1-link</code></summary><img src="../../docs/diagrams/syntax/zantufa/sumti-1-link.svg" alt="Railroad diagram of the rule sumti-1-link"></details>
-<details><summary>Railroad diagram of <code>sumti-2</code></summary><img src="../../docs/diagrams/syntax/zantufa/sumti-2.svg" alt="Railroad diagram of the rule sumti-2"></details>
-<details><summary>Railroad diagram of <code>sumti-2-run</code></summary><img src="../../docs/diagrams/syntax/zantufa/sumti-2-run.svg" alt="Railroad diagram of the rule sumti-2-run"></details>
-<details><summary>Railroad diagram of <code>sumti-2-link</code></summary><img src="../../docs/diagrams/syntax/zantufa/sumti-2-link.svg" alt="Railroad diagram of the rule sumti-2-link"></details>
-<details><summary>Railroad diagram of <code>sumti-3</code></summary><img src="../../docs/diagrams/syntax/zantufa/sumti-3.svg" alt="Railroad diagram of the rule sumti-3"></details>
-<details><summary>Railroad diagram of <code>sumti-4</code></summary><img src="../../docs/diagrams/syntax/zantufa/sumti-4.svg" alt="Railroad diagram of the rule sumti-4"></details>
-<details><summary>Railroad diagram of <code>sumti-5</code></summary><img src="../../docs/diagrams/syntax/zantufa/sumti-5.svg" alt="Railroad diagram of the rule sumti-5"></details>
-<details><summary>Railroad diagram of <code>lerfu-boi</code></summary><img src="../../docs/diagrams/syntax/zantufa/lerfu-boi.svg" alt="Railroad diagram of the rule lerfu-boi"></details>
-<details><summary>Railroad diagram of <code>lerfu-operator</code></summary><img src="../../docs/diagrams/syntax/zantufa/lerfu-operator.svg" alt="Railroad diagram of the rule lerfu-operator"></details>
-<details><summary>Railroad diagram of <code>joik-ek-sumti</code></summary><img src="../../docs/diagrams/syntax/zantufa/joik-ek-sumti.svg" alt="Railroad diagram of the rule joik-ek-sumti"></details>
-<details><summary>Railroad diagram of <code>operand-kehe</code></summary><img src="../../docs/diagrams/syntax/zantufa/operand-kehe.svg" alt="Railroad diagram of the rule operand-kehe"></details>
-<details><summary>Railroad diagram of <code>sumti-tail</code></summary><img src="../../docs/diagrams/syntax/zantufa/sumti-tail.svg" alt="Railroad diagram of the rule sumti-tail"></details>
-<details><summary>Railroad diagram of <code>sumti-tail-1</code></summary><img src="../../docs/diagrams/syntax/zantufa/sumti-tail-1.svg" alt="Railroad diagram of the rule sumti-tail-1"></details>
+<details><summary>Railroad diagrams of the 16 rules from <code>sumti</code> to <code>sumti-tail-1</code></summary>
+<p><img src="../../docs/diagrams/syntax/zantufa/sumti.svg" alt="Railroad diagram of the rule sumti"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/sumti-1.svg" alt="Railroad diagram of the rule sumti-1"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/sumti-1-run.svg" alt="Railroad diagram of the rule sumti-1-run"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/sumti-1-link.svg" alt="Railroad diagram of the rule sumti-1-link"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/sumti-2.svg" alt="Railroad diagram of the rule sumti-2"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/sumti-2-run.svg" alt="Railroad diagram of the rule sumti-2-run"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/sumti-2-link.svg" alt="Railroad diagram of the rule sumti-2-link"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/sumti-3.svg" alt="Railroad diagram of the rule sumti-3"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/sumti-4.svg" alt="Railroad diagram of the rule sumti-4"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/sumti-5.svg" alt="Railroad diagram of the rule sumti-5"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/lerfu-boi.svg" alt="Railroad diagram of the rule lerfu-boi"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/lerfu-operator.svg" alt="Railroad diagram of the rule lerfu-operator"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/joik-ek-sumti.svg" alt="Railroad diagram of the rule joik-ek-sumti"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/operand-kehe.svg" alt="Railroad diagram of the rule operand-kehe"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/sumti-tail.svg" alt="Railroad diagram of the rule sumti-tail"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/sumti-tail-1.svg" alt="Railroad diagram of the rule sumti-tail-1"></p>
+</details>
 
 ## Relative clauses
 
@@ -562,8 +574,10 @@ Relative clauses can stand side by side, joined by a joik or by nothing. They fo
   GOI # term [+GEhU #] | NOI # statement [+KUhO #]
 ```
 
-<details><summary>Railroad diagram of <code>relative-clauses</code></summary><img src="../../docs/diagrams/syntax/zantufa/relative-clauses.svg" alt="Railroad diagram of the rule relative-clauses"></details>
-<details><summary>Railroad diagram of <code>relative-clause</code></summary><img src="../../docs/diagrams/syntax/zantufa/relative-clause.svg" alt="Railroad diagram of the rule relative-clause"></details>
+<details><summary>Railroad diagrams of <code>relative-clauses</code> and <code>relative-clause</code></summary>
+<p><img src="../../docs/diagrams/syntax/zantufa/relative-clauses.svg" alt="Railroad diagram of the rule relative-clauses"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/relative-clause.svg" alt="Railroad diagram of the rule relative-clause"></p>
+</details>
 
 ## Selbri and tanru
 
@@ -692,25 +706,27 @@ A run of `cei` nests to the right. The reference repeats `(CEI_clause selbri)*`,
   BEI # term [links]
 ```
 
-<details><summary>Railroad diagram of <code>selbri</code></summary><img src="../../docs/diagrams/syntax/zantufa/selbri.svg" alt="Railroad diagram of the rule selbri"></details>
-<details><summary>Railroad diagram of <code>selbri-1</code></summary><img src="../../docs/diagrams/syntax/zantufa/selbri-1.svg" alt="Railroad diagram of the rule selbri-1"></details>
-<details><summary>Railroad diagram of <code>ke-word</code></summary><img src="../../docs/diagrams/syntax/zantufa/ke-word.svg" alt="Railroad diagram of the rule ke-word"></details>
-<details><summary>Railroad diagram of <code>selbri-2</code></summary><img src="../../docs/diagrams/syntax/zantufa/selbri-2.svg" alt="Railroad diagram of the rule selbri-2"></details>
-<details><summary>Railroad diagram of <code>selbri-3</code></summary><img src="../../docs/diagrams/syntax/zantufa/selbri-3.svg" alt="Railroad diagram of the rule selbri-3"></details>
-<details><summary>Railroad diagram of <code>later-selbri-4</code></summary><img src="../../docs/diagrams/syntax/zantufa/later-selbri-4.svg" alt="Railroad diagram of the rule later-selbri-4"></details>
-<details><summary>Railroad diagram of <code>joik-selbri-5</code></summary><img src="../../docs/diagrams/syntax/zantufa/joik-selbri-5.svg" alt="Railroad diagram of the rule joik-selbri-5"></details>
-<details><summary>Railroad diagram of <code>selbri-4</code></summary><img src="../../docs/diagrams/syntax/zantufa/selbri-4.svg" alt="Railroad diagram of the rule selbri-4"></details>
-<details><summary>Railroad diagram of <code>selbri-5</code></summary><img src="../../docs/diagrams/syntax/zantufa/selbri-5.svg" alt="Railroad diagram of the rule selbri-5"></details>
-<details><summary>Railroad diagram of <code>selbri-6</code></summary><img src="../../docs/diagrams/syntax/zantufa/selbri-6.svg" alt="Railroad diagram of the rule selbri-6"></details>
-<details><summary>Railroad diagram of <code>tanru-unit</code></summary><img src="../../docs/diagrams/syntax/zantufa/tanru-unit.svg" alt="Railroad diagram of the rule tanru-unit"></details>
-<details><summary>Railroad diagram of <code>tanru-unit-1</code></summary><img src="../../docs/diagrams/syntax/zantufa/tanru-unit-1.svg" alt="Railroad diagram of the rule tanru-unit-1"></details>
-<details><summary>Railroad diagram of <code>gek-tanru-unit</code></summary><img src="../../docs/diagrams/syntax/zantufa/gek-tanru-unit.svg" alt="Railroad diagram of the rule gek-tanru-unit"></details>
-<details><summary>Railroad diagram of <code>nahe-word</code></summary><img src="../../docs/diagrams/syntax/zantufa/nahe-word.svg" alt="Railroad diagram of the rule nahe-word"></details>
-<details><summary>Railroad diagram of <code>mex-moi</code></summary><img src="../../docs/diagrams/syntax/zantufa/mex-moi.svg" alt="Railroad diagram of the rule mex-moi"></details>
-<details><summary>Railroad diagram of <code>gik-selbris</code></summary><img src="../../docs/diagrams/syntax/zantufa/gik-selbris.svg" alt="Railroad diagram of the rule gik-selbris"></details>
-<details><summary>Railroad diagram of <code>gik-term-or-cu</code></summary><img src="../../docs/diagrams/syntax/zantufa/gik-term-or-cu.svg" alt="Railroad diagram of the rule gik-term-or-cu"></details>
-<details><summary>Railroad diagram of <code>linkargs</code></summary><img src="../../docs/diagrams/syntax/zantufa/linkargs.svg" alt="Railroad diagram of the rule linkargs"></details>
-<details><summary>Railroad diagram of <code>links</code></summary><img src="../../docs/diagrams/syntax/zantufa/links.svg" alt="Railroad diagram of the rule links"></details>
+<details><summary>Railroad diagrams of the 19 rules from <code>selbri</code> to <code>links</code></summary>
+<p><img src="../../docs/diagrams/syntax/zantufa/selbri.svg" alt="Railroad diagram of the rule selbri"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/selbri-1.svg" alt="Railroad diagram of the rule selbri-1"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/ke-word.svg" alt="Railroad diagram of the rule ke-word"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/selbri-2.svg" alt="Railroad diagram of the rule selbri-2"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/selbri-3.svg" alt="Railroad diagram of the rule selbri-3"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/later-selbri-4.svg" alt="Railroad diagram of the rule later-selbri-4"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/joik-selbri-5.svg" alt="Railroad diagram of the rule joik-selbri-5"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/selbri-4.svg" alt="Railroad diagram of the rule selbri-4"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/selbri-5.svg" alt="Railroad diagram of the rule selbri-5"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/selbri-6.svg" alt="Railroad diagram of the rule selbri-6"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/tanru-unit.svg" alt="Railroad diagram of the rule tanru-unit"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/tanru-unit-1.svg" alt="Railroad diagram of the rule tanru-unit-1"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/gek-tanru-unit.svg" alt="Railroad diagram of the rule gek-tanru-unit"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/nahe-word.svg" alt="Railroad diagram of the rule nahe-word"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/mex-moi.svg" alt="Railroad diagram of the rule mex-moi"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/gik-selbris.svg" alt="Railroad diagram of the rule gik-selbris"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/gik-term-or-cu.svg" alt="Railroad diagram of the rule gik-term-or-cu"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/linkargs.svg" alt="Railroad diagram of the rule linkargs"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/links.svg" alt="Railroad diagram of the rule links"></p>
+</details>
 
 ## Mekso
 
@@ -825,23 +841,25 @@ The condition removes a connective operator whose first word is SE. The alternat
   BY lerfu-post | LAU # lerfu-word | TEI # lerfu-string FOI #
 ```
 
-<details><summary>Railroad diagram of <code>quantifier</code></summary><img src="../../docs/diagrams/syntax/zantufa/quantifier.svg" alt="Railroad diagram of the rule quantifier"></details>
-<details><summary>Railroad diagram of <code>mex</code></summary><img src="../../docs/diagrams/syntax/zantufa/mex.svg" alt="Railroad diagram of the rule mex"></details>
-<details><summary>Railroad diagram of <code>mex-link</code></summary><img src="../../docs/diagrams/syntax/zantufa/mex-link.svg" alt="Railroad diagram of the rule mex-link"></details>
-<details><summary>Railroad diagram of <code>mex-1</code></summary><img src="../../docs/diagrams/syntax/zantufa/mex-1.svg" alt="Railroad diagram of the rule mex-1"></details>
-<details><summary>Railroad diagram of <code>bihe-link</code></summary><img src="../../docs/diagrams/syntax/zantufa/bihe-link.svg" alt="Railroad diagram of the rule bihe-link"></details>
-<details><summary>Railroad diagram of <code>mex-group</code></summary><img src="../../docs/diagrams/syntax/zantufa/mex-group.svg" alt="Railroad diagram of the rule mex-group"></details>
-<details><summary>Railroad diagram of <code>mex-2</code></summary><img src="../../docs/diagrams/syntax/zantufa/mex-2.svg" alt="Railroad diagram of the rule mex-2"></details>
-<details><summary>Railroad diagram of <code>mex-rp</code></summary><img src="../../docs/diagrams/syntax/zantufa/mex-rp.svg" alt="Railroad diagram of the rule mex-rp"></details>
-<details><summary>Railroad diagram of <code>mex-forethought</code></summary><img src="../../docs/diagrams/syntax/zantufa/mex-forethought.svg" alt="Railroad diagram of the rule mex-forethought"></details>
-<details><summary>Railroad diagram of <code>operator</code></summary><img src="../../docs/diagrams/syntax/zantufa/operator.svg" alt="Railroad diagram of the rule operator"></details>
-<details><summary>Railroad diagram of <code>operators</code></summary><img src="../../docs/diagrams/syntax/zantufa/operators.svg" alt="Railroad diagram of the rule operators"></details>
-<details><summary>Railroad diagram of <code>operator-run</code></summary><img src="../../docs/diagrams/syntax/zantufa/operator-run.svg" alt="Railroad diagram of the rule operator-run"></details>
-<details><summary>Railroad diagram of <code>cu-word</code></summary><img src="../../docs/diagrams/syntax/zantufa/cu-word.svg" alt="Railroad diagram of the rule cu-word"></details>
-<details><summary>Railroad diagram of <code>operand</code></summary><img src="../../docs/diagrams/syntax/zantufa/operand.svg" alt="Railroad diagram of the rule operand"></details>
-<details><summary>Railroad diagram of <code>number</code></summary><img src="../../docs/diagrams/syntax/zantufa/number.svg" alt="Railroad diagram of the rule number"></details>
-<details><summary>Railroad diagram of <code>lerfu-string</code></summary><img src="../../docs/diagrams/syntax/zantufa/lerfu-string.svg" alt="Railroad diagram of the rule lerfu-string"></details>
-<details><summary>Railroad diagram of <code>lerfu-word</code></summary><img src="../../docs/diagrams/syntax/zantufa/lerfu-word.svg" alt="Railroad diagram of the rule lerfu-word"></details>
+<details><summary>Railroad diagrams of the 17 rules from <code>quantifier</code> to <code>lerfu-word</code></summary>
+<p><img src="../../docs/diagrams/syntax/zantufa/quantifier.svg" alt="Railroad diagram of the rule quantifier"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/mex.svg" alt="Railroad diagram of the rule mex"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/mex-link.svg" alt="Railroad diagram of the rule mex-link"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/mex-1.svg" alt="Railroad diagram of the rule mex-1"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/bihe-link.svg" alt="Railroad diagram of the rule bihe-link"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/mex-group.svg" alt="Railroad diagram of the rule mex-group"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/mex-2.svg" alt="Railroad diagram of the rule mex-2"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/mex-rp.svg" alt="Railroad diagram of the rule mex-rp"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/mex-forethought.svg" alt="Railroad diagram of the rule mex-forethought"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/operator.svg" alt="Railroad diagram of the rule operator"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/operators.svg" alt="Railroad diagram of the rule operators"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/operator-run.svg" alt="Railroad diagram of the rule operator-run"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/cu-word.svg" alt="Railroad diagram of the rule cu-word"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/operand.svg" alt="Railroad diagram of the rule operand"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/number.svg" alt="Railroad diagram of the rule number"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/lerfu-string.svg" alt="Railroad diagram of the rule lerfu-string"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/lerfu-word.svg" alt="Railroad diagram of the rule lerfu-word"></p>
+</details>
 
 ## Connectives
 
@@ -877,13 +895,15 @@ The condition removes a connective operator whose first word is SE. The alternat
   GI #
 ```
 
-<details><summary>Railroad diagram of <code>ek</code></summary><img src="../../docs/diagrams/syntax/zantufa/ek.svg" alt="Railroad diagram of the rule ek"></details>
-<details><summary>Railroad diagram of <code>gihek</code></summary><img src="../../docs/diagrams/syntax/zantufa/gihek.svg" alt="Railroad diagram of the rule gihek"></details>
-<details><summary>Railroad diagram of <code>joik</code></summary><img src="../../docs/diagrams/syntax/zantufa/joik.svg" alt="Railroad diagram of the rule joik"></details>
-<details><summary>Railroad diagram of <code>joik-ek</code></summary><img src="../../docs/diagrams/syntax/zantufa/joik-ek.svg" alt="Railroad diagram of the rule joik-ek"></details>
-<details><summary>Railroad diagram of <code>joik-gihek</code></summary><img src="../../docs/diagrams/syntax/zantufa/joik-gihek.svg" alt="Railroad diagram of the rule joik-gihek"></details>
-<details><summary>Railroad diagram of <code>gek</code></summary><img src="../../docs/diagrams/syntax/zantufa/gek.svg" alt="Railroad diagram of the rule gek"></details>
-<details><summary>Railroad diagram of <code>gik</code></summary><img src="../../docs/diagrams/syntax/zantufa/gik.svg" alt="Railroad diagram of the rule gik"></details>
+<details><summary>Railroad diagrams of <code>ek</code>, <code>gihek</code>, <code>joik</code>, <code>joik-ek</code>, <code>joik-gihek</code>, <code>gek</code> and <code>gik</code></summary>
+<p><img src="../../docs/diagrams/syntax/zantufa/ek.svg" alt="Railroad diagram of the rule ek"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/gihek.svg" alt="Railroad diagram of the rule gihek"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/joik.svg" alt="Railroad diagram of the rule joik"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/joik-ek.svg" alt="Railroad diagram of the rule joik-ek"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/joik-gihek.svg" alt="Railroad diagram of the rule joik-gihek"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/gek.svg" alt="Railroad diagram of the rule gek"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/gik.svg" alt="Railroad diagram of the rule gik"></p>
+</details>
 
 ## Tenses and modals
 
@@ -915,10 +935,12 @@ The mekso prefix pattern tests an actual NAhE or SE constructor over an operand 
   $m ≇ @(⋰ ((NAhE ∪ SE) [#] (operand ∪ operator)))
 ```
 
-<details><summary>Railroad diagram of <code>tag</code></summary><img src="../../docs/diagrams/syntax/zantufa/tag.svg" alt="Railroad diagram of the rule tag"></details>
-<details><summary>Railroad diagram of <code>tag-link</code></summary><img src="../../docs/diagrams/syntax/zantufa/tag-link.svg" alt="Railroad diagram of the rule tag-link"></details>
-<details><summary>Railroad diagram of <code>tcita-selcis</code></summary><img src="../../docs/diagrams/syntax/zantufa/tcita-selcis.svg" alt="Railroad diagram of the rule tcita-selcis"></details>
-<details><summary>Railroad diagram of <code>tcita-selci</code></summary><img src="../../docs/diagrams/syntax/zantufa/tcita-selci.svg" alt="Railroad diagram of the rule tcita-selci"></details>
+<details><summary>Railroad diagrams of <code>tag</code>, <code>tag-link</code>, <code>tcita-selcis</code> and <code>tcita-selci</code></summary>
+<p><img src="../../docs/diagrams/syntax/zantufa/tag.svg" alt="Railroad diagram of the rule tag"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/tag-link.svg" alt="Railroad diagram of the rule tag-link"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/tcita-selcis.svg" alt="Railroad diagram of the rule tcita-selcis"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/tcita-selci.svg" alt="Railroad diagram of the rule tcita-selci"></p>
+</details>
 
 ## Free modifiers
 
@@ -990,16 +1012,18 @@ The dialect keeps one odd reading of Zantufa. In `pe'usai doi xod ko jmina`, the
   ¬begins(from($f), vocative)
 ```
 
-<details><summary>Railroad diagram of <code>free</code></summary><img src="../../docs/diagrams/syntax/zantufa/free.svg" alt="Railroad diagram of the rule free"></details>
-<details><summary>Railroad diagram of <code>parenthesis-text</code></summary><img src="../../docs/diagrams/syntax/zantufa/parenthesis-text.svg" alt="Railroad diagram of the rule parenthesis-text"></details>
-<details><summary>Railroad diagram of <code>vocative</code></summary><img src="../../docs/diagrams/syntax/zantufa/vocative.svg" alt="Railroad diagram of the rule vocative"></details>
-<details><summary>Railroad diagram of <code>number-post</code></summary><img src="../../docs/diagrams/syntax/zantufa/number-post.svg" alt="Railroad diagram of the rule number-post"></details>
-<details><summary>Railroad diagram of <code>lohai-word</code></summary><img src="../../docs/diagrams/syntax/zantufa/lohai-word.svg" alt="Railroad diagram of the rule lohai-word"></details>
-<details><summary>Railroad diagram of <code>free-not-number</code></summary><img src="../../docs/diagrams/syntax/zantufa/free-not-number.svg" alt="Railroad diagram of the rule free-not-number"></details>
-<details><summary>Railroad diagram of <code>lerfu-post</code></summary><img src="../../docs/diagrams/syntax/zantufa/lerfu-post.svg" alt="Railroad diagram of the rule lerfu-post"></details>
-<details><summary>Railroad diagram of <code>free-not-lerfu</code></summary><img src="../../docs/diagrams/syntax/zantufa/free-not-lerfu.svg" alt="Railroad diagram of the rule free-not-lerfu"></details>
-<details><summary>Railroad diagram of <code>vocative-post</code></summary><img src="../../docs/diagrams/syntax/zantufa/vocative-post.svg" alt="Railroad diagram of the rule vocative-post"></details>
-<details><summary>Railroad diagram of <code>free-not-vocative</code></summary><img src="../../docs/diagrams/syntax/zantufa/free-not-vocative.svg" alt="Railroad diagram of the rule free-not-vocative"></details>
+<details><summary>Railroad diagrams of the 10 rules from <code>free</code> to <code>free-not-vocative</code></summary>
+<p><img src="../../docs/diagrams/syntax/zantufa/free.svg" alt="Railroad diagram of the rule free"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/parenthesis-text.svg" alt="Railroad diagram of the rule parenthesis-text"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/vocative.svg" alt="Railroad diagram of the rule vocative"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/number-post.svg" alt="Railroad diagram of the rule number-post"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/lohai-word.svg" alt="Railroad diagram of the rule lohai-word"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/free-not-number.svg" alt="Railroad diagram of the rule free-not-number"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/lerfu-post.svg" alt="Railroad diagram of the rule lerfu-post"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/free-not-lerfu.svg" alt="Railroad diagram of the rule free-not-lerfu"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/vocative-post.svg" alt="Railroad diagram of the rule vocative-post"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/free-not-vocative.svg" alt="Railroad diagram of the rule free-not-vocative"></p>
+</details>
 
 ## Differences from Zantufa 1.9999
 

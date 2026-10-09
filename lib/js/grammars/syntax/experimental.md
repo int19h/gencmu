@@ -97,13 +97,15 @@ The layer keeps the CLL grammar's connective before the first `.i` of a text (`j
   ¬begins(after($i), joik)
 ```
 
-<details><summary>Railroad diagram of <code>text</code></summary><img src="../../docs/diagrams/syntax/experimental/text.svg" alt="Railroad diagram of the rule text"></details>
-<details><summary>Railroad diagram of <code>indicators</code></summary><img src="../../docs/diagrams/syntax/experimental/indicators.svg" alt="Railroad diagram of the rule indicators"></details>
-<details><summary>Railroad diagram of <code>indicator</code></summary><img src="../../docs/diagrams/syntax/experimental/indicator.svg" alt="Railroad diagram of the rule indicator"></details>
-<details><summary>Railroad diagram of <code>text-1</code></summary><img src="../../docs/diagrams/syntax/experimental/text-1.svg" alt="Railroad diagram of the rule text-1"></details>
-<details><summary>Railroad diagram of <code>paragraphs</code></summary><img src="../../docs/diagrams/syntax/experimental/paragraphs.svg" alt="Railroad diagram of the rule paragraphs"></details>
-<details><summary>Railroad diagram of <code>paragraph</code></summary><img src="../../docs/diagrams/syntax/experimental/paragraph.svg" alt="Railroad diagram of the rule paragraph"></details>
-<details><summary>Railroad diagram of <code>lone-i</code></summary><img src="../../docs/diagrams/syntax/experimental/lone-i.svg" alt="Railroad diagram of the rule lone-i"></details>
+<details><summary>Railroad diagrams of the 7 rules from <code>text</code> to <code>lone-i</code></summary>
+<p><img src="../../docs/diagrams/syntax/experimental/text.svg" alt="Railroad diagram of the rule text"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/indicators.svg" alt="Railroad diagram of the rule indicators"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/indicator.svg" alt="Railroad diagram of the rule indicator"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/text-1.svg" alt="Railroad diagram of the rule text-1"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/paragraphs.svg" alt="Railroad diagram of the rule paragraphs"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/paragraph.svg" alt="Railroad diagram of the rule paragraph"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/lone-i.svg" alt="Railroad diagram of the rule lone-i"></p>
+</details>
 
 ## Statements and fragments
 
@@ -135,12 +137,14 @@ The layer removes CLL's `na` fragment. A bare `na` is a term (see "Terms"), so `
   [terms] ZOhU #
 ```
 
-<details><summary>Railroad diagram of <code>statement-1</code></summary><img src="../../docs/diagrams/syntax/experimental/statement-1.svg" alt="Railroad diagram of the rule statement-1"></details>
-<details><summary>Railroad diagram of <code>statement-2</code></summary><img src="../../docs/diagrams/syntax/experimental/statement-2.svg" alt="Railroad diagram of the rule statement-2"></details>
-<details><summary>Railroad diagram of <code>statement-3</code></summary><img src="../../docs/diagrams/syntax/experimental/statement-3.svg" alt="Railroad diagram of the rule statement-3"></details>
-<details><summary>Railroad diagram of <code>statement-connective</code></summary><img src="../../docs/diagrams/syntax/experimental/statement-connective.svg" alt="Railroad diagram of the rule statement-connective"></details>
-<details><summary>Railroad diagram of <code>fragment</code></summary><img src="../../docs/diagrams/syntax/experimental/fragment.svg" alt="Railroad diagram of the rule fragment"></details>
-<details><summary>Railroad diagram of <code>prenex</code></summary><img src="../../docs/diagrams/syntax/experimental/prenex.svg" alt="Railroad diagram of the rule prenex"></details>
+<details><summary>Railroad diagrams of the 6 rules from <code>statement-1</code> to <code>prenex</code></summary>
+<p><img src="../../docs/diagrams/syntax/experimental/statement-1.svg" alt="Railroad diagram of the rule statement-1"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/statement-2.svg" alt="Railroad diagram of the rule statement-2"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/statement-3.svg" alt="Railroad diagram of the rule statement-3"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/statement-connective.svg" alt="Railroad diagram of the rule statement-connective"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/fragment.svg" alt="Railroad diagram of the rule fragment"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/prenex.svg" alt="Railroad diagram of the rule prenex"></p>
+</details>
 
 ## Sentences and bridi-tails
 
@@ -210,21 +214,23 @@ The same endpoint pattern applies to an initial head, a head after `ke`, a conne
   [terms] [+VAU] #
 ```
 
-<details><summary>Railroad diagram of <code>sentence</code></summary><img src="../../docs/diagrams/syntax/experimental/sentence.svg" alt="Railroad diagram of the rule sentence"></details>
-<details><summary>Railroad diagram of <code>sentence-link</code></summary><img src="../../docs/diagrams/syntax/experimental/sentence-link.svg" alt="Railroad diagram of the rule sentence-link"></details>
-<details><summary>Railroad diagram of <code>bridi-tail-head</code></summary><img src="../../docs/diagrams/syntax/experimental/bridi-tail-head.svg" alt="Railroad diagram of the rule bridi-tail-head"></details>
-<details><summary>Railroad diagram of <code>headed-bridi-tail</code></summary><img src="../../docs/diagrams/syntax/experimental/headed-bridi-tail.svg" alt="Railroad diagram of the rule headed-bridi-tail"></details>
-<details><summary>Railroad diagram of <code>headed-bridi-tail-2</code></summary><img src="../../docs/diagrams/syntax/experimental/headed-bridi-tail-2.svg" alt="Railroad diagram of the rule headed-bridi-tail-2"></details>
-<details><summary>Railroad diagram of <code>bridi-tail</code></summary><img src="../../docs/diagrams/syntax/experimental/bridi-tail.svg" alt="Railroad diagram of the rule bridi-tail"></details>
-<details><summary>Railroad diagram of <code>bridi-tail-1</code></summary><img src="../../docs/diagrams/syntax/experimental/bridi-tail-1.svg" alt="Railroad diagram of the rule bridi-tail-1"></details>
-<details><summary>Railroad diagram of <code>connected-bridi-tail</code></summary><img src="../../docs/diagrams/syntax/experimental/connected-bridi-tail.svg" alt="Railroad diagram of the rule connected-bridi-tail"></details>
-<details><summary>Railroad diagram of <code>bridi-tail-2</code></summary><img src="../../docs/diagrams/syntax/experimental/bridi-tail-2.svg" alt="Railroad diagram of the rule bridi-tail-2"></details>
-<details><summary>Railroad diagram of <code>bridi-tail-2-not-starting-with-ke</code></summary><img src="../../docs/diagrams/syntax/experimental/bridi-tail-2-not-starting-with-ke.svg" alt="Railroad diagram of the rule bridi-tail-2-not-starting-with-ke"></details>
-<details><summary>Railroad diagram of <code>bridi-tail-3-not-starting-with-ke</code></summary><img src="../../docs/diagrams/syntax/experimental/bridi-tail-3-not-starting-with-ke.svg" alt="Railroad diagram of the rule bridi-tail-3-not-starting-with-ke"></details>
-<details><summary>Railroad diagram of <code>gek-sentence</code></summary><img src="../../docs/diagrams/syntax/experimental/gek-sentence.svg" alt="Railroad diagram of the rule gek-sentence"></details>
-<details><summary>Railroad diagram of <code>bridi-tail-connective</code></summary><img src="../../docs/diagrams/syntax/experimental/bridi-tail-connective.svg" alt="Railroad diagram of the rule bridi-tail-connective"></details>
-<details><summary>Railroad diagram of <code>selbri-connective</code></summary><img src="../../docs/diagrams/syntax/experimental/selbri-connective.svg" alt="Railroad diagram of the rule selbri-connective"></details>
-<details><summary>Railroad diagram of <code>tail-terms</code></summary><img src="../../docs/diagrams/syntax/experimental/tail-terms.svg" alt="Railroad diagram of the rule tail-terms"></details>
+<details><summary>Railroad diagrams of the 15 rules from <code>sentence</code> to <code>tail-terms</code></summary>
+<p><img src="../../docs/diagrams/syntax/experimental/sentence.svg" alt="Railroad diagram of the rule sentence"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/sentence-link.svg" alt="Railroad diagram of the rule sentence-link"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-head.svg" alt="Railroad diagram of the rule bridi-tail-head"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/headed-bridi-tail.svg" alt="Railroad diagram of the rule headed-bridi-tail"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/headed-bridi-tail-2.svg" alt="Railroad diagram of the rule headed-bridi-tail-2"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail.svg" alt="Railroad diagram of the rule bridi-tail"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-1.svg" alt="Railroad diagram of the rule bridi-tail-1"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/connected-bridi-tail.svg" alt="Railroad diagram of the rule connected-bridi-tail"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-2.svg" alt="Railroad diagram of the rule bridi-tail-2"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-2-not-starting-with-ke.svg" alt="Railroad diagram of the rule bridi-tail-2-not-starting-with-ke"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-3-not-starting-with-ke.svg" alt="Railroad diagram of the rule bridi-tail-3-not-starting-with-ke"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/gek-sentence.svg" alt="Railroad diagram of the rule gek-sentence"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-connective.svg" alt="Railroad diagram of the rule bridi-tail-connective"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/selbri-connective.svg" alt="Railroad diagram of the rule selbri-connective"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/tail-terms.svg" alt="Railroad diagram of the rule tail-terms"></p>
+</details>
 
 ## Terms
 
@@ -454,42 +460,44 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
   ¬matches($t, gek-termset-body)
 ```
 
-<details><summary>Railroad diagram of <code>terms-1</code></summary><img src="../../docs/diagrams/syntax/experimental/terms-1.svg" alt="Railroad diagram of the rule terms-1"></details>
-<details><summary>Railroad diagram of <code>terms-2</code></summary><img src="../../docs/diagrams/syntax/experimental/terms-2.svg" alt="Railroad diagram of the rule terms-2"></details>
-<details><summary>Railroad diagram of <code>term</code></summary><img src="../../docs/diagrams/syntax/experimental/term.svg" alt="Railroad diagram of the rule term"></details>
-<details><summary>Railroad diagram of <code>term-bo-group</code></summary><img src="../../docs/diagrams/syntax/experimental/term-bo-group.svg" alt="Railroad diagram of the rule term-bo-group"></details>
-<details><summary>Railroad diagram of <code>term-bo-link</code></summary><img src="../../docs/diagrams/syntax/experimental/term-bo-link.svg" alt="Railroad diagram of the rule term-bo-link"></details>
-<details><summary>Railroad diagram of <code>term-link</code></summary><img src="../../docs/diagrams/syntax/experimental/term-link.svg" alt="Railroad diagram of the rule term-link"></details>
-<details><summary>Railroad diagram of <code>tag-bo-ke-bridi-tail</code></summary><img src="../../docs/diagrams/syntax/experimental/tag-bo-ke-bridi-tail.svg" alt="Railroad diagram of the rule tag-bo-ke-bridi-tail"></details>
-<details><summary>Railroad diagram of <code>tag-bo-subsentence</code></summary><img src="../../docs/diagrams/syntax/experimental/tag-bo-subsentence.svg" alt="Railroad diagram of the rule tag-bo-subsentence"></details>
-<details><summary>Railroad diagram of <code>term-connective</code></summary><img src="../../docs/diagrams/syntax/experimental/term-connective.svg" alt="Railroad diagram of the rule term-connective"></details>
-<details><summary>Railroad diagram of <code>term-3</code></summary><img src="../../docs/diagrams/syntax/experimental/term-3.svg" alt="Railroad diagram of the rule term-3"></details>
-<details><summary>Railroad diagram of <code>bare-na</code></summary><img src="../../docs/diagrams/syntax/experimental/bare-na.svg" alt="Railroad diagram of the rule bare-na"></details>
-<details><summary>Railroad diagram of <code>na-connective</code></summary><img src="../../docs/diagrams/syntax/experimental/na-connective.svg" alt="Railroad diagram of the rule na-connective"></details>
-<details><summary>Railroad diagram of <code>soi-term</code></summary><img src="../../docs/diagrams/syntax/experimental/soi-term.svg" alt="Railroad diagram of the rule soi-term"></details>
-<details><summary>Railroad diagram of <code>tagged-term</code></summary><img src="../../docs/diagrams/syntax/experimental/tagged-term.svg" alt="Railroad diagram of the rule tagged-term"></details>
-<details><summary>Railroad diagram of <code>listed-term</code></summary><img src="../../docs/diagrams/syntax/experimental/listed-term.svg" alt="Railroad diagram of the rule listed-term"></details>
-<details><summary>Railroad diagram of <code>listed-term-bo-group</code></summary><img src="../../docs/diagrams/syntax/experimental/listed-term-bo-group.svg" alt="Railroad diagram of the rule listed-term-bo-group"></details>
-<details><summary>Railroad diagram of <code>listed-term-bo-link</code></summary><img src="../../docs/diagrams/syntax/experimental/listed-term-bo-link.svg" alt="Railroad diagram of the rule listed-term-bo-link"></details>
-<details><summary>Railroad diagram of <code>listed-term-link</code></summary><img src="../../docs/diagrams/syntax/experimental/listed-term-link.svg" alt="Railroad diagram of the rule listed-term-link"></details>
-<details><summary>Railroad diagram of <code>listed-term-3</code></summary><img src="../../docs/diagrams/syntax/experimental/listed-term-3.svg" alt="Railroad diagram of the rule listed-term-3"></details>
-<details><summary>Railroad diagram of <code>listed-tagged-term</code></summary><img src="../../docs/diagrams/syntax/experimental/listed-tagged-term.svg" alt="Railroad diagram of the rule listed-tagged-term"></details>
-<details><summary>Railroad diagram of <code>selbri-after-tag</code></summary><img src="../../docs/diagrams/syntax/experimental/selbri-after-tag.svg" alt="Railroad diagram of the rule selbri-after-tag"></details>
-<details><summary>Railroad diagram of <code>listed-bare-na</code></summary><img src="../../docs/diagrams/syntax/experimental/listed-bare-na.svg" alt="Railroad diagram of the rule listed-bare-na"></details>
-<details><summary>Railroad diagram of <code>listed-na-follower</code></summary><img src="../../docs/diagrams/syntax/experimental/listed-na-follower.svg" alt="Railroad diagram of the rule listed-na-follower"></details>
-<details><summary>Railroad diagram of <code>termset</code></summary><img src="../../docs/diagrams/syntax/experimental/termset.svg" alt="Railroad diagram of the rule termset"></details>
-<details><summary>Railroad diagram of <code>gek-termset-body</code></summary><img src="../../docs/diagrams/syntax/experimental/gek-termset-body.svg" alt="Railroad diagram of the rule gek-termset-body"></details>
-<details><summary>Railroad diagram of <code>termset-branch</code></summary><img src="../../docs/diagrams/syntax/experimental/termset-branch.svg" alt="Railroad diagram of the rule termset-branch"></details>
-<details><summary>Railroad diagram of <code>gek-terms</code></summary><img src="../../docs/diagrams/syntax/experimental/gek-terms.svg" alt="Railroad diagram of the rule gek-terms"></details>
-<details><summary>Railroad diagram of <code>gek-terms-1</code></summary><img src="../../docs/diagrams/syntax/experimental/gek-terms-1.svg" alt="Railroad diagram of the rule gek-terms-1"></details>
-<details><summary>Railroad diagram of <code>gek-terms-2</code></summary><img src="../../docs/diagrams/syntax/experimental/gek-terms-2.svg" alt="Railroad diagram of the rule gek-terms-2"></details>
-<details><summary>Railroad diagram of <code>terms-not-starting-with-bare-gek</code></summary><img src="../../docs/diagrams/syntax/experimental/terms-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule terms-not-starting-with-bare-gek"></details>
-<details><summary>Railroad diagram of <code>terms-1-not-starting-with-bare-gek</code></summary><img src="../../docs/diagrams/syntax/experimental/terms-1-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule terms-1-not-starting-with-bare-gek"></details>
-<details><summary>Railroad diagram of <code>terms-2-not-starting-with-bare-gek</code></summary><img src="../../docs/diagrams/syntax/experimental/terms-2-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule terms-2-not-starting-with-bare-gek"></details>
-<details><summary>Railroad diagram of <code>listed-term-not-starting-with-bare-gek</code></summary><img src="../../docs/diagrams/syntax/experimental/listed-term-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule listed-term-not-starting-with-bare-gek"></details>
-<details><summary>Railroad diagram of <code>listed-term-bo-group-not-starting-with-bare-gek</code></summary><img src="../../docs/diagrams/syntax/experimental/listed-term-bo-group-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule listed-term-bo-group-not-starting-with-bare-gek"></details>
-<details><summary>Railroad diagram of <code>listed-term-3-not-starting-with-bare-gek</code></summary><img src="../../docs/diagrams/syntax/experimental/listed-term-3-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule listed-term-3-not-starting-with-bare-gek"></details>
-<details><summary>Railroad diagram of <code>termset-with-nuhi</code></summary><img src="../../docs/diagrams/syntax/experimental/termset-with-nuhi.svg" alt="Railroad diagram of the rule termset-with-nuhi"></details>
+<details><summary>Railroad diagrams of the 36 rules from <code>terms-1</code> to <code>termset-with-nuhi</code></summary>
+<p><img src="../../docs/diagrams/syntax/experimental/terms-1.svg" alt="Railroad diagram of the rule terms-1"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/terms-2.svg" alt="Railroad diagram of the rule terms-2"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/term.svg" alt="Railroad diagram of the rule term"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/term-bo-group.svg" alt="Railroad diagram of the rule term-bo-group"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/term-bo-link.svg" alt="Railroad diagram of the rule term-bo-link"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/term-link.svg" alt="Railroad diagram of the rule term-link"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/tag-bo-ke-bridi-tail.svg" alt="Railroad diagram of the rule tag-bo-ke-bridi-tail"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/tag-bo-subsentence.svg" alt="Railroad diagram of the rule tag-bo-subsentence"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/term-connective.svg" alt="Railroad diagram of the rule term-connective"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/term-3.svg" alt="Railroad diagram of the rule term-3"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/bare-na.svg" alt="Railroad diagram of the rule bare-na"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/na-connective.svg" alt="Railroad diagram of the rule na-connective"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/soi-term.svg" alt="Railroad diagram of the rule soi-term"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/tagged-term.svg" alt="Railroad diagram of the rule tagged-term"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/listed-term.svg" alt="Railroad diagram of the rule listed-term"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/listed-term-bo-group.svg" alt="Railroad diagram of the rule listed-term-bo-group"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/listed-term-bo-link.svg" alt="Railroad diagram of the rule listed-term-bo-link"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/listed-term-link.svg" alt="Railroad diagram of the rule listed-term-link"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/listed-term-3.svg" alt="Railroad diagram of the rule listed-term-3"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/listed-tagged-term.svg" alt="Railroad diagram of the rule listed-tagged-term"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/selbri-after-tag.svg" alt="Railroad diagram of the rule selbri-after-tag"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/listed-bare-na.svg" alt="Railroad diagram of the rule listed-bare-na"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/listed-na-follower.svg" alt="Railroad diagram of the rule listed-na-follower"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/termset.svg" alt="Railroad diagram of the rule termset"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/gek-termset-body.svg" alt="Railroad diagram of the rule gek-termset-body"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/termset-branch.svg" alt="Railroad diagram of the rule termset-branch"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/gek-terms.svg" alt="Railroad diagram of the rule gek-terms"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/gek-terms-1.svg" alt="Railroad diagram of the rule gek-terms-1"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/gek-terms-2.svg" alt="Railroad diagram of the rule gek-terms-2"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/terms-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule terms-not-starting-with-bare-gek"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/terms-1-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule terms-1-not-starting-with-bare-gek"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/terms-2-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule terms-2-not-starting-with-bare-gek"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/listed-term-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule listed-term-not-starting-with-bare-gek"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/listed-term-bo-group-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule listed-term-bo-group-not-starting-with-bare-gek"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/listed-term-3-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule listed-term-3-not-starting-with-bare-gek"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/termset-with-nuhi.svg" alt="Railroad diagram of the rule termset-with-nuhi"></p>
+</details>
 
 ## Sumti
 
@@ -572,15 +580,17 @@ A description can take a forethought sentence in place of a selbri, and so can a
   PA | VEI | NIhE | MOhE | PEhO | FUhA
 ```
 
-<details><summary>Railroad diagram of <code>sumti</code></summary><img src="../../docs/diagrams/syntax/experimental/sumti.svg" alt="Railroad diagram of the rule sumti"></details>
-<details><summary>Railroad diagram of <code>sumti-1</code></summary><img src="../../docs/diagrams/syntax/experimental/sumti-1.svg" alt="Railroad diagram of the rule sumti-1"></details>
-<details><summary>Railroad diagram of <code>sumti-2</code></summary><img src="../../docs/diagrams/syntax/experimental/sumti-2.svg" alt="Railroad diagram of the rule sumti-2"></details>
-<details><summary>Railroad diagram of <code>sumti-3</code></summary><img src="../../docs/diagrams/syntax/experimental/sumti-3.svg" alt="Railroad diagram of the rule sumti-3"></details>
-<details><summary>Railroad diagram of <code>sumti-connective</code></summary><img src="../../docs/diagrams/syntax/experimental/sumti-connective.svg" alt="Railroad diagram of the rule sumti-connective"></details>
-<details><summary>Railroad diagram of <code>sumti-5</code></summary><img src="../../docs/diagrams/syntax/experimental/sumti-5.svg" alt="Railroad diagram of the rule sumti-5"></details>
-<details><summary>Railroad diagram of <code>sumti-6</code></summary><img src="../../docs/diagrams/syntax/experimental/sumti-6.svg" alt="Railroad diagram of the rule sumti-6"></details>
-<details><summary>Railroad diagram of <code>sumti-tail</code></summary><img src="../../docs/diagrams/syntax/experimental/sumti-tail.svg" alt="Railroad diagram of the rule sumti-tail"></details>
-<details><summary>Railroad diagram of <code>quantifier-head</code></summary><img src="../../docs/diagrams/syntax/experimental/quantifier-head.svg" alt="Railroad diagram of the rule quantifier-head"></details>
+<details><summary>Railroad diagrams of the 9 rules from <code>sumti</code> to <code>quantifier-head</code></summary>
+<p><img src="../../docs/diagrams/syntax/experimental/sumti.svg" alt="Railroad diagram of the rule sumti"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/sumti-1.svg" alt="Railroad diagram of the rule sumti-1"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/sumti-2.svg" alt="Railroad diagram of the rule sumti-2"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/sumti-3.svg" alt="Railroad diagram of the rule sumti-3"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/sumti-connective.svg" alt="Railroad diagram of the rule sumti-connective"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/sumti-5.svg" alt="Railroad diagram of the rule sumti-5"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/sumti-6.svg" alt="Railroad diagram of the rule sumti-6"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/sumti-tail.svg" alt="Railroad diagram of the rule sumti-tail"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/quantifier-head.svg" alt="Railroad diagram of the rule quantifier-head"></p>
+</details>
 
 ## Relative clauses
 
@@ -595,8 +605,10 @@ Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as
   GOI # term [+GEhU] # | NOI # subsentence [+KUhO] #
 ```
 
-<details><summary>Railroad diagram of <code>relative-clauses</code></summary><img src="../../docs/diagrams/syntax/experimental/relative-clauses.svg" alt="Railroad diagram of the rule relative-clauses"></details>
-<details><summary>Railroad diagram of <code>relative-clause</code></summary><img src="../../docs/diagrams/syntax/experimental/relative-clause.svg" alt="Railroad diagram of the rule relative-clause"></details>
+<details><summary>Railroad diagrams of <code>relative-clauses</code> and <code>relative-clause</code></summary>
+<p><img src="../../docs/diagrams/syntax/experimental/relative-clauses.svg" alt="Railroad diagram of the rule relative-clauses"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/relative-clause.svg" alt="Railroad diagram of the rule relative-clause"></p>
+</details>
 
 ## Selbri and tanru
 
@@ -729,26 +741,28 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   BEI # [term] [links]
 ```
 
-<details><summary>Railroad diagram of <code>selbri-4</code></summary><img src="../../docs/diagrams/syntax/experimental/selbri-4.svg" alt="Railroad diagram of the rule selbri-4"></details>
-<details><summary>Railroad diagram of <code>plain-selbri-connective</code></summary><img src="../../docs/diagrams/syntax/experimental/plain-selbri-connective.svg" alt="Railroad diagram of the rule plain-selbri-connective"></details>
-<details><summary>Railroad diagram of <code>selbri-5</code></summary><img src="../../docs/diagrams/syntax/experimental/selbri-5.svg" alt="Railroad diagram of the rule selbri-5"></details>
-<details><summary>Railroad diagram of <code>selbri-not-starting-with-ke</code></summary><img src="../../docs/diagrams/syntax/experimental/selbri-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-not-starting-with-ke"></details>
-<details><summary>Railroad diagram of <code>selbri-1-not-starting-with-ke</code></summary><img src="../../docs/diagrams/syntax/experimental/selbri-1-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-1-not-starting-with-ke"></details>
-<details><summary>Railroad diagram of <code>selbri-2-not-starting-with-ke</code></summary><img src="../../docs/diagrams/syntax/experimental/selbri-2-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-2-not-starting-with-ke"></details>
-<details><summary>Railroad diagram of <code>selbri-3-not-starting-with-ke</code></summary><img src="../../docs/diagrams/syntax/experimental/selbri-3-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-3-not-starting-with-ke"></details>
-<details><summary>Railroad diagram of <code>selbri-4-not-starting-with-ke</code></summary><img src="../../docs/diagrams/syntax/experimental/selbri-4-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-4-not-starting-with-ke"></details>
-<details><summary>Railroad diagram of <code>selbri-5-not-starting-with-ke</code></summary><img src="../../docs/diagrams/syntax/experimental/selbri-5-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-5-not-starting-with-ke"></details>
-<details><summary>Railroad diagram of <code>selbri-6-not-starting-with-ke</code></summary><img src="../../docs/diagrams/syntax/experimental/selbri-6-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-6-not-starting-with-ke"></details>
-<details><summary>Railroad diagram of <code>tanru-unit</code></summary><img src="../../docs/diagrams/syntax/experimental/tanru-unit.svg" alt="Railroad diagram of the rule tanru-unit"></details>
-<details><summary>Railroad diagram of <code>tanru-unit-1</code></summary><img src="../../docs/diagrams/syntax/experimental/tanru-unit-1.svg" alt="Railroad diagram of the rule tanru-unit-1"></details>
-<details><summary>Railroad diagram of <code>tanru-unit-2</code></summary><img src="../../docs/diagrams/syntax/experimental/tanru-unit-2.svg" alt="Railroad diagram of the rule tanru-unit-2"></details>
-<details><summary>Railroad diagram of <code>tanru-unit-not-starting-with-ke</code></summary><img src="../../docs/diagrams/syntax/experimental/tanru-unit-not-starting-with-ke.svg" alt="Railroad diagram of the rule tanru-unit-not-starting-with-ke"></details>
-<details><summary>Railroad diagram of <code>tanru-unit-1-not-starting-with-ke</code></summary><img src="../../docs/diagrams/syntax/experimental/tanru-unit-1-not-starting-with-ke.svg" alt="Railroad diagram of the rule tanru-unit-1-not-starting-with-ke"></details>
-<details><summary>Railroad diagram of <code>tanru-unit-2-not-starting-with-ke</code></summary><img src="../../docs/diagrams/syntax/experimental/tanru-unit-2-not-starting-with-ke.svg" alt="Railroad diagram of the rule tanru-unit-2-not-starting-with-ke"></details>
-<details><summary>Railroad diagram of <code>selbri-relative-clauses</code></summary><img src="../../docs/diagrams/syntax/experimental/selbri-relative-clauses.svg" alt="Railroad diagram of the rule selbri-relative-clauses"></details>
-<details><summary>Railroad diagram of <code>selbri-relative-clause</code></summary><img src="../../docs/diagrams/syntax/experimental/selbri-relative-clause.svg" alt="Railroad diagram of the rule selbri-relative-clause"></details>
-<details><summary>Railroad diagram of <code>linkargs</code></summary><img src="../../docs/diagrams/syntax/experimental/linkargs.svg" alt="Railroad diagram of the rule linkargs"></details>
-<details><summary>Railroad diagram of <code>links</code></summary><img src="../../docs/diagrams/syntax/experimental/links.svg" alt="Railroad diagram of the rule links"></details>
+<details><summary>Railroad diagrams of the 20 rules from <code>selbri-4</code> to <code>links</code></summary>
+<p><img src="../../docs/diagrams/syntax/experimental/selbri-4.svg" alt="Railroad diagram of the rule selbri-4"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/plain-selbri-connective.svg" alt="Railroad diagram of the rule plain-selbri-connective"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/selbri-5.svg" alt="Railroad diagram of the rule selbri-5"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/selbri-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-not-starting-with-ke"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/selbri-1-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-1-not-starting-with-ke"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/selbri-2-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-2-not-starting-with-ke"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/selbri-3-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-3-not-starting-with-ke"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/selbri-4-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-4-not-starting-with-ke"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/selbri-5-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-5-not-starting-with-ke"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/selbri-6-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-6-not-starting-with-ke"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/tanru-unit.svg" alt="Railroad diagram of the rule tanru-unit"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-1.svg" alt="Railroad diagram of the rule tanru-unit-1"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-2.svg" alt="Railroad diagram of the rule tanru-unit-2"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-not-starting-with-ke.svg" alt="Railroad diagram of the rule tanru-unit-not-starting-with-ke"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-1-not-starting-with-ke.svg" alt="Railroad diagram of the rule tanru-unit-1-not-starting-with-ke"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-2-not-starting-with-ke.svg" alt="Railroad diagram of the rule tanru-unit-2-not-starting-with-ke"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/selbri-relative-clauses.svg" alt="Railroad diagram of the rule selbri-relative-clauses"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/selbri-relative-clause.svg" alt="Railroad diagram of the rule selbri-relative-clause"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/linkargs.svg" alt="Railroad diagram of the rule linkargs"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/links.svg" alt="Railroad diagram of the rule links"></p>
+</details>
 
 ## Numbers, lerfu strings and mekso
 
@@ -832,19 +846,21 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   {lerfu-word}
 ```
 
-<details><summary>Railroad diagram of <code>quantifier</code></summary><img src="../../docs/diagrams/syntax/experimental/quantifier.svg" alt="Railroad diagram of the rule quantifier"></details>
-<details><summary>Railroad diagram of <code>quantifier-barrier</code></summary><img src="../../docs/diagrams/syntax/experimental/quantifier-barrier.svg" alt="Railroad diagram of the rule quantifier-barrier"></details>
-<details><summary>Railroad diagram of <code>gek-barrier</code></summary><img src="../../docs/diagrams/syntax/experimental/gek-barrier.svg" alt="Railroad diagram of the rule gek-barrier"></details>
-<details><summary>Railroad diagram of <code>mex</code></summary><img src="../../docs/diagrams/syntax/experimental/mex.svg" alt="Railroad diagram of the rule mex"></details>
-<details><summary>Railroad diagram of <code>mex-1</code></summary><img src="../../docs/diagrams/syntax/experimental/mex-1.svg" alt="Railroad diagram of the rule mex-1"></details>
-<details><summary>Railroad diagram of <code>mex-2</code></summary><img src="../../docs/diagrams/syntax/experimental/mex-2.svg" alt="Railroad diagram of the rule mex-2"></details>
-<details><summary>Railroad diagram of <code>rp-expression</code></summary><img src="../../docs/diagrams/syntax/experimental/rp-expression.svg" alt="Railroad diagram of the rule rp-expression"></details>
-<details><summary>Railroad diagram of <code>operator</code></summary><img src="../../docs/diagrams/syntax/experimental/operator.svg" alt="Railroad diagram of the rule operator"></details>
-<details><summary>Railroad diagram of <code>operator-2</code></summary><img src="../../docs/diagrams/syntax/experimental/operator-2.svg" alt="Railroad diagram of the rule operator-2"></details>
-<details><summary>Railroad diagram of <code>mex-operator</code></summary><img src="../../docs/diagrams/syntax/experimental/mex-operator.svg" alt="Railroad diagram of the rule mex-operator"></details>
-<details><summary>Railroad diagram of <code>number</code></summary><img src="../../docs/diagrams/syntax/experimental/number.svg" alt="Railroad diagram of the rule number"></details>
-<details><summary>Railroad diagram of <code>number-part</code></summary><img src="../../docs/diagrams/syntax/experimental/number-part.svg" alt="Railroad diagram of the rule number-part"></details>
-<details><summary>Railroad diagram of <code>lerfu-string</code></summary><img src="../../docs/diagrams/syntax/experimental/lerfu-string.svg" alt="Railroad diagram of the rule lerfu-string"></details>
+<details><summary>Railroad diagrams of the 13 rules from <code>quantifier</code> to <code>lerfu-string</code></summary>
+<p><img src="../../docs/diagrams/syntax/experimental/quantifier.svg" alt="Railroad diagram of the rule quantifier"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/quantifier-barrier.svg" alt="Railroad diagram of the rule quantifier-barrier"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/gek-barrier.svg" alt="Railroad diagram of the rule gek-barrier"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/mex.svg" alt="Railroad diagram of the rule mex"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/mex-1.svg" alt="Railroad diagram of the rule mex-1"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/mex-2.svg" alt="Railroad diagram of the rule mex-2"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/rp-expression.svg" alt="Railroad diagram of the rule rp-expression"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/operator.svg" alt="Railroad diagram of the rule operator"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/operator-2.svg" alt="Railroad diagram of the rule operator-2"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/mex-operator.svg" alt="Railroad diagram of the rule mex-operator"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/number.svg" alt="Railroad diagram of the rule number"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/number-part.svg" alt="Railroad diagram of the rule number-part"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/lerfu-string.svg" alt="Railroad diagram of the rule lerfu-string"></p>
+</details>
 
 ## Logical and non-logical connectives
 
@@ -872,10 +888,12 @@ The rules name the two words by their sound, `GA="ga"` and `GA="gu"`, which igno
   [NA] [SE] (GIhA | GI (JOI | JA | A)) [NAI]
 ```
 
-<details><summary>Railroad diagram of <code>joik</code></summary><img src="../../docs/diagrams/syntax/experimental/joik.svg" alt="Railroad diagram of the rule joik"></details>
-<details><summary>Railroad diagram of <code>gek</code></summary><img src="../../docs/diagrams/syntax/experimental/gek.svg" alt="Railroad diagram of the rule gek"></details>
-<details><summary>Railroad diagram of <code>guhek</code></summary><img src="../../docs/diagrams/syntax/experimental/guhek.svg" alt="Railroad diagram of the rule guhek"></details>
-<details><summary>Railroad diagram of <code>gihek</code></summary><img src="../../docs/diagrams/syntax/experimental/gihek.svg" alt="Railroad diagram of the rule gihek"></details>
+<details><summary>Railroad diagrams of <code>joik</code>, <code>gek</code>, <code>guhek</code> and <code>gihek</code></summary>
+<p><img src="../../docs/diagrams/syntax/experimental/joik.svg" alt="Railroad diagram of the rule joik"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/gek.svg" alt="Railroad diagram of the rule gek"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/guhek.svg" alt="Railroad diagram of the rule guhek"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/gihek.svg" alt="Railroad diagram of the rule gihek"></p>
+</details>
 
 ## Tenses and modals
 
@@ -911,11 +929,13 @@ A joik, jek, ek or VUhU connects tenses and modals, and `tag` is a left chain of
   | [NAhE] [SE] FA #
 ```
 
-<details><summary>Railroad diagram of <code>tag</code></summary><img src="../../docs/diagrams/syntax/experimental/tag.svg" alt="Railroad diagram of the rule tag"></details>
-<details><summary>Railroad diagram of <code>stag</code></summary><img src="../../docs/diagrams/syntax/experimental/stag.svg" alt="Railroad diagram of the rule stag"></details>
-<details><summary>Railroad diagram of <code>tag-connective</code></summary><img src="../../docs/diagrams/syntax/experimental/tag-connective.svg" alt="Railroad diagram of the rule tag-connective"></details>
-<details><summary>Railroad diagram of <code>tense-modal</code></summary><img src="../../docs/diagrams/syntax/experimental/tense-modal.svg" alt="Railroad diagram of the rule tense-modal"></details>
-<details><summary>Railroad diagram of <code>tense-atom</code></summary><img src="../../docs/diagrams/syntax/experimental/tense-atom.svg" alt="Railroad diagram of the rule tense-atom"></details>
+<details><summary>Railroad diagrams of the 5 rules from <code>tag</code> to <code>tense-atom</code></summary>
+<p><img src="../../docs/diagrams/syntax/experimental/tag.svg" alt="Railroad diagram of the rule tag"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/stag.svg" alt="Railroad diagram of the rule stag"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/tag-connective.svg" alt="Railroad diagram of the rule tag-connective"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/tense-modal.svg" alt="Railroad diagram of the rule tense-modal"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/tense-atom.svg" alt="Railroad diagram of the rule tense-atom"></p>
+</details>
 
 ## Free modifiers, vocatives and indicators
 
@@ -978,12 +998,14 @@ camxes-exp reads the operand of a subscript as `mex_2`, with its own final free 
   ~word∩(LOhAI ∪ LEhAI)=∅
 ```
 
-<details><summary>Railroad diagram of <code>free</code></summary><img src="../../docs/diagrams/syntax/experimental/free.svg" alt="Railroad diagram of the rule free"></details>
-<details><summary>Railroad diagram of <code>name-marker</code></summary><img src="../../docs/diagrams/syntax/experimental/name-marker.svg" alt="Railroad diagram of the rule name-marker"></details>
-<details><summary>Railroad diagram of <code>free-after-number</code></summary><img src="../../docs/diagrams/syntax/experimental/free-after-number.svg" alt="Railroad diagram of the rule free-after-number"></details>
-<details><summary>Railroad diagram of <code>free-after-lerfu-string</code></summary><img src="../../docs/diagrams/syntax/experimental/free-after-lerfu-string.svg" alt="Railroad diagram of the rule free-after-lerfu-string"></details>
-<details><summary>Railroad diagram of <code>spoken-boi</code></summary><img src="../../docs/diagrams/syntax/experimental/spoken-boi.svg" alt="Railroad diagram of the rule spoken-boi"></details>
-<details><summary>Railroad diagram of <code>lohai-word</code></summary><img src="../../docs/diagrams/syntax/experimental/lohai-word.svg" alt="Railroad diagram of the rule lohai-word"></details>
+<details><summary>Railroad diagrams of the 6 rules from <code>free</code> to <code>lohai-word</code></summary>
+<p><img src="../../docs/diagrams/syntax/experimental/free.svg" alt="Railroad diagram of the rule free"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/name-marker.svg" alt="Railroad diagram of the rule name-marker"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/free-after-number.svg" alt="Railroad diagram of the rule free-after-number"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/free-after-lerfu-string.svg" alt="Railroad diagram of the rule free-after-lerfu-string"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/spoken-boi.svg" alt="Railroad diagram of the rule spoken-boi"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/lohai-word.svg" alt="Railroad diagram of the rule lohai-word"></p>
+</details>
 
 ## Choosing among parses
 

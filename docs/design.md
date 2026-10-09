@@ -650,7 +650,7 @@ The tools list the repository's documents in one way (`tools/documents.js`). In 
 - a fenced block with no closing fence, which takes in the rest of its container
 - an indented code block, such as a paragraph indented too far in a list item, and an HTML block, since either can hide prose
 
-The one HTML block that a document can hold is a run of the generated lines of railroad diagrams, at the top level ("Railroad diagrams").
+The one HTML block that a document can hold is the generated element of railroad diagrams after a block of rules, at the top level ("Railroad diagrams").
 
 The check of quoted texts relies on this rule, since it gives each text the line of its code span (`tools/quoted-texts.js`).
 
@@ -660,11 +660,11 @@ A railroad diagram draws a grammar rule as a track. A reader follows the track f
 
 `node tools/sync.js` draws one diagram for each rule of each grammar document (`tools/railroad.js`). It reads the rules from the document's DOM, as the libraries read them. It writes each diagram as an SVG file under `docs/diagrams/`, in one directory for each document. So the diagram of `sumti` in `grammars/syntax/cll.md` is `docs/diagrams/syntax/cll/sumti.svg`. The packages do not ship these files.
 
-The grammar document shows its diagrams itself. HTML cannot stand inside a fenced block, so the diagrams follow the block that states their rules. After the block come a blank line and one line for each rule of the block, in the order of the rules. That line is a collapsed `<details>` element, so a reader opens a diagram only when they want it. Its summary names the rule, and its body is an image of the rule's SVG file.
+The grammar document shows its diagrams itself. HTML cannot stand inside a fenced block, so the diagrams follow the block that states their rules. After the block come a blank line and one collapsed `<details>` element, so a reader opens the diagrams only when they want them. Its summary names the rules of the block. A long list gives only the first and the last rule, and the number of rules. The element holds an image of each rule's SVG file, one on each line, in the order of the rules. Each drawing gives its rule's name above its track.
 
-`tools/sync.js` owns these generated lines. They are the lines outside fenced blocks that begin with `<details><summary>Railroad diagram of`. Each run removes them all, with the blank line before each run of them, and writes them again from the DOM. So the lines follow a rule that is renamed, added or removed, and every other line of the document stays as it is. `tools/sync.js --check` fails when a generated line is missing, out of date or left over, or stands in a document outside `grammars/`.
+`tools/sync.js` owns these generated elements. An element begins with a line outside fenced blocks that begins with `<details><summary>Railroad diagram`. It goes on through the lines of its images, which begin with `<p><img`, to its line `</details>`. Each run removes every element, with the blank line before it, and writes them again from the DOM. So the elements follow a rule that is renamed, added or removed, and every other line of the document stays as it is, with its line ending. `tools/sync.js --check` fails when an element is missing, out of date or left over, or stands in a document outside `grammars/`.
 
-The libraries' reader reads only the fenced `jbogenbau` blocks, so the generated lines change no rule. They move the lines below them, and with them the line of each rule in the DOM. `tests/quoted-allow.txt` names lines of the documents, so `tools/sync.js` renumbers those lines where it moves them. Each package's copy of a grammar document is the same file, generated lines included. Their images do not show inside a package, which holds no diagrams.
+The libraries' reader reads only the fenced `jbogenbau` blocks, so the generated elements change no rule. They move the lines below them, and with them the line of each rule in the DOM. `tests/quoted-allow.txt` names lines of the documents, so `tools/sync.js` renumbers those lines where it moves them. Each package's copy of a grammar document is the same file, generated elements included. Their images do not show inside a package, which holds no diagrams.
 
 The SVG has fixed sizes and no fonts to measure. Each text is drawn at the width that its characters are given. So the same DOM always gives the same file. Each diagram has a white background, so it reads in a dark theme too.
 

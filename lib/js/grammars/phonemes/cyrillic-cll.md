@@ -50,9 +50,11 @@ The apostrophe, the comma and the period are those of the Latin orthography. The
   $
 ```
 
-<details><summary>Railroad diagram of <code>consonant</code></summary><img src="../../docs/diagrams/phonemes/cyrillic-cll/consonant.svg" alt="Railroad diagram of the rule consonant"></details>
-<details><summary>Railroad diagram of <code>plain-vowel</code></summary><img src="../../docs/diagrams/phonemes/cyrillic-cll/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></details>
-<details><summary>Railroad diagram of <code>stressed-vowel</code></summary><img src="../../docs/diagrams/phonemes/cyrillic-cll/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></details>
-<details><summary>Railroad diagram of <code>cll-cyrillic-consonant</code></summary><img src="../../docs/diagrams/phonemes/cyrillic-cll/cll-cyrillic-consonant.svg" alt="Railroad diagram of the rule cll-cyrillic-consonant"></details>
-<details><summary>Railroad diagram of <code>cll-cyrillic-plain-vowel</code></summary><img src="../../docs/diagrams/phonemes/cyrillic-cll/cll-cyrillic-plain-vowel.svg" alt="Railroad diagram of the rule cll-cyrillic-plain-vowel"></details>
-<details><summary>Railroad diagram of <code>cll-cyrillic-stressed-vowel</code></summary><img src="../../docs/diagrams/phonemes/cyrillic-cll/cll-cyrillic-stressed-vowel.svg" alt="Railroad diagram of the rule cll-cyrillic-stressed-vowel"></details>
+<details><summary>Railroad diagrams of the 6 rules from <code>consonant</code> to <code>cll-cyrillic-stressed-vowel</code></summary>
+<p><img src="../../docs/diagrams/phonemes/cyrillic-cll/consonant.svg" alt="Railroad diagram of the rule consonant"></p>
+<p><img src="../../docs/diagrams/phonemes/cyrillic-cll/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/cyrillic-cll/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/cyrillic-cll/cll-cyrillic-consonant.svg" alt="Railroad diagram of the rule cll-cyrillic-consonant"></p>
+<p><img src="../../docs/diagrams/phonemes/cyrillic-cll/cll-cyrillic-plain-vowel.svg" alt="Railroad diagram of the rule cll-cyrillic-plain-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/cyrillic-cll/cll-cyrillic-stressed-vowel.svg" alt="Railroad diagram of the rule cll-cyrillic-stressed-vowel"></p>
+</details>
