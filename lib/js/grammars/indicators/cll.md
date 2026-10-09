@@ -83,7 +83,7 @@ An item hands on a word with its preceding `ba'e` run and following indicator ru
   ($b) $w ($a)
 
 %rule unit
-  | ~word∩(~indicator ∪ BAhE ∪ LEhU)=∅ | ~quoted-text | LEhU
+  | ~word∩(~indicator ∪ BAhE)=∅ | ~quoted-text | LEhU
 
 %rule bahe-run
   bahe | bahe-run bahe
@@ -101,7 +101,7 @@ An item hands on a word with its preceding `ba'e` run and following indicator ru
 <p><img src="../../docs/diagrams/indicators/cll/bahe.svg" alt="Railroad diagram of the rule bahe"></p>
 </details>
 
-A `le'u` outside any quote is still a word. But the stage reads it as `LEhU` and not also as a plain word, so that it has one reading.
+The word stage emits a closing `le'u` with the LEhU class alone. This stage reads it through the explicit LEhU alternative.
 
 A `bahe-run` is one or more `ba'e`, so `mi ba'e ba'e klama` is a text. Rule 1100 of CLL 1.1 section 21.2, `word = [BAhE] any-word [indicators]`, allows only one. This stage departs from it there and follows CLL 19.16, which says that "Multiple BAhE cmavo may be used in succession".
 
@@ -147,7 +147,6 @@ The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run be
 %tags
   tags($i)
 %conditions
-  ~indicator ⊆ tags($i),
   classes($i) ∩ (UI ∪ CAI) ≠ ∅
 
 %rule nai
@@ -225,3 +224,4 @@ The reason is that the syntax reads this run. A `nai` nested under its attitudin
 <p><img src="../../docs/diagrams/indicators/cll/leading.svg" alt="Railroad diagram of the rule leading"></p>
 <p><img src="../../docs/diagrams/indicators/cll/leading-attitudinal-nai.svg" alt="Railroad diagram of the rule leading-attitudinal-nai"></p>
 </details>
+
