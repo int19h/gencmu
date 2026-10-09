@@ -862,6 +862,8 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 
 ## Logical and non-logical connectives
 
+This layer's connective rules omit camxes-exp's optional NAI because the indicator stage attaches every NAI after these connectives.
+
 camxes-exp's joik takes `na` before a word of JOI, as its jek and ek do. So `mi na joi do klama` has one term, `mi na joi do`. The condition of `listed-bare-na` excludes a bare `na` term here. The words can still join two sumti or two terms, and the rule of "Terms" keeps the sumti.
 
 A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU, as in `ga je lo mlatu gi lo gerku`. With `ga`, it is a gek. With `gu`, it is a guhek, as in `mi gu je melbi gi kargydu'e`. camxes-exp allows only these two words here, so `ge je` and `gu'e je` are not connectives. The connective before `gi` in a gek can also be a jek or an ek (`je gi mi broda gi mi brode`). A gihek can be `gi` followed by a word of JOI, JA or A (`mi klama gi je tavla`).

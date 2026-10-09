@@ -830,7 +830,7 @@ The condition removes a connective operator whose first word is SE. The alternat
 
 %rule number
   (* number <- PA_clause+;  PA_post <- number_post_clause *)
-  {PA [{free-not-number}]}
+  {PA number-post}
 
 %rule lerfu-string
   (* lerfu_string <- lerfu_word+ *)
@@ -838,7 +838,7 @@ The condition removes a connective operator whose first word is SE. The alternat
 
 %rule lerfu-word
   (* lerfu_word <- BY_clause / LAU_clause lerfu_word / TEI_clause lerfu_string FOI_clause;  BY_post <- lerfu_post_clause *)
-  BY [{free-not-lerfu}] | LAU # lerfu-word | TEI # lerfu-string FOI #
+  BY lerfu-post | LAU # lerfu-word | TEI # lerfu-string FOI #
 ```
 
 <details><summary>Railroad diagrams of the 17 rules from <code>quantifier</code> to <code>lerfu-word</code></summary>
@@ -974,7 +974,11 @@ The dialect keeps one odd reading of Zantufa. In `pe'usai doi xod ko jmina`, the
 
 %rule vocative
   (* vocative <- COI_clause+;  COI_post <- vocative_post_clause *)
-  {COI [{free-not-vocative}]}
+  {COI vocative-post}
+
+%rule number-post
+  (* number_post_clause <- spaces? !BU_clause (!number free)* *)
+  [{free-not-number}]
 
 %rule lohai-word
   ~word∩(LOhAI ∪ LEhAI)=∅
@@ -984,10 +988,18 @@ The dialect keeps one odd reading of Zantufa. In `pe'usai doi xod ko jmina`, the
 %conditions
   ¬begins(from($f), number)
 
+%rule lerfu-post
+  (* lerfu_post_clause <- spaces? !BU_clause (!lerfu_string free)* *)
+  [{free-not-lerfu}]
+
 %rule free-not-lerfu
   $f(free)
 %conditions
   ¬begins(from($f), lerfu-string)
+
+%rule vocative-post
+  (* vocative_post_clause <- spaces? !BU_clause (!vocative free)* *)
+  [{free-not-vocative}]
 
 %rule free-not-vocative
   $f(free)
@@ -995,13 +1007,16 @@ The dialect keeps one odd reading of Zantufa. In `pe'usai doi xod ko jmina`, the
   ¬begins(from($f), vocative)
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>free</code> to <code>free-not-vocative</code></summary>
+<details><summary>Railroad diagrams of the 10 rules from <code>free</code> to <code>free-not-vocative</code></summary>
 <p><img src="../../docs/diagrams/syntax/zantufa/free.svg" alt="Railroad diagram of the rule free"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/parenthesis-text.svg" alt="Railroad diagram of the rule parenthesis-text"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/vocative.svg" alt="Railroad diagram of the rule vocative"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/number-post.svg" alt="Railroad diagram of the rule number-post"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/lohai-word.svg" alt="Railroad diagram of the rule lohai-word"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/free-not-number.svg" alt="Railroad diagram of the rule free-not-number"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/lerfu-post.svg" alt="Railroad diagram of the rule lerfu-post"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/free-not-lerfu.svg" alt="Railroad diagram of the rule free-not-lerfu"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/vocative-post.svg" alt="Railroad diagram of the rule vocative-post"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/free-not-vocative.svg" alt="Railroad diagram of the rule free-not-vocative"></p>
 </details>
 
