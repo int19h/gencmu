@@ -603,7 +603,7 @@ def _action(act: Act, lowered: Lowered) -> Action:
     if act.read:
         return Action("read", token=act.token, terminal=act.terminal)
     production = lowered.productions[act.production]
-    return Action("close", rule=production.rule_name, production=production.id, span=(act.start, act.end))
+    return Action("close", rule=production.rule_name, production=production.real_id, span=(act.start, act.end))
 
 
 class StageRunner:
@@ -730,7 +730,7 @@ class StageRunner:
         stage keeps its verdict and its witness, and has no tree, no output
         and no warnings. The error holds the first and the second reading
         (engine §6)."""
-        lowered = self.lowered
+        lowered = forest.lowered
         # Neither action of a witness is ever missing (engine §6, §7.10).
         if ranking.witness is None or ranking.witness[0] is None or ranking.witness[1] is None:
             raise RuntimeError("the witness of a ranking lacks an action")
@@ -891,7 +891,7 @@ class StageRunner:
             if act.read:
                 return Action("read", token=project[act.token], terminal=act.terminal)
             production = lowered.productions[act.production]
-            return Action("close", rule=production.rule_name, production=production.id, span=(project[act.start], project[act.end]))
+            return Action("close", rule=production.rule_name, production=production.real_id, span=(project[act.start], project[act.end]))
 
         return ParseError(
             "ambiguous",

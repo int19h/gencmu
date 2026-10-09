@@ -267,7 +267,7 @@ class PatternMachine:
         return self.intern((1, bits, bits, bits, tuple(relations), bits, False))
 
     def sealed(self) -> int:
-        return self.node(None,self.empty,("","",frozenset()))
+        return self.node_state(0,False)
 
     def node(self, name: str | None, children: int, leaf: tuple[str, str, frozenset[str]] | None = None) -> int:
         key = ("node", name, children, leaf)
@@ -314,9 +314,12 @@ class PatternMachine:
 def observation_machine(lowered: Any) -> PatternMachine | None:
     roots = getattr(lowered, "_pattern_roots", None)
     if roots is not None:
-        return PatternMachine(roots) if roots or lowered.grammar.preferences and lowered.grammar.preferences.names else None
+        return PatternMachine(roots) if roots or lowered.ranked_helpers or lowered.grammar.preferences and lowered.grammar.preferences.names else None
     pending = []
     for production in lowered.productions:
+        pending.extend(production.private_conditions)
+        if production.contextual:
+            pending.extend((production.slot.source.tags,production.slot.source.rule_tags))
         pending.extend(production.conds_predict)
         for conditions in production.conds_at.values():
             pending.extend(conditions)
@@ -336,4 +339,4 @@ def observation_machine(lowered: Any) -> PatternMachine | None:
         else:
             pending.extend(node.values())
     lowered._pattern_roots = roots
-    return PatternMachine(roots) if roots or lowered.grammar.preferences and lowered.grammar.preferences.names else None
+    return PatternMachine(roots) if roots or lowered.ranked_helpers or lowered.grammar.preferences and lowered.grammar.preferences.names else None

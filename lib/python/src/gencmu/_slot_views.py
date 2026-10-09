@@ -28,6 +28,8 @@ def helper_forest(raw, preferences, maximal, marks):
                 if not terminal:
                     users.setdefault(symbol,[]).append(p.lhs)
     wrapped, pending = set(), [raw.lowered.rule_ids[name] for name in preferences.names]
+    if getattr(preferences,"ranked",False):
+        wrapped.update(pending)
     for symbol in pending:
         for parent in users.get(symbol,()):
             if parent not in wrapped:

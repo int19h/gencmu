@@ -172,6 +172,8 @@ type link struct {
 
 // symNode is every completed item of one rule over one span with one tag set.
 type symNode struct {
+	lexical    *rankedFrame
+	option     int
 	structure  int
 	rule       int32
 	start, end int32
@@ -180,6 +182,8 @@ type symNode struct {
 }
 
 type symKey struct {
+	lexical            *rankedFrame
+	option             int
 	rule, origin, tags int32
 	structure          int
 }
@@ -191,12 +195,12 @@ type eset struct {
 	queue   []*item
 	head    int
 	index   map[itemKey]*item
-	waiting map[int32][]*item
+	waiting map[rankedPrediction][]*item
 	// predicted holds the rules predicted here, each with how: predStrict
 	// or predOrdinary (§7.4).
-	predicted map[int32]uint8
+	predicted map[rankedPrediction]uint8
 	syms      map[symKey]*symNode
-	empties   map[int32][]*symNode
+	empties   map[rankedPrediction][]*symNode
 }
 
 const (
@@ -205,11 +209,13 @@ const (
 )
 
 type recognizer struct {
-	machine       *patternMachine
-	elidableHeads map[int32]string
-	run           *stageRun
-	g             *lowered
-	base, n       int
+	rankedFrames      map[string]*rankedFrame
+	rankedProductions map[rankedProductionKey]*production
+	machine           *patternMachine
+	elidableHeads     map[int32]string
+	run               *stageRun
+	g                 *lowered
+	base, n           int
 	// recon is how the recognition of the check of elision-only reads the
 	// reconstructed input and observes the stage's input (§7.2-§7.5); nil
 	// for every other recognition.
@@ -283,6 +289,7 @@ const (
 // A copy of the whole struct into the heap would cost a write barrier for
 // every pointer it holds, at every step.
 type step struct {
+	lexical *rankedFrame
 	kind    int
 	it      *item
 	k       int
@@ -353,7 +360,7 @@ func (r *recognizer) resume() *nestedQuery {
 				return q
 			}
 			if st.empties {
-				st.kind, st.list, st.next = stepEmpties, r.sets[st.k].empties[st.rule], 0
+				st.kind, st.list, st.next = stepEmpties, r.sets[st.k].empties[rankedPrediction{st.rule, st.lexical}], 0
 			} else {
 				r.step.kind = stepNext
 			}
@@ -372,7 +379,7 @@ func (r *recognizer) resume() *nestedQuery {
 		case stepWaiters:
 			// The waiters are those there were at completion. An advance
 			// adds none, so the list keeps them while the step halts.
-			waiters := r.sets[st.origin].waiting[st.rule]
+			waiters := r.sets[st.origin].waiting[rankedPrediction{st.rule, st.lexical}]
 			for ; st.next < st.count; st.next++ {
 				w := waiters[st.next]
 				if st.empty && r.heldBack(w) {
@@ -448,17 +455,22 @@ func (r *recognizer) observed(a, b int32) (int, int) {
 //
 // beginPredict records the prediction of a rule in a set, and says whether
 // it adds anything there.
-func (r *recognizer) beginPredict(s *eset, rule int32, strict bool) bool {
-	before := s.predicted[rule]
+func (r *recognizer) beginPredict(s *eset, rule int32, strict bool, frames ...*rankedFrame) bool {
+	var lexical *rankedFrame
+	if len(frames) > 0 {
+		lexical = frames[0]
+	}
+	key := rankedPrediction{rule, lexical}
+	before := s.predicted[key]
 	if before == predOrdinary || (before == predStrict && strict) {
 		return false
 	}
 	if s.predicted == nil {
-		s.predicted = map[int32]uint8{}
+		s.predicted = map[rankedPrediction]uint8{}
 	}
-	s.predicted[rule] = predOrdinary
+	s.predicted[key] = predOrdinary
 	if strict {
-		s.predicted[rule] = predStrict
+		s.predicted[key] = predStrict
 	}
 	return true
 }
@@ -474,7 +486,7 @@ func (r *recognizer) predictFrom(st *step) *nestedQuery {
 	}
 	prods := r.g.rules[st.rule].prods
 	for ; st.next < len(prods); st.next++ {
-		p := prods[st.next]
+		p := r.rankedProduction(prods[st.next], st.lexical)
 		if !r.pending {
 			if p.restoration() && !r.omissionAllowed(p) {
 				continue
@@ -483,7 +495,7 @@ func (r *recognizer) predictFrom(st *step) *nestedQuery {
 				r.restore(k, p)
 				continue
 			}
-			if strict && reading.last[p] < 0 {
+			if strict && reading.last[baseProduction(p)] < 0 {
 				continue
 			}
 			if len(p.rhs) > 0 && p.rhs[0].term && !r.canRead(k, p.rhs[0].id) {
@@ -676,7 +688,7 @@ func (r *recognizer) hasLink(it *item, l link) bool {
 // readsLater says whether a symbol after an item's next symbol can read
 // (§7.4).
 func (r *recognizer) readsLater(it *item) bool {
-	return r.recon.reading.last[it.prod] > int(it.dot)
+	return r.recon.reading.last[baseProduction(it.prod)] > int(it.dot)
 }
 
 // heldBack says whether a strict item's advances over empty constituents
@@ -718,17 +730,20 @@ func (r *recognizer) process(k int, it *item) bool {
 			}
 			return false
 		}
+		lexical := r.rankedEntry(it, sym.id)
+		key := rankedPrediction{sym.id, lexical}
 		if !again {
 			if s.waiting == nil {
-				s.waiting = map[int32][]*item{}
+				s.waiting = map[rankedPrediction][]*item{}
 			}
-			s.waiting[sym.id] = append(s.waiting[sym.id], it)
+			s.waiting[key] = append(s.waiting[key], it)
 		}
 		// A strict item predicts its next symbol strictly where no symbol
 		// after it can read (§7.4).
 		held := r.heldBack(it)
-		if r.beginPredict(s, sym.id, held) {
+		if r.beginPredict(s, sym.id, held, lexical) {
 			st := &r.step
+			st.lexical = lexical
 			st.kind, st.it, st.k, st.rule, st.strict, st.empties, st.next = stepPredict, it, k, sym.id, held, !held, 0
 			return true
 		}
@@ -736,7 +751,7 @@ func (r *recognizer) process(k int, it *item) bool {
 			return false
 		}
 		st := &r.step
-		st.kind, st.it, st.k, st.list, st.next = stepEmpties, it, k, s.empties[sym.id], 0
+		st.kind, st.it, st.k, st.list, st.next = stepEmpties, it, k, s.empties[key], 0
 		return true
 	}
 	r.step.kind, r.step.it, r.step.k = stepComplete, it, k
@@ -770,26 +785,31 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 	default:
 		ts = in.empty()
 	}
-	key := symKey{p.lhs, it.origin, ts.id, it.structure}
+	option := -1
+	if p.ranked != nil {
+		option = p.option
+	}
+	key := symKey{lexical: p.lexical, option: option, rule: p.lhs, origin: it.origin, tags: ts.id, structure: it.structure}
 	c := s.syms[key]
 	if c != nil {
 		c.items = append(c.items, it)
 		r.step.kind = stepNext
 		return nil
 	}
-	c = &symNode{structure: it.structure, rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
+	c = &symNode{lexical: p.lexical, option: option, structure: it.structure, rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
 	if s.syms == nil {
 		s.syms = map[symKey]*symNode{}
 	}
 	s.syms[key] = c
 	if int(it.origin) == k {
 		if s.empties == nil {
-			s.empties = map[int32][]*symNode{}
+			s.empties = map[rankedPrediction][]*symNode{}
 		}
-		s.empties[p.lhs] = append(s.empties[p.lhs], c)
+		s.empties[rankedPrediction{p.lhs, p.lexical}] = append(s.empties[rankedPrediction{p.lhs, p.lexical}], c)
 	}
-	count := len(r.sets[it.origin].waiting[p.lhs])
+	count := len(r.sets[it.origin].waiting[rankedPrediction{p.lhs, p.lexical}])
 	st := &r.step
+	st.lexical = p.lexical
 	st.kind, st.k, st.origin, st.rule, st.c, st.ts = stepWaiters, k, it.origin, p.lhs, c, ts
 	st.empty, st.count, st.next = int(it.origin) == k, count, 0
 	return nil
@@ -829,7 +849,7 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 		key.dot++
 		if r.machine != nil {
 			structure := cv.structure
-			if sym := p.rhs[pos]; !sym.term && !r.g.rules[sym.id].helper && r.g.stage.preferences.paths[r.g.rules[sym.id].name] != nil {
+			if sym := p.rhs[pos]; !sym.term && (r.g.rankedHelpers[sym.id] != nil || !r.g.rules[sym.id].helper && r.g.stage.preferences.paths[r.g.rules[sym.id].name] != nil) {
 				structure = r.machine.sealed()
 			}
 			key.prefix = r.machine.concat(it.prefix, structure)
@@ -914,6 +934,18 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 	if len(structure) > 0 {
 		state = structure[0]
 	}
+	parentOrigin := origin
+	if lexical := p.lexical; lexical != nil {
+		parentOrigin = lexical.origin
+		if r.machine != nil {
+			state = r.machine.node(lexical.root.ruleName, r.machine.concat(lexical.sealPrefix, r.machine.sealed()), "", "", nil)
+		}
+		if whole != nil {
+			copy := *whole
+			copy.parent = true
+			whole = &copy
+		}
+	}
 	// In the check of elision-only, every observation reads the projected
 	// span, and the projection comes before any function of it (§7.5).
 	// A capture is found when it is read: the last at once, an earlier one
@@ -924,11 +956,21 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 	searched := 0
 	return func(name string) (spanVal, bool) {
 		if name == "" {
-			a, b := r.observed(origin, end)
-			return spanVal{a: a, b: b, whole: whole != nil, lazy: whole, machine: r.machine, structure: state}, true
+			a, b := r.observed(parentOrigin, end)
+			var tags *tagset
+			if p.lexical != nil && whole == nil {
+				tags = r.run.ps.in.empty()
+			}
+			return spanVal{a: a, b: b, whole: whole != nil || p.lexical != nil, tags: tags, lazy: whole, machine: r.machine, structure: state}, true
 		}
 		slot, ok := p.slotOf[name]
 		if !ok {
+			if p.lexical != nil {
+				if cv, found := p.lexical.captures[name]; found {
+					a, b := r.observed(cv.start, cv.end)
+					return spanVal{a: a, b: b, whole: true, tags: r.run.ps.in.all[cv.tags], machine: r.machine, structure: cv.structure}, true
+				}
+			}
 			return spanVal{}, false
 		}
 		if parts == nil && searched*2 >= int(caps.nodes[caps.more].depth)+1 {

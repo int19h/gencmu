@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import itertools
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Callable
 
 from . import _testing
@@ -149,6 +149,9 @@ class Bound:
                     # A capture keeps its constituent's own tags, also where
                     # its span projects to empty (engine §7.5).
                     result = (self.project[start], self.project[end], tag)
+        if result is None and self.production.lexical is not None and name in self.production.lexical.captures:
+            start,end,tag = self.production.lexical.captures[name][:3]
+            result = (start+self.base,end+self.base,tag) if self.project is None else (self.project[start],self.project[end],tag)
         self.found[name] = result
         return result
 
@@ -157,7 +160,9 @@ class Bound:
             return self.structure
         position = self.production.captures.get(name)
         if position is None:
-            return 0
+            frame = self.production.lexical
+            part = frame.captures.get(name) if frame else None
+            return part[3] if part and len(part)>3 else 0
         slot = self.production.slots[position]
         if not 0 <= slot < len(self.caps):
             return 0
@@ -800,6 +805,9 @@ class Parser:
         less, and most advances evaluate nothing."""
         context = self.context
         lowered = context.lowered
+        ranked_groups = bool(lowered.ranked_helpers)
+        if ranked_groups:
+            lowered = replace(lowered,productions=list(lowered.productions))
         productions = lowered.productions
         # The stage's tokens, read from base on: a copy of the rest of a long
         # text would cost a nested parse its length.
@@ -821,6 +829,7 @@ class Parser:
         elidable_helpers = lowered.elidable_helpers
 
         ranked = getattr(lowered.grammar.preferences,"names",())
+        has_slots = bool(ranked or ranked_groups)
         prod: list[int] = []
         dot: list[int] = []
         origin: list[int] = []
@@ -829,6 +838,10 @@ class Parser:
         prefixes: list[int] = []
         structures: list[int] = []
         machine = context.machine
+        from ._ranked_frame import Frames
+        frames = Frames(lowered,machine) if ranked_groups else None
+        def prediction_key(rule,frame=None):
+            return (rule,frame.id if frame else 0) if frames is not None else rule
         elidable_heads = {p.lhs:p.elided for p in productions if p.elided is not None} if machine is not None else {}
         # The interned captured parts, each by the parts it extends and the
         # part it adds.
@@ -922,6 +935,32 @@ class Parser:
                 edges[found].append(edge)
                 _testing.count("packed_edges")
 
+        def entry(item,rule):
+            if frames is None:
+                return None
+            p = productions[prod[item]]
+            return frames.entry(p,dot[item],origin[item],prefixes[item],caps[item],rule,any(edge[1]==RESTORE for edge in edges[item]))
+
+        def candidate(p,frame):
+            return frames.production(p,frame) if frames is not None else p
+
+        def bound_for(production,captured,whole=None,structure=0):
+            frame = production.lexical
+            if frame is not None and whole is not None:
+                _,at,own = whole
+                if own is not None:
+                    memo = []
+                    def parent_tag():
+                        if not memo:
+                            hidden = evaluator.bind(production,captured,(frame.origin,at,tagtab.empty),structure)
+                            memo.append(tagtab.intern(_as_set((yield evaluator.walk_value(production.parent_tags,hidden)))))
+                        return memo[0]
+                    whole = (frame.origin,at,parent_tag)
+                else:
+                    whole = (frame.origin,at,tagtab.empty)
+                structure = machine.node(frame.root.rule_name,machine.concat(frame.seal_prefix,machine.sealed()))
+            return evaluator.bind(production,captured,whole,structure)
+
         def constituent_tag(production: Production, captured: Caps) -> int:
             """The tag set of a completed item whose production has no tag
             term (engine §4)."""
@@ -932,7 +971,7 @@ class Parser:
         def term_tag(production: Production, captured: Caps, start: int, at: int, structure: int = 0) -> Walk:
             """The tag set of a completed item from its production's tag
             term, which can ask nested parses (engine §4)."""
-            bound = evaluator.bind(production, captured, (start, at, None), structure)
+            bound = bound_for(production, captured, (start, at, None), structure)
             return tagtab.intern(_as_set((yield evaluator.walk_value(production.tags_term, bound))))
 
         def lazy_tag(production: Production, captured: Caps, start: int, at: int, structure: int = 0) -> Callable[[], Walk]:
@@ -993,7 +1032,7 @@ class Parser:
             if machine is not None:
                 part_structure = structures[edge[2]] if edge[1] == 2 else terminal_structure(production, position, edge[2], edge[3])
                 symbol = production.rhs[position]
-                exported = machine.sealed() if not production.terminal[position] and lowered.rule_names[symbol] in ranked else part_structure
+                exported = machine.sealed() if not production.terminal[position] and (lowered.rule_names[symbol] in ranked or symbol in lowered.ranked_helpers) else part_structure
                 prefix = machine.concat(prefixes[item], exported)
                 part = (*part[:3], part_structure)
             captured = caps[item]
@@ -1026,9 +1065,9 @@ class Parser:
             condition reads them (engine §4)."""
             if production.whole_ready and position + 1 == len(production.rhs):
                 structure = completed_structure(production, position + 1, prefix)
-                bound = evaluator.bind(production, captured, (start, at, lazy_tag(production, captured, start, at, structure)), structure)
+                bound = bound_for(production, captured, (start, at, lazy_tag(production, captured, start, at, structure)), structure)
             else:
-                bound = evaluator.bind(production, captured)
+                bound = bound_for(production, captured)
             for condition in conditions:
                 if not (yield evaluator.walk_condition(condition, bound)):
                     return
@@ -1051,7 +1090,7 @@ class Parser:
             # §4).
             structure = completed_structure(production, 0, 0)
             whole = (j, j, lazy_tag(production, NO_CAPS, j, j, structure)) if not production.rhs else None
-            bound = evaluator.bind(production, NO_CAPS, whole, structure)
+            bound = bound_for(production, NO_CAPS, whole, structure)
             for condition in production.conds_predict:
                 if not (yield evaluator.walk_condition(condition, bound)):
                     return False
@@ -1074,22 +1113,24 @@ class Parser:
                 return
             restorations.append(number)
 
-        def begin(rule: int, j: int, strict_prediction: bool = False) -> bool:
+        def begin(rule: int, j: int, strict_prediction: bool = False, frame=None) -> bool:
             """Whether a prediction of rule in set j adds anything, which
             then begins. A rule's productions are the same at every
             prediction in one set. A strict prediction (engine §7.4) leaves
             some out, so an ordinary one after it adds them."""
-            before = predicted[j].get(rule)
+            key = prediction_key(rule,frame)
+            before = predicted[j].get(key)
             if before is not None and (before is False or strict_prediction):
                 return False
-            predicted[j][rule] = strict_prediction
+            predicted[j][key] = strict_prediction
             return True
 
-        def predict(rule: int, j: int, strict_prediction: bool = False) -> Walk:
+        def predict(rule: int, j: int, strict_prediction: bool = False, frame=None) -> Walk:
             """The prediction that :func:`begin` began, a walk since its
             conditions can ask nested parses."""
             for number in not_terminal_first[rule]:
-                production = productions[number]
+                production = candidate(productions[number],frame)
+                number = production.id
                 if production.elided is not None and not omission_allowed(production):
                     continue
                 if recon:
@@ -1100,7 +1141,7 @@ class Parser:
                         continue
                     # A strict prediction predicts only the productions that
                     # can read.
-                    if strict_prediction and last_reading[number] < 0:
+                    if strict_prediction and last_reading[production.real_id] < 0:
                         continue
                 if not production.conds_predict or (yield allowed(production, j)):
                     add(number, 0, j, NO_CAPS, j, SEED, strict_prediction)
@@ -1109,7 +1150,9 @@ class Parser:
                 if table:
                     for tag in tokens[base + j].tags:
                         for number in table.get(tag, ()):
-                            if not productions[number].conds_predict or (yield allowed(productions[number], j)):
+                            p = candidate(productions[number],frame)
+                            number = p.id
+                            if not p.conds_predict or (yield allowed(p, j)):
                                 add(number, 0, j, NO_CAPS, j, SEED, strict_prediction)
                 # A range or a property matches by the token's characters.
                 table = by_first_characters[rule]
@@ -1118,7 +1161,9 @@ class Parser:
                     for terminal, numbers in table.items():
                         if carries(terminal, token_tag):
                             for number in numbers:
-                                if not productions[number].conds_predict or (yield allowed(productions[number], j)):
+                                p = candidate(productions[number],frame)
+                                number = p.id
+                                if not p.conds_predict or (yield allowed(p, j)):
                                     add(number, 0, j, NO_CAPS, j, SEED, strict_prediction)
 
         current = [0]
@@ -1149,9 +1194,10 @@ class Parser:
                             continue
                         if position < len(production.rhs) and not production.terminal[position]:
                             rule = production.rhs[position]
-                            if begin(rule, j):  # type: ignore[arg-type]
-                                yield from predict(rule, j)  # type: ignore[arg-type]
-                            for child in empty_done[j].get(rule, ()):  # type: ignore[arg-type]
+                            frame = entry(item,rule)
+                            if begin(rule, j,frame=frame):  # type: ignore[arg-type]
+                                yield from predict(rule, j,frame=frame)  # type: ignore[arg-type]
+                            for child in empty_done[j].get(prediction_key(rule,frame), ()):  # type: ignore[arg-type]
                                 walk = advance(item, (j, j, tag[child]), j, (item, 2, child, 0))
                                 if walk is not None:
                                     yield walk
@@ -1163,26 +1209,27 @@ class Parser:
                         scanning[j].setdefault(symbol, []).append(item)  # type: ignore[arg-type]
                         continue
                     rule = symbol
-                    waiting[j].setdefault(rule, []).append(item)  # type: ignore[arg-type]
+                    frame = entry(item,rule)
+                    waiting[j].setdefault(prediction_key(rule,frame), []).append(item)  # type: ignore[arg-type]
                     if recon and strict[item]:
-                        if last_reading[production.id] <= position:
+                        if last_reading[production.real_id] <= position:
                             # No symbol after the next one can read: the
                             # strict item predicts its next symbol strictly,
                             # and does not advance over an empty constituent
                             # (engine §7.4).
-                            if begin(rule, j, True):  # type: ignore[arg-type]
-                                yield from predict(rule, j, True)  # type: ignore[arg-type]
+                            if begin(rule, j, True,frame):  # type: ignore[arg-type]
+                                yield from predict(rule, j, True,frame)  # type: ignore[arg-type]
                             continue
-                        if begin(rule, j):  # type: ignore[arg-type]
-                            yield from predict(rule, j)  # type: ignore[arg-type]
-                        for child in empty_done[j].get(rule, ()):  # type: ignore[arg-type]
+                        if begin(rule, j,frame=frame):  # type: ignore[arg-type]
+                            yield from predict(rule, j,frame=frame)  # type: ignore[arg-type]
+                        for child in empty_done[j].get(prediction_key(rule,frame), ()):  # type: ignore[arg-type]
                             walk = advance(item, (j, j, tag[child]), j, (item, 2, child, 0), True)
                             if walk is not None:
                                 yield walk
                         continue
-                    if begin(rule, j):  # type: ignore[arg-type]
-                        yield from predict(rule, j)  # type: ignore[arg-type]
-                    for child in empty_done[j].get(rule, ()):  # type: ignore[arg-type]
+                    if begin(rule, j,frame=frame):  # type: ignore[arg-type]
+                        yield from predict(rule, j,frame=frame)  # type: ignore[arg-type]
+                    for child in empty_done[j].get(prediction_key(rule,frame), ()):  # type: ignore[arg-type]
                         walk = advance(item, (j, j, tag[child]), j, (item, 2, child, 0))
                         if walk is not None:
                             yield walk
@@ -1196,14 +1243,14 @@ class Parser:
                 lhs = production.lhs
                 part = (start, j, tag[item])
                 if start == j:
-                    empty_done[j].setdefault(lhs, []).append(item)
+                    empty_done[j].setdefault(prediction_key(lhs,production.lexical), []).append(item)
                     if recon:
-                        for waiter in list(waiting[start].get(lhs, ())):
+                        for waiter in list(waiting[start].get(prediction_key(lhs,production.lexical), ())):
                             if not strict[waiter]:
                                 walk = advance(waiter, part, j, (waiter, 2, item, 0))
                                 if walk is not None:
                                     yield walk
-                            elif last_reading[prod[waiter]] > dot[waiter]:
+                            elif last_reading[productions[prod[waiter]].real_id] > dot[waiter]:
                                 # A strict item advances over an empty
                                 # constituent only where a later symbol can
                                 # read, and stays strict (engine §7.4).
@@ -1211,7 +1258,7 @@ class Parser:
                                 if walk is not None:
                                     yield walk
                         continue
-                for waiter in list(waiting[start].get(lhs, ())):
+                for waiter in list(waiting[start].get(prediction_key(lhs,production.lexical), ())):
                     walk = advance(waiter, part, j, (waiter, 2, item, 0))
                     if walk is not None:
                         yield walk
@@ -1263,12 +1310,14 @@ class Parser:
         expected: dict[str, set[str]] = {}
         here = tokens[base + furthest].tags if furthest < n else {}
         here_tag = token_tags[base + furthest] if furthest < n else None
-        for rule in predicted[furthest]:
+        for prediction in predicted[furthest]:
+            rule = prediction[0] if frames is not None else prediction
+            frame = next((f for f in frames.frames.values() if f.id==prediction[1]),None) if frames is not None else None
             for terminal, numbers in itertools.chain(by_first[rule].items(), by_first_characters[rule].items()):
                 if here_tag is not None and (carries(terminal, here_tag) if terminal in characters else terminal in here):
                     continue
                 for number in numbers:
-                    production = productions[number]
+                    production = candidate(productions[number],frame)
                     if not production.conds_predict or (yield allowed(production, furthest)):
                         written = written_symbol(terminal, production.tests[0] if production.tests else None)
                         expected.setdefault(written, set()).add(production.rule_name)
@@ -1279,7 +1328,7 @@ class Parser:
                 expected.setdefault(written_symbol(terminal, test), set()).add(production.rule_name)
         # The forest's tokens are those the parse read, before its furthest
         # set.
-        return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected, context.project, structures, machine, prefixes if ranked else [], strict if ranked else [])
+        return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected, context.project, structures, machine, prefixes if has_slots else [], strict if has_slots else [])
 
 
 def reading_last(lowered: Lowered) -> list[int]:

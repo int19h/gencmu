@@ -28,7 +28,7 @@ from ._tags import (
 from ._trampoline import Walk, run
 from ._patterns import empty_pattern, walk_pattern
 from ._preferences import Preferences
-from ._ranked import RankedGroups
+from ._ranked import RankedGroups, reads
 from ._types import (
     TermType,
     constant_value_type,
@@ -887,7 +887,18 @@ class Production:
     # The features of the alternative's warnings, in the order they are
     # written (engine §12); none for a helper.
     warnings: tuple[str, ...] = ()
-    slot: SlotMetadata | None = field(init=False,default=None,repr=False,compare=False)
+    slot: SlotMetadata | None = field(default=None,repr=False,compare=False)
+    base_id: int | None = field(default=None,repr=False,compare=False)
+    lexical: Any = field(default=None,repr=False,compare=False)
+    ranked: Any = field(default=None,repr=False,compare=False)
+    option: int = -1
+    contextual: bool = False
+    private_conditions: list = field(default_factory=list,repr=False,compare=False)
+    parent_tags: Any = field(default=None,repr=False,compare=False)
+
+    @property
+    def real_id(self):
+        return self.id if self.base_id is None else self.base_id
 
     @property
     def transparent(self) -> bool:
@@ -937,6 +948,9 @@ class Lowered:
     # For each tag, the implications whose premise holds it, by their
     # place in ``implications``; made when emission first needs it.
     implications_by_tag: dict[str, list[int]] | None = None
+
+    ranked_helpers: dict = field(default_factory=dict)
+    written_helpers: dict = field(default_factory=dict)
 
     def implication_index(self) -> dict[str, list[int]]:
         index = self.implications_by_tag
@@ -988,6 +1002,8 @@ class _Lowerer:
         self.validation = validation
         self.current_expr = None
         self.helper_sources = {}
+        self.helper_options = {}
+        self.common_conditions = {}
         if grammar.preferences and grammar.preferences.names or grammar.ranked and grammar.ranked.groups:
             self._expand_plain = self._expand
             self._expand = self._expand_slot
@@ -1114,10 +1130,13 @@ class _Lowerer:
                 parts.append((yield self._expand(item)))
             return [[sym for part in combination for sym in part] for combination in itertools.product(*parts)]
         if "ranked" in expr:
-            options = []
-            for option in expr["ranked"]:
-                options.extend((yield self._expand(option)))
+            options, labels = [], []
+            for number, option in enumerate(expr["ranked"]):
+                expanded = yield self._expand(option)
+                options.extend(expanded)
+                labels.extend([number] * len(expanded))
             helper = self.new_helper(options)
+            self.helper_options[helper] = labels
             return [[(("n", helper), None)]]
         if "choice" in expr:
             options = []
@@ -1204,7 +1223,30 @@ class _Lowerer:
 
     # -- productions
 
-    def add(self, lhs: int, expansion: list[_Sym], alt: Alternative | None, elided: tuple[str, SymbolTest | None] | None = None) -> None:
+    def ranked_common(self, expansion, alt):
+        ranked = self.grammar.ranked
+        if ranked is None or not ranked.groups:
+            return alt.conditions
+        names, seen = set(), set()
+        pending = [sym[1] for sym, _ in expansion if sym[0] == 'n']
+        while pending:
+            rule = pending.pop()
+            if rule in seen or rule not in self.helper_expansions:
+                continue
+            seen.add(rule)
+            source, path = self.helper_sources[rule]
+            group = ranked.expressions.get(path)
+            if group is not None:
+                names.update(reads(group.expr))
+            pending.extend(sym[1] for body in self.helper_expansions[rule] for sym, _ in body if sym[0] == 'n')
+        if not names:
+            return alt.conditions
+        key = (id(alt), frozenset(names))
+        if key not in self.common_conditions:
+            self.common_conditions[key] = [c for c in alt.conditions if reads(c).isdisjoint(names)]
+        return self.common_conditions[key]
+
+    def add(self, lhs: int, expansion: list[_Sym], alt: Alternative | None, elided: tuple[str, SymbolTest | None] | None = None, option: int = -1) -> None:
         rhs = tuple(sym[1] for sym, _ in expansion)
         terminal = tuple(sym[0] == "t" for sym, _ in expansion)
         self.structural.append((lhs, rhs, terminal))
@@ -1231,6 +1273,9 @@ class _Lowerer:
         if self.grammar.preferences and self.grammar.preferences.names or self.grammar.ranked and self.grammar.ranked.groups:
             source,path = (alt,None) if alt is not None else self.helper_sources[lhs]
             production.slot = SlotMetadata(source,path)
+            if alt is None:
+                production.ranked = self.grammar.ranked.expressions.get(path)
+                production.option = option
         if alt is not None:
             # $ is a capture every production has, and each clause is
             # simplified for the captures this one has (engine §3.6).
@@ -1238,7 +1283,7 @@ class _Lowerer:
             # The conditions not true for this production, in order, each
             # prepared once for all productions, so that one costs its own
             # captures and output, not every part of the conditions.
-            for condition in self.prepare(alt.conditions, True).kept(present):
+            for condition in self.prepare(self.ranked_common(expansion, alt), True).kept(present):
                 if condition is False:
                     if self.validation:
                         continue
@@ -1301,8 +1346,8 @@ class _Lowerer:
             self.emitted_helpers.add(number)
             elided = self.helper_elided.get(number)
             own = self.helper_expansions[number]
-            for expansion in own:
-                self.add(number, expansion, None, elided=elided if not expansion else None)
+            for index, expansion in enumerate(own):
+                self.add(number, expansion, None, elided=elided if not expansion else None, option=self.helper_options[number][index] if number in self.helper_options else -1)
             stack.extend(reversed(used(own)))
 
     def lower_emit(self, emit: Dom | None, captures: dict[str, int], emission: Emission | None = None) -> list[tuple[Any, ...]] | None:
@@ -1396,7 +1441,7 @@ class _Lowerer:
         rule_productions: list[list[int]] = [[] for _ in self.rule_names]
         for production in self.productions:
             rule_productions[production.lhs].append(production.id)
-        return Lowered(
+        lowered = Lowered(
             grammar=self.grammar,
             productions=self.productions,
             rule_names=self.rule_names,
@@ -1407,6 +1452,9 @@ class _Lowerer:
             characters=self.characters,
             maximal_helpers=frozenset(self.maximal_helpers),
         )
+        from ._ranked_frame import prepare_ranked
+        prepare_ranked(lowered)
+        return lowered
 
     def check_brace_items(self) -> None:
         """An item of braces that can derive the empty sequence is an error
@@ -1458,6 +1506,8 @@ def _holds_capture(expr: Any) -> bool:
     while stack:
         value = stack.pop()
         if isinstance(value, dict):
+            if "ranked" in value:
+                continue
             if isinstance(value.get("capture"), str) and "expr" in value:
                 return True
             stack.extend(value.get(key) for key in ("seq", "choice", "ranked", "and") if isinstance(value.get(key), list))

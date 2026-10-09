@@ -20,7 +20,7 @@
 use crate::fxhash::FxMap;
 use std::cmp::Ordering;
 
-use crate::earley::{test_holds, Chart, Item, Shared, Tok};
+use crate::earley::{test_holds, Cap, Chart, Item, Shared, Tok};
 use crate::grammar::Lean;
 use crate::lower::{Lowered, Sym, NO_TEST};
 use crate::maximal::Maximal;
@@ -93,6 +93,8 @@ enum Node {
         tags: u32,
         test: u32,
         structure: u32,
+        lexical: u32,
+        option: usize,
     },
 }
 
@@ -172,8 +174,75 @@ struct Admission {
     maxima: FxMap<(usize, u32, Option<u32>), SlotMaxima>,
     stats: crate::slot_stats::SlotStatistics,
 }
+/// The packed chart keeps raw proofs together. Admission separates the
+/// options at a slot edge while retaining every proof of each option.
+fn slot_links(g: &Lowered, chart: &Chart, set: u32, item: Item) -> Vec<(Item, Cap, usize)> {
+    let mut out = vec![];
+    let rule = match g.prods[item.prod as usize].syms[item.dot as usize - 1] {
+        Sym::N(r) => Some(r),
+        _ => None,
+    };
+    let ranked = rule.is_some_and(|r| g.ranked.slots.contains_key(&r));
+    for &(before, cap) in chart.links.get(&(set, item)).into_iter().flatten() {
+        if ranked {
+            let lexical = chart.expected_lexical(before, cap.start);
+            let mut options = std::collections::BTreeSet::new();
+            for &index in chart.sets[set as usize].completed.get(&(rule.unwrap(), cap.start)).into_iter().flatten() {
+                let child = chart.sets[set as usize].items[index as usize];
+                if child.lexical == lexical
+                    && child.structure == cap.structure
+                    && chart.sets[set as usize].tagset[index as usize] == cap.tags
+                {
+                    options.insert(g.ranked.options[&child.prod]);
+                }
+            }
+            out.extend(options.into_iter().map(|option| (before, cap, option)));
+        } else {
+            out.push((before, cap, usize::MAX));
+        }
+    }
+    out
+}
+fn written_frame(g: &Lowered, chart: &Chart, item: Item, at: u32) -> String {
+    let p = &g.prods[item.prod as usize];
+    let control: Vec<_> = p
+        .syms
+        .iter()
+        .enumerate()
+        .map(|(i, s)| {
+            let role = match s {
+                Sym::T(t) => format!("T{t}"),
+                Sym::N(r) => g.ranked.written.get(r).cloned().unwrap_or_else(|| format!("N{r}")),
+            };
+            (role, p.test(i).map(|id| &g.tests[id as usize]))
+        })
+        .collect();
+    let captures: Vec<_> = p
+        .slot
+        .as_ref()
+        .expect("a written parent")
+        .names
+        .iter()
+        .zip(chart.caps(item.caps))
+        .filter_map(|(name, cap)| name.as_ref().map(|name| (name, cap)))
+        .collect();
+    let lexical = chart.lexical_frame(item.lexical).map(|f| &f.key);
+    let path = g.ranked.written.get(&p.rule);
+    let index = chart.sets[at as usize].find(&item).expect("a written prefix");
+    format!(
+        "{:?}/{path:?}/{control:?}/{}/{}/{captures:?}/{lexical:?}/{}/{}",
+        p.slot.as_ref().unwrap().source,
+        item.dot,
+        item.origin,
+        item.prefix,
+        chart.sets[at as usize].is_strict(index as usize)
+    )
+}
 impl Admission {
     fn new(g: &Lowered, chart: &Chart, views: Option<&SlotViews>, nodes: &[Node]) -> Self {
+        if !g.ranked.slots.is_empty() {
+            return Self::new_ranked(g, chart, views, nodes);
+        }
         let mut groups = Vec::<Vec<SlotCandidate>>::new();
         let mut group_ids = FxMap::<String, usize>::default();
         let mut at = FxMap::<Node, Vec<SlotCandidate>>::default();
@@ -260,6 +329,52 @@ impl Admission {
         stats.groups = groups.len();
         Self { groups, at, counts: FxMap::default(), masks: FxMap::default(), maxima: FxMap::default(), stats }
     }
+    fn new_ranked(g: &Lowered, chart: &Chart, views: Option<&SlotViews>, nodes: &[Node]) -> Self {
+        let mut groups = Vec::<Vec<SlotCandidate>>::new();
+        let mut ids = FxMap::<String, usize>::default();
+        let mut at = FxMap::<Node, Vec<SlotCandidate>>::default();
+        let mut stats = crate::slot_stats::SlotStatistics {
+            chart_facts: chart.sets.iter().map(|s| s.items.len()).sum(),
+            ..Default::default()
+        };
+        for &node in nodes {
+            let (raw, scope) = views.map_or((node, 0), |v| v.unpack(node));
+            let Node::Item { set: end, index } = raw else { continue };
+            let item = chart.sets[end as usize].items[index as usize];
+            let p = &g.prods[item.prod as usize];
+            if g.rules[p.rule as usize].helper && scope == 0 {
+                continue;
+            }
+            if item.dot == 0 {
+                continue;
+            }
+            let Sym::N(rule) = p.syms[item.dot as usize - 1] else { continue };
+            let Some(group_id) = g.ranked.slots.get(&rule) else { continue };
+            let routed = views.is_some_and(|v| v.routes.contains_key(&node));
+            let mut edge = 0;
+            for (previous, cap, option) in slot_links(g, chart, end, item) {
+                let pp = &g.prods[previous.prod as usize];
+                let prefix = written_frame(g, chart, previous, cap.start);
+                let ancestry = views.map(|v| v.ranked_prefix_key(scope, g, chart));
+                let key = format!("{group_id}/{prefix}/{ancestry:?}/{}/{}", cap.start, cap.end);
+                let group = *ids.entry(key).or_insert_with(|| {
+                    groups.push(vec![]);
+                    groups.len() - 1
+                });
+                let copies = if routed { 2 } else { 1 };
+                for offset in 0..copies {
+                    let candidate = SlotCandidate { node, edge: edge + offset, label: format!("{option:020}"), group };
+                    groups[group].push(candidate.clone());
+                    at.entry(node).or_default().push(candidate);
+                    stats.candidate_edges += 1;
+                }
+                edge += copies;
+                let _ = pp;
+            }
+        }
+        stats.groups = groups.len();
+        Self { groups, at, counts: FxMap::default(), masks: FxMap::default(), maxima: FxMap::default(), stats }
+    }
 }
 impl Ranker<'_> {
     fn availability_key(&self, key: Key, group: usize) -> (usize, u32, Option<u32>) {
@@ -322,6 +437,9 @@ impl Ranker<'_> {
                     }
                 }
                 let maximal = |labels: &std::collections::BTreeSet<String>| {
+                    if !self.dag.g.ranked.slots.is_empty() {
+                        return labels.iter().next().cloned().into_iter().collect();
+                    }
                     labels
                         .iter()
                         .filter(|n| !labels.iter().any(|h| self.dag.g.preferences.paths[h].contains_key(*n)))
@@ -332,8 +450,9 @@ impl Ranker<'_> {
                 self.admission.as_mut().unwrap().maxima.insert(context, maxima);
             }
             let (all, allowed) = &self.admission.as_ref().unwrap().maxima[&context];
-            masks.0[choice.edge] = all.contains(&choice.label);
-            masks.1[choice.edge] = allowed.contains(&choice.label);
+            let routes = self.views.as_ref().and_then(|v| v.routes.get(&key.0));
+            masks.0[choice.edge] = all.contains(&choice.label) && routes.map_or(true, |r| r.0[choice.edge]);
+            masks.1[choice.edge] = allowed.contains(&choice.label) && routes.map_or(true, |r| r.1[choice.edge]);
         }
         let a = self.admission.as_mut().unwrap();
         a.stats.retained_edges += masks.0.iter().filter(|x| **x).count();
@@ -1150,7 +1269,7 @@ impl<'c> Ranker<'c> {
             views: SlotViews::new(g),
         };
         ranker.fset_index.insert(Vec::new(), 0);
-        if !g.preferences.paths.is_empty() {
+        if !g.preferences.paths.is_empty() || !g.ranked.slots.is_empty() {
             let nodes = ranker.prepare_views();
             ranker.admission = Some(Admission::new(g, chart, ranker.views.as_ref(), &nodes));
         }
@@ -1305,7 +1424,7 @@ impl<'c> Ranker<'c> {
                     let p = &g.prods[item.prod as usize];
                     let position = item.dot as usize - 1;
                     let mut links = Vec::new();
-                    for &(before, cap) in self.dag.chart.links.get(&(set, item)).into_iter().flatten() {
+                    for (before, cap, option) in slot_links(g, self.dag.chart, set, item) {
                         let m = cap.start;
                         let Some(index) = self.dag.chart.sets[m as usize].find(&before) else {
                             continue;
@@ -1321,6 +1440,8 @@ impl<'c> Ranker<'c> {
                                     tags: cap.tags,
                                     test: p.test(position).unwrap_or(NO_TEST),
                                     structure: cap.structure,
+                                    lexical: self.dag.chart.expected_lexical(before, m),
+                                    option,
                                 },
                                 if m == item.origin { fset } else { 0 },
                             ),
@@ -1341,6 +1462,7 @@ impl<'c> Ranker<'c> {
                     item.caps
                 };
                 let pred = Item {
+                    lexical: item.lexical,
                     prod: item.prod,
                     dot: item.dot - 1,
                     origin: item.origin,
@@ -1401,6 +1523,8 @@ impl<'c> Ranker<'c> {
                                     tags: cap.tags,
                                     test: NO_TEST,
                                     structure: cap.structure,
+                                    lexical: 0,
+                                    option: usize::MAX,
                                 };
                                 let child_fset = if m == item.origin { fset } else { 0 };
                                 links.push(((Node::Item { set: m, index: p }, same(m, fset)), (child, child_fset)));
@@ -1417,8 +1541,16 @@ impl<'c> Ranker<'c> {
                                         items.iter().any(|&index| holds(m, eset.tagset[index as usize]))
                                     });
                                 if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| passes) {
-                                    let child =
-                                        Node::Group { rule, origin: m, set, tags: ANY, test: test_id, structure: ANY };
+                                    let child = Node::Group {
+                                        rule,
+                                        origin: m,
+                                        set,
+                                        tags: ANY,
+                                        test: test_id,
+                                        structure: ANY,
+                                        lexical: 0,
+                                        option: usize::MAX,
+                                    };
                                     let child_fset = if m == item.origin { fset } else { 0 };
                                     links.push(((Node::Item { set: m, index: p }, same(m, fset)), (child, child_fset)));
                                 }
@@ -1437,7 +1569,7 @@ impl<'c> Ranker<'c> {
                 let inner = self.fset_with(fset, rule);
                 Deps::Close(Some((Node::Item { set, index }, inner)))
             }
-            Node::Group { rule, origin, set, tags, test, structure } => {
+            Node::Group { rule, origin, set, tags, test, structure, lexical, option } => {
                 let eset = &self.dag.chart.sets[set as usize];
                 // A fault applies no test in the check (tests/README.md).
                 let no_tests = self.dag.projection.is_some() && witness::fault_at(Fault::RankerTests, "group");
@@ -1451,7 +1583,11 @@ impl<'c> Ranker<'c> {
                         items
                             .iter()
                             .filter(|&&index| {
-                                (tags == ANY || eset.tagset[index as usize] == tags)
+                                (eset.items[index as usize].lexical == lexical)
+                                    && (option == usize::MAX
+                                        || self.dag.g.ranked.options.get(&eset.items[index as usize].prod)
+                                            == Some(&option))
+                                    && (tags == ANY || eset.tagset[index as usize] == tags)
                                     && (structure == ANY || eset.items[index as usize].structure == structure)
                             })
                             .filter(|&&index| {
@@ -1576,8 +1712,8 @@ impl<'c> Ranker<'c> {
     /// whether `maximal` lets an elided terminator follow it.
     fn eligibility(&self, child: Node, guarded: bool, test: Option<u32>) -> (bool, bool) {
         match (self.maximal, self.raw_node(child)) {
-            (Some(maximal), Node::Group { rule, origin, set: end, .. }) => {
-                (maximal.elided(rule, origin, end), !guarded || !maximal.forbids(rule, origin, end, test))
+            (Some(maximal), Node::Group { rule, origin, set: end, lexical, .. }) => {
+                (maximal.elided(rule, origin, end), !guarded || !maximal.forbids_in(rule, origin, end, test, lexical))
             }
             _ => (false, true),
         }
@@ -1847,8 +1983,19 @@ impl<'c> Ranker<'c> {
         let n = (self.dag.chart.sets.len() - 1) as u32;
         // Every completed item of the start rule over the whole input is an
         // edge of one root (§6).
-        let root =
-            (Node::Group { rule: self.dag.g.start, origin: 0, set: n, tags: ANY, test: NO_TEST, structure: ANY }, 0);
+        let root = (
+            Node::Group {
+                rule: self.dag.g.start,
+                origin: 0,
+                set: n,
+                tags: ANY,
+                test: NO_TEST,
+                structure: ANY,
+                lexical: 0,
+                option: usize::MAX,
+            },
+            0,
+        );
         if self.admission.is_some() {
             self.traverse(root, Pass::Admission);
         }
@@ -2162,7 +2309,7 @@ struct SlotViews {
 }
 impl SlotViews {
     fn new(g: &Lowered) -> Option<Self> {
-        if g.preferences.paths.is_empty() {
+        if g.preferences.paths.is_empty() && g.ranked.slots.is_empty() {
             return None;
         }
         let mut users: FxMap<u32, Vec<u32>> = FxMap::default();
@@ -2175,7 +2322,7 @@ impl SlotViews {
                 }
             }
         }
-        let mut wrapped = std::collections::BTreeSet::new();
+        let mut wrapped: std::collections::BTreeSet<u32> = g.ranked.slots.keys().copied().collect();
         let mut pending: Vec<u32> = g
             .rules
             .iter()
@@ -2183,6 +2330,7 @@ impl SlotViews {
             .filter(|(_, r)| !r.helper && g.preferences.labels.contains_key(&r.name))
             .map(|(i, _)| i as u32)
             .collect();
+        pending.extend(g.ranked.slots.keys().copied());
         let mut at = 0;
         while at < pending.len() {
             for &parent in users.get(&pending[at]).into_iter().flatten() {
@@ -2228,6 +2376,26 @@ impl SlotViews {
             return None;
         };
         Some(g.prods[chart.sets[set as usize].items[index as usize].prod as usize].rule)
+    }
+    fn ranked_prefix_key(&self, scope: usize, g: &Lowered, chart: &Chart) -> String {
+        let state = &self.scopes[scope];
+        let frames: Vec<_> = state
+            .frames
+            .iter()
+            .map(|node| {
+                let Node::Item { set, index } = *node else { unreachable!() };
+                written_frame(g, chart, chart.sets[set as usize].items[index as usize], set)
+            })
+            .collect();
+        let bounds: Vec<_> = state
+            .bounds
+            .iter()
+            .map(|(node, restricted)| {
+                let Node::Group { rule, origin, set, .. } = *node else { unreachable!() };
+                (g.ranked.written.get(&rule), origin, set, restricted)
+            })
+            .collect();
+        format!("{frames:?}/{bounds:?}")
     }
     fn prefix_key(&self, scope: usize, v: &crate::preferences::Variant, g: &Lowered, chart: &Chart) -> String {
         let state = &self.scopes[scope];
@@ -2332,12 +2500,13 @@ impl Ranker<'_> {
         test: Option<u32>,
     ) -> usize {
         let Node::Item { set, index } = before else { unreachable!() };
-        let Node::Group { rule, origin, set: end, .. } = carrier else { unreachable!() };
+        let Node::Group { rule, origin, set: end, lexical, .. } = carrier else { unreachable!() };
         let own = self.dag.g.prods[self.item(set, index).prod as usize].rule;
         if outer != 0 && own == rule {
             return outer;
         }
-        let blocked = restricted && guarded && self.maximal.is_some_and(|mx| mx.forbids(rule, origin, end, test));
+        let blocked =
+            restricted && guarded && self.maximal.is_some_and(|mx| mx.forbids_in(rule, origin, end, test, lexical));
         let views = self.views.as_mut().unwrap();
         if let Some(&old) = views.scope_index.get(&(before, carrier, outer, restricted)) {
             return old;

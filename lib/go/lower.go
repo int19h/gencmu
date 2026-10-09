@@ -22,6 +22,13 @@ type slotMetadata struct {
 }
 
 type production struct {
+	base         *production
+	lexical      *rankedFrame
+	ranked       *rankedGroup
+	option       int
+	contextual   bool
+	privateConds []*domCond
+	parentTags   *domTerm
 	slot         *slotMetadata
 	num          int
 	lhs          int32
@@ -82,11 +89,13 @@ type lrule struct {
 }
 
 type lowered struct {
-	stage     *stageGrammar
-	rules     []*lrule
-	byName    map[string]int32
-	terminals []string
-	termID    map[string]int32
+	rankedHelpers  map[int32]*rankedGroup
+	writtenHelpers map[int32]string
+	stage          *stageGrammar
+	rules          []*lrule
+	byName         map[string]int32
+	terminals      []string
+	termID         map[string]int32
 	// classes holds, for each terminal that is a range or a property, the
 	// characters it matches; nil for a terminal that is a tag (§4).
 	classes []*charClass
@@ -144,6 +153,9 @@ func (p *production) testAt(i int) *symTest {
 }
 
 type lowerer struct {
+	helperNodes map[int32]*helperNode
+	rankOptions map[int32][]int
+	commonConds map[*sAlt]map[string][]*domCond
 	validation  bool
 	currentExpr *domExpr
 	g           *stageGrammar
@@ -219,7 +231,7 @@ func lowerMode(g *stageGrammar, features map[string]bool, validation bool) *lowe
 		}
 		l.classifiers = tables.tables
 	}
-	lw := &lowerer{validation: validation, g: g, l: l, features: features, terms: map[*domTerm]*termLowering{}, condsOf: map[condsKey]*condLowering{}, emits: map[*domEmit]*emitSplit{}, warnings: map[*sAlt][]string{}}
+	lw := &lowerer{helperNodes: map[int32]*helperNode{}, rankOptions: map[int32][]int{}, commonConds: map[*sAlt]map[string][]*domCond{}, validation: validation, g: g, l: l, features: features, terms: map[*domTerm]*termLowering{}, condsOf: map[condsKey]*condLowering{}, emits: map[*domEmit]*emitSplit{}, warnings: map[*sAlt][]string{}}
 	for _, r := range g.rules {
 		l.byName[r.name] = int32(len(l.rules))
 		l.rules = append(l.rules, &lrule{leftmostLongest: len(r.flags) > 0, name: r.name, owner: r.name, scc: -1})
@@ -240,6 +252,7 @@ func lowerMode(g *stageGrammar, features map[string]bool, validation bool) *lowe
 	l.computeCycles()
 	l.elidable, l.anyElidable = elidableHelpers(l)
 	l.maximalElides = maximalElides(l)
+	l.prepareRanked()
 	return l
 }
 
@@ -380,11 +393,33 @@ func (lw *lowerer) lowerRule(r *sRule) {
 		var number func(hs []*helperNode)
 		number = func(hs []*helperNode) {
 			for _, h := range hs {
-				for _, b := range h.bodies {
+				for optionIndex, b := range h.bodies {
 					lw.structural = append(lw.structural, structuralProduction{h.rule, symbolsOf(b)})
 					p := lw.newProduction(h.rule, b)
 					if len(lw.g.preferences.paths) > 0 || lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
 						p.slot = &slotMetadata{source: h.owner, path: h.path}
+					}
+					if lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
+						p.posOf = map[string]int{}
+						p.nslots = 0
+						for i, s := range b {
+							p.capSlot[i] = -1
+							if s.capture != "" {
+								p.capName[i] = s.capture
+								p.capSlot[i] = int32(p.nslots)
+								p.slotOf[s.capture] = int32(p.nslots)
+								p.posOf[s.capture] = i
+								p.nslots++
+							}
+						}
+						if p.implicit && p.capSlot[0] < 0 {
+							p.capSlot[0] = int32(p.nslots)
+							p.nslots++
+						}
+						if group := lw.g.ranked.expressions[h.path]; group != nil {
+							p.ranked = group
+							p.option = lw.rankOptions[h.rule][optionIndex]
+						}
 					}
 					p.helper = true
 					p.transparent = true
@@ -412,6 +447,9 @@ func isChain(e *domExpr) bool {
 // (§3.5).
 func holdsCapture(e *domExpr) bool {
 	if e == nil {
+		return false
+	}
+	if e.Kind == exRanked {
 		return false
 	}
 	if e.Kind == exCapture {
@@ -507,11 +545,12 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 	// production; one that uses a capture the production lacks does not
 	// apply to it.
 	var conds []*domCond
-	if len(a.conds) > 0 {
-		key := condsKey{&a.conds[0], len(a.conds)}
+	rawConds := lw.rankedCommonConditions(body, a)
+	if len(rawConds) > 0 {
+		key := condsKey{&rawConds[0], len(rawConds)}
 		cl := lw.condsOf[key]
 		if cl == nil {
-			cl = newCondLowering(a.conds)
+			cl = newCondLowering(rawConds)
 			lw.condsOf[key] = cl
 		}
 		var ok bool
@@ -732,6 +771,7 @@ func (lw *lowerer) helper(a *sAlt, ruleName, elide string, elideT *symTest, bodi
 	h := lw.newHelper(a, ruleName)
 	node := &helperNode{path: lw.currentExpr, rule: h, elide: elide, elideT: elideT, owner: a}
 	*lw.into = append(*lw.into, node)
+	lw.helperNodes[h] = node
 	outer := lw.into
 	lw.into = &node.children
 	node.bodies = bodies(h)
@@ -744,10 +784,13 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 	case exSeq:
 		return lw.expandSeq(e.Items, a, ruleName)
 	case exRanked:
-		return lw.helper(a, ruleName, "", nil, func(int32) [][]slot {
+		return lw.helper(a, ruleName, "", nil, func(h int32) [][]slot {
 			var out [][]slot
-			for _, item := range e.Items {
-				out = append(out, lw.expand(item, a, ruleName)...)
+			for option, item := range e.Items {
+				for _, body := range lw.expand(item, a, ruleName) {
+					out = append(out, body)
+					lw.rankOptions[h] = append(lw.rankOptions[h], option)
+				}
 			}
 			return out
 		})

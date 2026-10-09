@@ -148,8 +148,8 @@ export declare class Ranker {
      * @type {Map<Item, Set<number>> | null}
      */
     marks: Map<Item, Set<number>> | null;
-    /** @type {import("./slots.js").SlotAdmission | null} */
-    admission: import("./slots.js").SlotAdmission | null;
+    /** @type {import("./slots.js").SlotAdmission | import("./ranked-admission.js").RankedAdmission | null} */
+    admission: import("./slots.js").SlotAdmission | import("./ranked-admission.js").RankedAdmission | null;
     /**
      * @param {Token[]} tokens
      * @param {Lean} lean

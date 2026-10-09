@@ -523,6 +523,11 @@ export type Production = {
     writtenExpression?: Expr;
     rankedGroup?: import("./ranked.js").RankedGroup;
     rankedOption?: number;
+    contextual?: boolean;
+    rankedDeferred?: Condition[];
+    rankedClauses?: Condition[];
+    lexicalFrame?: any;
+    baseProduction?: Production;
     role?: string;
     writtenTags?: Term[];
     writtenTagClauses?: {
@@ -596,6 +601,7 @@ export type LoweredGrammar = {
     maximalHelpers: Set<string>;
     resolution: Resolution;
     preferences: import("./preferences.js").Preferences;
+    ranked: import("./ranked.js").RankedGroups;
     /**
      * each classifier
      * of the stage, resolved for these features: each key's classes (engine
@@ -1126,6 +1132,11 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Expr} [writtenExpression]
  * @property {import("./ranked.js").RankedGroup} [rankedGroup]
  * @property {number} [rankedOption]
+ * @property {boolean} [contextual]
+ * @property {Condition[]} [rankedDeferred]
+ * @property {Condition[]} [rankedClauses]
+ * @property {any} [lexicalFrame]
+ * @property {Production} [baseProduction]
  * @property {string} [role]
  * @property {Term[]} [writtenTags]
  * @property {{alternative: Term | null, definition: Term | null}} [writtenTagClauses]
@@ -1169,6 +1180,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  *   §4)
  * @property {Resolution} resolution
  * @property {import("./preferences.js").Preferences} preferences
+ * @property {import("./ranked.js").RankedGroups} ranked
  * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
  *   of the stage, resolved for these features: each key's classes (engine
  *   §2)

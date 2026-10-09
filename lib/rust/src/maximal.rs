@@ -17,6 +17,10 @@ use crate::work::{self, Mutant, Work};
 /// origin), as its set and its tag set, in order.
 type Completed = FxMap<(u32, u32), Vec<(u32, SetId)>>;
 
+/// Completed helper facts separated by their lexical entry.
+type ContextualCompleted = FxMap<(u32, u32, u32), Vec<(u32, SetId)>>;
+type ContextualPassing = FxMap<(u32, u32, u32, Option<u32>), Option<u32>>;
+
 /// What the ranking, the stage and the nested queries ask of maximality,
 /// over one chart.
 pub(crate) struct Maximal<'c> {
@@ -38,6 +42,8 @@ pub(crate) struct Maximal<'c> {
     /// origin with its test holding, by (symbol, origin, test), found once
     /// for each.
     passing: RefCell<FxMap<(u32, u32, u32), Option<u32>>>,
+    contextual: RefCell<ContextualPassing>,
+    contextual_completed: OnceCell<ContextualCompleted>,
 }
 
 impl<'c> Maximal<'c> {
@@ -57,6 +63,8 @@ impl<'c> Maximal<'c> {
             furthest: OnceCell::new(),
             completed: OnceCell::new(),
             passing: RefCell::default(),
+            contextual: RefCell::default(),
+            contextual_completed: OnceCell::new(),
         }
     }
 
@@ -105,6 +113,43 @@ impl<'c> Maximal<'c> {
                 .or_insert_with(|| self.furthest_passing(rule, origin, &self.g.tests[test as usize])),
         };
         furthest.is_some_and(|furthest| furthest > end)
+    }
+
+    pub(crate) fn forbids_in(&self, rule: u32, origin: u32, end: u32, test: Option<u32>, lexical: u32) -> bool {
+        if lexical == 0 {
+            return self.forbids(rule, origin, end, test);
+        }
+        let completed = self.contextual_completed.get_or_init(|| {
+            let mut index: FxMap<(u32, u32, u32), Vec<(u32, SetId)>> = FxMap::default();
+            for (later, set) in self.chart.sets.iter().enumerate() {
+                for (&(rule, origin), items) in &set.completed {
+                    for &i in items {
+                        work::count(Work::Looked, 1);
+                        index
+                            .entry((rule, origin, set.items[i as usize].lexical))
+                            .or_default()
+                            .push((later as u32, set.tagset[i as usize]));
+                    }
+                }
+            }
+            index
+        });
+        let furthest = *self.contextual.borrow_mut().entry((rule, origin, lexical, test)).or_insert_with(|| {
+            completed.get(&(rule, origin, lexical))?.iter().rev().find_map(|&(later, tags)| {
+                work::count(Work::Looked, 1);
+                test.map_or(true, |id| {
+                    test_holds(
+                        &self.g.tests[id as usize],
+                        &self.tokens[origin as usize..later as usize],
+                        self.unicode,
+                        self.tags,
+                        tags,
+                    )
+                })
+                .then_some(later)
+            })
+        });
+        furthest.is_some_and(|later| later > end)
     }
 
     /// The furthest set in which `rule` completes from `origin` with `test`

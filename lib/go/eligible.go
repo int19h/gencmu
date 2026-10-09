@@ -248,7 +248,7 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 					// prefix, which must permit the omission.
 					if l.sym != nil {
 						// A maximal terminator also needs the longest Y.
-						if end, ok := further[b]; (!ok || end < it.set) && !(maximalNext[x] && mx.forbids(l.sym.rule, l.sym.start, l.sym.end, it.prod.testAt(int(it.dot)-1))) {
+						if end, ok := further[b]; (!ok || end < it.set) && !(maximalNext[x] && mx.forbidsIn(l.sym.rule, l.sym.start, l.sym.end, it.prod.testAt(int(it.dot)-1), l.sym.lexical)) {
 							p = true
 						}
 					}

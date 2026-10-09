@@ -15,8 +15,11 @@ export type RouteMask = {
 /** @typedef {import("./types.js").Item} Item */
 /** @typedef {{id:number,frames:Item[],bounds:{carrier:Item,restricted:boolean}[],blocked:boolean}} SlotScope */
 /** @typedef {{all:Set<number>,allowed:Set<number>}} RouteMask */
-/** @param {import("./earley.js").Chart} chart @param {import("./preferences.js").Preferences} preferences @param {import("./maximal.js").Maximal|null} maximal */
-export declare function helperSlotForest(chart: import("./earley.js").Chart, preferences: import("./preferences.js").Preferences, maximal: import("./maximal.js").Maximal | null): {
+/** @param {import("./earley.js").Chart} chart @param {{names:Set<string>,ranked?:boolean}} preferences @param {import("./maximal.js").Maximal|null} maximal */
+export declare function helperSlotForest(chart: import("./earley.js").Chart, preferences: {
+    names: Set<string>;
+    ranked?: boolean;
+}, maximal: import("./maximal.js").Maximal | null): {
     chart: {
         start: number;
         end: number;

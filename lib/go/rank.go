@@ -284,7 +284,7 @@ func newRanker(rec *recognizer, rule string, mx *maximal) *ranker {
 	for _, r := range rec.g.rules {
 		rk.profiles = rk.profiles || r.leftmostLongest
 	}
-	if rk.preferences != nil && len(rk.preferences.paths) > 0 {
+	if len(rec.g.rankedHelpers) > 0 || rk.preferences != nil && len(rk.preferences.paths) > 0 {
 		rk.views = newSlotViews(rk)
 		rk.admission = newSlotAdmission(rk)
 	}
@@ -970,7 +970,7 @@ func (fr *itemFrame) summarize(rk *ranker, l link) {
 			fr.forbade = fr.forbade || v.admitted != v.permitted
 		}
 	}
-	if fr.guarded && l.sym != nil && mx.forbids(l.sym.rule, l.sym.start, l.sym.end, it.prod.testAt(int(it.dot)-1)) {
+	if fr.guarded && l.sym != nil && mx.forbidsIn(l.sym.rule, l.sym.start, l.sym.end, it.prod.testAt(int(it.dot)-1), l.sym.lexical) {
 		v.permitted, fr.forbade = false, true
 	}
 	count := prev.count * child.count

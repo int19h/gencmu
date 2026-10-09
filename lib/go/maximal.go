@@ -5,7 +5,9 @@ package gencmu
 // A maximal terminator restricts omission in main and nested parses.
 // maximal is what the ranking asks of maximal, over one parse's chart.
 type maximal struct {
-	rec *recognizer
+	contextual        map[rankedCompletion][]*symNode
+	contextualPassing map[rankedMaximal]int32
+	rec               *recognizer
 	// elides is, for the helper of each elidable optional, the terminal it
 	// elides, and "" for every other rule.
 	elides []string
@@ -142,4 +144,41 @@ func (mx *maximal) forbids(rule, start, end int32, t *symTest) bool {
 	}
 	far, ok := mx.furthest[ruleOrigin{rule, start}]
 	return ok && far > end
+}
+
+type rankedCompletion struct {
+	rule, origin int32
+	frame        *rankedFrame
+}
+type rankedMaximal struct {
+	completion rankedCompletion
+	test       *symTest
+}
+
+func (mx *maximal) forbidsIn(rule, start, end int32, t *symTest, lexical *rankedFrame) bool {
+	if lexical == nil {
+		return mx.forbids(rule, start, end, t)
+	}
+	if mx.contextual == nil {
+		mx.contextual = map[rankedCompletion][]*symNode{}
+		mx.contextualPassing = map[rankedMaximal]int32{}
+		for _, set := range mx.rec.sets {
+			for _, sym := range set.syms {
+				key := rankedCompletion{sym.rule, sym.start, sym.lexical}
+				mx.contextual[key] = append(mx.contextual[key], sym)
+			}
+		}
+	}
+	key := rankedMaximal{rankedCompletion{rule, start, lexical}, t}
+	furthest, ok := mx.contextualPassing[key]
+	if !ok {
+		furthest = -1
+		for _, sym := range mx.contextual[key.completion] {
+			if (t == nil || mx.rec.symbolTest(t, capVal{sym.start, sym.end, sym.tags.id, sym.structure}, false)) && sym.end > furthest {
+				furthest = sym.end
+			}
+		}
+		mx.contextualPassing[key] = furthest
+	}
+	return furthest > end
 }

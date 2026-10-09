@@ -30,6 +30,7 @@ pub(crate) enum Characters {
 #[derive(Debug, Clone)]
 pub(crate) enum Span {
     Cap(u32),
+    Lexical(String),
     /// `$`, the whole constituent: from the item's origin to its end.
     Whole,
     Head(Box<Span>),
@@ -261,6 +262,7 @@ pub(crate) struct SlotMetadata {
     pub tag_clauses: [Option<Term>; 2],
     pub conditions: Vec<(Cond, usize)>,
     pub emit: Option<Vec<EmitItem>>,
+    pub ranked: Option<(usize, usize)>,
 }
 
 #[derive(Debug, Clone)]
@@ -318,6 +320,7 @@ impl Prod {
 #[derive(Debug, Clone)]
 pub(crate) struct Lowered {
     pub preferences: Arc<crate::preferences::Preferences>,
+    pub ranked: RankedRuntime,
     pub rules: Vec<LRule>,
     pub prods: Vec<Prod>,
     pub terminals: Vec<String>,
@@ -348,6 +351,21 @@ pub(crate) struct Lowered {
     pub elides: bool,
 }
 
+#[derive(Debug, Clone, Default)]
+pub(crate) struct RankedRuntime {
+    pub slots: FxMap<u32, usize>,
+    pub options: FxMap<u32, usize>,
+    pub contextual: FxSet<u32>,
+    pub written: FxMap<u32, String>,
+    pub plans: FxMap<(u32, Vec<String>), RankedPlan>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct RankedPlan {
+    pub conditions: Vec<Vec<(LCond, usize)>>,
+    pub whole_tags: Option<LTerm>,
+}
+
 impl Lowered {
     /// The test of the symbol at `dot` of a production, if it has one.
     #[inline]
@@ -370,6 +388,7 @@ struct HelperDef {
     maximal: bool,
     /// The helpers of the places written inside this one, in order.
     children: Vec<usize>,
+    options: Option<Vec<usize>>,
 }
 
 struct Lowerer<'a> {
@@ -489,6 +508,7 @@ impl<'a> Lowerer<'a> {
             elided,
             maximal,
             children,
+            options: None,
         });
         Sym::N(id)
     }
@@ -553,10 +573,14 @@ impl<'a> Lowerer<'a> {
             Expr::Ranked(items) => {
                 self.enter();
                 let mut prods = Vec::new();
-                for item in items {
-                    prods.extend(self.expand(item));
+                let mut options = Vec::new();
+                for (index, item) in items.iter().enumerate() {
+                    let expanded = self.expand(item);
+                    options.extend(std::iter::repeat(index).take(expanded.len()));
+                    prods.extend(expanded);
                 }
                 let sym = self.helper(prods, None, false, expr);
+                self.helpers.last_mut().expect("a ranked helper").options = Some(options);
                 vec![vec![(sym, None, None)]]
             }
             Expr::Choice(items) => {
@@ -654,9 +678,8 @@ impl<'a> Lowerer<'a> {
 fn holds_capture(expr: &Expr) -> bool {
     match expr {
         Expr::Capture(..) => true,
-        Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
-            items.iter().any(holds_capture)
-        }
+        Expr::Ranked(_) => false,
+        Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => items.iter().any(holds_capture),
         Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => holds_capture(inner),
         Expr::Repeat(item, separator, _) => holds_capture(item) || separator.as_deref().is_some_and(holds_capture),
         Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => false,
@@ -664,6 +687,7 @@ fn holds_capture(expr: &Expr) -> bool {
 }
 
 /// A term or condition that mentions a capture the production lacks.
+#[derive(Debug)]
 struct Missing;
 
 struct Scope<'a> {
@@ -685,6 +709,9 @@ impl<'a> Scope<'a> {
             }
             Term::Capture(name) => {
                 let &slot = self.names.get(name).ok_or(Missing)?;
+                if slot == u32::MAX {
+                    return Ok(Span::Lexical(name.clone()));
+                }
                 let position = self.cap_pos[slot as usize];
                 self.last = Some(self.last.map_or(position, |last| last.max(position)));
                 Ok(Span::Cap(slot))
@@ -784,6 +811,7 @@ struct Pending {
     rule: u32,
     sequence: Sequence,
     source: Option<(usize, usize)>,
+    option: Option<usize>,
 }
 
 /// An error of the grammar found when it is lowered for a set of features
@@ -886,7 +914,8 @@ fn lower_mode(
                 rule.alternatives.iter().position(|a| std::ptr::eq(a, *alternative)).expect("a written alternative");
             lowerer.places = vec![Vec::new()];
             lowerer.written = (alternative.document.clone(), alternative.at);
-            let own = |sequence| Slot::Own(Pending { rule: index as u32, sequence, source: Some((number, 0)) });
+            let own =
+                |sequence| Slot::Own(Pending { rule: index as u32, sequence, source: Some((number, 0)), option: None });
             let sequences = match &alternative.alternative.expr {
                 // A chain is recursion on the rule itself, with no helper
                 // (§3.3).
@@ -938,8 +967,9 @@ fn lower_mode(
         match slot {
             Slot::Own(pending) => order.push(pending),
             Slot::Helper(helper) => {
-                for sequence in std::mem::take(&mut lowerer.helpers[helper].prods) {
-                    order.push(Pending { rule: (user_count + helper) as u32, sequence, source: None });
+                for (index, sequence) in std::mem::take(&mut lowerer.helpers[helper].prods).into_iter().enumerate() {
+                    let option = lowerer.helpers[helper].options.as_ref().map(|options| options[index]);
+                    order.push(Pending { rule: (user_count + helper) as u32, sequence, source: None, option });
                 }
             }
         }
@@ -965,6 +995,72 @@ fn lower_mode(
                 format!("an item of braces in {name} can match no tokens"),
             ));
         }
+    }
+
+    let mut private_helpers: FxMap<u32, BTreeSet<String>> = FxMap::default();
+    if !grammar.ranked.groups.is_empty() {
+        for (i, helper) in lowerer.helpers.iter().enumerate() {
+            let mut names = BTreeSet::new();
+            if let Some(group) = grammar.ranked.expressions.get(&helper.expr) {
+                names.extend(grammar.ranked.groups[*group].names.iter().cloned());
+            }
+            for sequence in &helper.prods {
+                for (symbol, _, _) in sequence {
+                    if let Sym::N(rule) = symbol {
+                        if let Some(child) = private_helpers.get(rule) {
+                            names.extend(child.iter().cloned());
+                        }
+                    }
+                }
+            }
+            // Helper sequences moved into `order` above. Inspect those sequences too.
+            for pending in order.iter().filter(|p| p.rule == (user_count + i) as u32) {
+                for (symbol, _, _) in &pending.sequence {
+                    if let Sym::N(rule) = symbol {
+                        if let Some(child) = private_helpers.get(rule) {
+                            names.extend(child.iter().cloned());
+                        }
+                    }
+                }
+            }
+            private_helpers.insert((user_count + i) as u32, names);
+        }
+    }
+    let private_for = |pending: &Pending| -> BTreeSet<String> {
+        if grammar.ranked.groups.is_empty() {
+            return BTreeSet::new();
+        }
+        pending
+            .sequence
+            .iter()
+            .filter_map(|(s, _, _)| match s {
+                Sym::N(r) => private_helpers.get(r),
+                _ => None,
+            })
+            .flat_map(|names| names.iter().cloned())
+            .collect()
+    };
+    let mut common_conditions: FxMap<(u32, usize, Vec<String>), Vec<Cond>> = FxMap::default();
+    for pending in &order {
+        let Some((number, _)) = pending.source else { continue };
+        let private = private_for(pending);
+        if private.is_empty() {
+            continue;
+        }
+        let key = (pending.rule, number, private.iter().cloned().collect());
+        common_conditions.entry(key).or_insert_with(|| {
+            alternatives[pending.rule as usize][number]
+                .clauses
+                .conditions
+                .iter()
+                .filter(|c| {
+                    let mut reads = BTreeSet::new();
+                    crate::ranked::cond_reads(c, &mut reads);
+                    reads.is_disjoint(&private)
+                })
+                .cloned()
+                .collect()
+        });
     }
 
     let terminals = std::mem::take(&mut lowerer.terminals);
@@ -1043,6 +1139,9 @@ fn lower_mode(
                     tag_clauses: [None, None],
                     conditions: Vec::new(),
                     emit: None,
+                    ranked: pending.option.map(|option| {
+                        (grammar.ranked.expressions[&lowerer.helpers[pending.rule as usize - user_count].expr], option)
+                    }),
                 }))
             },
         };
@@ -1102,9 +1201,12 @@ fn lower_mode(
             // alternative has, and so every production of it has (§3.3).
             production.tags = tags
                 .map(|term| scope.term(&term).unwrap_or_else(|_| unreachable!("a tag term uses a missing capture")));
+            let private = private_for(&pending);
+            let key = (pending.rule, number, private.iter().cloned().collect());
+            let source_conditions = common_conditions.get(&key).unwrap_or(&alternative.clauses.conditions);
             let conditions = if each_part {
                 let mut left = Vec::new();
-                for cond in &alternative.clauses.conditions {
+                for cond in source_conditions {
                     match simplify_cond(cond, &has) {
                         Simple::True => {}
                         Simple::False => {
@@ -1119,7 +1221,7 @@ fn lower_mode(
                 }
                 left
             } else {
-                let conditions = &alternative.clauses.conditions;
+                let conditions = source_conditions;
                 let split =
                     cond_splits.entry(conditions as *const Vec<Cond>).or_insert_with(|| CondListSplit::new(conditions));
                 // A condition false for this production removes it.
@@ -1269,8 +1371,9 @@ fn lower_mode(
     let reads_until = reads_until(&rules, &prods);
     let tests = std::mem::take(&mut lowerer.tests);
     let elides = rules.iter().any(|rule| rule.elided.is_some());
-    Ok(Lowered {
+    let mut lowered = Lowered {
         preferences: grammar.preferences.clone(),
+        ranked: RankedRuntime::default(),
         start: grammar.index["text"] as u32,
         elides,
         rules,
@@ -1282,7 +1385,9 @@ fn lower_mode(
         reads_until,
         classifiers,
         implications: grammar.implications.clone(),
-    })
+    };
+    lowered.ranked = ranked_runtime(grammar, &lowered);
+    Ok(lowered)
 }
 
 /// Which productions can read in the reconstruction mode of the check of
@@ -1384,10 +1489,167 @@ fn reads_by_passes(prods: &[Prod], reads: &mut [bool]) {
     }
 }
 
+/// Prefix declarations determine ready helper conditions at loading time.
+fn ranked_runtime(grammar: &StageGrammar, lowered: &Lowered) -> RankedRuntime {
+    if grammar.ranked.groups.is_empty() {
+        return RankedRuntime::default();
+    }
+    let mut runtime = RankedRuntime::default();
+    let mut source_private: FxMap<(usize, usize), BTreeSet<String>> = FxMap::default();
+    for group in &grammar.ranked.groups {
+        source_private.entry(group.source).or_default().extend(group.names.iter().cloned());
+    }
+    for (id, p) in lowered.prods.iter().enumerate() {
+        let Some(slot) = &p.slot else { continue };
+        if lowered.rules[p.rule as usize].helper {
+            let path = if let Some((group, _)) = slot.ranked {
+                let group = &grammar.ranked.groups[group];
+                debug_assert_eq!(slot.path, Some(group.expression));
+                group.path.clone()
+            } else {
+                slot.path.and_then(|path| grammar.ranked.paths.get(&path)).cloned().unwrap_or_default()
+            };
+            runtime.written.insert(p.rule, format!("{:?}/{path}", slot.source));
+            if source_private.contains_key(&slot.source) {
+                runtime.contextual.insert(p.rule);
+            }
+        }
+        if let Some((group, option)) = slot.ranked {
+            runtime.slots.insert(p.rule, group);
+            runtime.options.insert(id as u32, option);
+        }
+    }
+    let nested = |p: &Prod| {
+        let mut names = BTreeSet::new();
+        let mut visited = FxSet::default();
+        let mut pending: Vec<u32> = p
+            .syms
+            .iter()
+            .filter_map(|s| match s {
+                Sym::N(r) => Some(*r),
+                _ => None,
+            })
+            .collect();
+        while let Some(rule) = pending.pop() {
+            if !lowered.rules[rule as usize].helper || !visited.insert(rule) {
+                continue;
+            }
+            if let Some(group) = runtime.slots.get(&rule) {
+                names.extend(grammar.ranked.groups[*group].names.iter().cloned());
+            }
+            for &id in &lowered.rules[rule as usize].prods {
+                pending.extend(lowered.prods[id as usize].syms.iter().filter_map(|s| match s {
+                    Sym::N(r) => Some(*r),
+                    _ => None,
+                }));
+            }
+        }
+        names
+    };
+    let mut incoming = FxSet::default();
+    let mut queue = Vec::new();
+    for p in &lowered.prods {
+        if lowered.rules[p.rule as usize].helper {
+            continue;
+        }
+        let Some(slot) = &p.slot else { continue };
+        if !source_private.contains_key(&slot.source) {
+            continue;
+        }
+        let names: BTreeSet<String> = slot.names.iter().flatten().cloned().collect();
+        for s in &p.syms {
+            if let Sym::N(rule) = s {
+                if runtime.contextual.contains(rule) {
+                    queue.push((*rule, names.clone()));
+                }
+            }
+        }
+    }
+    let mut at = 0;
+    while at < queue.len() {
+        let (rule, prefix) = queue[at].clone();
+        at += 1;
+        let declared: Vec<String> = prefix.iter().cloned().collect();
+        if !incoming.insert((rule, declared.clone())) {
+            continue;
+        }
+        for &id in &lowered.rules[rule as usize].prods {
+            let p = &lowered.prods[id as usize];
+            let slot = p.slot.as_ref().expect("a contextual helper source");
+            let source = &grammar.rules[slot.source.0].alternatives[slot.source.1];
+            let local: FxMap<String, u32> =
+                slot.names.iter().enumerate().filter_map(|(i, n)| n.as_ref().map(|n| (n.clone(), i as u32))).collect();
+            let mut names: FxMap<String, u32> = prefix.iter().map(|name| (name.clone(), u32::MAX)).collect();
+            names.extend(local);
+            let has = |name: &str| name.is_empty() || names.contains_key(name);
+            let mut scope =
+                Scope { names: &names, cap_pos: &p.cap_pos, rules: &grammar.index, last: None, whole: false };
+            let mut conditions = vec![Vec::new(); p.syms.len() + 1];
+            let nested = nested(p);
+            if let Some((group, _)) = slot.ranked {
+                for raw in &source.clauses.conditions {
+                    let mut reads = BTreeSet::new();
+                    crate::ranked::cond_reads(raw, &mut reads);
+                    if reads.is_disjoint(&grammar.ranked.groups[group].names) || !reads.is_disjoint(&nested) {
+                        continue;
+                    }
+                    scope.last = None;
+                    scope.whole = false;
+                    let condition = match simplify_cond(raw, &has) {
+                        Simple::True => continue,
+                        Simple::False => LCond::Any(Vec::new()),
+                        Simple::Cond(c) => {
+                            let mut required = BTreeSet::new();
+                            crate::ranked::cond_reads(&c, &mut required);
+                            if required.iter().any(|name| !has(name)) {
+                                continue;
+                            }
+                            scope.cond(&c).expect("a bound ranked condition")
+                        }
+                    };
+                    let dot = if scope.whole { p.syms.len() } else { scope.last.map_or(0, |p| p + 1) };
+                    conditions[dot].push((condition, dot));
+                }
+            }
+            let public: FxMap<String, u32> = prefix
+                .iter()
+                .filter(|name| !source_private[&slot.source].contains(*name))
+                .map(|name| (name.clone(), u32::MAX))
+                .collect();
+            let mut tag_scope = Scope { names: &public, cap_pos: &[], rules: &grammar.index, last: None, whole: false };
+            let terms: Vec<LTerm> = source
+                .alternative
+                .tags
+                .iter()
+                .chain(source.clauses.tags.iter())
+                .map(|term| {
+                    tag_scope
+                        .term(&simplify_value(term, &|n| n.is_empty() || public.contains_key(n)))
+                        .expect("a checked parent tag term")
+                })
+                .collect();
+            let whole_tags = match terms.len() {
+                0 => None,
+                1 => terms.into_iter().next(),
+                _ => Some(LTerm::Union(terms)),
+            };
+            runtime.plans.insert((id, declared.clone()), RankedPlan { conditions, whole_tags });
+            let mut next = prefix.clone();
+            next.extend(slot.names.iter().flatten().cloned());
+            for s in &p.syms {
+                if let Sym::N(child) = s {
+                    if runtime.contextual.contains(child) {
+                        queue.push((*child, next.clone()));
+                    }
+                }
+            }
+        }
+    }
+    runtime
+}
+
 /// Which rules derive the empty sequence, from productions given as their
-/// rule and symbols. A worklist counts each production's symbols not yet
-/// known to be nullable, so each symbol is looked at once or twice, not
-/// once in each pass that settles one more rule.
+/// rule and symbols. The worklist examines each symbol once or twice.
 fn nullable_rules<'s>(count: usize, prods: impl Iterator<Item = (u32, &'s [Sym])> + Clone) -> Vec<bool> {
     let mut nullable = vec![false; count];
     let mut owner = Vec::new();

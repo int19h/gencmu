@@ -41,6 +41,7 @@ func newSlotAdmission(rk *ranker) *slotAdmission {
 	a := &slotAdmission{rk: rk, groups: map[string]*slotGroup{}, at: map[*item]map[int]*slotGroup{}, masks: map[slotCountKey]slotMask{}, counts: map[slotCountKey]slotCount{}, contexts: map[string]forbidden{"": nil}}
 	g := rk.rec.g
 	prefs := g.stage.preferences
+	ranked := len(g.rankedHelpers) > 0
 	var items []*item
 	for _, set := range rk.rec.sets {
 		if set == nil {
@@ -67,7 +68,45 @@ func newSlotAdmission(rk *ranker) *slotAdmission {
 			continue
 		}
 		s := it.prod.rhs[pos]
-		if s.term || g.rules[s.id].helper {
+		if s.term || (!ranked && g.rules[s.id].helper) {
+			continue
+		}
+		if ranked {
+			groupInfo := g.rankedHelpers[s.id]
+			if groupInfo == nil {
+				continue
+			}
+			for index, edge := range it.links {
+				if edge.sym == nil {
+					continue
+				}
+				before := edge.prev
+				if before == nil {
+					copy := *it
+					copy.dot = 0
+					copy.prefix = rk.rec.machine.empty
+					copy.cap0 = capVal{}
+					copy.more = 0
+					before = &copy
+				}
+				ancestry := ""
+				if rk.views != nil {
+					ancestry = rk.views.rankedAncestry(scope, rk.rec)
+				}
+				key := fmt.Sprintf("%d/%s/%t/%s/%d/%d", groupInfo.id, rk.rec.rankedPrefix(before), before.strict, ancestry, edge.sym.start, edge.sym.end)
+				group := a.groups[key]
+				if group == nil {
+					group = &slotGroup{maxima: map[string]slotLabels{}}
+					a.groups[key] = group
+				}
+				label := fmt.Sprintf("%020d", edge.sym.option)
+				group.candidates = append(group.candidates, slotCandidate{it, index, label, group})
+				if a.at[it] == nil {
+					a.at[it] = map[int]*slotGroup{}
+				}
+				a.at[it][index] = group
+				a.stats.candidateEdges++
+			}
 			continue
 		}
 		label := g.rules[s.id].name
@@ -243,7 +282,7 @@ func (a *slotAdmission) edgeCount(it *item, edge link, f forbidden) (slotCount, 
 	}
 	allowed := true
 	if mx != nil && mx.guards(it) && edge.sym != nil {
-		allowed = !mx.forbids(edge.sym.rule, edge.sym.start, edge.sym.end, it.prod.testAt(int(it.dot)-1))
+		allowed = !mx.forbidsIn(edge.sym.rule, edge.sym.start, edge.sym.end, it.prod.testAt(int(it.dot)-1), edge.sym.lexical)
 	}
 	return left, right, allowed
 }
@@ -275,6 +314,18 @@ func (a *slotAdmission) admit(key slotCountKey) {
 			}
 			maximal := func(labels map[string]bool) map[string]bool {
 				out := map[string]bool{}
+				if len(a.rk.rec.g.rankedHelpers) > 0 {
+					first := ""
+					for label := range labels {
+						if first == "" || label < first {
+							first = label
+						}
+					}
+					if first != "" {
+						out[first] = true
+					}
+					return out
+				}
 				for label := range labels {
 					dominated := false
 					for higher := range labels {
@@ -290,11 +341,28 @@ func (a *slotAdmission) admit(key slotCountKey) {
 			group.maxima[context] = kept
 		}
 		label := a.rk.rec.g.rules[key.it.prod.rhs[int(key.it.dot)-1].id].name
+		if len(a.rk.rec.g.rankedHelpers) > 0 {
+			label = fmt.Sprintf("%020d", key.it.links[index].sym.option)
+		}
 		if kept.all[label] {
 			mask.all[index] = true
 		}
 		if kept.allowed[label] {
 			mask.allowed[index] = true
+		}
+	}
+	if a.rk.views != nil {
+		if route, ok := a.rk.views.routes[key.it]; ok {
+			for i := range mask.all {
+				if !route.all[i] {
+					delete(mask.all, i)
+				}
+			}
+			for i := range mask.allowed {
+				if !route.allowed[i] {
+					delete(mask.allowed, i)
+				}
+			}
 		}
 	}
 	a.masks[key] = mask

@@ -1,0 +1,23 @@
+{
+  "description": "Ranked admission uses the same finite eligibility channel through every generated helper.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text $s(slot) Z\n%conditions $s ≇ @([X])\n%rule slot ε ≻ ε",
+  "tokens": [
+    {
+      "text": "z",
+      "phonemes": "z",
+      "tags": [
+        "Z"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

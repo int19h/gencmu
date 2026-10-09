@@ -15,6 +15,7 @@ pub(crate) struct Group {
     pub path: String,
     pub expression: usize,
     pub final_position: bool,
+    pub names: BTreeSet<String>,
 }
 #[derive(Debug, Clone, Default)]
 pub(crate) struct RankedGroups {
@@ -120,7 +121,7 @@ fn term_reads(term: &Term, out: &mut BTreeSet<String>) {
         _ => {}
     }
 }
-fn cond_reads(cond: &Cond, out: &mut BTreeSet<String>) {
+pub(crate) fn cond_reads(cond: &Cond, out: &mut BTreeSet<String>) {
     match cond {
         Cond::Captured(name) => {
             out.insert(name.clone());
@@ -231,7 +232,14 @@ impl RankedGroups {
         self.paths.insert(pointer, path.to_string());
         if let Expr::Ranked(items) = expr {
             let id = self.groups.len();
-            self.groups.push(Group { id, source, path: path.into(), expression: pointer, final_position });
+            self.groups.push(Group {
+                id,
+                source,
+                path: path.into(),
+                expression: pointer,
+                final_position,
+                names: capture_names(expr),
+            });
             self.expressions.insert(pointer, id);
             for (index, child) in items.iter().enumerate() {
                 self.visit(child, &format!("{path}/ranked/{index}"), final_position, Some(id), source);
@@ -355,4 +363,27 @@ impl RankedGroups {
         }
         Ok(())
     }
+}
+
+pub(crate) fn capture_names(expr: &Expr) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    let mut pending = vec![expr];
+    while let Some(expr) = pending.pop() {
+        match expr {
+            Expr::Capture(name, child) => {
+                names.insert(name.clone());
+                pending.push(child);
+            }
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => pending.extend(items),
+            Expr::Optional(child, _) | Expr::Tested(_, _, child) => pending.push(child),
+            Expr::Repeat(child, separator, _) => {
+                pending.push(child);
+                if let Some(s) = separator {
+                    pending.push(s);
+                }
+            }
+            _ => {}
+        }
+    }
+    names
 }

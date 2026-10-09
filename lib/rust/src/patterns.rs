@@ -562,7 +562,36 @@ impl Machine {
             .collect()
     }
     pub(crate) fn sealed(&mut self) -> u32 {
-        self.node(None, self.empty, Some(("", "", &[])))
+        let key = "seal".to_string();
+        if let Some(&id) = self.transitions.get(&key) {
+            return id;
+        }
+        let bits = vec![0; self.predicates.len().div_ceil(64)];
+        let relations = self
+            .machines
+            .iter()
+            .map(|n| {
+                let mut moves = vec![vec![0; n.size.div_ceil(64)]; n.size];
+                for &(a, b, p) in &n.edges {
+                    if p == Some(usize::MAX) {
+                        set(&mut moves[a], b);
+                    }
+                }
+                Self::compose(&Self::compose(&n.epsilon, &moves), &n.epsilon)
+            })
+            .collect();
+        let id = self.intern(State {
+            count: 1,
+            first: bits.clone(),
+            last: bits.clone(),
+            any: bits.clone(),
+            relations,
+            bits: Some(bits),
+            empty: false,
+        });
+        crate::work::count(crate::work::Work::StructuralTransitions, 1);
+        self.transitions.insert(key, id);
+        id
     }
     pub(crate) fn concat(&mut self, left: u32, right: u32) -> u32 {
         let key = format!("c{left},{right}");

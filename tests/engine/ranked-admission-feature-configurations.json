@@ -1,0 +1,91 @@
+{
+  "description": "Each parse admits only options whose named rules remain under its selected features.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text (a \u227b b) Z\n%rule a high? X Y\n%rule b X Y",
+  "parses": [
+    {
+      "expect": {
+        "result": {
+          "ok": true,
+          "tree": {
+            "children": [
+              {
+                "rule": "b"
+              },
+              {
+                "terminal": "Z"
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "features": []
+      }
+    },
+    {
+      "expect": {
+        "result": {
+          "ok": true,
+          "tree": {
+            "children": [
+              {
+                "rule": "a"
+              },
+              {
+                "terminal": "Z"
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "features": [
+          "high"
+        ]
+      }
+    },
+    {
+      "expect": {
+        "result": {
+          "ok": true,
+          "tree": {
+            "children": [
+              {
+                "rule": "b"
+              },
+              {
+                "terminal": "Z"
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "features": []
+      }
+    }
+  ],
+  "tokens": [
+    {
+      "text": "x",
+      "phonemes": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "phonemes": "y",
+      "tags": [
+        "Y"
+      ]
+    },
+    {
+      "text": "z",
+      "phonemes": "z",
+      "tags": [
+        "Z"
+      ]
+    }
+  ]
+}

@@ -1144,7 +1144,7 @@ fn forbidden_terminator(tree: &ITree, g: &Lowered, maximal: &Maximal) -> Option<
                 let before = &tree.nodes[node.children[position - 1] as usize];
                 if let IKind::Close { prod: constituent, start: from, end: to, .. } = before.kind {
                     let test = g.prods[prod as usize].test(position - 1);
-                    if maximal.forbids(g.prods[constituent as usize].rule, from, to, test) {
+                    if maximal.forbids_in(g.prods[constituent as usize].rule, from, to, test, before.lexical) {
                         let elided = &g.rules[helper.rule as usize];
                         let terminal = elided.elided.as_deref().expect("an elidable terminator");
                         let terminal = written_symbol(terminal, elided.elided_test.map(|test| &g.tests[test as usize]));

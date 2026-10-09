@@ -50,6 +50,7 @@ func (ev *evaluator) in() *interner { return ev.run.ps.in }
 // tag term that gives them runs on first use, as part of the evaluation
 // that reads them, and only where a condition reads them (§4).
 type lazyTags struct {
+	parent      bool
 	r           *recognizer
 	p           *production
 	caps        itemCaps
@@ -251,13 +252,17 @@ func (w *walk) fillLazy(s spanVal) bool {
 		return false
 	}
 	r, p := lz.r, lz.p
+	term := p.tags
+	if lz.parent {
+		term = p.parentTags
+	}
 	switch {
-	case p.tags != nil:
+	case term != nil:
 		f := w.top()
 		f.c, f.t, f.lazy = nil, nil, lz
-		w.push(r.run.evaluator(r.g, r.captureFunc(p, lz.caps, lz.origin, lz.end, nil, lz.structure)), nil, p.tags)
+		w.push(r.run.evaluator(r.g, r.captureFunc(p, lz.caps, lz.origin, lz.end, nil, lz.structure)), nil, term)
 		return true
-	case p.implicit:
+	case p.implicit && !lz.parent:
 		lz.tags = r.run.ps.in.all[lz.caps.at(p.capSlot[0]).tags]
 	default:
 		lz.tags = r.run.ps.in.empty()

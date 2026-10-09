@@ -44,6 +44,7 @@ class Act:
         start: int = 0,
         end: int = 0,
         visible: bool = True,
+        canonical: int | None = None,
     ) -> None:
         self.read = read
         self.token = token
@@ -57,8 +58,8 @@ class Act:
             self.eq: tuple[Any, ...] = (0, token, terminal)
             self.canon: tuple[Any, ...] = (0, terminal)
         else:
-            self.eq = (1, production, start, end)
-            self.canon = (1, production, start, end)
+            self.eq = (1, production if canonical is None else canonical, start, end)
+            self.canon = self.eq
 
 
 class Rope:
@@ -579,6 +580,7 @@ class Ranker(Summaries):
                     False,
                     item=forest.slot_original[item] if hasattr(forest,"slot_original") else item,
                     production=production.id,
+                    canonical=production.real_id,
                     start=forest.origin[item],
                     end=forest.end[item],
                     visible=not production.transparent,
@@ -1178,7 +1180,17 @@ class Ranking:
 def rank(forest: Forest, lean: str, maximal: Maximal | None = None, marks=None, check=False, unfiltered=False) -> Ranking | None:
     preferences = forest.lowered.grammar.preferences
     admission = None
-    if not unfiltered and preferences is not None and preferences.names:
+    if not unfiltered and forest.lowered.ranked_helpers:
+        from ._ranked_admission import RankedAdmission
+        from ._slot_views import helper_forest
+        from types import SimpleNamespace
+        names = {forest.lowered.rule_names[r] for r in forest.lowered.ranked_helpers}
+        raw_facts = len(forest.prod)
+        forest,maximal,marks = helper_forest(forest,SimpleNamespace(names=names,ranked=True),maximal,marks)
+        admission = RankedAdmission(forest,maximal,check)
+        admission.stats['chart_facts'] = raw_facts
+        admission.prepare()
+    elif not unfiltered and preferences is not None and preferences.names:
         from ._slots import SlotAdmission
         raw_facts = len(forest.prod)
         from ._slot_views import helper_forest

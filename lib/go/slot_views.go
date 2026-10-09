@@ -54,6 +54,10 @@ func newSlotViews(rk *ranker) *slotViews {
 	}
 	wrapped := map[int32]bool{}
 	pending := []int32{}
+	for r := range g.rankedHelpers {
+		wrapped[r] = true
+		pending = append(pending, r)
+	}
 	for i, r := range g.rules {
 		if _, ok := rk.preferences.labels[r.name]; ok && !r.helper {
 			pending = append(pending, int32(i))
@@ -133,7 +137,7 @@ func newSlotViews(rk *ranker) *slotViews {
 		}
 		scope.frames = append(scope.frames, slotFrame{edge.prev, parent})
 		scope.bounds = append(scope.bounds, slotBound{edge.sym, restricted})
-		scope.blocked = scope.blocked || restricted && guarded && rk.maximal.forbids(edge.sym.rule, edge.sym.start, edge.sym.end, parent.prod.testAt(int(parent.dot)-1))
+		scope.blocked = scope.blocked || restricted && guarded && rk.maximal.forbidsIn(edge.sym.rule, edge.sym.start, edge.sym.end, parent.prod.testAt(int(parent.dot)-1), edge.sym.lexical)
 		scopes[key] = scope
 		return scope
 	}

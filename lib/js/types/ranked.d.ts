@@ -60,3 +60,5 @@ export declare class RankedGroups {
     /** @param {import("./types.js").Production[]} productions */
     validateTags(productions: import("./types.js").Production[]): void;
 }
+/** @param {any} value @returns {Set<string>} */
+export declare function rankedCaptureReads(value: any): Set<string>;

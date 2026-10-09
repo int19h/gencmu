@@ -1537,7 +1537,7 @@
       roots.forEach(n => this.compile(n));
       this.empty = this.intern({count:0, first:0n,last:0n,any:0n, relations:this.machines.map(m => m.epsilon)});
       // A seal contributes one nameless child even over an empty interval.
-      this.seal = this.node(null, this.empty, {terminal:null, sound:"", tags:new Set()});
+      this.seal = this.nodeState(0n,false);
     }
     /** @param {any} n @returns {number} */
     compile(n) {
@@ -2038,7 +2038,7 @@
           for (const item of set.items) {
             if (hooks.work) countWork(hooks.work, "scanned");
             if (item.dot !== item.production.rhs.length) continue;
-            const key = `${item.production.lhs}\u0000${item.origin}`;
+            const key = `${item.production.lhs}\u0000${item.origin}/${item.production.lexicalFrame?.id ?? ""}`;
             const entry = completed.get(key);
             if (entry) {
               entry.items.push(item);
@@ -2047,7 +2047,7 @@
           }
         }
       }
-      const entry = completed.get(`${constituent.production.lhs}\u0000${constituent.origin}`);
+      const entry = completed.get(`${constituent.production.lhs}\u0000${constituent.origin}/${constituent.production.lexicalFrame?.id ?? ""}`);
       if (entry === undefined) return false;
       const test = order[x].production.rhs[order[x].dot - 1].test;
       if (!test) return entry.furthest > constituent.end;
@@ -4925,9 +4925,156 @@
     return value?.emptySet === true || value?.set instanceof Set && value.set.size === 0;
   }
 
+  // ---- ranked-frame.js
+  // Lexical entry state for transparent helpers in a ranked alternative.
+
+
+
+  /** @param {any} lowered @param {any} ranked */
+  function prepareRankedFrames(lowered, ranked) {
+    if (!ranked.groups.length) return;
+    const helpers = new Map(lowered.productions.filter((/** @type {any} */ p) => p.helper).map((/** @type {any} */ p) => [p.lhs, p]));
+    const groups = new Map(ranked.groups.map((/** @type {any} */ g) => [g.helper, g]));
+    const privateNames = new Map();
+    for (const group of ranked.groups) {
+      const names = new Set();
+      const pending = [group.expr];
+      while (pending.length) {
+        const expr = pending.pop();
+        if (expr.capture) names.add(expr.capture);
+        for (const [key, value] of Object.entries(expr)) {
+          if (key === 'ranked' || key === 'seq' || key === 'choice' || key === 'and') for (const child of value) pending.push(child);
+          else if (['node','optional','repeat','separator','group'].includes(key)) pending.push(value);
+        }
+      }
+      privateNames.set(group, names);
+    }
+    const descendants = (/** @type {any} */ name) => {
+      const found = new Set(), visited = new Set(), pending = [name];
+      while (pending.length) {
+        const next = pending.pop();
+        if (visited.has(next)) continue;
+        visited.add(next);
+        if (groups.has(next)) found.add(groups.get(next));
+        for (const p of lowered.byLhs.get(next) ?? []) if (p.helper) {
+          for (const s of p.rhs) if (helpers.has(s.name)) pending.push(s.name);
+        }
+      }
+      return found;
+    };
+    for (const p of lowered.productions) {
+      const relevant = new Set();
+      for (const s of p.rhs) for (const g of descendants(s.name)) relevant.add(g);
+      const own = p.rankedGroup;
+      const names = new Set([...relevant].flatMap((/** @type {any} */ g) => [...privateNames.get(g)]));
+      const clauses = p.source?.clauses.conditions ?? [];
+      if (!p.helper) {
+        // Private conditions run at their lexical boundary, including guards
+        // on a capture absent from the selected option.
+        p.rankedDeferred = clauses.filter((/** @type {any} */ c) => [...rankedCaptureReads(c)].some(n => names.has(n)));
+        p.conditions = p.conditions.filter((/** @type {any} */ c) => !p.rankedDeferred.some((/** @type {any} */ raw) => [...rankedCaptureReads(raw)].some(n => rankedConditionVariables(c.condition).includes(n)))
+          && !p.rankedDeferred.includes(c.condition));
+        // Presence simplification can erase every read, so rebuild these clauses.
+        const common = clauses.filter((/** @type {any} */ c) => !p.rankedDeferred.includes(c));
+        const present = new Set(['', ...p.captures.map((/** @type {any} */ c) => c.name)]);
+        p.conditions = frameConditions(common, present, p);
+        p.conditionsAt = Array.from({length:p.rhs.length+1}, () => []);
+        for (const c of p.conditions) p.conditionsAt[c.readyAt+1].push(c);
+      }
+      if (p.helper && ranked.groups.some((/** @type {any} */ g) => g.source === p.source)) {
+        p.contextual = true;
+        const nested = new Set([...relevant].flatMap((/** @type {any} */ g) => [...privateNames.get(g)]));
+        p.rankedClauses = own ? clauses.filter((/** @type {any} */ c) => {
+          const reads = [...rankedCaptureReads(c)];
+          return reads.some(n => privateNames.get(own).has(n)) && !reads.some(n => nested.has(n));
+        }) : [];
+      }
+      for (const s of p.rhs) if (groups.has(s.name)) s.slot = groups.get(s.name);
+    }
+    lowered.ranked = ranked;
+  }
+
+  /** @param {any[]} clauses @param {Set<string>} present @param {any} production @param {Map<string,any>} [prefix] */
+  function frameConditions(clauses, present, production, prefix = new Map()) {
+    const positions = new Map(production.captures.map((/** @type {any} */ c) => [c.name,c.index]));
+    const result = [];
+    for (const condition of partsFor(prepareConditions(clauses), n => present.has(n), present)) {
+      const reads = rankedConditionVariables(condition);
+      if (!reads.every(n => present.has(n))) continue;
+      const readyAt = reads.reduce((last,n) => Math.max(last,n === '' ? production.rhs.length-1 : prefix.has(n) ? -1 : positions.get(n)), -1);
+      result.push({condition,readyAt});
+    }
+    return result;
+  }
+
+  /** @param {any} context */
+  function rankedFrameTable(context) {
+    const frames = new Map(), productions = new Map();
+    const contextual = new Set(context.lowered.productions.filter((/** @type {any} */ p) => p.contextual).map((/** @type {any} */ p) => p.lhs));
+    const helpers = new Map(context.lowered.productions.filter((/** @type {any} */ p) => p.helper).map((/** @type {any} */ p) => [p.lhs,p]));
+    let next = 0;
+    const written = (/** @type {any} */ p) => [p.owner ?? p.lhs, p.source?.at, context.lowered.ranked.paths.get(p.writtenExpression) ?? ''];
+    const symbol = (/** @type {any} */ s) => [s.terminal ? s.name : helpers.has(s.name) ? written(helpers.get(s.name)) : s.name,s.terminal,s.test];
+    const prefixKey = (/** @type {any} */ item) => {
+      const captures = [];
+      for (let part = item.slots; part; part = part.parent) {
+        const name = item.production.captures[part.index].name;
+        if (!name.startsWith('\u0000')) captures.push([name,part.start,part.end,part.tags,part.structure]);
+      }
+      return [written(item.production),item.origin,item.production.rhs.slice(0,item.dot).map(symbol),item.production.rhs.slice(item.dot).map(symbol),item.prefix,captures.reverse(),item.restores];
+    };
+    return {
+      contextual,
+      /** @param {any} item @param {string} name */
+      entry(item, name) {
+        if (!contextual.has(name)) return null;
+        const outer = item.production.lexicalFrame;
+        // The recursive production of a flat repetition keeps its entry.
+        if (outer && item.production.lhs === name) return outer;
+        const key = JSON.stringify([outer?.key ?? null,prefixKey(item)]);
+        const old = frames.get(key);
+        if (old) return old;
+        const captures = new Map(outer?.captures ?? []);
+        for (let part = item.slots; part; part = part.parent) {
+          const name = item.production.captures[part.index].name;
+          if (!name.startsWith('\u0000')) captures.set(name,part);
+        }
+        const present = new Set(outer?.present ?? []);
+        for (const capture of item.production.captures) if (!capture.name.startsWith("\u0000")) present.add(capture.name);
+        const root = outer?.root ?? item.production;
+        const namedOrigin = outer?.namedOrigin ?? item.origin;
+        const prefix = outer && context.patterns ? context.patterns.concat(outer.prefix,item.prefix) : item.prefix;
+        const inside = !!outer?.inside || !!item.production.rankedGroup;
+        const sealPrefix = inside && outer ? outer.sealPrefix : prefix;
+        const frame = {id:next++,key,captures,root,namedOrigin,prefix,inside,sealPrefix,present};
+        frames.set(key,frame);
+        return frame;
+      },
+      /** @param {any} production @param {any} frame */
+      production(production, frame) {
+        if (!frame) return production;
+        const key = `${production.id}/${frame.id}`;
+        const old = productions.get(key);
+        if (old) return old;
+        const present = new Set(['',...frame.present,...production.captures.map((/** @type {any} */ c) => c.name)]);
+        const conditions = frameConditions(production.rankedClauses ?? [],present,production,frame.captures);
+        /** @type {any[][]} */
+        const conditionsAt = Array.from({length:production.rhs.length+1},() => []);
+        for (const c of conditions) conditionsAt[c.readyAt+1].push(c);
+        const result = {...production,baseProduction:production,lexicalFrame:frame,conditions,conditionsAt};
+        productions.set(key,result);
+        return result;
+      },
+    };
+  }
+
+  /** @param {any} condition */
+  function rankedConditionVariables(condition) {return [...rankedCaptureReads(condition)];}
+
   // ---- grammar.js
   // A stage's grammar: its documents stitched together (engine §2) and
   // lowered to productions for one set of features (engine §3).
+
 
 
 
@@ -5847,12 +5994,14 @@
         for (const alternative of enabled) this.lowerAlternative(rule, alternative);
       }
       this.checkBraceItems();
+      prepareRankedFrames(this,this.grammar.ranked);
       return {
         productions: this.productions,
         byLhs: this.byLhs,
         maximalHelpers: this.maximalHelpers,
         resolution: /** @type {Resolution} */ (this.grammar.resolution),
         preferences: this.grammar.preferences,
+        ranked: this.grammar.ranked,
       };
     }
 
@@ -6092,7 +6241,20 @@
       /** @type {import("./types.js").ReadyCondition[]} */
       const conditions = [];
       // The conditions not true for this production, in order (engine §3.6).
-      for (const condition of partsFor(prepareConditions(clauses.conditions), has, names)) {
+      const privateNames = new Set();
+      for (const group of this.grammar.ranked.groups) if (group.source === alternative) {
+        const pending = [group.expr];
+        while (pending.length) {
+          const expr = pending.pop();
+          if (expr.capture) privateNames.add(expr.capture);
+          for (const [key,value] of Object.entries(expr)) {
+            if (["ranked","seq","choice","and"].includes(key)) for (const child of value) pending.push(child);
+            else if (["node","optional","repeat","separator","group"].includes(key)) pending.push(value);
+          }
+        }
+      }
+      const commonConditions = privateNames.size ? clauses.conditions.filter(c => ![...rankedCaptureReads(c)].some(n => privateNames.has(n))) : clauses.conditions;
+      for (const condition of partsFor(prepareConditions(commonConditions), has, names)) {
         // A condition false for this production removes it.
         if (condition === DOM_FALSE && !this.validation) return;
         const variables = conditionVariables(condition);
@@ -6365,6 +6527,7 @@
    * @returns {boolean}
    */
   function holdsCapture(expr) {
+    if ("ranked" in expr) return false;
     if ("capture" in expr) return true;
     return childExpressions(expr).some(holdsCapture);
   }
@@ -6411,6 +6574,7 @@
   // ---- earley.js
   // Recognition (engine §4) and the terms and conditions it evaluates
   // (engine §10).
+
 
 
 
@@ -7049,6 +7213,15 @@
     const setAt = (position) => sets[position - start] || (sets[position - start] = new ChartSet(position));
     const dots = context.dots;
     const width = end - start + 1;
+    const lexical = lowered.ranked?.groups.length ? rankedFrameTable(context) : null;
+    /** @param {Item} item */
+    const waitingKey = item => {
+      const name = item.production.rhs[item.dot].name;
+      const frame = lexical?.entry(item,name);
+      return frame ? `${name}/${frame.id}` : name;
+    };
+    /** @param {Production} production */
+    const completionKey = production => production.lexicalFrame ? `${production.lhs}/${production.lexicalFrame.id}` : production.lhs;
 
     // The reconstruction mode of engine §7.4, or the old contract's
     // mandatory optionals (a fault); null for the ordinary mode of §4.
@@ -7066,6 +7239,7 @@
       if (strict && dot === production.rhs.length) return;
       const projected = structuralStep(context, production, dot, previous, child, set.position);
       let key = itemKey((production.id * dots + dot) * width + origin - start, slots);
+      if (production.lexicalFrame) key = `${key}/f${production.lexicalFrame.id}`;
       if (context.patterns) key = `${key}/${projected.prefix}/${projected.structure}`;
       if (twoItems && strict) key = "strict" + key;
       let item = set.index.get(key);
@@ -7134,13 +7308,13 @@
       if (next && !next.terminal) {
         // Most lists hold one item, and an array made with its first element
         // is a fraction of the size an empty one grows to on its first push.
-        const waiting = set.waiting.get(next.name);
+        const waiting = set.waiting.get(waitingKey(item));
         if (waiting) waiting.push(item);
-        else set.waiting.set(next.name, [item]);
+        else set.waiting.set(waitingKey(item), [item]);
       }
       if (dot === production.rhs.length && origin === set.position) {
-        let nullable = set.nullable.get(production.lhs);
-        if (!nullable) set.nullable.set(production.lhs, (nullable = []));
+        let nullable = set.nullable.get(completionKey(production));
+        if (!nullable) set.nullable.set(completionKey(production), (nullable = []));
         nullable.push(item);
       }
     };
@@ -7163,6 +7337,7 @@
       const target = setAt(position + 1);
       const structure = omittedState(context, production.elided);
       let key = itemKey((production.id * dots) * width + position - start, null);
+      if (production.lexicalFrame) key = `${key}/f${production.lexicalFrame.id}`;
       if (context.patterns) key = `${key}/${context.patterns.empty}/${structure}`;
       // A restoration whose item exists is another way to build it. Each
       // lookup counts, so that a search slower than the index fails a budget.
@@ -7190,23 +7365,27 @@
     let predictSet = /** @type {any} */ (null);
     let predictName = "";
     let predictStrict = false;
+    /** @type {any} */
+    let predictFrame = null;
     /** @type {boolean | undefined} */
     let predictBefore;
     let predictIndex = 0;
     let predictSkipped = false;
 
     // Begins the prediction of a rule in a set: false when it adds nothing.
-    /** @type {(set: ChartSet, name: string, strict?: boolean) => boolean} */
-    const beginPredict = (set, name, strict = false) => {
+    /** @type {(set: ChartSet, name: string, strict?: boolean, frame?: any) => boolean} */
+    const beginPredict = (set, name, strict = false, frame = null) => {
+      const key = frame ? `${name}/${frame.id}` : name;
       // A rule's productions are the same at every prediction in one set:
       // predicting them again would only rebuild items that already exist. A
       // strict prediction (engine §7.4) leaves some out, so an ordinary one
       // after it adds them.
-      const before = set.predicted.get(name);
+      const before = set.predicted.get(key);
       // A fault keeps the strict prediction, and predicts nothing more
       // (F32:predict).
       if (before === false || (before === true && (strict || fault("F32:predict")))) return false;
-      set.predicted.set(name, strict);
+      set.predicted.set(key, strict);
+      predictFrame = frame;
       predictSet = set;
       predictName = name;
       predictStrict = strict;
@@ -7230,7 +7409,8 @@
       const productions = lowered.byLhs.get(predictName) || [];
       const next = set.position < end ? tokens[set.position] : null;
       for (; predictIndex < productions.length; predictIndex++) {
-        const production = productions[predictIndex];
+        const base = productions[predictIndex];
+        const production = predictFrame ? /** @type {NonNullable<typeof lexical>} */ (lexical).production(base,predictFrame) : base;
         if (production.helper && production.elided !== null && production.rhs.length === 0 && !fault("omission:skip") && !omissionAllowed(production)) continue;
         // In the reconstruction mode, the empty production of an elidable
         // optional is its restoration, and it never derives the empty
@@ -7241,7 +7421,7 @@
           continue;
         }
         // A strict prediction predicts only the productions that can read.
-        if (strict && !fault("F16", "predict") && /** @type {Reading} */ (reading).last.get(production) === -1) continue;
+        if (strict && !fault("F16", "predict") && /** @type {Reading} */ (reading).last.get(production.baseProduction ?? production) === -1) continue;
         // One scope for the step, which evaluates the tag term at most once
         // (engine §4).
         /** @type {StepScope} */
@@ -7363,7 +7543,7 @@
 
     // Whether a symbol after an item's next symbol can read (engine §7.4).
     /** @type {(item: Item) => boolean} */
-    const readsLater = (item) => /** @type {number} */ (/** @type {Reading} */ (reading).last.get(item.production)) > item.dot;
+    const readsLater = (item) => /** @type {number} */ (/** @type {Reading} */ (reading).last.get(item.production.baseProduction ?? item.production)) > item.dot;
     // Whether an advance from an item over an empty constituent is held back:
     // a strict item does it only where a later symbol can read.
     /** @type {(item: Item) => boolean} */
@@ -7466,13 +7646,13 @@
               entry = taken;
               const symbol = taken.production.rhs[taken.dot];
               if (!symbol) {
-                waiting = setAt(taken.origin).waiting.get(taken.production.lhs) || [];
+                waiting = setAt(taken.origin).waiting.get(completionKey(taken.production)) || [];
                 next = 0;
                 kind = WAITERS;
               } else if (!symbol.terminal) {
                 // A strict item predicts its next symbol strictly where no
                 // symbol after it can read (engine §7.4).
-                kind = beginPredict(set, symbol.name, mode === "reconstruction" && taken.strict && !readsLater(taken)) ? PREDICT : EMPTIES;
+                kind = beginPredict(set, symbol.name, mode === "reconstruction" && taken.strict && !readsLater(taken), lexical?.entry(taken,symbol.name) ?? null) ? PREDICT : EMPTIES;
                 if (kind === EMPTIES) next = -1;
               } else if (at < end && (symbol.characters === undefined ? tokens[at].tags.has(symbol.name) : carries(context.unicode, symbol.characters, tokens[at].tags))) {
                 // The written routes of an elidable optional (engine §7.4):
@@ -7508,7 +7688,7 @@
                 // of its next symbol, unless a strict item is held back there.
                 if (next === -1) {
                   if (mode === "reconstruction" && emptyHeldBack(current)) break;
-                  waiting = set.nullable.get(/** @type {GrammarSymbol} */ (current.production.rhs[current.dot]).name) || [];
+                  waiting = set.nullable.get(waitingKey(current)) || [];
                   next = 0;
                   kind = EMPTIES;
                 }
@@ -8111,6 +8291,16 @@
     capture(name) {
       // `$` is the whole constituent, whose tags are read only once it is
       // complete, by a condition or an emission (engine §4).
+      if (name === "" && this.production.lexicalFrame) {
+        const frame = this.production.lexicalFrame;
+        const machine = this.context.patterns;
+        const prefix = machine ? machine.concat(frame.sealPrefix,machine.seal) : -1;
+        const structure = machine ? machine.node(frame.root.lhs,prefix) : -1;
+        const parent = new ChartScope(this.context,{...frame.root,lexicalFrame:{...frame,parentWhole:true}},null,frame.namedOrigin,this.end,structure);
+        const scope = this;
+        return {structure,patterns:machine,start:frame.namedOrigin,end:this.end,space:this.space,
+          get tags() {return /** @type {TagSet} */ (parent.constituent());}};
+      }
       if (name === "") {
         const scope = this;
         return {
@@ -8128,6 +8318,10 @@
       // Once the searches took half as many steps as there are parts, every
       // part in one walk, so that a term that reads them all walks them
       // about twice at most.
+      if ((!this.production.captureSlot.has(name) || this.production.lexicalFrame?.parentWhole) && this.production.lexicalFrame?.captures.has(name)) {
+        const found = this.production.lexicalFrame.captures.get(name);
+        return {structure:found.structure,patterns:this.context.patterns,start:found.start,end:found.end,tags:this.context.interner.get(found.tags),space:this.space};
+      }
       const last = /** @type {NonNullable<Captured>} */ (this.slots);
       const index = captureIndex(this.production, name);
       if (this.parts === null && this.searched * 2 >= last.depth) {
@@ -10382,7 +10576,7 @@
        * @type {Map<Item, Set<number>> | null}
        */
       this.marks = null;
-      /** @type {import("./slots.js").SlotAdmission | null} */
+      /** @type {import("./slots.js").SlotAdmission | import("./ranked-admission.js").RankedAdmission | null} */
       this.admission = null;
     }
 
@@ -11398,7 +11592,7 @@
   /** @typedef {import("./types.js").Item} Item */
   /** @typedef {{id:number,frames:Item[],bounds:{carrier:Item,restricted:boolean}[],blocked:boolean}} SlotScope */
   /** @typedef {{all:Set<number>,allowed:Set<number>}} RouteMask */
-  /** @param {import("./earley.js").Chart} chart @param {import("./preferences.js").Preferences} preferences @param {import("./maximal.js").Maximal|null} maximal */
+  /** @param {import("./earley.js").Chart} chart @param {{names:Set<string>,ranked?:boolean}} preferences @param {import("./maximal.js").Maximal|null} maximal */
   function helperSlotForest(chart, preferences, maximal) {
     const lowered = chart.context.lowered;
     const helpers = new Set(lowered.productions.filter(p => p.helper).map(p => p.lhs));
@@ -11408,7 +11602,7 @@
       list.push(p.lhs);
       users.set(s.name, list);
     }
-    const wrapped = new Set(), pending = [...preferences.names];
+    const wrapped = new Set(preferences.ranked ? [...preferences.names] : []), pending = [...preferences.names];
     for (let at = 0; at < pending.length; at++) for (const name of users.get(pending[at]) ?? []) {
       if (!wrapped.has(name)) { wrapped.add(name); pending.push(name); }
     }
@@ -11631,6 +11825,113 @@
     }
   }
 
+  // ---- ranked-admission.js
+
+
+  // Admission uses finite eligible facts, before the ordinary ranker.
+  class RankedAdmission {
+    /** @param {any} chart @param {any} ranked @param {any} maximal */
+    constructor(chart, ranked, maximal) {
+      const names = new Set(ranked.groups.map((/** @type {any} */ g) => g.helper));
+      this.forest = helperSlotForest(chart,{names,ranked:true},maximal);
+      this.maximal = maximal;
+      this.groups = new Map();
+      this.at = new Map();
+      this.maxima = new Map();
+      this.masks = new Map();
+      this.stats = {chartFacts:0,groups:0,candidateEdges:0,retainedEdges:0};
+      const helpers = new Map(chart.context.lowered.productions.filter((/** @type {any} */ p) => p.helper).map((/** @type {any} */ p) => [p.lhs,p]));
+      const written = (/** @type {any} */ p) => [p.owner ?? p.lhs,p.source?.at,ranked.paths.get(p.writtenExpression) ?? ''];
+      const prefix = (/** @type {any} */ item) => {
+        const captures = [];
+        for (let part = item.slots; part; part = part.parent) {
+          const name = item.production.captures[part.index].name;
+          if (!name.startsWith('\u0000')) captures.push([name,part.start,part.end,part.tags,part.structure]);
+        }
+        return [item.production.lexicalFrame?.key ?? null,written(item.production),item.origin,
+          item.production.rhs.slice(0,item.dot).map((/** @type {any} */ s) => [helpers.has(s.name) ? written(helpers.get(s.name)) : s.name,s.terminal,s.test]),
+          item.production.rhs.slice(item.dot).map((/** @type {any} */ s) => [helpers.has(s.name) ? written(helpers.get(s.name)) : s.name,s.terminal,s.test]),
+          item.prefix,captures.reverse(),item.strict,item.restores];
+      };
+      for (const set of (this.forest?.chart ?? chart).sets) if (set) for (const item of set.items) {
+        this.stats.chartFacts++;
+        const group = item.production.rhs[item.dot-1]?.slot;
+        if (!group || !names.has(group.helper) || item.production.helper && !item.slotScope) continue;
+        for (const [index,edge] of item.edges.entries()) {
+          if (edge.kind !== 'complete') continue;
+          const scope = item.slotScope;
+          const ancestry = scope ? [scope.frames.map(prefix),scope.bounds.map((/** @type {any} */ b) => [written(b.carrier.production),b.carrier.origin,b.carrier.end,b.restricted])] : null;
+          const key = JSON.stringify([group.id,prefix(edge.previous),ancestry,edge.child.origin,edge.child.end]);
+          let candidates = this.groups.get(key);
+          if (!candidates) this.groups.set(key,candidates=[]);
+          candidates.push({item,index,edge,option:edge.child.production.rankedOption});
+          let choices = this.at.get(item);
+          if (!choices) this.at.set(item,choices=new Map());
+          choices.set(index,candidates);
+          this.stats.candidateEdges++;
+        }
+      }
+      this.stats.groups = this.groups.size;
+    }
+
+    /** @param {any} item @param {string} context */
+    availabilityKey(item,context) {
+      return JSON.stringify([context,item.complete ? item.slotScope?.frames[0].production.lhs ?? item.production.lhs : null]);
+    }
+
+    /** @param {any} item @param {string} context */
+    dependencies(item,context) {
+      const choices = this.at.get(item), key = this.availabilityKey(item,context);
+      return choices ? [...new Set(choices.values())].filter(group => !this.maxima.get(group)?.has(key))
+        .flatMap(group => group.map((/** @type {any} */ candidate) => candidate.edge)) : [];
+    }
+
+    /** @param {any} item @param {any} dependency @param {string} context */
+    compute(item,dependency,context) {
+      const choices = this.at.get(item);
+      if (!choices) return this.forest?.routeMasks.get(item) ?? null;
+      const key = this.availabilityKey(item,context), mask = {all:new Set(),allowed:new Set()};
+      for (const [index,group] of choices) {
+        let contexts = this.maxima.get(group);
+        if (!contexts) this.maxima.set(group,contexts=new Map());
+        let kept = contexts.get(key);
+        if (!kept) {
+          kept = {all:Infinity,allowed:Infinity};
+          for (const candidate of group) {
+            const {edge} = candidate;
+            if (!dependency(edge.previous).all || !dependency(edge.child).all) continue;
+            kept.all = Math.min(kept.all,candidate.option);
+            if (!this.maximal?.guards(candidate.item) || !this.maximal.forbids(edge.child,candidate.item.production.rhs[candidate.item.dot-1].test)) {
+              kept.allowed = Math.min(kept.allowed,candidate.option);
+            }
+          }
+          contexts.set(key,kept);
+        }
+        const option = item.edges[index].child.production.rankedOption;
+        if (option === kept.all) mask.all.add(index);
+        if (option === kept.allowed) mask.allowed.add(index);
+      }
+      const route = this.forest?.routeMasks.get(item);
+      if (route) {
+        for (const index of mask.all) if (!route.all.has(index)) mask.all.delete(index);
+        for (const index of mask.allowed) if (!route.allowed.has(index)) mask.allowed.delete(index);
+      }
+      let contexts = this.masks.get(item);
+      if (!contexts) this.masks.set(item,contexts=new Map());
+      contexts.set(context,mask);
+      this.stats.retainedEdges += mask.all.size;
+      return mask;
+    }
+
+    /** @param {any} item @param {string} context */
+    mask(item,context) {
+      if (!this.at.has(item)) return this.forest?.routeMasks.get(item) ?? null;
+      const found = this.masks.get(item)?.get(context);
+      if (!found) throw new Error('Ranked admission requires eligible child facts before ranking.');
+      return found;
+    }
+  }
+
   // ---- witness.js
   /**
    * The restored chosen derivation's matched edge indices and action sequence.
@@ -11829,6 +12130,8 @@
     for (const production of lowered.productions) {
       if (production.helper && production.elided !== null && lowered.maximalHelpers.has(production.lhs)) elidable.add(production.lhs);
     }
+    /** @param {Item} item */
+    const symbolKey = item => item.production.lexicalFrame ? `${item.production.lhs}/${item.production.lexicalFrame.id}` : item.production.lhs;
     // Whether a constituent could have been longer depends only on its
     // symbol, origin and end: the furthest set holding a completed item of
     // each symbol from each origin decides it.
@@ -11841,8 +12144,8 @@
         if (!set) continue;
         for (const item of set.items) {
           if (item.dot !== item.production.rhs.length) continue;
-          let byOrigin = furthest.get(item.production.lhs);
-          if (!byOrigin) furthest.set(item.production.lhs, (byOrigin = new Map()));
+          let byOrigin = furthest.get(symbolKey(item));
+          if (!byOrigin) furthest.set(symbolKey(item), (byOrigin = new Map()));
           const known = byOrigin.get(item.origin);
           if (known === undefined || known < set.position) byOrigin.set(item.origin, set.position);
         }
@@ -11861,8 +12164,8 @@
         if (!set) continue;
         for (const item of set.items) {
           if (item.dot !== item.production.rhs.length) continue;
-          let byOrigin = completed.get(item.production.lhs);
-          if (!byOrigin) completed.set(item.production.lhs, (byOrigin = new Map()));
+          let byOrigin = completed.get(symbolKey(item));
+          if (!byOrigin) completed.set(symbolKey(item), (byOrigin = new Map()));
           const list = byOrigin.get(item.origin);
           if (!list) byOrigin.set(item.origin, [item]);
           else list.push(item);
@@ -11880,13 +12183,13 @@
       },
       forbids: (item, test) => {
         if (test !== undefined) {
-          const byOrigin = allCompleted().get(item.production.lhs);
+          const byOrigin = allCompleted().get(symbolKey(item));
           const list = byOrigin === undefined ? undefined : byOrigin.get(item.origin);
           const context = chart.context;
           return list !== undefined && list.some((longer) => longer.end > item.end &&
             testHolds(context, test, item.origin, longer.end, context.interner.get(longer.tagId)));
         }
-        const byOrigin = longest().get(item.production.lhs);
+        const byOrigin = longest().get(symbolKey(item));
         const end = byOrigin === undefined ? undefined : byOrigin.get(item.origin);
         return end !== undefined && end > item.end;
       },
@@ -11896,6 +12199,7 @@
   // ---- stage.js
   // Running one stage: recognition, the choice of a parse, the result tree
   // (engine §12), emission (engine §11) and elision-only (engine §7).
+
 
 
 
@@ -11925,7 +12229,8 @@
   /** @param {import("./earley.js").Chart} chart @param {Token[]} tokens @param {import("./types.js").Lean} lean @param {import("./preferences.js").Preferences} preferences @param {import("./maximal.js").Maximal | null} [maximal] @param {number[] | null} [project] */
   function slotRanker(chart, tokens, lean, preferences, maximal = null, project = null) {
     const ranker = new Ranker(tokens, lean, maximal, project);
-    if (preferences.names.size) ranker.admission = new SlotAdmission(chart, preferences, maximal);
+    if (chart.context.lowered.ranked?.groups.length) ranker.admission = new RankedAdmission(chart,chart.context.lowered.ranked,maximal);
+    else if (preferences.names.size) ranker.admission = new SlotAdmission(chart, preferences, maximal);
     return ranker;
   }
 
@@ -15692,6 +15997,11 @@
    * @property {Expr} [writtenExpression]
    * @property {import("./ranked.js").RankedGroup} [rankedGroup]
    * @property {number} [rankedOption]
+   * @property {boolean} [contextual]
+   * @property {Condition[]} [rankedDeferred]
+   * @property {Condition[]} [rankedClauses]
+   * @property {any} [lexicalFrame]
+   * @property {Production} [baseProduction]
    * @property {string} [role]
    * @property {Term[]} [writtenTags]
    * @property {{alternative: Term | null, definition: Term | null}} [writtenTagClauses]
@@ -15737,6 +16047,7 @@
    *   §4)
    * @property {Resolution} resolution
    * @property {import("./preferences.js").Preferences} preferences
+   * @property {import("./ranked.js").RankedGroups} ranked
    * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
    *   of the stage, resolved for these features: each key's classes (engine
    *   §2)

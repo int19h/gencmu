@@ -334,7 +334,7 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                     .map(|(i, _)| i as u32)
                     .collect()
             } else {
-                at(end, Item { prod, dot: 0, origin: start, caps: 0, prefix: 0, structure: u32::MAX })
+                at(end, Item { lexical: 0, prod, dot: 0, origin: start, caps: 0, prefix: 0, structure: u32::MAX })
                     .into_iter()
                     .collect()
             };
@@ -403,12 +403,12 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
             continue;
         }
         let mut current: Vec<Item> =
-            at(start, Item { prod, dot: 0, origin: start, caps: 0, prefix: 0, structure: u32::MAX })
-                .map(|_| Item { prod, dot: 0, origin: start, caps: 0, prefix: 0, structure: u32::MAX })
+            at(start, Item { lexical: 0, prod, dot: 0, origin: start, caps: 0, prefix: 0, structure: u32::MAX })
+                .map(|_| Item { lexical: 0, prod, dot: 0, origin: start, caps: 0, prefix: 0, structure: u32::MAX })
                 .into_iter()
                 .collect();
         marks.items.extend(
-            at(start, Item { prod, dot: 0, origin: start, caps: 0, prefix: 0, structure: u32::MAX })
+            at(start, Item { lexical: 0, prod, dot: 0, origin: start, caps: 0, prefix: 0, structure: u32::MAX })
                 .map(|item| (start, item)),
         );
         for (position, &child) in node.children.iter().enumerate() {
@@ -460,14 +460,22 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                         else {
                             continue;
                         };
-                        let advanced =
-                            Item { prod, dot: item.dot + 1, origin: start, caps, prefix: 0, structure: u32::MAX };
+                        let advanced = Item {
+                            lexical: 0,
+                            prod,
+                            dot: item.dot + 1,
+                            origin: start,
+                            caps,
+                            prefix: 0,
+                            structure: u32::MAX,
+                        };
                         if at(to, advanced).is_some() && !next.contains(&advanced) {
                             next.push(advanced);
                         }
                     }
                 } else if !own.is_empty() {
                     let advanced = Item {
+                        lexical: item.lexical,
                         prod,
                         dot: item.dot + 1,
                         origin: start,

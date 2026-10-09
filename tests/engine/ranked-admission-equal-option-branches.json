@@ -1,0 +1,32 @@
+{
+  "description": "A ranked group keeps every eligible proof of its earliest qualifying option over the same physical span.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text absent ≻ (b | c)\n%rule a X Y\n%rule b X Y\n%rule c X Y\n%rule absent Z\n%tags ∅",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "verdict": "tie"
+        }
+      ],
+      "error": {
+        "reason": "tie"
+      }
+    },
+    "error": "ambiguous"
+  }
+}

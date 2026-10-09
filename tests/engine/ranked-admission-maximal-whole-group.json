@@ -1,0 +1,38 @@
+{
+  "description": "Each ranked candidate uses its enclosing named invocation and its actual prefix bindings before admission.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text (a ≻ b) [++T] Y\n%rule a X | X Y\n%rule b X",
+  "tokens": [
+    {
+      "text": "x",
+      "phonemes": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "phonemes": "y",
+      "tags": [
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "token": 1,
+        "expected": [
+          {
+            "terminal": "T",
+            "rules": [
+              "text"
+            ]
+          }
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}
