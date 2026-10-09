@@ -792,7 +792,7 @@ Every removed proof has an eligible replacement in its admission group. Sealing 
 
 The exact group key, tag closure, and algorithm belong to engine §2.1 and §6.1. [Ambiguity](notation.md#ambiguity) defines verdict changes and their effects on later stages. The existing ranker still compares flagged profiles before the stage directive.
 
-Reconstruction locates raw W(D) before admission over physical reconstructed spans. It ranks admitted readings by projected profiles without a stage directive or diagnostic lean. Exclusion reports W(D) first in ordinary `elision-only` ambiguity. Only raw absence reports `elision-witness-lost`.
+Reconstruction first locates the restored chosen derivation before filtering. Filtering compares spans that include restored terminators. It ranks admitted readings by projected profiles without a stage directive. Filtering can exclude the restored derivation and cause an `elision-only` ambiguity. The error reports that derivation first and the best admitted competitor second. Only its absence before filtering reports `elision-witness-lost` ([engine §7](engine.md#7-elision-only)).
 
 Experimental ranks NUhI bodies and shared ME operands. Zantufa ranks fragments, ME, whole MOI constructions, MAhO, and MOhE. The MOI group also includes SE because SE can begin a mekso through an operator. FA and JAI cannot begin those mekso forms.
 
