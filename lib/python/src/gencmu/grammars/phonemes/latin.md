@@ -30,10 +30,7 @@ The phoneme stage cannot know that a pause stands in a quote. So punctuation bet
   spaced-pause | punctuation-pause
 
 %rule punctuation-pause
-  | $c(punctuation)
-  | commas $c(punctuation)
-  | $c(punctuation) commas
-  | commas $c(punctuation) commas
+  [commas] $c(punctuation) [commas]
 %emits
   $c <PAUSE ∪ /./>
 

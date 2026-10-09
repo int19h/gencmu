@@ -2,13 +2,13 @@
 
 This document is the lexicon of the forms stage in the [CLL](../dialects/cll-ebnf.md) and [BPFK](../dialects/bpfk.md) dialects. A lexicon is a list of words, each with its classes. The forms stage is the second stage of the pipeline. It divides the phonemes of the text into words. A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo.
 
-This lexicon holds the cmavo of *The Complete Lojban Language* (CLL), 598 words, each with the selma'o that the dictionary of CLL gives it. This document collapses the numbered subclasses of the dictionary (`UI3a`, `KOhA7`) to the selma'o that the syntax grammar names. Its maintainers edit it by hand in this repository.
+This lexicon holds the cmavo of *The Complete Lojban Language* (CLL) with their selma'o. Each entry uses the class from the CLL dictionary. This document collapses the numbered subclasses of the dictionary (`UI3a`, `KOhA7`) to the selma'o that the syntax grammar names. Its maintainers edit it by hand in this repository.
 
 The lexicon below is a classifier. Each of its entries lists words and gives them one class, as `"mi" "do" ∈ KOhA` does. The forms stage looks a cmavo up with `classify(phonemes($c), lexicon)`, and tags the cmavo with its classes. A tag marks a token by name, phoneme or character. The lexicon writes each word as its canonical sound, in lower case, with `'` for the apostrophe. Cmavo stress is free, so a stressed vowel finds the same word as a plain one.
 
-If a word has several classes, it carries them all, and the syntax stage reads it under each class. No word of CLL has more than one. The entries stand in the order of their classes. CLL's `indicator` and `indicators` rules read the words of UI, CAI, Y, DAhO, FUhO and FUhE. The implication after the entries marks each of these words `indicator`. The indicator stage uses this mark to attach a run of indicators to the word before it, as the non-formal `word` rule of CLL says.
+If a word has several classes, it carries them all, and the syntax stage reads it under each class. No word of CLL has more than one. The entries stand in the order of their classes. The syntax grammar's `indicator` and `indicators` rules read the words of UI, CAI, DAhO, FUhO and FUhE. The implication after the entries marks each of these words `indicator`. The indicator stage uses this mark to attach indicators to the preceding word, under CLL's non-formal `word` rule.
 
-The key `y` never applies. The forms stage reads a run of `y` as hesitation, which is not a cmavo, so it never looks `y` up.
+This lexicon omits the CLL dictionary's `y` (Y). The forms stage reads a run of `y` as hesitation and never looks it up.
 
 [The notation document](../../docs/notation.md) explains the notation.
 
@@ -148,7 +148,6 @@ The key `y` never applies. The forms stage reads a run of `y` as hesitation, whi
   "cu'a" "de'o" "fa'i" "fe'a" "fe'i" "fu'u" "ge'a" "gei" "ju'u" "ne'o" "pa'i" "pi'a" "pi'i" ∈ VUhU
   "re'a" "ri'o" "sa'i" "sa'o" "si'i" "su'i" "te'a" "va'a" "vu'u" ∈ VUhU
   "xi" ∈ XI
-  "y" ∈ Y
   "ba'o" "ca'o" "co'a" "co'i" "co'u" "de'a" "di'a" "mo'u" "pu'o" "za'o" ∈ ZAhO
   "zei" ∈ ZEI
   "ze'a" "ze'e" "ze'i" "ze'u" ∈ ZEhA
@@ -160,5 +159,5 @@ The key `y` never applies. The forms stage reads a run of `y` as hesitation, whi
 ```
 
 ```jbogenbau
-%implies UI ∪ CAI ∪ Y ∪ DAhO ∪ FUhE ∪ FUhO ⟹ ~indicator
+%implies UI ∪ CAI ∪ DAhO ∪ FUhE ∪ FUhO ⟹ ~indicator
 ```

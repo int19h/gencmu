@@ -2,7 +2,7 @@
 
 This document is part of the forms stage in the [experimental](../dialects/experimental.md) dialect. The forms stage is the second stage of the pipeline. It divides the phonemes of the text into words. The loader stitches this document into the stage after [bpfk.md](bpfk.md).
 
-camxes-exp, the experimental PEG (parsing expression grammar), reads the working word forms of the BPFK (a Lojban committee), with a few changes. This document makes the same changes to the translation in [bpfk.md](bpfk.md).
+camxes-exp, the experimental PEG (parsing expression grammar), reads the working word forms of the BPFK (a Lojban committee), with a few changes. A lookahead tests input without reading it. This document makes those changes to the translation in [bpfk.md](bpfk.md), except the redundant glide lookahead described in [the dialect departures](../dialects/experimental.md#where-it-reads-texts-differently-from-camxes-exp).
 
 Each rule here has the name of the camxes-exp rule that it translates, and its comment gives that rule, as in bpfk.md. The [Zantufa](../dialects/zantufa.md) dialect makes only the first change, in [zantufa.md](zantufa.md). [The notation document](../../docs/notation.md) explains the notation.
 
@@ -116,12 +116,6 @@ In the working morphology, a short rafsi without a y-hyphen cannot stand where a
 <p><img src="../../docs/diagrams/words/experimental/initial-rafsi.svg" alt="Railroad diagram of the rule initial-rafsi"></p>
 <p><img src="../../docs/diagrams/words/experimental/any-fuhivla-rafsi.svg" alt="Railroad diagram of the rule any-fuhivla-rafsi"></p>
 </details>
-
-## Glides
-
-camxes-exp also adds `!glide` to its rule `glide <- (i / u) &nucleus`. That changes no reading, so this document leaves the rule as [bpfk.md](bpfk.md) has it. An `i` or `u` is a glide only where a nucleus follows it. It is a vowel, and so a nucleus, only where no nucleus follows it. So the nucleus after a glide never begins with another glide.
-
-camxes-exp gives the same parse trees with the lookahead and without it. That holds on every string of up to six letters from `i`, `u`, `a`, `e`, `o`, `y`, `'`, `k`, `s` and a period.
 
 ## A bare nai
 

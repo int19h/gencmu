@@ -21,10 +21,11 @@ if (!pegPath || !documentPath) {
 // These classes attach to the word before them, so the lexicon's
 // implication marks them as indicators for the indicator stage. By default
 // they are camxes-exp's word classes: its `indicator` rule takes UI, CAI,
-// DAhO and FUhO, its `indicators` rule takes FUhE before them, and Y is part
-// of its spaces. Its `indicator` rule also takes a bare NAI, which the
+// DAhO and FUhO, and its `indicators` rule takes FUhE before them.
+// The forms stage reads a run of y as hesitation, so Y is omitted here.
+// Its `indicator` rule also takes a bare NAI, which the
 // experimental word forms (grammars/words/experimental.md) mark apart.
-const INDICATORS = indicatorList !== undefined ? indicatorList.split(",").filter(Boolean) : ["UI", "CAI", "Y", "DAhO", "FUhE", "FUhO"];
+const INDICATORS = indicatorList !== undefined ? indicatorList.split(",").filter(Boolean) : ["UI", "CAI", "DAhO", "FUhE", "FUhO"];
 
 // The longest line of keys, so that the Markdown stays readable; a class
 // with more keys takes one entry on each line.
@@ -36,10 +37,12 @@ const classes = new Map();
 const peg = fs.readFileSync(pegPath, "utf8");
 const words = new Set();
 for (const match of peg.matchAll(/^([A-Z][A-Za-z]*) <- &cmavo \(\s*(.*?)\s*\)\s*&post_word/gm)) {
+  // A Y list containing only y+ cannot classify a word in these forms.
+  // A mixed list retains its y key, as Zantufa requires.
+  if (match[1] === "Y" && match[2].trim() === "y+") continue;
   for (const alternative of match[2].split("/")) {
     const letters = alternative.trim().split(/\s+/);
-    // `y+` is a run of y, which the word stage reads as hesitation; the
-    // lexicon lists the one letter.
+    // A retained `y+` alternative lists the canonical one-letter key.
     const spelled = letters.map((letter) => (letter === "y+" ? "y" : letter));
     if (!spelled.every((letter) => /^[a-z]$/.test(letter))) continue;
     // A key is the canonical sound, with `'` for `h`.

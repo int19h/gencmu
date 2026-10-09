@@ -917,12 +917,9 @@ The mekso prefix pattern tests an actual NAhE or SE constructor over an operand 
   {tcita-selci} [{tag-link}]
 
 %rule tag-link
-  $j(joik) tcita-selcis
+  $j(joik) {tcita-selci}
 %conditions
   ¬begins(from($j), tcita-selci)
-
-%rule tcita-selcis
-  {tcita-selci}
 
 %rule tcita-selci
   (* tcita_selci <- (NAhE_clause / SE_clause) tcita_selci / BAI_clause / mex? ROI_clause / FIhO_clause selbri FEhU_elidible *)
@@ -935,10 +932,9 @@ The mekso prefix pattern tests an actual NAhE or SE constructor over an operand 
   $m ≇ @(⋰ ((NAhE ∪ SE) [#] (operand ∪ operator)))
 ```
 
-<details><summary>Railroad diagrams of <code>tag</code>, <code>tag-link</code>, <code>tcita-selcis</code> and <code>tcita-selci</code></summary>
+<details><summary>Railroad diagrams of <code>tag</code>, <code>tag-link</code> and <code>tcita-selci</code></summary>
 <p><img src="../../docs/diagrams/syntax/zantufa/tag.svg" alt="Railroad diagram of the rule tag"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/tag-link.svg" alt="Railroad diagram of the rule tag-link"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/tcita-selcis.svg" alt="Railroad diagram of the rule tcita-selcis"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/tcita-selci.svg" alt="Railroad diagram of the rule tcita-selci"></p>
 </details>
 
@@ -962,8 +958,7 @@ The dialect keeps one odd reading of Zantufa. In `pe'usai doi xod ko jmina`, the
            / vocative sumti? DOhU_elidible / mex_2 MAI_clause / TO_clause text TOI_elidible / xi_clause
            / LOhAI_clause / (UI_clause !BU_clause)+ *)
   | SEI # statement [++SEhU #]
-  | vocative [relative-clauses] selbri [+DOhU #]
-  | vocative [sumti] [+DOhU #]
+  | vocative [sumti | [relative-clauses] selbri] [+DOhU #]
   | mex-2 MAI #
   | TO # parenthesis-text [++TOI #]
   | XI # mex-2

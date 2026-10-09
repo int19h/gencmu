@@ -1,35 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="358" height="260" viewBox="0 0 358 260" role="img" aria-label="Railroad diagram of the rule text">
+<svg xmlns="http://www.w3.org/2000/svg" width="438" height="168" viewBox="0 0 438 168" role="img" aria-label="Railroad diagram of the rule text">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="33.6" lengthAdjust="spacingAndGlyphs">text</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
-<path d="M40 46H338"/>
+<path d="M40 46H418"/>
 <path d="M20 46a10 10 0 0 1 10 10V58a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="56" width="58" height="24" rx="0"/><text x="69" y="73" textLength="42" lengthAdjust="spacingAndGlyphs">pause</text></g>
-<path d="M98 68H318a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M98 68H398a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V92a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="90" width="67" height="24" rx="0"/><text x="73.5" y="107" textLength="50.4" lengthAdjust="spacingAndGlyphs">commas</text></g>
-<path d="M107 102H318a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V126a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="124" width="58" height="24" rx="0"/><text x="69" y="141" textLength="42" lengthAdjust="spacingAndGlyphs">items</text></g>
-<path d="M98 136H318a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V160a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="158" width="100" height="24" rx="0"/><text x="90" y="175" textLength="84" lengthAdjust="spacingAndGlyphs">edge-pause</text></g>
-<path d="M140 170h10"/>
-<g class="rule"><rect x="150" y="158" width="58" height="24" rx="0"/><text x="179" y="175" textLength="42" lengthAdjust="spacingAndGlyphs">items</text></g>
-<path d="M208 170H318a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V194a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="192" width="58" height="24" rx="0"/><text x="69" y="209" textLength="42" lengthAdjust="spacingAndGlyphs">items</text></g>
-<path d="M98 204h10"/>
-<g class="rule"><rect x="108" y="192" width="100" height="24" rx="0"/><text x="158" y="209" textLength="84" lengthAdjust="spacingAndGlyphs">edge-pause</text></g>
-<path d="M208 204H318a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V228a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="226" width="100" height="24" rx="0"/><text x="90" y="243" textLength="84" lengthAdjust="spacingAndGlyphs">edge-pause</text></g>
-<path d="M140 238h10"/>
-<g class="rule"><rect x="150" y="226" width="58" height="24" rx="0"/><text x="179" y="243" textLength="42" lengthAdjust="spacingAndGlyphs">items</text></g>
-<path d="M208 238h10"/>
-<g class="rule"><rect x="218" y="226" width="100" height="24" rx="0"/><text x="268" y="243" textLength="84" lengthAdjust="spacingAndGlyphs">edge-pause</text></g>
-<path d="M318 238H318a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M338 46h6m0 -8v16m4 -16v16"/>
+<path d="M107 102H398a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V136a10 10 0 0 0 10 10"/>
+<path d="M40 146h20"/>
+<g class="rule"><rect x="60" y="134" width="100" height="24" rx="0"/><text x="110" y="151" textLength="84" lengthAdjust="spacingAndGlyphs">edge-pause</text></g>
+<path d="M160 146H180"/>
+<path d="M40 146a10 10 0 0 0 10 -10V134a10 10 0 0 1 10 -10H160a10 10 0 0 1 10 10V136a10 10 0 0 0 10 10"/>
+<path d="M180 146h10"/>
+<g class="rule"><rect x="190" y="134" width="58" height="24" rx="0"/><text x="219" y="151" textLength="42" lengthAdjust="spacingAndGlyphs">items</text></g>
+<path d="M248 146h10"/>
+<path d="M258 146h20"/>
+<g class="rule"><rect x="278" y="134" width="100" height="24" rx="0"/><text x="328" y="151" textLength="84" lengthAdjust="spacingAndGlyphs">edge-pause</text></g>
+<path d="M378 146H398"/>
+<path d="M258 146a10 10 0 0 0 10 -10V134a10 10 0 0 1 10 -10H378a10 10 0 0 1 10 10V136a10 10 0 0 0 10 10"/>
+<path d="M398 146H398a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M418 46h6m0 -8v16m4 -16v16"/>
 </svg>

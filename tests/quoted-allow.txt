@@ -1,7 +1,7 @@
 # Quoted texts that no corpus case pins as a whole text (tests/README.md,
 # "Quoted texts"). Each entry covers one document. It is the text, " # ",
 # the document, and then, where the document quotes the text unpinned on
-# more than one line, ' @ "PHRASE"' for each line that the entry covers.
+# more than one line, '' for each line that the entry covers.
 # The phrase is a part of that line's Markdown, and of no other line that
 # quotes the text there. Then comes one of these:
 #

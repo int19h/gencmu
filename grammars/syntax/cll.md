@@ -18,7 +18,11 @@ The prose uses these Lojban terms before the sections that explain them:
 - A brivla is a predicate word.
 - A lerfu word is a letter word, such as `.abu` or `xy.`.
 
-The stages before it make the word stream that it reads. The forms stage ([forms.md](../words/forms.md), with a family of word forms and a lexicon) reads phonemes into words. The word stage, [the word stream](../words/stream.md), makes quotes and compounds and applies the erasers `si`, `sa` and `su`. [The indicator stage](../indicators/cll.md) attaches a run of indicators to the word before it, as CLL's non-formal rule `word = [BAhE] any-word [indicators]` says. Every cmavo reaches this grammar under each selma'o that [the CLL lexicon](../words/lexicon-cll.md) gives it. The material of a quote arrives tagged `word` or `quoted-text`, which is what `any-word` and `anything` read.
+The stages before it make the word stream that it reads. The forms stage ([forms.md](../words/forms.md), with a family of word forms and a lexicon) reads phonemes into words. The word stage, [the word stream](../words/stream.md), makes quotes and compounds. A non-formal rule is one that CLL's parser applies before the grammar proper. The word stage applies CLL's non-formal rule `null = any-word SI | utterance SA | text SU`, the erasers `si`, `sa` and `su`. CLL never defines the `utterance` that `sa` erases.
+
+[The indicator stage](../indicators/cll.md) attaches `ba'e` and indicators to their words, as CLL's non-formal rule `word = [BAhE] any-word [indicators]` says.
+
+Outside a quote, the earlier stages hand on some cmavo as tokens of their own. Each carries its class from [the CLL lexicon](../words/lexicon-cll.md). The material of a quote arrives tagged `word` or `quoted-text`, which is what `any-word` and `anything` read.
 
 [The notation document](../../docs/notation.md) explains the notation. Two of its points matter here. First, an elided terminator takes its `#` with it, so an elided `[+X #]` leaves no free-modifier slot (see `#` below) at that point. Second, when omitted terminators leave a text with more than one parse, the stage chooses the parse as "Choosing among parses" after the grammar says.
 
@@ -215,7 +219,7 @@ In `mi klama lo nu broda gi'e ke brode ke'e`, the group stays inside the `nu`, a
 
 - The tail is not the last one, as in `mi broda gi'e ke brode ke'e gi'a brodi` and `mi broda gi'e ke ga brode gi brodi ke'e do gi'a brodi`. The `ke` form must end its bridi-tail.
 - The tail goes on after `ke'e`, as in `mi broda gi'e ke brode ke'e brodi`.
-- A free modifier stands between the gihek and `ke`, as in `mi broda gi'e to do toi ke brode ke'e`. The `ke` form has no slot there. `bridi-tail-1-final` reads this case in its own alternative, through the rule `free-modifiers`, a `#` slot that is not empty.
+- A free modifier stands between the gihek and `ke`, as in `mi broda gi'e to do toi ke brode ke'e`. The `ke` form has no slot there. `bridi-tail-1-final` reads this case with `{free}`, which requires at least one free modifier.
 - The tail has two runs of tail terms. Its own VAU is written, and separate outer terms follow, as in `mi broda gi'e ke brode ke'e vau do`. Another example is `mi broda gi'e ke brode ke'e vau le le brodi brodo ku`. The group has only one run of tail terms after KEhE. `$KE-TAIL-WITH-VAU` tests the actual `tail-terms` child against `$WRITTEN-VAU`. That pattern requires a written VAU leaf after optional terms.
 
   The condition also requires nonempty outer tail terms. The corpus case `adhoc.syntax.gihek-ke-group-tail-term-vau` pins this boundary. In `mi broda gi'e ke brode ke'e do vau`, the plain parse omits its own VAU after `do`. Its next tail terms contain the written VAU, which cannot satisfy the pattern on the earlier child. Reconstruction keeps the omitted leaf sound empty.
@@ -258,13 +262,10 @@ The gek-sentence's tail terms follow the whole connection and apply to both side
 
 %rule bridi-tail-1-final
   | bridi-tail-2
-  | bridi-tail-1 gihek free-modifiers bridi-tail-2 tail-terms
+  | bridi-tail-1 gihek {free} bridi-tail-2 tail-terms
   | bridi-tail-1 gihek $t(bridi-tail-2) $v(tail-terms)
 %conditions
   $t ≇ $KE-TAIL ∨ ($t ≅ $KE-TAIL-WITH-VAU ∧ text($v) ≠ "")
-
-%rule free-modifiers
-  {free}
 
 %rule bridi-tail-2
   bridi-tail-3 [gihek [stag] BO # bridi-tail-2 tail-terms]
@@ -283,13 +284,12 @@ The gek-sentence's tail terms follow the whole connection and apply to both side
   [terms] [+VAU #]
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>sentence</code> to <code>tail-terms</code></summary>
+<details><summary>Railroad diagrams of the 9 rules from <code>sentence</code> to <code>tail-terms</code></summary>
 <p><img src="../../docs/diagrams/syntax/cll/sentence.svg" alt="Railroad diagram of the rule sentence"></p>
 <p><img src="../../docs/diagrams/syntax/cll/subsentence.svg" alt="Railroad diagram of the rule subsentence"></p>
 <p><img src="../../docs/diagrams/syntax/cll/bridi-tail.svg" alt="Railroad diagram of the rule bridi-tail"></p>
 <p><img src="../../docs/diagrams/syntax/cll/bridi-tail-1.svg" alt="Railroad diagram of the rule bridi-tail-1"></p>
 <p><img src="../../docs/diagrams/syntax/cll/bridi-tail-1-final.svg" alt="Railroad diagram of the rule bridi-tail-1-final"></p>
-<p><img src="../../docs/diagrams/syntax/cll/free-modifiers.svg" alt="Railroad diagram of the rule free-modifiers"></p>
 <p><img src="../../docs/diagrams/syntax/cll/bridi-tail-2.svg" alt="Railroad diagram of the rule bridi-tail-2"></p>
 <p><img src="../../docs/diagrams/syntax/cll/bridi-tail-3.svg" alt="Railroad diagram of the rule bridi-tail-3"></p>
 <p><img src="../../docs/diagrams/syntax/cll/gek-sentence.svg" alt="Railroad diagram of the rule gek-sentence"></p>
@@ -456,13 +456,14 @@ A tanru unit is one brick of the selbri. `tanru-unit` allows `cei` to assign the
 - `nu'a` before an operator
 - A conversion: `se`, `te`, `ve` or `xe`
 - `jai` with an optional tense or modal
-- A `zei` compound of any words
 - A scalar negation `na'e`
 - An abstraction: `nu`, `ka`, `du'u` or another word of NU before a subsentence, closed by `kei`
 
 The `SE`, `JAI` and `NAhE` forms refer back to `tanru-unit-2`, so `se se broda` and `na'e se broda` are single units. A jek or joik can connect several abstraction words (`nu je ka`). `abstractor-chain` reads them as a left chain, since such a connection cannot override the left-grouping rule (CLL 14.19).
 
-Each level of the chain holds its first abstractor. So a single abstractor with `nai` or with free modifiers is a node of its own, `[nu nai]`. The word stage builds each `zei` compound and hands on one `BRIVLA`, so the `ZEI` alternative never matches. This grammar keeps that alternative as CLL prints it.
+Each level of the chain holds its first abstractor. So a single abstractor with `nai` or free modifiers is a node of its own, `[nu nai]`.
+
+`tanru-unit-2` omits CLL's `any-word {ZEI any-word}` because the word stage builds each `zei` compound into one `BRIVLA`.
 
 ```jbogenbau
 %rule selbri
@@ -504,7 +505,6 @@ Each level of the chain holds its first abstractor. So a single abstractor with 
   | NUhA # mex-operator
   | SE # tanru-unit-2
   | JAI # [tag] tanru-unit-2
-  | any-word {ZEI any-word}
   | NAhE # tanru-unit-2
   | abstractor-chain subsentence [+KEI #]
 
@@ -536,15 +536,17 @@ Each level of the chain holds its first abstractor. So a single abstractor with 
 
 ## Numbers, lerfu strings and mekso
 
-A number is a string of PA words, such as the digits `pa` and `re` and the decimal point `pi`. Lerfu words can follow its first word (`pa re ci`, `pa xy.`). A lerfu string is the same thing, but it begins with a lerfu word (CLL 18.2, 17.8). A lerfu word is a member of BY, any word followed by `bu`, a `lau` shift before a lerfu word, or a `tei ... foi` compound. The word stage builds each letter word with `bu` and hands on one `BY`, so the `BU` alternative never matches. This grammar keeps that alternative as CLL prints it.
+A number is a string of PA words, such as the digits `pa` and `re` and the decimal point `pi`. Lerfu words can follow its first word (`pa re ci`, `pa xy.`). A lerfu string begins with a lerfu word instead (CLL 18.2, 17.8).
+
+A lerfu word is a BY word, a `lau` shift before a lerfu word, or a `tei ... foi` compound. `lerfu-word` omits CLL's `any-word BU` because the word stage builds each `bu` letter word into one `BY`.
 
 A number or letter string cannot end before another unit of the same run. A written `boi` ends the run. At the syntax stage, the run ends where no complete continuation unit begins.
 
 CLL 17.9 requires this boundary for letter strings. Example 17.27 requires `boi` before the following `PA` word. CLL 18.6 requires the boundary for numbers and function names. CLL 17.8 allows digits inside a letter string. CLL 17.11 repeats the function example with `boi`.
 
-Earlier stages attach indicators and combine words with `bu` into single letter words. So `li pa ui re` contains one number, with `ui` attached to `pa`. The syntax stage receives `pa` and `re` as consecutive continuation units.
+The indicator stage attaches indicators to their words. So `li pa ui re` contains one number, with `ui` attached to `pa`. The syntax stage receives `pa` and `re` as consecutive continuation units.
 
-A continuation unit is `PA` or a complete `lerfu-word`. It includes a BY word, a word with `bu`, a lerfu word with LAU prefixes, or a balanced TEI/FOI compound. Rule 987 permits LAU prefixes to repeat recursively. CLL 17.6 describes compounds, and CLL 17.14 lists the auxiliary cmavo. `FOI` closes the inner string and cannot continue it.
+A continuation unit is `PA` or a complete `lerfu-word`. It includes a BY word, a lerfu word with LAU prefixes, or a balanced TEI/FOI compound. Rule 987 permits LAU prefixes to repeat recursively. CLL 17.6 describes compounds, and CLL 17.14 lists the auxiliary cmavo. `FOI` closes the inner string and cannot continue it.
 
 The conditions on `number` and `lerfu-string` reject a boundary before another complete continuation unit. Each condition tests the whole run when its rule completes. This boundary holds even when splitting the run is the only way to parse the whole text.
 
@@ -648,7 +650,7 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
   PA | lerfu-word
 
 %rule lerfu-word
-  BY | any-word BU | LAU lerfu-word | TEI lerfu-string FOI
+  BY | LAU lerfu-word | TEI lerfu-string FOI
 ```
 
 <details><summary>Railroad diagrams of the 19 rules from <code>quantifier</code> to <code>lerfu-word</code></summary>
@@ -870,13 +872,12 @@ The `se'u`, `do'u`, `toi`, `boi` and `ve'o` here are elidable, but the grammar w
 A vocative is a run of COI words, each with an optional `nai`, or `doi`, or both in that order. Indicators are these:
 
 - The attitudinals and discursives, `UI` and `CAI`, with an optional `nai`
-- The hesitation `y`
 - The cancel `da'o`
 - `fu'o`, which closes a scope opened by `fu'e`
 
-The `Y` alternative never applies here. The word stage reads `.y.` as hesitation and drops it, as the Magic Words proposal treats it as whitespace. So no `Y` reaches this grammar.
+`indicator` omits CLL's `Y` because the forms stage reads `y` as hesitation and the word stage drops it.
 
-A run of indicators attaches to the preceding word, as CLL's non-formal rule below states. Thus, `indicators` appears only at the start of a text. Printed rule 411 allows one FUhE group there. This grammar instead permits each indicator to carry its own `fu'e`.
+The indicator stage attaches later indicator runs to their preceding words. This syntax reads separate indicators only at the start of a text. Printed rule 411 allows one FUhE group there. This grammar instead permits each indicator to carry its own `fu'e`.
 
 CLL 19.8 says that FUhO "cancels all in-force attitudinals". This grammar infers that several FUhE groups can remain active together, as the indicator stage permits after a word. A leading `fu'e` still needs an indicator. Thus, `fu'e ui mi klama` parses here, but the official parser rejects it.
 
@@ -884,9 +885,7 @@ CLL 19.8 says that FUhO "cancels all in-force attitudinals". This grammar infers
 %rule free
   | SEI # [terms [CU #]] selbri [+SEhU]
   | SOI # sumti [sumti] [+SEhU]
-  | vocative [relative-clauses] selbri [relative-clauses] [+DOhU]
-  | vocative [relative-clauses] {CMEVLA} # [relative-clauses] [+DOhU]
-  | vocative [sumti] [+DOhU]
+  | vocative [sumti | [relative-clauses] (selbri | {CMEVLA} #) [relative-clauses]] [+DOhU]
   | (number | lerfu-string) MAI
   | TO text [+TOI]
   | XI # (number | lerfu-string) [+BOI]
@@ -899,7 +898,7 @@ CLL 19.8 says that FUhO "cancels all in-force attitudinals". This grammar infers
   {[FUhE] indicator}
 
 %rule indicator
-  (UI | CAI) [NAI] | Y | DAhO | FUhO
+  (UI | CAI) [NAI] | DAhO | FUhO
 ```
 
 <details><summary>Railroad diagrams of <code>free</code>, <code>vocative</code>, <code>indicators</code> and <code>indicator</code></summary>
@@ -909,9 +908,9 @@ CLL 19.8 says that FUhO "cancels all in-force attitudinals". This grammar infers
 <p><img src="../../docs/diagrams/syntax/cll/indicator.svg" alt="Railroad diagram of the rule indicator"></p>
 </details>
 
-## The non-formal rules
+## Quote payloads
 
-CLL ends its grammar with four rules that it calls non-formal. A parser applies them before the grammar proper rather than through it (CLL 21). Two of them are the material of quotes. The word stage delimits every quote but `lu ... li'u`, and hands on a quoted word tagged `word` and a quoted unit tagged `quoted-text`. So here these two are ordinary rules:
+The word stage delimits every quote except `lu ... li'u` and emits its parts for syntax to assemble. A quoted word carries `word`, and a quoted unit carries `quoted-text`. These two rules read those parts:
 
 ```jbogenbau
 %rule any-word
@@ -925,13 +924,6 @@ CLL ends its grammar with four rules that it calls non-formal. A parser applies 
 <p><img src="../../docs/diagrams/syntax/cll/any-word.svg" alt="Railroad diagram of the rule any-word"></p>
 <p><img src="../../docs/diagrams/syntax/cll/anything.svg" alt="Railroad diagram of the rule anything"></p>
 </details>
-
-The stages before this one apply the other two. The indicator stage attaches `ba'e` and indicators to their words, and the word stage applies the erasers. The indicator stage lets several `ba'e` stand before one word, as in `mi ba'e ba'e klama`, where rule 1100 allows one. CLL 19.16 says that "Multiple BAhE cmavo may be used in succession". This document shows them as CLL prints them, for reference only. CLL does not define anywhere the `utterance` that `sa` erases.
-
-```text
-word = [BAhE] any-word [indicators]
-null = any-word SI | utterance SA | text SU
-```
 
 ## Choosing among parses
 
@@ -977,11 +969,11 @@ The shared elision policy follows CLL's general advice where the whole text dete
 
 ## Differences from the printed CLL grammar
 
-This grammar departs from the EBNF printed in CLL in ten places. The first settles a precedence that the printed text leaves open. The next three repair the EBNF's copy of the YACC grammar, the grammar of the official parser for the YACC parser generator. The EBNF uses that grammar as its source and cites its rule numbers. In each case, the YACC grammar has a path that the EBNF omits. The official parser accepts the text.
+This grammar departs from the EBNF printed in CLL in eleven places. The first settles a precedence that the printed text leaves open. The next three repair the EBNF's copy of the YACC grammar, the grammar of the official parser for the YACC parser generator. The EBNF uses that grammar as its source and cites its rule numbers. In each case, the YACC grammar has a path that the EBNF omits. The official parser accepts the text.
 
 The fifth adopts an inference from CLL 19.8 about several active FUhE groups. The sixth and seventh use conditions to prefer connective groups when both readings complete. They retain the plain reading when only it completes. Item 7 does not force an enclosing construct to close. In the nested abstraction under "Bridi-tails", `late-elision` instead keeps the plain reading, unlike the official lexer. The seventh also follows CLL 14.10 and 14.18.
 
-The eighth applies the grouping preference described under ["Tenses and modals"](#tenses-and-modals). The ninth follows the number and letter boundaries of CLL 17.9 and 18.6. The tenth repairs rule 83 so a tag governs its whole termset, as CLL 10.25 states. This grammar also spells printed `CMENE` as `CMEVLA`, the word stage's class for a name.
+The eighth applies the grouping preference described under ["Tenses and modals"](#tenses-and-modals). The ninth follows the number and letter boundaries of CLL 17.9 and 18.6. The tenth repairs rule 83 so a tag governs its whole termset, as CLL 10.25 states. The eleventh omits three printed alternatives that the earlier stages make unreachable. This grammar also spells printed `CMENE` as `CMEVLA`, the word stage's class for a name.
 
 Earlier stages also depart from CLL. [The word stream](../words/stream.md) lists six departures under "Departures from CLL, the proposal, and camxes-std". They concern SI, ZEI, BU, hesitation, LOhU, and ZOI. Its prose states each relationship to the Magic Words proposal.
 
@@ -1013,11 +1005,13 @@ Earlier stages also depart from CLL. [The word stream](../words/stream.md) lists
 
 10. In `term`, `tag termset` lets a tense or modal govern a whole termset. Printed rule 83 omits this alternative. CLL 10.25 explicitly allows it, and examples 10.189 and 10.190 give that structure. A written `ku` makes the tag and termset separate terms.
 
-The CLL errata page records the conflict between section 10.25 and printed rule 83 as NOFIX. Cowan writes:
+    The CLL errata page records the conflict between section 10.25 and printed rule 83 as NOFIX. Cowan writes:
 
-> Unfortunately true.  Termsets suck rocks, and some work will have to be done to make everything said about them consistent -- if it is even possible.  Personally, I'd like to just burn them.
+    > Unfortunately true.  Termsets suck rocks, and some work will have to be done to make everything said about them consistent -- if it is even possible.  Personally, I'd like to just burn them.
 
-This grammar resolves the conflict in favor of CLL 10.25. The official parser and camxes-std read the tag and termset as separate terms.
+    This grammar resolves the conflict in favor of CLL 10.25. The official parser and camxes-std read the tag and termset as separate terms.
+
+11. This grammar omits printed `any-word {ZEI any-word}` in `tanru-unit-2`, `any-word BU` in `lerfu-word`, and indicator `Y`. The word stage already builds `zei` compounds and `bu` letter words and drops hesitation.
 
 This grammar keeps the free-modifier slot after an elided terminator as printed: an elided `[+X #]` leaves no slot. So a free modifier cannot follow an elided `boi`, and where CLL example 17.38 writes `xy. xi ky.`, this grammar requires `xy. boi xi ky.`.
 
