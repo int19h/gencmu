@@ -1612,7 +1612,7 @@ fn ranked_runtime(grammar: &StageGrammar, lowered: &Lowered) -> RankedRuntime {
                     let own = &grammar.ranked.groups[group].names;
                     if reads.iter().any(|name| {
                         source_private[&slot.source].contains(name)
-                            && !(own.contains(name) && !nested.contains(name))
+                            && (!own.contains(name) || nested.contains(name))
                             && !known.contains(name)
                             && !local.contains_key(name)
                             && !available.contains(name)
