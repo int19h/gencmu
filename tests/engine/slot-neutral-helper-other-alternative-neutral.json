@@ -1,0 +1,42 @@
+{
+  "description": "A neutral other alternative helper stays outside slot template comparisons. Both the ranked and neutral readings remain valid. This input uses the neutral branch.",
+  "grammar": "%rule text (a | b) Z | [Q] Z\n%rule a X Y\n%rule b X Y\n%prefer a > b",
+  "tokens": [
+    {
+      "text": "q",
+      "tags": [
+        "Q"
+      ]
+    },
+    {
+      "text": "z",
+      "tags": [
+        "Z"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 11,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "terminal": "Q"
+          },
+          {
+            "terminal": "Z"
+          }
+        ]
+      },
+      "error": null
+    }
+  }
+}

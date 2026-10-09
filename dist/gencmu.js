@@ -2351,7 +2351,18 @@
         const variant = this.ruleVariants.get(reference.expression.ref);
         if (p.rhs.some(symbol => slotContainsDeep(this.helperExpressions.get(symbol.name) ?? {}, reference.expression))) return variant;
       }
-      return p.source && this.sourceVariants.get(p.source)?.get(component.id);
+      // Inline choices also lower neutral branches. A helper belongs to
+      // a variant only when that variant records its written expression.
+      /** @param {SlotVariant} variant */
+      const ownsHelpers = variant => (!p.helper || !!p.writtenExpression && variant.paths.has(p.writtenExpression)) &&
+        p.rhs.every(symbol => !this.helperExpressions.has(symbol.name) || variant.paths.has(this.helperExpressions.get(symbol.name)));
+      const fallback = p.source && this.sourceVariants.get(p.source)?.get(component.id);
+      if (fallback && ownsHelpers(fallback)) return fallback;
+      for (const reference of component.references) if (reference.source === p.source) {
+        const variant = /** @type {SlotVariant} */ (this.ruleVariants.get(reference.expression.ref));
+        if (ownsHelpers(variant)) return variant;
+      }
+      return undefined;
     }
 
     /** @param {SlotComponent} component @param {Set<string>} unsafe @param {any} expression @param {import("./types.js").Production[]} productions */
