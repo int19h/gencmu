@@ -237,6 +237,27 @@ export function choice(branches) {
     },
   };
 }
+
+/**
+ * A ranked group keeps its option numbers inside one frame.
+ * @param {Piece[]} branches
+ * @returns {Piece}
+ */
+export function rankedChoice(branches) {
+  const body = choice(branches.map((branch, index) => sequence([label(String(index + 1)), branch])));
+  const framed = {
+    width: body.width + 2 * GAP, up: body.up + GAP, down: body.down + GAP, height: body.height,
+    /** @param {number} x @param {number} y @param {string[]} out */
+    draw(x, y, out) {
+      out.push(`<g class="ranked-choice"><rect class="rank-frame" x="${n(x + GAP / 2)}" y="${n(y - body.up - GAP / 2)}" width="${n(body.width + GAP)}" height="${n(body.up + body.height + body.down + GAP)}" rx="4"/>`);
+      out.push(path(`M${n(x)} ${n(y)}h${GAP}`));
+      body.draw(x + GAP, y, out);
+      out.push(path(`M${n(x + GAP + body.width)} ${n(y + body.height)}h${GAP}`));
+      out.push("</g>");
+    },
+  };
+  return sequence([label("≻ same span"), framed]);
+}
 /**
  * The width that a note needs on the track, from where it begins, 4 pixels
  * in, to 4 pixels before its end.
@@ -425,7 +446,7 @@ export function testedElisions(rule) {
       const first = "seq" in expr.optional ? expr.optional.seq[0] : expr.optional;
       if ("test" in first) found.push(expr);
     }
-    for (const key of ["seq", "choice", "and", "optional", "repeat", "separator", "expr"]) if (key in expr) visit(expr[key]);
+    for (const key of ["seq", "choice", "ranked", "and", "optional", "repeat", "separator", "expr"]) if (key in expr) visit(expr[key]);
   };
   for (const alternative of rule.alternatives) visit(alternative.expr);
   return found;
@@ -539,6 +560,10 @@ export function expressionPiece(expr, limit = MAX_WIDTH, omission = unknownOmiss
   const framed = (part) => expressionPiece(part, inside, omission);
   if ("seq" in expr) return wrapped(expr.seq.map(framed), limit);
   if ("choice" in expr) return choice(expr.choice.map(framed));
+  if ("ranked" in expr) {
+    const room = inside - label("≻ same span").width - 3 * GAP - label(String(expr.ranked.length)).width;
+    return rankedChoice(expr.ranked.map((/** @type {any} */ option) => expressionPiece(option, room, omission)));
+  }
   // A & B & C reads any non-empty subsequence in order. So it is the choice
   // of where the subsequence begins, each item after that being optional.
   if ("and" in expr) {
@@ -606,6 +631,21 @@ const STYLE = [
 
 /** The note beside the name of a rule that has conditions. */
 export const CONDITIONS_NOTE = "conditions apply";
+/** The legend below a rule that contains a ranked choice. */
+export const RANKED_NOTE = "Only a qualified option over the same span removes lower options.";
+
+/** @param {any} rule */
+function hasRankedChoice(rule) {
+  const pending = rule.alternatives.map((/** @type {any} */ alternative) => alternative.expr);
+  while (pending.length) {
+    const expression = pending.pop();
+    if (Array.isArray(expression)) {for (const child of expression) pending.push(child);continue;}
+    if (!expression || typeof expression !== "object") continue;
+    if ("ranked" in expression) return true;
+    for (const key of ["seq", "choice", "and", "optional", "repeat", "separator", "expr"]) if (key in expression) pending.push(expression[key]);
+  }
+  return false;
+}
 
 /**
  * The SVG file of a rule: its name, then the track from a start mark to an
@@ -621,10 +661,12 @@ export function ruleSvg(rule, omission = unknownOmission) {
   const mark = 10;
   const titleWidth = length(rule.name) * CHAR_WIDTH;
   const conditioned = rule.conditions.length > 0;
+  const ranked = hasRankedChoice(rule);
   const heading = titleWidth + (conditioned ? 2 * GAP + length(CONDITIONS_NOTE) * LABEL_CHAR_WIDTH : 0);
-  const width = Math.ceil(Math.max(MARGIN * 2 + mark * 2 + body.width, MARGIN * 2 + heading));
+  const width = Math.ceil(Math.max(MARGIN * 2 + mark * 2 + body.width, MARGIN * 2 + heading, ranked ? MARGIN * 2 + length(RANKED_NOTE) * LABEL_CHAR_WIDTH : 0));
   const y = MARGIN + TITLE_HEIGHT + Math.max(body.up, BOX_HALF);
-  const height = Math.ceil(y + body.height + Math.max(body.down, BOX_HALF) + MARGIN);
+  const bottom = y + body.height + Math.max(body.down, BOX_HALF);
+  const height = Math.ceil(bottom + MARGIN + (ranked ? GAP + LABEL_HEIGHT : 0));
   /** @type {string[]} */
   const out = [];
   out.push(`<text class="title" x="${MARGIN}" y="${MARGIN + FONT_SIZE}"${fit(rule.name, CHAR_WIDTH)}>${escape(rule.name)}</text>`);
@@ -636,7 +678,9 @@ export function ruleSvg(rule, omission = unknownOmission) {
   const end = MARGIN + mark + body.width;
   const exit = y + body.height;
   out.push(path(`M${n(end)} ${n(exit)}h${mark - 4}m0 -8v16m4 -16v16`));
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escape(`Railroad diagram of the rule ${rule.name}`)}">\n<style>${STYLE}</style>\n<rect width="100%" height="100%" fill="#fff"/>\n${out.join("\n")}\n</svg>\n`;
+  if (ranked) out.push(`<text class="label" x="${MARGIN}" y="${n(bottom + GAP + LABEL_HEIGHT - 4)}"${fit(RANKED_NOTE, LABEL_CHAR_WIDTH)}>${RANKED_NOTE}</text>`);
+  const style = STYLE + (ranked ? ".rank-frame{fill:none;stroke:#777;stroke-width:1;stroke-dasharray:3 3}" : "");
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escape(`Railroad diagram of the rule ${rule.name}`)}">\n<style>${style}</style>\n<rect width="100%" height="100%" fill="#fff"/>\n${out.join("\n")}\n</svg>\n`;
 }
 
 // ---- The diagrams in the grammar documents ---------------------------------
