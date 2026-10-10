@@ -378,7 +378,6 @@ export type Expr = {
 } | {
     optional: Expr;
     elidable?: true;
-    maximal?: true;
 } | {
     capture: string;
     expr: Expr;
@@ -589,12 +588,6 @@ export type Resolution = {
 export type LoweredGrammar = {
     productions: Production[];
     byLhs: Map<string, Production[]>;
-    /**
-     * the helpers of the elidable
-     * optionals written [++T x], whose terminators are maximal (engine §3.8,
-     * §4)
-     */
-    maximalHelpers: Set<string>;
     resolution: Resolution;
     ranked: import("./ranked.js").RankedGroups;
     /**
@@ -1026,7 +1019,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * A rule body expression.
  * @typedef {{choice: Expr[]} | {ranked: Expr[]} | {and: Expr[]} | {seq: Expr[]}
  *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
- *   | {optional: Expr, elidable?: true, maximal?: true} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
+ *   | {optional: Expr, elidable?: true} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
  *   | {range: [string, string]} | {property: string}
  *   | {test: TestOp, value: Term, expr: TestedSymbol} | {empty: true}} Expr
  */
@@ -1166,9 +1159,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} LoweredGrammar
  * @property {Production[]} productions
  * @property {Map<string, Production[]>} byLhs
- * @property {Set<string>} maximalHelpers the helpers of the elidable
- *   optionals written [++T x], whose terminators are maximal (engine §3.8,
- *   §4)
  * @property {Resolution} resolution
  * @property {import("./ranked.js").RankedGroups} ranked
  * @property {Map<string, Map<string, TagSet>>} classifiers each classifier

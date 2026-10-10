@@ -133,12 +133,7 @@
       "F2"
     ],
     "reparse-query-plain-terminator.json": [
-      "F2",
-      "F6"
-    ],
-    "reparse-query-maximal-terminal.json": [
-      "F2",
-      "F5"
+      "F2"
     ],
     "reparse-query-nested-bounds.json": [
       "F4"
@@ -159,12 +154,8 @@
       "F7:capture",
       "F9"
     ],
-    "reparse-root-maximal-markers.json": [
-      "F20"
-    ],
-    "reparse-root-maximal-terminal.json": [
-      "F20"
-    ],
+    "reparse-root-ordinary-markers.json": [],
+    "reparse-root-ordinary-terminal.json": [],
     "reparse-same-boundary-order.json": [
       "F27:order"
     ],
@@ -412,7 +403,6 @@
       "reparse-query-main-lowering-begins.json": "result+hook",
       "reparse-query-main-lowering-tags.json": "result+hook",
       "reparse-query-main-lowering.json": "result+hook",
-      "reparse-query-maximal-terminal.json": "result",
       "reparse-query-plain-terminator.json": "result+hook",
       "reparse-recursion-root-context.json": "result"
     },
@@ -429,12 +419,6 @@
     "F4": {
       "reparse-query-long-collision.json": "result+hook",
       "reparse-query-nested-bounds.json": "result+hook"
-    },
-    "F5": {
-      "reparse-query-maximal-terminal.json": "result"
-    },
-    "F6": {
-      "reparse-query-plain-terminator.json": "result+hook"
     },
     "F7:capture": {
       "reparse-reference-tag-test.json": "result",
@@ -517,15 +501,14 @@
       "reparse-query-main-lowering-begins.json": "result+hook",
       "reparse-query-main-lowering-tags.json": "result+hook",
       "reparse-query-main-lowering.json": "result+hook",
-      "reparse-query-maximal-terminal.json": "result+hook",
       "reparse-query-nested-bounds.json": "result+hook",
       "reparse-query-original-tokens.json": "result+hook",
       "reparse-query-plain-terminator.json": "result+hook",
       "reparse-recursion-root-context.json": "result",
       "reparse-reference-sound-test.json": "hook",
       "reparse-reference-tag-test.json": "hook",
-      "reparse-root-maximal-markers.json": "result+hook",
-      "reparse-root-maximal-terminal.json": "result+hook",
+      "reparse-root-ordinary-markers.json": "result+hook",
+      "reparse-root-ordinary-terminal.json": "result+hook",
       "reparse-same-boundary-order.json": "result+hook",
       "reparse-strict-empty-before-reading-control.json": "result",
       "reparse-strict-later-reading-symbol.json": "result+hook",
@@ -615,15 +598,14 @@
       "reparse-query-main-lowering-begins.json": "result",
       "reparse-query-main-lowering-tags.json": "result",
       "reparse-query-main-lowering.json": "result",
-      "reparse-query-maximal-terminal.json": "result",
       "reparse-query-nested-bounds.json": "result",
       "reparse-query-original-tokens.json": "result",
       "reparse-query-plain-terminator.json": "result",
       "reparse-recursion-root-context.json": "result",
       "reparse-reference-sound-test.json": "result",
       "reparse-reference-tag-test.json": "result",
-      "reparse-root-maximal-markers.json": "result",
-      "reparse-root-maximal-terminal.json": "result",
+      "reparse-root-ordinary-markers.json": "result",
+      "reparse-root-ordinary-terminal.json": "result",
       "reparse-same-boundary-order.json": "result",
       "reparse-strict-empty-before-reading-control.json": "result",
       "reparse-strict-least-fixpoint.json": "result",
@@ -676,10 +658,6 @@
     "F19": {
       "reparse-projected-cycle.json": "result"
     },
-    "F20": {
-      "reparse-root-maximal-markers.json": "result",
-      "reparse-root-maximal-terminal.json": "result"
-    },
     "F21": {
       "reparse-query-long-collision.json": "result+hook"
     },
@@ -724,8 +702,8 @@
     "F27:order": {
       "reparse-incompatible-optional-sound.json": "result+hook",
       "reparse-projected-cycle.json": "result+hook",
-      "reparse-root-maximal-markers.json": "result+hook",
-      "reparse-root-maximal-terminal.json": "result+hook",
+      "reparse-root-ordinary-markers.json": "result+hook",
+      "reparse-root-ordinary-terminal.json": "result+hook",
       "reparse-same-boundary-order.json": "result+hook",
       "reparse-strict-nested-route.json": "result+hook",
       "reparse-synthetic-suffix-consumes-synthetic.json": "result+hook",
@@ -769,15 +747,14 @@
       "reparse-query-main-lowering-begins.json": "result+hook",
       "reparse-query-main-lowering-tags.json": "result+hook",
       "reparse-query-main-lowering.json": "result+hook",
-      "reparse-query-maximal-terminal.json": "result+hook",
       "reparse-query-nested-bounds.json": "result+hook",
       "reparse-query-original-tokens.json": "result+hook",
       "reparse-query-plain-terminator.json": "result+hook",
       "reparse-recursion-root-context.json": "result+hook",
       "reparse-reference-sound-test.json": "result+hook",
       "reparse-reference-tag-test.json": "result+hook",
-      "reparse-root-maximal-markers.json": "result+hook",
-      "reparse-root-maximal-terminal.json": "result+hook",
+      "reparse-root-ordinary-markers.json": "result+hook",
+      "reparse-root-ordinary-terminal.json": "result+hook",
       "reparse-same-boundary-order.json": "result+hook",
       "reparse-strict-empty-before-reading-control.json": "result+hook",
       "reparse-strict-later-reading-symbol.json": "result+hook",
@@ -881,15 +858,14 @@
       "reparse-query-main-lowering-begins.json": "result+hook",
       "reparse-query-main-lowering-tags.json": "result+hook",
       "reparse-query-main-lowering.json": "result+hook",
-      "reparse-query-maximal-terminal.json": "result+hook",
       "reparse-query-nested-bounds.json": "result+hook",
       "reparse-query-original-tokens.json": "result+hook",
       "reparse-query-plain-terminator.json": "result+hook",
       "reparse-recursion-root-context.json": "result+hook",
       "reparse-reference-sound-test.json": "result+hook",
       "reparse-reference-tag-test.json": "result+hook",
-      "reparse-root-maximal-markers.json": "result+hook",
-      "reparse-root-maximal-terminal.json": "result+hook",
+      "reparse-root-ordinary-markers.json": "result+hook",
+      "reparse-root-ordinary-terminal.json": "result+hook",
       "reparse-same-boundary-order.json": "result+hook",
       "reparse-strict-empty-before-reading-control.json": "result+hook",
       "reparse-strict-later-reading-symbol.json": "result+hook",
@@ -980,13 +956,12 @@
       "reparse-query-main-lowering-begins.json": "result",
       "reparse-query-main-lowering-tags.json": "result",
       "reparse-query-main-lowering.json": "result",
-      "reparse-query-maximal-terminal.json": "result",
       "reparse-query-nested-bounds.json": "result",
       "reparse-query-original-tokens.json": "result",
       "reparse-query-plain-terminator.json": "result",
       "reparse-recursion-root-context.json": "result",
-      "reparse-root-maximal-markers.json": "result",
-      "reparse-root-maximal-terminal.json": "result",
+      "reparse-root-ordinary-markers.json": "result",
+      "reparse-root-ordinary-terminal.json": "result",
       "reparse-same-boundary-order.json": "result",
       "reparse-strict-later-reading-symbol.json": "result",
       "reparse-strict-nested-route.json": "result",

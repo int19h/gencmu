@@ -1,5 +1,5 @@
 {
-  "description": "The control of maximal-terminator-main with [+T] in place of [++T]: nothing restricts the omission, and the text parses (engine §4).",
+  "description": "An ordinary omission permits the complete reading without reserving the preceding constituent.",
   "grammar": "%ambiguity-resolution greedy\n%rule text A body [+T] B\n%rule body X | X B",
   "tokens": [
     {

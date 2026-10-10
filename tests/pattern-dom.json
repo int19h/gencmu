@@ -841,374 +841,6 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator =.",
-    "expr": {
-      "optional": {
-        "test": "=",
-        "value": {
-          "string": ""
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true,
-      "maximal": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator =.",
-    "expr": {
-      "optional": {
-        "test": "=",
-        "value": {
-          "string": "t"
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true,
-      "maximal": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ≠.",
-    "expr": {
-      "optional": {
-        "test": "≠",
-        "value": {
-          "string": ""
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true,
-      "maximal": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ≠.",
-    "expr": {
-      "optional": {
-        "test": "≠",
-        "value": {
-          "string": "t"
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true,
-      "maximal": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ⊇.",
-    "expr": {
-      "optional": {
-        "test": "⊇",
-        "value": {
-          "emptySet": true
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true,
-      "maximal": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ⊇.",
-    "expr": {
-      "optional": {
-        "test": "⊇",
-        "value": {
-          "tag": "T"
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true,
-      "maximal": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ⊇.",
-    "expr": {
-      "optional": {
-        "test": "⊇",
-        "value": {
-          "tag": "U"
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true,
-      "maximal": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ⊇.",
-    "expr": {
-      "optional": {
-        "test": "⊇",
-        "value": {
-          "union": [
-            {
-              "tag": "T"
-            },
-            {
-              "tag": "U"
-            }
-          ]
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true,
-      "maximal": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ⊉.",
-    "expr": {
-      "optional": {
-        "test": "⊉",
-        "value": {
-          "emptySet": true
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true,
-      "maximal": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ⊉.",
-    "expr": {
-      "optional": {
-        "test": "⊉",
-        "value": {
-          "tag": "T"
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true,
-      "maximal": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ⊉.",
-    "expr": {
-      "optional": {
-        "test": "⊉",
-        "value": {
-          "tag": "U"
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true,
-      "maximal": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ⊉.",
-    "expr": {
-      "optional": {
-        "test": "⊉",
-        "value": {
-          "union": [
-            {
-              "tag": "T"
-            },
-            {
-              "tag": "U"
-            }
-          ]
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true,
-      "maximal": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ∩=∅.",
-    "expr": {
-      "optional": {
-        "test": "∩=∅",
-        "value": {
-          "emptySet": true
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true,
-      "maximal": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ∩=∅.",
-    "expr": {
-      "optional": {
-        "test": "∩=∅",
-        "value": {
-          "tag": "T"
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true,
-      "maximal": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ∩=∅.",
-    "expr": {
-      "optional": {
-        "test": "∩=∅",
-        "value": {
-          "tag": "U"
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true,
-      "maximal": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ∩=∅.",
-    "expr": {
-      "optional": {
-        "test": "∩=∅",
-        "value": {
-          "union": [
-            {
-              "tag": "T"
-            },
-            {
-              "tag": "U"
-            }
-          ]
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true,
-      "maximal": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ∩≠∅.",
-    "expr": {
-      "optional": {
-        "test": "∩≠∅",
-        "value": {
-          "emptySet": true
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true,
-      "maximal": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ∩≠∅.",
-    "expr": {
-      "optional": {
-        "test": "∩≠∅",
-        "value": {
-          "tag": "T"
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true,
-      "maximal": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ∩≠∅.",
-    "expr": {
-      "optional": {
-        "test": "∩≠∅",
-        "value": {
-          "tag": "U"
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true,
-      "maximal": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ∩≠∅.",
-    "expr": {
-      "optional": {
-        "test": "∩≠∅",
-        "value": {
-          "union": [
-            {
-              "tag": "T"
-            },
-            {
-              "tag": "U"
-            }
-          ]
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true,
-      "maximal": true
-    },
-    "malformed": false
-  },
-  {
     "description": "A pattern separator must be a children expression: None.",
     "pattern": {
       "children": {
@@ -1388,6 +1020,39 @@
           }
         ]
       }
+    },
+    "malformed": true
+  },
+  {
+    "description": "An optional with any maximal member is malformed.",
+    "expr": {
+      "optional": {
+        "ref": "T"
+      },
+      "elidable": true,
+      "maximal": true
+    },
+    "malformed": true
+  },
+  {
+    "description": "An optional with any maximal member is malformed.",
+    "expr": {
+      "optional": {
+        "ref": "T"
+      },
+      "elidable": true,
+      "maximal": false
+    },
+    "malformed": true
+  },
+  {
+    "description": "An optional with any maximal member is malformed.",
+    "expr": {
+      "optional": {
+        "ref": "T"
+      },
+      "elidable": true,
+      "maximal": null
     },
     "malformed": true
   }
