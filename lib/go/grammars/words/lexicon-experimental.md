@@ -4,9 +4,7 @@ This document is the lexicon of the forms stage in the [experimental](../dialect
 
 The lexicon gives each cmavo the selma'o that camxes-exp, the experimental PEG (parsing expression grammar), gives it. It holds the cmavo of CLL (*The Complete Lojban Language*) and the experimental cmavo that camxes-exp reads. `tools/peg-lexicon.js` writes the classifier below from the selma'o lists of `camxes-exp.peg` in ilmentufa, as of commit 7cf6cab. A maintainer changes the lexicon by running the tool again.
 
-The tool omits camxes-exp's Y because the forms stage reads a run of `y` as hesitation instead of a cmavo.
-
-Each entry lists words by their canonical sound and gives them one selma'o, as [lexicon-cll.md](lexicon-cll.md) explains. camxes-exp gives each word one selma'o. It gives three CLL words another class than CLL does. `la`, `lai` and `la'i` are LE, because camxes-exp reads a name as a selbri, a predicate.
+Each entry lists words by their canonical sound and gives them one selma'o, as [lexicon-cll.md](lexicon-cll.md) explains. A selbri is a predicate. `la`, `lai` and `la'i` are LE because a name can be a selbri.
 
 The implication after the entries marks some words `indicator`, which the indicator stage reads. They are an attitudinal, a CAI word, `da'o`, `fu'e` and `fu'o`. camxes-exp also reads a bare NAI as an indicator, and [the experimental word forms](experimental.md) mark the NAI words so.
 
@@ -171,3 +169,9 @@ The implication after the entries marks some words `indicator`, which the indica
 ```jbogenbau
 %implies UI ∪ CAI ∪ DAhO ∪ FUhE ∪ FUhO ⟹ ~indicator
 ```
+
+## Differences from CLL and camxes-exp
+
+The tool omits camxes-exp's Y because the forms stage reads a run of `y` as hesitation instead of a cmavo.
+
+camxes-exp gives each word one selma'o. It reassigns the CLL words `la`, `lai` and `la'i` to LE because it reads names as selbri. This classifier retains those classes.
