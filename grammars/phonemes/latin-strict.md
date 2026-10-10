@@ -1,6 +1,8 @@
 # The Latin orthography of CLL
 
-This document opens the phoneme stage. A stage is one step of a pipeline, with its own grammar. Each stage reads what the stage before it emits. The phoneme stage is the first stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). CLL is *The Complete Lojban Language*, the reference grammar of Lojban. The stage reads the characters of a text and hands the forms stage the phonemes they stand for.
+CLL is *The Complete Lojban Language*, the reference grammar of Lojban. BPFK is the Lojban language planning committee. This document opens the phoneme stage. A stage is one step of a pipeline, with its own grammar. Each stage reads what the stage before it emits.
+
+The phoneme stage is the first stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the characters of a text and hands the forms stage the phonemes they stand for.
 
 This document reads the Latin orthography of CLL[^cll-c3] and no more. The CLL dialect adds only the Cyrillic of CLL[^cll-s3-12], in [cyrillic-cll.md](cyrillic-cll.md). The other dialects add that too. They also add the conventions of [latin.md](latin.md), such as digits and accents, and the scripts of [cyrillic.md](cyrillic.md) and [zbalermorna.md](zbalermorna.md). [The notation document](../../docs/notation.md) explains the notation.
 

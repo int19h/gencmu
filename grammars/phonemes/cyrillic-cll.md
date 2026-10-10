@@ -1,6 +1,8 @@
 # The Cyrillic orthography of CLL
 
-This document adds the Cyrillic orthography of CLL[^cll-s3-12] to the phoneme stage, the first stage of the pipeline. CLL is *The Complete Lojban Language*. The [CLL](../dialects/cll-ebnf.md) dialect reads it as its Cyrillic. The dialects of the [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read gencmu's own Cyrillic, [cyrillic.md](cyrillic.md), unless a caller turns on the feature `cll-cyrillic`. A feature is a named switch that the grammars test.
+CLL is *The Complete Lojban Language*. BPFK is the Lojban language planning committee. This document adds the Cyrillic orthography of CLL[^cll-s3-12] to the phoneme stage, the first stage of the pipeline. The [CLL](../dialects/cll-ebnf.md) dialect reads it as its Cyrillic.
+
+The dialects of the [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read gencmu's own Cyrillic, [cyrillic.md](cyrillic.md), unless a caller turns on the feature `cll-cyrillic`. A feature is a named switch that the grammars test.
 
 The two read the same letters differently, so a dialect or a caller chooses one of them. The letters of this document apply only while `cll-cyrillic` is on. The document has no frame of its own, that is, no rules for the text, its pauses and its runs. It adds its letters to the rules of [latin-strict.md](latin-strict.md), so a text can mix scripts. [The notation document](../../docs/notation.md) explains the notation.
 
@@ -61,6 +63,6 @@ The apostrophe, the comma and the period are those of the Latin orthography. The
 
 ## Choices beyond CLL
 
-CLL first lists 22 letters, then separately assigns the Bulgarian hard sign to `y`.[^cll-s3-12] This grammar maps all 23 letters. It says nothing about capitals. This document extends the Latin treatment of capitals to Cyrillic. Its capital vowels always mark stress, including in dialects with capital folding for other scripts.
+CLL first lists 22 letters, then separately assigns the Bulgarian hard sign to `y`.[^cll-s3-12] This grammar maps all 23 letters. CLL says nothing about capitals. This document extends the Latin treatment of capitals to Cyrillic. Its capital vowels always mark stress, including in dialects with capital folding for other scripts.
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).

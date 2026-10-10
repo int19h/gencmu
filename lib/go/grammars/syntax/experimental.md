@@ -1042,7 +1042,9 @@ camxes-exp names its heads before bridi-tails JACU, after a proposal for simpler
 
 ### Terms and descriptions
 
-The two levels of term connection correspond to camxes-exp's `term_1` and `term_2`. Its `joik_ek` and `joik_jek` include JOI, JA, A and VUhU. This layer uses those classes for term, sumti and selbri connectives too. This layer's tagged and bare-`na` terms in a list correspond to `abs_tag_term`. Single terms and bare forethought branches correspond to `tag_term`. The latter has no `!selbri` or `!gek_sentence` lookahead. The two lookaheads after a plain term connective preserve connections of bridi-tails and sentences.
+The two levels of term connection correspond to camxes-exp's `term_1` and `term_2`. Its `joik_ek` and `joik_jek` include JOI, JA, A and VUhU. This layer uses those classes for term, sumti and selbri connectives too. This layer's tagged and bare-`na` terms in a list correspond to `abs_tag_term`. Single terms and bare forethought branches correspond to `tag_term`.
+
+The latter has no `!selbri` or `!gek_sentence` lookahead. The two lookaheads after a plain term connective preserve connections of bridi-tails and sentences.
 
 camxes-exp requires a stag before `bo` in `abs_term_2`. This layer permits its omission, so `fa mi .e bo fe do klama` parses here and fails there. camxes-exp prefers sumti over term connections by trying sumti first. This layer uses conditions because the competing readings elide the same terminators. Both therefore prefer the sumti when both readings complete.
 
