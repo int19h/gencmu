@@ -151,6 +151,10 @@ Two other differences come from what the grammars allow. First, after `vu'o`, a 
 
 Second, camxes-exp's selbri has a form with an ek, a tag and `ke` (`.e ba ke`), which this grammar does not have yet. So camxes-exp accepts `le dakli .e ba ke bevri ke'e ku`, and the dialect rejects it. And in `mi bevri le dakli .ebake bevri le gerku`, camxes-exp reads one tanru (compound selbri) inside the description, where the dialect joins two bridi-tails.
 
+A free modifier after a subscript can belong to the subscript or to the word that the subscript marks. The dialect gives it to the word, as CLL's grammar does. So in `mi broda xi pa boi to do toi`, the parenthesis belongs to `broda`. camxes-exp gives it to the subscript.
+
+In `ge nai abu gi no drata`, a forethought connective can connect two sumti or make a quantifier. The dialect connects the sumti `abu` and `no drata`, as CLL does. A CLL quantifier is a number or a `vei ... ve'o` group. camxes-exp reads the quantifier `ge nai abu gi no` with the selbri `drata`. Where no sumti reading remains, the dialect rejects the text, as CLL does. So it rejects `ge abu gi by broda cu klama`, which camxes-exp reads with the quantifier `ge abu gi by`.
+
 ### Quotes and indicators
 
 A replacement quote is one unit of raw words in the word stage (`../words/lohai.md`), as in camxes-exp. A magic word is a word, such as `si`, that acts on other words. A magic word after the quote acts on all of it, as the left-to-right rule requires. Zantufa also accepts all four texts below, but its `zei` erases, so it reads the compound as `broda`. camxes-exp rejects them:
@@ -166,10 +170,6 @@ Indicators after `to` and `to'i` attach to the opener, as camxes-exp's `TO_post`
 Indicators after `lu` begin the quoted content. CLL[^cll-s21-1] writes `LU text`, and the text-initial exception of CLL[^cll-s13-9] gives initial indicators scope over what follows. The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary. Its [closing comparison](../indicators/cll.md#differences-from-cll-and-camxes-std) describes the official parser, CLL's reference implementation.
 
 A quote or a parenthesis whose terminator is elided can hold a fragment of terms or a whole sentence. So `to mi klama` holds `mi` or `mi klama`. The reading with `mi` elides `vau` and `toi` after `mi`, so `late-elision` takes the sentence, as camxes-exp does.
-
-A free modifier after a subscript can belong to the subscript or to the word that the subscript marks. The dialect gives it to the word, as CLL's grammar does. So in `mi broda xi pa boi to do toi`, the parenthesis belongs to `broda`. camxes-exp gives it to the subscript.
-
-In `ge nai abu gi no drata`, a forethought connective can connect two sumti or make a quantifier. The dialect connects the sumti `abu` and `no drata`, as CLL does. A CLL quantifier is a number or a `vei ... ve'o` group. camxes-exp reads the quantifier `ge nai abu gi no` with the selbri `drata`. Where no sumti reading remains, the dialect rejects the text, as CLL does. So it rejects `ge abu gi by broda cu klama`, which camxes-exp reads with the quantifier `ge abu gi by`.
 
 ### Erasure
 

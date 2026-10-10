@@ -563,9 +563,12 @@ In a few places CLL 1.1 is silent, or two passages disagree. This grammar reads 
 
 ### Stress and syllables
 
-- Stress and pauses: CLL[^cll-s4-9] rule 5 asks for a pause after a stressed last syllable before a brivla. CLL[^cll-s4-2] asks for one between two stressed syllables, whatever the words. CLL states the stress rule as follows. Both rules hold here, so `mIdO` needs a pause.
+- Stress and pauses: CLL[^cll-s4-9] rule 5 asks for a pause after a stressed last syllable before a brivla. CLL[^cll-s4-2] asks for one between two stressed syllables, whatever the words. CLL states the stress rule as follows.
 
   > If the final syllable of one word is stressed, and the first syllable of the next word is stressed, you must insert a pause
+
+  Both rules hold here, so `mIdO` needs a pause.
+
 - Syllables: A syllabic consonant adds no syllable. So the first and last syllables of a word are those of its first and last written vowels, `y` included.
 - An unmarked brivla is stressed on the penultimate syllable, counted to the next pause (CLL[^cll-s3-9]). So `klamacy.` is `klama cy.`, and `klamabu` is one borrowing, like `denpabu`.
 - Capital letters: A capital on either letter of a diphthong, or on both, marks one stressed syllable, so `bAIkla` is a lujvo. A capital `Y` can mark stress in a name or a cmavo, whose stress can fall on any syllable. It never stands in a brivla, whose `y` is not counted.

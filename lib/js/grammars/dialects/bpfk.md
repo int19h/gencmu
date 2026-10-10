@@ -1,6 +1,6 @@
 # CLL syntax with BPFK word forms
 
-This dialect combines syntax from *The Complete Lojban Language* (CLL) with the working word forms of the BPFK, the Lojban language planning committee. That morphology uses a parsing expression grammar (PEG).
+This dialect combines syntax from *The Complete Lojban Language* (CLL) with the working word forms of the BPFK, the Lojban language planning committee. Those word forms use a parsing expression grammar (PEG).
 
 [CLL 1.3.4](https://github.com/int19h/cll/blob/v1.3.4/chapters/a02.xml) prints that grammar in appendix A2. [`../words/bpfk.md`](../words/bpfk.md) translates that grammar rule by rule.
 

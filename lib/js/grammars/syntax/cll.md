@@ -872,7 +872,7 @@ For example, `le sutra tavla` has two parses. One is a statement with the descri
 
 ## Differences from the printed CLL grammar
 
-This grammar departs from the EBNF printed in CLL in eleven places. The first settles a precedence that the printed text leaves open. The next three repair the EBNF's copy of the YACC grammar, used by the official parser, CLL's reference implementation. YACC is a parser generator. The EBNF uses that grammar as its source and cites its rule numbers. In each case, the YACC grammar has a path that the EBNF omits. The official parser accepts the text.
+This grammar departs from the EBNF printed in CLL in eleven places. The first settles a precedence that the printed text leaves open. The next three repair the EBNF's copy of the YACC grammar, used by the official parser, CLL's reference implementation. YACC is a parser generator. The EBNF cites that grammar's rule numbers. In each case, the YACC grammar has a path that the EBNF omits, and the official parser accepts the text.
 
 The fifth adopts an inference from CLL[^cll-s19-8] about several active FUhE groups. The sixth and seventh use conditions to prefer connective groups when both readings complete. They retain the plain reading when only it completes. The seventh follows CLL's grouping descriptions[^cll-s14-10][^cll-s14-18] and compares the official lexer, the component that divides input into tokens.
 
