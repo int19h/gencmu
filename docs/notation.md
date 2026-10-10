@@ -90,6 +90,8 @@ A string is text in straight double quotes, such as `"la"`. It is a value in a c
 
 ## Tests
 
+A span is a range between input token boundaries.
+
 A reference or a terminal in a body can carry one test on its own span. Here, `X` stands for the symbol:
 
 - `X="s"` holds where the canonical sound of the span, `phonemes()` (see "Conditions"), is `s`. `X≠"s"` holds where it is not.
@@ -207,13 +209,13 @@ Where the suffix is plain and `s` does not begin with an elidable optional, the 
 
 ## Ranked choices
 
-The parses that survive ranked filtering are admitted.
-
 A ranked choice writes its preferred option first: `(a ≻ b ≻ c)`. Each option can contain a sequence. Parentheses delimit a ranked choice inside a larger expression.
 
-A span is the range between two input token boundaries. A prefix context is recognition state before the group. Only options of the same group in the same prefix context compete ([engine §6.1](engine.md#61-ranked-admission-before-ranking)).
+A prefix context is recognition state before the group. Only options of the same group in the same prefix context compete ([engine §6.1](engine.md#61-ranked-admission-before-ranking)).
 
 A lower option disappears where an earlier option qualifies over the same span. Qualification requires its tests and ready conditions to pass. A condition is ready when every capture that it reads is bound. A failing higher option removes nothing.
+
+The parses that survive ranked filtering are admitted.
 
 Earlier options also outrank later options when intervening options are absent. An ordinary choice inside an option gives its branches equal rank. Different spans still compete through the ordinary stage ranking.
 
@@ -223,6 +225,8 @@ Earlier options also outrank later options when intervening options are absent. 
 ```
 
 Binding, from strongest to weakest, is primary expressions, sequence, `&`, then choice. At a choice level, the separator is either `|` or `≻`. Mixing them at that level is a reader error. Parentheses start a new level.
+
+A seal is an opaque leaf supplied by a ranked choice. Outside patterns cannot inspect the selected option through this leaf.
 
 | Text | Meaning |
 | --- | --- |
@@ -234,14 +238,14 @@ Binding, from strongest to weakest, is primary expressions, sequence, `&`, then 
 | `(a ≻ b) \| c` | Keep `c` outside the ranked group. |
 | `a ≻ (b ≻ c)` | Give the inner expression its own group and seal. |
 | `[a ≻ b]` | Keep the absent optional route outside the ranked group. |
-| `{(a ≻ b)}` | Repeat ranked items under the existing nonnullability rule. |
+| `{(a ≻ b)}` | Repeat ranked items that must read at least one token. |
 | `(ε ≻ a)` | Compare empty options only against other empty options. |
 
 Thus `a | b ≻ c` and `a ≻ b | c` require parentheses. A whole rule body can be `a ≻ b`. A leading `|` starts the ordinary alternative list, so `| a ≻ b` also requires parentheses.
 
 Every ranked expression needs at least two nonempty written operands. `ε` supplies an explicit empty operand. Each operand is a complete conjunction expression. `≻` has no operator meaning inside strings, conditions, or tree patterns.
 
-Optionals and repetitions accept ranked content in their existing expression positions. A repetition separator can contain a ranked group too. Ranking does not permit nullable repetition items or change the required leading terminal of an elidable optional.
+Optionals and repetitions accept ranked content in their existing expression positions. A repetition separator can contain a ranked group too. Repetition items must still read at least one token. An elidable optional still requires its leading terminal.
 
 Ranked options have no local guard, tag clause, or emission clause. Ordinary alternative guards and trailing tags apply to the whole expression. A named rule can express a feature-dependent category.
 
@@ -251,13 +255,13 @@ The whole-parent `$` becomes ready only when its named alternative completes. A 
 
 Outside patterns see one seal for the whole ranked choice, even when its completed option is empty. They cannot inspect its names, children, or option. Descendant, first-path, last-path, and sole-child walks stop there.
 
-Internal named rules and ready conditions on their captures retain their own pattern views. The seal changes no output tree, omission, action, or captured constituent. An author who needs that hidden structure outside the choice cannot rank that position.
+An action reads one token or closes a constituent. Internal named rules and ready conditions on their captures retain their own pattern views. The seal changes no output tree, omission, action, or captured constituent. An author who needs that hidden structure outside the choice cannot rank that position.
 
 The choice must discard its returned tags locally or return a provably empty set. A common explicit tag term can replace inheritance. The loader applies the closure in engine §2.1. A private capture cannot supply that common term.
 
 `begins`, `matches`, and two-argument `tags` inspect readings allowed by recognition before ranked filtering ([engine §4](engine.md#4-recognition)). `tags(span, rule)` remains a union over those readings.
 
-After admission, flagged profiles precede the stage directive. With no flagged rule, every profile is zero, so the stage directive alone ranks the admitted parses.
+After admission, rule flags take precedence over the stage directive. With no flagged rule, the stage directive alone ranks the admitted parses.
 
 ## Feature guards
 
@@ -358,7 +362,7 @@ Patterns observe named rules, terminal reads and omitted terminators before brac
 
 A terminal leaf records the terminal that read it, rather than every tag on its token. An omitted T contributes one leaf labeled T, with empty sound and pattern tags `{T}`. Its empty span does not remove it. This leaf adds no tags to the empty helper or the enclosing constituent.
 
-A structurally empty node contains no terminal read, omitted marker, or seal. Parent sequences remove structurally empty named children, including empty `#` nodes and empty wrappers. A seal is an opaque leaf supplied by a ranked choice. A node that contains a seal remains in its parent sequence. A direct capture of an empty named rule retains its named root for a root-name test.
+A structurally empty node contains no terminal read, omitted marker, or seal. Parent sequences remove structurally empty named children, including empty `#` nodes and empty wrappers. The [seal of a ranked choice](#ranked-choices) counts as a leaf here. A node that contains a seal remains in its parent sequence. A direct capture of an empty named rule retains its named root for a root-name test.
 
 A primitive predicate first tests the current node, then can follow its sole structural child. This single-child transparency repeats only while exactly one child exists. A branching node stops it. A child-sequence predicate uses the same search, and tests each visited node's complete ordered children.
 
@@ -697,7 +701,7 @@ An inserted token with a phoneme tag has that phoneme as its label, or a space f
 
 A directive is a keyword and its operands. By convention each stands in a block of its own, after prose that says why the grammar needs it. Two directives can share a line.
 
-- `%ambiguity-resolution` ranks parses that share the greatest rule profile, as "Ambiguity" explains. Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` can follow it. The retired operand `maximal` is an error. "Ambiguity" and "Elided terminators" explain it. Every stage must say it exactly once, in any of its documents.
+- `%ambiguity-resolution` ranks the best parses under rule flags, as "Ambiguity" explains. Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` can follow it. The retired operand `maximal` is an error. "Ambiguity" and "Elided terminators" explain it. Every stage must say it exactly once, in any of its documents.
 - No directive names the elidable terminators. Each elidable optional is marked in its place, as `[+KU]` or `[++TOI]` (see "Elided terminators"). `%elidable` is not a directive. A document that writes it is an error, which the reader reports at the keyword.
 - `%stage NAME`, `%include "PATH"` and `%features NAME…` build a pipeline, as the next section says.
 
@@ -773,11 +777,11 @@ A parse with a greater rule profile beats one with a lesser rule profile (engine
 
 The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every rule profile is zero, so the stage directive alone ranks the admitted parses. Flags do not rank `matches`, `begins` or `tags` queries, or change maximal terminators.
 
-A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later stage runs. The error shows two tied parses and their action witness.
+A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later stage runs. A witness pairs differing actions from two readings. The error shows two tied parses and their witness (engine §6).
 
 The engine's canonical order (engine §6) orders the ambiguity diagnostics and selects the forbidden terminator that a maximality rejection reports. Among its keys are the numbers of the productions, which follow the order of a rule's alternatives. The canonical tie-break keys never turn a tie into an accepted reading.
 
-`greedy` and `lazy` treat each parse as the sequence of actions that a bottom-up reader takes. An action reads the next token or closes a constituent. Some closes are transparent and do not participate in the comparison (below). All other actions are visible. The stage compares parses with the greatest rule profile at their first differing visible action:
+`greedy` and `lazy` treat each parse as the sequence of actions that a bottom-up reader takes. Some closes are transparent and do not participate in the comparison (below). All other actions are visible. The stage compares parses with the greatest rule profile at their first differing visible action:
 
 - If both read the same token under two tags, they are tied.
 - If one reads and the other closes, the directive decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
@@ -870,15 +874,15 @@ Here S is the evaluated tag set, and s is the evaluated canonical string. The sa
 
 Then the stage parses that input again. Each elidable optional is now either restored or written. In the chosen parse's own reading, an optional that it left out is restored: it reads only its written-back terminator. Another reading can start an optional from a written-back terminator and read more after it, where the rest of the optional reads something.
 
-The grammar reads the text with its terminators written back. Every rule condition, tag and test sees the original input. A written-back terminator has no text, no sound and no tags there. So a condition answers as it did for the chosen parse, and the chosen parse remains a raw reading before ranked-choice filtering. A test on a terminal is the one exception: `KU="ku"` reads a written-back `KU` by its sound. A test on a rule, such as `t="ku"`, sees the original input like a condition.
+The grammar reads the text with its terminators written back. Every rule condition, tag and test sees the original input. A written-back terminator has no text, no sound and no tags there. So a condition answers as it did for the chosen parse, and the chosen parse remains a reading before ranked-choice filtering. A test on a terminal is the one exception: `KU="ku"` reads a written-back `KU` by its sound. A test on a rule, such as `t="ku"`, sees the original input like a condition.
 
 A reconstruction is a second parse with terminators restored. These are the omitted terminators of the chosen parse. A projected span contains a constituent's original input tokens. Each written-back terminator adds no token (engine §7.3).
 
 Ranked choices compare spans in the reconstructed input, including restored terminators.
 
-The check retains the rule flags, but applies no stage preference. It counts flagged occurrences over projected spans. The raw restored witness must survive ranked-choice filtering and be the sole best reconstructed reading. Another such reading gives an ambiguity error, never a replacement chosen parse.
+The check retains the rule flags, but applies no stage preference. It counts flagged occurrences over projected spans. The restored chosen parse must survive ranked-choice filtering and be the sole best reconstructed reading. Another such reading gives an ambiguity error, never a replacement chosen parse.
 
-With no flagged rule, the check requires the witness as the only admitted reading. Raw eligible recognition retains the restored chosen parse. Only its raw absence reports `elision-witness-lost` (engine §7.9). Filtering can exclude that present witness and cause ordinary ambiguity. A tie ends the stage before this check.
+With no flagged rule, the check requires the restored chosen parse as the only admitted reading. Recognition before filtering always keeps that parse. Only its absence there reports `elision-witness-lost` (engine §7.9). Filtering can exclude that present parse and cause ordinary ambiguity. A tie ends the stage before this check.
 
 The measured corpus had no text that failed this check, but that is no general guarantee. Historically, under `greedy`, `mi broda joi ke brode ke'e` was one. The CLL grammar now settles it as the official parser does. A plain joik, a joik that does not open its own `ke` group, cannot take a unit that is only a `ke` group.
 

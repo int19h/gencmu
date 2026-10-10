@@ -144,11 +144,11 @@ Visit groups in stitched rule, alternative, and expression traversal order. The 
 
 A capture inside an option belongs to its innermost ranked group. Simplify each condition for capture presence in every virtual option expansion. A virtual expansion records written capture positions without copying the parent. Every remaining condition that reads a private capture must be ready when that group completes.
 
-`$` becomes ready only at completion of the enclosing named alternative. A final ranked group can reach completion. Any suffix element, even nullable, delays it. An unready private condition reports `ranked-choice-continuation`.
+`$` becomes ready only at completion of the enclosing named alternative. A final ranked group can reach completion. Any suffix element, even one that can read no tokens, delays it. An unready private condition reports `ranked-choice-continuation`.
 
 Private captures cannot feed tag terms or explicit emission items. Inspect carriers, attachments, presence guards, span reads, and tag reads before absent-carrier pruning. A forbidden export reports `ranked-choice-export`. Common prefix and suffix captures, and whole-parent `$` emission, remain legal.
 
-Private conditions retain their existing evaluation order and real captured states. A condition on `$` observes the composed parent with its seal (§4.1). Feature guards and symbol tests remain ordinary gates. A failed gate supplies no admission witness.
+A seal is an opaque leaf supplied by a ranked choice (§4.1). Private conditions retain their existing evaluation order and real captured states. A condition on `$` observes the composed parent with its seal. Feature guards and symbol tests remain ordinary gates. A failed gate provides no qualifying reading.
 
 The ranked helper uses the existing tag constructors. An untagged unary production inherits its child's tags. Untagged zero-symbol and multi-symbol productions return empty tags. Explicit tag terms replace inheritance.
 
@@ -209,7 +209,9 @@ So a chain beside another alternative is reported before an empty item, whicheve
    Lowering finds both errors of this step when it lowers the grammar for features that make them. It reports each one at the definition that wrote the alternative, as for any error of lowering. The order is the one that the start of this section gives. A gate or a `%extend-rule` can make either error depend on the features, and a warning guard never removes an alternative.
 
    A flat list is one helper, so its closes are transparent (§6), and the clauses of its rule apply only to the rule's whole constituent. Some grammars need each prefix of a list as a constituent, which the ranking and the rule's conditions see. Such a grammar writes a chain or explicit recursion.
-4. A ranked expression lowers to one transparent helper with ordered options. Every expansion retains its option index and written expression identity. Its entry retains the enclosing named invocation and complete prefix state. Conditions keep that named scope for `$`, `from`, and `after`. Private bindings leave the continuation environment after ready gates. Proofs retain them for output and diagnostics.
+4. A ranked expression lowers to one transparent helper with ordered options. Every expansion retains its option index and written expression identity. An invocation is one call of a named rule. Its entry retains the enclosing named invocation and complete prefix state.
+
+   Conditions keep that named scope for `$`, `from`, and `after`. Private bindings leave the continuation environment after ready gates. Proofs retain them for output and diagnostics.
 
    Number ranked options in source order before later siblings. No ranked helper gains a flag. Ordinary parentheses retain their existing expansion behavior.
 
@@ -322,13 +324,15 @@ The order between steps, between items and between sets is not observable either
 
 `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` each run a nested parse. A nested parse is one recognition over the span's tokens alone, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does.
 
-A query that the check of §7 starts reads the projected span in the stage's input. It uses this lowered grammar in its ordinary mode (§7.6). Its chart is every item, partial or completed, that this recognition holds after it ends. The three functions read raw eligible proof trees, before ranked admission or ranking. Their structural observations still use the sealed leaves of §4.1:
+A proof tree of an item shows how the rules of recognition justify the item from the chart. A predicted item, with its dot at the start, is a leaf. An advance of an item over a token or over a completed item is a node. Its children are a proof tree of the item before the advance and, for a completion, a proof tree of the completed item. Each advance follows the rules of this section, with its tests and conditions satisfied.
+
+A proof tree is eligible when none of its omissions is forbidden (below).
+
+A query that the check of §7 starts reads the projected span in the stage's input. It uses this lowered grammar in its ordinary mode (§7.6). Its chart is every item, partial or completed, that this recognition holds after it ends. The three functions read these eligible proof trees before ranked admission (§6.1) or ranking. Their structural observations still use the sealed leaves of §4.1:
 
 - `matches` holds when a completed item of `rule` spans the tokens and has an eligible proof tree.
 - `begins` holds when a completed item of `rule` has its origin at the span's start, in any set, and has an eligible proof tree. So it covers a prefix of the span, the empty prefix included.
 - `tags` is the union of the tag sets of the completed items of `rule` that span the tokens and have an eligible proof tree.
-
-A proof tree of an item shows how the rules of recognition justify the item from the chart. A predicted item, with its dot at the start, is a leaf. An advance of an item over a token or over a completed item is a node. Its children are a proof tree of the item before the advance and, for a completion, a proof tree of the completed item. Each advance follows the rules of this section, with its tests and conditions satisfied.
 
 A proof tree is finite, and it does not depend on the order in which the recognizer finds items. A rule can occur again over the same span within it. This differs on purpose from the derivations that a stage counts and ranks (below, and §6), which exclude such a repetition. An item with no finite proof tree from predicted items has none, so a cycle alone gives none.
 
@@ -336,7 +340,7 @@ An implementation can rebuild the advances from completed spans, as it can for a
 
 Several eligible proof trees are an ordinary success. A query never ranks its proof trees, and it never has a tie or an ambiguity error. The witness of a tie (§6) is a different thing, and a query has none.
 
-A nested parse follows written-terminator priority. In plain words, a nested reading cannot leave out an elidable optional where the same construct can read that whole optional as written. A proof tree is eligible when none of its omissions is forbidden. An omission is an advance of an item over the empty helper of an elidable optional (§3.8), at its position `p`.
+A nested parse follows written-terminator priority. In plain words, a nested reading cannot leave out an elidable optional where the same construct can read that whole optional as written. An omission is an advance of an item over the empty helper of an elidable optional (§3.8), at its position `p`.
 
 Whether an omission is forbidden depends on the production prefix that the proof tree holds fixed, as follows:
 
@@ -640,7 +644,7 @@ For k independent Boolean observations, a product can contain up to `2^k` states
 
 Retain the raw chart, completion tables, and eligibility information. Admission removes forest choices without removing chart items or changing input queries. A later completion can provide an earlier qualifying option. Nested availability requires admitted finite child proofs.
 
-An admission instance is one written ranked group in one prefix context. Each physical span in that instance has a separate admission group. Its key contains these components:
+A prefix context records state before a ranked group. An admission instance is one written ranked group in one prefix context. Each physical span in that instance has a separate admission group. Its key contains these components:
 
 | Component | Required equality |
 | --- | --- |

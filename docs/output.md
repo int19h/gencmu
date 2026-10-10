@@ -102,7 +102,7 @@ An error has one of these forms:
 
   Each of them is `{"terminal":T,"at":N,"source":[S,S]}`. Only a terminator with an equality test adds `"sound":"..."` last, including an empty equality operand. The members stand in the order `kind`, `stage`, `code`, `message`, `chosen`, `completion`. Other parse-result errors have no `code`. Structured loading errors use the separate schema below.
 
-For example, `text → [[X]]` on the empty input ties, and both readings are `{"kind":"rule","rule":"text","span":[0,0],"source":[0,0],"tags":[],"children":[]}`. The stage's witness names two different productions of the helpers. A nullable `&`, such as `[A] & [B]`, gives such a tie in the same way, with three derivations.
+For example, `text → [[X]]` on the empty input ties, and both readings are `{"kind":"rule","rule":"text","span":[0,0],"source":[0,0],"tags":[],"children":[]}`. The stage's witness names two different productions of the helpers. An `&` that can match no tokens, such as `[A] & [B]`, gives such a tie too, with three derivations.
 
 A mistake of the caller is not a result. It is an error of kind `usage` (engine §13).
 
@@ -262,7 +262,7 @@ For example, `mex MOI # ≻ SE # tanru-unit-1` produces this expression:
 {"ranked":[{"seq":[{"ref":"mex"},{"ref":"MOI"},{"ref":"#"}]},{"seq":[{"ref":"SE"},{"ref":"#"},{"ref":"tanru-unit-1"}]}]}
 ```
 
-The DOM holds no lowered helper, admission key, seal, or selected option. References retain their existing written form before terminal resolution. Expression traversal includes `ranked` beside the existing expression forms.
+The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choices), or selected option. References retain their existing written form before terminal resolution. Expression traversal includes `ranked` beside the existing expression forms.
 
 Ranked loading errors have these members, in this order:
 

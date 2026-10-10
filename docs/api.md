@@ -40,7 +40,7 @@ A text that does not parse is not an error, but a result whose `ok` is false and
 
 That error also has a witness, the pair of actions where its two readings first differ, visible if there is one (engine §7.10). Such an action can be a read of a written-back terminator, with its position and terminal.
 
-A check whose raw eligible forest lacks its chosen reconstruction gives an error of kind `grammar` with the code `elision-witness-lost` (engine §7.9). It marks a defect of the library, not of the text.
+A check that cannot recognize its chosen reconstruction before filtering reports a `grammar` error with the code `elision-witness-lost` (engine §7.9). It marks a defect of the library, not of the text.
 
 Here, `grammar` is for a defect found only while parsing. One example is a nested parse asked about its own span as the same rule. Another is a classifier's entry that adds a class twice under the features of the parse.
 
@@ -64,7 +64,7 @@ A loaded dialect lists its features (engine §13), in code point order of the na
 
 The result has the fields of `docs/output.md`, in the data types of the language. These fields are `ok`, the stages, the `tree` of the last stage, the `error`, and the `warnings`. `warnings` is an empty list when there are no warnings.
 
-`unique` means exactly one admitted derivation. `resolved` means several admitted derivations with exactly one best. Several best admitted derivations give a tie.
+`unique` means exactly one [admitted derivation](notation.md#ranked-choices). `resolved` means several admitted derivations with exactly one best. Several best admitted derivations give a tie.
 
 [Ambiguity](notation.md#ambiguity) defines the effects of filtering and grammar migration.
 
