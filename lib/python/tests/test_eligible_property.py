@@ -1,4 +1,4 @@
-"""Written-terminator priority and maximal terminators in nested queries
+"""Written-terminator priority in nested queries
 (engine §4) against a search for eligible proof trees on small random
 grammars with chained elidable optionals.
 
@@ -22,7 +22,6 @@ from typing import Any
 from gencmu._dialect import DOM_FORMAT, _resources, _unicode_table
 from gencmu._earley import Forest, Parser, StageContext
 from gencmu._eligible import eligible
-from gencmu._maximal import Maximal
 from gencmu._grammar import lower, stitch
 from gencmu._model import Token
 from gencmu._rank import count_roots
@@ -71,23 +70,6 @@ def oracle(forest: Forest, witnesses: list[int], budget: int) -> list[int]:
             kind == 2 and pred == before and forest.end[made] >= p and reads_written(made) for made, (pred, kind, _, _) in all_edges
         )
 
-    def maximal_after(item: int) -> bool:
-        """Whether the optional after the item is of a maximal terminator."""
-        symbol = production(item).rhs[forest.dot[item]]
-        return any(p.lhs == symbol and p.elided is not None and p.lhs in forest.lowered.maximal_helpers for p in productions)
-
-    def longer(constituent: int) -> bool:
-        """Whether the chart has a longer completed item of the
-        constituent's symbol from its origin. The generated grammars have
-        no tests."""
-        return any(
-            forest.dot[other] == len(production(other).rhs)
-            and production(other).lhs == production(constituent).lhs
-            and forest.origin[other] == forest.origin[constituent]
-            and forest.end[other] > forest.end[constituent]
-            for other in range(len(forest.prod))
-        )
-
     def next_optional(item: int) -> str | None:
         """What comes next: an elidable optional with or without a
         constituent, or None."""
@@ -118,8 +100,6 @@ def oracle(forest: Forest, witnesses: list[int], budget: int) -> list[int]:
         for pred, edge_kind, child, _ in edges[item]:
             if kind == "constituent" and (edge_kind != 2 or forbidden_after(pred, forest.end[item])):
                 continue
-            if kind == "constituent" and maximal_after(item) and longer(child):
-                continue
             if edge_kind == 0:
                 return True
             if edge_kind == 1:
@@ -142,26 +122,21 @@ def random_dom(rng: random.Random) -> dict[str, Any]:
         for _ in range(rng.randrange(4)):
             pick = rng.random()
             if pick < 0.2:
-                symbols.append(marked({"ref": "T"}, maximal_t))
+                symbols.append(marked({"ref": "T"}))
             elif pick < 0.3:
-                symbols.append(marked({"ref": "U"}, maximal_u))
+                symbols.append(marked({"ref": "U"}))
             elif pick < 0.38:
-                symbols.append(marked({"seq": [{"ref": "T"}, symbol()]}, maximal_t))
+                symbols.append(marked({"seq": [{"ref": "T"}, symbol()]}))
             else:
                 symbols.append(symbol())
         if not symbols:
             return {"empty": True}
         return symbols[0] if len(symbols) == 1 else {"seq": symbols}
 
-    def marked(expr: dict[str, Any], maximal: bool) -> dict[str, Any]:
-        """An elidable optional, [+…], or [++…] where it is maximal."""
-        return {"optional": expr, "elidable": True, "maximal": True} if maximal else {"optional": expr, "elidable": True}
+    def marked(expr: dict[str, Any]) -> dict[str, Any]:
+        """An elidable optional, [+…]."""
+        return {"optional": expr, "elidable": True}
 
-    # Now and then T or U is maximal: every optional of it is marked ++
-    # (engine §3.8).
-    pick = rng.random()
-    maximal_t = pick >= 0.5
-    maximal_u = pick >= 0.75
     definitions = [("text", [{"ref": "A"}])] + [(rule, [body(), body()]) for rule in RULES]
     return {
         "format": DOM_FORMAT,
@@ -238,7 +213,7 @@ class EligibleProperty(unittest.TestCase):
                 expected = oracle(forest, witnesses, 200_000)
             except Budget:
                 continue
-            found = eligible(forest, witnesses, context)
+            found = eligible(forest, witnesses)
             self.assertEqual(found, expected, f"seed {40_000_000 + seed + number}: {dom['rules']} over {tags}")
             if len(expected) < len(witnesses):
                 filtered += 1
@@ -247,203 +222,3 @@ class EligibleProperty(unittest.TestCase):
             print(f"\neligible: checked {checked}, filtered {filtered}")
         self.assertGreater(checked, rounds / 4)
         self.assertGreater(filtered, rounds / 50)
-
-
-
-class OverBudget(BaseException):
-    """A parse whose maximality checks went past the work a test allows
-    them, raised as soon as they do, so that a regression to quadratic work
-    fails by its count and does not run on. A BaseException, which no
-    handler of the library's catches."""
-
-    def __init__(self, length: int, counts: tuple[int, int, int], why: str) -> None:
-        super().__init__(length, counts, why)
-        self.length = length
-        self.counts = counts
-        self.why = why
-
-
-class LookedAt:
-    """The items of a forest as one Maximal sees them: every item that it
-    reads, by index or by iterating, is counted as it is read, and each
-    pass over them all is counted as it begins. ``read`` is called with
-    each, so that a budget stops the parse at the first item past it."""
-
-    def __init__(self, items: Any, read: Any) -> None:
-        self.items = items
-        self.read = read
-        self.passes = 0
-
-    def __len__(self) -> int:
-        return len(self.items)
-
-    def __getitem__(self, index: int) -> Any:
-        self.read(self)
-        return self.items[index]
-
-    def __iter__(self) -> Any:
-        self.passes += 1
-        for value in self.items:
-            self.read(self)
-            yield value
-
-
-class SeenForest:
-    """A forest whose items a Maximal reads through :class:`LookedAt`, and
-    whose other fields it reads as they are."""
-
-    def __init__(self, forest: Forest, prod: LookedAt) -> None:
-        self.forest = forest
-        self.prod = prod
-
-    def __getattr__(self, name: str) -> Any:
-        return getattr(self.forest, name)
-
-
-class MaximalQueryCost(unittest.TestCase):
-    """The maximality checks of a nested query read each completion once,
-    so their work grows linearly with the input (engine §4)."""
-
-    # Each grammar asks for one of a Maximal's tables again and again. In
-    # PLAIN, every omission of the maximal T meets a longer y from the
-    # start, and asks for the furthest ends. In TESTED, y has a test, so
-    # each such check asks for the furthest end where it holds, from the
-    # start. In MANY, matches() makes a y from every position, each with a
-    # test, so the checks ask for the completions of y from many origins.
-    PLAIN = "%rule text body B\n%conditions begins(from($), r)\n%rule body {A}\n%rule r y [++T]\n%rule y {A}"
-    TESTED = "%rule text body B\n%conditions begins(from($), r)\n%rule body {A}\n%rule r y⊇~p [++T]\n%rule y {A} <~p>"
-    MANY = (
-        "%rule text body B\n%conditions matches($, r)\n%rule body {A}\n"
-        "%rule r parts B\n%rule parts {part}\n%rule part y⊇~p [++T]\n%rule y A <~p>"
-    )
-    GRAMMARS = (("plain", PLAIN), ("tested", TESTED), ("many origins", MANY))
-
-    # A forest's Maximal, made once for it, finds its two tables, the
-    # furthest ends and every completion, once each, in one pass over the
-    # forest's items apiece.
-    PASSES = 2
-
-    def work(self, grammar: str, length: int, budget: tuple[int | None, int | None, int | None]) -> tuple[int, int, int]:
-        """The maximality checks, the test evaluations and the items looked
-        at of a parse of ``length`` tokens A and then B. The items looked at
-        are every item of a forest that a Maximal reads, counted as it reads
-        each one, whatever it keeps from earlier reads. A third pass over a
-        forest's items, by any of its Maximals, or a count that passes its part
-        of the budget, where it has one, stops the parse at once with
-        :class:`OverBudget`."""
-        dialect, error = load_case_dialect({"grammar": grammar})
-        assert dialect is not None, error
-        tokens, text = case_tokens({"tokens": [{"text": "a", "tags": ["A"]}] * length + [{"text": "b", "tags": ["B"]}]})
-        counts = [0, 0, 0]
-        # The items of each forest as its Maximals see them, by the forest,
-        # which is kept alive with them.
-        seen: dict[int, tuple[Forest, LookedAt]] = {}
-        init, forbids, test_holds = Maximal.__init__, Maximal.forbids, StageContext.test_holds
-
-        def spend() -> None:
-            if any(most is not None and count > most for count, most in zip(counts, budget)):
-                raise OverBudget(length, (counts[0], counts[1], counts[2]), f"past the budget {budget}")
-
-        def read(items: LookedAt) -> None:
-            counts[2] += 1
-            if items.passes > self.PASSES:
-                raise OverBudget(length, (counts[0], counts[1], counts[2]), f"pass {items.passes} over {len(items)} items")
-            spend()
-
-        def counted_init(self: Maximal, forest: Forest, *args: Any, **kwargs: Any) -> None:
-            if id(forest) not in seen:
-                seen[id(forest)] = (forest, LookedAt(forest.prod, read))
-            init(self, SeenForest(forest, seen[id(forest)][1]), *args, **kwargs)  # type: ignore[arg-type]
-
-        def counted_forbids(self: Maximal, *args: Any) -> bool:
-            counts[0] += 1
-            spend()
-            return forbids(self, *args)
-
-        def counted_test(self: StageContext, *args: Any) -> bool:
-            counts[1] += 1
-            spend()
-            return test_holds(self, *args)
-
-        with (
-            mock.patch.object(Maximal, "__init__", counted_init),
-            mock.patch.object(Maximal, "forbids", counted_forbids),
-            mock.patch.object(StageContext, "test_holds", counted_test),
-        ):
-            result = dialect.parse_tokens(tokens, text, auto_features=False)
-        self.assertTrue(result.stages[0].verdict is not None or result.error is not None)
-        return counts[0], counts[1], counts[2]
-
-    def grows_linearly(self, grammar: str) -> None:
-        """Parses of 250, 1000 and 4000 tokens, each with a budget from the
-        last one's work, so that quadratic work stops at the first step
-        that shows it, before it costs much. The test evaluations read each
-        completion at most about twice in all, in every parse."""
-        last = self.work(grammar, 250, (None, 2 * 251, None))
-        self.assertGreater(last[0], 0, "the query made no maximality check")
-        self.assertGreater(last[2], 0, "the checks looked at no item")
-        for length in (1000, 4000):
-            # Four times the input, at most about four times the work, where
-            # a scan of the completions per check would take sixteen.
-            budget = (5 * last[0], min(5 * max(last[1], 1) + 4, 2 * (length + 1)), 5 * last[2])
-            last = self.work(grammar, length, budget)
-
-    def test_work_grows_linearly(self) -> None:
-        for name, grammar in self.GRAMMARS:
-            with self.subTest(grammar=name):
-                try:
-                    self.grows_linearly(grammar)
-                except OverBudget as over:
-                    self.fail(f"{over.length} tokens: {over.why}, at {over.counts} checks, tests and items looked at")
-
-    def test_a_table_found_again_fails_by_count(self) -> None:
-        """Each of a Maximal's tables, found again on every request where
-        its cache would have returned it, fails the test by its count in
-        the first parse, of 250 tokens, long before the work that the
-        regression would cost: a table of every item at the Maximal's third
-        pass over its items, having looked at a few times its items, and
-        the table of furthest ends where a test holds at the first test
-        evaluation past twice the input. So does a Maximal made again for
-        each check, where a query makes one when it first needs it."""
-        longest, all_completed, forbids = Maximal.longest, Maximal.all_completed, Maximal.forbids
-
-        def furthest_again(self: Maximal) -> Any:
-            self.furthest = None
-            return longest(self)
-
-        def completed_again(self: Maximal) -> Any:
-            self.completed = None
-            return all_completed(self)
-
-        def passing_again(self: Maximal, *args: Any) -> bool:
-            self.passing.clear()
-            return forbids(self, *args)
-
-        def maximal_again(self: Maximal, *args: Any) -> bool:
-            # A Maximal made afresh for each check, over the same forest.
-            forest = self.forest.forest  # type: ignore[attr-defined]
-            return forbids(Maximal(forest, self.context, self.base), *args)
-
-        mutations = (
-            ("furthest ends", "longest", furthest_again, self.PLAIN, "pass"),
-            ("every completion", "all_completed", completed_again, self.MANY, "pass"),
-            ("furthest ends where a test holds", "forbids", passing_again, self.TESTED, "past"),
-            ("a forest's Maximal", "forbids", maximal_again, self.PLAIN, "pass"),
-        )
-        for name, method, again, grammar, why in mutations:
-            with self.subTest(table=name):
-                with mock.patch.object(Maximal, method, again), self.assertRaises(OverBudget) as raised:
-                    self.grows_linearly(grammar)
-                over = raised.exception
-                self.assertEqual(over.length, 250, over.why)
-                if why == "pass":
-                    self.assertTrue(over.why.startswith(f"pass {self.PASSES + 1} "), over.why)
-                    self.assertLess(over.counts[0], 10, over.counts)
-                    self.assertLess(over.counts[2], 10_000, over.counts)
-                else:
-                    self.assertTrue(over.why.startswith("past "), over.why)
-                    self.assertEqual(over.counts[1], 2 * 251 + 1, over.counts)
-
-
-if __name__ == "__main__":
-    unittest.main()

@@ -373,7 +373,7 @@ class DomBuilder:
             raise self.fail(node, problem)
         args = [self.operand(kid) for kid in operands]
         if name == "ambiguity-resolution" and "maximal" in args:
-            raise self.fail(node, "stage-wide maximal is retired; use [++T] for an individual terminator")
+            raise self.fail(node, "the maximal operand is retired")
         return {"name": name, "args": args, "at": list(self.position(node))}
 
     def operand(self, node: Node) -> str:
@@ -605,15 +605,15 @@ class DomBuilder:
         return self.text(node) if node.kind == "token" else None
 
     def _optional(self, node: Node) -> Walk:
-        """An optional, and with a marker ``+`` or ``++`` among its parts an
+        """An optional, and with a marker ``+`` among its parts an
         elidable one (engine §3.8, §9). Its form is checked on the tree,
         where a group is still a node: one sequence, whose first primary is
         the terminal itself, ``=``-tested or not."""
         # Its choice is looked up before its markers are counted (engine §9).
         choice = self.only(node, "choice")
-        markers = [kid for kid in self.kids(node) if self._token_text(kid) in ("+", "++")]
+        markers = [kid for kid in self.kids(node) if self._token_text(kid) == "+"]
         if len(markers) >= 2:
-            raise self.fail(markers[1], "an optional has one marker + or ++ at most")
+            raise self.fail(markers[1], "an optional has one marker + at most")
         if not markers:
             return {"optional": (yield self._expr(choice))}
         form = (
@@ -645,8 +645,6 @@ class DomBuilder:
         self.marked += 1
         expr = yield self._expr(choice)
         self.marked -= 1
-        if self._token_text(markers[0]) == "++":
-            return {"optional": expr, "elidable": True, "maximal": True}
         return {"optional": expr, "elidable": True}
 
     def _repetition(self, node: Node, whole: bool) -> Walk:

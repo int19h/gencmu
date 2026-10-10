@@ -932,9 +932,6 @@ class Lowered:
     # the rules of the productions whose empty alternative is an elided
     # terminator.
     elidable_helpers: frozenset[int] = frozenset()
-    # The helpers of the optionals written [++T x], whose terminators are
-    # maximal (engine §3.8, §4).
-    maximal_helpers: frozenset[int] = frozenset()
     # For each production, the index of its last symbol that can read in
     # the reconstruction mode of engine §7.4, or -1; found when the check
     # first needs it.
@@ -1012,9 +1009,6 @@ class _Lowerer:
         self.current: Rule | None = None
         self.current_alt: Alternative | None = None
         self.characters: dict[str, CharacterClass] = {}
-        # The helpers of the optionals written [++T x], whose terminators
-        # are maximal (engine §3.8, §4).
-        self.maximal_helpers: set[int] = set()
         # The structural grammar (engine §3.3): every production that the
         # gates and the expansion make, before a false condition removes
         # any, as its left side and its symbols, with their tests ignored.
@@ -1163,11 +1157,9 @@ class _Lowerer:
                 # Descendant reachability then establishes selected absence.
                 return [[(("n", self.new_helper([route])), None)] for route in [[], *body]]
             # Any other optional is a helper, and a marked one is elidable,
-            # with the terminal that its marker names; ++ makes it maximal
+            # with the terminal that its marker names
             # (engine §3.8).
             helper = self.new_helper([[]] + body, self.elided_terminal(inner) if elidable else None)
-            if expr.get("maximal") is True:
-                self.maximal_helpers.add(helper)
             return [[(("n", helper), None)]]
         if "repeat" in expr:
             # Flat braces are a helper, h → x | h s x, its base productions
@@ -1448,7 +1440,6 @@ class _Lowerer:
             rule_display=self.rule_display,
             lean=self.grammar.lean,
             characters=self.characters,
-            maximal_helpers=frozenset(self.maximal_helpers),
         )
         from ._ranked_frame import prepare_ranked
         prepare_ranked(lowered)

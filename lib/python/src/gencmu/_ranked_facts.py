@@ -35,31 +35,28 @@ class RankedFacts(Summaries):
         _,kind,previous,child,a,_ = step
         if kind in (0,RESTORE):
             return 1
-        left = self.memo[previous][1 if self.eligible_before(kind,a) else 0]
+        left = self.memo[previous]
         right = self.memo[child] if child is not None else 1
         return min(left*right,2)
 
     def compute(self,key):
         if key[0]==0:
-            return self.memo[self.inner_key(key)][0]
+            return self.memo[self.inner_key(key)]
         mask = self.admit(key)
-        guarded = self.guarded(key[1])
-        all_,allowed = 0,0
+        all_ = 0
         edges = len(self.forest.edges[key[1]])
         for step in self.all_steps(key):
             index,kind,_,_,child,_ = step
             if self.check and edges>1 and index==0 and _testing.fault('lost:context'):
                 continue
             ways = self.ways(step)
-            if mask is None or index in mask[0]:
+            if mask is None or index in mask:
                 all_ = min(all_+ways,2)
-            if (not guarded or self.permits(key[1],kind,child)) and (mask is None or index in mask[1]):
-                allowed = min(allowed+ways,2)
-        return (all_,allowed)
+        return all_
 
     def mask(self,key):
         if key[1] not in self.at:
-            return getattr(self.forest,"slot_routes",{}).get(key[1])
+            return None
         self.solve(key)
         return self.masks[key]
 

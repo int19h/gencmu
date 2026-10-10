@@ -160,7 +160,7 @@ class Lexical(unittest.TestCase):
         among them (grammars/notation/lexical.md)."""
         notation = gencmu.load_dialect("notation")
         result = notation.parse(
-            "%rule a ¬f? ~b 'c' /d/ {E ... \\ '\\\\'} | g! %tags X %rulex $e ¬h 'x'..'y' '\\p{L}' 'a'... [+F] [++G]",
+            "%rule a ¬f? ~b 'c' /d/ {E ... \\ '\\\\'} | g! %tags X %rulex $e ¬h 'x'..'y' '\\p{L}' 'a'... [+F] [+G]",
             until="lexical",
             auto_features=False,
         )
@@ -175,7 +175,7 @@ class Lexical(unittest.TestCase):
                 ("'\\\\'", ["character"]), ("}", ["'}'"]), ("|", ["'|'"]), ("g!", ["guard"]),
                 ("%tags", ["keyword-tags"]), ("X", ["identifier"]), ("%rulex", ["keyword"]), ("$e", ["capture"]), ("¬", ["'¬'"]), ("h", ["identifier"]),
                 ("'x'", ["character"]), ("..", ["double-dot"]), ("'y'", ["character"]), ("'\\p{L}'", ["property"]), ("'a'", ["character"]), ("...", ["ellipsis"]),
-                ("[", ["'['"]), ("+", ["'+'"]), ("F", ["identifier"]), ("]", ["']'"]), ("[", ["'['"]), ("++", ["double-plus"]), ("G", ["identifier"]), ("]", ["']'"]),
+                ("[", ["'['"]), ("+", ["'+'"]), ("F", ["identifier"]), ("]", ["']'"]), ("[", ["'['"]), ("+", ["'+'"]), ("G", ["identifier"]), ("]", ["']'"]),
             ],
         )
 

@@ -137,9 +137,9 @@ CAP_X = {"capture": "x", "expr": A}
 KU = {"ref": "KU"}
 
 
-def marked(expr: Any, maximal: bool = False) -> Dom:
-    """An elidable optional, ``[+…]`` or ``[++…]``, of an expression."""
-    return {"optional": expr, "elidable": True, "maximal": True} if maximal else {"optional": expr, "elidable": True}
+def marked(expr: Any) -> Dom:
+    """An elidable optional, ``[+…]``, of an expression."""
+    return {"optional": expr, "elidable": True}
 
 X = {"capture": "x"}
 TAGS_X = {"call": "tags", "args": [X]}
@@ -184,12 +184,14 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("chain in a choice", set_expr({"seq": [CAP_X, {"choice": [{"repeat": A, "chain": "left"}, A]}]})),
     ("chain neither left nor right", set_expr({"repeat": A, "chain": "up"})),
     ("chain that is no string", set_expr({"repeat": A, "chain": True})),
-    # An elidable optional is marked true, maximal only with it, and begins
+    # An elidable optional is marked true and begins
     # with its terminal (engine §3.8, §9).
     ("optional elidable false", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": False}]})),
     ("optional elidable 'true'", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": "true"}]})),
     ("optional elidable null", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": None}]})),
     ("optional elidable 1", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": 1}]})),
+    ("optional maximal true is retired", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": True, "maximal": True}]})),
+    ("optional maximal null is retired", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": True, "maximal": None}]})),
     ("optional maximal without elidable", set_expr({"seq": [CAP_X, {"optional": KU, "maximal": True}]})),
     ("optional maximal false", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": True, "maximal": False}]})),
     ("elidable choice", set_expr({"seq": [CAP_X, marked({"choice": [KU, {"ref": "VAU"}]})]})),
@@ -576,7 +578,6 @@ class PrecompiledDomRules(unittest.TestCase):
             ("a left chain", bare(set_expr({"repeat": A, "chain": "left"}))),
             ("a right chain with a separator", bare(set_expr({"repeat": A, "separator": KU, "chain": "right"}))),
             ("an elidable optional", set_expr({"seq": [CAP_X, marked(KU)]})),
-            ("a maximal optional", set_expr({"seq": [CAP_X, marked(KU, True)]})),
             ("an elidable terminal tag", set_expr({"seq": [CAP_X, marked({"terminal": "KU"})]})),
             ("an elidable sequence", set_expr({"seq": [CAP_X, marked({"seq": [KU, {"ref": "#"}]})]})),
             ("an elidable = test", set_expr({"seq": [CAP_X, marked({"test": "=", "value": {"string": "ku"}, "expr": KU})]})),
