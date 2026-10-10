@@ -27,7 +27,7 @@ const SYMBOLS = new Set(["+", "|", "&", "(", ")", "[", "]", "{", "}", "\\", "<",
   "∈", "∉", "⊆", "⊈", "⊇", "⊉", "∪", "∩", "∖", "∅", "≅", "≇", "⋯", "⋮", "⋰", "⋱", "≻"]);
 
 const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%tags", "%conditions", "%emits", "%opaque",
-  "%ambiguity-resolution", "%stage", "%include", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
+  "%ambiguity-resolution", "%stage", "%extend-stage", "%redefine-stage", "%include", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
 
 // A syntax error: the text cannot be read as the notation at all, which the
 // reader reports before any other error (engine §9).
@@ -189,7 +189,7 @@ function lex(text, positions) {
   return tokens;
 }
 
-const DIRECTIVES = new Set(["%ambiguity-resolution", "%stage", "%include", "%features"]);
+const DIRECTIVES = new Set(["%ambiguity-resolution", "%stage", "%extend-stage", "%redefine-stage", "%include", "%features"]);
 const RULE_KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule"]);
 const CONSTANT_KEYWORDS = new Set(["%const", "%redefine-const"]);
 const COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈"]);

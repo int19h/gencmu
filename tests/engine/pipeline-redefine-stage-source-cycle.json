@@ -1,0 +1,12 @@
+{
+  "description": "redefine stage source cycle (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text 'a' <X> %emits $\n%include \"cycle.md\"\n%redefine-stage first\n%ambiguity-resolution greedy\n%rule text 'a'\n```\n",
+    "cycle.md": "```jbogenbau\n%include \"p.md\"\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

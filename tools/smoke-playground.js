@@ -392,6 +392,51 @@ async function main() {
       throw new Error(`${rejected} was not explained as a rejection: ${JSON.stringify(explained)}`);
     }
 
+    const kiheiLabel = await run(() => document.querySelector('#dialect option[value="dialects/kihei.md"]').textContent);
+    if (kiheiLabel !== "kihei: Discourse frames (ki'ei)") throw new Error(`unexpected kihei title: ${kiheiLabel}`);
+    await choose("dialects/kihei.md");
+    const saFrame = "broda .i ki'ei ko'a sa ki'ei ko'e .i brode";
+    await type(saFrame);
+    const frameAnswer = await answerFor(saFrame);
+    if (frameAnswer.error || frameAnswer.output.trim() !== "([broda i] [{ki'ei ko'e} i brode])") {
+      throw new Error(`KIhEI word erasure failed: ${JSON.stringify(frameAnswer)}`);
+    }
+
+    // Discarded source still needs to parse and remains editable from its error link.
+    const patched = "dialects/zantufa.md";
+    const discarded = "phonemes/latin.md";
+    const extended = "syntax/zantufa.md";
+    await run(({patched, discarded, extended}) => {
+      self.playground.client.setDocument(discarded, "```jbogenbau\n%rule text (\n```\n");
+      self.playground.client.setDocument(extended, "```jbogenbau\n%extend-rule text 'b' <X> %emits $\n```\n");
+      self.playground.client.setDocument(patched, "```jbogenbau\n%stage a\n%include \"../phonemes/latin.md\"\n" +
+        "%stage b\n%ambiguity-resolution greedy\n%rule text X\n%redefine-stage a\n" +
+        "%ambiguity-resolution greedy\n%rule text 'a' <X> %emits $\n%extend-stage a\n" +
+        "%include \"../syntax/zantufa.md\"\n```\n");
+    }, {patched, discarded, extended});
+    await choose(patched);
+    await type("b");
+    await idle("the error in discarded source");
+    const errorLink = page.locator('#diagnostics button.link').filter({hasText: "phonemes/latin.md"}).first();
+    await errorLink.click();
+    const openedDiscarded = await run(() => document.getElementById("doc-path").textContent);
+    if (openedDiscarded !== discarded) throw new Error(`discarded source did not open: ${openedDiscarded}`);
+    await page.locator("#doc-text").fill("```jbogenbau\n%rule old 'x'\n```\n");
+    await page.locator("#doc-text").dispatchEvent("input");
+    const repaired = await answerFor("b");
+    if (repaired.error || repaired.output.trim() !== "b") throw new Error(`stage patch failed: ${JSON.stringify(repaired)}`);
+    const groups = await run(() => [...document.querySelectorAll(".doc-group")].map(group => ({
+      name: group.querySelector(".doc-stage").textContent, text: group.textContent,
+    })));
+    if (!groups.some(group => group.name === "a" && group.text.includes("syntax/zantufa")) ||
+        groups.some(group => group.name === "a" && group.text.includes("phonemes/latin"))) {
+      throw new Error(`wrong stage contributions: ${JSON.stringify(groups)}`);
+    }
+    await run(paths => paths.forEach(path => self.playground.client.setDocument(path, self.gencmuGrammars[path])),
+      [patched, discarded, extended]);
+    await choose("dialects/cll-ebnf.md");
+    console.log(`stage patches and KIhEI work in ${browser}`);
+
     // A tie is an error, shown with its two readings and no tree. No text
     // ties in a bundled dialect, so an edited pipeline stands in for one: its
     // stage syntax reads "w" as either of two rules.

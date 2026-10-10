@@ -479,12 +479,12 @@ function holdsConstant(term) {
  * @param {string[]} pipelines the pipeline documents' paths
  * @param {Map<string, {rules: any[]}>} documents the DOM of each grammar
  *   document, by its path under grammars/
- * @returns {Map<string, Map<number, Set<boolean>[]>>} by document, then by
- *   the index of the rule: one set of answers for each of its
+ * @returns {Map<string, Map<string, Set<boolean>[]>>} by document, then by
+ *   the rule's line and column: one set of answers for each of its
  *   testedElisions, in order
  */
 export function elisionOutcomes(loader, pipelines, documents) {
-  /** @type {Map<string, Map<number, Set<boolean>[]>>} */
+  /** @type {Map<string, Map<string, Set<boolean>[]>>} */
   const outcomes = new Map();
   const tested = [...documents].filter(([, dom]) => dom.rules.some((/** @type {any} */ rule) => testedElisions(rule).length > 0)).map(([document]) => document);
   if (tested.length === 0) return outcomes;
@@ -500,7 +500,8 @@ export function elisionOutcomes(loader, pipelines, documents) {
     stages.forEach((stage, index) => {
       for (const { path: document, dom } of stage.documents) {
         if (!candidates.has(document)) continue;
-        dom.rules.forEach((/** @type {any} */ rule, /** @type {number} */ ruleIndex) => {
+        dom.rules.forEach((/** @type {any} */ rule) => {
+          const ruleKey = rule.at.join(":");
           testedElisions(rule).forEach((optional, ordinal) => {
             const first = "seq" in optional.optional ? optional.optional.seq[0] : optional.optional;
             const grammar = holdsConstant(first.value) ? (dialect ??= loader.dialect(pipeline)).stages[index].grammar : stageless;
@@ -508,9 +509,9 @@ export function elisionOutcomes(loader, pipelines, documents) {
             const terminal = "terminal" in first.expr ? first.expr.terminal : first.expr.ref;
             const held = leafTest({ test: test.op, value: test.sound !== undefined ? { string: test.sound } : { set: test.tags } }, test.op === "=" ? test.sound : "", new Set([terminal]));
             if (!outcomes.has(document)) outcomes.set(document, new Map());
-            const byRule = /** @type {Map<number, Set<boolean>[]>} */ (outcomes.get(document));
-            if (!byRule.has(ruleIndex)) byRule.set(ruleIndex, []);
-            const answers = /** @type {Set<boolean>[]} */ (byRule.get(ruleIndex));
+            const byRule = /** @type {Map<string, Set<boolean>[]>} */ (outcomes.get(document));
+            if (!byRule.has(ruleKey)) byRule.set(ruleKey, []);
+            const answers = /** @type {Set<boolean>[]} */ (byRule.get(ruleKey));
             (answers[ordinal] ??= new Set()).add(held);
           });
         });
@@ -857,7 +858,7 @@ export function ownedLines(lines) {
  * @param {string} file the document's path under grammars/
  * @param {string} markdown the document
  * @param {{rules: any[]}} dom the document's DOM
- * @param {Map<number, Set<boolean>[]>} [outcomes] the answers of the
+ * @param {Map<string, Set<boolean>[]>} [outcomes] the answers of the
  *   omission predicate for the document's rules, from elisionOutcomes
  * @returns {{text: string, files: Map<string, string>}} the document, and
  *   the SVG files
@@ -899,7 +900,7 @@ export function withDiagrams(file, markdown, dom, outcomes = new Map()) {
     // in a list item, which indents its fences, would end the list.
     if (/^ /.test(lines[block.start])) throw new Error(`${file}:${block.start + 1}: a jbogenbau block with rules is indented, as in a list item; put it at the top level, where its railroad diagrams can follow it`);
     const svg = `${directory}/${names[index]}.svg`;
-    files.set(svg, ruleSvg(rule, omissionOf(rule, outcomes.get(index))));
+    files.set(svg, ruleSvg(rule, omissionOf(rule, outcomes.get(rule.at.join(":")))));
     if (!after.has(block.end)) after.set(block.end, []);
     /** @type {{name: string, source: string}[]} */ (after.get(block.end)).push({ name: rule.name, source: up + svg });
   });

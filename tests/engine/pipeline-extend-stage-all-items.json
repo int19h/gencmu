@@ -1,0 +1,31 @@
+{
+  "description": "An extension supplies constants, classifier entries, and implications to an earlier stage (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text $w('a') <classify(text($w), lex) ∪ $K> %emits $\n%stage second\n%ambiguity-resolution greedy\n%rule text X\n%extend-stage first\n%const $K Z\n%classifier lex\n  \"a\" ∈ A\n%implies A ⟹ X\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "first",
+          "output": [
+            {
+              "tags": [
+                "A",
+                "X",
+                "Z"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "second",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

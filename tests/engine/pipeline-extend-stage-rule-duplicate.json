@@ -1,0 +1,11 @@
+{
+  "description": "extend stage rule duplicate (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text 'a' <X> %emits $\n%extend-stage first\n%rule text 'a'\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

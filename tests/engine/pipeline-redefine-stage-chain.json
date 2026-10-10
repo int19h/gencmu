@@ -1,0 +1,13 @@
+{
+  "description": "redefine stage chain (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text 'a' <X> %emits $\n%extend-stage first\n%rule old 'c'\n%redefine-stage first\n%ambiguity-resolution greedy\n%rule text 'b'\n%extend-stage first\n%extend-rule text 'a'\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

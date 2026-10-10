@@ -1,0 +1,10 @@
+{
+  "description": "%extend-stage takes exactly one name. The error is at the directive (engine §9).",
+  "document": "```jbogenbau\n%extend-stage a b\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

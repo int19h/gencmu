@@ -1,0 +1,10 @@
+{
+  "description": "%extend-stage without a name is an error at the directive (engine §9).",
+  "document": "```jbogenbau\n%extend-stage\n%rule a A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

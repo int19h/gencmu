@@ -122,7 +122,7 @@ A grammar DOM (document object model) is the parsed form of a grammar document (
 
 `format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version.
 
-Format 22 adds ordered ranked expressions. Format 21 introduced pattern values and tree comparisons. It also permits all six tests on elidable terminators. Format 20 brought rule flags: `flags` on every rule definition, and the flag `leftmost-longest`. Format 18 brought braces and elidable optional markers.
+Format 22 adds ordered ranked expressions and the stage selectors `%extend-stage` and `%redefine-stage`. Format 21 introduced pattern values and tree comparisons. It also permits all six tests on elidable terminators. Format 20 brought rule flags: `flags` on every rule definition, and the flag `leftmost-longest`. Format 18 brought braces and elidable optional markers.
 
 An unreleased format covers all its changes together. Format 22 applies to grammar DOMs, bootstrap envelopes, and cache envelopes.
 
@@ -194,7 +194,7 @@ An implication is `{"if":TERM,"then":TERM,"at":[line,column]}`, for `%implies A 
 
 A classifier and an implication have no member but those shown.
 
-A directive is `{"name":"features","args":["cbm"],"at":[line,column]}`. The name is the keyword without `%`: `ambiguity-resolution`, `stage`, `include` or `features`. A directive of any other name is malformed, `elidable` included (engine §9). An argument is a name, or, for `include`, the decoded string: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
+A directive is `{"name":"features","args":["cbm"],"at":[line,column]}`. The name is the keyword without `%`: `ambiguity-resolution`, `stage`, `extend-stage`, `redefine-stage`, `include`, or `features`. A directive of any other name is malformed, `elidable` included (engine §9). An argument is a name, or, for `include`, the decoded string: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
 
 `ambiguity-resolution` takes a ranking name and optionally `elision-only`. The retired operand `maximal` in `args` is an error.
 
