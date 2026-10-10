@@ -1,0 +1,39 @@
+{
+  "description": "Selected routes settle skipped captures while future ranked groups remain unknown.",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text (X [($x(Y) ≻ V)] [+T] ≻ Z W)\n%conditions $x",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "children": [
+          {},
+          {},
+          {
+            "kind": "elided",
+            "terminal": "T"
+          }
+        ]
+      }
+    }
+  }
+}

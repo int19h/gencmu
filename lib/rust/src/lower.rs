@@ -358,6 +358,7 @@ pub(crate) struct RankedRuntime {
     pub written: FxMap<u32, String>,
     pub plans: FxMap<RankedPlanKey, RankedPlan>,
     pub private_names: FxMap<u32, BTreeSet<String>>,
+    pub bindings: FxMap<u32, (Vec<String>, Vec<String>)>,
 }
 
 pub(crate) type RankedPlanKey = (u32, Vec<String>, Vec<String>, Vec<String>);
@@ -611,10 +612,26 @@ impl<'a> Lowerer<'a> {
             // A plain optional that holds a capture expands in place, as
             // `(ε | x)` would: first the empty sequence, then each expansion
             // of `x` (§3.2).
-            Expr::Optional(inner, Mark::Plain) if holds_capture(inner) => {
+            Expr::Optional(inner, Mark::Plain) if holds_capture(inner, false) => {
                 let mut out = vec![Vec::new()];
                 out.extend(self.expand(inner));
                 out
+            }
+            Expr::Optional(inner, Mark::Plain)
+                if !self.grammar.ranked.groups.is_empty() && holds_capture(inner, true) =>
+            {
+                // Preserve tag arity, but select one complete route per helper.
+                // Only descendant groups reachable on that route stay unknown.
+                let mut routes = vec![Vec::new()];
+                routes.extend(self.expand(inner));
+                routes
+                    .into_iter()
+                    .map(|route| {
+                        self.enter();
+                        let sym = self.helper(vec![route], None, false, expr);
+                        vec![(sym, None, None)]
+                    })
+                    .collect()
             }
             Expr::Optional(inner, mark) => {
                 self.enter();
@@ -677,13 +694,18 @@ impl<'a> Lowerer<'a> {
 }
 
 /// Whether an expression holds a capture, at any depth (§3.5).
-fn holds_capture(expr: &Expr) -> bool {
+fn holds_capture(expr: &Expr, include_ranked: bool) -> bool {
     match expr {
         Expr::Capture(..) => true,
-        Expr::Ranked(_) => false,
-        Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => items.iter().any(holds_capture),
-        Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => holds_capture(inner),
-        Expr::Repeat(item, separator, _) => holds_capture(item) || separator.as_deref().is_some_and(holds_capture),
+        Expr::Ranked(_) if !include_ranked => false,
+        Expr::Ranked(items) | Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
+            items.iter().any(|item| holds_capture(item, include_ranked))
+        }
+        Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => holds_capture(inner, include_ranked),
+        Expr::Repeat(item, separator, _) => {
+            holds_capture(item, include_ranked)
+                || separator.as_deref().is_some_and(|expr| holds_capture(expr, include_ranked))
+        }
         Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => false,
     }
 }
@@ -1555,6 +1577,12 @@ fn ranked_runtime(grammar: &StageGrammar, lowered: &Lowered) -> RankedRuntime {
                 .private_names
                 .insert(id as u32, grammar.ranked.groups[group].names.difference(&nested(p)).cloned().collect());
         }
+    }
+    for (id, p) in lowered.prods.iter().enumerate() {
+        let declared: BTreeSet<String> =
+            p.slot.as_ref().map(|slot| slot.names.iter().flatten().cloned().collect()).unwrap_or_default();
+        let known = runtime.private_names.get(&(id as u32)).into_iter().flatten().cloned().collect();
+        runtime.bindings.insert(id as u32, (declared.into_iter().collect(), known));
     }
     let mut incoming = FxSet::default();
     let mut queue = Vec::new();

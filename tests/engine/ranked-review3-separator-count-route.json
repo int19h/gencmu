@@ -1,0 +1,38 @@
+{
+  "description": "Selected routes settle skipped captures while future ranked groups remain unknown.",
+  "grammar": "%rule text (X [($x(Y) ≻ V)] {U \\ T} ≻ Z W)\n%conditions $x",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "u",
+      "tags": [
+        "U"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    },
+    {
+      "text": "u",
+      "tags": [
+        "U"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "error": {
+        "kind": "rejected"
+      }
+    }
+  }
+}

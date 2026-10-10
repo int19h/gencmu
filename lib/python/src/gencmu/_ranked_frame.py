@@ -46,13 +46,15 @@ def prepare_ranked(lowered):
                 pending.extend(s for terminal,s in zip(child.terminal,child.rhs) if not terminal)
         own = reads(p.ranked.expr)
         p.private_names = own - nested
+    for p in lowered.productions:
+        p.ranked_bindings = (tuple(sorted(n for n in p.captures if not n.startswith('\u0000'))),tuple(sorted(p.private_names)))
 
 
 def written_prefix(lowered, p, dot, origin, prefix, caps, restores=False):
     symbols = tuple((terminal, lowered.written_helpers.get(symbol,symbol),p.tests[i] if p.tests else None) for i,(terminal,symbol) in enumerate(zip(p.terminal,p.rhs)))
     captures = tuple((name,caps[p.slots[position]]) for name,position in sorted(p.captures.items(),key=lambda part:part[1]) if not name.startswith('\u0000') and position<dot)
     source = (p.rule_name,p.slot.source.document,p.slot.source.at,lowered.written_helpers.get(p.lhs))
-    return (p.lexical.key if p.lexical else None,source,symbols,dot,origin,prefix,captures,restores)
+    return (p.lexical.key if p.lexical else None,source,symbols,dot,origin,prefix,captures,restores,p.ranked_bindings)
 
 
 class Frames:

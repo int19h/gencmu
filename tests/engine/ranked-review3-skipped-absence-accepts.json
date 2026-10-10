@@ -1,0 +1,22 @@
+{
+  "description": "A skipped optional establishes absence without removing a route whose absence condition passes.",
+  "grammar": "%rule text (X [($x(Y) ≻ V)] ≻ Z W)\n%conditions ¬$x",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

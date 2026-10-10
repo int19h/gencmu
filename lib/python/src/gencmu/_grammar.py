@@ -887,6 +887,7 @@ class Production:
     option: int = -1
     contextual: bool = False
     private_names: set = field(default_factory=set,repr=False,compare=False)
+    ranked_bindings: tuple = field(default=(),repr=False,compare=False)
     parent_tags: Any = field(default=None,repr=False,compare=False)
 
     @property
@@ -1157,6 +1158,10 @@ class _Lowerer:
             # of x (engine §3.2).
             if not elidable and _holds_capture(inner):
                 return [[], *body]
+            if not elidable and self.grammar.ranked and self.grammar.ranked.groups and _holds_capture(inner, include_ranked=True):
+                # Keep tag arity, but give each route a separate helper.
+                # Descendant reachability then establishes selected absence.
+                return [[(("n", self.new_helper([route])), None)] for route in [[], *body]]
             # Any other optional is a helper, and a marked one is elidable,
             # with the terminal that its marker names; ++ makes it maximal
             # (engine §3.8).
@@ -1493,13 +1498,13 @@ class _Lowerer:
         )
 
 
-def _holds_capture(expr: Any) -> bool:
+def _holds_capture(expr: Any, include_ranked: bool = False) -> bool:
     """Whether an expression holds a capture, at any depth (engine §3.5)."""
     stack: list[Any] = [expr]
     while stack:
         value = stack.pop()
         if isinstance(value, dict):
-            if "ranked" in value:
+            if "ranked" in value and not include_ranked:
                 continue
             if isinstance(value.get("capture"), str) and "expr" in value:
                 return True

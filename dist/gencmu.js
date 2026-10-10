@@ -4623,6 +4623,11 @@
       }
       p.rankedPrivate = own ? new Set([...privateNames.get(own)].filter(n => ![...relevant].some(g => privateNames.get(g).has(n)))) : new Set();
       p.sourcePrivate = new Set(ranked.groups.filter((/** @type {any} */ g) => g.source === p.source).flatMap((/** @type {any} */ g) => [...privateNames.get(g)]));
+      // Cache identity includes declarations and selected absence, not helper IDs.
+      p.rankedBindings = [
+        p.captures.map((/** @type {any} */ c) => c.name).filter((/** @type {string} */ n) => !n.startsWith('\u0000')).sort(),
+        [...p.rankedPrivate].sort(),
+      ];
       for (const s of p.rhs) if (groups.has(s.name)) s.slot = groups.get(s.name);
     }
     lowered.ranked = ranked;
@@ -4635,7 +4640,8 @@
     for (const raw of clauses) {
       if (production.lexicalFrame && [...rankedCaptureReads(raw)].some(n => production.sourcePrivate.has(n)
         && !production.rankedPrivate.has(n) && !production.lexicalFrame.knownPrivate.has(n) && !positions.has(n) && !prefix.has(n))) continue;
-      for (const condition of partsFor(prepareConditions([raw]), n => present.has(n), present)) {
+      for (const simplified of partsFor(prepareConditions([raw]), n => present.has(n), present)) {
+        const condition = simplified === DOM_FALSE ? {any:[]} : simplified;
         const reads = rankedConditionVariables(condition);
         if (!reads.every(n => present.has(n))) continue;
         if (!final && reads.includes('')) continue;
@@ -4661,7 +4667,7 @@
         const name = item.production.captures[part.index].name;
         if (!name.startsWith('\u0000')) captures.push([name,part.start,part.end,part.tags,part.structure]);
       }
-      return [written(item.production),item.origin,item.production.rhs.slice(0,item.dot).map(symbol),item.production.rhs.slice(item.dot).map(symbol),item.prefix,captures.reverse(),item.restores];
+      return [written(item.production),item.origin,item.production.rhs.slice(0,item.dot).map(symbol),item.production.rhs.slice(item.dot).map(symbol),item.prefix,captures.reverse(),item.restores,item.production.rankedBindings];
     };
     return {
       contextual,
@@ -5978,6 +5984,15 @@
         // would: first the empty sequence, then each expansion of x
         // (engine §3.2).
         if (expr.elidable !== true && holdsCapture(inner)) return [/** @type {SequenceItem[]} */ ([]), ...this.expand(inner, where)];
+        if (expr.elidable !== true && this.grammar.ranked.groups.length && holdsCapture(inner, true)) {
+          // Keep one helper symbol for tag arity, but give each route its own
+          // helper. Its reachable ranked groups then determine known absence.
+          return [[], ...this.expand(inner, where)].map(sequence => {
+            this.helperExpression = expr;
+            const name = this.helper(where, () => [sequence], null);
+            return [{symbol:{name,terminal:false}}];
+          });
+        }
         // Any other optional is a helper, and a marked one is elidable, with
         // the terminal that its marker names; ++ makes it maximal
         // (engine §3.8).
@@ -6149,12 +6164,13 @@
   /**
    * Whether an expression holds a capture, at any depth (engine §3.5).
    * @param {Expr} expr
+   * @param {boolean} [includeRanked]
    * @returns {boolean}
    */
-  function holdsCapture(expr) {
-    if ("ranked" in expr) return false;
+  function holdsCapture(expr, includeRanked = false) {
+    if ("ranked" in expr && !includeRanked) return false;
     if ("capture" in expr) return true;
-    return childExpressions(expr).some(holdsCapture);
+    return childExpressions(expr).some(child => holdsCapture(child, includeRanked));
   }
 
   /**

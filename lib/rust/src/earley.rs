@@ -379,11 +379,12 @@ impl Chart {
             .cloned()
             .unwrap_or_else(|| format!("parent{:?}", p.slot.as_ref().expect("a written source").source));
         let key = format!(
-            "{:?}/{written:?}/{symbols:?}/{}/{}/{own:?}/{}",
+            "{:?}/{written:?}/{symbols:?}/{}/{}/{own:?}/{}/{:?}",
             outer.map(|f| &f.key),
             before.dot,
             before.origin,
-            before.prefix
+            before.prefix,
+            g.ranked.bindings.get(&before.prod)
         );
         if let Some(&id) = self.lexical_index.get(&key) {
             self.helper_entries.insert((at, before), id);

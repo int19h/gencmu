@@ -172,6 +172,18 @@ func (g *lowered) prepareRanked() {
 				}
 			}
 		}
+		declared, known := []string{}, []string{}
+		for name := range p.slotOf {
+			if name != "" {
+				declared = append(declared, name)
+			}
+		}
+		for name := range p.privateNames {
+			known = append(known, name)
+		}
+		sort.Strings(declared)
+		sort.Strings(known)
+		p.rankedBindings = fmt.Sprintf("%q/%q", declared, known)
 	}
 }
 func (r *recognizer) rankedPrefix(it *item) string {
@@ -201,7 +213,7 @@ func (r *recognizer) rankedPrefix(it *item) string {
 	if p.helper {
 		path = r.g.writtenHelpers[p.lhs]
 	}
-	return fmt.Sprintf("%s/%v/%q/%q/%d/%d/%d/%q/%q/%t", p.ruleName, p.at, path, symbols, it.dot, it.origin, it.prefix, captures, lexical, it.restores)
+	return fmt.Sprintf("%s/%v/%q/%q/%d/%d/%d/%q/%q/%t/%s", p.ruleName, p.at, path, symbols, it.dot, it.origin, it.prefix, captures, lexical, it.restores, p.rankedBindings)
 }
 func (r *recognizer) rankedEntry(it *item, rule int32) *rankedFrame {
 	p0 := r.g.rules[rule].prods

@@ -22,38 +22,39 @@ type slotMetadata struct {
 }
 
 type production struct {
-	base         *production
-	lexical      *rankedFrame
-	ranked       *rankedGroup
-	option       int
-	contextual   bool
-	privateNames map[string]bool
-	parentTags   *domTerm
-	slot         *slotMetadata
-	num          int
-	lhs          int32
-	rhs          []symbol
-	tests        []*symTest // per position: the test its symbol must pass, or nil; nil when no symbol is tested (§4)
-	capName      []string   // per position: the capture's name, or ""
-	capSlot      []int32    // per position: the item's capture slot, or -1
-	nslots       int
-	slotOf       map[string]int32 // capture name → slot
-	posOf        map[string]int   // capture name → its first position
-	tags         *domTerm         // nil: default tags (§4)
-	implicit     bool             // one symbol and no tags: the constituent has its symbol's tags (§3.7)
-	conds        []lcond
-	condFrom     []int32    // conds[condFrom[d]:condFrom[d+1]] are those triggered at dot d, or nil for none
-	predictConds []*domCond // conditions using no capture but $ of an empty production, checked at prediction
-	emit         *domEmit   // as dropped and simplified for the production (§3.6)
-	nothing      bool       // %emits ε: the constituent emits nothing and does not count (§11)
-	opaque       bool       // %opaque: the constituent is an opaque part, which sounds ? and shows its text (§11)
-	transparent  bool
-	helper       bool
-	elided       string   // for the ε production of an optional beginning with an elidable terminal
-	elidedTest   *symTest // the test of that terminal, if it is tested; a restored token sounds like the string of an = test (§7)
-	ruleName     string   // the rule the author wrote (for a helper, the one it serves)
-	doc          string
-	at           [2]int
+	base           *production
+	lexical        *rankedFrame
+	ranked         *rankedGroup
+	option         int
+	contextual     bool
+	privateNames   map[string]bool
+	rankedBindings string
+	parentTags     *domTerm
+	slot           *slotMetadata
+	num            int
+	lhs            int32
+	rhs            []symbol
+	tests          []*symTest // per position: the test its symbol must pass, or nil; nil when no symbol is tested (§4)
+	capName        []string   // per position: the capture's name, or ""
+	capSlot        []int32    // per position: the item's capture slot, or -1
+	nslots         int
+	slotOf         map[string]int32 // capture name → slot
+	posOf          map[string]int   // capture name → its first position
+	tags           *domTerm         // nil: default tags (§4)
+	implicit       bool             // one symbol and no tags: the constituent has its symbol's tags (§3.7)
+	conds          []lcond
+	condFrom       []int32    // conds[condFrom[d]:condFrom[d+1]] are those triggered at dot d, or nil for none
+	predictConds   []*domCond // conditions using no capture but $ of an empty production, checked at prediction
+	emit           *domEmit   // as dropped and simplified for the production (§3.6)
+	nothing        bool       // %emits ε: the constituent emits nothing and does not count (§11)
+	opaque         bool       // %opaque: the constituent is an opaque part, which sounds ? and shows its text (§11)
+	transparent    bool
+	helper         bool
+	elided         string   // for the ε production of an optional beginning with an elidable terminal
+	elidedTest     *symTest // the test of that terminal, if it is tested; a restored token sounds like the string of an = test (§7)
+	ruleName       string   // the rule the author wrote (for a helper, the one it serves)
+	doc            string
+	at             [2]int
 	// warnings are the features of its alternative's warnings that are on,
 	// in the order written, each giving a warning for a node of the chosen
 	// tree built by the production (§12); a helper has none.
@@ -445,22 +446,22 @@ func isChain(e *domExpr) bool {
 
 // holdsCapture says whether an expression holds a capture, at any depth
 // (§3.5).
-func holdsCapture(e *domExpr) bool {
+func holdsCapture(e *domExpr, includeRanked bool) bool {
 	if e == nil {
 		return false
 	}
-	if e.Kind == exRanked {
+	if e.Kind == exRanked && !includeRanked {
 		return false
 	}
 	if e.Kind == exCapture {
 		return true
 	}
 	for _, it := range e.Items {
-		if holdsCapture(it) {
+		if holdsCapture(it, includeRanked) {
 			return true
 		}
 	}
-	return holdsCapture(e.Inner) || holdsCapture(e.Sep)
+	return holdsCapture(e.Inner, includeRanked) || holdsCapture(e.Sep, includeRanked)
 }
 
 func symbolsOf(body []slot) []symbol {
@@ -818,8 +819,21 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		// A plain optional that holds a capture expands in place, as
 		// (ε | x) would: first the empty sequence, then each expansion of
 		// x (§3.2).
-		if !e.Elidable && holdsCapture(inner) {
+		if !e.Elidable && holdsCapture(inner, false) {
 			return append([][]slot{{}}, lw.expand(inner, a, ruleName)...)
+		}
+		if !e.Elidable && lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 && holdsCapture(inner, true) {
+			// Preserve tag arity while each helper selects one complete route.
+			// Reachable descendant groups then distinguish absence from future names.
+			bodies := append([][]slot{{}}, lw.expand(inner, a, ruleName)...)
+			var out [][]slot
+			for _, body := range bodies {
+				selected := body
+				out = append(out, lw.helper(a, ruleName, "", nil, func(int32) [][]slot {
+					return [][]slot{selected}
+				})...)
+			}
+			return out
 		}
 		// Any other optional is a helper, and a marked one is elidable,
 		// with the terminal that its marker names; ++ makes it maximal
