@@ -8,7 +8,7 @@ The lexicon below is a classifier. Each of its entries lists words and gives the
 
 If a word has several classes, it carries them all, and the syntax stage reads it under each class. No word of CLL has more than one. The entries stand in the order of their classes. The syntax grammar's `indicator` and `indicators` rules read the words of UI, CAI, DAhO, FUhO and FUhE. The implication after the entries marks each of these words `indicator`. The indicator stage uses this mark to attach indicators to the preceding word, under CLL's non-formal `word` rule.
 
-This lexicon omits the CLL dictionary's `y` (Y). The forms stage reads a run of `y` as hesitation and never looks it up.
+The forms stage reads a run of `y` as hesitation and never looks it up in this classifier.
 
 [The notation document](../../docs/notation.md) explains the notation.
 
@@ -161,3 +161,7 @@ This lexicon omits the CLL dictionary's `y` (Y). The forms stage reads a run of 
 ```jbogenbau
 %implies UI ∪ CAI ∪ DAhO ∪ FUhE ∪ FUhO ⟹ ~indicator
 ```
+
+## Differences from the CLL dictionary
+
+The classifier omits the CLL dictionary's `y` entry in Y. The forms stage recognizes hesitation directly, so this omission preserves its treatment without a dictionary lookup.
