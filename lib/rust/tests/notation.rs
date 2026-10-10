@@ -123,7 +123,7 @@ fn a_tie_in_the_notation_is_a_grammar_error_with_no_position() {
 
 /// No directive names elidable terminators: `%elidable` is an unknown
 /// keyword, a syntax error at the keyword. A marker makes an optional
-/// elidable, and `++` also maximal (engine §3.8, §9).
+/// elidable (engine §3.8, §9).
 #[test]
 fn an_optional_is_marked_elidable_in_place() {
     let read = |text: &str| gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{text}\n```\n"));
@@ -141,7 +141,7 @@ fn an_optional_is_marked_elidable_in_place() {
         expr("%rule text A [+KU #]"),
         expect(r##"{"seq":[{"ref":"A"},{"optional":{"seq":[{"ref":"KU"},{"ref":"#"}]},"elidable":true}]}"##)
     );
-    assert_eq!(expr("%rule text [++TOI]"), expect(r#"{"optional":{"ref":"TOI"},"elidable":true,"maximal":true}"#));
+    assert_eq!(expr("%rule text [+TOI]"), expect(r#"{"optional":{"ref":"TOI"},"elidable":true}"#));
     assert_eq!(expr("%rule text [KU]"), expect(r#"{"optional":{"ref":"KU"}}"#));
 }
 

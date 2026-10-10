@@ -9,7 +9,6 @@ use crate::earley::{matchers, Chart, EngineError, Matcher, Recognizer, Recon, Sh
 use crate::error::Error;
 use crate::grammar::{Change, ClassifierTables, Lean, StageGrammar};
 use crate::lower::{lower, Lowered, Prod, Sym, SymbolTest, TestOp};
-use crate::maximal::Maximal;
 use crate::rank::{compare_profiles, tree_profile, Act, Ranker, Verdict as RankVerdict};
 use crate::recent::Recent;
 use crate::result::{
@@ -594,11 +593,8 @@ impl Dialect {
         let n = input.len();
         let accepted = chart.accepts(lowered.start, n);
         let lean = grammar.lean;
-        // Maximality applies to the marked terminators (§4).
-        let restricted = lowered.rules.iter().any(|rule| rule.maximal);
-        let maximal = restricted.then(|| Maximal::new(&lowered, &chart, &input, shared.unicode, &shared.tags));
         let ranked = if accepted {
-            let mut ranker = Ranker::new(&lowered, &chart, &input, shared, lean, maximal.as_ref());
+            let mut ranker = Ranker::new(&lowered, &chart, &input, shared, lean);
             ranker.rank().map(|ranking| {
                 let first = build(&ranker, ranking.first);
                 let second = ranking.second.map(|second| build(&ranker, second));
@@ -608,19 +604,7 @@ impl Dialect {
             None
         };
         let Some((ranking, chosen, second)) = ranked else {
-            // A text that `maximal` leaves with no derivation is rejected at
-            // the first terminator it forbids in the first reading of the
-            // ranking without `maximal`, whatever its verdict (§4).
-            let forbidden = match &maximal {
-                Some(maximal) if accepted => {
-                    let mut ranker = Ranker::new(&lowered, &chart, &input, shared, lean, None);
-                    ranker
-                        .rank()
-                        .and_then(|ranking| forbidden_terminator(&build(&ranker, ranking.first), &lowered, maximal))
-                }
-                _ => None,
-            };
-            let (position, expected) = forbidden.unwrap_or_else(|| rejection_of(&lowered, &chart));
+            let (position, expected) = rejection_of(&lowered, &chart);
             let error = self.rejection(index, shared, &input, position, expected);
             run.stages.push(stage);
             return Err(Box::new(error));
@@ -928,17 +912,15 @@ impl Dialect {
         } else {
             None
         };
-        // Maximality does not apply to the derivations of R, and
-        // the ranking has no lean (§7.7).
+        // The ranking of R has no lean (§7.7).
         let rooted = rooted && (!protect || walk.as_ref().is_some_and(|walk| walk.is_some()));
         let ranking = if rooted {
             let marks = walk.as_ref().and_then(|walk| walk.as_ref()).map(|walk| &walk.marks);
-            let mut ranker = Ranker::new(g, &chart, &tokens, shared, Lean::Neither, None)
-                .observing(input, &recon.project)
-                .checking(marks);
+            let mut ranker =
+                Ranker::new(g, &chart, &tokens, shared, Lean::Neither).observing(input, &recon.project).checking(marks);
             let preferred = !g.ranked.slots.is_empty();
             let raw_counted = if preferred {
-                Ranker::new(g, &chart, &tokens, shared, Lean::Neither, None)
+                Ranker::new(g, &chart, &tokens, shared, Lean::Neither)
                     .unfiltered()
                     .observing(input, &recon.project)
                     .checking(marks)
@@ -1107,50 +1089,6 @@ fn rejection_of(g: &Lowered, chart: &Chart) -> (usize, Vec<Expected>) {
         .map(|(terminal, rules)| Expected { terminal, rules: rules.into_iter().collect() })
         .collect();
     (furthest, expected)
-}
-
-/// Of a derivation, the first elided terminator, in the order of the
-/// tree's leaves, that `maximal` forbids: its position, and its terminal
-/// with the rule its optional is written in as the one expected there (§4).
-/// `None` if it forbids none.
-fn forbidden_terminator(tree: &ITree, g: &Lowered, maximal: &Maximal) -> Option<(usize, Vec<Expected>)> {
-    // Each node on the path from the root, with the index of its next
-    // child to visit.
-    let mut stack: Vec<(u32, usize)> = vec![(0, 0)];
-    while let Some(&mut (index, ref mut next)) = stack.last_mut() {
-        let node = &tree.nodes[index as usize];
-        let Some(&child) = node.children.get(*next) else {
-            stack.pop();
-            continue;
-        };
-        let position = *next;
-        *next += 1;
-        let IKind::Close { prod, .. } = node.kind else { unreachable!("a read has no children") };
-        if let IKind::Close { prod: inner, start, end, .. } = tree.nodes[child as usize].kind {
-            let helper = &g.prods[inner as usize];
-            // The terminator's constituent is the node before it: there is
-            // none at the start of a production, after a read, or after the
-            // first symbol of a production when that is its own rule, what
-            // braces or a left chain have read so far.
-            let production = &g.prods[prod as usize];
-            let own = position == 1 && production.syms[0] == Sym::N(production.rule);
-            if maximal.elided(helper.rule, start, end) && position > 0 && !own {
-                let before = &tree.nodes[node.children[position - 1] as usize];
-                if let IKind::Close { prod: constituent, start: from, end: to, .. } = before.kind {
-                    let test = g.prods[prod as usize].test(position - 1);
-                    if maximal.forbids_in(g.prods[constituent as usize].rule, from, to, test, before.lexical) {
-                        let elided = &g.rules[helper.rule as usize];
-                        let terminal = elided.elided.as_deref().expect("an elidable terminator");
-                        let terminal = written_symbol(terminal, elided.elided_test.map(|test| &g.tests[test as usize]));
-                        let rule = g.rules[helper.owner as usize].name.clone();
-                        return Some((start as usize, vec![Expected { terminal, rules: vec![rule] }]));
-                    }
-                }
-            }
-        }
-        stack.push((child, 0));
-    }
-    None
 }
 
 /// A terminal as the diagnostics write it: its name, followed by its test

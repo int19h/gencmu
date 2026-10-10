@@ -91,8 +91,6 @@ struct Source {
     leftmost_longest: Vec<bool>,
     lean: Lean,
     elision_only: bool,
-    /// Whether every generated elidable optional uses `[++T]` (§4).
-    maximal: bool,
 }
 
 /// A nonterminal of the lowered grammar: a rule, or a helper owned by one.
@@ -118,7 +116,6 @@ struct Grammar {
     prods: Vec<LProd>,
     lean: Lean,
     elision_only: bool,
-    maximal: bool,
     /// The item of each pair of braces, which must not derive the empty
     /// sequence (engine §3.3).
     brace_items: Vec<Sym>,
@@ -148,9 +145,8 @@ fn generate(rng: &mut Rng) -> (Source, Input) {
     let late = lean == Lean::LateElision;
     let elision_only = lean == Lean::Greedy && rng.chance(25);
     // Under late-elision, and now and then under another rule, a terminal
-    // is elidable, and then now and then the stage declares maximal.
+    // is elidable.
     let elidable = if !elision_only && (late || rng.chance(30)) { Some(rng.below(terminal_count)) } else { None };
-    let maximal = elidable.is_some() && rng.chance(50);
     let sugar = elidable.is_some() || rng.chance(40);
     // A rule reference, now and then tested by its sound (§4).
     let reference = |rng: &mut Rng, rule: usize| match rng.below(20) {
@@ -172,10 +168,10 @@ fn generate(rng: &mut Rng) -> (Source, Input) {
                     (true, 2, _) if rng.chance(60) => items.push(Item::OptionalRepeat(sym)),
                     (true, 2, _) => items.push(Item::Separated(sym, rng.below(terminal_count))),
                     // An elidable optional, often right after a rule, whose
-                    // constituent maximal tests.
+                    // constituent carries the test.
                     (true, 3 | 4, Some(t)) => {
                         // The rule before it is often tested, so that
-                        // maximal's test of a longer constituent matters.
+                        // the completed constituent must pass its test.
                         if rng.chance(70) {
                             let rule = rng.below(rule_count);
                             items.push(match rng.below(4) {
@@ -215,7 +211,7 @@ fn generate(rng: &mut Rng) -> (Source, Input) {
         });
     }
     let leftmost_longest = (0..rule_count).map(|_| rng.chance(35)).collect();
-    let source = Source { rules, chains, leftmost_longest, lean, elision_only, maximal };
+    let source = Source { rules, chains, leftmost_longest, lean, elision_only };
     let grammar = lower(&source);
     // Most inputs are sentences of the grammar, so that most cases parse.
     // Now and then the input is empty.
@@ -339,7 +335,7 @@ fn lower(source: &Source) -> Grammar {
         rules[rule].prods.push(prods.len());
         prods.push(LProd { rule, syms, tests });
     }
-    Grammar { rules, prods, lean: source.lean, elision_only: source.elision_only, maximal: source.maximal, brace_items }
+    Grammar { rules, prods, lean: source.lean, elision_only: source.elision_only, brace_items }
 }
 
 /// Appends a random sentence of `rule` to `out`; false if it grew too deep.
@@ -406,17 +402,7 @@ fn grammar_text(source: &Source) -> String {
         let bodies: Vec<String> = alternatives
             .iter()
             .map(|(items, tags)| {
-                let mut body: Vec<String> = items
-                    .iter()
-                    .map(|item| {
-                        let text = item_text(item);
-                        if source.maximal {
-                            text.replace("[+", "[++")
-                        } else {
-                            text
-                        }
-                    })
-                    .collect();
+                let mut body: Vec<String> = items.iter().map(item_text).collect();
                 if body.is_empty() {
                     body.push("ε".to_string());
                 }
@@ -467,11 +453,7 @@ fn grammar_dom(source: &Source) -> String {
                         ),
                         Item::Optional(sym) => format!("{{\"optional\":{}}}", reference(sym)),
                         Item::Elidable(t) => {
-                            format!(
-                                "{{\"optional\":{},\"elidable\":true{}}}",
-                                reference(&Sym::T(*t)),
-                                if source.maximal { ",\"maximal\":true" } else { "" }
-                            )
+                            format!("{{\"optional\":{},\"elidable\":true}}", reference(&Sym::T(*t)),)
                         }
                         Item::Repeat(sym) => format!("{{\"repeat\":{}}}", reference(sym)),
                         Item::OptionalRepeat(sym) => format!("{{\"optional\":{{\"repeat\":{}}}}}", reference(sym)),
@@ -542,24 +524,19 @@ struct TooMany;
 type Derivations = Rc<Vec<Rc<Derivation>>>;
 
 /// Enumerates the derivations that count (§4): no cyclic one, and under
-/// `maximal` none with an elided terminator whose constituent could have
-/// been longer.
+/// derivations retain ordinary omissions.
 struct Enumerator<'a> {
     grammar: &'a Grammar,
     tokens: &'a [Vec<usize>],
     /// Whether each token sounds `x`, or else `y`.
     sounds: &'a [bool],
-    /// Whether `maximal` applies, with every derivation, cyclic or not,
-    /// that says which constituents complete where.
-    maximal: bool,
     memo: HashMap<(usize, usize, usize, Vec<usize>), Derivations>,
-    completes: HashMap<(usize, usize, usize), bool>,
     budget: usize,
 }
 
 impl<'a> Enumerator<'a> {
-    fn new(grammar: &'a Grammar, tokens: &'a [Vec<usize>], sounds: &'a [bool], maximal: bool) -> Enumerator<'a> {
-        Enumerator { grammar, tokens, sounds, maximal, memo: HashMap::new(), completes: HashMap::new(), budget: 20_000 }
+    fn new(grammar: &'a Grammar, tokens: &'a [Vec<usize>], sounds: &'a [bool]) -> Enumerator<'a> {
+        Enumerator { grammar, tokens, sounds, memo: HashMap::new(), budget: 20_000 }
     }
 
     /// Whether a test holds of the span: its sound, the tokens' phonemes
@@ -567,45 +544,6 @@ impl<'a> Enumerator<'a> {
     fn holds(&self, test: Option<bool>, start: usize, end: usize) -> bool {
         let sound: String = self.sounds[start..end].iter().map(|&x| if x { 'x' } else { 'y' }).collect();
         test.map_or(true, |eq| (sound == "x") == eq)
-    }
-
-    /// Whether `rule` completes over the span, by any derivation. A cyclic
-    /// derivation needs one that is not, so those alone are searched.
-    fn completes(&mut self, rule: usize, start: usize, end: usize) -> Result<bool, TooMany> {
-        if let Some(&found) = self.completes.get(&(rule, start, end)) {
-            return Ok(found);
-        }
-        let mut plain = Enumerator::new(self.grammar, self.tokens, self.sounds, false);
-        let found = !plain.rule(rule, start, end, &[])?.is_empty();
-        self.budget = self.budget.checked_sub(20_000 - plain.budget).ok_or(TooMany)?;
-        self.completes.insert((rule, start, end), found);
-        Ok(found)
-    }
-
-    /// Under `maximal`, whether the terminator of the elidable optional at
-    /// `index` of `prod`, elided at `at`, follows a constituent from
-    /// `before` that could have been longer (§4). The constituent is the
-    /// node just before it, unless that is a terminal, or the optional
-    /// stands first, or the node is what a left-recursive production has
-    /// read so far.
-    fn forbidden(&mut self, prod: usize, index: usize, before: Option<usize>, at: usize) -> Result<bool, TooMany> {
-        let production = &self.grammar.prods[prod];
-        let Some(origin) = before.filter(|_| self.maximal && index > 0) else {
-            return Ok(false);
-        };
-        let Sym::N(constituent) = production.syms[index - 1] else {
-            return Ok(false);
-        };
-        if index == 1 && constituent == production.rule {
-            return Ok(false);
-        }
-        let test = production.tests[index - 1];
-        for later in at + 1..=self.tokens.len() {
-            if self.holds(test, origin, later) && self.completes(constituent, origin, later)? {
-                return Ok(true);
-            }
-        }
-        Ok(false)
     }
 
     fn rule(&mut self, rule: usize, start: usize, end: usize, forbidden: &[usize]) -> Result<Derivations, TooMany> {
@@ -621,7 +559,7 @@ impl<'a> Enumerator<'a> {
         inner.sort_unstable();
         let mut out = Vec::new();
         for &prod in &self.grammar.rules[rule].prods {
-            for children in self.sequence(prod, 0, start, end, (start, end), &inner, None)? {
+            for children in self.sequence(prod, 0, start, end, (start, end), &inner)? {
                 self.budget = self.budget.checked_sub(1).ok_or(TooMany)?;
                 out.push(Rc::new(Derivation { prod, start, end, children }));
             }
@@ -642,7 +580,6 @@ impl<'a> Enumerator<'a> {
         end: usize,
         parent: (usize, usize),
         forbidden: &[usize],
-        before: Option<usize>,
     ) -> Result<Vec<Vec<Child>>, TooMany> {
         let grammar = self.grammar;
         let syms = &grammar.prods[prod].syms;
@@ -653,7 +590,7 @@ impl<'a> Enumerator<'a> {
         match syms[index] {
             Sym::T(terminal) => {
                 if start < end && self.tokens[start].contains(&terminal) {
-                    for rest in self.sequence(prod, index + 1, start + 1, end, parent, forbidden, Some(start))? {
+                    for rest in self.sequence(prod, index + 1, start + 1, end, parent, forbidden)? {
                         let mut children = vec![Child::Read(start, terminal)];
                         children.extend(rest);
                         out.push(children);
@@ -667,16 +604,12 @@ impl<'a> Enumerator<'a> {
                     if !self.holds(grammar.prods[prod].tests[index], start, middle) {
                         continue;
                     }
-                    let elided = middle == start && grammar.rules[rule].elided.is_some();
-                    if elided && self.forbidden(prod, index, before, start)? {
-                        continue;
-                    }
                     let same = (start, middle) == parent;
                     let firsts = self.rule(rule, start, middle, if same { forbidden } else { &[] })?;
                     if firsts.is_empty() {
                         continue;
                     }
-                    let rests = self.sequence(prod, index + 1, middle, end, parent, forbidden, Some(start))?;
+                    let rests = self.sequence(prod, index + 1, middle, end, parent, forbidden)?;
                     for first in firsts.iter() {
                         for rest in &rests {
                             let mut children = vec![Child::Node(first.clone())];
@@ -1034,7 +967,7 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
         };
     }
     // The oracle reads the input itself, whatever the stage does with it.
-    let mut enumerator = Enumerator::new(&grammar, &tokens, &sounds, grammar.maximal);
+    let mut enumerator = Enumerator::new(&grammar, &tokens, &sounds);
     let Ok(derivations) = enumerator.rule(0, 0, tokens.len(), &[]) else {
         return Ok(false);
     };
@@ -1151,9 +1084,6 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
     if tokens.is_empty() {
         *findings.entry("(stat) empty input").or_default() += 1;
     }
-    if grammar.maximal {
-        *findings.entry("(stat) maximal").or_default() += 1;
-    }
     let expected = match expect(&ranked, grammar.lean, findings) {
         Outcome::Expected(expected) => expected,
         // T is a total order (§6), so this cannot happen.
@@ -1251,9 +1181,7 @@ fn ranking_matches_the_definitions() {
     // Every kind of round is checked often enough to count.
     let count = |key: &str| findings.get(key).copied().unwrap_or(0) as u64;
     assert!(
-        count("(stat) rejected") > cases / 50
-            && count("(stat) empty input") > cases / 100
-            && count("(stat) maximal") > cases / 50,
+        count("(stat) rejected") > cases / 50 && count("(stat) empty input") > cases / 100,
         "too few rounds of a kind: {findings:?}"
     );
     assert!(checked > cases / 6, "only {checked} grammars were checked");

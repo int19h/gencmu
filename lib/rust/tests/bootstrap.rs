@@ -166,7 +166,7 @@ const EVERY_CONSTRUCT: &str = r#"```jbogenbau
   ¬g? "do" ∉ ~KOhA
 %implies ~A ∩ ~B ⟹ ~C ∖ ~D
 %rule text
-  | f? h! $x(A) $y(LE="la") [C | $z(D)] {E} {E \ [C]} [+KU #] [++~KEI (A | B)] (F & G) 'a'..'z' '\p{L}' /a/ ~H UI∩(~B)=∅ <~T ∪ $K>
+  | f? h! $x(A) $y(LE="la") [C | $z(D)] {E} {E \ [C]} [+KU #] [+~KEI (A | B)] (F & G) 'a'..'z' '\p{L}' /a/ ~H UI∩(~B)=∅ <~T ∪ $K>
   | g? text-tail
   %tags ~U ∪ ($x ∧ classify(text($x), lex) ⊆ ~V ⟹ ~W)
   %conditions , (text($x) = "ok" ∨ initial($y)) ⟹ ¬matches(head($x), text) ∧ $y, begins(tail($x), text), text($y) ∈ split("a.b", ".")

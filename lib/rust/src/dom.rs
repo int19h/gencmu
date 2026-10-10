@@ -133,8 +133,7 @@ pub(crate) enum Expr {
     Choice(Vec<Expr>),
     Ranked(Vec<Expr>),
     And(Vec<Expr>),
-    /// An optional `[x]`, or, with a marker, an elidable one, `[+T x]` or
-    /// `[++T x]` (engine §3.8).
+    /// An optional `[x]`, or an elidable optional `[+T x]` (§3.8).
     Optional(Box<Expr>, Mark),
     /// Braces: the item, the separator after `\` if any, and a chain's
     /// direction, from its marker `...` (engine §3.2, §3.3).
@@ -156,12 +155,11 @@ pub(crate) enum Expr {
 }
 
 /// The marker of an optional (engine §3.8): none, `+` for an elidable
-/// optional, or `++` for one whose terminator is also maximal.
+/// optional.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Mark {
     Plain,
     Elidable,
-    Maximal,
 }
 
 /// The direction of a chain (engine §3.3): `{... x \ s}` nests from the
@@ -434,11 +432,7 @@ fn expr_from_json(value: &Json) -> R<Expr> {
         "ranked" => Expr::Ranked(list("ranked")?),
         "and" => Expr::And(list("and")?),
         "optional" => {
-            let mark = match (is_true(value.get("elidable")), is_true(value.get("maximal"))) {
-                (false, _) => Mark::Plain,
-                (true, false) => Mark::Elidable,
-                (true, true) => Mark::Maximal,
-            };
+            let mark = if is_true(value.get("elidable")) { Mark::Elidable } else { Mark::Plain };
             Expr::Optional(Box::new(expr_from_json(field(value, "optional")?)?), mark)
         }
         "repeat" => {
@@ -582,7 +576,7 @@ const EXPR_FORMS: [&[&str]; 13] = [
     &["choice"],
     &["ranked"],
     &["and"],
-    &["optional", "elidable?", "maximal?"],
+    &["optional", "elidable?"],
     &["repeat", "separator?", "chain?"],
     &["ref"],
     &["terminal"],
@@ -1117,14 +1111,10 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                         pending.push(expr(separator, true));
                     }
                 } else if let Some(inner) = value.get("optional") {
-                    // An elidable optional is marked true, and maximal only
-                    // with it; its expression begins with its terminal
+                    // An elidable optional is marked true; its expression begins with its terminal
                     // (engine §3.8, §9).
                     let elidable = value.get("elidable");
-                    let maximal = value.get("maximal");
-                    if elidable.is_some_and(|marked| *marked != Json::Bool(true))
-                        || maximal.is_some_and(|marked| *marked != Json::Bool(true) || elidable.is_none())
-                    {
+                    if elidable.is_some_and(|marked| *marked != Json::Bool(true)) {
                         return Some(if has(value, "ranked") {
                             "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
                         } else {
@@ -1758,7 +1748,6 @@ pub(crate) fn write_expr(out: &mut String, expr: &Expr) {
             out.push_str(match mark {
                 Mark::Plain => "}",
                 Mark::Elidable => ",\"elidable\":true}",
-                Mark::Maximal => ",\"elidable\":true,\"maximal\":true}",
             });
         }
         Expr::Repeat(item, separator, chain) => {
