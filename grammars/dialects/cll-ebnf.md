@@ -121,11 +121,11 @@ A tanru is a compound predicate. A bridi-tail is a predicate with its following 
 
 gencmu's own Cyrillic assigns different readings from CLL's. This dialect therefore selects only CLL's Cyrillic, while a caller can turn that script off.
 
-CLL[^cll-s21-2] writes `LU text`, whose initial indicators modify what follows under the text-initial exception of CLL[^cll-s13-9]. Indicators after `lu` therefore begin quoted content. The example[^cll-e19-67] in CLL[^cll-s19-12] gives `sa'a` scope over the whole bracketed remark. The BPFK is a Lojban committee for language definitions. The [BPFK section "Digressives", revision 111784](https://mw.lojban.org/index.php?title=BPFK_Section:_Digressives&oldid=111784) defines `to'i` as "Equivalent to {to sa'a}". These sources support attachment after `to` and `to'i` to the opener.
+CLL[^cll-s21-1] writes `LU text`, whose initial indicators modify what follows under the text-initial exception of CLL[^cll-s13-9]. Indicators after `lu` therefore begin quoted content. The example[^cll-e19-67] in CLL[^cll-s19-12] gives `sa'a` scope over the whole bracketed remark. The BPFK is a Lojban committee for language definitions. The [BPFK section "Digressives", revision 111784](https://mw.lojban.org/index.php?title=BPFK_Section:_Digressives&oldid=111784) defines `to'i` as "Equivalent to {to sa'a}". These sources support attachment after `to` and `to'i` to the opener.
 
-The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs. A quoted text takes the same start as a whole text. CLL[^cll-s21-2] permits initial names or indicators, but not both.
+The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs. A quoted text takes the same start as a whole text. CLL[^cll-s21-1] permits initial names or indicators, but not both.
 
-`late-elision` and `elision-only` together interpret note 10 of CLL[^cll-s21-2]. That note permits an omitted terminator when no grammatical ambiguity results.
+`late-elision` and `elision-only` together interpret note 10 of CLL[^cll-s21-1]. That note permits an omitted terminator when no grammatical ambiguity results.
 
 The dialect chooses `late-elision` and `elision-only` to fit CLL's conventions. Note 10 does not specify them. It does not say which parse a text has when the grammar allows more than one. Nor does it say how to find that no ambiguity results. `elision-only` tests one completion, as described above. "Choosing among parses" in [the CLL grammar](../syntax/cll.md) separates terminator advice, parser limitations, and boundaries that the whole text forces.
 
@@ -137,7 +137,7 @@ In the same way, `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails af
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).
 
-[^cll-s21-2]: [CLL 1.1, section 21.2](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-cross-reference.html).
+[^cll-s21-1]: [CLL 1.1, section 21.1](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-grammars.html#section-EBNF).
 
 [^cll-s13-9]: [CLL 1.1, section 13.9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-scope.html).
 

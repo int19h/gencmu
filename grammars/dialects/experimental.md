@@ -153,7 +153,7 @@ A replacement quote is one unit of raw words in the word stage (`../words/lohai.
 
 Indicators after `to` and `to'i` attach to the opener, as camxes-exp's `TO_post` specifies. The example[^cll-e19-67] in CLL[^cll-s19-12] gives `sa'a` after `to'i` scope over the whole bracketed remark.
 
-Indicators after `lu` begin the quoted content. CLL[^cll-s21-2] writes `LU text`, and the text-initial exception of CLL[^cll-s13-9] gives initial indicators scope over what follows. The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs.
+Indicators after `lu` begin the quoted content. CLL[^cll-s21-1] writes `LU text`, and the text-initial exception of CLL[^cll-s13-9] gives initial indicators scope over what follows. The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs.
 
 A quote or a parenthesis whose terminator is elided can hold a fragment of terms or a whole sentence. So `to mi klama` holds `mi` or `mi klama`. The reading with `mi` elides `vau` and `toi` after `mi`, so `late-elision` takes the sentence, as camxes-exp does.
 
@@ -180,7 +180,7 @@ The added constructs entered use after CLL appeared in print.
 
 [^cll-s19-12]: [CLL 1.1, section 19.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-parentheses.html).
 
-[^cll-s21-2]: [CLL 1.1, section 21.2](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-cross-reference.html).
+[^cll-s21-1]: [CLL 1.1, section 21.1](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-grammars.html#section-EBNF).
 
 [^cll-s13-9]: [CLL 1.1, section 13.9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-scope.html).
 

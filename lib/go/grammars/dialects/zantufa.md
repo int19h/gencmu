@@ -109,10 +109,10 @@ The syntax is [`../syntax/zantufa.md`](../syntax/zantufa.md), a grammar of its o
 
 The dialect's policy is the experimental dialect's ([`experimental.md`](experimental.md)): Zantufa 1.9999 is the baseline of the dialect, not its limit. The dialect does not copy a rejection that comes only from a PEG committing to its first match. A tie has more than one winning reading. The dialect settles ties as Zantufa's ordered choice (the fixed order in which a PEG tries alternatives) does. It follows Zantufa's explicit lookaheads (tests of the words that follow).
 
-CLL[^cll-s21-2] writes `LU text`, and the text-initial exception of CLL[^cll-s13-9] gives initial indicators scope over what follows. CLL is *The Complete Lojban Language*. The dialect extends that quotation boundary to every leading free modifier and to LUhEI. The [syntax document](../syntax/zantufa.md#differences-from-zantufa-19999) records this departure and the camxes history. The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs.
+CLL[^cll-s21-1] writes `LU text`, and the text-initial exception of CLL[^cll-s13-9] gives initial indicators scope over what follows. CLL is *The Complete Lojban Language*. The dialect extends that quotation boundary to every leading free modifier and to LUhEI. The [syntax document](../syntax/zantufa.md#differences-from-zantufa-19999) records this departure and the camxes history. The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs.
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).
 
-[^cll-s21-2]: [CLL 1.1, section 21.2](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-cross-reference.html).
+[^cll-s21-1]: [CLL 1.1, section 21.1](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-grammars.html#section-EBNF).
 
 [^cll-s13-9]: [CLL 1.1, section 13.9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-scope.html).

@@ -31,6 +31,7 @@ import { includeLinks } from "./links.js";
 import { layoutProblems } from "./alternatives.js";
 import { quotedTextProblems } from "./quoted-texts.js";
 import { proseLineProblems } from "./prose-lines.js";
+import { repositoryCllFootnoteProblems } from "./cll-footnotes.js";
 import { markdownFiles, repositoryFiles } from "./documents.js";
 import { corpusShapeProblems, mutantShapeProblems } from "./corpus-shape.js";
 import { missing as parserMissing } from "./markdown.js";
@@ -222,6 +223,11 @@ if (parserMissing && check) {
   const broken = markdownFiles(root).filter((file) => !copies.some((copy) => file.startsWith(`${copy}/`))).flatMap((file) => proseLineProblems(fs.readFileSync(path.join(root, file), "utf8"), file));
   if (broken.length) {
     console.error(broken.join("\n"));
+    process.exit(1);
+  }
+  const badCllFootnotes = repositoryCllFootnoteProblems(root);
+  if (badCllFootnotes.length) {
+    console.error(badCllFootnotes.join("\n"));
     process.exit(1);
   }
   // The DOMs and the dialects of the sources, as this run reads them.

@@ -125,9 +125,9 @@ The working morphology also lets a `Cy` letter word stand before another word wi
 
 The BPFK recorded one decision on syntax, and this dialect does not apply it. On 15 March 2016, the BPFK [ruled](https://mw.lojban.org/index.php?title=BPFK:_lo_nu_broda_ba_brode&oldid=119454) that a tag attaches to a following selbri, the predicate of a sentence, unless `ku` closes the tag. So `lo nu broda ba brode` means `lo nu broda cu ba brode`. This dialect keeps the reading of CLL 1.1, where `ba` is a term inside the `nu` clause, the abstraction: `(lo [{nu (broda ba)} brode])`. camxes-std, the reference parser of `camxes.peg`, follows the decision and puts `ba` on `brode`.
 
-CLL[^cll-s21-2] writes `LU text`, whose initial indicators modify what follows under the text-initial exception of CLL[^cll-s13-9]. Indicators after `lu` therefore begin quoted content. The example[^cll-e19-67] in CLL[^cll-s19-12] gives `sa'a` scope over the whole bracketed remark. The [BPFK section "Digressives", revision 111784](https://mw.lojban.org/index.php?title=BPFK_Section:_Digressives&oldid=111784) defines `to'i` as "Equivalent to {to sa'a}". These sources support attachment after `to` and `to'i` to the opener.
+CLL[^cll-s21-1] writes `LU text`, whose initial indicators modify what follows under the text-initial exception of CLL[^cll-s13-9]. Indicators after `lu` therefore begin quoted content. The example[^cll-e19-67] in CLL[^cll-s19-12] gives `sa'a` scope over the whole bracketed remark. The [BPFK section "Digressives", revision 111784](https://mw.lojban.org/index.php?title=BPFK_Section:_Digressives&oldid=111784) defines `to'i` as "Equivalent to {to sa'a}". These sources support attachment after `to` and `to'i` to the opener.
 
-The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs. A quoted text takes the same start as a whole text. CLL[^cll-s21-2] permits initial names or indicators, but not both.
+The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs. A quoted text takes the same start as a whole text. CLL[^cll-s21-1] permits initial names or indicators, but not both.
 
 This dialect departs from [camxes-std](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L343-L1100) on NAI attachment. camxes-std lets UI and CAI clauses recursively take more indicators before their following optional NAI. Repeated NAI can therefore close successive indicator levels. The difference changes both acceptance and negation scope, in attached and leading runs.
 
@@ -151,7 +151,7 @@ camxes-std departs from this. It tries the plain connective first, so it reads `
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).
 
-[^cll-s21-2]: [CLL 1.1, section 21.2](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-cross-reference.html).
+[^cll-s21-1]: [CLL 1.1, section 21.1](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-grammars.html#section-EBNF).
 
 [^cll-s13-9]: [CLL 1.1, section 13.9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-scope.html).
 
@@ -173,4 +173,4 @@ camxes-std departs from this. It tries the plain connective first, so it reads `
 
 [^cll-later-s4-16]: [CLL 1.3.4, section 4.16](https://github.com/int19h/cll/blob/v1.3.4/chapters/04.xml#L6131-L6186). This later section has no CLL 1.1 counterpart.
 
-[^cll-later-a3-1]: [CLL 1.3.4, appendix A3.1](https://github.com/int19h/cll/blob/v1.3.4/chapters/a03.xml). This later appendix has no CLL 1.1 counterpart.
+[^cll-later-a3-1]: [CLL 1.3.4, appendix A3.1](https://github.com/int19h/cll/blob/v1.3.4/chapters/a03.xml#L3-L41). This later appendix has no CLL 1.1 counterpart.

@@ -28,11 +28,11 @@ Outside a quote, the earlier stages hand on some cmavo as tokens of their own. E
 
 [The notation document](../../docs/notation.md) explains the notation. Two of its points matter here. First, an elided terminator takes its `#` with it, so an elided `[+X #]` leaves no free-modifier slot (see `#` below) at that point. Second, when omitted terminators leave a text with more than one parse, the stage chooses the parse as "Choosing among parses" after the grammar says.
 
-CLL writes repetition as `x ...`, and the notation writes it with braces. The book calls `...` "optional repetition of the construct to the left".[^cll-s21-2] So CLL's `x ...` is `{x}` here, one `x` and optionally more, and CLL's `[x] ...` or `[x ...]` is `[{x}]`, which allows none.
+CLL writes repetition as `x ...`, and the notation writes it with braces. The book calls `...` "optional repetition of the construct to the left".[^cll-s21-1] So CLL's `x ...` is `{x}` here, one `x` and optionally more, and CLL's `[x] ...` or `[x ...]` is `[{x}]`, which allows none.
 
 Where CLL writes `x [s x] ...` and no grouping is at stake, this grammar writes `{x \ s}`. That is a list of `x` separated by `s`. These read the same words as the printed rules. Where the grouping matters, the next paragraph says what the rule writes instead.
 
-`...` implies left grouping in the book.[^cll-s21-2] A list in flat braces shows no grouping in the tree: its items are children of the rule that writes it. Where the grouping changes the reading, as for logical connectives and tanru, this grammar says so in the rule.
+`...` implies left grouping in the book.[^cll-s21-1] A list in flat braces shows no grouping in the tree: its items are children of the rule that writes it. Where the grouping changes the reading, as for logical connectives and tanru, this grammar says so in the rule.
 
 A left chain, `{... x \ s}`, groups from the left, and each level of it is a node of its rule. Where the repeated part is irregular, the rule is written with left recursion instead, which groups in the same way. Each such rule cites the source of its grouping. A right chain, `{x ... \ s}`, groups from the right, as the `bo` forms do. Juxtaposition binds tighter than `&`.
 
@@ -42,7 +42,7 @@ A rule flag is a named parsing preference. ["Tenses and modals"](#tenses-and-mod
 
 CLL marks a terminator as elidable by writing it between slashes, `/KU/`, or `/KU#/` when its free-modifier slot goes with it. Here each is an elidable optional, marked in its place: `[+KU]`, or `[+KU #]`. An absent one shows in the parse tree as that terminator, elided. Every terminator between slashes in the printed grammar is marked so, and no other optional is.
 
-`#` is a slot for any number of free modifiers.[^cll-s21-2] This document defines `free`, a single free modifier, under "Free modifiers, vocatives and indicators".
+`#` is a slot for any number of free modifiers.[^cll-s21-1] This document defines `free`, a single free modifier, under "Free modifiers, vocatives and indicators".
 
 ```jbogenbau
 %rule #
@@ -884,7 +884,7 @@ Earlier stages also depart from CLL. [The word stream](../words/stream.md) lists
 
 [The indicator stage](../indicators/cll.md) permits several FUhE groups and several BAhE words. Printed rules 411 and 1100 each allow only one. [The word forms](../words/cll.md) and [CLL word stream](../words/cll-stream.md) describe their choices and extensions, including `y` as a vowel. These documents and this section together describe the dialect's departures.
 
-1. Printed rule 972 reads `[NAhE] (time [space] | space [time]) & CAhA [KI]`. CLL[^cll-s21-2] ranks `...` above `&`, and `&` above `|`. It gives no precedence between juxtaposition and `&`. This grammar follows its notation and ranks juxtaposition higher.
+1. Printed rule 972 reads `[NAhE] (time [space] | space [time]) & CAhA [KI]`. CLL[^cll-s21-1] ranks `...` above `&`, and `&` above `|`. It gives no precedence between juxtaposition and `&`. This grammar follows its notation and ranks juxtaposition higher.
 
    That precedence attaches `[NAhE]` only to the time and space branch, and `[KI]` only to the CAhA branch. The repair instead surrounds the combination with those optionals. It reads `[NAhE] ((time [space] | space [time]) & CAhA) [KI]`.
 
@@ -1003,9 +1003,9 @@ CLL[^cll-s19-8] says that FUhO "cancels all in-force attitudinals". This grammar
 
 CLL's official parser reads one lexeme ahead, which no dialect here follows. A lexeme is one token of its lexer, the component that divides input into tokens. The [design document](../../docs/design.md) explains the difference.
 
-Note 10 of CLL[^cll-s21-2] says that an elidable terminator "may be omitted (without change of meaning) if no grammatical ambiguity results". The note does not choose a parse when the grammar allows several. Each dialect chooses its ranking. Nor does the note say how to check that no ambiguity results, so `elision-only` is a choice too. Both are chosen to fit the conventions of CLL. CLL does not state them.
+Note 10 of CLL[^cll-s21-1] says that an elidable terminator "may be omitted (without change of meaning) if no grammatical ambiguity results". The note does not choose a parse when the grammar allows several. Each dialect chooses its ranking. Nor does the note say how to check that no ambiguity results, so `elision-only` is a choice too. Both are chosen to fit the conventions of CLL. CLL does not state them.
 
-CLL gives advice about boundaries that preserve an intended reading. A complete parse can force such a boundary without a written terminator. Where nothing forces the boundary, the grammar gives the reading that CLL warns about. General advice does not override the elision principle of CLL[^cll-s21-2] note 10.
+CLL gives advice about boundaries that preserve an intended reading. A complete parse can force such a boundary without a written terminator. Where nothing forces the boundary, the grammar gives the reading that CLL warns about. General advice does not override the elision principle of CLL[^cll-s21-1] note 10.
 
 CLL[^cll-s6-2] warns about a description before a selbri. In `le broda brode gi'e brodi`, the whole text forces the description to end before `brode`.
 
@@ -1029,7 +1029,7 @@ The indivisible-number rule follows these CLL requirements in both dialects:
 - CLL[^cll-s18-6], after the example[^cll-e18-32], requires `boi` between adjacent numbers. CLL[^cll-s18-16] shows the reverse Polish examples[^cll-e18-110][^cll-e18-111][^cll-e18-112] with the required `boi` boundaries. Both dialects reject `li fu'a pa re su'i du li ci` and accept `li fu'a pa boi re su'i du li ci`.
 - CLL[^cll-s18-6], after the example[^cll-e18-34], requires `boi` between the function name and its operand. Both dialects reject `li zy du li ma'o fy. xy.` and accept `li zy du li ma'o fy. boi xy.`.
 
-The shared elision policy follows CLL's general advice where the whole text determines the intended boundary. It disagrees with no specific text of CLL. CLL[^cll-s8-6][^cll-s8-7] describe merged readings that cannot complete the outer description. CLL[^cll-s14-14][^cll-s18-11][^cll-s18-17] describe the official parser's left-to-right reading. It does not override number and letter boundaries. The maintainer approves this interpretation of the elision note for both dialects.[^cll-s21-2]
+The shared elision policy follows CLL's general advice where the whole text determines the intended boundary. It disagrees with no specific text of CLL. CLL[^cll-s8-6][^cll-s8-7] describe merged readings that cannot complete the outer description. CLL[^cll-s14-14][^cll-s18-11][^cll-s18-17] describe the official parser's left-to-right reading. It does not override number and letter boundaries. The maintainer approves this interpretation of the elision note for both dialects.[^cll-s21-1]
 
 The word stage implements the non-formal erasure rule `null = any-word SI | utterance SA | text SU`. A non-formal rule runs before syntax. CLL never defines the `utterance` that `sa` erases.
 
@@ -1139,7 +1139,7 @@ The word stage implements the non-formal erasure rule `null = any-word SI | utte
 
 [^cll-s10-25]: [CLL 1.1, section 10.25](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-explicit-magnitudes.html).
 
-[^cll-s21-2]: [CLL 1.1, section 21.2](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-cross-reference.html).
+[^cll-s21-1]: [CLL 1.1, section 21.1](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-grammars.html#section-EBNF).
 
 [^cll-s6-11]: [CLL 1.1, section 6.11](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-vocative-syntax.html).
 

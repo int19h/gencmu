@@ -1037,7 +1037,7 @@ The dialect reads some texts differently from Zantufa 1.9999. The policy of the 
   In `metonymy`, the parenthesis takes `ny my`, and `me` is left without a sumti. Take `genai do gletu le do tanbo gi to prami le do tanbo`. The parenthesis takes `prami le do tanbo` and leaves the gek's second branch empty.
 - For the same reason, the dialect rejects this text, as Zantufa does: `.u'i nypyry cu cusku lesedu'u le xindo cu cusku lesedu'u le kisto soi xy cu ca sarji le terpa sonci`. `soi` is SEI here. Its statement reads `le terpa sonci`, because the description can take `sonci`. Then the last `du'u` has the sumti `le kisto` and no selbri. The dialect formerly closed the `soi` before `sonci`, which was then the selbri of that `du'u`.
 - A lookahead here sees the words that the syntax reads, after erasure and without `ba'e`. Zantufa erases and reads `ba'e` inside its grammar, so its lookaheads see those words. So Zantufa accepts `li pa je ba'e cu broda`, `li pa je brode si cu broda` and `ba'e ke broda ke'e ke'e be mi`, and the dialect rejects them. And Zantufa reads `ke mi ba'e ke'e` as a group of terms, and the dialect as a grouped sumti.
-- Quoted content takes every leading free modifier after any word of LU or LUhEI. Zantufa instead puts those modifiers in the opener's slot. CLL[^cll-s21-2] writes `LU text`, and the text-initial exception of CLL[^cll-s13-9] gives initial indicators scope over what follows. The dialect extends this boundary to every leading free modifier and to LUhEI. The slot after TO takes free modifiers before the parenthesis body, as Zantufa's `TO_post <- post_clause` specifies.
+- Quoted content takes every leading free modifier after any word of LU or LUhEI. Zantufa instead puts those modifiers in the opener's slot. CLL[^cll-s21-1] writes `LU text`, and the text-initial exception of CLL[^cll-s13-9] gives initial indicators scope over what follows. The dialect extends this boundary to every leading free modifier and to LUhEI. The slot after TO takes free modifiers before the parenthesis body, as Zantufa's `TO_post <- post_clause` specifies.
 
   Zantufa retains the older camxes rules for LU. After the 2015-2016 bpfk-list discussion "lo nu broda ba brode", Ilmen changed camxes-exp on March 21, 2016. The ilmentufa commit is `ca30cc4c26a397b8f00bbeaf729ec39b2d548cd4`. Standard camxes followed on August 14, 2016, in commit `654144ee3362fb59083e30a48ed3b6cec0b225b0`. Zantufa forked camxes before that standard change and did not adopt it. This dialect records its LU and LUhEI boundary as a departure from Zantufa's reference grammar.
 - The word stage reads a stray `si` or `bu` at the start of a text as the Magic Words proposal does. So `si mi` is `mi`, and `bu si` is nothing. Zantufa rejects both, because its `si` and `bu` need a word before them there.
@@ -1065,7 +1065,7 @@ The same holds for `i'au`. The reference writes `IAU_elidible` between a stateme
 
 A quotation must hold any text, including one that begins with an indicator. The LU and LUhEI departure above preserves that ability.
 
-CLL[^cll-s21-2] also writes `TO text`, so that rule alone does not separate TO from LU. The opener's slot takes every leading free modifier after any word of TO, as Zantufa's `TO_post <- post_clause` specifies. The example[^cll-e19-67] in CLL[^cll-s19-12] supports attachment for indicators, whose scope covers the whole bracketed remark.
+CLL[^cll-s21-1] also writes `TO text`, so that rule alone does not separate TO from LU. The opener's slot takes every leading free modifier after any word of TO, as Zantufa's `TO_post <- post_clause` specifies. The example[^cll-e19-67] in CLL[^cll-s19-12] supports attachment for indicators, whose scope covers the whole bracketed remark.
 
 The [indicator document](../indicators/cll.md#quotation-boundaries) explains the meaning of CLL[^cll-s13-9] and the official parser's different preprocessing.
 
@@ -1095,7 +1095,7 @@ The reference writes `tag*` before `ke` and forethought bridi-tails, but its `ta
 
 The reference's operator repetition reads as far as it can. Its comment explicitly shows `[pi'i pi'i]` as one operator unit.
 
-[^cll-s21-2]: [CLL 1.1, section 21.2](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-cross-reference.html).
+[^cll-s21-1]: [CLL 1.1, section 21.1](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-grammars.html#section-EBNF).
 
 [^cll-s13-9]: [CLL 1.1, section 13.9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-scope.html).
 
