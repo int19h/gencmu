@@ -19,18 +19,10 @@ package gencmu
 // The chart is the whole recognition of the query, so an attempt that
 // never completes the rule can forbid an omission.
 //
-// An omission of a maximal terminator with a constituent Y is also
-// forbidden when the chart has a longer Y: a completed item of Y from the
-// same origin with a later end, which passes Y's test. It need not be
-// eligible or fit a proof tree. Maximality never forbids an omission with no
-// constituent, and only maximal markers restrict the longest constituent.
+// Each item has two states, computed together to the least fixpoint.
+// E says that the item has an eligible proof tree.
+// P says that the same tree permits the optional after its own prefix to be empty.
 //
-// Each item has two states, computed together to the least fixpoint. E says
-// that the item has an eligible proof tree. P says that it has one whose
-// own fixed prefix permits the optional after it to be empty. P follows the
-// advance of its proof tree, so a permitted omission never combines with
-// the prefix of another proof tree.
-
 // elidableHelpers says, for each rule of a lowered grammar, whether it is
 // the helper of an elidable optional (§3.8).
 func elidableHelpers(g *lowered) ([]bool, bool) {
@@ -192,16 +184,8 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 	}
 	n := len(e.order)
 	next := make([]int, n)
-	// mx is the maximality of the grammar's maximal terminators over the
-	// query's chart, nil where the grammar has none, and maximalNext says
-	// whether the optional after an item is of a maximal terminator.
-	mx := newMaximal(r)
-	maximalNext := make([]bool, n)
 	for i, it := range e.order {
 		next[i] = e.next(it)
-		if next[i] == nextConstituent && mx != nil && mx.elides[it.prod.rhs[it.dot].id] != "" {
-			maximalNext[i] = true
-		}
 	}
 	E, P := make([]bool, n), make([]bool, n)
 	childE := func(s *symNode) bool {
@@ -247,8 +231,7 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 					// The advance over Y: its item before is the fixed
 					// prefix, which must permit the omission.
 					if l.sym != nil {
-						// A maximal terminator also needs the longest Y.
-						if end, ok := further[b]; (!ok || end < it.set) && !(maximalNext[x] && mx.forbidsIn(l.sym.rule, l.sym.start, l.sym.end, it.prod.testAt(int(it.dot)-1), l.sym.lexical)) {
+						if end, ok := further[b]; !ok || end < it.set {
 							p = true
 						}
 					}

@@ -226,8 +226,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	if private.elisionCheck != nil {
 		watch = private.elisionCheck(&elisionCheckRun{chosen: d, rec: r, top: top, recon: rc, originalAt: originalAt, recordAt: recordAt})
 	}
-	// Maximality does not apply to R, and the check ranks with no
-	// lean (§7.7).
+	// The check ranks with no lean (§7.7).
 	var restored *dn
 	marks := watch.marks
 	var chosenProfile ruleProfile
@@ -246,12 +245,12 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 		}
 	}
 	var res *rankResult
-	rk := newRanker(r, "", nil)
+	rk := newRanker(r, "")
 	rk.check, rk.marks = true, marks
 	preferred := len(g.rankedHelpers) > 0
 	rawCounted := true
 	if preferred {
-		raw := newRanker(r, "", nil)
+		raw := newRanker(r, "")
 		raw.admission = nil
 		raw.views = nil
 		raw.check, raw.marks = true, marks

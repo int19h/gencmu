@@ -267,7 +267,7 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 	return readStep{}
 }
 
-// startOptional checks an optional, and with a marker + or ++ among its
+// startOptional checks an optional, and with a marker + among its
 // parts an elidable one (engine §3.8, §9). Its form is checked on the
 // tree, where a group is still a node: one sequence, with no leading | or
 // &, whose first primary is the terminal itself, =-tested or not. Its
@@ -277,12 +277,12 @@ func (f *exprFrame) startOptional(b *domBuilder) readStep {
 	choice := b.only(n, "choice")
 	var markers []*Node
 	for _, p := range parts(n) {
-		if p.Kind == KindToken && (b.text(p) == "+" || b.text(p) == "++") {
+		if p.Kind == KindToken && b.text(p) == "+" {
 			markers = append(markers, p)
 		}
 	}
 	if len(markers) >= 2 {
-		b.fail(markers[1], "an optional has one marker + or ++ at most")
+		b.fail(markers[1], "an optional has one marker + at most")
 	}
 	if len(markers) == 0 {
 		f.elide = &domExpr{Kind: exOptional}
@@ -322,7 +322,7 @@ func (f *exprFrame) startOptional(b *domBuilder) readStep {
 	}
 	b.marked++
 	f.marked = true
-	f.elide = &domExpr{Kind: exOptional, Elidable: true, Maximal: b.text(markers[0]) == "++"}
+	f.elide = &domExpr{Kind: exOptional, Elidable: true}
 	return ask(&exprFrame{n: choice})
 }
 

@@ -99,12 +99,9 @@ type lowered struct {
 	termID         map[string]int32
 	// classes holds, for each terminal that is a range or a property, the
 	// characters it matches; nil for a terminal that is a tag (§4).
-	classes []*charClass
-	prods   []*production
-	lean    string // "greedy", "lazy", "late-elision", or "" for no lean (§6, §7)
-	// maximalH holds the helpers of the optionals written [++T x], whose
-	// terminators are maximal, which maximality restricts anyway (§3.8, §4).
-	maximalH   map[int32]bool
+	classes    []*charClass
+	prods      []*production
+	lean       string // "greedy", "lazy", "late-elision", or "" for no lean (§6, §7)
 	sccMembers [][]int32
 	// fault is an error of the grammar that lowering for these features
 	// found (§3.3), or "": parsing with it is a result with that error.
@@ -124,8 +121,6 @@ type lowered struct {
 	// every nested query asks (§3.8).
 	elidable    []bool
 	anyElidable bool
-	// maximalElides records the helpers of maximal terminators.
-	maximalElides []string
 }
 
 type slot struct {
@@ -217,7 +212,7 @@ type helperNode struct {
 func lower(g *stageGrammar, features map[string]bool) *lowered { return lowerMode(g, features, false) }
 func lowerForSlots(g *stageGrammar) *lowered                   { return lowerMode(g, nil, true) }
 func lowerMode(g *stageGrammar, features map[string]bool, validation bool) *lowered {
-	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, lean: g.lean, maximalH: map[int32]bool{}}
+	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, lean: g.lean}
 	// The stage resolves its classifiers for the same features, before it
 	// lowers its rules; an error there ends the stage as an error of
 	// lowering does (§2, §3.3).
@@ -252,7 +247,6 @@ func lowerMode(g *stageGrammar, features map[string]bool, validation bool) *lowe
 	}
 	l.computeCycles()
 	l.elidable, l.anyElidable = elidableHelpers(l)
-	l.maximalElides = maximalElides(l)
 	l.prepareRanked()
 	return l
 }
@@ -836,7 +830,7 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 			return out
 		}
 		// Any other optional is a helper, and a marked one is elidable,
-		// with the terminal that its marker names; ++ makes it maximal
+		// with the terminal that its marker names
 		// (§3.8).
 		elide := ""
 		var elideT *symTest
@@ -851,9 +845,6 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		out := lw.helper(a, ruleName, elide, elideT, func(int32) [][]slot {
 			return append([][]slot{{}}, lw.expand(inner, a, ruleName)...)
 		})
-		if e.Maximal {
-			lw.l.maximalH[out[0][0].sym.id] = true
-		}
 		return out
 	case exRepeat:
 		// Flat braces are a helper, h → x | h s x, its base productions

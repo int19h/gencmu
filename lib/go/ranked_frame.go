@@ -394,7 +394,7 @@ func (v *slotViews) rankedAncestry(scope *slotScope, r *recognizer) string {
 	}
 	for _, bound := range scope.bounds {
 		c := bound.carrier
-		parts = append(parts, fmt.Sprintf("%s/%d/%d/%t", r.g.writtenHelpers[c.rule], c.start, c.end, bound.restricted))
+		parts = append(parts, fmt.Sprintf("%s/%d/%d", r.g.writtenHelpers[c.rule], c.start, c.end))
 	}
 	return strings.Join(parts, "|")
 }
