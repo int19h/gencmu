@@ -1,12 +1,10 @@
 # Implement a dialect
 
-A dialect defines a pipeline of grammars. A stage is one step of a parse. A pipeline is an ordered sequence of stages.
+You will build `grammars/dialects/my-kihei.md` with the `ki'ei` construct from [kihei](../grammars/dialects/kihei.md). A dialect defines which grammar a parser uses.
 
-A phoneme is one speech sound. A token is one unit that a stage reads.
+A frame is a context for subsequent utterances. `ki'ei` sets that frame for the utterances after it. The parser groups those utterances under their frame.
 
-The Lojban stages read phonemes, recognize word forms, process the word stream, attach indicators, and read syntax. A parse tree records which rules matched the text.
-
-This HOWTO uses the rules of [kihei](../grammars/dialects/kihei.md). A frame is a context for subsequent utterances. Kihei adds the frame marker `ki'ei` and changes the tree around utterances.
+This example adds a new word class. It also changes syntax.
 
 ## Before you start
 
@@ -20,13 +18,17 @@ npm ci
 cd ../..
 ````
 
-Unless a step names another directory, use the repository root as your working directory. The commands below create example files, so use filenames that contain none of your work.
-
-CLL means *The Complete Lojban Language*. A literate grammar combines prose with fenced `jbogenbau` blocks. A directive is an instruction that starts with `%`.
+Unless a step names another directory, use the repository root as your working directory.
 
 ## Procedure
 
+Use example filenames that do not clash with your own files. The commands below create or overwrite those files.
+
 1. Create the dialect file.
+
+   CLL means *The Complete Lojban Language*. A literate grammar combines prose with fenced `jbogenbau` blocks.
+
+   A directive is an instruction that starts with `%`. A rule describes which text a grammar can match. A parse applies grammar rules to a text.
 
    Create `grammars/dialects/my-kihei.md` with this command:
 
@@ -47,7 +49,11 @@ CLL means *The Complete Lojban Language*. A literate grammar combines prose with
 
    Keep the Markdown link and its `%include` together. The document tests require this layout for grammar files.
 
-   The included dialect creates all five stages. `%extend-stage` selects an existing stage without changing its position.
+   A stage is one step of a parse. A pipeline is an ordered sequence of stages. A phoneme is one speech sound.
+
+   The pipeline reads phonemes, recognizes word forms, processes the word stream, attaches indicators, and reads syntax.
+
+   The included dialect creates all five stages. `%extend-stage` selects an existing stage. The stage keeps its position.
 
 2. Add the word class in the forms stage.
 
@@ -71,6 +77,8 @@ CLL means *The Complete Lojban Language*. A literate grammar combines prose with
    `%extend-stage forms` selects the grammar that recognizes words. `%classifier lexicon` adds the class `KIhEI` to the sound `ki'ei`.
 
    CLL already accepts this word form. The later word stages carry its class to syntax.
+
+   A token is one unit that a stage reads.
 
    Inspect the forms output with this command:
 
@@ -96,17 +104,11 @@ CLL means *The Complete Lojban Language*. A literate grammar combines prose with
 
    A tag is a label that a token carries. `KIhEI` must appear among the tags in the forms output.
 
-   If your word fails before forms, change the phoneme stage first. If forms rejects its shape, change the forms rules.
-
-   If you change an existing classification, remove its old class with `∉`.
-
-   Add its replacement class with `∈`.
-
    Keep lexicon keys lowercase. Use a straight apostrophe in those keys.
 
 3. Add the syntax construct.
 
-   A rule describes the parts that a grammar can match. A terminal matches a token with a specified tag.
+   A terminal matches a token with a specified tag.
 
    Append the kihei syntax rules to `grammars/dialects/my-kihei.md`:
 
@@ -134,23 +136,9 @@ CLL means *The Complete Lojban Language*. A literate grammar combines prose with
 
    `%rule` defines each new rule. `KIhEI` matches the new word class, and `[terms]` accepts zero or more CLL terms.
 
-   `#` reads optional free modifiers. A free modifier is a phrase that can appear almost anywhere. `I` matches `.i`.
+   A free modifier adds information at permitted grammar positions. `#` reads optional free modifiers. `I` matches `.i`.
 
    The frame and its subsequent utterances share a `frame-group`. The construct requires `.i` before an utterance that follows a frame.
-
-   An alternative is one possible body of a rule. If you need only another alternative, use `%extend-rule` on the existing rule.
-
-   Put the extension in that rule's stage.
-
-   A clause specifies tags, conditions, or output. `%extend-rule` adds alternatives. It does not copy the original clauses onto them.
-
-   The notation cannot remove one alternative. If you need that change, replace the complete rule with `%redefine-rule`.
-
-   If you replace an entire stage, use `%redefine-stage NAME`. Define its complete grammar after that directive.
-
-   Stage replacement clears all its grammar items and parsing policy. It keeps the stage position, other stages, and global features.
-
-   Set `%ambiguity-resolution` in the replacement stage. That directive specifies how the stage ranks competing parses.
 
 4. Parse a text with your dialect.
 
@@ -168,7 +156,11 @@ CLL means *The Complete Lojban Language*. A literate grammar combines prose with
    ([ki'ei ko'a] i broda)
    ````
 
-   `--pipeline` reads your files from disk. `--dialect` reads the package's bundled copy. Run `node tools/sync.js` before testing changed grammar files through `--dialect`.
+   `--pipeline` reads your files from disk. `--dialect` reads the package's bundled copy.
+
+   Until you complete step 8, use `--pipeline` for changed grammar files.
+
+   After each later grammar edit, run `node tools/sync.js`.
 
    A feature is a named switch for a parse. List the features that the local dialect exposes:
 
@@ -185,17 +177,15 @@ CLL means *The Complete Lojban Language*. A literate grammar combines prose with
    y-cmavo                 warning  off
    ````
 
-   Kihei inherits these features from CLL. It adds no feature of its own.
+   The trial inherits these features from CLL. It adds no feature of its own.
 
-   If your change needs a switch, guard its alternative with `name?`. Add `%features name` to enable it by default.
-
-   Use `--feature name` to enable a feature. Use `--no-feature name` to disable it.
-
-   A warning guard, `name!`, reports an addition when enabled. It does not change which texts the grammar accepts.
+   A tie gives two best readings the same rank.
 
    The CLI exits with `0` for acceptance, `1` for rejection or a tie, and `2` for a grammar or command error.
 
 5. Compare the trees.
+
+   A parse tree records which rules matched the text.
 
    Parse the same CLL text in the base dialect:
 
@@ -216,10 +206,10 @@ CLL means *The Complete Lojban Language*. A literate grammar combines prose with
          ⟨VAU⟩
    ````
 
-   Parse that text in kihei:
+   Parse that text with your local trial:
 
    ````sh
-   node lib/js/cli.js parse --dialect kihei --format tree "broda .i brode"
+   node lib/js/cli.js parse --pipeline grammars/dialects/my-kihei.md --format tree "broda .i brode"
    ````
 
    ````text
@@ -235,14 +225,14 @@ CLL means *The Complete Lojban Language*. A literate grammar combines prose with
          ⟨VAU⟩
    ````
 
-   Kihei adds `utterance-sequence` below `paragraph`. Both dialects still accept the text. Their default bracket output hides this structural difference.
+   The trial adds `utterance-sequence` below `paragraph`. Both dialects still accept the text. Their default bracket output hides this structural difference.
 
    `›` joins successive tree nodes on one line. An elided terminator is an omitted closing word. `⟨VAU⟩` marks one.
 
-   Parse a frame in kihei:
+   Parse a frame with your local trial:
 
    ````sh
-   node lib/js/cli.js parse --dialect kihei --format tree "ki'ei ko'a .i broda"
+   node lib/js/cli.js parse --pipeline grammars/dialects/my-kihei.md --format tree "ki'ei ko'a .i broda"
    ````
 
    ````text
@@ -316,7 +306,7 @@ CLL means *The Complete Lojban Language*. A literate grammar combines prose with
 
    The first case accepts the frame. The second rejects an utterance without `.i`.
 
-   `at` counts code points from zero. `11` is the start of `broda` in the rejected text.
+   A code point is a Unicode character number. `at` counts code points from zero. `11` is the start of `broda` in the rejected text.
 
    Run both cases against your local file:
 
@@ -334,7 +324,7 @@ CLL means *The Complete Lojban Language*. A literate grammar combines prose with
 
    Add their IDs to `tests/core.txt`. The core corpus runs in all four libraries on pull requests.
 
-   Include an accepted case, a rejected case, and a base comparison. Record the intended brackets rather than accepting output without inspection.
+   Include an accepted case, a rejected case, and a base comparison. Inspect the output. Record the intended brackets.
 
    The HOWTO also supplies five cases in `tests/corpus/dialects-howto.jsonl`. They cover the tree examples and the missing `.i`.
 
@@ -370,6 +360,8 @@ CLL means *The Complete Lojban Language*. A literate grammar combines prose with
 
    `quoted-texts.test.js` names every dialect and every dialect that includes CLL syntax. Keep each list in alphabetical order.
 
+   These dialect lists are maintained by hand today.
+
    Add the new grammar file to Git:
 
    ````sh
@@ -401,7 +393,45 @@ CLL means *The Complete Lojban Language*. A literate grammar combines prose with
 
    If you add other tests, run them too.
 
-   Review the generated changes before committing them. Keep each prose paragraph on one line.
+   Before you commit, review the generated changes. Keep each prose paragraph on one line.
+
+## Other changes
+
+Use these approaches when your change differs from the kihei example.
+
+### Change word forms or classifications
+
+If your word fails before forms, change the phoneme stage first. If forms rejects its shape, change the forms rules.
+
+If you change an existing classification, remove its old class with `∉`.
+
+Add its replacement class with `∈`.
+
+### Add or replace alternatives
+
+An alternative is one possible body of a rule. If you need only another alternative, use `%extend-rule` on the existing rule.
+
+Put the extension in that rule's stage.
+
+A clause specifies tags, conditions, or output. `%extend-rule` adds alternatives. It does not copy the original clauses onto them.
+
+The notation cannot remove one alternative. If you need that change, replace the complete rule with `%redefine-rule`.
+
+### Replace a stage
+
+If you replace an entire stage, use `%redefine-stage NAME`. Define its complete grammar after that directive.
+
+Stage replacement clears all its grammar items and parsing policy. It keeps the stage position, other stages, and global features.
+
+Set `%ambiguity-resolution` in the replacement stage. That directive specifies how the stage ranks competing parses.
+
+### Add a feature
+
+If your change needs a switch, guard its alternative with `name?`. Add `%features name` to enable it by default.
+
+Use `--feature name` to enable a feature. Use `--no-feature name` to disable it.
+
+A warning guard, `name!`, reports an addition when enabled. It does not change which texts the grammar accepts.
 
 ## Common mistakes
 
@@ -431,7 +461,7 @@ The command exits with `2`:
 gencmu: /build/gencmu/worktrees/howto/missing-include.md:2:1: /build/gencmu/worktrees/howto/grammars/dialects/missing.md was not found (/build/gencmu/worktrees/howto/missing-include.md → /build/gencmu/worktrees/howto/grammars/dialects/missing.md)
 ````
 
-If you see `was not found`, correct `%include` relative to its containing document. Include the base before selecting its stages.
+If you see `was not found`, correct `%include` relative to its containing document. Before you select its stages, include the base dialect.
 
 ### A rule extended in the wrong stage
 
@@ -460,11 +490,11 @@ The command exits with `2`:
 gencmu: /build/gencmu/worktrees/howto/wrong-stage.md:4: %extend-rule paragraph extends a rule that is not defined before it
 ````
 
-If you see this error, select `%extend-stage syntax` before extending `paragraph`. A stage can only extend its own existing rules.
+If you see this error, replace `%extend-stage forms` with `%extend-stage syntax`. A stage can only extend its own existing rules.
 
 ### An ambiguity that makes a tie
 
-A tie means that two best readings have equal rank. Adding an alternative can duplicate an existing reading.
+An additional alternative can duplicate an existing reading.
 
 Create `tied.md` with an extra route to `statement`:
 
@@ -493,11 +523,11 @@ The syntax stage is ambiguous: its grammar reads the text in two ways, and no ru
 
 If you see a tie, inspect the two readings in the CLI output. In the playground, inspect them in the Tree tab.
 
+A span is a range of input tokens. A ranked choice prefers alternatives for the same span.
+
 Remove an accidental overlap. If both alternatives belong, express their intended preference with rules or [ranked choices](notation.md#ranked-choices).
 
-A ranked choice prefers alternatives for the same span. A span is a range of input tokens.
-
-Reordering `|` alternatives does not settle a tie. Ordinary alternatives have no priority by position.
+The order of `|` alternatives does not settle a tie. Ordinary alternatives have no priority by position.
 
 ### An unreachable rule
 
