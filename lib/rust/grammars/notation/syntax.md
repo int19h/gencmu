@@ -4,7 +4,7 @@ The syntax stage is the second stage of the notation dialect, `../dialects/notat
 
 The stage builds the tree from which a library reads the grammar's rules and directives. Its rule names matter to that reader: the table in `../../docs/engine.md`, §9, says what each named constituent becomes. `../../docs/notation.md` explains the notation for authors.
 
-The tokens arrive with tags. A tag marks a token by name, phoneme or character. The lexical stage tags a token `~identifier`, `~string`, `~tag`, `~phoneme`, `~character`, `~property`, `~capture`, `~constant` or `~guard`. It tags a keyword that the notation knows with its own identifier, such as `~keyword-rule` for `%rule`. It tags `...` with `~ellipsis`, `..` with `~double-dot`, and `++` with `~double-plus`. Any other symbol is one character, which keeps its character tag, such as `'|'`, `'{'` or `'\\'`.
+The tokens arrive with tags. A tag marks a token by name, phoneme or character. The lexical stage tags a token `~identifier`, `~string`, `~tag`, `~phoneme`, `~character`, `~property`, `~capture`, `~constant` or `~guard`. It tags a keyword that the notation knows with its own identifier, such as `~keyword-rule` for `%rule`. It tags `...` with `~ellipsis` and `..` with `~double-dot`. Any other symbol is one character, which keeps its character tag, such as `'|'`, `'{'` or `'\\'`.
 
 ## Choosing among parses
 
@@ -166,7 +166,7 @@ A body is a list of ordinary alternatives or one ranked alternative. Guards and 
 
 A choice uses `|` or `≻` at one level, never both. The reader keeps the order of ranked operands.
 
-`&` joins sequences, and a sequence is one or more primaries. Parentheses group an ordinary or ranked choice, whose options carry neither guards nor tags. Brackets hold an optional choice, and braces a repetition. A `+` or `++` right after `[` marks an elidable optional (`../../docs/notation.md`, "Elided terminators"). The reader makes sure that its terminator stands first, as written, with no group around it, and that no capture stands inside it. It reads this from the tree, before it drops the groups.
+`&` joins sequences, and a sequence is one or more primaries. Parentheses group an ordinary or ranked choice, whose options carry neither guards nor tags. Brackets hold an optional choice, and braces a repetition. A `+` right after `[` marks an elidable optional (`../../docs/notation.md`, "Elided terminators"). The reader makes sure that its terminator stands first, as written, with no group around it, and that no capture stands inside it. It reads this from the tree, before it drops the groups.
 
 Inside braces, the item is a choice, and so is the separator after a backslash, if there is one. So `{a | b \ c | d}` separates items `a` or `b` with `c` or `d`. The marker `...` of a chain stands right after `{` for a left chain, or after the item for a right chain. A chain, like a list, can leave out the backslash and the separator, as in `{... x}` and `{x ...}`. The reader reads which of the two it is from where the marker stands among the parts (`../../docs/engine.md`, §9). It refuses a chain that is not the whole expression of its alternative, and a capture inside braces.
 
@@ -230,7 +230,7 @@ The grammar reads a test after any primary, and a constant as a primary. The rea
   '(' choice ')'
 
 %rule optional
-  '[' ['+' | ~double-plus] choice ']'
+  '[' ['+'] choice ']'
 
 %rule repetition
   | '{' choice ['\\' choice] '}'

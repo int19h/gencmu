@@ -22,7 +22,7 @@ The error is an exception in JavaScript and Python, and a returned error in Go a
 
 Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
 
-Grammar DOM format 22 supports ranked expressions.
+Grammar DOM format 23 supports ranked expressions and rejects retired optional members.
 
 The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
 

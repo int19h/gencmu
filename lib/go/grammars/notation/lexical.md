@@ -10,7 +10,7 @@ A character reaches this grammar with one tag, its character tag, such as `'a'`.
 
 ## Choosing among readings
 
-A name is the longest run of name characters, and `...` is one symbol, not three periods or `..` and a period. In the same way, `++` is one symbol, not two `+`. That is the greedy reading: where one reading ends a token and another reads on, the one that reads on wins.
+A name is the longest run of name characters, and `...` is one symbol, not three periods or `..` and a period. That is the greedy reading: where one reading ends a token and another reads on, the one that reads on wins.
 
 ```jbogenbau
 %ambiguity-resolution greedy
@@ -18,7 +18,7 @@ A name is the longest run of name characters, and `...` is one symbol, not three
 
 ## The text
 
-A text is any number of pieces, each a token or layout. The rule is written as left recursion, not as a list in braces. Each shorter text is then a constituent of its own, so the greedy reading above sees where each piece ends. A list in braces is not a constituent, so the ranking could not compare where its pieces end. The condition of `whole-name` already keeps a name from ending inside a run. But with a list in braces, `++` could be one token or two `+`, and the two readings would tie.
+A text is any number of pieces, each a token or layout. The rule is written as left recursion, not as a list in braces. Each shorter text is then a constituent of its own, so the greedy reading above sees where each piece ends. A list in braces is not a constituent, so the ranking could not compare where its pieces end. The condition of `whole-name` already keeps a name from ending inside a run. A list in braces can hide token boundaries from this ranking.
 
 ```jbogenbau
 %rule text
@@ -276,7 +276,7 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
 
 Every other token is a symbol. A symbol of one character keeps the character tag of its one character, such as `'|'`. `⊇` and `⊉` stand only in a test in a body, such as `UI⊇~indicator`. Braces, `{` and `}`, hold a repetition, and a backslash, `\`, separates its item from its separator. A backslash inside a string, a character tag or a property belongs to that token, so it is a symbol only outside them.
 
-The rule for `...`, the marker of a chain, tags it `ellipsis`, and `..`, which joins the two ends of a range, is `double-dot`. A `+` after a bracket marks an elidable optional, and `++` one whose terminator is also maximal. The rule tags `++` `double-plus`, so `+++` is `++` and then `+`, never three markers.
+The rule for `...`, the marker of a chain, tags it `ellipsis`, and `..`, which joins the two ends of a range, is `double-dot`. A `+` after a bracket marks an elidable optional. Each plus remains a separate token.
 
 ```jbogenbau
 %rule symbol
@@ -284,7 +284,6 @@ The rule for `...`, the marker of a chain, tags it `ellipsis`, and `..`, which j
   | '=' | '≠' | '∈' | '∉' | '⊆' | '⊈' | '⊇' | '⊉' | '∪' | '∩' | '∖' | '∅'
   | '.' '.' '.' <~ellipsis>
   | '.' '.' <~double-dot>
-  | '+' '+' <~double-plus>
   | '@' '(' <~pattern-open>
   | '≅' | '≇' | '⋯' | '⋮' | '⋰' | '⋱'
   | '≻'

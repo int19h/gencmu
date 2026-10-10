@@ -92,7 +92,7 @@ GENCMU_PROPERTY_CASES=200000 GENCMU_PROPERTY_SEED=1000 go test -run TestRankingP
 
 For longer inputs, add `GENCMU_PROPERTY_TOKENS`. To set the percentage of cases ranked with no lean, as elision-only's check ranks them, add `GENCMU_PROPERTY_RULE1`. To run one case again and print its derivations, add `GENCMU_PROPERTY_ONLY=seed`.
 
-`TestEligibleProperty` compares written-terminator priority (engine §4) with a search for eligible proof trees. It uses small random grammars with chained elidable optionals, `[+T]`, and occasional maximal `[++T]`. `GENCMU_PROPERTY_CASES` and `GENCMU_PROPERTY_SEED` set its sweep too.
+`TestEligibleProperty` compares written-terminator priority (engine §4) with a search for eligible proof trees. It uses small random grammars with chained elidable optionals, `[+T]`. `GENCMU_PROPERTY_CASES` and `GENCMU_PROPERTY_SEED` set its sweep too.
 
 The random grammars of `TestRankingProperty` write flat braces `{x}`, `[{x}]` and `{x \ s}`, left and right chains, and elidable optionals `[+T]`. The test skips a grammar that lowering refuses. One example repeats an item that can match no tokens.
 
