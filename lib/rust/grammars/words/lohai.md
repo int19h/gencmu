@@ -71,4 +71,4 @@ In the experimental dialect, a marker that opens no quote is an ordinary word. [
 
 ## Reference behavior
 
-camxes-exp and Zantufa 1.9999 read replacement quotes as raw words in `LOhAI_pre`. This stage retains that treatment and the single-unit boundary of Zantufa's `si_word`. Magic words after a quote act on the whole unit, as the [experimental dialect's differences section](../dialects/experimental.md#where-it-reads-texts-differently-from-camxes-exp) describes.
+camxes-exp, the experimental grammar of the camxes parser, reads replacement quotes as raw words in `LOhAI_pre`. Zantufa 1.9999 does too. This stage retains that treatment and the single-unit boundary of Zantufa's `si_word`. Magic words after a quote act on the whole unit, as the [experimental dialect's differences section](../dialects/experimental.md#where-it-reads-texts-differently-from-camxes-exp) describes.

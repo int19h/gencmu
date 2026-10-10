@@ -2,7 +2,7 @@
 
 This document is the lexicon of the forms stage in the [experimental](../dialects/experimental.md) dialect. A lexicon is a list of words, each with its classes. The forms stage is the second stage of the pipeline. It divides the phonemes of the text into words. A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo.
 
-The lexicon gives each cmavo the selma'o that camxes-exp, the experimental PEG (parsing expression grammar), gives it. It holds the cmavo of CLL (*The Complete Lojban Language*) and the experimental cmavo that camxes-exp reads. `tools/peg-lexicon.js` writes the classifier below from the selma'o lists of `camxes-exp.peg` in ilmentufa, as of commit 7cf6cab. A maintainer changes the lexicon by running the tool again.
+The lexicon gives each cmavo the selma'o that camxes-exp, the experimental grammar of the camxes parser, gives it. It holds the cmavo of CLL (*The Complete Lojban Language*) and the experimental cmavo that camxes-exp reads. `tools/peg-lexicon.js` writes the classifier below from the selma'o lists of `camxes-exp.peg` in ilmentufa, as of commit 7cf6cab. A maintainer changes the lexicon by running the tool again.
 
 Each entry lists words by their canonical sound and gives them one selma'o, as [lexicon-cll.md](lexicon-cll.md) explains. A selbri is a predicate. `la`, `lai` and `la'i` are LE because a name can be a selbri.
 

@@ -139,7 +139,7 @@ The forms stage supplies source words, their lexical classes, and their run boun
 
 The shared reader reads a cmavo, brivla, cmevla, or the y letteral. A cmavo is a particle. A brivla is a predicate word. A cmevla is a name word.
 
-CLL is *The Complete Lojban Language*. Every cmavo read uses `cmavo-token`. The CLL dialect adds optional word-form warnings there. A word read in the chosen derivation keeps its warning even if an eraser later removes the word.
+Every cmavo read uses `cmavo-token`. The dialect of *The Complete Lojban Language* (CLL) adds optional word-form warnings there. A word read in the chosen derivation keeps its warning even if an eraser later removes the word.
 
 A failed word stage publishes no warnings from that stage. A successful stage keeps warnings from its chosen derivation. Raw quote bodies and the suffix after active `fa'o` supply no word reads.
 
@@ -700,7 +700,7 @@ The cll-ebnf SU policy follows CLL[^cll-s19-13]. Zantufa also erases the whole p
 
 ### Final markers and Zantufa exceptions
 
-The dialects keep `mi ba'e fa'o` rejected. The stranded BAhE cannot mark a word after FAhO ends the text. This policy differs from camxes-exp's acceptance ([experimental.md](../dialects/experimental.md)).
+The dialects keep `mi ba'e fa'o` rejected. The stranded BAhE cannot mark a word after FAhO ends the text. This policy differs from acceptance by camxes-exp, the experimental grammar of the camxes parser ([experimental.md](../dialects/experimental.md)).
 
 Zantufa retains its reference parser's quote-first fallback and SU-before-BU letter-base exception. [The dialect document](../dialects/zantufa.md) defines both exceptions.
 

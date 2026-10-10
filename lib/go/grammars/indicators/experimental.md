@@ -38,7 +38,7 @@ Indicators after `lu` begin the quoted text. Indicators after `to` and `to'i` at
 
 ## Differences from camxes-exp
 
-camxes-exp's `indicator` rule accepts a bare NAI. Both grammars require an indicator after FUhE. Both preserve the quotation boundary after LU, and camxes-exp's `TO_post` attaches indicators to TO.
+camxes-exp, the experimental grammar of the camxes parser, accepts a bare NAI through its `indicator` rule. Both grammars require an indicator after FUhE. Both preserve the quotation boundary after LU, and camxes-exp's `TO_post` attaches indicators to TO.
 
 In [camxes-exp](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg#L389-L1159), `post_clause` repeats `indicators <- FUhE_clause? indicator+`. It nests further FUhE groups and bare NAI inside every clause whose post is [`post_clause`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg#L422).
 

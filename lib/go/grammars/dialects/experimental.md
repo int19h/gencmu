@@ -1,10 +1,10 @@
 # The experimental dialect
 
-This dialect extends the Lojban of *The Complete Lojban Language* (CLL) with additional sentence forms and particles. A selbri is the predicate of a sentence. A sumti is an argument of a predicate. A cmavo is a particle, a short structure word. Examples of such constructs are `cu` before a bare selbri, connected sumti with `je`, and the experimental cmavo. camxes-exp is the experimental camxes grammar.
+This dialect extends the Lojban of *The Complete Lojban Language* (CLL) with additional sentence forms and particles. A selbri is the predicate of a sentence. A sumti is an argument of a predicate. A cmavo is a particle, a short structure word. Examples of such constructs are `cu` before a bare selbri, connected sumti with `je`, and the experimental cmavo.
 
-The syntax is [`../syntax/experimental.md`](../syntax/experimental.md), which says what it adds to CLL's.
+The syntax layer follows camxes-exp, the experimental grammar of the camxes parser. [`../syntax/experimental.md`](../syntax/experimental.md) explains its additions to CLL.
 
-A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. The phoneme stage is the phoneme stage of the bpfk dialect ([`bpfk.md`](bpfk.md)). The forms stage reads the working word forms of the BPFK, a Lojban committee for language definitions ([`../words/bpfk.md`](../words/bpfk.md)). A selma'o is a word class of cmavo. A lexicon gives the experimental cmavo their selma'o.
+A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. The phoneme stage is the phoneme stage of the bpfk dialect ([`bpfk.md`](bpfk.md)). The forms stage reads the working word forms of the BPFK, the Lojban language planning committee ([`../words/bpfk.md`](../words/bpfk.md)). A selma'o is a word class of cmavo. A lexicon gives the experimental cmavo their selma'o.
 
 A rafsi is a word form used inside compounds. An extended rafsi uses a whole or shortened word before a y-hyphen inside a compound. The forms stage also reads [`../words/experimental.md`](../words/experimental.md), which permits the consonant pair `mz` and changes extended rafsi. The indicator stage starts with the cll-ebnf dialect's stage ([`cll-ebnf.md`](cll-ebnf.md)). The experimental layer adds bare NAI indicators and keeps flat attachment. A layer is a document that changes earlier rules.
 
@@ -163,7 +163,7 @@ A replacement quote is one unit of raw words in the word stage (`../words/lohai.
 
 Indicators after `to` and `to'i` attach to the opener, as camxes-exp's `TO_post` specifies. The example[^cll-e19-67] in CLL[^cll-s19-12] gives `sa'a` after `to'i` scope over the whole bracketed remark.
 
-Indicators after `lu` begin the quoted content. CLL[^cll-s21-1] writes `LU text`, and the text-initial exception of CLL[^cll-s13-9] gives initial indicators scope over what follows. The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary. Its [closing comparison](../indicators/cll.md#differences-from-cll-and-camxes-std) describes the official parser.
+Indicators after `lu` begin the quoted content. CLL[^cll-s21-1] writes `LU text`, and the text-initial exception of CLL[^cll-s13-9] gives initial indicators scope over what follows. The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary. Its [closing comparison](../indicators/cll.md#differences-from-cll-and-camxes-std) describes the official parser, CLL's reference implementation.
 
 A quote or a parenthesis whose terminator is elided can hold a fragment of terms or a whole sentence. So `to mi klama` holds `mi` or `mi klama`. The reading with `mi` elides `vau` and `toi` after `mi`, so `late-elision` takes the sentence, as camxes-exp does.
 
@@ -184,7 +184,7 @@ The corpus is the collection of Lojban test texts. A measurement in September 20
 
 ### Feature choices
 
-The word forms follow camxes-exp. The indicator layer adds its bare NAI indicators. camxes-exp also stops SU at `ni'o`, `no'i`, `lu`, `tu'e`, `to` and `to'i`. This dialect keeps those boundaries by choice.
+camxes-exp also stops SU at `ni'o`, `no'i`, `lu`, `tu'e`, `to` and `to'i`. This dialect keeps those boundaries by choice.
 
 camxes-exp always uses the name-as-predicate merger and the SOI subsentence form. This dialect enables them by default but permits a caller to turn either off.
 

@@ -1,6 +1,6 @@
 # The Latin orthography of CLL
 
-CLL is *The Complete Lojban Language*, the reference grammar of Lojban. BPFK is the Lojban language planning committee. This document opens the phoneme stage. A stage is one step of a pipeline, with its own grammar. Each stage reads what the stage before it emits.
+This document opens the phoneme stage for the Latin orthography of *The Complete Lojban Language* (CLL). A stage is one step of a pipeline, with its own grammar. Each stage reads what the stage before it emits.
 
 The phoneme stage is the first stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the characters of a text and hands the forms stage the phonemes they stand for.
 

@@ -1,12 +1,12 @@
 # The Cyrillic orthography of CLL
 
-CLL is *The Complete Lojban Language*. BPFK is the Lojban language planning committee. This document adds the Cyrillic orthography of CLL[^cll-s3-12] to the phoneme stage, the first stage of the pipeline. The [CLL](../dialects/cll-ebnf.md) dialect reads it as its Cyrillic.
+This document adds the Cyrillic orthography of *The Complete Lojban Language* (CLL)[^cll-s3-12] to the phoneme stage, the first stage of the pipeline. The [CLL](../dialects/cll-ebnf.md) dialect reads it as its Cyrillic.
 
 The dialects of the [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read gencmu's own Cyrillic, [cyrillic.md](cyrillic.md), unless a caller turns on the feature `cll-cyrillic`. A feature is a named switch that the grammars test.
 
 The two read the same letters differently, so a dialect or a caller chooses one of them. The letters of this document apply only while `cll-cyrillic` is on. The document has no frame of its own, that is, no rules for the text, its pauses and its runs. It adds its letters to the rules of [latin-strict.md](latin-strict.md), so a text can mix scripts. [The notation document](../../docs/notation.md) explains the notation.
 
-The rules map 23 letters to phonemes. Five are the vowel letters `а`, `е`, `и`, `о` and `у`. The others are `б`, `в`, `г`, `д`, `ж`, `з`, `к`, `л`, `м`, `н`, `п`, `р`, `с`, `т`, `ф`, `х` and `ш`. The Bulgarian hard sign `ъ` maps to `y`. So `ж` is `j`, `х` is `x` and `ш` is `c`.
+The rules map 23 letters to phonemes. Five are the vowel letters `а`, `е`, `и`, `о` and `у`. Seventeen are the consonants `б`, `в`, `г`, `д`, `ж`, `з`, `к`, `л`, `м`, `н`, `п`, `р`, `с`, `т`, `ф`, `х` and `ш`. The Bulgarian hard sign `ъ` maps to `y`. So `ж` is `j`, `х` is `x` and `ш` is `c`.
 
 The apostrophe, the comma and the period are those of the Latin orthography. The orthography writes a diphthong as a vowel pair, as in the Latin orthography, so `маи` is `mai`. A capital vowel marks stress, and a capital consonant preserves its phoneme. The all-capital runs of [latin.md](latin.md) do not apply to these letters, so in every dialect a capital vowel here marks stress.
 

@@ -4,7 +4,7 @@ This document adds gencmu's Cyrillic orthography to the phoneme stage, the first
 
 A dialect that lists neither this document nor [cyrillic-cll.md](cyrillic-cll.md) reads a Cyrillic letter as foreign. [The notation document](../../docs/notation.md) explains the notation.
 
-CLL is *The Complete Lojban Language*. The consonant rules map Cyrillic letters to their Lojban phonemes. The mappings are `ш` for `c`, `ж` for `j`, `х` for `x`, and the others in the obvious ways. `ъ`, the Bulgarian hard sign, is `y`. The rules also accept letters from other Cyrillic alphabets with the same or nearly the same sounds:
+The consonant rules map Cyrillic letters to their Lojban phonemes. The mappings are `ш` for `c`, `ж` for `j`, `х` for `x`, and the others in the obvious ways. `ъ`, the Bulgarian hard sign, is `y`. The rules also accept letters from other Cyrillic alphabets with the same or nearly the same sounds:
 
 - `э` and `є` for `e`
 - `і` for `i`
@@ -135,7 +135,7 @@ The feature `cll-cyrillic` selects which Cyrillic rules apply. A feature is a na
 
 ## Differences from CLL
 
-CLL supplies the base consonant mappings and uses `ъ` for `y`.[^cll-s3-12] It does not name the additional Cyrillic letters above. They let writers use letters from their familiar alphabets.
+*The Complete Lojban Language* (CLL) supplies the base consonant mappings and uses `ъ` for `y`.[^cll-s3-12] It does not name the additional Cyrillic letters above. They let writers use letters from their familiar alphabets.
 
 CLL writes diphthongs as vowel pairs, like Latin.[^cll-s3-12] This document instead gives full vowels separate syllables and uses short letters for glides. The same letters therefore need distinct readings in [cyrillic-cll.md](cyrillic-cll.md). The feature `cll-cyrillic` selects between them.
 

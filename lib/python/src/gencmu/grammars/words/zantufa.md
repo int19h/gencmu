@@ -9,7 +9,7 @@ The prose uses these Lojban terms for words:
 - A lujvo is a compound word.
 - A rafsi is a shortened word form used inside compounds.
 
-Zantufa 1.9999 reads the working word forms of the BPFK (a Lojban committee), with three changes. This document makes them:
+Zantufa 1.9999 reads the working word forms of the BPFK, the Lojban language planning committee, with three changes. This document makes them:
 
 - It permits the consonant pair `mz`.
 - It reads `ie'o` as hesitation, as it reads `y`.
@@ -217,7 +217,7 @@ The stage tags `opener-space` a hesitation directly after a text opener, and eac
 
 ## Differences from CLL and BPFK
 
-*The Complete Lojban Language* (CLL) forbids the consonant pair `mz`.[^cll-s3-6] The working morphology, the word-form grammar that bpfk.md translates, forbids it too: its letter rule for `m` refuses a following `z`. The letter rule for `m` in Zantufa refuses only another `m` among the consonants, as the rule of camxes-exp (the experimental camxes parser) does. So Zantufa accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`. The other changes that camxes-exp makes to the word forms, in [experimental.md](experimental.md), are not Zantufa's.
+*The Complete Lojban Language* (CLL) forbids the consonant pair `mz`.[^cll-s3-6] The working morphology, the word-form grammar that bpfk.md translates, forbids it too: its letter rule for `m` refuses a following `z`. Zantufa's letter rule for `m` refuses only another `m` among the consonants. camxes-exp, the experimental grammar of the camxes parser, does the same. So Zantufa accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`. The other changes that camxes-exp makes to the word forms, in [experimental.md](experimental.md), are not Zantufa's.
 
 Zantufa's `Y` is `y+`, so its `spaces` treats the whole run as space. This translation inherits divided y-runs and uses `after-hesitation`, `spacing` and `y-letters` to preserve that space behavior.
 
