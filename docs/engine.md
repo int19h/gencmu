@@ -840,7 +840,6 @@ W(D) is a derivation of R that counts in the raw reconstructed forest. In outlin
 
    A test of a terminal reads an original token as in D, or a compatible synthetic token. No query of W(D) is recursive. The reconstruction's recognition is not a query, and each query of W(D) is a query of D.
 6. W(D) is not cyclic. Suppose that two nested nodes of one rule have one span of R. Both project to one span of O. Then D has two nested nodes of that rule over one span. That is a cycle, but D is not cyclic.
-7. Maximality does not apply (§7.7), so it cannot remove W(D) from the raw reconstructed forest.
 
 So, unless an error of the grammar ends the check, the raw reconstructed forest contains W(D). The argument depends on no corpus, no terminal and no shape of the optional's content. It depends on every observer, every test and every tag rule following §7.5 and §7.6. The strict items of §7.4 do not touch W(D), whose written optionals all start with an original token.
 

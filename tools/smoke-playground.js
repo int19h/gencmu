@@ -237,7 +237,7 @@ async function main() {
       { label: "BPFK accepts an omitted ending", output: /gi'e nai/, elided: true },
       { label: "A whole MOI expression wins (Zantufa)", output: /^\(mi \[\{\(se su'i\) \(pa re\)\} moi\]\)$/,
         document: "syntax/zantufa.md", rule: "%rule tanru-unit-1", summary: /syntax resolved/,
-        edit: ["(mex MOI #\n     ≻ SE # $w(tanru-unit-1)\n     ≻ $n(NAhE) # tanru-unit-1)", "(mex MOI #\n     | SE # $w(tanru-unit-1)\n     | $n(NAhE) # tanru-unit-1)"], tie: true },
+        edit: ["(mex MOI #\n     ≻ SE # $w(tanru-unit-1)\n     ≻ NAhE # $v(tanru-unit-1))", "(mex MOI #\n     | SE # $w(tanru-unit-1)\n     | NAhE # $v(tanru-unit-1))"], tie: true },
       { label: "A whole MOI expression wins (experimental)", output: /^\(mi \[\{\(se ga\) pa gi re\} moi\]\)$/,
         document: "syntax/experimental.md", rule: "%redefine-rule tanru-unit-2", summary: /syntax unique/,
         edit: ["(mex MOI # ≻ SE # tanru-unit-2)", "(mex MOI # | SE # tanru-unit-2)"], tie: true },
