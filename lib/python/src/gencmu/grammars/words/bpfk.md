@@ -4,8 +4,6 @@ This document is the family part of the forms stage in the [BPFK](../dialects/bp
 
 This document gives the working word-form grammar of the BPFK (a Lojban committee). It translates the morphology part of `camxes.peg`, a parsing expression grammar (PEG). The executable baseline is ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg). [CLL 1.3.4](https://github.com/int19h/cll/blob/v1.3.4/chapters/a02.xml) (*The Complete Lojban Language*) prints that grammar in appendix A2.
 
-The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&oldid=109606) defers morphology. [CLL 1.3.4, appendix A3.3](https://github.com/int19h/cll/blob/v1.3.4/chapters/a03.xml) describes this working grammar and its extended rafsi as practice without a vote.
-
 The prose uses these Lojban terms for words:
 
 - A cmavo is a particle, a short structure word.
@@ -17,6 +15,8 @@ The prose uses these Lojban terms for words:
 - A rafsi is a shortened word form used inside compounds.
 
 This document translates the PEG rule by rule. Each rule here has the name of the PEG rule that it translates, in lower case and with hyphens for underscores. A comment gives the PEG rule. A rule that the PEG does not have is one of two kinds. It is a part of a PEG rule that needs a name of its own here, or a rule that a condition tests. Its comment says which.
+
+C denotes a consonant. V denotes `a`, `e`, `i`, `o`, or `u`.
 
 ## How the PEG is written here
 
@@ -34,28 +34,15 @@ In the first case, no two alternatives of a choice can both begin at the same po
 
 In the second case, the PEG uses the rule only in lookaheads, directly or at the end of another such rule. A lookahead asks only whether the rule begins, not where it ends. So a choice that ends such a rule needs no order, because the rule begins if any of its alternatives begins. And the translation can leave out a part at its end that can only make it longer. The third and later consonants of `cluster`, the repeats of `consonant+`, are such a part. The comment says "only a lookahead".
 
-The phoneme stage reads the text before this stage does. In four ways, the text that this stage reads differs from the text that the PEG reads:
-
-- The PEG reads a digit as a cmavo, and lets a digit stand in a name (its rule `digit`). The phoneme stage reads each digit as the letters of its number word, so `2` is `re`. So this translation has no rule `digit`. `.b1b.` is not a name, and `.dj2n.` is the name `djren`.
-- The PEG ignores a comma before any letter (`comma*` in each letter rule). The phoneme stage drops every comma, so the translation leaves out `comma*`, with the same result, except in the letter word `ybu`.
-
-  The PEG's `ybu` reads pause characters between the `y` and the `bu`, but no comma, unless the comma stands directly before the `bu`. Where `ybu` fails, the PEG reads the `y` as hesitation, which is space. So the PEG rejects `y, bu` and `y , bu`, and reads `doi y, bu` as the letter word `doi bu`. The word stage reads the one letter word `y bu` in these texts (below). Both read `y ,bu` as that letter word.
-- The PEG reads `h` as an apostrophe, and a consonant in either case. The phoneme stage emits both apostrophes as `'` and every consonant in lower case, so the translation reads only those. A capital vowel is a stressed vowel for both. The phoneme stage also reads an accent as stress. It reads a run of two vowel groups or more in which every vowel is a capital as a run without stress marks. The PEG reads neither.
-- The PEG's pauses are whitespace and the characters `.`, `?` and `!`. The phoneme stage reads other punctuation as a pause too, and it emits a run of pause characters as one `PAUSE`.
-
 ## Words
 
-The forms stage reads three word shapes, `cmevla-shape`, `cmavo-shape` and `brivla-shape`. It reads them in the order of the PEG's `lojban_word`: a cmevla, then a cmavo, then a brivla. The document [forms.md](forms.md) says what a word is and how words join.
+The phoneme stage supplies normalized phonemes and pause tokens. The forms stage reads three word shapes, `cmevla-shape`, `cmavo-shape` and `brivla-shape`. It reads them in the order of the PEG's `lojban_word`: a cmevla, then a cmavo, then a brivla. The document [forms.md](forms.md) says what a word is and how words join.
 
 The PEG's lookaheads decide where each word ends and which words can stand together without a pause. So every word here is `continued`: the rules of the word decide whether another word can follow it without a pause. A nucleus is the vowel or diphthong of a syllable. A word has `onset` when it does not begin with a nucleus, because the PEG's `post_word` lets only such a word follow another word directly.
 
 The PEG's `CMAVO` is a list of the selma'o, each a set of spellings, followed by `cmavo` for every other cmavo. Each selma'o rule begins with `&cmavo` and ends with `&post_word`. So every spelling but one reads exactly what `cmavo` reads, and the lexicon gives each cmavo its selma'o.
 
-The exception is the first spelling of `BY`, the rule `ybu <- Y space_char* BU`. It reads a run of `y`, any pause, and `bu` as one letter word: `ybu`, `y bu` and `yyybu` are each one word. That is the letter word `.y bu`, which the Magic Words proposal forms "before any other processing of any kind". This stage reads each run on its own, so it reads the `y` and the `bu` as two words. Before BU, the forms stage separates the final y from any prolonged hesitation. The shared word reader then forms the letter word ([stream.md](stream.md)).
-
-Where the PEG's `ybu` begins, `cmavo` reads its run of `y` as one word in two cases. The run has one letter, or it has an even number of them. When it has an odd number, three or more, `cmavo` reads the first `y` alone and then the rest as one word. This is because `cmavo_form` reads first a single `y` that is a nucleus. So `yyybu` is `y`, `yy` and `bu`. `cmavo` then reads the `bu`, with the conditions of the PEG's `BU`.
-
-So the division is the PEG's, with each `ybu` split into its hesitation words and its `bu`. Before BU, this stage splits each prolonged piece into a prefix and a final y. The word stage drops the prefix and forms the letter word from the final y.
+Before BU, the stage separates the final y from any prolonged hesitation. The word stage drops the prefix and forms the letter word from the final y. The division preserves source positions and leaves quote bodies unjoined.
 
 `cmavo-shape` reads `cmavo`. A cmavo made only of `y` letters is hesitation, which [forms.md](forms.md) reads as `y-run`, so this document redefines `y-run` as that cmavo.
 
@@ -351,7 +338,7 @@ A rafsi without a y-hyphen stands before the core only where neither it nor the 
 
 ## Borrowings and extended rafsi
 
-A borrowing is a head of unstressed syllables, a stressed syllable, any number of consonantal syllables and a final syllable. Its head does not begin with a string of rafsi, and it is not a cmavo or a consonant followed by a string of rafsi. That last test is the slinku'i test of CLL 4.7.
+A borrowing is a head of unstressed syllables, a stressed syllable, any number of consonantal syllables and a final syllable. Its head does not begin with a string of rafsi, and it is not a cmavo or a consonant followed by a string of rafsi. That last test is the slinku'i test of CLL[^cll-s4-7].
 
 An extended rafsi lets a brivla or a borrowing, whole or cut short, stand before a y-hyphen inside a compound. A `brivla_rafsi` is a head of two syllables or more, followed by `'y`, as `klama'y` in `klama'ybroda`. A `fuhivla_rafsi` is the head of a borrowing followed by an onset and `y`. The onset is a consonant, as in `aktyiismu`, or a glide, as in `spageiybroda`. Each has a stressed form, which stands before a short final rafsi.
 
@@ -908,7 +895,7 @@ A vowel letter is plain or capital. A `y` is not followed by a nucleus, unless t
 
 ## Consonants
 
-An initial pair is two consonants that can begin a word. `initial` says which: an affricate, or a sibilant, another consonant and a liquid, each optional, where no consonant or glide follows.
+An initial pair is two consonants that can begin a word. `initial` says which: an affricate, or a sibilant, another consonant and a liquid, each optional, where no consonant or glide follows. An affricate joins a stopped sound with friction. A sibilant is a hissing consonant. The liquids here are `l` and `r`.
 
 ```jbogenbau
 %rule cluster                 (* cluster <- consonant consonant+; only a lookahead, so the first two consonants decide it *)
@@ -987,7 +974,7 @@ An initial pair is two consonants that can begin a word. `initial` says which: a
 <p><img src="../../docs/diagrams/words/bpfk/unvoiced.svg" alt="Railroad diagram of the rule unvoiced"></p>
 </details>
 
-Each consonant letter refuses a following apostrophe that begins a syllable, a glide, or the same consonant. Each letter also refuses consonants of the other voicing, and some letters refuse other letters, as CLL 1.1 section 3.6 says. The BPFK approved the consonant-glide-vowel ban on December 27, 2014 ([CLL 1.3.4, appendix A3.3](https://github.com/int19h/cll/blob/v1.3.4/chapters/a03.xml)).
+Each consonant letter refuses a following apostrophe that begins a syllable, a glide, or the same consonant. Each letter also refuses consonants of the other voicing, and some letters refuse other letters, as CLL[^cll-s3-6] says.
 
 ```jbogenbau
 %rule l                       (* l <- comma* [lL] !h !glide !l *)
@@ -1210,3 +1197,30 @@ Each optional of the PEG is a rule that reads the optional part wherever it begi
 <p><img src="../../docs/diagrams/words/bpfk/other-opt.svg" alt="Railroad diagram of the rule other-opt"></p>
 <p><img src="../../docs/diagrams/words/bpfk/liquid-opt.svg" alt="Railroad diagram of the rule liquid-opt"></p>
 </details>
+
+## Differences from CLL and the reference PEG
+
+The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&oldid=109606) defers morphology. CLL 1.3.4[^cll-later-a3-3] describes this working grammar and its extended rafsi as practice without a vote.
+
+The phoneme stage reads the text before this stage does. In four ways, the text that this stage reads differs from the text that the PEG reads:
+
+- The PEG reads a digit as a cmavo, and lets a digit stand in a name (its rule `digit`). The phoneme stage reads each digit as the letters of its number word, so `2` is `re`. So this translation has no rule `digit`. `.b1b.` is not a name, and `.dj2n.` is the name `djren`.
+- The PEG ignores a comma before any letter (`comma*` in each letter rule). The phoneme stage drops every comma, so the translation leaves out `comma*`, with the same result, except in the letter word `ybu`.
+
+  The PEG's `ybu` reads pause characters between the `y` and the `bu`, but no comma, unless the comma stands directly before the `bu`. Where `ybu` fails, the PEG reads the `y` as hesitation, which is space. So the PEG rejects `y, bu` and `y , bu`, and reads `doi y, bu` as the letter word `doi bu`. The word stage reads the one letter word `y bu` in these texts (below). Both read `y ,bu` as that letter word.
+- The PEG reads `h` as an apostrophe, and a consonant in either case. The phoneme stage emits both apostrophes as `'` and every consonant in lower case, so the translation reads only those. A capital vowel is a stressed vowel for both. The phoneme stage also reads an accent as stress. It reads a run of two vowel groups or more in which every vowel is a capital as a run without stress marks. The PEG reads neither.
+- The PEG's pauses are whitespace and the characters `.`, `?` and `!`. The phoneme stage reads other punctuation as a pause too, and it emits a run of pause characters as one `PAUSE`.
+
+The exception is the first spelling of `BY`, the rule `ybu <- Y space_char* BU`. It reads a run of `y`, any pause, and `bu` as one letter word: `ybu`, `y bu` and `yyybu` are each one word. That is the letter word `.y bu`, which the Magic Words proposal forms "before any other processing of any kind". This stage reads each run on its own, so it reads the `y` and the `bu` as two words. Before BU, the forms stage separates the final y from any prolonged hesitation. The shared word reader then forms the letter word ([stream.md](stream.md)).
+
+Where the PEG's `ybu` begins, `cmavo` reads its run of `y` as one word in two cases. The run has one letter, or it has an even number of them. When it has an odd number, three or more, `cmavo` reads the first `y` alone and then the rest as one word. This is because `cmavo_form` reads first a single `y` that is a nucleus. So `yyybu` is `y`, `yy` and `bu`. `cmavo` then reads the `bu`, with the conditions of the PEG's `BU`.
+
+So the division is the PEG's, with each `ybu` split into its hesitation words and its `bu`. Before BU, this stage splits each prolonged piece into a prefix and a final y. The word stage drops the prefix and forms the letter word from the final y.
+
+The BPFK approved the consonant-glide-vowel ban on December 27, 2014 (CLL 1.3.4[^cll-later-a3-3]). The consonant rules retain that restriction.
+
+[^cll-s4-7]: [CLL 1.1, section 4.7](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-fuhivla.html).
+
+[^cll-s3-6]: [CLL 1.1, section 3.6](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-clusters.html).
+
+[^cll-later-a3-3]: [CLL 1.3.4, appendix A3.3](https://github.com/int19h/cll/blob/v1.3.4/chapters/a03.xml). This later approval record has no CLL 1.1 counterpart.
