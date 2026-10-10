@@ -4768,3 +4768,5 @@
 {"id":"adhoc.prose.syntax-zantufa.pin-12","text":"zoi ra'oi x ra'oi broda","dialect":"zantufa","expect":"reject","stage":"words","at":23}
 {"id":"adhoc.prose.syntax-zantufa.pin-13","text":"zoi su mi","dialect":"zantufa","expect":"reject","stage":"words","at":9}
 {"id":"adhoc.prose.syntax-zantufa.pin-14","text":"le rance","dialect":"zantufa","expect":"accept","verdict":"unique","words":["le","rance"],"brackets":"(le rance)"}
+{"id":"adhoc.prose.dialects-experimental.pin-1","text":".e ba ke","dialect":"experimental","expect":"reject","stage":"syntax","at":6,"words":["e","ba","ke"]}
+{"id":"adhoc.prose.dialects-experimental.pin-2","text":"le dakli .e ba ke bevri ke'e ku","dialect":"experimental","expect":"reject","stage":"syntax","at":18,"words":["le","dakli","e","ba","ke","bevri","ke'e","ku"]}

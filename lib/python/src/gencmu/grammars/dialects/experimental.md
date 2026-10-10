@@ -1,14 +1,14 @@
 # The experimental dialect
 
-This dialect extends the Lojban of *The Complete Lojban Language* (CLL) with constructs that entered use after CLL appeared in print. A selbri is the predicate of a sentence. A sumti is an argument of a predicate. A cmavo is a particle, a short structure word. Examples of such constructs are `cu` before a bare selbri, connected sumti with `je`, and the experimental cmavo. The syntax is [`../syntax/experimental.md`](../syntax/experimental.md), which says what it adds to CLL's.
+This dialect extends the Lojban of *The Complete Lojban Language* (CLL) with additional sentence forms and particles. A selbri is the predicate of a sentence. A sumti is an argument of a predicate. A cmavo is a particle, a short structure word. Examples of such constructs are `cu` before a bare selbri, connected sumti with `je`, and the experimental cmavo. The syntax is [`../syntax/experimental.md`](../syntax/experimental.md), which says what it adds to CLL's.
 
 A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. The phoneme stage is the phoneme stage of the bpfk dialect ([`bpfk.md`](bpfk.md)). The forms stage reads the working word forms of the BPFK, a Lojban committee for language definitions ([`../words/bpfk.md`](../words/bpfk.md)). A selma'o is a word class of cmavo. A lexicon gives the experimental cmavo their selma'o.
 
-camxes-exp is the experimental PEG (parsing expression grammar). A PEG commits to the first matching alternative. camxes-exp reads the same word forms with a few changes, such as the consonant pair `mz`, which [`../words/experimental.md`](../words/experimental.md) makes. The indicator stage starts with the cll-ebnf dialect's stage ([`cll-ebnf.md`](cll-ebnf.md)). The experimental layer adds camxes-exp's bare NAI indicators and keeps CLL's flat attachment. A layer is a document that changes earlier rules.
+The forms stage also reads [`../words/experimental.md`](../words/experimental.md), which permits the consonant pair `mz` and changes extended rafsi. The indicator stage starts with the cll-ebnf dialect's stage ([`cll-ebnf.md`](cll-ebnf.md)). The experimental layer adds bare NAI indicators and keeps flat attachment. A layer is a document that changes earlier rules.
 
-A feature is a named switch that the grammars test. The dialect turns on `su-boundary`. That feature makes SU stop at the last `ni'o`, `no'i`, `lu`, `tu'e`, `to`, or `to'i`. The maintainer chooses to keep that boundary. camxes-exp also stops at these boundaries.
+A feature is a named switch that the grammars test. The dialect turns on `su-boundary`. That feature makes SU stop at the last `ni'o`, `no'i`, `lu`, `tu'e`, `to`, or `to'i`.
 
-The dialect also turns on two features of the syntax, because camxes-exp has no way to turn them off. `cbm` is the cmevla-brivla merger, which lets a name word (cmevla) also act as a predicate word (brivla). `soi-clause` makes `soi` a term that takes a subsentence, in place of CLL's free modifier of reciprocity. A caller (the program or person that asks for a parse) can turn either off to read the CLL form.
+The dialect turns on two syntax features. `cbm` is the cmevla-brivla merger, which lets a name word (cmevla) also act as a predicate word (brivla). `soi-clause` makes `soi` a term that takes a subsentence, in place of CLL's free modifier of reciprocity. A caller (the program or person that asks for a parse) can turn either off to read the CLL form.
 
 ```jbogenbau
 %features cbm soi-clause su-boundary
@@ -32,7 +32,7 @@ The dialect also turns on two features of the syntax, because camxes-exp has no 
   ```jbogenbau
   %include "../phonemes/cyrillic.md"
   ```
-- [The Cyrillic orthography of CLL](../phonemes/cyrillic-cll.md): CLL 3.12's Cyrillic, which a caller chooses with the feature `cll-cyrillic`
+- [The Cyrillic orthography of CLL](../phonemes/cyrillic-cll.md): CLL[^cll-s3-12]'s Cyrillic, which a caller chooses with the feature `cll-cyrillic`
   ```jbogenbau
   %include "../phonemes/cyrillic-cll.md"
   ```
@@ -127,7 +127,7 @@ The layer follows camxes-exp's ordered choice where that choice decides what a t
 
 A glide is an `i` or `u` before a nucleus. A nucleus is the vowel center of a syllable. camxes-exp adds `!glide` to its `glide` rule. No nucleus after a glide begins with another glide, so this lookahead changes no parse. The forms stage keeps the BPFK rule without it.
 
-The dialect also accepts two constructs by choice, which camxes-exp rejects. A stag is a tense or modal inside a connective. In a sentence's own terms, camxes-exp requires a stag between a connective and `bo` (`abs_term_2`). This grammar does not, so `fa mi .e bo fe do klama` parses here, as it did before the grammar took camxes-exp's two levels of terms.
+The dialect also accepts two constructs by choice, which camxes-exp rejects. A stag is a tense or modal inside a connective. In a sentence's own terms, camxes-exp requires a stag between a connective and `bo` (`abs_term_2`). This grammar does not, so `fa mi .e bo fe do klama` parses here, with the two levels of terms.
 
 In `fa mi .e bo fe do .a fi mi klama`, one connected term precedes `klama`. Within that term, `bo` binds tighter than `.a`.
 
@@ -151,9 +151,9 @@ A replacement quote is one unit of raw words in the word stage (`../words/lohai.
 
 `ba'e` is not a magic word, as the Magic Words proposal says. So the word stage removes `fa'o` and what follows it first, and `mi ba'e fa'o` leaves a `ba'e` with nothing to mark. The proposal calls that an error, and the dialect rejects it. camxes-exp accepts it.
 
-Indicators after `to` and `to'i` attach to the opener, as camxes-exp's `TO_post` specifies. CLL 19.12 example 19.67 gives `sa'a` after `to'i` scope over the whole bracketed remark.
+Indicators after `to` and `to'i` attach to the opener, as camxes-exp's `TO_post` specifies. The example[^cll-e19-67] in CLL[^cll-s19-12] gives `sa'a` after `to'i` scope over the whole bracketed remark.
 
-Indicators after `lu` begin the quoted content. CLL 1.1 section 21.2 writes `LU text`, and the text-initial exception of CLL 13.9 gives initial indicators scope over what follows. The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs.
+Indicators after `lu` begin the quoted content. CLL[^cll-s21-2] writes `LU text`, and the text-initial exception of CLL[^cll-s13-9] gives initial indicators scope over what follows. The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs.
 
 A quote or a parenthesis whose terminator is elided can hold a fragment of terms or a whole sentence. So `to mi klama` holds `mi` or `mi klama`. The reading with `mi` elides `vau` and `toi` after `mi`, so `late-elision` takes the sentence, as camxes-exp does.
 
@@ -169,3 +169,19 @@ The dialect also reads `sa` by a different rule. The word stage erases with `sa`
 - The dialect rejects `le le broda ku brode le broda sa sa le brodi`. The two `sa` words erase back to the second `le` before them, which leaves `le le brodi`. camxes-exp accepts the text.
 
 The corpus is the collection of Lojban test texts. A measurement in September 2026 read its 358 texts with the word `sa` under this dialect, whatever their own dialects. The dialect accepted 215 of them that camxes-exp rejects, and it rejected 6 that camxes-exp accepts.
+
+The word forms follow camxes-exp, the experimental PEG (parsing expression grammar). A PEG commits to its first matching alternative. The indicator layer adds its bare NAI indicators, and SU keeps the same stopping boundaries.
+
+camxes-exp always uses the name-as-predicate merger and the SOI subsentence form. This dialect enables them by default but permits a caller to turn either off.
+
+The added constructs entered use after CLL appeared in print.
+
+[^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).
+
+[^cll-s19-12]: [CLL 1.1, section 19.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-parentheses.html).
+
+[^cll-s21-2]: [CLL 1.1, section 21.2](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-cross-reference.html).
+
+[^cll-s13-9]: [CLL 1.1, section 13.9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-scope.html).
+
+[^cll-e19-67]: [CLL 1.1, section 19.12, example 19.67](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-parentheses.html#c19e12d2).
