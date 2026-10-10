@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   playground:
-    name: Playground from file:// in ${{ matrix.browser }}
+    name: Playground in ${{ matrix.browser }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -30,6 +30,13 @@ jobs:
           npx playwright install --with-deps ${{ matrix.browser == 'chrome' && 'chromium' || 'firefox' }}
       - name: Open index.html from file:// in a headless browser
         run: node tools/smoke-playground.js --browser ${{ matrix.browser }}
+      - name: Open the Pages files over HTTP
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > "$RUNNER_TEMP/playground-http.log" 2>&1 &
+          playground_server_pid=$!
+          trap 'kill "$playground_server_pid"' EXIT
+          curl --retry 10 --retry-connrefused --retry-delay 1 --silent --fail http://127.0.0.1:8765/ > /dev/null
+          node tools/smoke-playground.js --browser ${{ matrix.browser }} http://127.0.0.1:8765/
 
   javascript:
     name: JavaScript on Node ${{ matrix.node }}

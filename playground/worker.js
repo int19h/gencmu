@@ -283,6 +283,11 @@
       const started = now();
       const entry = loadDialect(request.dialect);
       const answer = { kind: "result", id, text: request.text, dialect: request.dialect, info: entry.info || null, loadError: entry.error || null };
+      if (request.locateRule) {
+        const stage = entry.dialect?.stages.find((stage) => stage.name === request.locateRule.stage);
+        const rule = stage?.grammar.rules.get(request.locateRule.name);
+        answer.ruleLocation = rule ? rule.at : null;
+      }
       if (entry.error) return Object.assign(answer, { ms: now() - started });
       let parsed;
       try {

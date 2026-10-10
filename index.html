@@ -10,7 +10,7 @@
 <body>
 <header class="masthead">
   <div class="brand">
-    <h1><a href="https://github.com/int19h/gencmu">gencmu</a> <span class="subtitle">playground</span></h1>
+    <h1><a href="https://github.com/int19h/gencmu/blob/main/README.md">gencmu</a> <span class="subtitle">playground</span></h1>
     <p class="tagline">A Lojban parser whose grammars are literate documents. Type a text, change a grammar, and see what the change does.</p>
   </div>
   <p id="status" class="status" role="status" aria-live="polite" data-state="loading"><span class="spinner" aria-hidden="true"></span><span id="status-text">Starting the parser…</span></p>
@@ -27,6 +27,7 @@
       </div>
       <textarea id="input" rows="4" spellcheck="false" autocapitalize="off" autocomplete="off" aria-describedby="input-hint">mi klama le zarci</textarea>
       <p id="input-hint" class="hint">Parsed as you type, in a worker, so a long text never freezes the page.</p>
+      <p id="example-hint" class="hint" hidden></p>
     </section>
 
     <section class="panel options" aria-labelledby="options-heading">
@@ -64,7 +65,7 @@
         <h2 id="editor-heading">Grammar documents</h2>
         <button type="button" id="download-all" class="small" disabled>Download edited</button>
       </div>
-      <p class="hint">The documents of the selected dialect, stage by stage. Edit one and the text is parsed again at once; an edited document is read with the notation grammar, which takes a few seconds for a lexicon.</p>
+      <p class="hint">These documents define the selected dialect. Edit a document to parse the text again. The parser reads edits with the notation grammar. A lexicon, a list of word forms, takes a few seconds.</p>
       <nav id="documents" class="documents" aria-label="Documents of the dialect"></nav>
       <div id="edited-elsewhere" class="hint" hidden></div>
       <div id="doc-editor" class="doc-editor" hidden>
@@ -110,8 +111,8 @@
       </div>
       <div id="output-panel" role="tabpanel" tabindex="-1">
         <div id="tab-controls" class="tab-controls">
-          <div data-for="brackets"><label class="check"><input type="checkbox" id="show-elided"> show elided terminators, as <code>⟨ku⟩</code></label></div>
-          <div data-for="tree"><span class="hint">One node per line; a chain of single-child rules on one line, joined by ›.</span></div>
+          <div data-for="brackets"><label class="check"><input type="checkbox" id="show-elided"> show omitted endings, as <code>⟨ku⟩</code></label></div>
+          <div data-for="tree"><span class="hint">Each line shows a node. A chain of rules with one child shares a line, joined by ›.</span></div>
           <div data-for="json"><span class="hint">The display JSON: each rule an object holding its children.</span></div>
           <div data-for="canonical"><label class="check"><input type="checkbox" id="pretty-json" checked> pretty-printed (unchecked: exactly as <code>toJson</code> writes it)</label></div>
           <div data-for="tokens"><div id="token-stages" class="segmented" role="radiogroup" aria-label="Stage"></div></div>
@@ -134,9 +135,9 @@
 </main>
 
 <footer class="footer">
-  <a href="docs/notation.md">jbogenbau, the notation</a> ·
-  <a href="docs/design.md">Design</a> ·
-  <a href="grammars/dialects/cll-ebnf.md">The CLL dialect</a> ·
+  <a href="https://github.com/int19h/gencmu/blob/main/docs/notation.md">jbogenbau, the notation</a> ·
+  <a href="https://github.com/int19h/gencmu/blob/main/docs/design.md">Design</a> ·
+  <a href="https://github.com/int19h/gencmu/blob/main/grammars/dialects/cll-ebnf.md">The CLL dialect</a> ·
   <span id="version"></span>
 </footer>
 
