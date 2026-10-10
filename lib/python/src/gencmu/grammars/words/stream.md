@@ -8,13 +8,13 @@ A unit is one item on which an operation acts. A token is one emitted item for t
 
 A letteral is a letter word of class BY. The y letteral sounds like ybu.
 
-The stage processes operations from left to right. Later operations act on whole quote and compound units.
+The shared grammar processes operations from left to right. Zantufa adds two local exceptions ([zantufa-stream.md](zantufa-stream.md)). Later operations act on whole quote and compound units.
 
 ## The stream of elements
 
 The stream contains live units and erased regions. A live unit is a unit that no eraser removes.
 
-The stage reads from left to right. Each operator acts on the units that survive when the stage reaches it. No operator reaches inside a unit.
+Each operator acts on the units that survive when the stage reaches it. No operator reaches inside a unit.
 
 A shared word reader supplies every requested word. It joins hesitation with a following `bu` before any operation takes that word. This exception applies inside ZO quotes, LOhU and LOhAI bodies, delimiters, and ZEI operands.
 
@@ -661,6 +661,8 @@ The forms stage fixes ordinary word boundaries before this stage. The shared rea
 
 ## Departures from CLL, the proposal, and camxes-std
 
+### CLL and Magic Words
+
 The dialects follow the [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) with the departures below. The maintainer chooses opaque units where that proposal exposes internal markers.
 
 CLL describes erasure,[^cll-s19-13] hesitation,[^cll-s19-14] FAhO,[^cll-s19-15] and their interactions.[^cll-s19-16] These sections do not specify one complete processing order.
@@ -682,7 +684,9 @@ The proposal also exposes a completed LOhU quote's LEhU ending to SA. These dial
 
 A dangling BU is also a fault unit that BU or ZEI can wrap. An eraser can remove the result, so `bu zei klama si` leaves nothing. The proposal's BU page instead forbids ZEI to bind a dangling BU on its left.
 
-camxes-std follows the grammatical reading of CLL[^cll-s19-13], without a class key. SA erases back to the start of a construct that the following words continue. Such a construct can be a term or sentence. camxes-std applies this rule unevenly. It accepts `broda sa broda` but rejects `lo broda sa broda`.
+### Erasure in camxes and the dialects
+
+camxes-std, the standard camxes parser, follows the grammatical reading of CLL[^cll-s19-13], without a class key. SA erases back to the start of a construct that the following words continue. Such a construct can be a term or sentence. camxes-std applies this rule unevenly. It accepts `broda sa broda` but rejects `lo broda sa broda`.
 
 A run of letterals forms one camxes sumti, an argument of a predicate. Thus `by cy sa .ebu` erases both letters. In `by boi cy sa .ebu`, BOI ends the first sumti, so SA keeps `by`. `mi do sa ti` keeps `mi`, and `mi broda le brode sa ti` gives `mi broda ti`.
 
@@ -693,6 +697,8 @@ These dialects instead use the next word's class and select the nearest matching
 Zantufa gives SA class UI, so it performs no SA erasure.
 
 The cll-ebnf SU policy follows CLL[^cll-s19-13]. Zantufa also erases the whole preceding text, as its reference grammar specifies. Bpfk and experimental preserve a boundary unit by the maintainer's decision. The Magic Words proposal names those boundaries but does not say whether they survive.
+
+### Final markers and Zantufa exceptions
 
 The dialects keep `mi ba'e fa'o` rejected. The stranded BAhE cannot mark a word after FAhO ends the text. This policy differs from camxes-exp's acceptance ([experimental.md](../dialects/experimental.md)).
 

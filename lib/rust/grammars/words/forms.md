@@ -19,7 +19,7 @@ The `cll-ebnf` dialect stitches [shapes.md](shapes.md) and [cll.md](cll.md) as i
 
 The text is runs and pauses. A run is a stretch of text with no pause inside. The phoneme stage emits each pause as one `PAUSE` token. The phoneme stage decides what counts as a pause. In the orthography of *The Complete Lojban Language* (CLL), a pause is a space or a period. In the conventions that the other dialects read, other punctuation is a pause too.
 
-Every pause rule of CLL[^cll-s4-9][^cll-s4-2] holds within one run. A pause satisfies each of them, so two words with a pause between them never constrain each other.
+The numbered pause rules of CLL[^cll-s4-9] and its stress rule[^cll-s4-2] hold within one run. A pause satisfies each of them, so two words with a pause between them never constrain each other.
 
 A lookahead tests following input without consuming it. The word forms of the BPFK (a Lojban committee) look past the end of a word only as far as the next pause. This stage reads each run on its own, except for two lookaheads. A prolonged y run tests whether BU follows across one pause. In Zantufa, a second lookahead applies before a quoted form. There, a `ra'oi` before a pause changes how the stage divides the next run ([zantufa.md](zantufa.md)).
 
@@ -102,7 +102,7 @@ The stage reads the words of a run from the left. Each word after the first can 
 - `continued`: Another word can follow this one directly. A name never has it (rule 2), nor a `Cy` letter, nor a brivla whose stress is not marked.
 - `name-intro` and `name-onset`: `name-intro` marks `la`, `lai`, `la'i` and `doi`, and `name-onset` marks a name that begins with a consonant. The name can follow the cmavo directly (rule 4).
 - `cy`: A `Cy` letter, which only another `Cy` letter can follow directly (rule 6)
-- `final-stress`, `initial-stress` and `stress-guard`: The word's last or first syllable is stressed, or the word is a brivla. A word with `initial-stress` cannot directly follow a word with `final-stress`.[^cll-s4-2] Neither can a brivla with `stress-guard`.[^cll-s4-9]
+- `final-stress`, `initial-stress` and `stress-guard`: The word's last or first syllable is stressed, or the word is a brivla. A word with `initial-stress` cannot directly follow a word with `final-stress`.[^cll-s4-2] Neither can a brivla with `stress-guard` (pause rule 5).[^cll-s4-9]
 - `open-stress` and `uncounted`: `open-stress` marks a brivla whose stress is not marked, and `uncounted` marks a word with no counted syllable. CLL[^cll-s3-9] counts a brivla's syllables to the next pause, so only words with no counted syllable can follow it in its run. The run carries `open-stress` on through them.
 
 The BPFK word forms set only `onset` and `continued`, with the meaning that the PEG gives them. The PEG is the parsing expression grammar of the BPFK word forms. [bpfk.md](bpfk.md) translates it. Every word is `continued`, and a word that does not begin with a nucleus is `onset`, a name included. Their words look past their own ends, as the words of the PEG do, and decide the rest themselves.
@@ -252,7 +252,7 @@ A `y` here is either phoneme of the letter, plain or stressed.
 
 ## Differences from camxes
 
-Both camxes-std and camxes-exp reject the whole text `kyyykerlo`. Their [standard spaces rule](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L1529-L1531) and [experimental spaces rule](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg#L1625-L1627) refuse a leading Y token. The bpfk and experimental word stages instead drop the hesitation `yy`.
+camxes-std and camxes-exp, the standard and experimental camxes parsers, both reject the whole text `kyyykerlo`. Their [standard spaces rule](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L1529-L1531) and [experimental spaces rule](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg#L1625-L1627) refuse a leading Y token. The bpfk and experimental word stages instead drop the hesitation `yy`.
 
 [^cll-s4-9]: [CLL 1.1, section 4.9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-pauses.html).
 

@@ -1,6 +1,6 @@
 # CLL word forms
 
-This document is the family part of the forms stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). A family is a set of word forms that dialects use. This family gives the word forms of *The Complete Lojban Language* (CLL).[^cll-c3][^cll-c4] The loader stitches it into the forms stage after [forms.md](forms.md) and [shapes.md](shapes.md), whose sounds it builds words from.
+This document is the family part of the forms stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). A family is a set of word forms that dialects use. This family gives the word forms of *The Complete Lojban Language* (CLL), edition 1.1.[^cll-c3][^cll-c4] The loader stitches it into the forms stage after [forms.md](forms.md) and [shapes.md](shapes.md), whose sounds it builds words from.
 
 This document defines the three shapes that the forms stage reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each such word with what the pause rules of CLL[^cll-s4-9] need to know about the word. A token is one unit that a stage reads or emits. A tag marks a token by name, phoneme or character. The family of the definition effort is [bpfk.md](bpfk.md). [The notation document](../../docs/notation.md) explains the notation.
 
@@ -12,11 +12,13 @@ The prose uses these Lojban terms for words:
 - A lujvo is a compound word.
 - A rafsi is a shortened word form used inside compounds.
 
-Under these rules a text divides into words in at most one way. So the lazy choice of the stage among parses ([engine §6](../../docs/engine.md#6-choosing-a-parse)) never decides where a word ends.
+Under the rules of this document, a text divides into words in at most one way. So the lazy choice of the stage among parses ([engine §6](../../docs/engine.md#6-choosing-a-parse)) never decides where a word ends.
+
+C denotes a consonant. V denotes one of `a e i o u`, never `y`. A diphthong combines two vowels in one syllable.
 
 ## Pause tags
 
-The forms stage joins two words without a pause only if CLL[^cll-s4-9][^cll-s4-2] allows it. It reads these tags on the word before and the word after:
+The forms stage joins two words without a pause only if the numbered pause rules of CLL[^cll-s4-9] and its stress rule[^cll-s4-2] allow it. It reads these tags on the word before and the word after:
 
 - `onset`: The word begins with a consonant and is not a name. Only such a word can follow another word without a pause (rules 3 and 4), apart from a name after `la`, below.
 - `continued`: Another word can follow this one without a pause. Every cmavo but a `Cy` letter has it, and so does a brivla whose stress is marked.
@@ -24,8 +26,6 @@ The forms stage joins two words without a pause only if CLL[^cll-s4-9][^cll-s4-2
 - `cy`: A `Cy` letter, which rule 6 lets only another `Cy` follow directly
 - `name-intro` and `name-onset`: `name-intro` marks `la`, `lai`, `la'i` and `doi`, and `name-onset` marks a name that begins with a consonant. Rule 4 lets the name follow the cmavo without a pause.
 - `initial-stress` and `final-stress`: The word's first or last syllable is stressed. Such syllables are those of the first and the last vowel nucleus of the word as written, `y` included. A pause must stand between a word with `final-stress` and a following word with `initial-stress` (CLL[^cll-s4-2]). It must also stand before a following brivla, which carries the tag `stress-guard` (rule 5).[^cll-s4-9]
-
-C denotes a consonant. V denotes one of `a e i o u`, never `y`. A diphthong combines two vowels in one syllable.
 
 ## Cmavo
 
@@ -393,9 +393,9 @@ An initial CC leaves no cmavo to take. An initial CVCC or CVV rafsi leaves, afte
 
 A borrowing, or fu'ivla, is a brivla that is neither a gismu nor a lujvo (CLL[^cll-s4-7]). It has no `y`, and it ends in a vowel. It has a consonant cluster among its first five letters, not counting apostrophes and commas.
 
-A cluster at its start is an initial pair or a longer run of initial pairs. A cluster in its middle can be of any length. Each adjacent pair must be permissible, and a cluster must not hold any of the four `n` triples (CLL[^cll-s4-7]'s `lerldjamo`). Its vowels can stand in any run, with apostrophes or commas between two of them. A comma is allowed only where the letters without it, with capitals lowered, also form a borrowing (see "Commas"). A run of vowels divides into syllables as [shapes.md](shapes.md) says, so `bantua` has two syllables, `ban-tua`, and the `korea` of `bangrkorea` has three.
+A cluster at its start is an initial pair or a longer run of initial pairs. A cluster in its middle can be of any length. Each adjacent pair must be permissible, and a cluster must not hold any of the four `n` triples (the `lerldjamo` of CLL[^cll-s4-7]). Its vowels can stand in any run, with apostrophes or commas between two of them. A comma is allowed only where the letters without it, with capitals lowered, also form a borrowing (see "Commas"). A run of vowels divides into syllables as [shapes.md](shapes.md) says, so `bantua` has two syllables, `ban-tua`, and the `korea` of `bangrkorea` has three.
 
-A borrowing is also not "any combination of cmavo, gismu, and lujvo". CLL[^cll-s17-4]'s `denpabu` shows what that means: the same spoken word, with the same syllables and stress, read as those words under the pause rules. Only one such reading is possible. It is one or more cmavo followed by one brivla, because a second brivla needs a second stress. The last word must begin with a consonant, and it can be a borrowing too, as in `abaspageti`, which is `a ba spageti`.
+A borrowing is also not "any combination of cmavo, gismu, and lujvo". The `denpabu` of CLL[^cll-s17-4] shows what that means: the same spoken word, with the same syllables and stress, read as those words under the pause rules. Only one such reading is possible. It is one or more cmavo followed by one brivla, because a second brivla needs a second stress. The last word must begin with a consonant, and it can be a borrowing too, as in `abaspageti`, which is `a ba spageti`.
 
 The stress of the candidate then falls on the penultimate syllable of that brivla, which is where the brivla has it. So `buklama` is `bu klama` and `aklama` is `a klama`. But `denpabu` is a borrowing, because the reading `denpa bu` stresses `DENpa`. `klamale` and `bantua` are borrowings for the same reason. `combination` states the reading as the letters alone, because the stress then needs no test.
 
@@ -555,17 +555,19 @@ A name needs one more test. Its `doi` test applies at its start or after a vowel
 
 In a few places CLL 1.1 is silent, or two passages disagree. This grammar reads each place as follows:
 
-- Hyphens: CLL[^cll-s4-11] says that "it is illegal to add a hyphen at a place that is not required by this algorithm". So a lujvo has a `y` only where the algorithm puts one, and `rokyre'o`, `basykla` and `lojybangri` are no lujvo. The algorithm has no rule for an `n` before `tc`, `ts`, `dj` or `dz`, and the `y` goes there, as in `junydji`.[^cll-s3-7]
+- Hyphens: CLL[^cll-s4-11] says that "it is illegal to add a hyphen at a place that is not required by this algorithm". So a lujvo has a `y` only where the algorithm puts one, and `rokyre'o`, `basykla` and `lojybangri` are no lujvo. The algorithm has no rule for an `n` before `tc`, `ts`, `dj` or `dz`. These make a triple that CLL forbids,[^cll-s3-7] so this grammar inserts `y`, as in `junydji`.
 - The slinku'i test holds for every borrowing, as CLL[^cll-s4-7] states it, so `ikla` and `irklama` are no borrowings. A borrowing is also not a cmavo followed by a borrowing, which is one more way the book's promise of a single division can fail.
 - A "combination of cmavo, gismu, and lujvo" (CLL[^cll-s4-7]) is the same spoken word, with its syllables and stress, as `denpabu` shows.[^cll-s17-4] So `klamale` and `bantua` are borrowings.
-- Stress and pauses: CLL[^cll-s4-9] rule 5 asks for a pause after a stressed last syllable before a brivla. CLL[^cll-s4-2] asks for one between two stressed syllables, whatever the words. A pause separates a stressed final syllable from a stressed first syllable. Both hold, so `mIdO` needs a pause.
+- Stress and pauses: CLL[^cll-s4-9] rule 5 asks for a pause after a stressed last syllable before a brivla. CLL[^cll-s4-2] asks for one between two stressed syllables, whatever the words. CLL states the stress rule as follows. Both rules hold here, so `mIdO` needs a pause.
+
+  > If the final syllable of one word is stressed, and the first syllable of the next word is stressed, you must insert a pause
 - Syllables: A syllabic consonant adds no syllable. So the first and last syllables of a word are those of its first and last written vowels, `y` included.
 - An unmarked brivla is stressed on the penultimate syllable, counted to the next pause (CLL[^cll-s3-9]). So `klamacy.` is `klama cy.`, and `klamabu` is one borrowing, like `denpabu`.
 - Names: CLL forbids embedded `la`, `lai` or `doi` "unless the sequence is immediately preceded by a consonant".[^cll-s4-8] This grammar rejects them only at the start or after a vowel or `y`. Its `name-vowel` test excludes the apostrophe.
 - Capital letters: A capital on either letter of a diphthong, or on both, marks one stressed syllable, so `bAIkla` is a lujvo. A capital `Y` can mark stress in a name or a cmavo, whose stress can fall on any syllable. It never stands in a brivla, whose `y` is not counted.
 - Vowels: CLL never says whether two vowels that form no diphthong can stand side by side. In a name or a borrowing they can, each its own syllable, as in `.aab.` and `paarku`. Usage before the PEG (parsing expression grammar) grammars had them.
 - Vowels in a cmavo: A cmavo's vowels are single vowels and falling diphthongs joined by apostrophes (CLL[^cll-s4-1][^cll-s4-2]). A rising diphthong is a cmavo only as a whole word. So `seia`, `miui` and `kie` are no cmavo, and `sei'a` is one. An apostrophe or a comma can stand before a rising diphthong in a name, as in `.a'uas.`.
-- Commas: A comma between two vowels only marks a syllable break, as CLL uses it in `.me,iin.` and `bang,r,kore,a`.[^cll-s3-5][^cll-s4-7] It can stand only in a borrowing, a name or hesitation, and a word keeps its class with its commas removed and its capitals lowered. CLL[^cll-s3-3] says that "no two Lojban words differ solely because of the presence or placement of a comma", and it gives `kulnrsu,omi`.[^cll-s7-15] The stress marks read the syllables as written, so stress-marked text can divide differently, as in `zba,A,uklama`. Anywhere else a comma is not a letter.
+- Commas: A comma between two vowels only marks a syllable break, as CLL uses it in `.me,iin.` and `bang,r,kore,a`.[^cll-s3-5][^cll-s4-7] It can stand only in a borrowing, a name or hesitation, and a word keeps its class with its commas removed and its capitals lowered. CLL[^cll-s3-3] says that "no two Lojban words differ solely because of the presence or placement of a comma". CLL also writes `kulnrsu,omi`.[^cll-e7-78] The stress marks read the syllables as written, so stress-marked text can divide differently, as in `zba,A,uklama`. Anywhere else a comma is not a letter.
 - Written boundaries: CLL[^cll-s3-3] lets a missing period be inferred, but not a missing word boundary. So a space or a period ends a word and counts as a pause, and no boundary is inferred where none is written. `miui` is no text, and `mi .ui` and `mi ui` are two words.
 - `y` in a cmavo: The ten pairs `a'y`, `e'y`, `i'y`, `o'y`, `u'y`, `y'a`, `y'e`, `y'i`, `y'o` and `y'u` are cmavo. The word stage reads a longer cmavo with a `y` unit, such as `ka'y`, under the warning `y-cmavo`.
 
@@ -595,7 +597,7 @@ In a few places CLL 1.1 is silent, or two passages disagree. This grammar reads 
 
 [^cll-s3-5]: [CLL 1.1, section 3.5](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-vowel-pairs.html).
 
-[^cll-s7-15]: [CLL 1.1, section 7.15](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-anaphoric-rafsi.html).
+[^cll-e7-78]: [CLL 1.1, section 7.15, example 7.78](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-anaphoric-rafsi.html#c7e15d3).
 
 [^cll-c3]: [CLL 1.1, chapter 3](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-phonology.html).
 

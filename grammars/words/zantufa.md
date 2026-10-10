@@ -187,6 +187,8 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
 <p><img src="../../docs/diagrams/words/zantufa/rahoi-form.svg" alt="Railroad diagram of the rule rahoi-form"></p>
 </details>
 
+The BPFK word forms divide an odd run of three or more `y` into `y` and the remainder.
+
 The stage tags `after-hesitation` a run of `y` that directly follows another run of `y`. The word stage derives space behavior from `spacing` and its `y-letters` test.
 
 Before BU, the forms stage separates the final y from the hesitation prefix. The shared word reader joins that final y with BU. Elsewhere, two such runs attached to a word are two Y words, as Zantufa's `cmavo_form` reads them. An `ie'o` is a Y word of its own, and it never joins one.
@@ -217,6 +219,6 @@ The stage tags `opener-space` a hesitation directly after a text opener, and eac
 
 *The Complete Lojban Language* (CLL) forbids the consonant pair `mz`.[^cll-s3-6] The working morphology, the word-form grammar that bpfk.md translates, forbids it too: its letter rule for `m` refuses a following `z`. The letter rule for `m` in Zantufa refuses only another `m` among the consonants, as the rule of camxes-exp (the experimental camxes parser) does. So Zantufa accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`. The other changes that camxes-exp makes to the word forms, in [experimental.md](experimental.md), are not Zantufa's.
 
-The BPFK word forms divide an odd run of three or more `y` into `y` and the remainder. Zantufa's `Y` is `y+`, so its `spaces` treats the whole run as space. The stage writes `after-hesitation` on divided y-runs. The word stage uses `spacing` and `y-letters` for their space behavior.
+Zantufa's `Y` is `y+`, so its `spaces` treats the whole run as space. This translation inherits divided y-runs and uses `after-hesitation`, `spacing` and `y-letters` to preserve that space behavior.
 
 [^cll-s3-6]: [CLL 1.1, section 3.6](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-clusters.html).

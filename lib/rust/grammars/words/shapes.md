@@ -2,19 +2,15 @@
 
 This document is part of the forms stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)).
 
-A diphthong combines two vowels in one syllable.
-
-The document holds the sounds of the word forms in *The Complete Lojban Language* (CLL). These are the consonants and their pairs, the vowels and diphthongs, and the stress. The loader stitches it into the stage after [forms.md](forms.md) and before [cll.md](cll.md), which builds the words from these parts. The other dialects read the word forms of the BPFK (a Lojban committee) in [bpfk.md](bpfk.md) instead, and use nothing here. [The notation document](../../docs/notation.md) explains the notation.
+The document holds the sounds of the word forms in *The Complete Lojban Language* (CLL), edition 1.1. These are the consonants and their pairs, the vowels, diphthongs and stress. A diphthong combines two vowels in one syllable. The loader stitches it into the stage after [forms.md](forms.md) and before [cll.md](cll.md), which builds the words from these parts. The other dialects read the word forms of the BPFK (a Lojban committee) in [bpfk.md](bpfk.md) instead, and use nothing here. [The notation document](../../docs/notation.md) explains the notation.
 
 Before this stage, the phoneme stage folds consonants to lowercase and writes every apostrophe as `/'/`. A token is one unit that a stage reads or emits. The only capital tokens are the stressed vowels `/A/ /E/ /I/ /O/ /U/ /Y/`. A comma reaches this stage only where it stands between two vowels, as the syllable break `/,/`.
-
-A borrowing is a word taken from another language.
 
 ## Consonants
 
 CLL[^cll-s3-6] lists the permissible consonant pairs. A pair is never the same consonant twice, never a voiced and an unvoiced consonant together, and never two of `c j s z`. CLL[^cll-s3-6] also forbids the pairs `cx`, `kx`, `xc`, `xk` and `mz`. The voiced consonants are `b d g v j z`, and the unvoiced ones are `p t k f c s x`. `l m n r` are neither. For each consonant C, the rule `after-C` lists the consonants that can follow C, 179 pairs in all.
 
-CLL[^cll-s3-7] lists the 48 pairs that can begin a word. A longer cluster can begin a borrowing if each adjacent pair in it is one of the 48 (CLL[^cll-s4-7]). So `spraile` is a borrowing, but not `ktraile` or `trkaile`. `long-initial-run` is every such cluster of three consonants or more. CLL[^cll-s3-7] forbids the triples `ndj ndz ntc nts`, except in a name.
+CLL[^cll-s3-7] lists the 48 pairs that can begin a word. A borrowing is a word taken from another language. A longer cluster can begin a borrowing if each adjacent pair in it is one of the 48 (CLL[^cll-s4-7]). So `spraile` is a borrowing, but not `ktraile` or `trkaile`. `long-initial-run` is every such cluster of three consonants or more. CLL[^cll-s3-7] forbids the triples `ndj ndz ntc nts`, except in a name.
 
 ```jbogenbau
 %rule consonant
@@ -572,7 +568,7 @@ A cmavo or a name can have capital vowels on any of its syllables, `Y` included 
 - `first-counted`, when the first nucleus is counted, and `first-marked`, when it has a capital vowel
 - `any-marked`, when some nucleus has a capital vowel
 
-The forms stage uses the stress on the first syllable of a name, for CLL[^cll-s4-2]'s pause between two stressed syllables. That is where `la` or `doi` comes before a name with no pause.
+The forms stage uses the stress on the first syllable of a name, for the pause rule of CLL[^cll-s4-2] between two stressed syllables. That is where `la` or `doi` comes before a name with no pause.
 
 ```jbogenbau
 %rule name-scan

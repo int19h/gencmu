@@ -40,7 +40,7 @@ The phoneme stage supplies normalized phonemes and pause tokens. The forms stage
 
 The PEG's lookaheads decide where each word ends and which words can stand together without a pause. So every word here is `continued`: the rules of the word decide whether another word can follow it without a pause. A nucleus is the vowel or diphthong of a syllable. A word has `onset` when it does not begin with a nucleus, because the PEG's `post_word` lets only such a word follow another word directly.
 
-The PEG's `CMAVO` is a list of the selma'o, each a set of spellings, followed by `cmavo` for every other cmavo. Each selma'o rule begins with `&cmavo` and ends with `&post_word`. So every spelling but one reads exactly what `cmavo` reads, and the lexicon gives each cmavo its selma'o.
+The PEG's `CMAVO` is a list of the selma'o, each a set of spellings, followed by `cmavo` for every other cmavo. Each selma'o rule begins with `&cmavo` and ends with `&post_word`. Every spelling except `ybu` reads exactly what `cmavo` reads, and the lexicon gives each cmavo its selma'o. This stage reads `ybu` as two words, as the [closing comparison](#the-ybu-exception) explains.
 
 `cmavo-shape` reads `cmavo`. A cmavo made only of `y` letters is hesitation, which [forms.md](forms.md) reads as `y-run`, so this document redefines `y-run` as that cmavo.
 
@@ -1209,11 +1209,15 @@ The phoneme stage reads the text before this stage does. In four ways, the text 
 - The PEG reads `h` as an apostrophe, and a consonant in either case. The phoneme stage emits both apostrophes as `'` and every consonant in lower case, so the translation reads only those. A capital vowel is a stressed vowel for both. The phoneme stage also reads an accent as stress. It reads a run of two vowel groups or more in which every vowel is a capital as a run without stress marks. The PEG reads neither.
 - The PEG's pauses are whitespace and the characters `.`, `?` and `!`. The phoneme stage reads other punctuation as a pause too, and it emits a run of pause characters as one `PAUSE`.
 
-The exception is the first spelling of `BY`, the rule `ybu <- Y space_char* BU`. It reads a run of `y`, any pause, and `bu` as one letter word: `ybu`, `y bu` and `yyybu` are each one word. That is the letter word `.y bu`, which the Magic Words proposal forms "before any other processing of any kind". This stage reads each run on its own, so it reads the `y` and the `bu` as two words. Before BU, the forms stage separates the final y from any prolonged hesitation. The shared word reader then forms the letter word ([stream.md](stream.md)).
+### The ybu exception
+
+The PEG's first spelling of `BY`, the rule `ybu <- Y space_char* BU`, reads more than `cmavo`. It reads a run of `y`, any pause, and `bu` as one letter word: `ybu`, `y bu` and `yyybu` are each one word. That is the letter word `.y bu`, which the Magic Words proposal forms "before any other processing of any kind". This stage reads each run on its own, so it reads the `y` and the `bu` as two words. Before BU, the forms stage separates the final y from any prolonged hesitation. The shared word reader then forms the letter word ([stream.md](stream.md)).
 
 Where the PEG's `ybu` begins, `cmavo` reads its run of `y` as one word in two cases. The run has one letter, or it has an even number of them. When it has an odd number, three or more, `cmavo` reads the first `y` alone and then the rest as one word. This is because `cmavo_form` reads first a single `y` that is a nucleus. So `yyybu` is `y`, `yy` and `bu`. `cmavo` then reads the `bu`, with the conditions of the PEG's `BU`.
 
 So the division is the PEG's, with each `ybu` split into its hesitation words and its `bu`. Before BU, this stage splits each prolonged piece into a prefix and a final y. The word stage drops the prefix and forms the letter word from the final y.
+
+### Consonant restriction
 
 The BPFK approved the consonant-glide-vowel ban on December 27, 2014 (CLL 1.3.4[^cll-later-a3-3]). The consonant rules retain that restriction.
 

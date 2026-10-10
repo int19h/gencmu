@@ -104,7 +104,7 @@ In a `lo'u` or `lo'ai` quote, the stage tags such a word `word` only, like every
 <p><img src="../../docs/diagrams/words/zantufa-stream/read-word.svg" alt="Railroad diagram of the rule read-word"></p>
 </details>
 
-A magic word is never a plain word. `$MAGIC-WORDS` adds RAhOI, GOhOI, MUhOI, LOhAI and LEhAI to the shared list. The constant excludes these classes from plain words. Only the classes listed by `bare-marker` have the SI/BU fallback.
+A magic word is never a plain word. `$MAGIC-WORDS` adds RAhOI, GOhOI, MUhOI, LOhAI and LEhAI to the shared list. The constant excludes these classes from plain words, so a bare LOhAI or LEhAI is never a plain word. A bare marker is an opener that forms no complete quote. Only the classes in the [later `bare-marker` rule](#bare-markers) have the SI/BU fallback.
 
 A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads as an unquoted word opens a text of its own. The forms stage gives the tag `opener-space` to the hesitation after such a word. A tag marks a token by name, phoneme or character. So that hesitation is space, and the word takes it with it. Inside a quote, such a hesitation is an attached Y word, as in `zo luyy si`, which erases the `yy` and keeps `zo lu`.
 
@@ -171,6 +171,8 @@ The forms stage hands on the form after `ra'oi` as a `rafsi-form` token, even wh
 <p><img src="../../docs/diagrams/words/zantufa-stream/payload-token.svg" alt="Railroad diagram of the rule payload-token"></p>
 <p><img src="../../docs/diagrams/words/zantufa-stream/delimiter.svg" alt="Railroad diagram of the rule delimiter"></p>
 </details>
+
+## Bare markers
 
 A quote word that opens no quote is an ordinary word in Zantufa, which `si` erases. Zantufa's `si_word` tries the quotes first, and then reads any cmavo but `bu`, a word of SI or SU, and `fa'o`. So `zoi si broda` is `broda`, and `lo'u si` is nothing. A bare marker can occupy a unit before SI or BU. It remains bare only where no complete quote begins.
 
