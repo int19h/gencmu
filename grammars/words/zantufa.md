@@ -17,7 +17,7 @@ Zantufa 1.9999 reads the working word forms of the BPFK (a Lojban committee), wi
 
 The rule `m` has the name of the Zantufa rule that it translates, and its comment gives that rule, as in bpfk.md. Where another rule states a Zantufa rule, its comment gives that rule. The rest are rules of [forms.md](forms.md) that this document changes, or rules that support them. [The notation document](../../docs/notation.md) explains the notation.
 
-*The Complete Lojban Language* (CLL), edition 1.1, section 3.6, forbids the consonant pair `mz`. The working morphology, the word-form grammar that bpfk.md translates, forbids it too: its letter rule for `m` refuses a following `z`. The letter rule for `m` in Zantufa refuses only another `m` among the consonants, as the rule of camxes-exp (the experimental camxes parser) does. So Zantufa accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`. The other changes that camxes-exp makes to the word forms, in [experimental.md](experimental.md), are not Zantufa's.
+The rule for `m` rejects a following apostrophe, glide or `m`, but permits `z`. Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
 
 ```jbogenbau
 %redefine-rule m              (* m <- [mM] !h !glide !m *)
@@ -187,7 +187,7 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
 <p><img src="../../docs/diagrams/words/zantufa/rahoi-form.svg" alt="Railroad diagram of the rule rahoi-form"></p>
 </details>
 
-The BPFK word forms read an odd run of three or more `y` as `y` and the rest. Zantufa's `Y` is `y+`, so its `spaces` read the whole run as one stretch of space. So the stage tags `after-hesitation` a run of `y` that directly follows another run of `y`.
+The stage tags `after-hesitation` a run of `y` that directly follows another run of `y`. This lets the word stage treat successive pieces as one stretch of space.
 
 Before BU, the forms stage separates the final y from the hesitation prefix. The shared word reader joins that final y with BU. Elsewhere, two such runs attached to a word are two Y words, as Zantufa's `cmavo_form` reads them. An `ie'o` is a Y word of its own, and it never joins one.
 
@@ -212,3 +212,11 @@ The stage tags `opener-space` a hesitation directly after a text opener, and eac
 <p><img src="../../docs/diagrams/words/zantufa/joined-hesitation.svg" alt="Railroad diagram of the rule joined-hesitation"></p>
 <p><img src="../../docs/diagrams/words/zantufa/ordinary-joined-hesitation.svg" alt="Railroad diagram of the rule ordinary-joined-hesitation"></p>
 </details>
+
+## Differences from CLL and BPFK
+
+*The Complete Lojban Language* (CLL) forbids the consonant pair `mz`.[^cll-s3-6] The working morphology, the word-form grammar that bpfk.md translates, forbids it too: its letter rule for `m` refuses a following `z`. The letter rule for `m` in Zantufa refuses only another `m` among the consonants, as the rule of camxes-exp (the experimental camxes parser) does. So Zantufa accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`. The other changes that camxes-exp makes to the word forms, in [experimental.md](experimental.md), are not Zantufa's.
+
+The BPFK word forms divide an odd run of three or more `y` into `y` and the remainder. Zantufa's `Y` is `y+`, so its `spaces` treats the whole run as space. The `after-hesitation` tag preserves that behavior across the divided tokens.
+
+[^cll-s3-6]: [CLL 1.1, section 3.6](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-clusters.html).

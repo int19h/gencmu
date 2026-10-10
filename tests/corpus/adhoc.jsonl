@@ -4752,3 +4752,4 @@
 {"id":"adhoc.prose.syntax-experimental.pin-7","text":"mi fa klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","fa","klama"],"brackets":"(mi [fa klama])"}
 {"id":"adhoc.prose.syntax-experimental.pin-8","text":"pa so mo'o","dialect":"experimental","expect":"accept","verdict":"unique","words":["pa","so","mo'o"],"brackets":"([pa so] mo'o)"}
 {"id":"adhoc.prose.syntax-experimental.pin-9","text":"pa so","dialect":"experimental","expect":"accept","verdict":"unique","words":["pa","so"],"brackets":"(pa so)"}
+{"id":"adhoc.prose.words-zantufa.pin-1","text":"ra'oi .y. broda","dialect":"zantufa","expect":"accept","verdict":"unique","words":["ra'oi","broda"],"brackets":"(ra'oi broda)"}
