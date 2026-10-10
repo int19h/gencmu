@@ -309,7 +309,7 @@ The top rule `sumti` adds `vu'o` followed by relative clauses. `vu'o` attaches t
 
 This grammar states the quote rules over `any-word` and `anything`. The word stage decides where a `zo`, `lo'u` or `zoi` quote ends, and hands on its parts as tokens. It tags each quoted word `word`. It tags a quoted unit, such as a `zoi` body, `quoted-text`. This grammar delimits only `lu ... li'u`. The free-modifier slot of that quote follows it whether or not `li'u` is written.
 
-`sumti-tail` is what follows a descriptor. It begins with an optional inner sumti that possesses or restricts, `le mi zdani`. Then come the inner quantifier and the selbri, `le ci gerku`, or a quantifier and a sumti, `lo re lo gerku`. Relative clauses can come after the inner sumti or replace it [^cll-s6-2][^cll-s8-7].
+`sumti-tail` is what follows a descriptor.[^cll-s6-2] It begins with an optional inner sumti that possesses or restricts, `le mi zdani`.[^cll-s8-7] Then come the inner quantifier and the selbri, `le ci gerku`, or a quantifier and a sumti, `lo re lo gerku`. Relative clauses can come after the inner sumti or replace it.[^cll-s8-6]
 
 ```jbogenbau
 %rule sumti
@@ -482,7 +482,7 @@ The word stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-2
 
 ## Numbers, lerfu strings and mekso
 
-A number is a string of PA words, such as the digits `pa` and `re` and the decimal point `pi`.[^cll-s18-2] Lerfu words can follow its first word (`pa re ci`, `pa xy.`). A lerfu string begins with a lerfu word instead.[^cll-s17-8].
+A number is a string of PA words, such as the digits `pa` and `re` and the decimal point `pi`.[^cll-s18-2] Lerfu words can follow its first word (`pa re ci`, `pa xy.`). A lerfu string begins with a lerfu word instead.[^cll-s17-8]
 
 A lerfu word is a BY word, a `lau` shift before a lerfu word, or a `tei ... foi` compound. The word stage builds each `bu` letter word into one `BY`, which `lerfu-word` reads.
 

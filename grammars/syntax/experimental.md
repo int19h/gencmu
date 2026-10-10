@@ -1010,7 +1010,7 @@ For example, `le sutra tavla` has two parses. One is a statement with the descri
 
 ## Differences from CLL and camxes-exp
 
-camxes-exp, the experimental PEG (parsing expression grammar), is this layer's reference. A PEG tries alternatives in order. This layer considers complete readings and uses conditions or ranked choices to select among them. Its constructs developed after CLL.
+camxes-exp, the experimental PEG (parsing expression grammar), is this layer's reference. A PEG tries alternatives in order. This layer considers complete readings and uses conditions or ranked choices to select among them.
 
 The experimental lexicon follows camxes-exp's classes, including the classes absent from CLL. This layer never reads a CLL class that camxes-exp lacks, such as LA. The experimental dialect enables `cbm` and `soi-clause` because camxes-exp cannot disable them. A caller can disable either here. With `soi-clause` off, `soi` retains CLL's reciprocity form.
 

@@ -1051,13 +1051,13 @@ The dialect reads some texts differently from Zantufa 1.9999. The policy of the 
 
 ### Translation choices and reference evidence
 
-Written-terminator priority does not help where no terminator is written. `to` holds a text and `sei` holds a statement, and the reference reads that content as far as it can. A nested reading here closed a `to` or a `sei` early, with its terminator elided. A negative condition then found a reading that the reference never forms, and it removed the right reading.
+Written-terminator priority does not help where no terminator is written. `to` holds a text and `sei` holds a statement, and the reference reads that content as far as it can. Without maximal terminators, a nested reading can close a `to` or `sei` early, with its terminator elided. A negative condition then finds a reading that the reference never forms, and it removes the right reading.
 
 So these two terminators are written `[++TOI]` and `[++SEhU]`, which makes them maximal ([engine §4](../../docs/engine.md#4-recognition)). The marker `++` is transitional, until this grammar's redesign (GitHub issues #138 and #139). An elided `toi` or `se'u` then closes only content that cannot be longer, in the main parse and in each condition.
 
 These texts illustrate the maximal boundaries, with Zantufa's reading. In `so to recap` and `so to mi klama`, the parenthesis holds the rest of the text, and the text is one mekso. In ` o'ocu'i is mere tolerance`, the parenthesis after `re` holds `le rance`. In `ro sei ny rere'u basna mutce cusku`, the `sei` holds `ny rere'u basna mutce cusku`. The rule also rejects `metonymy`, as Zantufa does, because the parenthesis takes `ny my`, and `me` then has nothing.
 
-The reference writes `CU_elidible`, but `cu` is a separator. It stands between the terms and the bridi-tail, and it closes neither of them. The grammar of *The Complete Lojban Language* (CLL) does not make `cu` elidable either. So `[CU #]` is a plain optional here, with no marker. A written `cu` parses as before, and a sentence can still omit it. Maximal terminators and `elision-only` do not treat `cu` as a terminator.
+The reference writes `CU_elidible`, but `cu` is a separator. It stands between the terms and the bridi-tail, and it closes neither of them. The grammar of *The Complete Lojban Language* (CLL) does not make `cu` elidable either. So `[CU #]` is a plain optional here, with no marker. A written `cu` remains valid, and a sentence can omit it. Maximal terminators and `elision-only` do not treat `cu` as a terminator.
 
 An absent `cu` makes no elided node in the tree, and the ranking does not count it. If `cu` is elidable, an absent `cu` is an elision before the bridi-tail, and so an early one. The ranking favors a reading that closes a parenthesis, quote or `jai` early and begins the bridi-tail later. With an elidable `cu`, `to na cafne` closes the parenthesis after `na`. Zantufa holds `na cafne` in the parenthesis, and so does this grammar.
 
