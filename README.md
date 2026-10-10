@@ -2,7 +2,9 @@
 
 gencmu is a Lojban parser whose grammar is data. Every layer of the language is a literate grammar document in jbogenbau, the grammar notation of gencmu. A literate grammar document mixes prose with the grammar rules, and gencmu loads it at runtime. If you change a grammar, you change the language that the parser reads, and nothing is compiled.
 
-A stage is one step of a parse, with its own grammar. A dialect is a pipeline of stages, defined by one pipeline document. That document lists the stages and the grammar documents of each. A Lojban dialect has five stages: phonemes, forms, words, indicators and syntax. Together they go from characters to phonemes, from phonemes to words, and from words to a parse tree. A feature is a named switch that the grammars test.
+A stage is one step of a parse, with its own grammar. A pipeline runs stages in sequence. A dialect defines a parsing pipeline. That document lists the stages and the grammar documents of each.
+
+A phoneme is a unit of sound. A Lojban dialect has five stages: phonemes, forms, words, indicators and syntax. The stages read characters into phonemes, phonemes into words, and words into a parse tree. A feature is a named switch that the grammars test.
 
 ## Try it
 
@@ -17,7 +19,7 @@ node lib/js/cli.js audit --dialect zantufa
 node lib/js/cli.js help
 ```
 
-Or open `index.html` in a browser, from the clone or from GitHub Pages. This page is the playground. It runs the same library in the page and fetches nothing. The playground does these things:
+Open `index.html` in a browser, from the clone or from GitHub Pages. This page is the playground. It runs the same library in the page and fetches nothing. The playground does these things:
 
 - It parses the text as you type, under any dialect and set of features.
 - It shows the brackets, the tree, the JSON and the tokens of every stage.
@@ -33,7 +35,7 @@ Or open `index.html` in a browser, from the clone or from GitHub Pages. This pag
 | `cll-ebnf` | Lojban as *The Complete Lojban Language* (CLL) describes it, its printed grammar taken as normative |
 | `kihei` | CLL with `ki'ei` phrases that set a frame for subsequent utterances |
 | `bpfk` | CLL syntax with the working word forms of the BPFK (a Lojban committee), from a PEG (parsing expression grammar). It reads omitted closing words as the `cll-ebnf` dialect does. |
-| `experimental` | CLL with the constructs that came into use after CLL, with camxes-exp, an experimental PEG parser of Lojban, as its baseline |
+| `experimental` | CLL with extensions. Its reference is camxes-exp, an experimental PEG parser of Lojban. |
 | `zantufa` | Guskant's Zantufa 1.9999, a PEG grammar of Lojban, translated rule by rule |
 | `notation` | jbogenbau, gencmu's grammar notation, in which gencmu reads its own grammar documents |
 
@@ -41,7 +43,7 @@ A document under [`grammars/dialects/`](grammars/dialects) defines each bundled 
 
 ## The libraries
 
-Four libraries implement one specification. Each library has no dependency beyond the standard library of its language. Each library passes every shared test that its API can express. The libraries are:
+Four libraries implement one specification. Each library has no dependency beyond the standard library of its language. An API is the operations that a library exposes. Each library passes every shared test that its API can express. The libraries are:
 
 - JavaScript: [`lib/js/`](lib/js), the npm package `gencmu`, with the CLI
 - Python: [`lib/python/`](lib/python), the package `gencmu`
