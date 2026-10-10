@@ -1,6 +1,8 @@
 # Discourse frames (ki'ei)
 
-This dialect is a small example of extending the grammar of *The Complete Lojban Language* (CLL). It adds the proposed particle `ki'ei`. An utterance is a statement or a fragment, as in CLL's `paragraph`. A frame is a context for subsequent utterances. The proposed meaning sets the world in which those utterances hold as true.
+This dialect is a small example of extending the grammar of *The Complete Lojban Language* (CLL). It adds the particle `ki'ei` from [Ntsékees's proposal in Lensisku](https://lensisku.lojban.org/en/valsi/ki%27ei). An utterance is a statement or a fragment, as in CLL's `paragraph`. A frame is a context for subsequent utterances.
+
+The proposal uses the material after `ki'ei` as the context or world for following utterances. Another `ki'ei` phrase resets that context.
 
 The dialect includes CLL and then extends its forms and syntax stages. The CLL documents explain the inherited rules and parsing policy.
 
@@ -9,7 +11,7 @@ The dialect includes CLL and then extends its forms and syntax stages. The CLL d
   %include "cll-ebnf.md"
   ```
 
-A payload is the material after a marker. The payload after `ki'ei` accepts any number of CLL terms, including zero. For example, `ki'ei ko'a .i broda` supplies an argument, and `ki'ei pu zu ku .i broda` supplies a tense. The empty form `ki'ei .i broda` supplies no terms.
+A payload is the material after a marker. A sumti is an argument of a predicate. The frame accepts terms, so tenses and modals can set it as well as sumti. The payload after `ki'ei` accepts any number of CLL terms, including zero. For example, `ki'ei ko'a .i broda` supplies an argument, and `ki'ei pu zu ku .i broda` supplies a tense. The empty form `ki'ei .i broda` supplies no terms.
 
 The CLL word stages already accept the word form of `ki'ei`. The classifier declaration adds this particle to the inherited CLL lexicon. The forms stage assigns its class before the later stages read it.
 
