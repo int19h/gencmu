@@ -4,7 +4,7 @@ A letteral is a letter word of class BY, as [stream.md](stream.md) defines it.
 
 This document is part of the word stage of the [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) dialects, after [the word stream](stream.md). A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. Each stage reads the tokens that the stage before it emitted, and emits new tokens. [The notation document](../../docs/notation.md) explains the notation.
 
-camxes-exp and Zantufa 1.9999 both read a replacement quote as raw words (`LOhAI_pre`). So does this stage: a replacement quote is one unit, as in Zantufa's `si_word`. It is up to two runs of words, each opened by a word of LOhAI (`lo'ai` or `sa'ai`), and then `le'ai`. A `le'ai` alone is a whole quote too.
+A replacement quote is one unit of raw words. It is up to two runs of words, each opened by a word of LOhAI (`lo'ai` or `sa'ai`), and then `le'ai`. A `le'ai` alone is a whole quote too.
 
 The words inside are plain words, whatever they are. No magic word executes there, including BU, ZEI, and FAhO. No indicator attaches there.
 
@@ -68,3 +68,7 @@ In the experimental dialect, a marker that opens no quote is an ordinary word. [
 <p><img src="../../docs/diagrams/words/lohai/lohai-marker.svg" alt="Railroad diagram of the rule lohai-marker"></p>
 <p><img src="../../docs/diagrams/words/lohai/lehai-marker.svg" alt="Railroad diagram of the rule lehai-marker"></p>
 </details>
+
+## Reference behavior
+
+camxes-exp and Zantufa 1.9999 read replacement quotes as raw words in `LOhAI_pre`. This stage retains that treatment and the single-unit boundary of Zantufa's `si_word`. Magic words after a quote act on the whole unit, as the closing differences sections of the dialect documents describe.
