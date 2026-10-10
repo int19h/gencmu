@@ -2,7 +2,7 @@
 
 This document adds to [latin-strict.md](latin-strict.md) the conventions that Lojban texts use beyond CLL 1.1 chapter 3. CLL is *The Complete Lojban Language*. Both documents belong to the phoneme stage, the first stage of the pipeline. The dialects of the [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read them, after the rules of latin-strict.md. The [CLL](../dialects/cll-ebnf.md) dialect does not. [The notation document](../../docs/notation.md) explains the notation.
 
-Most conventions here read text that CLL does not. Two of them instead change how the stage reads a text that latin-strict.md also reads. These two are the comma between two vowels, which the working morphology ignores, and a capital run. A capital run has multiple vowel groups with only capital vowels. The working morphology is the word-form grammar that [bpfk.md](../words/bpfk.md) translates. The conventions are these:
+The rules define punctuation, commas, apostrophes, capital runs, accents, glides and digits. A comma between vowels is ignored. A capital run carries no stress mark. A capital run has multiple vowel groups with only capital vowels. The working morphology is the word-form grammar that [bpfk.md](../words/bpfk.md) translates. The conventions are these:
 
 - Punctuation other than the period and the comma is a pause.
 - A comma between two vowels is nothing, as it is elsewhere.
@@ -13,7 +13,7 @@ Most conventions here read text that CLL does not. Two of them instead change ho
 
 ## Punctuation
 
-The working morphology reads the question mark and the exclamation mark as pauses, like the period and whitespace. Its PEG, or parsing expression grammar, calls them `space_char`. This grammar also reads as a pause any other character that is neither a letter of some script, a digit, a mark nor a comma. That is a rule of gencmu. Texts on the web put quotation marks, brackets and dashes around words. The working morphology rejects `mi "klama"`, and this grammar reads it as `mi klama`.
+Punctuation is a pause unless it is a letter, digit, mark or comma. This includes quotation marks, brackets and dashes around words. Thus `mi "klama"` reads as `mi klama`.
 
 A character token carries only its character tag. So the rule `other-char` names the characters that are no letter, mark, digit or whitespace. A letter is a character of the Unicode property `L`. A mark is one of `Mn`, or the stress mark or the shorthand of [zbalermorna.md](zbalermorna.md). A digit is `0` to `9`, and whitespace is a character of the property White_Space. A punctuation character is such a character that no rule of `any-lojban-char` or `core-char` reads by itself.
 
@@ -21,9 +21,9 @@ A pause token covers its core, from its first to its last whitespace character o
 
 Punctuation between two letters, with no whitespace, is a pause token of its own, as in `klama!do`. So is a text of nothing but punctuation. Commas can stand inside such a pause and at its edges. The token runs from the first punctuation character of the pause to the last. A comma at an edge belongs to no token, as next to a pause of whitespace. So `jy?,sai` is `jy` and `sai`.
 
-The working morphology reads `jy?,sai` so too, because each of its letter rules skips the commas before the letter. Punctuation next to the first or the last word of the text belongs to no token.
+Punctuation next to the first or the last word of the text belongs to no token.
 
-The phoneme stage cannot know that a pause stands in a quote. So punctuation between two whitespace characters is part of a pause even there, and `zoi gy. !!! .gy.` quotes nothing. camxes-std (the reference PEG parser) reads it so too, because it reads `!` as a space.
+The phoneme stage cannot know that a pause stands in a quote. So punctuation between two whitespace characters is part of a pause even there, and `zoi gy. !!! .gy.` quotes nothing.
 
 ```jbogenbau
 %redefine-rule pause
@@ -89,7 +89,7 @@ The phoneme stage cannot know that a pause stands in a quote. So punctuation bet
 
 ## The comma
 
-The working morphology ignores a comma before a letter (`comma*` in each letter rule of its PEG). So a comma between two vowels is no syllable break here: it is nothing, as a comma is between other letters. The vowels on either side are one vowel group, as if they stood side by side. `me,iin` is `meiin`, and the Cyrillic `ма,и` is `ma'i`, as `маи` is. This document redefines `letters-after-vowel` without the `syllable-break` of latin-strict.md. So nothing reads `syllable-break` in these dialects.
+A comma between vowels is ignored, as it is between other letters. It creates no syllable break. The vowels on either side are one vowel group, as if they stood side by side. `me,iin` is `meiin`, and the Cyrillic `ма,и` is `ma'i`, as `маи` is. This document redefines `letters-after-vowel` without the `syllable-break` of latin-strict.md. So nothing reads `syllable-break` in these dialects.
 
 ```jbogenbau
 %redefine-rule letters-after-vowel
@@ -111,7 +111,7 @@ The working morphology ignores a comma before a letter (`comma*` in each letter 
 
 ## The apostrophe
 
-Texts write the apostrophe as the letter `h`, which CLL does not use. The names of selma'o (classes of Lojban particles), such as KOhA, write the apostrophe this way. The working morphology also reads `h` as an apostrophe (`h <- comma* ['h] &nucleus` in its PEG).
+The rule reads `h` and `H` as the apostrophe. A selma'o is a class of Lojban particles. Selma'o names such as KOhA use this spelling.
 
 ```jbogenbau
 %extend-rule apostrophe
@@ -126,7 +126,7 @@ Texts write the apostrophe as the letter `h`, which CLL does not use. The names 
 
 ## Capital runs
 
-A run in which every vowel is a capital carries no stress mark, and the stage reads its vowels as plain vowels. That is a rule of gencmu, not of CLL. A title or a shout is often written all in capitals, and its capitals do not mark stress. The run must have at least two vowel groups. So a name with one stressed syllable in capitals keeps its stress mark: `.DJORdj.` keeps its stress on `o`. The cost is that the stage reads a word of one vowel group, written in capitals, as stressed: in the text `MI KLAMA`, `MI` is `mI`.
+A run in which every vowel is a capital carries no stress mark, and the stage reads its vowels as plain vowels. A title or a shout is often written all in capitals, and its capitals do not mark stress. The run must have at least two vowel groups. So a name with one stressed syllable in capitals keeps its stress mark: `.DJORdj.` keeps its stress on `o`. The cost is that the stage reads a word of one vowel group, written in capitals, as stressed: in the text `MI KLAMA`, `MI` is `mI`.
 
 `capital-shape` is that shape: its consonants and digits and its capital vowels, written out so that two groups are required. Consonants stand between every two groups, so the rules never split adjacent vowels into separate groups. `capital-consonants` reads a decimal point between two digits, as `non-vowels` does in an ordinary run (see "Digits"). So `MI2.3KLAMA` is a capital run. `capital-consonants` does not reuse `non-vowels`, because other scripts extend `non-vowel` with forms that hold a vowel. Forms such as the zbalermorna shorthand keep a run from folding.
 
@@ -204,7 +204,7 @@ A run in which every vowel is a capital carries no stress mark, and the stage re
 
 ## Accents and breves
 
-A vowel with an acute or a grave accent, precomposed or combining, is the stressed phoneme, as a capital vowel is. Many texts mark stress this way, and CLL does not. A breve on `i` or `u` marks a glide in some texts. The word grammar finds a glide by its position, so the stage emits the letter plain. A combining mark that no letter rule takes makes its run foreign, as the precomposed letter already is. So the stage reads `i` followed by U+0308 as it reads `ï`.
+A vowel with an acute or a grave accent, precomposed or combining, is the stressed phoneme, as a capital vowel is. A breve on `i` or `u` marks a glide in some texts. The word grammar finds a glide by its position, so the stage emits the letter plain. A combining mark that no letter rule takes makes its run foreign, as the precomposed letter already is. So the stage reads `i` followed by U+0308 as it reads `ï`.
 
 ```jbogenbau
 %extend-rule plain-vowel
@@ -239,7 +239,7 @@ A vowel with an acute or a grave accent, precomposed or combining, is the stress
 
 ## Digits
 
-The working morphology reads a digit as a member of PA, the number word it stands for, and lets a digit stand inside a name. This grammar emits a digit as the letters of its word, so `2` is `re`. CLL does not write digits. A period between two digits is the decimal point, `pi`. `items` says that no pause stands there, and the decimal point needs a digit before it, so `la .djan.2mei` has a pause after `djan`.
+Each digit emits the letters of its number word, so `2` is `re`. A period between two digits is the decimal point, `pi`. `items` says that no pause stands there, and the decimal point needs a digit before it, so `la .djan.2mei` has a pause after `djan`.
 
 ```jbogenbau
 %redefine-rule items
@@ -336,3 +336,19 @@ The working morphology reads a digit as a member of PA, the number word it stand
 <p><img src="../../docs/diagrams/phonemes/latin/digit-9.svg" alt="Railroad diagram of the rule digit-9"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/decimal-point.svg" alt="Railroad diagram of the rule decimal-point"></p>
 </details>
+
+## Differences from CLL and the working morphology
+
+These conventions extend CLL's Latin orthography. Most admit spellings that CLL does not describe. Commas between vowels and capital runs instead change readings that [latin-strict.md](latin-strict.md) also permits.
+
+The working morphology calls `?` and `!` pauses through `space_char`. This document extends pauses to other punctuation, so it accepts `mi "klama"`, which the working morphology rejects. Both read `jy?,sai` as `jy` and `sai`. The morphology's letter rules skip preceding commas.
+
+camxes-std also reads `zoi gy. !!! .gy.` as an empty quote because `!` is space. The phoneme stage cannot know whether a pause stands inside a quote.
+
+The working morphology ignores commas through `comma*` in each letter rule. This document follows that treatment even between vowels. Strict CLL instead uses a comma there as a syllable break.
+
+CLL does not use `h` for the apostrophe. The working morphology accepts it through `h <- comma* ['h] &nucleus`, as this document does.
+
+CLL does not define capital folding, accented vowels or breve glides. This document accepts those conventions. Capital folding supports titles and shouts, while requiring two vowel groups preserves stress in names with one capital syllable.
+
+The working morphology reads digits directly as PA words and also permits them inside names. This stage emits their letters instead. CLL does not write digits. A period between digits emits `pi` rather than a pause.
