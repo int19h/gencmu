@@ -2,6 +2,8 @@
 
 This document is the syntax of the [Zantufa](../dialects/zantufa.md) dialect. A dialect is a pipeline of stages, defined by one pipeline document. Its reference is Guskant's Zantufa 1.9999, `zantufa-1.9999.peg` in the `gerna_cipra` repository, a PEG (parsing expression grammar). It is a grammar of its own, and it translates the reference rule by rule.
 
+CLL is *The Complete Lojban Language*. camxes-exp is the experimental camxes grammar.
+
 A translated rule keeps the reference rule's name, with hyphens, and its comment names that rule. Each other rule names part of a reference rule or a rule that a condition tests. Conditions state the reference's lookaheads, tests of the words that follow. An ordered choice in the reference tries alternatives in order. A span is a range between input token boundaries.
 
 Two alternatives of an ordered choice can read the same words. At some of these positions, a ranked choice or a condition removes the later reading over the same span. The grammar settles these choices even when neither reading elides a terminator.
@@ -10,6 +12,8 @@ A cmavo is a particle, a short structure word. A selma'o is a word class of cmav
 
 The prose also uses these Lojban terms:
 
+- A cmevla is a name word.
+- A brivla is a predicate word.
 - A gismu is a root word.
 - A rafsi is a shortened word form used inside compounds.
 - A selbri is the predicate of a sentence.
@@ -18,11 +22,12 @@ The prose also uses these Lojban terms:
 - A bridi-tail is a selbri with any terms after it.
 - A lerfu word is a letter word, such as `.abu` or `xy.`.
 - A mekso is a mathematical expression.
+- A vocative addresses a listener.
 - An attitudinal expresses an attitude.
 - A free modifier adds information outside predicate arguments.
 - A prenex puts quantified terms before their sentence.
-- A gek precedes and connects two branches.
-- A joik joins items without truth conditions.
+- A gek is a forethought connective before two or more branches that `gi` separates.
+- A joik is a connective built on a word of JOI. JOI includes the logical `je`, `ja`, `jo` and `ju` here.
 
 A stage is one step of a pipeline, with its own grammar. The pipeline is the sequence of stages that reads a text. The indicator stage attaches `ba'e` and the other words of BAhE to the word after them, so this grammar does not read them. It reads every other word, the attitudinals included.
 
@@ -84,7 +89,7 @@ A text is free modifiers and then paragraphs, which `ni'o` and `no'i` separate. 
 
 A quote preserves every leading free modifier as quoted content. This includes indicators and vocatives after LU and LUhEI. Otherwise a speaker cannot quote a text that starts with such a modifier.
 
-The opener's slot takes every leading free modifier after TO. These modifiers remain outside the parenthesis body.
+The opener's slot takes every leading free modifier after TO. These modifiers remain outside the parenthesis body. An indicator there marks the whole bracketed remark.[^cll-e19-67]
 
 ```jbogenbau
 %rule text
@@ -126,7 +131,7 @@ The opener's slot takes every leading free modifier after TO. These modifiers re
 
 A statement can take terms after it, which `i'au` can introduce (`statement-terms`). A forethought connection of statements has any number of `gi` branches and an optional `gi'i`. `.i` with a connective, or with a connective or a tense or modal and `bo`, joins a statement to the one before it. So a text cannot begin that way.
 
-The fragment conditions restrict the following input. A `gek` or `joik` fragment cannot begin terms. A `na` fragment cannot have terms or `ku` after it. A terms fragment cannot have a following mekso.
+The fragment conditions test the words at and after each fragment. A `gek` or `joik` fragment cannot begin terms. A `na` fragment cannot have terms or `ku` after it. A terms fragment cannot have a following mekso.
 
 The ranked fragment choice puts `terms-vau` before `mex`. A qualified terms fragment excludes a mekso fragment over the same span. The sentence alternative stays outside this group.
 
@@ -235,7 +240,7 @@ The condition tests for a bridi-tail that no `gi` follows (`bridi-tail-before-no
 
 The outer level takes a connective only where the inner one cannot. That is where `ke` follows it, with or without a tense or modal first, or where a tense or modal and `cu` follow it. The conditions reserve these forms for the outer level. After `ke`, the words are a group of bridi-tails, unless a selbri ends with `ke'e` there, and then they are a tanru.
 
-The tenses and modals before `ke` and a forethought bridi-tail are one tag. `[tag]` takes the whole run. With a repetition, `pu ba ke ge broda mi gi brode do ke'e` has two readings, with one tag or two. They elide the same terminators, so they tie.
+The tenses and modals before `ke` and a forethought bridi-tail are one tag. `[tag]` takes the whole run. With repeated tags, `pu ba ke ge broda mi gi brode do ke'e` has two readings, with one tag or two. They elide the same terminators, so they tie.
 
 ```jbogenbau
 %rule sentence
@@ -349,9 +354,9 @@ Zantufa has no termsets. A term is a `xoi` clause, a `ke` group of terms, a tens
 
 In a term, no forethought bridi-tail, `bo` or selbri directly follows a tense or modal, under the following-input conditions. No further part of a tense or modal follows it either, because a tense or modal reads as far as it can. The condition rejects every following selbri. So `mi pe pu ba broda` has no parse, and `mi pe pu ku ba broda` has one.
 
-Before its argument is read, a tag cannot leave a following free modifier unread. The final word slot takes that modifier before the tag-term conditions run. So in `sei abu pensi ba ju'o rinka`, the tag is `ba ju'o`, and the selbri `rinka` follows it. The condition on a selbri then removes the term, and the statement of the `sei` ends after `pensi`, as in Zantufa.
+Before its argument is read, a tag cannot leave a following free modifier unread. The condition `¬begins(after($t), free)` excludes a tag term that leaves a following free modifier unread. So in `sei abu pensi ba ju'o rinka`, the tag is `ba ju'o`, and the selbri `rinka` follows it. The condition on a selbri then removes the term, and the statement of the `sei` ends after `pensi`, as in Zantufa.
 
-A `ke` group of terms comes before a sumti that begins with `ke`, under the stated priority. Where `ke'e` is elided, both can read the same words. So `ke mi klama` is a group of terms, `ke mi`, and then the selbri. It is not the sumti `ke mi` with an elided `ke'e`. Both readings elide one `ke'e`, so without a condition they tie. The condition on the sumti alternative (`ke-group-of-terms`) removes the sumti reading exactly where the group of terms begins.
+This grammar gives a `ke` group of terms priority over a sumti that begins with `ke`. Where `ke'e` is elided, both can read the same words. So `ke mi klama` is a group of terms, `ke mi`, and then the selbri. It is not the sumti `ke mi` with an elided `ke'e`. Both readings elide one `ke'e`, so without a condition they tie. The condition on the sumti alternative (`ke-group-of-terms`) removes the sumti reading exactly where the group of terms begins.
 
 ```jbogenbau
 %rule terms
@@ -598,7 +603,9 @@ The follower conditions keep a following unit outside this operand. Thus `me su'
 
 In `mi me by xi mo'e ke cy moi su'i dy moi`, the letter sumti excludes its competing mekso over the same span. Ordinary elision keeps the long subscript.
 
-A gek tanru unit takes priority over conversion with `se`, `fa`, or `na'e`. A gek can itself begin with `se`, and it can begin with a tag such as `na'e bai`. So `mi se ge klama gi cadzu` has two readings with the same elisions. In one, `se ge` is the gek. In the other, `se` converts the gek tanru unit `ge klama gi cadzu`. The first reading takes priority, because a tie is an error.
+A gek tanru unit takes priority over conversion with `se`, `fa`, or `na'e`. A gek can itself begin with `se`, and it can begin with a tag such as `na'e bai`. So `mi se ge klama gi cadzu` has two readings with the same elisions.
+
+In one, `se ge` is the gek. In the other, `se` converts the gek tanru unit `ge klama gi cadzu`. The gek reading keeps `se` on the connective. This grammar gives that reading priority. Without that priority, the readings tie and the text is an error.
 
 The conditions enforce that priority. `se`, `fa` and `na'e` do not take a tanru unit where the words from them begin a gek tanru unit (`gek-tanru-unit`). And the gek alternative does not begin with `na'e`, because the optional NAhE before the gek takes it first. So in `na'e bai gi broda gi brode`, `na'e` comes before the gek `bai gi`.
 
@@ -606,7 +613,7 @@ The conditions enforce that priority. `se`, `fa` and `na'e` do not take a tanru 
 
 So `mi na'e pa moi` is the mekso `na'e pa` with `moi`. `mi se su'i pa re moi` is `se su'i pa re` with `moi`.
 
-A run of `cei` nests to the right. The selbri after the first `cei` already reads every later `cei`. So in `broda cei brode cei brodi`, the second `cei` is inside the selbri `brode cei brodi`. Here `selbri-1` takes at most one `cei` and the selbri after it. A repetition here gives two readings with the same elisions, and so a tie.
+A run of `cei` nests to the right. The selbri after the first `cei` already reads every later `cei`. So in `broda cei brode cei brodi`, the second `cei` is inside the selbri `brode cei brodi`. Here `selbri-1` takes at most one `cei` and the selbri after it. Repeating `CEI # selbri` here gives two readings with the same elisions, and so a tie.
 
 ```jbogenbau
 %rule selbri
@@ -1026,48 +1033,11 @@ Nested vocatives can take separate addresses. In `pe'usai doi xod ko jmina`, the
 
 ## Differences from Zantufa 1.9999
 
-The dialect reads some texts differently from Zantufa 1.9999. The policy of the dialect page accounts for most of them:
+The dialect reads some texts differently from Zantufa 1.9999. The [dialect policy](../dialects/zantufa.md#differences-from-zantufa-and-cll) accounts for most of them. The sections below group differences and translation choices by grammar area.
 
-- A PEG commits to the first alternative that matches, and a repetition reads as far as it can. So Zantufa rejects some texts that its rules allow, and the dialect accepts them. In `are`, Zantufa reads `a` as a whole fragment, and `re` is left over. In `le vi'ofagri`, the vocative after `le` takes `fagri`, and the description has no selbri. In `la poi ke'a barda .djan.`, the relative clause takes the name. Each of these parses here.
-- Where a PEG's greed gives a reading that the ranking of this stage does not choose, the dialect keeps its own reading. The ranking is the order of preference of the stage among parses. In `mi klama pamai le zarci .e remai le zdani`, Zantufa's `.e` takes `re mai` as its own free modifier. Here the free modifier is the mekso `.e re` with `mai`, after `zarci`. In the same way, `ui .e re mai` puts the free modifier `.e re` with `mai` in the slot of `ui`. Zantufa reads `ui` and then a `.e` fragment, with `re mai` in its slot.
-- In `coi poi broda klama`, Zantufa's relative clause reads the tanru `broda klama`. Then the vocative has no selbri, so Zantufa reads a bare `coi` and a fragment of relative clauses. Here `coi` takes the relative clause `poi broda` and the selbri `klama`. `doi poi broda djan.` reads in the same way.
-- In a reverse Polish mekso, Zantufa's greedy `mex_2+` can read an operator and an operand as a forethought mekso. So in `li fu'a pa su'i re pi'i`, it reads `su'i re` as one operand of `pi'i`. Here `su'i` is an operator of the reverse Polish mekso itself, as in CLL's reverse Polish.
-- For `toi` and `se'u`, the dialect keeps the PEG's commitment by design, unlike its general policy. These two terminators are maximal, so an elided one closes only content that cannot be longer (see "The Zantufa grammar" above). So a `to` or `sei` reads as far as it can, even where the text then fails. Zantufa rejects these texts in the same way.
+### Ordered choice and preferred readings
 
-  In `metonymy`, the parenthesis takes `ny my`, and `me` is left without a sumti. Take `genai do gletu le do tanbo gi to prami le do tanbo`. The parenthesis takes `prami le do tanbo` and leaves the gek's second branch empty.
-- For the same reason, the dialect rejects this text, as Zantufa does: `.u'i nypyry cu cusku lesedu'u le xindo cu cusku lesedu'u le kisto soi xy cu ca sarji le terpa sonci`. `soi` is SEI here. Its statement reads `le terpa sonci`, because the description can take `sonci`. Then the last `du'u` has the sumti `le kisto` and no selbri.
-- A lookahead here sees the words that the syntax reads, after erasure and without `ba'e`. Zantufa erases and reads `ba'e` inside its grammar, so its lookaheads see those words. So Zantufa accepts `li pa je ba'e cu broda`, `li pa je brode si cu broda` and `ba'e ke broda ke'e ke'e be mi`, and the dialect rejects them. And Zantufa reads `ke mi ba'e ke'e` as a group of terms, and the dialect as a grouped sumti.
-- Quoted content takes every leading free modifier after any word of LU or LUhEI. Zantufa instead puts those modifiers in the opener's slot. CLL[^cll-s21-1] writes `LU text`, and the text-initial exception of CLL[^cll-s13-9] gives initial indicators scope over what follows. The dialect extends this boundary to every leading free modifier and to LUhEI. The slot after TO takes free modifiers before the parenthesis body, as Zantufa's `TO_post <- post_clause` specifies.
-
-  Zantufa retains the older camxes rules for LU. After the 2015-2016 bpfk-list discussion "lo nu broda ba brode", Ilmen changed camxes-exp on March 21, 2016. The ilmentufa commit is `ca30cc4c26a397b8f00bbeaf729ec39b2d548cd4`. Standard camxes followed on August 14, 2016, in commit `654144ee3362fb59083e30a48ed3b6cec0b225b0`. Zantufa forked camxes before that standard change and did not adopt it. This dialect records its LU and LUhEI boundary as a departure from Zantufa's reference grammar.
-- The word stage reads a stray `si` or `bu` at the start of a text as the Magic Words proposal does. So `si mi` is `mi`, and `bu si` is nothing. Zantufa rejects both, because its `si` and `bu` need a word before them there.
-- `su` erases the whole text before it. Zantufa scans for `su` from the start of each text. The scan passes a letter word, or a `su`, together with the free modifiers after it. A parenthesis among those free modifiers, or a quote inside one, holds a text with its own start. A `su` inside that text erases only back to that start.
-
-  So Zantufa reads `mi bu to mi su do toi broda` and `su to mi su do toi broda` with the inner `su` erasing only `mi`. Here it erases back to the start of the whole text, and the `toi` is left without its `to`.
-- The forms stage reads the rafsi or gismu form after `ra'oi` before the word stage knows whether that `ra'oi` opens a quote. So where `ra'oi` is itself quoted or is a `zoi` delimiter, the forms stage still divides the letters after it. It divides them as the form of a `ra'oi` quote. There Zantufa reads them as ordinary words, and the dialect rejects the text: `zo ra'oi broda`, `go'oi ra'oi broda`, `lo'u ra'oi broda le'u`, `lo'ai ra'oi broda le'ai` and `zoi ra'oi x ra'oi broda`. A `zoi` body, a closing `zoi` delimiter and the text after `fa'o` take the form as it is. So `zoi gy ra'oi broda gy`, `zoi broda ra'oi broda` and `fa'o ra'oi broda` read as in Zantufa.
-- Here, `su` cannot erase a quote word that opens no quote. So the dialect rejects `zoi su mi` and `mi lo'ai su klama`. Zantufa's `su` passes such a word with its `any_word` fallback, and accepts both.
-- `ba'e` is not a magic word, as the Magic Words proposal says. The word stage first removes `fa'o` and what follows it. So `mi ba'e fa'o` leaves a `ba'e` with nothing to mark. The proposal calls this an error. Zantufa reads `ba'e` inside its grammar, and accepts the text.
-- The phoneme stage accepts commas and the other conventions of `phonemes/latin.md`. Zantufa reads only two of them: `h` as the apostrophe, and `?` and `!` as pauses. It rejects commas, digits, accents and other punctuation. The stage ignores a comma, so a comma is not the syllable break of CLL[^cll-s3-3] here.
-
-### Translation choices and reference evidence
-
-Written-terminator priority does not help where no terminator is written. `to` holds a text and `sei` holds a statement, and the reference reads that content as far as it can. Without maximal terminators, a nested reading can close a `to` or `sei` early, with its terminator elided. A negative condition then finds a reading that the reference never forms, and it removes the right reading.
-
-So these two terminators are written `[++TOI]` and `[++SEhU]`, which makes them maximal ([engine §4](../../docs/engine.md#4-recognition)). The marker `++` is transitional, until this grammar's redesign (GitHub issues #138 and #139). An elided `toi` or `se'u` then closes only content that cannot be longer, in the main parse and in each condition.
-
-These texts illustrate the maximal boundaries, with Zantufa's reading. In `so to recap` and `so to mi klama`, the parenthesis holds the rest of the text, and the text is one mekso. In ` o'ocu'i is mere tolerance`, the parenthesis after `re` holds `le rance`. In `ro sei ny rere'u basna mutce cusku`, the `sei` holds `ny rere'u basna mutce cusku`. The rule also rejects `metonymy`, as Zantufa does, because the parenthesis takes `ny my`, and `me` then has nothing.
-
-The reference writes `CU_elidible`, but `cu` is a separator. It stands between the terms and the bridi-tail, and it closes neither of them. The grammar of *The Complete Lojban Language* (CLL) does not make `cu` elidable either. So `[CU #]` is a plain optional here, with no marker. A written `cu` remains valid, and a sentence can omit it. Maximal terminators and `elision-only` do not treat `cu` as a terminator.
-
-An absent `cu` makes no elided node in the tree, and the ranking does not count it. If `cu` is elidable, an absent `cu` is an elision before the bridi-tail, and so an early one. The ranking favors a reading that closes a parenthesis, quote or `jai` early and begins the bridi-tail later. With an elidable `cu`, `to na cafne` closes the parenthesis after `na`. Zantufa holds `na cafne` in the parenthesis, and so does this grammar.
-
-The same holds for `i'au`. The reference writes `IAU_elidible` between a statement and the terms after it (`statement-terms`). There `i'au` separates the terms from the statement, and it closes nothing. So `[IAU #]` is a plain optional too, and an absent `i'au` makes no elided node.
-
-A quotation must hold any text, including one that begins with an indicator. The LU and LUhEI departure above preserves that ability.
-
-CLL[^cll-s21-1] also writes `TO text`, so that rule alone does not separate TO from LU. The opener's slot takes every leading free modifier after any word of TO, as Zantufa's `TO_post <- post_clause` specifies. The example[^cll-e19-67] in CLL[^cll-s19-12] supports attachment for indicators, whose scope covers the whole bracketed remark.
-
-The [indicator document](../indicators/cll.md#quotation-boundaries) explains the meaning of CLL[^cll-s13-9] and the official parser's different preprocessing.
+A PEG commits to the first alternative that matches, and a repetition reads as far as it can. So Zantufa rejects some texts that its rules allow, and the dialect accepts them. In `are`, Zantufa reads `a` as a whole fragment, and `re` is left over. In `le vi'ofagri`, the vocative after `le` takes `fagri`, and the description has no selbri. In `la poi ke'a barda .djan.`, the relative clause takes the name. Each of these parses here.
 
 In `li ma'o me my su'i pa`, only the mekso ME operand completes the surrounding construction. This dialect accepts it. The literal reference rejects it because its earlier sumti choice commits before that continuation.
 
@@ -1077,27 +1047,101 @@ In `li ma'o ke by .e cy jo'u dy pa`, MAhO takes the long mekso operand. The fina
 
 In `li mo'e ke by xi mo'e ke cy moi jo'u dy xi mo'e ke zy moi`, the outer MOhE takes a selbri. The literal reference takes a sumti after its committed selbri attempt fails. This dialect revisits the inner subscript choices, so its selbri completes. The ranked choice then takes that selbri.
 
+Where a PEG's greed gives a reading that the ranking of this stage does not choose, the dialect keeps its own reading. The ranking is the order of preference of the stage among parses. In `mi klama pamai le zarci .e remai le zdani`, Zantufa's `.e` takes `re mai` as its own free modifier. Here the free modifier is the mekso `.e re` with `mai`, after `zarci`. In the same way, `ui .e re mai` puts the free modifier `.e re` with `mai` in the slot of `ui`. Zantufa reads `ui` and then a `.e` fragment, with `re mai` in its slot.
+
+In `coi poi broda klama`, Zantufa's relative clause reads the tanru `broda klama`. Then the vocative has no selbri, so Zantufa reads a bare `coi` and a fragment of relative clauses. Here `coi` takes the relative clause `poi broda` and the selbri `klama`. `doi poi broda djan.` reads in the same way.
+
+In a reverse Polish mekso, Zantufa's greedy `mex_2+` can read an operator and an operand as a forethought mekso. So in `li fu'a pa su'i re pi'i`, it reads `su'i re` as one operand of `pi'i`. Here `su'i` is an operator of the reverse Polish mekso itself, as in CLL's reverse Polish.
+
+### Maximal terminators
+
+For `toi` and `se'u`, the dialect keeps the PEG's commitment by design, unlike its general policy. These two terminators are maximal, so an elided one closes only content that cannot be longer ([engine §4](../../docs/engine.md#4-recognition)). So a `to` or `sei` reads as far as it can, even where the text then fails. Zantufa rejects these texts in the same way.
+
+In `metonymy`, the parenthesis takes `ny my`, and `me` is left without a sumti. Take `genai do gletu le do tanbo gi to prami le do tanbo`. The parenthesis takes `prami le do tanbo` and leaves the gek's second branch empty.
+
+For the same reason, the dialect rejects this text, as Zantufa does: `.u'i nypyry cu cusku lesedu'u le xindo cu cusku lesedu'u le kisto soi xy cu ca sarji le terpa sonci`. `soi` is SEI here. Its statement reads `le terpa sonci`, because the description can take `sonci`. Then the last `du'u` has the sumti `le kisto` and no selbri.
+
+Written-terminator priority does not help where no terminator is written. `to` holds a text and `sei` holds a statement, and the reference reads that content as far as it can. Without maximal terminators, a nested reading can close a `to` or `sei` early, with its terminator elided. A negative condition then finds a reading that the reference never forms, and it removes the right reading.
+
+So these two terminators are written `[++TOI]` and `[++SEhU]`, which makes them maximal ([engine §4](../../docs/engine.md#4-recognition)). The marker `++` supplies maximal closure while the grammar uses the current engine (GitHub issues #138 and #139). An elided `toi` or `se'u` then closes only content that cannot be longer, in the main parse and in each condition.
+
+These texts illustrate the maximal boundaries, with Zantufa's reading. In `so to recap` and `so to mi klama`, the parenthesis holds the rest of the text, and the text is one mekso. In ` o'ocu'i is mere tolerance`, the parenthesis after `re` holds `le rance`. In `ro sei ny rere'u basna mutce cusku`, the `sei` holds `ny rere'u basna mutce cusku`.
+
+### Word processing and quotation boundaries
+
+A lookahead here sees the words that the syntax reads, after erasure and without `ba'e`. Zantufa erases and reads `ba'e` inside its grammar, so its lookaheads see those words. So Zantufa accepts `li pa je ba'e cu broda`, `li pa je brode si cu broda` and `ba'e ke broda ke'e ke'e be mi`, and the dialect rejects them. And Zantufa reads `ke mi ba'e ke'e` as a group of terms, and the dialect as a grouped sumti.
+
+CLL writes both `LU text` and `TO text`.[^cll-s21-1] Those rules alone do not distinguish the openers. This grammar preserves leading free modifiers as quoted content after LU and LUhEI. Zantufa instead puts them in the opener's slot. The CLL text-initial exception gives initial indicators scope over what follows.[^cll-s13-9] This grammar extends that boundary to every leading free modifier and to LUhEI.
+
+The slot after TO takes leading free modifiers, as Zantufa's `TO_post <- post_clause` specifies. The CLL example gives an indicator scope over the whole bracketed remark.[^cll-e19-67] The [indicator explanation](../indicators/cll.md#quotation-boundaries) gives the reason for LU. Its [closing comparison](../indicators/cll.md#differences-from-cll-and-camxes-std) describes the official parser.
+
+Zantufa retains the older camxes rules for LU. After the 2015-2016 bpfk-list discussion "lo nu broda ba brode", Ilmen changed camxes-exp on March 21, 2016. The ilmentufa commit is `ca30cc4c26a397b8f00bbeaf729ec39b2d548cd4`. Standard camxes followed on August 14, 2016, in commit `654144ee3362fb59083e30a48ed3b6cec0b225b0`. Zantufa forked camxes before that standard change and did not adopt it. This dialect records its LU and LUhEI boundary as a departure from Zantufa's reference grammar.
+
+The word stage reads a stray `si` or `bu` at the start of a text as the Magic Words proposal does. So `si mi` is `mi`, and `bu si` is nothing. Zantufa rejects both, because its `si` and `bu` need a word before them there.
+
+`su` erases the whole text before it. Zantufa scans for `su` from the start of each text. The scan passes a letter word, or a `su`, together with the free modifiers after it. A parenthesis among those free modifiers, or a quote inside one, holds a text with its own start. A `su` inside that text erases only back to that start.
+
+So Zantufa reads `mi bu to mi su do toi broda` and `su to mi su do toi broda` with the inner `su` erasing only `mi`. Here it erases back to the start of the whole text, and the `toi` is left without its `to`.
+
+The forms stage reads the rafsi or gismu form after `ra'oi` before the word stage knows whether that `ra'oi` opens a quote. So where `ra'oi` is itself quoted or is a `zoi` delimiter, the forms stage still divides the letters after it. It divides them as the form of a `ra'oi` quote. There Zantufa reads them as ordinary words, and the dialect rejects the text: `zo ra'oi broda`, `go'oi ra'oi broda`, `lo'u ra'oi broda le'u`, `lo'ai ra'oi broda le'ai` and `zoi ra'oi x ra'oi broda`. A `zoi` body, a closing `zoi` delimiter and the text after `fa'o` take the form as it is. So `zoi gy ra'oi broda gy`, `zoi broda ra'oi broda` and `fa'o ra'oi broda` read as in Zantufa.
+
+Here, `su` cannot erase a quote word that opens no quote. So the dialect rejects `zoi su mi` and `mi lo'ai su klama`. Zantufa's `su` passes such a word with its `any_word` fallback, and accepts both.
+
+`ba'e` is not a magic word, as the Magic Words proposal says. The word stage first removes `fa'o` and what follows it. So `mi ba'e fa'o` leaves a `ba'e` with nothing to mark. The proposal calls this an error. Zantufa reads `ba'e` inside its grammar, and accepts the text.
+
+The phoneme stage accepts commas and the other conventions of `phonemes/latin.md`. Zantufa reads only two of them: `h` as the apostrophe, and `?` and `!` as pauses. It rejects commas, digits, accents and other punctuation. The stage ignores a comma, so a comma is not the syllable break of CLL[^cll-s3-3] here.
+
+### Translation choices by grammar area
+
+#### Text, statements and terms
+
+`sentence` treats `cu` as an ordinary optional separator. The reference writes `CU_elidible`. It stands between the terms and the bridi-tail, and it closes neither of them. CLL does not make `cu` elidable either.[^cll-s21-1] A written `cu` remains valid, and a sentence can omit it. Maximal terminators and `elision-only` do not treat `cu` as a terminator.
+
+An absent `cu` makes no elided node in the tree, and the ranking does not count it. If `cu` is elidable, an absent `cu` is an elision before the bridi-tail, and so an early one. The ranking favors a reading that closes a parenthesis, quote or `jai` early and begins the bridi-tail later. With an elidable `cu`, `to na cafne` closes the parenthesis after `na`. Zantufa holds `na cafne` in the parenthesis, and so does this grammar.
+
+`statement-terms` treats `i'au` as an ordinary optional separator too. The reference writes `IAU_elidible` between a statement and the terms after it (`statement-terms`). There `i'au` separates the terms from the statement, and it closes nothing. So `[IAU #]` is a plain optional too, and an absent `i'au` makes no elided node.
+
+`fragment` agrees with Zantufa on the terms fragment and long subscript in the [quoted fragment example](#statements-and-fragments).
+
+`sentence` permits terms only before its first bridi-tail, as Zantufa does. Zantufa has no JACU, a proposal for simpler connectives. Its three connection levels follow camxes.
+
+`sentence` reserves a gek bridi-tail before a forethought sentence. The reference tries the bridi-tail first. Its dated comments show the intended trees.
+
+`bridi-tail-before-no-gik` rejects a bridi-tail that stops before another GI. The reference's runs of `gik` read as far as they can. The condition preserves that boundary when testing the sentence alternative.
+
+`sumti-1` and `sumti-2` read connected sumti before terms can connect. The reference gives no comment for that priority. CLL and camxes give the same reading, though CLL has no term connections.
+
+`term` gives a KE group of terms priority over a KE sumti. The reference's ordered choice tries that group first, as in the [KE example](#terms).
+
+`tag-term` rejects every following selbri after its maximal tag. The reference lookahead `!(!tag selbri)` permits a following selbri that begins with a tag. That permission never applies after a maximal tag, because no leading tag remains. The reference's final word clause consumes following free modifiers before its lookaheads. This grammar states that boundary with `¬begins(after($t), free)`.
+
+#### Selbri and tanru
+
+`tanru-unit-1` reserves a gek unit before SE, FA or NAhE conversion. The reference tries that gek alternative first. This grammar therefore selects the same first reading in the [conversion example](#selbri-and-tanru).
+
+`tanru-unit-1` also agrees with Zantufa on the long ME subscript and both MOI readings in [the rule examples](#selbri-and-tanru).
+
+`gek-bridi-tail` uses one optional tag before KE and forethought bridi-tails. The reference writes `tag*`, but its `tag` already reads the whole tense or modal run. Repeated tags give duplicate readings with identical elisions.
+
+`selbri-1` takes one optional CEI link because its following selbri already reads all later links. The reference repeats `(CEI_clause selbri)*`. Repeating that link here duplicates the same right-nested reading and gives equal elisions.
+
+#### Mekso and connectives
+
 `mex-forethought` does not translate two parts of the reference's rule. Its lookahead `!(lerfu_string BOI_elidible)` never fails before an operator, because no operator begins with a lerfu word. And its `mex_forethought?` after `mex_2+` adds nothing, because `mex_2+` already reads a forethought mekso as one of its parts.
 
-Zantufa nests a following free modifier in the nearest available slot. Its `post_clause <- free*` reads as far as it can. An attitudinal or vocative word has its own `post_clause`. A comment of the reference, from camxes, says that UI words are eaten after a word. And in CLL, an indicator applies to the word before it, as in `ui nai`. The standard camxes keeps a run of vocatives or subscripts flat, but the dialect follows Zantufa.
+`operators` reads an operator run whole, as the reference's greedy repetition does. The reference comment explicitly shows `[pi'i pi'i]` as one operator unit. Zantufa gives the same quantifier and ME operand in the [two operator examples](#mekso).
 
-The condition is on `free`, not on each slot. So it removes a free modifier that another free modifier follows at the same level. But it does not make each slot read as far as it can. This keeps a departure from Zantufa, in `mi klama pamai le zarci .e remai le zdani` (see "Differences from Zantufa 1.9999"). There the slot of `.e` stays empty, and `.e re` with `mai` is one free modifier after `zarci`.
+`joik` uses JOI words that include `je`, `ja`, `jo` and `ju`. Those words cover the connections that CLL calls jek.
 
-Zantufa has no JACU, a proposal for simpler connectives. Terms therefore precede only the first bridi-tail. Its three connection levels follow camxes.
+#### Free modifiers
 
-Dated reference comments record the intended bridi-tail reading before a forethought sentence and show its trees.
+Zantufa nests a following free modifier in the nearest available slot. Its `post_clause <- free*` reads as far as it can. An attitudinal uses `post_clause`. A vocative uses `vocative_post_clause`, whose `!vocative free` repetition excludes a following vocative.
 
-The reference does not comment on sumti connections taking priority over term connections. CLL and camxes give the same reading. CLL has no term connections.
+A comment of the reference, from camxes, says that UI words are eaten after a word. And in CLL, an indicator applies to the word before it, as in `ui nai`. The standard camxes keeps a run of vocatives or subscripts flat, but the dialect follows Zantufa.
 
-The JOI words `je`, `ja`, `jo` and `ju` cover the connections that CLL calls jek.
+The condition is on `free`, not on each slot. So it removes a free modifier that another free modifier follows at the same level. But it does not make each slot read as far as it can. This keeps a departure from Zantufa, in `mi klama pamai le zarci .e remai le zdani` (see [preferred readings](#ordered-choice-and-preferred-readings)). There the slot of `.e` stays empty, and `.e re` with `mai` is one free modifier after `zarci`.
 
-The reference writes `tag*` before `ke` and forethought bridi-tails, but its `tag` already reads the whole tense or modal run. The translation uses one optional tag because repeating it gives duplicate readings with identical elisions.
-
-The reference's operator repetition reads as far as it can. Its comment explicitly shows `[pi'i pi'i]` as one operator unit.
-
-The reference's runs of `gik` read as far as they can, so its bridi-tail never stops before a further `gi`. The `bridi-tail-before-no-gik` condition preserves that boundary when testing the sentence alternative.
-
-The reference's `tag_term` lookahead is `!(!tag selbri)`. It permits a following selbri that begins with a tag. That permission never applies after a maximal tag, because no leading tag remains. This grammar instead rejects every following selbri.
+`free` agrees with Zantufa on the separate inner and outer addresses in the [nested-vocative example](#free-modifiers).
 
 [^cll-s21-1]: [CLL 1.1, section 21.1](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-grammars.html#section-EBNF).
 
