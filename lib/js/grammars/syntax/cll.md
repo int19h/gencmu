@@ -1,8 +1,8 @@
 # The CLL grammar
 
-This document gives the grammar of *The Complete Lojban Language* (CLL), edition 1.1. BPFK is the Lojban language planning committee. The grammar opens the syntax stage of the [CLL](../dialects/cll-ebnf.md) and [BPFK](../dialects/bpfk.md) dialects. It also supplies the base for the [experimental](../dialects/experimental.md) syntax. A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar.
+This document gives the grammar of *The Complete Lojban Language* (CLL), edition 1.1. The grammar opens the syntax stage of the [CLL](../dialects/cll-ebnf.md) and [BPFK](../dialects/bpfk.md) dialects. It also supplies the base for the [experimental](../dialects/experimental.md) syntax. A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar.
 
-The grammar follows the printed rules of CLL.[^cll-s21-1] It uses the notation of that book. That notation is EBNF (Extended Backus-Naur Form). camxes-std is the standard camxes parser. camxes-exp is its experimental parser. The closing section lists differences from the printed grammar.
+The grammar follows the printed rules of CLL.[^cll-s21-1] It uses the notation of that book. That notation is EBNF (Extended Backus-Naur Form). The closing section lists differences from the printed grammar.
 
 A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. The terminals of this grammar are selma'o. A terminal matches an input token by tag. A tag marks a token by name, phoneme or character. A free modifier is a phrase permitted in designated syntax slots.
 
@@ -42,7 +42,7 @@ A rule flag is a named parsing preference. ["Tenses and modals"](#tenses-and-mod
 
 CLL marks a terminator as elidable by writing it between slashes, `/KU/`, or `/KU#/` when its free-modifier slot goes with it. Here each is an elidable optional, marked in its place: `[+KU]`, or `[+KU #]`. An absent one shows in the parse tree as that terminator, elided. Every terminator between slashes in the printed grammar is marked so, and no other optional is.
 
-CLL's notation note 9 defines `#`, a slot for any number of free modifiers.[^cll-s21-1] This document defines `free`, a single free modifier, under "Free modifiers, vocatives and indicators".
+CLL's notation note 9 defines `#`, a slot for any number of free modifiers, and says that it "appears in many places".[^cll-s21-1] This document defines `free`, a single free modifier, under "Free modifiers, vocatives and indicators".
 
 ```jbogenbau
 %rule #
@@ -626,7 +626,7 @@ Lojban has one set of logical connectives, spelled differently for each level of
 
 Each afterthought connective can be negated on either side, `na` before and `nai` after, and converted by `se`. A joik is a non-logical connective. It is `joi`, `ce`, `jo'u` and the rest of JOI, or an interval `bi'i` or `bi'o`, possibly bounded by `ga'o` or `ke'i`[^cll-s14-14][^cll-s14-16]. `joik-ek` and `joik-jek` are the pairs that stand in the same position. Each carries a free-modifier slot.
 
-The ordinary alternative of `selbri-4` and `operator` joins two units with a plain connective. The other alternative, `joik [stag] KE`, groups with the connective itself. Where both alternatives read the same words, four rules prefer the `ke` group. Both readings elide the same terminators, so elision ranking cannot choose between them. The preference selects the connection around the group rather than around a tanru unit that contains it. `plain-joik-jek` is a jek, or a joik that `ke` does not directly follow.
+The ordinary alternative of `selbri-4` and `operator` joins two units with a plain connective. The other alternative, `joik [stag] KE`, groups with the connective itself. Where both alternatives read the same words, four rules prefer the `ke` group. Both readings elide the same terminators, so elision ranking cannot choose between them. The printed grammar has a dedicated `joik [stag] KE` form for this reading. `plain-joik-jek` is a jek, or a joik that `ke` does not directly follow.
 
 `joik-before-ke` is a joik that `ke` directly follows. The unit after it cannot be only a KE group. `selbri-5-not-ke-group` and `operator-1-not-ke-group` test the constructed unit against `$KE-UNIT`. A single-child path reaches a whole KE group. BO, link arguments or another tanru child after the group stop that match.
 
@@ -791,7 +791,7 @@ In `mi viska ba'o pu gi do gi la djan`, `ba'o` stays a tag over the forethought 
 
 ## Free modifiers, vocatives and indicators
 
-A free modifier can occupy any `#` slot. The forms are these:
+A free modifier can occupy any `#` slot. CLL permits free modifiers after many constructions.[^cll-s6-11] The forms are these:
 
 - A `sei ... se'u` discursive bridi, `sei mi cusku`
 - A `soi ... se'u` reciprocity marker
@@ -872,11 +872,9 @@ For example, `le sutra tavla` has two parses. One is a statement with the descri
 
 ## Differences from the printed CLL grammar
 
-This grammar departs from the EBNF printed in CLL in eleven places. The first settles a precedence that the printed text leaves open. The next three repair the EBNF's copy of the YACC grammar, the official parser grammar for the YACC parser generator. The EBNF uses that grammar as its source and cites its rule numbers. In each case, the YACC grammar has a path that the EBNF omits. The official parser accepts the text.
+This grammar departs from the EBNF printed in CLL in eleven places. The first settles a precedence that the printed text leaves open. The next three repair the EBNF's copy of the YACC grammar, used by the official parser, CLL's reference implementation. YACC is a parser generator. The EBNF uses that grammar as its source and cites its rule numbers. In each case, the YACC grammar has a path that the EBNF omits. The official parser accepts the text.
 
-A lexer divides input into tokens. The fifth adopts an inference from CLL[^cll-s19-8] about several active FUhE groups. The sixth and seventh use conditions to prefer connective groups when both readings complete. They retain the plain reading when only it completes.
-
-Item 7 does not force an enclosing construct to close. In the nested abstraction in item 7 below, `late-elision` instead keeps the plain reading, unlike the official lexer. The seventh also follows the CLL descriptions of grouping.[^cll-s14-10][^cll-s14-18]
+The fifth adopts an inference from CLL[^cll-s19-8] about several active FUhE groups. The sixth and seventh use conditions to prefer connective groups when both readings complete. They retain the plain reading when only it completes. The seventh follows CLL's grouping descriptions[^cll-s14-10][^cll-s14-18] and compares the official lexer, the component that divides input into tokens.
 
 The eighth applies the grouping preference described under ["Tenses and modals"](#tenses-and-modals). The ninth follows the number and letter boundaries of CLL[^cll-s17-9][^cll-s18-6]. The tenth repairs rule 83 so a tag governs its whole termset, as CLL[^cll-s10-25] states. The eleventh omits three printed alternatives that the earlier stages make unreachable. This grammar also spells printed `CMENE` as `CMEVLA`, the word stage's class for a name.
 
@@ -890,10 +888,12 @@ The eighth applies the grouping preference described under ["Tenses and modals"]
 2. A text can begin with `.i` separators followed by `ni'o` markers, as in `.i ni'o mi klama`. The printed `text-1` makes the two alternatives. YACC rule 2 (`text_B_2`) lets any number of `.i` forms precede a `ni'o` run. The camxes grammars call the printed form "a bug in the BNF".
 3. A `lo'u ... le'u` quote can be empty, `lo'u le'u`. The printed `sumti-6` requires at least one word. YACC rule 436 reads the body of the quote as one token that can be empty.
 4. The free-modifier slot after a `lu ... li'u` quote follows the quote whether or not `li'u` is written, so `lu cy. to toi` is a quote followed by a parenthesis. The printed `sumti-6` writes `/LIhU#/`, which drops the slot with the elided `li'u`. YACC rule 432 (`quote_arg`) attaches free modifiers to the whole quote, and its `LIhU` gap carries none. Every other elidable terminator keeps its slot as printed.
-5. A run can contain several FUhE groups, as in `ui fu'e ia mi klama`. Printed rule 411 permits one group. CLL[^cll-s19-8] lets local attitudinals coexist with marked attitudes, and FUhO cancels all active attitudes. This grammar infers permission for several FUhE groups. The indicator stage uses the same rule after a word.
+5. A run can contain several FUhE groups, as in `ui fu'e ia mi klama`. Printed rule 411 permits one group. CLL[^cll-s19-8] lets local attitudinals coexist with marked attitudes and says that FUhO "cancels all in-force attitudinals". This grammar infers permission for several FUhE groups. The indicator stage uses the same rule after a word.
+
+   A leading `fu'e` still needs an indicator. Thus, `fu'e ui mi klama` parses here, but the official parser rejects it.
 6. In `selbri-4` and `operator`, four rules prefer the connective's `ke` group, as ["Logical and non-logical connectives"](#logical-and-non-logical-connectives) explains. The printed grammar reads `mi broda joi ke brode ke'e` in two ways. One joins a `ke` group to `broda` through `joik [stag] KE`. The other joins `broda` to a tanru unit that begins with `ke`. Both parses elide the same terminators at the same places, so no ranking of elided terminators can choose. The official lexer makes `joi ke` one token, `JOIK_KE`, and reads only the first parse.
 
-   This grammar states that choice as a condition in `plain-joik-jek` and `joik-before-ke`. `$KE-UNIT` tests the constructed unit. The condition applies only where the two parses compete.
+   `plain-joik-jek` and `joik-before-ke` test whether KE follows the joik. `selbri-5-not-ke-group` and `operator-1-not-ke-group` test the constructed unit against `$KE-UNIT`. The condition applies only where the two parses compete.
 
    In `mi broda joi ke brode ke'e bo brodi`, the group cannot take `bo brodi`, so only the plain reading parses. There `joi` joins `broda` to the unit `ke brode ke'e bo brodi`. The official lexer makes `joi ke` one token there too, so it rejects the text. This grammar keeps the plain reading, as the printed grammar does.
 
@@ -923,7 +923,7 @@ The eighth applies the grouping preference described under ["Tenses and modals"]
 
     > Unfortunately true.  Termsets suck rocks, and some work will have to be done to make everything said about them consistent -- if it is even possible.  Personally, I'd like to just burn them.
 
-    This grammar resolves the conflict in favor of CLL[^cll-s10-25]. The official parser and camxes-std read the tag and termset as separate terms.
+    This grammar resolves the conflict in favor of CLL[^cll-s10-25]. The official parser reads the tag and termset as separate terms. camxes-std, the standard grammar of the camxes parser, does too.
 
 11. This grammar omits printed `any-word {ZEI any-word}` in `tanru-unit-2`, `any-word BU` in `lerfu-word`, and indicator `Y`. The word stage already builds `zei` compounds and `bu` letter words and drops hesitation.
 
@@ -933,8 +933,6 @@ Earlier stages also depart from CLL. [The word stream](../words/stream.md) lists
 
 [The indicator stage](../indicators/cll.md) permits several FUhE groups and several BAhE words. Printed rules 411 and 1100 each allow only one. [The word forms](../words/cll.md) and [CLL word stream](../words/cll-stream.md) describe their choices and extensions, including `y` as a vowel. These documents and this section together describe the dialect's departures.
 
-CLL[^cll-s19-8] says that FUhO "cancels all in-force attitudinals". This grammar infers that several FUhE groups can remain active together, as the indicator stage permits after a word. A leading `fu'e` still needs an indicator. Thus, `fu'e ui mi klama` parses here, but the official parser rejects it.
-
 The word stage implements CLL's non-formal erasure rule `null = any-word SI | utterance SA | text SU`. A non-formal rule runs before syntax. CLL never defines the `utterance` that `sa` erases.
 
 ### Free modifiers after terminators
@@ -942,8 +940,6 @@ The word stage implements CLL's non-formal erasure rule `null = any-word SI | ut
 This grammar keeps the free-modifier slot after an elided terminator as printed: an elided `[+X #]` leaves no slot. So a free modifier cannot follow an elided `boi`, and where the CLL example[^cll-e17-38] writes `xy. xi ky.`, this grammar requires `xy. boi xi ky.`.
 
 CLL itself says so in two places. CLL[^cll-s14-17] gives the example[^cll-e14-154], `xy. boi xi vei by. ce'o dy. [ve'o]`. After it, CLL says that "the boi in [that example] is not elidable, because the xi subscript needs something to attach to". CLL[^cll-s6-11] says that free modifiers can stand after any elidable terminator, "which, however, must not then be elided". The one exception is `li'u`, as item 4 above says.
-
-CLL permits free modifiers after many constructions.[^cll-s6-11] Its notation note 9 says that `#` "appears in many places".[^cll-s21-1]
 
 ### Parser behavior and CLL examples
 
@@ -959,7 +955,7 @@ In the printed EBNF and this grammar, bare `.i` binds loosest. The next level co
 
 CLL[^cll-s14-6] prints the example[^cll-e14-27], `la djan. .ije la .alis. klama le zarci`, with a fragment before the sentence connective. This grammar rejects it. Printed rules 10, 12, and 13 allow fragments only beside bare `.i`.
 
-LLG is the Logical Language Group. Its `techfix.300`, CHANGE 45, deliberately removes fragments as operands of sentence connectives. It states that "they can only be connected by I, not by any lower-level form." CLL presents the fragment connection as worse than the sumti connection.[^cll-e14-27][^cll-e14-26] The fragment example leaves "the reader uncertain why John is mentioned at all." The 1997 online draft gives that example[^cll-e14-27] the same framing under its earlier numbering.
+The LLG, the Logical Language Group, publishes `techfix.300`, an official grammar correction. Its CHANGE 45 deliberately removes fragments as operands of sentence connectives. It states that "they can only be connected by I, not by any lower-level form." CLL presents the fragment connection as worse than the sumti connection.[^cll-e14-27][^cll-e14-26] The fragment example leaves "the reader uncertain why John is mentioned at all." The 1997 online draft gives that example[^cll-e14-27] the same framing under its earlier numbering.
 
 The official parser accepts the example[^cll-e14-27] because its lexer never produces the statement-level token `I_JEK_820`. On lojban-list, John Cowan addressed fragment connections in "fragment + i-jek" on June 18, 2004. The reply's Message-ID is `20040618052316.ga24048@ccil.org`. His reply says:
 
@@ -999,7 +995,7 @@ The example[^cll-e14-173] prints CU where the gloss of the second embedded bridi
 
 CLL[^cll-s14-18] gives the example[^cll-e14-169], `mi pu ge klama le zarci gi tervecnu lo cidja`. Here `pu` forms a term with its `ku` elided, rather than a tag before the gek-sentence. The official parser needs written `pu ku` there. Both parsers accept `mi pu ku ge klama le zarci gi tervecnu lo cidja`.
 
-The gek-sentence's tail terms follow the whole connection and apply to both sides. In the printed rule, the tag before `ke` is optional, so `ke ga mi klama gi do cadzu ke'e` is a `gek-sentence`. Rule 54 of the YACC grammar requires a tag there, and the official parser rejects that text. This grammar follows the EBNF.
+In the printed rule, the tag before `ke` is optional, so `ke ga mi klama gi do cadzu ke'e` is a `gek-sentence`. Rule 54 of the YACC grammar requires a tag there, and the official parser rejects that text. This grammar follows the EBNF.
 
 Rule 371 of the printed grammar joins two operators by a jek or joik with `bo`. An example is `li pa su'i je bo pi'i re`. CLL[^cll-s14-17] says that jeks and joiks with `bo` are not allowed for operators. But the printed rules retain the form.[^cll-s21-1]
 
@@ -1009,7 +1005,7 @@ CLL[^cll-s14-18] says that operators can have a tense in their logical connectiv
 
 The tense rules retain four printed forms that differ from the CLL prose or the official lexer:
 
-- Space can precede time in one tense, as in `mi va pu klama`. CLL[^cll-s10-4] puts time first when a tense has both, because either order at will makes some constructions ambiguous. A techfix is an official grammar correction. Techfix change 42 permits space before time as a stated side effect, and rule 972 prints that order. In that example, `va pu` is one tense on `klama`. The official binary splits it because its tense lexer (the code that groups tense words) predates that correction.
+- Space can precede time in one tense, as in `mi va pu klama`. CLL[^cll-s10-4] puts time first when a tense has both, because either order at will makes some constructions ambiguous. Techfix change 42 permits space before time as a stated side effect, and rule 972 prints that order. In that example, `va pu` is one tense on `klama`. The official binary splits it because its tense lexer (the code that groups tense words) predates that correction.
 - A space interval can have several `fe'e` groups, as in `mi fe'e di'i fe'e co'a klama`. The rule `space-int-props` (rule 1049) repeats `fe'e` with each property, and CLL[^cll-s10-11] says that each space interval property takes its own `fe'e`. The official lexer allows one `fe'e` group, and reads the second as a new tense.
 - A tense can hold a string of interval properties, as `time` (rule 1030) repeats them. CLL[^cll-s10-21] says that a single tense can hold "strings of interval properties and event contours", as in the example[^cll-e10-161], `mi reroi ca'o xaroi darxi le damri`. The official lexer reads `mi ta'e di'i klama` as two tenses.
 - A ZAhO event contour can come before a TAhE or ROI interval property, as in `mi co'a ta'e klama`. CLL[^cll-s10-10] says that the TAhE or ROI comes first when a tense has both. But the example[^cll-e10-161] puts the ZAhO `ca'o` before the ROI `xaroi`, and the printed rules allow either order. The official parser accepts both of these texts.
@@ -1040,7 +1036,7 @@ CLL[^cll-s18-11] says that the parser combines `pa` and `moi` in the example[^cl
 
 CLL[^cll-s18-17] says that the parser assumes another operand after `.onai` in the example[^cll-e18-116] without `lo'o`. Here `li re su'i re du li vo .onai lo nalseldjuno namcu` retains the example's sumti connection. The official parser rejects it. These parser limitations do not require written terminators in the grammar.
 
-The shared elision policy follows CLL's boundary advice where the whole text determines the intended boundary. It disagrees with no specific text of CLL. CLL[^cll-s8-6][^cll-s8-7] describe merged readings that cannot complete the outer description. CLL[^cll-s14-14][^cll-s18-11][^cll-s18-17] describe the official parser's left-to-right reading. It does not override number and letter boundaries. The maintainer approves this interpretation of the elision note for both dialects.
+The shared elision policy follows CLL's boundary advice where the whole text determines the intended boundary. It disagrees with no specific text of CLL. CLL[^cll-s8-6][^cll-s8-7] describe merged readings that cannot complete the outer description. CLL[^cll-s14-14][^cll-s18-11][^cll-s18-17] describe the official parser's left-to-right reading. The policy does not override number and letter boundaries. The maintainer approves this policy and the reading of note 10 above for both dialects.
 
 #### Number and letter boundaries
 
