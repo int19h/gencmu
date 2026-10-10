@@ -18,6 +18,8 @@ The shared indicator stage keeps each run flat. Within a run, `nai` attaches onl
 
 FUhE opens an indicator group. The [indicator document](../indicators/cll.md#differences-from-cll-and-camxes-std) compares the FUhE grouping and NAI rules. The syntax reads any NAI that the indicator stage leaves outside a pair under its own rules.
 
+## Erasure boundary
+
 A feature is a named switch that the grammars test. The dialect turns on `su-boundary`. That feature makes SU stop at the last `ni'o`, `no'i`, `lu`, `tu'e`, `to`, or `to'i`.
 
 ```jbogenbau
@@ -111,6 +113,8 @@ The stage uses the [cll-ebnf ranking and check](cll-ebnf.md#stage-5-syntax). The
 
 A constituent can end wherever a parse of the whole text needs it. Numbers and letter strings cannot split before a continuation unit. The CLL grammar states that rule separately, under "Numbers, lerfu strings and mekso".
 
+A selbri is the predicate of a sentence. A bridi-tail is a selbri with any terms after it.
+
 The stage does not order the alternatives of a rule. A text that remains ambiguous after terminator restoration is an error. The CLL grammar settles two connective ambiguities with conditions. `mi broda joi ke brode ke'e` is a `ke` group joined to `broda` by `joi`. `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails after `gi'e`.
 
 ## Differences from CLL, BPFK proposals and camxes-std
@@ -125,7 +129,9 @@ CLL 1.3.4[^cll-later-s4-16] already teaches the borrowing form, as in `spageti'y
 
 The working morphology also lets a `Cy` letter word stand before another word without a pause, so `fyno` is `fy no`. CLL[^cll-s4-9] requires a pause there.
 
-The BPFK recorded one decision on syntax, and this dialect does not apply it. On 15 March 2016, the BPFK [ruled](https://mw.lojban.org/index.php?title=BPFK:_lo_nu_broda_ba_brode&oldid=119454) that a tag attaches to a following selbri, the predicate of a sentence, unless `ku` closes the tag. So `lo nu broda ba brode` means `lo nu broda cu ba brode`. This dialect keeps the reading of CLL 1.1, where `ba` is a term inside the `nu` clause, the abstraction: `(lo [{nu (broda ba)} brode])`. camxes-std follows the decision and puts `ba` on `brode`.
+### Syntax decisions
+
+A tag is a tense or modal phrase. The BPFK recorded one decision on syntax, and this dialect does not apply it. On 15 March 2016, the BPFK [ruled](https://mw.lojban.org/index.php?title=BPFK:_lo_nu_broda_ba_brode&oldid=119454) that a tag attaches to a following selbri unless `ku` closes the tag. So `lo nu broda ba brode` means `lo nu broda cu ba brode`. This dialect keeps the reading of CLL 1.1, where `ba` is a term inside the `nu` clause, the abstraction: `(lo [{nu (broda ba)} brode])`. camxes-std follows the decision and puts `ba` on `brode`.
 
 ### Indicator boundaries and NAI
 
@@ -151,7 +157,7 @@ CLL gives terminator advice and describes some limitations of its official parse
 
 A PEG commits to choices before it knows whether the whole text parses. This dialect follows the whole text instead. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses with the description ending before `se farvi`.
 
-camxes-std tries the plain connective before a `ke` unit. It therefore reads `joi` before a tanru unit that begins with `ke`. Where only the plain reading parses, as in `mi broda joi ke brode ke'e bo brodi`, the dialect agrees with camxes-std.
+A tanru unit is a component of a selbri. camxes-std tries the plain connective before a `ke` unit. It therefore reads `joi` before a tanru unit that begins with `ke`. Where only the plain reading parses, as in `mi broda joi ke brode ke'e bo brodi`, the dialect agrees with camxes-std.
 
 [^cll-s19-16]: [CLL 1.1, section 19.16](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-cmavo-interactions.html).
 
@@ -177,6 +183,6 @@ camxes-std tries the plain connective before a `ke` unit. It therefore reads `jo
 
 [^cll-later-c4]: [CLL 1.3.4, chapter 4](https://github.com/int19h/cll/blob/v1.3.4/chapters/04.xml).
 
-[^cll-later-s4-16]: [CLL 1.3.4, section 4.16](https://github.com/int19h/cll/blob/v1.3.4/chapters/04.xml#L6131-L6186). This later section has no CLL 1.1 counterpart.
+[^cll-later-s4-16]: [CLL 1.3.4, section 4.16](https://github.com/int19h/cll/blob/v1.3.4/chapters/04.xml#L6131-L6186). CLL 1.1's section of the same name proposes a different mechanism and does not teach this form.
 
 [^cll-later-a3-1]: [CLL 1.3.4, appendix A3.1](https://github.com/int19h/cll/blob/v1.3.4/chapters/a03.xml#L3-L41). This later appendix has no CLL 1.1 counterpart.

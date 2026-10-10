@@ -23,7 +23,7 @@ The CLL word stages already accept the word form of `ki'ei`. The classifier decl
 
 The syntax stage reads the new class as the terminal `KIhEI`. The word and indicator stages preserve this class on an ordinary `ki'ei` token. The dialect needs no marker rule or class condition.
 
-The replacement paragraph rule accepts an initial sequence of utterances and subsequent groups with frames. It also accepts groups with frames at the start of a paragraph. Each group contains its frame and the subsequent `.i` sequence.
+The replacement paragraph rule accepts an initial sequence of utterances and subsequent groups with frames. It also accepts groups with frames at the start of a paragraph. Each group contains its frame and any subsequent `.i` sequence.
 
 ```jbogenbau
 %extend-stage syntax

@@ -92,7 +92,7 @@ The stage covers every input token. It passes pauses and the unread runs of the 
 
 A run of phonemes that divides into no words becomes one `UNREAD` token, which sounds like its phonemes. Its rule is not `%opaque`, so the token keeps those phonemes. So a `zoi` delimiter compares with it exactly as with the same phonemes read as words. The text of the token is what the author wrote.
 
-The stage tests only a whole run for whether it divides. A part of a run has a phoneme after it, so the stage does not test it. The stage tests the run alone. Apart from the two lookaheads above, no rule of this stage reads past the end of a run. Those rules give the same answer to a test in place.
+The stage tests only a whole run for whether it divides. A part of a run has a phoneme after it, so the stage does not test it. The stage tests the run alone. Apart from the two lookaheads above, no rule of this stage reads past the end of a run. The other rules give the same answer to a test in place.
 
 The rule `read-run` is a run that divides into words. A dialect that divides a run in another way extends `read-run`, as [zantufa.md](zantufa.md) does for `ra'oi`. So `unread-run` never takes a run that one of these ways reads.
 
