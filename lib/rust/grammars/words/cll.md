@@ -8,6 +8,7 @@ The prose uses these Lojban terms for words:
 
 - A cmavo is a particle, a short structure word.
 - A brivla is a predicate word.
+- A cmevla is a name word.
 - A gismu is a root word.
 - A lujvo is a compound word.
 - A rafsi is a shortened word form used inside compounds.
@@ -33,7 +34,7 @@ A cmavo is an optional consonant followed by vowel units joined by apostrophes. 
 
 The ten rising diphthongs, such as `ia` and `ui`, are cmavo as whole words. A consonant never comes before one, so `kie` and `mui` are no cmavo. A syllable-break comma cannot stand between the vowels of a cmavo. So `ma,i` is neither one cmavo nor `ma .i`, because a comma is no pause. The rules below still read `ma,i` as `mai` when they test for a cmavo, and `cmavo-shape` then refuses the comma (see "Commas").
 
-A consonant followed by `y` is a letter cmavo.[^cll-s4-2] So is `y'y`, the letter for the apostrophe. The ten pairs `a'y e'y i'y o'y u'y y'a y'e y'i y'o y'u` are cmavo too.
+A consonant followed by `y` is a letter cmavo.[^cll-s4-2] So is `y'y`, the letter for the apostrophe.[^cll-s17-2] The ten pairs `a'y e'y i'y o'y u'y y'a y'e y'i y'o y'u` are cmavo too.
 
 A cmavo can also use `y` as one more unit, as `ka'y`, `ky'a`, `cy'y` and `y'y'y` do. They are always words. The grammar tags each one `cmavo-warning`, and the word stage reads it under the warning `y-cmavo` ([cll-stream.md](cll-stream.md)). A caller who turns the feature on gets a warning for each one that the word stage reads as a Lojban word. Such a word has at least two units. A `y` alone, or a run of `y`, is hesitation, which [forms.md](forms.md) reads.
 
@@ -565,7 +566,7 @@ In a few places CLL 1.1 is silent, or two passages disagree. This grammar reads 
 
 - Stress and pauses: CLL[^cll-s4-9] rule 5 asks for a pause after a stressed last syllable before a brivla. CLL[^cll-s4-2] asks for one between two stressed syllables, whatever the words. CLL states the stress rule as follows.
 
-  > If the final syllable of one word is stressed, and the first syllable of the next word is stressed, you must insert a pause
+  > If the final syllable of one word is stressed, and the first syllable of the next word is stressed, you must insert a pause …
 
   Both rules hold here, so `mIdO` needs a pause.
 
@@ -600,6 +601,8 @@ In a few places CLL 1.1 is silent, or two passages disagree. This grammar reads 
 [^cll-s4-11]: [CLL 1.1, section 4.11](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-lujvo-making.html).
 
 [^cll-s4-7]: [CLL 1.1, section 4.7](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-fuhivla.html).
+
+[^cll-s17-2]: [CLL 1.1, section 17.2](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-lerfu-liste.html).
 
 [^cll-s17-4]: [CLL 1.1, section 17.4](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-bu.html).
 

@@ -6,7 +6,7 @@ The forms stage is the second stage of every Lojban dialect: [CLL](../dialects/c
 
 The stage divides the text into its source words and tags each word with its class. A token is one unit that a stage reads or emits. A tag marks a token by name, phoneme or character. The stage hands the words to the word stage ([stream.md](stream.md)), where the magic words act on them. [The notation document](../../docs/notation.md) explains the notation.
 
-This document does not decide what a word looks like. The loader stitches other documents into the stage with this one: the word forms of one family, and one lexicon. A family is a set of word forms that dialects use. The family defines the three shapes this grammar reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each with the pause properties below.
+This document does not decide what a word looks like. The loader stitches other documents into the stage with this one: the word forms of one family, and one lexicon. A family is a set of word forms that dialects use. The family defines three of the shapes this grammar reads: `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each with the pause properties below.
 
 The prose uses these Lojban terms for words:
 
@@ -92,7 +92,7 @@ The stage covers every input token. It passes pauses and the unread runs of the 
 
 A run of phonemes that divides into no words becomes one `UNREAD` token, which sounds like its phonemes. Its rule is not `%opaque`, so the token keeps those phonemes. So a `zoi` delimiter compares with it exactly as with the same phonemes read as words. The text of the token is what the author wrote.
 
-The stage tests only a whole run for whether it divides. A part of a run has a phoneme after it, so the stage does not test it. The stage tests the run alone. This gives the same answer as a test in place, because no rule of this stage reads past the end of a run.
+The stage tests only a whole run for whether it divides. A part of a run has a phoneme after it, so the stage does not test it. The stage tests the run alone. Apart from the two lookaheads above, no rule of this stage reads past the end of a run. Those rules give the same answer to a test in place.
 
 The rule `read-run` is a run that divides into words. A dialect that divides a run in another way extends `read-run`, as [zantufa.md](zantufa.md) does for `ra'oi`. So `unread-run` never takes a run that one of these ways reads.
 

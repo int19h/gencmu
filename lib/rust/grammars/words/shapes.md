@@ -281,6 +281,8 @@ A permissible run is a run of consonants whose adjacent pairs are all permissibl
 <p><img src="../../docs/diagrams/words/shapes/run-before-z.svg" alt="Railroad diagram of the rule run-before-z"></p>
 </details>
 
+Each `initial-run-C` reads a cluster ending in C whose adjacent pairs can begin a word. `long-initial-run` adds one consonant and makes a cluster of at least three.
+
 ```jbogenbau
 %rule long-initial-run
   | initial-run-b /l/
@@ -507,7 +509,7 @@ A vowel letter is either phoneme, plain or stressed, since the stress of a cmavo
 
 A run of vowels with no apostrophe or comma in it divides into syllables from the left (CLL[^cll-s3-5]). At each point, the next two vowels are one syllable if they form a diphthong that the word allows. Otherwise the next vowel is a syllable alone. So `briau` is `bria-u`, and `.meiin.` is `mei-in`. A name or a borrowing can have two vowels that form no diphthong, each its own syllable, as in the `korea` of `bangrkorea`.
 
-The stress of a word depends on its syllables. CLL[^cll-s3-9] counts the syllables of `a e i o u` and their diphthongs. It does not count a syllable of `y`, `iy` or `uy`, or of a syllabic consonant. A syllabic consonant is still a consonant here, so it adds no syllable at all.
+A syllabic consonant is a consonant pronounced as a syllable. The stress of a word depends on its syllables. CLL[^cll-s3-9] counts the syllables of `a e i o u` and their diphthongs. It does not count a syllable of `y`, `iy` or `uy`, or of a syllabic consonant. A syllabic consonant is still a consonant here, so it adds no syllable at all.
 
 A brivla is a predicate word. It is stressed on its penultimate counted syllable. If a capital vowel marks the stress, every capital vowel of the brivla must be in that syllable, and exactly one counted syllable follows it. So `BAjykla` is right, because CLL[^cll-s3-9] does not count the `y`, and `bAIkla` is right, because `aI` is one syllable. A capital `Y` never stands in a brivla.
 

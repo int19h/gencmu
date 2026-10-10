@@ -59,7 +59,7 @@ An extended rafsi is a whole or shortened word before a y-hyphen. `extended-rafs
 <p><img src="../../docs/diagrams/words/experimental/long-rafsi-vowel.svg" alt="Railroad diagram of the rule long-rafsi-vowel"></p>
 </details>
 
-A CCV `hy-rafsi` can otherwise begin a brivla, as in `bla'ykla`. `brivla` rejects that start with a CCV rafsi, `'y` and the next onset, which `slihykru` tests. Thus `kerlybla'ykla` is one word, but `bla'ykla` is not. The plain and stressed CCV choices need no order because their vowel stress differs.
+A CCV `hy-rafsi` can otherwise begin a brivla, as in `bla'ykla`. `brivla` rejects that start with a CCV rafsi, `'y` and the next onset, which `slihykru` tests. Thus `kerlybla'ykla` is one word, but `bla'ykla` is not. The plain and stressed CCV choices need no order because their vowel stress differs. Only `brivla` reads `slihykru`.
 
 ```jbogenbau
 %redefine-rule brivla         (* brivla <- !cmavo !slihykru initial_rafsi* brivla_core *)

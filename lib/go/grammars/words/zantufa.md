@@ -17,6 +17,8 @@ Zantufa 1.9999 reads the working word forms of the BPFK, the Lojban language pla
 
 The rule `m` has the name of the Zantufa rule that it translates, and its comment gives that rule, as in bpfk.md. Where another rule states a Zantufa rule, its comment gives that rule. The rest are rules of [forms.md](forms.md) that this document changes, or rules that support them. [The notation document](../../docs/notation.md) explains the notation.
 
+## The pair mz
+
 A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel or diphthong. A glide is an `i` or `u` before a nucleus. The rule for `m` rejects a following apostrophe, glide or `m`, but permits `z`. Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
 
 ```jbogenbau
@@ -31,6 +33,8 @@ A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel
 <details><summary>Railroad diagram of <code>m</code></summary>
 <p><img src="../../docs/diagrams/words/zantufa/m.svg" alt="Railroad diagram of the rule m"></p>
 </details>
+
+## Hesitation and space
 
 Zantufa's Y is `y` and `ie'o`, and its `spaces` read both as space. So `ie'o` is hesitation here, as `y` is. The word stage is the stage after the forms stage. It drops the hesitation where it is space, and reads it as the base of a letter word before `bu`. A Y word attached to a word before it is not space ([zantufa-stream.md](zantufa-stream.md)). It keeps the form of a cmavo, so the pause rules hold for it as for any cmavo.
 
@@ -50,6 +54,8 @@ Zantufa's Y is `y` and `ie'o`, and its `spaces` read both as space. So `ie'o` is
 <details><summary>Railroad diagram of <code>source-word</code></summary>
 <p><img src="../../docs/diagrams/words/zantufa/source-word.svg" alt="Railroad diagram of the rule source-word"></p>
 </details>
+
+## The ra'oi quote
 
 `ra'oi` quotes a rafsi or gismu form from the letters after it, and the stage reads the rest of the run as words. The stage tries the forms in the order of Zantufa: `y_rafsi / long_rafsi / y_less_rafsi / gismu`. The forms decide with their stress. So `ra'oi broda` quotes the gismu `broda`, because its `o` is stressed before the pause, but `ra'oi brodami` quotes the rafsi `brod` and leaves `a` and `mi`. The form can follow `ra'oi` directly, as in `ra'oibroda`, or after a pause and any hesitation, as in `ra'oi .y. broda`. A run can hold several such quotes, as `ra'oi brodyra'oibroda` does.
 
@@ -187,6 +193,8 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
 <p><img src="../../docs/diagrams/words/zantufa/rahoi-form.svg" alt="Railroad diagram of the rule rahoi-form"></p>
 </details>
 
+## Divided hesitation
+
 The BPFK word forms divide an odd run of three or more `y` into `y` and the remainder.
 
 The stage tags `after-hesitation` a run of `y` that directly follows another run of `y`. The word stage derives space behavior from `spacing` and its `y-letters` test.
@@ -221,6 +229,6 @@ The stage tags `opener-space` a hesitation directly after a text opener, and eac
 
 The other changes that camxes-exp makes to the word forms, in [experimental.md](experimental.md), are not Zantufa's.
 
-Zantufa's `Y` is `y+`, so its `spaces` treats the whole run as space. This translation inherits divided y-runs. The word stage uses `spacing` and `y-letters` to preserve that space behavior. The forms stage records `after-hesitation`, but no condition reads that tag.
+Zantufa's `Y` reads a whole run of `y` as one token (`y+`), so its `spaces` treats the whole run as space. This translation inherits divided y-runs. The word stage uses `spacing` and `y-letters` to preserve that space behavior. The forms stage records `after-hesitation`, but no condition reads that tag.
 
 [^cll-s3-6]: [CLL 1.1, section 3.6](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-clusters.html).

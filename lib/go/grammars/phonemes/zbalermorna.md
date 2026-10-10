@@ -59,7 +59,9 @@ The first rules below read the consonant radicals. U+ED89 is the radical for the
 
 A vowel diacritic and its full-vowel form are the same phoneme. The stress mark U+ED98 after either, or after a diphthong diacritic, makes it stressed, and a repeated mark is one mark. The glide radicals U+EDAA and U+EDAB are `i` and `u` before a vowel. A diphthong diacritic is two phonemes and stands where a vowel stands.
 
-The shorthand U+ED8B followed by a vowel, plain or stressed, is that vowel and an apostrophe. A token is one unit that a stage reads or emits. The vowel's token covers the shorthand too, as a stressed vowel's token covers its stress mark. The rule emits the apostrophe as a token with an empty span. The shorthand stands where a non-vowel stands, because the apostrophe closes the vowel group. It does not stand before a diphthong.
+The shorthand U+ED8B followed by a vowel, plain or stressed, is that vowel and an apostrophe. A token is one unit that a stage reads or emits. The vowel's token covers the shorthand too, as a stressed vowel's token covers its stress mark. The rule emits the apostrophe as a token with an empty span.
+
+The shorthand stands where a non-vowel stands, because the apostrophe closes the vowel group. The shorthand's vowel is always a single vowel. A diphthong diacritic cannot directly follow the mark.
 
 A stress mark or a shorthand is a mark of the script, like an accent. So this document adds both to `mark-char` of [latin.md](latin.md), and no punctuation rule reads them as a pause. Neither is a Lojban character by itself. So `foreign-char` takes a stray mark, one that no letter takes, and the mark makes its run foreign.
 

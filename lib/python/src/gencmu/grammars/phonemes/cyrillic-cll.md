@@ -63,6 +63,6 @@ The apostrophe, the comma and the period are those of the Latin orthography. The
 
 ## Choices beyond CLL
 
-CLL first lists 22 letters, then separately assigns the Bulgarian hard sign to `y`.[^cll-s3-12] This grammar maps all 23 letters. CLL says nothing about capitals. This document extends the Latin treatment of capitals to Cyrillic. Its capital vowels always mark stress, including in dialects with capital folding for other scripts.
+CLL first lists 22 letters, which it maps "in the obvious ways". It then assigns the Bulgarian hard sign to `y`.[^cll-s3-12] This grammar maps all 23 letters. CLL says nothing about capitals. This document extends the Latin treatment of capitals to Cyrillic. Its capital vowels always mark stress, including in dialects with capital folding for other scripts.
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).
