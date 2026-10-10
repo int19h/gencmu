@@ -174,7 +174,6 @@ The word forms follow camxes-exp, the experimental PEG (parsing expression gramm
 
 camxes-exp always uses the name-as-predicate merger and the SOI subsentence form. This dialect enables them by default but permits a caller to turn either off.
 
-The added constructs entered use after CLL appeared in print.
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).
 

@@ -33,7 +33,7 @@ A cmavo is an optional consonant followed by vowel units joined by apostrophes. 
 
 The ten rising diphthongs, such as `ia` and `ui`, are cmavo as whole words. A consonant never comes before one, so `kie` and `mui` are no cmavo. A syllable-break comma cannot stand between the vowels of a cmavo. So `ma,i` is neither one cmavo nor `ma .i`, because a comma is no pause. The rules below still read `ma,i` as `mai` when they test for a cmavo, and `cmavo-shape` then refuses the comma (see "Commas").
 
-A consonant followed by `y` is a letter cmavo.[^cll-s4-2][^cll-s17-4] So is `y'y`, the letter for the apostrophe. The ten pairs `a'y e'y i'y o'y u'y y'a y'e y'i y'o y'u` are cmavo too.
+A consonant followed by `y` is a letter cmavo.[^cll-s4-2] So is `y'y`, the letter for the apostrophe. The ten pairs `a'y e'y i'y o'y u'y y'a y'e y'i y'o y'u` are cmavo too.
 
 A cmavo can also use `y` as one more unit, as `ka'y`, `ky'a`, `cy'y` and `y'y'y` do. They are always words. The grammar tags each one `cmavo-warning`, and the word stage reads it under the warning `y-cmavo` ([cll-stream.md](cll-stream.md)). A caller who turns the feature on gets a warning for each one that the word stage reads as a Lojban word. Such a word has at least two units. A `y` alone, or a run of `y`, is hesitation, which [forms.md](forms.md) reads.
 
@@ -463,7 +463,7 @@ The slinku'i test of CLL[^cll-s4-7] says that a CV cmavo joined to the front of 
 
 A name is a nonempty run of letters that ends in a consonant (CLL[^cll-s4-8]), so `.rl.` is one. Every adjacent pair of its consonants is permissible, at its start too, and it can hold the four `n` triples (CLL[^cll-s3-7]). It can have `y` as a vowel, the diphthongs `iy` and `uy`, and an apostrophe or a comma between any two of its vowels.
 
-A name cannot contain `la`, `lai` or `doi` at its start or after a vowel.[^cll-s4-8] The reason is that a name after one of those words can follow it without a pause. So `.laplas.` and `.ilanas.` are not names, but `.nederlants.` is one. A comma removes no letter, so `.do,is.` is no name either.
+A name cannot contain `la`, `lai` or `doi` at its start or after a vowel or `y`. The reason is that a name after one of those words can follow it without a pause. So `.laplas.` and `.ilanas.` are not names, but `.nederlants.` is one. A comma removes no letter, so `.do,is.` is no name either.
 
 Pauses surround a name (rules 2 and 4), so its shape carries neither `onset` nor `continued`. The grammar tags a name that begins with a consonant `name-onset`. Its first syllable is stressed if its first nucleus has a capital vowel. If no vowel is a capital, the stress falls where [shapes.md](shapes.md) says, which can be the first syllable. `.djan.` has one syllable, and it is stressed.
 
@@ -561,6 +561,7 @@ In a few places CLL 1.1 is silent, or two passages disagree. This grammar reads 
 - Stress and pauses: CLL[^cll-s4-9] rule 5 asks for a pause after a stressed last syllable before a brivla. CLL[^cll-s4-2] asks for one between two stressed syllables, whatever the words. A pause separates a stressed final syllable from a stressed first syllable. Both hold, so `mIdO` needs a pause.
 - Syllables: A syllabic consonant adds no syllable. So the first and last syllables of a word are those of its first and last written vowels, `y` included.
 - An unmarked brivla is stressed on the penultimate syllable, counted to the next pause (CLL[^cll-s3-9]). So `klamacy.` is `klama cy.`, and `klamabu` is one borrowing, like `denpabu`.
+- Names: CLL forbids embedded `la`, `lai` or `doi` "unless the sequence is immediately preceded by a consonant".[^cll-s4-8] This grammar rejects them only at the start or after a vowel or `y`. Its `name-vowel` test excludes the apostrophe.
 - Capital letters: A capital on either letter of a diphthong, or on both, marks one stressed syllable, so `bAIkla` is a lujvo. A capital `Y` can mark stress in a name or a cmavo, whose stress can fall on any syllable. It never stands in a brivla, whose `y` is not counted.
 - Vowels: CLL never says whether two vowels that form no diphthong can stand side by side. In a name or a borrowing they can, each its own syllable, as in `.aab.` and `paarku`. Usage before the PEG (parsing expression grammar) grammars had them.
 - Vowels in a cmavo: A cmavo's vowels are single vowels and falling diphthongs joined by apostrophes (CLL[^cll-s4-1][^cll-s4-2]). A rising diphthong is a cmavo only as a whole word. So `seia`, `miui` and `kie` are no cmavo, and `sei'a` is one. An apostrophe or a comma can stand before a rising diphthong in a name, as in `.a'uas.`.

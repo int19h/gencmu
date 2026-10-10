@@ -28,11 +28,11 @@ Outside a quote, the earlier stages hand on some cmavo as tokens of their own. E
 
 [The notation document](../../docs/notation.md) explains the notation. Two of its points matter here. First, an elided terminator takes its `#` with it, so an elided `[+X #]` leaves no free-modifier slot (see `#` below) at that point. Second, when omitted terminators leave a text with more than one parse, the stage chooses the parse as "Choosing among parses" after the grammar says.
 
-CLL writes repetition as `x ...`, and the notation writes it with braces. The book calls `...` "optional repetition of the construct to the left".[^cll-s21-1] So CLL's `x ...` is `{x}` here, one `x` and optionally more, and CLL's `[x] ...` or `[x ...]` is `[{x}]`, which allows none.
+CLL writes repetition as `x ...`, and the notation writes it with braces. Notation note 7 calls `...` "optional repetition of the construct to the left".[^cll-s21-1] So CLL's `x ...` is `{x}` here, one `x` and optionally more, and CLL's `[x] ...` or `[x ...]` is `[{x}]`, which allows none.
 
 Where CLL writes `x [s x] ...` and no grouping is at stake, this grammar writes `{x \ s}`. That is a list of `x` separated by `s`. These read the same words as the printed rules. Where the grouping matters, the next paragraph says what the rule writes instead.
 
-`...` implies left grouping in the book.[^cll-s21-1] A list in flat braces shows no grouping in the tree: its items are children of the rule that writes it. Where the grouping changes the reading, as for logical connectives and tanru, this grammar says so in the rule.
+Notation note 8 gives `...` left grouping.[^cll-s21-1] A list in flat braces shows no grouping in the tree: its items are children of the rule that writes it. Where the grouping changes the reading, as for logical connectives and tanru, this grammar says so in the rule.
 
 A left chain, `{... x \ s}`, groups from the left, and each level of it is a node of its rule. Where the repeated part is irregular, the rule is written with left recursion instead, which groups in the same way. Each such rule cites the source of its grouping. A right chain, `{x ... \ s}`, groups from the right, as the `bo` forms do. Juxtaposition binds tighter than `&`.
 
@@ -42,7 +42,7 @@ A rule flag is a named parsing preference. ["Tenses and modals"](#tenses-and-mod
 
 CLL marks a terminator as elidable by writing it between slashes, `/KU/`, or `/KU#/` when its free-modifier slot goes with it. Here each is an elidable optional, marked in its place: `[+KU]`, or `[+KU #]`. An absent one shows in the parse tree as that terminator, elided. Every terminator between slashes in the printed grammar is marked so, and no other optional is.
 
-`#` is a slot for any number of free modifiers.[^cll-s21-1] This document defines `free`, a single free modifier, under "Free modifiers, vocatives and indicators".
+Notation note 9 defines `#`, a slot for any number of free modifiers.[^cll-s21-1] This document defines `free`, a single free modifier, under "Free modifiers, vocatives and indicators".
 
 ```jbogenbau
 %rule #
@@ -490,7 +490,7 @@ A number or letter string cannot end before another unit of the same run. A writ
 
 The indicator stage attaches indicators to their words. So `li pa ui re` contains one number, with `ui` attached to `pa`. The syntax stage receives `pa` and `re` as consecutive continuation units.
 
-A continuation unit is `PA` or a complete `lerfu-word`. It includes a BY word, a lerfu word with LAU prefixes, or a balanced TEI/FOI compound. `lerfu-word` permits repeated LAU prefixes.[^cll-s17-6][^cll-s17-14] `FOI` closes the inner string and cannot continue it.
+A continuation unit is `PA` or a complete `lerfu-word`. It includes a BY word, a lerfu word with LAU prefixes, or a balanced TEI/FOI compound.[^cll-s17-6] `lerfu-word` permits repeated LAU prefixes.[^cll-s17-14][^cll-s21-1] `FOI` closes the inner string and cannot continue it.
 
 The conditions on `number` and `lerfu-string` reject a boundary before another complete continuation unit. Each condition tests the whole run when its rule completes. This boundary holds even when splitting the run is the only way to parse the whole text.
 
@@ -936,7 +936,9 @@ CLL[^cll-s14-6] prints the example[^cll-e14-27], `la djan. .ije la .alis. klama 
 
 LLG `techfix.300`, CHANGE 45, removes fragments as operands of sentence connectives. It restricts their connection to I. Its wording is "not by any lower-level form". CLL presents the fragment connection as worse than the sumti connection.[^cll-e14-27][^cll-e14-26] It leaves "the reader uncertain why John is mentioned at all." The 1997 online draft gives the same framing under its earlier numbering.[^cll-e14-27]
 
-The official parser accepts the example[^cll-e14-27] because its lexer never produces the statement-level token `I_JEK_820`. On lojban-list, John Cowan addressed fragment connections in "fragment + i-jek" on June 18, 2004. His reply says: "It's wrong, or rather obsolete." The reply's Message-ID is `20040618052316.ga24048@ccil.org`.
+The official parser accepts the example[^cll-e14-27] because its lexer never produces the statement-level token `I_JEK_820`. On lojban-list, John Cowan addressed fragment connections in "fragment + i-jek" on June 18, 2004. The reply's Message-ID is `20040618052316.ga24048@ccil.org`. His reply says:
+
+> It's wrong, or rather obsolete.
 
 The CLL errata page records the same prenex problem under its earlier numbering.[^cll-e16-77][^cll-e16-78] Cowan's response carries `NOFIX`. That record does not change printed rules 12 and 13.
 
@@ -971,6 +973,8 @@ The printed grammar lets the tail after a plain gihek begin with `ke`, or with a
 With a tense, the two parses also differ in what the tense applies to. In `mi klama gi'e pu ke cadzu ke'e`, `pu` is part of the connective in the first parse, and a tense of the selbri `ke cadzu ke'e` in the second. CLL[^cll-s14-10] groups tails with `ke` after a gihek, and CLL[^cll-s14-18] puts a tense between a gihek and `ke` (the example[^cll-e14-164]). The official parser reads only the group, through a token of its lexer (the part that divides the input into tokens), `GIhEK_KE`.
 
 In `mi klama lo nu broda gi'e ke brode ke'e gi'a brodi`, this grammar keeps the plain `gi'e` inside the abstraction. Only the last tail receives the condition, and `late-elision` keeps the final connection inside `nu`. The official parser uses rule 50's tail group and closes `nu` before `gi'a`. That connective then applies to the outer `klama`.
+
+In the shorter `mi klama lo nu broda gi'e ke brode ke'e`, both parsers keep the group inside `nu`. The official parser therefore agrees when the text ends at `ke'e`.
 
 The official lexer makes `gi'e ke` one token in the plain-reading cases under ["Sentences and bridi-tails"](#sentences-and-bridi-tails). The free-modifier case is the exception. The lexer rejects the other plain-reading cases. This grammar follows the printed grammar there, and accepts them.
 

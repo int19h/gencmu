@@ -180,7 +180,7 @@ The lexicon marks no word `indicator`, because Zantufa reads an attitudinal as a
 
 ## Differences from CLL
 
-Zantufa gives each word one selma'o. Its classes differ from *The Complete Lojban Language* (CLL) in these ways:
+Zantufa gives each word one selma'o. Its classes differ from *The Complete Lojban Language* (CLL), for example:
 
 - The tense words of PU, ZI, VA, FAhA, ZAhO, ZEhA, VEhA, VIhA, TAhE, KI and CUhE are BAI. The words of ROI stay ROI, `mo'i` and `fe'e` are NAhE, and the CAhA words, such as `ca'a` and `ka'e`, are NA.
 - `je`, `ja`, `jo` and `ju` are JOI, because Zantufa has no JA.

@@ -202,7 +202,9 @@ Experimental with `cbm` and Zantufa reject those texts under their own name-as-p
 
 CLL[^cll-s21-1] also writes `TO text`, so that rule alone does not separate TO from LU. The example[^cll-e19-67] in CLL[^cll-s19-12] uses `to'isa'a` and says that `sa'a` marks the whole bracketed remark. The BPFK is a Lojban committee for language definitions. The [BPFK section "Digressives", revision 111784](https://mw.lojban.org/index.php?title=BPFK_Section:_Digressives&oldid=111784) defines `to'i` as "Equivalent to {to sa'a}". These sources support the choice that indicators after `to` and `to'i` attach to the opener. Indicators after `tu'e` also attach to that opener under CLL[^cll-s19-8][^cll-s13-9].
 
-The official parser differs after `lu` because its preprocessor absorbs following indicators into the preceding token. On lojban-list, Cyril Slobin reported this for `lu .ue la djan. klama li'u` on October 1, 1995. John Cowan replied on October 2, 1995, under the subject "Parser bug - or my?". He confirmed that the parser was in error.
+The official parser differs after `lu` because its preprocessor absorbs following indicators into the preceding token. On lojban-list, Cyril Slobin reported this for `lu .ue la djan. klama li'u` on October 1, 1995. John Cowan replied on October 2, 1995, under the subject "Parser bug - or my?". His reply says:
+
+> Yes; the parser is in error here, and you are correct.
 
 CLL's sources do not agree on `fu'e`. CLL[^cll-s21-1] prints the EBNF (Extended Backus-Naur Form) rule `indicators = [FUhE] indicator ...`. An indicator must therefore follow a `fu'e`. The magic-word list of CLL[^cll-s19-16] says that `fu'e` is "the same as UI". The YACC preamble is the official parser's steps before its grammar. Step 4e of that preamble, printed in CLL 1.0, absorbs every `fu'e` after a word, and so does the official parser.
 
@@ -228,7 +230,7 @@ In cll-ebnf and bpfk, `mi ui ia nai nai klama` and `mi cai sai nai nai klama` fa
 
 In cll-ebnf and bpfk, `ui ia nai nai mi klama` and `cai sai nai nai mi klama` fail. camxes-std accepts both leading runs too.
 
-Rule 1100 prints `word = [BAhE] any-word [indicators]`, with at most one BAhE.[^cll-s21-1] This stage follows the prose that permits successive BAhE words.[^cll-s19-16]
+Rule 1100, one of four non-formal rules, prints `word = [BAhE] any-word [indicators]`, with at most one BAhE.[^cll-s21-1] A non-formal rule runs before syntax. This stage follows the prose that permits successive BAhE words.[^cll-s19-16]
 
 CLL counts Y as an indicator.[^cll-s21-1] The word stage drops hesitation because the Magic Words proposal treats `.y.` as a pause. A FUhE followed only by hesitation therefore has no indicator and fails.
 
