@@ -1,6 +1,8 @@
 # gencmu for Python
 
-gencmu is a Lojban parser whose grammars are literate Markdown documents loaded at runtime. This is the Python library. It is pure Python, uses the standard library only, and needs Python 3.12 or later. It implements the engine specification of the gencmu repository, `docs/engine.md`. The library can write its results as the canonical JSON of `docs/output.md`.
+gencmu is a Lojban parser. A literate grammar document mixes prose with grammar rules. gencmu loads these Markdown documents at runtime. This is the Python library. An API is the operations that a library exposes.
+
+The library is pure Python, uses the standard library only, and needs Python 3.12 or later. It implements the engine specification of the gencmu repository, `docs/engine.md`. The library can write its results as the canonical JSON of `docs/output.md`.
 
 ```python
 import gencmu
@@ -38,9 +40,17 @@ result = dialect.parse(text, features=(), without_features=(), auto_features=Tru
 - `until` names the last stage to run. An unknown name raises `GencmuError` with `kind` `"usage"`.
 - `elision_only`, when it is `True` or `False`, overrides the grammars' `%ambiguity-resolution ... elision-only`.
 
-A `text` with a lone surrogate raises `GencmuError` with `kind` `"usage"`. A text that does not parse is a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous` or `grammar`. An `ambiguous` error has a `reason` and two `readings`. The reason is `"tie"` where a stage has two or more best readings (`docs/engine.md`, §6). The stage then has the verdict `"tie"` and a `witness`, and it has no tree and no output. The reason is `"elision-only"` where the check of §7 fails. That error also has a `witness`, the pair of actions where its readings first differ. Such an `Action` can have the kind `"elided"`, a read of a terminator that the check wrote back, at the position `at` (§7.10). Here, `grammar` is for a defect of a grammar found only while parsing. Lowering finds such defects for the features of the parse (`docs/engine.md`, §3), so the dialect still loads. One example is a classifier's entry that adds a class that a key already has. Another is an item of braces, `{x}` or `{x \ s}`, that can match no tokens, and another is a chain, `{... x \ s}` or `{x ... \ s}`, that the gates leave beside another alternative of its rule. The message of such an error begins with the document, line and column of the entry or of the definition at fault, as `a.md:3:1:`. Where a grammar has several, the parse reports the one that `docs/engine.md` §3 puts first.
+A `text` with a lone surrogate raises `GencmuError` with `kind` `"usage"`. A text that does not parse is a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous` or `grammar`. An `ambiguous` error has a `reason` and two `readings`.
 
-An error of kind `grammar` whose `code` is `"elision-witness-lost"` marks a defect of the library, not of the text or the grammar. The check of `elision-only` lost the chosen derivation, which it must always find again (`docs/engine.md`, §7.9). Such an error also has `chosen`, the stage's chosen tree, and `completion`, the terminators that the check wrote back, in their order. Each of them is a `Restoration` with its `terminal`, its position `at` in the stage's input, the empty `source` of its elided node, and the `sound` of a terminator with an `=` test, or `None`. The stage keeps its verdict, `"resolved"`, and its warnings, but it has no output. No other error has a `code`, so its `code`, `chosen` and `completion` are `None`.
+The reason is `"tie"` where a stage has two or more best readings (`docs/engine.md`, §6). The stage then has the verdict `"tie"` and a `witness`, and it has no tree and no output. The reason is `"elision-only"` where the check of §7 fails. That error also has a `witness`, the pair of actions where its readings first differ.
+
+Such an `Action` can have the kind `"elided"`, a read of a terminator that the check wrote back, at the position `at` (§7.10). Here, `grammar` is for a defect of a grammar found only while parsing. Lowering finds such defects for the features of the parse (`docs/engine.md`, §3), so the dialect still loads. One example is a classifier's entry that adds a class that a key already has.
+
+Another is an item of braces, `{x}` or `{x \ s}`, that can match no tokens. A chain, `{... x \ s}` or `{x ... \ s}`, beside another alternative after gates apply is also a defect. The message of such an error begins with the document, line and column of the entry or of the definition at fault, as `a.md:3:1:`. Where a grammar has several, the parse reports the one that `docs/engine.md` §3 puts first.
+
+An error of kind `grammar` whose `code` is `"elision-witness-lost"` marks a defect of the library, not of the text or the grammar. The check of `elision-only` lost the chosen derivation, which it must always find again (`docs/engine.md`, §7.9). Such an error also has `chosen`, the stage's chosen tree, and `completion`, the terminators that the check wrote back, in their order. Each `Restoration` has its `terminal`, input position `at`, and the empty `source` of its elided node.
+
+Its `sound` is the string of an `=` test, or `None` without that test. The stage keeps its verdict, `"resolved"`, and its warnings, but it has no output. No other error has a `code`, so its `code`, `chosen` and `completion` are `None`.
 
 For tests and tools, `Dialect.parse_tokens(tokens, text, ...)` takes pre-built tokens in place of the characters of the first stage. Such a token has its text as its label, whatever `label` it carries (`docs/engine.md`, §5). It cannot have attachments. A token whose `before` or `after` is not empty raises `GencmuError` with `kind` `"usage"`, and empty lists are dropped. The parse copies each token, so your tokens stay as they are.
 
@@ -100,6 +110,6 @@ The wheel build needs `build` and setuptools, at build time only. To build the w
 python -m build
 ```
 
-### Tests of the check of elision-only
+### Tests of elision-only
 
-`src/gencmu/_testing.py` holds a hook for the library's own tests, which the package does not export. After each check of `elision-only`, the runners of the shared cases and of the corpus ask the hook whether the check kept the chosen derivation (`tests/README.md`, `tests/witness.py`). `tests/test_elision_check.py` loses the witness on purpose and checks the form of the error `elision-witness-lost`. The hook's `faults` turn on faults of the library's own paths in the check. `tests/test_faults.py` shows that the shared cases catch each one, through the result or through the hook alone (`tests/README.md`).
+`src/gencmu/_testing.py` holds a hook for the library's own tests, which the package does not export. After each check of `elision-only`, the shared and corpus runners ask whether the hook retains the chosen derivation (`tests/README.md`, `tests/witness.py`). `tests/test_elision_check.py` loses the witness on purpose and makes sure that the error `elision-witness-lost` has the required form. The hook's `faults` turn on faults of the library's own paths in the check. `tests/test_faults.py` shows that the shared cases catch each one, through the result or through the hook alone (`tests/README.md`).
