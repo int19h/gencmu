@@ -4,9 +4,9 @@ A letteral is a letter word of class BY, as [stream.md](stream.md) defines it.
 
 This document is part of the word stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. Each stage reads the tokens that the stage before it emitted, and emits new tokens. The dialect includes this document after [stream.md](stream.md). [The notation document](../../docs/notation.md) explains the notation.
 
-A cmavo is a particle, a short structure word. This document adds two rules of *The Complete Lojban Language* (CLL) that the word forms of the BPFK (a Lojban committee) lack. One is a warning for a cmavo that uses `y` as a vowel. The other is the pauses around a name that `bu` takes.
+A cmavo is a particle, a short structure word. CLL is *The Complete Lojban Language*. This document warns about cmavo with `y` as a vowel and requires pauses around a name that `bu` takes.
 
-CLL's word forms admit a cmavo that uses `y` as one more vowel unit, beyond the forms that CLL gives. Examples are `ka'y` and `ky'a` ([cll.md](cll.md)). The forms stage gives each such word the tag `cmavo-warning`. A tag marks a token by name, phoneme or character.
+The word forms admit a cmavo with `y` as one more vowel unit. Examples are `ka'y` and `ky'a` ([cll.md](cll.md)). The forms stage gives each such word the tag `cmavo-warning`. A tag marks a token by name, phoneme or character.
 
 This stage reads the word under the warning `y-cmavo`. The stage always reads the word. A feature is a named switch that the grammars test. A caller who turns on the feature `y-cmavo` gets a warning for each such word.
 
@@ -22,7 +22,7 @@ The stage gives the warning where it reads the word as a Lojban word. That is, t
 <p><img src="../../docs/diagrams/words/cll-stream/cmavo-token.svg" alt="Railroad diagram of the rule cmavo-token"></p>
 </details>
 
-A name that `bu` takes needs a pause on both sides of it in the source (CLL 17.4). The forms stage requires a pause or the end of the text after every name, because CLL 4.9 rule 2 needs one there. It tags the first word of each run `run-initial`. A run is a stretch with no internal pause.
+A name that `bu` takes needs a pause on both sides of it in the source (CLL[^cll-s17-4]). The forms stage requires a pause or the end of the text after every name, as CLL requires.[^cll-s4-9] It tags the first word of each run `run-initial`. A run is a stretch with no internal pause.
 
 In CLL, a name that is not the first word of its run follows `la`, `lai`, `la'i` or `doi` directly, with no pause before it. So the name must be the first word of its run. Thus `ladjan.bu` and `ladjan.mi si bu` are no texts, and `la.djan.bu` is `la` and a letteral.
 
@@ -40,3 +40,11 @@ A replacement name keeps its source boundary. Thus `ladjan. sa .djim. bu` leaves
 <details><summary>Railroad diagram of <code>lerfu-word</code></summary>
 <p><img src="../../docs/diagrams/words/cll-stream/lerfu-word.svg" alt="Railroad diagram of the rule lerfu-word"></p>
 </details>
+
+## Differences from CLL and BPFK
+
+The `y`-cmavo forms extend those that CLL gives, as [cll.md](cll.md) explains. The BPFK word forms omit those forms and the CLL-specific pause test for names before BU. BPFK is a Lojban committee for language definitions.
+
+[^cll-s17-4]: [CLL 1.1, section 17.4](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-bu.html).
+
+[^cll-s4-9]: [CLL 1.1, section 4.9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-pauses.html).
