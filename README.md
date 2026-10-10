@@ -55,6 +55,7 @@ console.log(toBrackets(loadDialect("cll-ebnf").parse("mi klama")));
 
 ## Documents
 
+- [`docs/dialects.md`](docs/dialects.md): implement a dialect, with kihei as the worked example
 - [`docs/notation.md`](docs/notation.md): jbogenbau, the grammar notation, for grammar authors
 - [`docs/engine.md`](docs/engine.md): the engine specification, for implementers
 - [`docs/api.md`](docs/api.md): the library API in each language
