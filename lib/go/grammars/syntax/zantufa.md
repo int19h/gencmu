@@ -1055,8 +1055,6 @@ In a reverse Polish mekso, Zantufa's greedy `mex_2+` can read an operator and an
 
 The reference PEG reads TO and SEI content as far as it can. For these clauses, the dialect keeps that commitment despite its general policy. The [introduction](#the-zantufa-grammar) explains why conditions need maximal TOI and SEhU.
 
-The marker `++` is transitional. GitHub issues [#138](https://github.com/int19h/gencmu/issues/138) and [#139](https://github.com/int19h/gencmu/issues/139) track its replacement.
-
 A `to` or `sei` therefore reads as far as it can, even where the whole text then fails.
 
 In `metonymy`, read as `me to ny my`, the parenthesis takes `ny my`, and `me` is left without a sumti. In `genai do gletu le do tanbo gi to prami le do tanbo`, the parenthesis takes `prami le do tanbo`. This leaves the gek's second branch empty.
@@ -1066,6 +1064,8 @@ In `.u'i nypyry cu cusku lesedu'u le xindo cu cusku lesedu'u le kisto soi xy cu 
 The dialect rejects all three texts, as Zantufa does.
 
 These texts illustrate the maximal boundaries, with Zantufa's reading. In `so to recap` and `so to mi klama`, the parenthesis holds the rest of the text, and the text is one mekso. In ` o'ocu'i is mere tolerance`, the parenthesis after `re` holds `le rance`. In `ro sei ny rere'u basna mutce cusku`, the `sei` holds `ny rere'u basna mutce cusku`.
+
+The marker `++` is transitional. GitHub issues [#138](https://github.com/int19h/gencmu/issues/138) and [#139](https://github.com/int19h/gencmu/issues/139) track its replacement.
 
 ### Word processing and quotation boundaries
 

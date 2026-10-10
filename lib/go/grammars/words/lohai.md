@@ -6,7 +6,7 @@ A replacement quote is one unit of raw words. It is up to two runs of words, eac
 
 The words inside are plain words, whatever they are. No magic word executes there, including BU, ZEI, and FAhO. No indicator attaches there.
 
-A letteral is a letter word of class BY, as [stream.md](stream.md) defines it. So `mi lo'ai su le'ai klama` keeps `mi`, and `mi lo'ai zo le'ai klama` is a text. A magic word after the quote acts on all of it. Thus `lo'ai mi le'ai si` is nothing, and `lo'ai mi le'ai bu` is a letteral. The syntax reads the quote as a free modifier.
+So `mi lo'ai su le'ai klama` keeps `mi`, and `mi lo'ai zo le'ai klama` is a text. A magic word after the quote acts on all of it. Thus `lo'ai mi le'ai si` is nothing, and `lo'ai mi le'ai bu` is a letteral, a letter word of class BY, as [stream.md](stream.md) defines it. The syntax reads the quote as a free modifier.
 
 The quote carries the tags of its first marker, as every quote carries its marker's. A tag marks a token by name, phoneme or character. So in the experimental dialect, `sa` finds it by its class, and `mi lo'ai do le'ai sa lo'ai ti le'ai klama` keeps `mi`. The words inside carry no class, so none of them is a boundary for `su`.
 
