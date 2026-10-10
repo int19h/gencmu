@@ -287,7 +287,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    The playground has no file upload or command that loads an arbitrary local dialect. You cannot load `my-kihei.md` directly into the shipped page.
 
-   If you want your new dialect in the local menu, complete step 8 first. Reopen your checkout's `index.html` after synchronization.
+   If you want your new dialect in the local menu, complete step 8 first. After synchronization, reopen your checkout's `index.html`.
 
    `dist/grammars.js` is a bundle, a generated collection of grammars. `node tools/sync.js` rebuilds that bundle. The hosted playground does not read your checkout.
 
@@ -360,7 +360,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    `quoted-texts.test.js` names every dialect and every dialect that includes CLL syntax. Keep each list in alphabetical order.
 
-   These dialect lists are maintained by hand today.
+   You maintain these dialect lists by hand.
 
    Add the new grammar file to Git:
 
@@ -397,7 +397,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
 ## Other changes
 
-Use these approaches when your change differs from the kihei example.
+If your change differs from the kihei example, use these approaches.
 
 ### Change word forms or classifications
 
