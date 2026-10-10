@@ -28,7 +28,7 @@ grammars/                  the grammar documents, the single source of truth
   indicators/              the non-formal indicator and ba'e rule
   syntax/                  the syntax grammars
   notation/                the grammar of the notation itself, and its bootstrap
-  dialects/                pipeline documents: cll-ebnf, bpfk, experimental, zantufa, notation
+  dialects/                pipeline documents: cll-ebnf, kihei, bpfk, experimental, zantufa, notation
 docs/
   notation.md              the grammar notation, for grammar authors
   engine.md                the engine specification, for implementers
@@ -101,7 +101,7 @@ Following `span` from stage to stage explains any token of a stage's output. The
 
 ## The notation
 
-gencmu's grammars are written in jbogenbau, a notation of its own. `docs/notation.md` explains it for grammar authors. This section gives the summary and the reasons.
+Grammar authors write gencmu's grammars in jbogenbau, a notation of its own. `docs/notation.md` explains it for grammar authors. This section gives the summary and the reasons.
 
 A jbogenbau grammar is an attribute grammar (its constituents carry computed values) with EBNF (Extended Backus-Naur Form) rule bodies. Each rule body is EBNF in the form that CLL (*The Complete Lojban Language*) prints. Each constituent carries tags computed from its parts. Demanded tree patterns also contribute finite structural observations during recognition.
 
@@ -235,6 +235,8 @@ Flat braces, `{x}` and `{x \ s}`, read a list. The tree shows the items and sepa
 
 Chain braces, `{... x \ s}` and `{x ... \ s}`, show left and right grouping respectively. A chain can omit `\ s`. Each level is a node of the chain's rule. A chain is the whole rule, so each level includes its first operand. A helper inside an alternative cannot group a first operand that stands outside it.
 
+Braces state grouping explicitly, independently of how many alternatives feature gates leave enabled. As a result, a feature cannot silently change the grouping of an otherwise unchanged rule.
+
 Every kind of braces requires one or more items. ISO 14977 reads braces as zero or more, but jbogenbau writes zero or more as `[{x}]`. An item must read at least one token, so `[{x}]` reads nothing in one way only. No bundled grammar repeats an item that can be empty.
 
 A capture cannot stand inside braces or around them because a repeated part has no single span. A grammar that needs a capture names the list or chain as a rule. A capture next to flat braces is valid, as in `$a(A) {B}`.
@@ -314,7 +316,7 @@ Sealing remains an authoring limit. An outside pattern that needs hidden option 
 
 ## Pipelines
 
-A pipeline document is Markdown too, and literate. Each stage is a heading, followed by the list of documents stitched into it. Prose then says what the stage receives from the one before, what it does, and what it hands on. The machine-readable parts are three directives in `jbogenbau` blocks. The notation reads them like any other directives, so no library reads Markdown structure beyond finding the blocks:
+A pipeline document is Markdown too, and literate. Each stage is a heading, followed by the list of documents stitched into it. Prose then says what the stage receives from the one before, what it does, and what it hands on. The machine-readable parts are pipeline directives in `jbogenbau` blocks. The notation reads them like any other directives, so no library reads Markdown structure beyond finding the blocks:
 
 ````markdown
 # The CLL dialect
@@ -335,7 +337,7 @@ A pipeline document is Markdown too, and literate. Each stage is a heading, foll
 ... what the stage receives, does and hands on ...
 ````
 
-The three directives are these:
+The basic declarations are these:
 
 - `%stage NAME` starts a stage. `NAME` is what the API, the CLI's `--until` and diagnostics call the stage, whatever the heading says. Two stages with one name are an error.
 - `%include "PATH"` stands for the rules and directives of another document, as if the text of its blocks stood there.
@@ -522,11 +524,9 @@ A parse option overrides `elision-only` either way. A caller switches it on to f
 
 ### Syntax conventions
 
-The syntax stages of all four Lojban dialects declare `late-elision`. The cll-ebnf and bpfk dialects also declare `elision-only`.
+The syntax stages of all five bundled Lojban dialects use `late-elision`. The `cll-ebnf`, `kihei` and `bpfk` dialects also declare `elision-only`.
 
-The CLL grammar applies
-
-The CLL grammar gains the condition that the official parser's lexer applies with `JOIK_KE`. A plain joik is a joik in the ordinary connective alternative of a rule, which joins two units. It is not the joik of the dedicated alternative `joik [stag] KE … KEhE`, which groups with the connective itself. Where both alternatives can read the same words, a unit that starts with `ke` cannot directly follow a plain joik.
+The CLL grammar applies the condition that the official parser's lexer applies with `JOIK_KE`. A plain joik is a joik in the ordinary connective alternative of a rule, which joins two units. It is not the joik of the dedicated alternative `joik [stag] KE … KEhE`, which groups with the connective itself. Where both alternatives can read the same words, a unit that starts with `ke` cannot directly follow a plain joik.
 
 The condition stands in `selbri-4` and in `operator`, the two rules where a joik overlap exists. It removes the plain reading only where the unit after the joik is only a `ke` group, so that the two readings compete. So `mi broda joi ke brode ke'e bo brodi` keeps its one plain reading, as in the printed grammar and camxes. The official parser rejects it. So `mi broda joi ke brode ke'e` keeps only its reading through `joik KE selbri-3 KEhE`. In the same way, `li ci su'i joi ke pi'i ke'e re du li xa` keeps only the operator's own `ke` group.
 

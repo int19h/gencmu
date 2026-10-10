@@ -32,7 +32,7 @@ data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 
 ## Parsing
 
-`(*Dialect).Parse(text, ParseOptions{Features, WithoutFeatures, NoAutoFeatures, Until, ElisionOnly})` parses a text. A text that is not valid UTF-8 is a usage error. The `Warnings` of a result are those of the warning features that are turned on.
+`(*Dialect).Parse(text, ParseOptions{Features, WithoutFeatures, NoAutoFeatures, Until, ElisionOnly})` parses a text. A text that is not valid UTF-8 is a usage error. The `Warnings` of a result are those of the enabled warning features.
 
 `(*Dialect).Features()` lists the features of the dialect, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
 
@@ -43,11 +43,13 @@ For tests and tools, `(*Dialect).ParseTokens(text, tokens, options)` feeds pre-b
 
 A text that a stage reads in two or more best ways is a tie. Its result is not `OK`, and its `Error` has the kind `ambiguous` and the `Reason` `tie`, with two `Readings`. The stage has the verdict `tie` and a `Witness`, and it has no output. The `Reason` of the error of `ElisionOnly` is `elision-only`.
 
-A text that does not parse gives a result whose `OK` is false and whose `Error` says why: `rejected`, `ambiguous` or `grammar` (`docs/api.md`). Lowering can find grammar defects for a parse's features (engine §3). Examples include a chain `{... x \ s}` beside another alternative, or a repeated item that can match no tokens. The dialect loads, but parsing returns an error of kind `grammar`. Its `Message` starts with the faulty definition's document, line, and column, as `g.md:3:1:`. An error of kind `grammar` with the `Code` `elision-witness-lost` (`CodeElisionWitnessLost`) marks a defect of the library in the check of `elision-only`.
+A text that does not parse gives a result whose `OK` is false and whose `Error` says why: `rejected`, `ambiguous` or `grammar` (`docs/api.md`).
 
-It also has `Chosen`, the stage's chosen tree, and `Completion`, the terminators that the check wrote back (engine §7.9). Each of those is a `Restoration` with `Terminal`, `At`, `Source` and, for a terminator with an `=` test, `Sound`. `Tested` says whether it has such a test, since `Sound` is empty both without one and for `T=""`. An ambiguous error of `elision-only` also has `Witness`, the pair of actions where its readings first differ.
+Lowering can find grammar defects for a parse's features (engine §3). Examples include a chain `{... x \ s}` beside another alternative, or a repeated item that can match no tokens. The dialect loads. Parsing returns a result whose `Error` has kind `grammar`. The separate returned error is nil. The result error's `Message` starts with the faulty definition's document, line, and column, as `g.md:3:1:`.
 
-Such an action can have `Elided`, a read of a terminator that the check wrote back (engine §7.10). The canonical JSON writes them as `chosen` and `completion` (`docs/output.md`). No other error has a `Code`.
+An error of kind `grammar` with the `Code` `elision-witness-lost` (`CodeElisionWitnessLost`) marks a defect of the library in the check of `elision-only`. It also has `Chosen`, the stage's chosen tree, and `Completion`, the terminators that the check wrote back (engine §7.9). The canonical JSON writes `Chosen` and `Completion` as `chosen` and `completion` (`docs/output.md`). Each of those is a `Restoration` with `Terminal`, `At`, `Source` and, for a terminator with an `=` test, `Sound`. `Tested` says whether it has such a test, since `Sound` is empty both without one and for `T=""`. An ambiguous error of `elision-only` also has `Witness`, the pair of actions where its readings first differ.
+
+Such an action can have `Elided`, a read of a terminator that the check wrote back (engine §7.10). No other error has a `Code`.
 
 
 `MarshalResult(result)` writes the canonical JSON.
@@ -92,6 +94,6 @@ For longer inputs, add `GENCMU_PROPERTY_TOKENS`. To set the percentage of cases 
 
 `TestEligibleProperty` compares written-terminator priority (engine §4) with a search for eligible proof trees. It uses small random grammars with chained elidable optionals, `[+T]`, and occasional maximal `[++T]`. `GENCMU_PROPERTY_CASES` and `GENCMU_PROPERTY_SEED` set its sweep too.
 
-The random grammars of `TestRankingProperty` write flat braces `{x}`, `[{x}]` and `{x \ s}`, left and right chains, and elidable optionals `[+T]`. A grammar that lowering refuses, such as one that repeats an item that can match no tokens, is skipped.
+The random grammars of `TestRankingProperty` write flat braces `{x}`, `[{x}]` and `{x \ s}`, left and right chains, and elidable optionals `[+T]`. The test skips a grammar that lowering refuses. One example repeats an item that can match no tokens.
 
 A captured part's span is part of an item's identity (engine §4), so the recognizer keys an item by its captures. A production can have any number of them: the key keeps the first inline and interns the rest. `TestCaptureGrowth` pins the cost of a capture of a rule that can end in many places.

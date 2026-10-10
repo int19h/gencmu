@@ -46,6 +46,32 @@ A pattern describes required result fields. `expect.result` is a pattern matched
 
 A pattern never pins the `message` of an error. Its wording is each library's own (`docs/output.md`), so the JavaScript runner refuses a case whose pattern holds one.
 
+A pattern matches a result that has members beyond its own. So the invariants, and not the patterns, say that a tied stage has no output.
+
+`expect.diagnostic` pins the code of a ranked-choice loading error. The API supplies that code directly. Loading diagnostics also expose their written group, option, expression, and inheritance witness where available.
+
+`expect.brackets` is the bracket rendering, with elided terminators hidden. `expect.warnings` is the list of warnings of the result, compared whole. So `[]` says that there are no warnings. `expect.features` is the list of features of the dialect (`docs/api.md`), compared whole. Each feature is written as `{"name":..., "kind":..., "default":...}`.
+
+A case can also parse its input several times with the one loaded dialect. Then it has `parses`, a list of objects, each with its own `options` and `expect`, in place of the case's `options` and `expect`:
+
+```
+"parses": [{"options": {}, "expect": {"brackets": "a"}}, {"options": {"features": ["f"]}, "expect": {"error": "grammar"}}]
+```
+
+The library loads the dialect once, and then parses the input with each item's configuration in order. Each result matches its item's `expect`. So a case can show that one loaded dialect gives each set of features its own result, whatever it parsed before.
+
+`expect.error` is the error kind, when the case is about an error. For a grammar that cannot be loaded, the result is the error alone. For a mistake of the caller, `usage`, there is no result.
+
+A load that fails gives only its error. Its kind is `grammar` for a grammar that cannot be loaded. A caller's mistake at load gives `usage`. One example is an in-memory document that is not a sequence of Unicode scalar values (engine §1). A case expects such an error with `expect.error` of that kind.
+
+For a `grammar` error, it can also give `expect.where`. It gives no `result`, `brackets`, `warnings` or `features`, because only a loaded dialect gives them. A runner fails a case when the load fails with another kind, or when the case expects one of these members. It also fails a case that gives `expect.where` with a kind other than `grammar`.
+
+An error that lowering finds (engine §3), such as an item of braces that can match no tokens, is not a load error. The dialect loads, and the parse gives a result whose error has the kind `grammar`, so a case expects it with `expect.error`. Its message, which names the definition at fault, is the library's own, so no case compares it.
+
+`expect.where`, when present, is where the error of a grammar that cannot be loaded stands. It is only for an error of kind `grammar`. It names a document of the case and a line and a column in it. For a case with `grammar`, the document is `main.md`. Its fence is line 1, so the rules start on line 3, or on line 2 when they hold their own `%ambiguity-resolution`.
+
+### Result invariants and witness tests
+
 An invariant is a required property of every result. Every runner also makes sure that each canonical result meets these invariants, whatever the case expects. A case cannot turn them off, and its pattern need not repeat them:
 
 - An error of kind `ambiguous` has no member `token` and no member `source`.
@@ -78,33 +104,9 @@ The walk pins the shape of W(D), not its tags. The tags follow from the derivati
 
 For slot reconstruction, the count channel proves membership in the raw forest before filtering. A filter can exclude that witness intentionally. The error then reports the raw witness first and an admitted competitor second.
 
-A pattern matches a result that has members beyond its own. So the invariants, and not the patterns, say that a tied stage has no output.
-
-`expect.diagnostic` pins the code of a ranked-choice loading error. The API supplies that code directly. Loading diagnostics also expose their written group, option, expression, and inheritance witness where available.
-
-`expect.brackets` is the bracket rendering, with elided terminators hidden. `expect.warnings` is the list of warnings of the result, compared whole. So `[]` says that there are no warnings. `expect.features` is the list of features of the dialect (`docs/api.md`), compared whole. Each feature is written as `{"name":..., "kind":..., "default":...}`.
-
-A case can also parse its input several times with the one loaded dialect. Then it has `parses`, a list of objects, each with its own `options` and `expect`, in place of the case's `options` and `expect`:
-
-```
-"parses": [{"options": {}, "expect": {"brackets": "a"}}, {"options": {"features": ["f"]}, "expect": {"error": "grammar"}}]
-```
-
-The library loads the dialect once, and then parses the input with each item's configuration in order. Each result matches its item's `expect`. So a case can show that one loaded dialect gives each set of features its own result, whatever it parsed before.
-
-`expect.error` is the error kind, when the case is about an error. For a grammar that cannot be loaded, the result is the error alone. For a mistake of the caller, `usage`, there is no result.
-
-A load that fails gives only its error. Its kind is `grammar` for a grammar that cannot be loaded. A caller's mistake at load gives `usage`. One example is an in-memory document that is not a sequence of Unicode scalar values (engine §1). A case expects such an error with `expect.error` of that kind.
-
-For a `grammar` error, it can also give `expect.where`. It gives no `result`, `brackets`, `warnings` or `features`, because only a loaded dialect gives them. A runner fails a case when the load fails with another kind, or when the case expects one of these members. It also fails a case that gives `expect.where` with a kind other than `grammar`.
-
-An error that lowering finds (engine §3), such as an item of braces that can match no tokens, is not a load error. The dialect loads, and the parse gives a result whose error has the kind `grammar`, so a case expects it with `expect.error`. Its message, which names the definition at fault, is the library's own, so no case compares it.
-
-Each library tests that the message of such an error begins with the document, line and column of that definition. It also tests the error order of engine §3: a chain beside another alternative comes before an empty item of braces.
+Each library tests that a lowering error's message begins with the faulty definition's document, line and column. It also tests the error order of engine §3: a chain beside another alternative comes before an empty item of braces.
 
 Each library also tests its recognizer on a capture of a rule that can end in many places (engine §4). The rule is `t → $l(t) $r(t) | A`, over n tokens. Then n − 1 completed items of that production span the input. With `t → t t | A`, one item does. A last test reads one production of C captures over C tokens, and counts C stored captured parts, not C².
-
-`expect.where`, when present, is where the error of a grammar that cannot be loaded stands. It is only for an error of kind `grammar`. It names a document of the case and a line and a column in it. For a case with `grammar`, the document is `main.md`. Its fence is line 1, so the rules start on line 3, or on line 2 when they hold their own `%ambiguity-resolution`.
 
 ### Faults
 
@@ -301,7 +303,7 @@ A grammar document often says what gencmu does with a Lojban text that it quotes
 A quoted text is a code span in the prose of a document, outside code blocks, with these properties:
 
 - It has two words or more, separated by white space. A single word is often a name or a part of a rule.
-- It holds only lowercase ASCII letters, apostrophes, full stops, commas and white space, and each word has a letter. So a rule name is not a quoted text, since it has a hyphen or a digit. Nor is a selma'o or a token, which is uppercase, or jbogenbau, which has brackets and other symbols.
+- It holds only lowercase ASCII letters, apostrophes, periods, commas and white space, and each word has a letter. So a rule name is not a quoted text, since it has a hyphen or a digit. Nor is a selma'o or a token, which is uppercase, or jbogenbau, which has brackets and other symbols.
 - It holds no `...` or `…`, which mark a gap in the words.
 
 The check finds the code spans with the CommonMark and GFM parser of `tools/markdown.js`, so a code block holds none. Every prose block is one line, with its code spans ("Documents" in `docs/design.md`). So the line of a text's code span is the paragraph, heading or table row that quotes it.
@@ -326,7 +328,7 @@ The dialects that the scope does not name must read the text alike, since the se
 
 A sentence that says how a text reads quotes that exact text. For example, it says "Here `le poi blabi gerku cu klama` parses", not "the text without `ku'o` parses". Then the check sees the text that the claim is about.
 
-The case pins what the sentence says about the text: its verdict, and its brackets or words where the sentence says how the text reads. Before a case is added, the claim is checked by running the text. A false claim is corrected in the prose, not pinned. No tool compares the verdict that a sentence states with the case.
+The case pins what the sentence says about the text: its verdict, and its brackets or words where the sentence says how the text reads. Before you add a case, parse the quoted text to make sure that the claim holds. If the claim is false, correct the prose. No tool compares the verdict that a sentence states with the case.
 
 When a case fails, the JavaScript corpus runner names the lines that the case pins, as `quoted at grammars/syntax/cll.md:669`. These are the lines that quote the case's text, and those that quote a fragment that an entry of `quoted-allow.txt` pins with the case. The prose there can be false.
 
@@ -341,7 +343,7 @@ Each entry of `quoted-allow.txt` covers one quoted text in one document: every l
   These tokens, with their attachments, also stand together in the case's text: no letter between them is outside them. So `mi ui klama` shows `mi klama`, and `mi do si klama` does not. With `reject`, the dialect rejects the case. Both `at` and the parsed error's source start lie within the quoted text or its following word. The cases include each required dialect, even when a whole-text case contains the fragment's words. Such a whole-text case does not pin the fragment's claim.
 
   This form is for a part of a text that the sentence makes a claim about: a special grouping, a rejection or a repair. An example is `na'e ka'e` as one `simple-tense-modal`. The author makes sure that the role is the one that the sentence gives the fragment.
-- ` # ` and the reason. This form is for notation, such as `nu'i terms nu'u`, and for a shape that a rule produces as written, such as `mi .e do`. It is also for a part of a reading that the grammar does not choose, where the whole text has its own case. A reason beginning with "deferred:" names the branch responsible for the text's pin.
+- ` # ` and the reason. This form is for notation, such as `nu'i terms nu'u`, and for a shape that a rule produces as written, such as `mi .e do`. It is also for a part of a reading that the grammar does not choose, where the whole text has its own case. A reason that begins with "deferred:" names the branch responsible for the text's pin.
 
 The sentence on each line makes its own claim. When a document quotes an unpinned text on several lines, its entry names those lines. Each line can also have its own entry.
 

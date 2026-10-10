@@ -8,7 +8,7 @@ Every gencmu library offers the same operations on the same data. An API is the 
 
 A dialect defines a parsing pipeline. A pipeline runs grammar stages in sequence. A stage is one step with its own grammar. A pipeline document and the grammar documents that it includes define a dialect. The pipeline document names the stages of the dialect. A library loads a dialect in three ways:
 
-- It loads a dialect by name, from the grammars bundled in the package. The name is the file name of a pipeline document under `grammars/dialects/` without `.md`. So the names are `cll-ebnf`, `bpfk`, `experimental`, `zantufa` and `notation`.
+- It loads a dialect by name, from the grammars bundled in the package. The name is the file name of a pipeline document under `grammars/dialects/` without `.md`. The names are `cll-ebnf`, `kihei`, `bpfk`, `experimental`, `zantufa` and `notation`.
 - It loads a pipeline document from disk. The library finds its grammar documents relative to it. Its `unicode.txt` and `notation/bootstrap.json` come from the bundled grammars. Each document is known by its absolute path, so an error names the same file from any working directory.
 - It loads documents held in memory: a map from `/`-separated path to text, and the path of the pipeline document in the map. The map can supply its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`. Any of these that the map lacks come from the bundled grammars. The exception is the portable JavaScript entry point, which has no bundle to read. There, the map must hold the first two (see "JavaScript").
 
@@ -20,19 +20,21 @@ A dialect that cannot be loaded is an error. A dialect cannot be loaded when a d
 
 The error is an exception in JavaScript and Python, and a returned error in Go and Rust. It carries a message with the document, line and column where known. A tie has no line or column.
 
-Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches. A grammar DOM is a parsed grammar document.
+Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
 
-DOM is short for document object model. Grammar DOM format 22 supports ranked expressions. Parse-result format 11 reports the restored chosen derivation first in an elision-only error.
+Grammar DOM format 22 supports ranked expressions.
 
 The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
 
 ### The dialect's features
 
+A feature is a named switch that the grammars of the dialect test (engine §13).
+
 A loaded dialect lists its features (engine §13), in code point order of the names. The list includes the gates of the entries of its classifiers. Each feature in the list has its name, its kind (`gate` or `warning`), and whether the pipeline turns it on by default. The CLI and the playground use the list to offer the features by name.
 
 ### Parsing
 
-A feature is a named switch that the grammars of the dialect test (engine §13). A loaded dialect parses a text with these configuration arguments. Each argument is optional:
+A loaded dialect parses a text with these configuration arguments. Each argument is optional:
 
 | Argument | Default | Meaning |
 | --- | --- | --- |
@@ -56,6 +58,8 @@ Parsing is synchronous, and you can use a loaded dialect for any number of parse
 
 ### The result
 
+Parse-result format 11 reports the restored chosen derivation first in an elision-only error.
+
 The result has the fields of `docs/output.md`, in the data types of the language. These fields are `ok`, the stages, the `tree` of the last stage, the `error`, and the `warnings`. `warnings` is an empty list when there are no warnings.
 
 `unique` means exactly one [admitted derivation](notation.md#ranked-choices). `resolved` means several admitted derivations with exactly one best. Several best admitted derivations give a tie.
@@ -76,11 +80,11 @@ Every library writes the canonical JSON of a result as text, in the key order th
 
 Some entry points exist for tests and tools. They are outside the common API, and each language spells them its own way. Each library can feed pre-built tokens to the first stage in place of the characters of a text. This uses the `tokens` argument in JavaScript, `Dialect.parse_tokens(tokens, text, ...)` in Python, `(*Dialect).ParseTokens(text, tokens, options)` in Go, and `Dialect::parse_tokens(tokens, options)` in Rust. A token that the caller supplies has its text as its label (engine §5).
 
-In JavaScript, Python and Go, a caller's token has a source and a span. Its source counts code points of the text. It must start at 0 or later, end at or after its start, and end within the text. The sources of two tokens can overlap or lie out of order (engine §11). Its span counts tokens of the stage before, not code points, so it has no upper bound.
+In JavaScript, Python and Go, a caller's token has a source and a span. Its source counts code points of the text. It must start at 0 or later, end at or after its start, and end within the text. The sources of two tokens can overlap or lie out of order (engine §11).
 
-It must start at 0 or later and end at or after its start. A token that breaks either rule is a usage error. The `InputToken` of Rust has no source and no span. The library gives each token its span, and a source in a text of the tokens' texts joined with single spaces.
+Its span counts tokens of the stage before, not code points, so it has no upper bound. The span must start at 0 or later and end at or after its start. A token that breaks the source or span rules is a usage error.
 
-So these always lie within the text.
+The `InputToken` of Rust has no source and no span. The library gives each token its span, and a source in a text of the tokens' texts joined with single spaces. The generated source range always lies within that text.
 
 A caller cannot supply attachments (engine §11). In JavaScript, Python and Go, a caller's token has the type of a token that a stage emits. So it can hold attachments: `before` and `after`, or `Before` and `After` in Go. In these three libraries, a caller's token whose attachments are not empty is a usage error. The library accepts empty lists and drops them. The `InputToken` of Rust has no such fields.
 

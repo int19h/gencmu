@@ -42,7 +42,7 @@ println!("{}", gencmu::to_json(&result));
 
   A token also has its attachments, `before` and `after`. These are tokens that belong to it and that no later stage reads, such as the indicators after a word. Each is an `Attachment`, a token without a span, with attachments of its own. Both lists are empty unless an emission gives the token attachments.
 
-  The warnings are those of the warning features that are turned on. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage. Tags are a `BTreeSet<String>`, each tag in its canonical spelling, such as `'a'` for a character tag. A character token of the first stage carries only its character tag.
+  The warnings are those of the enabled warning features. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage. Tags are a `BTreeSet<String>`, each tag in its canonical spelling, such as `'a'` for a character tag. A character token of the first stage carries only its character tag.
 
 Lowering can find grammar defects for the features of a parse. Examples include a chain beside another alternative or a repeated item that can match no tokens. The dialect loads, but parsing returns a result whose error has kind `ParseErrorKind::Grammar` and the stage's name. It does not return an `Error`. Its message begins with the document, line and column of the definition that wrote the alternative at fault, as `g.md:4:1:`.
 
@@ -56,7 +56,7 @@ For tests and tools: `Dialect::parse_tokens` feeds tokens straight to the first 
 
 A DOM holds the document's constants, classifiers and implications as the document writes them, never their values. The loader gives each constant its value when it stitches a stage. A stage resolves its classifiers for the features of each parse, once for each set of features.
 
-The DOM format is 18. Braces are a `repeat`, with a `separator` for `{x \ s}`. A chain has `chain` set to `left` or `right` and forms its alternative's whole expression. An elidable optional, `[+T x]`, is an `optional` with `elidable`, and `[++T x]` also has `maximal`. No directive names elidable terminators: `%elidable` is a syntax error.
+The DOM format is 22. Braces are a `repeat`, with a `separator` for `{x \ s}`. A chain has `chain` set to `left` or `right` and forms its alternative's whole expression. An elidable optional, `[+T x]`, is an `optional` with `elidable`, and `[++T x]` also has `maximal`. No directive names elidable terminators: `%elidable` is a syntax error.
 
 A capture can stand anywhere in an alternative but inside braces or an elidable optional, and a production holds each name once. A production can have any number of captures. Each capture forms part of the identity of a recognizer item. A capture whose rule can end in many places multiplies items (engine §4).
 
