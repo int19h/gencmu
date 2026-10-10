@@ -709,6 +709,8 @@ A directive is a keyword and its operands. By convention each stands in a block 
 
 ## Pipelines
 
+For a procedure with commands and tree examples, read [Implement a dialect](dialects.md).
+
 A pipeline document, which is Markdown too, defines a dialect. Each stage is a heading, followed by the list of its documents. Prose then says what the stage receives, does and hands on. Pipeline directives in `jbogenbau` blocks say what the pipeline is made of:
 
 ````markdown
