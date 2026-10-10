@@ -25,7 +25,7 @@ A stage has one of these forms:
 {"name":"syntax","verdict":"tie","witness":[ACTION,ACTION]}
 ```
 
-`verdict` is `unique`, `resolved`, `tie`, or `null` for a stage that rejected ([notation, “Ambiguity”](notation.md#ambiguity)). `witness` is present only for a `tie`. It is the pair of actions at the first visible difference between the two readings of the tie (engine §6). The action of the first reading comes first.
+`verdict` is `unique`, `resolved`, `tie`, or `null` for a stage that rejected ([Ambiguity](notation.md#ambiguity)). `witness` is present only for a `tie`. It is the pair of actions at the first visible difference between the two readings of the tie (engine §6). The action of the first reading comes first.
 
 If there is no visible difference, it is the pair at their first difference. That is the first pair of differing actions of the whole sequences, transparent ones included. A derivation whose visible sequence is a proper prefix of the other's differs from it where the shorter ends.
 

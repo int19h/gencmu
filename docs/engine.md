@@ -152,7 +152,7 @@ A seal is an opaque leaf supplied by a ranked choice (§4.1). Private conditions
 
 The ranked helper uses the existing tag constructors. An untagged unary production inherits its child's tags. Untagged zero-symbol and multi-symbol productions return empty tags. Explicit tag terms replace inheritance.
 
-Compute provable emptiness over all lowered alternatives and helpers, including disabled features. Mark a rule or helper unsafe when either explicit tag term differs from literal `∅` after constant expansion. Without explicit terms, mark it unsafe when its only lowered symbol is a terminal.
+Compute provable emptiness over all lowered alternatives and helpers, including disabled features. Mark a rule or helper unsafe when an explicit tag term differs from literal `∅` after constant expansion. Without explicit terms, mark it unsafe when its only lowered symbol is a terminal.
 
 Add an inheritance edge from every other untagged unary production to its child rule or helper. Propagate unsafe marks backward until no mark changes. Every unmarked rule or helper is provably empty. Explicit `∅` blocks inheritance. Zero-symbol and multi-symbol productions introduce no unsafe mark or edge.
 
@@ -209,7 +209,7 @@ So a chain beside another alternative is reported before an empty item, whicheve
    Lowering finds both errors of this step when it lowers the grammar for features that make them. It reports each one at the definition that wrote the alternative, as for any error of lowering. The order is the one that the start of this section gives. A gate or a `%extend-rule` can make either error depend on the features, and a warning guard never removes an alternative.
 
    A flat list is one helper, so its closes are transparent (§6), and the clauses of its rule apply only to the rule's whole constituent. Some grammars need each prefix of a list as a constituent, which the ranking and the rule's conditions see. Such a grammar writes a chain or explicit recursion.
-4. A ranked expression lowers to one transparent helper with ordered options. Every expansion retains its option index and written expression identity. An invocation is one call of a named rule. Its entry retains the enclosing named invocation and complete prefix state.
+4. A ranked expression lowers to one transparent helper with ordered options. Every expansion retains its option index and written expression identity. An invocation is a recognition state of one named rule, as §6.1 defines it. Its entry retains the enclosing named invocation and complete prefix state.
 
    Conditions keep that named scope for `$`, `from`, and `after`. Private bindings leave the continuation environment after ready gates. Proofs retain them for output and diagnostics.
 
