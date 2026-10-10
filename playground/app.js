@@ -47,19 +47,19 @@
     { label: "Lojban written in Cyrillic", text: "ми клама ле зарши", dialect: "cll-ebnf" },
     { label: "BPFK accepts an omitted ending", text: "le lojbo se farvi le loglo gi'enai mintu ja dunli le logla", dialect: "bpfk" },
     { label: "A whole MOI expression wins (Zantufa)", text: "mi se su'i pa re moi", dialect: "zantufa",
-      document: "syntax/zantufa.md", rule: "%rule tanru-unit-1",
+      document: "syntax/zantufa.md", rule: "tanru-unit-1",
       hint: "A ranked choice prefers the first qualifying option over the same text. MOI makes the expression describe something. Replace ≻ with | in the open MOI group to see a tie." },
     { label: "A whole MOI expression wins (experimental)", text: "mi se ga pa gi re moi", dialect: "experimental",
-      document: "syntax/experimental.md", rule: "%redefine-rule tanru-unit-2",
+      document: "syntax/experimental.md", rule: "tanru-unit-2",
       hint: "SE exchanges argument places. The whole mathematical expression with MOI wins over this conversion. Replace ≻ with | in the open MOI group to see a tie." },
     { label: "ME prefers an argument (experimental)", text: "mi me by", dialect: "experimental", tab: "tree",
-      document: "syntax/experimental.md", rule: "%rule me-unit",
+      document: "syntax/experimental.md", rule: "me-unit",
       hint: "A sumti is an argument. A mex is a mathematical expression. The ME operand is a sumti. Reverse sumti ≻ mex to select mex." },
     { label: "ME accepts a number (experimental)", text: "mi me pa", dialect: "experimental", tab: "tree",
-      document: "syntax/experimental.md", rule: "%rule me-unit",
+      document: "syntax/experimental.md", rule: "me-unit",
       hint: "Here pa qualifies only as a mathematical expression. The earlier sumti option excludes nothing." },
     { label: "The earliest, longest tense wins (CLL)", text: "mi viska pu va ca gi do gi la djan", dialect: "cll-ebnf",
-      document: "syntax/cll.md", rule: "%rule(leftmost-longest) simple-tense-modal",
+      document: "syntax/cll.md", rule: "simple-tense-modal",
       hint: "The leftmost-longest rule flag prefers the earlier tense pu va. Remove (leftmost-longest) from the open rule to see a tie." },
     { label: "A rule with preferred options (notation)", text: "%rule text (a ≻ b ≻ c)", dialect: "notation", tab: "tree",
       hint: "The notation dialect reads grammar source as text. The Tree tab shows ranked-choice. Change ≻ to | to see ordinary alternatives." },
@@ -67,6 +67,9 @@
       text: "%rule text $x(pair)\n%conditions\n  $x ≅ @(A ⋯ B),\n  $x ≇ @(⋮ C),\n  $x ≅ @(A ⋰),\n  $x ≅ @(⋱ B)",
       hint: "A tree pattern tests a constructed tree. Here ≅ requires a match, and ≇ rejects one. ⋯ skips children at one level. ⋮ searches downward through the tree. ⋰ follows first children, and ⋱ follows last children. Edit the Text box to change the rule." },
   ];
+
+  // Navigation waits for the worker's current grammar and source locations.
+  let exampleRule = null;
 
   // ---- State ----------------------------------------------------------------
 
@@ -210,6 +213,7 @@
       view,
       trace,
       audit: state.tab === "audit",
+      locateRule: exampleRule ? { stage: "syntax", name: exampleRule.rule } : null,
     };
   }
 
@@ -298,7 +302,19 @@
         remember(message);
         // An answer for an earlier state is not shown; the run for the
         // current one is on its way, and the page stays busy until it comes.
-        if (running.generation === generation) show(message);
+        if (running.generation === generation) {
+          show(message);
+          if (exampleRule) {
+            const location = message.ruleLocation;
+            if (location) openDocument(location.document, location.line, location.column);
+            else {
+              const hint = $("example-hint");
+              hint.textContent = `Cannot find rule ${exampleRule.rule} in the active grammar. ` + (exampleRule.hint || "");
+              hint.hidden = false;
+            }
+            exampleRule = null;
+          }
+        }
         break;
       }
       case "failed":
@@ -975,9 +991,9 @@
       hint.hidden = !example.hint;
       renderOptions();
       renderDocuments();
+      exampleRule = example.rule ? example : null;
       if (example.document) {
-        const line = normalized(client.text(example.document)).split("\n").findIndex((line) => line.startsWith(example.rule)) + 1;
-        openDocument(example.document, line, 1);
+        openDocument(example.document, 1, 1);
       } else {
         state.open = null;
         $("doc-editor").hidden = true;
