@@ -103,7 +103,7 @@ Indicators after `lu` begin quoted content. Those after `to` and `to'i` attach t
   %include "../syntax/cll.md"
   ```
 
-The stage uses the grammar of CLL 1.1 chapter 21, with selma'o as its terminals. The grammar's [simple tense-modals](../syntax/cll.md#tenses-and-modals) are the forms of `simple-tense-modal`. Their `leftmost-longest` flag prefers the earliest group, then the longest one at that start. This dialect chooses among the remaining parses here:
+The stage uses the printed CLL 1.1 grammar[^cll-c21], with selma'o as its terminals. The grammar's [simple tense-modals](../syntax/cll.md#tenses-and-modals) are the forms of `simple-tense-modal`. Their `leftmost-longest` flag prefers the earliest group, then the longest one at that start. This dialect chooses among the remaining parses here:
 
 ```jbogenbau
 %ambiguity-resolution late-elision elision-only
@@ -113,27 +113,29 @@ Among parses with equal flagged groups, `late-elision` prefers the parse that om
 
 `elision-only` tests the parse that ranking selects after the verdict `resolved`. It does not run after `unique`, and a tie fails before it. The check restores that parse's omitted terminators and parses the restored text with the rule flag, without an elision preference. Another reading of the restored text that the flag does not rank below that parse makes the original text an error. Conditions and tags still read the original words. [The notation document](../../docs/notation.md#elided-terminators) and `docs/engine.md` (§7) give the check exactly.
 
-`le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` also parses, and its description ends before `se farvi`. If terminators, the grammar's flag, and grammar conditions leave an ambiguity unresolved, the text is an error that shows both readings.
+`le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses, and its description ends before `se farvi`. If terminators, the grammar's flag, and grammar conditions leave an ambiguity unresolved, the text is an error that shows both readings.
 
-A tanru is a compound predicate. A bridi-tail is a predicate with its following terms. Conditions settle two connective ambiguities. A JOI before KE joins a group to the preceding tanru unit. A GIhA before KE joins a group of bridi-tails. Where only a plain connective reading completes the text, that reading remains available.
+A tanru is a compound predicate. A tanru unit is one part of a tanru. A bridi-tail is a predicate with its following terms. The CLL grammar settles two connective ambiguities with conditions. `mi broda joi ke brode ke'e` is a `ke` group joined to `broda` by `joi`.
+
+The printed grammar also reads `joi` before a tanru unit that begins with `ke`. The rules `plain-joik-jek` and `joik-before-ke` of the CLL grammar remove that second reading. Where only the plain reading parses, as in `mi broda joi ke brode ke'e bo brodi`, the dialect keeps it, as the printed grammar does.
+
+In the same way, `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails after `gi'e`, as CLL[^cll-s14-10][^cll-s14-18] describes. The printed grammar also reads a plain `gi'e` before a bridi-tail that is one `ke` group. The ranking ties or takes that reading. The condition of the rule `bridi-tail-1-final` of the CLL grammar removes it. Where only the plain reading parses, as in `mi broda gi'e ke brode ke'e brodi`, the dialect keeps it.
 
 ## Differences from CLL and the official parser
 
 gencmu's own Cyrillic assigns different readings from CLL's. This dialect therefore selects only CLL's Cyrillic, while a caller can turn that script off. A caller is the program or person asking for a parse.
 
-CLL[^cll-s21-1] writes `LU text`, whose initial indicators modify what follows under the text-initial exception of CLL[^cll-s13-9]. Indicators after `lu` therefore begin quoted content. The example[^cll-e19-67] in CLL[^cll-s19-12] gives `sa'a` scope over the whole bracketed remark. The BPFK is a Lojban committee for language definitions. The [BPFK section "Digressives", revision 111784](https://mw.lojban.org/index.php?title=BPFK_Section:_Digressives&oldid=111784) defines `to'i` as "Equivalent to {to sa'a}". These sources support attachment after `to` and `to'i` to the opener.
+CLL[^cll-s21-1] writes `LU text`, whose initial indicators modify what follows under the text-initial exception of CLL[^cll-s13-9]. Indicators after `lu` therefore begin quoted content. The example[^cll-e19-67] in CLL[^cll-s19-12] gives `sa'a` scope over the whole bracketed remark. BPFK is the Lojban language planning committee. The [BPFK section "Digressives", revision 111784](https://mw.lojban.org/index.php?title=BPFK_Section:_Digressives&oldid=111784) defines `to'i` as "Equivalent to {to sa'a}". These sources support attachment after `to` and `to'i` to the opener.
 
-The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs. A quoted text takes the same start as a whole text. CLL[^cll-s21-1] permits initial names or indicators, but not both.
+The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary. Its [closing comparison](../indicators/cll.md#differences-from-cll-and-camxes-std) describes the official parser. A quoted text takes the same start as a whole text. CLL[^cll-s21-1] permits initial names or indicators, but not both.
 
 `late-elision` and `elision-only` together interpret note 10 of CLL[^cll-s21-1]. That note permits an omitted terminator when no grammatical ambiguity results.
 
-The dialect chooses `late-elision` and `elision-only` to fit CLL's conventions. Note 10 does not specify them. It does not say which parse a text has when the grammar allows more than one. Nor does it say how to find that no ambiguity results. `elision-only` tests one completion, as described above. "Choosing among parses" in [the CLL grammar](../syntax/cll.md) separates terminator advice, parser limitations, and boundaries that the whole text forces.
+The dialect chooses `late-elision` and `elision-only` to fit CLL's conventions. Note 10 does not specify them. It does not say which parse a text has when the grammar allows more than one. Nor does it say how to find that no ambiguity results. `elision-only` tests one completion, as described above. "Elision policy and CLL advice" in [the CLL grammar](../syntax/cll.md#elision-policy-and-cll-advice) separates terminator advice, parser limitations, and boundaries that the whole text forces.
 
-Under this policy, `le nanmu joi le ninmu cu klama` parses with KU elided at the boundary that CLL[^cll-s14-14] intends. CLL describes the official parser's failed left-to-right reading. "Choosing among parses" in [the CLL grammar](../syntax/cll.md) explains the same kind of forced boundary in the examples[^cll-e8-48][^cll-e8-62]. CLL describes their merged readings without naming the official parser. The elision policy disagrees with no specific text of CLL.
+Under this policy, `le nanmu joi le ninmu cu klama` parses with KU elided at the boundary that CLL[^cll-s14-14] intends. CLL describes the official parser's failed left-to-right reading. "Elision policy and CLL advice" in [the CLL grammar](../syntax/cll.md#elision-policy-and-cll-advice) explains the same kind of forced boundary in the examples[^cll-e8-48][^cll-e8-62]. CLL describes their merged readings without naming the official parser. The elision policy disagrees with no specific text of CLL.
 
-The CLL grammar settles two ambiguities with conditions, as the official parser does. `mi broda joi ke brode ke'e` is a `ke` group joined to `broda` by `joi`. The printed grammar also reads `joi` before a tanru unit (a part of a compound predicate) that begins with `ke`. The rules `plain-joik-jek` and `joik-before-ke` of the CLL grammar remove that second reading. Where only the plain reading parses, as in `mi broda joi ke brode ke'e bo brodi`, the dialect keeps it, as the printed grammar does.
-
-In the same way, `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails after `gi'e`, as CLL[^cll-s14-10][^cll-s14-18] describes. The printed grammar also reads a plain `gi'e` before a bridi-tail that is one `ke` group. The ranking ties or takes that reading. The condition of the rule `bridi-tail-1-final` of the CLL grammar removes it. Where only the plain reading parses, as in `mi broda gi'e ke brode ke'e brodi`, the dialect keeps it.
+The official parser settles both connective ambiguities in the same way.
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).
 

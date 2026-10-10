@@ -4,7 +4,7 @@ CLL is *The Complete Lojban Language*. The BPFK is a Lojban committee for langua
 
 [CLL 1.3.4](https://github.com/int19h/cll/blob/v1.3.4/chapters/a02.xml) prints that grammar in appendix A2. [`../words/bpfk.md`](../words/bpfk.md) translates that grammar rule by rule.
 
-The executable baseline is `camxes.peg` at ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg).
+camxes-std is the standard camxes grammar. The executable baseline is `camxes.peg` at ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg).
 
 Outside the working morphology and the project choices below, this dialect follows CLL 1.1. It uses the [Magic Words stream](../words/stream.md) and the shared CLL indicator stage. Both CLL dialects use `late-elision elision-only` for omitted terminators. Their numbers and letter strings are indivisible. The project choices below specify this dialect's erasure, elision, and connective policies.
 
@@ -42,7 +42,7 @@ A feature is a named switch that the grammars test. The dialect turns on `su-bou
   ```jbogenbau
   %include "../phonemes/cyrillic.md"
   ```
-- [The Cyrillic orthography of CLL](../phonemes/cyrillic-cll.md): CLL[^cll-s3-12]'s Cyrillic, which a caller chooses with the feature `cll-cyrillic`
+- [The Cyrillic orthography of CLL](../phonemes/cyrillic-cll.md): the Cyrillic of CLL[^cll-s3-12], which a caller chooses with the feature `cll-cyrillic`
   ```jbogenbau
   %include "../phonemes/cyrillic-cll.md"
   ```
@@ -115,6 +115,8 @@ The stage does not order the alternatives of a rule. A text that remains ambiguo
 
 ## Differences from CLL, BPFK proposals and camxes-std
 
+### Sources and word forms
+
 The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&oldid=109606) defers morphology. The [Formal Grammar section](https://mw.lojban.org/index.php?title=BPFK_Section:_Formal_Grammar&oldid=111787) proposes replacing YACC with a PEG. CLL 1.3.4[^cll-later-a3-1] keeps EBNF (Extended Backus-Naur Form) and YACC as the official syntax. It describes camxes PEG syntax as practice without ratification.
 
 A rafsi is a word form used inside compounds. A brivla is a predicate word. The working morphology has extended rafsi. One kind lets a non-borrowing brivla stand whole before `'y` inside a compound, as in `klama'ybroda`. Neither CLL 1.1[^cll-c4] nor CLL 1.3.4[^cll-later-c4] teaches that form in its chapter on word forms.
@@ -123,11 +125,13 @@ CLL 1.3.4[^cll-later-s4-16] already teaches the borrowing form, as in `spageti'y
 
 The working morphology also lets a `Cy` letter word stand before another word without a pause, so `fyno` is `fy no`. CLL[^cll-s4-9] requires a pause there.
 
-The BPFK recorded one decision on syntax, and this dialect does not apply it. On 15 March 2016, the BPFK [ruled](https://mw.lojban.org/index.php?title=BPFK:_lo_nu_broda_ba_brode&oldid=119454) that a tag attaches to a following selbri, the predicate of a sentence, unless `ku` closes the tag. So `lo nu broda ba brode` means `lo nu broda cu ba brode`. This dialect keeps the reading of CLL 1.1, where `ba` is a term inside the `nu` clause, the abstraction: `(lo [{nu (broda ba)} brode])`. camxes-std, the reference parser of `camxes.peg`, follows the decision and puts `ba` on `brode`.
+The BPFK recorded one decision on syntax, and this dialect does not apply it. On 15 March 2016, the BPFK [ruled](https://mw.lojban.org/index.php?title=BPFK:_lo_nu_broda_ba_brode&oldid=119454) that a tag attaches to a following selbri, the predicate of a sentence, unless `ku` closes the tag. So `lo nu broda ba brode` means `lo nu broda cu ba brode`. This dialect keeps the reading of CLL 1.1, where `ba` is a term inside the `nu` clause, the abstraction: `(lo [{nu (broda ba)} brode])`. camxes-std follows the decision and puts `ba` on `brode`.
+
+### Indicator boundaries and NAI
 
 CLL[^cll-s21-1] writes `LU text`, whose initial indicators modify what follows under the text-initial exception of CLL[^cll-s13-9]. Indicators after `lu` therefore begin quoted content. The example[^cll-e19-67] in CLL[^cll-s19-12] gives `sa'a` scope over the whole bracketed remark. The [BPFK section "Digressives", revision 111784](https://mw.lojban.org/index.php?title=BPFK_Section:_Digressives&oldid=111784) defines `to'i` as "Equivalent to {to sa'a}". These sources support attachment after `to` and `to'i` to the opener.
 
-The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary and how the official parser differs. A quoted text takes the same start as a whole text. CLL[^cll-s21-1] permits initial names or indicators, but not both.
+The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary. Its [closing comparison](../indicators/cll.md#differences-from-cll-and-camxes-std) describes the official parser. A quoted text takes the same start as a whole text. CLL[^cll-s21-1] permits initial names or indicators, but not both.
 
 This dialect departs from [camxes-std](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L343-L1100) on NAI attachment. camxes-std lets UI and CAI clauses recursively take more indicators before their following optional NAI. Repeated NAI can therefore close successive indicator levels. The difference changes both acceptance and negation scope, in attached and leading runs.
 
@@ -137,11 +141,13 @@ In cll-ebnf and bpfk, `mi pu ui da'o nai klama` negates `pu`. camxes-std instead
 
 In cll-ebnf and bpfk, `mi ui ia nai nai klama` fails. camxes-std accepts it and gives each attitudinal its own NAI.
 
-The Magic Words proposal names these boundaries but leaves their survival unspecified. camxes-std also stops at these boundaries. Under CLL[^cll-s19-13], SU erases the whole text.
+### Erasure and elision
 
-CLL gives terminator advice and describes some limitations of its official parser. This policy follows the intended boundary where the whole text forces it. Where nothing forces that boundary, the policy keeps the reading that CLL warns about.
+This dialect's `su-boundary`, a project choice, stops SU at `ni'o`, `no'i`, `lu`, `tu'e`, `to` and `to'i`. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) names those boundaries but leaves their survival unspecified. camxes-std also stops at these boundaries. Under CLL[^cll-s19-13], SU erases the whole text.
 
-"Choosing among parses" in [the CLL grammar](../syntax/cll.md) explains the forced boundaries in the examples[^cll-e8-48][^cll-e8-62]. CLL describes the merged readings that a left-to-right reading of the words gives. The whole text forces the boundary where CLL writes the terminator. The elision policy disagrees with no specific text of CLL.
+CLL gives terminator advice and describes some limitations of its official parser. The elision policy follows the intended boundary where the whole text forces it. Where nothing forces that boundary, the elision policy keeps the reading that CLL warns about.
+
+"Elision policy and CLL advice" in [the CLL grammar](../syntax/cll.md#elision-policy-and-cll-advice) explains the forced boundaries in the examples[^cll-e8-48][^cll-e8-62]. CLL describes the merged readings that a left-to-right reading of the words gives. The whole text forces the boundary where CLL writes the terminator. The elision policy disagrees with no specific text of CLL.
 
 A PEG commits to choices before it knows whether the whole text parses. This dialect follows the whole text instead. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses with the description ending before `se farvi`.
 
