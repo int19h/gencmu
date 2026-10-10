@@ -1,12 +1,14 @@
 # The Cyrillic orthography of CLL
 
-This document adds CLL 1.1 section 3.12's Cyrillic orthography to the phoneme stage, the first stage of the pipeline. CLL is *The Complete Lojban Language*. The [CLL](../dialects/cll-ebnf.md) dialect reads it as its Cyrillic. The dialects of the [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read gencmu's own Cyrillic, [cyrillic.md](cyrillic.md), unless a caller turns on the feature `cll-cyrillic`. A feature is a named switch that the grammars test.
+This document adds the Cyrillic orthography of *The Complete Lojban Language* (CLL)[^cll-s3-12] to the phoneme stage, the first stage of the pipeline. The [CLL](../dialects/cll-ebnf.md) dialect reads it as its Cyrillic.
+
+The [BPFK](../dialects/bpfk.md), the Lojban language planning committee, [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) dialects read gencmu's own Cyrillic, [cyrillic.md](cyrillic.md). A caller can instead select CLL's Cyrillic with `cll-cyrillic`. A feature is a named switch that the grammars test.
 
 The two read the same letters differently, so a dialect or a caller chooses one of them. The letters of this document apply only while `cll-cyrillic` is on. The document has no frame of its own, that is, no rules for the text, its pauses and its runs. It adds its letters to the rules of [latin-strict.md](latin-strict.md), so a text can mix scripts. [The notation document](../../docs/notation.md) explains the notation.
 
-CLL 3.12 lists 22 letters. Five are the vowel letters `а`, `е`, `и`, `о` and `у`. The others are `б`, `в`, `г`, `д`, `ж`, `з`, `к`, `л`, `м`, `н`, `п`, `р`, `с`, `т`, `ф`, `х` and `ш`. CLL 3.12 says that the orthography uses these 22 letters "in the obvious ways", and `ъ`, the Bulgarian hard sign, for `y`. So `ж` is `j`, `х` is `x` and `ш` is `c`.
+The rules map 23 letters to phonemes. Five are the vowel letters `а`, `е`, `и`, `о` and `у`. Seventeen are the consonants `б`, `в`, `г`, `д`, `ж`, `з`, `к`, `л`, `м`, `н`, `п`, `р`, `с`, `т`, `ф`, `х` and `ш`. The Bulgarian hard sign `ъ` maps to `y`. So `ж` is `j`, `х` is `x` and `ш` is `c`.
 
-The apostrophe, the comma and the period are those of the Latin orthography. The orthography writes a diphthong as a vowel pair, as in the Latin orthography, so `маи` is `mai`. CLL 3.12 says nothing of capitals. This document reads them as the Latin orthography does: a capital vowel is stressed, and a capital consonant is the consonant. The all-capital runs of [latin.md](latin.md) do not apply to these letters, so in every dialect a capital vowel here marks stress.
+The apostrophe, the comma and the period are those of the Latin orthography. The orthography writes a diphthong as a vowel pair, as in the Latin orthography, so `маи` is `mai`. A capital vowel marks stress, and a capital consonant preserves its phoneme. The all-capital runs of [latin.md](latin.md) do not apply to these letters, so in every dialect a capital vowel here marks stress.
 
 ```jbogenbau
 %extend-rule consonant
@@ -58,3 +60,9 @@ The apostrophe, the comma and the period are those of the Latin orthography. The
 <p><img src="../../docs/diagrams/phonemes/cyrillic-cll/cll-cyrillic-plain-vowel.svg" alt="Railroad diagram of the rule cll-cyrillic-plain-vowel"></p>
 <p><img src="../../docs/diagrams/phonemes/cyrillic-cll/cll-cyrillic-stressed-vowel.svg" alt="Railroad diagram of the rule cll-cyrillic-stressed-vowel"></p>
 </details>
+
+## Choices beyond CLL
+
+CLL first lists 22 letters, which it maps "in the obvious ways". It then assigns the Bulgarian hard sign to `y`.[^cll-s3-12] This grammar maps all 23 letters. CLL says nothing about capitals. This document extends the Latin treatment of capitals to Cyrillic. Its capital vowels always mark stress, including in dialects with capital folding for other scripts.
+
+[^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).

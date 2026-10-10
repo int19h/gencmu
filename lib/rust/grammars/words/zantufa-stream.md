@@ -104,7 +104,7 @@ In a `lo'u` or `lo'ai` quote, the stage tags such a word `word` only, like every
 <p><img src="../../docs/diagrams/words/zantufa-stream/read-word.svg" alt="Railroad diagram of the rule read-word"></p>
 </details>
 
-A magic word is never a plain word. The stream's list of them, `$MAGIC-WORDS`, lacks RAhOI, GOhOI and MUhOI, which only Zantufa has. It also lacks LOhAI and LEhAI. The experimental dialect reads a bare marker of these as a plain word, and Zantufa does not. This document adds all five classes to the list.
+A magic word is never a plain word. `$MAGIC-WORDS` adds RAhOI, GOhOI, MUhOI, LOhAI and LEhAI to the shared list. The constant excludes these classes from plain words, so a bare LOhAI or LEhAI is never a plain word. A bare marker is an opener that forms no complete quote. Only the classes in the [later `bare-marker` rule](#bare-markers) have the SI/BU fallback.
 
 A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads as an unquoted word opens a text of its own. The forms stage gives the tag `opener-space` to the hesitation after such a word. A tag marks a token by name, phoneme or character. So that hesitation is space, and the word takes it with it. Inside a quote, such a hesitation is an attached Y word, as in `zo luyy si`, which erases the `yy` and keeps `zo lu`.
 
@@ -172,6 +172,8 @@ The forms stage hands on the form after `ra'oi` as a `rafsi-form` token, even wh
 <p><img src="../../docs/diagrams/words/zantufa-stream/delimiter.svg" alt="Railroad diagram of the rule delimiter"></p>
 </details>
 
+## Bare markers
+
 A quote word that opens no quote is an ordinary word in Zantufa, which `si` erases. Zantufa's `si_word` tries the quotes first, and then reads any cmavo but `bu`, a word of SI or SU, and `fa'o`. So `zoi si broda` is `broda`, and `lo'u si` is nothing. A bare marker can occupy a unit before SI or BU. It remains bare only where no complete quote begins.
 
 `zo` and the words of GOhOI always quote the next word, so they are never bare. So a bare marker is a word of ZOI, MUhOI, LOhU, LOhAI or RAhOI, the other quotes of `si_word`.
@@ -231,3 +233,7 @@ The lookahead skips erased regions before BU. Thus `su mi si bu` forms the lette
 <p><img src="../../docs/diagrams/words/zantufa-stream/su-letter-tail.svg" alt="Railroad diagram of the rule su-letter-tail"></p>
 <p><img src="../../docs/diagrams/words/zantufa-stream/su-word.svg" alt="Railroad diagram of the rule su-word"></p>
 </details>
+
+## Differences from the shared word stream
+
+The shared list lacks RAhOI, GOhOI and MUhOI, which only Zantufa uses. It also omits LOhAI and LEhAI because the experimental dialect permits their bare markers as plain words. Zantufa does not read a bare LOhAI or LEhAI as a plain word. Its SI/BU fallback applies only to `bare-marker`.

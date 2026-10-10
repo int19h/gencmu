@@ -1,6 +1,8 @@
 # Discourse frames (ki'ei)
 
-This dialect adds `ki'ei` phrases to CLL. A frame is a context for subsequent utterances. The proposed meaning sets the world in which those utterances hold as true.
+This dialect is a small example of extending the grammar of *The Complete Lojban Language* (CLL). It adds the particle `ki'ei` from [Ntsékees's proposal in Lensisku](https://lensisku.lojban.org/en/valsi/ki%27ei). An utterance is a statement or a fragment, as in CLL's `paragraph`. A frame is a context for subsequent utterances.
+
+The proposal uses the material after `ki'ei` as the context or world for following utterances. Another `ki'ei` phrase resets that context.
 
 The dialect includes CLL and then extends its forms and syntax stages. The CLL documents explain the inherited rules and parsing policy.
 
@@ -9,9 +11,9 @@ The dialect includes CLL and then extends its forms and syntax stages. The CLL d
   %include "cll-ebnf.md"
   ```
 
-A payload is the material after a marker. The payload after `ki'ei` accepts any number of CLL terms, including zero. For example, `ki'ei ko'a .i broda` supplies an argument, and `ki'ei pu zu ku .i broda` supplies a tense. The empty form `ki'ei .i broda` supplies no terms.
+A payload is the material after a marker. A sumti is an argument of a predicate. The frame accepts terms, so tenses and modals can set it as well as sumti. The payload after `ki'ei` accepts any number of CLL terms, including zero. For example, `ki'ei ko'a .i broda` supplies an argument, and `ki'ei pu zu ku .i broda` supplies a tense. The empty form `ki'ei .i broda` supplies no terms.
 
-The CLL word stages already accept the word form of `ki'ei`. The new lexicon contains only this particle. The forms stage assigns its class before the later stages read it.
+The CLL word stages already accept the word form of `ki'ei`. The classifier declaration adds this particle to the inherited CLL lexicon. The forms stage assigns its class before the later stages read it.
 
 ```jbogenbau
 %extend-stage forms
@@ -19,9 +21,9 @@ The CLL word stages already accept the word form of `ki'ei`. The new lexicon con
   "ki'ei" ∈ KIhEI
 ```
 
-The syntax stage reads the new class as the terminal `KIhEI`. The word stages carry this class through indicators and word erasure. The dialect needs no marker rule or class condition.
+The syntax stage reads the new class as the terminal `KIhEI`. The word and indicator stages preserve this class on an ordinary `ki'ei` token. The dialect needs no marker rule or class condition.
 
-The replacement paragraph rule accepts an initial sequence of utterances and subsequent groups with frames. It also accepts groups with frames at the start of a paragraph. Each group contains its frame and the subsequent `.i` sequence.
+The replacement paragraph rule accepts an initial sequence of utterances and subsequent groups with frames. It also accepts groups with frames at the start of a paragraph. Each group contains its frame and any subsequent `.i` sequence.
 
 ```jbogenbau
 %extend-stage syntax

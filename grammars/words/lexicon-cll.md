@@ -1,6 +1,6 @@
 # The CLL lexicon
 
-This document is the lexicon of the forms stage in the [CLL](../dialects/cll-ebnf.md) and [BPFK](../dialects/bpfk.md) dialects. A lexicon is a list of words, each with its classes. The forms stage is the second stage of the pipeline. It divides the phonemes of the text into words. A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo.
+This document is the lexicon of the forms stage in the [CLL](../dialects/cll-ebnf.md) dialect and the dialect of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee. A lexicon is a list of words, each with its classes. The forms stage is the second stage of the pipeline. It divides the phonemes of the text into words. A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo.
 
 This lexicon holds the cmavo of *The Complete Lojban Language* (CLL) with their selma'o. Each entry uses the class from the CLL dictionary. This document collapses the numbered subclasses of the dictionary (`UI3a`, `KOhA7`) to the selma'o that the syntax grammar names. Its maintainers edit it by hand in this repository.
 
@@ -8,7 +8,7 @@ The lexicon below is a classifier. Each of its entries lists words and gives the
 
 If a word has several classes, it carries them all, and the syntax stage reads it under each class. No word of CLL has more than one. The entries stand in the order of their classes. The syntax grammar's `indicator` and `indicators` rules read the words of UI, CAI, DAhO, FUhO and FUhE. The implication after the entries marks each of these words `indicator`. The indicator stage uses this mark to attach indicators to the preceding word, under CLL's non-formal `word` rule.
 
-This lexicon omits the CLL dictionary's `y` (Y). The forms stage reads a run of `y` as hesitation and never looks it up.
+The forms stage reads a run of `y` as hesitation and never looks it up in this classifier.
 
 [The notation document](../../docs/notation.md) explains the notation.
 
@@ -161,3 +161,7 @@ This lexicon omits the CLL dictionary's `y` (Y). The forms stage reads a run of 
 ```jbogenbau
 %implies UI ∪ CAI ∪ DAhO ∪ FUhE ∪ FUhO ⟹ ~indicator
 ```
+
+## Differences from the CLL dictionary
+
+The classifier omits the CLL dictionary's `y` entry in Y. The forms stage recognizes hesitation directly, so this omission preserves its treatment without a dictionary lookup.

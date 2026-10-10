@@ -268,6 +268,14 @@ Unnumbered illustrations keep their inherited numeric fixture labels. Their reas
 
 Numeric suffixes in `adhoc.syntax.errata.*`, `adhoc.syntax.errata-controls.*`, `adhoc.syntax.elision-unforced.*`, and `adhoc.syntax.negation-scope.*` name their original candidate positions. A missing position reused an existing corpus record or repeated the text of another erratum. The reused records explain their cases, and `core.txt` includes their identifiers. New identifiers describe their content.
 
+## CLL footnotes: `cll-footnotes.json`
+
+A footnote is a reference whose definition follows the document. `tools/cll-footnotes.js` compares each CLL footnote with the published headings and example anchors in `cll-footnotes.json`. The file pins CLL 1.1 and the later versioned sources that the documents cite.
+
+A source hash identifies the exact downloaded bytes. Page records include this hash, headings, and example numbers. The check reads the index once and uses no network. Both `tools/sync.js` and the JavaScript document tests run it.
+
+Run `python3 tools/cll-footnotes-index.py` from the repository root to refresh the index from the published sources. The generator reads each source page once. To use saved source pages, add `--cache-dir PATH`. Read each citation's clause to make sure that its source supports the statement. Matching numbers alone do not prove that relationship.
+
 ## Quoted texts: `quoted-allow.txt`
 
 A grammar document often says what gencmu does with a Lojban text that it quotes. A corpus case pins that text. Then a grammar change that makes the sentence false fails the case. `node tools/quoted-texts.js` checks that each quoted text has a case or an entry in the allow-list `quoted-allow.txt`. `node tools/sync.js --check` runs the same check.
