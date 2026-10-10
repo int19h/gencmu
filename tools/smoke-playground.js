@@ -10,6 +10,8 @@
 // shows its error once. With no URL the page is opened from
 // file://, as someone who cloned the repository would; given a URL, that URL
 // is checked instead, which is how a GitHub Pages deployment is tested.
+// Every preset also runs through its selector. Grammar edits expose ties
+// or change the selected operand, and Reset restores the bundled result.
 //
 //   node tools/smoke-playground.js [--browser chrome|firefox] [URL]
 //
@@ -21,6 +23,8 @@
 "use strict";
 const { createRequire } = require("node:module");
 const path = require("node:path");
+const fs = require("node:fs");
+const { execFileSync } = require("node:child_process");
 const { pathToFileURL } = require("node:url");
 
 const args = process.argv.slice(2);
@@ -32,6 +36,8 @@ for (let index = 0; index < args.length; index++) {
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const repository = path.resolve(__dirname, "..");
+const repositoryFiles = new Set(execFileSync("git", ["ls-files", "-z"], { cwd: repository, encoding: "utf8" }).split("\0").filter(Boolean));
 
 function loadPlaywright() {
   try {
@@ -52,6 +58,22 @@ async function main() {
     let page = await instance.newPage();
     /** Runs a function in the page and returns its value. */
     const run = (script, arg) => page.evaluate(script, arg);
+    // The browser parses attributes and resolves generated links before this test.
+    async function assertLinks() {
+      const { base, links } = await run(() => ({ base: location.href,
+        links: [...document.querySelectorAll("a[href]")].map((link) => link.href) }));
+      const { origin, protocol } = new URL(base);
+      for (const href of links) {
+        const url = new URL(href);
+        const pathname = decodeURIComponent(url.pathname);
+        if (url.origin === origin && (url.protocol === protocol || url.protocol === "blob:") && !/\.md\/?$/i.test(pathname)) continue;
+        const prefix = "/int19h/gencmu/blob/main/";
+        const file = path.join(repository, pathname.slice(prefix.length));
+        if (url.origin === "https://github.com" && !url.username && !url.password && url.pathname.startsWith(prefix) &&
+            repositoryFiles.has(pathname.slice(prefix.length)) && fs.existsSync(file) && fs.statSync(file).isFile()) continue;
+        throw new Error(`invalid playground link: ${href}`);
+      }
+    }
     /** Polls a function until it returns something other than null. */
     async function until(what, script, arg) {
       let value = null;
@@ -109,6 +131,58 @@ async function main() {
       return status && ["ready", "error"].includes(status.dataset.state) ? { state: status.dataset.state, status: status.textContent } : null;
     });
     if (started.state !== "ready") throw new Error(`the playground did not become ready: ${started.status}`);
+    await assertLinks();
+    // Each fixture uses the same live DOM assertion as the page and presets.
+    const invalidLinks = [
+      ["unquoted attribute", "<a href=docs/design.md>broken</a>"],
+      ["uppercase attribute", '<a HREF="docs/design.md">broken</a>'],
+      ["character reference", '<a href="docs/design&#46;md">broken</a>'],
+      ["setAttribute", null],
+      ["GitHub raw file", "<a href=https://github.com/int19h/gencmu/raw/main/docs/design.md>broken</a>"],
+      ["missing GitHub file", '<a HREF="https://github.com/int19h/gencmu/blob/main/docs/missing.md">broken</a>'],
+      ["another GitHub repository", '<a href="https://github.com/int19h/another/blob/main/README.md">broken</a>'],
+      ["another branch", '<a href="https://github.com/int19h/gencmu/blob/other/README.md">broken</a>'],
+      ["another origin", '<a href="https://example.com/docs/design.html">broken</a>'],
+      ["repository directory", '<a href="https://github.com/int19h/gencmu/blob/main/docs">broken</a>'],
+    ];
+    for (const [label, html] of invalidLinks) {
+      const href = await run((html) => {
+        const fixture = document.createElement("div");
+        fixture.id = "smoke-link-fixture";
+        if (html) fixture.innerHTML = html;
+        else {
+          const link = document.createElement("a");
+          link.setAttribute("href", "docs/design.md");
+          fixture.append(link);
+        }
+        document.body.append(fixture);
+        return fixture.querySelector("a").href;
+      }, html);
+      let rejected = false;
+      try { await assertLinks(); }
+      catch (error) { rejected = error.message === `invalid playground link: ${href}`; }
+      finally { await run(() => document.getElementById("smoke-link-fixture").remove()); }
+      if (!rejected) throw new Error(`the link assertion allowed ${label}`);
+    }
+    // Local assets, rendered documents, and the editor's Blob downloads qualify.
+    await run(() => {
+      const fixture = document.createElement("div");
+      fixture.id = "smoke-link-fixture";
+      fixture.innerHTML = '<a href="playground/style.css">asset</a><a href="https://github.com/int19h/gencmu/blob/main/docs/notation.md#tree-patterns">document</a>';
+      const download = document.createElement("a");
+      download.href = URL.createObjectURL(new Blob(["grammar"]));
+      download.download = "grammar.md";
+      fixture.append(download);
+      document.body.append(fixture);
+    });
+    try { await assertLinks(); }
+    finally {
+      await run(() => {
+        const fixture = document.getElementById("smoke-link-fixture");
+        URL.revokeObjectURL(fixture.querySelector("a[download]").href);
+        fixture.remove();
+      });
+    }
     const version = await run(() => document.getElementById("version").textContent);
     // The id of every run the page sends from here on.
     await run(() => {
@@ -127,7 +201,7 @@ async function main() {
       const link = document.querySelector("h1 a");
       return link ? { text: link.textContent, href: link.getAttribute("href") } : null;
     });
-    if (!heading || heading.text !== "gencmu" || heading.href !== "https://github.com/int19h/gencmu") {
+    if (!heading || heading.text !== "gencmu" || heading.href !== "https://github.com/int19h/gencmu/blob/main/README.md") {
       throw new Error(`the heading does not link gencmu to the repository: ${JSON.stringify(heading)}`);
     }
 
@@ -152,6 +226,152 @@ async function main() {
       const found = await run(() => self.smokeStale);
       if (found.length) throw new Error(`the page showed an answer for an earlier state as current: ${JSON.stringify(found[0])}`);
     };
+
+    // Every preset runs through the real selector and parser worker.
+    const exampleChecks = [
+      { label: "A sentence", output: /^\(mi \[klama \{le zarci\}\]\)$/ },
+      { label: "A text with omitted endings", output: /tavla/, elided: true },
+      { label: "A repeated le is rejected", rejected: true },
+      { label: "sa erases the earlier words", output: /^do$/, summary: /sa-su \(auto\)/ },
+      { label: "Lojban written in Cyrillic", output: /^\(mi \[klama \{le zarci\}\]\)$/ },
+      { label: "BPFK accepts an omitted ending", output: /gi'e nai/, elided: true },
+      { label: "A whole MOI expression wins (Zantufa)", output: /^\(mi \[\{\(se su'i\) \(pa re\)\} moi\]\)$/,
+        document: "syntax/zantufa.md", rule: "%rule tanru-unit-1", summary: /syntax resolved/,
+        edit: ["(mex MOI #\n     ≻ SE # $w(tanru-unit-1)\n     ≻ $n(NAhE) # tanru-unit-1)", "(mex MOI #\n     | SE # $w(tanru-unit-1)\n     | $n(NAhE) # tanru-unit-1)"], tie: true },
+      { label: "A whole MOI expression wins (experimental)", output: /^\(mi \[\{\(se ga\) pa gi re\} moi\]\)$/,
+        document: "syntax/experimental.md", rule: "%redefine-rule tanru-unit-2", summary: /syntax unique/,
+        edit: ["(mex MOI # ≻ SE # tanru-unit-2)", "(mex MOI # | SE # tanru-unit-2)"], tie: true },
+      { label: "ME prefers an argument (experimental)", output: /me-unit\n\s+ME "me"\n\s+sumti/,
+        document: "syntax/experimental.md", rule: "%rule me-unit",
+        edit: ["ME # (sumti ≻ mex)", "ME # (mex ≻ sumti)"], editedOutput: /me-unit\n\s+ME "me"\n\s+mex/ },
+      { label: "ME accepts a number (experimental)", output: /me-unit\n\s+ME "me"\n\s+mex[\s\S]*number-part · pa/,
+        document: "syntax/experimental.md", rule: "%rule me-unit" },
+      { label: "The earliest, longest tense wins (CLL)", output: /^\(mi \[viska \{\(pu va\) \(\[ca gi\] do gi \[la djan\]\)\}\]\)$/,
+        document: "syntax/cll.md", rule: "%rule(leftmost-longest) simple-tense-modal", summary: /syntax resolved/,
+        edit: ["%rule(leftmost-longest) simple-tense-modal", "%rule simple-tense-modal"], tie: true },
+      { label: "A rule with preferred options (notation)", output: /choice › ranked-choice/,
+        inputEdit: ["≻", "|"], editedOutput: /choice\n/, absent: /ranked-choice/ },
+      { label: "A rule with tree tests (notation)", output: /tree-comparison/,
+        parts: [/tree-comparator · ≅/, /tree-comparator · ≇/, /pattern-item · ⋯/, /'⋮' "⋮"/, /'⋰' "⋰"/, /'⋱' "⋱"/] },
+    ];
+    const presets = await run(() => [...document.querySelectorAll("#examples option")]
+      .filter((option) => option.value !== "").map((option) => ({ value: option.value, label: option.textContent })));
+    if (presets.length !== exampleChecks.length) throw new Error("every example needs a browser assertion");
+    for (const check of exampleChecks) {
+      const preset = presets.find((preset) => preset.label === check.label);
+      if (!preset) throw new Error(`missing example ${check.label}`);
+      await page.locator("#examples").selectOption(preset.value);
+      const text = await page.locator("#input").inputValue();
+      const answer = await answerFor(text);
+      await assertLinks();
+      if (answer.error) throw new Error(`${check.label}: ${answer.error}`);
+      if (check.rejected ? !/rejected by the syntax stage/.test(answer.verdict) : !/^accepted/.test(answer.verdict)) {
+        throw new Error(`${check.label}: unexpected verdict ${JSON.stringify(answer)}`);
+      }
+      if (check.output && !check.output.test(answer.output.trim())) throw new Error(`${check.label}: unexpected output ${answer.output}`);
+      for (const part of check.parts || []) {
+        if (!part.test(answer.output)) throw new Error(`${check.label}: missing ${part} in ${answer.output}`);
+      }
+      const summary = await page.locator("#summary").textContent();
+      if (check.summary && !check.summary.test(summary)) throw new Error(`${check.label}: unexpected summary ${summary}`);
+      if (check.elided) {
+        await page.locator("#show-elided").check();
+        const elided = await answerFor(text);
+        if (!/⟨[^⟩]+⟩/.test(elided.output)) throw new Error(`${check.label}: no omitted terminator`);
+        await page.locator("#show-elided").uncheck();
+        await answerFor(text);
+      }
+      if (check.document) {
+        const opened = await run(() => {
+          const editor = document.getElementById("doc-text");
+          return { path: document.getElementById("doc-path").textContent,
+            line: editor.value.slice(editor.selectionStart).split("\n")[0] };
+        });
+        if (opened.path !== check.document || opened.line !== check.rule) {
+          throw new Error(`${check.label}: the editor did not open the relevant rule: ${JSON.stringify(opened)}`);
+        }
+      }
+      if (check.edit) {
+        const editor = page.locator("#doc-text");
+        const source = await editor.inputValue();
+        if (!source.includes(check.edit[0])) throw new Error(`${check.label}: the suggested edit is absent`);
+        await change("editing a grammar", "doc-text", source.replaceAll(check.edit[0], check.edit[1]), "input");
+        const edited = await answerFor(text);
+        if (edited.error || (check.tie ? !/a tie in the syntax stage/.test(edited.verdict)
+          : !/^accepted/.test(edited.verdict) || !check.editedOutput.test(edited.output))) {
+          throw new Error(`${check.label}: the edit did not show its claimed effect: ${JSON.stringify(edited)}`);
+        }
+        if (check.rule === "%rule(leftmost-longest) simple-tense-modal") {
+          await page.locator("#examples").selectOption(preset.value);
+          await answerFor(text);
+          const line = await run(() => {
+            const editor = document.getElementById("doc-text");
+            return editor.value.slice(editor.selectionStart).split("\n")[0];
+          });
+          if (line !== "%rule simple-tense-modal") throw new Error("changed rule flags prevented navigation to the definition");
+        }
+        await page.locator("#doc-reset").click();
+        const reset = await answerFor(text);
+        if (!check.output.test(reset.output.trim())) throw new Error(`${check.label}: reset did not restore the result`);
+      }
+      if (check.inputEdit) {
+        await type(text.replaceAll(check.inputEdit[0], check.inputEdit[1]));
+        const edited = await answerFor(await page.locator("#input").inputValue());
+        if (edited.error || !/^accepted/.test(edited.verdict) || !check.editedOutput.test(edited.output) || check.absent.test(edited.output)) {
+          throw new Error(`${check.label}: the text edit did not show ordinary alternatives: ${JSON.stringify(edited)}`);
+        }
+      }
+      await assertLinks();
+      console.log(`example works in ${browser}: ${check.label}`);
+    }
+    // Rule navigation uses the reader's exact definitions and active documents.
+    const navigationPreset = presets.find((preset) => preset.label === "A whole MOI expression wins (Zantufa)");
+    const navigationText = "mi se su'i pa re moi";
+    const navigationOutput = "(mi [{(se su'i) (pa re)} moi])";
+    const setNavigationCase = (kind) => run((kind) => {
+      const client = self.playground.client;
+      const syntax = self.gencmuGrammars["syntax/zantufa.md"];
+      const pipeline = self.gencmuGrammars["dialects/zantufa.md"];
+      let changed = syntax;
+      let changedPipeline = pipeline;
+      const marker = "%rule tanru-unit-1\n";
+      if (kind === "prefix") changed = "%rule tanru-unit-1 'prose'\n\n" + syntax.replace(marker, "%rule tanru-unit-10 'w'\n" + marker);
+      else if (kind === "renamed") changed = syntax.replaceAll("tanru-unit-1", "renamed-unit");
+      else if (kind === "moved") {
+        const start = syntax.indexOf(marker);
+        const end = syntax.indexOf("\n%rule ", start + marker.length);
+        if (start < 0 || end < 0) throw new Error("the navigation fixture cannot find the rule body");
+        changed = syntax.slice(0, start) + syntax.slice(end);
+        changedPipeline += "\n```jbogenbau\n" + syntax.slice(start, end) + "\n```\n";
+      }
+      client.setDocument("syntax/zantufa.md", changed);
+      client.setDocument("dialects/zantufa.md", changedPipeline);
+    }, kind);
+    for (const kind of ["prefix", "renamed", "moved", "reset"]) {
+      await setNavigationCase(kind);
+      await page.locator("#examples").selectOption(navigationPreset.value);
+      const answer = await answerFor(navigationText);
+      if (answer.error || answer.output.trim() !== navigationOutput) {
+        throw new Error(`${kind} rule navigation changed the preset result: ${JSON.stringify(answer)}`);
+      }
+      const opened = await run(() => {
+        const editor = document.getElementById("doc-text");
+        const hint = document.getElementById("example-hint");
+        return { path: document.getElementById("doc-path").textContent, offset: editor.selectionStart,
+          line: editor.value.slice(editor.selectionStart).split("\n")[0], hint: hint.hidden ? "" : hint.textContent };
+      });
+      if (kind === "renamed") {
+        if (!opened.hint.includes("Cannot find rule tanru-unit-1 in the active grammar.") || opened.offset !== 0) {
+          throw new Error(`a missing rule was not explained at the document start: ${JSON.stringify(opened)}`);
+        }
+      } else if (opened.path !== (kind === "moved" ? "dialects/zantufa.md" : "syntax/zantufa.md") ||
+          opened.line !== "%rule tanru-unit-1" || opened.hint.includes("Cannot find rule")) {
+        throw new Error(`${kind} rule navigation missed the exact definition: ${JSON.stringify(opened)}`);
+      }
+      await assertLinks();
+    }
+    console.log(`review regression cases work in ${browser}`);
+    await page.locator("#tab-brackets").click();
 
     await choose("dialects/cll-ebnf.md");
     const sentence = "mi klama le zarci";
@@ -330,6 +550,7 @@ async function main() {
     page = await instance.newPage();
     await page.goto(target + conflicting);
     const refused = await idle("the refused feature selection");
+    await assertLinks();
     if (refused.error) throw new Error(`the playground failed: ${refused.error}`);
     if (refused.boxes.length !== 1 || !/The parser could not run/.test(refused.boxes[0]) || !/sa-su/.test(refused.boxes[0])) {
       throw new Error(`a feature both on and off was not shown as one error: ${JSON.stringify(refused)}`);
@@ -350,6 +571,7 @@ async function main() {
     page = await instance.newPage();
     await page.goto(target + "#text=mi%20klama&dialect=cll-ebnf&view=trace");
     const traced = await idle("a trace from a link", "#trace-picker .gap");
+    await assertLinks();
     if (traced.error || !traced.output) throw new Error(`a link to the Trace tab gave no trace: ${JSON.stringify(traced)}`);
     console.log(`playground works in ${browser} at ${target}, ${version}`);
   } finally {
