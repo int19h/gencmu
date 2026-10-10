@@ -1,6 +1,6 @@
 //! A pipeline: the items of a pipeline document, with each `%include`
-//! replaced by the items of the document it names, split into stages at
-//! each `%stage` (engine §13).
+//! replaced by the items of the document it names, assigned to the selected
+//! stage (engine §13).
 
 use std::sync::Arc;
 
@@ -126,7 +126,7 @@ struct Splicer<'d> {
     stage_index: FxMap<String, usize>,
     feature_set: FxSet<String>,
     /// Whether the last item placed went into the stage's last run: an
-    /// include or a `%stage` ends a run.
+    /// include or a stage selector ends a run.
     open_run: bool,
     selected: Option<usize>,
 }

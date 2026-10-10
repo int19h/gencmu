@@ -123,7 +123,7 @@
     return found;
   }
 
-  // The %stage and %include directives of a grammar text, in order.
+  // The stage selectors and %include directives of a grammar text, in order.
   function directives(text) {
     const found = [];
     const all = tokens(text);

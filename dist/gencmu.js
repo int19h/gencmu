@@ -9615,7 +9615,7 @@
       }
       return {
         name: stage.name,
-        stageChanges: (stage.changes ?? []).slice(),
+        stageChanges: (stage.stageChanges ?? []).slice(),
         resolution: resolution ? `${resolution.lean}${resolution.elisionOnly ? " elision-only" : ""}` : "none",
         rules: grammar.rules.size,
         unreachable: [...grammar.rules.keys()].filter((name) => !reachable.has(name)).sort(compareCodePoints),
@@ -11744,12 +11744,12 @@
     /**
      * @param {string} name
      * @param {Grammar} grammar
-     * @param {import("./pipeline.js").StageChange[]} [changes]
+     * @param {import("./pipeline.js").StageChange[]} [stageChanges]
      */
-    constructor(name, grammar, changes = []) {
+    constructor(name, grammar, stageChanges = []) {
       this.name = name;
       this.grammar = grammar;
-      this.changes = changes;
+      this.stageChanges = stageChanges;
     }
 
     /**
@@ -14167,7 +14167,7 @@
 
   // ---- pipeline.js
   // A pipeline: the items of a pipeline document, with each %include replaced
-  // by the items of the document it names, split into stages at each %stage
+  // by the items of the document it names, assigned to the selected stage
   // (engine §13).
 
 

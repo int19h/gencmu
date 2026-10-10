@@ -1,0 +1,20 @@
+{
+  "description": "%redefine-stage takes one name (engine §9).",
+  "document": "```jbogenbau\n%redefine-stage phonemes\n```\n",
+  "expect": {
+    "dom": {
+      "directives": [
+        {
+          "name": "redefine-stage",
+          "args": [
+            "phonemes"
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -6,7 +6,7 @@ import (
 )
 
 // A pipeline: the items of a pipeline document, with each %include replaced
-// by the items of the document it names, split into stages at each %stage
+// by the items of the document it names, assigned to the selected stage
 // (engine §13).
 
 // docItem is an item of a document: a rule, a directive, a constant's
