@@ -25,7 +25,8 @@ const isCll = (url) => url.startsWith("https://lojban.org/publications/cll/cll_v
  */
 export function cllFootnoteProblems(markdown, file, index = pinned) {
   const problems = [];
-  for (const { node, ancestors } of walk(parseMarkdown(markdown))) {
+  const nodes = Array.from(walk(parseMarkdown(markdown)), ({ node, ancestors }) => ({ node, ancestors: [...ancestors] }));
+  for (const { node, ancestors } of nodes) {
     if (node.type !== "link" || !ancestors.some((parent) => parent.type === "footnoteDefinition")) continue;
     if (!isCll(node.url) && !/^CLL\s/.test(text(node))) continue;
     const report = (message) => problems.push(`${file}:${node.position.start.line}: CLL footnote: ${message}`);
@@ -71,6 +72,27 @@ export function cllFootnoteProblems(markdown, file, index = pinned) {
     if (!numbers.length) report("the link label must name a chapter, section, example or appendix");
     for (const [, kind, number] of numbers) {
       if (target[kind] !== number) report(`${kind} ${number} does not match the target (${target.title})`);
+    }
+  }
+  // Page/anchor labels cannot prove that prose says what a source says.
+  // These source-backed guards cover the reviewed placement mistakes.
+  // Other claims still need a reader to compare the clause and source.
+  const definitions = new Map(nodes.filter(({ node }) => node.type === "footnoteDefinition")
+    .map(({ node }) => [node.identifier, node]));
+  const claims = Object.values(index.pages).flatMap((page) => page.supports || []);
+  for (const { node, ancestors } of nodes) {
+    if (node.type !== "paragraph" || ancestors.some((parent) => parent.type === "footnoteDefinition")) continue;
+    const start = node.position.start.offset;
+    const source = markdown.slice(start, node.position.end.offset);
+    for (const claim of claims) {
+      const at = source.indexOf(claim.phrase);
+      if (at < 0) continue;
+      const after = start + at + claim.phrase.length;
+      const reference = nodes.find(({ node: child }) => child.type === "footnoteReference"
+        && child.position.start.offset === after)?.node;
+      const definition = definitions.get(reference?.identifier);
+      const links = definition ? [...walk(definition)].filter(({ node }) => node.type === "link").map(({ node }) => node.url) : [];
+      if (!links.includes(claim.target)) problems.push(`${file}:${node.position.start.line}: CLL footnote: the citation after "${claim.phrase}" must support that clause (${claim.target})`);
     }
   }
   return problems;

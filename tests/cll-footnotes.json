@@ -1827,7 +1827,14 @@
           "example": "7.78",
           "title": "Example 7.78."
         }
-      }
+      },
+      "supports": [
+        {
+          "phrase": "CLL also writes `kulnrsu,omi`.",
+          "target": "https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-anaphoric-rafsi.html#c7e15d3",
+          "excerpt": "fo'a goi le kulnrsu,omi"
+        }
+      ]
     },
     "https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-anglophone-diphthongs.html": {
       "sha256": "71328d4f1be6ebdde92fc7ab67cc30a9903567747cfec2e3567bd5a2f957b9ec",
@@ -7099,7 +7106,14 @@
           "section": "3.7",
           "title": "3.7. Initial Consonant Pairs"
         }
-      }
+      },
+      "supports": [
+        {
+          "phrase": "a triple that CLL forbids,",
+          "target": "https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-initial-pairs.html",
+          "excerpt": "The triples ndj, ndz, ntc, and nts are forbidden."
+        }
+      ]
     },
     "https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-intensity-scale.html": {
       "sha256": "94dba69c029a0a9538ef7a907d5a1e399bee92254615e385c1a762370fa965d7",
@@ -7954,7 +7968,14 @@
           "example": "3.4",
           "title": "Example 3.4."
         }
-      }
+      },
+      "supports": [
+        {
+          "phrase": "CLL writes a pause as a period.",
+          "target": "https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-lojban-characters.html",
+          "excerpt": "The period represents a mandatory pause"
+        }
+      ]
     },
     "https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-lojban-within-mekso.html": {
       "sha256": "29edf4f947372f252d2f0383d0d223eee6f6f23f4cce4213bfa8543eed9537bc",
@@ -11572,7 +11593,14 @@
           "example": "8.65",
           "title": "Example 8.65."
         }
-      }
+      },
+      "supports": [
+        {
+          "phrase": "Relative clauses can come after the inner sumti.",
+          "target": "https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-possessive-sumti.html",
+          "excerpt": "a relative clause immediately following the possessor sumti"
+        }
+      ]
     },
     "https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-predications.html": {
       "sha256": "b073330bdbf8379d81a1c5b9fba39c0956e4a49204dc7b306728b5d88c3ba930",

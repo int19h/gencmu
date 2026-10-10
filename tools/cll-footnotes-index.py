@@ -85,6 +85,27 @@ def build_index(cache_dir=None):
             raise ValueError(f"No numbered heading on {url}")
         pages[url] = {"sha256": hashlib.sha256(data).hexdigest(), "default": first, "anchors": anchors}
 
+    # These reviewed claims catch plausible links to the wrong page.
+    # They are finite citation guards, not a proof of arbitrary prose.
+    # The excerpt is checked against the cached or fetched source once.
+    claims = [
+        ("CLL writes a pause as a period.", "section-lojban-characters.html", "",
+         "The period represents a mandatory pause"),
+        ("a triple that CLL forbids,", "section-initial-pairs.html", "",
+         "The triples ndj, ndz, ntc, and nts are forbidden."),
+        ("CLL also writes `kulnrsu,omi`.", "section-anaphoric-rafsi.html", "c7e15d3",
+         "fo'a goi le kulnrsu,omi"),
+        ("Relative clauses can come after the inner sumti.", "section-possessive-sumti.html", "",
+         "a relative clause immediately following the possessor sumti"),
+    ]
+    for phrase, name, anchor, excerpt in claims:
+        url = BASE + name
+        source_text = text(ET.fromstring(sources[url]))
+        if excerpt not in source_text:
+            raise ValueError(f"Claim evidence is absent from {url}: {excerpt}")
+        target = url + ("#" + anchor if anchor else "")
+        pages[url].setdefault("supports", []).append({"phrase": phrase, "target": target, "excerpt": excerpt})
+
     # GitHub line anchors refer to versioned XML. The chapter's c4 anchor
     # supplies its number. The appendix's a03 anchor and section order
     # supply A3.1, A3.2, and so on, as the rendered edition does.
