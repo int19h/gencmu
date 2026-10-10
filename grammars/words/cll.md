@@ -23,7 +23,7 @@ The forms stage joins two words without a pause only if CLL[^cll-s4-9][^cll-s4-2
 - `open-stress`: The word is a brivla whose stress is not marked. CLL[^cll-s3-9] puts its stress on its penultimate syllable, so no counted syllable can follow it before the next pause. Only a word tagged `uncounted`, one with no counted syllable, can follow it without a pause.
 - `cy`: A `Cy` letter, which rule 6 lets only another `Cy` follow directly
 - `name-intro` and `name-onset`: `name-intro` marks `la`, `lai`, `la'i` and `doi`, and `name-onset` marks a name that begins with a consonant. Rule 4 lets the name follow the cmavo without a pause.
-- `initial-stress` and `final-stress`: The word's first or last syllable is stressed. Such syllables are those of the first and the last vowel nucleus of the word as written, `y` included. A pause must stand between a word with `final-stress` and a following word with `initial-stress` (CLL[^cll-s4-2]). It must also stand before a following brivla, which carries the tag `stress-guard` (rule 5).
+- `initial-stress` and `final-stress`: The word's first or last syllable is stressed. Such syllables are those of the first and the last vowel nucleus of the word as written, `y` included. A pause must stand between a word with `final-stress` and a following word with `initial-stress` (CLL[^cll-s4-2]). It must also stand before a following brivla, which carries the tag `stress-guard` (rule 5).[^cll-s4-9]
 
 C denotes a consonant. V denotes one of `a e i o u`, never `y`. A diphthong combines two vowels in one syllable.
 
@@ -520,7 +520,7 @@ The tests of "Borrowings" for a lujvo or a `combination` use these rules and tre
 
 The stress marks and the pause rules read the syllables as written, with the breaks that the commas mark. `brivla-scan` and `name-scan` of [shapes.md](shapes.md) do not read a comma through. So `tcE,ila` is no word, because its capital is on the first of the three syllables `tce-i-la`. The check without commas also lowers the capitals, so the borrowing `zba,A,u` passes it as `zbaau`, although `zbaAu` is none. A comma can change the division of a text with capitals, while each word keeps its class. `zba,A,uklama` is `zba,A,u klama`, and `zbaAuklama` is `zbaAukla ma`.
 
-A name needs one more test. CLL[^cll-s4-8] forbids the letters `doi` at the start of a name or after a vowel in it, and a comma removes no letter. So `la-or-doi` finds `doi` across a comma, and `.do,is.` is no name. `.ndo,is.` is still a name, because a consonant comes before its `do,i`. Hesitation keeps its commas, as [forms.md](forms.md) says, so `y,y` is hesitation, as `yy` is.
+A name needs one more test. Its `doi` test applies at its start or after a vowel or `y`. A comma removes no letter. So `la-or-doi` finds `doi` across a comma, and `.do,is.` is no name. `.ndo,is.` is still a name, because a consonant comes before its `do,i`. Hesitation keeps its commas, as [forms.md](forms.md) says, so `y,y` is hesitation, as `yy` is.
 
 ```jbogenbau
 %rule falling-vowels

@@ -17,7 +17,7 @@ Zantufa 1.9999 reads the working word forms of the BPFK (a Lojban committee), wi
 
 The rule `m` has the name of the Zantufa rule that it translates, and its comment gives that rule, as in bpfk.md. Where another rule states a Zantufa rule, its comment gives that rule. The rest are rules of [forms.md](forms.md) that this document changes, or rules that support them. [The notation document](../../docs/notation.md) explains the notation.
 
-A nucleus is a syllable's vowel or diphthong. A glide is an `i` or `u` before a nucleus. The rule for `m` rejects a following apostrophe, glide or `m`, but permits `z`. Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
+A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel or diphthong. A glide is an `i` or `u` before a nucleus. The rule for `m` rejects a following apostrophe, glide or `m`, but permits `z`. Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
 
 ```jbogenbau
 %redefine-rule m              (* m <- [mM] !h !glide !m *)

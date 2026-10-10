@@ -482,7 +482,7 @@ The word stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-2
 
 ## Numbers, lerfu strings and mekso
 
-A number is a string of PA words, such as the digits `pa` and `re` and the decimal point `pi`. Lerfu words can follow its first word (`pa re ci`, `pa xy.`). A lerfu string begins with a lerfu word instead [^cll-s18-2][^cll-s17-8].
+A number is a string of PA words, such as the digits `pa` and `re` and the decimal point `pi`.[^cll-s18-2] Lerfu words can follow its first word (`pa re ci`, `pa xy.`). A lerfu string begins with a lerfu word instead.[^cll-s17-8].
 
 A lerfu word is a BY word, a `lau` shift before a lerfu word, or a `tei ... foi` compound. The word stage builds each `bu` letter word into one `BY`, which `lerfu-word` reads.
 
@@ -1017,7 +1017,7 @@ CLL[^cll-s8-6][^cll-s8-7] describe the merged readings that a left-to-right read
 
 CLL[^cll-s9-5] warns that a non-logical connective can continue the modal's selbri without `fe'u`. Both dialects read `mi fi'o broda joi pu brode` with `fe'u` elided before `joi`. The whole text forces that boundary.
 
-In `le broda brode`, both selbri stay inside the description, as CLL[^cll-s6-2] warns. In `mi fi'o kanla viska do`, `kanla viska` remains the modal selbri, as CLL[^cll-s9-9] warns for the example[^cll-e9-60]. Neither text forces the intended outside selbri. These passages therefore describe our readings too and give no departure.
+In `le broda brode`, both selbri stay inside the description, as CLL[^cll-s6-2] warns. In `mi fi'o kanla viska do`, `kanla viska` remains the modal selbri, as CLL[^cll-s9-9] warns for the example[^cll-e9-61]. Neither text forces the intended outside selbri. These passages therefore describe our readings too and give no departure.
 
 CLL[^cll-s6-11] says that `do'u` is rarely needed. CLL[^cll-s19-12] gives the same advice for `se'u`, except before an outside selbri. Both dialects read `mi coi broda brode gi'e brodi` and `mi sei do broda brode gi'e brodi` with the free modifier ending before `brode`.
 
@@ -1033,7 +1033,7 @@ The indivisible-number rule follows these CLL requirements in both dialects:
 - CLL[^cll-s18-6], after the example[^cll-e18-32], requires `boi` between adjacent numbers. CLL[^cll-s18-16] shows the reverse Polish examples[^cll-e18-110][^cll-e18-111][^cll-e18-112] with the required `boi` boundaries. Both dialects reject `li fu'a pa re su'i du li ci` and accept `li fu'a pa boi re su'i du li ci`.
 - CLL[^cll-s18-6], after the example[^cll-e18-34], requires `boi` between the function name and its operand. Both dialects reject `li zy du li ma'o fy. xy.` and accept `li zy du li ma'o fy. boi xy.`.
 
-The shared elision policy follows CLL's general advice where the whole text determines the intended boundary. It disagrees with no specific text of CLL. CLL[^cll-s8-6][^cll-s8-7] describe merged readings that cannot complete the outer description. CLL[^cll-s14-14][^cll-s18-11][^cll-s18-17] describe the official parser's left-to-right reading. It does not override number and letter boundaries. The maintainer approves this interpretation of the elision note for both dialects.[^cll-s21-1]
+The shared elision policy follows the elision note[^cll-s21-1] where the whole text determines the intended boundary. It disagrees with no specific text of CLL. CLL[^cll-s8-6][^cll-s8-7] describe merged readings that cannot complete the outer description. CLL[^cll-s14-14][^cll-s18-11][^cll-s18-17] describe the official parser's left-to-right reading. It does not override number and letter boundaries. The maintainer approves this interpretation of the elision note for both dialects.
 
 The word stage implements the non-formal erasure rule `null = any-word SI | utterance SA | text SU`. A non-formal rule runs before syntax. CLL never defines the `utterance` that `sa` erases.
 
@@ -1232,7 +1232,7 @@ The word stage implements the non-formal erasure rule `null = any-word SI | utte
 
 [^cll-e8-62]: [CLL 1.1, section 8.7, example 8.62](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-possessive-sumti.html#c8e7d4).
 
-[^cll-e9-60]: [CLL 1.1, section 9.9, example 9.60](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-modal-selbri.html#c9e9d6).
+[^cll-e9-61]: [CLL 1.1, section 9.9, example 9.61](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-modal-selbri.html#c9e9d7).
 
 [^cll-e18-93]: [CLL 1.1, section 18.11, example 18.93](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-mekso-selbri.html#c18e11d13).
 
