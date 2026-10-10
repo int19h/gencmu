@@ -1,0 +1,26 @@
+{
+  "description": "A selected route establishes absence for every nested group that it excludes.",
+  "grammar": "%rule text (X [(($x(Y) ≻ V) | U)] ≻ Z W)\n%conditions $x ∨ text($) = \"never\"",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "u",
+      "tags": [
+        "U"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "error": {
+        "kind": "rejected"
+      }
+    }
+  }
+}

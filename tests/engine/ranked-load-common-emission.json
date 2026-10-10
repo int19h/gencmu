@@ -1,0 +1,31 @@
+{
+  "description": "Common captures and the whole parent remain legal emission sources.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text $p(Q) ($x(a) ≻ b) $s(Z)\n%emits $p, $s\n%rule a X Y\n%rule b U V",
+  "tokens": [
+    {
+      "text": "q",
+      "tags": [
+        "Q"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    },
+    {
+      "text": "z",
+      "tags": [
+        "Z"
+      ]
+    }
+  ],
+  "expect": {}
+}

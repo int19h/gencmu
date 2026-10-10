@@ -211,6 +211,20 @@
       "(q [t r])",
       "(q s)",
       "rejected"
+    ],
+    "ranked-alternative": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
+    ],
+    "ranked-choice": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
     ]
   },
   "extraParts": [

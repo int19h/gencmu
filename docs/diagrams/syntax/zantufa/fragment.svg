@@ -1,41 +1,57 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="231" height="408" viewBox="0 0 231 408" role="img" aria-label="Railroad diagram of the rule fragment">
-<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<svg xmlns="http://www.w3.org/2000/svg" width="488" height="462" viewBox="0 0 488 462" role="img" aria-label="Railroad diagram of the rule fragment">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}.rank-frame{fill:none;stroke:#777;stroke-width:1;stroke-dasharray:3 3}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="67.2" lengthAdjust="spacingAndGlyphs">fragment</text>
 <text class="label" x="97.2" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
 <g class="rule"><rect x="40" y="34" width="67" height="24" rx="0"/><text x="73.5" y="51" textLength="50.4" lengthAdjust="spacingAndGlyphs">prenex</text></g>
-<path d="M107 46H211"/>
+<path d="M107 46H336"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="68" width="42" height="24" rx="0"/><text x="61" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">gek</text></g>
-<path d="M82 80H191a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M82 80H316a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="102" width="50" height="24" rx="0"/><text x="65" y="119" textLength="33.6" lengthAdjust="spacingAndGlyphs">joik</text></g>
-<path d="M90 114H191a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M90 114H316a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="136" width="33" height="24" rx="0"/><text x="56.5" y="153" textLength="16.8" lengthAdjust="spacingAndGlyphs">ek</text></g>
-<path d="M73 148H191a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M73 148H316a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V172a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="170" width="58" height="24" rx="0"/><text x="69" y="187" textLength="42" lengthAdjust="spacingAndGlyphs">gihek</text></g>
-<path d="M98 182H191a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M98 182H316a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V206a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="204" width="92" height="24" rx="0"/><text x="86" y="221" textLength="75.6" lengthAdjust="spacingAndGlyphs">na-clause</text></g>
-<path d="M132 216H191a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V240a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="238" width="92" height="24" rx="0"/><text x="86" y="255" textLength="75.6" lengthAdjust="spacingAndGlyphs">terms-vau</text></g>
-<path d="M132 250H191a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V274a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="272" width="42" height="24" rx="0"/><text x="61" y="289" textLength="25.2" lengthAdjust="spacingAndGlyphs">mex</text></g>
-<path d="M82 284H191a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V308a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="306" width="151" height="24" rx="0"/><text x="115.5" y="323" textLength="134.4" lengthAdjust="spacingAndGlyphs">relative-clauses</text></g>
-<path d="M191 318H191a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V342a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="340" width="58" height="24" rx="0"/><text x="69" y="357" textLength="42" lengthAdjust="spacingAndGlyphs">links</text></g>
-<path d="M98 352H191a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V376a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="374" width="84" height="24" rx="0"/><text x="82" y="391" textLength="67.2" lengthAdjust="spacingAndGlyphs">linkargs</text></g>
-<path d="M124 386H191a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M211 46h6m0 -8v16m4 -16v16"/>
+<path d="M132 216H316a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V254a10 10 0 0 0 10 10"/>
+<path d="M40 264h88"/>
+<text class="label" x="44" y="259" textLength="79.2" lengthAdjust="spacingAndGlyphs">≻ same span</text>
+<path d="M128 264h10"/>
+<g class="ranked-choice"><rect class="rank-frame" x="143" y="243" width="168" height="76" rx="4"/>
+<path d="M138 264h10"/>
+<path d="M148 264h20"/>
+<path d="M168 264h16"/>
+<text class="label" x="172" y="259" textLength="7.2" lengthAdjust="spacingAndGlyphs">1</text>
+<path d="M184 264h10"/>
+<g class="rule"><rect x="194" y="252" width="92" height="24" rx="0"/><text x="240" y="269" textLength="75.6" lengthAdjust="spacingAndGlyphs">terms-vau</text></g>
+<path d="M286 264H306"/>
+<path d="M148 264a10 10 0 0 1 10 10V292a10 10 0 0 0 10 10"/>
+<path d="M168 302h16"/>
+<text class="label" x="172" y="297" textLength="7.2" lengthAdjust="spacingAndGlyphs">2</text>
+<path d="M184 302h10"/>
+<g class="rule"><rect x="194" y="290" width="42" height="24" rx="0"/><text x="215" y="307" textLength="25.2" lengthAdjust="spacingAndGlyphs">mex</text></g>
+<path d="M236 302H286a10 10 0 0 0 10 -10V274a10 10 0 0 1 10 -10"/>
+<path d="M306 264h10"/>
+</g>
+<path d="M316 264H316a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V336a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="334" width="151" height="24" rx="0"/><text x="115.5" y="351" textLength="134.4" lengthAdjust="spacingAndGlyphs">relative-clauses</text></g>
+<path d="M191 346H316a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V370a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="368" width="58" height="24" rx="0"/><text x="69" y="385" textLength="42" lengthAdjust="spacingAndGlyphs">links</text></g>
+<path d="M98 380H316a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V404a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="402" width="84" height="24" rx="0"/><text x="82" y="419" textLength="67.2" lengthAdjust="spacingAndGlyphs">linkargs</text></g>
+<path d="M124 414H316a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M336 46h6m0 -8v16m4 -16v16"/>
+<text class="label" x="10" y="448" textLength="468" lengthAdjust="spacingAndGlyphs">Only a qualified option over the same span removes lower options.</text>
 </svg>

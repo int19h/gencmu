@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from ._clauses import attachment_order, definition_problem, duplicate_captures
+from ._clauses import attachment_order, definition_problem, duplicate_captures, deferred_emission_problem, rule_has_ranked
 from ._errors import GencmuError
 from ._markdown import GrammarText
 from ._model import Node, Token
@@ -38,7 +38,7 @@ from ._validate import (
 Dom = dict[str, Any]
 
 _MAPPED = frozenset(
-    """directive argument-word argument-string argument-tag rule definer rule-flags rule-flag rule-name body alternative guard alternative-tags
+    """directive argument-word argument-string argument-tag rule definer rule-flags rule-flag rule-name body alternative ranked-alternative ranked-choice guard alternative-tags
     choice conjunction sequence primary repetition reference string tag character phoneme name tested test test-operand capture
     group optional empty tags-clause conditions-clause emits-clause opaque-clause emit-item emit-target emit-tags emit-before
     emit-after implication any-of all-of condition comparison comparator negation presence call argument term guarded-term
@@ -150,10 +150,18 @@ def _is_capital(name: str) -> bool:
     return "A" <= name[:1] <= "Z"
 
 
+class DeferredDom(dict):
+    def __init__(self,dom,pending):
+        super().__init__(dom)
+        self.deferred_emissions = pending
+
+
 class DomBuilder:
     """Reads the DOM off a document tree, rule by rule of the §9 table."""
 
-    def __init__(self, tokens: list[Token], grammar_text: GrammarText, document: str, unicode: Lowercase) -> None:
+    def __init__(self, tokens: list[Token], grammar_text: GrammarText, document: str, unicode: Lowercase, defer_emission: bool = False) -> None:
+        self.defer_emission = defer_emission
+        self.deferred_emissions = []
         self.tokens = tokens
         self.grammar_text = grammar_text
         self.document = document
@@ -190,7 +198,7 @@ class DomBuilder:
 
     def fail(self, node: Node, message: str) -> GencmuError:
         line, column = self.position(node)
-        return GencmuError(message, document=self.document, line=line, column=column)
+        return GencmuError(message, document=self.document, line=line, column=column, code="ranked-choice-syntax" if node.rule == "ranked-choice" else None)
 
     def text(self, node: Node) -> str:
         assert node.kind == "token" and node.token is not None
@@ -267,7 +275,7 @@ class DomBuilder:
                 raise self.fail(kid, f"the notation gives a {kid.rule} where an item stands")
             if kid.kind == "rule" and kid.rule == "rule":
                 rules.append(self.rule(kid))
-            elif kid.kind == "rule" and kid.rule == "directive":
+            elif kid.kind == "rule" and kid.rule in ("directive"):
                 directives.append(self.directive(kid))
             elif kid.kind == "rule" and kid.rule == "constant-definition":
                 constants.append(self.constant(kid))
@@ -413,7 +421,9 @@ class DomBuilder:
         # The parts of a definition are read in the order written: the body,
         # then its clauses in their fixed order, and the checks of the whole
         # definition last (engine §9).
-        alternatives = [self.alternative(kid) for kid in self.some(self.only(node, "body"), "alternative")]
+        body = self.only(node, "body")
+        ranked = self.one(body, "ranked-alternative")
+        alternatives = [self.alternative(kid) for kid in ([ranked] if ranked is not None else self.some(body, "alternative"))]
         tags_node = self.one(node, "tags-clause")
         tags = self.own_tags(tags_node) if tags_node is not None else None
         conditions_node = self.one(node, "conditions-clause")
@@ -437,7 +447,10 @@ class DomBuilder:
         flatten_groups(dom)
         problem = definition_problem(dom)
         if problem is not None:
-            raise self.fail(node, problem)
+            if self.defer_emission and deferred_emission_problem(problem) and rule_has_ranked(dom):
+                self.deferred_emissions.append((dom,problem))
+            else:
+                raise self.fail(node, problem)
         return dom
 
     # -- expressions
@@ -454,7 +467,7 @@ class DomBuilder:
             negated = text.startswith("¬")
             kind = "warning" if text.endswith("!") else "gate"
             guards.append({"feature": text[1 if negated else 0 : -1], "kind": kind, "negated": negated})
-        expr = run(self._expr(self.only(node, "conjunction"), True))
+        expr = run(self._expr(self.only(node, "ranked-choice" if node.rule == "ranked-alternative" else "conjunction"), True))
         # A name stands at most once in each production, gates aside: the
         # error stands at the second capture that such a production reads,
         # the first in the text where there are several (engine §3.5, §9).
@@ -491,20 +504,24 @@ class DomBuilder:
         """An expression; ``whole`` says it is its alternative's whole
         expression, where a chain may stand (engine §9)."""
         rule = node.rule
-        if rule in ("choice", "conjunction", "sequence"):
-            part = {"choice": "conjunction", "conjunction": "sequence", "sequence": "primary"}[rule]
-            parts = self.some(node, part)
+        if rule == "choice":
+            ranked = self.one(node, "ranked-choice")
+            if ranked is not None:
+                return (yield self._expr(ranked))
+        if rule in ("choice", "ranked-choice", "conjunction", "sequence"):
+            part = {"choice": "conjunction", "ranked-choice": "conjunction", "conjunction": "sequence", "sequence": "primary"}[rule]
+            parts = self.some(node, part, 2 if rule == "ranked-choice" else 1)
             if rule == "conjunction" and len(parts) > 16:
                 raise self.fail(node, "& joins at most 16 items, since it expands to 2ⁿ−1 sequences")
             # A choice's conjunction is never the whole expression, nor is
             # an item of a sequence or of & of several.
-            nested = whole and rule != "choice" and len(parts) == 1
+            nested = whole and rule not in ("choice", "ranked-choice") and len(parts) == 1
             items: list[Dom] = []
             for p in parts:
                 items.append((yield self._expr(self.known_of(p, _PRIMARIES) if rule == "sequence" else p, nested)))
             if len(items) == 1:
                 return items[0]
-            key = {"choice": "choice", "conjunction": "and", "sequence": "seq"}[rule]
+            key = {"choice": "choice", "ranked-choice": "ranked", "conjunction": "and", "sequence": "seq"}[rule]
             return {key: items}
         if rule == "reference":
             return {"ref": self.text(self.token(node))}
@@ -1031,7 +1048,9 @@ class DomBuilder:
             if len(parts) == 2:
                 result["separator"] = parts[1]
         else:
-            path = {"⋮":"descendant", "⋰":"first", "⋱":"last"}[self.text(self.token(node))]
+            # The direct operator token can follow the named atom.
+            operator = self.text(self.token(node))
+            path = {"⋮":"descendant", "⋰":"first", "⋱":"last"}[operator]
             result = {"node":{"path":path, "pattern":self._pattern_node(parts[0])}}
         problem = pattern_problem(self._pattern_node(result))
         if problem is not None:
@@ -1183,6 +1202,7 @@ def operand_problem(name: str, kinds: list[str]) -> str | None:
     ``tag``, ``phoneme`` or ``character``, or ``range`` or ``property``, or
     None (engine §9)."""
     names = all(kind in ("name", "class") for kind in kinds)
+
     if name == "stage":
         return None if len(kinds) == 1 and names else "%stage takes one name"
     if name == "include":

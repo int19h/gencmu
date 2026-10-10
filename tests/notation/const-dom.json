@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%const $SU-STOPS NIhO ∪ LU\n%const $PAUSE \".\"\n%redefine-const $SU-STOPS $SU-STOPS ∪ TO\n%redefine-const $E ∅\n%rule a $x(B) <$SU-STOPS>\n%conditions \"b\" ∈ split(phonemes($x), $PAUSE), tag($PAUSE) = ~a\n```\n",
   "expect": {
     "dom": {
-      "format": 21,
+      "format": 22,
       "rules": [
         {
           "name": "a",

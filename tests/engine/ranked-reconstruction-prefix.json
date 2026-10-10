@@ -1,0 +1,57 @@
+{
+  "description": "Reconstruction preserves written helper entries, common captures, and raw query evidence before admission.",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text $p(Q) ($x(a) ≻ b)\n%conditions $x ⟹ text($p)=\"q\"\n%rule a X T\n%rule b X [+T] | [+U] X",
+  "tokens": [
+    {
+      "text": "q",
+      "phonemes": "q",
+      "tags": [
+        "Q"
+      ]
+    },
+    {
+      "text": "x",
+      "phonemes": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "format": 11,
+      "ok": false,
+      "stages": [
+        {
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "reason": "elision-only",
+        "readings": [
+          {
+            "children": [
+              {
+                "terminal": "Q"
+              },
+              {
+                "rule": "b"
+              }
+            ]
+          },
+          {
+            "children": [
+              {
+                "terminal": "Q"
+              },
+              {
+                "rule": "a"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

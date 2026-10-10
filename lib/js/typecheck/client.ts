@@ -9,8 +9,8 @@ const result: ParseResult = dialect.parse("text ≔ A ;", { features: ["sa-su"],
 
 const verdicts: (Verdict | null)[] = result.stages.map((stage) => stage.verdict);
 for (const stage of result.stages) {
-  if (stage.verdict === "tie") {
-    // A tie has its witness without a check.
+  if (stage.verdict === "tie" && stage.witness) {
+    // A cycle tie has no pairwise witness.
     void stage.witness[0];
   } else {
     // @ts-expect-error only a tie has a witness
@@ -36,7 +36,9 @@ if (result.error) {
   const kind: "rejected" | "ambiguous" | "grammar" = result.error.kind;
   // An ambiguous error says why: a tie or the check of elision-only.
   const reason: "tie" | "elision-only" | undefined = result.error.reason;
-  if (result.error.readings) rules(result.error.readings[0]);
+  if (result.error.readings) result.error.readings.forEach(rules);
+  // @ts-expect-error the historical cycle field is outside the released result schema
+  void result.error.cycle;
   void kind, reason;
 }
 

@@ -8,7 +8,7 @@ use crate::tags::{character_code, is_name, is_tag};
 use crate::unicode::{is_property_name, Unicode};
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 21;
+pub const DOM_FORMAT: i64 = 22;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -84,6 +84,7 @@ pub(crate) enum Op {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct RuleDef {
+    pub deferred_emission: Option<String>,
     pub name: String,
     pub op: Op,
     pub flags: Vec<String>,
@@ -123,12 +124,14 @@ pub(crate) struct Alternative {
     pub guards: Vec<Guard>,
     pub expr: Expr,
     pub tags: Option<Term>,
+    pub ranked_locations: std::collections::BTreeMap<String, (usize, usize)>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Expr {
     Seq(Vec<Expr>),
     Choice(Vec<Expr>),
+    Ranked(Vec<Expr>),
     And(Vec<Expr>),
     /// An optional `[x]`, or, with a marker, an elidable one, `[+T x]` or
     /// `[++T x]` (engine §3.8).
@@ -280,10 +283,13 @@ fn position(value: &Json) -> R<(usize, usize)> {
 }
 
 pub(crate) fn dom_from_json(value: &Json, unicode: &Unicode) -> R<Dom> {
+    dom_from_json_mode(value, unicode, false)
+}
+pub(crate) fn dom_from_json_mode(value: &Json, unicode: &Unicode, defer: bool) -> R<Dom> {
     if let Some(problem) = dom_problem(value, unicode) {
         return Err(problem.to_string());
     }
-    let rules = array(value, "rules")?.iter().map(rule_from_json).collect::<R<Vec<_>>>()?;
+    let mut rules = array(value, "rules")?.iter().map(rule_from_json).collect::<R<Vec<_>>>()?;
     let directives = array(value, "directives")?
         .iter()
         .map(|directive| {
@@ -343,9 +349,16 @@ pub(crate) fn dom_from_json(value: &Json, unicode: &Unicode) -> R<Dom> {
         })
         .collect::<R<Vec<_>>>()?;
     // A definition the reader would refuse (engine §9).
-    for rule in &rules {
+    for rule in &mut rules {
         if let Some(problem) = crate::clauses::definition_problem(rule) {
-            return Err(problem);
+            if defer
+                && deferred_emission_problem(&problem)
+                && rule.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr))
+            {
+                rule.deferred_emission = Some(problem);
+            } else {
+                return Err(problem);
+            }
         }
     }
     Ok(Dom { rules, directives, constants, classifiers, implications })
@@ -371,6 +384,7 @@ fn rule_from_json(value: &Json) -> R<RuleDef> {
         other => return Err(format!("an unknown rule op {other:?}")),
     };
     Ok(RuleDef {
+        deferred_emission: None,
         name: string(value, "name")?,
         op,
         flags: array(value, "flags")?
@@ -385,6 +399,7 @@ fn rule_from_json(value: &Json) -> R<RuleDef> {
                     guards: array(alternative, "guards")?.iter().map(guard_from_json).collect::<R<Vec<_>>>()?,
                     expr: expr_from_json(field(alternative, "expr")?)?,
                     tags: alternative.get("tags").map(term_from_json).transpose()?,
+                    ranked_locations: Default::default(),
                 })
             })
             .collect::<R<Vec<_>>>()?,
@@ -416,6 +431,7 @@ fn expr_from_json(value: &Json) -> R<Expr> {
     Ok(match first_key(value)? {
         "seq" => Expr::Seq(list("seq")?),
         "choice" => Expr::Choice(list("choice")?),
+        "ranked" => Expr::Ranked(list("ranked")?),
         "and" => Expr::And(list("and")?),
         "optional" => {
             let mark = match (is_true(value.get("elidable")), is_true(value.get("maximal"))) {
@@ -561,9 +577,10 @@ fn has(value: &Json, key: &str) -> bool {
 
 /// The forms of an expression, each as its members (docs/output.md). The
 /// first member names the form.
-const EXPR_FORMS: [&[&str]; 12] = [
+const EXPR_FORMS: [&[&str]; 13] = [
     &["seq"],
     &["choice"],
+    &["ranked"],
     &["and"],
     &["optional", "elidable?", "maximal?"],
     &["repeat", "separator?", "chain?"],
@@ -1045,22 +1062,38 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                 // An expression has exactly the members of one form
                 // (docs/output.md).
                 if !has_one_form(value, &EXPR_FORMS) {
-                    return Some("a malformed expression");
+                    return Some(if has(value, "ranked") {
+                        "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
+                    } else {
+                        "a malformed expression"
+                    });
                 }
                 let expr = |item, inside: bool| (Kind::Expr { whole: false, sealed: sealed || inside }, item, next);
                 if has(value, "range") || has(value, "property") {
                     if !is_character_class_json(value, unicode) {
-                        return Some("a malformed expression");
+                        return Some(if has(value, "ranked") {
+                            "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
+                        } else {
+                            "a malformed expression"
+                        });
                     }
-                } else if has(value, "choice") || has(value, "seq") {
-                    let items = value.get("choice").or_else(|| value.get("seq"));
+                } else if has(value, "choice") || has(value, "ranked") || has(value, "seq") {
+                    let items = value.get("choice").or_else(|| value.get("ranked")).or_else(|| value.get("seq"));
                     if !list(items, 2, usize::MAX) {
-                        return Some("a malformed expression");
+                        return Some(if has(value, "ranked") {
+                            "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
+                        } else {
+                            "a malformed expression"
+                        });
                     }
                     pending.extend(items.and_then(Json::as_array).unwrap_or(&[]).iter().map(|item| expr(item, false)));
                 } else if has(value, "and") {
                     if !list(value.get("and"), 2, crate::grammar::MAX_AND) {
-                        return Some("a malformed expression");
+                        return Some(if has(value, "ranked") {
+                            "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
+                        } else {
+                            "a malformed expression"
+                        });
                     }
                     pending.extend(
                         value.get("and").and_then(Json::as_array).unwrap_or(&[]).iter().map(|item| expr(item, false)),
@@ -1072,7 +1105,11 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     // the item does, and neither holds a capture.
                     if let Some(chain) = value.get("chain") {
                         if !whole || !matches!(chain.as_str(), Some("left" | "right")) {
-                            return Some("a malformed expression");
+                            return Some(if has(value, "ranked") {
+                                "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
+                            } else {
+                                "a malformed expression"
+                            });
                         }
                     }
                     pending.push(expr(inner, true));
@@ -1088,7 +1125,11 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     if elidable.is_some_and(|marked| *marked != Json::Bool(true))
                         || maximal.is_some_and(|marked| *marked != Json::Bool(true) || elidable.is_none())
                     {
-                        return Some("a malformed expression");
+                        return Some(if has(value, "ranked") {
+                            "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
+                        } else {
+                            "a malformed expression"
+                        });
                     }
                     if elidable.is_some() && elidable_head_json(inner).is_none() {
                         return Some("a malformed elidable optional");
@@ -1122,7 +1163,11 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                         return Some("a malformed test");
                     }
                     let (Some(inner), Some(test_value)) = (value.get("expr"), value.get("value")) else {
-                        return Some("a malformed expression");
+                        return Some(if has(value, "ranked") {
+                            "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
+                        } else {
+                            "a malformed expression"
+                        });
                     };
                     if !is_testable_json(inner, unicode) {
                         return Some("a test follows only a reference other than # or a terminal");
@@ -1135,7 +1180,11 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     || is_true(value.get("empty")))
                 {
                     // A reference is a name or `#` (§9).
-                    return Some("a malformed expression");
+                    return Some(if has(value, "ranked") {
+                        "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
+                    } else {
+                        "a malformed expression"
+                    });
                 }
             }
             Kind::Emission => {
@@ -1583,7 +1632,7 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
     out
 }
 
-fn write_rule(out: &mut String, rule: &RuleDef) {
+pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
     out.push_str("{\"name\":");
     write_str(out, &rule.name);
     out.push_str(match rule.op {
@@ -1697,10 +1746,11 @@ fn write_list<T>(out: &mut String, key: &str, items: &[T], write: fn(&mut String
     out.push_str("]}");
 }
 
-fn write_expr(out: &mut String, expr: &Expr) {
+pub(crate) fn write_expr(out: &mut String, expr: &Expr) {
     match expr {
         Expr::Seq(items) => write_list(out, "seq", items, write_expr),
         Expr::Choice(items) => write_list(out, "choice", items, write_expr),
+        Expr::Ranked(items) => write_list(out, "ranked", items, write_expr),
         Expr::And(items) => write_list(out, "and", items, write_expr),
         Expr::Optional(inner, mark) => {
             out.push_str("{\"optional\":");
@@ -1840,7 +1890,7 @@ pub(crate) fn write_term(out: &mut String, term: &Term) {
     }
 }
 
-fn write_cond(out: &mut String, cond: &Cond) {
+pub(crate) fn write_cond(out: &mut String, cond: &Cond) {
     match cond {
         Cond::Compare(op, left, right) => {
             out.push_str("{\"op\":");
@@ -2014,7 +2064,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
         let below = depth + 1;
         match node {
             Nested::Expr(expr) => match expr {
-                Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
+                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
                     stack.extend(items.iter().map(|item| (Nested::Expr(item), below)))
                 }
                 Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push((Nested::Expr(inner), below)),
@@ -2105,7 +2155,9 @@ pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
     let mut stack = vec![expr];
     while let Some(current) = stack.pop() {
         match current {
-            Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => stack.extend(items.iter().rev()),
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                stack.extend(items.iter().rev())
+            }
             Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push(inner),
             // The item before the separator.
             Expr::Repeat(item, separator, _) => {
@@ -2431,7 +2483,7 @@ fn drop_parts(mut stack: Vec<Dropping>) {
 impl Expr {
     fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
         match self {
-            Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
                 stack.extend(items.drain(..).map(Dropping::Expr))
             }
             Expr::Optional(inner, _) | Expr::Capture(_, inner) => {
@@ -2527,4 +2579,8 @@ impl Drop for Cond {
         self.take_parts(&mut stack);
         drop_parts(stack);
     }
+}
+
+pub(crate) fn deferred_emission_problem(s: &str) -> bool {
+    s.starts_with("%emits of ") && s.ends_with("leaves a production nothing to emit")
 }

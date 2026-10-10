@@ -313,11 +313,17 @@ mod tests {
                 .collect();
             // Each stage at line 2k + 2, with its rule on the next line.
             let rule = |index: usize| RuleDef {
+                deferred_emission: None,
                 name: "text".into(),
                 op: Op::Define,
                 flags: Vec::new(),
                 tags: None,
-                alternatives: vec![Alternative { guards: Vec::new(), expr: Expr::Empty, tags: None }],
+                alternatives: vec![Alternative {
+                    guards: Vec::new(),
+                    expr: Expr::Empty,
+                    tags: None,
+                    ranked_locations: Default::default(),
+                }],
                 emit: None,
                 conditions: Vec::new(),
                 opaque: false,

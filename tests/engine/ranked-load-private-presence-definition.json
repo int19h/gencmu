@@ -1,0 +1,9 @@
+{
+  "description": "A private presence guard cannot export a tag through its definition clause.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text Q ($x(a) ≻ b) Z\n%tags $x ⟹ ~k\n%rule a X Y\n%rule b X Y",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "ranked-choice-export"
+  }
+}

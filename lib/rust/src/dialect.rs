@@ -639,8 +639,10 @@ impl Dialect {
         // chosen tree, no output and no warnings, and the error holds the
         // first and the second reading (§6).
         if ranking.verdict == RankVerdict::Tie {
-            let second = second.expect("a tie has a second reading");
-            let readings = vec![public_tree(&chosen, &context), public_tree(&second, &context)];
+            let readings = vec![
+                public_tree(&chosen, &context),
+                public_tree(&second.expect("a tie has a second reading"), &context),
+            ];
             let error = self.tie(index, readings);
             run.stages.push(stage);
             return Err(Box::new(error));
@@ -905,7 +907,8 @@ impl Dialect {
         // ranks (tests/README.md).
         let flagged = g.rules.iter().any(|rule| rule.leftmost_longest);
         let chosen_profile = if flagged { tree_profile(g, chosen) } else { Vec::new() };
-        let walk = if witness::watched() || flagged {
+        let protect = true;
+        let walk = if witness::watched() || protect {
             let empty = shared.tags.set(Vec::new());
             let forest = CheckForest {
                 g,
@@ -927,50 +930,79 @@ impl Dialect {
         };
         // Maximality does not apply to the derivations of R, and
         // the ranking has no lean (§7.7).
-        let rooted = rooted && (!flagged || walk.as_ref().is_some_and(|walk| walk.is_some()));
+        let rooted = rooted && (!protect || walk.as_ref().is_some_and(|walk| walk.is_some()));
         let ranking = if rooted {
             let marks = walk.as_ref().and_then(|walk| walk.as_ref()).map(|walk| &walk.marks);
             let mut ranker = Ranker::new(g, &chart, &tokens, shared, Lean::Neither, None)
                 .observing(input, &recon.project)
                 .checking(marks);
+            let preferred = !g.ranked.slots.is_empty();
+            let raw_counted = if preferred {
+                Ranker::new(g, &chart, &tokens, shared, Lean::Neither, None)
+                    .unfiltered()
+                    .observing(input, &recon.project)
+                    .checking(marks)
+                    .rank()
+                    .is_some_and(|r| r.witness_counted == Some(true))
+            } else {
+                true
+            };
             ranker
                 .rank()
                 .filter(|ranking| {
                     loss != Some(witness::Loss::Count)
-                        && (!flagged || ranking.witness_counted == Some(true))
-                        && compare_profiles(&ranking.profile, &chosen_profile) != std::cmp::Ordering::Greater
+                        && (!protect || (raw_counted && (preferred || ranking.witness_counted == Some(true))))
+                        && (preferred
+                            || compare_profiles(&ranking.profile, &chosen_profile) != std::cmp::Ordering::Greater)
                 })
                 .map(|mut ranking| {
-                    let better = compare_profiles(&ranking.profile, &chosen_profile) == std::cmp::Ordering::Less;
-                    if better {
-                        let w = ranker.derivation(
-                            &walk.as_ref().and_then(|walk| walk.as_ref()).expect("a restored witness").sequence,
-                        );
-                        ranking.second = Some(ranking.first);
-                        ranking.witness = Some(ranker.pair_witness(w, ranking.first));
-                        ranking.first = w;
-                    }
-                    // The witness hook tracks recognition and diagnostic order.
-                    // It counts W(D) before profile filtering.
-                    // On a tie, both readings precede W(D) unless the first is W(D).
-                    let keeps = match walk.as_ref().and_then(|walk| walk.as_ref()) {
-                        Some(walk) if ranking.witness_counted == Some(true) => match ranking.second {
-                            Some(second) if ranking.verdict == RankVerdict::Tie || better => {
-                                let w = ranker.derivation(&walk.sequence);
-                                // W(D) does not follow the first reading in T.
-                                // If the first differs from W(D), compare W(D) with the second.
-                                // Use divergence from the first and then T (§6).
-                                !ranker.before(w, ranking.first)
-                                    && (!ranker.before(ranking.first, w)
-                                        || !ranker.second_before(ranking.first, w, second))
-                            }
-                            _ => true,
-                        },
-                        _ => false,
+                    let excluded = protect && ranking.witness_counted != Some(true);
+                    let better =
+                        excluded || compare_profiles(&ranking.profile, &chosen_profile) == std::cmp::Ordering::Less;
+                    let keeps = if preferred {
+                        raw_counted
+                    } else {
+                        ranking.witness_counted == Some(true)
+                            && (better
+                                || walk.as_ref().and_then(|w| w.as_ref()).is_some_and(|walk| match ranking.second {
+                                    Some(second) if ranking.verdict == RankVerdict::Tie || better => {
+                                        let w = ranker.derivation(&walk.sequence);
+                                        !ranker.before(w, ranking.first)
+                                            && (!ranker.before(ranking.first, w) || !ranker.before(w, second))
+                                    }
+                                    _ => true,
+                                }))
                     };
-                    let readings = match (ranking.verdict, ranking.second) {
-                        (_, Some(second)) if ranking.verdict == RankVerdict::Tie || better => {
-                            Some((build(&ranker, ranking.first), build(&ranker, second), ranking.witness))
+                    if better || ranking.verdict == RankVerdict::Tie && protect {
+                        let w = ranker
+                            .derivation(&walk.as_ref().and_then(|w| w.as_ref()).expect("a restored witness").sequence);
+                        let competitor = if excluded {
+                            ranking.first
+                        } else {
+                            let mut options = vec![];
+                            if !ranker.same_derivation(w, ranking.first) {
+                                options.push(ranking.first);
+                            }
+                            if let Some(second) = ranking.second {
+                                if !ranker.same_derivation(w, second) {
+                                    options.push(second);
+                                }
+                            }
+                            let mut best = options[0];
+                            for &other in &options[1..] {
+                                if ranker.before(other, best) {
+                                    best = other;
+                                }
+                            }
+                            best
+                        };
+                        ranking.first = w;
+                        ranking.second = Some(competitor);
+                        ranking.witness = Some(ranker.pair_witness(w, competitor));
+                    }
+                    let readings = match ranking.second {
+                        Some(second) if ranking.verdict == RankVerdict::Tie || better => {
+                            Some((vec![build(&ranker, ranking.first), build(&ranker, second)], ranking.witness))
                         }
                         _ => None,
                     };
@@ -982,10 +1014,10 @@ impl Dialect {
         if witness::watched() {
             witness::record(&self.stages[index].name, ranking.as_ref().is_some_and(|(_, _, keeps)| *keeps));
         }
-        let Some((_, readings, _)) = ranking else {
+        let Some((_ranking, readings, _)) = ranking else {
             return Ok(Check::Lost(records));
         };
-        let Some((first, second, difference)) = readings else {
+        let Some((trees, difference)) = readings else {
             return Ok(Check::Pass);
         };
         // The witness, mapped to the stage's input as the readings are: a
@@ -1010,7 +1042,7 @@ impl Dialect {
         let tag_set = |set: u32| shared.tags.to_set(set);
         let map = ReadingMap { project: &recon.project, record_of: &record_of, records: &records };
         let context = TreeContext { g, tokens: input, tag_map: &tag_set, reading: Some(&map) };
-        let readings = vec![public_tree(&first, &context), public_tree(&second, &context)];
+        let readings = trees.iter().map(|t| public_tree(t, &context)).collect();
         let stage = &self.stages[index].name;
         Ok(Check::Ambiguous(Box::new(ParseError {
             kind: ParseErrorKind::Ambiguous,
@@ -1106,7 +1138,7 @@ fn forbidden_terminator(tree: &ITree, g: &Lowered, maximal: &Maximal) -> Option<
                 let before = &tree.nodes[node.children[position - 1] as usize];
                 if let IKind::Close { prod: constituent, start: from, end: to, .. } = before.kind {
                     let test = g.prods[prod as usize].test(position - 1);
-                    if maximal.forbids(g.prods[constituent as usize].rule, from, to, test) {
+                    if maximal.forbids_in(g.prods[constituent as usize].rule, from, to, test, before.lexical) {
                         let elided = &g.rules[helper.rule as usize];
                         let terminal = elided.elided.as_deref().expect("an elidable terminator");
                         let terminal = written_symbol(terminal, elided.elided_test.map(|test| &g.tests[test as usize]));

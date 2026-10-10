@@ -10,7 +10,7 @@ use crate::result::{
 };
 
 /// The version of the shape of the result (docs/output.md).
-pub const RESULT_FORMAT: u32 = 9;
+pub const RESULT_FORMAT: u32 = 11;
 
 fn write_range(out: &mut String, range: &Range<usize>) {
     out.push('[');

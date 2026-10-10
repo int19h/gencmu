@@ -24,7 +24,7 @@ const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.tx
 // The symbols of one character; `..`, `...`, `++` and `¬` have rules of
 // their own in the lexer.
 const SYMBOLS = new Set(["+", "|", "&", "(", ")", "[", "]", "{", "}", "\\", "<", ">", "#", "ε", ",", "∧", "∨", "⟹", "=", "≠",
-  "∈", "∉", "⊆", "⊈", "⊇", "⊉", "∪", "∩", "∖", "∅", "≅", "≇", "⋯", "⋮", "⋰", "⋱"]);
+  "∈", "∉", "⊆", "⊈", "⊇", "⊉", "∪", "∩", "∖", "∅", "≅", "≇", "⋯", "⋮", "⋰", "⋱", "≻"]);
 
 const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%tags", "%conditions", "%emits", "%opaque",
   "%ambiguity-resolution", "%stage", "%include", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
@@ -285,6 +285,7 @@ class Parser {
     while (this.peek()) {
       const kind = this.kindAt();
       if (DIRECTIVES.has(kind)) children.push((yield this.directive()));
+      else if (this.peek().text === "%prefer") this.fail("unknown directive %prefer; use an inline ranked choice (A ≻ B)");
       else if (RULE_KEYWORDS.has(kind)) children.push((yield this.rule()));
       else if (CONSTANT_KEYWORDS.has(kind)) children.push((yield this.constantDefinition()));
       else if (kind === "%classifier") children.push(this.classifier());
@@ -389,30 +390,46 @@ class Parser {
   *body() {
     const start = this.index;
     const children = [];
+    const leading = this.is("|");
     if (this.is("|")) children.push(this.tok());
-    children.push((yield this.alternative()));
-    while (this.is("|")) children.push(this.tok(), (yield this.alternative()));
+    children.push((yield this.alternative(!leading)));
+    if (children[0]?.rule === "ranked-alternative") return this.node("body", start, children);
+    while (this.is("|")) children.push(this.tok(), (yield this.alternative(false)));
     return this.node("body", start, children);
   }
 
-  *alternative() {
+  *alternative(allowRanked = true) {
     const start = this.index;
     const children = [];
     while (this.is("guard")) children.push(this.leaf("guard"));
-    children.push((yield this.conjunction()));
+    const expressionStart = this.index;
+    let expression = yield this.conjunction();
+    let ranked = false;
+    if (this.is("≻") && allowRanked) {
+      const operands = [expression];
+      while (this.is("≻")) operands.push(this.tok(), (yield this.conjunction()));
+      expression = this.node("ranked-choice", expressionStart, operands);
+      ranked = true;
+    }
+    children.push(expression);
     if (this.is("<")) {
       const at = this.index;
       children.push(this.node("alternative-tags", at, [this.tok(), (yield this.term()), this.expect(">")]));
     }
-    return this.node("alternative", start, children);
+    return this.node(ranked ? "ranked-alternative" : "alternative", start, children);
   }
 
   // `|` and `&` join, each with a leading one allowed.
   *choice() {
     const start = this.index;
     const children = [];
+    const leading = this.is("|");
     if (this.is("|")) children.push(this.tok());
     children.push((yield this.conjunction()));
+    if (!leading && this.is("≻")) {
+      while (this.is("≻")) children.push(this.tok(), (yield this.conjunction()));
+      return this.node("choice", start, [this.node("ranked-choice", start, children)]);
+    }
     while (this.is("|")) children.push(this.tok(), (yield this.conjunction()));
     return this.node("choice", start, children);
   }
@@ -680,7 +697,7 @@ class Parser {
   *patternSequence() {
     const start = this.index, children = [];
     do { children.push((yield this.patternItem())); }
-    while (["identifier", "#", "constant", "pattern-open", "(", "[", "{", "⋯", "⋮", "⋰", "⋱"].includes(this.kindAt()));
+    while (["identifier", "#", "constant", "pattern-open", "(", "[", "{", "⋯", "⋮", "⋱"].includes(this.kindAt()));
     return this.node("pattern-sequence", start, children);
   }
 
@@ -688,14 +705,17 @@ class Parser {
     const start = this.index;
     let child;
     if (this.is("⋯")) child = this.tok();
-    else if (this.is("⋮") || this.is("⋰") || this.is("⋱")) child = this.node("pattern-path", start, [this.tok(), (yield this.patternAtom())]);
+    else if (this.is("⋮") || this.is("⋱")) child = this.node("pattern-path", start, [this.tok(), (yield this.patternAtom())]);
     else if (this.is("[")) child = this.node("pattern-brackets", start, [this.tok(), (yield this.patternUnion()), this.expect("]")]);
     else if (this.is("{")) {
       const children = [this.tok(), (yield this.patternUnion())];
       if (this.is("\\")) children.push(this.tok(), (yield this.patternUnion()));
       children.push(this.expect("}"));
       child = this.node("pattern-repeat", start, children);
-    } else child = (yield this.patternAtom());
+    } else {
+      child = (yield this.patternAtom());
+      if (this.is("⋰")) child = this.node("pattern-path", start, [child, this.tok()]);
+    }
     return this.node("pattern-item", start, [child]);
   }
 

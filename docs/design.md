@@ -81,7 +81,7 @@ The four libraries implement one specification, `docs/engine.md`. It was written
 - A tie is an error (`ok` is false) of kind `ambiguous`, with the reason `tie`. The stage has the verdict `tie` and a witness, and the error has two readings. The first reading is the least in a total order, *T*, that breaks the ranking's ties by canonical keys. The second is the tied derivation that diverges from the first earliest (engine §6). *T* orders the ambiguity diagnostics and selects the forbidden terminator that a `maximal` rejection reports. The canonical tie-break keys never turn a tie into an accepted reading.
 - The witness of a tie is the pair of actions at the first visible difference between the two readings. A close of a helper rule, or of an alternative with one symbol, is transparent (not visible). An earlier difference at such a close does not decide the witness. If the two readings have no visible difference, the witness is the pair of actions at their first difference.
 - A stage with a tie emits nothing, and the pipeline stops there. Its tie stands even when every tied derivation emits the same tokens. The stage is ambiguous as written, and the error lets a grammar author fix it. The engine cases include a three-way tie and a tie whose derivations emit the same tokens.
-- The cases cover empty spans and cycles: nullable rules, empty captures and a condition on an empty span. They also cover a unary cycle of `a` to `b` and `b` to `a`. Another case is a nested parse asked about its own span as the same rule. Each case has its defined outcome.
+- The cases cover empty spans and cycles: rules that can match no tokens, empty captures and a condition on an empty span. They also cover a unary cycle of `a` to `b` and `b` to `a`. Another case is a nested parse asked about its own span as the same rule. Each case has its defined outcome.
 
 Every span and every source range in a result is half-open: the range holds its start but not its end. Source positions count Unicode code points, not bytes or UTF-16 units, so that the four languages agree on non-ASCII text. Each library converts at its edge (JavaScript from UTF-16, Go and Rust from UTF-8). The libraries derive line and column in diagnostics from code points. Lines split at `\n`, `\r\n` and `\r`.
 
@@ -147,9 +147,10 @@ A name in upper case is a terminal that matches a token carrying that tag. A cha
 
 A reference or a terminal can carry a test on its own span, as in `LE="la"`. The symbol then matches only where the test holds. The `=` and `≠` tests compare the sound of the span, whatever the stress or the script. The four tag tests compare the symbol's own tags with a set, as in `cmavo∩UI=∅`. So a rule can name a word by its sound or its tags in its body, and not in a condition. A test does not replace a class, since a word that `zo` quotes has the sound but not the class.
 
-The operators of a body are those of CLL, except for repetition and elidable terminators. "Repetition, lists and chains" and "Elidable optionals and captures" below say why. The operators are these:
+The body adds repetition, elidable terminators, and ranked choices to the CLL operators. "Repetition, lists and chains" and "Elidable optionals and captures" below say why. The operators are these:
 
 - Juxtaposition is sequence.
+- `a ≻ b` ranks `a` first over the same span.
 - `[x]` is optional.
 - `{x}` is one or more, and `[{x}]` is zero or more. `{x \ s}` is a separated list.
 - `{... x \ s}` is a left chain, and `{x ... \ s}` a right chain. A chain, like a list, can leave out `\ s`, as in `{... x}`. A chain is the whole of its rule.
@@ -319,9 +320,11 @@ A document can be included in several stages, and an included document can hold 
 
 ## Ambiguity
 
-A grammar admits every parse that its rules allow. Rule flags compare rule profiles first (notation, "Ambiguity"). A parse with a greater rule profile beats one with a lesser rule profile (engine §6). Among equal rule profiles, a parse beats another if the stage directive prefers it. A parse is best if no other parse beats it.
+Ranked choices filter parses allowed by recognition before ranking. The parses that survive are admitted. Rank admitted parses by `leftmost-longest`, then the stage directive. A parse is best if no other admitted parse beats it.
 
-A text with one parse has the verdict `unique`. If a text has several parses and exactly one is best, the stage chooses it, and the verdict is `resolved`. If two or more are best, the verdict is `tie`.
+One admitted derivation gives `unique`. Several admitted derivations with exactly one best give `resolved`. Several best derivations give a tie with two readings and an action witness.
+
+The verdict transitions and their effects on emission and the elision-only check are defined in [Ambiguity](notation.md#ambiguity).
 
 `greedy` and `lazy` treat each parse as the sequence of actions that a bottom-up reader takes. An action reads the next token or closes a constituent. Visible actions exclude closes of helpers and productions with one symbol. The stage compares parses with the greatest rule profile at their first differing visible action:
 
@@ -375,9 +378,9 @@ CLL's own rule is narrower. It says only that a terminator can be elided if no a
 
 1. Take the `elided` nodes of the chosen tree in the order of its leaves, left to right. This order follows the chosen derivation, also where several nodes stand at one point. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries the tag of that terminator and, for a terminator with an `=` test, the test's string as its sound. The engine marks it synthetic.
 2. Parse the new token sequence with the same grammar, in a mode where each elidable optional is restored or written. Every condition, tag and test of a rule reads the original input through a projection that leaves the synthetic tokens out. A test on a terminal reads the written-back terminator's tag and sound. A query parses the original input with the grammar as it is.
-3. Decide as engine §7.10 lists, in order. If the chosen parse has no derivation in that forest, the library has a defect, the error `elision-witness-lost`. Otherwise, a derivation with a greater rule profile, or another derivation with an equal one, makes the text ambiguous. Otherwise the check passes.
+3. Locate the chosen reconstruction before filtering. Its absence gives `elision-witness-lost`. Filter the reconstructed forest, then rank by projected rule profiles without stage lean. The check passes only when the witness remains admitted and is the sole best admitted derivation.
 
-   The ambiguity is then not about terminators. The result is an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries the two readings that engine §7.10 names, shown over the original input.
+   The ambiguity is then not about terminators. The result is an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries the readings that engine §7.10 names, shown over the original input. An intentionally excluded witness gives ordinary ambiguity, not witness loss.
 
 The stage ranks, then emits, and then runs the check. A tie ends the stage before emission and before the check. So a stage reports at most one `ambiguous` error, and a tie comes first. A stage that fails the check keeps its output, but no later stage runs.
 
@@ -420,9 +423,11 @@ Both variants change queries where no terminator is written, so the policy was r
 
 ### Maximal terminators
 
-Some Zantufa conditions accept a nested reading that closes a parenthesis early, with no terminator written. The condition `¬matches($m, terms-vau)` of `fragment` is an example. So `so to mi klama` reads `([so {to mi}] klama)`, while the reference parser reads one mekso fragment, `so` with the parenthesis `to mi klama`. `so to recap` closes an empty `to`. In `ro sei ny rere'u basna mutce cusku`, the `sei` closes before `cusku`.
+Before maximal terminators, some Zantufa conditions accepted a nested reading that closed a parenthesis early. `so to recap` closed an empty `to`. In `ro sei ny rere'u basna mutce cusku`, a nested reading closed `sei` before `cusku`.
 
-Written-terminator priority does not settle these texts, because no `toi` or `se'u` is written. A condition cannot say that the content of a construct cannot be longer. An attempt to copy the greed of the reference with conditions rejected 27 texts that the reference accepts.
+With `[++TOI]`, `so to recap` reads `(so [to recap])`, and `so to mi klama` reads `(so [to {mi klama}])`. With `[++SEhU]`, `ro sei ny rere'u basna mutce cusku` holds `cusku` inside `sei`. Both constructs take their complete content, as the reference does.
+
+Written-terminator priority alone cannot settle those boundaries, because neither `toi` nor `se'u` is written. A condition cannot say that the content of a construct cannot be longer. An attempt to copy the greed of the reference with conditions rejected 27 texts that the reference accepts.
 
 Stage-wide `maximal` inside nested parses was measured in two variants ("Nested queries and elided terminators" above). V1 searched the whole stage input and changed 39 jobs, with 31 false ties. V2 searched the query's chart and changed 24 jobs, with 17 false ties. That policy applied to every elidable terminator. This feature lets a grammar select single terminators instead. For those selected constructs, a change to a query with no written terminator is the intent.
 
@@ -660,6 +665,8 @@ A railroad diagram draws a grammar rule as a track. A reader follows the track f
 
 `node tools/sync.js` draws one diagram for each rule of each grammar document (`tools/railroad.js`). It reads the rules from the document's DOM, as the libraries read them. It writes each diagram as an SVG file under `docs/diagrams/`, in one directory for each document. So the diagram of `sumti` in `grammars/syntax/cll.md` is `docs/diagrams/syntax/cll/sumti.svg`. The packages do not ship these files.
 
+A ranked choice numbers its options in preferred order inside a dashed frame. Its shared label is `≻ same span`. Only a qualified option over the same span removes lower options. Ordinary alternatives within an option remain unnumbered. Nested ranked groups receive separate frames.
+
 The grammar document shows its diagrams itself. HTML cannot stand inside a fenced block, so the diagrams follow the block that states their rules. After the block come a blank line and one collapsed `<details>` element, so a reader opens the diagrams only when they want them. Its summary names the rules of the block. A long list gives only the first and the last rule, and the number of rules. The element holds an image of each rule's SVG file, one on each line, in the order of the rules. Each drawing gives its rule's name above its track.
 
 `tools/sync.js` owns these generated elements. An element begins with a line outside fenced blocks that begins with `<details><summary>Railroad diagram`. It goes on through the lines of its images, which begin with `<p><img`, to its line `</details>`. Each run removes every element, with the blank line before it, and writes them again from the DOM. So the elements follow a rule that is renamed, added or removed. Every other line of the document keeps its text and its line ending. `tools/sync.js --check` fails when an element is missing, out of date or left over, or stands in a document outside `grammars/`.
@@ -680,7 +687,7 @@ The recognizer compiles demanded patterns into finite structural states. Items r
 
 Reconstruction observes each candidate's structure projected onto original tokens. Restored helpers contribute omitted markers, while ordinary synthetic reads contribute no observable leaf. Pattern sound remains empty on omitted markers. Body tests instead read synthetic recognition values. Every omission must pass its test on its canonical restoration value before recognition admits it. This rule preserves the witness for inequality and tag tests without inventing sound or tags.
 
-Grammar DOM format 21 stores pattern expressions and unresolved constants. Structural states remain internal. Parse-result format 9 remains unchanged because patterns introduce no new result members. Preference declarations, complete-reading relations and cycle diagnostics belong to a later implementation.
+Grammar DOM format 22 stores pattern expressions, unresolved constants, and ranked expressions. Structural states remain internal. Parse-result format 11 reports the restored chosen witness first in elision-only errors. No [seal](notation.md#ranked-choices) node is serialized.
 
 Measurements record structural states, chart items, packed edges and summary contexts alongside elapsed time and peak memory. Increasing list length, unary depth, nested omissions and independent ambiguous children expose product-state growth. Finite sharing can still require exponentially many states.
 
@@ -772,3 +779,29 @@ The conditions on `number` and `lerfu-string` test the completed run once, where
 The Rust corpus comparison gives bpfk 54 new acceptances under the shared elision policy. The cll-ebnf dialect already accepts 52 of those texts. Two texts hold digits that its word forms reject at the words stage. Both dialects accept example 8.48 without `ku'o`, despite the requirement in CLL 8.6. The maintainer approves that policy as an interpretation of CLL 1.1 section 21.2 note 10. The number and letter boundaries separately follow CLL 17.9 and 18.6.
 
 The comparison changes 512 results among 29,725 existing cases. In cll-ebnf, 26 texts now reject, one tree changes, and 394 verdicts change from `resolved` to `unique`. In bpfk, 23 rejection positions move, and 14 verdicts change from `unique` to `resolved`, alongside the 54 new acceptances. No experimental or Zantufa result changes.
+
+## Ranked choice design
+
+An isolated reparse can disagree with the constituent that the parent actually builds. Queries about one span lose its surrounding prefix, eligibility channel, and ready gates. They cannot establish an actual replacement at that written position.
+
+A preference relation over complete readings combines with elision ranking into comparison cycles. A prototype of that relation turned accepted texts into ties in all seven contested families. A local filter avoids that combined relation.
+
+An inline ranked choice states its position and category order together. It requires one common prefix and suffix because the author writes them once.
+
+Every option supplies its actual qualified constituent or sequence. A failed higher gate leaves lower options available. One seal hides each completed option's children from outside patterns. Ready private conditions still observe their real captured constituents.
+
+The local tag closure prevents hidden option tags from changing the common continuation. Private captures cannot escape into later conditions, tags, or emissions. Common prefix captures retain one written binding.
+
+Every removed proof has an eligible replacement in its admission group. Sealing and the tag rule preserve that replacement's continuation. Induction preserves eligible recognition with sealing fixed. Adding seals can change existing outside observations.
+
+The exact group key, tag closure, and algorithm belong to engine §2.1 and §6.1. [Ambiguity](notation.md#ambiguity) defines verdict changes and their effects on later stages. The existing ranker still compares flagged profiles before the stage directive.
+
+Reconstruction first locates the restored chosen derivation before filtering. Filtering compares spans that include restored terminators. It ranks admitted readings by projected profiles without a stage directive. Filtering can exclude the restored derivation and cause an `elision-only` ambiguity. The error reports that derivation first and the best admitted competitor second. Only its absence before filtering reports `elision-witness-lost` ([engine §7](engine.md#7-elision-only)).
+
+Experimental ranks NUhI bodies, shared ME operands, and mekso-MOI before SE conversion. Zantufa ranks fragments, ME, whole MOI constructions, MAhO, and MOhE. In Zantufa, SE can begin a mekso through an operator, so the MOI group also includes it. FA and JAI cannot begin those mekso forms.
+
+The ranked choices need no new wrapper rules. The new `me-unit` names the shared experimental ME construction. `gek-termset-body`, `termset-with-nuhi`, and `terms-vau` keep their bracket groups, reuse, or capture. The Zantufa group replaces the `mex-moi` rule.
+
+Sealing remains an authoring limit. An outside pattern that needs hidden option structure requires an unranked position or an earlier local condition. Sequence captures remain unsupported, so the fragment keeps its readable compound name `terms-vau`.
+
+Input lookaheads, experimental KE copies, and Zantufa grouped content remain issue #166 work. Corpus class pins remain issue #169 work.

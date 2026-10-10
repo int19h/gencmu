@@ -1,0 +1,62 @@
+{
+  "description": "A neutral helper remains outside the ranked group. Both ranked and neutral inputs remain valid.",
+  "grammar": "%rule text ((a ≻ b) | [Q]) (c ≻ d)\n%rule a X Y\n%rule b X Y\n%rule c U V\n%rule d U V",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    },
+    {
+      "text": "u",
+      "tags": [
+        "U"
+      ]
+    },
+    {
+      "text": "v",
+      "tags": [
+        "V"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 11,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "a",
+            "span": [
+              0,
+              2
+            ]
+          },
+          {
+            "rule": "c",
+            "span": [
+              2,
+              4
+            ]
+          }
+        ]
+      },
+      "error": null
+    }
+  }
+}

@@ -14,6 +14,7 @@ use crate::unicode::Unicode;
 use crate::work::{self, Work};
 
 pub(crate) struct Reader<'a> {
+    pub defer_emission: bool,
     pub tokens: &'a [Token],
     /// The captures of the alternative being read, in the order written,
     /// where an error about one is reported.
@@ -102,7 +103,14 @@ impl<'a> Reader<'a> {
     /// give such a tree. The reader then gives this error, and never
     /// assumes a shape that the tree lacks.
     fn shape_error(&self, node: &Node, what: impl std::fmt::Display) -> Error {
-        self.error(node, format!("the notation's {} has no {what}", rule_name(node)))
+        {
+            let error = self.error(node, format!("the notation's {} has no {what}", rule_name(node)));
+            if rule_name(node) == "ranked-choice" {
+                error.coded("ranked-choice-syntax")
+            } else {
+                error
+            }
+        }
     }
 
     /// The error of a child of a kind that the reader does not know.
@@ -150,6 +158,7 @@ impl<'a> Reader<'a> {
             match rule_name(node) {
                 "rule" => dom.rules.push(self.rule(node)?),
                 "directive" => dom.directives.push(self.directive(node)?),
+
                 "constant-definition" => dom.constants.push(self.constant(node)?),
                 "classifier" => dom.classifiers.push(self.classifier(node)?),
                 "implication-declaration" => dom.implications.push(self.implication_declaration(node)?),
@@ -336,7 +345,12 @@ impl<'a> Reader<'a> {
         // body, then its clauses in their fixed order, and the checks of the
         // whole definition last (§9).
         let mut alternatives = Vec::new();
-        for alternative in self.some(self.one(node, "body")?, "alternative", 1)? {
+        let body = self.one(node, "body")?;
+        let alternatives_nodes = match Self::rules(body, "ranked-alternative").next() {
+            Some(ranked) => vec![ranked],
+            None => self.some(body, "alternative", 1)?,
+        };
+        for alternative in alternatives_nodes {
             alternatives.push(self.alternative(alternative)?);
         }
         let tags = match Self::rules(node, "tags-clause").next() {
@@ -355,6 +369,7 @@ impl<'a> Reader<'a> {
             None => None,
         };
         let mut rule = RuleDef {
+            deferred_emission: None,
             name: self.text(name_token).to_string(),
             op,
             flags,
@@ -368,7 +383,14 @@ impl<'a> Reader<'a> {
         flatten_groups(&mut rule);
         // The definition is checked as a whole once it is read (§9).
         if let Some(problem) = crate::clauses::definition_problem(&rule) {
-            return Err(self.error(definer, problem));
+            if self.defer_emission
+                && crate::dom::deferred_emission_problem(&problem)
+                && rule.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr))
+            {
+                rule.deferred_emission = Some(problem);
+            } else {
+                return Err(self.error(definer, problem));
+            }
         }
         Ok(rule)
     }
@@ -390,7 +412,14 @@ impl<'a> Reader<'a> {
             })
             .collect::<R<_>>()?;
         self.captures.borrow_mut().clear();
-        let expr = self.conjunction(self.one(node, "conjunction")?, true)?;
+        let expr = if rule_name(node) == "ranked-alternative" {
+            match self.run(Frame::Choice(Choice::new(self.one(node, "ranked-choice")?)))? {
+                Val::Expr(expr) => expr,
+                _ => unreachable!("an expression reads an expression"),
+            }
+        } else {
+            self.conjunction(self.one(node, "conjunction")?, true)?
+        };
         // A name stands at most once in each production, gates aside: the
         // error stands at the second capture that such a production reads,
         // the first in the text where there are several (§3.5, §9).
@@ -405,7 +434,7 @@ impl<'a> Reader<'a> {
             Some(tags) => Some(self.constituent_tags(tags)?),
             None => None,
         };
-        Ok(Alternative { guards, expr, tags })
+        Ok(Alternative { guards, expr, tags, ranked_locations: Default::default() })
     }
 
     /// A rule's or an alternative's tags, which say what the constituent's
@@ -548,7 +577,11 @@ impl<'a> Reader<'a> {
 
     fn resume_choice(&self, frame: &mut Choice<'a>, input: Option<Val>) -> R<Step<'a>> {
         if frame.conjunctions.is_none() {
-            frame.conjunctions = Some(self.some(frame.node, "conjunction", 1)?);
+            if let Some(ranked) = Self::rules(frame.node, "ranked-choice").next() {
+                frame.node = ranked;
+                frame.ranked = true;
+            }
+            frame.conjunctions = Some(self.some(frame.node, "conjunction", if frame.ranked { 2 } else { 1 })?);
         }
         if let Some(Val::Expr(expr)) = input {
             frame.parts.push(expr);
@@ -556,7 +589,11 @@ impl<'a> Reader<'a> {
         let conjunctions = frame.conjunctions.as_ref().expect("the conjunctions");
         match conjunctions.get(frame.parts.len()) {
             Some(&conjunction) => Ok(Step::Call(Frame::Conjunction(Conjunction::new(conjunction, false)))),
-            None => Ok(Step::Done(Val::Expr(single_or(std::mem::take(&mut frame.parts), Expr::Choice)))),
+            None => Ok(Step::Done(Val::Expr(if frame.ranked {
+                Expr::Ranked(std::mem::take(&mut frame.parts))
+            } else {
+                single_or(std::mem::take(&mut frame.parts), Expr::Choice)
+            }))),
         }
     }
 
@@ -1144,9 +1181,10 @@ impl<'a> Reader<'a> {
                     C::Repeat(Box::new(item), xs.next().map(Box::new))
                 }
                 "pattern-path" => {
-                    let op = self.text(self.token(node)?);
+                    // The direct operator token can follow the named atom.
+                    let operator = self.text(self.token(node)?);
                     C::Node(Box::new(P::Path(
-                        match op {
+                        match operator {
                             "⋮" => "descendant",
                             "⋰" => "first",
                             _ => "last",
@@ -1687,6 +1725,7 @@ impl<'a> Conjunction<'a> {
 }
 
 struct Choice<'a> {
+    ranked: bool,
     node: &'a Node,
     conjunctions: Option<Vec<&'a Node>>,
     parts: Vec<Expr>,
@@ -1694,7 +1733,7 @@ struct Choice<'a> {
 
 impl<'a> Choice<'a> {
     fn new(node: &'a Node) -> Self {
-        Choice { node, conjunctions: None, parts: Vec::new() }
+        Choice { ranked: rule_name(node) == "ranked-choice", node, conjunctions: None, parts: Vec::new() }
     }
 }
 
@@ -1876,7 +1915,7 @@ fn first_of_rule<'n>(node: &'n Node, name: &str) -> Option<&'n Node> {
 /// The rules of the notation's syntax grammar that the reader knows (engine
 /// §9). Every other rule is a wrapper, and the reader reads its parts in
 /// its place.
-const KNOWN: [&str; 81] = [
+const KNOWN: [&str; 83] = [
     "tree-comparison",
     "tree-comparator",
     "pattern-literal",
@@ -1910,6 +1949,8 @@ const KNOWN: [&str; 81] = [
     "rule-name",
     "body",
     "alternative",
+    "ranked-alternative",
+    "ranked-choice",
     "guard",
     "alternative-tags",
     "choice",

@@ -1,6 +1,6 @@
 {
   "description": "The structural predicate observes the constructed candidate. Recognition keeps candidates with different answers separate.",
-  "grammar": "%rule text A B\n%conditions $ ≅ @(⋰ text) ∧ $ ≅ @(⋱ text)",
+  "grammar": "%rule text A B\n%conditions $ ≅ @(text ⋰) ∧ $ ≅ @(⋱ text)",
   "tokens": [
     {
       "text": "a",

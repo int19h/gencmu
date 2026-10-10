@@ -1,0 +1,9 @@
+{
+  "description": "An earlier tag failure precedes a later private tag export, without compiling invalid runtime bindings.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text a ≻ b\n%rule a X\n%rule b Y\n%rule later Q ($x(a) ≻ $x(b)) Z\n%tags tags($x)",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "ranked-choice-tags"
+  }
+}

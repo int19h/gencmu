@@ -20,7 +20,7 @@
 use crate::fxhash::FxMap;
 use std::cmp::Ordering;
 
-use crate::earley::{test_holds, Chart, Item, Shared, Tok};
+use crate::earley::{test_holds, Cap, Chart, Item, Shared, Tok};
 use crate::grammar::Lean;
 use crate::lower::{Lowered, Sym, NO_TEST};
 use crate::maximal::Maximal;
@@ -43,7 +43,7 @@ pub(crate) enum DNode {
 }
 
 /// An action of a derivation's sequence (§6).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Act {
     Read { tok: u32, terminal: u32 },
     Close { prod: u32, start: u32, end: u32, visible: bool },
@@ -70,6 +70,7 @@ pub(crate) enum Verdict {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum Node {
+    Scoped(u32),
     Read {
         tok: u32,
         terminal: u32,
@@ -92,6 +93,8 @@ enum Node {
         tags: u32,
         test: u32,
         structure: u32,
+        lexical: u32,
+        option: usize,
     },
 }
 
@@ -140,11 +143,298 @@ impl NodeResult {
     }
 }
 
+#[derive(Clone)]
 enum Deps {
     Leaf,
     Links(Vec<(Key, Key)>),
     Close(Option<Key>),
     Group(Vec<Key>),
+}
+
+#[derive(Clone)]
+struct SlotCandidate {
+    node: Node,
+    edge: usize,
+    label: String,
+    group: usize,
+}
+#[derive(Default)]
+struct Counts {
+    all: u8,
+    allowed: u8,
+    w: bool,
+    allowed_w: bool,
+}
+type SlotMaxima = (std::collections::BTreeSet<String>, std::collections::BTreeSet<String>);
+struct Admission {
+    groups: Vec<Vec<SlotCandidate>>,
+    at: FxMap<Node, Vec<SlotCandidate>>,
+    counts: FxMap<Key, Counts>,
+    masks: FxMap<Key, (Vec<bool>, Vec<bool>)>,
+    maxima: FxMap<(usize, u32, Option<u32>), SlotMaxima>,
+    stats: crate::slot_stats::SlotStatistics,
+}
+/// The packed chart keeps raw proofs together. Admission separates the
+/// options at a slot edge while retaining every proof of each option.
+fn slot_links(g: &Lowered, chart: &Chart, set: u32, item: Item) -> Vec<(Item, Cap, usize)> {
+    let mut out = vec![];
+    let rule = match g.prods[item.prod as usize].syms[item.dot as usize - 1] {
+        Sym::N(r) => Some(r),
+        _ => None,
+    };
+    let ranked = rule.is_some_and(|r| g.ranked.slots.contains_key(&r));
+    for &(before, cap) in chart.links.get(&(set, item)).into_iter().flatten() {
+        if ranked {
+            let lexical = chart.expected_lexical(before, cap.start);
+            let mut options = std::collections::BTreeSet::new();
+            for &index in chart.sets[set as usize].completed.get(&(rule.unwrap(), cap.start)).into_iter().flatten() {
+                let child = chart.sets[set as usize].items[index as usize];
+                if child.lexical == lexical
+                    && child.structure == cap.structure
+                    && chart.sets[set as usize].tagset[index as usize] == cap.tags
+                {
+                    options.insert(g.ranked.options[&child.prod]);
+                }
+            }
+            out.extend(options.into_iter().map(|option| (before, cap, option)));
+        } else {
+            out.push((before, cap, usize::MAX));
+        }
+    }
+    out
+}
+fn written_frame(g: &Lowered, chart: &Chart, item: Item, at: u32) -> String {
+    let p = &g.prods[item.prod as usize];
+    let control: Vec<_> = p
+        .syms
+        .iter()
+        .enumerate()
+        .map(|(i, s)| {
+            let role = match s {
+                Sym::T(t) => format!("T{t}"),
+                Sym::N(r) => g.ranked.written.get(r).cloned().unwrap_or_else(|| format!("N{r}")),
+            };
+            (role, p.test(i).map(|id| &g.tests[id as usize]))
+        })
+        .collect();
+    let captures: Vec<_> = p
+        .slot
+        .as_ref()
+        .expect("a written parent")
+        .names
+        .iter()
+        .zip(chart.caps(item.caps))
+        .filter_map(|(name, cap)| name.as_ref().map(|name| (name, cap)))
+        .collect();
+    let lexical = chart.lexical_frame(item.lexical).map(|f| &f.key);
+    let path = g.ranked.written.get(&p.rule);
+    let index = chart.sets[at as usize].find(&item).expect("a written prefix");
+    format!(
+        "{:?}/{path:?}/{control:?}/{}/{}/{captures:?}/{lexical:?}/{}/{}",
+        p.slot.as_ref().unwrap().source,
+        item.dot,
+        item.origin,
+        item.prefix,
+        chart.sets[at as usize].is_strict(index as usize)
+    )
+}
+impl Admission {
+    fn new(g: &Lowered, chart: &Chart, views: Option<&SlotViews>, nodes: &[Node]) -> Self {
+        let mut groups = Vec::<Vec<SlotCandidate>>::new();
+        let mut ids = FxMap::<String, usize>::default();
+        let mut at = FxMap::<Node, Vec<SlotCandidate>>::default();
+        let mut stats = crate::slot_stats::SlotStatistics {
+            chart_facts: chart.sets.iter().map(|s| s.items.len()).sum(),
+            ..Default::default()
+        };
+        for &node in nodes {
+            let (raw, scope) = views.map_or((node, 0), |v| v.unpack(node));
+            let Node::Item { set: end, index } = raw else { continue };
+            let item = chart.sets[end as usize].items[index as usize];
+            let p = &g.prods[item.prod as usize];
+            if g.rules[p.rule as usize].helper && scope == 0 {
+                continue;
+            }
+            if item.dot == 0 {
+                continue;
+            }
+            let Sym::N(rule) = p.syms[item.dot as usize - 1] else { continue };
+            let Some(group_id) = g.ranked.slots.get(&rule) else { continue };
+            let routed = views.is_some_and(|v| v.routes.contains_key(&node));
+            let mut edge = 0;
+            for (previous, cap, option) in slot_links(g, chart, end, item) {
+                let pp = &g.prods[previous.prod as usize];
+                let prefix = written_frame(g, chart, previous, cap.start);
+                let ancestry = views.map(|v| v.ranked_prefix_key(scope, g, chart));
+                let key = format!("{group_id}/{prefix}/{ancestry:?}/{}/{}", cap.start, cap.end);
+                let group = *ids.entry(key).or_insert_with(|| {
+                    groups.push(vec![]);
+                    groups.len() - 1
+                });
+                let copies = if routed { 2 } else { 1 };
+                for offset in 0..copies {
+                    let candidate = SlotCandidate { node, edge: edge + offset, label: format!("{option:020}"), group };
+                    groups[group].push(candidate.clone());
+                    at.entry(node).or_default().push(candidate);
+                    stats.candidate_edges += 1;
+                }
+                edge += copies;
+                let _ = pp;
+            }
+        }
+        stats.groups = groups.len();
+        Self { groups, at, counts: FxMap::default(), masks: FxMap::default(), maxima: FxMap::default(), stats }
+    }
+}
+impl Ranker<'_> {
+    fn availability_key(&self, key: Key, group: usize) -> (usize, u32, Option<u32>) {
+        let parent = match self.raw_node(key.0) {
+            Node::Item { set, index } => {
+                let item = self.item(set, index);
+                let p = &self.dag.g.prods[item.prod as usize];
+                (item.dot as usize == p.syms.len()).then(|| {
+                    self.views
+                        .as_ref()
+                        .and_then(|v| v.written_parent(key.0, self.dag.g, self.dag.chart))
+                        .unwrap_or(p.rule)
+                })
+            }
+            _ => None,
+        };
+        (group, key.1, parent)
+    }
+    fn slot_candidates(&self, key: Key) -> Vec<SlotCandidate> {
+        let Some(a) = &self.admission else { return vec![] };
+        let Some(choices) = a.at.get(&key.0) else { return vec![] };
+        let groups = choices.iter().map(|c| c.group).collect::<std::collections::BTreeSet<_>>();
+        groups
+            .into_iter()
+            .filter(|g| !a.maxima.contains_key(&self.availability_key(key, *g)))
+            .flat_map(|g| a.groups[g].clone())
+            .collect()
+    }
+    fn admit(&mut self, key: Key, deps: &Deps) {
+        let choices = self.admission.as_ref().and_then(|a| a.at.get(&key.0)).cloned();
+        let Some(choices) = choices else {
+            if let Some(mask) = self.views.as_ref().and_then(|v| v.routes.get(&key.0)).cloned() {
+                self.admission.as_mut().unwrap().masks.insert(key, mask);
+            }
+            return;
+        };
+        let Deps::Links(links) = deps else { unreachable!("a slot advance") };
+        let mut masks = (vec![false; links.len()], vec![false; links.len()]);
+        for choice in choices {
+            let context = self.availability_key(key, choice.group);
+            if !self.admission.as_ref().unwrap().maxima.contains_key(&context) {
+                let mut all = std::collections::BTreeSet::new();
+                let mut allowed = std::collections::BTreeSet::new();
+                let candidates = self.admission.as_ref().unwrap().groups[choice.group].clone();
+                for candidate in candidates {
+                    let Deps::Links(found) = self.deps((candidate.node, key.1)) else { unreachable!() };
+                    let Some(&(pred, child)) = found.get(candidate.edge) else { continue };
+                    let Node::Item { set, index } = self.raw_node(candidate.node) else { unreachable!() };
+                    let (guarded, test) = self.guard(set, index);
+                    let (elided, permitted) = self.eligibility(child.0, guarded, test);
+                    let a = self.admission.as_ref().unwrap();
+                    let left = &a.counts[&pred];
+                    let right = &a.counts[&child];
+                    let ways = if elided { left.allowed } else { left.all };
+                    if ways > 0 && right.all > 0 {
+                        all.insert(candidate.label.clone());
+                        if permitted {
+                            allowed.insert(candidate.label);
+                        }
+                    }
+                }
+                let maximal =
+                    |labels: &std::collections::BTreeSet<String>| labels.iter().next().cloned().into_iter().collect();
+                let maxima = (maximal(&all), maximal(&allowed));
+                self.admission.as_mut().unwrap().maxima.insert(context, maxima);
+            }
+            let (all, allowed) = &self.admission.as_ref().unwrap().maxima[&context];
+            let routes = self.views.as_ref().and_then(|v| v.routes.get(&key.0));
+            masks.0[choice.edge] = all.contains(&choice.label) && routes.map_or(true, |r| r.0[choice.edge]);
+            masks.1[choice.edge] = allowed.contains(&choice.label) && routes.map_or(true, |r| r.1[choice.edge]);
+        }
+        let a = self.admission.as_mut().unwrap();
+        a.stats.retained_edges += masks.0.iter().filter(|x| **x).count();
+        a.masks.insert(key, masks);
+    }
+    fn count(&self, key: Key, deps: &Deps) -> Counts {
+        let a = self.admission.as_ref().unwrap();
+        let marks = self.marks;
+        match deps {
+            Deps::Leaf => {
+                let valid = match self.raw_node(key.0) {
+                    Node::Item { set, index } if self.item(set, index).origin != set => {
+                        !witness::fault(Fault::RankRestoration)
+                    }
+                    _ => true,
+                };
+                let w = match self.raw_node(key.0) {
+                    Node::Read { .. } => true,
+                    Node::Item { set, index } => marks.is_some_and(|m| m.items.contains(&(set, index))),
+                    _ => false,
+                };
+                Counts { all: u8::from(valid), allowed: u8::from(valid), w: valid && w, allowed_w: valid && w }
+            }
+            Deps::Close(None) => Counts::default(),
+            Deps::Close(Some(k)) => {
+                let body = &a.counts[k];
+                Counts { all: body.all, allowed: body.all, w: body.w, allowed_w: body.w }
+            }
+            Deps::Group(members) => {
+                let mut result = Counts::default();
+                for (i, k) in members.iter().enumerate() {
+                    if self.skips(Fault::LostContext, "group", i as u32, members.len()) {
+                        continue;
+                    }
+                    let c = &a.counts[k];
+                    result.all = result.all.saturating_add(c.all).min(2);
+                    result.w |= c.all > 0 && c.w;
+                }
+                result.allowed = result.all;
+                result.allowed_w = result.w;
+                result
+            }
+            Deps::Links(links) => {
+                let Node::Item { set, index } = self.raw_node(key.0) else { unreachable!() };
+                let (guarded, test) = self.guard(set, index);
+                let mut result = Counts::default();
+                let mask = a.masks.get(&key);
+                for (i, &(pred, child)) in links.iter().enumerate() {
+                    if self.skips(Fault::LostContext, "links", i as u32, links.len()) {
+                        continue;
+                    }
+                    let (elided, permitted) = self.eligibility(child.0, guarded, test);
+                    let left = &a.counts[&pred];
+                    let right = &a.counts[&child];
+                    let ways = (if elided { left.allowed } else { left.all }).saturating_mul(right.all).min(2);
+                    if mask.map_or(true, |m| m.0[i]) {
+                        result.all = result.all.saturating_add(ways).min(2);
+                        let Node::Item { set: m, .. } = self.raw_node(pred.0) else { unreachable!() };
+                        result.w |= ways > 0
+                            && (if elided { left.allowed_w } else { left.w })
+                            && right.w
+                            && marks.is_some_and(|marks| marks.links.contains(&(set, index, m)));
+                    }
+                    if permitted && mask.map_or(true, |m| m.1[i]) {
+                        result.allowed = result.allowed.saturating_add(ways).min(2);
+                        let Node::Item { set: m, .. } = self.raw_node(pred.0) else { unreachable!() };
+                        result.allowed_w |= ways > 0
+                            && (if elided { left.allowed_w } else { left.w })
+                            && right.w
+                            && marks.is_some_and(|marks| marks.links.contains(&(set, index, m)));
+                    }
+                }
+                if !guarded {
+                    result.allowed = result.all;
+                    result.allowed_w = result.w;
+                }
+                result
+            }
+        }
+    }
 }
 
 enum Walk {
@@ -172,7 +462,7 @@ enum Rel {
 
 /// The outcome of ranking a stage's forest: the verdict, the first
 /// reading `m`, which is the chosen derivation unless the verdict is a tie,
-/// and for a tie the second reading `t` and the witness (§6).
+/// and for a tie the second reading and witness (§6).
 pub(crate) struct Ranking {
     pub verdict: Verdict,
     pub first: u32,
@@ -456,6 +746,7 @@ struct Elisions {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Pass {
+    Admission,
     Summaries,
     Entries,
 }
@@ -473,6 +764,7 @@ pub(crate) struct Dag<'c> {
     /// its projected span (§7.5); `None` elsewhere.
     projection: Option<(&'c [Tok], &'c [u32])>,
     lean: Lean,
+    canonical_companions: bool,
     pub arena: Vec<DNode>,
     /// The number of visible actions and of all actions of each node,
     /// exact, since a derivation can be exponentially long.
@@ -494,9 +786,10 @@ pub(crate) struct Ranker<'c> {
     /// count also says whether it includes a derivation made of marked links
     /// only. A parse that no test watches has none.
     marks: Option<&'c Marks>,
-    /// Whether this is the ranker of the check of `elision-only`, which only
-    /// its faults read.
+    /// Reconstruction selects canonical companions and enables its fault tests.
     check: bool,
+    admission: Option<Admission>,
+    views: Option<SlotViews>,
 }
 
 impl<'c> Dag<'c> {
@@ -604,7 +897,7 @@ impl<'c> Dag<'c> {
                 // A companion that diverged from the loser where the winner
                 // beat it is beaten there too, since ties are transitive.
                 for comp in &loser.comps {
-                    if comp.div < p {
+                    if self.canonical_companions || comp.div < p {
                         winner.comps.push(comp.clone());
                     }
                 }
@@ -617,13 +910,14 @@ impl<'c> Dag<'c> {
         self.prune(&mut winner.comps);
     }
 
-    /// Keeps the companions that diverge earliest, and of those the ones
-    /// nothing precedes in every context.
+    /// Reconstruction keeps canonical companions.
+    /// Ordinary ranking first selects the earliest divergence.
     fn prune(&mut self, comps: &mut Vec<Comp>) {
         let Some(min) = comps.iter().map(|comp| &comp.div).min().cloned() else {
             return;
         };
-        let candidates: Vec<Comp> = comps.drain(..).filter(|comp| comp.div == min).collect();
+        let candidates: Vec<Comp> =
+            comps.drain(..).filter(|comp| self.canonical_companions || comp.div == min).collect();
         let mut kept: Vec<Comp> = Vec::new();
         for comp in candidates {
             let mut dominated = false;
@@ -855,6 +1149,7 @@ impl<'c> Ranker<'c> {
             tags: &shared.tags,
             projection: None,
             lean,
+            canonical_companions: false,
             arena: Vec::new(),
             vlen: Vec::new(),
             flen: Vec::new(),
@@ -874,9 +1169,21 @@ impl<'c> Ranker<'c> {
             }),
             marks: None,
             check: false,
+            admission: None,
+            views: SlotViews::new(g),
         };
         ranker.fset_index.insert(Vec::new(), 0);
+        if !g.ranked.slots.is_empty() {
+            let nodes = ranker.prepare_views();
+            ranker.admission = Some(Admission::new(g, chart, ranker.views.as_ref(), &nodes));
+        }
         ranker
+    }
+
+    pub(crate) fn unfiltered(mut self) -> Self {
+        self.admission = None;
+        self.views = None;
+        self
     }
 
     /// Ranks the derivations of the reconstructed input of `elision-only`,
@@ -890,6 +1197,7 @@ impl<'c> Ranker<'c> {
     /// of W(D) where a test watches it (tests/README.md).
     pub(crate) fn checking(mut self, marks: Option<&'c Marks>) -> Ranker<'c> {
         self.check = true;
+        self.dag.canonical_companions = true;
         self.marks = marks;
         self
     }
@@ -937,25 +1245,13 @@ impl<'c> Ranker<'c> {
         }
     }
 
+    pub(crate) fn same_derivation(&self, a: u32, b: u32) -> bool {
+        matches!(self.dag.first_difference(a, b, false), Diff::Equal)
+    }
+
     /// Whether `a` comes before `b` in the order T.
     pub(crate) fn before(&self, a: u32, b: u32) -> bool {
         self.dag.before(a, b)
-    }
-
-    /// Whether `a` comes before `b` as the second reading after `first`
-    /// (§6): it diverges from `first` earlier, or at the same point and
-    /// before `b` in the order T. As `rank` measures it.
-    pub(crate) fn second_before(&self, first: u32, a: u32, b: u32) -> bool {
-        let div = |d: u32| match self.dag.first_difference(first, d, true) {
-            Diff::At { index, .. } => Div::At(index),
-            Diff::APrefix { len } | Diff::BPrefix { len } => Div::At(len),
-            Diff::Equal => Div::Last,
-        };
-        match div(a).cmp(&div(b)) {
-            Ordering::Less => true,
-            Ordering::Greater => false,
-            Ordering::Equal => self.dag.before(a, b),
-        }
     }
 
     /// The tokens that a test of a reference over `start..end` reads: those
@@ -1003,8 +1299,9 @@ impl<'c> Ranker<'c> {
         id
     }
 
-    fn deps(&mut self, (node, fset): Key) -> Deps {
+    fn raw_deps(&mut self, (node, fset): Key) -> Deps {
         match node {
+            Node::Scoped(_) => unreachable!("a raw forest node"),
             Node::Read { .. } => Deps::Leaf,
             Node::Item { set, index } => {
                 let item = self.item(set, index);
@@ -1016,7 +1313,7 @@ impl<'c> Ranker<'c> {
                     let p = &g.prods[item.prod as usize];
                     let position = item.dot as usize - 1;
                     let mut links = Vec::new();
-                    for &(before, cap) in self.dag.chart.links.get(&(set, item)).into_iter().flatten() {
+                    for (before, cap, option) in slot_links(g, self.dag.chart, set, item) {
                         let m = cap.start;
                         let Some(index) = self.dag.chart.sets[m as usize].find(&before) else {
                             continue;
@@ -1032,6 +1329,8 @@ impl<'c> Ranker<'c> {
                                     tags: cap.tags,
                                     test: p.test(position).unwrap_or(NO_TEST),
                                     structure: cap.structure,
+                                    lexical: self.dag.chart.expected_lexical(before, m),
+                                    option,
                                 },
                                 if m == item.origin { fset } else { 0 },
                             ),
@@ -1052,6 +1351,7 @@ impl<'c> Ranker<'c> {
                     item.caps
                 };
                 let pred = Item {
+                    lexical: item.lexical,
                     prod: item.prod,
                     dot: item.dot - 1,
                     origin: item.origin,
@@ -1112,6 +1412,8 @@ impl<'c> Ranker<'c> {
                                     tags: cap.tags,
                                     test: NO_TEST,
                                     structure: cap.structure,
+                                    lexical: 0,
+                                    option: usize::MAX,
                                 };
                                 let child_fset = if m == item.origin { fset } else { 0 };
                                 links.push(((Node::Item { set: m, index: p }, same(m, fset)), (child, child_fset)));
@@ -1128,8 +1430,16 @@ impl<'c> Ranker<'c> {
                                         items.iter().any(|&index| holds(m, eset.tagset[index as usize]))
                                     });
                                 if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| passes) {
-                                    let child =
-                                        Node::Group { rule, origin: m, set, tags: ANY, test: test_id, structure: ANY };
+                                    let child = Node::Group {
+                                        rule,
+                                        origin: m,
+                                        set,
+                                        tags: ANY,
+                                        test: test_id,
+                                        structure: ANY,
+                                        lexical: 0,
+                                        option: usize::MAX,
+                                    };
                                     let child_fset = if m == item.origin { fset } else { 0 };
                                     links.push(((Node::Item { set: m, index: p }, same(m, fset)), (child, child_fset)));
                                 }
@@ -1148,7 +1458,7 @@ impl<'c> Ranker<'c> {
                 let inner = self.fset_with(fset, rule);
                 Deps::Close(Some((Node::Item { set, index }, inner)))
             }
-            Node::Group { rule, origin, set, tags, test, structure } => {
+            Node::Group { rule, origin, set, tags, test, structure, lexical, option } => {
                 let eset = &self.dag.chart.sets[set as usize];
                 // A fault applies no test in the check (tests/README.md).
                 let no_tests = self.dag.projection.is_some() && witness::fault_at(Fault::RankerTests, "group");
@@ -1162,7 +1472,11 @@ impl<'c> Ranker<'c> {
                         items
                             .iter()
                             .filter(|&&index| {
-                                (tags == ANY || eset.tagset[index as usize] == tags)
+                                (eset.items[index as usize].lexical == lexical)
+                                    && (option == usize::MAX
+                                        || self.dag.g.ranked.options.get(&eset.items[index as usize].prod)
+                                            == Some(&option))
+                                    && (tags == ANY || eset.tagset[index as usize] == tags)
                                     && (structure == ANY || eset.items[index as usize].structure == structure)
                             })
                             .filter(|&&index| {
@@ -1211,6 +1525,11 @@ impl<'c> Ranker<'c> {
             let (_, deps) = stack.pop().expect("a frame");
             let deps = deps.expect("dependencies");
             match pass {
+                Pass::Admission => {
+                    self.admit(key, &deps);
+                    let counts = self.count(key, &deps);
+                    self.admission.as_mut().expect("admission").counts.insert(key, counts);
+                }
                 Pass::Summaries => {
                     let summary = self.summarize(key, &deps);
                     self.elisions.as_mut().expect("late-elision").summaries.insert(key, summary);
@@ -1227,6 +1546,7 @@ impl<'c> Ranker<'c> {
 
     fn done(&self, pass: Pass, key: &Key) -> bool {
         match pass {
+            Pass::Admission => self.admission.as_ref().is_some_and(|a| a.counts.contains_key(key)),
             Pass::Summaries => self.elisions.as_ref().is_some_and(|elisions| elisions.summaries.contains_key(key)),
             Pass::Entries => self.memo.contains_key(key),
         }
@@ -1235,7 +1555,19 @@ impl<'c> Ranker<'c> {
     /// The nodes that `pass` needs before `key`: every dependency, except
     /// that under late-elision the entries need only those of the edges
     /// that attain a least vector.
-    fn needed(&self, pass: Pass, key: &Key, deps: &Deps) -> Vec<Key> {
+    fn needed(&mut self, pass: Pass, key: &Key, deps: &Deps) -> Vec<Key> {
+        if pass == Pass::Admission {
+            let mut keys = Self::keys(deps);
+            for candidate in self.slot_candidates(*key) {
+                let found = self.deps((candidate.node, key.1));
+                if let Deps::Links(links) = found {
+                    if let Some(&(a, b)) = links.get(candidate.edge) {
+                        keys.extend([a, b]);
+                    }
+                }
+            }
+            return keys;
+        }
         let summary = match (pass, &self.elisions) {
             (Pass::Entries, Some(elisions)) => &elisions.summaries[key],
             _ => return Self::keys(deps),
@@ -1268,9 +1600,9 @@ impl<'c> Ranker<'c> {
     /// Of a link to `child`: whether the child is an elided terminator, and
     /// whether `maximal` lets an elided terminator follow it.
     fn eligibility(&self, child: Node, guarded: bool, test: Option<u32>) -> (bool, bool) {
-        match (self.maximal, child) {
-            (Some(maximal), Node::Group { rule, origin, set: end, .. }) => {
-                (maximal.elided(rule, origin, end), !guarded || !maximal.forbids(rule, origin, end, test))
+        match (self.maximal, self.raw_node(child)) {
+            (Some(maximal), Node::Group { rule, origin, set: end, lexical, .. }) => {
+                (maximal.elided(rule, origin, end), !guarded || !maximal.forbids_in(rule, origin, end, test, lexical))
             }
             _ => (false, true),
         }
@@ -1278,7 +1610,9 @@ impl<'c> Ranker<'c> {
 
     /// The summary of a node under late-elision, from those of its
     /// dependencies (§6).
-    fn summarize(&mut self, (node, _): Key, deps: &Deps) -> Summary {
+    fn summarize(&mut self, key: Key, deps: &Deps) -> Summary {
+        let node = self.raw_node(key.0);
+        let masks = self.admission.as_ref().and_then(|a| a.masks.get(&key)).cloned();
         let plain = |all: Least| Summary { all, allowed: None };
         match deps {
             Deps::Leaf => plain(Least::one(NO_ELISIONS)),
@@ -1336,8 +1670,10 @@ impl<'c> Ranker<'c> {
                     let vector = elisions.vectors.join(vector_left, vector_right);
                     let profile = sum_profiles(&left.profile, &right.profile);
                     let edge = Least { vector, profile, least, total, kept: Vec::new() };
-                    all.add(&elisions.vectors, index, &edge);
-                    if guarded && permitted {
+                    if masks.as_ref().map_or(true, |m| m.0[index as usize]) {
+                        all.add(&elisions.vectors, index, &edge);
+                    }
+                    if guarded && permitted && masks.as_ref().map_or(true, |m| m.1[index as usize]) {
                         allowed.add(&elisions.vectors, index, &edge);
                     }
                 }
@@ -1358,12 +1694,26 @@ impl<'c> Ranker<'c> {
     /// under late-elision, those that attain the least vector (§6), and
     /// otherwise every edge.
     fn kept(&self, key: &Key) -> Option<(Vec<u32>, Option<Vec<u32>>)> {
-        let summary = &self.elisions.as_ref()?.summaries[key];
-        Some((summary.all.kept.clone(), summary.allowed.as_ref().map(|allowed| allowed.kept.clone())))
+        let masks = self.admission.as_ref().and_then(|a| a.masks.get(key));
+        if let Some(summary) = self.elisions.as_ref().map(|e| &e.summaries[key]) {
+            let all = summary.all.kept.iter().copied().filter(|i| masks.map_or(true, |m| m.0[*i as usize])).collect();
+            let allowed = summary
+                .allowed
+                .as_ref()
+                .map(|a| a.kept.iter().copied().filter(|i| masks.map_or(true, |m| m.1[*i as usize])).collect());
+            Some((all, allowed))
+        } else {
+            masks.map(|m| {
+                (
+                    m.0.iter().enumerate().filter_map(|(i, yes)| yes.then_some(i as u32)).collect(),
+                    Some(m.1.iter().enumerate().filter_map(|(i, yes)| yes.then_some(i as u32)).collect()),
+                )
+            })
+        }
     }
 
     fn compute(&mut self, key: Key, deps: Deps) -> NodeResult {
-        let (node, _) = key;
+        let node = self.raw_node(key.0);
         let kept = self.kept(&key);
         // Whether an item is marked, as a leaf or as the end of a marked
         // link (tests/README.md).
@@ -1427,7 +1777,7 @@ impl<'c> Ranker<'c> {
                     let kept = guarded && permitted && to_allowed;
                     // The link is W(D)'s where it is marked, and its
                     // predecessor and child are W(D)'s.
-                    let Node::Item { set: m, .. } = pred.0 else { unreachable!("a predecessor item") };
+                    let Node::Item { set: m, .. } = self.raw_node(pred.0) else { unreachable!("a predecessor item") };
                     let w = ways > 0
                         && left.w
                         && right.w
@@ -1511,11 +1861,33 @@ impl<'c> Ranker<'c> {
     /// Ranks the derivations of the start rule over the whole input; `None`
     /// if it has none (every one is cyclic).
     pub(crate) fn rank(&mut self) -> Option<Ranking> {
+        let ranked = self.rank_inner();
+        if let Some(a) = &self.admission {
+            crate::slot_stats::record(&a.stats);
+        }
+        ranked
+    }
+
+    fn rank_inner(&mut self) -> Option<Ranking> {
         let n = (self.dag.chart.sets.len() - 1) as u32;
         // Every completed item of the start rule over the whole input is an
         // edge of one root (§6).
-        let root =
-            (Node::Group { rule: self.dag.g.start, origin: 0, set: n, tags: ANY, test: NO_TEST, structure: ANY }, 0);
+        let root = (
+            Node::Group {
+                rule: self.dag.g.start,
+                origin: 0,
+                set: n,
+                tags: ANY,
+                test: NO_TEST,
+                structure: ANY,
+                lexical: 0,
+                option: usize::MAX,
+            },
+            0,
+        );
+        if self.admission.is_some() {
+            self.traverse(root, Pass::Admission);
+        }
         // Under late-elision, the total and the least count of the root,
         // before the forest is cut down to the best derivations.
         let counts = if self.elisions.is_some() {
@@ -1580,6 +1952,7 @@ impl<'c> Ranker<'c> {
             };
             let better = match &tied {
                 None => true,
+                Some((best, _)) if self.check => self.dag.before(d, *best),
                 Some((best, best_div)) => match div.cmp(best_div) {
                     Ordering::Less => true,
                     Ordering::Greater => false,
@@ -1805,5 +2178,221 @@ mod tests {
         let fewer = run(&mut vectors, 1, 69);
         let fewer = vectors.join(first, fewer);
         assert_eq!(vectors.compare(fewer, split), Ordering::Less);
+    }
+}
+
+// Ranking views retain the written invocation through generated helpers.
+// Raw chart items, completion tables and derivation actions remain unchanged.
+#[derive(Clone, Default)]
+struct SlotScope {
+    frames: Vec<Node>,
+    bounds: Vec<(Node, bool)>,
+    blocked: bool,
+}
+struct SlotViews {
+    wrapped: std::collections::BTreeSet<u32>,
+    nodes: Vec<(Node, usize)>,
+    index: FxMap<(Node, usize), Node>,
+    scopes: Vec<SlotScope>,
+    scope_index: FxMap<(Node, Node, usize, bool), usize>,
+    routes: FxMap<Node, (Vec<bool>, Vec<bool>)>,
+}
+impl SlotViews {
+    fn new(g: &Lowered) -> Option<Self> {
+        if g.ranked.slots.is_empty() {
+            return None;
+        }
+        let mut users: FxMap<u32, Vec<u32>> = FxMap::default();
+        for p in &g.prods {
+            if g.rules[p.rule as usize].helper {
+                for s in &p.syms {
+                    if let Sym::N(r) = s {
+                        users.entry(*r).or_default().push(p.rule);
+                    }
+                }
+            }
+        }
+        let mut wrapped: std::collections::BTreeSet<u32> = g.ranked.slots.keys().copied().collect();
+        let mut pending: Vec<u32> = g.ranked.slots.keys().copied().collect();
+        let mut at = 0;
+        while at < pending.len() {
+            for &parent in users.get(&pending[at]).into_iter().flatten() {
+                if wrapped.insert(parent) {
+                    pending.push(parent);
+                }
+            }
+            at += 1;
+        }
+        if wrapped.is_empty() {
+            return None;
+        }
+        Some(Self {
+            wrapped,
+            nodes: vec![],
+            index: FxMap::default(),
+            scopes: vec![SlotScope::default()],
+            scope_index: FxMap::default(),
+            routes: FxMap::default(),
+        })
+    }
+    fn unpack(&self, node: Node) -> (Node, usize) {
+        match node {
+            Node::Scoped(id) => self.nodes[id as usize],
+            _ => (node, 0),
+        }
+    }
+    fn view(&mut self, node: Node, scope: usize) -> Node {
+        if scope == 0 || matches!(node, Node::Read { .. }) {
+            return node;
+        }
+        if let Some(&old) = self.index.get(&(node, scope)) {
+            return old;
+        }
+        let found = Node::Scoped(self.nodes.len() as u32);
+        self.nodes.push((node, scope));
+        self.index.insert((node, scope), found);
+        found
+    }
+    fn written_parent(&self, node: Node, g: &Lowered, chart: &Chart) -> Option<u32> {
+        let (_, scope) = self.unpack(node);
+        let Node::Item { set, index } = *self.scopes[scope].frames.first()? else {
+            return None;
+        };
+        Some(g.prods[chart.sets[set as usize].items[index as usize].prod as usize].rule)
+    }
+    fn ranked_prefix_key(&self, scope: usize, g: &Lowered, chart: &Chart) -> String {
+        let state = &self.scopes[scope];
+        let frames: Vec<_> = state
+            .frames
+            .iter()
+            .map(|node| {
+                let Node::Item { set, index } = *node else { unreachable!() };
+                written_frame(g, chart, chart.sets[set as usize].items[index as usize], set)
+            })
+            .collect();
+        let bounds: Vec<_> = state
+            .bounds
+            .iter()
+            .map(|(node, restricted)| {
+                let Node::Group { rule, origin, set, .. } = *node else { unreachable!() };
+                (g.ranked.written.get(&rule), origin, set, restricted)
+            })
+            .collect();
+        format!("{frames:?}/{bounds:?}")
+    }
+}
+impl Ranker<'_> {
+    fn raw_node(&self, node: Node) -> Node {
+        self.views.as_ref().map_or(node, |v| v.unpack(node).0)
+    }
+    fn prepare_views(&mut self) -> Vec<Node> {
+        let mut nodes = vec![];
+        for (set, items) in self.dag.chart.sets.iter().enumerate() {
+            for index in 0..items.items.len() {
+                nodes.push(Node::Item { set: set as u32, index: index as u32 });
+            }
+        }
+        if self.views.is_none() {
+            return nodes;
+        }
+        let mut seen: crate::fxhash::FxSet<Node> = nodes.iter().copied().collect();
+        let mut at = 0;
+        while at < nodes.len() {
+            let deps = self.deps((nodes[at], 0));
+            for (node, _) in Self::keys(&deps) {
+                if seen.insert(node) {
+                    nodes.push(node);
+                }
+            }
+            at += 1;
+        }
+        nodes
+    }
+    fn helper_scope(
+        &mut self,
+        before: Node,
+        carrier: Node,
+        outer: usize,
+        restricted: bool,
+        guarded: bool,
+        test: Option<u32>,
+    ) -> usize {
+        let Node::Item { set, index } = before else { unreachable!() };
+        let Node::Group { rule, origin, set: end, lexical, .. } = carrier else { unreachable!() };
+        let own = self.dag.g.prods[self.item(set, index).prod as usize].rule;
+        if outer != 0 && own == rule {
+            return outer;
+        }
+        let blocked =
+            restricted && guarded && self.maximal.is_some_and(|mx| mx.forbids_in(rule, origin, end, test, lexical));
+        let views = self.views.as_mut().unwrap();
+        if let Some(&old) = views.scope_index.get(&(before, carrier, outer, restricted)) {
+            return old;
+        }
+        let mut scope = views.scopes[outer].clone();
+        scope.frames.push(before);
+        scope.bounds.push((carrier, restricted));
+        scope.blocked |= blocked;
+        let id = views.scopes.len();
+        views.scopes.push(scope);
+        views.scope_index.insert((before, carrier, outer, restricted), id);
+        id
+    }
+    fn deps(&mut self, key: Key) -> Deps {
+        let Some(views) = &self.views else {
+            return self.raw_deps(key);
+        };
+        let (raw, scope) = views.unpack(key.0);
+        if views.scopes[scope].blocked {
+            return Deps::Close(None);
+        }
+        let deps = self.raw_deps((raw, key.1));
+        match deps {
+            Deps::Leaf | Deps::Close(None) => deps,
+            Deps::Close(Some((node, context))) => {
+                let context = if scope == 0 { context } else { key.1 };
+                Deps::Close(Some((self.views.as_mut().unwrap().view(node, scope), context)))
+            }
+            Deps::Group(nodes) => Deps::Group(
+                nodes
+                    .into_iter()
+                    .map(|(node, context)| (self.views.as_mut().unwrap().view(node, scope), context))
+                    .collect(),
+            ),
+            Deps::Links(links) => {
+                let Node::Item { set, index } = raw else { unreachable!() };
+                let own = self.dag.g.prods[self.item(set, index).prod as usize].rule;
+                let (guarded, test) = self.guard(set, index);
+                let mut found = vec![];
+                let mut masks = (vec![], vec![]);
+                let mut routed = false;
+                for ((previous, pf), (child, cf)) in links {
+                    let carries = matches!(child, Node::Group {rule, ..} if self.views.as_ref().unwrap().wrapped.contains(&rule))
+                        && (!self.dag.g.rules[own as usize].helper || scope != 0);
+                    let pred = (self.views.as_mut().unwrap().view(previous, scope), pf);
+                    if carries {
+                        let inner = self.helper_scope(previous, child, scope, false, guarded, test);
+                        found.push((pred, (self.views.as_mut().unwrap().view(child, inner), cf)));
+                        masks.0.push(true);
+                        masks.1.push(!guarded);
+                        if guarded {
+                            routed = true;
+                            let inner = self.helper_scope(previous, child, scope, true, true, test);
+                            found.push((pred, (self.views.as_mut().unwrap().view(child, inner), cf)));
+                            masks.0.push(false);
+                            masks.1.push(true);
+                        }
+                    } else {
+                        found.push((pred, (child, cf)));
+                        masks.0.push(true);
+                        masks.1.push(true);
+                    }
+                }
+                if routed {
+                    self.views.as_mut().unwrap().routes.insert(key.0, masks);
+                }
+                Deps::Links(found)
+            }
+        }
     }
 }

@@ -425,8 +425,7 @@ pub struct ParseError {
     pub column: Option<usize>,
     /// For a rejection, what could have been read next.
     pub expected: Vec<Expected>,
-    /// For an ambiguity, the two readings: the first and the second
-    /// reading of the tie, or of the ranking of the `elision-only` check.
+    /// The two canonical readings of an ambiguity.
     pub readings: Vec<Node>,
     /// For an error of `elision-only`, the pair of actions where its two
     /// readings first differ, over the stage's input (engine §7.10). A

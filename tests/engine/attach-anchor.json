@@ -9,7 +9,7 @@
   "input": "bww",
   "expect": {
     "result": {
-      "format": 9,
+      "format": 11,
       "ok": true,
       "stages": [
         {

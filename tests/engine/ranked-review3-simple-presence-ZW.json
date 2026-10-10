@@ -1,0 +1,26 @@
+{
+  "grammar": "%rule text ($x(X) Y ≻ Z W)\n%conditions $x",
+  "tokens": [
+    {
+      "text": "z",
+      "tags": [
+        "Z"
+      ]
+    },
+    {
+      "text": "w",
+      "tags": [
+        "W"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "error": {
+        "kind": "rejected"
+      }
+    }
+  },
+  "description": "Completed routes establish private capture absence before ready conditions run in written order."
+}

@@ -1,0 +1,9 @@
+{
+  "description": "The first written group determines the loading error across capture and tag checks.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text Q ($x(a) ≻ b) Z\n%emits $x\n%rule later a ≻ b\n%rule a X\n%rule b Y",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "ranked-choice-export"
+  }
+}

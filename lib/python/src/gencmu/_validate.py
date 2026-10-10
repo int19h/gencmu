@@ -13,7 +13,7 @@ import json
 import re
 from typing import Any, Protocol
 
-from ._clauses import definition_problem, duplicate_captures
+from ._clauses import definition_problem, duplicate_captures, deferred_emission_problem, rule_has_ranked
 from ._tags import character_of_tag, is_tag
 from ._types import constant_value_problem, expected_problem, is_sound_test, open_part, rule_type_problem, term_type, test_type_problem
 from ._unicode import PROPERTY_NAMES
@@ -30,7 +30,7 @@ class Lowercase(Protocol):
     def is_mark(self, code: int) -> bool: ...
 
 
-FORMAT = 21
+FORMAT = 22
 """The version of the DOM's shape (docs/output.md)."""
 
 CONSTANT_NAME = re.compile(r"[A-Z][A-Za-z0-9-]*")
@@ -148,6 +148,7 @@ def _is_entry(entry: Any, unicode: Lowercase) -> bool:
 _EXPRESSION_FORMS = (
     ("seq",),
     ("choice",),
+    ("ranked",),
     ("and",),
     ("optional", "elidable?", "maximal?"),
     ("repeat", "separator?", "chain?"),
@@ -342,7 +343,7 @@ def _is_character_class(value: dict[str, Any], unicode: Lowercase) -> bool:
     return False
 
 
-def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
+def dom_problem(dom: Any, unicode: Lowercase, defer_emission: bool = False) -> str | None:
     """Why a value is not a grammar DOM the reader could have written, or
     None when it is one. ``unicode`` is the loader's table: the lowercase
     mapping that the strings of sound tests are checked against, and the marks that decide a
@@ -493,7 +494,10 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
     # known to be well formed, and so are the types of its terms and
     # conditions (engine §10).
     for rule in dom["rules"]:
-        problem = definition_problem(rule) or rule_type_problem(rule)
+        problem = definition_problem(rule)
+        if problem is not None and defer_emission and deferred_emission_problem(problem) and rule_has_ranked(rule):
+            problem = None
+        problem = problem or rule_type_problem(rule)
         if problem is not None:
             return problem
     for constant in dom["constants"]:
@@ -534,14 +538,14 @@ def _walk(pending: list[tuple[str, Any, int, int]], unicode: Lowercase, tests: l
             # optional holds no capture, at any depth (engine §3.5).
             sealed = own & _SEALED
             if not _has_one_form(value, _EXPRESSION_FORMS):
-                return "a malformed expression"
+                return "ranked-choice-syntax: A ranked expression has only its ranked array." if "ranked" in value else "a malformed expression"
             if "range" in value or "property" in value:
                 if not _is_character_class(value, unicode):
                     return "a malformed expression"
-            elif "choice" in value or "seq" in value:
-                items = value["choice"] if "choice" in value else value["seq"]
+            elif "choice" in value or "ranked" in value or "seq" in value:
+                items = value.get("choice", value.get("ranked", value.get("seq")))
                 if not _items(items, 2):
-                    return "a malformed expression"
+                    return "ranked-choice-syntax: A ranked expression requires at least two operands." if "ranked" in value else "a malformed expression"
                 pending.extend(("expr", item, below, sealed) for item in items)
             elif "and" in value:
                 if not _items(value["and"], 2, 16):

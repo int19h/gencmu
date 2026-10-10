@@ -64,11 +64,12 @@ type caseOptions struct {
 // caseExpect is what a case expects. Result, Warnings and Features are
 // decoded JSON, nil where the case leaves them out.
 type caseExpect struct {
-	Result   *any    `json:"result"`
-	Brackets *string `json:"brackets"`
-	Warnings *any    `json:"warnings"`
-	Features *any    `json:"features"`
-	Error    string  `json:"error"`
+	Diagnostic string  `json:"diagnostic"`
+	Result     *any    `json:"result"`
+	Brackets   *string `json:"brackets"`
+	Warnings   *any    `json:"warnings"`
+	Features   *any    `json:"features"`
+	Error      string  `json:"error"`
 	// Where is where a load error stands (tests/README.md).
 	Where *struct {
 		Document string `json:"document"`
@@ -311,6 +312,9 @@ func checkLoadError(expect *caseExpect, err error) error {
 	} else if w != nil && (e.Document != w.Document || e.Line != w.Line || e.Column != w.Column) {
 		return fmt.Errorf("the load error stands at %s:%d:%d, not at %s:%d:%d: %v", e.Document, e.Line, e.Column, w.Document, w.Line, w.Column, err)
 	}
+	if expect.Diagnostic != "" && e.Code != expect.Diagnostic {
+		return fmt.Errorf("the load diagnostic is %s, not %s", e.Message, expect.Diagnostic)
+	}
 	return nil
 }
 
@@ -327,6 +331,7 @@ func checkParse(d *Dialect, c *engineCase, options *caseOptions, expect *caseExp
 			return fmt.Errorf("features: expected %s, got %+v", shown(*expect.Features), d.Features())
 		}
 	}
+
 	res, log, err := runCaseLogged(d, c, options, "")
 	if c.onlyHook {
 		if err == nil && log.lost() > 0 {
@@ -403,6 +408,14 @@ func resultProblems(got any) []string {
 			problems = append(problems, "the tied stage "+name+" lacks its error of kind ambiguous, reason tie and two readings")
 		}
 	}
+	if e, _ := result["error"].(map[string]any); e != nil {
+		for _, field := range []string{"cycle", "conflict", "chosenReading"} {
+			if _, present := e[field]; present {
+				problems = append(problems, "the result contains obsolete preference output "+field)
+			}
+		}
+	}
+
 	return problems
 }
 

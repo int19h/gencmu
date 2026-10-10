@@ -1,6 +1,6 @@
 {
   "description": "The reader accepts this pattern form. The notation stage constructs one reading.",
-  "document": "```jbogenbau\n%const $P @(⋰ (A B))\n```\n",
+  "document": "```jbogenbau\n%const $P @((A B) ⋰)\n```\n",
   "expect": {
     "dom": {
       "constants": [

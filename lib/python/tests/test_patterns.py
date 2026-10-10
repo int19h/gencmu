@@ -59,8 +59,14 @@ class Patterns(unittest.TestCase):
     def test_shared_clauses_are_scanned_once(self) -> None:
         pattern = {"terminal": "A", "at": [1, 1]}
         condition = {"op": "≅", "left": {"capture": "$"}, "right": {"pattern": pattern}}
-        production = SimpleNamespace(conds_predict=[condition] * 1000, conds_at={}, tags_term=None, emit=None)
-        lowered = SimpleNamespace(productions=[production] * 1000)
+        production = SimpleNamespace(
+            conds_predict=[condition] * 1000, conds_at={}, tags_term=None, emit=None,
+            ranked=None, contextual=False,
+        )
+        lowered = SimpleNamespace(
+            productions=[production] * 1000, ranked_helpers={},
+            grammar=SimpleNamespace(),
+        )
         first = observation_machine(lowered)
         self.assertEqual(len(lowered._pattern_roots), 1)
         second = observation_machine(lowered)

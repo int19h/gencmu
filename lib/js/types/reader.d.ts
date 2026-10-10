@@ -17,12 +17,13 @@ import type { Token } from "./tokens.js";
  *   the lowercase mapping that the strings of sound tests are checked
  *   against (engine §9, §10), and the marks that a character tag escapes
  *   (engine §1)
+ * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
  * @returns {GrammarDom}
  */
 export declare function treeToDom(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => Position, path: string, unicode: {
     lowercase(text: string): string;
     isMark(code: number): boolean;
-}): GrammarDom;
+}, deferEmission?: boolean): GrammarDom;
 export type OperandKind = "name" | "class" | "string" | "tag" | "phoneme" | "character" | "range" | "property";
 /**
  * What is wrong with a directive's operands, or null (engine §9).

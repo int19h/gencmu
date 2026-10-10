@@ -1,6 +1,9 @@
 package gencmu
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // A rule's clauses against the captures of its alternatives (engine §3.6,
 // §9): simplifying a clause for one production, the captures a clause uses
@@ -748,4 +751,28 @@ func hasIn(caps map[string]int) func(string) bool {
 		_, ok := caps[name]
 		return ok
 	}
+}
+
+func ruleHasRanked(r *domRule) bool {
+	pending := []*domExpr{}
+	for _, a := range r.Alternatives {
+		pending = append(pending, a.Expr)
+	}
+	for len(pending) > 0 {
+		e := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if e == nil {
+			continue
+		}
+		if e.Kind == exRanked {
+			return true
+		}
+		pending = append(pending, e.Items...)
+		pending = append(pending, e.Inner, e.Sep)
+	}
+	return false
+}
+
+func deferredEmissionProblem(message string) bool {
+	return strings.Contains(message, "leaves a production nothing to emit")
 }

@@ -29,6 +29,7 @@ var captureName = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
 // domProblem is why a DOM is malformed; tooDeep marks the nesting limit,
 // the one problem a DOM the reader built can have.
 type domProblem struct {
+	code        string
 	message     string
 	rule        *domRule
 	constant    *domConst
@@ -160,7 +161,7 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		}
 		// The definition as a whole (engine §9, the end), and the types of
 		// its terms and conditions (engine §10).
-		if msg := definitionProblem(r); msg != "" {
+		if msg := definitionProblem(r); msg != "" && msg != r.deferredEmission {
 			return &domProblem{message: msg, rule: r}
 		}
 		if msg := ruleTypeProblem(r); msg != "" {
@@ -331,10 +332,13 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 		return
 	}
 	switch e.Kind {
-	case exSeq, exChoice, exAnd:
+	case exSeq, exChoice, exRanked, exAnd:
 		// The reader makes each only of two or more, an & of at most 16.
 		if len(e.Items) < 2 || (e.Kind == exAnd && len(e.Items) > maxAnd) {
 			c.fail("a %s of %d items", e.Kind, len(e.Items))
+			if e.Kind == exRanked {
+				c.problem.code = "ranked-choice-syntax"
+			}
 			return
 		}
 		for _, it := range e.Items {
@@ -470,7 +474,7 @@ func duplicateCaptures(e *domExpr) map[*domExpr]bool {
 		switch {
 		case n == nil:
 			return nil
-		case n.Kind == exSeq || n.Kind == exAnd || n.Kind == exChoice:
+		case n.Kind == exSeq || n.Kind == exAnd || n.Kind == exChoice || n.Kind == exRanked:
 			return n.Items
 		case n.Kind == exOptional && !n.Elidable:
 			return []*domExpr{n.Inner}
@@ -702,7 +706,7 @@ func captureSequences(e *domExpr) [][]*domExpr {
 		switch {
 		case n == nil:
 			return nil
-		case n.Kind == exSeq || n.Kind == exAnd || n.Kind == exChoice:
+		case n.Kind == exSeq || n.Kind == exAnd || n.Kind == exChoice || n.Kind == exRanked:
 			return n.Items
 		case n.Kind == exOptional && !n.Elidable:
 			return []*domExpr{n.Inner}
@@ -746,7 +750,7 @@ func captureSequences(e *domExpr) [][]*domExpr {
 			for _, part := range parts {
 				out = product(out, part)
 			}
-		case exChoice:
+		case exChoice, exRanked:
 			for _, part := range parts {
 				out = appendCounted(out, part, readerCount(), "reader steps")
 			}

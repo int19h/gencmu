@@ -1,0 +1,15 @@
+{
+  "description": "Repetitions and their separators cannot contain captures, including captures inside ranked groups.",
+  "grammar": "%rule text (X [{($x(Y) ≻ V)}] ≻ Z W)\n%conditions $x",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

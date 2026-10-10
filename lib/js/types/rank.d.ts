@@ -28,18 +28,6 @@ export type Ranking = {
     witnessCounted: boolean | null;
 };
 /**
- * How two derivations other than the first reading compare as the second
- * reading (engine §6): the one that diverges earlier from the first, in
- * visible actions, comes first, and the order T decides between two that
- * diverge at one point. Negative where `left` comes first.
- * @param {Rope} first
- * @param {Rope} left
- * @param {Rope} right
- * @param {Lean} lean
- * @returns {number}
- */
-export declare function secondOrder(first: Rope, left: Rope, right: Rope, lean: Lean): number;
-/**
  * The rope of a sequence of actions, for a derivation that no ranking
  * built: the witness hook's W(D) (tests/README.md).
  * @param {Iterable<Action>} sequence
@@ -148,6 +136,8 @@ export declare class Ranker {
      * @type {Map<Item, Set<number>> | null}
      */
     marks: Map<Item, Set<number>> | null;
+    /** @type {import("./ranked-admission.js").RankedAdmission | null} */
+    admission: import("./ranked-admission.js").RankedAdmission | null;
     /**
      * @param {Token[]} tokens
      * @param {Lean} lean
@@ -332,6 +322,13 @@ export type RuleProfile = [number, number, Count][];
  * @returns {number}
  */
 export declare function compareProfiles(left: RuleProfile, right: RuleProfile): number;
+/**
+ * Adds profiles without expanding repeated occurrences.
+ * @param {RuleProfile} left
+ * @param {RuleProfile} right
+ * @returns {RuleProfile}
+ */
+export declare function sumProfiles(left: RuleProfile, right: RuleProfile): RuleProfile;
 /**
  * Counts every completed flagged occurrence in a chosen derivation.
  * @param {Derivation} root

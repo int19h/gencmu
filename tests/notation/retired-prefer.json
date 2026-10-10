@@ -1,0 +1,10 @@
+{
+  "description": "The retired directive reports an unknown directive and points to ranked choices.",
+  "document": "```jbogenbau\n%prefer a > b\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

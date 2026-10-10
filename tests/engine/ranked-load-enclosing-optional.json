@@ -1,0 +1,31 @@
+{
+  "description": "The ranked choice loads because its captures remain local and its tags cannot escape.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text Q [($x(a) ≻ b)] Z\n%conditions text($x) ≠ \"\"\n%rule a X Y\n%rule b U V",
+  "tokens": [
+    {
+      "text": "q",
+      "tags": [
+        "Q"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    },
+    {
+      "text": "z",
+      "tags": [
+        "Z"
+      ]
+    }
+  ],
+  "expect": {}
+}

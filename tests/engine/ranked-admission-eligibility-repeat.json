@@ -1,0 +1,44 @@
+{
+  "description": "Ranked admission uses the same finite eligibility channel through every generated helper.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text {(a [++T] Y ≻ b [++T] Y)}\n%rule a X | X Y\n%tags ∅\n%rule b X\n%tags ∅",
+  "tokens": [
+    {
+      "text": "x",
+      "phonemes": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "phonemes": "y",
+      "tags": [
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "b"
+          },
+          {
+            "kind": "elided",
+            "terminal": "T"
+          },
+          {
+            "terminal": "Y"
+          }
+        ]
+      }
+    }
+  }
+}

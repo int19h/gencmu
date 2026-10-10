@@ -14,31 +14,47 @@ type symbol struct {
 	id   int32 // a terminal's index in lowered.terminals, or a rule's in lowered.rules
 }
 
+type slotMetadata struct {
+	source     *sAlt
+	path       *domExpr
+	tags       []*domTerm
+	tagClauses [2]*domTerm
+}
+
 type production struct {
-	num          int
-	lhs          int32
-	rhs          []symbol
-	tests        []*symTest // per position: the test its symbol must pass, or nil; nil when no symbol is tested (§4)
-	capName      []string   // per position: the capture's name, or ""
-	capSlot      []int32    // per position: the item's capture slot, or -1
-	nslots       int
-	slotOf       map[string]int32 // capture name → slot
-	posOf        map[string]int   // capture name → its first position
-	tags         *domTerm         // nil: default tags (§4)
-	implicit     bool             // one symbol and no tags: the constituent has its symbol's tags (§3.7)
-	conds        []lcond
-	condFrom     []int32    // conds[condFrom[d]:condFrom[d+1]] are those triggered at dot d, or nil for none
-	predictConds []*domCond // conditions using no capture but $ of an empty production, checked at prediction
-	emit         *domEmit   // as dropped and simplified for the production (§3.6)
-	nothing      bool       // %emits ε: the constituent emits nothing and does not count (§11)
-	opaque       bool       // %opaque: the constituent is an opaque part, which sounds ? and shows its text (§11)
-	transparent  bool
-	helper       bool
-	elided       string   // for the ε production of an optional beginning with an elidable terminal
-	elidedTest   *symTest // the test of that terminal, if it is tested; a restored token sounds like the string of an = test (§7)
-	ruleName     string   // the rule the author wrote (for a helper, the one it serves)
-	doc          string
-	at           [2]int
+	base           *production
+	lexical        *rankedFrame
+	ranked         *rankedGroup
+	option         int
+	contextual     bool
+	privateNames   map[string]bool
+	rankedBindings string
+	parentTags     *domTerm
+	slot           *slotMetadata
+	num            int
+	lhs            int32
+	rhs            []symbol
+	tests          []*symTest // per position: the test its symbol must pass, or nil; nil when no symbol is tested (§4)
+	capName        []string   // per position: the capture's name, or ""
+	capSlot        []int32    // per position: the item's capture slot, or -1
+	nslots         int
+	slotOf         map[string]int32 // capture name → slot
+	posOf          map[string]int   // capture name → its first position
+	tags           *domTerm         // nil: default tags (§4)
+	implicit       bool             // one symbol and no tags: the constituent has its symbol's tags (§3.7)
+	conds          []lcond
+	condFrom       []int32    // conds[condFrom[d]:condFrom[d+1]] are those triggered at dot d, or nil for none
+	predictConds   []*domCond // conditions using no capture but $ of an empty production, checked at prediction
+	emit           *domEmit   // as dropped and simplified for the production (§3.6)
+	nothing        bool       // %emits ε: the constituent emits nothing and does not count (§11)
+	opaque         bool       // %opaque: the constituent is an opaque part, which sounds ? and shows its text (§11)
+	transparent    bool
+	helper         bool
+	elided         string   // for the ε production of an optional beginning with an elidable terminal
+	elidedTest     *symTest // the test of that terminal, if it is tested; a restored token sounds like the string of an = test (§7)
+	ruleName       string   // the rule the author wrote (for a helper, the one it serves)
+	doc            string
+	at             [2]int
 	// warnings are the features of its alternative's warnings that are on,
 	// in the order written, each giving a warning for a node of the chosen
 	// tree built by the production (§12); a helper has none.
@@ -74,11 +90,13 @@ type lrule struct {
 }
 
 type lowered struct {
-	stage     *stageGrammar
-	rules     []*lrule
-	byName    map[string]int32
-	terminals []string
-	termID    map[string]int32
+	rankedHelpers  map[int32]*rankedGroup
+	writtenHelpers map[int32]string
+	stage          *stageGrammar
+	rules          []*lrule
+	byName         map[string]int32
+	terminals      []string
+	termID         map[string]int32
 	// classes holds, for each terminal that is a range or a property, the
 	// characters it matches; nil for a terminal that is a tag (§4).
 	classes []*charClass
@@ -136,13 +154,18 @@ func (p *production) testAt(i int) *symTest {
 }
 
 type lowerer struct {
-	g        *stageGrammar
-	l        *lowered
-	features map[string]bool
-	helpers  int
-	memo     map[*domExpr][][]slot // expansions of one alternative, by place
-	tests    map[*domExpr]*symTest // the tests of that alternative with their values
-	into     *[]*helperNode        // where a new helper goes
+	helperNodes map[int32]*helperNode
+	rankOptions map[int32][]int
+	commonConds map[*sAlt]map[string][]*domCond
+	validation  bool
+	currentExpr *domExpr
+	g           *stageGrammar
+	l           *lowered
+	features    map[string]bool
+	helpers     int
+	memo        map[*domExpr][][]slot // expansions of one alternative, by place
+	tests       map[*domExpr]*symTest // the tests of that alternative with their values
+	into        *[]*helperNode        // where a new helper goes
 	// structural is every production that the gates and the expansion
 	// make, before a false condition removes any (§3.3).
 	structural []structuralProduction
@@ -180,6 +203,7 @@ type braceItem struct {
 // helperNode is the helper of one place where [ ] or flat { } is written,
 // with the helpers of the places written inside it.
 type helperNode struct {
+	path     *domExpr
 	rule     int32
 	bodies   [][]slot
 	elide    string
@@ -190,21 +214,25 @@ type helperNode struct {
 
 // lower lowers a stage's grammar for a set of features. The check of
 // elision-only reads the same productions in a mode of its own (§3.8, §7.4).
-func lower(g *stageGrammar, features map[string]bool) *lowered {
+func lower(g *stageGrammar, features map[string]bool) *lowered { return lowerMode(g, features, false) }
+func lowerForSlots(g *stageGrammar) *lowered                   { return lowerMode(g, nil, true) }
+func lowerMode(g *stageGrammar, features map[string]bool, validation bool) *lowered {
 	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, lean: g.lean, maximalH: map[int32]bool{}}
 	// The stage resolves its classifiers for the same features, before it
 	// lowers its rules; an error there ends the stage as an error of
 	// lowering does (§2, §3.3).
-	tables := g.classifiers(features)
-	if tables.fault != "" {
-		l.fault = tables.fault
-		location := *tables.faultLocation
-		location.Stage = g.name
-		l.faultLocation = &location
-		return l
+	if !validation {
+		tables := g.classifiers(features)
+		if tables.fault != "" {
+			l.fault = tables.fault
+			location := *tables.faultLocation
+			location.Stage = g.name
+			l.faultLocation = &location
+			return l
+		}
+		l.classifiers = tables.tables
 	}
-	l.classifiers = tables.tables
-	lw := &lowerer{g: g, l: l, features: features, terms: map[*domTerm]*termLowering{}, condsOf: map[condsKey]*condLowering{}, emits: map[*domEmit]*emitSplit{}, warnings: map[*sAlt][]string{}}
+	lw := &lowerer{helperNodes: map[int32]*helperNode{}, rankOptions: map[int32][]int{}, commonConds: map[*sAlt]map[string][]*domCond{}, validation: validation, g: g, l: l, features: features, terms: map[*domTerm]*termLowering{}, condsOf: map[condsKey]*condLowering{}, emits: map[*domEmit]*emitSplit{}, warnings: map[*sAlt][]string{}}
 	for _, r := range g.rules {
 		l.byName[r.name] = int32(len(l.rules))
 		l.rules = append(l.rules, &lrule{leftmostLongest: len(r.flags) > 0, name: r.name, owner: r.name, scc: -1})
@@ -216,12 +244,16 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 	}
 	// An item of braces that can match no tokens comes last, once every
 	// rule is lowered (§3.3).
-	if lw.checkBraceItems(); l.fault != "" {
+	if !validation {
+		lw.checkBraceItems()
+	}
+	if l.fault != "" {
 		return l
 	}
 	l.computeCycles()
 	l.elidable, l.anyElidable = elidableHelpers(l)
 	l.maximalElides = maximalElides(l)
+	l.prepareRanked()
 	return l
 }
 
@@ -290,6 +322,9 @@ func (lw *lowerer) newHelper(owner *sAlt, ownerRule string) int32 {
 // guardsHold says whether an alternative's gates all hold; a warning is not
 // a gate and never drops its alternative (§3.1).
 func (lw *lowerer) guardsHold(a *domAlt) bool {
+	if lw.validation {
+		return true
+	}
 	for _, gd := range a.Guards {
 		if gd.Kind != FeatureWarning && lw.features[gd.Feature] == gd.Negated {
 			return false
@@ -308,7 +343,7 @@ func (lw *lowerer) lowerRule(r *sRule) {
 	// A chain is the only alternative of its rule that the gates leave
 	// (§3.3); a %extend-rule can add another.
 	for _, a := range alts {
-		if isChain(a.alt.Expr) && len(alts) > 1 {
+		if !lw.validation && isChain(a.alt.Expr) && len(alts) > 1 {
 			lw.loweringFault(a, "%s is a chain, which is the whole of its rule, but another alternative stands beside it", r.name)
 			return
 		}
@@ -359,9 +394,34 @@ func (lw *lowerer) lowerRule(r *sRule) {
 		var number func(hs []*helperNode)
 		number = func(hs []*helperNode) {
 			for _, h := range hs {
-				for _, b := range h.bodies {
+				for optionIndex, b := range h.bodies {
 					lw.structural = append(lw.structural, structuralProduction{h.rule, symbolsOf(b)})
 					p := lw.newProduction(h.rule, b)
+					if lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
+						p.slot = &slotMetadata{source: h.owner, path: h.path}
+					}
+					if lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
+						p.posOf = map[string]int{}
+						p.nslots = 0
+						for i, s := range b {
+							p.capSlot[i] = -1
+							if s.capture != "" {
+								p.capName[i] = s.capture
+								p.capSlot[i] = int32(p.nslots)
+								p.slotOf[s.capture] = int32(p.nslots)
+								p.posOf[s.capture] = i
+								p.nslots++
+							}
+						}
+						if p.implicit && p.capSlot[0] < 0 {
+							p.capSlot[0] = int32(p.nslots)
+							p.nslots++
+						}
+						if group := lw.g.ranked.expressions[h.path]; group != nil {
+							p.ranked = group
+							p.option = lw.rankOptions[h.rule][optionIndex]
+						}
+					}
 					p.helper = true
 					p.transparent = true
 					p.ruleName = lw.l.rules[h.rule].owner
@@ -386,19 +446,22 @@ func isChain(e *domExpr) bool {
 
 // holdsCapture says whether an expression holds a capture, at any depth
 // (§3.5).
-func holdsCapture(e *domExpr) bool {
+func holdsCapture(e *domExpr, includeRanked bool) bool {
 	if e == nil {
+		return false
+	}
+	if e.Kind == exRanked && !includeRanked {
 		return false
 	}
 	if e.Kind == exCapture {
 		return true
 	}
 	for _, it := range e.Items {
-		if holdsCapture(it) {
+		if holdsCapture(it, includeRanked) {
 			return true
 		}
 	}
-	return holdsCapture(e.Inner) || holdsCapture(e.Sep)
+	return holdsCapture(e.Inner, includeRanked) || holdsCapture(e.Sep, includeRanked)
 }
 
 func symbolsOf(body []slot) []symbol {
@@ -483,19 +546,23 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 	// production; one that uses a capture the production lacks does not
 	// apply to it.
 	var conds []*domCond
-	if len(a.conds) > 0 {
-		key := condsKey{&a.conds[0], len(a.conds)}
+	rawConds := lw.rankedCommonConditions(body, a)
+	if len(rawConds) > 0 {
+		key := condsKey{&rawConds[0], len(rawConds)}
 		cl := lw.condsOf[key]
 		if cl == nil {
-			cl = newCondLowering(a.conds)
+			cl = newCondLowering(rawConds)
 			lw.condsOf[key] = cl
 		}
 		var ok bool
-		if conds, ok = cl.forProduction(names, has); !ok {
+		if conds, ok = cl.forProduction(names, has); !ok && !lw.validation {
 			return
 		}
 	}
 	p := lw.newProduction(lhs, body)
+	if lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
+		p.slot = &slotMetadata{source: a}
+	}
 	p.opaque = a.opaque
 	p.ruleName = lw.l.rules[lhs].name
 	p.doc, p.at = a.doc, a.at
@@ -532,10 +599,16 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 	// The union of the alternative's own tag term and its definition's
 	// %tags, where either is written (§3.7).
 	var written []*domTerm
-	for _, t := range []*domTerm{a.alt.Tags, a.ruleTags} {
+	var tagClauses [2]*domTerm
+	for index, t := range [2]*domTerm{a.alt.Tags, a.ruleTags} {
 		if t != nil {
-			written = append(written, lw.simplifyTerm(t, names, has))
+			tagClauses[index] = lw.simplifyTerm(t, names, has)
+			written = append(written, tagClauses[index])
 		}
+	}
+	if lw.validation {
+		p.slot.tags = written
+		p.slot.tagClauses = tagClauses
 	}
 	switch len(written) {
 	case 1:
@@ -685,7 +758,10 @@ func (lw *lowerer) expand(e *domExpr, a *sAlt, ruleName string) [][]slot {
 	if x, ok := lw.memo[e]; ok {
 		return x
 	}
+	outer := lw.currentExpr
+	lw.currentExpr = e
 	x := lw.expandPlace(e, a, ruleName)
+	lw.currentExpr = outer
 	lw.memo[e] = x
 	return x
 }
@@ -694,8 +770,9 @@ func (lw *lowerer) expand(e *domExpr, a *sAlt, ruleName string) [][]slot {
 // the helpers inside it follow it.
 func (lw *lowerer) helper(a *sAlt, ruleName, elide string, elideT *symTest, bodies func(h int32) [][]slot) [][]slot {
 	h := lw.newHelper(a, ruleName)
-	node := &helperNode{rule: h, elide: elide, elideT: elideT, owner: a}
+	node := &helperNode{path: lw.currentExpr, rule: h, elide: elide, elideT: elideT, owner: a}
 	*lw.into = append(*lw.into, node)
+	lw.helperNodes[h] = node
 	outer := lw.into
 	lw.into = &node.children
 	node.bodies = bodies(h)
@@ -707,6 +784,17 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 	switch e.Kind {
 	case exSeq:
 		return lw.expandSeq(e.Items, a, ruleName)
+	case exRanked:
+		return lw.helper(a, ruleName, "", nil, func(h int32) [][]slot {
+			var out [][]slot
+			for option, item := range e.Items {
+				for _, body := range lw.expand(item, a, ruleName) {
+					out = append(out, body)
+					lw.rankOptions[h] = append(lw.rankOptions[h], option)
+				}
+			}
+			return out
+		})
 	case exChoice:
 		var out [][]slot
 		for _, it := range e.Items {
@@ -731,8 +819,21 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		// A plain optional that holds a capture expands in place, as
 		// (ε | x) would: first the empty sequence, then each expansion of
 		// x (§3.2).
-		if !e.Elidable && holdsCapture(inner) {
+		if !e.Elidable && holdsCapture(inner, false) {
 			return append([][]slot{{}}, lw.expand(inner, a, ruleName)...)
+		}
+		if !e.Elidable && lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 && holdsCapture(inner, true) {
+			// Preserve tag arity while each helper selects one complete route.
+			// Reachable descendant groups then distinguish absence from future names.
+			bodies := append([][]slot{{}}, lw.expand(inner, a, ruleName)...)
+			var out [][]slot
+			for _, body := range bodies {
+				selected := body
+				out = append(out, lw.helper(a, ruleName, "", nil, func(int32) [][]slot {
+					return [][]slot{selected}
+				})...)
+			}
+			return out
 		}
 		// Any other optional is a helper, and a marked one is elidable,
 		// with the terminal that its marker names; ++ makes it maximal

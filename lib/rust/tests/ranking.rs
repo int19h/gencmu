@@ -1164,10 +1164,18 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
     if grammar.elision_only && expected.verdict == "resolved" {
         if let Outcome::Expected(check) = expect(&ranked, Lean::Neither, findings) {
             if check.verdict == "tie" {
+                // Reconstruction reports the chosen witness first, then the
+                // canonical least distinct reading with the best flag profile.
+                let competitors: Vec<usize> = (0..ranked.full.len())
+                    .filter(|&d| d != expected.chosen && ranked.profiles[d] == ranked.profiles[check.chosen])
+                    .collect();
+                let Some(competitor) = ranked.least(Lean::Neither, &competitors) else {
+                    return Err(describe("T has no least reconstruction competitor".to_string()));
+                };
                 let pattern = format!(
                     "{{\"ok\":false,\"error\":{{\"kind\":\"ambiguous\",\"reason\":\"elision-only\",\"readings\":[{},{}]}}}}",
-                    tree_json(&grammar, &derivations[check.chosen]),
-                    tree_json(&grammar, &derivations[check.tied.expect("a tie")])
+                    tree_json(&grammar, &derivations[expected.chosen]),
+                    tree_json(&grammar, &derivations[competitor])
                 );
                 let pattern = parse_json(&pattern).expect("a pattern");
                 return common::matches(&pattern, &actual, "result").map(|_| true).map_err(describe);

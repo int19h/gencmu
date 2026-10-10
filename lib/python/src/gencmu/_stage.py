@@ -603,7 +603,7 @@ def _action(act: Act, lowered: Lowered) -> Action:
     if act.read:
         return Action("read", token=act.token, terminal=act.terminal)
     production = lowered.productions[act.production]
-    return Action("close", rule=production.rule_name, production=production.id, span=(act.start, act.end))
+    return Action("close", rule=production.rule_name, production=production.real_id, span=(act.start, act.end))
 
 
 class StageRunner:
@@ -730,7 +730,7 @@ class StageRunner:
         stage keeps its verdict and its witness, and has no tree, no output
         and no warnings. The error holds the first and the second reading
         (engine §6)."""
-        lowered = self.lowered
+        lowered = forest.lowered
         # Neither action of a witness is ever missing (engine §6, §7.10).
         if ranking.witness is None or ranking.witness[0] is None or ranking.witness[1] is None:
             raise RuntimeError("the witness of a ranking lacks an action")
@@ -750,10 +750,11 @@ class StageRunner:
         derivation's elided terminators back into the stage's input as
         synthetic tokens and recognizes that input, R, with the main
         lowering in the reconstruction mode. Every observation reads the
-        stage's input through the projection π. The check passes where R has
-        one derivation, and gives two readings where it has more. With none,
-        the witness of the chosen derivation is lost. ``main`` is the main
-        parse's context, whose memo the check's queries share; ``chosen`` is
+        stage's input through the projection π. Slot admission precedes flag ranking.
+        The check passes when admitted W(D) is the sole best reading.
+        A tie gives two diagnostic readings.
+        A missing witness is an engine defect. ``main`` is the main
+        parse's context, whose memo the check's queries share. ``chosen`` is
         D and ``tree`` its tree."""
         tokens = self.tokens
         # The restoration records, in the order of the tree's leaves (engine
@@ -790,22 +791,22 @@ class StageRunner:
         for index, is_synthetic in enumerate(synthetic):
             project[index + 1] = project[index] + (0 if is_synthetic else 1)
         lowered = self.lowered
-        context = StageContext(lowered, restored, self.text, self.unicode, tagtab=main.tagtab)
+        context = StageContext(lowered, restored, self.text, self.unicode, tagtab=main.tagtab, observed=main)
         context.synthetic = synthetic
         context.project = project
-        context.observed = main
         # The recognition of R is not a query (engine §4, §7.6).
         forest = _reconstruct(context)
+        lowered = forest.lowered
         # A test that watches the check marks W(D)'s edges before the check
         # ranks (tests/README.md).
         hook = _testing.elision_check
         watch = hook(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at)) if hook is not None else None
         # Maximality does not apply to the derivations of R, and
         # they rank with no lean (engine §7.7).
-        flagged = any(production.leftmost_longest for production in lowered.productions)
         chosen_profile = ()
         walk = None
-        if flagged:
+        protected = True
+        if protected:
             from ._witness import walk_witness
             pending = [chosen]
             while pending:
@@ -817,22 +818,38 @@ class StageRunner:
                 pending.extend(node.children)
             walk = walk_witness(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at))
         marks = walk.marks if walk is not None else watch.marks if watch is not None else None
+        preferred = bool(lowered.ranked_helpers)
+        raw_counted = True
+        if preferred:
+            raw = rank(forest,"none",marks=marks,check=True,unfiltered=True)
+            raw_counted = raw is not None and raw.witness_counted is True
         ranking = _rank_check(forest, marks)
         better = False
-        if flagged and ranking is not None:
-            order = compare_profiles(ranking.profile, chosen_profile)
-            if walk is None or ranking.witness_counted is not True or order > 0:
+        watched_selection = False
+        if protected and ranking is not None:
+            order = compare_profiles(ranking.profile,chosen_profile)
+            if walk is None or not raw_counted or not preferred and (ranking.witness_counted is not True or order>0):
                 ranking = None
-            elif order < 0:
-                better = True
+            else:
                 restored_rope = None
                 for act in walk.sequence:
-                    restored_rope = concat(restored_rope, leaf(act))
-                ranking.second, ranking.first = ranking.first, restored_rope
-                difference = first_difference(ranking.first, ranking.second, True) or first_difference(ranking.first, ranking.second, False)
-                assert difference is not None
-                ranking.witness = (difference[1], difference[2])
-        if watch is not None:
+                    restored_rope = concat(restored_rope,leaf(act))
+                excluded = ranking.witness_counted is not True
+                better = excluded or order<0
+                if watch is not None and not better and not preferred:
+                    watch.ranked(ranking)
+                    watched_selection = True
+                if better or ranking.verdict=="tie":
+                    competitor = ranking.first if first_difference(restored_rope,ranking.first,False) is not None else ranking.second
+                    if competitor is None:
+                        raise RuntimeError("Reconstruction requires a distinct best admitted competitor.")
+                    ranking.first,ranking.second = restored_rope,competitor
+                    difference = first_difference(restored_rope,competitor,True) or first_difference(restored_rope,competitor,False)
+                    assert difference is not None
+                    ranking.witness = (difference[1],difference[2])
+                if preferred:
+                    ranking.raw_witness_counted = raw_counted
+        if watch is not None and not watched_selection:
             watch.ranked(ranking)
         if ranking is None:
             # The witness of the chosen derivation is lost: a defect of the
@@ -869,7 +886,7 @@ class StageRunner:
             if act.read:
                 return Action("read", token=project[act.token], terminal=act.terminal)
             production = lowered.productions[act.production]
-            return Action("close", rule=production.rule_name, production=production.id, span=(project[act.start], project[act.end]))
+            return Action("close", rule=production.rule_name, production=production.real_id, span=(project[act.start], project[act.end]))
 
         return ParseError(
             "ambiguous",
@@ -888,20 +905,8 @@ def _reconstruct(context: StageContext) -> Forest:
 
 
 def _rank_check(forest: Forest, marks: dict[int, set[int]] | None = None) -> Ranking | None:
-    """The ranking of the check's derivations with no lean and no
-    maximality (engine §7.7); ``None`` where R has no derivation that
-    counts. ``marks``, where a test watches the check, are the witness
-    hook's marks of W(D) (tests/README.md)."""
-    if not forest.roots:
-        return None
-    if any(production.leftmost_longest for production in forest.lowered.productions):
-        profiles = Elisions(forest, lean="none")
-        profiles.check, profiles.marks = True, marks
-        return profiles.rank(forest.roots)
-    ranker = Ranker(forest, "none")
-    ranker.check = True
-    ranker.marks = marks
-    return ranker.rank(forest.roots)
+    """Rank reconstruction with no stage policy or maximality."""
+    return rank(forest, "none", marks=marks, check=True)
 
 
 def _map_back(

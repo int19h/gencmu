@@ -331,7 +331,8 @@ func (run *stageRun) rejection(rec *recognizer) *ParseError {
 		// The predictions left out because they could not read the next
 		// token (earley.go, predict).
 		for rule := range rec.sets[k].predicted {
-			for _, p := range rec.g.rules[rule].prods {
+			for _, base := range rec.g.rules[rule.rule].prods {
+				p := rec.rankedProduction(base, rule.frame)
 				// A nested parse that the conditions need runs on a stack
 				// of its own, and they go on from where they halted.
 				ok, q := rec.predictable(p, k)
@@ -389,7 +390,7 @@ func (run *stageRun) forbiddenTerminator(rec *recognizer, d *dn, mx *maximal) *P
 			// read so far.
 			rhs := f.prod.rhs
 			own := i == 1 && !rhs[0].term && rhs[0].id == f.prod.lhs
-			if b := f.kids[i-1]; !own && b.kind == dClose && mx.forbids(b.prod.lhs, b.start, b.end, f.prod.testAt(i-1)) {
+			if b := f.kids[i-1]; !own && b.kind == dClose && mx.forbidsIn(b.prod.lhs, b.start, b.end, f.prod.testAt(i-1), b.prod.lexical) {
 				expected := []Expected{{Terminal: writtenSymbol(mx.elides[k.prod.lhs], k.prod.elidedTest), Rules: []string{k.prod.ruleName}}}
 				return run.rejectedAt(rec.base+int(k.start), expected)
 			}

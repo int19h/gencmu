@@ -8,11 +8,10 @@ what the check's own ranking did with them."""
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Any, Iterator
+from typing import Iterator
 
 from gencmu import _testing
-from gencmu._earley import RESTORE, SEED
-from gencmu._rank import INF, Act, Ranking, Rope, compare, concat, first_difference, leaf
+from gencmu._rank import Ranking, Rope, compare, concat, leaf
 from gencmu._witness import Walk, walk_witness
 
 
@@ -47,8 +46,9 @@ def keeps(walk: Walk, ranking: Ranking | None) -> bool:
     only. The selection channel: where the check reports two readings, the
     first does not come after W(D) in the order T. Where the first is not
     W(D), W(D) was a candidate for the second, so the second does not come
-    after W(D) by the criterion of engine §6 that picks it: divergence from
-    the first, then T."""
+    after W(D) in the canonical order T."""
+    if ranking is not None and ranking.raw_witness_counted is not None:
+        return ranking.raw_witness_counted
     if ranking is None or not ranking.witness_counted:
         return False
     if ranking.verdict != "tie":
@@ -59,20 +59,4 @@ def keeps(walk: Walk, ranking: Ranking | None) -> bool:
     first = compare(ranking.first, w, "none").order
     if first > 0:
         return False
-    return first == 0 or second_order(ranking.first, ranking.second, w) <= 0
-
-
-def second_order(first: Rope | None, left: Rope | None, right: Rope | None) -> int:
-    """How two derivations compare as the second reading after ``first``
-    (engine §6): the one that diverges from it earlier, in visible actions,
-    comes first, and the order T decides between two that diverge at one
-    point. Negative where ``left`` comes first."""
-
-    def divergence(other: Rope | None) -> Any:
-        difference = first_difference(first, other, True)
-        return INF if difference is None else difference[0]
-
-    a, b = divergence(left), divergence(right)
-    if a != b:
-        return -1 if a < b else 1
-    return compare(left, right, "none").order
+    return first == 0 or compare(ranking.second, w, "none").order <= 0

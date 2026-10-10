@@ -11,18 +11,6 @@ export type StageOptions = {
      */
     last: boolean;
 };
-/**
- * @import { Action, Derivation, DerivationRule, ElidedNode, EmitItem, ResultNode, Scope, Span, StageReport, TagSet } from "./types.js"
- * @import { Grammar } from "./grammar.js"
- * @import { UnicodeTable } from "./unicode.js"
- */
-/**
- * The options of one stage's run.
- * @typedef {object} StageOptions
- * @property {Set<string>} features
- * @property {boolean | null | undefined} elisionOnly
- * @property {boolean} last whether this is the pipeline's last stage
- */
 export declare class Stage {
     name: string;
     grammar: Grammar;
@@ -68,7 +56,7 @@ export type ElisionCheck = ({
 } | {
     kind: "ambiguous";
     readings: ResultNode[];
-    witness: import("./types.js").Witness;
+    witness?: import("./types.js").Witness;
 } | {
     kind: "lost";
     completion: RestorationRecord[];

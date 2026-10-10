@@ -91,14 +91,15 @@ def walk_witness(run: _testing.CheckRun) -> Walk | None:
         if isinstance(node, DRead):
             continue
         start, end = spans[id(node)]
-        production = node.production.id
+        production = node.production.real_id
         if is_elided(node):
             index[(end, production, 0, start)] = []
             continue
         index[(start, production, 0, start)] = []
         for position, child in enumerate(node.children):
             index[(spans[id(child)][1], production, position + 1, start)] = []
-    for item, key in enumerate(zip(forest.end, forest.prod, forest.dot, forest.origin)):
+    production_ids = (forest.lowered.productions[p].real_id for p in forest.prod)
+    for item, key in enumerate(zip(forest.end, production_ids, forest.dot, forest.origin)):
         found_items = index.get(key)
         if found_items is not None:
             found_items.append(item)
@@ -107,6 +108,7 @@ def walk_witness(run: _testing.CheckRun) -> Walk | None:
     # Record exact items for each rule node and matched edges for each item.
     found: dict[int, set[int]] = {}
     marks: dict[int, set[int]] = {}
+    steps = {}
 
     def mark(item: int, index: int) -> None:
         marks.setdefault(item, set()).add(index)
@@ -114,8 +116,9 @@ def walk_witness(run: _testing.CheckRun) -> Walk | None:
     for node in order:
         if isinstance(node, DRead):
             continue
+        steps[id(node)] = {}
         start, end = spans[id(node)]
-        production = node.production.id
+        production = node.production.real_id
         if is_elided(node):
             found[id(node)] = {item for item in index.get((end, production, 0, start), ()) if edges[item][0][1] == RESTORE}
             for item in found[id(node)]:
@@ -137,6 +140,7 @@ def walk_witness(run: _testing.CheckRun) -> Walk | None:
                     else:
                         matched = kind == 2 and a in found[id(child)]
                     if matched:
+                        steps[id(node)].setdefault(item, edge)
                         following.add(item)
                         mark(item, number)
             current = following
@@ -144,6 +148,17 @@ def walk_witness(run: _testing.CheckRun) -> Walk | None:
     top = found[id(run.chosen)]
     if not any(root in top for root in forest.roots):
         return None
+    # Bind the exact child states of one coherent restored derivation.
+    bound = {}
+    pending = [(run.chosen, next(root for root in forest.roots if root in top))]
+    while pending:
+        node, item = pending.pop()
+        bound[id(node)] = item
+        for child in reversed(node.children):
+            pred, kind, a, b = steps[id(node)][item]
+            if isinstance(child, DNode):
+                pending.append((child, a))
+            item = pred
     # Build the witness's actions after visiting each node's children.
     # Use reconstruction tokens and the spans of matched items.
     # Each restoration reads its synthetic token and closes over it.
@@ -154,9 +169,9 @@ def walk_witness(run: _testing.CheckRun) -> Walk | None:
         if isinstance(node, DRead):
             sequence.append(Act(True, token=start, terminal=node.terminal))
             continue
-        production = node.production
+        item = bound[id(node)]
+        production = forest.lowered.productions[forest.prod[item]]
         if is_elided(node):
             sequence.append(Act(True, token=start, terminal=production.elided or ""))
-        item = min(found[id(node)])
-        sequence.append(Act(False, item=item, production=production.id, start=start, end=end, visible=not production.transparent))
+        sequence.append(Act(False, item=item, production=production.id, canonical=production.real_id, start=start, end=end, visible=not production.transparent))
     return Walk(marks, sequence)

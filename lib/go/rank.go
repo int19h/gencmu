@@ -234,7 +234,9 @@ func (r cmpRes) flip() cmpRes {
 }
 
 type ranker struct {
-	rec *recognizer
+	admission         *slotAdmission
+	rawWitnessCounted *bool
+	rec               *recognizer
 	// lean is greedy, lazy, or "" for no lean, where any two differing
 	// derivations tie. Under late-elision it is "", and elisions is set.
 	lean     string
@@ -252,9 +254,9 @@ type ranker struct {
 	// a derivation of marked links only. A parse that no test watches has
 	// none.
 	marks map[*item]map[link]bool
-	// check says that this ranks the check of elision-only, which only its
-	// faults read.
+	// check selects canonical competitors during reconstruction.
 	check bool
+	views *slotViews
 }
 
 // skips says whether a fault of the check skips this alternative: the last
@@ -276,6 +278,10 @@ func newRanker(rec *recognizer, rule string, mx *maximal) *ranker {
 	}
 	for _, r := range rec.g.rules {
 		rk.profiles = rk.profiles || r.leftmostLongest
+	}
+	if len(rec.g.rankedHelpers) > 0 {
+		rk.views = newSlotViews(rk)
+		rk.admission = newSlotAdmission(rk)
 	}
 	return rk
 }
@@ -512,10 +518,10 @@ type entry struct {
 
 func (rk *ranker) addTo(s *tiedSet, d *dn, div count) {
 	c := div.cmp(s.div)
-	if len(s.ds) > 0 && c > 0 {
+	if !rk.check && len(s.ds) > 0 && c > 0 {
 		return
 	}
-	if len(s.ds) == 0 || c < 0 {
+	if len(s.ds) == 0 || !rk.check && c < 0 {
 		s.ds, s.div = []*dn{d}, div
 		return
 	}
@@ -531,7 +537,7 @@ func (rk *ranker) addTied(c *cand, d *dn, div count) {
 // tied with c at the same divergence.
 func (rk *ranker) inherit(c *cand, z *cand, shift count, f func(*dn) *dn, below count) {
 	s := z.tied
-	if len(s.ds) == 0 || s.div.cmp(below) >= 0 {
+	if len(s.ds) == 0 || !rk.check && s.div.cmp(below) >= 0 {
 		return
 	}
 	// A shift leaves inf as it is.
@@ -811,10 +817,13 @@ func (rk *ranker) symVal(s *symNode, f forbidden) *entry {
 // A restoration (engine §7.4) has one link, a read of its synthetic token,
 // and its close follows (§7.7).
 func (rk *ranker) startItem(it *item, f forbidden) (rankFrame, *entry) {
+	if rk.views != nil && rk.views.itemScopes[it] != nil && rk.views.itemScopes[it].blocked {
+		return nil, nil
+	}
 	if it.dot == 0 && !it.restores {
 		// A predicted item of W(D), such as an empty production's, is
 		// W(D)'s (tests/README.md).
-		if _, ok := rk.marks[it]; ok {
+		if rk.slotMarks(it) != nil {
 			return nil, markedUnitEntry
 		}
 		return nil, unitEntry
@@ -822,7 +831,11 @@ func (rk *ranker) startItem(it *item, f forbidden) (rankFrame, *entry) {
 	if it.restores && rk.rec.run.ps.fault("rank-restoration") {
 		return nil, nil
 	}
-	f = rk.restrict(f, it.prod.lhs)
+	var scope *slotScope
+	if rk.views != nil {
+		scope = rk.views.itemScopes[it]
+	}
+	f = rk.slotContext(f, it.prod.lhs, scope)
 	slot := memoSlotFor(rk.itemMemo(it), f)
 	switch slot.state {
 	case 1:
@@ -835,7 +848,7 @@ func (rk *ranker) startItem(it *item, f forbidden) (rankFrame, *entry) {
 		w.summaryContexts.add("summary contexts")
 	}
 	mx := rk.maximal
-	return &itemFrame{it: it, f: f, slot: slot, guarded: mx != nil && mx.guards(it), marked: rk.marks[it]}, nil
+	return &itemFrame{it: it, f: f, slot: slot, guarded: mx != nil && mx.guards(it), marked: rk.slotMarks(it)}, nil
 }
 
 // linkVal is the summary of one link: its derivations, and under
@@ -844,6 +857,7 @@ type linkVal struct {
 	profile     ruleProfile
 	prev, child *entry
 	permitted   bool
+	admitted    bool
 	vec         *elSeq
 	least       int
 }
@@ -943,8 +957,15 @@ func (fr *itemFrame) summarize(rk *ranker, l link) {
 	if child == nil || child.count == 0 {
 		return
 	}
-	v := linkVal{prev: prev, child: child, permitted: true}
-	if fr.guarded && l.sym != nil && mx.forbids(l.sym.rule, l.sym.start, l.sym.end, it.prod.testAt(int(it.dot)-1)) {
+	v := linkVal{prev: prev, child: child, permitted: true, admitted: true}
+	if rk.admission != nil {
+		if mask, ok := rk.admission.mask(it, fr.f); ok {
+			v.admitted = mask.all[i]
+			v.permitted = mask.allowed[i]
+			fr.forbade = fr.forbade || v.admitted != v.permitted
+		}
+	}
+	if fr.guarded && l.sym != nil && mx.forbidsIn(l.sym.rule, l.sym.start, l.sym.end, it.prod.testAt(int(it.dot)-1), l.sym.lexical) {
 		v.permitted, fr.forbade = false, true
 	}
 	count := prev.count * child.count
@@ -960,8 +981,10 @@ func (fr *itemFrame) summarize(rk *ranker, l link) {
 	// Faults of the check skip the last of two or more links, in the
 	// count or in the candidates (tests/README.md).
 	if !rk.skips("lost:context", "links", i, len(it.links)) {
-		fr.all.add(v.profile, v.vec, v.least, count)
-		fr.allW = fr.allW || w
+		if v.admitted {
+			fr.all.add(v.profile, v.vec, v.least, count)
+			fr.allW = fr.allW || w
+		}
 		if v.permitted {
 			fr.allowed.add(v.profile, v.vec, v.least, count)
 			fr.allowedW = fr.allowedW || w
@@ -978,7 +1001,7 @@ func (fr *itemFrame) finish(rk *ranker) *entry {
 	// least vector of the summary give them.
 	var cands, permitted []*cand
 	for _, v := range fr.vals {
-		inAll := !(rk.elisions || rk.profiles) || compareScore(v.profile, v.vec, fr.all.profile, fr.all.vec) == 0
+		inAll := v.admitted && (!(rk.elisions || rk.profiles) || compareScore(v.profile, v.vec, fr.all.profile, fr.all.vec) == 0)
 		inAllowed := v.permitted && (!(rk.elisions || rk.profiles) || compareScore(v.profile, v.vec, fr.allowed.profile, fr.allowed.vec) == 0)
 		if !inAll && !(fr.forbade && inAllowed) {
 			continue
@@ -992,7 +1015,7 @@ func (fr *itemFrame) finish(rk *ranker) *entry {
 		}
 	}
 	var e *entry
-	if fr.all.total > 0 {
+	if fr.all.total > 0 || fr.allowed.total > 0 {
 		e = &entry{count: fr.all.total, profile: fr.all.profile, vec: fr.all.vec, least: fr.all.least, w: fr.allW}
 		// Where maximal forbids none of the links, an elided terminator may
 		// follow every derivation. Otherwise it may follow the candidates of
@@ -1013,10 +1036,17 @@ func (fr *itemFrame) finish(rk *ranker) *entry {
 // startSym gives a constituent's value where it is known without its
 // items, and otherwise a frame that ranks them.
 func (rk *ranker) startSym(s *symNode, f forbidden) (rankFrame, *entry) {
+	var scope *slotScope
+	if rk.views != nil {
+		scope = rk.views.symScopes[s]
+	}
+	if scope != nil && scope.blocked {
+		return nil, nil
+	}
 	if f.has(s.rule) {
 		return nil, nil
 	}
-	f = rk.restrict(f, s.rule)
+	f = rk.slotContext(f, s.rule, scope)
 	slot := memoSlotFor(rk.symMemo(s), f)
 	switch slot.state {
 	case 1:
@@ -1029,7 +1059,7 @@ func (rk *ranker) startSym(s *symNode, f forbidden) (rankFrame, *entry) {
 		w.summaryContexts.add("summary contexts")
 	}
 	inner := f
-	if rk.rec.g.rules[s.rule].scc >= 0 {
+	if rk.rec.g.rules[s.rule].scc >= 0 && scope == nil {
 		inner = f.with(s.rule)
 	}
 	return &symFrame{s: s, inner: inner, slot: slot}, nil
@@ -1192,6 +1222,24 @@ type rankResult struct {
 // text that spans it, combined as the edges of one root (engine §6). It is
 // nil when every derivation is cyclic.
 func (rk *ranker) rank(top []*symNode) *rankResult {
+	if rk.admission != nil && rk.views != nil {
+		mapped := make([]*symNode, len(top))
+		for i, s := range top {
+			mapped[i] = rk.views.plainSyms[s]
+		}
+		top = mapped
+	}
+	if rk.admission != nil {
+		rk.admission.prepareRoots(top)
+		defer func() {
+			if private := rk.rec.run.ps.private; private != nil && private.slotAdmission != nil {
+				private.slotAdmission(rk.admission.stats)
+			}
+		}()
+	}
+	return rk.rankOriginal(top)
+}
+func (rk *ranker) rankOriginal(top []*symNode) *rankResult {
 	rk.prepare(top)
 	type rootVal struct {
 		e   *entry

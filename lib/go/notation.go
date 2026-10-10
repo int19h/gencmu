@@ -88,7 +88,7 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 			}
 			dom, err := decodeDOM(d.Dom, uni)
 			if err != nil {
-				return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "cannot read the bootstrap's DOM of " + *d.Path + ": " + err.Error()}
+				return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "cannot read the bootstrap's DOM of " + *d.Path + ": " + err.Error(), Code: rankedDOMCode(err)}
 			}
 			docs = append(docs, docDOM{path: *d.Path, dom: dom})
 		}
@@ -126,7 +126,10 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 }
 
 // read reads one grammar document into its DOM.
-func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
+func (nr *notationReader) read(text, docPath string) (*domDoc, *Error) {
+	return nr.readMode(text, docPath, false)
+}
+func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (dom *domDoc, err *Error) {
 	gt := extractGrammarText(text)
 	if gt.unclosed != nil {
 		return nil, grammarError(docPath, *gt.unclosed, "a jbogenbau block is never closed")
@@ -135,6 +138,13 @@ func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
 	toks := ps.characterTokens()
 	var out stageOutcome
 	for i, g := range nr.stages {
+		if g.name == "syntax" {
+			for _, token := range toks {
+				if token.Text == "%prefer" {
+					return nil, grammarError(docPath, gt.at(token.Source[0]), "unknown directive %%prefer; use an inline ranked choice (A ≻ B)")
+				}
+			}
+		}
 		run := ps.newRun(g.name, g, toks)
 		// Each notation stage runs the check of elision-only where its own
 		// directive declares it (§8).
@@ -159,13 +169,16 @@ func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
 			} else {
 				e.Message = out.err.Message
 			}
+			if g.name == "syntax" && out.err.Kind == ErrorRejected && out.err.Token != nil && rankedSyntaxFailure(toks, *out.err.Token) {
+				e.Code = "ranked-choice-syntax"
+			}
 			return nil, e
 		}
 		if i < len(nr.stages)-1 {
 			toks = out.stage.Output
 		}
 	}
-	b := &domBuilder{toks: toks, gt: gt, doc: docPath, uni: nr.uni, types: newTypeMemo()}
+	b := &domBuilder{deferEmission: deferEmission, toks: toks, gt: gt, doc: docPath, uni: nr.uni, types: newTypeMemo()}
 	defer func() {
 		if x := recover(); x != nil {
 			if e, ok := x.(*Error); ok {
@@ -184,7 +197,7 @@ func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
 		if p.tooDeep {
 			p = firstTooDeep(dom, nr.uni, p)
 		}
-		e := &Error{Kind: ErrorGrammar, Document: docPath, Message: p.message}
+		e := &Error{Kind: ErrorGrammar, Document: docPath, Message: p.message, Code: p.code}
 		if p.rule != nil {
 			e.Line, e.Column = p.rule.At[0], p.rule.At[1]
 		} else if p.constant != nil {
@@ -228,6 +241,7 @@ func firstTooDeep(dom *domDoc, uni *unicodeTable, found *domProblem) *domProblem
 }
 
 type domBuilder struct {
+	deferEmission bool
 	// captureNodes holds the notation node of each capture of the
 	// alternative being read, where an error about it is reported.
 	captureNodes map[*domExpr]*Node
@@ -251,7 +265,7 @@ type domBuilder struct {
 // place.
 var domRules = map[string]bool{
 	"rule-name": true, "body": true, "primary": true, "emit-target": true, "condition": true, "argument": true, "term-atom": true,
-	"directive": true, "rule": true, "definer": true, "rule-flags": true, "rule-flag": true, "alternative": true, "choice": true,
+	"directive": true, "rule": true, "definer": true, "rule-flags": true, "rule-flag": true, "alternative": true, "choice": true, "ranked-alternative": true, "ranked-choice": true,
 	"conjunction": true, "sequence": true, "repetition": true, "reference": true,
 	"string": true, "tag": true, "character": true, "phoneme": true, "name": true,
 	"tested": true, "test": true, "test-operand": true, "capture": true, "group": true, "optional": true,
@@ -279,7 +293,11 @@ func (b *domBuilder) at(n *Node) [2]int {
 }
 
 func (b *domBuilder) fail(n *Node, format string, args ...any) {
-	panic(grammarError(b.doc, b.at(n), format, args...))
+	e := grammarError(b.doc, b.at(n), format, args...)
+	if n.Rule == "ranked-choice" {
+		e.Code = "ranked-choice-syntax"
+	}
+	panic(e)
 }
 
 // parts lists a node's children, reading transparent rules in their place.
@@ -609,7 +627,14 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	// The parts of a definition are read in the order written: the body,
 	// then its clauses in their fixed order, and the checks of the whole
 	// definition last (engine §9).
-	for _, p := range b.some(b.only(n, "body"), "alternative", 1) {
+	body := b.only(n, "body")
+	var alternatives []*Node
+	if ranked := one(body, "ranked-alternative"); ranked != nil {
+		alternatives = []*Node{ranked}
+	} else {
+		alternatives = b.some(body, "alternative", 1)
+	}
+	for _, p := range alternatives {
 		r.Alternatives = append(r.Alternatives, b.alternative(p))
 	}
 	if p := one(n, "tags-clause"); p != nil {
@@ -628,7 +653,11 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	flattenGroups(r)
 	// The definition as a whole (§9), reported at the rule.
 	if msg := definitionProblem(r); msg != "" {
-		b.fail(definer, "%s", msg)
+		if b.deferEmission && deferredEmissionProblem(msg) && ruleHasRanked(r) {
+			r.deferredEmission = msg
+		} else {
+			b.fail(definer, "%s", msg)
+		}
 	}
 	return r
 }
@@ -648,7 +677,11 @@ func (b *domBuilder) alternative(n *Node) *domAlt {
 		name := strings.TrimSuffix(strings.TrimSuffix(strings.TrimPrefix(g, "¬"), "?"), "!")
 		a.Guards = append(a.Guards, domGuard{Feature: name, Kind: kind, Negated: neg})
 	}
-	a.Expr = b.exprIn(b.only(n, "conjunction"), true)
+	if n.Rule == "ranked-alternative" {
+		a.Expr = b.expr(b.only(n, "ranked-choice"))
+	} else {
+		a.Expr = b.exprIn(b.only(n, "conjunction"), true)
+	}
 	// A name stands at most once in each production, gates aside: the
 	// error stands at the second capture that such a production reads, the
 	// first in the text where there are several (engine §3.5, §9).

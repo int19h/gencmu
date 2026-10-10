@@ -360,6 +360,8 @@ mod tests {
         for case in cases {
             let (name, template, link) = (string(case, "dialect"), string(case, "text"), string(case, "link"));
             let (small, large, most) = (number(case, "small"), number(case, "large"), number(case, "most"));
+            // Loading is outside the preceding parse budget.
+            reset();
             let dialect = crate::load_dialect(&name).expect("the bundled dialect");
             let work = |n: u64, most: Option<(u64, u64)>| {
                 let text = template.replace("{links}", &vec![link.as_str(); n as usize].join(" "));

@@ -528,6 +528,8 @@ func patternLeafTest(p *domPattern, sound string, tags *tagset) bool {
 		return len(in.intersection(set, tags).names) == 0
 	}
 }
+func (m *patternMachine) sealed() int { return m.nodeState(new(big.Int), false) }
+
 func (m *patternMachine) node(name string, children int, terminal, sound string, tags *tagset) int {
 	leaf := ""
 	if tags != nil {
@@ -773,7 +775,9 @@ func (b *domBuilder) readPattern(root *Node) *domPattern {
 		case "pattern-repeat":
 			result = &domPattern{Kind: "repeat", Items: xs}
 		case "pattern-path":
-			name := map[string]string{"⋮": "descendant", "⋰": "first", "⋱": "last"}[b.text(b.token(n))]
+			// The direct operator token can follow the named atom.
+			operator := b.text(b.token(n))
+			name := map[string]string{"⋮": "descendant", "⋰": "first", "⋱": "last"}[operator]
 			result = patternChildren(&domPattern{Kind: "path", Name: name, Items: []*domPattern{patternNode(xs[0])}})
 		}
 		if msg := patternProblem(patternNode(result), 0, nil); msg != "" {
@@ -893,7 +897,19 @@ func (r *recognizer) preparePatterns() {
 				}
 			}
 		}
-		if len(roots) > 0 {
+		for _, p := range r.g.prods {
+			if p.ranked != nil {
+				for _, c := range p.slot.source.conds {
+					walkClause(clausePart{c: c}, scan)
+				}
+			}
+			if p.contextual {
+				for _, term := range []*domTerm{p.slot.source.alt.Tags, p.slot.source.ruleTags} {
+					walkClause(clausePart{t: term}, scan)
+				}
+			}
+		}
+		if len(r.g.rankedHelpers) > 0 || len(roots) > 0 {
 			r.machine = newPatternMachine(roots)
 		}
 		if run.patternMachines == nil {

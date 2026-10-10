@@ -139,9 +139,9 @@ The forms stage supplies source words, their lexical classes, and their run boun
 
 The shared reader reads a cmavo, brivla, cmevla, or the y letteral. A cmavo is a particle. A brivla is a predicate word. A cmevla is a name word.
 
-CLL is *The Complete Lojban Language*. Every cmavo read uses `cmavo-token`. The CLL dialect adds optional word-form warnings there. A word read in the selected derivation keeps its warning even if an eraser later removes the word.
+CLL is *The Complete Lojban Language*. Every cmavo read uses `cmavo-token`. The CLL dialect adds optional word-form warnings there. A word read in the chosen derivation keeps its warning even if an eraser later removes the word.
 
-A failed word stage publishes no warnings from that stage. A successful stage keeps warnings from its selected derivation. Raw quote bodies and the suffix after active `fa'o` supply no word reads.
+A failed word stage publishes no warnings from that stage. A successful stage keeps warnings from its chosen derivation. Raw quote bodies and the suffix after active `fa'o` supply no word reads.
 
 The lexicon gives each cmavo its classes. Operators use these classes rather than spelling. The experimental syntax can treat names as predicates without changing their lexical class.
 
@@ -470,7 +470,7 @@ Zantufa keeps its reference parser's SU-before-BU letter-base exception. Its quo
 
 The constructors can repeat and combine without exposing their operands. Each result keeps any fault of its base. SI erases the complete result as one unit.
 
-Erased regions and ordinary hesitation can separate an operand from its operator. The compound's sound and label omit these regions. Its text retains the original source span, including erased words. Their warnings still belong to the selected derivation.
+Erased regions and ordinary hesitation can separate an operand from its operator. The compound's sound and label omit these regions. Its text retains the original source span, including erased words. Their warnings still belong to the chosen derivation.
 
 The CLL dialect requires pauses around a direct name base of BU. It tests the source run boundary. A name inside a compound does not make that compound a direct name.
 

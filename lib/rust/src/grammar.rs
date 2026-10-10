@@ -46,6 +46,8 @@ pub(crate) struct RuleClauses {
 #[derive(Debug, Clone)]
 pub(crate) struct StitchedAlternative {
     pub alternative: Alternative,
+    pub written: Option<Arc<crate::json::Json>>,
+    pub written_alternative: usize,
     pub clauses: Arc<RuleClauses>,
     pub opaque: bool,
     pub document: Arc<str>,
@@ -92,6 +94,7 @@ pub(crate) struct StageGrammar {
     pub index: HashMap<String, usize>,
     pub lean: Lean,
     pub elision_only: bool,
+    pub ranked: Arc<crate::ranked::RankedGroups>,
     /// Whether an elided terminator is forbidden where its constituent
     /// could have been longer (engine §4).
     pub changes: Vec<Change>,
@@ -214,6 +217,7 @@ pub(crate) fn stitch(
         index: HashMap::new(),
         lean: Lean::Greedy,
         elision_only: false,
+        ranked: Arc::new(crate::ranked::RankedGroups::default()),
         changes: Vec::new(),
         classifiers: Vec::new(),
         implications: Arc::from(Vec::new()),
@@ -226,8 +230,12 @@ pub(crate) fn stitch(
     // the constants have their final values; a rule that a later one
     // replaces included.
     let mut users: Vec<(&Arc<str>, &RuleDef)> = Vec::new();
+    let mut deferred = Vec::new();
     for (document, dom) in documents {
         for rule in &dom.rules {
+            if let Some(problem) = &rule.deferred_emission {
+                deferred.push(located(problem.clone(), document, rule.at));
+            }
             if !constants_in_rule(rule).is_empty() {
                 users.push((document, rule));
             }
@@ -240,12 +248,22 @@ pub(crate) fn stitch(
                     conditions: rule.conditions.iter().inspect(|_| work::count(Work::Stitched, 1)).cloned().collect(),
                 })
             };
+            let written = if rule.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr)) {
+                let mut text = String::new();
+                crate::dom::write_rule(&mut text, rule);
+                Some(Arc::new(crate::json::parse(&text).expect("the written rule DOM")))
+            } else {
+                None
+            };
             let clauses = copy_clauses();
             let alternatives: Vec<StitchedAlternative> = rule
                 .alternatives
                 .iter()
-                .map(|alternative| StitchedAlternative {
+                .enumerate()
+                .map(|(written_alternative, alternative)| StitchedAlternative {
                     alternative: alternative.clone(),
+                    written: written.clone(),
+                    written_alternative,
                     clauses: if work::mutated(Mutant::ClausesPerAlternative) {
                         copy_clauses()
                     } else {
@@ -350,7 +368,7 @@ pub(crate) fn stitch(
         implications.extend(dom.implications.iter().map(|implication| (document, implication)));
     }
     constants.bind()?;
-    constants.resolve(&mut grammar, &users)?;
+    constants.resolve(&mut grammar, &users, &mut deferred)?;
     constants.evaluate_tests(&mut grammar)?;
     grammar.implications = implications
         .into_iter()
@@ -373,6 +391,15 @@ pub(crate) fn stitch(
                 located(format!("in {}: {message}", rule.name), &alternative.document, alternative.at)
             })?;
         }
+    }
+    grammar.ranked = Arc::new(crate::ranked::RankedGroups::new(&grammar)?);
+    if !grammar.ranked.groups.is_empty() {
+        let lowered =
+            crate::lower::lower_for_slots(&grammar).map_err(|e| located(e.message, &e.document, (e.line, e.column)))?;
+        grammar.ranked.validate_tags(&grammar, &lowered)?;
+    }
+    if let Some(error) = deferred.into_iter().next() {
+        return Err(error);
     }
     Ok(grammar)
 }
@@ -827,7 +854,12 @@ impl Constants<'_> {
     /// defined, that the types agree, and that a constant that `split` or
     /// `tag` reads directly is a delimiter that is not empty, or a name
     /// (engine §2, §9, §10).
-    fn resolve(&self, grammar: &mut StageGrammar, users: &[(&Arc<str>, &RuleDef)]) -> Result<(), Error> {
+    fn resolve(
+        &self,
+        grammar: &mut StageGrammar,
+        users: &[(&Arc<str>, &RuleDef)],
+        deferred: &mut Vec<Error>,
+    ) -> Result<(), Error> {
         for &(document, rule) in users {
             for (name, at) in constants_in_rule(rule) {
                 if !self.values.contains_key(name) {
@@ -894,7 +926,13 @@ impl Constants<'_> {
             // The checks that simplification decides, which the reader left
             // to the loader, now with the constants' values (§9).
             if let Some(problem) = definition_problem(&self.substitute_rule(rule)) {
-                return Err(located(problem, document, rule.at));
+                if crate::dom::deferred_emission_problem(&problem)
+                    && rule.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr))
+                {
+                    deferred.push(located(problem, document, rule.at));
+                } else {
+                    return Err(located(problem, document, rule.at));
+                }
             }
             // A string constant in a sound test must be a canonical sound
             // (§2, §9); the error stands at the constant.
@@ -977,7 +1015,9 @@ impl Constants<'_> {
                 let mut stack = vec![&mut alternative.alternative.expr];
                 while let Some(expr) = stack.pop() {
                     match expr {
-                        Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => stack.extend(items.iter_mut()),
+                        Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                            stack.extend(items.iter_mut())
+                        }
                         Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push(inner),
                         Expr::Repeat(item, separator, _) => {
                             stack.push(item);
@@ -1174,7 +1214,7 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr) -> Result<(), String> {
         Expr::And(items) if items.len() > MAX_AND => {
             Err(format!("an & of {} items; at most {MAX_AND} are allowed", items.len()))
         }
-        Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
+        Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
             for item in items {
                 check_expr(grammar, item)?;
             }
@@ -1311,12 +1351,18 @@ mod tests {
         let dom = |n: usize| {
             let same = || Cond::Compare("=".into(), Term::Const("k".into(), (1, 1)), Term::Str("a".into()));
             let rule = RuleDef {
+                deferred_emission: None,
                 name: "text".into(),
                 op: Op::Define,
                 flags: Vec::new(),
                 tags: None,
                 alternatives: (0..n)
-                    .map(|_| Alternative { guards: Vec::new(), expr: Expr::Terminal("A".into()), tags: None })
+                    .map(|_| Alternative {
+                        guards: Vec::new(),
+                        expr: Expr::Terminal("A".into()),
+                        tags: None,
+                        ranked_locations: Default::default(),
+                    })
                     .collect(),
                 emit: None,
                 conditions: (0..n).map(|_| same()).collect(),
@@ -1370,6 +1416,7 @@ mod tests {
                 index: HashMap::new(),
                 lean: Lean::Greedy,
                 elision_only: false,
+                ranked: Arc::new(crate::ranked::RankedGroups::default()),
                 changes: Vec::new(),
                 classifiers: vec![(Arc::from("d.md"), ClassifierDef { name: "c".into(), entries, at: (0, 0) })],
                 implications: Arc::from(Vec::new()),

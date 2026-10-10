@@ -72,7 +72,7 @@ def duplicate_captures(expr: Any) -> list[Dom]:
     def children(node: Any) -> list[Any]:
         if not isinstance(node, dict) or (isinstance(node.get("capture"), str) and "expr" in node):
             return []
-        for key in ("seq", "choice", "and"):
+        for key in ("seq", "choice", "ranked", "and"):
             if isinstance(node.get(key), list):
                 return node[key]
         if "optional" in node and node.get("elidable") is not True:
@@ -218,9 +218,9 @@ def capture_sequences(expr: Any) -> tuple[list[list[Dom]], list[Dom]]:
             for item in node["seq"]:
                 sequences = product(sequences, (yield visit(item)), True)
             return sequences
-        if isinstance(node.get("choice"), list):
+        if isinstance(node.get("choice", node.get("ranked")), list):
             branches: list[_Sequence] = []
-            for item in node["choice"]:
+            for item in node.get("choice", node.get("ranked", [])):
                 branches.extend((yield visit(item)))
             return distinct(branches)
         if isinstance(node.get("and"), list):
@@ -835,3 +835,20 @@ def definition_problem(rule: Dom) -> str | None:
             if anchor is not None and anchor not in present:
                 return f"an inserted tag of {rule['name']} stands before ${anchor}, which a production lacks"
     return None
+
+
+def rule_has_ranked(rule: Dom) -> bool:
+    pending = [a['expr'] for a in rule['alternatives']]
+    while pending:
+        value = pending.pop()
+        if isinstance(value,dict):
+            if 'ranked' in value:
+                return True
+            pending.extend(value.values())
+        elif isinstance(value,list):
+            pending.extend(value)
+    return False
+
+
+def deferred_emission_problem(message):
+    return "leaves a production nothing to emit" in message

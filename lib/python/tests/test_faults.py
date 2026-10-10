@@ -31,10 +31,10 @@ CATCHES: dict[str, dict[str, str]] = {
     "rank-restoration": {
         "reparse-witness-hook-only.json": BOTH,
         "elision-only-passes.json": BOTH,
-        "reparse-witness-sibling-last.json": HOOK,
+        "reparse-witness-sibling-last.json": BOTH,
     },
-    "lost:context": {"reparse-witness-sibling-first.json": HOOK, "reparse-witness-sibling-last.json": HOOK},
-    "lost:select": {"reparse-witness-sibling-first.json": BOTH},
+    "lost:context": {"reparse-witness-sibling-first.json": BOTH, "reparse-witness-sibling-last.json": BOTH},
+    "lost:select": {"reparse-witness-sibling-first.json": HOOK},
 }
 
 

@@ -1,0 +1,53 @@
+{
+  "description": "A nested gate sees the enclosing named parent with one seal for the outer ranked group.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text Q (X ($y(a) ≻ b) ≻ c)\n%conditions $y ⟹ $ ≇ @(Q X ⋯)\n%rule a Y Z\n%rule b Y Z\n%rule c X Y Z",
+  "tokens": [
+    {
+      "text": "q",
+      "tags": [
+        "Q"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    },
+    {
+      "text": "z",
+      "tags": [
+        "Z"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "terminal": "Q"
+          },
+          {
+            "terminal": "X"
+          },
+          {
+            "rule": "a"
+          }
+        ]
+      }
+    }
+  }
+}

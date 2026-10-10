@@ -1,0 +1,12 @@
+{
+  "grammar": "%rule text $x(X) | Y\n%emits $x\n%rule bad missing",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  },
+  "description": "An ordinary emission error precedes later loading errors in written order, as engine §9 requires."
+}

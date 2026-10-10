@@ -1,3 +1,4 @@
+import { RankedGroups } from "./ranked.js";
 import { GencmuError } from "./errors.js";
 import type { Condition, DomAlternative, DomClassifier, DomConstant, DomImplication, DomRule, Emission, ErrorLocation, GrammarDom, LoweredGrammar, Resolution, SymbolTest, TagSet, Term, TermValue, TestOp } from "./types.js";
 import type { TermType } from "./dom.js";
@@ -72,6 +73,11 @@ export declare class Grammar {
         path: string;
         rule: DomRule;
     }[];
+    /** @type {{path:string, rule:DomRule}[]} */
+    emissionUsers: {
+        path: string;
+        rule: DomRule;
+    }[];
     /** @type {Map<string, StitchedRule>} */
     rules: Map<string, StitchedRule>;
     /** @type {RuleChange[]} */
@@ -111,6 +117,7 @@ export declare class Grammar {
      * @type {WeakMap<object, SymbolTest>}
      */
     tests: WeakMap<object, SymbolTest>;
+    ranked: RankedGroups;
     /**
      * The features that gate an alternative or an entry of a classifier.
      * Only these change a lowered grammar. A warning keeps its alternative

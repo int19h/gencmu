@@ -1,0 +1,57 @@
+{
+  "description": "Each ranked candidate uses its enclosing named invocation and its actual prefix bindings before admission.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text (X $x(a) ($y(b) ≻ c) ≻ z)\n%conditions text($x) = text($y)\n%rule a Q\n%rule b Y Z\n%rule c Y Z\n%rule z X Q Y Z",
+  "tokens": [
+    {
+      "text": "x",
+      "phonemes": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "q",
+      "phonemes": "q",
+      "tags": [
+        "Q"
+      ]
+    },
+    {
+      "text": "y",
+      "phonemes": "y",
+      "tags": [
+        "Y"
+      ]
+    },
+    {
+      "text": "z",
+      "phonemes": "z",
+      "tags": [
+        "Z"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "terminal": "X"
+          },
+          {
+            "rule": "a"
+          },
+          {
+            "rule": "c"
+          }
+        ]
+      }
+    }
+  }
+}

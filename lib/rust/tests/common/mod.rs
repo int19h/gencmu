@@ -685,6 +685,11 @@ pub fn check_load_error(expect: &Value, error: &gencmu::Error) -> Result<(), Str
     if kind != "grammar" && expect.get("where").is_some() {
         return Err(format!("expect.where is only for a grammar error: {error}"));
     }
+    if let Some(code) = expect.get("diagnostic").and_then(Value::str) {
+        if error.code.as_deref() != Some(code) {
+            return Err(format!("expected diagnostic {code}: {error}"));
+        }
+    }
     error_where(expect, error)
 }
 
@@ -759,6 +764,13 @@ pub fn result_problems(json: &Value) -> Vec<String> {
             }
         }
     }
+    if let Some(error) = json.get("error") {
+        for member in ["cycle", "conflict", "chosenReading"] {
+            if error.get(member).is_some() {
+                problems.push(format!("obsolete error field {member}"));
+            }
+        }
+    }
     problems
 }
 
@@ -818,6 +830,7 @@ fn check_parse(dialect: &gencmu::Dialect, case: &Value, run: &Value, expect: &Va
             let _ = writeln!(problems, "{problem}");
         }
     }
+
     let options = case_options(run);
     // Every check of elision-only that runs must keep its witness
     // (tests/README.md).

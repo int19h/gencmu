@@ -4,6 +4,7 @@ notation (engine §8), and running the pipeline (engine §13)."""
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 import os
 import re
 import threading
@@ -197,7 +198,7 @@ class NotationReader:
                     raise GencmuError("a document of the bootstrap has a path and a DOM", document=where)
                 problem = dom_problem(document.get("dom"), unicode)
                 if problem is not None:
-                    raise GencmuError(f"the bootstrap's DOM of {document['path']} is malformed: {problem}", document=where)
+                    raise GencmuError(f"the bootstrap's DOM of {document['path']} is malformed: {problem}", document=where, code="ranked-choice-syntax" if problem.startswith("ranked-choice-syntax:") else None)
                 pairs.append((document["path"], document["dom"]))
             inputs.append((stage["name"], pairs))
         for name, pairs in inputs:
@@ -219,7 +220,19 @@ class NotationReader:
                 raise
         return lowered
 
-    def read(self, text: str, path: str) -> Dom:
+    def located(self, dom, text, path):
+        from ._ranked import has_ranked, restore_locations
+        if not has_ranked(dom) or all(hasattr(rule, 'ranked_locations') for rule in dom['rules']):
+            return dom
+        grammar_text = jbogenbau_text(text)
+        tokens = character_tokens(grammar_text.text, self.unicode)
+        name, lowered = self.stages[0]
+        outcome = StageRunner(name, lowered, tokens, grammar_text.text, self.unicode).run(lowered.grammar.elision_only)
+        if outcome.error is None and outcome.output is not None:
+            return restore_locations(dom, outcome.output, grammar_text.position)
+        return dom
+
+    def read(self, text: str, path: str, defer_emission: bool = False) -> Dom:
         """The DOM of a grammar document (engine §8, §9)."""
         try:
             grammar_text = jbogenbau_text(text)
@@ -229,6 +242,11 @@ class NotationReader:
         tokens = character_tokens(grammar_text.text, self.unicode)
         tree = None
         for number, (name, lowered) in enumerate(self.stages):
+            if name == 'syntax':
+                for token in tokens:
+                    if token.text == '%prefer':
+                        line, column = grammar_text.position(token.source[0])
+                        raise GencmuError('unknown directive %prefer; use an inline ranked choice (A ≻ B)', document=path, line=line, column=column)
             last = number == len(self.stages) - 1
             runner = StageRunner(name, lowered, tokens, grammar_text.text, self.unicode, emit=not last)
             # Each notation stage runs the check of elision-only where its
@@ -246,7 +264,9 @@ class NotationReader:
                 if outcome.error.kind == "rejected":
                     shown = tokens[outcome.error.token].text if outcome.error.token is not None and outcome.error.token < len(tokens) else None
                     message = f"the notation cannot continue here{f' at {shown!r}' if shown else ''} (stage {name})"
-                raise GencmuError(message, document=path, line=line, column=column)
+                from ._ranked import syntax_failure
+                code = 'ranked-choice-syntax' if name == 'syntax' and outcome.error.kind == 'rejected' and outcome.error.token is not None and syntax_failure(tokens, outcome.error.token) else None
+                raise GencmuError(message, document=path, line=line, column=column, code=code)
             if last:
                 tree = outcome.tree
             else:
@@ -254,7 +274,11 @@ class NotationReader:
                 tokens = outcome.output
         assert tree is not None
         try:
-            dom = DomBuilder(tokens, grammar_text, path, self.unicode).document_dom(tree)
+            builder = DomBuilder(tokens, grammar_text, path, self.unicode, defer_emission)
+            dom = builder.document_dom(tree)
+            if builder.deferred_emissions:
+                from ._dom import DeferredDom
+                dom = DeferredDom(dom,builder.deferred_emissions)
         except GencmuError:
             raise
         except (LookupError, TypeError, ValueError, AttributeError, AssertionError) as error:
@@ -263,7 +287,7 @@ class NotationReader:
         # A document read here is held to the rules of a precompiled DOM
         # (engine §9). A bootstrap that is not the notation's can give a DOM
         # that breaks them.
-        problem = dom_problem(dom, self.unicode)
+        problem = dom_problem(dom, self.unicode, defer_emission)
         if problem is None:
             return dom
         # Each rule, constant definition and implication alone, in the
@@ -290,9 +314,9 @@ class NotationReader:
         # the document.
         found_at = next(((at, found) for at, found in alone if found is not None), None)
         if found_at is None:
-            raise GencmuError(problem, document=path)
+            raise GencmuError(problem, document=path, code="ranked-choice-syntax" if problem.startswith("ranked-choice-syntax:") else None)
         (line, column), found = found_at
-        raise GencmuError(found, document=path, line=line, column=column)
+        raise GencmuError(found, document=path, line=line, column=column, code="ranked-choice-syntax" if found.startswith("ranked-choice-syntax:") else None)
 
 
 def _reader(bootstrap: str, unicode_text: str) -> NotationReader:
@@ -380,19 +404,33 @@ class _Loader:
                 found = self.reader.doms.get(key)
             if found is not None:
                 return found
-        dom = self.reader.read(text, path)
+        dom = self.reader.read(text, path, True)
         with _lock:
             self.reader.doms.put(key, dom, len(text))
         return dom
 
-    def pipeline(self, pipeline_path: str) -> Pipeline:
+    def pipeline(self, pipeline_path: str, diagnostic_document: str | None = None) -> Pipeline:
         """The stages of the pipeline document at ``pipeline_path``, each a
         list of runs of one document's items, and the features the pipeline
         turns on (engine §13)."""
-        return splice_pipeline(pipeline_path, lambda path: None if self.lookup(path) is None else self.dom(path))
+        def document(path):
+            if self.lookup(path) is None:
+                return None
+            dom = self.dom(path)
+            return self.reader.located(dom, self.text(path), path) if path == diagnostic_document else dom
+        return splice_pipeline(pipeline_path, document)
 
     def load(self, pipeline_path: str) -> Dialect:
-        pipeline = self.pipeline(pipeline_path)
+        try:
+            return self._load(pipeline_path)
+        except GencmuError as error:
+            if not error.code or not error.code.startswith('ranked-choice-') or not error.group or 'at' in error.group or not error.group.get('document'):
+                raise
+            # Retry only a failed load, with locations for its diagnostic document.
+            return self._load(pipeline_path, error.group['document'])
+
+    def _load(self, pipeline_path: str, diagnostic_document: str | None = None) -> Dialect:
+        pipeline = self.pipeline(pipeline_path, diagnostic_document)
         stages: list[Grammar] = []
         for stage in pipeline.stages:
             try:

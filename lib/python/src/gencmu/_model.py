@@ -183,10 +183,8 @@ class ParseError:
 
     An ambiguous error has a ``reason``: ``"tie"`` where a stage has two or
     more best readings (engine §6), or ``"elision-only"`` where the check of
-    engine §7 fails. Its ``readings`` are two trees: the first and the
-    second reading of the ranking that found the ambiguity. An error of
-    elision-only also has a ``witness``, the pair of actions where its two
-    readings first differ, over the stage's input (engine §7.10).
+    engine §7 fails. Its ``readings`` hold two trees for an ordinary tie.
+    An ordinary elision-only error also holds the first differing actions in ``witness``.
 
     A grammar error has the ``code`` ``"elision-witness-lost"`` where the
     check of engine §7 lost its chosen derivation, a defect of the library

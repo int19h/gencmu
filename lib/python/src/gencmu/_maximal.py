@@ -52,7 +52,7 @@ class Maximal:
         an item of which the test also holds, with its own span and tags
         (engine §4)."""
         forest = self.forest
-        key = (self.productions[forest.prod[item]].lhs, forest.origin[item])
+        key = (self.productions[forest.prod[item]].lhs, forest.origin[item], self.productions[forest.prod[item]].lexical)
         if test is not None:
             found = self.passing.get((test, *key))
             if found is None:
@@ -86,7 +86,7 @@ class Maximal:
             production = productions[number]
             if forest.dot[item] != len(production.rhs):
                 continue
-            completed.setdefault((production.lhs, forest.origin[item]), []).append(item)
+            completed.setdefault((production.lhs, forest.origin[item], production.lexical), []).append(item)
         return completed
 
     def longest(self) -> dict[tuple[int, int], int]:
@@ -104,7 +104,7 @@ class Maximal:
             production = productions[number]
             if forest.dot[item] != len(production.rhs):
                 continue
-            key = (production.lhs, forest.origin[item])
+            key = (production.lhs, forest.origin[item], production.lexical)
             known = furthest.get(key)
             if known is None or known < forest.end[item]:
                 furthest[key] = forest.end[item]

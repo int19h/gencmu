@@ -111,8 +111,15 @@ impl<'a> Proofs<'a> {
             }
         }
         let caps = if production.cap_at[dot].is_some() { self.chart.lookup_caps(item.caps, cap)? } else { item.caps };
-        let next =
-            Item { prod: item.prod, dot: item.dot + 1, origin: item.origin, caps, prefix: 0, structure: u32::MAX };
+        let next = Item {
+            lexical: item.lexical,
+            prod: item.prod,
+            dot: item.dot + 1,
+            origin: item.origin,
+            caps,
+            prefix: 0,
+            structure: u32::MAX,
+        };
         let set = cap.end;
         self.chart.sets.get(set as usize)?.find(&next).map(|index| (set, index))
     }
@@ -169,7 +176,8 @@ impl<'a> Proofs<'a> {
             return false;
         };
         self.completed(helper, place.0).any(|child| {
-            !self.g.prods[self.item(child).prod as usize].syms.is_empty()
+            self.item(child).lexical == self.chart.expected_lexical(item, place.0)
+                && !self.g.prods[self.item(child).prod as usize].syms.is_empty()
                 && self.advanced(item, self.cap(child)).is_some()
         })
     }
@@ -184,6 +192,7 @@ impl<'a> Proofs<'a> {
             return None;
         };
         self.completed(constituent, place.0)
+            .filter(|&child| self.item(child).lexical == self.chart.expected_lexical(item, place.0))
             .filter_map(|child| self.advanced(item, self.cap(child)))
             .filter(|&after| self.reads_written(after))
             .map(|(set, _)| set)
@@ -232,7 +241,9 @@ impl<'a> Proofs<'a> {
                             self.chart.sets[set as usize].completed.get(&(rule, cap.start)).into_iter().flatten()
                         {
                             let child = (set, index);
-                            if self.cap(child) == cap {
+                            if self.cap(child) == cap
+                                && self.item(child).lexical == self.chart.expected_lexical(pred, cap.start)
+                            {
                                 edges.push((Some(before), Some(child)));
                             }
                         }
@@ -253,6 +264,7 @@ impl<'a> Proofs<'a> {
             item.caps
         };
         let before = Item {
+            lexical: item.lexical,
             prod: item.prod,
             dot: item.dot - 1,
             origin: item.origin,
@@ -427,7 +439,13 @@ impl<'a> Proofs<'a> {
             self.maximal.get_or_init(|| Maximal::new(self.g, self.chart, self.tokens, self.unicode, self.tags));
         let constituent = self.item(child);
         let rule = self.g.prods[constituent.prod as usize].rule;
-        !maximal.forbids(rule, constituent.origin, child.0, production.test(item.dot as usize - 1))
+        !maximal.forbids_in(
+            rule,
+            constituent.origin,
+            child.0,
+            production.test(item.dot as usize - 1),
+            constituent.lexical,
+        )
     }
 
     /// The items that the advances of one item read.

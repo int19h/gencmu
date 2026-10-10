@@ -1,6 +1,7 @@
 package gencmu
 
 import (
+	"encoding/json"
 	"fmt"
 	"path"
 	"regexp"
@@ -13,12 +14,17 @@ import (
 // Line and Column say where, when known; Line and Column count from 1, in
 // code points.
 type Error struct {
-	Kind     string // "grammar" for a load error, "usage" for a caller's mistake
-	Document string
-	Line     int
-	Column   int
-	Stage    string
-	Message  string
+	Kind        string // "grammar" for a load error, "usage" for a caller's mistake
+	Document    string
+	Line        int
+	Column      int
+	Stage       string
+	Message     string
+	Code        string
+	Group       *GroupSite
+	Option      *int
+	Expression  json.RawMessage
+	Inheritance []GroupSite
 }
 
 func (e *Error) Error() string {
@@ -172,4 +178,32 @@ func runeColumn(line string, byteOffset int) int {
 // with . and .. normalized.
 func resolvePath(from, target string) string {
 	return path.Clean(path.Join(path.Dir(from), target))
+}
+
+// GroupSite identifies a written ranked group or inheritance step.
+type GroupSite struct {
+	Document    string  `json:"document,omitempty"`
+	At          *[2]int `json:"at,omitempty"`
+	Rule        string  `json:"rule"`
+	Alternative int     `json:"alternative"`
+	Path        string  `json:"path"`
+}
+
+// MarshalJSON writes the canonical loading diagnostic schema.
+func (e *Error) MarshalJSON() ([]byte, error) {
+	value := struct {
+		Kind        string          `json:"kind"`
+		Code        string          `json:"code,omitempty"`
+		Message     string          `json:"message"`
+		Group       *GroupSite      `json:"group,omitempty"`
+		Option      *int            `json:"option,omitempty"`
+		Expression  json.RawMessage `json:"expression,omitempty"`
+		Inheritance []GroupSite     `json:"inheritance,omitempty"`
+	}{e.Kind, e.Code, e.Error(), e.Group, e.Option, e.Expression, e.Inheritance}
+	return json.Marshal(value)
+}
+func (e *Error) rankedDetail(option int, expression json.RawMessage) *Error {
+	e.Option = &option
+	e.Expression = append(json.RawMessage(nil), expression...)
+	return e
 }

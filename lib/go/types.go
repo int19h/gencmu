@@ -151,10 +151,10 @@ type Expected struct {
 // Reason is set only for an ambiguous error: ReasonTie or ReasonElisionOnly.
 // Token and Source are nil when unknown; Line and Column are 0 when unknown.
 // For a rejection they give the position in the text; for a grammar error,
-// the position in Document. An ambiguous error has Readings, two trees over
-// the stage's input, and no position. An error of elision-only also has
-// Witness, the pair of actions where its readings first differ, over the
-// stage's input (engine §7.10). Code is set only for the grammar error
+// the position in Document. An ambiguous error has Readings over the stage input.
+// A tie has two readings.
+// An ordinary elision-only error also has Witness, its first differing actions.
+// Code is set only for the grammar error
 // CodeElisionWitnessLost, which also has Chosen, the stage's chosen tree,
 // and Completion, the terminators that the check wrote back (engine §7.9).
 type ParseError struct {

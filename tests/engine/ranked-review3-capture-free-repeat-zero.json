@@ -1,0 +1,22 @@
+{
+  "description": "Selected routes settle skipped captures while future ranked groups remain unknown.",
+  "grammar": "%rule text (X [{(Y ≻ V)}] ≻ Z W)",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

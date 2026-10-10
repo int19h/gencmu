@@ -178,5 +178,20 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "The retired preference directive is malformed in a document DOM.",
+    "directive": {
+      "name": "prefer",
+      "args": [
+        "a",
+        "b"
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
   }
 ]

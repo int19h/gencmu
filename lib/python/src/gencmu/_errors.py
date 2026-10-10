@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from copy import deepcopy
+import json
 
 
 class GencmuError(Exception):
@@ -23,6 +25,11 @@ class GencmuError(Exception):
         line: int | None = None,
         column: int | None = None,
         stage: str | None = None,
+        code: str | None = None,
+        group: dict | None = None,
+        option: int | None = None,
+        expression: object = None,
+        inheritance: list | None = None,
     ) -> None:
         super().__init__(message)
         self.message = message
@@ -31,6 +38,24 @@ class GencmuError(Exception):
         self.line = line
         self.column = column
         self.stage = stage
+        self.code, self.group, self.option = code, group, option
+        self.expression, self.inheritance = expression, inheritance
+
+    def to_dict(self) -> dict:
+        """Returns the canonical loading diagnostic value."""
+        value = {'kind': self.kind}
+        if self.code is not None:
+            value['code'] = self.code
+        value['message'] = str(self)
+        for name in ('group', 'option', 'expression', 'inheritance'):
+            field = getattr(self, name)
+            if field is not None:
+                value[name] = deepcopy(field)
+        return value
+
+    def to_json(self) -> str:
+        """Writes the canonical loading diagnostic schema."""
+        return json.dumps(self.to_dict(), ensure_ascii=False, separators=(',', ':'))
 
     @property
     def where(self) -> str | None:
@@ -65,14 +90,19 @@ class ErrorData:
     line: int | None
     column: int | None
     stage: str | None
+    code: str | None = None
+    group: dict | None = None
+    option: int | None = None
+    expression: object = None
+    inheritance: list | None = None
 
     @staticmethod
     def of(error: GencmuError) -> ErrorData:
-        return ErrorData(error.message, error.kind, error.document, error.line, error.column, error.stage)
+        return ErrorData(error.message, error.kind, error.document, error.line, error.column, error.stage, error.code, deepcopy(error.group), error.option, deepcopy(error.expression), deepcopy(error.inheritance))
 
     def error(self) -> GencmuError:
         return GencmuError(
-            self.message, kind=self.kind, document=self.document, line=self.line, column=self.column, stage=self.stage
+            self.message, kind=self.kind, document=self.document, line=self.line, column=self.column, stage=self.stage, code=self.code, group=deepcopy(self.group), option=self.option, expression=deepcopy(self.expression), inheritance=deepcopy(self.inheritance)
         )
 
 

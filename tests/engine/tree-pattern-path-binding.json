@@ -1,0 +1,39 @@
+{
+  "description": "Postfix first-path and prefix last-path bind to separate atoms before sequence and set operations.",
+  "grammar": "%rule text left right\n%conditions $ ≅ @(A ⋰ ⋱ B) ∧ $ ≅ @((A ⋰ ⋱ B) ∩ (left right)) ∧ $ ≇ @(B ⋰ ⋱ A)\n%rule left A C\n%rule right D B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ],
+      "phonemes": "c"
+    },
+    {
+      "text": "d",
+      "tags": [
+        "D"
+      ],
+      "phonemes": "d"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "description": "Completed routes establish private capture absence before ready conditions run in written order.",
+  "grammar": "%rule text (X [($x(Y) ≻ $x(V))] $z(T) ≻ Z W)\n%conditions $x ∨ text($z) = \"never\"",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "error": {
+        "kind": "rejected"
+      }
+    }
+  }
+}

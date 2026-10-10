@@ -1,0 +1,28 @@
+{
+  "description": "Frame reuse preserves declared captures and known absence across separate optional routes.",
+  "grammar": "%rule text (X [(($x(Y) ≻ V) ≻ U)] ≻ Z W)\n%conditions $x ∨ text($) = \"never\"",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

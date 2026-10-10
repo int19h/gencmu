@@ -7,6 +7,11 @@ export type ErrorLocation = {
     column?: number;
     stage?: string;
     rule?: string;
+    code?: string;
+    group?: import("./ranked.js").GroupSite;
+    option?: number;
+    expression?: unknown;
+    inheritance?: import("./ranked.js").GroupSite[];
 };
 export type Resources = (path: string) => string | undefined;
 export type Verdict = "unique" | "resolved" | "tie";
@@ -103,7 +108,7 @@ export type CloseAction = {
 export type StageReport = TiedStageReport | SettledStageReport;
 export type TiedStageReport = StageReportBase & {
     verdict: "tie";
-    witness: Witness;
+    witness: Witness | null;
 };
 export type SettledStageReport = StageReportBase & {
     verdict: "unique" | "resolved" | null;
@@ -361,6 +366,8 @@ export type PatternChildren = {
 export type Expr = {
     choice: Expr[];
 } | {
+    ranked: Expr[];
+} | {
     and: Expr[];
 } | {
     seq: Expr[];
@@ -471,6 +478,7 @@ export type Argument = Term | {
     classifier: string;
 };
 export type GrammarSymbol = {
+    slot?: import("./ranked.js").RankedGroup;
     name: string;
     terminal: boolean;
     /**
@@ -508,6 +516,20 @@ export type ReadyCondition = {
     readyAt: number;
 };
 export type Production = {
+    source?: import("./grammar.js").StitchedAlternative;
+    writtenExpression?: Expr;
+    rankedGroup?: import("./ranked.js").RankedGroup;
+    rankedOption?: number;
+    contextual?: boolean;
+    rankedDeferred?: Condition[];
+    parentTags?: Term;
+    lexicalFrame?: any;
+    baseProduction?: Production;
+    writtenTags?: Term[];
+    writtenTagClauses?: {
+        alternative: Term | null;
+        definition: Term | null;
+    };
     id: number;
     lhs: string;
     rhs: GrammarSymbol[];
@@ -574,6 +596,7 @@ export type LoweredGrammar = {
      */
     maximalHelpers: Set<string>;
     resolution: Resolution;
+    ranked: import("./ranked.js").RankedGroups;
     /**
      * each classifier
      * of the stage, resolved for these features: each key's classes (engine
@@ -680,7 +703,10 @@ export type DerivationRule = {
     end: number;
 };
 export type Token = import("./tokens.js").Token;
-export type Item = import("./earley.js").Item;
+export type Item = import("./earley.js").Item & {
+    slotOriginal?: import("./earley.js").Item;
+    slotScope?: import("./slot-forest.js").SlotScope | null;
+};
 export type ParseContext = import("./earley.js").ParseContext;
 /**
  * A tag set: tags in their canonical spelling (engine §1), which have no
@@ -704,6 +730,11 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {number} [column]
  * @property {string} [stage]
  * @property {string} [rule]
+ * @property {string} [code]
+ * @property {import("./ranked.js").GroupSite} [group]
+ * @property {number} [option]
+ * @property {unknown} [expression]
+ * @property {import("./ranked.js").GroupSite[]} [inheritance]
  */
 /**
  * A function from a path relative to the grammars root to that file's text,
@@ -808,7 +839,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {TiedStageReport | SettledStageReport} StageReport
  */
 /**
- * @typedef {StageReportBase & {verdict: "tie", witness: Witness}} TiedStageReport
+ * @typedef {StageReportBase & {verdict: "tie", witness: Witness | null}} TiedStageReport
  */
 /**
  * @typedef {StageReportBase & {verdict: "unique" | "resolved" | null, witness: null}} SettledStageReport
@@ -993,7 +1024,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * A rule body expression.
- * @typedef {{choice: Expr[]} | {and: Expr[]} | {seq: Expr[]}
+ * @typedef {{choice: Expr[]} | {ranked: Expr[]} | {and: Expr[]} | {seq: Expr[]}
  *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
  *   | {optional: Expr, elidable?: true, maximal?: true} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
  *   | {range: [string, string]} | {property: string}
@@ -1051,6 +1082,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * @typedef {object} GrammarSymbol
+ * @property {import("./ranked.js").RankedGroup} [slot]
  * @property {string} name
  * @property {boolean} terminal
  * @property {SymbolTest} [test] the test on the symbol's own span; not part
@@ -1088,6 +1120,17 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * A production of a lowered grammar (engine §3).
  * @typedef {object} Production
+ * @property {import("./grammar.js").StitchedAlternative} [source]
+ * @property {Expr} [writtenExpression]
+ * @property {import("./ranked.js").RankedGroup} [rankedGroup]
+ * @property {number} [rankedOption]
+ * @property {boolean} [contextual]
+ * @property {Condition[]} [rankedDeferred]
+ * @property {Term} [parentTags]
+ * @property {any} [lexicalFrame]
+ * @property {Production} [baseProduction]
+ * @property {Term[]} [writtenTags]
+ * @property {{alternative: Term | null, definition: Term | null}} [writtenTagClauses]
  * @property {number} id
  * @property {string} lhs
  * @property {GrammarSymbol[]} rhs
@@ -1127,6 +1170,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  *   optionals written [++T x], whose terminators are maximal (engine §3.8,
  *   §4)
  * @property {Resolution} resolution
+ * @property {import("./ranked.js").RankedGroups} ranked
  * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
  *   of the stage, resolved for these features: each key's classes (engine
  *   §2)
@@ -1209,6 +1253,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {number} end
  */
 /** @typedef {import("./tokens.js").Token} Token */
-/** @typedef {import("./earley.js").Item} Item */
+/** @typedef {import("./earley.js").Item & {slotOriginal?: import("./earley.js").Item, slotScope?: import("./slot-forest.js").SlotScope | null}} Item */
 /** @typedef {import("./earley.js").ParseContext} ParseContext */
 export {};

@@ -1,6 +1,8 @@
 //! The library's API (docs/api.md): the three loaders, the options, the
 //! errors, and inputs long enough that anything recursive would overflow.
 
+mod common;
+
 use std::collections::BTreeMap;
 
 use gencmu::{ErrorKind, Feature, FeatureKind, NodeKind, ParseErrorKind, ParseOptions, Verdict, Warning};
@@ -436,7 +438,7 @@ fn results_outlive_the_dialect_and_cross_threads() {
         dialect.parse(&text, &ParseOptions::default()).unwrap()
     };
     let json = std::thread::spawn(move || gencmu::to_json(&result)).join().unwrap();
-    assert!(json.starts_with("{\"format\":9,\"ok\":true"));
+    assert!(json.starts_with("{\"format\":11,\"ok\":true"));
 
     let dialect = std::sync::Arc::new(gencmu::load_dialect("notation").unwrap());
     let threads: Vec<_> = (0..4)
@@ -974,7 +976,7 @@ fn exponentially_long_derivations_keep_exact_counts() {
 
 /// The members of the error elision-witness-lost, in the order of
 /// docs/output.md, and an error with no code, which has none of them
-/// (format 9).
+/// (format 10).
 #[test]
 fn the_witness_lost_error_writes_its_members_in_order() {
     use gencmu::{ErrorCode, ParseError, ParseResult, Restoration};
@@ -1013,7 +1015,7 @@ fn the_witness_lost_error_writes_its_members_in_order() {
     assert_eq!(
         gencmu::to_json(&result),
         concat!(
-            r#"{"format":9,"ok":false,"stages":[],"tree":null,"error":{"kind":"grammar","stage":"syntax","code":"elision-witness-lost","#,
+            r#"{"format":11,"ok":false,"stages":[],"tree":null,"error":{"kind":"grammar","stage":"syntax","code":"elision-witness-lost","#,
             r#""message":"the syntax stage could not reconstruct its chosen derivation for elision-only","#,
             r#""chosen":{"kind":"rule","rule":"text","span":[0,0],"source":[0,0],"tags":[],"children":[]},"#,
             r#""completion":[{"terminal":"KU","at":3,"source":[9,9]},{"terminal":"VAU","at":5,"source":[16,16],"sound":"vau"}]}}"#
@@ -1022,4 +1024,92 @@ fn the_witness_lost_error_writes_its_members_in_order() {
     let plain = ParseError { code: None, chosen: None, completion: Vec::new(), message: "m".to_string(), ..error };
     let result = ParseResult { error: Some(plain), ..result };
     assert!(gencmu::to_json(&result).ends_with(r#""error":{"kind":"grammar","stage":"syntax","message":"m"}}"#));
+}
+
+#[test]
+fn ranked_groups_grow_with_forest_positions() {
+    let dialect = gencmu::load_dialect_sources(
+        &single("%ambiguity-resolution late-elision\n%rule text {unit}\n%rule unit a ≻ b\n%rule a X Y\n%rule b X Y"),
+        "p.md",
+    )
+    .unwrap();
+    for length in [1, 2, 4, 8, 16] {
+        let tokens: Vec<_> = (0..length * 2)
+            .map(|i| gencmu::InputToken {
+                text: if i % 2 == 0 { "x" } else { "y" }.into(),
+                tags: [if i % 2 == 0 { "X" } else { "Y" }.into()].into_iter().collect(),
+                phonemes: None,
+            })
+            .collect();
+        let (result, stats) =
+            gencmu::tools::with_slot_statistics(|| dialect.parse_tokens(&tokens, &no_auto()).unwrap());
+        assert_eq!(result.stages[0].verdict, Some(Verdict::Unique));
+        assert_eq!(stats[0].groups, length);
+        assert_eq!(stats[0].candidate_edges, length * 2);
+        assert_eq!(stats[0].retained_edges, length);
+    }
+}
+
+#[test]
+fn ranked_diagnostics_match_with_a_dom_cache() {
+    let text="%const $K ~k\n%ambiguity-resolution late-elision\n%rule text Q (($x(a) ≻ b) ≻ c) Z\n%tags $x ⟹ (tags($x) ∪ $K)\n%rule a X Y\n%rule b U V\n%rule c R S";
+    let sources = single(text);
+    let dom = gencmu::tools::read_grammar_document(&grammar(text)).unwrap();
+    let mut cached = sources.clone();
+    cached.insert("compiled.json".into(), compiled(text, &dom));
+    let plain = gencmu::load_dialect_sources(&sources, "p.md").unwrap_err();
+    let cached = gencmu::load_dialect_sources(&cached, "p.md").unwrap_err();
+    assert_eq!(plain, cached);
+    assert_eq!(plain.code.as_deref(), Some("ranked-choice-export"));
+    let site = plain.group.as_ref().unwrap();
+    assert_eq!(site.rule, "text");
+    assert_eq!(site.path, "/seq/1/ranked/0");
+    assert_eq!(site.at, Some((6, 22)));
+    assert_eq!(plain.option, Some(0));
+    let value = common::parse_json(&plain.to_json()).unwrap();
+    assert_eq!(
+        value.object().iter().map(|(key, _)| key.as_str()).collect::<Vec<_>>(),
+        vec!["kind", "code", "message", "group", "option", "expression"]
+    );
+}
+
+#[test]
+fn ranked_tag_witness_is_shortest_in_source_order() {
+    let text="%ambiguity-resolution late-elision\n%rule text a ≻ b\n%rule a u | v\n%rule u deeper\n%rule deeper X\n%rule v Y\n%rule b Z\n%tags ∅";
+    let error = gencmu::load_dialect_sources(&single(text), "p.md").unwrap_err();
+    assert_eq!(error.code.as_deref(), Some("ranked-choice-tags"));
+    assert_eq!(
+        error.inheritance.as_ref().unwrap().iter().map(|site| site.rule.as_str()).collect::<Vec<_>>(),
+        vec!["text", "a", "v"]
+    );
+}
+
+#[test]
+fn ranked_error_retains_a_written_constant() {
+    let text="%ambiguity-resolution late-elision\n%const $K ~k\n%rule text Q ($x(a) ≻ b) Z\n%tags $x ⟹ (tags($x) ∪ $K)\n%rule a X Y\n%rule b U V";
+    let error = gencmu::load_dialect_sources(&single(text), "p.md").unwrap_err();
+    assert_eq!(error.code.as_deref(), Some("ranked-choice-export"));
+    assert!(error.expression.as_ref().unwrap().to_json().contains(r#"{"const":"K","at":[7,24]}"#));
+}
+
+#[test]
+fn ranked_syntax_codes_and_retirement_are_specific() {
+    for body in ["a | b ≻ c", "a ≻ b | c", "| a ≻ b", "a ≻", "≻ a"] {
+        let error = gencmu::tools::read_grammar_document(&grammar(&format!("%rule text {body}"))).unwrap_err();
+        assert_eq!(error.code.as_deref(), Some("ranked-choice-syntax"), "{body}: {error}");
+    }
+    let error = gencmu::tools::read_grammar_document(&grammar("%prefer a > b")).unwrap_err();
+    assert!(error.to_string().contains("unknown directive %prefer; use an inline ranked choice"));
+    assert!(error.code.is_none());
+    assert_eq!((error.line, error.column), (Some(4), Some(1)));
+}
+
+#[test]
+fn ranked_validation_never_builds_invalid_runtime_bindings() {
+    for (prefix, code) in [("%rule text later\n", "ranked-choice-export"), ("%rule text a ≻ b\n", "ranked-choice-tags")]
+    {
+        let text = format!("%ambiguity-resolution late-elision\n{prefix}%rule later Q ($x(a) ≻ $x(b)) Z\n%tags tags($x)\n%rule a X\n%rule b Y");
+        let error = gencmu::load_dialect_sources(&single(&text), "p.md").unwrap_err();
+        assert_eq!(error.code.as_deref(), Some(code));
+    }
 }

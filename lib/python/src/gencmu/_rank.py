@@ -44,6 +44,7 @@ class Act:
         start: int = 0,
         end: int = 0,
         visible: bool = True,
+        canonical: int | None = None,
     ) -> None:
         self.read = read
         self.token = token
@@ -57,8 +58,8 @@ class Act:
             self.eq: tuple[Any, ...] = (0, token, terminal)
             self.canon: tuple[Any, ...] = (0, terminal)
         else:
-            self.eq = (1, production, start, end)
-            self.canon = (1, production, start, end)
+            self.eq = (1, production if canonical is None else canonical, start, end)
+            self.canon = self.eq
 
 
 class Rope:
@@ -267,6 +268,7 @@ class Summaries:
 
     def __init__(self, forest: Forest, maximal: Maximal | None) -> None:
         self.forest = forest
+        self.admission = None
         self.maximal = maximal
         self.productions = forest.lowered.productions
         self.memo: dict[Key, Any] = {}
@@ -392,6 +394,9 @@ class Summaries:
         below it over its span (engine §6). So ancestors outside that group
         cause no difference of context. Different sets of ancestors within
         the group can still need different summaries of the item."""
+        scope = getattr(self.forest,"slot_scopes",())[item] if hasattr(self.forest,"slot_scopes") else None
+        if scope is not None and self.productions[self.forest.prod[item]].helper:
+            return frozenset(rule for rule in forbidden if rule not in self.forest.slot_helpers)
         if not forbidden or not self.sensitive(item):
             return self.empty
         groups = self.groups()
@@ -415,7 +420,8 @@ class Summaries:
         """The key of a completed item's derivations before its close: its
         own rule joins the context of its children over its span."""
         _, item, context = key
-        return self.partial_key(item, context | {self.rule(item)})
+        scope = getattr(self.forest,"slot_scopes",())[item] if hasattr(self.forest,"slot_scopes") else None
+        return self.partial_key(item, context if scope is not None and self.productions[self.forest.prod[item]].helper else context | {self.rule(item)})
 
     def all_steps(self, key: Key) -> list[Step]:
         """The edges of a partial key's item that its context allows."""
@@ -424,6 +430,10 @@ class Summaries:
             return found
         _, item, context = key
         forest = self.forest
+        scope = forest.slot_scopes[item] if hasattr(forest,"slot_scopes") else None
+        if scope is not None and scope["blocked"]:
+            self.steps_memo[key] = []
+            return []
         start, end = forest.origin[item], forest.end[item]
         found = []
         for index, (pred, kind, a, b) in enumerate(forest.edges[item]):
@@ -568,8 +578,9 @@ class Ranker(Summaries):
             found = leaf(
                 Act(
                     False,
-                    item=item,
+                    item=forest.slot_original[item] if hasattr(forest,"slot_original") else item,
                     production=production.id,
+                    canonical=production.real_id,
                     start=forest.origin[item],
                     end=forest.end[item],
                     visible=not production.transparent,
@@ -599,6 +610,8 @@ class Ranker(Summaries):
                 self.keep(kept, self.extend(entry, close))
             return (kept, count)
         guarded = self.guarded(item)
+        mask = self.admission.mask(key) if self.admission is not None else None
+        guarded = guarded or mask is not None and mask[0] != mask[1]
         best = self.best
         if best is not None:
             best_all, best_eligible = best.edges(key)
@@ -610,10 +623,10 @@ class Ranker(Summaries):
         w_all = w_allowed = False
         edges = len(self.forest.edges[item])
         for index, edge_kind, pred_key, child_key, a, b in self.steps(key):
-            to_all = True
-            to_allowed = guarded and self.permits(item, edge_kind, a)
+            to_all = mask is None or index in mask[0]
+            to_allowed = guarded and (self.maximal is None or self.permits(item, edge_kind, a)) and (mask is None or index in mask[1])
             if best is not None:
-                to_all = index in best_all
+                to_all = to_all and index in best_all
                 to_allowed = to_allowed and index in best_eligible
             # Faults of the check skip the first of two or more edges, in the
             # count or in the candidates (tests/README.md). Python's agenda
@@ -700,14 +713,13 @@ class Ranker(Summaries):
         return result
 
     def offer(self, entry: Entry, alt: Rope | None, at: Count) -> None:
-        """Add a tied derivation to an entry's, keeping the earliest-diverging,
-        and of those the T-least of any two whose order is
-        settled."""
-        if not entry.alts or at < entry.at:
+        """Keep canonical companions during reconstruction. Ordinary ranking
+        first selects the earliest divergence."""
+        if not entry.alts or not self.check and at < entry.at:
             entry.alts = [alt]
             entry.at = at
             return
-        if at > entry.at:
+        if not self.check and at > entry.at:
             return
         kept: list[Alt] = []
         pending = True
@@ -724,6 +736,7 @@ class Ranker(Summaries):
         if pending:
             kept.append(alt)
         entry.alts = kept
+        entry.at = min(entry.at, at)
 
     def keep(self, kept: list[Entry], new: Entry) -> None:
         """Add a candidate to a list of candidates whose order is not yet
@@ -757,7 +770,7 @@ class Ranker(Summaries):
             # The loser is tied with the winner here, and precedes in T every
             # derivation tied with it that diverges from it here or later.
             self.offer(winner, loser.seq, point)
-        if loser.at < point:
+        if self.check or loser.at < point:
             for alt in loser.alts:
                 self.offer(winner, alt, loser.at)
 
@@ -815,7 +828,11 @@ class Ranker(Summaries):
             return Ranking("resolved", first.seq, None, None, counted_w)
         best_at, second = candidates[0]
         for at, rope in candidates[1:]:
-            if at < best_at or (at == best_at and compare(rope, second, self.lean).order < 0):
+            if self.check:
+                better = compare(rope, second, self.lean).order < 0
+            else:
+                better = at < best_at or at == best_at and compare(rope, second, self.lean).order < 0
+            if better:
                 best_at, second = at, rope
         difference = first_difference(first.seq, second, True)
         if difference is None or difference[1] is None or difference[2] is None:
@@ -1055,6 +1072,8 @@ class Elisions(Summaries):
                 vector = join(vector, unit)
             return Summary(inner.total, vector, inner.count, NO_EDGES, profile)
         guarded = self.guarded(item)
+        mask = self.admission.mask(key) if self.admission is not None else None
+        guarded = guarded or mask is not None and mask[0] != mask[1]
         every = Least()
         eligible = Least()
         for index, edge_kind, pred_key, child_key, a, _ in self.steps(key):
@@ -1074,8 +1093,9 @@ class Elisions(Summaries):
                     vector = join(vector, child.vector)
                     profile = sum_profiles(profile, child.profile)
                     count = min(count * child.count, 2)
-            every.offer(index, total, vector, count, profile)
-            if guarded and self.permits(item, edge_kind, a):
+            if mask is None or index in mask[0]:
+                every.offer(index, total, vector, count, profile)
+            if guarded and (self.maximal is None or self.permits(item, edge_kind, a)) and (mask is None or index in mask[1]):
                 eligible.offer(index, total, vector, count, profile)
         summary = every.summary()
         return (summary, eligible.summary() if guarded else summary)
@@ -1113,6 +1133,7 @@ class Elisions(Summaries):
         best = roots_least.edges
         lean = "none" if self.lean == "late-elision" else self.lean
         ranker = Ranker(self.forest, lean, self.maximal, best=self)
+        ranker.admission = self.admission
         ranker.check = self.check
         readings = ranker.rank(best)
         # The least count says whether the best forest holds a second
@@ -1126,7 +1147,8 @@ class Elisions(Summaries):
             readings.verdict = "resolved"
         readings.profile = roots_least.profile
         if self.marks is not None:
-            counter = Ranker(self.forest, "none")
+            counter = Ranker(self.forest, "none", self.maximal)
+            counter.admission = self.admission
             counter.check, counter.marks = self.check, self.marks
             unfiltered = counter.rank(roots)
             readings.witness_counted = unfiltered is not None and unfiltered.witness_counted
@@ -1135,12 +1157,12 @@ class Elisions(Summaries):
 
 class Ranking:
     """The outcome of a ranking (engine §6): its verdict, its first reading
-    ``m``, and for a tie its second reading ``t`` and the witness, the pair
-    of actions where the two first differ. ``witness_counted``, with the
+    ``m``, and for an ordinary tie its second reading ``t`` and first differing actions.
+    ``witness_counted``, with the
     witness hook's marks, says whether the count counted W(D)
     (tests/README.md); ``None`` without marks."""
 
-    __slots__ = ("verdict", "first", "second", "witness", "witness_counted", "profile")
+    __slots__ = ("verdict", "first", "second", "witness", "witness_counted", "profile", "raw_witness_counted")
 
     def __init__(
         self,
@@ -1150,6 +1172,7 @@ class Ranking:
         witness: tuple[Act | None, Act | None] | None,
         witness_counted: bool | None = None,
     ) -> None:
+        self.raw_witness_counted = None
         self.profile: Profile = ()
         self.verdict = verdict
         self.first = first
@@ -1158,15 +1181,37 @@ class Ranking:
         self.witness_counted = witness_counted
 
 
-def rank(forest: Forest, lean: str, maximal: Maximal | None = None) -> Ranking | None:
+def rank(forest: Forest, lean: str, maximal: Maximal | None = None, marks=None, check=False, unfiltered=False) -> Ranking | None:
+    admission = None
+    if not unfiltered and forest.lowered.ranked_helpers:
+        from ._ranked_admission import RankedAdmission
+        from ._slot_views import helper_forest
+        names = {forest.lowered.rule_names[r] for r in forest.lowered.ranked_helpers}
+        raw_facts = len(forest.prod)
+        forest,maximal,marks = helper_forest(forest,names,maximal,marks)
+        admission = RankedAdmission(forest,maximal,check)
+        admission.stats['chart_facts'] = raw_facts
+        admission.prepare()
+    result = rank_original(forest,lean,maximal,marks,check,admission)
+    callback = _testing.slot_admission.get()
+    if admission is not None and callback is not None:
+        callback(admission.stats)
+    return result
+
+
+def rank_original(forest: Forest, lean: str, maximal: Maximal | None = None, marks=None, check=False, admission=None) -> Ranking | None:
     """Rank a forest's derivations by a rule of the ranking, ``greedy``,
     ``lazy`` or ``late-elision``, or by no lean, ``none``; ``None`` if the
     input has no derivation that counts."""
     if not forest.roots:
         return None
     if lean == "late-elision" or any(production.leftmost_longest for production in forest.lowered.productions):
-        return Elisions(forest, maximal, lean).rank(forest.roots)
-    return Ranker(forest, lean, maximal).rank(forest.roots)
+        ranker = Elisions(forest, maximal, lean)
+    else:
+        ranker = Ranker(forest, lean, maximal)
+    ranker.marks, ranker.check = marks, check
+    ranker.admission = admission
+    return ranker.rank(forest.roots)
 
 
 def count_roots(forest: Forest, roots: list[int]) -> list[int]:

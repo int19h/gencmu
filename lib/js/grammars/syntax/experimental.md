@@ -29,7 +29,9 @@ The layer uses two feature guards, which make a part of a rule depend on a featu
 
 Unlike the CLL grammar, this layer writes the free-modifier slot after an elidable terminator outside its brackets: `[+X] #` where CLL has `[+X #]`. So free modifiers can follow an elided terminator. The layer restates many rules below for that reason alone. `free-after-number` and `free-after-lerfu-string` keep a number or lerfu string maximal. After an elided `boi`, they exclude a first free modifier that starts with a word that the number or string can read.
 
-Two directives set up the layer. `%ambiguity-resolution late-elision` says how the stage chooses among parses. It compares only where two parses elide terminators. At the first place where they differ, it takes the parse that reads on, so a terminator is elided as late as the grammar allows. Two parses that elide the same terminators at the same places are tied, and a tie is an error.
+A span is a range between input token boundaries. A ranked choice filters alternatives at one written position. An option qualifies when its completed reading passes its recognition rules. A qualified earlier option excludes later options over the same span.
+
+A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. The stage ranks admitted derivations by `leftmost-longest`, then `late-elision`. Fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
 
 So `to mi klama` holds `mi klama` in its parenthesis, because the other reading elides `vau` and `toi` after `mi`. In the same way, `lu mi klama` holds `mi klama` in its quote. camxes-exp reads both texts in this way.
 
@@ -262,7 +264,13 @@ A forethought termset needs no `nu'i`, and its two branches can hold different n
 
 The ranking does the same. The first branch of a termset, `termset-branch`, ends in `nu'u`, which the termset elides before `gi`. The sumti elides nothing there, so `late-elision` prefers it. So `ge mi gi do ce'e ti` is the sumti `ge mi gi do` followed by `ce'e ti`. But `broda be ge mi gi do ce'e ti be'o` has a termset, because the single argument of `be` cannot continue with `ce'e ti`.
 
-The layer reads a termset with `nu'i` as `nu'i` with a forethought form wherever it can, as camxes-exp tries that form first. So `nu'i ge mi gi do nu'u` is a termset of two branches, and not `nu'i` around the sumti `ge mi gi do`. The first term inside `nu'i ... nu'u` cannot itself be a bare forethought termset. A bare forethought termset there repeats the `nu'i gek` form.
+The NUhI body ranks `gek-termset-body` before `terms-not-starting-with-bare-gek`. A qualified forethought body excludes a plain body over the same span. Thus `nu'i ge mi gi do nu'u` contains two termset branches. The excluded plain body wraps the connected sumti `ge mi gi do` inside NUhI. In `nu'i ge mi gi do ko'a klama`, the second branch contains `do ko'a`.
+
+The first term inside the plain NUhI body cannot itself be a bare forethought termset. That restriction avoids repeating the forethought NUhI form.
+
+NIhE keeps an ordinary elidable TEhU, so `ni'e broda` can end before `brode`. In `nu'i ge ni'e broda brode gi re mi nu'u klama`, the first branch contains one quantified sumti. NIhE supplies its quantifier, and `brode` supplies its predicate. The second branch contains `re mi`. In `nu'i ge ni'e broda brode gi re mi ko'a klama`, the second branch also contains `ko'a`.
+
+camxes-exp instead greedily reads `broda brode` inside NIhE and takes the plain body. This difference follows the dialect's existing policy of revisiting inner choices.
 
 The `-not-starting-with-bare-gek` rules state that restriction: they repeat the term rules with only the first term restricted. A chain repeats one item, so it cannot restrict only its first item. These rules write the restricted first item apart. `terms-1-not-starting-with-bare-gek` is left recursion, which groups as the chain `terms-1` does. The other two are a first item and an optional list, flat as `terms` and `terms-2` are.
 
@@ -402,10 +410,7 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 %redefine-rule termset
   (* termset <- gek_termset / NUhI_clause free* gek terms NUhU_elidible free* gik terms NUhU_elidible free* / NUhI_clause free* terms NUhU_elidible free* *)
   | gek termset-branch gik gek-terms [+NUhU] #
-  | NUhI # gek terms [+NUhU] # gik terms [+NUhU] #
-  | NUhI # $t(terms-not-starting-with-bare-gek) [+NUhU] #
-%conditions
-  ¬matches($t, gek-termset-body)
+  | termset-with-nuhi
 
 %rule gek-termset-body
   (* NUhI_clause free* gek terms NUhU_elidible free* gik terms: tried before NUhI_clause free* terms *)
@@ -454,10 +459,7 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
   | soi-clause? soi-term
 
 %rule termset-with-nuhi
-  | NUhI # gek terms [+NUhU] # gik terms [+NUhU] #
-  | NUhI # $t(terms-not-starting-with-bare-gek) [+NUhU] #
-%conditions
-  ¬matches($t, gek-termset-body)
+  NUhI # (gek-termset-body ≻ terms-not-starting-with-bare-gek) [+NUhU] #
 ```
 
 <details><summary>Railroad diagrams of the 36 rules from <code>terms-1</code> to <code>termset-with-nuhi</code></summary>
@@ -508,8 +510,6 @@ Sumti connectives are ek, joik, jek or VUhU (`sumti-connective`). This change an
 - `na'e` around a term that is neither a sumti nor a tense or modal with its sumti or `ku`, such as `na ku`
 - `lo'oi subsentence ku'au`, a description of a subsentence
 - The single-word quotes `zo'oi`, `la'oi` and `ra'oi`, whose bodies the word stage delimits
-
-Bare termsets compete with forethought sumti, and late elision chooses sumti. Part B of GitHub issue #131 decides whether a stated preference replaces that choice.
 
 A bare NAhE cannot wrap one tagged term, even when that term omits KU. The pattern tests the actual `tagged-term` constructor. A connected term can begin with such a term, as in `na'e pu ku .e na ku lu'u`. This grammar also accepts `mi na'e pu .e ca lu'u klama`, with both inner KUs omitted.
 
@@ -614,6 +614,14 @@ Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as
 
 Selbri and tanru-unit connectives are joik, jek, ek or VUhU (`selbri-connective`). A bare `fa`, which matches the rule `tag`, can come before a selbri. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`). `me'oi` with the word that it quotes is a tanru unit too (`le me'oi klama cu broda`).
 
+`me-unit` ranks a sumti operand before a mekso operand, as camxes-exp orders them. A sumti whose tests and conditions pass excludes a mekso over the same span. A sumti that cannot complete the construction excludes nothing.
+
+The whole `mex MOI #` construction outranks an SE conversion over the same span. A mekso can begin with SE through a forethought `gek`, as in `mi se ga pa gi re moi`.
+
+NAhE stays outside this group. Late elision puts `na'e` on `pa moi` in `la djonz. cu na'e pamoi cusku`, because the mekso option omits LUhU earlier.
+
+In `mi me la'e ge my gi ny su'i zy moi`, ME takes the complete sumti operand. Its LAhE holds the forethought sumti and the following connection. camxes-exp takes a mekso because its sumti lookahead prevents that sumti operand.
+
 `selbri-4` keeps the left recursion of the CLL rule, and `selbri-5` is a right chain, as in CLL. In the plain form of `selbri-4`, the connective is `plain-selbri-connective`, the CLL rule `plain-joik-jek` with this layer's connectives. As in CLL, a joik directly before `ke` is `joik-before-ke`, and its unit cannot be only a `ke` group. So `mi broda joi ke brode ke'e` joins a `ke` group with `joi`, through `joik [stag] KE`, as the CLL grammar does.
 
 camxes-exp departs here. It tries the plain connective first, and reads `joi` before a tanru unit that begins with `ke`. In this text, both readings group the same words.
@@ -686,18 +694,17 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | BRIVLA #
   | cbm? CMEVLA #
   | GOhA [RAhO] #
-  | ME # sumti [+MEhU] # [MOI #]
-  | ME # $x(mex) [+MEhU] # [MOI #]
-  | mex MOI #
+  | me-unit
+  | (mex MOI # ≻ SE # tanru-unit-2)
   | NUhA # operator
-  | SE # tanru-unit-2
   | JAI # [tag] tanru-unit-2
   | NAhE # tanru-unit-2
   | abstractor-chain subsentence [+KEI] #
   | linkargs tanru-unit-1
   | MEhOI anything #
-%conditions
-  ¬matches($x, sumti)
+
+%rule me-unit
+  ME # (sumti ≻ mex) [+MEhU] # [MOI #]
 
 %rule tanru-unit-not-starting-with-ke
   tanru-unit-1-not-starting-with-ke [{CEI # tanru-unit-1}] [selbri-relative-clauses]
@@ -712,18 +719,14 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | BRIVLA #
   | cbm? CMEVLA #
   | GOhA [RAhO] #
-  | ME # sumti [+MEhU] # [MOI #]
-  | ME # $x(mex) [+MEhU] # [MOI #]
-  | mex MOI #
+  | me-unit
+  | (mex MOI # ≻ SE # tanru-unit-2)
   | NUhA # operator
-  | SE # tanru-unit-2
   | JAI # [tag] tanru-unit-2
   | NAhE # tanru-unit-2
   | abstractor-chain subsentence [+KEI] #
   | linkargs tanru-unit-1
   | MEhOI anything #
-%conditions
-  ¬matches($x, sumti)
 
 %rule selbri-relative-clauses
   | {selbri-relative-clause \ ZIhE # | joik # | jek # | ek #}
@@ -739,7 +742,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   BEI # [term] [links]
 ```
 
-<details><summary>Railroad diagrams of the 20 rules from <code>selbri-4</code> to <code>links</code></summary>
+<details><summary>Railroad diagrams of the 21 rules from <code>selbri-4</code> to <code>links</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-4.svg" alt="Railroad diagram of the rule selbri-4"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/plain-selbri-connective.svg" alt="Railroad diagram of the rule plain-selbri-connective"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-5.svg" alt="Railroad diagram of the rule selbri-5"></p>
@@ -753,6 +756,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit.svg" alt="Railroad diagram of the rule tanru-unit"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-1.svg" alt="Railroad diagram of the rule tanru-unit-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-2.svg" alt="Railroad diagram of the rule tanru-unit-2"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/me-unit.svg" alt="Railroad diagram of the rule me-unit"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-not-starting-with-ke.svg" alt="Railroad diagram of the rule tanru-unit-not-starting-with-ke"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-1-not-starting-with-ke.svg" alt="Railroad diagram of the rule tanru-unit-1-not-starting-with-ke"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-2-not-starting-with-ke.svg" alt="Railroad diagram of the rule tanru-unit-2-not-starting-with-ke"></p>
@@ -776,7 +780,7 @@ camxes-exp replaces CLL's mekso with its own, and the layer follows it (camxes-e
 - CLL has only the sumti reading of these texts, because a CLL quantifier is a number or a `vei ... ve'o` group. camxes-exp reads the quantifier `ge nai abu gi no` with the selbri `drata`, as in `re prenu`. The layer follows CLL here. A forethought connection of numbers is still a quantifier, as in `lo ge pa gi re mi broda`.
 - `gek-barrier` also changes texts that had only a quantifier reading. Where no sumti reading remains, the layer rejects the text, as CLL does. So `ge abu gi by broda cu klama` is not a text, although camxes-exp reads the quantifier `ge abu gi by` there. In `lo ge by gi re mi broda`, `ge by gi re mi` is now the possessor sumti of the description, with `broda` inside it. camxes-exp reads `ge by gi re` as the quantifier of `mi`.
 - `me` takes a mekso as well as a sumti, a whole mekso takes `moi`, and `nu'a` takes a whole operator.
-- After `me`, a lerfu string is a sumti and not a mekso, because camxes-exp tries the sumti first (`me my`). The layer settles that tie as camxes-exp does. Before `moi`, the layer differs: in `me my moi`, camxes-exp's `sumti_6` does not read `my` where a selbri begins (`!selbri`), so `my` is a mekso there. The layer reads a sumti. It does not copy the rejections of camxes-exp's PEG, which keeps a sumti once one matches. For example, `me my su'i pa` is the mekso `my su'i pa`, although camxes-exp rejects the text.
+- The [ME operand choice](#selbri-and-tanru) explains these contrasts. In `me my moi`, this dialect takes a sumti, while camxes-exp takes a mekso through its restrictive sumti lookahead. The dialect accepts `me my su'i pa` with a mekso operand, while camxes-exp rejects it after committing to a shorter sumti.
 
 `mex` is the chain of operators itself, a left chain as in CLL (CLL 18.5). So the CLL rule `mex-chain` is not reached here. A reverse Polish expression is not an infix chain, and stays a flat list. `operator` keeps the left recursion of the CLL rule.
 
@@ -1009,6 +1013,6 @@ camxes-exp reads the operand of a subscript as `mex_2`, with its own final free 
 
 ## Choosing among parses
 
-Where a text has more than one parse, the stage chooses by the rule of [the notation document](../../docs/notation.md) under "Ambiguity" and "Elided terminators". The layer declares the `late-elision` resolution. It counts the elided terminators of each parse at each place between words. At the first place where the counts differ, the parse with fewer elided terminators wins. Two parses with the same counts at every place are tied, and the stage reports the tie.
+Where a text has more than one parse, the stage follows [the notation document](../../docs/notation.md), under "Ranked choices", "Ambiguity", and "Elided terminators". A ranked choice filters alternatives at one written position. The stage ranks admitted derivations by `leftmost-longest`, then `late-elision`. `late-elision` counts the omitted terminators of each admitted derivation at each boundary. Fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
 
 For example, `le sutra tavla` has two parses. One is a statement with the description `le sutra`, whose `ku` is elided before `tavla`, and the selbri `tavla`. The other is a fragment, the single description `le sutra tavla`, whose `ku` is elided at the end. `late-elision` takes the fragment, as in the CLL grammar.

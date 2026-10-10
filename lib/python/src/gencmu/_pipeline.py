@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from ._errors import GencmuError
+from ._dom import DeferredDom
 from ._markdown import resolve
 
 Dom = dict[str, Any]
@@ -141,9 +142,16 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None]) -> Pipeline:
                         what = f"%{name}"
                     raise fail(f"{what} stands before the first %stage")
                 if run is None or run[0] != document:
-                    run = (document, _empty_dom(dom["format"]))
+                    run_dom = _empty_dom(dom["format"])
+                    if isinstance(dom, DeferredDom):
+                        run_dom = DeferredDom(run_dom, [])
+                    run = (document, run_dom)
                     stages[-1].documents.append(run)
                 run[1][_LISTS[kind]].append(item)
+                if kind == "rule" and isinstance(dom, DeferredDom):
+                    run[1].deferred_emissions.extend(
+                        (rule, problem) for rule, problem in dom.deferred_emissions if rule is item
+                    )
 
     top = dom_of(path)
     if top is None:

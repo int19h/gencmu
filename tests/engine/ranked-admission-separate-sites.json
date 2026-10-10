@@ -1,0 +1,45 @@
+{
+  "description": "Ranked admission keeps physical spans and written sites separate, and requires every higher gate to pass.",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text (a \u227b b) | (c \u227b b)\n%tags \u2205\n%rule a Y Z\n%rule b X Y\n%rule c X Y",
+  "tokens": [
+    {
+      "text": "x",
+      "phonemes": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "phonemes": "y",
+      "tags": [
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "reason": "tie",
+        "readings": [
+          {
+            "children": [
+              {
+                "rule": "b"
+              }
+            ]
+          },
+          {
+            "children": [
+              {
+                "rule": "c"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
+  }
+}

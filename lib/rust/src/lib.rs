@@ -56,8 +56,10 @@ mod output;
 mod patterns;
 mod pipeline;
 mod rank;
+mod ranked;
 mod recent;
 mod result;
+mod slot_stats;
 mod tags;
 mod tree;
 mod unicode;
@@ -66,8 +68,9 @@ mod work;
 
 pub use dialect::{Dialect, Feature, InputToken, ParseOptions};
 pub use dom::FeatureKind;
-pub use error::{Error, ErrorKind};
+pub use error::{Error, ErrorKind, GroupSite, RankedDiagnostic};
 pub use grammar::{Change, FlagChange};
+pub use json::Json as GrammarValue;
 pub use loader::{load_dialect, load_dialect_file, load_dialect_sources};
 pub use output::{node_to_json, to_brackets, to_json};
 pub use result::{
@@ -82,6 +85,7 @@ pub mod tools {
     pub use crate::dom::DOM_FORMAT;
     pub use crate::json::fnv1a64;
     pub use crate::loader::{bootstrap_hash, check_dom, read_grammar_document, splice_bundled_pipeline};
+    pub use crate::slot_stats::{with_slot_statistics, SlotStatistics};
 
     /// The test hook of the check of `elision-only` (tests/README.md): the
     /// checks that ran in a parse, each with whether its forest kept the

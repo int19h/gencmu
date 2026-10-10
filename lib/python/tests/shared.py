@@ -15,6 +15,7 @@ import inspect
 import json
 import linecache
 import os
+import re
 from pathlib import Path
 import re
 import signal
@@ -890,7 +891,12 @@ def result_problems(value: dict[str, Any]) -> list[str]:
             or len(error["readings"]) != 2
         ):
             problems.append(f"the tied stage {stage['name']} lacks its error of kind ambiguous, reason tie and two readings")
+    if isinstance(error, dict):
+        for member in ("cycle", "conflict", "chosenReading"):
+            if member in error:
+                problems.append(f"the error has the obsolete preference member {member}")
     return problems
+
 
 
 def witness_lost(value: dict[str, Any]) -> bool:
@@ -977,7 +983,8 @@ def load_case_dialect(case: dict[str, Any], use_cache: bool = True) -> tuple[gen
     """An engine case's loaded dialect, or the error of its load."""
     sources, pipeline = case_sources(case)
     try:
-        return gencmu.load_dialect_sources(sources, pipeline, use_cache=use_cache), None
+        dialect = gencmu.load_dialect_sources(sources, pipeline, use_cache=use_cache)
+        return dialect, None
     except gencmu.GencmuError as error:
         return None, error
 

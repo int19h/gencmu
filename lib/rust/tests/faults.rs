@@ -73,21 +73,21 @@ const CATCHES: [(Fault, &[(&str, Catch)]); 9] = [
         &[
             ("reparse-witness-hook-only.json", Catch::Both),
             ("elision-only-passes.json", Catch::Both),
-            ("reparse-witness-sibling-last.json", Catch::Hook),
+            ("reparse-witness-sibling-last.json", Catch::Both),
         ],
     ),
     (
         Fault::LostContext,
         &[
-            ("reparse-witness-sibling-first.json", Catch::Hook),
-            ("reparse-witness-sibling-last.json", Catch::Hook),
+            ("reparse-witness-sibling-first.json", Catch::Both),
+            ("reparse-witness-sibling-last.json", Catch::Both),
             ("reparse-strict-later-reading-symbol.json", Catch::Result),
         ],
     ),
     (
         Fault::LostSelect,
         &[
-            ("reparse-witness-sibling-first.json", Catch::Both),
+            ("reparse-witness-sibling-first.json", Catch::Hook),
             ("reparse-strict-later-reading-symbol.json", Catch::Result),
         ],
     ),
