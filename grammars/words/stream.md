@@ -4,11 +4,11 @@ This document defines the word stage of cll-ebnf, bpfk, experimental, and Zantuf
 
 The [forms stage](forms.md) supplies source words. This stage applies quotes, compounds, erasers, hesitation, and FAhO. The [notation document](../../docs/notation.md) defines the rules below.
 
-A unit is one item on which an operation acts. A token is one emitted item for the next stage. Every quote and compound is one opaque unit, even when its emission contains several tokens.
+A unit is one item on which an operation acts. A token is one emitted item for the next stage. An opaque unit hides its internal words from later operations. Every quote and compound is one opaque unit, even when its emission contains several tokens.
 
 A letteral is a letter word of class BY. The y letteral sounds like ybu.
 
-The grammar follows the maintainer's opaque-unit interpretation of the Magic Words proposal. The shared grammar processes every operation strictly from left to right. Zantufa keeps its reference parser's local quote-first and SU-letter-base exceptions.
+The stage processes operations from left to right. Later operations act on whole quote and compound units.
 
 ## The stream of elements
 
@@ -466,8 +466,6 @@ BU takes the preceding live unit and forms one letteral. ZEI takes that unit and
 
 The right word of ZEI executes no operation. Thus `.abu zei bu` has a literal BU operand. In `da zei de bu`, the final BU takes the completed compound.
 
-Zantufa keeps its reference parser's SU-before-BU letter-base exception. Its quote-first fallback also keeps priority over bare markers. The dialect document defines both exceptions.
-
 The constructors can repeat and combine without exposing their operands. Each result keeps any fault of its base. SI erases the complete result as one unit.
 
 Erased regions and ordinary hesitation can separate an operand from its operator. The compound's sound and label omit these regions. Its text retains the original source span, including erased words. Their warnings still belong to the chosen derivation.
@@ -655,20 +653,26 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
 <p><img src="../../docs/diagrams/words/stream/su-word.svg" alt="Railroad diagram of the rule su-word"></p>
 </details>
 
+## Choosing among parses
+
+The stage uses lazy ambiguity resolution. It compares the first structural difference and favors closing a constituent over another token. The rules exclude readings that violate left-to-right operations.
+
+The forms stage fixes ordinary word boundaries before this stage. The shared reader forms the y letteral when an operation requests a word. It adds no normalization stage.
+
 ## Departures from CLL, the proposal, and camxes-std
 
 The dialects follow the [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) with the departures below. The maintainer chooses opaque units where that proposal exposes internal markers.
 
-CLL 19.13 describes erasure, 19.14 describes hesitation, and 19.15 describes FAhO. CLL 19.16 describes interactions among these words. These sections do not specify one complete processing order.
+CLL describes erasure,[^cll-s19-13] hesitation,[^cll-s19-14] FAhO,[^cll-s19-15] and their interactions.[^cll-s19-16] These sections do not specify one complete processing order.
 
-The dialects keep six established departures from CLL 19. Items 2 and 4 differ in Zantufa. There ZEI erases, and hesitation attached to a word has class Y ([zantufa-stream.md](zantufa-stream.md)).
+The dialects keep six established departures from CLL.[^cll-c19] Items 2 and 4 differ in Zantufa. There ZEI erases, and hesitation attached to a word has class Y ([zantufa-stream.md](zantufa-stream.md)).
 
-1. SI, BU, and ZEI each take a whole quote or compound as one unit. CLL Examples 19.77 and 19.79 count quotation markers and contents separately. CLL 19.16 defines BU and ZEI by the preceding word, and CLL 17.4 limits BU to one word.
-2. ZEI takes any next word as its right operand. CLL 19.16 excludes several magic words from that interaction.
-3. BU forms a letteral over BAhE. CLL 17.4 and 19.16 exclude BAhE as a BU base.
-4. Ordinary hesitation counts as space, not a word. CLL 19.14 gives y the class Y. Only the shared reader forms the y letteral.
-5. LOhU closes at the first LEhU. CLL 19.16 excludes a LEhU after ZO, and 19.10 permits a ZOI quote inside LOhU.
-6. ZOI compares whole raw runs by sound. CLL Examples 19.50 and 19.51 instead forbid the delimiter's spelling or sound inside a longer run.
+1. SI, BU, and ZEI each take a whole quote or compound as one unit. The CLL examples[^cll-e19-77][^cll-e19-79] count quotation markers and contents separately. CLL[^cll-s19-16] defines BU and ZEI by the preceding word, and CLL[^cll-s17-4] limits BU to one word.
+2. ZEI takes any next word as its right operand. CLL[^cll-s19-16] excludes several magic words from that interaction.
+3. BU forms a letteral over BAhE. CLL[^cll-s17-4][^cll-s19-16] exclude BAhE as a BU base.
+4. Ordinary hesitation counts as space, not a word. CLL[^cll-s19-14] gives y the class Y. Only the shared reader forms the y letteral.
+5. LOhU closes at the first LEhU. CLL[^cll-s19-16] excludes a LEhU after ZO, and CLL permits a ZOI quote inside LOhU.[^cll-s19-10]
+6. ZOI compares whole raw runs by sound. The CLL examples[^cll-e19-50][^cll-e19-51] instead forbid the delimiter's spelling or sound inside a longer run.
 
 The [proposal's BU page](https://mw.lojban.org/papri/bu) lets SA BU reach inside a letteral. Its main page marks this interpretation controversial. These dialects instead keep the letteral opaque. SA ZEI likewise finds no ZEI inside a compound.
 
@@ -678,7 +682,7 @@ The proposal also exposes a completed LOhU quote's LEhU ending to SA. These dial
 
 A dangling BU is also a fault unit that BU or ZEI can wrap. An eraser can remove the result, so `bu zei klama si` leaves nothing. The proposal's BU page instead forbids ZEI to bind a dangling BU on its left.
 
-camxes-std follows the grammatical reading of CLL 19.13, without a class key. SA erases back to the start of a construct that the following words continue. Such a construct can be a term or sentence. camxes-std applies this rule unevenly. It accepts `broda sa broda` but rejects `lo broda sa broda`.
+camxes-std follows the grammatical reading of CLL[^cll-s19-13], without a class key. SA erases back to the start of a construct that the following words continue. Such a construct can be a term or sentence. camxes-std applies this rule unevenly. It accepts `broda sa broda` but rejects `lo broda sa broda`.
 
 A run of letterals forms one camxes sumti, an argument of a predicate. Thus `by cy sa .ebu` erases both letters. In `by boi cy sa .ebu`, BOI ends the first sumti, so SA keeps `by`. `mi do sa ti` keeps `mi`, and `mi broda le brode sa ti` gives `mi broda ti`.
 
@@ -688,12 +692,30 @@ These dialects instead use the next word's class and select the nearest matching
 
 Zantufa gives SA class UI, so it performs no SA erasure.
 
-The cll-ebnf SU policy follows CLL 19.13. Zantufa also erases the whole preceding text, as its reference grammar specifies. Bpfk and experimental preserve a boundary unit by the maintainer's decision. The Magic Words proposal names those boundaries but does not say whether they survive.
+The cll-ebnf SU policy follows CLL[^cll-s19-13]. Zantufa also erases the whole preceding text, as its reference grammar specifies. Bpfk and experimental preserve a boundary unit by the maintainer's decision. The Magic Words proposal names those boundaries but does not say whether they survive.
 
 The dialects keep `mi ba'e fa'o` rejected. The stranded BAhE cannot mark a word after FAhO ends the text. This policy differs from camxes-exp's acceptance ([experimental.md](../dialects/experimental.md)).
 
-## Choosing among parses
+Zantufa retains its reference parser's quote-first fallback and SU-before-BU letter-base exception. [The dialect document](../dialects/zantufa.md) defines both exceptions.
 
-The stage uses lazy ambiguity resolution. It compares the first structural difference and favors closing a constituent over another token. The rules exclude readings that violate left-to-right operations.
+[^cll-s19-16]: [CLL 1.1, section 19.16](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-cmavo-interactions.html).
 
-The forms stage fixes ordinary word boundaries before this stage. The shared reader forms the y letteral when an operation requests a word. It adds no normalization stage.
+[^cll-s17-4]: [CLL 1.1, section 17.4](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-bu.html).
+
+[^cll-s19-14]: [CLL 1.1, section 19.14](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-hesitation.html).
+
+[^cll-s19-13]: [CLL 1.1, section 19.13](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-erasure.html).
+
+[^cll-e19-77]: [CLL 1.1, section 19.13, example 19.77](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-erasure.html#c19e13d3).
+
+[^cll-e19-79]: [CLL 1.1, section 19.13, example 19.79](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-erasure.html#c19e13d5).
+
+[^cll-e19-50]: [CLL 1.1, section 19.10, example 19.50](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-more-quotations.html#c19e10d3).
+
+[^cll-e19-51]: [CLL 1.1, section 19.10, example 19.51](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-more-quotations.html#c19e10d4).
+
+[^cll-s19-15]: [CLL 1.1, section 19.15](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-faho.html).
+
+[^cll-s19-10]: [CLL 1.1, section 19.10](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-more-quotations.html).
+
+[^cll-c19]: [CLL 1.1, chapter 19](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-structure.html).
