@@ -1,6 +1,8 @@
 # gencmu for JavaScript
 
-The JavaScript library of gencmu parses Lojban. It loads its literate grammar documents at runtime. It needs nothing beyond the language, and Node's `fs` for loading grammars from disk.
+The JavaScript library of gencmu parses Lojban. A literate grammar document mixes prose with grammar rules. The library loads these documents at runtime. An API is the operations that a library exposes. The library needs nothing beyond the language, and Node's `fs` for loading grammars from disk.
+
+`gencmu` works anywhere JavaScript runs, and it loads grammars from memory through `loadDialectSources`. `gencmu/node` adds `loadDialect`, for the grammars shipped with the package, and `loadDialectFile`, for a pipeline document on disk.
 
 ```js
 import { loadDialect } from "gencmu/node";
@@ -11,17 +13,17 @@ const result = dialect.parse("mi klama le zarci");
 console.log(result.ok, toBrackets(result));
 ```
 
-A text that does not parse gives a result whose `ok` is false and whose `error` says why: `rejected`, `ambiguous` or `grammar` (`docs/api.md`). An error of kind `grammar` with the `code` `elision-witness-lost` marks a defect of the library in the check of `elision-only`. It also has `chosen`, the stage's chosen tree, and `completion`, the terminators that the check wrote back (engine §7.9). No other error has a `code`.
+## Results
 
-`gencmu` works anywhere JavaScript runs, and it loads grammars from memory through `loadDialectSources`. `gencmu/node` adds `loadDialect`, for the grammars shipped with the package, and `loadDialectFile`, for a pipeline document on disk.
+A text that does not parse gives a result whose `ok` is false and whose `error` says why: `rejected`, `ambiguous` or `grammar` (`docs/api.md`). An error of kind `grammar` with the `code` `elision-witness-lost` marks a defect of the library in the check of `elision-only`. It also has `chosen`, the stage's chosen tree, and `completion`, the terminators that the check wrote back (engine §7.9). No other error has a `code`.
 
 ## The command line
 
-`node cli.js` parses texts, audits grammars and runs test files. Once the package is published, `npx gencmu` does the same. `node cli.js help` lists the commands.
+Run `node cli.js` in `lib/js`. It parses texts, audits grammars and runs test files. A published package exposes the same commands through `npx gencmu`. `node cli.js help` lists the commands.
 
 A parse prints its result on standard output. It explains any tie or error on standard error. A rejection shows the line, with a caret under the word that the stage failed to read. It also shows, by rule, what can come there. A tie shows where the two readings first differ, and both trees side by side.
 
-`--trace STAGE:POSITION` prints a trace on standard output. The trace shows the items that a stage predicted, advanced, completed and dropped at one position. It also shows the condition that dropped each item.
+A trace records parser work at one input position. `--trace STAGE:POSITION` prints a trace on standard output. The trace shows the items that a stage predicted, advanced, completed and dropped at one position. It also shows the condition that dropped each item.
 
 The same explanations are functions of the library, for tools of your own: `explainError`, `explainTies`, `tokenTable`, `audit` with `formatAudit`, and `trace` with `formatTrace`.
 
@@ -36,11 +38,11 @@ npm run check-types     # checks src/ and a client of the package, typecheck/cli
 npm run types           # rewrites types/ after a change to the annotations
 ```
 
-CI fails if `types/` is not what `npm run types` writes.
+CI runs automated tests for every change. It fails if `types/` is not what `npm run types` writes.
 
-## Tests of the check of elision-only
+## Tests of elision-only
 
-`src/testing.js` holds switches and a hook for the library's own tests, which the API does not export. After each check of `elision-only`, the runners of the shared cases and of the corpus ask the hook whether the check kept the chosen derivation (`tests/README.md`, `test/witness.js`). `test/faults.test.js` turns on one fault at a time and runs the cases of the fault table (`tests/README.md`). `test/faults.json` records which cases catch each fault, and how. `GENCMU_FAULTS_WRITE=1 node --test test/faults.test.js` writes the record again.
+`src/testing.js` holds switches and a hook for the library's own tests, which the API does not export. After each check of `elision-only`, the shared and corpus runners ask whether the hook retains the chosen derivation (`tests/README.md`, `test/witness.js`). `test/faults.test.js` turns on one fault at a time and runs the cases of the fault table (`tests/README.md`). `test/faults.json` records which cases catch each fault, and how. `GENCMU_FAULTS_WRITE=1 node --test test/faults.test.js` writes the record again.
 
 ## The playground's smoke test
 
