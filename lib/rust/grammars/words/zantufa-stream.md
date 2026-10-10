@@ -104,7 +104,7 @@ In a `lo'u` or `lo'ai` quote, the stage tags such a word `word` only, like every
 <p><img src="../../docs/diagrams/words/zantufa-stream/read-word.svg" alt="Railroad diagram of the rule read-word"></p>
 </details>
 
-A magic word is never a plain word. `$MAGIC-WORDS` adds RAhOI, GOhOI, MUhOI, LOhAI and LEhAI to the shared list. Their bare markers require SI or BU after them, as the later `unit` rule states.
+A magic word is never a plain word. `$MAGIC-WORDS` adds RAhOI, GOhOI, MUhOI, LOhAI and LEhAI to the shared list. The constant excludes these classes from plain words. Only the classes listed by `bare-marker` have the SI/BU fallback.
 
 A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads as an unquoted word opens a text of its own. The forms stage gives the tag `opener-space` to the hesitation after such a word. A tag marks a token by name, phoneme or character. So that hesitation is space, and the word takes it with it. Inside a quote, such a hesitation is an attached Y word, as in `zo luyy si`, which erases the `yy` and keeps `zo lu`.
 
@@ -234,4 +234,4 @@ The lookahead skips erased regions before BU. Thus `su mi si bu` forms the lette
 
 ## Differences from the shared word stream
 
-The shared list lacks RAhOI, GOhOI and MUhOI, which only Zantufa uses. It also omits LOhAI and LEhAI because the experimental dialect permits their bare markers as plain words. Zantufa instead restricts bare markers to the SI and BU fallback positions described above.
+The shared list lacks RAhOI, GOhOI and MUhOI, which only Zantufa uses. It also omits LOhAI and LEhAI because the experimental dialect permits their bare markers as plain words. Zantufa does not read a bare LOhAI or LEhAI as a plain word. Its SI/BU fallback applies only to `bare-marker`.

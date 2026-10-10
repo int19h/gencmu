@@ -42,8 +42,6 @@ The PEG's lookaheads decide where each word ends and which words can stand toget
 
 The PEG's `CMAVO` is a list of the selma'o, each a set of spellings, followed by `cmavo` for every other cmavo. Each selma'o rule begins with `&cmavo` and ends with `&post_word`. So every spelling but one reads exactly what `cmavo` reads, and the lexicon gives each cmavo its selma'o.
 
-Before BU, the stage separates the final y from any prolonged hesitation. The word stage drops the prefix and forms the letter word from the final y. The division preserves source positions and leaves quote bodies unjoined.
-
 `cmavo-shape` reads `cmavo`. A cmavo made only of `y` letters is hesitation, which [forms.md](forms.md) reads as `y-run`, so this document redefines `y-run` as that cmavo.
 
 A `y` is a nucleus exactly where no nucleus follows it. So the first `y` of a run is a nucleus exactly when the run has an odd number of letters. A run with an even number can follow a word directly: `kyyykerlo` is `ky yy kerlo`, but `bayyy` is no text. So a run of `y` has `onset` where no nucleus begins it.

@@ -145,7 +145,7 @@ CLL gives terminator advice and describes some limitations of its official parse
 
 A PEG commits to choices before it knows whether the whole text parses. This dialect follows the whole text instead. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses with the description ending before `se farvi`.
 
-camxes-std departs from this. It tries the plain connective first, so it reads `joi` before a tanru unit that begins with `ke`. Where only the plain reading parses, as in `mi broda joi ke brode ke'e bo brodi`, the dialect agrees with camxes-std.
+camxes-std tries the plain connective before a `ke` unit. It therefore reads `joi` before a tanru unit that begins with `ke`. Where only the plain reading parses, as in `mi broda joi ke brode ke'e bo brodi`, the dialect agrees with camxes-std.
 
 [^cll-s19-16]: [CLL 1.1, section 19.16](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-cmavo-interactions.html).
 

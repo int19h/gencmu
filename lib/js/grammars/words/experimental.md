@@ -15,7 +15,7 @@ The prose uses these Lojban terms for words:
 
 ## The pair mz
 
-A glide is a vowel that forms no syllable.
+A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel or diphthong. A glide is an `i` or `u` before a nucleus.
 
 The rule for `m` rejects a following apostrophe, glide or `m`, but permits `z`. Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
 

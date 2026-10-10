@@ -231,7 +231,7 @@ A sentence is terms, an optional `cu` and a bridi-tail, or a forethought connect
 
 A gek before bridi-tails begins a bridi-tail, not a forethought connection of sentences. So in `mi ge klama gi cadzu`, the gek is part of the bridi-tail after `mi`. There it begins a forethought tanru unit, `ge klama gi cadzu`. The condition on the second alternative of `sentence` states this. The condition prevents the forethought sentence alternative from competing with this complete bridi-tail.
 
-The condition tests for a bridi-tail that no `gi` follows (`bridi-tail-before-no-gik`). A bridi-tail never stops before a further `gi`. So in `ge broda gi brode gi brodi gi cu brodo`, the bridi-tail fails, and a forethought connection of sentences remains. A test for any bridi-tail finds the shorter `ge broda gi brode` there, and rejects the text.
+The condition tests for a bridi-tail that no `gi` follows (`bridi-tail-before-no-gik`). The no-`gi` test rejects a bridi-tail that stops before `gi`. So in `ge broda gi brode gi brodi gi cu brodo`, the bridi-tail fails, and a forethought connection of sentences remains. A test for any bridi-tail finds the shorter `ge broda gi brode` there, and rejects the text.
 
 The outer level takes a connective only where the inner one cannot. That is where `ke` follows it, with or without a tense or modal first, or where a tense or modal and `cu` follow it. The conditions reserve these forms for the outer level. After `ke`, the words are a group of bridi-tails, unless a selbri ends with `ke'e` there, and then they are a tanru.
 
@@ -347,7 +347,7 @@ The tenses and modals before `ke` and a forethought bridi-tail are one tag. `[ta
 
 Zantufa has no termsets. A term is a `xoi` clause, a `ke` group of terms, a tense or modal with its sumti, or a sumti. It can also be a briga'i form (`noi'a` with a selbri, or a bare `na`), or a forethought connection of terms. A sumti takes priority over a forethought term over the same words.
 
-In a term, no forethought bridi-tail, `bo` or selbri directly follows a tense or modal, under the following-input conditions. No further part of a tense or modal follows it either, because a tense or modal reads as far as it can. The condition permits a following selbri that starts with a tense or modal. But no such selbri is left after a tense or modal that reads as far as it can. So `mi pe pu ba broda` has no parse, and `mi pe pu ku ba broda` has one.
+In a term, no forethought bridi-tail, `bo` or selbri directly follows a tense or modal, under the following-input conditions. No further part of a tense or modal follows it either, because a tense or modal reads as far as it can. The condition rejects every following selbri. So `mi pe pu ba broda` has no parse, and `mi pe pu ku ba broda` has one.
 
 Before its argument is read, a tag cannot leave a following free modifier unread. The final word slot takes that modifier before the tag-term conditions run. So in `sei abu pensi ba ju'o rinka`, the tag is `ba ju'o`, and the selbri `rinka` follows it. The condition on a selbri then removes the term, and the statement of the `sei` ends after `pensi`, as in Zantufa.
 
@@ -948,7 +948,7 @@ A free modifier is a `sei` clause over a statement, a vocative, a mekso with `ma
 
 A free modifier nests in the nearest slot that can take it. So no free modifier follows another one in the same slot. The condition on `free` states this. In `ui nai`, the `nai` is in the slot of `ui`. In `coi ui coi do`, `coi do` is in the slot of `ui`, which is in the slot of the first `coi`. In `xy boi xi by boi xi vo`, the second subscript is inside the first one.
 
-An attitudinal or vocative has its own slot, so a following free modifier nests there first.
+An attitudinal slot takes the next free modifier. A vocative slot takes a free modifier that is not a vocative.
 
 The condition on `free` removes a modifier when another follows at the same level. It does not require each slot to read everything that can follow it.
 
@@ -1079,7 +1079,7 @@ In `li mo'e ke by xi mo'e ke cy moi jo'u dy xi mo'e ke zy moi`, the outer MOhE t
 
 `mex-forethought` does not translate two parts of the reference's rule. Its lookahead `!(lerfu_string BOI_elidible)` never fails before an operator, because no operator begins with a lerfu word. And its `mex_forethought?` after `mex_2+` adds nothing, because `mex_2+` already reads a forethought mekso as one of its parts.
 
-The reference reads so because `post_clause <- free*` reads as far as it can, and an attitudinal or a vocative word has its own `post_clause`. This is deliberate. A comment of the reference, from camxes, says that UI words are eaten after a word. And in CLL, an indicator applies to the word before it, as in `ui nai`. The standard camxes keeps a run of vocatives or subscripts flat, but the dialect follows Zantufa.
+Zantufa nests a following free modifier in the nearest available slot. Its `post_clause <- free*` reads as far as it can. An attitudinal or vocative word has its own `post_clause`. A comment of the reference, from camxes, says that UI words are eaten after a word. And in CLL, an indicator applies to the word before it, as in `ui nai`. The standard camxes keeps a run of vocatives or subscripts flat, but the dialect follows Zantufa.
 
 The condition is on `free`, not on each slot. So it removes a free modifier that another free modifier follows at the same level. But it does not make each slot read as far as it can. This keeps a departure from Zantufa, in `mi klama pamai le zarci .e remai le zdani` (see "Differences from Zantufa 1.9999"). There the slot of `.e` stays empty, and `.e re` with `mai` is one free modifier after `zarci`.
 
@@ -1094,6 +1094,10 @@ The JOI words `je`, `ja`, `jo` and `ju` cover the connections that CLL calls jek
 The reference writes `tag*` before `ke` and forethought bridi-tails, but its `tag` already reads the whole tense or modal run. The translation uses one optional tag because repeating it gives duplicate readings with identical elisions.
 
 The reference's operator repetition reads as far as it can. Its comment explicitly shows `[pi'i pi'i]` as one operator unit.
+
+The reference's runs of `gik` read as far as they can, so its bridi-tail never stops before a further `gi`. The `bridi-tail-before-no-gik` condition preserves that boundary when testing the sentence alternative.
+
+The reference's `tag_term` lookahead is `!(!tag selbri)`. It permits a following selbri that begins with a tag. That permission never applies after a maximal tag, because no leading tag remains. This grammar instead rejects every following selbri.
 
 [^cll-s21-1]: [CLL 1.1, section 21.1](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-grammars.html#section-EBNF).
 

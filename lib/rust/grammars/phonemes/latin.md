@@ -13,7 +13,7 @@ The rules define punctuation, commas, apostrophes, capital runs, accents, glides
 
 ## Punctuation
 
-Punctuation is a pause unless it is a letter, digit, mark or comma. This includes quotation marks, brackets and dashes around words. Thus `mi "klama"` reads as `mi klama`.
+A punctuation character is a pause when no letter, vowel or apostrophe rule reads it. The next paragraph defines punctuation. This includes quotation marks, brackets and dashes around words. Thus `mi "klama"` reads as `mi klama`.
 
 A character token carries only its character tag. So the rule `other-char` names the characters that are no letter, mark, digit or whitespace. A letter is a character of the Unicode property `L`. A mark is one of `Mn`, or the stress mark or the shorthand of [zbalermorna.md](zbalermorna.md). A digit is `0` to `9`, and whitespace is a character of the property White_Space. A punctuation character is such a character that no rule of `any-lojban-char` or `core-char` reads by itself.
 

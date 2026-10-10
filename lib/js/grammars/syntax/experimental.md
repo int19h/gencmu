@@ -156,7 +156,7 @@ The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or
 
 Connected bridi-tails group from the left, and `bridi-tail-1` uses left recursion.[^cll-s14-10] After a plain connective, a bridi-tail without a head does not begin with `ke`. The head pattern rejects an unclosed listed tag at its end, even inside a term connection. Without these limits, `gi'e ke` and `gi'e ba ke` can each open two constructs. A structural pattern tests a node and its children.
 
-The same endpoint pattern applies to an initial head, a head after `ke`, a connected head, and a head after `bo`. A written KU or a final CU prevents that match. Input queries test the following words separately.
+The same endpoint pattern applies to an initial head, a head after `ke`, a connected head, and a head after `bo`. A written KU or a final CU prevents that match.
 
 ```jbogenbau
 %redefine-rule sentence
@@ -240,7 +240,7 @@ The layer reads terms in two contexts. A `listed-term` stands in a sentence's he
 
 A term in a branch of a bare forethought termset (`gek-terms`) also follows the single-term rules. These permit a following selbri or gek-sentence. So `mi pe na klama` has a bare `na` after `pe`.
 
-After a plain term connective, two lookaheads, tests of following words, protect connections at other levels. The next group cannot begin with a stag and `bo` or `ke` before a selbri. It also cannot begin with a stag, `bo` and `.i`. These forms remain connections of bridi-tails and sentences.
+After a plain term connective, two lookaheads, tests of following words, protect connections at other levels. The next group cannot begin with a stag and `bo` or `ke` before a selbri or a gek-sentence. It also cannot begin with a stag, `bo` and `.i`. These forms remain connections of bridi-tails and sentences.
 
 `listed-term-bo-link` permits `bo` with or without a stag, as in `fa mi .e bo fe do klama`.
 
@@ -1020,7 +1020,7 @@ The layer omits `elision-only` because some ambiguities concern constructs rathe
 
 ### Text and sentence connections
 
-camxes-exp's joik includes A, so an ek can follow a text-leading `.i`. Its `.i` connective also permits VUhU. CLL instead reads `.i e` as `.i` before an ek fragment. CLL accepts `mi .i e` and `mi .i e .i do klama`. This layer rejects them because `.i e` requires a preceding statement, and `mi` is a fragment. It accepts `.i e .i mi klama`, `.i e .i e mi klama` and `.i e .ije mi klama`, as camxes-exp does.
+camxes-exp's joik includes A, so an ek can follow a text-leading `.i`. CLL instead reads `.i e` as `.i` before an ek fragment. CLL accepts `mi .i e` and `mi .i e .i do klama`. This layer rejects them because `.i e` requires a preceding statement, and `mi` is a fragment. It accepts `.i e .i mi klama`, `.i e .i e mi klama` and `.i e .ije mi klama`, as camxes-exp does.
 
 A bare jek answers `je'i` in CLL's text-initial connective slot. Therefore CLL reads `.ije` as a connective. This layer applies the same choice to `.i e`, which agrees with camxes-exp. Both references keep `.i gi'e` and `mi klama .i gi'e` as fragment answers.
 
@@ -1036,7 +1036,7 @@ camxes-exp names its heads before bridi-tails JACU, after a proposal for simpler
 
 ### Terms and descriptions
 
-The two levels of term connection correspond to camxes-exp's `term_1` and `term_2`. Its `joik_ek` and `joik_jek` include JOI, JA and A. The layer also permits VUhU. Its listed terms correspond to `abs_tag_term`, while single terms and bare forethought branches correspond to `tag_term`. The latter has no `!selbri` or `!gek_sentence` lookahead. The two lookaheads after a plain term connective preserve connections of bridi-tails and sentences.
+The two levels of term connection correspond to camxes-exp's `term_1` and `term_2`. Its `joik_ek` and `joik_jek` include JOI, JA, A and VUhU. This layer uses those classes for term, sumti and selbri connectives too. Its listed terms correspond to `abs_tag_term`, while single terms and bare forethought branches correspond to `tag_term`. The latter has no `!selbri` or `!gek_sentence` lookahead. The two lookaheads after a plain term connective preserve connections of bridi-tails and sentences.
 
 camxes-exp requires a stag before `bo` in `abs_term_2`. This layer permits its omission, so `fa mi .e bo fe do klama` parses here and fails there. camxes-exp prefers sumti over term connections by trying sumti first. This layer uses conditions because the competing readings elide the same terminators. Both therefore prefer the sumti when both readings complete.
 
