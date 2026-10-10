@@ -16,7 +16,7 @@ Libraries write object keys in the order that this document gives. They write no
 {"format":11,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
 ```
 
-`format` is the version of the result shape, 11. Format 11 puts the restored chosen derivation first in elision-only errors, compared with released format 9. Format 10 was never released. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one parse warning (engine §12, §13).
+`format` is the version of the result shape, 11. An elision-only error reports the restored chosen derivation first. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one parse warning (engine §12, §13).
 
 A stage has one of these forms:
 
@@ -88,7 +88,9 @@ An error has one of these forms:
 
 - `rejected`: The grammar of the stage does not accept its input.
 - `ambiguous` (engine §6, §7): The error has `stage`, `reason`, `readings` and `message`, and no position. Every ambiguous error has two readings. `message` is free, and the shared tests do not compare it. `reason` says which of two cases the error is:
-  - `tie`: The ranking of the stage has two or more best derivations (engine §6). The stage's verdict is `tie`, and it has no output. The readings are the first and the second reading of the tie, over the stage's input as the stage read it. They are two derivations, but they can be equal as `NODE` values. The engine counts derivations. It merges neither those that differ only at transparent closes nor those with equal trees (engine §6). The stage's witness then names the actions where they differ.
+  - `tie`: The ranking of the stage has two or more best derivations (engine §6). The stage's verdict is `tie`, and it has no output. The readings are the first and the second reading of the tie, over the stage's input as the stage read it. They are two derivations, but they can be equal as `NODE` values.
+
+    The engine counts derivations. It merges neither those that differ only at transparent closes nor those with equal trees (engine §6). The stage's witness then names the actions where they differ.
   - `elision-only`: The stage chose one derivation, but its text stays ambiguous with its elided terminators written back (engine §7). The stage's verdict is `resolved`, and it keeps its output. The first reading is W(D), the restored chosen derivation. The second is its deterministic competitor (engine §7.10). This order also applies without ranked groups or flagged rules.
 
     The readings hold the written-back terminators as elided nodes (engine §7.10). One can be a restored optional's terminator. One can also be a terminator that a reading reads on the written route of an optional, or as a bare terminal. So the two readings can be equal as `NODE` values, as a tie's can.
@@ -112,6 +114,26 @@ A mistake of the caller is not a result. It is an error of kind `usage` (engine 
 
 The test uses notation operators and canonical output tags, with spaces only around `∪`. A string stands between double quotes, with a backslash before each `\` and `"` in it. A tag set is `∅`, or its one tag, or its tags joined by ` ∪ ` in parentheses. Its tags are in code point order, each in its canonical spelling (engine §1). A constant is written as its value. So `KOhA⊇(UI ∪ word)`, `KOhA∩'a'=∅` and `LE≠"lo"` are written forms.
 
+### Loading errors
+
+Ranked loading errors have these members, in this order:
+
+```text
+kind, code, message, group, option, expression, inheritance
+```
+
+`kind` is `grammar`. `code` and `message` are required for the four ranked loading errors. Their codes are `ranked-choice-syntax`, `ranked-choice-continuation`, `ranked-choice-export`, and `ranked-choice-tags` (engine §2.1). Message wording is not part of conformance.
+
+`group` appears when the reader identifies a ranked group. Its members are `document`, `at`, `rule`, `alternative`, and `path`, in that order. Omit `document` and `at` when unknown. `at` identifies the first `≻` token where source exists.
+
+`rule`, `alternative`, and `path` identify the final stitched source expression where available. `alternative` and `option` are zero-based indexes. Omit `option` for a failure common to the whole group.
+
+`path` is a JSON Pointer relative to the alternative's `expr`. Ranked children use `/ranked/0`, `/ranked/1`, and subsequent indexes. Captures and tests continue through `expr`. Other components retain their existing names.
+
+`expression` is the offending written expression as a DOM value where available. `inheritance` appears only for a tag error with a witness. It lists rule or helper sites from the group toward the tag source. Helper sites use written paths and the same source fields.
+
+Choose the shortest inheritance witness. Source traversal order breaks equal-length choices. Keep loading diagnostics outside document DOMs, cache envelopes, and parse-result warnings. The API exposes these members, and CLI JSON serialization preserves their order.
+
 ### A grammar DOM
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
@@ -122,9 +144,9 @@ A grammar DOM (document object model) is the parsed form of a grammar document (
 
 `format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version.
 
-Format 22 adds ordered ranked expressions and the stage selectors `%extend-stage` and `%redefine-stage`. Format 21 introduced pattern values and tree comparisons. It also permits all six tests on elidable terminators. Format 20 brought rule flags: `flags` on every rule definition, and the flag `leftmost-longest`. Format 18 brought braces and elidable optional markers.
+DOM format 22 supports ordered ranked expressions, stage selectors, pattern values, tree comparisons, rule flags, braces, and elidable optional markers. All six tests are valid on elidable terminators.
 
-An unreleased format covers all its changes together. Format 22 applies to grammar DOMs, bootstrap envelopes, and cache envelopes.
+Format 22 applies to grammar DOMs, bootstrap envelopes, and cache envelopes.
 
 A library skips cached DOMs with another format and rejects bootstraps with another format. The cache identity also includes the bootstrap hash (engine §8).
 
@@ -154,7 +176,7 @@ An expression has no member but those of its one form.
 
 An `optional` with `"elidable":true` is an elidable optional (engine §3.8): `[+KU #]` is `{"optional":{"seq":[{"ref":"KU"},{"ref":"#"}]},"elidable":true}`. `[++TOI #]` also has `"maximal":true`, after `elidable`. A plain optional has neither member. Each member, where present, is `true`, and `maximal` never stands without `elidable`.
 
-The `expr` of an elidable optional is its terminal, or a `seq` whose first expression is its terminal. The terminal is a `ref` whose name begins with `A` to `Z`, or a `terminal` whose tag is a name. It can also be any existing `test` around one of these terminals. The notation also forbids a group at the head, as in `[+(KU) #]`. The reader checks that on the written text (engine §9), and the DOM does not record it.
+The `expr` of an elidable optional is its terminal, or a `seq` whose first expression is its terminal. The terminal is a `ref` whose name begins with `A` to `Z`, or a `terminal` whose tag is a name. It can also be any existing `test` around one of these terminals. The notation also forbids a group at the head, as in `[+(KU) #]`. The reader makes sure that the written text meets this rule (engine §9). The DOM does not record it.
 
 No capture stands inside an elidable optional or a `repeat`, at any depth. A capture can stand anywhere else in an alternative's `expr` (engine §3.5).
 
@@ -196,7 +218,7 @@ A classifier and an implication have no member but those shown.
 
 A directive is `{"name":"features","args":["cbm"],"at":[line,column]}`. The name is the keyword without `%`: `ambiguity-resolution`, `stage`, `extend-stage`, `redefine-stage`, `include`, or `features`. A directive of any other name is malformed, `elidable` included (engine §9). An argument is a name, or, for `include`, the decoded string: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
 
-`ambiguity-resolution` takes a ranking name and optionally `elision-only`. The retired operand `maximal` in `args` is an error.
+`ambiguity-resolution` takes a ranking name and optionally `elision-only`. The operand `maximal` in `args` is an error.
 
 A directive has no `maximal` member, and one with that member is malformed (engine §9). A library ignores any other member of a directive. The members that it knows, `name`, `args`, `maximal` and `at`, keep their rules, so an unknown member does not excuse a malformed known one.
 
@@ -239,7 +261,9 @@ At the literal root, a sequence becomes `children`. A nested literal inside a se
 
 Set operators combine PATTERN values. A sequence operand becomes `children` before a set operation or path. A set expression within a sequence consumes one child through `node`. Every bracket becomes `optional`, including `[T]` and `[(T)]`. No `boundary`, `written` or `omitted` pattern form exists.
 
-Union and intersection require at least two operands. Difference requires exactly two. A sequence requires at least two parts. `siblings` must be true. Optional and repeat require nonempty written bodies. A repeat body that only matches empty sequences is malformed. A sibling ellipsis cannot serve as a repeat item or separator.
+Union and intersection require at least two operands. Difference requires exactly two. A sequence requires at least two parts. `siblings` must be true.
+
+Optional and repeat require nonempty written bodies. A repeat body that only matches empty sequences is malformed. A sibling ellipsis cannot serve as a repeat item or separator.
 
 A tree comparison uses the existing `op`, `left` and `right` members:
 
@@ -252,7 +276,7 @@ These operators require a bare capture on the left and a pattern term on the rig
 
 Structural states and omission predicates are derived engine state. They add no serialized members. An omitted leaf's singleton pattern tags derive from its terminal name. An elided output node retains `sound` only for equality, including explicit empty equality. Inequality and tag tests add no saved sound or synthetic-token fields.
 
-### Ranked expressions and loading diagnostics
+### Ranked expressions
 
 A ranked expression is `{"ranked":[EXPR,EXPR...]}`. Its array has at least two ordinary expressions and preserves source order. A nested ranked expression retains its own boundary. Ordinary alternatives within one option use `choice`.
 
@@ -263,24 +287,6 @@ For example, `mex MOI # ≻ SE # tanru-unit-1` produces this expression:
 ```
 
 The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choices), or selected option. References retain their existing written form before terminal resolution. Expression traversal includes `ranked` beside the existing expression forms.
-
-Ranked loading errors have these members, in this order:
-
-```text
-kind, code, message, group, option, expression, inheritance
-```
-
-`kind` is `grammar`. `code` and `message` are required for the four ranked loading errors. Their codes are `ranked-choice-syntax`, `ranked-choice-continuation`, `ranked-choice-export`, and `ranked-choice-tags` (engine §2.1). Message wording is not part of conformance.
-
-`group` appears when the reader identifies a ranked group. Its members are `document`, `at`, `rule`, `alternative`, and `path`, in that order. Omit `document` and `at` when unknown. `at` identifies the first `≻` token where source exists.
-
-`rule`, `alternative`, and `path` identify the final stitched source expression where available. `alternative` and `option` are zero-based indexes. Omit `option` for a failure common to the whole group.
-
-`path` is a JSON Pointer relative to the alternative's `expr`. Ranked children use `/ranked/0`, `/ranked/1`, and subsequent indexes. Captures and tests continue through `expr`. Other components retain their existing names.
-
-`expression` is the offending written expression as a DOM value where available. `inheritance` appears only for a tag error with a witness. It lists rule or helper sites from the group toward the tag source. Helper sites use written paths and the same source fields.
-
-Choose the shortest inheritance witness. Source traversal order breaks equal-length choices. Keep loading diagnostics outside document DOMs, cache envelopes, and parse-result warnings. The API exposes these members, and CLI JSON serialization preserves their order.
 
 ### Precompiled DOMs
 
@@ -302,7 +308,9 @@ Tree patterns do not change bracket grouping. The renderer applies the rules bel
 
 1. The label of a token node is the label of its token (engine §5). So a pause shows as a space, and an opaque part shows its text. A label can itself be empty, as for a `zoi` quote of nothing, and the renderer keeps it. The label of an elided node is empty, unless elided terminators are shown. In that case, the label is the terminal in lower case between `⟨` and `⟩`.
 2. A token node whose token has attachments renders as a group. Its members are the token's before-attachments, the token's label, and its after-attachments, in that order. Each attachment renders in the same way: as its label, or as a group if it has attachments of its own.
-3. The renderer renders the children of a rule node and drops the empty ones. An empty child is an elided node that is not shown, or a rule node that renders nothing. A token node is never empty. If no child is left, the node is empty. If one child is left, the node is that child. Otherwise, the node is a group.
+3. The renderer renders the children of a rule node and drops the empty ones. An empty child is an elided node that is not shown, or a rule node that renders nothing. A token node is never empty.
+
+   If no child is left, the node is empty. If one child is left, the node is that child. Otherwise, the node is a group.
 4. The depth *d* of a group counts groups only: a child group of a group at depth *d* is at *d*+1. A group is written between `(` `)` when *d* mod 3 is 0, `[` `]` when 1, and `{` `}` when 2. One space separates its members.
 
 So `lo mlatu cu citka le finpe` is `([lo mlatu] cu [citka {le finpe}])`. In the `cll-ebnf` dialect, `mi ui klama` is `([mi ui] klama)`, `ba'e mi klama` is `([ba'e mi] klama)`, and `mi ui nai klama` is `([mi {ui nai}] klama)`.
@@ -318,7 +326,7 @@ The tree has one node per line, and children are indented two spaces under their
   An attachment is its classes, then its label in quotes. Its classes are its tags that begin with `A` to `Z`, in code point order, joined by ` ∪ `. An attachment with no class is its label alone. Its own attachments follow it in the same way, indented two spaces more.
 - An elided node is its terminal in angle brackets.
 
-Chains of rule nodes with one child are written on one line, joined by ` › `. So in the `cll-ebnf` dialect, the token node of `mi` in `mi ui nai klama` has these lines, at the indentation of the node:
+The tree renderer writes chains of rule nodes with one child on one line. It joins them with ` › `. So in the `cll-ebnf` dialect, the token node of `mi` in `mi ui nai klama` has these lines, at the indentation of the node:
 
 ```
 KOhA "mi"

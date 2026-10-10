@@ -1,14 +1,14 @@
 # The library API
 
-Every gencmu library offers the same operations on the same data. Each library spells them the way its language spells things. This document says what the operations are. The engine specification, `docs/engine.md`, says what they compute. `docs/output.md` says what the results look like as JSON.
+Every gencmu library offers the same operations on the same data. An API is the operations that a library exposes. Each library spells them the way its language spells things. This document says what the operations are. The engine specification, `docs/engine.md`, says what they compute. `docs/output.md` says what the results look like as JSON.
 
 ## What every library offers
 
 ### Loading a dialect
 
-A pipeline document and the grammar documents that it includes define a dialect. The pipeline document names the stages of the dialect. A library loads a dialect in three ways:
+A dialect defines a parsing pipeline. A pipeline runs grammar stages in sequence. A stage is one step with its own grammar. A pipeline document and the grammar documents that it includes define a dialect. The pipeline document names the stages of the dialect. A library loads a dialect in three ways:
 
-- It loads a dialect by name, from the grammars bundled in the package. The name is the file name of a pipeline document under `grammars/dialects/` without `.md`. So the names are `cll-ebnf`, `bpfk`, `experimental`, `zantufa` and `notation`.
+- It loads a dialect by name, from the grammars bundled in the package. The name is the file name of a pipeline document under `grammars/dialects/` without `.md`. The names are `cll-ebnf`, `kihei`, `bpfk`, `experimental`, `zantufa` and `notation`.
 - It loads a pipeline document from disk. The library finds its grammar documents relative to it. Its `unicode.txt` and `notation/bootstrap.json` come from the bundled grammars. Each document is known by its absolute path, so an error names the same file from any working directory.
 - It loads documents held in memory: a map from `/`-separated path to text, and the path of the pipeline document in the map. The map can supply its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`. Any of these that the map lacks come from the bundled grammars. The exception is the portable JavaScript entry point, which has no bundle to read. There, the map must hold the first two (see "JavaScript").
 
@@ -20,19 +20,29 @@ A dialect that cannot be loaded is an error. A dialect cannot be loaded when a d
 
 The error is an exception in JavaScript and Python, and a returned error in Go and Rust. It carries a message with the document, line and column where known. A tie has no line or column.
 
-Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches. Grammar DOM format 22 adds ranked expressions. Parse-result format 11 fixes the first reading of an elision-only error.
+Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
+
+Grammar DOM format 22 supports ranked expressions.
+
+The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
+
+### The dialect's features
+
+A feature is a named switch that the grammars of the dialect test (engine §13).
+
+A loaded dialect lists its features (engine §13), in code point order of the names. The list includes the gates of the entries of its classifiers. Each feature in the list has its name, its kind (`gate` or `warning`), and whether the pipeline turns it on by default. The CLI and the playground use the list to offer the features by name.
 
 ### Parsing
 
-A feature is a named switch that the grammars of the dialect test (engine §13). A loaded dialect parses a text with these options, all optional:
+A loaded dialect parses a text with these configuration arguments. Each argument is optional:
 
-| option | default | meaning |
+| Argument | Default | Meaning |
 | --- | --- | --- |
 | features | none | feature names to turn on for every stage, besides those the pipeline's `%features` turns on |
 | without features | none | feature names to turn off for every stage, including any that the `%features` of the pipeline turns on. A name in both lists is a usage error. |
 | auto features | on | add `sa-su` only where the text needs it (design, "Expensive constructs behind features"). It does nothing when `without features` names `sa-su` or `sa-su` is already on. It also does nothing when the dialect lacks the gate `sa-su` or the stage `words`. It does nothing when `until` names an earlier stage (engine §13). |
 | until | the last stage | the name of the last stage to run. An unknown name is an error, and so is an empty name. Go is the exception, as its section says. |
-| elision-only | the grammar's own | on or off for every stage that runs, overriding `%ambiguity-resolution ... elision-only` |
+| elision-only | the grammar's own | On or off for every stage that runs. This overrides `%ambiguity-resolution ... elision-only`. |
 
 A text must be a sequence of Unicode scalar values, or it is a usage error (engine §1). So a JavaScript or Python string with a lone surrogate is a usage error. So is a Go string that is not valid UTF-8. The same holds for a document held in memory. A document read from disk is different: bytes that are not valid UTF-8 there are a `grammar` load error, with no line or column.
 
@@ -46,27 +56,15 @@ Here, `grammar` is for a defect found only while parsing. One example is a neste
 
 Parsing is synchronous, and you can use a loaded dialect for any number of parses. In Python, Go and Rust, any number of threads can share one dialect and parse at once. JavaScript has one thread, and the worker of the playground has its own dialects.
 
-Some entry points exist for tests and tools. They are outside the common API, and each language spells them its own way. Each library can feed pre-built tokens to the first stage in place of the characters of a text. This is the `tokens` option in JavaScript, `Dialect.parse_tokens(tokens, text, ...)` in Python, `(*Dialect).ParseTokens(text, tokens, options)` in Go, and `Dialect::parse_tokens(tokens, options)` in Rust. A token that the caller supplies has its text as its label (engine §5).
-
-In JavaScript, Python and Go, a caller's token has a source and a span. Its source counts code points of the text, so it must start at 0 or later, end at or after its start, and end within the text. The sources of two tokens can overlap or lie out of order (engine §11). Its span counts tokens of the stage before, not code points, so it has no upper bound. It must start at 0 or later and end at or after its start. A token that breaks either rule is a usage error. The `InputToken` of Rust has no source and no span. The library gives each token its span, and a source in a text of the tokens' texts joined with single spaces. So these always lie within the text.
-
-A caller cannot supply attachments (engine §11). In JavaScript, Python and Go, a caller's token has the type of a token that a stage emits. So it can hold attachments: `before` and `after`, or `Before` and `After` in Go. In these three libraries, a caller's token whose attachments are not empty is a usage error. The library accepts empty lists and drops them. The `InputToken` of Rust has no such fields.
-
-Each library copies the caller's tokens before it parses them, and it leaves the caller's objects unchanged.
-
-The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
-
-### The dialect's features
-
-A loaded dialect lists its features (engine §13), in code point order of the names. The list includes the gates of the entries of its classifiers. Each feature in the list has its name, its kind (`gate` or `warning`), and whether the pipeline turns it on by default. The CLI and the playground use the list to offer the features by name.
-
 ### The result
+
+Parse-result format 11 reports the restored chosen derivation first in an elision-only error.
 
 The result has the fields of `docs/output.md`, in the data types of the language. These fields are `ok`, the stages, the `tree` of the last stage, the `error`, and the `warnings`. `warnings` is an empty list when there are no warnings.
 
 `unique` means exactly one [admitted derivation](notation.md#ranked-choices). `resolved` means several admitted derivations with exactly one best. Several best admitted derivations give a tie.
 
-[Ambiguity](notation.md#ambiguity) defines the effects of filtering and grammar migration.
+[Ambiguity](notation.md#ambiguity) defines how filtering and seals affect results.
 
 A stage has its name, its input and output tokens, its verdict, and for a tie its witness. A tied stage has no output tokens, and its two readings are in the result's error. A token has its text, its phonemes, its label, its tags, its span and its source range. An inserted token also names the rule that inserted it. A token also has its attachments, `before` and `after`, two lists of tokens (engine §11). An attached token has no span.
 
@@ -77,6 +75,20 @@ A result shares no value that can change with the dialect, or with the tokens of
 ### Output
 
 Every library writes the canonical JSON of a result as text, in the key order that `docs/output.md` gives. Every library also renders a result as brackets, with elided terminators hidden or shown. The JavaScript library also renders the tree listing and the display JSON, for the CLI and the playground.
+
+### Tokens for tests and tools
+
+Some entry points exist for tests and tools. They are outside the common API, and each language spells them its own way. Each library can feed pre-built tokens to the first stage in place of the characters of a text. This uses the `tokens` argument in JavaScript, `Dialect.parse_tokens(tokens, text, ...)` in Python, `(*Dialect).ParseTokens(text, tokens, options)` in Go, and `Dialect::parse_tokens(tokens, options)` in Rust. A token that the caller supplies has its text as its label (engine §5).
+
+In JavaScript, Python and Go, a caller's token has a source and a span. Its source counts code points of the text. It must start at 0 or later, end at or after its start, and end within the text. The sources of two tokens can overlap or lie out of order (engine §11).
+
+Its span counts tokens of the stage before, not code points, so it has no upper bound. The span must start at 0 or later and end at or after its start. A token that breaks the source or span rules is a usage error.
+
+The `InputToken` of Rust has no source and no span. The library gives each token its span, and a source in a text of the tokens' texts joined with single spaces. The generated source range always lies within that text.
+
+A caller cannot supply attachments (engine §11). In JavaScript, Python and Go, a caller's token has the type of a token that a stage emits. So it can hold attachments: `before` and `after`, or `Before` and `After` in Go. In these three libraries, a caller's token whose attachments are not empty is a usage error. The library accepts empty lists and drops them. The `InputToken` of Rust has no such fields.
+
+Each library copies the caller's tokens before it parses them, and it leaves the caller's objects unchanged.
 
 ### Tests
 
@@ -110,7 +122,7 @@ toJson(result); toBrackets(result, { showElided: true });
 - `dialect.features` is an array of `{ name, kind, default }`.
 - `toJson(result)` writes the canonical JSON as text, and `resultJson(result)` returns it as a value. `toBrackets`, `toTree`, `displayValue` and `prettyJson` render it. `toJson` and `prettyJson` do not recurse, because a tree can nest deeper than the call stack allows. `JSON.stringify` fails on such a tree.
 - Errors are `GencmuError`, with `kind` and `where`.
-- The lower-level `Loader`, `loaderFromSources` and `loaderFromDirectory` stay available for tools that load several dialects over one set of documents.
+- The lower-level `Loader`, `loaderFromSources` and `loaderFromDirectory` are available for tools that load several dialects over one set of documents.
 
 The types are in the package's declarations (`lib/js/types/`).
 
@@ -156,7 +168,9 @@ gencmu.Brackets(result, gencmu.BracketOptions{ShowElided: true})
 ```
 
 - `LoadDialect(name)`, `LoadDialectFile(path)` and `LoadDialectSources(sources map[string]string, pipeline string)` each return `(*Dialect, error)`. A load error is a `*gencmu.Error`.
-- `(*Dialect).Parse(text string, options ParseOptions) (*ParseResult, error)` parses a text. The error is for a mistake of the caller, such as an unknown stage name. A text that does not parse is a result. `ParseOptions` has `Features []string`, `WithoutFeatures []string`, `NoAutoFeatures bool`, `Until string` and `ElisionOnly *bool`. Auto features are on unless `NoAutoFeatures` is set. `Until` is a string, so Go cannot tell an empty name from no name. An empty `Until` runs every stage.
+- `(*Dialect).Parse(text string, options ParseOptions) (*ParseResult, error)` parses a text. The error is for a mistake of the caller, such as an unknown stage name. A text that does not parse is a result. `ParseOptions` has `Features []string`, `WithoutFeatures []string`, `NoAutoFeatures bool`, `Until string` and `ElisionOnly *bool`.
+
+  Auto features are on unless `NoAutoFeatures` is set. `Until` is a string, so Go cannot tell an empty name from no name. An empty `Until` runs every stage.
 - `(*Dialect).Features() []Feature` lists the features. Each `Feature` has `Name`, `Kind` and `Default`.
 - `MarshalResult(result) ([]byte, error)` writes the canonical JSON.
 - A `*Dialect` is safe for concurrent use by any number of goroutines.

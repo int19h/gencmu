@@ -2,13 +2,15 @@
 
 Every grammar in gencmu is a Markdown document. Its fenced `jbogenbau` blocks, read in order, are one grammar, and the prose between the blocks explains it. This document explains jbogenbau, the notation that those blocks use. The grammars only say what they are about, and refer here for the rest. Two grammars written in jbogenbau itself define it: `grammars/notation/lexical.md` and `grammars/notation/syntax.md`.
 
-A jbogenbau grammar is an attribute grammar with EBNF rule bodies. An attribute grammar is a grammar whose constituents carry computed values. A constituent is a part of the text that one rule matched. EBNF (Extended Backus-Naur Form) is a common notation for the bodies of grammar rules.
+A jbogenbau grammar is an attribute grammar with EBNF rule bodies. An attribute grammar gives computed values to constituents. A constituent is the text that one rule matches. EBNF (Extended Backus-Naur Form) is a common notation for the bodies of grammar rules.
 
-Each rule body follows the EBNF form of *The Complete Lojban Language* (CLL), edition 1.1, chapter 21. Repetition and elidable terminators differ. Each constituent carries one attribute, its set of tags (names, phonemes or characters, such as `KOhA`, `/a/` or `'a'`), computed bottom-up from its parts.
+Each rule body follows the EBNF form of *The Complete Lojban Language* (CLL), edition 1.1, chapter 21. Repetition and elidable terminators differ. A token is one unit that a grammar reads or emits. A phoneme is a unit of sound. A tag is a mark on a token or constituent. Each constituent carries one attribute, its set of tags (names, phonemes or characters, such as `KOhA`, `/a/` or `'a'`), computed bottom-up from its parts.
 
 Conditions over the parts restrict which parses exist. A condition can also ask whether a part parses as another rule. This takes the grammar beyond context-free grammars, whose rules only combine symbols. It goes beyond them in the way that Boolean grammars do. In a Boolean grammar, a rule can also require that the same text matches, or does not match, another rule.
 
-A token is one unit that a grammar reads or emits. Examples are characters, phonemes and words. A transducer reads tokens and emits another sequence. Each rule can also say what its constituents hand to the next grammar. So a grammar is a transducer. A dialect is a pipeline of these grammars, its stages, defined by one pipeline document.
+Tokens include characters, phonemes and words. A transducer reads tokens and emits another sequence.
+
+Each rule can also say what its constituents hand to the next grammar. So a grammar is a transducer. A dialect is a pipeline of these grammars, its stages, defined by one pipeline document.
 
 An ordinary choice is unordered: its alternatives have no priority by position. A ranked choice filters alternatives at one written position before ranking. Rule flags and the stage directive then rank the remaining complete parses. The sections "Ranked choices" and "Ambiguity" describe filtering and ranking.
 
@@ -37,7 +39,7 @@ For a tense example, flagging only `simple-tense-modal` groups `pu va ca gi` as 
 
 Spaces around the parentheses and their content have no meaning. By convention, the opening parenthesis follows the keyword directly.
 
-Empty parentheses, duplicate flags, unknown flags and arguments are errors. Parentheses can contain more flags or parameters in future versions.
+Empty parentheses, duplicate flags, unknown flags and arguments are errors.
 
 Line breaks and indentation mean nothing. So a long list of alternatives can put each alternative on a line of its own, and every `|` can also stand first. By convention, authors indent the body by two spaces under the keyword:
 
@@ -51,7 +53,7 @@ Line breaks and indentation mean nothing. So a long list of alternatives can put
 
 These separators can also stand first: `&` in bodies, `∪` and `∩` in terms, `∧` and `∨` in conditions, and commas in clause lists. `∖` in terms, `\` in braces, and `≻` in ranked choices cannot stand first. A tag term is a term that gives a set of tags.
 
-A body can be followed by clauses. A clause is a keyword and what it says. A body has at most one clause of each kind, and the clauses come in this order:
+Clauses can follow a body. A clause is a keyword and what it says. A body has at most one clause of each kind, and the clauses come in this order:
 
 - `%tags` gives the tags that the constituent of every alternative carries.
 - `%conditions` states what must hold of the parts.
@@ -84,7 +86,9 @@ A range, `'a'..'z'`, is the character tags from `'a'` to `'z'`, by scalar value.
 
 A property, `'\p{L}'`, is the characters that have a property in the Unicode data of `grammars/unicode.txt`. Its name is a General_Category value in its short form, such as `Lu` or `Nd`. It can also name a group of values by their first letter, such as `L`. `White_Space` and `Any`, every character, are the two other names. The case of a name counts, and no long name or alias is a property, so `'\p{lu}'` and `'\p{Letter}'` are errors. The engine documentation lists every name (`docs/engine.md`, §1).
 
-A range and a property are terminals in a body. Each matches a token that carries one of its characters, once, with one reading. A capture can wrap either one, as in `$c('0'..'9')`. Either one can take a test (see "Tests"). An elidable optional cannot begin with either (see "Elided terminators"), and `%emits` takes neither. In the expected terminals and the tree, each stands as its written form, such as `'a'..'z'`.
+A range and a property are terminals in a body. Each matches a token that carries one of its characters, once, with one reading. A capture names one matched part of a rule. A capture can wrap either one, as in `$c('0'..'9')`.
+
+Either one can take a test (see "Tests"). An elidable optional cannot begin with either (see "Elided terminators"), and `%emits` takes neither. In the expected terminals and the tree, each stands as its written form, such as `'a'..'z'`.
 
 A string is text in straight double quotes, such as `"la"`. It is a value in a condition or a test, and never a tag or a terminal. Inside it, `\\` is a backslash and `\"` a quote, and `\u{h…}` is as in a character tag.
 
@@ -119,7 +123,7 @@ The body adds repetition, elidable terminators, and ranked choices to the CLL op
 - `[x]` is optional.
 - `[+T x]` is an elidable optional, whose first item is the terminator `T`. `[++T x]` is one whose terminator is also maximal. "Elided terminators" below explains both.
 - `{x}` is one or more of `x`, and `[{x}]` is zero or more. `{x \ s}` is one or more of `x` with `s` between each two. "Repetition" below explains braces, and the chains `{... x \ s}` and `{x ... \ s}`. A chain can also leave out `\ s`, as `{... x}` and `{x ...}`.
-- `A & B` is and/or: `A`, `B` or `A B`, but not `B A`. `A & B & C` is any non-empty subsequence in that order.
+- `A & B` reads one or both parts: `A`, `B` or `A B`, but not `B A`. `A & B & C` is any non-empty subsequence in that order.
 - `( )` groups.
 - `ε` is the empty sequence.
 
@@ -164,11 +168,11 @@ A chain is the whole of its rule. That means two things. First, the chain is the
 
 Second, that alternative is the only alternative of its rule that the gates leave (see "Feature guards"). A warning does not remove an alternative. So a rule with another alternative beside its chain is an error of the grammar for the features that leave both. For those features, gencmu finds the error when it prepares the grammar, as it finds an error of a classifier. A `%extend-rule` of a chain's rule can cause this error.
 
-The chain's alternative can still have guards and tags of its own, and its rule can have clauses. A chain can be optional, or part of a sequence, through a rule. Name the chain as a rule, and write the rule's name there, as in `[tag]`.
+The chain's alternative can still have guards and tags of its own, and its rule can have clauses. A chain can be optional, or part of a sequence, through a rule. Name the chain as a rule. Then write the rule's name there, as in `[tag]`.
 
 An item of braces must read at least one token. An item that can match no tokens is an error of the grammar, found as the error above. So `{[x]}`, `{ε}` and `{#}` are errors, and so is `{r}` where `r` can match no tokens for the features of the parse.
 
-gencmu decides this from the rules alone, as the gates and the stitching leave them, ignoring every test and condition. So a rule `r` whose only alternative is `ε` with a condition that never holds still makes `{r}` an error. An alternative that a gate drops does not count, and one that an `%extend-rule` adds does.
+gencmu decides this from the rules alone, as the gates and stitching leave them. It ignores every test and condition. So a rule `r` whose only alternative is `ε` with a condition that never holds still makes `{r}` an error. An alternative that a gate drops does not count, and one that an `%extend-rule` adds does.
 
 A separator can match no tokens. So `{relative-clause \ [joik]}` reads relative clauses with or without `joik` between them. Since an item is never empty, `[{x}]` reads nothing in exactly one way.
 
@@ -285,15 +289,9 @@ An alternative with several guards exists when all its gates hold. A name is a g
 
 A dialect that extends another dialect can use the two kinds for two kinds of change. An addition is a text that the base grammar rejects and the dialect accepts. A warning can mark an addition, so that a reader can learn which additions a text relies on. The bundled dialects turn none of their warnings on, so their texts parse without warnings unless the caller asks for them.
 
-A change to how the dialect reads a text of the base cannot be a warning. The change removes the base reading, and a warning changes nothing that the grammar accepts or chooses. So a gate can guard such a change, with the old form under `¬name?` beside it. The dialect then turns the gate on, and a caller who wants the base reading turns it off.
+A change to how the dialect reads a text of the base cannot be a warning. The change removes the base reading, and a warning changes nothing that the grammar accepts or chooses. So a gate can guard such a change, with the base form under `¬name?` beside it. The dialect then turns the gate on, and a caller who wants the base reading turns it off.
 
-The bundled dialects do not guard every change. The only bundled warning is `y-cmavo`, in the `cll-ebnf` dialect, so the additions of the experimental dialect carry no warning yet. A dialect also makes a change without a guard where a feature needs a convoluted grammar to keep the change separate. The documents of the dialect then say so.
-
-## Layout of the bundled grammars
-
-The bundled grammars keep a layout convention for a rule with two or more alternatives that are each a single symbol. A single symbol is a reference, a terminal, a range, a property, a tested symbol or `ε`. An alternative with a guard, or with tags of its own (see "Tags"), is not a single symbol. If such a rule has more than one line, it does not put exactly one symbol on each line. The exception is a rule in which no two adjacent symbols fit together on one line.
-
-No line of such a rule's body holds more than 100 characters, counted as Unicode code points. A symbol can run over several lines, and each of these lines counts. Apart from this, the author chooses the groups, such as the vowels on one line and the consonants on the next. `tools/sync.js --check` makes sure that the bundled grammars keep this convention. For a rule with one symbol per line, it suggests a layout, and keeps the line breaks inside each symbol.
+The bundled dialects do not guard every change. The only bundled warning is `y-cmavo`, in the `cll-ebnf` dialect, so the additions of the experimental dialect carry no warning. A dialect also makes a change without a guard where a feature needs a convoluted grammar to keep the change separate. The documents of the dialect then say so.
 
 ## Stitching documents
 
@@ -352,7 +350,7 @@ The loader gives the constants their values when it stitches each stage. So a do
 
 ## Tree patterns
 
-A tree pattern is a predicate on one constructed constituent. A pattern literal is `@(BODY)`. `$x ≅ PATTERN` tests the captured constituent, and `$ ≅ PATTERN` tests the enclosing candidate. `≇` negates that answer after the ordinary missing-capture simplification. Patterns never recognize the captured text again or inspect another reading.
+A predicate is a test that holds or fails. A tree pattern is a predicate on one constructed constituent. A pattern literal is `@(BODY)`. `$x ≅ PATTERN` tests the captured constituent, and `$ ≅ PATTERN` tests the enclosing candidate. `≇` negates that answer after the ordinary missing-capture simplification. Patterns never recognize the captured text again or inspect another reading.
 
 The left operand must be a bare capture. The right operand must have pattern type. For `$x ≅ NAME`, report at NAME: `tree comparison requires a pattern; write @(NAME), not NAME`. Substitute the actual name, including capital-initial terminals. The same diagnostic applies to `≇`, before a generic parse or type error.
 
@@ -463,11 +461,13 @@ Writing `$name(symbol)` around a symbol of a rule's body captures that symbol. A
 
 A capture wraps one symbol. That symbol can stand anywhere in an alternative, except inside braces and inside an elidable optional, `[+ ]` or `[++ ]`. So a capture can stand in a group, in a choice, in an item of `&` and in a plain optional, at any depth.
 
-A name can stand at most once in each production (below), so two branches of a choice can capture one name, as two alternatives can. `A ($x(B) | $x(C))` is valid, but `[$x(A)] $x(B)` and `$x(A) & $x(B)` are errors, because one of their productions reads `$x` twice. gencmu checks this when it reads the grammar, before the gates, so a guard does not excuse it. An alternative can have any number of captures, but each one has a cost (below). `$` alone is the whole constituent, a capture that every alternative has without writing it.
+A name can stand at most once in each production (below), so two branches of a choice can capture one name, as two alternatives can. `A ($x(B) | $x(C))` is valid, but `[$x(A)] $x(B)` and `$x(A) & $x(B)` are errors, because one of their productions reads `$x` twice. Before gates apply, gencmu makes sure that each capture name occurs at most once per production. A guard does not excuse a repeated capture. An alternative can have any number of captures, but each one has a cost (below). `$` alone is the whole constituent, a capture that every alternative has without writing it.
 
-A capture cannot wrap anything but one symbol. So `$x((a | b))`, `$x((a b))` and `$x([a])` are errors. A capture names one constituent, with one span and one set of tags, and a group or an optional is no constituent. To capture a choice or a sequence, make it a rule of its own and capture the reference. To capture a part that can be absent, write the capture inside the optional, as in `[$x(a)]`. A presence test then says whether the part is there.
+A capture cannot wrap anything but one symbol. So `$x((a | b))`, `$x((a b))` and `$x([a])` are errors. A capture names one constituent, with one span and one set of tags, and a group or an optional is no constituent. To capture a choice or sequence, define a rule for it. Then capture the reference.
 
-A capture cannot wrap braces, and braces cannot hold a capture. A list is not a constituent, so no capture can name its span. A part of a list or of a chain repeats, so one name cannot stand for all its parts. To capture a list or a chain, make it a rule of its own and capture the reference, as in `$t(tag)`.
+To capture a part that can be absent, write the capture inside the optional, as in `[$x(a)]`. A presence test then says whether the part is there.
+
+A capture cannot wrap braces, and braces cannot hold a capture. A list is not a constituent, so no capture can name its span. A part of a list or of a chain repeats, so one name cannot stand for all its parts. To capture a list or chain, define a rule for it. Capture its reference, as in `$t(tag)`.
 
 An elidable optional cannot hold a capture, at any depth. gencmu restores an elided terminator as the terminator alone (see "Elided terminators"), and it keeps the optional as one unit for that. A part inside it is there in some readings of one omission and not in others.
 
@@ -532,7 +532,9 @@ The next paragraph uses four more Lojban terms. A gismu is a root word. A lujvo 
 
 In the `cll-ebnf` dialect, a comma between two vowels marks a syllable break, as CLL 3.3 describes. In that dialect, a cmavo, a gismu or a lujvo has no comma between two vowels. A fu'ivla or a cmevla can have one, as in the cmevla `nu,iork`. Without its commas and with its capitals lowered, a fu'ivla must still be a fu'ivla, and a cmevla must still be a cmevla. For example, the fu'ivla `zba,A,u` passes this check as `zbaau`, which is a fu'ivla, although `zbaAu` is none. So `ba,irgau` and `ma,i` are no words, because `bairgau` is a lujvo and `mai` is a cmavo.
 
-In the other bundled Lojban dialects, a comma between two vowels is nothing, so `ma,i` is `mai`. In all four bundled Lojban dialects, the word stage compares `zoi` delimiters by `phonemes()`, which has no commas, so `nuiork` and `nu,iork` match.
+The `kihei` dialect follows the comma rules of `cll-ebnf`. In `bpfk`, `experimental` and `zantufa`, a comma between two vowels has no effect, so `ma,i` is `mai`.
+
+In all five bundled Lojban dialects, the word stage compares `zoi` delimiters by `phonemes()`. This comparison ignores commas, so `nuiork` and `nu,iork` match.
 
 A token's own phonemes are fixed when its stage emits it, and they keep their capitals and commas. A token sounds like the phoneme that its `/x/` tag names, if it has one. Such a tag can come from an implication (see "Implications"). Two phoneme tags on one token are an error of the grammar.
 
@@ -701,7 +703,7 @@ An inserted token with a phoneme tag has that phoneme as its label, or a space f
 
 A directive is a keyword and its operands. By convention each stands in a block of its own, after prose that says why the grammar needs it. Two directives can share a line.
 
-- `%ambiguity-resolution` ranks the best parses under rule flags, as "Ambiguity" explains. Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` can follow it. The retired operand `maximal` is an error. "Ambiguity" and "Elided terminators" explain it. Every stage must say it exactly once, in any of its documents.
+- `%ambiguity-resolution` ranks the best parses under rule flags, as "Ambiguity" explains. Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` can follow it. The operand `maximal` is an error. "Ambiguity" and "Elided terminators" explain it. Every stage must say it exactly once, in any of its documents.
 - No directive names the elidable terminators. Each elidable optional is marked in its place, as `[+KU]` or `[++TOI]` (see "Elided terminators"). `%elidable` is not a directive. A document that writes it is an error, which the reader reports at the keyword.
 - `%stage NAME`, `%include "PATH"` and `%features NAME…` build a pipeline, as the next section says.
 
@@ -709,7 +711,7 @@ A directive is a keyword and its operands. By convention each stands in a block 
 
 For a procedure with commands and tree examples, read [Implement a dialect](dialects.md).
 
-A pipeline document, which is Markdown too, defines a dialect. Each stage is a heading, followed by the list of its documents. Prose then says what the stage receives, does and hands on. Three directives in `jbogenbau` blocks say what the pipeline is made of:
+A pipeline document, which is Markdown too, defines a dialect. Each stage is a heading, followed by the list of its documents. Prose then says what the stage receives, does and hands on. Pipeline directives in `jbogenbau` blocks say what the pipeline is made of:
 
 ````markdown
 # The experimental dialect
@@ -758,7 +760,7 @@ Ranked choices filter parses before the ranking below.
 
 Filtering only removes parses and never adds one. Compared with the same grammar without this filtering, a tie can become `resolved` or `unique`. A `resolved` result can become `unique` or a tie. Filtering never changes a unique result.
 
-A migration that adds ranked choices can change grammar rules and seals. A uniquely parsed text can get a different tree after that migration.
+Ranked choices supply seals as well as filtering. A unique tree can differ between grammars with and without these seals.
 
 A newly resolved result reaches emission and the enabled elision-only check. A newly tied result reaches neither, has no chosen tree, output or warnings, and stops later stages.
 
@@ -803,9 +805,9 @@ Among parses with the greatest rule profile, `late-elision` compares the termina
 
 Two parses with equal rule profiles and equal counts at every position tie, whatever else differs. Without flagged rules, several parses that elide nothing always tie. A token read under two tags does not decide anything, and neither do two different closes. The name of an elided terminator, and the constituent that it ends, do not count either.
 
-For example, the experimental grammar can read `to mi klama` in two ways. One ends the parenthesis `to` after `mi`, with `vau` and `toi` elided there, and `klama` is the main predicate. The other puts `mi klama` inside the parenthesis and elides terminators only at the end. `late-elision` takes the second, because the first leaves out a terminator earlier. `greedy` leaves the two readings tied, so the text is an error under `greedy`. Before ties became errors, the canonical order took the first.
+For example, the experimental grammar can read `to mi klama` in two ways. One ends the parenthesis `to` after `mi`, with `vau` and `toi` elided there, and `klama` is the main predicate. The other puts `mi klama` inside the parenthesis and elides terminators only at the end. `late-elision` takes the second, because the first leaves out a terminator earlier. `greedy` leaves the two readings tied, so the text is an error under `greedy`.
 
-The syntax stage of the four bundled Lojban dialects uses `late-elision`. Each grammar settles with rules of its own the choices that `late-elision` leaves tied, such as where a free modifier attaches.
+The syntax stages of all five bundled Lojban dialects use `late-elision`. Each grammar settles with rules of its own the choices that `late-elision` leaves tied, such as where a free modifier attaches.
 
 The forms and words stages are lazy. The word forms divide a run in one way only, so in the forms stage the choice never decides where a word ends. A magic word, such as `si`, acts on other words. In the words stage, the choice makes a magic word act on what exists when it is read. So `mi si si` erases `mi` and then nothing.
 
@@ -834,7 +836,7 @@ A plain optional is never elidable, whatever it holds. So `[KU]`, `[KU | VAU]` a
 
 The marker decides everything that follows in this section, and in "Ambiguity". It decides which absent optionals show as elided terminators and what `late-elision` counts. It also decides what maximality forbids and what `elision-only` writes back. The terminator of an elided node is `T`.
 
-An elided terminator ends the part of its alternative that is written just before it. That part is its *constituent*: a rule, an optional or braces, once parentheses are spelled out. In `le nanmu joi le ninmu`, the `ku` elided after `nanmu` ends the `sumti-tail` of `LE sumti-tail [+KU #]`, which is `nanmu`. Some elided terminators have no constituent. These are the terminators elided directly after a terminal or at the start of their alternative. The next paragraph gives one more case.
+An elided terminator ends the part of its alternative that is written directly before it. That part is its *constituent*: a rule, an optional or braces, once parentheses are spelled out. In `le nanmu joi le ninmu`, the `ku` elided after `nanmu` ends the `sumti-tail` of `LE sumti-tail [+KU #]`, which is `nanmu`. Some elided terminators have no constituent. These are the terminators elided directly after a terminal or at the start of their alternative. The next paragraph gives one more case.
 
 Braces add no case of their own: these rules apply to the expanded productions that gencmu makes from the braces (engine §3, §4). So a terminator elided at the start of the first item of braces has no constituent, as at the start of an alternative. One at the start of each later item of `{x}` has none either, since what the braces read so far stands before it. The same holds at the start of each separator of `{x \ s}` or of a left chain.
 
@@ -854,7 +856,7 @@ If maximal terminators remove every main parse, the text is an error. The error 
 
 `[++T]` applies in the main parse and inside `matches`, `begins` and `tags`. Inside a query, the longer constituent lies within the query's span. Written-terminator priority also applies there. An optional written `[+T]` keeps the default, even when another optional of that terminal uses `[++T]`.
 
-Only the Zantufa dialect uses `[++T]`, for `TOI` and `SEhU`, until its redesign (GitHub issues #138 and #139). The notation retires stage-wide `maximal`. A document that declares it is an error.
+Only the Zantufa dialect uses `[++T]`, for `TOI` and `SEhU`. A document that declares stage-wide `maximal` is an error.
 
 A rejection names a forbidden terminator only when maximality removes every main parse. A nested query that maximality changes only changes the value of its condition. If no parse then remains, the error is an ordinary rejection, which lists the terminals expected at the furthest position.
 
@@ -878,7 +880,7 @@ An omission exists only when its test passes on this restoration value. A failed
 
 Here S is the evaluated tag set, and s is the evaluated canonical string. The same rules apply to `+`, `++` and identifier-tag literals. `[+T≠""]` never omits T, but accepts a written T with nonempty sound. `[+T⊇U]` cannot omit T when U differs from T, but a written token with both tags passes.
 
-Then the stage parses that input again. Each elidable optional is now either restored or written. In the chosen parse's own reading, an optional that it left out is restored: it reads only its written-back terminator. Another reading can start an optional from a written-back terminator and read more after it, where the rest of the optional reads something.
+Then the stage parses that input again. Each elidable optional is either restored or written. In the chosen parse's own reading, an optional that it left out is restored: it reads only its written-back terminator. Another reading can start an optional from a written-back terminator and read more after it, where the rest of the optional reads something.
 
 The grammar reads the text with its terminators written back. Every rule condition, tag and test sees the original input. A written-back terminator has no text, no sound and no tags there. So a condition answers as it did for the chosen parse, and the chosen parse remains a reading before ranked-choice filtering. A test on a terminal is the one exception: `KU="ku"` reads a written-back `KU` by its sound. A test on a rule, such as `t="ku"`, sees the original input like a condition.
 
@@ -890,13 +892,19 @@ The check retains the rule flags, but applies no stage preference. It counts fla
 
 With no flagged rule, the check requires the restored chosen parse as the only admitted reading. Recognition before filtering always keeps that parse. Only its absence there reports `elision-witness-lost` (engine §7.9). Filtering can exclude that present parse and cause ordinary ambiguity. A tie ends the stage before this check.
 
-The measured corpus had no text that failed this check, but that is no general guarantee. Historically, under `greedy`, `mi broda joi ke brode ke'e` was one. The CLL grammar now settles it as the official parser does. A plain joik, a joik that does not open its own `ke` group, cannot take a unit that is only a `ke` group.
+The CLL grammar settles `mi broda joi ke brode ke'e` as the official parser does. A plain joik does not open its own `ke` group. It cannot take a unit that is only a `ke` group.
 
-The grammars that extend CLL are really ambiguous in places. A sumti is an argument of the selbri. A term is a wider kind of argument that includes the sumti. Historically, the experimental grammar read the `mi .e do` of `mi .e do klama` in two ways. It was two sumti joined by `.e`, or two terms joined by it. Its rule that a sumti connection comes before a term connection now settles it.
+Grammars that extend CLL can contain ambiguities unrelated to terminators. A sumti is an argument of the selbri. A term includes sumti and other kinds of arguments. The experimental grammar gives sumti connections priority over term connections. It therefore reads `mi .e do` in `mi .e do klama` as two connected sumti.
 
 `late-elision` does not make `elision-only` redundant. Written-back terminators can let another alternative match, or let a test on a terminal match. So the check can find a second reading that the rule flags do not rank below the chosen parse.
 
-The grammars that extend CLL do not declare `elision-only`. A caller can switch `elision-only` on for a parse, to find ambiguities that are not about terminators in the text that it supplies. Their conditions and tags were not reviewed for the check, as the CLL grammar's were. So a second reading that the check reports there can come from a condition that reads a written-back terminator otherwise than a written one. A caller can also switch it off, to loosen a grammar that declares it.
+The `experimental` and `zantufa` dialects do not declare `elision-only`. A caller can switch `elision-only` on for a parse, to find ambiguities that are not about terminators in the text that it supplies. A condition can treat a written-back terminator differently from a written one. In those grammars, such a condition can produce a second reading in reconstruction. A caller can also switch it off, to loosen a grammar that declares it.
+
+## Layout of the bundled grammars
+
+The bundled grammars keep a layout convention for a rule with two or more alternatives that are each a single symbol. A single symbol is a reference, a terminal, a range, a property, a tested symbol or `ε`. An alternative with a guard, or with tags of its own (see "Tags"), is not a single symbol. If such a rule has more than one line, it does not put exactly one symbol on each line. The exception is a rule in which no two adjacent symbols fit together on one line.
+
+No line of such a rule's body holds more than 100 characters, counted as Unicode code points. A symbol can run over several lines, and each of these lines counts. Apart from this, the author chooses the groups, such as the vowels on one line and the consonants on the next. `tools/sync.js --check` makes sure that the bundled grammars keep this convention. For a rule with one symbol per line, it suggests a layout, and keeps the line breaks inside each symbol.
 
 ## Railroad diagrams
 
@@ -916,4 +924,6 @@ The diagrams draw the notation in this way:
 - `A & B & C` is the choice of the item where the subsequence begins, with every later item optional. So `A & B` is `A [B]` or `B`.
 - The guards of an alternative stand over the start of its track, such as `¬cbm?` or `y-cmavo!`. `ε` is a bare track.
 
-A diagram shows only what a rule reads. It leaves out the captures, the tag terms, the clauses and the rule's flag. A capture only names a part for the clauses, and changes nothing that the rule reads. Tags, emission and `%opaque` say what the parts mean, not which tokens the rule reads. A condition can reject a reading that the diagram shows. So a diagram shows what a rule reads before its conditions, and the diagram of a rule with conditions says "conditions apply" beside its name. The diagram of an `%extend-rule` shows only the alternatives that it adds. It says "conditions apply" when the extension adds conditions of its own.
+A diagram shows only what a rule reads. It leaves out the captures, the tag terms, the clauses and the rule's flag. A capture only names a part for the clauses, and changes nothing that the rule reads. Tags, emission and `%opaque` say what the parts mean, not which tokens the rule reads.
+
+A condition can reject a reading that the diagram shows. So a diagram shows what a rule reads before its conditions, and the diagram of a rule with conditions says "conditions apply" beside its name. The diagram of an `%extend-rule` shows only the alternatives that it adds. It says "conditions apply" when the extension adds conditions of its own.
