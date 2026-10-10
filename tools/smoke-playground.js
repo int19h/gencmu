@@ -10,6 +10,8 @@
 // shows its error once. With no URL the page is opened from
 // file://, as someone who cloned the repository would; given a URL, that URL
 // is checked instead, which is how a GitHub Pages deployment is tested.
+// Every preset also runs through its selector. Grammar edits expose ties
+// or change the selected operand, and Reset restores the bundled result.
 //
 //   node tools/smoke-playground.js [--browser chrome|firefox] [URL]
 //
@@ -152,6 +154,98 @@ async function main() {
       const found = await run(() => self.smokeStale);
       if (found.length) throw new Error(`the page showed an answer for an earlier state as current: ${JSON.stringify(found[0])}`);
     };
+
+    // Every preset runs through the real selector and parser worker.
+    const exampleChecks = [
+      { label: "A sentence", output: /^\(mi \[klama \{le zarci\}\]\)$/ },
+      { label: "A text with omitted endings", output: /tavla/, elided: true },
+      { label: "A repeated le is rejected", rejected: true },
+      { label: "sa erases the earlier words", output: /^do$/, summary: /sa-su \(auto\)/ },
+      { label: "Lojban written in Cyrillic", output: /^\(mi \[klama \{le zarci\}\]\)$/ },
+      { label: "BPFK accepts an omitted ending", output: /gi'e nai/, elided: true },
+      { label: "A whole MOI expression wins (Zantufa)", output: /^\(mi \[\{\(se su'i\) \(pa re\)\} moi\]\)$/,
+        document: "syntax/zantufa.md", rule: "%rule tanru-unit-1", summary: /syntax resolved/,
+        edit: ["(mex MOI #\n     ≻ SE # $w(tanru-unit-1)\n     ≻ $n(NAhE) # tanru-unit-1)", "(mex MOI #\n     | SE # $w(tanru-unit-1)\n     | $n(NAhE) # tanru-unit-1)"], tie: true },
+      { label: "A whole MOI expression wins (experimental)", output: /^\(mi \[\{\(se ga\) pa gi re\} moi\]\)$/,
+        document: "syntax/experimental.md", rule: "%redefine-rule tanru-unit-2", summary: /syntax unique/,
+        edit: ["(mex MOI # ≻ SE # tanru-unit-2)", "(mex MOI # | SE # tanru-unit-2)"], tie: true },
+      { label: "ME prefers an argument (experimental)", output: /me-unit\n\s+ME "me"\n\s+sumti/,
+        document: "syntax/experimental.md", rule: "%rule me-unit",
+        edit: ["ME # (sumti ≻ mex)", "ME # (mex ≻ sumti)"], editedOutput: /me-unit\n\s+ME "me"\n\s+mex/ },
+      { label: "ME accepts a number (experimental)", output: /me-unit\n\s+ME "me"\n\s+mex[\s\S]*number-part · pa/,
+        document: "syntax/experimental.md", rule: "%rule me-unit" },
+      { label: "The earliest, longest tense wins (CLL)", output: /^\(mi \[viska \{\(pu va\) \(\[ca gi\] do gi \[la djan\]\)\}\]\)$/,
+        document: "syntax/cll.md", rule: "%rule(leftmost-longest) simple-tense-modal", summary: /syntax resolved/,
+        edit: ["%rule(leftmost-longest) simple-tense-modal", "%rule simple-tense-modal"], tie: true },
+      { label: "A rule with preferred options (notation)", output: /choice › ranked-choice/,
+        inputEdit: ["≻", "|"], editedOutput: /choice\n/, absent: /ranked-choice/ },
+      { label: "A rule with tree tests (notation)", output: /tree-comparison/,
+        parts: [/tree-comparator · ≅/, /tree-comparator · ≇/, /pattern-item · ⋯/, /'⋮' "⋮"/, /'⋰' "⋰"/, /'⋱' "⋱"/] },
+    ];
+    const presets = await run(() => [...document.querySelectorAll("#examples option")]
+      .filter((option) => option.value !== "").map((option) => ({ value: option.value, label: option.textContent })));
+    if (presets.length !== exampleChecks.length) throw new Error("every example needs a browser assertion");
+    for (const check of exampleChecks) {
+      const preset = presets.find((preset) => preset.label === check.label);
+      if (!preset) throw new Error(`missing example ${check.label}`);
+      await page.locator("#examples").selectOption(preset.value);
+      const text = await page.locator("#input").inputValue();
+      const answer = await answerFor(text);
+      if (answer.error) throw new Error(`${check.label}: ${answer.error}`);
+      if (check.rejected ? !/rejected by the syntax stage/.test(answer.verdict) : !/^accepted/.test(answer.verdict)) {
+        throw new Error(`${check.label}: unexpected verdict ${JSON.stringify(answer)}`);
+      }
+      if (check.output && !check.output.test(answer.output.trim())) throw new Error(`${check.label}: unexpected output ${answer.output}`);
+      for (const part of check.parts || []) {
+        if (!part.test(answer.output)) throw new Error(`${check.label}: missing ${part} in ${answer.output}`);
+      }
+      const summary = await page.locator("#summary").textContent();
+      if (check.summary && !check.summary.test(summary)) throw new Error(`${check.label}: unexpected summary ${summary}`);
+      if (check.elided) {
+        await page.locator("#show-elided").check();
+        const elided = await answerFor(text);
+        if (!/⟨[^⟩]+⟩/.test(elided.output)) throw new Error(`${check.label}: no omitted terminator`);
+        await page.locator("#show-elided").uncheck();
+        await answerFor(text);
+      }
+      if (check.document) {
+        const opened = await run(() => {
+          const editor = document.getElementById("doc-text");
+          return { path: document.getElementById("doc-path").textContent,
+            line: editor.value.slice(editor.selectionStart).split("\n")[0] };
+        });
+        if (opened.path !== check.document || opened.line !== check.rule) {
+          throw new Error(`${check.label}: the editor did not open the relevant rule: ${JSON.stringify(opened)}`);
+        }
+      }
+      if (check.edit) {
+        const editor = page.locator("#doc-text");
+        const source = await editor.inputValue();
+        if (!source.includes(check.edit[0])) throw new Error(`${check.label}: the suggested edit is absent`);
+        await change("editing a grammar", "doc-text", source.replaceAll(check.edit[0], check.edit[1]), "input");
+        const edited = await answerFor(text);
+        if (edited.error || (check.tie ? !/a tie in the syntax stage/.test(edited.verdict)
+          : !/^accepted/.test(edited.verdict) || !check.editedOutput.test(edited.output))) {
+          throw new Error(`${check.label}: the edit did not show its claimed effect: ${JSON.stringify(edited)}`);
+        }
+        await page.locator("#doc-reset").click();
+        const reset = await answerFor(text);
+        if (!check.output.test(reset.output.trim())) throw new Error(`${check.label}: reset did not restore the result`);
+      }
+      if (check.inputEdit) {
+        await type(text.replaceAll(check.inputEdit[0], check.inputEdit[1]));
+        const edited = await answerFor(await page.locator("#input").inputValue());
+        if (edited.error || !/^accepted/.test(edited.verdict) || !check.editedOutput.test(edited.output) || check.absent.test(edited.output)) {
+          throw new Error(`${check.label}: the text edit did not show ordinary alternatives: ${JSON.stringify(edited)}`);
+        }
+      }
+      // Dynamic links also obey the Pages rule, including editor controls.
+      const rawMarkdown = await run(() => [...document.querySelectorAll("a[href]")].map((link) => link.href)
+        .filter((href) => { const url = new URL(href); return /\.md$/i.test(decodeURIComponent(url.pathname)) && url.hostname !== "github.com" && url.protocol !== "blob:"; }));
+      if (rawMarkdown.length) throw new Error(`playground links serve raw Markdown: ${rawMarkdown.join(", ")}`);
+      console.log(`example works in ${browser}: ${check.label}`);
+    }
+    await page.locator("#tab-brackets").click();
 
     await choose("dialects/cll-ebnf.md");
     const sentence = "mi klama le zarci";
