@@ -2,13 +2,13 @@
 
 This document opens the phoneme stage. A stage is one step of a pipeline, with its own grammar. Each stage reads what the stage before it emits. The phoneme stage is the first stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). CLL is *The Complete Lojban Language*, the reference grammar of Lojban. The stage reads the characters of a text and hands the forms stage the phonemes they stand for.
 
-This document reads the Latin orthography of CLL chapter 3 and no more. The CLL dialect adds only the Cyrillic of CLL[^cll-s3-12], in [cyrillic-cll.md](cyrillic-cll.md). The other dialects add that too. They also add the conventions of [latin.md](latin.md), such as digits and accents, and the scripts of [cyrillic.md](cyrillic.md) and [zbalermorna.md](zbalermorna.md). [The notation document](../../docs/notation.md) explains the notation.
+This document reads the Latin orthography of CLL[^cll-c3] and no more. The CLL dialect adds only the Cyrillic of CLL[^cll-s3-12], in [cyrillic-cll.md](cyrillic-cll.md). The other dialects add that too. They also add the conventions of [latin.md](latin.md), such as digits and accents, and the scripts of [cyrillic.md](cyrillic.md) and [zbalermorna.md](zbalermorna.md). [The notation document](../../docs/notation.md) explains the notation.
 
 The terminals of the stage are characters, each written as a character tag in single quotes, such as `'a'`. A token is one unit that a stage reads or emits. A terminal matches one input token by tag. A character token carries only its character tag. So a class of characters is a range, such as `'0'..'9'`, or a Unicode property, such as `'\p{White_Space}'`.
 
 The stage emits one token per phoneme, and each token carries the tag of that phoneme, such as `/a/`. A tag marks a token by name, phoneme or character. So the later stages never see a character, and they read every script alike.
 
-The phonemes are the letters of CLL chapter 3, each written as a phoneme tag:
+The phonemes are the letters of CLL[^cll-c3], each written as a phoneme tag:
 
 - The consonants `/b/`, `/c/`, `/d/` and so on through `/z/`
 - The vowels `/a/ /e/ /i/ /o/ /u/ /y/`, and the stressed vowels `/A/ /E/ /I/ /O/ /U/ /Y/`
@@ -262,7 +262,7 @@ CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does no
 
 ## Choices beyond CLL
 
-CLL writes a pause as a period and does not define spaces.[^cll-s3-1] This grammar treats whitespace as a pause because texts separate words with spaces. No CLL word contains a space.
+CLL writes a pause as a period.[^cll-s3-3] It does not define spaces. This grammar treats whitespace as a pause because texts separate words with spaces. No CLL word contains a space.
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).
 
@@ -273,3 +273,5 @@ CLL writes a pause as a period and does not define spaces.[^cll-s3-1] This gramm
 [^cll-s3-9]: [CLL 1.1, section 3.9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-stress.html).
 
 [^cll-s3-1]: [CLL 1.1, section 3.1](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-phonology.html#section-orthography).
+
+[^cll-c3]: [CLL 1.1, chapter 3](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-phonology.html).

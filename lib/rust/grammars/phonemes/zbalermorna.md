@@ -1,6 +1,6 @@
 # zbalermorna
 
-This document adds the zbalermorna script to the phoneme stage of the dialects of the [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The [CLL](../dialects/cll-ebnf.md) dialect omits this script. The stage reads the script as the code points of the private-use block that its fonts assign it.
+This document adds the zbalermorna script to the phoneme stage of the dialects of the [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The dialect of [CLL](../dialects/cll-ebnf.md), *The Complete Lojban Language*, omits this script. The stage reads the script as the code points of the private-use block that its fonts assign it.
 
 The phoneme stage is the first stage of the pipeline. The document adds alternatives to the rules of [latin-strict.md](latin-strict.md) and [latin.md](latin.md) with `%extend-rule`. It defines no frame of its own. It uses the shared text, pause and run rules. [The notation document](../../docs/notation.md) explains the notation.
 
@@ -193,7 +193,7 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 
 ## Differences from CLL and jbotci
 
-Lojbanists made zbalermorna after *The Complete Lojban Language* (CLL). The book describes Tolkien's Tengwar, a different script.[^cll-s3-12] The CLL dialect therefore omits zbalermorna.
+Lojbanists made zbalermorna after CLL. The book describes Tolkien's Tengwar, a different script.[^cll-s3-12] The CLL dialect therefore omits zbalermorna.
 
 jbotci, another Lojban parser, ignores U+ED8C, U+ED99 and U+ED9B. This document treats them as commas.
 

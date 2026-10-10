@@ -1,8 +1,8 @@
 # Latin conventions
 
-This document adds to [latin-strict.md](latin-strict.md) the conventions that Lojban texts use beyond CLL 1.1 chapter 3. CLL is *The Complete Lojban Language*. Both documents belong to the phoneme stage, the first stage of the pipeline. The dialects of the [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read them, after the rules of latin-strict.md. The [CLL](../dialects/cll-ebnf.md) dialect does not. [The notation document](../../docs/notation.md) explains the notation.
+This document adds to [latin-strict.md](latin-strict.md) the conventions that Lojban texts use beyond *The Complete Lojban Language* (CLL), edition 1.1.[^cll-c3] Both documents belong to the phoneme stage, the first stage of the pipeline. The dialects of the [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read them, after the rules of latin-strict.md. The [CLL](../dialects/cll-ebnf.md) dialect does not. [The notation document](../../docs/notation.md) explains the notation.
 
-The rules define punctuation, commas, apostrophes, capital runs, accents, glides and digits. A comma between vowels is ignored. A capital run carries no stress mark. A capital run has multiple vowel groups with only capital vowels. The working morphology is the word-form grammar that [bpfk.md](../words/bpfk.md) translates. The conventions are these:
+Most conventions here admit spellings that latin-strict.md rejects. Two change how it reads an existing spelling: a comma between vowels, and a capital run. A capital run has multiple vowel groups with only capital vowels. The working morphology is the word-form grammar that [bpfk.md](../words/bpfk.md) translates. The conventions are these:
 
 - Punctuation other than the period and the comma is a pause.
 - A comma between two vowels is nothing, as it is elsewhere.
@@ -13,7 +13,7 @@ The rules define punctuation, commas, apostrophes, capital runs, accents, glides
 
 ## Punctuation
 
-A punctuation character is a pause when no letter, vowel or apostrophe rule reads it. The next paragraph defines punctuation. This includes quotation marks, brackets and dashes around words. Thus `mi "klama"` reads as `mi klama`.
+A punctuation character is a pause when no letter, vowel or apostrophe rule reads it, as the next paragraph defines. Texts put quotation marks, brackets and dashes around words, so `mi "klama"` reads as `mi klama`.
 
 A character token carries only its character tag. So the rule `other-char` names the characters that are no letter, mark, digit or whitespace. A letter is a character of the Unicode property `L`. A mark is one of `Mn`, or the stress mark or the shorthand of [zbalermorna.md](zbalermorna.md). A digit is `0` to `9`, and whitespace is a character of the property White_Space. A punctuation character is such a character that no rule of `any-lojban-char` or `core-char` reads by itself.
 
@@ -352,3 +352,5 @@ CLL does not use `h` for the apostrophe. The working morphology accepts it throu
 CLL does not define capital folding, accented vowels or breve glides. This document accepts those conventions. Capital folding supports titles and shouts, while requiring two vowel groups preserves stress in names with one capital syllable.
 
 PA is the number selma'o. The working morphology reads digits directly as PA words and also permits them inside names. This stage emits their letters instead. CLL does not write digits. A period between digits emits `pi` rather than a pause.
+
+[^cll-c3]: [CLL 1.1, chapter 3](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-phonology.html).
