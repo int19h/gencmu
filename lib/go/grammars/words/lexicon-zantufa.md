@@ -4,15 +4,7 @@ This document is the lexicon of the forms stage in the [Zantufa](../dialects/zan
 
 The lexicon gives each cmavo the selma'o that Zantufa 1.9999 gives it. `tools/peg-lexicon.js` writes the classifier below from the selma'o lists of `zantufa-1.9999.peg`. That file is in Guskant's `gerna_cipra` repository, as of commit d5a5065. The tool marks no class as an indicator here, so it writes no implication. A tag marks a token by name, phoneme or character. A maintainer changes the lexicon by running the tool again.
 
-Each entry lists words by their canonical sound and gives them one selma'o, as [lexicon-cll.md](lexicon-cll.md) explains. Zantufa gives each word one selma'o, and its classes differ from those of CLL (*The Complete Lojban Language*) in many places. For example:
-
-- The tense words of PU, ZI, VA, FAhA, ZAhO, ZEhA, VEhA, VIhA, TAhE, KI and CUhE are BAI. The words of ROI stay ROI, `mo'i` and `fe'e` are NAhE, and the CAhA words, such as `ca'a` and `ka'e`, are NA.
-- `je`, `ja`, `jo` and `ju` are JOI, because Zantufa has no JA.
-- `la`, `lai` and `la'i` are LE, because Zantufa reads a name as a selbri, a predicate.
-- `ce'e` is BO, `nu'i` and `nu'u` are KE and KEhE, and `pe'e` is BAhE, because Zantufa has no termsets.
-- `zei`, `ze'ei` and `si'u'i` are SI, so each erases a word, as `si` does.
-- `sa`, `nai`, `cai`, `da'o`, `fu'e` and `fu'o` are UI, and `ie'o` is Y, as `y` is.
-- `soi` is SEI, and `xoi` and `fi'oi` are XOI.
+Each entry lists words by their canonical sound and gives them one selma'o, as [lexicon-cll.md](lexicon-cll.md) explains.
 
 The lexicon marks no word `indicator`, because Zantufa reads an attitudinal as a free modifier, which can follow any word. So the indicator stage attaches no word to the word before it. It attaches only the words of BAhE, to the word after them. The syntax reads every word of UI.
 
@@ -185,3 +177,15 @@ The lexicon marks no word `indicator`, because Zantufa reads an attitudinal as a
   "la'o" "zoi" ∈ ZOI
   "ce'ai" "ge'ai" "ke'au" "zo'u" ∈ ZOhU
 ```
+
+## Differences from CLL
+
+Zantufa gives each word one selma'o. Its classes differ from *The Complete Lojban Language* (CLL) in these ways:
+
+- The tense words of PU, ZI, VA, FAhA, ZAhO, ZEhA, VEhA, VIhA, TAhE, KI and CUhE are BAI. The words of ROI stay ROI, `mo'i` and `fe'e` are NAhE, and the CAhA words, such as `ca'a` and `ka'e`, are NA.
+- `je`, `ja`, `jo` and `ju` are JOI, because Zantufa has no JA.
+- `la`, `lai` and `la'i` are LE, because Zantufa reads a name as a selbri, a predicate.
+- `ce'e` is BO, `nu'i` and `nu'u` are KE and KEhE, and `pe'e` is BAhE, because Zantufa has no termsets.
+- `zei`, `ze'ei` and `si'u'i` are SI, so each erases a word, as `si` does.
+- `sa`, `nai`, `cai`, `da'o`, `fu'e` and `fu'o` are UI, and `ie'o` is Y, as `y` is.
+- `soi` is SEI, and `xoi` and `fi'oi` are XOI.
