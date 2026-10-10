@@ -3151,3 +3151,12 @@ i131.slot.zantufa.fragment-vocative
 i131.slot.zantufa.fragment-free
 i131.slot.zantufa.fragment-mex-guard
 i131.ranked.zantufa.se-moi
+adhoc.prose.syntax-experimental.pin-1
+adhoc.prose.syntax-experimental.pin-2
+adhoc.prose.syntax-experimental.pin-3
+adhoc.prose.syntax-experimental.pin-4
+adhoc.prose.syntax-experimental.pin-5
+adhoc.prose.syntax-experimental.pin-6
+adhoc.prose.syntax-experimental.pin-7
+adhoc.prose.syntax-experimental.pin-8
+adhoc.prose.syntax-experimental.pin-9
