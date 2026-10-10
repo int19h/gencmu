@@ -4,7 +4,7 @@ A letteral is a letter word of class BY, as [stream.md](stream.md) defines it.
 
 This document is part of the word stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. Each stage reads the tokens that the stage before it emitted, and emits new tokens. The dialect includes this document after [stream.md](stream.md). [The notation document](../../docs/notation.md) explains the notation.
 
-A cmavo is a particle, a short structure word. CLL is *The Complete Lojban Language*. This document warns about cmavo with `y` as a vowel and requires pauses around a name that `bu` takes.
+A cmavo is a particle, a short structure word. CLL is *The Complete Lojban Language*. BPFK is a Lojban committee for language definitions. This document warns about cmavo with `y` as a vowel and requires pauses around a name that `bu` takes.
 
 The word forms admit a cmavo with `y` as one more vowel unit. Examples are `ka'y` and `ky'a` ([cll.md](cll.md)). The forms stage gives each such word the tag `cmavo-warning`. A tag marks a token by name, phoneme or character.
 
@@ -43,8 +43,8 @@ A replacement name keeps its source boundary. Thus `ladjan. sa .djim. bu` leaves
 
 ## Differences from CLL and BPFK
 
-The `y`-cmavo forms extend those that CLL gives, as [cll.md](cll.md) explains. The BPFK word forms omit those forms and the CLL-specific pause test for names before BU. BPFK is a Lojban committee for language definitions.
+The `y`-cmavo forms extend those that CLL gives, as [cll.md](cll.md) explains. The BPFK word forms omit those forms and the CLL-specific pause test for names before BU.
 
 [^cll-s17-4]: [CLL 1.1, section 17.4](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-bu.html).
 
-[^cll-s4-9]: [CLL 1.1, section 4.9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-pauses.html).
+[^cll-s4-9]: [CLL 1.1, section 4.9, rule 2](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-pauses.html).

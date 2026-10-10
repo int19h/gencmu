@@ -32,7 +32,7 @@ CLL writes repetition as `x ...`, and the notation writes it with braces. Notati
 
 Where CLL writes `x [s x] ...` and no grouping is at stake, this grammar writes `{x \ s}`. That is a list of `x` separated by `s`. These read the same words as the printed rules. Where the grouping matters, the next paragraph says what the rule writes instead.
 
-Notation note 8 gives `...` left grouping.[^cll-s21-1] A list in flat braces shows no grouping in the tree: its items are children of the rule that writes it. Where the grouping changes the reading, as for logical connectives and tanru, this grammar says so in the rule.
+Notation note 7 gives `...` left grouping.[^cll-s21-1] A list in flat braces shows no grouping in the tree: its items are children of the rule that writes it. Where the grouping changes the reading, as for logical connectives and tanru, this grammar says so in the rule.
 
 A left chain, `{... x \ s}`, groups from the left, and each level of it is a node of its rule. Where the repeated part is irregular, the rule is written with left recursion instead, which groups in the same way. Each such rule cites the source of its grouping. A right chain, `{x ... \ s}`, groups from the right, as the `bo` forms do. Juxtaposition binds tighter than `&`.
 
@@ -934,13 +934,13 @@ In the printed EBNF and this grammar, bare `.i` binds loosest. The next level co
 
 CLL[^cll-s14-6] prints the example[^cll-e14-27], `la djan. .ije la .alis. klama le zarci`, with a fragment before the sentence connective. This grammar rejects it. Printed rules 10, 12, and 13 allow fragments only beside bare `.i`.
 
-LLG `techfix.300`, CHANGE 45, removes fragments as operands of sentence connectives. It restricts their connection to I. Its wording is "not by any lower-level form". CLL presents the fragment connection as worse than the sumti connection.[^cll-e14-27][^cll-e14-26] It leaves "the reader uncertain why John is mentioned at all." The 1997 online draft gives the same framing under its earlier numbering.[^cll-e14-27]
+LLG `techfix.300`, CHANGE 45, removes fragments as operands of sentence connectives. It restricts their connection to I. Its wording is "not by any lower-level form". CLL presents the fragment connection as worse than the sumti connection.[^cll-e14-27][^cll-e14-26] It leaves "the reader uncertain why John is mentioned at all." The 1997 online draft gives that example[^cll-e14-27] the same framing under its earlier numbering.
 
 The official parser accepts the example[^cll-e14-27] because its lexer never produces the statement-level token `I_JEK_820`. On lojban-list, John Cowan addressed fragment connections in "fragment + i-jek" on June 18, 2004. The reply's Message-ID is `20040618052316.ga24048@ccil.org`. His reply says:
 
 > It's wrong, or rather obsolete.
 
-The CLL errata page records the same prenex problem under its earlier numbering.[^cll-e16-77][^cll-e16-78] Cowan's response carries `NOFIX`. That record does not change printed rules 12 and 13.
+The CLL errata page records the same problem with these prenex examples[^cll-e16-77][^cll-e16-78] under its earlier numbering. Cowan's response carries `NOFIX`. That record does not change printed rules 12 and 13.
 
 CLL 1.1 contains further errors in its examples. This grammar follows the printed rules in each case below. The official parser also rejects these texts or gives a reading that contradicts the gloss or the surrounding text.
 
@@ -966,7 +966,7 @@ The examples[^cll-e16-89][^cll-e16-92] omit KUhO after `verba`. Both parsers kee
 
 The example[^cll-e18-126] omits CU before `du`. Both parsers keep `ractu du` inside the second MOhE sumti and read two LI sumti. Every edition from 1.3.3 onward adds CU before `du`.
 
-The example[^cll-e14-173] prints CU where the gloss of the second embedded bridi needs NA. The text repeats the affirmative claim, and both parsers read it as printed. Every edition from 1.2.12 onward replaces CU with NA and renumbers the example.[^cll-e14-173]
+The example[^cll-e14-173] prints CU where the gloss of the second embedded bridi needs NA. The text repeats the affirmative claim, and both parsers read it as printed. Every edition from 1.2.12 onward replaces CU with NA and renumbers the example.
 
 The printed grammar lets the tail after a plain gihek begin with `ke`, or with a tense and `ke`. So `mi broda gi'e ke brode ke'e` has two parses. In one, `ke ... ke'e` groups the tails after `gi'e`, through the `ke` form of `bridi-tail` (rule 50 of the printed grammar). In the other, `gi'e` is a plain gihek (rule 51), and `ke ... ke'e` groups a tanru that begins the second tail.
 

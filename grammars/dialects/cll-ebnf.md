@@ -119,7 +119,7 @@ A tanru is a compound predicate. A bridi-tail is a predicate with its following 
 
 ## Differences from CLL and the official parser
 
-gencmu's own Cyrillic assigns different readings from CLL's. This dialect therefore selects only CLL's Cyrillic, while a caller can turn that script off.
+gencmu's own Cyrillic assigns different readings from CLL's. This dialect therefore selects only CLL's Cyrillic, while a caller can turn that script off. A caller is the program or person asking for a parse.
 
 CLL[^cll-s21-1] writes `LU text`, whose initial indicators modify what follows under the text-initial exception of CLL[^cll-s13-9]. Indicators after `lu` therefore begin quoted content. The example[^cll-e19-67] in CLL[^cll-s19-12] gives `sa'a` scope over the whole bracketed remark. The BPFK is a Lojban committee for language definitions. The [BPFK section "Digressives", revision 111784](https://mw.lojban.org/index.php?title=BPFK_Section:_Digressives&oldid=111784) defines `to'i` as "Equivalent to {to sa'a}". These sources support attachment after `to` and `to'i` to the opener.
 
