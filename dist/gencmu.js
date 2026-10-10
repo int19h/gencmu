@@ -2329,7 +2329,7 @@
   const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈", "≅", "≇"]);
   const DOM_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
   // The directives of the notation (engine §9).
-  const DIRECTIVE_NAMES = new Set(["ambiguity-resolution", "stage", "include", "features"]);
+  const DIRECTIVE_NAMES = new Set(["ambiguity-resolution", "stage", "extend-stage", "redefine-stage", "include", "features"]);
   // A capture's name is all lower case (engine §9).
   const CAPTURE_NAME = /^[a-z][a-z0-9-]*$/;
   // The nesting the notation allows (engine §9): deeper than any grammar a
@@ -2523,7 +2523,7 @@
           (directive.name === "ambiguity-resolution" && directive.args.includes("maximal"))) return "a malformed directive";
       // The operands the notation's syntax allows these directives (engine §9).
       const args = /** @type {string[]} */ (directive.args);
-      if ((directive.name === "stage" && !(args.length === 1 && DOM_NAME.test(args[0]))) ||
+      if ((["stage", "extend-stage", "redefine-stage"].includes(directive.name) && !(args.length === 1 && DOM_NAME.test(args[0]))) ||
           (directive.name === "include" && args.length !== 1) ||
           (directive.name === "features" && !(args.length > 0 && args.every((arg) => DOM_NAME.test(arg))))) return "a malformed directive";
     }
@@ -9326,6 +9326,7 @@
    * @typedef {object} StageAudit
    * @property {string} name
    * @property {string} resolution
+   * @property {import("./pipeline.js").StageChange[]} stageChanges
    * @property {number} rules
    * @property {string[]} unreachable rules no derivation of `text` can reach
    * @property {{kind: string, rule: string, document: string, previous: string,
@@ -9614,6 +9615,7 @@
       }
       return {
         name: stage.name,
+        stageChanges: (stage.changes ?? []).slice(),
         resolution: resolution ? `${resolution.lean}${resolution.elisionOnly ? " elision-only" : ""}` : "none",
         rules: grammar.rules.size,
         unreachable: [...grammar.rules.keys()].filter((name) => !reachable.has(name)).sort(compareCodePoints),
@@ -9633,6 +9635,7 @@
     const blocks = [];
     for (const stage of stages) {
       const lines = [`${stage.name}: ${stage.rules} rules, ${stage.resolution}`];
+      for (const change of stage.stageChanges) lines.push(`  stage ${change.kind} at ${change.document}:${change.line}:${change.column}`);
       if (stage.unreachable.length) lines.push(`  unreachable from text: ${stage.unreachable.join(", ")}`);
       for (const change of stage.changes) {
         const flags = change.flagChange;
@@ -11741,10 +11744,12 @@
     /**
      * @param {string} name
      * @param {Grammar} grammar
+     * @param {import("./pipeline.js").StageChange[]} [changes]
      */
-    constructor(name, grammar) {
+    constructor(name, grammar, changes = []) {
       this.name = name;
       this.grammar = grammar;
+      this.changes = changes;
     }
 
     /**
@@ -14009,7 +14014,7 @@
    */
   function operandProblem(name, kinds) {
     const names = kinds.every((kind) => kind === "name" || kind === "class");
-    if (name === "stage") return kinds.length === 1 && names ? null : "%stage takes one name";
+    if (["stage", "extend-stage", "redefine-stage"].includes(name)) return kinds.length === 1 && names ? null : `%${name} takes one name`;
     if (name === "include") return kinds.length === 1 && kinds[0] === "string" ? null : "%include takes one string";
     if (name === "features") return kinds.length > 0 && names ? null : "%features takes one or more names";
     return names ? null : `%${name} takes names only`;
@@ -14183,7 +14188,8 @@
    * One stage of a spliced pipeline: its name, where its %stage stands, and its
    * items as runs of consecutive items of one document, each with a DOM that
    * holds exactly those items.
-   * @typedef {{name: string, at: {document: string, line: number, column: number}, documents: {path: string, dom: GrammarDom}[]}} SplicedStage
+   * @typedef {{name: string, at: {document: string, line: number, column: number}, documents: {path: string, dom: GrammarDom}[], changes: StageChange[]}} SplicedStage
+   * @typedef {{kind: "extended" | "replaced", document: string, line: number, column: number}} StageChange
    */
 
   /**
@@ -14220,6 +14226,8 @@
     const stageNames = new Map();
     /** @type {{path: string, dom: GrammarDom} | null} the run being built */
     let run = null;
+    /** @type {SplicedStage | undefined} */
+    let selected;
 
     const top = domOf(path);
     if (top === undefined) throw new GencmuError("grammar", `${path} was not found`, { document: path });
@@ -14274,12 +14282,21 @@
           throw new GencmuError("grammar", `${place}: a second stage named ${name}; the first is at ${earlier.at.document}:${earlier.at.line}:${earlier.at.column}`, at);
         }
         /** @type {SplicedStage} */
-        const stage = { name, at, documents: [] };
+        const stage = { name, at, documents: [], changes: [] };
+        selected = stage;
         stages.push(stage);
         stageNames.set(name, stage);
         run = null;
+      } else if ("directive" in item && ["extend-stage", "redefine-stage"].includes(item.directive.name)) {
+        const name = item.directive.args[0];
+        selected = stageNames.get(name);
+        if (!selected) throw new GencmuError("grammar", `${place}: %${item.directive.name} names an unknown stage ${name}`, at);
+        const replaced = item.directive.name === "redefine-stage";
+        if (replaced) selected.documents = [];
+        selected.changes.push({ kind: replaced ? "replaced" : "extended", ...at });
+        run = null;
       } else {
-        const stage = stages[stages.length - 1];
+        const stage = selected;
         if (!stage) {
           const what = "rule" in item ? `the rule ${item.rule.name}` : "constant" in item ? `the constant $${item.constant.name}`
             : "classifier" in item ? `the classifier ${item.classifier.name}` : "implication" in item ? "%implies" : `%${item.directive.name}`;
@@ -14558,7 +14575,7 @@
     dialect(path) {
       const pipeline = this.pipeline(path);
       const build = () => {
-        const stages = pipeline.stages.map((stage) => new Stage(stage.name, new Grammar(stage.name, stage.documents, this.unicode)));
+        const stages = pipeline.stages.map((stage) => new Stage(stage.name, new Grammar(stage.name, stage.documents, this.unicode), stage.changes));
         return new Dialect(path, stages, this, pipeline.features);
       };
       try { return build(); } catch (error) {

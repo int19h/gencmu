@@ -14,11 +14,13 @@ export type StageOptions = {
 export declare class Stage {
     name: string;
     grammar: Grammar;
+    changes: import("./pipeline.js").StageChange[];
     /**
      * @param {string} name
      * @param {Grammar} grammar
+     * @param {import("./pipeline.js").StageChange[]} [changes]
      */
-    constructor(name: string, grammar: Grammar);
+    constructor(name: string, grammar: Grammar, changes?: import("./pipeline.js").StageChange[]);
     /**
      * Runs the stage over `tokens`.
      * @param {Token[]} tokens

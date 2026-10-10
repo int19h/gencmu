@@ -86,7 +86,7 @@ A rule flag gives a rule a preference. Only `leftmost-longest` is supported. `%r
 
 Parentheses follow the keyword and precede the name. Their only accepted content is `leftmost-longest`, with optional surrounding spaces. Empty parentheses, duplicates, unknown flags, arguments and parentheses on `%extend-rule` are errors of the document. Section 9 gives their priority and positions.
 
-The loader collects directives from all the stage's items. `%stage`, `%include` and `%features` shape the pipeline (§13) and do not belong to a stage. `%ambiguity-resolution` belongs to the stage.
+The loader collects directives from all the stage's items. `%stage`, `%extend-stage`, `%redefine-stage`, `%include`, and `%features` shape the pipeline (§13) and do not belong to a stage. `%ambiguity-resolution` belongs to the stage.
 
 A stage also has constants. A constant is a named value that terms and conditions use (§10). Its name is `$` and a name (§9) that begins with `A` to `Z`, such as `$SU-STOPS`. By convention, the whole name is in capitals.
 
@@ -1154,7 +1154,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A capture other than `$` named twice in one emission, as an item or as an attachment, is an error. So an attachment capture is never an item of its own.
 - A rule's or an alternative's tag term that reads the tags that it defines is an error: `tags($)` or `classes($)` in it. `tags(head($))` and the like read the tokens' tags, not the constituent's, and are allowed, as is `tags($, R)`.
 - An unknown directive or keyword is an error. The syntax grammar already refuses it.
-- A directive with the wrong operands is an error, reported at the directive. `%stage` takes one name, `%include` one string, and `%features` one or more names. `%ambiguity-resolution` takes a ranking name and optionally `elision-only`. The retired operand `maximal` is an error. `%elidable` is no directive, and the syntax grammar refuses it as an unknown keyword.
+- A directive with the wrong operands is an error, reported at the directive. `%stage`, `%extend-stage`, and `%redefine-stage` take one name. `%include` takes one string, and `%features` takes one or more names. `%ambiguity-resolution` takes a ranking name and optionally `elision-only`. The retired operand `maximal` is an error. `%elidable` is no directive, and the syntax grammar refuses it as an unknown keyword.
 
 Once the reader reads a definition (§2), it makes sure that the whole definition meets its requirements. These checks are about the productions of the definition's alternatives, the expansions of §3.2 with the captures of §3.5. Gates do not matter here, so every alternative counts. Two expansions of one alternative that read the same captures in the same order are one case for these checks. So the reader can decide them over the distinct sequences of captures that the expansions read, without listing the expansions.
 
@@ -1393,7 +1393,9 @@ Nothing else gives warnings. No warnings come from a reading of an `ambiguous` e
 
 A pipeline document (`docs/design.md`, "Pipelines") defines a dialect. The loader reads it into stages as follows.
 
-To splice a pipeline, the loader reads the pipeline document's items (§9) in order. It replaces each `%include "PATH"` with the items of the document at `PATH`, read in the same way. It resolves `PATH` against the directory of the document that holds the `%include`. It splits the resulting stream of items at each `%stage NAME`. The items after it, up to the next `%stage`, are that stage's, whatever documents they come from. So a `%stage` inside an included document starts a stage like any other, and the items after the `%include` go on in it.
+To splice a pipeline, the loader reads the pipeline document's items (§9) in order. It replaces each `%include "PATH"` with the items of the document at `PATH`, read in the same way. It resolves `PATH` against the directory of the document that holds the `%include`. `%stage NAME` creates and selects a stage. `%extend-stage NAME` selects an earlier stage and appends subsequent stage items to it. `%redefine-stage NAME` selects an earlier stage and clears its accumulated stage items, including earlier extensions. Both selectors preserve the stage's execution position. Stage selection continues across grammar blocks and include boundaries. The includer's next item goes into the stage selected at the end of the include.
+
+Replacement clears rules, constants, classifiers, implications, and the ambiguity policy. It does not clear global `%features` or other stages. Later extensions append to the replacement. The loader reads every source document, including source whose stage items a later replacement discards. Source syntax errors and include errors still fail the load. Only surviving stage definitions undergo grammar validation (§2).
 
 The names of every `%features` of the stream are the features the pipeline turns on. The loader stitches each stage's other items in order (§2). Each of these is an error of the dialect, and the loader reports it at the item named:
 
@@ -1401,6 +1403,7 @@ The names of every `%features` of the stream are the features the pipeline turns
 - An `%include` of a document that is already being included, which is a cycle, is an error at the `%include`. The error names the documents that included it.
 - A rule, an `%ambiguity-resolution`, a constant definition, a classifier or an implication before the first `%stage` is an error.
 - A `%stage` with the name of an earlier one is an error.
+- An `%extend-stage` or `%redefine-stage` that names no earlier stage is an error at that selector.
 - A stage with no rules is an error at its `%stage`.
 - A pipeline with no `%stage` is an error.
 
@@ -1410,7 +1413,7 @@ The first stage reads the character tokens of §1, and each later stage reads th
 
 The result's `ok` is true when every stage run accepted without an error. The result's warnings are those of every stage that ran (§12), in stage order, and they are kept whether or not the result is `ok`.
 
-A dialect's features are the names its guards use in any stage and the names its `%features` declare. The guards counted are those of each stage's rules after stitching (§2), so an alternative that `%redefine-rule` replaced no longer counts. The gates of every classifier's entries count too. The loader counts them before any gate drops an alternative (§3.1), whatever features are on.
+A dialect's features are the names its guards use in any stage and the names its `%features` declare. The guards counted are those of each stage's rules after stitching (§2). Alternatives that `%redefine-rule` replaces and stage items that `%redefine-stage` discards no longer count. The gates of every classifier's entries count too. The loader counts them before any gate drops an alternative (§3.1), whatever features are on.
 
 Each name is a gate, if a guard uses it as `f?` or `¬f?`, or a warning, if a guard uses it as `f!`. A name that one guard uses as a gate and another as a warning is an error of the dialect. The loader finds this error when it loads the dialect. A name that only `%features` declares is a gate. A dialect lists its features, each with its kind and whether `%features` turns it on.
 

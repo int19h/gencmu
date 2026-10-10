@@ -1,0 +1,18 @@
+{
+  "description": "redefine stage clears implications (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text 'a' <X> %emits $\n%implies X ⟹ Y\n%redefine-stage first\n%ambiguity-resolution greedy\n%rule text 'a' <X> %emits $\n%stage second\n%ambiguity-resolution greedy\n%rule text Y\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "stage": "second"
+      }
+    },
+    "error": "rejected"
+  }
+}

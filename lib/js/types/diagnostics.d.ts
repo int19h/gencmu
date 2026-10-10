@@ -88,6 +88,7 @@ export declare function formatItem(production: Production, dot: number): string;
 export type StageAudit = {
     name: string;
     resolution: string;
+    stageChanges: import("./pipeline.js").StageChange[];
     rules: number;
     /**
      * rules no derivation of `text` can reach

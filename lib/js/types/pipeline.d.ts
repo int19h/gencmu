@@ -21,6 +21,13 @@ export type SplicedStage = {
         path: string;
         dom: GrammarDom;
     }[];
+    changes: StageChange[];
+};
+export type StageChange = {
+    kind: "extended" | "replaced";
+    document: string;
+    line: number;
+    column: number;
 };
 /** @import { DomClassifier, DomConstant, DomDirective, DomImplication, DomRule, GrammarDom } from "./types.js" */
 /**
@@ -33,7 +40,8 @@ export type SplicedStage = {
  * One stage of a spliced pipeline: its name, where its %stage stands, and its
  * items as runs of consecutive items of one document, each with a DOM that
  * holds exactly those items.
- * @typedef {{name: string, at: {document: string, line: number, column: number}, documents: {path: string, dom: GrammarDom}[]}} SplicedStage
+ * @typedef {{name: string, at: {document: string, line: number, column: number}, documents: {path: string, dom: GrammarDom}[], changes: StageChange[]}} SplicedStage
+ * @typedef {{kind: "extended" | "replaced", document: string, line: number, column: number}} StageChange
  */
 /**
  * A document's rules, directives, constants, classifiers and implications

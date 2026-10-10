@@ -312,11 +312,11 @@ The link to each included document stays in the prose, so the pipeline reads as 
 
 A link without an `%include` is ordinary prose, so a pipeline can link to CLL or to other dialects freely.
 
-A library reads each document into its DOM on its own, as it reads any grammar. So every document must be complete rules and directives, and its DOM is cached as any other. The library then splices (engine §13). It reads the pipeline's items in order and recursively replaces each `%include` with the included items. It splits the stream at each `%stage`. Every item keeps the document it came from, so errors and the audit still name the document and line that an author wrote.
+A library reads each document into its DOM on its own, as it reads any grammar. So every document must be complete rules and directives, and its DOM is cached as any other. The library then splices (engine §13). It reads the pipeline's items in order and recursively replaces each `%include` with the included items. It assigns the stream's stage items to the active stage selector. Every item keeps the document it came from, so errors and the audit still name the document and line that an author wrote.
 
 The result is what textual inclusion gives. Stitching looks only at the order of a stage's rules, never at the documents that hold them (engine §2). A later rule can redefine or extend an earlier one wherever each was written. Stages run in the order they start, and every stage's start rule is `text`. Paths resolve against the including document, in the same way on disk, in memory and on GitHub.
 
-A document can be included in several stages, and an included document can hold `%stage` and `%features` too. So several pipelines can share a stage by including one document that holds it. A stage cannot be reopened: a second `%stage` of one name is an error. That leaves `%extend-stage` and `%redefine-stage` free if a dialect ever needs them.
+A document can be included in several stages, and an included document can hold `%stage` and `%features` too. So several pipelines can share a stage by including one document that holds it. A second `%stage` of one name is an error. `%extend-stage` selects an earlier stage and appends subsequent items. `%redefine-stage` clears that stage's accumulated items and selects it for replacement. Both keep the stage's original execution position. Selection continues across includes, and replacement leaves global features and other stages intact. The loader evaluates only the final stage definitions, but it still reads every source document.
 
 ## Ambiguity
 

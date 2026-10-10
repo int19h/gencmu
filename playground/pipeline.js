@@ -130,7 +130,8 @@
     all.forEach((token, index) => {
       const next = all[index + 1];
       if (token.kind !== "keyword" || !next) return;
-      if (token.value === "%stage" && next.kind === "name") found.push({ stage: next.value });
+      if (["%stage", "%extend-stage", "%redefine-stage"].includes(token.value) && next.kind === "name")
+        found.push({ stage: next.value, kind: token.value });
       if (token.value === "%include" && next.kind === "string") found.push({ include: next.value });
     });
     return found;
@@ -151,6 +152,8 @@
     };
     const before = [];
     const stages = [];
+    const named = new Map();
+    let selected;
     const reached = new Set([path]);
     // Only the documents being included stop the scan, so that a document
     // included twice is listed twice, with what it includes. They are a
@@ -169,11 +172,18 @@
       const directive = frame.directives[frame.next++];
       count("splice");
       if (directive.stage !== undefined) {
-        stages.push({ name: directive.stage, documents: [] });
+        if (directive.kind === "%stage") {
+          selected = { name: directive.stage, documents: [] };
+          stages.push(selected);
+          named.set(directive.stage, selected);
+        } else {
+          selected = named.get(directive.stage);
+          if (selected && directive.kind === "%redefine-stage") selected.documents = [];
+        }
         continue;
       }
       const target = resolvePath(frame.path, directive.include);
-      (stages.length ? stages[stages.length - 1].documents : before).push(target);
+      (selected ? selected.documents : before).push(target);
       reached.add(target);
       if (including.has(target)) continue;
       including.add(target);

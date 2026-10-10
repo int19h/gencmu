@@ -1,0 +1,23 @@
+{
+  "description": "redefine stage order (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text 'a' <X> %emits $\n%stage second\n%ambiguity-resolution greedy\n%rule text X\n%redefine-stage first\n%ambiguity-resolution greedy\n%rule text 'b' <X> %emits $\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "b",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "first",
+          "verdict": "unique"
+        },
+        {
+          "name": "second",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

@@ -73,6 +73,7 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None]) -> Pipeline:
     features: set[str] = set()
     # The run being built: a path and its DOM.
     run: tuple[str, Dom] | None = None
+    selected: SplicedStage | None = None
     # The documents being spliced, outermost first, each with its items and
     # the index of the next. A chain of includes is as long as its input
     # makes it, so the walk keeps its own stack, not Python's.
@@ -90,7 +91,7 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None]) -> Pipeline:
         return " → ".join([*(frame[0] for frame in frames), target])
 
     def splice() -> None:
-        nonlocal run
+        nonlocal run, selected
         while frames:
             document, dom, items, next_at = frames[-1]
             if next_at[0] == len(items):
@@ -126,10 +127,19 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None]) -> Pipeline:
                         f"{earlier.document}:{earlier.at[0]}:{earlier.at[1]}"
                     )
                 stages.append(SplicedStage(stage_name, document, (line, column)))
-                named[stage_name] = stages[-1]
+                selected = stages[-1]
+                named[stage_name] = selected
+                run = None
+            elif name in ("extend-stage", "redefine-stage"):
+                stage_name = item["args"][0]
+                selected = named.get(stage_name)
+                if selected is None:
+                    raise fail(f"%{name} names an unknown stage {stage_name}")
+                if name == "redefine-stage":
+                    selected.documents.clear()
                 run = None
             else:
-                if not stages:
+                if selected is None:
                     if kind == "rule":
                         what = f"the rule {item['name']}"
                     elif kind == "constant":
@@ -146,7 +156,7 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None]) -> Pipeline:
                     if isinstance(dom, DeferredDom):
                         run_dom = DeferredDom(run_dom, [])
                     run = (document, run_dom)
-                    stages[-1].documents.append(run)
+                    selected.documents.append(run)
                 run[1][_LISTS[kind]].append(item)
                 if kind == "rule" and isinstance(dom, DeferredDom):
                     run[1].deferred_emissions.extend(

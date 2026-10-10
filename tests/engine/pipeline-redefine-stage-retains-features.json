@@ -1,0 +1,25 @@
+{
+  "description": "redefine stage retains features (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%features global\n%stage first\n%ambiguity-resolution greedy\n%classifier lex discarded? \"a\" ∈ A\n%rule text obsolete! 'a'\n%features inside\n%redefine-stage first\n%ambiguity-resolution greedy\n%rule text global? inside? 'a'\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "a",
+  "expect": {
+    "features": [
+      {
+        "name": "global",
+        "kind": "gate",
+        "default": true
+      },
+      {
+        "name": "inside",
+        "kind": "gate",
+        "default": true
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -60,7 +60,7 @@ CAPTURE_NAME = re.compile(r"[a-z][a-z0-9-]*")
 """A capture's name is all lower case (engine §9)."""
 _WHOLE = ""
 """The capture name of ``$``, the whole constituent (engine §3.5)."""
-_DIRECTIVE_NAMES = frozenset(["ambiguity-resolution", "stage", "include", "features"])
+_DIRECTIVE_NAMES = frozenset(["ambiguity-resolution", "stage", "extend-stage", "redefine-stage", "include", "features"])
 """The directives of the notation (engine §9)."""
 _TERMINAL_NAME = re.compile(r"[A-Z][A-Za-z0-9-]*")
 """A reference that names a terminal begins with a capital (engine §2)."""
@@ -374,7 +374,7 @@ def dom_problem(dom: Any, unicode: Lowercase, defer_emission: bool = False) -> s
         # The operands the notation's syntax allows these directives (engine §9).
         name, args = directive["name"], directive["args"]
         if (
-            (name == "stage" and not (len(args) == 1 and _NAME.fullmatch(args[0])))
+            (name in ("stage", "extend-stage", "redefine-stage") and not (len(args) == 1 and _NAME.fullmatch(args[0])))
             or (name == "include" and len(args) != 1)
             or (name == "features" and not (args and all(_NAME.fullmatch(arg) for arg in args)))
         ):
