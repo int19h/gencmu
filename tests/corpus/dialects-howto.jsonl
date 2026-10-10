@@ -1,0 +1,5 @@
+{"id":"howto.cll.sequence","text":"broda .i brode","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda","i","brode"],"brackets":"(broda i brode)"}
+{"id":"howto.kihei.sequence","text":"broda .i brode","dialect":"kihei","expect":"accept","verdict":"unique","words":["broda","i","brode"],"brackets":"(broda i brode)"}
+{"id":"howto.cll.frame-reject","text":"ki'ei ko'a .i broda","dialect":"cll-ebnf","expect":"reject","stage":"syntax","at":0,"words":["ki'ei","ko'a","i","broda"]}
+{"id":"howto.kihei.frame","text":"ki'ei ko'a .i broda","dialect":"kihei","expect":"accept","verdict":"unique","words":["ki'ei","ko'a","i","broda"],"brackets":"([ki'ei ko'a] i broda)"}
+{"id":"howto.kihei.missing-i","text":"ki'ei ko'a broda","dialect":"kihei","expect":"reject","stage":"syntax","at":11,"words":["ki'ei","ko'a","broda"]}

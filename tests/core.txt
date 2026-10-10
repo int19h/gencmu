@@ -3154,3 +3154,8 @@ i131.ranked.zantufa.se-moi
 adhoc.kihei.sa-class
 adhoc.kihei.indicator
 adhoc.kihei.tense
+howto.cll.sequence
+howto.kihei.sequence
+howto.cll.frame-reject
+howto.kihei.frame
+howto.kihei.missing-i
