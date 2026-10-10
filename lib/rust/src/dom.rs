@@ -885,10 +885,10 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
         // (engine §9).
         let args: Vec<&str> = args.unwrap_or(&[]).iter().filter_map(Json::as_str).collect();
         let is_name = |arg: &&str| *arg != "#" && is_rule_name(arg);
-        // The notation has four directives, and `%elidable` is none of them
+        // The notation accepts stage selectors, and `%elidable` is none of them
         // (engine §9).
         let operands_ok = match directive.get("name").and_then(Json::as_str) {
-            Some("stage") => args.len() == 1 && args.iter().all(is_name),
+            Some("stage" | "extend-stage" | "redefine-stage") => args.len() == 1 && args.iter().all(is_name),
             Some("include") => args.len() == 1,
             Some("features") => !args.is_empty() && args.iter().all(is_name),
             Some("ambiguity-resolution") => true,

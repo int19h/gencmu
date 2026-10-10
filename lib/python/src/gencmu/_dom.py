@@ -1203,8 +1203,8 @@ def operand_problem(name: str, kinds: list[str]) -> str | None:
     None (engine §9)."""
     names = all(kind in ("name", "class") for kind in kinds)
 
-    if name == "stage":
-        return None if len(kinds) == 1 and names else "%stage takes one name"
+    if name in ("stage", "extend-stage", "redefine-stage"):
+        return None if len(kinds) == 1 and names else f"%{name} takes one name"
     if name == "include":
         return None if kinds == ["string"] else "%include takes one string"
     if name == "features":

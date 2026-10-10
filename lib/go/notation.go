@@ -1016,9 +1016,9 @@ func operandProblem(name string, kinds []string) string {
 		}
 	}
 	switch name {
-	case "stage":
+	case "stage", "extend-stage", "redefine-stage":
 		if len(kinds) != 1 || !names {
-			return "%stage takes one name"
+			return "%" + name + " takes one name"
 		}
 	case "include":
 		if len(kinds) != 1 || kinds[0] != operandString {

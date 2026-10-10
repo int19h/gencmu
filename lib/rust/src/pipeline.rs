@@ -1,6 +1,6 @@
 //! A pipeline: the items of a pipeline document, with each `%include`
-//! replaced by the items of the document it names, split into stages at
-//! each `%stage` (engine §13).
+//! replaced by the items of the document it names, assigned to the selected
+//! stage (engine §13).
 
 use std::sync::Arc;
 
@@ -126,8 +126,9 @@ struct Splicer<'d> {
     stage_index: FxMap<String, usize>,
     feature_set: FxSet<String>,
     /// Whether the last item placed went into the stage's last run: an
-    /// include or a `%stage` ends a run.
+    /// include or a stage selector ends a run.
     open_run: bool,
+    selected: Option<usize>,
 }
 
 impl Splicer<'_> {
@@ -157,7 +158,7 @@ impl Splicer<'_> {
             let here = |message: String| Error::grammar(message).in_document(path).at(line, column);
             // An error of a document read on the way belongs to the stage
             // being built, if any.
-            let stage_name = self.stages.last().map(|stage| stage.name.clone());
+            let stage_name = self.selected.map(|index| self.stages[index].name.clone());
             let in_stage = |error: Error| match &stage_name {
                 Some(name) => error.in_stage(name),
                 None => error,
@@ -204,6 +205,7 @@ impl Splicer<'_> {
                             earlier.document, earlier.at.0, earlier.at.1
                         )));
                     }
+                    self.selected = Some(self.stages.len());
                     self.stage_index.insert(name.clone(), self.stages.len());
                     self.stages.push(SplicedStage {
                         name,
@@ -213,8 +215,20 @@ impl Splicer<'_> {
                     });
                     self.open_run = false;
                 }
+                Item::Directive(directive) if matches!(directive.name.as_str(), "extend-stage" | "redefine-stage") => {
+                    let name = directive.args.first().cloned().unwrap_or_default();
+                    work::count(Work::Spliced, 1);
+                    let Some(&index) = self.stage_index.get(&name) else {
+                        return Err(here(format!("%{} names an unknown stage {name}", directive.name)));
+                    };
+                    self.selected = Some(index);
+                    if directive.name == "redefine-stage" {
+                        self.stages[index].documents.clear();
+                    }
+                    self.open_run = false;
+                }
                 _ => {
-                    let Some(stage) = self.stages.last_mut() else {
+                    let Some(stage) = self.selected.map(|index| &mut self.stages[index]) else {
                         let what = match item {
                             Item::Rule(rule) => format!("the rule {}", rule.name),
                             Item::Constant(constant) => format!("the constant ${}", constant.name),
@@ -257,6 +271,7 @@ pub(crate) fn splice(path: &str, documents: &mut dyn Documents) -> Result<Splice
         stage_index: FxMap::default(),
         feature_set: FxSet::default(),
         open_run: false,
+        selected: None,
     };
     splicer.splice(Arc::from(path), top)?;
     let Splicer { stages, mut features, .. } = splicer;

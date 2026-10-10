@@ -269,11 +269,11 @@ func implicationSideFault(side *domTerm, ct constTypes) *typeFault {
 
 // directiveOperandsOK checks a directive's name, one of the notation's four
 // directives, and the operands the notation's syntax allows the pipeline
-// directives (engine §9): %stage one name, %include one string and
+// directives (engine §9): stage selectors take one name, %include one string and
 // %features one or more names. %elidable is no directive.
 func directiveOperandsOK(dir *domDirective) bool {
 	switch dir.Name {
-	case "stage":
+	case "stage", "extend-stage", "redefine-stage":
 		return len(dir.Args) == 1 && domName.MatchString(dir.Args[0])
 	case "include":
 		return len(dir.Args) == 1

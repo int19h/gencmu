@@ -2202,7 +2202,7 @@ enum Operand {
 fn operand_problem(name: &str, kinds: &[Operand]) -> Option<String> {
     let names = kinds.iter().all(|kind| matches!(kind, Operand::Name | Operand::Class));
     let (ok, problem) = match name {
-        "stage" => (kinds.len() == 1 && names, "%stage takes one name".to_string()),
+        "stage" | "extend-stage" | "redefine-stage" => (kinds.len() == 1 && names, format!("%{name} takes one name")),
         "include" => (kinds == [Operand::String], "%include takes one string".to_string()),
         "features" => (!kinds.is_empty() && names, "%features takes one or more names".to_string()),
         _ => (names, format!("%{name} takes names only")),

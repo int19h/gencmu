@@ -4770,3 +4770,6 @@
 {"id":"adhoc.prose.syntax-zantufa.pin-14","text":"le rance","dialect":"zantufa","expect":"accept","verdict":"unique","words":["le","rance"],"brackets":"(le rance)"}
 {"id":"adhoc.prose.dialects-experimental.pin-1","text":".e ba ke","dialect":"experimental","expect":"reject","stage":"syntax","at":6,"words":["e","ba","ke"]}
 {"id":"adhoc.prose.dialects-experimental.pin-2","text":"le dakli .e ba ke bevri ke'e ku","dialect":"experimental","expect":"reject","stage":"syntax","at":18,"words":["le","dakli","e","ba","ke","bevri","ke'e","ku"]}
+{"id":"adhoc.kihei.sa-class","text":"broda .i ki'ei ko'a sa ki'ei ko'e .i brode","dialect":"kihei","expect":"accept","verdict":"unique","words":["broda","i","ki'ei","ko'e","i","brode"],"brackets":"([broda i] [{ki'ei ko'e} i brode])"}
+{"id":"adhoc.kihei.indicator","text":"ki'ei ui ko'a .i broda","dialect":"kihei","expect":"accept","verdict":"unique","words":["ki'ei","ui","ko'a","i","broda"],"brackets":"([{ki'ei ui} ko'a] i broda)"}
+{"id":"adhoc.kihei.tense","text":"ki'ei pu ku .i broda","dialect":"kihei","expect":"accept","verdict":"unique","words":["ki'ei","pu","ku","i","broda"],"brackets":"([ki'ei {pu ku}] i broda)"}

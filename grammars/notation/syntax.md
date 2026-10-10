@@ -40,6 +40,7 @@ A grammar text is a sequence of rules, directives, constant definitions, classif
 
 %rule directive-name
   | ~keyword-ambiguity-resolution | ~keyword-stage
+  | ~keyword-extend-stage | ~keyword-redefine-stage
   | ~keyword-include | ~keyword-features
 
 %rule argument-word

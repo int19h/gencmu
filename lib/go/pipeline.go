@@ -6,7 +6,7 @@ import (
 )
 
 // A pipeline: the items of a pipeline document, with each %include replaced
-// by the items of the document it names, split into stages at each %stage
+// by the items of the document it names, assigned to the selected stage
 // (engine §13).
 
 // docItem is an item of a document: a rule, a directive, a constant's
@@ -83,12 +83,7 @@ func splicePipeline(pipelinePath string, domOf func(p string) (*domDoc, *Error))
 	// The run being built: its DOM and its document.
 	var run *domDoc
 	runPath := ""
-	current := func() *splicedStage {
-		if len(p.stages) == 0 {
-			return nil
-		}
-		return p.stages[len(p.stages)-1]
-	}
+	var selected *splicedStage
 
 	// The documents being spliced, outermost first, each with its items and
 	// the next one to splice, and the same paths as a set. An explicit stack
@@ -144,7 +139,7 @@ func splicePipeline(pipelinePath string, domOf func(p string) (*domDoc, *Error))
 				}
 				included, err := domOf(target)
 				if err != nil {
-					if s := current(); s != nil && err.Stage == "" {
+					if s := selected; s != nil && err.Stage == "" {
 						err.Stage = s.name
 					}
 					return err
@@ -170,10 +165,24 @@ func splicePipeline(pipelinePath string, domOf func(p string) (*domDoc, *Error))
 					return grammarError(docPath, at, "a second stage named %s; the first is at %s:%d:%d", name, s.doc, s.at[0], s.at[1])
 				}
 				stageNamed[name] = &splicedStage{name: name, doc: docPath, at: at}
-				p.stages = append(p.stages, stageNamed[name])
+				selected = stageNamed[name]
+				p.stages = append(p.stages, selected)
+				run = nil
+			case item.dir != nil && (item.dir.Name == "extend-stage" || item.dir.Name == "redefine-stage"):
+				name := item.dir.Args[0]
+				if w := work.Load(); w != nil {
+					w.spliceSteps.add("splice steps")
+				}
+				selected = stageNamed[name]
+				if selected == nil {
+					return grammarError(docPath, at, "%%%s names an unknown stage %s", item.dir.Name, name)
+				}
+				if item.dir.Name == "redefine-stage" {
+					selected.documents = nil
+				}
 				run = nil
 			default:
-				s := current()
+				s := selected
 				if s == nil {
 					if item.rule != nil {
 						return grammarError(docPath, at, "the rule %s stands before the first %%stage", item.rule.Name)

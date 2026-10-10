@@ -1,0 +1,12 @@
+{
+  "description": "redefine stage source syntax error (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%include \"bad.md\"\n%redefine-stage first\n%ambiguity-resolution greedy\n%rule text 'a'\n```\n",
+    "bad.md": "```jbogenbau\n%rule text (\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

@@ -3178,3 +3178,6 @@ adhoc.prose.syntax-zantufa.pin-13
 adhoc.prose.syntax-zantufa.pin-14
 adhoc.prose.dialects-experimental.pin-1
 adhoc.prose.dialects-experimental.pin-2
+adhoc.kihei.sa-class
+adhoc.kihei.indicator
+adhoc.kihei.tense

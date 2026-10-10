@@ -1,0 +1,19 @@
+{
+  "description": "extend stage include selection (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text 'a' <X> %emits $\n%stage second\n%ambiguity-resolution greedy\n%rule text X\n%extend-stage first\n%include \"patch.md\"\n%redefine-rule text X X\n```\n",
+    "patch.md": "```jbogenbau\n%extend-rule text 'b' <X> %emits $\n%extend-stage second\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "b",
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "stage": "second"
+      }
+    },
+    "error": "rejected"
+  }
+}
