@@ -79,6 +79,15 @@ export function cllFootnoteProblems(markdown, file, index = pinned) {
   // Other claims still need a reader to compare the clause and source.
   const definitions = new Map(nodes.filter(({ node }) => node.type === "footnoteDefinition")
     .map(({ node }) => [node.identifier, node]));
+  const references = new Set(nodes.filter(({ node }) => node.type === "footnoteReference")
+    .map(({ node }) => node.identifier));
+  for (const [identifier, definition] of definitions) {
+    const hasCllLink = [...walk(definition)].some(({ node }) => node.type === "link"
+      && (isCll(node.url) || /^CLL\s/.test(text(node))));
+    if (hasCllLink && !references.has(identifier)) {
+      problems.push(`${file}:${definition.position.start.line}: CLL footnote: unreferenced definition [^${identifier}] does not render on GitHub`);
+    }
+  }
   const claims = Object.values(index.pages).flatMap((page) => page.supports || []);
   for (const { node, ancestors } of nodes) {
     if (node.type !== "paragraph" || ancestors.some((parent) => parent.type === "footnoteDefinition")) continue;
