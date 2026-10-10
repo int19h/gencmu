@@ -62,7 +62,7 @@ terms zo'u # grammars/syntax/cll.md # notation: a rule name before the cmavo
 .i ja nai # grammars/syntax/cll.md # a connective between sentences
 .i joi # grammars/syntax/cll.md # a connective between sentences
 .i bo # grammars/syntax/cll.md @ "groups to the right" @ "This restriction also applies" # a part of the pinned text quoted after it on its line
-gi'e ke # grammars/syntax/cll.md @ "in all of these but the free modifier" @ "GIhEK_KE" # the words of one token of the official parser's lexer
+gi'e ke # grammars/syntax/cll.md @ "The official lexer makes" @ "GIhEK_KE" # the words of one token of the official parser's lexer
 joi ke # grammars/syntax/cll.md @ "the two parses compete" @ "The official lexer makes" # the words of one token of the official parser's lexer
 ca lo nu broda # grammars/syntax/cll.md # the shape of a tense with its sumti
 fi mi # grammars/syntax/cll.md # the shape of a place marker with its sumti
@@ -101,13 +101,13 @@ ia ie ii io iu ua ue ui uo uu # grammars/words/shapes.md # notation: the rising 
 
 zu'a nu'i la djordj. la'u lo mitre be li mu # grammars/syntax/cll.md = term adhoc.syntax.tag-termset.1.cll-ebnf adhoc.syntax.tag-termset.9.bpfk
 zu'a nu'i la'u lo mitre be li mu # grammars/syntax/cll.md = term adhoc.syntax.tag-termset.2.cll-ebnf adhoc.syntax.tag-termset.10.bpfk
-tag termset # grammars/syntax/cll.md @ "repairs printed rule 83" @ "lets a tense or modal govern" # These are names of grammar rules in an alternative, not Lojban words.
+tag termset # grammars/syntax/cll.md @ "govern the whole termset" @ "In `term`" # These are names of grammar rules in an alternative, not Lojban words.
 gi'a brodi # grammars/syntax/cll.md @ "keeps plain `gi'e` inside" = words adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti.bpfk
 pu ku # grammars/syntax/cll.md @ "The official parser needs written" = term adhoc.syntax.gek-term.3.cll-ebnf adhoc.syntax.gek-term.4.bpfk
-na'e ke # grammars/syntax/cll.md @ "Example 15.55" = words adhoc.syntax.negation-scope.2.cll-ebnf adhoc.syntax.negation-scope.4.bpfk
+na'e ke # grammars/syntax/cll.md @ "prints `nake`" = words adhoc.syntax.negation-scope.2.cll-ebnf adhoc.syntax.negation-scope.4.bpfk
 nu'u fa'u # grammars/syntax/cll.md @ "cannot join its halves" = words adhoc.syntax.errata.5.cll-ebnf adhoc.syntax.errata.6.bpfk
 pe'e fa'u # grammars/syntax/cll.md @ "The errata page instead proposes" # The words of the wiki's alternative correction, rather than a complete text.
-ractu du # grammars/syntax/cll.md @ "Example 18.126" = words corpus.camxes.1112 adhoc.syntax.errata-controls.19.bpfk
+ractu du # grammars/syntax/cll.md @ "omits CU before `du`" = words corpus.camxes.1112 adhoc.syntax.errata-controls.19.bpfk
 kanla viska # grammars/syntax/cll.md @ "remains the modal selbri" = words adhoc.syntax.elision-unforced.3.cll-ebnf adhoc.syntax.elision-unforced.4.bpfk
 pu ca gi # grammars/syntax/cll.md @ "forms one connective" = gek adhoc.syntax.tag-stag-gek.sumti-time-time adhoc.syntax.tag-stag-gek.sumti-time-time.bpfk
 ca gi # grammars/syntax/cll.md @ "forms one connective" = gek adhoc.syntax.leftmost-longest.sumti-time-space-time adhoc.syntax.leftmost-longest.sumti-time-space-time.bpfk
