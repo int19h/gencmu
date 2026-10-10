@@ -4754,3 +4754,17 @@
 {"id":"adhoc.prose.syntax-experimental.pin-9","text":"pa so","dialect":"experimental","expect":"accept","verdict":"unique","words":["pa","so"],"brackets":"(pa so)"}
 {"id":"adhoc.prose.words-zantufa.pin-1","text":"ra'oi .y. broda","dialect":"zantufa","expect":"accept","verdict":"unique","words":["ra'oi","broda"],"brackets":"(ra'oi broda)"}
 {"id":"adhoc.prose.words-zantufa-stream.pin-1","text":"mi cuyy klama","dialect":"zantufa","expect":"reject","stage":"syntax","at":5,"words":["mi","cu","yy","klama"]}
+{"id":"adhoc.prose.syntax-zantufa.pin-1","text":"cy roi","dialect":"zantufa","expect":"accept","verdict":"unique","words":["cy","roi"],"brackets":"(cy roi)"}
+{"id":"adhoc.prose.syntax-zantufa.pin-2","text":"ba mi .e do klama","dialect":"zantufa","expect":"accept","verdict":"resolved","words":["ba","mi","e","do","klama"],"brackets":"([ba {mi e do}] klama)"}
+{"id":"adhoc.prose.syntax-zantufa.pin-3","text":"li re su'i ni'u pa","dialect":"zantufa","expect":"accept","verdict":"unique","words":["li","re","su'i","ni'u","pa"],"brackets":"(li [re {(su'i ni'u) pa}])"}
+{"id":"adhoc.prose.syntax-zantufa.pin-4","text":"xy boi xi by boi xi vo","dialect":"zantufa","expect":"accept","verdict":"unique","words":["xy","boi","xi","by","boi","xi","vo"],"brackets":"(xy boi [xi {by boi (xi vo)}])"}
+{"id":"adhoc.prose.syntax-zantufa.pin-5","text":"ui .e re mai","dialect":"zantufa","expect":"accept","verdict":"unique","words":["ui","e","re","mai"],"brackets":"(ui [{e re} mai])"}
+{"id":"adhoc.prose.syntax-zantufa.pin-6","text":"coi poi broda klama","dialect":"zantufa","expect":"accept","verdict":"resolved","words":["coi","poi","broda","klama"],"brackets":"(coi [poi broda] klama)"}
+{"id":"adhoc.prose.syntax-zantufa.pin-7","text":"doi poi broda djan.","dialect":"zantufa","expect":"accept","verdict":"resolved","words":["doi","poi","broda","djan"],"brackets":"(doi [poi broda] djan)"}
+{"id":"adhoc.prose.syntax-zantufa.pin-8","text":"li fu'a pa su'i re pi'i","dialect":"zantufa","expect":"accept","verdict":"resolved","words":["li","fu'a","pa","su'i","re","pi'i"],"brackets":"(li [fu'a pa su'i re pi'i])"}
+{"id":"adhoc.prose.syntax-zantufa.pin-9","text":"ny my","dialect":"zantufa","expect":"accept","verdict":"resolved","words":["ny","my"],"brackets":"(ny my)"}
+{"id":"adhoc.prose.syntax-zantufa.pin-10","text":"go'oi ra'oi broda","dialect":"zantufa","expect":"reject","stage":"words","at":12}
+{"id":"adhoc.prose.syntax-zantufa.pin-11","text":"lo'ai ra'oi broda le'ai","dialect":"zantufa","expect":"reject","stage":"words","at":12}
+{"id":"adhoc.prose.syntax-zantufa.pin-12","text":"zoi ra'oi x ra'oi broda","dialect":"zantufa","expect":"reject","stage":"words","at":23}
+{"id":"adhoc.prose.syntax-zantufa.pin-13","text":"zoi su mi","dialect":"zantufa","expect":"reject","stage":"words","at":9}
+{"id":"adhoc.prose.syntax-zantufa.pin-14","text":"le rance","dialect":"zantufa","expect":"accept","verdict":"unique","words":["le","rance"],"brackets":"(le rance)"}

@@ -3162,3 +3162,17 @@ adhoc.prose.syntax-experimental.pin-8
 adhoc.prose.syntax-experimental.pin-9
 adhoc.prose.words-zantufa.pin-1
 adhoc.prose.words-zantufa-stream.pin-1
+adhoc.prose.syntax-zantufa.pin-1
+adhoc.prose.syntax-zantufa.pin-2
+adhoc.prose.syntax-zantufa.pin-3
+adhoc.prose.syntax-zantufa.pin-4
+adhoc.prose.syntax-zantufa.pin-5
+adhoc.prose.syntax-zantufa.pin-6
+adhoc.prose.syntax-zantufa.pin-7
+adhoc.prose.syntax-zantufa.pin-8
+adhoc.prose.syntax-zantufa.pin-9
+adhoc.prose.syntax-zantufa.pin-10
+adhoc.prose.syntax-zantufa.pin-11
+adhoc.prose.syntax-zantufa.pin-12
+adhoc.prose.syntax-zantufa.pin-13
+adhoc.prose.syntax-zantufa.pin-14
