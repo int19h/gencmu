@@ -37,6 +37,7 @@ export const CHECKED_DIALECTS = ["cll-ebnf", "bpfk"];
  * @type {Record<string, string>}
  */
 export const UNCHECKED = {
+  "grammars/dialects/kihei.md": "the kihei example uses dedicated syntax tests instead of the CLL prose corpus",
   "grammars/dialects/experimental.md": "the experimental dialect: its texts are not pinned yet",
   "grammars/dialects/zantufa.md": "the Zantufa dialect: its texts are not pinned yet",
   "grammars/dialects/notation.md": "the notation dialect reads jbogenbau, not Lojban",
