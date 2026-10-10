@@ -1,6 +1,6 @@
 # zbalermorna
 
-This document adds the zbalermorna script to the phoneme stage of the dialects of the [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). Lojbanists made the script after CLL (*The Complete Lojban Language*). CLL 1.1 section 3.12 describes an orthography in Tolkien's Tengwar, which is a different script, so the [CLL](../dialects/cll-ebnf.md) dialect does not read this one. The stage reads the script as the code points of the private-use block that its fonts assign it.
+This document adds the zbalermorna script to the phoneme stage of the dialects of the [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The [CLL](../dialects/cll-ebnf.md) dialect omits this script. The stage reads the script as the code points of the private-use block that its fonts assign it.
 
 The phoneme stage is the first stage of the pipeline. The document adds alternatives to the rules of [latin-strict.md](latin-strict.md) and [latin.md](latin.md) with `%extend-rule`. It defines no frame of its own. It uses the shared text, pause and run rules. [The notation document](../../docs/notation.md) explains the notation.
 
@@ -14,7 +14,7 @@ A diacritic is a mark on another symbol. Each zbalermorna symbol is a radical, a
 
 The code points are those of the private-use block of the font. This document writes each code point as an escape, so that a reader can read the rule without the font.
 
-The first rules below read the consonant radicals. U+ED89 is the radical for the period, and U+ED8A is the apostrophe. U+ED9A is the comma. U+ED8C, U+ED99 and U+ED9B are marks that jbotci, another Lojban parser, reads as nothing. This document reads them as a comma.
+The first rules below read the consonant radicals. U+ED89 is the radical for the period, and U+ED8A is the apostrophe. U+ED9A is the comma. U+ED8C, U+ED99 and U+ED9B also map to a comma.
 
 ```jbogenbau
 %extend-rule consonant
@@ -190,3 +190,11 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 <p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-shorthand-vowel.svg" alt="Railroad diagram of the rule zbalermorna-shorthand-vowel"></p>
 <p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-shorthand-mark.svg" alt="Railroad diagram of the rule zbalermorna-shorthand-mark"></p>
 </details>
+
+## Differences from CLL and jbotci
+
+Lojbanists made zbalermorna after *The Complete Lojban Language* (CLL). The book describes Tolkien's Tengwar, a different script.[^cll-s3-12] The CLL dialect therefore omits zbalermorna.
+
+jbotci, another Lojban parser, ignores U+ED8C, U+ED99 and U+ED9B. This document treats them as commas.
+
+[^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).
