@@ -1,100 +1,58 @@
 # The kihei dialect
 
-This dialect adds `ki'ei` to the CLL dialect. A dialect is a sequence of parsing stages. A stage reads the output of the previous stage.
+This dialect adds `ki'ei` phrases to CLL. A frame is a context for subsequent utterances. The proposed meaning sets the world in which those utterances hold as true.
 
-The example keeps the CLL documents and adds two documents. A layer is a document that changes earlier definitions. The [word layer](../words/kihei.md) gives the new word its class. The [syntax layer](../syntax/kihei.md) adds phrases that set a frame for several utterances.
+The dialect includes CLL and then adds its rules to the syntax stage. The include leaves that stage active. The CLL documents explain the inherited rules and parsing policy.
 
-The first stage reads letters as phonemes, the sounds of words. The `cll-cyrillic` feature enables the Cyrillic spelling that CLL describes. A feature is a named switch in a grammar.
+- [The CLL dialect](cll-ebnf.md)
+  ```jbogenbau
+  %include "cll-ebnf.md"
+  ```
+
+A payload is the material after a marker. The payload after `ki'ei` accepts any number of CLL terms, including zero. For example, `ki'ei ko'a .i broda` supplies an argument, and `ki'ei pu zu ku .i broda` supplies a tense. The empty form `ki'ei .i broda` supplies no terms.
+
+The CLL word stages already accept the word form of `ki'ei`. The new lexicon contains only this particle. The syntax stage uses it directly, so the dialect needs no change to an earlier stage.
 
 ```jbogenbau
-%features cll-cyrillic
-%stage phonemes
+%classifier lexicon
+  "ki'ei" ∈ KIhEI
 ```
 
-- [CLL Latin spelling](../phonemes/latin-strict.md)
-  ```jbogenbau
-  %include "../phonemes/latin-strict.md"
-  ```
+The marker rule reads one particle and asks the lexicon for its class. `phonemes($word)` gives its canonical sound, without stress marks. The condition admits only the new class, `KIhEI`.
 
-- [CLL Cyrillic spelling](../phonemes/cyrillic-cll.md)
-  ```jbogenbau
-  %include "../phonemes/cyrillic-cll.md"
-  ```
-
-The forms stage divides those sounds into words. A lexicon gives each word its classes. The new word layer follows the CLL lexicon so that both contribute to the same classifier.
+The replacement paragraph rule accepts an initial sequence of utterances and subsequent groups with frames. It also accepts groups with frames at the start of a paragraph. Each group contains its frame and the subsequent `.i` sequence.
 
 ```jbogenbau
-%stage forms
+%redefine-rule paragraph
+  utterance-sequence [{frame-group}] | {frame-group}
+
+%rule utterance-sequence
+  (statement | fragment) [{I # [statement | fragment]}]
+
+%rule frame-group
+  frame [I # [utterance-sequence]]
+
+%rule frame
+  frame-marker # [terms]
+
+%rule frame-marker
+  $word(~cmavo) <KIhEI>
+%conditions
+  KIhEI ⊆ classify(phonemes($word), lexicon)
 ```
 
-- [Word division](../words/forms.md)
-  ```jbogenbau
-  %include "../words/forms.md"
-  ```
+<details><summary>Railroad diagrams of the 5 rules from <code>paragraph</code> to <code>frame-marker</code></summary>
+<p><img src="../../docs/diagrams/dialects/kihei/paragraph.svg" alt="Railroad diagram of the rule paragraph"></p>
+<p><img src="../../docs/diagrams/dialects/kihei/utterance-sequence.svg" alt="Railroad diagram of the rule utterance-sequence"></p>
+<p><img src="../../docs/diagrams/dialects/kihei/frame-group.svg" alt="Railroad diagram of the rule frame-group"></p>
+<p><img src="../../docs/diagrams/dialects/kihei/frame.svg" alt="Railroad diagram of the rule frame"></p>
+<p><img src="../../docs/diagrams/dialects/kihei/frame-marker.svg" alt="Railroad diagram of the rule frame-marker"></p>
+</details>
 
-- [Word shapes](../words/shapes.md)
-  ```jbogenbau
-  %include "../words/shapes.md"
-  ```
+In `ki'ei ko'a .i broda .i brode ki'ei ko'e .i brodi`, the first group contains two utterances. The second group contains one. An earlier utterance can precede the first group, as in `broda ki'ei ko'a .i brode`.
 
-- [CLL word forms](../words/cll.md)
-  ```jbogenbau
-  %include "../words/cll.md"
-  ```
+The terms end at `.i`, another `ki'ei`, `ni'o`, or the enclosing text boundary. The grammar requires `.i` before an utterance after a frame. It accepts a frame without subsequent utterances, as in `ki'ei ko'a`. It also accepts consecutive frames, as in `ki'ei ko'a ki'ei ko'e .i broda`.
 
-- [CLL lexicon](../words/lexicon-cll.md)
-  ```jbogenbau
-  %include "../words/lexicon-cll.md"
-  ```
+The CLL rules place `ni'o` outside each paragraph. This dialect places each frame above the `.i` sequence inside that paragraph. The grammar records these boundaries without deciding how an interpreter carries context across them.
 
-- [The new word layer](../words/kihei.md)
-  ```jbogenbau
-  %include "../words/kihei.md"
-  ```
-
-The words stage applies quotes, compounds, and erasers. The indicators stage attaches attitude words to their hosts. Both stages use the CLL documents.
-
-```jbogenbau
-%stage words
-```
-
-- [The word stream](../words/stream.md)
-  ```jbogenbau
-  %include "../words/stream.md"
-  ```
-
-- [The CLL word stream](../words/cll-stream.md)
-  ```jbogenbau
-  %include "../words/cll-stream.md"
-  ```
-
-```jbogenbau
-%stage indicators
-```
-
-- [CLL indicators](../indicators/cll.md)
-  ```jbogenbau
-  %include "../indicators/cll.md"
-  ```
-
-The syntax stage reads the structure of the text. The new layer follows the CLL grammar so that it can replace the paragraph rule. Every other CLL rule keeps its definition.
-
-```jbogenbau
-%stage syntax
-```
-
-- [CLL grammar](../syntax/cll.md)
-  ```jbogenbau
-  %include "../syntax/cll.md"
-  ```
-
-- [The new syntax layer](../syntax/kihei.md)
-  ```jbogenbau
-  %include "../syntax/kihei.md"
-  ```
-
-```jbogenbau
-%ambiguity-resolution late-elision elision-only
-```
-
-The dialect keeps the CLL policy for omitted closing words. `late-elision` prefers a reading that omits a closing word later. `elision-only` rejects remaining ambiguity after the parser restores the chosen closing words. The [CLL dialect](cll-ebnf.md) explains that policy.
+This example accepts terms as payloads. It rejects a full predicate payload, such as `ki'ei ce'u purci ce'u .i broda`. It adds no pronoun for the selected world.
